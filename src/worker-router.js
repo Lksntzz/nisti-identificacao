@@ -119,7 +119,7 @@ function parseJsonScripts(html) {
 }
 
 function shopeeImageSource(value, depth = 0) {
-  if (!value || depth > 5) return null;
+  if (!value || depth > 6) return null;
 
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -134,9 +134,16 @@ function shopeeImageSource(value, depth = 0) {
       value.image,
       value.image_id,
       value.imageId,
-      value.url,
       value.image_url,
       value.imageUrl,
+      value.image_list,
+      value.imageList,
+      value.images,
+      value.image_info,
+      value.imageInfo,
+      value.display_image,
+      value.displayImage,
+      value.url,
       value.filename,
       value.file
     ];
@@ -167,6 +174,20 @@ function shopeeImageSource(value, depth = 0) {
     return `https://down-br.img.susercontent.com/file/${text}`;
   }
 
+  return null;
+}
+
+function extractShopeeMetaImage(html) {
+  const tags = String(html || '').match(/<meta\b[^>]*>/gi) || [];
+  for (const key of ['og:image', 'og:image:secure_url', 'twitter:image', 'twitter:image:src']) {
+    for (const tag of tags) {
+      const property = tag.match(/\b(?:property|name)\s*=\s*["']([^"']+)["']/i)?.[1];
+      if (String(property || '').toLowerCase() !== key) continue;
+      const content = tag.match(/\bcontent\s*=\s*["']([^"']+)["']/i)?.[1];
+      const source = shopeeImageSource(content);
+      if (source) return source;
+    }
+  }
   return null;
 }
 
@@ -209,11 +230,39 @@ function tierImageAt(tier, optionIndex) {
   return null;
 }
 
-function buildShopeeVariations(node) {
+function isSingleShopeeChoice(node) {
+  const models = Array.isArray(node?.models) ? node.models : [];
+  const tiers = Array.isArray(node?.tier_variations) ? node.tier_variations : [];
+  if (models.length !== 1) return false;
+  if (!tiers.length) return true;
+  return tiers.every(tier => (Array.isArray(tier?.options) ? tier.options.length : 0) <= 1);
+}
+
+function nodeMainImage(node) {
+  return shopeeImageSource([
+    node?.image,
+    node?.image_id,
+    node?.imageId,
+    node?.image_url,
+    node?.imageUrl,
+    node?.image_list,
+    node?.imageList,
+    node?.images,
+    node?.image_info,
+    node?.imageInfo,
+    node?.item_basic?.image,
+    node?.item_basic?.image_list,
+    node?.item_basic?.images
+  ]);
+}
+
+function buildShopeeVariations(node, singleFallbackImage = null) {
   const models = Array.isArray(node?.models) ? node.models : [];
   const tiers = Array.isArray(node?.tier_variations) ? node.tier_variations : [];
   const variations = [];
   const seen = new Set();
+  const singleChoice = isSingleShopeeChoice(node);
+  const mainImage = singleChoice ? (nodeMainImage(node) || singleFallbackImage) : null;
 
   for (let index = 0; index < models.length; index++) {
     const model = models[index] || {};
@@ -240,7 +289,7 @@ function buildShopeeVariations(node) {
     const name = modelName || labels.join(' / ') || `Variação ${index + 1}`;
     const source = shopeeImageSource(
       model.image || model.image_id || model.imageId || model.image_url || model.imageUrl
-    ) || optionImage;
+    ) || optionImage || mainImage;
 
     if (!source) continue;
     const key = String(model.modelid || model.model_id || model.id || `${index}-${name}`);
@@ -253,7 +302,8 @@ function buildShopeeVariations(node) {
       name,
       labels: labels.length ? labels : [name],
       image_source_url: source,
-      image_url: proxyImage(source)
+      image_url: proxyImage(source),
+      image_source: optionImage ? 'variation' : (mainImage ? 'listing-main-single-choice' : 'model')
     });
   }
 
@@ -264,7 +314,7 @@ function buildShopeeVariations(node) {
       for (let optionIndex = 0; optionIndex < options.length; optionIndex++) {
         const option = options[optionIndex] || {};
         const name = cleanText(option.name || option.value || option.label) || `Variação ${optionIndex + 1}`;
-        const source = tierImageAt(tier, optionIndex);
+        const source = tierImageAt(tier, optionIndex) || (singleChoice ? mainImage : null);
         if (!source) continue;
         const dedupe = `${name.toUpperCase()}|${source}`;
         if (seen.has(dedupe)) continue;
@@ -274,7 +324,8 @@ function buildShopeeVariations(node) {
           name,
           labels: [name],
           image_source_url: source,
-          image_url: proxyImage(source)
+          image_url: proxyImage(source),
+          image_source: tierImageAt(tier, optionIndex) ? 'variation' : 'listing-main-single-choice'
         });
       }
     }
@@ -298,6 +349,20 @@ function variationDiagnostics(node) {
   };
 }
 
+async function fetchShopeePage(target, headers) {
+  const response = await fetch(target.toString(), {
+    redirect: 'follow',
+    headers: {
+      'user-agent': headers['user-agent'],
+      'accept-language': headers['accept-language']
+    }
+  });
+  if (!response.ok) throw new Error(`Shopee não pôde ser aberta (${response.status})`);
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('text/html')) throw new Error('Shopee não retornou uma página HTML válida');
+  return response.text();
+}
+
 async function analyzeShopeeListing(listingUrl) {
   const { target, shopId, itemId } = parseShopeeProductUrl(listingUrl);
   const headers = {
@@ -311,6 +376,7 @@ async function analyzeShopeeListing(listingUrl) {
   let node = null;
   let source = null;
   let apiStatus = null;
+  let pageHtml = null;
 
   try {
     const endpoint = `https://shopee.com.br/api/v4/pdp/get_pc?item_id=${encodeURIComponent(itemId)}&shop_id=${encodeURIComponent(shopId)}`;
@@ -326,17 +392,8 @@ async function analyzeShopeeListing(listingUrl) {
   }
 
   if (!node) {
-    const response = await fetch(target.toString(), {
-      redirect: 'follow',
-      headers: {
-        'user-agent': headers['user-agent'],
-        'accept-language': headers['accept-language']
-      }
-    });
-    if (!response.ok) throw new Error(`Shopee não pôde ser aberta (${response.status})`);
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('text/html')) throw new Error('Shopee não retornou uma página HTML válida');
-    node = parseJsonScripts(await response.text());
+    pageHtml = await fetchShopeePage(target, headers);
+    node = parseJsonScripts(pageHtml);
     if (node) source = 'page-json';
   }
 
@@ -345,7 +402,15 @@ async function analyzeShopeeListing(listingUrl) {
     throw new Error(`A Shopee abriu, mas não expôs os dados estruturados das variações neste anúncio.${detail}`);
   }
 
-  const variations = buildShopeeVariations(node);
+  let variations = buildShopeeVariations(node);
+
+  if (!variations.length && isSingleShopeeChoice(node)) {
+    if (!pageHtml) pageHtml = await fetchShopeePage(target, headers);
+    const mainImage = extractShopeeMetaImage(pageHtml);
+    variations = buildShopeeVariations(node, mainImage);
+    if (variations.length && mainImage) source = `${source || 'shopee'}+main-image`;
+  }
+
   if (!variations.length) {
     const diag = variationDiagnostics(node);
     throw new Error(
