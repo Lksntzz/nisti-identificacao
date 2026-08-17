@@ -11,27 +11,36 @@ function base64(bytes) {
   return btoa(binary);
 }
 
-async function productWithPlatform(env, id) {
-  return env.DB.prepare(`SELECT p.*, pp.platform, pp.link FROM products p LEFT JOIN product_platforms pp ON pp.product_id=p.id WHERE p.id=? LIMIT 1`).bind(id).first();
-}
-
-async function identifyWithGemini(env, uploadedFile) {
+async function identifyCoverWithGemini(env, uploadedFile) {
   if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
-  const { results } = await env.DB.prepare(`SELECT id, sku, capa_code, wireo_code, tassel_code, elastico_code, image_key FROM products WHERE image_key IS NOT NULL ORDER BY id DESC LIMIT 12`).all();
-  if (!results?.length) throw new Error('Cadastre produtos com imagem antes de identificar');
 
-  const parts = [{ text: `Você é o identificador visual interno da NISTI PRINT. Compare a FOTO DO PRODUTO com as IMAGENS DE REFERÊNCIA abaixo. Escolha somente um SKU da lista se houver correspondência visual forte. Observe principalmente arte/capa, Wire-O, tassel e elástico. Nomes personalizados impressos na capa podem variar e devem ser ignorados. Se não houver correspondência segura, use matched=false e sku="".` }];
+  const { results } = await env.DB.prepare(`
+    SELECT p.id, p.capa_code, p.image_key
+    FROM products p
+    JOIN (
+      SELECT capa_code, MAX(id) AS id
+      FROM products
+      WHERE image_key IS NOT NULL
+      GROUP BY capa_code
+    ) latest ON latest.id = p.id
+    ORDER BY p.id DESC
+    LIMIT 12
+  `).all();
+
+  if (!results?.length) throw new Error('Cadastre produtos com imagem de capa antes de identificar');
+
+  const parts = [{ text: `Você é o identificador visual interno da NISTI PRINT. Compare somente a ARTE DA CAPA na FOTO DA EXPEDIÇÃO com as CAPAS DE REFERÊNCIA abaixo. O produto na expedição pode estar apenas com a capa solta, sem Wire-O, sem tassel e sem elástico. Ignore completamente acabamento, miolo, plataforma e qualquer acessório. Nomes personalizados impressos na capa podem variar e devem ser ignorados. Escolha somente um CAPA_CODE presente na lista se houver correspondência visual forte da arte-base. Se não houver correspondência segura, use matched=false e capa_code="".` }];
 
   for (const p of results) {
     const obj = await env.PRODUCT_IMAGES.get(p.image_key);
     if (!obj) continue;
     const bytes = new Uint8Array(await obj.arrayBuffer());
-    parts.push({ text: `REFERÊNCIA SKU=${p.sku}; CAPA=${p.capa_code}; WIREO=${p.wireo_code}; TASSEL=${p.tassel_code}; ELASTICO=${p.elastico_code}` });
+    parts.push({ text: `CAPA DE REFERÊNCIA: CAPA_CODE=${p.capa_code}` });
     parts.push({ inline_data: { mime_type: obj.httpMetadata?.contentType || 'image/jpeg', data: base64(bytes) } });
   }
 
   const uploadBytes = new Uint8Array(await uploadedFile.arrayBuffer());
-  parts.push({ text: 'FOTO DO PRODUTO A IDENTIFICAR:' });
+  parts.push({ text: 'FOTO DA CAPA A IDENTIFICAR:' });
   parts.push({ inline_data: { mime_type: uploadedFile.type || 'image/jpeg', data: base64(uploadBytes) } });
 
   const model = env.GEMINI_MODEL || 'gemini-3.5-flash';
@@ -47,15 +56,16 @@ async function identifyWithGemini(env, uploadedFile) {
           type: 'OBJECT',
           properties: {
             matched: { type: 'BOOLEAN' },
-            sku: { type: 'STRING' },
+            capa_code: { type: 'STRING' },
             confidence: { type: 'NUMBER' },
             reason: { type: 'STRING' }
           },
-          required: ['matched', 'sku', 'confidence', 'reason']
+          required: ['matched', 'capa_code', 'confidence', 'reason']
         }
       }
     })
   });
+
   if (!response.ok) throw new Error(`Gemini falhou (${response.status})`);
   const payload = await response.json();
   const text = payload.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
@@ -107,20 +117,50 @@ export default {
         if (!product?.image_key) return new Response('Not found', { status: 404 });
         const object = await env.PRODUCT_IMAGES.get(product.image_key);
         if (!object) return new Response('Not found', { status: 404 });
-        const headers = new Headers(); object.writeHttpMetadata(headers); headers.set('cache-control', 'private, max-age=3600');
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set('cache-control', 'private, max-age=3600');
         return new Response(object.body, { headers });
       }
 
       if (url.pathname === '/api/identify' && request.method === 'POST') {
         const form = await request.formData();
         const image = form.get('image');
-        if (!(image instanceof File)) return json({ error: 'Foto obrigatória' }, 400);
-        const ai = await identifyWithGemini(env, image);
-        if (!ai.matched || !ai.sku || ai.confidence < 0.85) return json({ error: 'Correspondência visual insuficiente. Tire outra foto.' }, 422);
-        const product = await env.DB.prepare(`SELECT p.*,pp.platform FROM products p LEFT JOIN product_platforms pp ON pp.product_id=p.id WHERE p.sku=? LIMIT 1`).bind(ai.sku.toUpperCase()).first();
-        if (!product) return json({ error: 'A IA retornou um SKU que não existe no banco.' }, 422);
+        if (!(image instanceof File)) return json({ error: 'Foto da capa obrigatória' }, 400);
+
+        const ai = await identifyCoverWithGemini(env, image);
+        if (!ai.matched || !ai.capa_code || ai.confidence < 0.85) {
+          return json({ error: 'Correspondência visual da capa insuficiente. Tire outra foto.' }, 422);
+        }
+
+        const capaCode = String(ai.capa_code).trim().toUpperCase();
+        const { results: matches } = await env.DB.prepare(`SELECT id, sku FROM products WHERE capa_code=? ORDER BY id ASC`).bind(capaCode).all();
+
+        if (!matches?.length) {
+          return json({ error: 'A IA identificou uma capa que não existe no banco.' }, 422);
+        }
+
+        if (matches.length > 1) {
+          return json({
+            error: `Capa ${capaCode} identificada, mas existem ${matches.length} SKUs cadastrados com essa mesma capa. Não é possível determinar o SKU apenas pela foto da capa.`
+          }, 422);
+        }
+
+        const product = await env.DB.prepare(`SELECT p.*,pp.platform FROM products p LEFT JOIN product_platforms pp ON pp.product_id=p.id WHERE p.id=? LIMIT 1`).bind(matches[0].id).first();
+        if (!product) return json({ error: 'Produto não encontrado no banco.' }, 422);
+
         const parsed = parseSku(product.sku);
-        return json({ product: { ...product, wireo: parsed.wireo, tassel: parsed.tassel, elastico: parsed.elastico, image_url: product.image_key ? `/api/images/${product.id}` : null }, confidence: ai.confidence });
+        return json({
+          product: {
+            ...product,
+            wireo: parsed.wireo,
+            tassel: parsed.tassel,
+            elastico: parsed.elastico,
+            image_url: product.image_key ? `/api/images/${product.id}` : null
+          },
+          confidence: ai.confidence,
+          identified_by: 'capa_code'
+        });
       }
 
       if (env.ASSETS) return env.ASSETS.fetch(request);
