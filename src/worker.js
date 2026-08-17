@@ -3,6 +3,9 @@ import { parseSku } from './sku.js';
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_COVERS = 8;
 const BULK_IMPORT_LIMIT = 100;
+const COVER_REVIEW_PAGE_SIZE = 12;
+const MAX_LISTING_IMAGES = 30;
+const MAX_REMOTE_IMAGE_BYTES = 8 * 1024 * 1024;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8' } });
@@ -244,6 +247,18 @@ function isAllowedMarketplaceHost(hostname) {
   return host === 'shopee.com.br' || host.endsWith('.shopee.com.br') || host === 'mercadolivre.com.br' || host.endsWith('.mercadolivre.com.br');
 }
 
+function isAllowedMarketplaceImageHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return host.endsWith('.susercontent.com') ||
+    host === 'susercontent.com' ||
+    host.endsWith('.shopee.com.br') ||
+    host === 'shopee.com.br' ||
+    host.endsWith('.mlstatic.com') ||
+    host === 'mlstatic.com' ||
+    host.endsWith('.mercadolivre.com.br') ||
+    host === 'mercadolivre.com.br';
+}
+
 function decodeHtmlAttr(value) {
   return String(value || '')
     .replace(/&amp;/g, '&')
@@ -253,21 +268,88 @@ function decodeHtmlAttr(value) {
     .replace(/&gt;/g, '>');
 }
 
-function escapeRegex(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function decodeSerializedUrl(value) {
+  return decodeHtmlAttr(String(value || ''))
+    .replace(/\\u002f/gi, '/')
+    .replace(/\\u003a/gi, ':')
+    .replace(/\\\//g, '/')
+    .replace(/\\\\/g, '\\')
+    .trim();
 }
 
-function extractMetaContent(html, key) {
-  const escaped = escapeRegex(key);
-  const patterns = [
-    new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`, 'i'),
-    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, 'i')
-  ];
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match?.[1]) return decodeHtmlAttr(match[1]);
+function normalizeMarketplaceImageUrl(value) {
+  let text = decodeSerializedUrl(value);
+  if (!text) return null;
+  if (text.startsWith('//')) text = `https:${text}`;
+  if (!text.startsWith('https://')) return null;
+  try {
+    const parsed = new URL(text);
+    if (!isAllowedMarketplaceImageHost(parsed.hostname)) return null;
+    const host = parsed.hostname.toLowerCase();
+    const isImageCdn = host.endsWith('.susercontent.com') || host === 'susercontent.com' || host.endsWith('.mlstatic.com') || host === 'mlstatic.com';
+    if (!isImageCdn && !/\.(?:jpe?g|png|webp|avif)$/i.test(parsed.pathname)) return null;
+    return parsed.toString();
+  } catch {
+    return null;
   }
-  return null;
+}
+
+function extractAllMetaContents(html, key) {
+  const out = [];
+  const tags = html.match(/<meta\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    const property = tag.match(/\b(?:property|name)\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (String(property || '').toLowerCase() !== String(key).toLowerCase()) continue;
+    const content = tag.match(/\bcontent\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (content) out.push(decodeHtmlAttr(content));
+  }
+  return out;
+}
+
+function collectJsonImages(value, output, depth = 0) {
+  if (depth > 12 || output.size >= MAX_LISTING_IMAGES) return;
+  if (typeof value === 'string') {
+    const normalized = normalizeMarketplaceImageUrl(value);
+    if (normalized) output.add(normalized);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectJsonImages(item, output, depth + 1);
+    return;
+  }
+  if (value && typeof value === 'object') {
+    for (const [key, item] of Object.entries(value)) {
+      if (/image|picture|thumbnail|photo/i.test(key) || typeof item === 'object') {
+        collectJsonImages(item, output, depth + 1);
+      }
+    }
+  }
+}
+
+function extractJsonScriptImages(html, output) {
+  const scripts = html.match(/<script\b[^>]*>[\s\S]*?<\/script>/gi) || [];
+  for (const script of scripts) {
+    if (output.size >= MAX_LISTING_IMAGES) break;
+    const body = script.replace(/^<script\b[^>]*>/i, '').replace(/<\/script>$/i, '').trim();
+    if (!body || body.length > 4_000_000) continue;
+    if (/application\/ld\+json/i.test(script) || body.startsWith('{') || body.startsWith('[')) {
+      try {
+        collectJsonImages(JSON.parse(body), output);
+      } catch {
+        // Muitos marketplaces serializam estado JS que não é JSON estrito.
+      }
+    }
+  }
+}
+
+function extractEmbeddedMarketplaceImages(html, output) {
+  const decoded = decodeSerializedUrl(html);
+  const urlRegex = /https:\/\/[^"'<>\\\s]+/gi;
+  let match;
+  while ((match = urlRegex.exec(decoded)) && output.size < MAX_LISTING_IMAGES) {
+    const normalized = normalizeMarketplaceImageUrl(match[0]);
+    if (normalized) output.add(normalized);
+  }
 }
 
 async function previewMarketplaceListing(listingUrl) {
@@ -284,25 +366,166 @@ async function previewMarketplaceListing(listingUrl) {
   const response = await fetch(target.toString(), {
     redirect: 'follow',
     headers: {
-      'user-agent': 'Mozilla/5.0 (compatible; NISTI-Identificacao/1.0; +https://nisti.app)',
+      'user-agent': 'Mozilla/5.0 (compatible; NISTI-Identificacao/1.0)',
       'accept-language': 'pt-BR,pt;q=0.9,en;q=0.7'
     }
   });
   if (!response.ok) throw new Error(`Anúncio não pôde ser aberto (${response.status})`);
+  const finalUrl = new URL(response.url || target.toString());
+  if (!isAllowedMarketplaceHost(finalUrl.hostname)) throw new Error('O anúncio redirecionou para um domínio não permitido');
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('text/html')) throw new Error('O link do anúncio não retornou HTML');
   const html = await response.text();
-  const title = extractMetaContent(html, 'og:title') || extractMetaContent(html, 'twitter:title') || null;
-  const imageCandidates = [
-    extractMetaContent(html, 'og:image'),
-    extractMetaContent(html, 'og:image:secure_url'),
-    extractMetaContent(html, 'twitter:image')
-  ].filter(Boolean);
+
+  const title = extractAllMetaContents(html, 'og:title')[0] ||
+    extractAllMetaContents(html, 'twitter:title')[0] ||
+    null;
+
+  const images = new Set();
+  for (const key of ['og:image', 'og:image:secure_url', 'twitter:image', 'twitter:image:src']) {
+    for (const candidate of extractAllMetaContents(html, key)) {
+      const normalized = normalizeMarketplaceImageUrl(candidate);
+      if (normalized) images.add(normalized);
+    }
+  }
+  extractJsonScriptImages(html, images);
+  extractEmbeddedMarketplaceImages(html, images);
 
   return {
-    listing_url: target.toString(),
+    listing_url: finalUrl.toString(),
     title,
-    image_candidates: [...new Set(imageCandidates)].slice(0, 5)
+    image_candidates: [...images].slice(0, MAX_LISTING_IMAGES)
+  };
+}
+
+async function listCoverReviews(env, status, limit, offset) {
+  const { results } = await env.DB.prepare(`
+    SELECT p.id,p.sku,p.capa_code,p.nome,p.variacao,p.image_key,pp.platform,pp.link
+    FROM products p
+    LEFT JOIN product_platforms pp ON pp.product_id=p.id
+    ORDER BY p.capa_code ASC,p.id ASC,pp.id ASC
+  `).all();
+
+  const grouped = new Map();
+  for (const row of results || []) {
+    const code = String(row.capa_code || '').trim().toUpperCase();
+    if (!code) continue;
+    if (!grouped.has(code)) {
+      grouped.set(code, {
+        capa_code: code,
+        representative_id: row.id,
+        image_url: null,
+        sku_count: 0,
+        skus: [],
+        nome: row.nome || null,
+        variacoes: [],
+        links: [],
+        _productIds: new Set(),
+        _linkKeys: new Set()
+      });
+    }
+    const cover = grouped.get(code);
+    if (!cover._productIds.has(row.id)) {
+      cover._productIds.add(row.id);
+      cover.sku_count += 1;
+      if (cover.skus.length < 8) cover.skus.push(row.sku);
+      if (row.variacao && cover.variacoes.length < 8 && !cover.variacoes.includes(row.variacao)) cover.variacoes.push(row.variacao);
+      if (row.image_key && !cover.image_url) {
+        cover.representative_id = row.id;
+        cover.image_url = `/api/images/${row.id}`;
+      }
+    }
+    if (row.link) {
+      const key = `${String(row.platform || '').toUpperCase()}|${row.link}`;
+      if (!cover._linkKeys.has(key)) {
+        cover._linkKeys.add(key);
+        cover.links.push({ platform: row.platform || null, url: row.link });
+      }
+    }
+  }
+
+  const covers = [...grouped.values()].map(cover => {
+    delete cover._productIds;
+    delete cover._linkKeys;
+    return cover;
+  });
+  const pending = covers.filter(cover => !cover.image_url);
+  const ready = covers.filter(cover => cover.image_url);
+  const selected = status === 'ready' ? ready : status === 'all' ? covers : pending;
+  return {
+    total_covers: covers.length,
+    pending_covers: pending.length,
+    ready_covers: ready.length,
+    covers: selected.slice(offset, offset + limit)
+  };
+}
+
+async function downloadMarketplaceImage(imageUrl) {
+  let source;
+  try {
+    source = new URL(imageUrl);
+  } catch {
+    throw new Error('URL da imagem inválida');
+  }
+  if (source.protocol !== 'https:' || !isAllowedMarketplaceImageHost(source.hostname)) {
+    throw new Error('A imagem precisa vir de um CDN permitido da Shopee ou Mercado Livre');
+  }
+
+  const response = await fetch(source.toString(), {
+    redirect: 'follow',
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; NISTI-Identificacao/1.0)' }
+  });
+  if (!response.ok) throw new Error(`Não foi possível baixar a imagem (${response.status})`);
+  const finalUrl = new URL(response.url || source.toString());
+  if (!isAllowedMarketplaceImageHost(finalUrl.hostname)) throw new Error('A imagem redirecionou para um domínio não permitido');
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.startsWith('image/')) throw new Error('O endereço selecionado não retornou uma imagem');
+  const length = Number(response.headers.get('content-length') || 0);
+  if (length && length > MAX_REMOTE_IMAGE_BYTES) throw new Error('Imagem maior que 8 MB');
+
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength > MAX_REMOTE_IMAGE_BYTES) throw new Error('Imagem maior que 8 MB');
+  return { bytes, contentType, finalUrl: finalUrl.toString() };
+}
+
+async function saveCoverImageFromUrl(env, capaCode, imageUrl) {
+  const code = String(capaCode || '').trim().toUpperCase();
+  if (!code) throw new Error('CAPA_CODE obrigatório');
+
+  const { results: products } = await env.DB.prepare(`
+    SELECT id,image_key FROM products WHERE capa_code=? ORDER BY id ASC
+  `).bind(code).all();
+  if (!products?.length) throw new Error(`Capa ${code} não encontrada no catálogo`);
+
+  const previousKeys = [...new Set(products.map(item => item.image_key).filter(Boolean))];
+  const downloaded = await downloadMarketplaceImage(imageUrl);
+  const key = `covers/${encodeURIComponent(code)}/${crypto.randomUUID()}`;
+  await env.PRODUCT_IMAGES.put(key, downloaded.bytes, { httpMetadata: { contentType: downloaded.contentType } });
+  await env.DB.prepare(`
+    UPDATE products SET image_key=?, updated_at=CURRENT_TIMESTAMP WHERE capa_code=?
+  `).bind(key, code).run();
+
+  let indexed = false;
+  let index_error = null;
+  try {
+    await upsertCoverEmbedding(env, code, key, new Uint8Array(downloaded.bytes), downloaded.contentType);
+    indexed = true;
+  } catch (error) {
+    index_error = error?.message || 'Falha ao indexar capa';
+  }
+
+  for (const oldKey of previousKeys) {
+    if (oldKey !== key) await env.PRODUCT_IMAGES.delete(oldKey).catch(() => {});
+  }
+
+  return {
+    capa_code: code,
+    image_url: `/api/images/${products[0].id}`,
+    updated_products: products.length,
+    source_url: downloaded.finalUrl,
+    embedding_indexed: indexed,
+    embedding_error: index_error
   };
 }
 
@@ -369,6 +592,20 @@ export default {
         return json(await previewMarketplaceListing(body?.url));
       }
 
+      if (url.pathname === '/api/admin/cover-reviews' && request.method === 'GET') {
+        const status = ['pending', 'ready', 'all'].includes(url.searchParams.get('status')) ? url.searchParams.get('status') : 'pending';
+        const limit = Math.max(1, Math.min(30, Number(url.searchParams.get('limit')) || COVER_REVIEW_PAGE_SIZE));
+        const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
+        return json(await listCoverReviews(env, status, limit, offset));
+      }
+
+      const coverImageFromUrl = url.pathname.match(/^\/api\/admin\/covers\/([^/]+)\/image-from-url$/);
+      if (coverImageFromUrl && request.method === 'POST') {
+        const capaCode = decodeURIComponent(coverImageFromUrl[1]);
+        const body = await request.json();
+        return json({ ok: true, ...(await saveCoverImageFromUrl(env, capaCode, body?.image_url)) });
+      }
+
       const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
       if (imageUpload && request.method === 'POST') {
         const id = Number(imageUpload[1]);
@@ -390,21 +627,8 @@ export default {
       if (imageFromUrl && request.method === 'POST') {
         const id = Number(imageFromUrl[1]);
         const body = await request.json();
-        let sourceUrl;
-        try {
-          sourceUrl = new URL(body.image_url);
-        } catch {
-          return json({ error: 'image_url inválida' }, 400);
-        }
-        if (sourceUrl.protocol !== 'https:') return json({ error: 'A imagem deve usar HTTPS' }, 400);
-        const response = await fetch(sourceUrl.toString(), {
-          headers: { 'user-agent': 'NISTI-Identificacao/1.0' }
-        });
-        if (!response.ok) return json({ error: `Não foi possível baixar a imagem (${response.status})` }, 400);
-        const contentType = response.headers.get('content-type') || '';
-        if (!contentType.startsWith('image/')) return json({ error: 'O endereço não retornou uma imagem' }, 400);
-        const bytes = await response.arrayBuffer();
-        const saved = await saveProductImage(env, id, bytes, contentType);
+        const downloaded = await downloadMarketplaceImage(body?.image_url);
+        const saved = await saveProductImage(env, id, downloaded.bytes, downloaded.contentType);
         return json({
           ok: true,
           image_url: `/api/images/${id}`,
