@@ -48,10 +48,10 @@ function captureLanding(capture) {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NISTI · Captura recebida</title></head>
 <body style="font-family:system-ui;padding:32px;max-width:720px;margin:auto">
   <h1>Captura do Mercado Livre recebida</h1>
-  <p>${capture.images.length} imagem(ns) encontrada(s). Abrindo o NISTI…</p>
+  <p>${capture.images.length} imagem(ns) encontrada(s). Abrindo a administração do NISTI…</p>
   <script>
     sessionStorage.setItem('nisti_ml_capture', JSON.stringify(${safeJson}));
-    location.replace('/');
+    location.replace('/admin');
   </script>
 </body>
 </html>`;
@@ -72,7 +72,7 @@ export default {
           return html('<h1>Captura inválida</h1><p>Execute o capturador dentro de um anúncio do Mercado Livre Brasil.</p>', 400);
         }
         if (rawPayload.length > 250000) {
-          return html('<h1>Captura muito grande</h1><p>Reabra somente o seletor de variações do anúncio e execute o capturador novamente.</p>', 413);
+          return html('<h1>Captura muito grande</h1><p>Reabra somente o seletor de variações do anúncio e execute o capturador NISTI novamente.</p>', 413);
         }
 
         const parsed = JSON.parse(rawPayload);
