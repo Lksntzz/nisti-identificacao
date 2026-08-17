@@ -2,6 +2,7 @@ import { parseSku } from './sku.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_COVERS = 8;
+const BULK_IMPORT_LIMIT = 100;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8' } });
@@ -12,6 +13,11 @@ function base64(bytes) {
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   return btoa(binary);
+}
+
+function clean(value) {
+  const text = String(value ?? '').trim();
+  return text || null;
 }
 
 function cosineSimilarity(a, b) {
@@ -186,6 +192,120 @@ async function saveProductImage(env, id, fileBytes, contentType) {
   return { key, indexed, index_error };
 }
 
+async function upsertCatalogProduct(env, row) {
+  const parsed = parseSku(row?.sku);
+  const nome = clean(row?.nome);
+  const variacao = clean(row?.variacao);
+  const platform = clean(row?.platform)?.toUpperCase() || null;
+  const link = clean(row?.link);
+
+  let product = await env.DB.prepare(`SELECT id,image_key FROM products WHERE sku=?`).bind(parsed.sku).first();
+  let created = false;
+
+  if (!product) {
+    const result = await env.DB.prepare(`
+      INSERT INTO products (sku,miolo_code,capa_code,acabamento_code,wireo_code,tassel_code,elastico_code,nome,variacao)
+      VALUES (?,?,?,?,?,?,?,?,?)
+    `).bind(
+      parsed.sku, parsed.mioloCode, parsed.capaCode, parsed.acabamentoCode,
+      parsed.wireoCode, parsed.tasselCode, parsed.elasticoCode, nome, variacao
+    ).run();
+    product = { id: result.meta.last_row_id, image_key: null };
+    created = true;
+  } else {
+    await env.DB.prepare(`
+      UPDATE products SET
+        miolo_code=?,capa_code=?,acabamento_code=?,wireo_code=?,tassel_code=?,elastico_code=?,
+        nome=COALESCE(?,nome),variacao=COALESCE(?,variacao),updated_at=CURRENT_TIMESTAMP
+      WHERE id=?
+    `).bind(
+      parsed.mioloCode, parsed.capaCode, parsed.acabamentoCode,
+      parsed.wireoCode, parsed.tasselCode, parsed.elasticoCode,
+      nome, variacao, product.id
+    ).run();
+  }
+
+  if (platform) {
+    const existingPlatform = await env.DB.prepare(`
+      SELECT id FROM product_platforms WHERE product_id=? AND platform=? ORDER BY id ASC LIMIT 1
+    `).bind(product.id, platform).first();
+    if (existingPlatform) {
+      if (link) await env.DB.prepare(`UPDATE product_platforms SET link=? WHERE id=?`).bind(link, existingPlatform.id).run();
+    } else {
+      await env.DB.prepare(`INSERT INTO product_platforms (product_id,platform,link) VALUES (?,?,?)`).bind(product.id, platform, link).run();
+    }
+  }
+
+  return { id: product.id, sku: parsed.sku, capa_code: parsed.capaCode, created, has_image: Boolean(product.image_key) };
+}
+
+function isAllowedMarketplaceHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return host === 'shopee.com.br' || host.endsWith('.shopee.com.br') || host === 'mercadolivre.com.br' || host.endsWith('.mercadolivre.com.br');
+}
+
+function decodeHtmlAttr(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractMetaContent(html, key) {
+  const escaped = escapeRegex(key);
+  const patterns = [
+    new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`, 'i'),
+    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, 'i')
+  ];
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) return decodeHtmlAttr(match[1]);
+  }
+  return null;
+}
+
+async function previewMarketplaceListing(listingUrl) {
+  let target;
+  try {
+    target = new URL(listingUrl);
+  } catch {
+    throw new Error('Link do anúncio inválido');
+  }
+  if (target.protocol !== 'https:' || !isAllowedMarketplaceHost(target.hostname)) {
+    throw new Error('Prévia permitida apenas para links HTTPS da Shopee ou Mercado Livre');
+  }
+
+  const response = await fetch(target.toString(), {
+    redirect: 'follow',
+    headers: {
+      'user-agent': 'Mozilla/5.0 (compatible; NISTI-Identificacao/1.0; +https://nisti.app)',
+      'accept-language': 'pt-BR,pt;q=0.9,en;q=0.7'
+    }
+  });
+  if (!response.ok) throw new Error(`Anúncio não pôde ser aberto (${response.status})`);
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('text/html')) throw new Error('O link do anúncio não retornou HTML');
+  const html = await response.text();
+  const title = extractMetaContent(html, 'og:title') || extractMetaContent(html, 'twitter:title') || null;
+  const imageCandidates = [
+    extractMetaContent(html, 'og:image'),
+    extractMetaContent(html, 'og:image:secure_url'),
+    extractMetaContent(html, 'twitter:image')
+  ].filter(Boolean);
+
+  return {
+    listing_url: target.toString(),
+    title,
+    image_candidates: [...new Set(imageCandidates)].slice(0, 5)
+  };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -198,7 +318,15 @@ export default {
       }
 
       if (url.pathname === '/api/products' && request.method === 'GET') {
-        const { results } = await env.DB.prepare(`SELECT p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,p.wireo_code,p.tassel_code,p.elastico_code,p.nome,p.variacao,p.image_key,p.created_at,pp.platform FROM products p LEFT JOIN product_platforms pp ON pp.product_id=p.id ORDER BY p.id DESC LIMIT 500`).all();
+        const { results } = await env.DB.prepare(`
+          SELECT p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,p.wireo_code,p.tassel_code,p.elastico_code,
+                 p.nome,p.variacao,p.image_key,p.created_at,
+                 (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
+                 (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link
+          FROM products p
+          ORDER BY p.id DESC
+          LIMIT 1000
+        `).all();
         return json({ products: (results || []).map(p => ({ ...p, image_url: p.image_key ? `/api/images/${p.id}` : null })) });
       }
 
@@ -209,6 +337,36 @@ export default {
         const id = result.meta.last_row_id;
         if (body.platform) await env.DB.prepare(`INSERT INTO product_platforms (product_id,platform,link) VALUES (?,?,?)`).bind(id, String(body.platform).trim().toUpperCase(), body.link || null).run();
         return json({ ok: true, id, parsed }, 201);
+      }
+
+      if (url.pathname === '/api/admin/bulk-products' && request.method === 'POST') {
+        const body = await request.json();
+        const rows = Array.isArray(body?.rows) ? body.rows : [];
+        if (!rows.length) return json({ error: 'Envie rows com pelo menos um produto' }, 400);
+        if (rows.length > BULK_IMPORT_LIMIT) return json({ error: `Máximo de ${BULK_IMPORT_LIMIT} produtos por lote` }, 400);
+
+        const imported = [];
+        const errors = [];
+        for (let i = 0; i < rows.length; i++) {
+          try {
+            imported.push({ row: i + 1, ...(await upsertCatalogProduct(env, rows[i])) });
+          } catch (error) {
+            errors.push({ row: i + 1, sku: clean(rows[i]?.sku), error: error?.message || 'Falha ao importar' });
+          }
+        }
+        return json({
+          ok: errors.length === 0,
+          received: rows.length,
+          created: imported.filter(item => item.created).length,
+          updated: imported.filter(item => !item.created).length,
+          imported,
+          errors
+        });
+      }
+
+      if (url.pathname === '/api/admin/listing-preview' && request.method === 'POST') {
+        const body = await request.json();
+        return json(await previewMarketplaceListing(body?.url));
       }
 
       const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
@@ -367,7 +525,12 @@ export default {
           }, 422);
         }
 
-        const product = await env.DB.prepare(`SELECT p.*,pp.platform FROM products p LEFT JOIN product_platforms pp ON pp.product_id=p.id WHERE p.id=? LIMIT 1`).bind(matches[0].id).first();
+        const product = await env.DB.prepare(`
+          SELECT p.*,
+                 (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
+                 (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link
+          FROM products p WHERE p.id=? LIMIT 1
+        `).bind(matches[0].id).first();
         if (!product) return json({ error: 'Produto não encontrado no banco.' }, 422);
 
         const parsed = parseSku(product.sku);
