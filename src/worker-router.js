@@ -48,31 +48,54 @@ function parseShopeeProductUrl(value) {
   return { target, shopId, itemId };
 }
 
-function findShopeeItemNode(value, depth = 0, seen = new Set()) {
-  if (!value || typeof value !== 'object' || depth > 14 || seen.has(value)) return null;
-  seen.add(value);
+function shopeeNodeScore(value) {
+  if (!value || typeof value !== 'object') return -1;
+  const models = Array.isArray(value.models) ? value.models : [];
+  const tiers = Array.isArray(value.tier_variations) ? value.tier_variations : [];
+  if (!models.length && !tiers.length) return -1;
 
-  if (Array.isArray(value.models) && (Array.isArray(value.tier_variations) || value.models.length)) {
-    return value;
+  let score = models.length ? 10 : 0;
+  score += tiers.length ? 20 : 0;
+  for (const tier of tiers) {
+    if (Array.isArray(tier?.options) && tier.options.length) score += 4;
+    if (Array.isArray(tier?.images) && tier.images.some(Boolean)) score += 12;
+    if (Array.isArray(tier?.image_ids) && tier.image_ids.some(Boolean)) score += 12;
   }
+  return score;
+}
 
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = findShopeeItemNode(item, depth + 1, seen);
-      if (found) return found;
+function findShopeeItemNode(value) {
+  let best = null;
+  let bestScore = -1;
+  const seen = new Set();
+
+  const visit = (current, depth = 0) => {
+    if (!current || typeof current !== 'object' || depth > 16 || seen.has(current)) return;
+    seen.add(current);
+
+    const score = shopeeNodeScore(current);
+    if (score > bestScore) {
+      best = current;
+      bestScore = score;
     }
-    return null;
-  }
 
-  for (const item of Object.values(value)) {
-    const found = findShopeeItemNode(item, depth + 1, seen);
-    if (found) return found;
-  }
-  return null;
+    if (Array.isArray(current)) {
+      for (const item of current) visit(item, depth + 1);
+      return;
+    }
+
+    for (const item of Object.values(current)) visit(item, depth + 1);
+  };
+
+  visit(value);
+  return best;
 }
 
 function parseJsonScripts(html) {
   const scripts = html.match(/<script\b[^>]*>[\s\S]*?<\/script>/gi) || [];
+  let best = null;
+  let bestScore = -1;
+
   for (const script of scripts) {
     const body = script
       .replace(/^<script\b[^>]*>/i, '')
@@ -83,21 +106,45 @@ function parseJsonScripts(html) {
     try {
       const parsed = JSON.parse(body);
       const node = findShopeeItemNode(parsed);
-      if (node) return node;
+      const score = shopeeNodeScore(node);
+      if (node && score > bestScore) {
+        best = node;
+        bestScore = score;
+      }
     } catch {
       // Alguns scripts são JavaScript, não JSON puro.
     }
   }
-  return null;
+  return best;
 }
 
-function shopeeImageSource(value) {
-  if (!value) return null;
+function shopeeImageSource(value, depth = 0) {
+  if (!value || depth > 5) return null;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const source = shopeeImageSource(item, depth + 1);
+      if (source) return source;
+    }
+    return null;
+  }
 
   if (typeof value === 'object') {
-    return shopeeImageSource(
-      value.image || value.image_id || value.imageId || value.url || value.image_url || value.imageUrl
-    );
+    const preferred = [
+      value.image,
+      value.image_id,
+      value.imageId,
+      value.url,
+      value.image_url,
+      value.imageUrl,
+      value.filename,
+      value.file
+    ];
+    for (const item of preferred) {
+      const source = shopeeImageSource(item, depth + 1);
+      if (source) return source;
+    }
+    return null;
   }
 
   let text = cleanText(value);
@@ -127,6 +174,41 @@ function proxyImage(source) {
   return source ? `/api/admin/listing-image?src=${encodeURIComponent(source)}` : null;
 }
 
+function tierIndexForModel(model) {
+  const candidates = [
+    model?.tier_index,
+    model?.tierIndex,
+    model?.extinfo?.tier_index,
+    model?.extinfo?.tierIndex,
+    model?.ext_info?.tier_index,
+    model?.ext_info?.tierIndex
+  ];
+  return candidates.find(Array.isArray) || [];
+}
+
+function tierImageAt(tier, optionIndex) {
+  if (!tier || !Number.isInteger(optionIndex) || optionIndex < 0) return null;
+  const option = Array.isArray(tier.options) ? tier.options[optionIndex] : null;
+  const candidates = [
+    option?.image,
+    option?.image_id,
+    option?.imageId,
+    option?.image_url,
+    option?.imageUrl,
+    Array.isArray(tier.images) ? tier.images[optionIndex] : null,
+    Array.isArray(tier.image_ids) ? tier.image_ids[optionIndex] : null,
+    Array.isArray(tier.imageIds) ? tier.imageIds[optionIndex] : null,
+    Array.isArray(tier.option_images) ? tier.option_images[optionIndex] : null,
+    Array.isArray(tier.optionImages) ? tier.optionImages[optionIndex] : null
+  ];
+
+  for (const candidate of candidates) {
+    const source = shopeeImageSource(candidate);
+    if (source) return source;
+  }
+  return null;
+}
+
 function buildShopeeVariations(node) {
   const models = Array.isArray(node?.models) ? node.models : [];
   const tiers = Array.isArray(node?.tier_variations) ? node.tier_variations : [];
@@ -135,27 +217,33 @@ function buildShopeeVariations(node) {
 
   for (let index = 0; index < models.length; index++) {
     const model = models[index] || {};
-    const tierIndex = Array.isArray(model.tier_index) ? model.tier_index : [];
+    let tierIndex = tierIndexForModel(model);
+
+    if (!tierIndex.length && tiers.length === 1 && models.length === (tiers[0]?.options?.length || 0)) {
+      tierIndex = [index];
+    }
+
     const labels = [];
     let optionImage = null;
 
     for (let tierPos = 0; tierPos < tierIndex.length; tierPos++) {
       const optionIndex = Number(tierIndex[tierPos]);
-      const option = tiers?.[tierPos]?.options?.[optionIndex];
-      if (!option) continue;
-      const label = cleanText(option.name || option.value || option.label);
+      if (!Number.isInteger(optionIndex) || optionIndex < 0) continue;
+      const tier = tiers?.[tierPos];
+      const option = tier?.options?.[optionIndex];
+      const label = cleanText(option?.name || option?.value || option?.label);
       if (label) labels.push(label);
-      if (!optionImage) optionImage = shopeeImageSource(option.image || option.image_id || option.image_url);
+      if (!optionImage) optionImage = tierImageAt(tier, optionIndex);
     }
 
     const modelName = cleanText(model.name);
     const name = modelName || labels.join(' / ') || `Variação ${index + 1}`;
     const source = shopeeImageSource(
-      model.image || model.image_id || model.image_url || model.imageUrl
+      model.image || model.image_id || model.imageId || model.image_url || model.imageUrl
     ) || optionImage;
 
     if (!source) continue;
-    const key = String(model.modelid || model.model_id || `${index}-${name}`);
+    const key = String(model.modelid || model.model_id || model.id || `${index}-${name}`);
     const dedupe = `${name.toUpperCase()}|${source}`;
     if (seen.has(dedupe)) continue;
     seen.add(dedupe);
@@ -169,24 +257,45 @@ function buildShopeeVariations(node) {
     });
   }
 
-  if (!variations.length && tiers.length === 1) {
-    const options = Array.isArray(tiers[0]?.options) ? tiers[0].options : [];
-    for (let index = 0; index < options.length; index++) {
-      const option = options[index] || {};
-      const name = cleanText(option.name || option.value || option.label) || `Variação ${index + 1}`;
-      const source = shopeeImageSource(option.image || option.image_id || option.image_url);
-      if (!source) continue;
-      variations.push({
-        key: `option-${index}`,
-        name,
-        labels: [name],
-        image_source_url: source,
-        image_url: proxyImage(source)
-      });
+  if (!variations.length) {
+    for (let tierPos = 0; tierPos < tiers.length; tierPos++) {
+      const tier = tiers[tierPos] || {};
+      const options = Array.isArray(tier.options) ? tier.options : [];
+      for (let optionIndex = 0; optionIndex < options.length; optionIndex++) {
+        const option = options[optionIndex] || {};
+        const name = cleanText(option.name || option.value || option.label) || `Variação ${optionIndex + 1}`;
+        const source = tierImageAt(tier, optionIndex);
+        if (!source) continue;
+        const dedupe = `${name.toUpperCase()}|${source}`;
+        if (seen.has(dedupe)) continue;
+        seen.add(dedupe);
+        variations.push({
+          key: `tier-${tierPos}-option-${optionIndex}`,
+          name,
+          labels: [name],
+          image_source_url: source,
+          image_url: proxyImage(source)
+        });
+      }
     }
   }
 
   return variations;
+}
+
+function variationDiagnostics(node) {
+  const models = Array.isArray(node?.models) ? node.models : [];
+  const tiers = Array.isArray(node?.tier_variations) ? node.tier_variations : [];
+  return {
+    models: models.length,
+    tiers: tiers.length,
+    tier_options: tiers.map(tier => Array.isArray(tier?.options) ? tier.options.length : 0),
+    tier_images: tiers.map(tier => {
+      if (Array.isArray(tier?.images)) return tier.images.filter(Boolean).length;
+      if (Array.isArray(tier?.image_ids)) return tier.image_ids.filter(Boolean).length;
+      return 0;
+    })
+  };
 }
 
 async function analyzeShopeeListing(listingUrl) {
@@ -238,7 +347,12 @@ async function analyzeShopeeListing(listingUrl) {
 
   const variations = buildShopeeVariations(node);
   if (!variations.length) {
-    throw new Error('Encontrei o anúncio, mas nenhuma variação com imagem própria pôde ser extraída');
+    const diag = variationDiagnostics(node);
+    throw new Error(
+      `Encontrei o anúncio, mas não consegui ligar imagens às variações. ` +
+      `Diagnóstico: ${diag.models} modelos, ${diag.tiers} grupo(s) de variação, ` +
+      `opções ${diag.tier_options.join('/') || '0'}, imagens de opções ${diag.tier_images.join('/') || '0'}.`
+    );
   }
 
   return {
