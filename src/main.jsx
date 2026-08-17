@@ -10,7 +10,71 @@ const api = async (path, options = {}) => {
 };
 
 function Badge({ label, value }) {
-  return <div className="badge"><span>{label}</span><strong>{value || '—'}</strong></div>;
+  const display = value === null || value === undefined || value === '' ? '—' : value;
+  return <div className="badge"><span>{label}</span><strong>{display}</strong></div>;
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let quoted = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"') {
+      if (quoted && next === '"') {
+        cell += '"';
+        i += 1;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+
+    if (char === ',' && !quoted) {
+      row.push(cell);
+      cell = '';
+      continue;
+    }
+
+    if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && next === '\n') i += 1;
+      row.push(cell);
+      if (row.some(value => String(value).trim() !== '')) rows.push(row);
+      row = [];
+      cell = '';
+      continue;
+    }
+
+    cell += char;
+  }
+
+  row.push(cell);
+  if (row.some(value => String(value).trim() !== '')) rows.push(row);
+  return rows;
+}
+
+function catalogRowsFromCsv(text) {
+  const table = parseCsv(String(text || '').replace(/^\uFEFF/, ''));
+  const catalog = [];
+
+  for (const row of table) {
+    const sku = String(row[5] || row[14] || '').trim();
+    if (!sku || sku.toUpperCase() === 'SKU') continue;
+
+    catalog.push({
+      nome: String(row[2] || row[9] || '').trim(),
+      variacao: String(row[3] || row[13] || '').trim(),
+      platform: String(row[4] || row[11] || '').trim(),
+      sku,
+      link: String(row[6] || row[12] || '').trim()
+    });
+  }
+
+  return catalog;
 }
 
 function Admin() {
@@ -23,6 +87,8 @@ function Admin() {
   const [indexInfo, setIndexInfo] = useState(null);
   const [indexBusy, setIndexBusy] = useState(false);
   const [indexMessage, setIndexMessage] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState('');
 
   const refresh = async () => {
     const data = await api('/api/products');
@@ -69,6 +135,40 @@ function Admin() {
     finally { setBusy(false); }
   };
 
+  const importCatalogCsv = async (file) => {
+    if (!file) return;
+    setBulkBusy(true); setBulkMessage('');
+    try {
+      const text = await file.text();
+      const rows = catalogRowsFromCsv(text);
+      if (!rows.length) throw new Error('Nenhum SKU encontrado no CSV. Exporte a aba ANÚNCIOS completa.');
+
+      let created = 0;
+      let updated = 0;
+      const errors = [];
+      for (let i = 0; i < rows.length; i += 50) {
+        const batch = rows.slice(i, i + 50);
+        const result = await api('/api/admin/bulk-products', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ rows: batch })
+        });
+        created += result.created || 0;
+        updated += result.updated || 0;
+        if (result.errors?.length) errors.push(...result.errors.map(error => ({ ...error, batch_start: i + 1 })));
+      }
+
+      setBulkMessage(errors.length
+        ? `Catálogo processado: ${created} novos, ${updated} atualizados, ${errors.length} erro(s) de SKU para revisar.`
+        : `Catálogo importado: ${created} novos e ${updated} atualizados.`);
+      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
+    } catch (err) {
+      setBulkMessage(err.message);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const indexPendingCovers = async () => {
     setIndexBusy(true); setIndexMessage('');
     try {
@@ -91,13 +191,23 @@ function Admin() {
       }
       info = await refreshIndex();
       if (info.pending_covers === 0) setIndexMessage(`Índice visual atualizado. ${info.indexed_covers} capa(s) indexadas.`);
-      else if (!indexMessage) setIndexMessage(`Ainda faltam ${info.pending_covers} capa(s) para indexar.`);
+      else setIndexMessage(`Ainda faltam ${info.pending_covers} capa(s) para indexar.`);
     } catch (err) { setIndexMessage(err.message); }
     finally { setIndexBusy(false); }
   };
 
+  const withoutImage = products.filter(product => !product.image_url).length;
+
   return <section className="panel">
     <div className="panel-head"><div><p className="eyebrow">ADMIN</p><h2>Produtos</h2></div><span>{products.length} cadastrados</span></div>
+
+    <div className="form">
+      <div className="panel-head"><div><strong>Importação em massa</strong><small>CSV exportado da aba ANÚNCIOS da planilha ANUNCIOS NOVOS</small></div></div>
+      <div className="parsed"><Badge label="Produtos" value={products.length}/><Badge label="Sem imagem" value={withoutImage}/></div>
+      <label>Arquivo CSV<input type="file" accept=".csv,text/csv" disabled={bulkBusy} onChange={e => importCatalogCsv(e.target.files?.[0] || null)} /></label>
+      {bulkBusy && <p className="message">Importando catálogo em lotes...</p>}
+      {bulkMessage && <p className="message">{bulkMessage}</p>}
+    </div>
 
     <div className="form">
       <div className="panel-head"><div><strong>Índice visual das capas</strong><small>Busca Top-K antes da confirmação pelo Gemini</small></div>{indexInfo && <span>{indexInfo.indexed_covers}/{indexInfo.reference_covers}</span>}</div>
@@ -115,7 +225,7 @@ function Admin() {
       <button disabled={busy || !parsed}>{busy ? 'Salvando...' : 'Cadastrar produto'}</button>
       {message && <p className="message">{message}</p>}
     </form>
-    <div className="list">{products.map(p => <article className="product" key={p.id}>{p.image_url ? <img src={p.image_url} alt="Capa de referência"/> : <div className="image-placeholder">SEM FOTO</div>}<div><strong>{p.sku}</strong><span>{p.nome || p.variacao || p.capa_code}</span><small>{p.wireo_code}/{p.tassel_code}/{p.elastico_code}</small></div></article>)}</div>
+    <div className="list">{products.map(p => <article className="product" key={p.id}>{p.image_url ? <img src={p.image_url} alt="Capa de referência"/> : <div className="image-placeholder">SEM FOTO</div>}<div><strong>{p.sku}</strong><span>{p.nome || p.variacao || p.capa_code}</span><small>{p.wireo_code}/{p.tassel_code}/{p.elastico_code}{p.platform ? ` · ${p.platform}` : ''}</small></div></article>)}</div>
   </section>;
 }
 
