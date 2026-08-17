@@ -1,5 +1,5 @@
 name = "nisti-identificacao"
-main = "src/worker-router.js"
+main = "src/mercadolivre-router.js"
 compatibility_date = "2026-08-17"
 
 [assets]
