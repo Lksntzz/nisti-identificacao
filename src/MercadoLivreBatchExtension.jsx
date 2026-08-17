@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import MercadoLivreBatch from './MercadoLivreBatch.jsx';
+import './mercadolivre.css';
 
 const host = document.createElement('div');
 host.id = 'mercadolivre-batch-extension';
