@@ -229,7 +229,7 @@ function Admin() {
       if (current[product.id]) URL.revokeObjectURL(current[product.id]);
       return { ...current, [product.id]: URL.createObjectURL(file) };
     });
-    setSkuMessage(`Imagem selecionada para ${product.sku}. Confira antes de salvar.`);
+    setSkuMessage(`Imagem selecionada para ${product.sku}. Confira e salve para avançar.`);
   };
 
   const pasteSkuImage = (product, event) => {
@@ -246,6 +246,20 @@ function Admin() {
     event.preventDefault();
     const file = Array.from(event.dataTransfer?.files || []).find(item => String(item.type || '').startsWith('image/'));
     if (file) chooseSkuImage(product, file);
+  };
+
+  const clearSkuDraft = (productId) => {
+    setSkuFiles(current => {
+      const next = { ...current };
+      delete next[productId];
+      return next;
+    });
+    setSkuPreviews(current => {
+      const next = { ...current };
+      if (next[productId]) URL.revokeObjectURL(next[productId]);
+      delete next[productId];
+      return next;
+    });
   };
 
   const saveSkuImage = async (product) => {
@@ -265,22 +279,13 @@ function Admin() {
         body: fd
       });
 
-      setSkuFiles(current => {
-        const next = { ...current };
-        delete next[product.id];
-        return next;
-      });
-      setSkuPreviews(current => {
-        const next = { ...current };
-        if (next[product.id]) URL.revokeObjectURL(next[product.id]);
-        delete next[product.id];
-        return next;
-      });
+      clearSkuDraft(product.id);
       setSkippedSkuIds(current => current.filter(id => id !== product.id));
       setSkuMessage(result.embedding_indexed
-        ? `SKU ${product.sku} salvo com a imagem correta e capa indexada.`
+        ? `SKU ${product.sku} salvo e indexado. Próximo SKU carregado abaixo.`
         : `SKU ${product.sku} salvo. O índice visual precisa ser refeito: ${result.embedding_error || 'erro desconhecido'}`);
       await Promise.all([refresh(), refreshIndex().catch(() => null)]);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setSkuMessage(err.message);
     } finally {
@@ -288,16 +293,106 @@ function Admin() {
     }
   };
 
+  const skipSku = (product) => {
+    clearSkuDraft(product.id);
+    setSkippedSkuIds(current => [...new Set([...current, product.id])]);
+    setSkuMessage(`SKU ${product.sku} pulado nesta sessão. Próximo SKU carregado.`);
+  };
+
   const withoutImage = products.filter(product => !product.image_url).length;
   const withImage = products.length - withoutImage;
-  const pendingSkuProducts = products
-    .filter(product => !product.image_url && !skippedSkuIds.includes(product.id))
-    .slice(0, 30);
+  const pendingSkuProducts = products.filter(product => !product.image_url && !skippedSkuIds.includes(product.id));
+  const currentSku = pendingSkuProducts[0] || null;
+  const skippedCount = skippedSkuIds.filter(id => products.some(product => product.id === id && !product.image_url)).length;
+  const progressPercent = products.length ? Math.round((withImage / products.length) * 100) : 0;
 
   return <section className="panel">
     <div className="panel-head">
       <div><p className="eyebrow">ADMIN</p><h2>Produtos</h2></div>
       <span>{products.length} cadastrados</span>
+    </div>
+
+    <div className="form quick-workflow">
+      <div className="panel-head">
+        <div>
+          <strong>Modo rápido — 1 SKU por vez</strong>
+          <small>Abra o anúncio, escolha a variação indicada, cole a imagem e salve. O próximo SKU aparece automaticamente.</small>
+        </div>
+        <span>{withImage}/{products.length}</span>
+      </div>
+
+      <div className="quick-progress">
+        <div className="quick-progress-bar"><span style={{ width: `${progressPercent}%` }} /></div>
+        <div className="parsed quick-stats">
+          <Badge label="Concluídos" value={withImage}/>
+          <Badge label="Restantes" value={withoutImage}/>
+          <Badge label="Progresso" value={`${progressPercent}%`}/>
+          <Badge label="Pulados" value={skippedCount}/>
+        </div>
+      </div>
+
+      {skuMessage && <p className="message quick-message">{skuMessage}</p>}
+
+      {!currentSku && withoutImage === 0 && <div className="quick-done"><strong>Cadastro de imagens concluído.</strong><span>Todos os SKUs têm imagem própria.</span></div>}
+
+      {!currentSku && withoutImage > 0 && <div className="quick-done">
+        <strong>Não há SKU disponível nesta sessão.</strong>
+        <span>{skippedCount} SKU(s) foram pulados.</span>
+        <button type="button" onClick={() => setSkippedSkuIds([])}>Voltar aos SKUs pulados</button>
+      </div>}
+
+      {currentSku && (() => {
+        const product = currentSku;
+        const preview = skuPreviews[product.id];
+        const isBusy = skuBusy === product.id;
+        return <article className="sku-review quick-sku-card" key={product.id}>
+          <div className="quick-step">PRÓXIMO SKU · {withImage + 1} DE {products.length}</div>
+
+          <div className="sku-review-head">
+            <div>
+              <p className="eyebrow">SKU</p>
+              <h3>{product.sku}</h3>
+              <small><strong>Variação:</strong> {product.variacao || '—'}</small>
+              <small><strong>Nome:</strong> {product.nome || '—'}</small>
+              <small><strong>Capa:</strong> {product.capa_code}</small>
+            </div>
+            <span>{product.platform || 'SEM PLATAFORMA'}</span>
+          </div>
+
+          <div className="sku-actions-top">
+            {product.link
+              ? <a className="open-listing" href={product.link} target="_blank" rel="noreferrer">1. Abrir anúncio</a>
+              : <span className="no-link">Sem link de anúncio</span>}
+            <button type="button" className="secondary" disabled={isBusy} onClick={() => skipSku(product)}>Pular este SKU</button>
+          </div>
+
+          <div
+            className={`sku-dropzone ${preview ? 'has-preview' : ''}`}
+            tabIndex={0}
+            onPaste={event => pasteSkuImage(product, event)}
+            onDragOver={event => event.preventDefault()}
+            onDrop={event => dropSkuImage(product, event)}
+          >
+            {preview
+              ? <><img src={preview} alt={`Imagem selecionada para ${product.sku}`}/><strong className="preview-ok">2. Confira: esta é a imagem correta?</strong></>
+              : <div>
+                  <strong>2. Cole a imagem aqui</strong>
+                  <span>Depois de copiar a foto correta do anúncio, clique nesta área e pressione Ctrl+V.</span>
+                </div>}
+          </div>
+
+          <div className="sku-actions-bottom">
+            <label className="file-button">
+              Selecionar arquivo
+              <input type="file" accept="image/*" disabled={isBusy} onChange={e => chooseSkuImage(product, e.target.files?.[0] || null)} />
+            </label>
+            {preview && <button type="button" className="secondary" disabled={isBusy} onClick={() => clearSkuDraft(product.id)}>Trocar imagem</button>}
+            <button type="button" className="save-next" disabled={isBusy || !skuFiles[product.id]} onClick={() => saveSkuImage(product)}>
+              {isBusy ? 'Salvando...' : '3. Salvar e ir para o próximo'}
+            </button>
+          </div>
+        </article>;
+      })()}
     </div>
 
     <div className="form">
@@ -318,77 +413,6 @@ function Admin() {
 
     <div className="form">
       <div className="panel-head">
-        <div>
-          <strong>Separar imagem correta por SKU</strong>
-          <small>Cada SKU recebe sua própria imagem. Abra o anúncio, escolha a variação indicada e cole ou selecione a foto correta.</small>
-        </div>
-        <span>{withImage}/{products.length}</span>
-      </div>
-
-      <div className="parsed">
-        <Badge label="SKUs" value={products.length}/>
-        <Badge label="Com imagem" value={withImage}/>
-        <Badge label="Sem imagem" value={withoutImage}/>
-      </div>
-
-      {skuMessage && <p className="message">{skuMessage}</p>}
-      {!pendingSkuProducts.length && withoutImage === 0 && <p className="message">Todos os SKUs têm imagem própria cadastrada.</p>}
-      {!pendingSkuProducts.length && withoutImage > 0 && <button type="button" onClick={() => setSkippedSkuIds([])}>Mostrar SKUs pulados nesta sessão</button>}
-
-      <div className="sku-review-list">
-        {pendingSkuProducts.map(product => {
-          const preview = skuPreviews[product.id];
-          const isBusy = skuBusy === product.id;
-          return <article className="sku-review" key={product.id}>
-            <div className="sku-review-head">
-              <div>
-                <p className="eyebrow">SKU</p>
-                <h3>{product.sku}</h3>
-                <small><strong>Variação:</strong> {product.variacao || '—'}</small>
-                <small><strong>Nome:</strong> {product.nome || '—'}</small>
-                <small><strong>Capa:</strong> {product.capa_code}</small>
-              </div>
-              <span>{product.platform || 'SEM PLATAFORMA'}</span>
-            </div>
-
-            <div className="sku-actions-top">
-              {product.link
-                ? <a className="open-listing" href={product.link} target="_blank" rel="noreferrer">Abrir anúncio</a>
-                : <span className="no-link">Sem link de anúncio</span>}
-              <button type="button" className="secondary" disabled={isBusy} onClick={() => setSkippedSkuIds(current => [...new Set([...current, product.id])])}>Pular este SKU</button>
-            </div>
-
-            <div
-              className={`sku-dropzone ${preview ? 'has-preview' : ''}`}
-              tabIndex={0}
-              onPaste={event => pasteSkuImage(product, event)}
-              onDragOver={event => event.preventDefault()}
-              onDrop={event => dropSkuImage(product, event)}
-            >
-              {preview
-                ? <img src={preview} alt={`Imagem selecionada para ${product.sku}`}/>
-                : <div>
-                    <strong>Cole a imagem aqui</strong>
-                    <span>Ctrl+V depois de copiar a foto correta do anúncio, ou arraste uma imagem.</span>
-                  </div>}
-            </div>
-
-            <div className="sku-actions-bottom">
-              <label className="file-button">
-                Selecionar arquivo
-                <input type="file" accept="image/*" disabled={isBusy} onChange={e => chooseSkuImage(product, e.target.files?.[0] || null)} />
-              </label>
-              <button type="button" disabled={isBusy || !skuFiles[product.id]} onClick={() => saveSkuImage(product)}>
-                {isBusy ? 'Salvando...' : `Salvar imagem do SKU ${product.sku}`}
-              </button>
-            </div>
-          </article>;
-        })}
-      </div>
-    </div>
-
-    <div className="form">
-      <div className="panel-head">
         <div><strong>Índice visual das capas</strong><small>Busca Top-K antes da confirmação pelo Gemini</small></div>
         {indexInfo && <span>{indexInfo.indexed_covers}/{indexInfo.reference_covers}</span>}
       </div>
@@ -405,6 +429,7 @@ function Admin() {
     </div>
 
     <form className="form" onSubmit={submit}>
+      <div className="panel-head"><div><strong>Cadastro manual de produto</strong><small>Use apenas quando precisar cadastrar um SKU fora da importação em massa.</small></div></div>
       <label>SKU<input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="VACMNO_LIN1_BBB" required /></label>
       <div className="grid2">
         <label>Nome<input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} /></label>
@@ -426,18 +451,21 @@ function Admin() {
       {message && <p className="message">{message}</p>}
     </form>
 
-    <div className="list">
-      {products.map(product => <article className="product" key={product.id}>
-        {product.image_url
-          ? <img src={product.image_url} alt={`Imagem do SKU ${product.sku}`}/>
-          : <div className="image-placeholder">SEM FOTO</div>}
-        <div>
-          <strong>{product.sku}</strong>
-          <span>{product.nome || product.variacao || product.capa_code}</span>
-          <small>{product.wireo_code}/{product.tassel_code}/{product.elastico_code}{product.platform ? ` · ${product.platform}` : ''}</small>
-        </div>
-      </article>)}
-    </div>
+    <details className="catalog-details">
+      <summary>Ver catálogo completo ({products.length} SKUs)</summary>
+      <div className="list">
+        {products.map(product => <article className="product" key={product.id}>
+          {product.image_url
+            ? <img src={product.image_url} alt={`Imagem do SKU ${product.sku}`}/>
+            : <div className="image-placeholder">SEM FOTO</div>}
+          <div>
+            <strong>{product.sku}</strong>
+            <span>{product.nome || product.variacao || product.capa_code}</span>
+            <small>{product.wireo_code}/{product.tassel_code}/{product.elastico_code}{product.platform ? ` · ${product.platform}` : ''}</small>
+          </div>
+        </article>)}
+      </div>
+    </details>
   </section>;
 }
 
