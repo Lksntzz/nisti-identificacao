@@ -20,6 +20,15 @@ function enhanceHeader() {
     nav.classList.remove('general-navigation-hidden');
     if (buttons[0]) buttons[0].textContent = 'Geral';
     if (buttons[1]) buttons[1].textContent = 'Administração';
+
+    if (!nav.querySelector('.admin-logout')) {
+      const logout = document.createElement('a');
+      logout.className = 'admin-logout';
+      logout.href = '/admin-logout';
+      logout.textContent = 'Sair';
+      logout.setAttribute('aria-label', 'Encerrar sessão administrativa');
+      nav.appendChild(logout);
+    }
   } else {
     nav.classList.add('general-navigation-hidden');
     nav.setAttribute('aria-hidden', 'true');
