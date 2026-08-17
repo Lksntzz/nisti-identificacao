@@ -154,10 +154,10 @@ export default function MercadoLivreBatch({ products, onRefresh, onRefreshIndex 
         }
       }
 
-      await Promise.all([
-        onRefresh?.(),
-        onRefreshIndex?.().catch?.(() => null)
-      ]);
+      if (onRefresh) await onRefresh();
+      if (onRefreshIndex) {
+        try { await onRefreshIndex(); } catch {}
+      }
 
       setMessage(
         errors.length
