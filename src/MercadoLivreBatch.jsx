@@ -91,10 +91,19 @@ export default function MercadoLivreBatch({ products, onRefresh, onRefreshIndex 
     setSelections({});
 
     try {
+      const expectedVariations = [...new Set(
+        currentGroup.products
+          .map(product => String(product.variacao || '').trim())
+          .filter(Boolean)
+      )];
+
       const result = await api('/api/admin/mercadolivre-analyze', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url: currentGroup.link })
+        body: JSON.stringify({
+          url: currentGroup.link,
+          expected_variations: expectedVariations
+        })
       });
 
       const nextSelections = {};
@@ -178,7 +187,7 @@ export default function MercadoLivreBatch({ products, onRefresh, onRefreshIndex 
     <div className="panel-head">
       <div>
         <strong>Mercado Livre em lote — 1 anúncio por vez</strong>
-        <small>Lê os pickers da página MLBU, cruza as opções com a variação do catálogo e permite salvar vários SKUs de uma vez.</small>
+        <small>Lê as variações do anúncio, cruza com a variação do catálogo e permite salvar vários SKUs de uma vez.</small>
       </div>
       <span>{groups.length} anúncio(s) pendente(s)</span>
     </div>
@@ -221,7 +230,7 @@ export default function MercadoLivreBatch({ products, onRefresh, onRefreshIndex 
         <div className="variation-source">
           <strong>{analysis.variation_count} opção(ões) encontradas</strong>
           <span>
-            Fonte: página MLBU · {analysis.diagnostics?.picker_links || 0} picker(s) HTML · {analysis.diagnostics?.json_scripts || 0} script(s) JSON. Confira cada miniatura antes de salvar.
+            Fonte: {analysis.source || 'Mercado Livre'} · confira cada miniatura antes de salvar.
           </span>
         </div>
 
