@@ -1,5 +1,5 @@
 name = "nisti-identificacao"
-main = "src/mercadolivre-catalog-router.js"
+main = "src/mercadolivre-network-router.js"
 compatibility_date = "2026-08-17"
 compatibility_flags = [ "nodejs_compat" ]
 
