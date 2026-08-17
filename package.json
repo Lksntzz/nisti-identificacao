@@ -1,12 +1,12 @@
 {
   "name": "nisti-identificacao",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "deploy": "wrangler deploy",
+    "deploy": "npm run build && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply nisti-identificacao --remote"
   },
   "dependencies": {
