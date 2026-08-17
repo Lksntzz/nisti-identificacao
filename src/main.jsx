@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
@@ -89,12 +89,11 @@ function Admin() {
   const [indexMessage, setIndexMessage] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
-  const [coverReview, setCoverReview] = useState({ total_covers: 0, pending_covers: 0, ready_covers: 0, covers: [] });
-  const [coverMessage, setCoverMessage] = useState('');
-  const [galleryByCover, setGalleryByCover] = useState({});
-  const [galleryBusy, setGalleryBusy] = useState('');
-  const [assignBusy, setAssignBusy] = useState('');
-  const [skippedCovers, setSkippedCovers] = useState([]);
+  const [skuFiles, setSkuFiles] = useState({});
+  const [skuPreviews, setSkuPreviews] = useState({});
+  const [skuBusy, setSkuBusy] = useState(null);
+  const [skuMessage, setSkuMessage] = useState('');
+  const [skippedSkuIds, setSkippedSkuIds] = useState([]);
 
   const refresh = async () => {
     const data = await api('/api/products');
@@ -107,50 +106,55 @@ function Admin() {
     return data;
   };
 
-  const refreshCoverReviews = async () => {
-    const data = await api('/api/admin/cover-reviews?status=pending&limit=30');
-    setCoverReview(data);
-    return data;
-  };
-
   useEffect(() => {
     refresh().catch(() => {});
     refreshIndex().catch(() => {});
-    refreshCoverReviews().catch(() => {});
   }, []);
 
   useEffect(() => {
     const sku = form.sku.trim();
     if (!sku) return setParsed(null);
     const timer = setTimeout(() => {
-      api('/api/sku/parse', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sku }) })
-        .then(setParsed).catch(() => setParsed(null));
+      api('/api/sku/parse', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sku })
+      }).then(setParsed).catch(() => setParsed(null));
     }, 250);
     return () => clearTimeout(timer);
   }, [form.sku]);
 
   const submit = async (e) => {
     e.preventDefault();
-    setBusy(true); setMessage('');
+    setBusy(true);
+    setMessage('');
     try {
       const created = await api('/api/products', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...form }),
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...form })
       });
       if (image) {
-        const fd = new FormData(); fd.append('image', image);
+        const fd = new FormData();
+        fd.append('image', image);
         await api(`/api/products/${created.id}/image`, { method: 'POST', body: fd });
       }
-      setForm({ sku: '', nome: '', variacao: '', platform: '', link: '' }); setImage(null); setParsed(null);
+      setForm({ sku: '', nome: '', variacao: '', platform: '', link: '' });
+      setImage(null);
+      setParsed(null);
       setMessage('Produto cadastrado.');
-      await Promise.all([refresh(), refreshIndex().catch(() => null), refreshCoverReviews().catch(() => null)]);
-    } catch (err) { setMessage(err.message); }
-    finally { setBusy(false); }
+      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const importCatalogCsv = async (file) => {
     if (!file) return;
-    setBulkBusy(true); setBulkMessage('');
+    setBulkBusy(true);
+    setBulkMessage('');
     try {
       const text = await file.text();
       const rows = catalogRowsFromCsv(text);
@@ -168,13 +172,15 @@ function Admin() {
         });
         created += result.created || 0;
         updated += result.updated || 0;
-        if (result.errors?.length) errors.push(...result.errors.map(error => ({ ...error, batch_start: i + 1 })));
+        if (result.errors?.length) {
+          errors.push(...result.errors.map(error => ({ ...error, batch_start: i + 1 })));
+        }
       }
 
       setBulkMessage(errors.length
         ? `Catálogo processado: ${created} novos, ${updated} atualizados, ${errors.length} erro(s) de SKU para revisar.`
         : `Catálogo importado: ${created} novos e ${updated} atualizados.`);
-      await Promise.all([refresh(), refreshIndex().catch(() => null), refreshCoverReviews().catch(() => null)]);
+      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
     } catch (err) {
       setBulkMessage(err.message);
     } finally {
@@ -183,7 +189,8 @@ function Admin() {
   };
 
   const indexPendingCovers = async () => {
-    setIndexBusy(true); setIndexMessage('');
+    setIndexBusy(true);
+    setIndexMessage('');
     try {
       let info = await refreshIndex();
       let safety = 0;
@@ -203,174 +210,234 @@ function Admin() {
         safety += 1;
       }
       info = await refreshIndex();
-      if (info.pending_covers === 0) setIndexMessage(`Índice visual atualizado. ${info.indexed_covers} capa(s) indexadas.`);
-      else setIndexMessage(`Ainda faltam ${info.pending_covers} capa(s) para indexar.`);
-    } catch (err) { setIndexMessage(err.message); }
-    finally { setIndexBusy(false); }
+      if (info.pending_covers === 0) {
+        setIndexMessage(`Índice visual atualizado. ${info.indexed_covers} capa(s) indexadas.`);
+      } else {
+        setIndexMessage(`Ainda faltam ${info.pending_covers} capa(s) para indexar.`);
+      }
+    } catch (err) {
+      setIndexMessage(err.message);
+    } finally {
+      setIndexBusy(false);
+    }
   };
 
-  const loadCoverGallery = async (cover) => {
-    const links = cover.links || [];
-    if (!links.length) {
-      setCoverMessage(`A capa ${cover.capa_code} não tem link de anúncio no catálogo.`);
+  const chooseSkuImage = (product, file) => {
+    if (!file || !String(file.type || '').startsWith('image/')) return;
+    setSkuFiles(current => ({ ...current, [product.id]: file }));
+    setSkuPreviews(current => {
+      if (current[product.id]) URL.revokeObjectURL(current[product.id]);
+      return { ...current, [product.id]: URL.createObjectURL(file) };
+    });
+    setSkuMessage(`Imagem selecionada para ${product.sku}. Confira antes de salvar.`);
+  };
+
+  const pasteSkuImage = (product, event) => {
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find(item => String(item.type || '').startsWith('image/'));
+    const file = imageItem?.getAsFile?.();
+    if (file) {
+      event.preventDefault();
+      chooseSkuImage(product, file);
+    }
+  };
+
+  const dropSkuImage = (product, event) => {
+    event.preventDefault();
+    const file = Array.from(event.dataTransfer?.files || []).find(item => String(item.type || '').startsWith('image/'));
+    if (file) chooseSkuImage(product, file);
+  };
+
+  const saveSkuImage = async (product) => {
+    const file = skuFiles[product.id];
+    if (!file) {
+      setSkuMessage(`Selecione ou cole a imagem correta do SKU ${product.sku}.`);
       return;
     }
 
-    setGalleryBusy(cover.capa_code);
-    setCoverMessage('');
+    setSkuBusy(product.id);
+    setSkuMessage('');
     try {
-      const candidates = [];
-      const seen = new Set();
-      const failures = [];
-
-      for (const link of links.slice(0, 4)) {
-        try {
-          const preview = await api('/api/admin/listing-preview', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ url: link.url })
-          });
-          for (const imageUrl of preview.image_candidates || []) {
-            const key = String(imageUrl).split('?')[0];
-            if (seen.has(key)) continue;
-            seen.add(key);
-            candidates.push({
-              url: imageUrl,
-              listing_url: preview.listing_url || link.url,
-              title: preview.title || '',
-              platform: link.platform || ''
-            });
-          }
-        } catch (err) {
-          failures.push(`${link.platform || 'ANÚNCIO'}: ${err.message}`);
-        }
-      }
-
-      setGalleryByCover(current => ({ ...current, [cover.capa_code]: candidates.slice(0, 30) }));
-      if (!candidates.length) {
-        setCoverMessage(failures.length
-          ? `Não consegui obter miniaturas para ${cover.capa_code}. ${failures[0]}`
-          : `Nenhuma miniatura encontrada para ${cover.capa_code}.`);
-      }
-    } finally {
-      setGalleryBusy('');
-    }
-  };
-
-  const assignCoverImage = async (cover, imageUrl) => {
-    setAssignBusy(cover.capa_code);
-    setCoverMessage('');
-    try {
-      const result = await api(`/api/admin/covers/${encodeURIComponent(cover.capa_code)}/image-from-url`, {
+      const fd = new FormData();
+      fd.append('image', file);
+      const result = await api(`/api/products/${product.id}/image`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ image_url: imageUrl })
+        body: fd
       });
-      setCoverMessage(result.embedding_indexed
-        ? `Capa ${cover.capa_code} salva e indexada. ${result.updated_products} produto(s) atualizado(s).`
-        : `Capa ${cover.capa_code} salva, mas o índice visual precisa ser refeito: ${result.embedding_error || 'erro desconhecido'}`);
-      setGalleryByCover(current => {
+
+      setSkuFiles(current => {
         const next = { ...current };
-        delete next[cover.capa_code];
+        delete next[product.id];
         return next;
       });
-      await Promise.all([refresh(), refreshIndex().catch(() => null), refreshCoverReviews().catch(() => null)]);
+      setSkuPreviews(current => {
+        const next = { ...current };
+        if (next[product.id]) URL.revokeObjectURL(next[product.id]);
+        delete next[product.id];
+        return next;
+      });
+      setSkippedSkuIds(current => current.filter(id => id !== product.id));
+      setSkuMessage(result.embedding_indexed
+        ? `SKU ${product.sku} salvo com a imagem correta e capa indexada.`
+        : `SKU ${product.sku} salvo. O índice visual precisa ser refeito: ${result.embedding_error || 'erro desconhecido'}`);
+      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
     } catch (err) {
-      setCoverMessage(err.message);
+      setSkuMessage(err.message);
     } finally {
-      setAssignBusy('');
+      setSkuBusy(null);
     }
   };
 
   const withoutImage = products.filter(product => !product.image_url).length;
-  const visibleCovers = useMemo(
-    () => (coverReview.covers || []).filter(cover => !skippedCovers.includes(cover.capa_code)),
-    [coverReview.covers, skippedCovers]
-  );
+  const withImage = products.length - withoutImage;
+  const pendingSkuProducts = products
+    .filter(product => !product.image_url && !skippedSkuIds.includes(product.id))
+    .slice(0, 30);
 
   return <section className="panel">
-    <div className="panel-head"><div><p className="eyebrow">ADMIN</p><h2>Produtos</h2></div><span>{products.length} cadastrados</span></div>
+    <div className="panel-head">
+      <div><p className="eyebrow">ADMIN</p><h2>Produtos</h2></div>
+      <span>{products.length} cadastrados</span>
+    </div>
 
     <div className="form">
-      <div className="panel-head"><div><strong>Importação em massa</strong><small>CSV exportado da aba ANÚNCIOS da planilha ANUNCIOS NOVOS</small></div></div>
-      <div className="parsed"><Badge label="Produtos" value={products.length}/><Badge label="Sem imagem" value={withoutImage}/></div>
+      <div className="panel-head">
+        <div>
+          <strong>Importação em massa</strong>
+          <small>CSV exportado da aba ANÚNCIOS da planilha ANUNCIOS NOVOS</small>
+        </div>
+      </div>
+      <div className="parsed">
+        <Badge label="Produtos" value={products.length}/>
+        <Badge label="Sem imagem" value={withoutImage}/>
+      </div>
       <label>Arquivo CSV<input type="file" accept=".csv,text/csv" disabled={bulkBusy} onChange={e => importCatalogCsv(e.target.files?.[0] || null)} /></label>
       {bulkBusy && <p className="message">Importando catálogo em lotes...</p>}
       {bulkMessage && <p className="message">{bulkMessage}</p>}
     </div>
 
     <div className="form">
-      <div className="panel-head"><div><strong>Vincular imagens das capas</strong><small>Busque as miniaturas dos anúncios e confirme somente a arte correta.</small></div><span>{coverReview.ready_covers}/{coverReview.total_covers}</span></div>
-      <div className="parsed"><Badge label="Capas" value={coverReview.total_covers}/><Badge label="Com imagem" value={coverReview.ready_covers}/><Badge label="Sem imagem" value={coverReview.pending_covers}/></div>
-      {coverMessage && <p className="message">{coverMessage}</p>}
-      {!visibleCovers.length && coverReview.pending_covers === 0 && <p className="message">Todas as capas têm imagem de referência.</p>}
-      {!visibleCovers.length && coverReview.pending_covers > 0 && <button type="button" onClick={() => setSkippedCovers([])}>Mostrar capas puladas nesta sessão</button>}
+      <div className="panel-head">
+        <div>
+          <strong>Separar imagem correta por SKU</strong>
+          <small>Cada SKU recebe sua própria imagem. Abra o anúncio, escolha a variação indicada e cole ou selecione a foto correta.</small>
+        </div>
+        <span>{withImage}/{products.length}</span>
+      </div>
 
-      <div className="cover-review-list">
-        {visibleCovers.map(cover => {
-          const gallery = galleryByCover[cover.capa_code] || [];
-          return <article className="cover-review" key={cover.capa_code}>
-            <div className="cover-review-head">
+      <div className="parsed">
+        <Badge label="SKUs" value={products.length}/>
+        <Badge label="Com imagem" value={withImage}/>
+        <Badge label="Sem imagem" value={withoutImage}/>
+      </div>
+
+      {skuMessage && <p className="message">{skuMessage}</p>}
+      {!pendingSkuProducts.length && withoutImage === 0 && <p className="message">Todos os SKUs têm imagem própria cadastrada.</p>}
+      {!pendingSkuProducts.length && withoutImage > 0 && <button type="button" onClick={() => setSkippedSkuIds([])}>Mostrar SKUs pulados nesta sessão</button>}
+
+      <div className="sku-review-list">
+        {pendingSkuProducts.map(product => {
+          const preview = skuPreviews[product.id];
+          const isBusy = skuBusy === product.id;
+          return <article className="sku-review" key={product.id}>
+            <div className="sku-review-head">
               <div>
-                <p className="eyebrow">CAPA</p>
-                <h3>{cover.capa_code}</h3>
-                <small>{cover.sku_count} SKU(s) · {cover.skus.join(' · ')}</small>
-                {cover.variacoes?.length > 0 && <small>Variações: {cover.variacoes.join(' · ')}</small>}
+                <p className="eyebrow">SKU</p>
+                <h3>{product.sku}</h3>
+                <small><strong>Variação:</strong> {product.variacao || '—'}</small>
+                <small><strong>Nome:</strong> {product.nome || '—'}</small>
+                <small><strong>Capa:</strong> {product.capa_code}</small>
               </div>
-              <span>{cover.links?.length || 0} anúncio(s)</span>
+              <span>{product.platform || 'SEM PLATAFORMA'}</span>
             </div>
 
-            {cover.links?.length > 0 && <div className="cover-links">
-              {cover.links.slice(0, 6).map((link, index) =>
-                <a key={`${link.url}-${index}`} href={link.url} target="_blank" rel="noreferrer">{link.platform || 'Abrir anúncio'}</a>
-              )}
-            </div>}
+            <div className="sku-actions-top">
+              {product.link
+                ? <a className="open-listing" href={product.link} target="_blank" rel="noreferrer">Abrir anúncio</a>
+                : <span className="no-link">Sem link de anúncio</span>}
+              <button type="button" className="secondary" disabled={isBusy} onClick={() => setSkippedSkuIds(current => [...new Set([...current, product.id])])}>Pular este SKU</button>
+            </div>
 
-            <div className="cover-actions">
-              <button type="button" disabled={galleryBusy === cover.capa_code || assignBusy === cover.capa_code} onClick={() => loadCoverGallery(cover)}>
-                {galleryBusy === cover.capa_code ? 'Buscando miniaturas...' : gallery.length ? 'Buscar novamente' : 'Buscar miniaturas'}
+            <div
+              className={`sku-dropzone ${preview ? 'has-preview' : ''}`}
+              tabIndex={0}
+              onPaste={event => pasteSkuImage(product, event)}
+              onDragOver={event => event.preventDefault()}
+              onDrop={event => dropSkuImage(product, event)}
+            >
+              {preview
+                ? <img src={preview} alt={`Imagem selecionada para ${product.sku}`}/>
+                : <div>
+                    <strong>Cole a imagem aqui</strong>
+                    <span>Ctrl+V depois de copiar a foto correta do anúncio, ou arraste uma imagem.</span>
+                  </div>}
+            </div>
+
+            <div className="sku-actions-bottom">
+              <label className="file-button">
+                Selecionar arquivo
+                <input type="file" accept="image/*" disabled={isBusy} onChange={e => chooseSkuImage(product, e.target.files?.[0] || null)} />
+              </label>
+              <button type="button" disabled={isBusy || !skuFiles[product.id]} onClick={() => saveSkuImage(product)}>
+                {isBusy ? 'Salvando...' : `Salvar imagem do SKU ${product.sku}`}
               </button>
-              <button type="button" className="secondary" disabled={assignBusy === cover.capa_code} onClick={() => setSkippedCovers(current => [...new Set([...current, cover.capa_code])])}>Não encontrei / pular</button>
             </div>
-
-            {gallery.length > 0 && <div className="cover-gallery">
-              {gallery.map((candidate, index) =>
-                <button
-                  type="button"
-                  className="cover-candidate"
-                  key={`${candidate.url}-${index}`}
-                  disabled={assignBusy === cover.capa_code}
-                  onClick={() => assignCoverImage(cover, candidate.url)}
-                  title={candidate.title || 'Usar esta imagem'}
-                >
-                  <img src={candidate.url} alt={`Miniatura candidata ${index + 1} para ${cover.capa_code}`} loading="lazy"/>
-                  <span>{assignBusy === cover.capa_code ? 'Salvando...' : 'Usar esta imagem'}</span>
-                  {candidate.platform && <small>{candidate.platform}</small>}
-                </button>
-              )}
-            </div>}
           </article>;
         })}
       </div>
     </div>
 
     <div className="form">
-      <div className="panel-head"><div><strong>Índice visual das capas</strong><small>Busca Top-K antes da confirmação pelo Gemini</small></div>{indexInfo && <span>{indexInfo.indexed_covers}/{indexInfo.reference_covers}</span>}</div>
-      {indexInfo && <div className="parsed"><Badge label="Referências" value={indexInfo.reference_covers}/><Badge label="Indexadas" value={indexInfo.indexed_covers}/><Badge label="Pendentes" value={indexInfo.pending_covers}/><Badge label="Top-K" value={indexInfo.top_k}/></div>}
-      <button type="button" disabled={indexBusy || !indexInfo || indexInfo.pending_covers === 0} onClick={indexPendingCovers}>{indexBusy ? 'Indexando capas...' : indexInfo?.pending_covers ? `Indexar ${indexInfo.pending_covers} capa(s) pendente(s)` : 'Índice visual atualizado'}</button>
+      <div className="panel-head">
+        <div><strong>Índice visual das capas</strong><small>Busca Top-K antes da confirmação pelo Gemini</small></div>
+        {indexInfo && <span>{indexInfo.indexed_covers}/{indexInfo.reference_covers}</span>}
+      </div>
+      {indexInfo && <div className="parsed">
+        <Badge label="Referências" value={indexInfo.reference_covers}/>
+        <Badge label="Indexadas" value={indexInfo.indexed_covers}/>
+        <Badge label="Pendentes" value={indexInfo.pending_covers}/>
+        <Badge label="Top-K" value={indexInfo.top_k}/>
+      </div>}
+      <button type="button" disabled={indexBusy || !indexInfo || indexInfo.pending_covers === 0} onClick={indexPendingCovers}>
+        {indexBusy ? 'Indexando capas...' : indexInfo?.pending_covers ? `Indexar ${indexInfo.pending_covers} capa(s) pendente(s)` : 'Índice visual atualizado'}
+      </button>
       {indexMessage && <p className="message">{indexMessage}</p>}
     </div>
 
     <form className="form" onSubmit={submit}>
       <label>SKU<input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="VACMNO_LIN1_BBB" required /></label>
-      <div className="grid2"><label>Nome<input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} /></label><label>Variação<input value={form.variacao} onChange={e => setForm({ ...form, variacao: e.target.value })} /></label></div>
-      <div className="grid2"><label>Plataforma<input value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })} placeholder="SHOPEE" /></label><label>Link do anúncio<input value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} placeholder="https://..." /></label></div>
+      <div className="grid2">
+        <label>Nome<input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} /></label>
+        <label>Variação<input value={form.variacao} onChange={e => setForm({ ...form, variacao: e.target.value })} /></label>
+      </div>
+      <div className="grid2">
+        <label>Plataforma<input value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })} placeholder="SHOPEE" /></label>
+        <label>Link do anúncio<input value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} placeholder="https://..." /></label>
+      </div>
       <label>Imagem de referência da capa<input type="file" accept="image/*" onChange={e => setImage(e.target.files?.[0] || null)} /></label>
-      {parsed && <div className="parsed"><Badge label="Miolo" value={parsed.mioloCode}/><Badge label="Capa" value={parsed.capaCode}/><Badge label="Wire-O" value={parsed.wireo}/><Badge label="Tassel" value={parsed.tassel}/><Badge label="Elástico" value={parsed.elastico}/></div>}
+      {parsed && <div className="parsed">
+        <Badge label="Miolo" value={parsed.mioloCode}/>
+        <Badge label="Capa" value={parsed.capaCode}/>
+        <Badge label="Wire-O" value={parsed.wireo}/>
+        <Badge label="Tassel" value={parsed.tassel}/>
+        <Badge label="Elástico" value={parsed.elastico}/>
+      </div>}
       <button disabled={busy || !parsed}>{busy ? 'Salvando...' : 'Cadastrar produto'}</button>
       {message && <p className="message">{message}</p>}
     </form>
-    <div className="list">{products.map(p => <article className="product" key={p.id}>{p.image_url ? <img src={p.image_url} alt="Capa de referência"/> : <div className="image-placeholder">SEM FOTO</div>}<div><strong>{p.sku}</strong><span>{p.nome || p.variacao || p.capa_code}</span><small>{p.wireo_code}/{p.tassel_code}/{p.elastico_code}{p.platform ? ` · ${p.platform}` : ''}</small></div></article>)}</div>
+
+    <div className="list">
+      {products.map(product => <article className="product" key={product.id}>
+        {product.image_url
+          ? <img src={product.image_url} alt={`Imagem do SKU ${product.sku}`}/>
+          : <div className="image-placeholder">SEM FOTO</div>}
+        <div>
+          <strong>{product.sku}</strong>
+          <span>{product.nome || product.variacao || product.capa_code}</span>
+          <small>{product.wireo_code}/{product.tassel_code}/{product.elastico_code}{product.platform ? ` · ${product.platform}` : ''}</small>
+        </div>
+      </article>)}
+    </div>
   </section>;
 }
 
@@ -382,34 +449,69 @@ function Expedition() {
   const [error, setError] = useState('');
 
   const choose = (file) => {
-    setPhoto(file || null); setResult(null); setError('');
+    setPhoto(file || null);
+    setResult(null);
+    setError('');
     if (preview) URL.revokeObjectURL(preview);
     setPreview(file ? URL.createObjectURL(file) : '');
   };
 
   const identify = async () => {
     if (!photo) return;
-    setBusy(true); setError(''); setResult(null);
+    setBusy(true);
+    setError('');
+    setResult(null);
     try {
-      const fd = new FormData(); fd.append('image', photo);
+      const fd = new FormData();
+      fd.append('image', photo);
       const data = await api('/api/identify', { method: 'POST', body: fd });
       setResult(data.product);
-    } catch (err) { setError(err.message); }
-    finally { setBusy(false); }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return <section className="panel expedition">
-    <p className="eyebrow">EXPEDIÇÃO</p><h2>Identificar produto pela capa</h2><p>Fotografe a arte da capa de frente. A capa pode estar solta: não precisa ter Wire-O, tassel ou elástico.</p>
-    <label className="camera">{preview ? <img src={preview} alt="Foto da capa capturada"/> : <><span className="camera-icon">◎</span><strong>Tirar foto da capa</strong><small>Toque para abrir a câmera</small></>}<input type="file" accept="image/*" capture="environment" onChange={e => choose(e.target.files?.[0])}/></label>
+    <p className="eyebrow">EXPEDIÇÃO</p>
+    <h2>Identificar produto pela capa</h2>
+    <p>Fotografe a arte da capa de frente. A capa pode estar solta: não precisa ter Wire-O, tassel ou elástico.</p>
+    <label className="camera">
+      {preview
+        ? <img src={preview} alt="Foto da capa capturada"/>
+        : <><span className="camera-icon">◎</span><strong>Tirar foto da capa</strong><small>Toque para abrir a câmera</small></>}
+      <input type="file" accept="image/*" capture="environment" onChange={e => choose(e.target.files?.[0])}/>
+    </label>
     <button disabled={!photo || busy} onClick={identify}>{busy ? 'Analisando capa...' : 'Identificar produto'}</button>
     {error && <div className="not-found"><strong>Produto não identificado</strong><span>{error}</span></div>}
-    {result && <div className="result"><p className="eyebrow">PRODUTO IDENTIFICADO PELA CAPA</p><h3>{result.sku}</h3>{result.image_url && <img className="result-image" src={result.image_url} alt="Capa de referência"/>}<div className="parsed"><Badge label="Capa" value={result.capa_code}/><Badge label="Wire-O" value={result.wireo}/><Badge label="Tassel" value={result.tassel}/><Badge label="Elástico" value={result.elastico}/></div>{result.platform && <p><strong>Plataforma:</strong> {result.platform}</p>}</div>}
+    {result && <div className="result">
+      <p className="eyebrow">PRODUTO IDENTIFICADO PELA CAPA</p>
+      <h3>{result.sku}</h3>
+      {result.image_url && <img className="result-image" src={result.image_url} alt="Capa de referência"/>}
+      <div className="parsed">
+        <Badge label="Capa" value={result.capa_code}/>
+        <Badge label="Wire-O" value={result.wireo}/>
+        <Badge label="Tassel" value={result.tassel}/>
+        <Badge label="Elástico" value={result.elastico}/>
+      </div>
+      {result.platform && <p><strong>Plataforma:</strong> {result.platform}</p>}
+    </div>}
   </section>;
 }
 
 function App() {
   const [mode, setMode] = useState('expedition');
-  return <main className="shell"><header><div><p className="eyebrow">NISTI PRINT</p><h1>Identificação Visual</h1></div><nav><button className={mode === 'expedition' ? 'active' : ''} onClick={() => setMode('expedition')}>Expedição</button><button className={mode === 'admin' ? 'active' : ''} onClick={() => setMode('admin')}>ADM</button></nav></header>{mode === 'expedition' ? <Expedition/> : <Admin/>}</main>;
+  return <main className="shell">
+    <header>
+      <div><p className="eyebrow">NISTI PRINT</p><h1>Identificação Visual</h1></div>
+      <nav>
+        <button className={mode === 'expedition' ? 'active' : ''} onClick={() => setMode('expedition')}>Expedição</button>
+        <button className={mode === 'admin' ? 'active' : ''} onClick={() => setMode('admin')}>ADM</button>
+      </nav>
+    </header>
+    {mode === 'expedition' ? <Expedition/> : <Admin/>}
+  </main>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
