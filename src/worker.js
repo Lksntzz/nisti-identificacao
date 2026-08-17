@@ -1,5 +1,8 @@
 import { parseSku } from './sku.js';
 
+const EMBEDDING_DIMENSIONS = 768;
+const TOP_K_COVERS = 8;
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8' } });
 }
@@ -11,35 +14,110 @@ function base64(bytes) {
   return btoa(binary);
 }
 
-async function identifyCoverWithGemini(env, uploadedFile) {
-  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
+function cosineSimilarity(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length || !a.length) return -1;
+  let dot = 0;
+  let magA = 0;
+  let magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    const av = Number(a[i]);
+    const bv = Number(b[i]);
+    if (!Number.isFinite(av) || !Number.isFinite(bv)) return -1;
+    dot += av * bv;
+    magA += av * av;
+    magB += bv * bv;
+  }
+  if (!magA || !magB) return -1;
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
 
+async function embedImage(env, bytes, mimeType) {
+  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
+  const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+    body: JSON.stringify({
+      content: {
+        parts: [{
+          inline_data: {
+            mime_type: mimeType || 'image/jpeg',
+            data: base64(bytes)
+          }
+        }]
+      },
+      output_dimensionality: EMBEDDING_DIMENSIONS
+    })
+  });
+
+  if (!response.ok) throw new Error(`Gemini Embedding falhou (${response.status})`);
+  const payload = await response.json();
+  const values = payload?.embedding?.values || payload?.embeddings?.[0]?.values;
+  if (!Array.isArray(values) || !values.length) throw new Error('Gemini Embedding não retornou vetor');
+  return { model, values };
+}
+
+async function upsertCoverEmbedding(env, capaCode, imageKey, bytes, mimeType) {
+  const { model, values } = await embedImage(env, bytes, mimeType);
+  await env.DB.prepare(`
+    INSERT INTO cover_embeddings (capa_code,image_key,embedding_model,dimensions,embedding_json,updated_at)
+    VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(capa_code) DO UPDATE SET
+      image_key=excluded.image_key,
+      embedding_model=excluded.embedding_model,
+      dimensions=excluded.dimensions,
+      embedding_json=excluded.embedding_json,
+      updated_at=CURRENT_TIMESTAMP
+  `).bind(capaCode, imageKey, model, values.length, JSON.stringify(values)).run();
+  return values;
+}
+
+async function getTopCoverCandidates(env, uploadedFile, limit = TOP_K_COVERS) {
+  const uploadBytes = new Uint8Array(await uploadedFile.arrayBuffer());
+  const { values: queryEmbedding } = await embedImage(env, uploadBytes, uploadedFile.type || 'image/jpeg');
   const { results } = await env.DB.prepare(`
-    SELECT p.id, p.capa_code, p.image_key
-    FROM products p
-    JOIN (
-      SELECT capa_code, MAX(id) AS id
-      FROM products
-      WHERE image_key IS NOT NULL
-      GROUP BY capa_code
-    ) latest ON latest.id = p.id
-    ORDER BY p.id DESC
-    LIMIT 12
+    SELECT capa_code,image_key,embedding_model,dimensions,embedding_json
+    FROM cover_embeddings
   `).all();
 
-  if (!results?.length) throw new Error('Cadastre produtos com imagem de capa antes de identificar');
+  if (!results?.length) throw new Error('Índice visual vazio. Indexe as imagens das capas antes de identificar.');
 
-  const parts = [{ text: `Você é o identificador visual interno da NISTI PRINT. Compare somente a ARTE DA CAPA na FOTO DA EXPEDIÇÃO com as CAPAS DE REFERÊNCIA abaixo. O produto na expedição pode estar apenas com a capa solta, sem Wire-O, sem tassel e sem elástico. Ignore completamente acabamento, miolo, plataforma e qualquer acessório. Nomes personalizados impressos na capa podem variar e devem ser ignorados. Escolha somente um CAPA_CODE presente na lista se houver correspondência visual forte da arte-base. Se não houver correspondência segura, use matched=false e capa_code="".` }];
+  const scored = [];
+  for (const row of results) {
+    try {
+      const vector = JSON.parse(row.embedding_json);
+      const score = cosineSimilarity(queryEmbedding, vector);
+      if (Number.isFinite(score)) scored.push({
+        capa_code: row.capa_code,
+        image_key: row.image_key,
+        retrieval_score: score
+      });
+    } catch {
+      // Ignora registros de índice corrompidos; podem ser refeitos pelo reindexador.
+    }
+  }
 
-  for (const p of results) {
-    const obj = await env.PRODUCT_IMAGES.get(p.image_key);
+  scored.sort((a, b) => b.retrieval_score - a.retrieval_score);
+  return { uploadBytes, candidates: scored.slice(0, Math.max(1, limit)) };
+}
+
+async function verifyCoverWithGemini(env, uploadedFile, uploadBytes, candidates) {
+  if (!candidates.length) throw new Error('Nenhuma capa candidata encontrada no índice visual');
+
+  const parts = [{ text: `Você é o verificador visual interno da NISTI PRINT. A FOTO DA EXPEDIÇÃO mostra somente a capa do produto, que pode estar solta, sem Wire-O, tassel ou elástico. Compare somente a ARTE-BASE DA CAPA com as CAPAS CANDIDATAS abaixo. Ignore nomes personalizados impressos, acabamento, miolo, plataforma e acessórios. Escolha somente um CAPA_CODE da lista se a correspondência visual for forte. Se nenhuma candidata corresponder com segurança, responda matched=false e capa_code="". Os retrieval_score servem apenas como pré-seleção e não substituem sua verificação visual.` }];
+
+  const usableCandidates = [];
+  for (const candidate of candidates) {
+    const obj = await env.PRODUCT_IMAGES.get(candidate.image_key);
     if (!obj) continue;
     const bytes = new Uint8Array(await obj.arrayBuffer());
-    parts.push({ text: `CAPA DE REFERÊNCIA: CAPA_CODE=${p.capa_code}` });
+    usableCandidates.push(candidate);
+    parts.push({ text: `CAPA CANDIDATA: CAPA_CODE=${candidate.capa_code}; retrieval_score=${candidate.retrieval_score.toFixed(6)}` });
     parts.push({ inline_data: { mime_type: obj.httpMetadata?.contentType || 'image/jpeg', data: base64(bytes) } });
   }
 
-  const uploadBytes = new Uint8Array(await uploadedFile.arrayBuffer());
+  if (!usableCandidates.length) throw new Error('As imagens candidatas não foram encontradas no R2');
+
   parts.push({ text: 'FOTO DA CAPA A IDENTIFICAR:' });
   parts.push({ inline_data: { mime_type: uploadedFile.type || 'image/jpeg', data: base64(uploadBytes) } });
 
@@ -70,7 +148,42 @@ async function identifyCoverWithGemini(env, uploadedFile) {
   const payload = await response.json();
   const text = payload.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
   if (!text) throw new Error('Gemini não retornou resultado');
-  return JSON.parse(text);
+  const result = JSON.parse(text);
+  const allowedCodes = new Set(usableCandidates.map(c => String(c.capa_code).trim().toUpperCase()));
+  const selectedCode = String(result?.capa_code || '').trim().toUpperCase();
+  if (result?.matched && (!selectedCode || !allowedCodes.has(selectedCode))) {
+    return { matched: false, capa_code: '', confidence: 0, reason: 'Gemini retornou capa fora do Top-K', candidates: usableCandidates };
+  }
+  return { ...result, capa_code: selectedCode, candidates: usableCandidates };
+}
+
+async function identifyCoverWithGemini(env, uploadedFile) {
+  const { uploadBytes, candidates } = await getTopCoverCandidates(env, uploadedFile, TOP_K_COVERS);
+  return verifyCoverWithGemini(env, uploadedFile, uploadBytes, candidates);
+}
+
+async function saveProductImage(env, id, fileBytes, contentType) {
+  const product = await env.DB.prepare(`SELECT id,capa_code,image_key FROM products WHERE id=?`).bind(id).first();
+  if (!product) throw new Error('Produto não encontrado');
+
+  const key = `products/${id}/${crypto.randomUUID()}`;
+  await env.PRODUCT_IMAGES.put(key, fileBytes, { httpMetadata: { contentType } });
+  await env.DB.prepare(`UPDATE products SET image_key=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(key, id).run();
+
+  let indexed = false;
+  let index_error = null;
+  try {
+    await upsertCoverEmbedding(env, product.capa_code, key, new Uint8Array(fileBytes), contentType);
+    indexed = true;
+  } catch (error) {
+    index_error = error?.message || 'Falha ao indexar capa';
+  }
+
+  if (product.image_key && product.image_key !== key) {
+    await env.PRODUCT_IMAGES.delete(product.image_key).catch(() => {});
+  }
+
+  return { key, indexed, index_error };
 }
 
 export default {
@@ -105,10 +218,41 @@ export default {
         const file = form.get('image');
         if (!(file instanceof File)) return json({ error: 'Imagem obrigatória' }, 400);
         if (!file.type.startsWith('image/')) return json({ error: 'Arquivo deve ser uma imagem' }, 400);
-        const key = `products/${id}/${crypto.randomUUID()}`;
-        await env.PRODUCT_IMAGES.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-        await env.DB.prepare(`UPDATE products SET image_key=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(key, id).run();
-        return json({ ok: true, image_url: `/api/images/${id}` });
+        const bytes = await file.arrayBuffer();
+        const saved = await saveProductImage(env, id, bytes, file.type);
+        return json({
+          ok: true,
+          image_url: `/api/images/${id}`,
+          embedding_indexed: saved.indexed,
+          embedding_error: saved.index_error
+        });
+      }
+
+      const imageFromUrl = url.pathname.match(/^\/api\/products\/(\d+)\/image-from-url$/);
+      if (imageFromUrl && request.method === 'POST') {
+        const id = Number(imageFromUrl[1]);
+        const body = await request.json();
+        let sourceUrl;
+        try {
+          sourceUrl = new URL(body.image_url);
+        } catch {
+          return json({ error: 'image_url inválida' }, 400);
+        }
+        if (sourceUrl.protocol !== 'https:') return json({ error: 'A imagem deve usar HTTPS' }, 400);
+        const response = await fetch(sourceUrl.toString(), {
+          headers: { 'user-agent': 'NISTI-Identificacao/1.0' }
+        });
+        if (!response.ok) return json({ error: `Não foi possível baixar a imagem (${response.status})` }, 400);
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.startsWith('image/')) return json({ error: 'O endereço não retornou uma imagem' }, 400);
+        const bytes = await response.arrayBuffer();
+        const saved = await saveProductImage(env, id, bytes, contentType);
+        return json({
+          ok: true,
+          image_url: `/api/images/${id}`,
+          embedding_indexed: saved.indexed,
+          embedding_error: saved.index_error
+        });
       }
 
       const imageGet = url.pathname.match(/^\/api\/images\/(\d+)$/);
@@ -121,6 +265,83 @@ export default {
         object.writeHttpMetadata(headers);
         headers.set('cache-control', 'private, max-age=3600');
         return new Response(object.body, { headers });
+      }
+
+      if (url.pathname === '/api/admin/cover-index' && request.method === 'GET') {
+        const refs = await env.DB.prepare(`SELECT COUNT(DISTINCT capa_code) AS total FROM products WHERE image_key IS NOT NULL`).first();
+        const indexed = await env.DB.prepare(`SELECT COUNT(*) AS total FROM cover_embeddings`).first();
+        const pending = await env.DB.prepare(`
+          SELECT COUNT(*) AS total FROM (
+            SELECT p.capa_code,p.image_key
+            FROM products p
+            JOIN (
+              SELECT capa_code,MAX(id) AS id
+              FROM products
+              WHERE image_key IS NOT NULL
+              GROUP BY capa_code
+            ) latest ON latest.id=p.id
+            LEFT JOIN cover_embeddings ce ON ce.capa_code=p.capa_code AND ce.image_key=p.image_key
+            WHERE ce.capa_code IS NULL
+          )
+        `).first();
+        return json({
+          reference_covers: Number(refs?.total || 0),
+          indexed_covers: Number(indexed?.total || 0),
+          pending_covers: Number(pending?.total || 0),
+          embedding_model: env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2',
+          embedding_dimensions: EMBEDDING_DIMENSIONS,
+          top_k: TOP_K_COVERS
+        });
+      }
+
+      if (url.pathname === '/api/admin/reindex-cover-embeddings' && request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const limit = Math.max(1, Math.min(10, Number(body.limit) || 6));
+        const { results } = await env.DB.prepare(`
+          SELECT p.id,p.capa_code,p.image_key
+          FROM products p
+          JOIN (
+            SELECT capa_code,MAX(id) AS id
+            FROM products
+            WHERE image_key IS NOT NULL
+            GROUP BY capa_code
+          ) latest ON latest.id=p.id
+          LEFT JOIN cover_embeddings ce ON ce.capa_code=p.capa_code AND ce.image_key=p.image_key
+          WHERE ce.capa_code IS NULL
+          ORDER BY p.id ASC
+          LIMIT ?
+        `).bind(limit).all();
+
+        const processed = [];
+        const errors = [];
+        for (const product of results || []) {
+          try {
+            const obj = await env.PRODUCT_IMAGES.get(product.image_key);
+            if (!obj) throw new Error('Imagem não encontrada no R2');
+            const bytes = new Uint8Array(await obj.arrayBuffer());
+            await upsertCoverEmbedding(env, product.capa_code, product.image_key, bytes, obj.httpMetadata?.contentType || 'image/jpeg');
+            processed.push(product.capa_code);
+          } catch (error) {
+            errors.push({ capa_code: product.capa_code, error: error?.message || 'Falha ao indexar' });
+          }
+        }
+
+        const pending = await env.DB.prepare(`
+          SELECT COUNT(*) AS total FROM (
+            SELECT p.capa_code
+            FROM products p
+            JOIN (
+              SELECT capa_code,MAX(id) AS id
+              FROM products
+              WHERE image_key IS NOT NULL
+              GROUP BY capa_code
+            ) latest ON latest.id=p.id
+            LEFT JOIN cover_embeddings ce ON ce.capa_code=p.capa_code AND ce.image_key=p.image_key
+            WHERE ce.capa_code IS NULL
+          )
+        `).first();
+
+        return json({ ok: errors.length === 0, processed, errors, pending_covers: Number(pending?.total || 0) });
       }
 
       if (url.pathname === '/api/identify' && request.method === 'POST') {
@@ -150,6 +371,7 @@ export default {
         if (!product) return json({ error: 'Produto não encontrado no banco.' }, 422);
 
         const parsed = parseSku(product.sku);
+        const selectedCandidate = ai.candidates?.find(c => String(c.capa_code).trim().toUpperCase() === capaCode);
         return json({
           product: {
             ...product,
@@ -159,7 +381,8 @@ export default {
             image_url: product.image_key ? `/api/images/${product.id}` : null
           },
           confidence: ai.confidence,
-          identified_by: 'capa_code'
+          retrieval_score: selectedCandidate?.retrieval_score ?? null,
+          identified_by: 'capa_embedding_topk+gemini'
         });
       }
 
