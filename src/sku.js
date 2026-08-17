@@ -1,5 +1,5 @@
-export const WIREO_COLORS = { P: 'Preto', B: 'Branco' };
-export const ACCESSORY_COLORS = { P: 'Preto', B: 'Branco', A: 'Azul', R: 'Rosa', V: 'Verde' };
+export const WIREO_COLORS = { P: 'Preto', B: 'Branco', R: 'Rose Gold' };
+export const ACCESSORY_COLORS = { P: 'Preto', B: 'Branco', A: 'Azul', R: 'Rosa', V: 'Verde', L: 'Laranja' };
 
 export function parseSku(sku) {
   const value = String(sku || '').trim().toUpperCase();
