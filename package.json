@@ -1,0 +1,20 @@
+{
+  "name": "nisti-identificacao",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply nisti-identificacao --remote"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "wrangler": "latest"
+  },
+  "devDependencies": {}
+}
