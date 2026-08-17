@@ -1,5 +1,5 @@
 name = "nisti-identificacao"
-main = "src/worker.js"
+main = "src/worker-router.js"
 compatibility_date = "2026-08-17"
 
 [assets]
