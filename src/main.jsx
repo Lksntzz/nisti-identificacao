@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
@@ -89,6 +89,12 @@ function Admin() {
   const [indexMessage, setIndexMessage] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
+  const [coverReview, setCoverReview] = useState({ total_covers: 0, pending_covers: 0, ready_covers: 0, covers: [] });
+  const [coverMessage, setCoverMessage] = useState('');
+  const [galleryByCover, setGalleryByCover] = useState({});
+  const [galleryBusy, setGalleryBusy] = useState('');
+  const [assignBusy, setAssignBusy] = useState('');
+  const [skippedCovers, setSkippedCovers] = useState([]);
 
   const refresh = async () => {
     const data = await api('/api/products');
@@ -101,9 +107,16 @@ function Admin() {
     return data;
   };
 
+  const refreshCoverReviews = async () => {
+    const data = await api('/api/admin/cover-reviews?status=pending&limit=30');
+    setCoverReview(data);
+    return data;
+  };
+
   useEffect(() => {
     refresh().catch(() => {});
     refreshIndex().catch(() => {});
+    refreshCoverReviews().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -130,7 +143,7 @@ function Admin() {
       }
       setForm({ sku: '', nome: '', variacao: '', platform: '', link: '' }); setImage(null); setParsed(null);
       setMessage('Produto cadastrado.');
-      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
+      await Promise.all([refresh(), refreshIndex().catch(() => null), refreshCoverReviews().catch(() => null)]);
     } catch (err) { setMessage(err.message); }
     finally { setBusy(false); }
   };
@@ -161,7 +174,7 @@ function Admin() {
       setBulkMessage(errors.length
         ? `Catálogo processado: ${created} novos, ${updated} atualizados, ${errors.length} erro(s) de SKU para revisar.`
         : `Catálogo importado: ${created} novos e ${updated} atualizados.`);
-      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
+      await Promise.all([refresh(), refreshIndex().catch(() => null), refreshCoverReviews().catch(() => null)]);
     } catch (err) {
       setBulkMessage(err.message);
     } finally {
@@ -196,7 +209,84 @@ function Admin() {
     finally { setIndexBusy(false); }
   };
 
+  const loadCoverGallery = async (cover) => {
+    const links = cover.links || [];
+    if (!links.length) {
+      setCoverMessage(`A capa ${cover.capa_code} não tem link de anúncio no catálogo.`);
+      return;
+    }
+
+    setGalleryBusy(cover.capa_code);
+    setCoverMessage('');
+    try {
+      const candidates = [];
+      const seen = new Set();
+      const failures = [];
+
+      for (const link of links.slice(0, 4)) {
+        try {
+          const preview = await api('/api/admin/listing-preview', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ url: link.url })
+          });
+          for (const imageUrl of preview.image_candidates || []) {
+            const key = String(imageUrl).split('?')[0];
+            if (seen.has(key)) continue;
+            seen.add(key);
+            candidates.push({
+              url: imageUrl,
+              listing_url: preview.listing_url || link.url,
+              title: preview.title || '',
+              platform: link.platform || ''
+            });
+          }
+        } catch (err) {
+          failures.push(`${link.platform || 'ANÚNCIO'}: ${err.message}`);
+        }
+      }
+
+      setGalleryByCover(current => ({ ...current, [cover.capa_code]: candidates.slice(0, 30) }));
+      if (!candidates.length) {
+        setCoverMessage(failures.length
+          ? `Não consegui obter miniaturas para ${cover.capa_code}. ${failures[0]}`
+          : `Nenhuma miniatura encontrada para ${cover.capa_code}.`);
+      }
+    } finally {
+      setGalleryBusy('');
+    }
+  };
+
+  const assignCoverImage = async (cover, imageUrl) => {
+    setAssignBusy(cover.capa_code);
+    setCoverMessage('');
+    try {
+      const result = await api(`/api/admin/covers/${encodeURIComponent(cover.capa_code)}/image-from-url`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ image_url: imageUrl })
+      });
+      setCoverMessage(result.embedding_indexed
+        ? `Capa ${cover.capa_code} salva e indexada. ${result.updated_products} produto(s) atualizado(s).`
+        : `Capa ${cover.capa_code} salva, mas o índice visual precisa ser refeito: ${result.embedding_error || 'erro desconhecido'}`);
+      setGalleryByCover(current => {
+        const next = { ...current };
+        delete next[cover.capa_code];
+        return next;
+      });
+      await Promise.all([refresh(), refreshIndex().catch(() => null), refreshCoverReviews().catch(() => null)]);
+    } catch (err) {
+      setCoverMessage(err.message);
+    } finally {
+      setAssignBusy('');
+    }
+  };
+
   const withoutImage = products.filter(product => !product.image_url).length;
+  const visibleCovers = useMemo(
+    () => (coverReview.covers || []).filter(cover => !skippedCovers.includes(cover.capa_code)),
+    [coverReview.covers, skippedCovers]
+  );
 
   return <section className="panel">
     <div className="panel-head"><div><p className="eyebrow">ADMIN</p><h2>Produtos</h2></div><span>{products.length} cadastrados</span></div>
@@ -207,6 +297,61 @@ function Admin() {
       <label>Arquivo CSV<input type="file" accept=".csv,text/csv" disabled={bulkBusy} onChange={e => importCatalogCsv(e.target.files?.[0] || null)} /></label>
       {bulkBusy && <p className="message">Importando catálogo em lotes...</p>}
       {bulkMessage && <p className="message">{bulkMessage}</p>}
+    </div>
+
+    <div className="form">
+      <div className="panel-head"><div><strong>Vincular imagens das capas</strong><small>Busque as miniaturas dos anúncios e confirme somente a arte correta.</small></div><span>{coverReview.ready_covers}/{coverReview.total_covers}</span></div>
+      <div className="parsed"><Badge label="Capas" value={coverReview.total_covers}/><Badge label="Com imagem" value={coverReview.ready_covers}/><Badge label="Sem imagem" value={coverReview.pending_covers}/></div>
+      {coverMessage && <p className="message">{coverMessage}</p>}
+      {!visibleCovers.length && coverReview.pending_covers === 0 && <p className="message">Todas as capas têm imagem de referência.</p>}
+      {!visibleCovers.length && coverReview.pending_covers > 0 && <button type="button" onClick={() => setSkippedCovers([])}>Mostrar capas puladas nesta sessão</button>}
+
+      <div className="cover-review-list">
+        {visibleCovers.map(cover => {
+          const gallery = galleryByCover[cover.capa_code] || [];
+          return <article className="cover-review" key={cover.capa_code}>
+            <div className="cover-review-head">
+              <div>
+                <p className="eyebrow">CAPA</p>
+                <h3>{cover.capa_code}</h3>
+                <small>{cover.sku_count} SKU(s) · {cover.skus.join(' · ')}</small>
+                {cover.variacoes?.length > 0 && <small>Variações: {cover.variacoes.join(' · ')}</small>}
+              </div>
+              <span>{cover.links?.length || 0} anúncio(s)</span>
+            </div>
+
+            {cover.links?.length > 0 && <div className="cover-links">
+              {cover.links.slice(0, 6).map((link, index) =>
+                <a key={`${link.url}-${index}`} href={link.url} target="_blank" rel="noreferrer">{link.platform || 'Abrir anúncio'}</a>
+              )}
+            </div>}
+
+            <div className="cover-actions">
+              <button type="button" disabled={galleryBusy === cover.capa_code || assignBusy === cover.capa_code} onClick={() => loadCoverGallery(cover)}>
+                {galleryBusy === cover.capa_code ? 'Buscando miniaturas...' : gallery.length ? 'Buscar novamente' : 'Buscar miniaturas'}
+              </button>
+              <button type="button" className="secondary" disabled={assignBusy === cover.capa_code} onClick={() => setSkippedCovers(current => [...new Set([...current, cover.capa_code])])}>Não encontrei / pular</button>
+            </div>
+
+            {gallery.length > 0 && <div className="cover-gallery">
+              {gallery.map((candidate, index) =>
+                <button
+                  type="button"
+                  className="cover-candidate"
+                  key={`${candidate.url}-${index}`}
+                  disabled={assignBusy === cover.capa_code}
+                  onClick={() => assignCoverImage(cover, candidate.url)}
+                  title={candidate.title || 'Usar esta imagem'}
+                >
+                  <img src={candidate.url} alt={`Miniatura candidata ${index + 1} para ${cover.capa_code}`} loading="lazy"/>
+                  <span>{assignBusy === cover.capa_code ? 'Salvando...' : 'Usar esta imagem'}</span>
+                  {candidate.platform && <small>{candidate.platform}</small>}
+                </button>
+              )}
+            </div>}
+          </article>;
+        })}
+      </div>
     </div>
 
     <div className="form">
