@@ -37,7 +37,9 @@ function Extension() {
 const extensionRoot = createRoot(host);
 extensionRoot.render(<Extension/>);
 
+let placing = false;
 function placeExtension() {
+  if (placing) return;
   const shopeeSection = document.querySelector('.shopee-batch');
   if (!shopeeSection?.parentElement) {
     if (host.isConnected) host.remove();
@@ -45,7 +47,9 @@ function placeExtension() {
   }
 
   if (shopeeSection.nextElementSibling !== host) {
+    placing = true;
     shopeeSection.insertAdjacentElement('afterend', host);
+    queueMicrotask(() => { placing = false; });
   }
 }
 
