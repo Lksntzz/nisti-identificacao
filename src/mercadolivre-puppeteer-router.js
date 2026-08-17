@@ -126,8 +126,6 @@ async function clickExpectedVariation(page, expected) {
   let result = await attempt();
   if (result?.found) return { ...result, expected };
 
-  // Alguns anúncios escondem as opções atrás de um seletor. Abrimos somente controles
-  // claramente relacionados a modelo/cor/variação e tentamos novamente.
   await page.evaluate(() => {
     const normalize = value => String(value || '')
       .normalize('NFD')
@@ -187,6 +185,107 @@ async function readMainProductImage(page) {
   return source ? { ...raw, source } : null;
 }
 
+async function discoverVariationThumbnails(page, expectedCount) {
+  const raw = await page.evaluate(() => {
+    const visible = el => {
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return rect.width >= 20 && rect.height >= 20 && style.display !== 'none' && style.visibility !== 'hidden';
+    };
+
+    const imageSource = img => {
+      const sources = [
+        img.getAttribute('data-zoom'),
+        img.getAttribute('data-src'),
+        img.currentSrc,
+        img.src,
+        img.getAttribute('srcset')?.split(',').pop()?.trim().split(/\s+/)[0]
+      ].filter(Boolean);
+      return sources.find(value => /mlstatic\.com\/D_NQ_/i.test(value)) || null;
+    };
+
+    const contextFor = img => {
+      const parts = [];
+      let current = img;
+      for (let depth = 0; current && depth < 6; depth++, current = current.parentElement) {
+        parts.push(current.className || '');
+        parts.push(current.id || '');
+        parts.push(current.getAttribute?.('data-testid') || '');
+        parts.push(current.getAttribute?.('aria-label') || '');
+        if (depth <= 2) parts.push(current.innerText || '');
+      }
+      return parts.join(' ').toLowerCase();
+    };
+
+    const candidates = [];
+    for (const img of document.querySelectorAll('img')) {
+      if (!visible(img)) continue;
+      const source = imageSource(img);
+      if (!source) continue;
+      const rect = img.getBoundingClientRect();
+      if (rect.width > 240 || rect.height > 240) continue;
+
+      const context = contextFor(img);
+      const clickable = img.closest('button,a,label,[role="button"],[role="option"],[role="radio"],li');
+      const clickRect = clickable?.getBoundingClientRect?.() || rect;
+      let score = 0;
+
+      if (/(variation|variacao|varia[cç][aã]o|picker|attribute|atributo|color|cor|modelo|model|estampa|capa|option|opcao|op[cç][aã]o)/i.test(context)) score += 90;
+      if (clickable) score += 30;
+      if (clickRect.width <= 220 && clickRect.height <= 180) score += 15;
+      if (rect.width >= 36 && rect.height >= 36) score += 10;
+      if (rect.top >= 0 && rect.top <= 1900) score += 10;
+      if (/(gallery|galeria|carousel|carrossel)/i.test(context)) score -= 35;
+      if (/(reviews|opiniao|pergunta|seller|loja|recomend)/i.test(context)) score -= 70;
+
+      const text = [
+        clickable?.getAttribute?.('aria-label'),
+        clickable?.getAttribute?.('title'),
+        img.getAttribute('alt'),
+        clickable?.innerText
+      ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+
+      candidates.push({
+        source,
+        score,
+        text,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        top: Math.round(rect.top),
+        left: Math.round(rect.left)
+      });
+    }
+
+    candidates.sort((a, b) => b.score - a.score || a.top - b.top || a.left - b.left);
+    return candidates;
+  });
+
+  const bestByImage = new Map();
+  for (const item of raw || []) {
+    const source = normalizeMlImage(item.source);
+    if (!source) continue;
+    const current = bestByImage.get(source);
+    if (!current || item.score > current.score) bestByImage.set(source, { ...item, source });
+  }
+
+  const all = [...bestByImage.values()].sort((a, b) => b.score - a.score || a.top - b.top || a.left - b.left);
+  const strong = all.filter(item => item.score >= 70);
+  const desiredMax = Math.max(Number(expectedCount || 0) * 2, 12);
+  const chosen = (strong.length >= Math.min(2, expectedCount || 2) ? strong : all)
+    .slice(0, desiredMax);
+
+  return chosen.map((item, index) => ({
+    key: `thumb-${index}-${crypto.randomUUID()}`,
+    user_product_id: null,
+    name: item.text || `Opção visual ${index + 1}`,
+    labels: item.text ? [item.text] : [`Opção visual ${index + 1}`],
+    image_source_url: item.source,
+    image_url: proxyImage(item.source),
+    discovery_score: item.score,
+    discovery_position: { top: item.top, left: item.left }
+  }));
+}
+
 async function analyzeByClicking(listingUrl, expectedVariations, env) {
   const target = parseTarget(listingUrl);
   const expected = [...new Set((expectedVariations || []).map(value => String(value || '').trim()).filter(Boolean))];
@@ -199,13 +298,12 @@ async function analyzeByClicking(listingUrl, expectedVariations, env) {
     await page.setViewport({ width: 1365, height: 900 });
     await page.goto(target.toString(), { waitUntil: 'networkidle2', timeout: 30000 });
 
-    // Fecha avisos comuns sem interagir com compra/carrinho.
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
       const button = buttons.find(el => /^(ACEITAR|ENTENDI|CONTINUAR)$/i.test((el.innerText || '').trim()));
       button?.click();
     });
-    await shortWait(400);
+    await shortWait(500);
 
     const variations = [];
     const diagnostics = [];
@@ -256,33 +354,62 @@ async function analyzeByClicking(listingUrl, expectedVariations, env) {
       deduped.push(variation);
     }
 
-    const uniqueImages = new Set(deduped.map(item => item.image_source_url)).size;
-    if (!deduped.length) {
-      throw new Error(`Puppeteer abriu o anúncio, mas não conseguiu clicar nas opções esperadas (${expected.join(', ')}).`);
+    const uniqueClickImages = new Set(deduped.map(item => item.image_source_url)).size;
+    if (deduped.length && (expected.length === 1 || uniqueClickImages > 1)) {
+      return {
+        ok: true,
+        platform: 'MERCADO LIVRE',
+        listing_url: target.toString(),
+        title: await page.title(),
+        source: 'cloudflare-puppeteer-click',
+        variation_count: deduped.length,
+        variations: deduped,
+        diagnostics: {
+          browser_run: true,
+          expected: expected.length,
+          found: deduped.length,
+          unique_images: uniqueClickImages,
+          clicks: diagnostics
+        }
+      };
     }
-    if (expected.length > 1 && uniqueImages <= 1) {
+
+    // Muitos anúncios antigos do Mercado Livre exibem os pickers somente como miniaturas,
+    // sem texto CAPA 1/CAPA 2 e sem outros MLBU no DOM. Nesse caso extraímos as imagens
+    // visuais candidatas e deixamos o ADM fazer a correspondência manual por SKU.
+    const visualOptions = await discoverVariationThumbnails(page, expected.length);
+    const uniqueVisualImages = new Set(visualOptions.map(item => item.image_source_url)).size;
+    if (visualOptions.length >= Math.min(2, expected.length) && uniqueVisualImages >= Math.min(2, expected.length)) {
+      return {
+        ok: true,
+        platform: 'MERCADO LIVRE',
+        listing_url: target.toString(),
+        title: await page.title(),
+        source: 'cloudflare-puppeteer-thumbnails',
+        variation_count: visualOptions.length,
+        variations: visualOptions,
+        diagnostics: {
+          browser_run: true,
+          expected: expected.length,
+          labeled_clicks: deduped.length,
+          visual_candidates: visualOptions.length,
+          unique_images: uniqueVisualImages,
+          clicks: diagnostics
+        }
+      };
+    }
+
+    if (deduped.length) {
       throw new Error(
-        `Puppeteer encontrou ${deduped.length} opção(ões), mas todas apontaram para a mesma imagem. ` +
-        `Não vou associar automaticamente porque isso pode misturar os SKUs.`
+        `Puppeteer encontrou ${deduped.length} opção(ões), mas todas apontaram para a mesma imagem e só encontrou ` +
+        `${visualOptions.length} miniatura(s) visual(is) distinta(s). Não vou associar automaticamente.`
       );
     }
 
-    return {
-      ok: true,
-      platform: 'MERCADO LIVRE',
-      listing_url: target.toString(),
-      title: await page.title(),
-      source: 'cloudflare-puppeteer-click',
-      variation_count: deduped.length,
-      variations: deduped,
-      diagnostics: {
-        browser_run: true,
-        expected: expected.length,
-        found: deduped.length,
-        unique_images: uniqueImages,
-        clicks: diagnostics
-      }
-    };
+    throw new Error(
+      `Puppeteer não encontrou rótulos CAPA 1/CAPA 2 e também não encontrou miniaturas visuais suficientes. ` +
+      `Rótulos tentados: ${expected.join(', ')}. Miniaturas visuais: ${visualOptions.length}.`
+    );
   } finally {
     if (browser) {
       try { await browser.close(); } catch {}
