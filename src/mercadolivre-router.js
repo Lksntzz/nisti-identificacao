@@ -151,16 +151,12 @@ function mercadoLabelsFromObject(value) {
   for (const key of [
     'picker_label', 'pickerLabel', 'variation_name', 'variationName', 'value_name', 'valueName',
     'label', 'name', 'title', 'value', 'option_name', 'optionName'
-  ]) {
-    addMercadoLabel(labels, value[key]);
-  }
+  ]) addMercadoLabel(labels, value[key]);
 
   for (const key of [
     'attributes', 'attribute_combinations', 'attributeCombinations', 'variation_attributes',
     'variationAttributes', 'options', 'values'
-  ]) {
-    addMercadoLabel(labels, value[key]);
-  }
+  ]) addMercadoLabel(labels, value[key]);
 
   return labels;
 }
@@ -179,7 +175,7 @@ function putMercadoCandidate(output, candidate) {
 }
 
 function collectMercadoCandidates(value, output, depth = 0, seen = new Set()) {
-  if (!value || typeof value !== 'object' || depth > 18 || seen.has(value) || output.size > 80) return;
+  if (!value || typeof value !== 'object' || depth > 18 || seen.has(value) || output.size > 100) return;
   seen.add(value);
 
   if (!Array.isArray(value)) {
@@ -211,19 +207,24 @@ function parseMercadoJsonScripts(html, output) {
   let parsedScripts = 0;
 
   for (const script of scripts) {
-    if (output.size > 80) break;
-    const body = script
-      .replace(/^<script\b[^>]*>/i, '')
-      .replace(/<\/script>$/i, '')
-      .trim();
+    if (output.size > 100) break;
+    const body = script.replace(/^<script\b[^>]*>/i, '').replace(/<\/script>$/i, '').trim();
     if (!body || body.length > 10_000_000) continue;
-    if (!body.startsWith('{') && !body.startsWith('[')) continue;
-    try {
-      const parsed = JSON.parse(body);
-      parsedScripts += 1;
-      collectMercadoCandidates(parsed, output);
-    } catch {
-      // Estado serializado pode ser JavaScript, não JSON estrito.
+
+    const jsonCandidates = [body];
+    const assignment = body.match(/^[\w.$]+\s*=\s*([\s\S]+?);?$/);
+    if (assignment?.[1]) jsonCandidates.push(assignment[1].trim());
+
+    for (const candidate of jsonCandidates) {
+      if (!candidate.startsWith('{') && !candidate.startsWith('[')) continue;
+      try {
+        const parsed = JSON.parse(candidate);
+        parsedScripts += 1;
+        collectMercadoCandidates(parsed, output);
+        break;
+      } catch {
+        // Estado serializado pode ser JavaScript, não JSON estrito.
+      }
     }
   }
 
@@ -235,7 +236,7 @@ function parseMercadoHtmlPickers(html, output) {
   let match;
   let anchors = 0;
 
-  while ((match = anchorRegex.exec(html)) && output.size <= 80) {
+  while ((match = anchorRegex.exec(html)) && output.size <= 100) {
     anchors += 1;
     const attrs = decodeMarkup(match[1]);
     const href = decodeMarkup(match[2]);
@@ -283,27 +284,29 @@ function parseMercadoEmbeddedWindows(html, output) {
   let windows = 0;
   const handled = new Set();
 
-  while ((match = idRegex.exec(decoded)) && windows < 120 && output.size <= 80) {
+  while ((match = idRegex.exec(decoded)) && windows < 160 && output.size <= 100) {
     const userProductId = match[0].toUpperCase();
-    const marker = `${userProductId}:${Math.floor(match.index / 500)}`;
+    const marker = `${userProductId}:${Math.floor(match.index / 600)}`;
     if (handled.has(marker)) continue;
     handled.add(marker);
     windows += 1;
 
-    const start = Math.max(0, match.index - 2200);
-    const end = Math.min(decoded.length, match.index + 2600);
+    const start = Math.max(0, match.index - 5000);
+    const end = Math.min(decoded.length, match.index + 6000);
     const windowText = decoded.slice(start, end);
 
-    const imageMatch = windowText.match(/https:\/\/[^"'<>\s]*mlstatic\.com\/D_NQ_[^"'<>\s\\]+/i);
-    const image = mercadoImageSource(imageMatch?.[0]);
+    const images = windowText.match(/https:\/\/[^"'<>\s]*mlstatic\.com\/D_NQ_[^"'<>\s\\]+/gi) || [];
+    let image = null;
+    for (const raw of images) {
+      image = mercadoImageSource(raw);
+      if (image) break;
+    }
     if (!image) continue;
 
     const labels = [];
     const labelRegex = /["'](?:picker_label|pickerLabel|variation_name|variationName|value_name|valueName|label|option_name|optionName)["']\s*:\s*["']([^"']{1,140})["']/gi;
     let labelMatch;
-    while ((labelMatch = labelRegex.exec(windowText)) && labels.length < 12) {
-      addMercadoLabel(labels, labelMatch[1]);
-    }
+    while ((labelMatch = labelRegex.exec(windowText)) && labels.length < 12) addMercadoLabel(labels, labelMatch[1]);
 
     putMercadoCandidate(output, {
       key: userProductId,
@@ -330,6 +333,102 @@ function mercadoPageTitle(html) {
   return title ? cleanText(decodeMarkup(title).replace(/<[^>]+>/g, ' ')) : null;
 }
 
+function extractIds(html) {
+  const decoded = decodeMarkup(html);
+  const userProducts = [...new Set((decoded.match(/MLBU\d+/gi) || []).map(id => id.toUpperCase()))];
+  const items = [...new Set((decoded.match(/\bMLB\d{8,}\b/gi) || []).map(id => id.toUpperCase()))];
+  const sellerMatch = decoded.match(/["']?(?:seller_id|sellerId)["']?\s*[:=]\s*["']?(\d{5,})/i);
+  const familyMatch = decoded.match(/["']?(?:family_id|familyId)["']?\s*[:=]\s*["']?(\d{4,})/i);
+  return {
+    userProducts,
+    items,
+    sellerId: sellerMatch?.[1] || null,
+    familyId: familyMatch?.[1] || null
+  };
+}
+
+function addApiResultCandidate(result, output) {
+  if (!result || typeof result !== 'object') return;
+  const userProductId = mercadoUserProductId(result.user_product_id || result.userProductId || result);
+  const image = mercadoImageSource(result.thumbnail || result.secure_thumbnail || result.pictures || result);
+  if (!userProductId || !image) return;
+
+  const labels = [];
+  addMercadoLabel(labels, result.title);
+  addMercadoLabel(labels, result.attributes);
+  addMercadoLabel(labels, result.variation_attributes);
+
+  putMercadoCandidate(output, {
+    key: userProductId,
+    user_product_id: userProductId,
+    name: labels[0] || userProductId,
+    labels: labels.length ? labels : [userProductId],
+    image_source_url: image,
+    image_url: proxyImage(image),
+    item_id: result.id || null,
+    family_id: result.family_id || null
+  });
+}
+
+async function tryPublicItemLookup(itemIds, output) {
+  if (!itemIds.length) return { status: null, count: 0, seller_id: null, family_id: null };
+  const ids = itemIds.slice(0, 20).join(',');
+  const endpoint = `https://api.mercadolibre.com/items?ids=${encodeURIComponent(ids)}&attributes=id,title,seller_id,thumbnail,pictures,attributes,user_product_id,family_id`;
+
+  try {
+    const response = await fetch(endpoint, { headers: { accept: 'application/json' } });
+    if (!response.ok) return { status: response.status, count: 0, seller_id: null, family_id: null };
+    const payload = await response.json();
+    let count = 0;
+    let sellerId = null;
+    let familyId = null;
+    for (const entry of Array.isArray(payload) ? payload : []) {
+      const body = entry?.body || entry;
+      if (!body || entry?.code >= 400) continue;
+      sellerId ||= body.seller_id ? String(body.seller_id) : null;
+      familyId ||= body.family_id ? String(body.family_id) : null;
+      const before = output.size;
+      addApiResultCandidate(body, output);
+      if (output.size > before) count += 1;
+    }
+    return { status: response.status, count, seller_id: sellerId, family_id: familyId };
+  } catch {
+    return { status: 'network-error', count: 0, seller_id: null, family_id: null };
+  }
+}
+
+async function tryPublicSearch({ title, sellerId, familyId, knownUserProducts }, output) {
+  if (!title) return { status: null, count: 0, total: 0 };
+
+  const params = new URLSearchParams({ q: title, limit: '50' });
+  if (sellerId) params.set('seller_id', sellerId);
+  const endpoint = `https://api.mercadolibre.com/sites/MLB/search?${params.toString()}`;
+
+  try {
+    const response = await fetch(endpoint, { headers: { accept: 'application/json' } });
+    if (!response.ok) return { status: response.status, count: 0, total: 0 };
+    const payload = await response.json();
+    const results = Array.isArray(payload?.results) ? payload.results : [];
+    let count = 0;
+
+    for (const result of results) {
+      const up = mercadoUserProductId(result.user_product_id || result.userProductId || result);
+      const sameKnownUp = up && knownUserProducts.has(up);
+      const sameFamily = familyId && String(result.family_id || '') === String(familyId);
+      const sameSeller = sellerId && String(result.seller?.id || result.seller_id || '') === String(sellerId);
+      if (knownUserProducts.size && !sameKnownUp && !sameFamily && !sameSeller) continue;
+
+      const before = output.size;
+      addApiResultCandidate(result, output);
+      if (output.size > before) count += 1;
+    }
+
+    return { status: response.status, count, total: results.length };
+  } catch {
+    return { status: 'network-error', count: 0, total: 0 };
+  }
+}
+
 async function analyzeMercadoLivreListing(listingUrl) {
   const { target, userProductId } = parseMercadoLivreProductUrl(listingUrl);
   const response = await fetch(target.toString(), {
@@ -352,16 +451,32 @@ async function analyzeMercadoLivreListing(listingUrl) {
   if (!contentType.includes('text/html')) throw new Error('Mercado Livre não retornou uma página HTML válida');
 
   const html = await response.text();
+  const title = mercadoPageTitle(html);
+  const ids = extractIds(html);
+  if (!ids.userProducts.includes(userProductId)) ids.userProducts.unshift(userProductId);
+
   const candidates = new Map();
   const parsedScripts = parseMercadoJsonScripts(html, candidates);
   const pickerAnchors = parseMercadoHtmlPickers(html, candidates);
   const windows = parseMercadoEmbeddedWindows(html, candidates);
 
+  const itemLookup = await tryPublicItemLookup(ids.items, candidates);
+  const sellerId = ids.sellerId || itemLookup.seller_id;
+  const familyId = ids.familyId || itemLookup.family_id;
+  const searchLookup = await tryPublicSearch({
+    title,
+    sellerId,
+    familyId,
+    knownUserProducts: new Set(ids.userProducts)
+  }, candidates);
+
   const variations = [...candidates.values()];
   if (!variations.length) {
     throw new Error(
-      `Encontrei o anúncio MLBU, mas não consegui extrair os pickers com imagem. ` +
-      `Diagnóstico: ${parsedScripts} script(s) JSON, ${pickerAnchors} link(s) de picker e ${windows} bloco(s) MLBU analisados.`
+      `Encontrei o anúncio MLBU, mas ainda não consegui obter as variações com imagem. ` +
+      `Diagnóstico: ${parsedScripts} JSON, ${pickerAnchors} picker(s), ${windows} bloco(s) MLBU, ` +
+      `${ids.userProducts.length} MLBU detectado(s), ${ids.items.length} item(ns) MLB, ` +
+      `API itens=${itemLookup.status ?? 'n/a'}, busca=${searchLookup.status ?? 'n/a'}.`
     );
   }
 
@@ -370,14 +485,23 @@ async function analyzeMercadoLivreListing(listingUrl) {
     platform: 'MERCADO LIVRE',
     listing_url: finalUrl.toString(),
     user_product_id: userProductId,
-    title: mercadoPageTitle(html),
-    source: 'upp-page',
+    title,
+    source: candidates.size ? 'upp-page+public-fallbacks' : 'upp-page',
     variation_count: variations.length,
     variations,
     diagnostics: {
       json_scripts: parsedScripts,
       picker_links: pickerAnchors,
-      mlbu_windows: windows
+      mlbu_windows: windows,
+      detected_user_products: ids.userProducts.length,
+      detected_items: ids.items.length,
+      seller_id: sellerId,
+      family_id: familyId,
+      public_items_status: itemLookup.status,
+      public_items_matches: itemLookup.count,
+      public_search_status: searchLookup.status,
+      public_search_matches: searchLookup.count,
+      public_search_total: searchLookup.total
     }
   };
 }
