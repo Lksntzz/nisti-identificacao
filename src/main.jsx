@@ -77,6 +77,55 @@ function catalogRowsFromCsv(text) {
   return catalog;
 }
 
+function normalizeVariation(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function groupPendingShopee(products) {
+  const grouped = new Map();
+  for (const product of products) {
+    if (product.image_url) continue;
+    if (String(product.platform || '').trim().toUpperCase() !== 'SHOPEE') continue;
+    const link = String(product.link || '').trim();
+    if (!link) continue;
+
+    if (!grouped.has(link)) {
+      grouped.set(link, { link, products: [], name: product.nome || '' });
+    }
+    grouped.get(link).products.push(product);
+  }
+
+  return [...grouped.values()].sort((a, b) => {
+    if (b.products.length !== a.products.length) return b.products.length - a.products.length;
+    return a.link.localeCompare(b.link);
+  });
+}
+
+function exactShopeeVariation(product, variations) {
+  const target = normalizeVariation(product.variacao);
+  if (!target) return null;
+
+  const matched = (variations || []).filter(variation => {
+    const labels = [variation.name, ...(variation.labels || [])];
+    return labels.some(label => normalizeVariation(label) === target);
+  });
+
+  const uniqueByImage = new Map();
+  for (const variation of matched) {
+    if (variation.image_source_url && !uniqueByImage.has(variation.image_source_url)) {
+      uniqueByImage.set(variation.image_source_url, variation);
+    }
+  }
+
+  return uniqueByImage.size === 1 ? [...uniqueByImage.values()][0] : null;
+}
+
 function Admin() {
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({ sku: '', nome: '', variacao: '', platform: '', link: '' });
@@ -94,6 +143,15 @@ function Admin() {
   const [skuBusy, setSkuBusy] = useState(null);
   const [skuMessage, setSkuMessage] = useState('');
   const [skippedSkuIds, setSkippedSkuIds] = useState([]);
+  const [shopeeAnalysis, setShopeeAnalysis] = useState(null);
+  const [shopeeSelections, setShopeeSelections] = useState({});
+  const [shopeeBusy, setShopeeBusy] = useState(false);
+  const [shopeeSaveBusy, setShopeeSaveBusy] = useState(false);
+  const [shopeeMessage, setShopeeMessage] = useState('');
+
+  const shopeeGroups = groupPendingShopee(products);
+  const currentShopeeGroup = shopeeGroups[0] || null;
+  const shopeePendingSkuCount = shopeeGroups.reduce((sum, group) => sum + group.products.length, 0);
 
   const refresh = async () => {
     const data = await api('/api/products');
@@ -110,6 +168,12 @@ function Admin() {
     refresh().catch(() => {});
     refreshIndex().catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setShopeeAnalysis(null);
+    setShopeeSelections({});
+    setShopeeMessage('');
+  }, [currentShopeeGroup?.link]);
 
   useEffect(() => {
     const sku = form.sku.trim();
@@ -222,6 +286,95 @@ function Admin() {
     }
   };
 
+  const analyzeShopeeGroup = async () => {
+    if (!currentShopeeGroup) return;
+    setShopeeBusy(true);
+    setShopeeMessage('');
+    setShopeeAnalysis(null);
+    setShopeeSelections({});
+
+    try {
+      const result = await api('/api/admin/shopee-analyze', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url: currentShopeeGroup.link })
+      });
+
+      const selections = {};
+      let automatic = 0;
+      for (const product of currentShopeeGroup.products) {
+        const match = exactShopeeVariation(product, result.variations || []);
+        if (match) {
+          selections[product.id] = match.key;
+          automatic += 1;
+        }
+      }
+
+      setShopeeAnalysis(result);
+      setShopeeSelections(selections);
+      setShopeeMessage(
+        `${result.variation_count || result.variations?.length || 0} variação(ões) encontrada(s). ` +
+        `${automatic} SKU(s) foram associados automaticamente por nome exato. Confira antes de salvar.`
+      );
+    } catch (err) {
+      setShopeeMessage(err.message);
+    } finally {
+      setShopeeBusy(false);
+    }
+  };
+
+  const saveShopeeSelections = async () => {
+    if (!currentShopeeGroup || !shopeeAnalysis) return;
+
+    const selectedRows = currentShopeeGroup.products
+      .map(product => ({
+        product,
+        variation: (shopeeAnalysis.variations || []).find(
+          variation => variation.key === shopeeSelections[product.id]
+        )
+      }))
+      .filter(row => row.variation?.image_source_url);
+
+    if (!selectedRows.length) {
+      setShopeeMessage('Selecione pelo menos uma correspondência antes de salvar.');
+      return;
+    }
+
+    setShopeeSaveBusy(true);
+    setShopeeMessage('');
+    let saved = 0;
+    const errors = [];
+
+    try {
+      for (const row of selectedRows) {
+        try {
+          await api(`/api/products/${row.product.id}/image-from-url`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ image_url: row.variation.image_source_url })
+          });
+          saved += 1;
+        } catch (err) {
+          errors.push(`${row.product.sku}: ${err.message}`);
+        }
+      }
+
+      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
+      setShopeeMessage(
+        errors.length
+          ? `${saved} SKU(s) salvos. ${errors.length} falharam: ${errors[0]}`
+          : `${saved} SKU(s) salvos neste anúncio. ${saved === currentShopeeGroup.products.length ? 'Próximo anúncio carregado.' : 'Revise os SKUs que ficaram sem correspondência.'}`
+      );
+
+      if (!errors.length && saved === currentShopeeGroup.products.length) {
+        setShopeeAnalysis(null);
+        setShopeeSelections({});
+      }
+    } finally {
+      setShopeeSaveBusy(false);
+    }
+  };
+
   const chooseSkuImage = (product, file) => {
     if (!file || !String(file.type || '').startsWith('image/')) return;
     setSkuFiles(current => ({ ...current, [product.id]: file }));
@@ -305,6 +458,9 @@ function Admin() {
   const currentSku = pendingSkuProducts[0] || null;
   const skippedCount = skippedSkuIds.filter(id => products.some(product => product.id === id && !product.image_url)).length;
   const progressPercent = products.length ? Math.round((withImage / products.length) * 100) : 0;
+  const selectedShopeeCount = currentShopeeGroup
+    ? currentShopeeGroup.products.filter(product => Boolean(shopeeSelections[product.id])).length
+    : 0;
 
   return <section className="panel">
     <div className="panel-head">
@@ -312,11 +468,108 @@ function Admin() {
       <span>{products.length} cadastrados</span>
     </div>
 
+    <div className="form shopee-batch">
+      <div className="panel-head">
+        <div>
+          <strong>Shopee em lote — 1 anúncio por vez</strong>
+          <small>Analisa as variações do anúncio, cruza com o nome da variação do catálogo e permite salvar vários SKUs de uma vez.</small>
+        </div>
+        <span>{shopeeGroups.length} anúncio(s) pendente(s)</span>
+      </div>
+
+      <div className="parsed quick-stats">
+        <Badge label="Anúncios Shopee" value={shopeeGroups.length}/>
+        <Badge label="SKUs Shopee" value={shopeePendingSkuCount}/>
+        <Badge label="Neste anúncio" value={currentShopeeGroup?.products.length || 0}/>
+        <Badge label="Selecionados" value={selectedShopeeCount}/>
+      </div>
+
+      {!currentShopeeGroup && <div className="quick-done">
+        <strong>Nenhum anúncio da Shopee pendente.</strong>
+        <span>Use o modo manual abaixo para outras plataformas ou SKUs sem link.</span>
+      </div>}
+
+      {currentShopeeGroup && <div className="listing-batch-card">
+        <div className="listing-batch-head">
+          <div>
+            <p className="eyebrow">PRÓXIMO ANÚNCIO SHOPEE</p>
+            <h3>{currentShopeeGroup.name || 'Anúncio da Shopee'}</h3>
+            <small>{currentShopeeGroup.products.length} SKU(s) sem imagem neste anúncio.</small>
+          </div>
+          <a className="open-listing" href={currentShopeeGroup.link} target="_blank" rel="noreferrer">Abrir anúncio</a>
+        </div>
+
+        <div className="listing-sku-chips">
+          {currentShopeeGroup.products.map(product =>
+            <span key={product.id}>{product.variacao || product.sku}</span>
+          )}
+        </div>
+
+        <button type="button" disabled={shopeeBusy || shopeeSaveBusy} onClick={analyzeShopeeGroup}>
+          {shopeeBusy ? 'Analisando variações da Shopee...' : shopeeAnalysis ? 'Analisar novamente' : 'Analisar variações deste anúncio'}
+        </button>
+
+        {shopeeMessage && <p className="message quick-message">{shopeeMessage}</p>}
+
+        {shopeeAnalysis && <div className="variation-mapping">
+          <div className="variation-source">
+            <strong>{shopeeAnalysis.variation_count} variação(ões) encontradas</strong>
+            <span>Fonte: {shopeeAnalysis.source || 'Shopee'} · selecione somente quando a variação e a imagem estiverem corretas.</span>
+          </div>
+
+          {currentShopeeGroup.products.map(product => {
+            const selectedKey = shopeeSelections[product.id] || '';
+            const selectedVariation = (shopeeAnalysis.variations || []).find(
+              variation => variation.key === selectedKey
+            );
+
+            return <div className={`variation-map-row ${selectedVariation ? 'matched' : 'unmatched'}`} key={product.id}>
+              <div className="variation-product">
+                <strong>{product.sku}</strong>
+                <span>Catálogo: {product.variacao || '—'}</span>
+              </div>
+
+              <select
+                value={selectedKey}
+                disabled={shopeeSaveBusy}
+                onChange={event => setShopeeSelections(current => ({
+                  ...current,
+                  [product.id]: event.target.value
+                }))}
+              >
+                <option value="">Selecionar variação da Shopee...</option>
+                {(shopeeAnalysis.variations || []).map(variation =>
+                  <option value={variation.key} key={variation.key}>{variation.name}</option>
+                )}
+              </select>
+
+              <div className="variation-preview">
+                {selectedVariation
+                  ? <><img src={selectedVariation.image_url} alt={`Variação ${selectedVariation.name}`}/><span>{selectedVariation.name}</span></>
+                  : <span>SEM CORRESPONDÊNCIA</span>}
+              </div>
+            </div>;
+          })}
+
+          <button
+            type="button"
+            className="save-next"
+            disabled={shopeeSaveBusy || selectedShopeeCount === 0}
+            onClick={saveShopeeSelections}
+          >
+            {shopeeSaveBusy
+              ? 'Salvando SKUs deste anúncio...'
+              : `Salvar ${selectedShopeeCount} correspondência(s) selecionada(s)`}
+          </button>
+        </div>}
+      </div>}
+    </div>
+
     <div className="form quick-workflow">
       <div className="panel-head">
         <div>
-          <strong>Modo rápido — 1 SKU por vez</strong>
-          <small>Abra o anúncio, escolha a variação indicada, cole a imagem e salve. O próximo SKU aparece automaticamente.</small>
+          <strong>Modo manual de fallback — 1 SKU por vez</strong>
+          <small>Use quando o anúncio não puder ser analisado automaticamente ou para Mercado Livre/Amazon.</small>
         </div>
         <span>{withImage}/{products.length}</span>
       </div>
