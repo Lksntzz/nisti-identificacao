@@ -1,12 +1,12 @@
 name = "nisti-identificacao"
-main = "src/ml-browser-capture-router.js"
+main = "src/secure-admin-router.js"
 compatibility_date = "2026-08-17"
 compatibility_flags = [ "nodejs_compat" ]
 
 [assets]
 directory = "./dist"
 binding = "ASSETS"
-run_worker_first = ["/api/*"]
+run_worker_first = ["/api/*", "/admin*", "/admin-login", "/admin-logout"]
 not_found_handling = "single-page-application"
 
 [browser]
