@@ -15,18 +15,30 @@ function Badge({ label, value }) {
 
 function Admin() {
   const [products, setProducts] = useState([]);
-  const [form, setForm] = useState({ sku: '', nome: '', variacao: '', platform: '' });
+  const [form, setForm] = useState({ sku: '', nome: '', variacao: '', platform: '', link: '' });
   const [parsed, setParsed] = useState(null);
   const [image, setImage] = useState(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [indexInfo, setIndexInfo] = useState(null);
+  const [indexBusy, setIndexBusy] = useState(false);
+  const [indexMessage, setIndexMessage] = useState('');
 
   const refresh = async () => {
     const data = await api('/api/products');
     setProducts(data.products || []);
   };
 
-  useEffect(() => { refresh().catch(() => {}); }, []);
+  const refreshIndex = async () => {
+    const data = await api('/api/admin/cover-index');
+    setIndexInfo(data);
+    return data;
+  };
+
+  useEffect(() => {
+    refresh().catch(() => {});
+    refreshIndex().catch(() => {});
+  }, []);
 
   useEffect(() => {
     const sku = form.sku.trim();
@@ -50,18 +62,54 @@ function Admin() {
         const fd = new FormData(); fd.append('image', image);
         await api(`/api/products/${created.id}/image`, { method: 'POST', body: fd });
       }
-      setForm({ sku: '', nome: '', variacao: '', platform: '' }); setImage(null); setParsed(null);
-      setMessage('Produto cadastrado.'); await refresh();
+      setForm({ sku: '', nome: '', variacao: '', platform: '', link: '' }); setImage(null); setParsed(null);
+      setMessage('Produto cadastrado.');
+      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
     } catch (err) { setMessage(err.message); }
     finally { setBusy(false); }
   };
 
+  const indexPendingCovers = async () => {
+    setIndexBusy(true); setIndexMessage('');
+    try {
+      let info = await refreshIndex();
+      let safety = 0;
+      let processedTotal = 0;
+      while (info.pending_covers > 0 && safety < 100) {
+        const result = await api('/api/admin/reindex-cover-embeddings', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ limit: 6 })
+        });
+        processedTotal += result.processed?.length || 0;
+        if (result.errors?.length) {
+          setIndexMessage(`Indexação parcial: ${processedTotal} capa(s) processadas. ${result.errors.length} erro(s).`);
+          break;
+        }
+        info = await refreshIndex();
+        safety += 1;
+      }
+      info = await refreshIndex();
+      if (info.pending_covers === 0) setIndexMessage(`Índice visual atualizado. ${info.indexed_covers} capa(s) indexadas.`);
+      else if (!indexMessage) setIndexMessage(`Ainda faltam ${info.pending_covers} capa(s) para indexar.`);
+    } catch (err) { setIndexMessage(err.message); }
+    finally { setIndexBusy(false); }
+  };
+
   return <section className="panel">
     <div className="panel-head"><div><p className="eyebrow">ADMIN</p><h2>Produtos</h2></div><span>{products.length} cadastrados</span></div>
+
+    <div className="form">
+      <div className="panel-head"><div><strong>Índice visual das capas</strong><small>Busca Top-K antes da confirmação pelo Gemini</small></div>{indexInfo && <span>{indexInfo.indexed_covers}/{indexInfo.reference_covers}</span>}</div>
+      {indexInfo && <div className="parsed"><Badge label="Referências" value={indexInfo.reference_covers}/><Badge label="Indexadas" value={indexInfo.indexed_covers}/><Badge label="Pendentes" value={indexInfo.pending_covers}/><Badge label="Top-K" value={indexInfo.top_k}/></div>}
+      <button type="button" disabled={indexBusy || !indexInfo || indexInfo.pending_covers === 0} onClick={indexPendingCovers}>{indexBusy ? 'Indexando capas...' : indexInfo?.pending_covers ? `Indexar ${indexInfo.pending_covers} capa(s) pendente(s)` : 'Índice visual atualizado'}</button>
+      {indexMessage && <p className="message">{indexMessage}</p>}
+    </div>
+
     <form className="form" onSubmit={submit}>
       <label>SKU<input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="VACMNO_LIN1_BBB" required /></label>
       <div className="grid2"><label>Nome<input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} /></label><label>Variação<input value={form.variacao} onChange={e => setForm({ ...form, variacao: e.target.value })} /></label></div>
-      <label>Plataforma<input value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })} placeholder="SHOPEE" /></label>
+      <div className="grid2"><label>Plataforma<input value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })} placeholder="SHOPEE" /></label><label>Link do anúncio<input value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} placeholder="https://..." /></label></div>
       <label>Imagem de referência da capa<input type="file" accept="image/*" onChange={e => setImage(e.target.files?.[0] || null)} /></label>
       {parsed && <div className="parsed"><Badge label="Miolo" value={parsed.mioloCode}/><Badge label="Capa" value={parsed.capaCode}/><Badge label="Wire-O" value={parsed.wireo}/><Badge label="Tassel" value={parsed.tassel}/><Badge label="Elástico" value={parsed.elastico}/></div>}
       <button disabled={busy || !parsed}>{busy ? 'Salvando...' : 'Cadastrar produto'}</button>
