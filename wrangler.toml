@@ -1,0 +1,15 @@
+name = "nisti-identificacao"
+main = "src/worker.js"
+compatibility_date = "2026-08-17"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nisti-identificacao"
+database_id = "REPLACE_WITH_D1_ID"
+
+[[r2_buckets]]
+binding = "PRODUCT_IMAGES"
+bucket_name = "nisti-identificacao-images"
+
+[vars]
+APP_ENV = "production"
