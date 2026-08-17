@@ -10,6 +10,7 @@
     "db:migrate": "wrangler d1 migrations apply nisti-identificacao --remote"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "1.1.0",
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "react": "latest",
