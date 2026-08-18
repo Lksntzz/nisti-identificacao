@@ -29,9 +29,7 @@ function json(data, status = 200) {
 function base64(bytes) {
   let binary = '';
   const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
+  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   return btoa(binary);
 }
 
@@ -62,33 +60,20 @@ async function embedImage(env, bytes, mimeType) {
   const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort('embedding-timeout'), MAX_EMBEDDING_MS);
-
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-goog-api-key': env.GEMINI_API_KEY
-      },
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
       signal: controller.signal,
       body: JSON.stringify({
-        content: {
-          parts: [{
-            inline_data: {
-              mime_type: mimeType || 'image/jpeg',
-              data: base64(bytes)
-            }
-          }]
-        },
+        content: { parts: [{ inline_data: { mime_type: mimeType || 'image/jpeg', data: base64(bytes) } }] },
         output_dimensionality: EMBEDDING_DIMENSIONS
       })
     });
-
     if (!response.ok) {
       const status = [429, 500, 502, 503, 504].includes(response.status) ? 503 : 502;
       throw new RetrievalError(`Gemini Embedding falhou (${response.status})`, status, 'embedding_failed');
     }
-
     const payload = await response.json();
     const values = payload?.embedding?.values || payload?.embeddings?.[0]?.values;
     if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
@@ -189,9 +174,10 @@ async function attachRegisteredMockups(env, covers, timings) {
 }
 
 export async function buildVectorizeCandidates(request, env) {
-  // Rollout seguro: enquanto o binding ainda não existir, o sistema atual continua operando.
   if (!env.COVER_VECTORS?.query) return buildLegacyCandidates(request, env);
 
+  // Clona antes de consumir formData para permitir fallback ao pipeline D1 sem perder o corpo.
+  const legacyRequest = request.clone();
   const started = Date.now();
   const timings = { pipeline_version: 'gemini-embedding+vectorize-v1', retrieval_source: 'vectorize' };
 
@@ -214,14 +200,13 @@ export async function buildVectorizeCandidates(request, env) {
     try {
       covers = await queryVectorize(env, embedding.values, timings);
     } catch (error) {
-      // Se Vectorize estiver momentaneamente indisponível, mantém o D1 como fallback de continuidade.
       timings.vectorize_error = error?.message || 'Falha no Vectorize';
-      return buildLegacyCandidates(request, env);
+      return buildLegacyCandidates(legacyRequest, env);
     }
 
     if (!covers.length) {
       timings.vectorize_empty = true;
-      return buildLegacyCandidates(request, env);
+      return buildLegacyCandidates(legacyRequest, env);
     }
 
     timings.cover_candidate_count = covers.length;
@@ -245,7 +230,6 @@ export async function buildVectorizeCandidates(request, env) {
       performance: timings
     };
     const ticket = await signTicket(env, payload);
-
     return json({ ok: true, ticket, candidates, performance: timings });
   } catch (error) {
     timings.total_ms = Date.now() - started;
