@@ -1,39 +1,67 @@
-html[data-nisti-access="admin"] .shell{width:min(1460px,calc(100% - 28px));padding-left:14px;padding-right:14px}
-html[data-nisti-access="admin"] .panel:not(.expedition){display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;align-items:start;padding:20px;background:#f8fafc}
-html[data-nisti-access="admin"] .panel:not(.expedition)>.panel-head{grid-column:1/-1;margin:0;padding:0 2px 12px;border-bottom:1px solid #e5e7eb}
-html[data-nisti-access="admin"] .panel:not(.expedition)>.form,html[data-nisti-access="admin"] .panel:not(.expedition)>form.form,html[data-nisti-access="admin"] .panel:not(.expedition)>.catalog-details{margin-top:0!important;box-shadow:0 6px 18px rgba(15,23,42,.035)}
-html[data-nisti-access="admin"] .panel:not(.expedition)>.quick-workflow{grid-column:span 7;border:1px solid #dbe3ec;background:#fff}
-html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow){grid-column:span 5;min-height:100%;padding:18px}
-html[data-nisti-access="admin"] .panel:not(.expedition)>form.form{grid-column:span 7;padding:20px;background:#fff}
-html[data-nisti-access="admin"] .panel:not(.expedition)>.catalog-details{grid-column:1/-1;padding:16px 18px;background:#fff}
-html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow)>.panel-head,html[data-nisti-access="admin"] .panel:not(.expedition)>form.form>.panel-head{margin-bottom:6px;padding-bottom:10px;border-bottom:1px solid #eef2f7}
-html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow)>.panel-head strong,html[data-nisti-access="admin"] .panel:not(.expedition)>form.form>.panel-head strong{font-size:15px}
-html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow)>.panel-head small{max-width:440px;line-height:1.45}
-html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow)>.parsed{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow) .badge{padding:12px;background:#f8fafc}
-html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow) button{margin-top:auto;width:100%}
-html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow) input[type="file"]{padding:8px;background:#f8fafc;border-color:#dbe3ec}
-html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow) input[type="file"]::file-selector-button{border:0;border-radius:8px;padding:9px 12px;margin-right:10px;background:#e5e7eb;color:#374151;font-weight:800;cursor:pointer}
-html[data-nisti-access="admin"] .quick-workflow>.panel-head{margin-bottom:8px}
-html[data-nisti-access="admin"] .quick-workflow>.panel-head strong{font-size:15px}
-html[data-nisti-access="admin"] .quick-workflow>.panel-head>span{font-weight:800;color:#475569}
-html[data-nisti-access="admin"] .quick-workflow:has(.quick-done){padding:16px 18px;gap:12px}
-html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-progress{gap:8px}
-html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-progress-bar{height:6px}
+html[data-nisti-access="admin"] body{background:#f1f5f9}
+html[data-nisti-access="admin"] .shell{width:min(1540px,calc(100% - 32px));max-width:none;padding:20px 16px 40px}
+html[data-nisti-access="admin"] .nisti-app-header{margin-bottom:18px;padding:0 4px}
+html[data-nisti-access="admin"] .panel:not(.expedition){display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;align-items:start;padding:0;background:transparent;border:0;box-shadow:none}
+html[data-nisti-access="admin"] .panel:not(.expedition)>.panel-head{grid-column:1/-1;margin:0 0 2px;padding:22px 24px;border:1px solid #e2e8f0;border-radius:20px;background:linear-gradient(135deg,#fff 0%,#f8fafc 100%);box-shadow:0 8px 24px rgba(15,23,42,.045)}
+html[data-nisti-access="admin"] .panel:not(.expedition)>.panel-head h2{font-size:28px;letter-spacing:-.02em}
+html[data-nisti-access="admin"] .panel:not(.expedition)>.panel-head>span{padding:7px 11px;border:1px solid #e2e8f0;border-radius:999px;background:#fff;font-size:12px;font-weight:800;color:#475569}
+html[data-nisti-access="admin"] .panel:not(.expedition)>.form,html[data-nisti-access="admin"] .panel:not(.expedition)>form.form,html[data-nisti-access="admin"] .panel:not(.expedition)>.catalog-details{margin-top:0!important;border:1px solid #e2e8f0;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.04)}
+html[data-nisti-access="admin"] .panel:not(.expedition)>.quick-workflow{grid-column:span 8;padding:18px 20px;border-color:#dbe3ec}
+html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow){grid-column:span 4;min-height:100%;padding:18px 20px}
+html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow):nth-of-type(4){grid-column:span 5}
+html[data-nisti-access="admin"] .panel:not(.expedition)>form.form{grid-column:span 7;padding:20px 22px}
+html[data-nisti-access="admin"] .panel:not(.expedition)>.catalog-details{grid-column:1/-1;padding:0;overflow:visible}
+html[data-nisti-access="admin"] .panel:not(.expedition)>.form>.panel-head,html[data-nisti-access="admin"] .panel:not(.expedition)>form.form>.panel-head{margin-bottom:8px;padding-bottom:12px;border-bottom:1px solid #eef2f7}
+html[data-nisti-access="admin"] .panel:not(.expedition)>.form>.panel-head strong,html[data-nisti-access="admin"] .panel:not(.expedition)>form.form>.panel-head strong{font-size:16px;letter-spacing:-.01em}
+html[data-nisti-access="admin"] .panel:not(.expedition)>.form>.panel-head small,html[data-nisti-access="admin"] .panel:not(.expedition)>form.form>.panel-head small{margin-top:5px;max-width:520px;line-height:1.45;color:#64748b}
+html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow)>.parsed{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow) .badge{padding:11px 12px;border-color:#e2e8f0;background:#f8fafc}
+html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow) .badge span{font-size:9px;color:#64748b}
+html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow) .badge strong{font-size:17px}
+html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow) button{margin-top:auto;width:100%;min-height:44px}
+html[data-nisti-access="admin"] .panel:not(.expedition) input,html[data-nisti-access="admin"] .panel:not(.expedition) select{border-color:#dbe3ec;background:#fff;transition:border-color .15s ease,box-shadow .15s ease}
+html[data-nisti-access="admin"] .panel:not(.expedition) input:focus,html[data-nisti-access="admin"] .panel:not(.expedition) select:focus{outline:none;border-color:#64748b;box-shadow:0 0 0 3px rgba(100,116,139,.12)}
+html[data-nisti-access="admin"] .panel:not(.expedition) input[type="file"]{padding:7px;background:#f8fafc}
+html[data-nisti-access="admin"] .panel:not(.expedition) input[type="file"]::file-selector-button{border:0;border-radius:9px;padding:9px 12px;margin-right:10px;background:#e2e8f0;color:#334155;font-weight:800;cursor:pointer}
+html[data-nisti-access="admin"] .quick-workflow>.panel-head{margin-bottom:6px;padding-bottom:10px}
+html[data-nisti-access="admin"] .quick-workflow>.panel-head strong{font-size:16px}
+html[data-nisti-access="admin"] .quick-workflow>.panel-head>span{padding:6px 9px;border-radius:999px;background:#f1f5f9;font-weight:900;color:#475569}
+html[data-nisti-access="admin"] .quick-workflow:has(.quick-done){gap:10px}
+html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-progress{gap:7px}
+html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-progress-bar{height:5px;background:#e2e8f0}
 html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-stats .badge{padding:8px 10px;background:#f8fafc}
-html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-done{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;text-align:left;border-style:solid;background:#f8fafc}
+html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-stats .badge{padding:9px 11px;border-color:#e2e8f0;background:#f8fafc}
+html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-done{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:11px 13px;text-align:left;border:1px solid #dbe3ec;border-radius:12px;background:#f8fafc}
 html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-done strong{font-size:13px;white-space:nowrap}
-html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-done span{font-size:12px;line-height:1.4;text-align:right}
-html[data-nisti-access="admin"] .catalog-details>summary{font-size:14px;padding:2px 0;cursor:pointer}
-html[data-nisti-access="admin"] .catalog-tools{display:grid;grid-template-columns:minmax(280px,1.6fr) minmax(220px,.8fr) auto;gap:12px;align-items:end;margin:14px 0 2px;padding:14px;border:1px solid #e5e7eb;border-radius:14px;background:#f8fafc}
-html[data-nisti-access="admin"] .catalog-tools label{display:grid;gap:6px}
-html[data-nisti-access="admin"] .catalog-tools label>span{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
-html[data-nisti-access="admin"] .catalog-tools input,html[data-nisti-access="admin"] .catalog-tools select{height:44px;padding:10px 12px;border-color:#cbd5e1;background:#fff}
-html[data-nisti-access="admin"] .catalog-search{padding-left:14px}
-html[data-nisti-access="admin"] .catalog-filter-count{min-width:120px;height:44px;display:flex;align-items:center;justify-content:center;padding:0 13px;border:1px solid #e5e7eb;border-radius:11px;background:#fff;color:#475569;font-size:12px;font-weight:800;white-space:nowrap}
-html[data-nisti-access="admin"] .catalog-edit-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-done span{font-size:12px;line-height:1.4;text-align:right;color:#64748b}
+html[data-nisti-access="admin"] .catalog-details>summary{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;font-size:15px;font-weight:900;cursor:pointer;list-style:none;border-radius:18px}
+html[data-nisti-access="admin"] .catalog-details>summary::-webkit-details-marker{display:none}
+html[data-nisti-access="admin"] .catalog-details>summary::after{content:'Abrir catálogo';padding:7px 11px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:800}
+html[data-nisti-access="admin"] .catalog-details[open]>summary{border-bottom:1px solid #eef2f7;border-radius:18px 18px 0 0}
+html[data-nisti-access="admin"] .catalog-details[open]>summary::after{content:'Fechar catálogo'}
+html[data-nisti-access="admin"] .catalog-tools{margin:16px 18px 4px;padding:18px;border:1px solid #dbe3ec;border-radius:16px;background:linear-gradient(135deg,#f8fafc,#fff)}
+html[data-nisti-access="admin"] .catalog-tools-title{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:14px}
+html[data-nisti-access="admin"] .catalog-tools-title>div:first-child{display:grid;gap:4px}
+html[data-nisti-access="admin"] .catalog-tools-title strong{font-size:18px;letter-spacing:-.01em;color:#0f172a}
+html[data-nisti-access="admin"] .catalog-tools-title span{font-size:12px;line-height:1.45;color:#64748b}
+html[data-nisti-access="admin"] .catalog-filter-count{display:flex;align-items:center;justify-content:center;min-width:82px;height:36px;padding:0 12px;border:1px solid #dbe3ec;border-radius:999px;background:#fff;color:#334155;font-size:12px;font-weight:900;white-space:nowrap}
+html[data-nisti-access="admin"] .catalog-tools-fields{display:grid;grid-template-columns:minmax(320px,1.5fr) minmax(210px,.65fr);gap:12px;align-items:end}
+html[data-nisti-access="admin"] .catalog-tools-fields label{display:grid;gap:6px}
+html[data-nisti-access="admin"] .catalog-tools-fields label>span{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
+html[data-nisti-access="admin"] .catalog-search-wrap{position:relative;display:flex;align-items:center}
+html[data-nisti-access="admin"] .catalog-search-wrap .catalog-search{height:48px;padding:11px 44px 11px 42px;border-radius:13px;font-size:14px}
+html[data-nisti-access="admin"] .catalog-search-icon{position:absolute;left:14px;z-index:1;font-size:22px;line-height:1;color:#64748b;pointer-events:none}
+html[data-nisti-access="admin"] .catalog-search-clear{position:absolute;right:7px;width:34px;height:34px;padding:0;border-radius:9px;background:transparent;color:#64748b;font-size:22px;font-weight:500}
+html[data-nisti-access="admin"] .catalog-search-clear:hover{background:#f1f5f9;color:#0f172a}
+html[data-nisti-access="admin"] .catalog-platform-filter{height:48px;border-radius:13px;font-size:13px}
+html[data-nisti-access="admin"] .catalog-empty-state{margin:18px;display:grid;gap:5px;place-items:center;padding:34px;border:1px dashed #cbd5e1;border-radius:16px;background:#f8fafc;text-align:center}
+html[data-nisti-access="admin"] .catalog-empty-state[hidden]{display:none}
+html[data-nisti-access="admin"] .catalog-empty-state strong{font-size:15px;color:#334155}
+html[data-nisti-access="admin"] .catalog-empty-state span{font-size:12px;color:#64748b}
+html[data-nisti-access="admin"] .catalog-edit-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0 18px 18px;margin-top:14px}
+html[data-nisti-access="admin"] .catalog-product{border-color:#e2e8f0;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+html[data-nisti-access="admin"] .catalog-product:hover{transform:translateY(-1px);border-color:#cbd5e1;box-shadow:0 7px 18px rgba(15,23,42,.06)}
 html[data-nisti-access="admin"] .catalog-product[hidden]{display:none!important}
-@media(max-width:1180px){html[data-nisti-access="admin"] .panel:not(.expedition)>.quick-workflow,html[data-nisti-access="admin"] .panel:not(.expedition)>form.form{grid-column:span 7}html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow){grid-column:span 5}html[data-nisti-access="admin"] .catalog-edit-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:900px){html[data-nisti-access="admin"] .shell{width:min(100%,980px);padding-left:14px;padding-right:14px}html[data-nisti-access="admin"] .panel:not(.expedition){grid-template-columns:1fr}html[data-nisti-access="admin"] .panel:not(.expedition)>.panel-head,html[data-nisti-access="admin"] .panel:not(.expedition)>.quick-workflow,html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow),html[data-nisti-access="admin"] .panel:not(.expedition)>form.form,html[data-nisti-access="admin"] .panel:not(.expedition)>.catalog-details{grid-column:1}html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-done{align-items:flex-start;flex-direction:column}html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-done span{text-align:left}html[data-nisti-access="admin"] .catalog-tools{grid-template-columns:1fr 1fr}html[data-nisti-access="admin"] .catalog-filter-count{grid-column:1/-1;justify-content:flex-start}}
-@media(max-width:680px){html[data-nisti-access="admin"] .panel:not(.expedition){padding:14px;gap:12px}html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-stats{grid-template-columns:repeat(2,minmax(0,1fr))}html[data-nisti-access="admin"] .catalog-tools{grid-template-columns:1fr}html[data-nisti-access="admin"] .catalog-filter-count{grid-column:1}html[data-nisti-access="admin"] .catalog-edit-list{grid-template-columns:1fr}}
+@media(max-width:1180px){html[data-nisti-access="admin"] .panel:not(.expedition)>.quick-workflow{grid-column:span 7}html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow){grid-column:span 5}html[data-nisti-access="admin"] .panel:not(.expedition)>form.form{grid-column:span 7}html[data-nisti-access="admin"] .catalog-edit-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){html[data-nisti-access="admin"] .shell{width:100%;padding:14px}html[data-nisti-access="admin"] .panel:not(.expedition){grid-template-columns:1fr}html[data-nisti-access="admin"] .panel:not(.expedition)>.panel-head,html[data-nisti-access="admin"] .panel:not(.expedition)>.quick-workflow,html[data-nisti-access="admin"] .panel:not(.expedition)>div.form:not(.quick-workflow),html[data-nisti-access="admin"] .panel:not(.expedition)>form.form,html[data-nisti-access="admin"] .panel:not(.expedition)>.catalog-details{grid-column:1}html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-done{align-items:flex-start;flex-direction:column}html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-done span{text-align:left}html[data-nisti-access="admin"] .catalog-tools-fields{grid-template-columns:1fr 1fr}}
+@media(max-width:680px){html[data-nisti-access="admin"] .panel:not(.expedition){gap:11px}html[data-nisti-access="admin"] .quick-workflow:has(.quick-done) .quick-stats{grid-template-columns:repeat(2,minmax(0,1fr))}html[data-nisti-access="admin"] .catalog-tools{margin:12px;padding:14px}html[data-nisti-access="admin"] .catalog-tools-title{flex-direction:column}html[data-nisti-access="admin"] .catalog-tools-fields{grid-template-columns:1fr}html[data-nisti-access="admin"] .catalog-edit-list{grid-template-columns:1fr;padding:0 12px 12px}}
