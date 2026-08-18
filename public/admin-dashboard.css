@@ -1,0 +1,86 @@
+/* Administrative dashboard monitoring and brand fallback. */
+
+.admin-app .brand-logo-fallback {
+  width: 64px !important;
+  height: 64px;
+  flex: 0 0 64px;
+  padding: 4px;
+  border-radius: 16px;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(38, 52, 78, .08);
+}
+
+.admin-app .admin-topbar .top-title small {
+  display: block;
+  margin-bottom: 4px;
+  color: #7b8495;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+
+.admin-app .kpis {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.admin-app .kpi-danger .kpi-icon {
+  background: #ffe6ea;
+  color: #d75368;
+}
+
+.admin-app .kpi-danger .status-value i {
+  background: #e05268;
+  box-shadow: 0 0 0 3px #fdecef;
+}
+
+.admin-app .admin-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-app .metric-card.metric-alert {
+  border-color: #f1c7cf;
+  background: #fffafb;
+}
+
+.admin-app .metric-card.metric-ok {
+  border-color: #cce8db;
+  background: #fbfffd;
+}
+
+.admin-app .metric-detail {
+  margin-top: 8px;
+  color: #8b94a3;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1580px) {
+  .admin-app .kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .admin-app .admin-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-app .kpis,
+  .admin-app .admin-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-app .kpis,
+  .admin-app .admin-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-app .brand-logo-fallback {
+    width: 50px !important;
+    height: 50px;
+    flex-basis: 50px;
+  }
+}
