@@ -14,7 +14,11 @@ function productFromResult(data) {
 }
 
 function cleanReason(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 320);
+}
+
+function strictBoolean(value) {
+  return value === true;
 }
 
 export async function verifyExactVisualMatch(request, env, data) {
@@ -25,6 +29,7 @@ export async function verifyExactVisualMatch(request, env, data) {
       same_art: false,
       confidence: 0,
       reason: 'O produto retornado não possui imagem de referência para a confirmação final.',
+      checks: null,
       ms: Date.now() - started,
       model: env.GEMINI_MODEL || 'gemini-3.5-flash-lite'
     };
@@ -53,17 +58,27 @@ export async function verifyExactVisualMatch(request, env, data) {
         role: 'user',
         parts: [
           {
-            text: `Faça uma verificação BINÁRIA de identidade visual entre duas capas.
+            text: `Você é a última barreira de segurança antes de liberar um SKU para produção.
 
+Faça uma verificação BINÁRIA e CONSERVADORA entre duas capas.
 FOTO A é a capa física fotografada. REFERÊNCIA B é o mockup que o sistema pretende retornar.
 
-Responda same_art=true SOMENTE se as duas imagens tiverem a MESMA ARTE-BASE.
-Ignore nome personalizado, palavras, datas, Wire-O/espiral, tassel, elástico, reflexo, brilho, perspectiva, corte, mão, mesa e iluminação.
+Objetivo: evitar falso positivo. Um falso negativo é aceitável; um SKU errado não é.
 
-NÃO aceite apenas por tema, cor ou estilo parecido. Flores, borboletas, tons rosa, elementos delicados ou a mesma categoria de produto não bastam.
-Compare obrigatoriamente a estrutura visual: fundo, molduras, blocos centrais, ilustrações principais, quantidade e posição relativa de flores/folhagens/borboletas/personagens/objetos e distribuição dos elementos.
-Se existir moldura central em uma e não na outra, fundo estruturalmente diferente, ou decoração posicionada de forma diferente, use same_art=false.
-Na dúvida, use same_art=false.`
+Responda same_art=true SOMENTE se for claramente a MESMA ARTE-BASE.
+Ignore apenas conteúdo personalizado: nome, iniciais, palavras, datas e pequenas variações de impressão. Ignore também Wire-O/espiral, tassel, elástico, mão, mesa, brilho, reflexo, corte, perspectiva e iluminação.
+
+NÃO aceite por tema, categoria, paleta ou estilo parecido. Flores, borboletas, tons rosa, elementos delicados e o mesmo tipo de produto NÃO provam identidade.
+
+Avalie separadamente:
+1. background_structure: fundo e grandes blocos/molduras/áreas centrais têm a mesma estrutura;
+2. layout_structure: os elementos principais ocupam posições equivalentes;
+3. decorative_structure: ilustrações, flores, folhagens, borboletas, personagens e objetos principais são os mesmos e estão distribuídos de forma equivalente;
+4. signature_elements: elementos distintivos da arte coincidem; não existem elementos grandes presentes em uma imagem e ausentes na outra.
+
+Se houver moldura central em uma e não na outra, arranjo floral diferente, borboletas em posições diferentes, fundo estruturalmente diferente, personagem/objeto diferente ou qualquer composição principal incompatível, marque o respectivo critério como false e same_art=false.
+
+Na menor dúvida, use same_art=false. Não tente escolher a imagem mais parecida.`
           },
           { text: 'FOTO A:' },
           {
@@ -83,18 +98,30 @@ Na dúvida, use same_art=false.`
       }],
       generationConfig: {
         temperature: 0,
-        maxOutputTokens: 120,
-        media_resolution: 'MEDIA_RESOLUTION_MEDIUM',
+        maxOutputTokens: 180,
+        media_resolution: 'MEDIA_RESOLUTION_HIGH',
         thinkingConfig: { thinkingLevel: 'minimal' },
         response_mime_type: 'application/json',
         response_schema: {
           type: 'OBJECT',
           properties: {
             same_art: { type: 'BOOLEAN' },
+            background_structure: { type: 'BOOLEAN' },
+            layout_structure: { type: 'BOOLEAN' },
+            decorative_structure: { type: 'BOOLEAN' },
+            signature_elements: { type: 'BOOLEAN' },
             confidence: { type: 'NUMBER' },
             reason: { type: 'STRING' }
           },
-          required: ['same_art', 'confidence', 'reason']
+          required: [
+            'same_art',
+            'background_structure',
+            'layout_structure',
+            'decorative_structure',
+            'signature_elements',
+            'confidence',
+            'reason'
+          ]
         }
       }
     })
@@ -107,11 +134,20 @@ Na dúvida, use same_art=false.`
 
   const result = JSON.parse(text);
   const confidence = Math.max(0, Math.min(1, Number(result?.confidence) || 0));
-  const sameArt = Boolean(result?.same_art) && confidence >= 0.90;
+  const checks = {
+    background_structure: strictBoolean(result?.background_structure),
+    layout_structure: strictBoolean(result?.layout_structure),
+    decorative_structure: strictBoolean(result?.decorative_structure),
+    signature_elements: strictBoolean(result?.signature_elements)
+  };
+  const structuralPass = Object.values(checks).every(Boolean);
+  const sameArt = strictBoolean(result?.same_art) && structuralPass && confidence >= 0.97;
+
   return {
     same_art: sameArt,
     confidence,
     reason: cleanReason(result?.reason),
+    checks,
     ms: Date.now() - started,
     model
   };
