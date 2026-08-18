@@ -1,4 +1,4 @@
-import app from './system-metrics-router.js';
+import app from './system-metrics-clean-router.js';
 
 const R2_FREE_INCLUDED_BYTES = 10 * 1000 * 1000 * 1000;
 const MAX_PAGES = 20;
@@ -50,8 +50,7 @@ async function measureBucket(bucket) {
     pages_scanned: pages,
     free_included_storage_bytes: R2_FREE_INCLUDED_BYTES,
     percent_of_free_included_storage: usedBytes ? (usedBytes / R2_FREE_INCLUDED_BYTES) * 100 : 0,
-    bucket_storage_limit: 'unlimited',
-    note: 'R2 não possui limite de armazenamento por bucket. O Standard inclui 10 GB-mês de armazenamento por mês no nível gratuito; acima disso há cobrança por uso.'
+    bucket_storage_limit: 'unlimited'
   };
 }
 
