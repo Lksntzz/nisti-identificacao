@@ -1,4 +1,5 @@
 import './general-panel.css';
+import './admin-layout.css';
 
 const params = new URLSearchParams(window.location.search);
 const adminRequested = params.get('nisti_admin') === '1';
