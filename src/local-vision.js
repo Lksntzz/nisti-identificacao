@@ -41,9 +41,9 @@ async function getOpenCv() {
 
 export function warmLocalVision() {
   if (typeof window === 'undefined') return;
-  const run = () => getOpenCv().catch(() => {});
-  if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 1500 });
-  else setTimeout(run, 250);
+  // Inicia o download/compilação WASM logo após o primeiro paint. Quando o operador
+  // terminar de enquadrar a capa, o motor tende a já estar quente.
+  setTimeout(() => getOpenCv().catch(() => {}), 0);
 }
 
 async function bitmapFromBlob(blob) {
@@ -257,9 +257,10 @@ export async function matchLocalCandidates(photoFile, candidates, options = {}) 
   const photoCanvas = canvasFromBitmap(photoBitmap);
   photoBitmap.close?.();
   const photoFeatures = extractFeatures(cv, photoCanvas);
-  const references = (candidates || []).slice(0, 8).map(candidate => ({
+  const references = (candidates || []).slice(0, 8).map((candidate, index) => ({
     candidate,
-    bitmapPromise: bitmapFromUrl(candidate.image_url)
+    // Pré-carrega apenas as três mais prováveis. As demais só consomem banda se forem necessárias.
+    bitmapPromise: index < 3 ? bitmapFromUrl(candidate.image_url) : null
   }));
   const tested = [];
 
@@ -268,7 +269,7 @@ export async function matchLocalCandidates(photoFile, candidates, options = {}) 
       if (now() - started > deadlineMs) break;
       let bitmap;
       try {
-        bitmap = await entry.bitmapPromise;
+        bitmap = await (entry.bitmapPromise || bitmapFromUrl(entry.candidate.image_url));
         const canvas = canvasFromBitmap(bitmap);
         const reference = extractFeatures(cv, canvas);
         try {
