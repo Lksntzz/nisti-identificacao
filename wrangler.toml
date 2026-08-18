@@ -23,5 +23,5 @@ bucket_name = "nisti-identificacao-images"
 
 [vars]
 APP_ENV = "production"
-GEMINI_MODEL = "gemini-3.5-flash"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 GEMINI_EMBEDDING_MODEL = "gemini-embedding-2"
