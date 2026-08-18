@@ -157,6 +157,28 @@ function syncPlatformOptions(details) {
   if (platforms.includes(selected)) select.value = selected;
 }
 
+function refreshCatalogImageUrls(details) {
+  if (!details) return;
+  const stamp = Date.now().toString(36);
+
+  for (const image of details.querySelectorAll('img')) {
+    if (image.dataset.nistiCacheBusted === '1') continue;
+
+    let parsed;
+    try {
+      parsed = new URL(image.getAttribute('src') || '', window.location.href);
+    } catch {
+      continue;
+    }
+
+    if (!/^\/api\/images\/\d+$/.test(parsed.pathname)) continue;
+
+    parsed.searchParams.set('v', stamp);
+    image.dataset.nistiCacheBusted = '1';
+    image.src = `${parsed.pathname}${parsed.search}`;
+  }
+}
+
 function enhanceCatalog() {
   if (!isAdminArea) return;
 
@@ -197,6 +219,7 @@ function enhanceCatalog() {
     list.insertAdjacentElement('beforebegin', empty);
   }
 
+  refreshCatalogImageUrls(details);
   syncPlatformOptions(details);
 
   if (!tools.dataset.bound) {
