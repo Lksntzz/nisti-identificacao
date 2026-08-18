@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS recognition_events (
   day TEXT NOT NULL,
   kind TEXT NOT NULL,
   http_status INTEGER NOT NULL,
+  product_id INTEGER,
   capa_code TEXT,
   sku TEXT,
   confidence REAL,
@@ -14,10 +15,14 @@ CREATE TABLE IF NOT EXISTS recognition_events (
   embedding_ms INTEGER,
   gemini_ms INTEGER,
   retrieval_top1 REAL,
+  retrieval_top1_code TEXT,
   retrieval_top2 REAL,
+  retrieval_top2_code TEXT,
   retrieval_margin REAL,
+  candidate_count INTEGER,
   verification_mode TEXT,
-  accepted_by TEXT
+  accepted_by TEXT,
+  model TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_recognition_events_created_at
