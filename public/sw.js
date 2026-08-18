@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-identificacao-v11';
+const CACHE_NAME = 'nisti-identificacao-v12';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -31,7 +31,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  if (url.pathname.startsWith('/assets/')) {
+  if (
+    url.pathname.startsWith('/assets/') ||
+    url.pathname === '/unmatched-suggestions.js' ||
+    url.pathname === '/unmatched-suggestions.css'
+  ) {
     event.respondWith(cacheFirst(request));
     return;
   }
