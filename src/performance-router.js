@@ -1,5 +1,5 @@
 import app from './compact-admin-router.js';
-import { fastIdentify } from './fast-identify-v2.js';
+import { fastIdentify } from './fast-identify-v3.js';
 import { parseSku } from './sku.js';
 
 function responseWithHeaders(response, extra = {}) {
@@ -26,9 +26,6 @@ function versionedImageUrl(rawUrl, requestUrl, imageKey) {
 function resultImageUrl(product) {
   if (!product?.id || !product?.image_key) return null;
   const version = String(product.image_key).split('/').pop() || 'current';
-  // A identificação usa o MESMO endpoint de imagem do catálogo/ADM.
-  // O parâmetro fresh muda quando o image_key muda e não entra no cache
-  // especial do PWA, evitando miniatura antiga ou rota divergente.
   return `/api/images/${product.id}?fresh=${encodeURIComponent(version)}`;
 }
 
