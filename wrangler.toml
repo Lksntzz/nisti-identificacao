@@ -1,5 +1,5 @@
 name = "nisti-identificacao"
-main = "src/secure-admin-router.js"
+main = "src/edge-router.js"
 compatibility_date = "2026-08-17"
 compatibility_flags = [ "nodejs_compat" ]
 
