@@ -1,3 +1,5 @@
+import './identification-performance.js';
+
 let deferredInstallPrompt=null;
 
 function isStandalone(){
