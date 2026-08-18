@@ -1,0 +1,87 @@
+html[data-nisti-access="general"] main.shell>header{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:14px!important;
+  min-height:72px!important;
+  padding:10px 6px 14px!important;
+}
+html[data-nisti-access="general"] main.shell>header>div:not(.general-brand-clean){
+  display:grid!important;
+  gap:2px!important;
+}
+html[data-nisti-access="general"] .general-brand-real{
+  display:none!important;
+}
+html[data-nisti-access="general"] .general-brand-clean{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  flex:0 0 auto!important;
+  padding:8px 10px!important;
+  border:0!important;
+  background:transparent!important;
+}
+.general-brand-clean__mark{
+  position:relative;
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
+}
+.general-brand-clean__mark i{
+  position:absolute;
+  width:14px;
+  height:20px;
+  border-radius:100% 0 100% 100%;
+  transform-origin:100% 0;
+}
+.general-brand-clean__mark i:nth-child(1){left:3px;top:4px;background:#7FD0D1;transform:rotate(38deg)}
+.general-brand-clean__mark i:nth-child(2){left:18px;top:2px;background:#FF95BA;transform:rotate(82deg)}
+.general-brand-clean__mark i:nth-child(3){left:18px;top:18px;background:#FFF07B;transform:rotate(145deg)}
+.general-brand-clean__mark i:nth-child(4){left:4px;top:19px;background:#C9CDD5;transform:rotate(205deg)}
+.general-brand-clean__copy{display:grid;line-height:1}
+.general-brand-clean__copy strong{font-size:16px;letter-spacing:.04em;color:#252B36}
+.general-brand-clean__copy small{margin-top:5px;font-size:9px;letter-spacing:.08em;color:#77A5D9;font-style:italic}
+
+html[data-nisti-access="general"] .general-panel{
+  margin-top:8px!important;
+}
+html[data-nisti-access="general"] .general-panel .result-image{
+  display:block!important;
+  width:min(320px,100%)!important;
+  height:auto!important;
+  max-height:380px!important;
+  object-fit:contain!important;
+  margin:14px auto 18px!important;
+  background:#fff!important;
+  border-radius:18px!important;
+}
+html[data-nisti-access="general"] .general-panel .result-image[data-image-error="1"]{
+  min-height:0!important;
+  height:0!important;
+  margin:0!important;
+  border:0!important;
+  opacity:0!important;
+}
+
+@media(max-width:640px){
+  html[data-nisti-access="general"] main.shell{width:calc(100% - 16px)!important}
+  html[data-nisti-access="general"] main.shell>header{
+    gap:8px!important;
+    min-height:58px!important;
+    padding:6px 2px 10px!important;
+  }
+  html[data-nisti-access="general"] .general-brand-clean{padding:5px 4px!important}
+  .general-brand-clean__mark{width:30px;height:30px;flex-basis:30px;transform:scale(.82)}
+  .general-brand-clean__copy strong{font-size:13px}
+  .general-brand-clean__copy small{font-size:8px}
+  html[data-nisti-access="general"] main.shell>header h1{font-size:24px!important;white-space:nowrap!important}
+  html[data-nisti-access="general"] main.shell>header .eyebrow{display:none!important}
+  html[data-nisti-access="general"] .general-panel{padding:20px 16px!important;border-radius:22px!important}
+  html[data-nisti-access="general"] .general-panel>h2{font-size:28px!important}
+  html[data-nisti-access="general"] .general-panel>h2+p{font-size:14px!important;line-height:1.5!important}
+  html[data-nisti-access="general"] .general-panel .camera{margin-top:20px!important;min-height:330px!important}
+  html[data-nisti-access="general"] .general-panel .result{padding:18px!important}
+  html[data-nisti-access="general"] .general-panel .result h3{font-size:25px!important;overflow-wrap:anywhere!important}
+  html[data-nisti-access="general"] .general-panel .result-image{width:min(280px,100%)!important;max-height:340px!important}
+}
