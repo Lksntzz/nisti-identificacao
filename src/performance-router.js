@@ -3,8 +3,9 @@ import { fastIdentify } from './fast-identify-v4.js';
 import { buildLocalVisionCandidates, confirmLocalVision } from './embedding-candidates.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
-// Orçamento do fallback generativo. O fluxo principal usa embedding + OpenCV local.
-const ROUTER_BUDGET_MS = 4600;
+// O fluxo principal usa embedding + visão local. O fallback generativo fica
+// disponível apenas para compatibilidade e não é mais interrompido em 5 s.
+const FALLBACK_MAX_MS = 20_000;
 
 function responseWithHeaders(response) {
   const headers = new Headers(response.headers);
@@ -24,28 +25,6 @@ function prepareProductImage(product) {
   return product;
 }
 
-function timeoutResult(started) {
-  const data = {
-    error: 'Não consegui confirmar a capa dentro do limite de 5 segundos. Tente novamente.',
-    technical_error: 'recognition_deadline_exceeded',
-    performance: {
-      total_ms: Date.now() - started,
-      recognition_deadline_ms: ROUTER_BUDGET_MS,
-      deadline_exceeded: true
-    }
-  };
-  return {
-    response: new Response(JSON.stringify(data), {
-      status: 503,
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'cache-control': 'no-store'
-      }
-    }),
-    data
-  };
-}
-
 async function readJson(response) {
   const type = response.headers.get('content-type') || '';
   return type.includes('application/json')
@@ -60,24 +39,13 @@ async function record(ctx, env, response, data) {
   else await telemetry;
 }
 
-async function identifyWithinBudget(request, env) {
+async function identifyFallback(request, env) {
   const started = Date.now();
-  let timer;
-  const timeout = new Promise(resolve => {
-    timer = setTimeout(() => resolve(timeoutResult(started)), ROUTER_BUDGET_MS);
+  const response = await fastIdentify(request, env, {
+    deadlineAt: started + FALLBACK_MAX_MS
   });
-
-  const work = (async () => {
-    const response = await fastIdentify(request, env, { deadlineAt: started + ROUTER_BUDGET_MS - 100 });
-    const data = await readJson(response);
-    return { response, data };
-  })();
-
-  try {
-    return await Promise.race([work, timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
+  const data = await readJson(response);
+  return { response, data };
 }
 
 export default {
@@ -95,9 +63,9 @@ export default {
       return response;
     }
 
-    // Compatibilidade/fallback: mantém o identificador generativo anterior disponível.
+    // Compatibilidade: só entra aqui se o caminho local não puder ser usado.
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      let { response, data } = await identifyWithinBudget(request, env);
+      const { response, data } = await identifyFallback(request, env);
 
       await record(ctx, env, response, data);
 
