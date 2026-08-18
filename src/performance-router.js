@@ -11,7 +11,7 @@ function responseWithHeaders(response) {
 function resultImageUrl(product) {
   if (!product?.id || !product?.image_key) return null;
   const version = String(product.image_key).split('/').pop() || 'current';
-  return `/api/images/${product.id}?fresh=${encodeURIComponent(version)}`;
+  return `/api/images/${product.id}?v=${encodeURIComponent(version)}`;
 }
 
 function prepareProductImage(product) {
