@@ -68,15 +68,24 @@ async function embedImage(env, bytes, mimeType) {
   return values;
 }
 
-async function getCandidates(env, image) {
+async function getCandidates(env, image, timings) {
+  const uploadStarted = Date.now();
   const uploadBytes = new Uint8Array(await image.arrayBuffer());
+  timings.read_photo_ms = Date.now() - uploadStarted;
+
+  const embeddingStarted = Date.now();
   const queryEmbedding = await embedImage(env, uploadBytes, image.type || 'image/jpeg');
+  timings.embedding_ms = Date.now() - embeddingStarted;
+
+  const d1Started = Date.now();
   const { results } = await env.DB.prepare(`
     SELECT capa_code,image_key,embedding_json
     FROM cover_embeddings
   `).all();
+  timings.d1_index_ms = Date.now() - d1Started;
   if (!results?.length) throw new Error('Índice visual vazio. Indexe as imagens das capas antes de identificar.');
 
+  const scoringStarted = Date.now();
   const scored = [];
   for (const row of results) {
     try {
@@ -90,13 +99,15 @@ async function getCandidates(env, image) {
     } catch {}
   }
   scored.sort((a, b) => b.retrieval_score - a.retrieval_score);
+  timings.score_ms = Date.now() - scoringStarted;
+  timings.index_size = scored.length;
   return { uploadBytes, candidates: scored.slice(0, TOP_K_COVERS) };
 }
 
-async function verify(env, image, uploadBytes, candidates) {
+async function verify(env, image, uploadBytes, candidates, timings) {
   if (!candidates.length) throw new Error('Nenhuma capa candidata encontrada no índice visual');
 
-  // O ponto principal desta rota: R2 em paralelo, mantendo exatamente o Top-K 8.
+  const r2Started = Date.now();
   const loaded = await Promise.all(candidates.map(async candidate => {
     const obj = await env.PRODUCT_IMAGES.get(candidate.image_key);
     if (!obj) return null;
@@ -108,6 +119,9 @@ async function verify(env, image, uploadBytes, candidates) {
     };
   }));
   const usable = loaded.filter(Boolean);
+  timings.r2_candidates_ms = Date.now() - r2Started;
+  timings.candidate_count = usable.length;
+  timings.candidate_bytes = usable.reduce((sum, item) => sum + item.bytes.byteLength, 0);
   if (!usable.length) throw new Error('As imagens candidatas não foram encontradas no R2');
 
   const parts = [{
@@ -133,7 +147,8 @@ async function verify(env, image, uploadBytes, candidates) {
     }
   });
 
-  const model = env.GEMINI_MODEL || 'gemini-3.5-flash';
+  const model = env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+  const geminiStarted = Date.now();
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: {
@@ -158,6 +173,8 @@ async function verify(env, image, uploadBytes, candidates) {
       }
     })
   });
+  timings.gemini_ms = Date.now() - geminiStarted;
+  timings.model = model;
   if (!response.ok) throw new Error(`Gemini falhou (${response.status})`);
   const payload = await response.json();
   const text = payload.candidates?.[0]?.content?.parts?.find(part => part.text)?.text;
@@ -172,22 +189,45 @@ async function verify(env, image, uploadBytes, candidates) {
   return { ...result, capa_code: capaCode, candidates: usable };
 }
 
+function timingHeader(timings) {
+  const entries = [
+    ['embedding', timings.embedding_ms],
+    ['d1', timings.d1_index_ms],
+    ['score', timings.score_ms],
+    ['r2', timings.r2_candidates_ms],
+    ['gemini', timings.gemini_ms],
+    ['database', timings.database_ms],
+    ['total', timings.total_ms]
+  ];
+  return entries
+    .filter(([, value]) => Number.isFinite(value))
+    .map(([name, value]) => `${name};dur=${value}`)
+    .join(', ');
+}
+
 export async function fastIdentify(request, env) {
   const started = Date.now();
+  const timings = {};
   try {
+    const formStarted = Date.now();
     const form = await request.formData();
+    timings.formdata_ms = Date.now() - formStarted;
     const image = form.get('image');
     if (!(image instanceof File)) return json({ error: 'Foto da capa obrigatória' }, 400);
+    timings.upload_bytes = image.size;
 
-    const { uploadBytes, candidates } = await getCandidates(env, image);
-    const ai = await verify(env, image, uploadBytes, candidates);
+    const { uploadBytes, candidates } = await getCandidates(env, image, timings);
+    const ai = await verify(env, image, uploadBytes, candidates, timings);
     if (!ai.matched || !ai.capa_code || Number(ai.confidence) < MIN_CONFIDENCE) {
-      return json({ error: 'Correspondência visual da capa insuficiente. Tire outra foto.' }, 422, {
-        'server-timing': `identify;dur=${Date.now() - started}`
-      });
+      timings.total_ms = Date.now() - started;
+      return json({
+        error: 'Correspondência visual da capa insuficiente. Tire outra foto.',
+        performance: timings
+      }, 422, { 'server-timing': timingHeader(timings) });
     }
 
     const capaCode = String(ai.capa_code).trim().toUpperCase();
+    const databaseStarted = Date.now();
     const { results } = await env.DB.prepare(`
       SELECT p.*,
         (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
@@ -196,6 +236,7 @@ export async function fastIdentify(request, env) {
       WHERE p.capa_code=?
       ORDER BY p.id ASC
     `).bind(capaCode).all();
+    timings.database_ms = Date.now() - databaseStarted;
 
     if (!results?.length) return json({ error: 'A IA identificou uma capa que não existe no banco.' }, 422);
     if (results.length > 1) {
@@ -210,6 +251,7 @@ export async function fastIdentify(request, env) {
       String(candidate.capa_code).trim().toUpperCase() === capaCode
     );
 
+    timings.total_ms = Date.now() - started;
     return json({
       product: {
         ...product,
@@ -220,13 +262,14 @@ export async function fastIdentify(request, env) {
       },
       confidence: ai.confidence,
       retrieval_score: selectedCandidate?.retrieval_score ?? null,
-      identified_by: 'capa_embedding_topk+gemini-parallel'
-    }, 200, {
-      'server-timing': `identify;dur=${Date.now() - started}`
-    });
+      identified_by: 'capa_embedding_topk+gemini-parallel',
+      performance: timings
+    }, 200, { 'server-timing': timingHeader(timings) });
   } catch (error) {
-    return json({ error: error?.message || 'Erro interno' }, 400, {
-      'server-timing': `identify;dur=${Date.now() - started}`
-    });
+    timings.total_ms = Date.now() - started;
+    return json({
+      error: error?.message || 'Erro interno',
+      performance: timings
+    }, 400, { 'server-timing': timingHeader(timings) });
   }
 }
