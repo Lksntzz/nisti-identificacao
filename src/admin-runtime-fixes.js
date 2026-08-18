@@ -3,16 +3,40 @@ import './admin-runtime-fixes.css';
 let pollTimer = null;
 let applying = false;
 let activeView = 'geral';
+let activeToolPanel = '';
 
 const VIEW_COPY = {
-  geral: ['Dashboard', 'Visão rápida do catálogo e do estado do sistema.'],
-  mockups: ['Mockups', 'Pesquise produtos, confira imagens e substitua mockups quando necessário.'],
+  geral: ['Dashboard', 'Visão geral do catálogo, mockups e serviços do sistema.'],
+  produtos: ['Produtos', 'Pesquise, filtre e consulte todos os SKUs cadastrados.'],
+  mockups: ['Mockups', 'Confira as imagens do catálogo e substitua mockups quando necessário.'],
   importacao: ['Importação', 'Atualize o catálogo por CSV ou cadastre um produto individualmente.'],
+  ferramentas: ['Ferramentas', 'Rotinas de manutenção, índice visual e correções pontuais.'],
   administracao: ['Administração', 'Acompanhe banco de dados, armazenamento e consumo do Gemini.']
 };
 
+const NAV_ITEMS = [
+  ['geral', 'home', 'Geral'],
+  ['produtos', 'box', 'Produtos'],
+  ['mockups', 'image', 'Mockups'],
+  ['importacao', 'upload', 'Importação'],
+  ['ferramentas', 'tools', 'Ferramentas'],
+  ['administracao', 'gear', 'Administração']
+];
+
 function isAdmin() {
   return document.documentElement.dataset.nistiAccess === 'admin';
+}
+
+function iconSvg(name) {
+  const icons = {
+    home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/>',
+    box: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/>',
+    upload: '<path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 15v4h16v-4"/>',
+    tools: '<path d="M14.7 6.3a4 4 0 0 0-5 5L4 17l3 3 5.7-5.7a4 4 0 0 0 5-5l-2.6 2.6-3-3 2.6-2.6Z"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"/>'
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name] || icons.box}</svg>`;
 }
 
 function setActiveTab(section) {
@@ -27,24 +51,19 @@ function setVisible(element, visible) {
   element.classList.toggle('admin-view-visible', visible);
 }
 
-function closeToolPanels() {
-  document.querySelectorAll('.admin-tool-panel').forEach(panel => {
-    panel.classList.remove('tool-panel-visible');
-    panel.hidden = true;
-  });
-}
-
-function simplifyNavigation() {
+function ensureFullNavigation() {
   const tabs = document.querySelector('.admin-section-tabs');
   if (!tabs) return;
 
-  tabs.querySelector('[data-section="produtos"]')?.remove();
-  tabs.querySelector('[data-section="ferramentas"]')?.remove();
+  const current = Array.from(tabs.querySelectorAll('.admin-section-tab')).map(button => button.dataset.section).join('|');
+  const expected = NAV_ITEMS.map(item => item[0]).join('|');
+  if (current === expected) return;
 
-  const allowed = new Set(['geral', 'mockups', 'importacao', 'administracao']);
-  tabs.querySelectorAll('.admin-section-tab').forEach(button => {
-    if (!allowed.has(button.dataset.section)) button.remove();
-  });
+  tabs.innerHTML = NAV_ITEMS.map(([section, icon, label]) => `
+    <button type="button" class="admin-section-tab" data-section="${section}">
+      ${iconSvg(icon)}<span>${label}</span>
+    </button>
+  `).join('');
 }
 
 function ensureViewHeader() {
@@ -54,49 +73,44 @@ function ensureViewHeader() {
   if (!header) {
     header = document.createElement('section');
     header.className = 'admin-view-header';
-    header.innerHTML = '<div><span>NISTI PRINT</span><h2>Dashboard</h2><p>Visão rápida do catálogo e do estado do sistema.</p></div>';
+    header.innerHTML = '<div><span>NISTI PRINT</span><h2>Dashboard</h2><p>Visão geral do catálogo, mockups e serviços do sistema.</p></div>';
     panel.prepend(header);
   }
   return header;
 }
 
-function ensureHealthSummary() {
+function ensureSystemDetails() {
   const grid = document.querySelector('.admin-kpi-grid');
-  if (!grid) return null;
-  let health = document.querySelector('.admin-health-summary');
-  if (!health) {
-    health = document.createElement('button');
-    health.type = 'button';
-    health.className = 'admin-health-summary';
-    health.innerHTML = `
-      <span class="health-icon" aria-hidden="true">⌁</span>
-      <span class="health-copy">
-        <small>Saúde do sistema</small>
-        <strong>Verificando serviços...</strong>
-        <em>D1 · R2 · Gemini</em>
-      </span>
-      <span class="health-state">Verificando</span>
-      <span class="health-arrow" aria-hidden="true">›</span>
-    `;
-    grid.insertAdjacentElement('afterend', health);
-  }
-  return health;
-}
+  if (!grid || document.querySelector('.admin-system-details')) return;
 
-function setCatalogMode() {
-  const catalog = document.querySelector('.catalog-details');
-  if (!catalog) return;
-  catalog.classList.remove('catalog-products-mode');
-  catalog.classList.add('catalog-mockups-mode');
-  const summary = catalog.querySelector(':scope > summary');
-  if (summary) summary.textContent = 'Biblioteca de mockups';
-  const search = catalog.querySelector('.catalog-search');
-  if (search) search.placeholder = 'Buscar por nome do produto ou SKU...';
+  const details = document.createElement('section');
+  details.className = 'admin-system-details';
+  details.innerHTML = `
+    <article class="system-detail-card" data-system-detail="database">
+      <span class="system-detail-icon">DB</span>
+      <div class="system-detail-copy"><strong>Banco de dados · Cloudflare D1</strong><b>Carregando...</b><span>Lendo o tamanho real do banco estruturado.</span><div class="system-progress"><i></i></div></div>
+      <em class="system-status">Verificando</em>
+    </article>
+    <article class="system-detail-card" data-system-detail="r2">
+      <span class="system-detail-icon">R2</span>
+      <div class="system-detail-copy"><strong>Mockups e imagens · Cloudflare R2</strong><b>Carregando...</b><span>Somando os arquivos armazenados.</span><div class="system-progress"><i></i></div></div>
+      <em class="system-status">Verificando</em>
+    </article>
+    <article class="system-detail-card" data-system-detail="gemini">
+      <span class="system-detail-icon">✦</span>
+      <div class="system-detail-copy"><strong>Gemini · identificação visual</strong><b>Carregando...</b><span>Lendo consultas e tokens medidos pelo NISTI.</span><div class="system-progress"><i></i></div></div>
+      <em class="system-status">Verificando</em>
+    </article>
+    <div class="system-measurement-note">D1 e R2 são medidos separadamente. O Gemini mostra somente as chamadas registradas por este aplicativo desde que a telemetria foi ativada.</div>
+  `;
+  grid.insertAdjacentElement('afterend', details);
 }
 
 function prepareDashboard() {
   if (!isAdmin()) return;
-  simplifyNavigation();
+  ensureFullNavigation();
+  ensureViewHeader();
+  ensureSystemDetails();
 
   const kpiGrid = document.querySelector('.admin-kpi-grid');
   if (kpiGrid) {
@@ -104,65 +118,67 @@ function prepareDashboard() {
     const mockupCard = kpiGrid.querySelector('[data-kpi="mockups"]');
     const pendingCard = kpiGrid.querySelector('[data-kpi="pending"]');
     const progressCard = kpiGrid.querySelector('[data-kpi="progress"]');
-    const dbCard = kpiGrid.querySelector('[data-kpi="database"], [data-system-kpi="database"]');
-    const geminiCard = kpiGrid.querySelector('[data-kpi="gemini"], [data-system-kpi="gemini"]');
+    const dbCard = kpiGrid.querySelector('[data-system-kpi="database"]');
+    const geminiCard = kpiGrid.querySelector('[data-system-kpi="gemini"]');
 
-    if (dbCard) {
-      dbCard.removeAttribute('data-kpi');
-      dbCard.dataset.systemKpi = 'database';
-      dbCard.hidden = true;
+    if (dbCard && !dbCard.dataset.kpi) {
+      dbCard.dataset.kpi = 'database';
+      delete dbCard.dataset.systemKpi;
     }
-    if (geminiCard) {
-      geminiCard.removeAttribute('data-kpi');
-      geminiCard.dataset.systemKpi = 'gemini';
-      geminiCard.hidden = true;
+    if (geminiCard && !geminiCard.dataset.kpi) {
+      geminiCard.dataset.kpi = 'gemini';
+      delete geminiCard.dataset.systemKpi;
     }
 
-    const progressLabel = progressCard?.querySelector('small');
-    if (progressLabel) progressLabel.textContent = 'Produção';
-    const productLabel = productCard?.querySelector('small');
-    if (productLabel) productLabel.textContent = 'Produtos cadastrados';
-    const mockupLabel = mockupCard?.querySelector('small');
-    if (mockupLabel) mockupLabel.textContent = 'Mockups';
-    const pendingLabel = pendingCard?.querySelector('small');
-    if (pendingLabel) pendingLabel.textContent = 'Pendentes';
+    const labels = [
+      [productCard, 'Produtos cadastrados'],
+      [mockupCard, 'Mockups com imagem'],
+      [pendingCard, 'Pendentes'],
+      [progressCard, 'Progresso do catálogo'],
+      [kpiGrid.querySelector('[data-kpi="database"]'), 'Banco de dados'],
+      [kpiGrid.querySelector('[data-kpi="gemini"]'), 'Uso Gemini']
+    ];
+    labels.forEach(([card, text]) => {
+      const label = card?.querySelector('small');
+      if (label) label.textContent = text;
+      if (card) card.hidden = false;
+    });
   }
+}
 
-  document.querySelector('.admin-tools-section')?.setAttribute('hidden', '');
+function setCatalogMode(mode) {
+  const catalog = document.querySelector('.catalog-details');
+  if (!catalog) return;
+  catalog.classList.toggle('catalog-products-mode', mode === 'products');
+  catalog.classList.toggle('catalog-mockups-mode', mode === 'mockups');
+  const summary = catalog.querySelector(':scope > summary');
+  if (summary) summary.textContent = mode === 'mockups' ? 'Biblioteca de mockups' : 'Catálogo de produtos';
+  const search = catalog.querySelector('.catalog-search');
+  if (search) search.placeholder = 'Buscar por nome do produto ou SKU...';
+}
 
-  const systemKpiGrid = document.querySelector('.admin-kpi-grid');
-  if (systemKpiGrid && !document.querySelector('.admin-system-details')) {
-    const details = document.createElement('section');
-    details.className = 'admin-system-details';
-    details.innerHTML = `
-      <article class="system-detail-card" data-system-detail="database">
-        <span class="system-detail-icon">DB</span>
-        <div class="system-detail-copy"><strong>Banco de dados · Cloudflare D1</strong><b>Carregando...</b><span>Lendo o tamanho real do banco estruturado.</span></div>
-        <em class="system-status">Verificando</em>
-      </article>
-      <article class="system-detail-card" data-system-detail="r2">
-        <span class="system-detail-icon">R2</span>
-        <div class="system-detail-copy"><strong>Mockups e imagens · Cloudflare R2</strong><b>Carregando...</b><span>Somando os arquivos armazenados.</span></div>
-        <em class="system-status">Verificando</em>
-      </article>
-      <article class="system-detail-card" data-system-detail="gemini">
-        <span class="system-detail-icon">✦</span>
-        <div class="system-detail-copy"><strong>Gemini · identificação visual</strong><b>Carregando...</b><span>Lendo consultas e tokens medidos pelo NISTI.</span></div>
-        <em class="system-status">Verificando</em>
-      </article>
-      <div class="system-measurement-note">D1 e R2 são medidos separadamente. O uso do Gemini representa as chamadas feitas por este aplicativo desde que a telemetria foi ativada.</div>
-    `;
-    systemKpiGrid.insertAdjacentElement('afterend', details);
+function hideAllToolPanels() {
+  document.querySelectorAll('.admin-tool-panel').forEach(panel => {
+    panel.classList.remove('tool-panel-visible');
+    panel.hidden = true;
+  });
+}
+
+function showToolPanel(name) {
+  activeToolPanel = name || '';
+  hideAllToolPanels();
+  const panel = document.querySelector(`.admin-tool-panel[data-tool-panel="${activeToolPanel}"]`);
+  if (panel) {
+    panel.hidden = false;
+    panel.classList.add('tool-panel-visible');
   }
-
-  ensureHealthSummary();
-  ensureViewHeader();
 }
 
 function applyView(section, { scroll = false } = {}) {
   if (!isAdmin()) return;
   activeView = VIEW_COPY[section] ? section : 'geral';
   document.documentElement.dataset.adminView = activeView;
+  prepareDashboard();
   setActiveTab(activeView);
 
   const header = ensureViewHeader();
@@ -181,34 +197,42 @@ function applyView(section, { scroll = false } = {}) {
   const tools = document.querySelector('.admin-tools-section');
   const importPanel = document.querySelector('.admin-tool-panel[data-tool-panel="importacao"]');
   const cadastroPanel = document.querySelector('.admin-tool-panel[data-tool-panel="cadastro"]');
-  const manualPanel = document.querySelector('.admin-tool-panel[data-tool-panel="manual"]');
-  const indexPanel = document.querySelector('.admin-tool-panel[data-tool-panel="indice"]');
 
-  closeToolPanels();
   setVisible(kpis, activeView === 'geral');
-  setVisible(health, activeView === 'geral');
+  setVisible(health, false);
   setVisible(system, activeView === 'administracao');
-  setVisible(catalog, activeView === 'mockups');
-  setVisible(tools, false);
-  setVisible(importPanel, activeView === 'importacao');
-  setVisible(cadastroPanel, activeView === 'importacao');
-  setVisible(manualPanel, false);
-  setVisible(indexPanel, false);
+  setVisible(catalog, activeView === 'produtos' || activeView === 'mockups');
+  setVisible(tools, activeView === 'geral' || activeView === 'ferramentas');
 
-  if (activeView === 'importacao') {
+  hideAllToolPanels();
+
+  if (activeView === 'produtos') {
+    if (catalog) catalog.open = true;
+    setCatalogMode('products');
+  } else if (activeView === 'mockups') {
+    if (catalog) catalog.open = true;
+    setCatalogMode('mockups');
+  } else if (activeView === 'importacao') {
     [importPanel, cadastroPanel].forEach(panel => {
       if (!panel) return;
       panel.hidden = false;
       panel.classList.add('tool-panel-visible');
     });
-  }
-
-  if (activeView === 'mockups') {
-    if (catalog) catalog.open = true;
-    setCatalogMode();
+  } else if (activeView === 'ferramentas' && activeToolPanel) {
+    showToolPanel(activeToolPanel);
   }
 
   if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function openToolFromCard(name) {
+  if (name === 'catalogo') return applyView('produtos', { scroll: true });
+  if (name === 'mockups') return applyView('mockups', { scroll: true });
+  if (name === 'importacao' || name === 'cadastro') return applyView('importacao', { scroll: true });
+  if (name === 'manual' || name === 'indice') {
+    activeToolPanel = name;
+    applyView('ferramentas', { scroll: true });
+  }
 }
 
 function handleAdminNavigation(event) {
@@ -219,14 +243,17 @@ function handleAdminNavigation(event) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
+    activeToolPanel = '';
     applyView(tab.dataset.section, { scroll: true });
     return;
   }
 
-  const health = event.target.closest('.admin-health-summary');
-  if (health) {
+  const tool = event.target.closest('[data-open-tool]');
+  if (tool) {
     event.preventDefault();
-    applyView('administracao', { scroll: true });
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    openToolFromCard(tool.dataset.openTool);
   }
 }
 
@@ -244,39 +271,28 @@ function formatNumber(value) {
   return Number(value || 0).toLocaleString('pt-BR');
 }
 
-function updateSystemDetail(key, value, description, state = 'Saudável', stateClass = '') {
+function updateDashboardKpi(key, value, description) {
+  const card = document.querySelector(`.admin-kpi[data-kpi="${key}"]`);
+  if (!card) return;
+  const valueNode = card.querySelector('.kpi-value');
+  const descNode = card.querySelector('.kpi-sub');
+  if (valueNode) valueNode.textContent = value;
+  if (descNode) descNode.textContent = description;
+}
+
+function updateSystemDetail(key, value, description, state = 'Saudável', stateClass = '', percent = 0) {
   const card = document.querySelector(`[data-system-detail="${key}"]`);
   if (!card) return;
   const valueNode = card.querySelector('.system-detail-copy b');
   const descNode = card.querySelector('.system-detail-copy span');
   const status = card.querySelector('.system-status');
+  const progress = card.querySelector('.system-progress i');
   if (valueNode) valueNode.textContent = value;
   if (descNode) descNode.textContent = description;
+  if (progress) progress.style.width = `${Math.min(100, Math.max(0, Number(percent || 0)))}%`;
   if (status) {
     status.textContent = state;
     status.className = `system-status${stateClass ? ` ${stateClass}` : ''}`;
-  }
-}
-
-function updateHealthSummary({ database, r2, gemini, storageOk }) {
-  const health = document.querySelector('.admin-health-summary');
-  if (!health) return;
-
-  const dbUsed = formatBytes(database?.used_bytes);
-  const r2Used = storageOk ? formatBytes(r2?.used_bytes) : 'R2 indisponível';
-  const requests = Number(gemini?.today?.identify_requests || 0);
-  const tokens = Number(gemini?.today?.total_tokens || 0);
-  const freePercent = Number(database?.percent_of_free_limit || 0);
-  const healthy = gemini?.configured !== false && freePercent < 90 && storageOk;
-
-  const strong = health.querySelector('.health-copy strong');
-  const em = health.querySelector('.health-copy em');
-  const state = health.querySelector('.health-state');
-  if (strong) strong.textContent = healthy ? 'Tudo operacional' : 'Verificar sistema';
-  if (em) em.textContent = `D1 ${dbUsed} · R2 ${r2Used} · Gemini ${formatNumber(requests)} consulta(s) / ${formatNumber(tokens)} tokens hoje`;
-  if (state) {
-    state.textContent = healthy ? 'Saudável' : 'Atenção';
-    state.className = `health-state${healthy ? '' : ' warning'}`;
   }
 }
 
@@ -301,13 +317,14 @@ async function refreshRealMetrics() {
     const dbUsed = formatBytes(database.used_bytes);
     const freePercent = Number(database.percent_of_free_limit || 0);
     const dbState = freePercent >= 90 ? ['Atenção', 'warning'] : ['Saudável', ''];
-
+    updateDashboardKpi('database', dbUsed, `${freePercent.toFixed(freePercent < 1 ? 2 : 1)}% do limite Free de referência`);
     updateSystemDetail(
       'database',
       `${dbUsed} no D1`,
-      `Tamanho real do banco estruturado. Referência de limite por banco: Workers Free 500 MB; Workers Paid 10 GB.`,
+      'Banco estruturado usado pelo catálogo e índice visual.',
       dbState[0],
-      dbState[1]
+      dbState[1],
+      freePercent
     );
 
     if (storageResponse.ok) {
@@ -316,38 +333,33 @@ async function refreshRealMetrics() {
       updateSystemDetail(
         'r2',
         `${r2Used} · ${formatNumber(r2.object_count)} arquivo(s)`,
-        `${r2Percent.toFixed(r2Percent < 1 ? 3 : 1)}% dos 10 GB-mês incluídos no nível gratuito Standard.`,
-        'Saudável',
-        ''
+        'Mockups e imagens de referência armazenados no R2.',
+        r2Percent >= 90 ? 'Atenção' : 'Saudável',
+        r2Percent >= 90 ? 'warning' : '',
+        r2Percent
       );
     } else {
-      updateSystemDetail('r2', 'Falha na leitura', 'Não foi possível medir o bucket de imagens.', 'Erro', 'error');
+      updateSystemDetail('r2', 'Falha na leitura', 'Não foi possível medir o bucket de imagens.', 'Erro', 'error', 100);
     }
 
     const requests = Number(today.identify_requests || 0);
     const tokens = Number(today.total_tokens || 0);
     const average = Number(gemini.average_tokens_per_identification_today || 0);
+    updateDashboardKpi('gemini', formatNumber(tokens), `${formatNumber(requests)} identificação(ões) hoje`);
     updateSystemDetail(
       'gemini',
       `${formatNumber(tokens)} tokens hoje`,
-      `${formatNumber(requests)} identificação(ões) hoje${average ? ` · média ${formatNumber(average)} tokens/consulta` : ''} · ${gemini.model || 'Gemini'}.`,
+      `${formatNumber(requests)} identificação(ões)${average ? ` · média ${formatNumber(average)} tokens/consulta` : ''} · ${gemini.model || 'Gemini'}.`,
       gemini.configured ? 'Ativo' : 'Sem chave',
-      gemini.configured ? '' : 'error'
+      gemini.configured ? '' : 'error',
+      0
     );
-
-    updateHealthSummary({ database, r2, gemini, storageOk: storageResponse.ok });
   } catch {
-    updateSystemDetail('database', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error');
-    updateSystemDetail('r2', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error');
-    updateSystemDetail('gemini', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error');
-    const health = document.querySelector('.admin-health-summary');
-    const strong = health?.querySelector('.health-copy strong');
-    const state = health?.querySelector('.health-state');
-    if (strong) strong.textContent = 'Não foi possível consultar os serviços';
-    if (state) {
-      state.textContent = 'Atenção';
-      state.className = 'health-state warning';
-    }
+    updateDashboardKpi('database', 'Erro', 'Não foi possível medir o D1');
+    updateDashboardKpi('gemini', 'Erro', 'Não foi possível ler a telemetria');
+    updateSystemDetail('database', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error', 100);
+    updateSystemDetail('r2', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error', 100);
+    updateSystemDetail('gemini', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error', 100);
   }
 }
 
