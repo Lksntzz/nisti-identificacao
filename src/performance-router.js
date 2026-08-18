@@ -53,10 +53,12 @@ function guardedResponse(originalResponse, data, guard) {
   const reason = guard.reason ? ` Motivo: ${guard.reason}` : '';
   const rejected = {
     error: `A confirmação visual final rejeitou a capa ${code} porque a arte não corresponde com segurança à foto.${reason}`,
+    product: proposed || null,
     capa_code: code === 'desconhecida' ? null : code,
     proposed_sku: proposed?.sku || null,
     confidence: data?.confidence ?? null,
     retrieval_score: data?.retrieval_score ?? null,
+    identified_by: data?.identified_by || null,
     performance
   };
   return {
