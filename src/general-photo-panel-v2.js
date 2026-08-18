@@ -1,6 +1,6 @@
 import './general-photo-panel-fallback.css';
 
-const GENERAL_LOGO='/nisti-brand-clean.svg';
+const GENERAL_LOGO='/nisti-logo-transparent.webp?v=original-20260818';
 let lastAutoFile=null;
 let autoTimer=null;
 
