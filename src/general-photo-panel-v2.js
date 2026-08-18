@@ -1,3 +1,5 @@
+import './general-photo-panel-fallback.css';
+
 const GENERAL_LOGO='/nisti-logo-transparent.webp';
 let lastAutoFile=null;
 let autoTimer=null;
