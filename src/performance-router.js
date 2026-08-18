@@ -1,5 +1,6 @@
 import app from './edge-router.js';
 import { fastIdentify } from './fast-identify-v3.js';
+import { recordRecognitionAttempt } from './recognition-metrics.js';
 
 function responseWithHeaders(response) {
   const headers = new Headers(response.headers);
@@ -25,13 +26,18 @@ export default {
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
       const response = await fastIdentify(request, env);
-      if (!response.ok) return response;
-
       const type = response.headers.get('content-type') || '';
-      if (!type.includes('application/json')) return response;
+      const data = type.includes('application/json')
+        ? await response.clone().json().catch(() => null)
+        : null;
 
-      const data = await response.clone().json().catch(() => null);
-      if (!data) return response;
+      if (data) {
+        const telemetry = recordRecognitionAttempt(env, response.status, data);
+        if (ctx?.waitUntil) ctx.waitUntil(telemetry);
+        else await telemetry;
+      }
+
+      if (!response.ok || !data) return response;
 
       if (data.product) prepareProductImage(data.product);
       if (Array.isArray(data.products)) data.products = data.products.map(prepareProductImage);
