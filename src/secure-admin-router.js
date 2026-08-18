@@ -97,8 +97,6 @@ function isAdminPage(pathname) {
 
 function isProtectedApi(pathname) {
   if (pathname.startsWith('/api/admin/')) {
-    // O capturador roda a partir do próprio Mercado Livre e não grava dados sozinho.
-    // Ele apenas devolve as imagens capturadas para a sessão do navegador.
     return pathname !== '/api/admin/ml-browser-capture';
   }
   if (pathname === '/api/products' || pathname.startsWith('/api/products/')) return true;
@@ -168,6 +166,25 @@ function unauthorizedApi() {
   });
 }
 
+async function serveAdminSpa(request, env) {
+  const indexUrl = new URL(request.url);
+  indexUrl.pathname = '/';
+  indexUrl.search = '';
+  const indexRequest = new Request(indexUrl.toString(), {
+    method: 'GET',
+    headers: request.headers
+  });
+  const response = await env.ASSETS.fetch(indexRequest);
+  const headers = new Headers(response.headers);
+  headers.set('cache-control', 'no-store, private');
+  headers.set('x-robots-tag', 'noindex, nofollow');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -218,7 +235,7 @@ export default {
       if (!(await validSession(request, env))) {
         return Response.redirect(new URL('/admin-login', url), 302);
       }
-      return env.ASSETS.fetch(request);
+      return serveAdminSpa(request, env);
     }
 
     if (isProtectedApi(pathname) && !(await validSession(request, env))) {
