@@ -1,0 +1,54 @@
+/* Ajustes finais de hierarquia do ADM. Este arquivo deve carregar por último. */
+
+/* Respeitar SEMPRE o estado hidden. O CSS anterior forçava alguns blocos a aparecer. */
+html[data-nisti-access="admin"] .admin-tools-section[hidden],
+html[data-nisti-access="admin"] .admin-kpi-grid[hidden],
+html[data-nisti-access="admin"] .admin-system-details[hidden],
+html[data-nisti-access="admin"] .admin-catalog[hidden],
+html[data-nisti-access="admin"] .admin-tool-panel[hidden]{display:none!important}
+
+/* IMPORTAÇÃO: não mostra o menu de ferramentas dentro da página. */
+html[data-nisti-access="admin"][data-admin-view="importacao"] .admin-tools-section{display:none!important}
+html[data-nisti-access="admin"][data-admin-view="importacao"] .admin-tool-panel[data-tool-panel="importacao"],
+html[data-nisti-access="admin"][data-admin-view="importacao"] .admin-tool-panel[data-tool-panel="cadastro"]{width:min(1120px,100%)!important;margin-left:auto!important;margin-right:auto!important}
+html[data-nisti-access="admin"][data-admin-view="importacao"] .admin-tool-panel[data-tool-panel="importacao"]{padding:18px 20px!important}
+html[data-nisti-access="admin"][data-admin-view="importacao"] .admin-tool-panel[data-tool-panel="cadastro"]{padding:20px!important}
+html[data-nisti-access="admin"][data-admin-view="importacao"] .admin-tool-panel[data-tool-panel="importacao"] .parsed{display:grid!important;grid-template-columns:repeat(2,minmax(0,170px))!important;gap:8px!important}
+html[data-nisti-access="admin"][data-admin-view="importacao"] .admin-tool-panel input[type="file"]{min-height:46px!important;padding:7px 10px!important;background:#fbfcfe!important}
+
+/* GERAL: ferramentas compactas como atalhos rápidos. */
+html[data-nisti-access="admin"][data-admin-view="geral"] .admin-tools-section{display:block!important;margin-top:2px!important;padding:14px!important}
+html[data-nisti-access="admin"][data-admin-view="geral"] .admin-tools-grid{grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:8px!important}
+html[data-nisti-access="admin"][data-admin-view="geral"] .admin-tool-card{min-height:72px!important;padding:10px!important}
+
+/* FERRAMENTAS: vira uma página própria, com cards grandes e organizados. */
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tools-section{display:block!important;padding:20px!important;border-radius:16px!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-section-heading{margin-bottom:16px!important;padding-bottom:12px!important;border-bottom:1px solid #edf0f4!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-section-heading strong{font-size:20px!important;color:#142640!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-section-heading span{font-size:11px!important;color:#7d899a!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tools-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tool-card{min-height:104px!important;padding:16px!important;grid-template-columns:48px minmax(0,1fr) 16px!important;gap:13px!important;border-radius:13px!important;background:linear-gradient(180deg,#fff,#fbfcfe)!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tool-card>span{width:46px!important;height:46px!important;border-radius:12px!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tool-card>span svg{width:24px!important;height:24px!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tool-card strong{font-size:13px!important;color:#1b2a42!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tool-card small{font-size:10px!important;line-height:1.45!important;color:#778396!important}
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tool-panel.tool-panel-visible{width:min(1120px,100%)!important;margin:14px auto 0!important;padding:20px!important}
+
+/* As páginas que não são Geral/Ferramentas nunca exibem a faixa de ferramentas. */
+html[data-nisti-access="admin"][data-admin-view="produtos"] .admin-tools-section,
+html[data-nisti-access="admin"][data-admin-view="mockups"] .admin-tools-section,
+html[data-nisti-access="admin"][data-admin-view="administracao"] .admin-tools-section{display:none!important}
+
+/* Pequeno refinamento do cabeçalho para ganhar espaço útil. */
+html[data-nisti-access="admin"] .admin-view-header{margin-bottom:12px!important;padding-bottom:9px!important}
+html[data-nisti-access="admin"] .admin-view-header h2{font-size:26px!important}
+
+@media(max-width:1300px){
+  html[data-nisti-access="admin"][data-admin-view="geral"] .admin-tools-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tools-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:760px){
+  html[data-nisti-access="admin"][data-admin-view="geral"] .admin-tools-grid,
+  html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tools-grid{grid-template-columns:1fr!important}
+  html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tools-section{padding:14px!important}
+}
