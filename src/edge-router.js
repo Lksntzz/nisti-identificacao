@@ -1,6 +1,6 @@
 const COOKIE_NAME = 'nisti_admin_session';
 const SESSION_SECONDS = 60 * 60 * 12;
-const ADMIN_APP_PATH = '/?nisti_admin=1';
+const ADMIN_APP_PATH = '/admin';
 
 function base64url(bytes) {
   let binary = '';
@@ -89,7 +89,7 @@ function json(data, status = 200) {
 }
 
 function isProtectedApi(pathname) {
-  if (pathname.startsWith('/api/admin/')) return pathname !== '/api/admin/ml-browser-capture';
+  if (pathname.startsWith('/api/admin/')) return true;
   if (pathname === '/api/products' || pathname.startsWith('/api/products/')) return true;
   if (pathname.startsWith('/api/sku/')) return true;
   return false;
@@ -107,7 +107,7 @@ export default {
 
     if (pathname === '/admin' && request.method === 'GET') {
       if (!(await validSession(request, env))) return Response.redirect(new URL('/admin-login', url), 302);
-      return Response.redirect(new URL(ADMIN_APP_PATH, url), 302);
+      return env.ASSETS.fetch(new Request(new URL('/', url), { headers: request.headers }));
     }
 
     if (pathname === '/admin-login' && request.method === 'GET') {
