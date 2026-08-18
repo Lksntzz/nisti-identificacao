@@ -1,5 +1,5 @@
 import app from './compact-admin-router.js';
-import { fastIdentify } from './fast-identify-adaptive.js';
+import { fastIdentify } from './fast-identify-hybrid.js';
 import { parseSku } from './sku.js';
 
 function responseWithHeaders(response, extra = {}) {
