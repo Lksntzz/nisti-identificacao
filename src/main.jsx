@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { matchLocalCandidates, warmLocalVision } from './local-vision.js';
 import './app.css';
 
 const LOGO = '/nisti-logo-transparent.webp';
@@ -206,7 +207,14 @@ function GeneralApp() {
   const [performance, setPerformance] = useState(null);
   const runId = useRef(0);
 
+  useEffect(() => { warmLocalVision(); }, []);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
+  const applyData = data => {
+    setPerformance(data.performance || null);
+    if (data.needs_selection) setChoices({ capaCode: data.capa_code, products: data.products || [] });
+    else setResult(data.product || null);
+  };
 
   const identifyFile = async file => {
     if (!file || busy) return;
@@ -214,12 +222,35 @@ function GeneralApp() {
     setBusy(true); setError(''); setResult(null); setChoices(null); setPerformance(null);
     try {
       const optimized = await compressPhoto(file);
-      const form = new FormData(); form.append('image', optimized);
-      const data = await api('/api/identify', { method: 'POST', body: form });
+      const form = new FormData();
+      form.append('image', optimized);
+      const candidateData = await api('/api/identify-candidates', { method: 'POST', body: form });
       if (id !== runId.current) return;
-      setPerformance(data.performance || null);
-      if (data.needs_selection) setChoices({ capaCode: data.capa_code, products: data.products || [] });
-      else setResult(data.product || null);
+
+      let localMatch;
+      try {
+        localMatch = await matchLocalCandidates(optimized, candidateData.candidates || [], { deadlineMs: 2800 });
+      } catch (localError) {
+        // Fallback de compatibilidade somente se o runtime OpenCV não conseguir executar no aparelho.
+        const fallbackForm = new FormData();
+        fallbackForm.append('image', optimized);
+        const fallbackData = await api('/api/identify', { method: 'POST', body: fallbackForm });
+        if (id !== runId.current) return;
+        applyData(fallbackData);
+        return;
+      }
+
+      const data = await api('/api/identify-confirm', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ticket: candidateData.ticket,
+          capa_code: localMatch.matched ? localMatch.capa_code : '',
+          local_match: localMatch
+        })
+      });
+      if (id !== runId.current) return;
+      applyData(data);
     } catch (err) {
       if (id === runId.current) setError(err.message);
     } finally {
@@ -245,7 +276,7 @@ function GeneralApp() {
         {preview ? <><img className="photo-preview" src={preview} alt="Foto da capa"/><span className="photo-ready">Foto pronta</span></> : <div className="camera-empty"><span className="camera-icon">◎</span><strong>Fotografar ou enviar capa</strong><span>Use uma imagem frontal, nítida e com boa iluminação.</span></div>}
         <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])}/>
       </label>
-      <button className="primary" disabled={!photo || busy} onClick={() => identifyFile(photo)}>{busy ? 'Analisando capa…' : 'Identificar produto'}</button>
+      <button className="primary" disabled={!photo || busy} onClick={() => identifyFile(photo)}>{busy ? 'Comparando capa…' : 'Identificar produto'}</button>
       {error && <div className="status error"><h3>Produto não identificado</h3><p>{error}</p></div>}
       {choices && <ProductChoices capaCode={choices.capaCode} products={choices.products} performance={performance} onSelect={product => { setResult(product); setChoices(null); }}/>} 
       {result && <ProductResult product={result} performance={performance}/>} 
@@ -402,7 +433,7 @@ function RecognitionDiagnostics({ filter, onFilter }) {
           <DiagnosticField label="SKU retornado" value={selected.sku}/>
           <DiagnosticField label="Capa retornada/proposta" value={selected.capa_code}/>
           <DiagnosticField label="Método" value={selected.identified_by||selected.verification_mode}/>
-          <DiagnosticField label="Confiança Gemini" value={selected.confidence===null?'—':`${(selected.confidence*100).toFixed(1)}%`}/>
+          <DiagnosticField label="Confiança" value={selected.confidence===null?'—':`${(selected.confidence*100).toFixed(1)}%`}/>
           <DiagnosticField label="Score selecionado" value={formatScore(selected.retrieval_score)}/>
           <DiagnosticField label="Top 1 do embedding" value={`${selected.retrieval_top1_code||'—'} · ${formatScore(selected.retrieval_top1)}`}/>
           <DiagnosticField label="Top 2 do embedding" value={`${selected.retrieval_top2_code||'—'} · ${formatScore(selected.retrieval_top2)}`}/>
@@ -411,7 +442,7 @@ function RecognitionDiagnostics({ filter, onFilter }) {
           <DiagnosticField label="Aceito por" value={selected.accepted_by}/>
           <DiagnosticField label="Modelo" value={selected.model}/>
           <DiagnosticField label="Embedding + índice" value={selected.embedding_ms===null?'—':`${selected.embedding_ms} ms`}/>
-          <DiagnosticField label="Gemini" value={selected.gemini_ms===null?'—':`${selected.gemini_ms} ms`}/>
+          <DiagnosticField label="Gemini fallback" value={selected.gemini_ms===null?'—':`${selected.gemini_ms} ms`}/>
           <DiagnosticField label="Tempo total" value={selected.total_ms?`${selected.total_ms} ms`:'—'}/>
         </div>
         <p className="diagnostic-note">A foto enviada pelo operador não é armazenada neste log. O painel registra somente a telemetria do reconhecimento e, quando existe, a imagem do produto que o sistema retornou.</p>
@@ -432,7 +463,7 @@ function Administration({ metrics, storage, indexInfo }) {
   return <section className="section-card"><div className="section-head"><div><h2>Administração do sistema</h2><p>Métricas reais dos serviços conectados.</p></div></div><div className="admin-metrics">
     <article className="metric-card"><h3>Cloudflare D1</h3><div className="metric-value">{db?formatBytes(db.used_bytes):'—'}</div><p>{db?.products||0} produtos · {db?.products_with_image||0} com imagem · {db?.cover_embeddings||0} referências indexadas.</p><div className="metric-detail">{db?.status==='online'?'Banco online':'Métrica indisponível'}{db?.served_by_region?` · região ${db.served_by_region}`:''}</div></article>
     <article className="metric-card"><h3>Cloudflare R2</h3><div className="metric-value">{r2?formatBytes(r2.used_bytes):'—'}</div><p>{r2?.object_count||0} arquivos armazenados.</p><div className="metric-detail">{r2?.status==='online'?'Bucket online':'Métrica indisponível'}</div></article>
-    <article className="metric-card"><h3>Gemini · reconhecimentos</h3><div className="metric-value">{recognition?today.attempts||0:'—'}</div><p>{today.successes||0} reconhecidos · {today.unmatched||0} sem correspondência · {today.system_errors||0} erros técnicos hoje.</p><div className="metric-detail">{gemini?.embedding_model||'—'} · {today.embedding_requests||0} embeddings · {today.generation_requests||0} verificações Gemini</div></article>
+    <article className="metric-card"><h3>IA · reconhecimentos</h3><div className="metric-value">{recognition?today.attempts||0:'—'}</div><p>{today.successes||0} reconhecidos · {today.unmatched||0} sem correspondência · {today.system_errors||0} erros técnicos hoje.</p><div className="metric-detail">{gemini?.embedding_model||'—'} · {today.embedding_requests||0} embeddings · {today.generation_requests||0} verificações generativas de fallback</div></article>
     <article className={`metric-card ${hasTechnicalErrors?'metric-alert':'metric-ok'}`}><h3>Saúde do reconhecimento</h3><div className="metric-value">{healthValue}</div><p>{healthText}</p><div className="metric-detail">{recognition?.latest_success_at?`Último sucesso: ${formatDashboardTime(recognition.latest_success_at)}`:'Nenhum sucesso registrado desde o início do monitoramento.'}</div></article>
   </div></section>;
 }
@@ -470,7 +501,7 @@ function AdminApp() {
       <KpiCard tone="yellow" icon="clock" label="Pendentes" value={pending} meta="Sem imagem"/>
       <KpiCard tone="blue" icon="chart" label="Progresso do catálogo" value={`${progress}%`} meta={`${withImage} de ${products.length}`} progress={progress}/>
       <KpiCard tone="green" icon="database" label="Banco de dados" value={!db?'—':db.status==='online'?'Online':'Erro'} meta={databaseMeta} online={db?.status==='online'}/>
-      <KpiCard tone="amber" icon="sparkles" label="Gemini · reconhecimentos" value={recognition?today.attempts||0:'—'} meta={recognitionMeta} onClick={()=>{setDiagnosticFilter('all');setTab('diagnostico')}}/>
+      <KpiCard tone="amber" icon="sparkles" label="IA · reconhecimentos" value={recognition?today.attempts||0:'—'} meta={recognitionMeta} onClick={()=>{setDiagnosticFilter('all');setTab('diagnostico')}}/>
       <KpiCard tone={issues>0?'danger':'green'} icon="alert" label="Problemas no reconhecimento" value={recognition?issues:'—'} meta={errorMeta} online={Boolean(recognition)&&issues===0} onClick={openDiagnostics}/>
     </div><Catalog products={products} refresh={refreshAll}/></>}
     {tab==='mockups'&&<Catalog products={products} focused refresh={refreshAll}/>} 
