@@ -26,7 +26,7 @@ function icon(name){
 
 function setVisible(el,visible){
   if(!el)return;
-  el.hidden=!visible;
+  if(el.hidden===visible) el.hidden=!visible;
   el.classList.toggle('brand-visible',visible);
 }
 
@@ -94,8 +94,8 @@ function ensurePageHeader(){
   const copy=BRAND_VIEWS[currentBrandView]||BRAND_VIEWS.geral;
   const h=header.querySelector('h2');
   const p=header.querySelector('p');
-  if(h)h.textContent=copy[0];
-  if(p)p.textContent=copy[1];
+  if(h&&h.textContent!==copy[0])h.textContent=copy[0];
+  if(p&&p.textContent!==copy[1])p.textContent=copy[1];
 }
 
 function findToolPanel(name){
@@ -129,7 +129,7 @@ function applyBrandView(){
     if(catalog){
       catalog.open=true;
       const summary=catalog.querySelector(':scope > summary');
-      if(summary)summary.textContent='Biblioteca de mockups';
+      if(summary&&summary.textContent!=='Biblioteca de mockups')summary.textContent='Biblioteca de mockups';
     }
   }else if(currentBrandView==='mockups'){
     setVisible(kpis,false);
@@ -138,7 +138,7 @@ function applyBrandView(){
     if(catalog){
       catalog.open=true;
       const summary=catalog.querySelector(':scope > summary');
-      if(summary)summary.textContent='Biblioteca de mockups';
+      if(summary&&summary.textContent!=='Biblioteca de mockups')summary.textContent='Biblioteca de mockups';
     }
   }else if(currentBrandView==='importacao'){
     setVisible(kpis,false);
@@ -218,9 +218,10 @@ if(root){
       apply();
     });
   });
-  observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
+  observer.observe(root,{childList:true,subtree:true});
 }
 
 apply();
 setTimeout(apply,250);
 setTimeout(apply,900);
+setInterval(apply,1500);
