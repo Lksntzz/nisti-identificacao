@@ -96,7 +96,7 @@ function isProtectedApi(pathname) {
 }
 
 async function loadApp() {
-  const module = await import('./ml-browser-capture-router.js');
+  const module = await import('./system-metrics-router.js');
   return module.default;
 }
 
