@@ -1,4 +1,5 @@
 import app from './compact-admin-router.js';
+import { fastIdentify } from './fast-identify.js';
 
 function responseWithHeaders(response, extra = {}) {
   const headers = new Headers(response.headers);
@@ -65,8 +66,7 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      const started = Date.now();
-      const response = await app.fetch(request, env, ctx);
+      const response = await fastIdentify(request, env);
       if (!response.ok) return response;
 
       const type = response.headers.get('content-type') || '';
@@ -81,13 +81,10 @@ export default {
         ctx.waitUntil(warmIdentifiedImage(imageUrl, env, ctx));
       }
 
-      const headers = responseWithHeaders(response, {
-        'server-timing': `identify;dur=${Date.now() - started}`
-      });
       return new Response(JSON.stringify(data), {
         status: response.status,
         statusText: response.statusText,
-        headers
+        headers: responseWithHeaders(response)
       });
     }
 
