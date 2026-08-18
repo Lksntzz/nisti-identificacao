@@ -12,9 +12,18 @@ function saoPauloDay(date = new Date()) {
   return `${value.year}-${value.month}-${value.day}`;
 }
 
+async function addColumnIfMissing(env, sql) {
+  try {
+    await env.DB.prepare(sql).run();
+  } catch (error) {
+    if (!/duplicate column name/i.test(String(error?.message || ''))) throw error;
+  }
+}
+
 export async function ensureRecognitionMetrics(env) {
   if (tableReady) return;
   if (!env?.DB) throw new Error('Binding DB não configurado');
+
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS recognition_daily (
       day TEXT PRIMARY KEY,
@@ -32,6 +41,47 @@ export async function ensureRecognitionMetrics(env) {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS recognition_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      day TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      http_status INTEGER NOT NULL,
+      product_id INTEGER,
+      capa_code TEXT,
+      sku TEXT,
+      confidence REAL,
+      retrieval_score REAL,
+      identified_by TEXT,
+      error_message TEXT,
+      total_ms INTEGER NOT NULL DEFAULT 0,
+      embedding_ms INTEGER,
+      gemini_ms INTEGER,
+      retrieval_top1 REAL,
+      retrieval_top1_code TEXT,
+      retrieval_top2 REAL,
+      retrieval_top2_code TEXT,
+      retrieval_margin REAL,
+      candidate_count INTEGER,
+      verification_mode TEXT,
+      accepted_by TEXT,
+      model TEXT
+    )
+  `).run();
+
+  const extraColumns = [
+    'ALTER TABLE recognition_events ADD COLUMN product_id INTEGER',
+    'ALTER TABLE recognition_events ADD COLUMN retrieval_top1_code TEXT',
+    'ALTER TABLE recognition_events ADD COLUMN retrieval_top2_code TEXT',
+    'ALTER TABLE recognition_events ADD COLUMN candidate_count INTEGER',
+    'ALTER TABLE recognition_events ADD COLUMN model TEXT'
+  ];
+  for (const sql of extraColumns) await addColumnIfMissing(env, sql);
+
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_recognition_events_created_at ON recognition_events(created_at DESC)`).run();
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_recognition_events_kind_created_at ON recognition_events(kind, created_at DESC)`).run();
   tableReady = true;
 }
 
@@ -43,6 +93,11 @@ function classify(responseStatus, data) {
   return 'system_error';
 }
 
+function numberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 export async function recordRecognitionAttempt(env, responseStatus, data) {
   try {
     await ensureRecognitionMetrics(env);
@@ -52,13 +107,16 @@ export async function recordRecognitionAttempt(env, responseStatus, data) {
     const day = saoPauloDay();
     const now = new Date().toISOString();
     const performance = data?.performance || {};
+    const product = data?.product || null;
     const success = kind === 'success' ? 1 : 0;
     const unmatched = kind === 'unmatched' ? 1 : 0;
     const systemError = kind === 'system_error' ? 1 : 0;
     const embedding = Number.isFinite(Number(performance.embedding_and_index_ms)) ? 1 : 0;
     const generation = Number.isFinite(Number(performance.gemini_ms)) ? 1 : 0;
     const totalMs = Math.max(0, Math.round(Number(performance.total_ms) || 0));
-    const errorMessage = systemError ? String(data?.error || `Erro HTTP ${responseStatus}`).slice(0, 500) : null;
+    const errorMessage = kind === 'success' ? null : String(data?.error || `Erro HTTP ${responseStatus}`).slice(0, 500);
+    const capaCode = String(data?.capa_code || product?.capa_code || '').trim().toUpperCase() || null;
+    const sku = String(product?.sku || '').trim().toUpperCase() || null;
 
     await env.DB.prepare(`
       INSERT INTO recognition_daily (
@@ -90,7 +148,40 @@ export async function recordRecognitionAttempt(env, responseStatus, data) {
       success ? now : null,
       unmatched ? now : null,
       systemError ? now : null,
-      errorMessage
+      systemError ? errorMessage : null
+    ).run();
+
+    await env.DB.prepare(`
+      INSERT INTO recognition_events (
+        day, kind, http_status, product_id, capa_code, sku,
+        confidence, retrieval_score, identified_by, error_message,
+        total_ms, embedding_ms, gemini_ms,
+        retrieval_top1, retrieval_top1_code, retrieval_top2, retrieval_top2_code, retrieval_margin,
+        candidate_count, verification_mode, accepted_by, model
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).bind(
+      day,
+      kind,
+      Number(responseStatus || 0),
+      product?.id || null,
+      capaCode,
+      sku,
+      numberOrNull(data?.confidence ?? performance.gemini_confidence),
+      numberOrNull(data?.retrieval_score),
+      data?.identified_by || null,
+      errorMessage,
+      totalMs,
+      numberOrNull(performance.embedding_and_index_ms),
+      numberOrNull(performance.gemini_ms),
+      numberOrNull(performance.retrieval_top1),
+      performance.retrieval_top1_code || null,
+      numberOrNull(performance.retrieval_top2),
+      performance.retrieval_top2_code || null,
+      numberOrNull(performance.retrieval_margin),
+      numberOrNull(performance.candidate_count),
+      performance.verification_mode || null,
+      performance.accepted_by || null,
+      performance.model || null
     ).run();
   } catch (error) {
     console.error('Falha ao registrar métrica de reconhecimento', error);
@@ -111,6 +202,66 @@ function normalize(row) {
     last_error_at: row?.last_error_at || null,
     last_error_message: row?.last_error_message || null
   };
+}
+
+function normalizeEvent(row) {
+  const imageVersion = String(row?.image_key || '').split('/').pop();
+  return {
+    id: Number(row?.id || 0),
+    created_at: row?.created_at || null,
+    day: row?.day || null,
+    kind: row?.kind || 'unknown',
+    http_status: Number(row?.http_status || 0),
+    product_id: row?.product_id ? Number(row.product_id) : null,
+    capa_code: row?.capa_code || null,
+    sku: row?.sku || null,
+    confidence: numberOrNull(row?.confidence),
+    retrieval_score: numberOrNull(row?.retrieval_score),
+    identified_by: row?.identified_by || null,
+    error_message: row?.error_message || null,
+    total_ms: Number(row?.total_ms || 0),
+    embedding_ms: numberOrNull(row?.embedding_ms),
+    gemini_ms: numberOrNull(row?.gemini_ms),
+    retrieval_top1: numberOrNull(row?.retrieval_top1),
+    retrieval_top1_code: row?.retrieval_top1_code || null,
+    retrieval_top2: numberOrNull(row?.retrieval_top2),
+    retrieval_top2_code: row?.retrieval_top2_code || null,
+    retrieval_margin: numberOrNull(row?.retrieval_margin),
+    candidate_count: numberOrNull(row?.candidate_count),
+    verification_mode: row?.verification_mode || null,
+    accepted_by: row?.accepted_by || null,
+    model: row?.model || null,
+    image_url: row?.product_id && imageVersion
+      ? `/api/images/${row.product_id}?v=${encodeURIComponent(imageVersion)}`
+      : null
+  };
+}
+
+export async function readRecognitionEvents(env, options = {}) {
+  await ensureRecognitionMetrics(env);
+  const limit = Math.max(1, Math.min(200, Number(options.limit) || 100));
+  const kind = String(options.kind || '').trim();
+  const issuesOnly = Boolean(options.issuesOnly);
+  let where = '';
+  const binds = [];
+
+  if (issuesOnly) {
+    where = `WHERE e.kind IN ('unmatched','system_error')`;
+  } else if (['success', 'unmatched', 'system_error'].includes(kind)) {
+    where = 'WHERE e.kind=?';
+    binds.push(kind);
+  }
+
+  const statement = env.DB.prepare(`
+    SELECT e.*, p.image_key
+    FROM recognition_events e
+    LEFT JOIN products p ON p.id=e.product_id
+    ${where}
+    ORDER BY e.id DESC
+    LIMIT ?
+  `);
+  const { results } = await statement.bind(...binds, limit).all();
+  return (results || []).map(normalizeEvent);
 }
 
 export async function readRecognitionMetrics(env) {
