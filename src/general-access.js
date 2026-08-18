@@ -1,8 +1,11 @@
 import './general-panel.css';
 
-const isAdminArea = /^\/admin(?:\/|$)/i.test(window.location.pathname);
-document.documentElement.dataset.nistiAccess = isAdminArea ? 'admin' : 'general';
+const params = new URLSearchParams(window.location.search);
+const adminRequested = params.get('nisti_admin') === '1';
+let isAdminArea = false;
 let adminAutoOpened = false;
+
+document.documentElement.dataset.nistiAccess = 'general';
 
 function setText(element, value) {
   if (element && element.textContent !== value) element.textContent = value;
@@ -22,6 +25,10 @@ function enhanceHeader() {
   if (isAdminArea) {
     if (!nav.classList.contains('admin-navigation')) nav.classList.add('admin-navigation');
     if (nav.classList.contains('general-navigation-hidden')) nav.classList.remove('general-navigation-hidden');
+    nav.removeAttribute('aria-hidden');
+    for (const button of buttons) {
+      if (button.tabIndex === -1) button.tabIndex = 0;
+    }
     setText(buttons[0], 'Geral');
     setText(buttons[1], 'Administração');
 
@@ -44,6 +51,7 @@ function enhanceHeader() {
     for (const button of buttons) {
       if (button.tabIndex !== -1) button.tabIndex = -1;
     }
+    nav.querySelector('.admin-logout')?.remove();
   }
 }
 
@@ -82,8 +90,9 @@ function applyInterface() {
   enhanceGeneralPanel();
 }
 
-const root = document.getElementById('root');
-if (root) {
+function startObserver() {
+  const root = document.getElementById('root');
+  if (!root) return;
   let scheduled = false;
   const observer = new MutationObserver(() => {
     if (scheduled) return;
@@ -94,6 +103,25 @@ if (root) {
     });
   });
   observer.observe(root, { childList: true, subtree: true });
+  applyInterface();
 }
 
-applyInterface();
+async function initializeAccess() {
+  if (adminRequested) {
+    try {
+      const response = await fetch('/api/admin/session', { cache: 'no-store' });
+      isAdminArea = response.ok;
+    } catch {
+      isAdminArea = false;
+    }
+
+    if (!isAdminArea) {
+      history.replaceState(null, '', '/');
+    }
+  }
+
+  document.documentElement.dataset.nistiAccess = isAdminArea ? 'admin' : 'general';
+  startObserver();
+}
+
+initializeAccess();
