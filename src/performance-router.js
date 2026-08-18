@@ -1,5 +1,5 @@
 import app from './compact-admin-router.js';
-import { fastIdentify } from './fast-identify.js';
+import { fastIdentify } from './fast-identify-adaptive.js';
 import { parseSku } from './sku.js';
 
 function responseWithHeaders(response, extra = {}) {
@@ -20,6 +20,15 @@ function versionedImageUrl(rawUrl, requestUrl, imageKey) {
   const target = new URL(rawUrl, requestUrl);
   const version = String(imageKey || '').split('/').pop() || 'current';
   target.searchParams.set('v', version);
+  return target;
+}
+
+function directResultImageUrl(rawUrl, requestUrl, imageKey) {
+  const target = new URL(rawUrl, requestUrl);
+  const version = String(imageKey || '').split('/').pop() || 'current';
+  // Usa um parâmetro diferente de `v` para não passar pelo cache duplo
+  // do resultado. O Worker lê o objeto atual diretamente do R2.
+  target.searchParams.set('result', version);
   return target;
 }
 
@@ -45,31 +54,10 @@ async function cacheImageRequest(request, env, ctx) {
   return response;
 }
 
-async function warmIdentifiedImage(url, env, ctx) {
-  const request = new Request(url.toString(), { method: 'GET' });
-  const cache = caches.default;
-  if (await cache.match(request)) return;
-
-  const origin = await app.fetch(request, env, ctx);
-  if (!origin.ok) return;
-
-  const headers = responseWithHeaders(origin, {
-    'cache-control': 'public, max-age=2592000, immutable',
-    'cdn-cache-control': 'public, max-age=2592000'
-  });
-  const response = new Response(origin.body, {
-    status: origin.status,
-    statusText: origin.statusText,
-    headers
-  });
-  await cache.put(request, response);
-}
-
-function prepareProductImage(product, request, env, ctx, warmups) {
+function prepareProductImage(product, request) {
   if (!product?.image_url || !product?.image_key) return product;
-  const imageUrl = versionedImageUrl(product.image_url, request.url, product.image_key);
+  const imageUrl = directResultImageUrl(product.image_url, request.url, product.image_key);
   product.image_url = `${imageUrl.pathname}${imageUrl.search}`;
-  warmups.push(warmIdentifiedImage(imageUrl, env, ctx));
   return product;
 }
 
@@ -180,12 +168,10 @@ export default {
       const data = await response.clone().json().catch(() => null);
       if (!data) return response;
 
-      const warmups = [];
-      if (data.product) prepareProductImage(data.product, request, env, ctx, warmups);
+      if (data.product) prepareProductImage(data.product, request);
       if (Array.isArray(data.products)) {
-        data.products = data.products.map(product => prepareProductImage(product, request, env, ctx, warmups));
+        data.products = data.products.map(product => prepareProductImage(product, request));
       }
-      if (warmups.length) ctx.waitUntil(Promise.allSettled(warmups));
 
       return new Response(JSON.stringify(data), {
         status: response.status,
