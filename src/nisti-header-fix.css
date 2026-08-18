@@ -1,0 +1,120 @@
+html[data-nisti-access="admin"] .nisti-app-header.admin-header{
+  display:grid!important;
+  grid-template-columns:190px 230px minmax(0,1fr)!important;
+  align-items:center!important;
+  column-gap:24px!important;
+  width:100%!important;
+  min-height:88px!important;
+  padding:10px 4px 16px!important;
+  margin:0 0 16px!important;
+  border-bottom:1px solid #e8eaf0!important;
+  background:transparent!important;
+}
+
+html[data-nisti-access="admin"] .nisti-brand-real{
+  width:180px!important;
+  min-width:180px!important;
+  max-width:180px!important;
+  height:72px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  overflow:hidden!important;
+}
+html[data-nisti-access="admin"] .nisti-brand-real img{
+  display:block!important;
+  width:180px!important;
+  height:72px!important;
+  object-fit:contain!important;
+  object-position:left center!important;
+}
+
+html[data-nisti-access="admin"] .admin-title-block{
+  display:block!important;
+  min-width:0!important;
+  width:auto!important;
+  margin:0!important;
+  padding:0!important;
+}
+html[data-nisti-access="admin"] .admin-title-block .eyebrow{display:none!important}
+html[data-nisti-access="admin"] .admin-title-block h1{
+  margin:0!important;
+  color:#404044!important;
+  font-size:25px!important;
+  line-height:1.1!important;
+  font-weight:800!important;
+  letter-spacing:-.025em!important;
+  white-space:nowrap!important;
+}
+
+html[data-nisti-access="admin"] .nisti-app-header.admin-header nav.admin-navigation{
+  width:100%!important;
+  min-width:0!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto auto!important;
+  align-items:center!important;
+  gap:12px!important;
+  justify-content:stretch!important;
+}
+
+html[data-nisti-access="admin"] .nisti-brand-nav{
+  width:100%!important;
+  min-width:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  margin:0!important;
+  padding:0!important;
+}
+html[data-nisti-access="admin"] .nisti-brand-nav button{
+  min-width:auto!important;
+  padding:10px 13px!important;
+  border-radius:10px!important;
+  white-space:nowrap!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+
+html[data-nisti-access="admin"] .admin-profile-chip{
+  margin:0!important;
+  justify-self:end!important;
+  flex:none!important;
+  white-space:nowrap!important;
+}
+html[data-nisti-access="admin"] .admin-logout{
+  margin:0!important;
+  justify-self:end!important;
+  flex:none!important;
+}
+
+html[data-nisti-access="admin"] .admin-section-tabs,
+html[data-nisti-access="admin"] .nisti-brand-mark,
+html[data-nisti-access="admin"] .admin-tools-section{
+  display:none!important;
+}
+
+@media(max-width:1250px){
+  html[data-nisti-access="admin"] .nisti-app-header.admin-header{
+    grid-template-columns:165px 200px minmax(0,1fr)!important;
+    column-gap:16px!important;
+  }
+  html[data-nisti-access="admin"] .nisti-brand-real,
+  html[data-nisti-access="admin"] .nisti-brand-real img{
+    width:155px!important;
+    min-width:155px!important;
+    max-width:155px!important;
+  }
+  html[data-nisti-access="admin"] .admin-title-block h1{font-size:22px!important}
+  html[data-nisti-access="admin"] .nisti-brand-nav button{padding:9px 9px!important;font-size:11px!important}
+}
+
+@media(max-width:980px){
+  html[data-nisti-access="admin"] .nisti-app-header.admin-header{
+    grid-template-columns:150px minmax(0,1fr)!important;
+    row-gap:10px!important;
+  }
+  html[data-nisti-access="admin"] .admin-title-block{display:none!important}
+  html[data-nisti-access="admin"] .nisti-app-header.admin-header nav.admin-navigation{grid-column:2!important}
+  html[data-nisti-access="admin"] .admin-profile-chip span{display:none!important}
+}
