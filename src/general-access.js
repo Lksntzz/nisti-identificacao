@@ -24,12 +24,10 @@ function enhanceHeader() {
 
   const buttons = nav.querySelectorAll('button');
   if (isAdminArea) {
-    if (!nav.classList.contains('admin-navigation')) nav.classList.add('admin-navigation');
-    if (nav.classList.contains('general-navigation-hidden')) nav.classList.remove('general-navigation-hidden');
+    nav.classList.add('admin-navigation');
+    nav.classList.remove('general-navigation-hidden');
     nav.removeAttribute('aria-hidden');
-    for (const button of buttons) {
-      if (button.tabIndex === -1) button.tabIndex = 0;
-    }
+    for (const button of buttons) button.tabIndex = 0;
     setText(buttons[0], 'Geral');
     setText(buttons[1], 'Administração');
 
@@ -47,11 +45,9 @@ function enhanceHeader() {
       queueMicrotask(() => buttons[1]?.click());
     }
   } else {
-    if (!nav.classList.contains('general-navigation-hidden')) nav.classList.add('general-navigation-hidden');
-    if (nav.getAttribute('aria-hidden') !== 'true') nav.setAttribute('aria-hidden', 'true');
-    for (const button of buttons) {
-      if (button.tabIndex !== -1) button.tabIndex = -1;
-    }
+    nav.classList.add('general-navigation-hidden');
+    nav.setAttribute('aria-hidden', 'true');
+    for (const button of buttons) button.tabIndex = -1;
     nav.querySelector('.admin-logout')?.remove();
   }
 }
@@ -60,8 +56,7 @@ function enhanceGeneralPanel() {
   const panel = document.querySelector('.panel.expedition');
   if (!panel) return;
 
-  if (!panel.classList.contains('general-panel')) panel.classList.add('general-panel');
-
+  panel.classList.add('general-panel');
   setText(panel.querySelector(':scope > .eyebrow'), 'PAINEL GERAL');
   const heading = panel.querySelector(':scope > h2');
   setText(heading, 'Identificação de produto');
@@ -73,9 +68,7 @@ function enhanceGeneralPanel() {
 
   const camera = panel.querySelector('.camera');
   if (camera) {
-    if (camera.getAttribute('aria-label') !== 'Fotografar ou enviar imagem da capa') {
-      camera.setAttribute('aria-label', 'Fotografar ou enviar imagem da capa');
-    }
+    camera.setAttribute('aria-label', 'Fotografar ou enviar imagem da capa');
     setText(camera.querySelector('strong'), 'Fotografar ou enviar capa');
     setText(camera.querySelector('small'), 'Use uma imagem frontal, nítida e com boa iluminação.');
   }
@@ -91,14 +84,76 @@ function normalizeSearch(value) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
 function getCatalogPlatform(card) {
-  const meta = card.querySelector('.product-copy small')?.textContent || '';
-  const separator = meta.lastIndexOf('·');
-  if (separator === -1) return 'SEM PLATAFORMA';
-  return meta.slice(separator + 1).trim() || 'SEM PLATAFORMA';
+  const meta = String(card.querySelector('.product-copy small')?.textContent || '');
+  const pieces = meta.split('·').map(value => value.trim()).filter(Boolean);
+  return pieces.length > 1 ? pieces[pieces.length - 1] : 'SEM PLATAFORMA';
+}
+
+function catalogCards(list) {
+  return Array.from(list?.querySelectorAll(':scope > .catalog-product') || []);
+}
+
+function applyCatalogFilter(details) {
+  const list = details?.querySelector('.catalog-edit-list');
+  const tools = details?.querySelector(':scope > .catalog-tools');
+  if (!list || !tools) return;
+
+  const search = tools.querySelector('.catalog-search');
+  const platformFilter = tools.querySelector('.catalog-platform-filter');
+  const count = tools.querySelector('.catalog-filter-count');
+  const empty = details.querySelector(':scope > .catalog-empty-state');
+  const cards = catalogCards(list);
+  const query = normalizeSearch(search?.value);
+  const platform = platformFilter?.value || '';
+  let visible = 0;
+
+  for (const card of cards) {
+    const sku = normalizeSearch(card.querySelector('.product-copy strong')?.textContent);
+    const name = normalizeSearch(card.querySelector('.product-copy span')?.textContent);
+    const variation = normalizeSearch(card.querySelector('.product-copy small')?.textContent);
+    const cardPlatform = getCatalogPlatform(card);
+    const matchesText = !query || sku.includes(query) || name.includes(query) || variation.includes(query);
+    const matchesPlatform = !platform || cardPlatform === platform;
+    const show = matchesText && matchesPlatform;
+    card.hidden = !show;
+    if (show) visible += 1;
+  }
+
+  if (count) count.textContent = `${visible} de ${cards.length}`;
+  if (empty) empty.hidden = visible !== 0;
+}
+
+function syncPlatformOptions(details) {
+  const list = details?.querySelector('.catalog-edit-list');
+  const select = details?.querySelector('.catalog-platform-filter');
+  if (!list || !select) return;
+
+  const selected = select.value;
+  const platforms = [...new Set(catalogCards(list).map(getCatalogPlatform).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const signature = platforms.join('|');
+  if (select.dataset.signature === signature) return;
+
+  select.dataset.signature = signature;
+  select.replaceChildren();
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = 'Todas as plataformas';
+  select.appendChild(all);
+
+  for (const platform of platforms) {
+    const option = document.createElement('option');
+    option.value = platform;
+    option.textContent = platform;
+    select.appendChild(option);
+  }
+
+  if (platforms.includes(selected)) select.value = selected;
 }
 
 function enhanceCatalog() {
@@ -114,69 +169,59 @@ function enhanceCatalog() {
     tools = document.createElement('div');
     tools.className = 'catalog-tools';
     tools.innerHTML = `
-      <label class="catalog-search-field">
-        <span>Pesquisar produto</span>
-        <input type="search" class="catalog-search" placeholder="Digite o nome ou SKU" autocomplete="off" />
-      </label>
-      <label class="catalog-platform-field">
-        <span>Plataforma</span>
-        <select class="catalog-platform-filter">
-          <option value="">Todas as plataformas</option>
-        </select>
-      </label>
-      <div class="catalog-filter-count" aria-live="polite"></div>
+      <div class="catalog-tools-title">
+        <div>
+          <strong>Catálogo de produtos</strong>
+          <span>Localize um produto e edite o mockup sem percorrer a lista inteira.</span>
+        </div>
+        <div class="catalog-filter-count" aria-live="polite">0 de 0</div>
+      </div>
+      <div class="catalog-tools-fields">
+        <label class="catalog-search-field">
+          <span>Buscar por nome ou SKU</span>
+          <div class="catalog-search-wrap">
+            <span class="catalog-search-icon" aria-hidden="true">⌕</span>
+            <input type="search" class="catalog-search" placeholder="Ex.: VACMNA_BQE1 ou Bosque Encantado" autocomplete="off" />
+            <button type="button" class="catalog-search-clear" title="Limpar pesquisa" aria-label="Limpar pesquisa">×</button>
+          </div>
+        </label>
+        <label class="catalog-platform-field">
+          <span>Filtrar por plataforma</span>
+          <select class="catalog-platform-filter">
+            <option value="">Todas as plataformas</option>
+          </select>
+        </label>
+      </div>
     `;
     summary.insertAdjacentElement('afterend', tools);
+
+    const empty = document.createElement('div');
+    empty.className = 'catalog-empty-state';
+    empty.hidden = true;
+    empty.innerHTML = '<strong>Nenhum produto encontrado.</strong><span>Tente outro nome, SKU ou plataforma.</span>';
+    list.insertAdjacentElement('beforebegin', empty);
   }
 
-  const search = tools.querySelector('.catalog-search');
-  const platformFilter = tools.querySelector('.catalog-platform-filter');
-  const count = tools.querySelector('.catalog-filter-count');
-  const cards = Array.from(list.querySelectorAll(':scope > .catalog-product'));
-
-  const platforms = [...new Set(cards.map(getCatalogPlatform).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  const selectedPlatform = platformFilter.value;
-  const currentOptions = Array.from(platformFilter.options).slice(1).map(option => option.value);
-  if (currentOptions.join('|') !== platforms.join('|')) {
-    platformFilter.innerHTML = '<option value="">Todas as plataformas</option>';
-    for (const platform of platforms) {
-      const option = document.createElement('option');
-      option.value = platform;
-      option.textContent = platform;
-      platformFilter.appendChild(option);
-    }
-    if (platforms.includes(selectedPlatform)) platformFilter.value = selectedPlatform;
-  }
-
-  const applyFilter = () => {
-    const query = normalizeSearch(search.value);
-    const platform = platformFilter.value;
-    let visible = 0;
-
-    for (const card of cards) {
-      const copy = card.querySelector('.product-copy');
-      const searchable = normalizeSearch(copy?.textContent || card.textContent);
-      const cardPlatform = getCatalogPlatform(card);
-      const matchesQuery = !query || searchable.includes(query);
-      const matchesPlatform = !platform || cardPlatform === platform;
-      const show = matchesQuery && matchesPlatform;
-      card.hidden = !show;
-      if (show) visible += 1;
-    }
-
-    count.textContent = visible === cards.length
-      ? `${cards.length} produtos`
-      : `${visible} de ${cards.length} produtos`;
-  };
+  syncPlatformOptions(details);
 
   if (!tools.dataset.bound) {
     tools.dataset.bound = '1';
-    search.addEventListener('input', applyFilter);
-    platformFilter.addEventListener('change', applyFilter);
+    const search = tools.querySelector('.catalog-search');
+    const platformFilter = tools.querySelector('.catalog-platform-filter');
+    const clear = tools.querySelector('.catalog-search-clear');
+
+    search?.addEventListener('input', () => applyCatalogFilter(details));
+    platformFilter?.addEventListener('change', () => applyCatalogFilter(details));
+    clear?.addEventListener('click', () => {
+      if (search) {
+        search.value = '';
+        search.focus();
+      }
+      applyCatalogFilter(details);
+    });
   }
 
-  applyFilter();
+  applyCatalogFilter(details);
 }
 
 function applyInterface() {
@@ -210,9 +255,7 @@ async function initializeAccess() {
       isAdminArea = false;
     }
 
-    if (!isAdminArea) {
-      history.replaceState(null, '', '/');
-    }
+    if (!isAdminArea) history.replaceState(null, '', '/');
   }
 
   document.documentElement.dataset.nistiAccess = isAdminArea ? 'admin' : 'general';
