@@ -1,7 +1,7 @@
 {
   "name": "nisti-identificacao",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,8 +10,6 @@
     "db:migrate": "wrangler d1 migrations apply nisti-identificacao --remote"
   },
   "dependencies": {
-    "@cloudflare/puppeteer": "1.1.0",
-    "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest",
