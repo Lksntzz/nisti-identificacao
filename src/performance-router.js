@@ -65,6 +65,14 @@ async function warmIdentifiedImage(url, env, ctx) {
   await cache.put(request, response);
 }
 
+function prepareProductImage(product, request, env, ctx, warmups) {
+  if (!product?.image_url || !product?.image_key) return product;
+  const imageUrl = versionedImageUrl(product.image_url, request.url, product.image_key);
+  product.image_url = `${imageUrl.pathname}${imageUrl.search}`;
+  warmups.push(warmIdentifiedImage(imageUrl, env, ctx));
+  return product;
+}
+
 async function requireAdmin(request, env, ctx) {
   const sessionUrl = new URL('/api/admin/session', request.url);
   const sessionRequest = new Request(sessionUrl.toString(), {
@@ -170,13 +178,14 @@ export default {
       if (!type.includes('application/json')) return response;
 
       const data = await response.clone().json().catch(() => null);
-      if (!data?.product) return response;
+      if (!data) return response;
 
-      if (data.product.image_url && data.product.image_key) {
-        const imageUrl = versionedImageUrl(data.product.image_url, request.url, data.product.image_key);
-        data.product.image_url = `${imageUrl.pathname}${imageUrl.search}`;
-        ctx.waitUntil(warmIdentifiedImage(imageUrl, env, ctx));
+      const warmups = [];
+      if (data.product) prepareProductImage(data.product, request, env, ctx, warmups);
+      if (Array.isArray(data.products)) {
+        data.products = data.products.map(product => prepareProductImage(product, request, env, ctx, warmups));
       }
+      if (warmups.length) ctx.waitUntil(Promise.allSettled(warmups));
 
       return new Response(JSON.stringify(data), {
         status: response.status,
