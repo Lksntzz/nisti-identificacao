@@ -2,6 +2,16 @@ import './admin-runtime-fixes.css';
 
 let pollTimer = null;
 let applying = false;
+let activeView = 'geral';
+
+const VIEW_COPY = {
+  geral: ['Visão geral', 'Resumo do catálogo e saúde do sistema.'],
+  produtos: ['Produtos', 'Consulte o catálogo, pesquise SKUs e visualize os dados dos produtos.'],
+  mockups: ['Mockups', 'Localize produtos pela imagem e substitua mockups quando necessário.'],
+  importacao: ['Importação', 'Atualize produtos em massa por arquivo CSV.'],
+  ferramentas: ['Ferramentas', 'Ações administrativas disponíveis para manutenção do catálogo.'],
+  administracao: ['Administração', 'Acompanhe banco de dados, Gemini e estado técnico do sistema.']
+};
 
 function isAdmin() {
   return document.documentElement.dataset.nistiAccess === 'admin';
@@ -13,27 +23,106 @@ function setActiveTab(section) {
   });
 }
 
+function setVisible(element, visible) {
+  if (!element) return;
+  element.hidden = !visible;
+  element.classList.toggle('admin-view-visible', visible);
+}
+
 function closeToolPanels() {
   document.querySelectorAll('.admin-tool-panel').forEach(panel => {
     panel.classList.remove('tool-panel-visible');
+    panel.hidden = true;
   });
 }
 
-function showTool(name) {
-  closeToolPanels();
-  const target = document.querySelector(`.admin-tool-panel[data-tool-panel="${name}"]`);
-  if (!target) return;
-  target.classList.add('tool-panel-visible');
-  target.scrollIntoView({ behavior: 'auto', block: 'start' });
+function ensureViewHeader() {
+  const panel = document.querySelector('.admin-dashboard-panel');
+  if (!panel) return null;
+  let header = panel.querySelector(':scope > .admin-view-header');
+  if (!header) {
+    header = document.createElement('section');
+    header.className = 'admin-view-header';
+    header.innerHTML = '<div><span>ADMIN</span><h2>Visão geral</h2><p>Resumo do catálogo e saúde do sistema.</p></div>';
+    panel.prepend(header);
+  }
+  return header;
 }
 
-function openCatalog(section = 'produtos') {
-  closeToolPanels();
+function setCatalogMode(mode) {
   const catalog = document.querySelector('.catalog-details');
   if (!catalog) return;
-  catalog.open = true;
-  setActiveTab(section);
-  catalog.scrollIntoView({ behavior: 'auto', block: 'start' });
+  catalog.classList.toggle('catalog-products-mode', mode === 'produtos');
+  catalog.classList.toggle('catalog-mockups-mode', mode === 'mockups');
+  const summary = catalog.querySelector(':scope > summary');
+  if (summary) summary.textContent = mode === 'mockups' ? 'Galeria de mockups' : 'Catálogo de produtos';
+  const search = catalog.querySelector('.catalog-search');
+  if (search) search.placeholder = mode === 'mockups' ? 'Buscar mockup por nome ou SKU...' : 'Buscar por nome do produto ou SKU...';
+
+  const wantedView = mode === 'mockups' ? 'grid' : 'list';
+  const viewButton = catalog.querySelector(`.catalog-view-button[data-view="${wantedView}"]`);
+  if (viewButton && !viewButton.classList.contains('active')) viewButton.click();
+}
+
+function applyView(section, { scroll = false } = {}) {
+  if (!isAdmin()) return;
+  activeView = VIEW_COPY[section] ? section : 'geral';
+  document.documentElement.dataset.adminView = activeView;
+  setActiveTab(activeView);
+
+  const header = ensureViewHeader();
+  const [title, subtitle] = VIEW_COPY[activeView];
+  if (header) {
+    const heading = header.querySelector('h2');
+    const copy = header.querySelector('p');
+    if (heading) heading.textContent = title;
+    if (copy) copy.textContent = subtitle;
+  }
+
+  const kpis = document.querySelector('.admin-kpi-grid');
+  const system = document.querySelector('.admin-system-details');
+  const tools = document.querySelector('.admin-tools-section');
+  const catalog = document.querySelector('.catalog-details');
+  const importPanel = document.querySelector('.admin-tool-panel[data-tool-panel="importacao"]');
+  const cadastroPanel = document.querySelector('.admin-tool-panel[data-tool-panel="cadastro"]');
+  const manualPanel = document.querySelector('.admin-tool-panel[data-tool-panel="manual"]');
+  const indexPanel = document.querySelector('.admin-tool-panel[data-tool-panel="indice"]');
+
+  closeToolPanels();
+  setVisible(kpis, activeView === 'geral');
+  setVisible(system, activeView === 'geral' || activeView === 'administracao');
+  setVisible(tools, activeView === 'ferramentas');
+  setVisible(catalog, activeView === 'produtos' || activeView === 'mockups');
+  setVisible(importPanel, activeView === 'importacao');
+  setVisible(cadastroPanel, false);
+  setVisible(manualPanel, false);
+  setVisible(indexPanel, false);
+
+  if (activeView === 'importacao' && importPanel) {
+    importPanel.hidden = false;
+    importPanel.classList.add('tool-panel-visible');
+  }
+
+  if (activeView === 'produtos' || activeView === 'mockups') {
+    if (catalog) catalog.open = true;
+    setCatalogMode(activeView);
+  }
+
+  if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function showTool(name) {
+  if (name === 'catalogo') return applyView('produtos', { scroll: true });
+  if (name === 'mockups') return applyView('mockups', { scroll: true });
+  if (name === 'importacao') return applyView('importacao', { scroll: true });
+  if (name === 'system') return applyView('administracao', { scroll: true });
+
+  applyView('ferramentas', { scroll: true });
+  const target = document.querySelector(`.admin-tool-panel[data-tool-panel="${name}"]`);
+  if (!target) return;
+  target.hidden = false;
+  target.classList.add('tool-panel-visible');
+  target.scrollIntoView({ behavior: 'auto', block: 'start' });
 }
 
 function handleAdminNavigation(event) {
@@ -44,32 +133,7 @@ function handleAdminNavigation(event) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    const section = tab.dataset.section;
-
-    if (section === 'geral') {
-      closeToolPanels();
-      setActiveTab('geral');
-      window.scrollTo({ top: 0, behavior: 'auto' });
-      return;
-    }
-    if (section === 'produtos') return openCatalog('produtos');
-    if (section === 'mockups') return openCatalog('mockups');
-    if (section === 'importacao') {
-      setActiveTab('importacao');
-      showTool('importacao');
-      return;
-    }
-    if (section === 'ferramentas') {
-      closeToolPanels();
-      setActiveTab('ferramentas');
-      document.querySelector('.admin-tools-section')?.scrollIntoView({ behavior: 'auto', block: 'start' });
-      return;
-    }
-    if (section === 'administracao') {
-      closeToolPanels();
-      setActiveTab('administracao');
-      document.querySelector('.admin-system-details')?.scrollIntoView({ behavior: 'auto', block: 'start' });
-    }
+    applyView(tab.dataset.section, { scroll: true });
     return;
   }
 
@@ -78,12 +142,7 @@ function handleAdminNavigation(event) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    const name = tool.dataset.openTool;
-    if (name === 'catalogo') return openCatalog('produtos');
-    if (name === 'mockups') return openCatalog('mockups');
-    if (name === 'importacao') setActiveTab('importacao');
-    else setActiveTab('ferramentas');
-    showTool(name);
+    showTool(tool.dataset.openTool);
     return;
   }
 
@@ -92,8 +151,7 @@ function handleAdminNavigation(event) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    setActiveTab('administracao');
-    document.querySelector('.admin-system-details')?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    showTool('system');
   }
 }
 
@@ -114,7 +172,6 @@ function formatNumber(value) {
 function prepareDashboard() {
   if (!isAdmin()) return;
 
-  // O painel geral do ADM permanece dentro do dashboard; não troca para a câmera pública.
   const dbKpi = document.querySelector('.admin-kpi[data-kpi="database"], .admin-kpi[data-system-kpi="database"]');
   const geminiKpi = document.querySelector('.admin-kpi[data-kpi="gemini"], .admin-kpi[data-system-kpi="gemini"]');
   if (dbKpi) {
@@ -136,7 +193,7 @@ function prepareDashboard() {
       button.type = 'button';
       button.className = 'admin-tool-card tool-slate';
       button.dataset.openSystem = '1';
-      button.innerHTML = '<span>◉</span><div><strong>Dados do sistema</strong><small>Veja banco D1 e consumo real do Gemini.</small></div><b>›</b>';
+      button.innerHTML = '<span>◉</span><div><strong>Dados do sistema</strong><small>Banco D1 e consumo medido do Gemini.</small></div><b>›</b>';
       tools.appendChild(button);
     }
   }
@@ -156,10 +213,12 @@ function prepareDashboard() {
         <div class="system-detail-copy"><strong>Gemini · identificação visual</strong><b>Carregando...</b><span>Lendo consultas e tokens medidos pelo sistema.</span></div>
         <em class="system-status">Verificando</em>
       </article>
-      <div class="system-measurement-note">Os números de consumo do Gemini começam a ser registrados a partir desta versão. O histórico anterior não pode ser reconstruído pela API key.</div>
+      <div class="system-measurement-note">D1 mede o banco estruturado. Os mockups/imagens ficam no R2 e não entram nesse tamanho. O consumo do Gemini é registrado pelo NISTI a partir da ativação desta telemetria.</div>
     `;
     kpiGrid.insertAdjacentElement('afterend', details);
   }
+
+  ensureViewHeader();
 }
 
 function updateKpi(card, value, sub) {
@@ -211,8 +270,8 @@ async function refreshRealMetrics() {
     const dbState = freePercent >= 90 ? ['Atenção', 'warning'] : ['Saudável', ''];
     updateSystemDetail(
       'database',
-      `${dbUsed} usados`,
-      `Banco online. Limite por banco: Workers Free 500 MB; Workers Paid 10 GB. O plano da conta não é informado ao Worker.`,
+      `${dbUsed} no D1`,
+      `Tamanho real do banco estruturado. Limite por banco: Workers Free 500 MB; Workers Paid 10 GB. Imagens do catálogo ficam no R2 e não estão incluídas aqui.`,
       dbState[0],
       dbState[1]
     );
@@ -228,8 +287,8 @@ async function refreshRealMetrics() {
 
     updateSystemDetail(
       'gemini',
-      `${formatNumber(tokens)} tokens hoje`,
-      `${formatNumber(requests)} consulta(s) hoje · ${gemini.model || 'Gemini'} · limites ativos RPM/TPM/RPD precisam ser conferidos no AI Studio.`,
+      `${formatNumber(tokens)} tokens medidos hoje`,
+      `${formatNumber(requests)} identificação(ões) hoje · ${gemini.model || 'Gemini'} · estes números vêm das respostas da API usada pelo próprio NISTI. RPM/TPM/RPD do projeto são consultados no AI Studio.`,
       gemini.configured ? 'Ativo' : 'Sem chave',
       gemini.configured ? '' : 'error'
     );
@@ -246,6 +305,7 @@ function applyFixes() {
   applying = true;
   try {
     prepareDashboard();
+    applyView(activeView);
     if (!pollTimer) {
       refreshRealMetrics();
       pollTimer = setInterval(refreshRealMetrics, 15000);
