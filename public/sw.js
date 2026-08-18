@@ -1,4 +1,4 @@
-const CACHE_NAME='nisti-identificacao-v1';
+const CACHE_NAME='nisti-identificacao-v2';
 const SHELL_KEY='/__nisti_shell__';
 
 self.addEventListener('install',()=>self.skipWaiting());
@@ -15,6 +15,19 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET') return;
   const url=new URL(request.url);
   if(url.origin!==self.location.origin) return;
+
+  if(url.pathname.startsWith('/api/images/')&&url.searchParams.has('v')){
+    event.respondWith((async()=>{
+      const cache=await caches.open(CACHE_NAME);
+      const cached=await cache.match(request);
+      if(cached) return cached;
+      const response=await fetch(request);
+      if(response.ok) await cache.put(request,response.clone());
+      return response;
+    })());
+    return;
+  }
+
   if(url.pathname.startsWith('/api/')||url.pathname.startsWith('/admin')||url.pathname.startsWith('/admin-login')) return;
 
   if(request.mode==='navigate'){
