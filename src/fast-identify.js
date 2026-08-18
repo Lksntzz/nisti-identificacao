@@ -205,6 +205,17 @@ function timingHeader(timings) {
     .join(', ');
 }
 
+function productPayload(product) {
+  const parsed = parseSku(product.sku);
+  return {
+    ...product,
+    wireo: parsed.wireo,
+    tassel: parsed.tassel,
+    elastico: parsed.elastico,
+    image_url: product.image_key ? `/api/images/${product.id}` : null
+  };
+}
+
 export async function fastIdentify(request, env) {
   const started = Date.now();
   const timings = {};
@@ -238,28 +249,35 @@ export async function fastIdentify(request, env) {
     `).bind(capaCode).all();
     timings.database_ms = Date.now() - databaseStarted;
 
-    if (!results?.length) return json({ error: 'A IA identificou uma capa que não existe no banco.' }, 422);
-    if (results.length > 1) {
+    if (!results?.length) {
+      timings.total_ms = Date.now() - started;
       return json({
-        error: `Capa ${capaCode} identificada, mas existem ${results.length} SKUs cadastrados com essa mesma capa. Não é possível determinar o SKU apenas pela foto da capa.`
-      }, 422);
+        error: 'A IA identificou uma capa que não existe no banco.',
+        performance: timings
+      }, 422, { 'server-timing': timingHeader(timings) });
     }
 
-    const product = results[0];
-    const parsed = parseSku(product.sku);
     const selectedCandidate = ai.candidates.find(candidate =>
       String(candidate.capa_code).trim().toUpperCase() === capaCode
     );
 
     timings.total_ms = Date.now() - started;
+
+    if (results.length > 1) {
+      return json({
+        needs_selection: true,
+        selection_reason: 'same_cover_multiple_skus',
+        capa_code: capaCode,
+        products: results.map(productPayload),
+        confidence: ai.confidence,
+        retrieval_score: selectedCandidate?.retrieval_score ?? null,
+        identified_by: 'capa_embedding_topk+gemini-parallel+human-sku-selection',
+        performance: timings
+      }, 200, { 'server-timing': timingHeader(timings) });
+    }
+
     return json({
-      product: {
-        ...product,
-        wireo: parsed.wireo,
-        tassel: parsed.tassel,
-        elastico: parsed.elastico,
-        image_url: product.image_key ? `/api/images/${product.id}` : null
-      },
+      product: productPayload(results[0]),
       confidence: ai.confidence,
       retrieval_score: selectedCandidate?.retrieval_score ?? null,
       identified_by: 'capa_embedding_topk+gemini-parallel',
