@@ -92,19 +92,15 @@ export async function matchLocalCandidates(photoFile, candidates) {
     }
   }
 
-  return {
-    ...(best || {
-      matched: false,
-      capa_code: '',
-      good_matches: 0,
-      inliers: 0,
-      inlier_ratio: 0,
-      median_distance: null,
-      geometric_score: 0,
-      confidence: 0,
-      ambiguous: false,
-      runner: 'jsfeat-orb-ransac-v3+progressive-batches'
-    }),
+  // A geometria local continua sendo a primeira linha de decisão. Quando ela
+  // não consegue confirmar nenhuma capa, lançamos uma falha controlada para o
+  // fluxo já existente do app acionar /api/identify, que usa o verificador
+  // estrutural do Gemini e ignora nome/inicial personalizados. Assim não
+  // reduzimos os limiares ORB/RANSAC e evitamos falsos negativos como MCP1.
+  const inconclusive = new Error('Verificação geométrica inconclusiva; acionar verificador estrutural.');
+  inconclusive.code = 'LOCAL_GEOMETRY_INCONCLUSIVE';
+  inconclusive.local_match = {
+    ...(best || {}),
     matched: false,
     capa_code: '',
     candidates_tested: tested,
@@ -112,4 +108,5 @@ export async function matchLocalCandidates(photoFile, candidates) {
     debug_candidates: debug,
     runner: `${best?.runner || 'jsfeat-orb-ransac-v3'}+progressive-batches+personalization-mask`
   };
+  throw inconclusive;
 }
