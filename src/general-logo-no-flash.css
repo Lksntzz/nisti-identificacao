@@ -1,0 +1,9 @@
+html[data-nisti-access="general"] .general-brand-real[src^="data:image"]{
+  visibility:hidden!important;
+  opacity:0!important;
+}
+
+html[data-nisti-access="general"] .general-brand-real[src*="nisti-logo-transparent.webp"]{
+  visibility:visible!important;
+  opacity:1!important;
+}
