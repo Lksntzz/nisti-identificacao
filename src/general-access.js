@@ -2,6 +2,7 @@ import './general-panel.css';
 
 const isAdminArea = /^\/admin(?:\/|$)/i.test(window.location.pathname);
 document.documentElement.dataset.nistiAccess = isAdminArea ? 'admin' : 'general';
+let adminAutoOpened = false;
 
 function setText(element, value) {
   if (element && element.textContent !== value) element.textContent = value;
@@ -31,6 +32,11 @@ function enhanceHeader() {
       logout.textContent = 'Sair';
       logout.setAttribute('aria-label', 'Encerrar sessão administrativa');
       nav.appendChild(logout);
+    }
+
+    if (!adminAutoOpened && buttons[1] && !buttons[1].classList.contains('active')) {
+      adminAutoOpened = true;
+      queueMicrotask(() => buttons[1]?.click());
     }
   } else {
     if (!nav.classList.contains('general-navigation-hidden')) nav.classList.add('general-navigation-hidden');
