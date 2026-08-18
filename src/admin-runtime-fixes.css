@@ -1,3 +1,10 @@
+html[data-nisti-access="admin"] [hidden]{display:none!important}
+html[data-nisti-access="admin"] .admin-view-header{display:flex;align-items:end;justify-content:space-between;min-height:78px;margin:0 0 14px;padding:16px 18px;border:1px solid #e1e6ed;border-radius:15px;background:#fff;box-shadow:0 4px 14px rgba(20,35,60,.035)}
+html[data-nisti-access="admin"] .admin-view-header>div{display:grid;gap:3px}
+html[data-nisti-access="admin"] .admin-view-header span{font-size:9px;font-weight:900;letter-spacing:.15em;color:#6f7d91}
+html[data-nisti-access="admin"] .admin-view-header h2{font-size:24px;letter-spacing:-.025em;color:#102442}
+html[data-nisti-access="admin"] .admin-view-header p{margin:0;color:#7b8798;font-size:11px;line-height:1.45}
+
 html[data-nisti-access="admin"] .admin-system-details{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 16px}
 html[data-nisti-access="admin"] .system-detail-card{display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:12px;align-items:center;padding:15px 16px;border:1px solid #e1e6ed;border-radius:14px;background:#fff;box-shadow:0 4px 14px rgba(20,35,60,.035)}
 html[data-nisti-access="admin"] .system-detail-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;font-size:21px;font-weight:900}
@@ -13,5 +20,40 @@ html[data-nisti-access="admin"] .system-status.error{background:#feecec;color:#b
 html[data-nisti-access="admin"] .system-measurement-note{grid-column:1/-1;margin:-3px 0 2px;padding:9px 12px;border:1px solid #e6eaf0;border-radius:10px;background:#fafbfc;color:#697586;font-size:10px;line-height:1.45}
 html[data-nisti-access="admin"] .admin-kpi[data-system-kpi] .kpi-sub{white-space:normal;overflow:visible}
 html[data-nisti-access="admin"] .admin-tool-card[data-open-system="1"]{--tool:#315d91;--tool-soft:#eaf1f8}
-@media(max-width:900px){html[data-nisti-access="admin"] .admin-system-details{grid-template-columns:1fr}}
-@media(max-width:620px){html[data-nisti-access="admin"] .system-detail-card{grid-template-columns:42px minmax(0,1fr)}html[data-nisti-access="admin"] .system-status{grid-column:2}}
+
+/* As abas agora representam telas reais, não âncoras da mesma página. */
+html[data-nisti-access="admin"] .admin-kpi-grid,
+html[data-nisti-access="admin"] .admin-system-details,
+html[data-nisti-access="admin"] .admin-tools-section,
+html[data-nisti-access="admin"] .admin-catalog,
+html[data-nisti-access="admin"] .admin-tool-panel{animation:nistiViewIn .16s ease-out}
+@keyframes nistiViewIn{from{opacity:.45;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* Produtos = consulta de catálogo em lista, com foco nos dados. */
+html[data-nisti-access="admin"] .admin-catalog.catalog-products-mode{border-top:3px solid #2563eb!important}
+html[data-nisti-access="admin"] .admin-catalog.catalog-products-mode>summary{color:#123d7c}
+html[data-nisti-access="admin"] .admin-catalog.catalog-products-mode[data-catalog-view="list"] .catalog-edit-list{grid-template-columns:1fr!important}
+html[data-nisti-access="admin"] .admin-catalog.catalog-products-mode[data-catalog-view="list"] .catalog-product:not(.editing){min-height:96px}
+html[data-nisti-access="admin"] .admin-catalog.catalog-products-mode[data-catalog-view="list"] .catalog-product:not(.editing) .product-main{grid-template-columns:76px minmax(0,1fr) auto!important;grid-template-rows:auto!important}
+html[data-nisti-access="admin"] .admin-catalog.catalog-products-mode[data-catalog-view="list"] .catalog-product:not(.editing) .product-main>img,
+html[data-nisti-access="admin"] .admin-catalog.catalog-products-mode[data-catalog-view="list"] .catalog-product:not(.editing) .product-main>.image-placeholder{width:76px!important;height:76px!important}
+
+/* Mockups = galeria visual separada, com foco na imagem. */
+html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode{border-top:3px solid #7c45e8!important}
+html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode>summary{color:#5834a0}
+html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .catalog-platform-chips{display:none}
+html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .catalog-edit-list{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .catalog-product:not(.editing){min-height:230px}
+html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .catalog-product:not(.editing) .product-main{grid-template-columns:1fr!important;grid-template-rows:140px auto auto!important;align-items:start;text-align:left}
+html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .catalog-product:not(.editing) .product-main>img,
+html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .catalog-product:not(.editing) .product-main>.image-placeholder{width:100%!important;height:140px!important;object-fit:contain!important;background:#f8fafc}
+html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .mockup-edit-button{width:100%}
+
+/* Importação e ferramentas ocupam uma tela limpa. */
+html[data-nisti-access="admin"][data-admin-view="importacao"] .admin-tool-panel[data-tool-panel="importacao"],
+html[data-nisti-access="admin"][data-admin-view="ferramentas"] .admin-tool-panel.tool-panel-visible{max-width:960px;margin-left:auto!important;margin-right:auto!important}
+html[data-nisti-access="admin"][data-admin-view="administracao"] .admin-system-details{grid-template-columns:1fr 1fr;max-width:1180px}
+
+@media(max-width:1200px){html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .catalog-edit-list{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+@media(max-width:900px){html[data-nisti-access="admin"] .admin-system-details{grid-template-columns:1fr}html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .catalog-edit-list{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:620px){html[data-nisti-access="admin"] .admin-view-header{padding:14px}html[data-nisti-access="admin"] .admin-view-header h2{font-size:21px}html[data-nisti-access="admin"] .system-detail-card{grid-template-columns:42px minmax(0,1fr)}html[data-nisti-access="admin"] .system-status{grid-column:2}html[data-nisti-access="admin"] .admin-catalog.catalog-mockups-mode .catalog-edit-list{grid-template-columns:1fr!important}}
