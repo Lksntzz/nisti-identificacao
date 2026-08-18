@@ -10,7 +10,7 @@ const VIEW_COPY = {
   mockups: ['Mockups', 'Localize produtos pela imagem e substitua mockups quando necessário.'],
   importacao: ['Importação', 'Atualize produtos em massa por arquivo CSV.'],
   ferramentas: ['Ferramentas', 'Ações administrativas disponíveis para manutenção do catálogo.'],
-  administracao: ['Administração', 'Acompanhe banco de dados, Gemini e estado técnico do sistema.']
+  administracao: ['Administração', 'Acompanhe banco de dados, armazenamento, Gemini e estado técnico do sistema.']
 };
 
 function isAdmin() {
@@ -193,7 +193,7 @@ function prepareDashboard() {
       button.type = 'button';
       button.className = 'admin-tool-card tool-slate';
       button.dataset.openSystem = '1';
-      button.innerHTML = '<span>◉</span><div><strong>Dados do sistema</strong><small>Banco D1 e consumo medido do Gemini.</small></div><b>›</b>';
+      button.innerHTML = '<span>◉</span><div><strong>Dados do sistema</strong><small>D1, R2 e consumo medido do Gemini.</small></div><b>›</b>';
       tools.appendChild(button);
     }
   }
@@ -208,12 +208,17 @@ function prepareDashboard() {
         <div class="system-detail-copy"><strong>Banco de dados · Cloudflare D1</strong><b>Carregando...</b><span>Lendo tamanho real do banco.</span></div>
         <em class="system-status">Verificando</em>
       </article>
+      <article class="system-detail-card" data-system-detail="r2">
+        <span class="system-detail-icon">R2</span>
+        <div class="system-detail-copy"><strong>Mockups e imagens · Cloudflare R2</strong><b>Carregando...</b><span>Somando os arquivos armazenados no bucket.</span></div>
+        <em class="system-status">Verificando</em>
+      </article>
       <article class="system-detail-card" data-system-detail="gemini">
         <span class="system-detail-icon">✦</span>
         <div class="system-detail-copy"><strong>Gemini · identificação visual</strong><b>Carregando...</b><span>Lendo consultas e tokens medidos pelo sistema.</span></div>
         <em class="system-status">Verificando</em>
       </article>
-      <div class="system-measurement-note">D1 mede o banco estruturado. Os mockups/imagens ficam no R2 e não entram nesse tamanho. O consumo do Gemini é registrado pelo NISTI a partir da ativação desta telemetria.</div>
+      <div class="system-measurement-note">D1 e R2 são medidos separadamente porque o banco estruturado e as imagens ficam em serviços diferentes. O consumo do Gemini mostra somente as chamadas feitas por este app desde que a telemetria foi ativada.</div>
     `;
     kpiGrid.insertAdjacentElement('afterend', details);
   }
@@ -248,10 +253,15 @@ async function refreshRealMetrics() {
   prepareDashboard();
 
   try {
-    const response = await fetch('/api/admin/system-metrics', { cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const [systemResponse, storageResponse] = await Promise.all([
+      fetch('/api/admin/system-metrics', { cache: 'no-store' }),
+      fetch('/api/admin/storage-metrics', { cache: 'no-store' })
+    ]);
+    if (!systemResponse.ok) throw new Error(`system HTTP ${systemResponse.status}`);
+    const data = await systemResponse.json();
+    const storageData = storageResponse.ok ? await storageResponse.json() : {};
     const database = data.database || {};
+    const r2 = storageData.r2 || {};
     const gemini = data.gemini || {};
     const today = gemini.today || {};
 
@@ -271,10 +281,24 @@ async function refreshRealMetrics() {
     updateSystemDetail(
       'database',
       `${dbUsed} no D1`,
-      `Tamanho real do banco estruturado. Limite por banco: Workers Free 500 MB; Workers Paid 10 GB. Imagens do catálogo ficam no R2 e não estão incluídas aqui.`,
+      `Tamanho real do banco estruturado. Limite por banco: Workers Free 500 MB; Workers Paid 10 GB.`,
       dbState[0],
       dbState[1]
     );
+
+    if (storageResponse.ok) {
+      const r2Used = formatBytes(r2.used_bytes);
+      const r2Percent = Number(r2.percent_of_free_included_storage || 0);
+      updateSystemDetail(
+        'r2',
+        `${r2Used} · ${formatNumber(r2.object_count)} arquivo(s)`,
+        `${r2Percent.toFixed(r2Percent < 1 ? 3 : 1)}% dos 10 GB-mês incluídos no nível gratuito Standard. O bucket não tem limite fixo de armazenamento; acima da franquia há cobrança por uso.`,
+        'Saudável',
+        ''
+      );
+    } else {
+      updateSystemDetail('r2', 'Falha na leitura', 'Não foi possível medir o bucket de imagens.', 'Erro', 'error');
+    }
 
     const requests = Number(today.identify_requests || 0);
     const tokens = Number(today.total_tokens || 0);
@@ -296,6 +320,7 @@ async function refreshRealMetrics() {
     updateKpi(document.querySelector('.admin-kpi[data-system-kpi="database"]'), 'Erro', 'Não foi possível ler o D1');
     updateKpi(document.querySelector('.admin-kpi[data-system-kpi="gemini"]'), 'Erro', 'Não foi possível ler a telemetria');
     updateSystemDetail('database', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error');
+    updateSystemDetail('r2', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error');
     updateSystemDetail('gemini', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error');
   }
 }
