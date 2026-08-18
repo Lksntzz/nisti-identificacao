@@ -3,9 +3,19 @@ import { createRoot } from 'react-dom/client';
 import MercadoLivreBatch from './MercadoLivreBatch.jsx';
 import './mercadolivre.css';
 
-const isAdminArea = /^\/admin(?:\/|$)/i.test(window.location.pathname);
+const params = new URLSearchParams(window.location.search);
+const adminRequested = params.get('nisti_admin') === '1';
 
-if (isAdminArea) {
+async function startMercadoLivreTools() {
+  if (!adminRequested) return;
+
+  try {
+    const response = await fetch('/api/admin/session', { cache: 'no-store' });
+    if (!response.ok) return;
+  } catch {
+    return;
+  }
+
   const host = document.createElement('div');
   host.id = 'mercadolivre-batch-extension';
   host.className = 'adm-extension-slot';
@@ -67,3 +77,5 @@ if (isAdminArea) {
 
   schedulePlace();
 }
+
+startMercadoLivreTools();
