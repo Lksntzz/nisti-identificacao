@@ -5,6 +5,11 @@ const CANDIDATE_LIMIT = 8;
 const INDEX_CACHE_TTL_MS = 30_000;
 const TICKET_TTL_SECONDS = 120;
 const MAX_EMBEDDING_MS = 3200;
+const MIN_LOCAL_GOOD_MATCHES = 18;
+const MIN_LOCAL_INLIERS = 12;
+const MIN_LOCAL_INLIER_RATIO = 0.50;
+const MAX_LOCAL_MEDIAN_DISTANCE = 62;
+const MIN_LOCAL_CONFIDENCE = 0.78;
 
 let visualIndexCache = { expiresAt: 0, rows: null };
 
@@ -179,33 +184,45 @@ async function loadVisualIndex(env, timings) {
   return rows;
 }
 
-async function candidateImageUrl(env, candidate) {
-  let product = await env.DB.prepare(`
-    SELECT id,image_key
+async function attachCandidateImages(env, selected, timings) {
+  if (!selected.length) return [];
+  const started = Date.now();
+  const codes = selected.map(candidate => candidate.capa_code);
+  const placeholders = codes.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(`
+    SELECT id,capa_code,image_key
     FROM products
-    WHERE capa_code=? AND image_key=?
+    WHERE capa_code IN (${placeholders}) AND image_key IS NOT NULL
     ORDER BY id DESC
-    LIMIT 1
-  `).bind(candidate.capa_code, candidate.image_key).first();
+  `).bind(...codes).all();
 
-  if (!product) {
-    product = await env.DB.prepare(`
-      SELECT id,image_key
-      FROM products
-      WHERE capa_code=? AND image_key IS NOT NULL
-      ORDER BY id DESC
-      LIMIT 1
-    `).bind(candidate.capa_code).first();
+  const byCode = new Map();
+  for (const product of results || []) {
+    const code = String(product.capa_code || '').trim().toUpperCase();
+    if (!byCode.has(code)) byCode.set(code, []);
+    byCode.get(code).push(product);
   }
 
-  if (!product?.id || !product?.image_key) return null;
-  const version = String(product.image_key).split('/').pop() || 'current';
-  return `/api/images/${product.id}?v=${encodeURIComponent(version)}`;
+  const candidates = [];
+  for (const candidate of selected) {
+    const products = byCode.get(candidate.capa_code) || [];
+    const product = products.find(item => item.image_key === candidate.image_key) || products[0];
+    if (!product?.id || !product?.image_key) continue;
+    const version = String(product.image_key).split('/').pop() || 'current';
+    candidates.push({
+      capa_code: candidate.capa_code,
+      retrieval_rank: candidate.retrieval_rank,
+      retrieval_score: candidate.retrieval_score,
+      image_url: `/api/images/${product.id}?v=${encodeURIComponent(version)}`
+    });
+  }
+  timings.candidate_lookup_ms = Date.now() - started;
+  return candidates;
 }
 
 export async function buildLocalVisionCandidates(request, env) {
   const started = Date.now();
-  const timings = { pipeline_version: 'embedding-candidates-v1' };
+  const timings = { pipeline_version: 'embedding-candidates-v2' };
 
   try {
     const form = await request.formData();
@@ -252,18 +269,7 @@ export async function buildLocalVisionCandidates(request, env) {
       ? timings.retrieval_top1 - timings.retrieval_top2
       : 1;
 
-    const candidates = [];
-    for (const candidate of selected) {
-      const imageUrl = await candidateImageUrl(env, candidate);
-      if (!imageUrl) continue;
-      candidates.push({
-        capa_code: candidate.capa_code,
-        retrieval_rank: candidate.retrieval_rank,
-        retrieval_score: candidate.retrieval_score,
-        image_url: imageUrl
-      });
-    }
-
+    const candidates = await attachCandidateImages(env, selected, timings);
     if (!candidates.length) {
       throw new CandidateError('Nenhuma referência visual disponível para comparação.', 503, 'candidate_images_missing');
     }
@@ -278,12 +284,7 @@ export async function buildLocalVisionCandidates(request, env) {
     };
     const ticket = await signTicket(env, payload);
 
-    return json({
-      ok: true,
-      ticket,
-      candidates,
-      performance: timings
-    });
+    return json({ ok: true, ticket, candidates, performance: timings });
   } catch (error) {
     timings.total_ms = Date.now() - started;
     return json({
@@ -327,13 +328,24 @@ function normalizeLocalMetrics(value) {
   };
 }
 
+function passesLocalGuard(local) {
+  return Number(local.good_matches || 0) >= MIN_LOCAL_GOOD_MATCHES &&
+    Number(local.inliers || 0) >= MIN_LOCAL_INLIERS &&
+    Number(local.inlier_ratio || 0) >= MIN_LOCAL_INLIER_RATIO &&
+    Number(local.median_distance) <= MAX_LOCAL_MEDIAN_DISTANCE &&
+    Number(local.geometric_score || 0) > 0 &&
+    Number(local.confidence || 0) >= MIN_LOCAL_CONFIDENCE;
+}
+
 export async function confirmLocalVision(request, env) {
   const started = Date.now();
   try {
     const body = await request.json().catch(() => ({}));
     const ticket = await readTicket(env, body.ticket);
     const local = normalizeLocalMetrics(body.local_match);
-    const capaCode = String(body.capa_code || '').trim().toUpperCase();
+    const proposedCode = String(body.capa_code || '').trim().toUpperCase();
+    const localGuardPass = Boolean(proposedCode) && passesLocalGuard(local);
+    const capaCode = localGuardPass ? proposedCode : '';
     const ticketPerformance = ticket.performance || {};
     const performance = {
       ...ticketPerformance,
@@ -343,6 +355,7 @@ export async function confirmLocalVision(request, env) {
       local_inlier_ratio: local.inlier_ratio,
       local_median_distance: local.median_distance,
       local_geometric_score: local.geometric_score,
+      local_guard_pass: localGuardPass,
       candidate_count: local.candidates_tested ?? ticketPerformance.candidate_count ?? null,
       verification_mode: 'opencv-orb-ransac',
       accepted_by: capaCode ? 'opencv-orb-ransac' : 'rejected-by-opencv-orb-ransac',
@@ -350,7 +363,9 @@ export async function confirmLocalVision(request, env) {
     };
 
     if (!capaCode) {
-      performance.total_ms = Math.max(Number(ticketPerformance.total_ms || 0), Date.now() - started + Number(ticketPerformance.total_ms || 0));
+      performance.total_ms = Number(ticketPerformance.total_ms || 0) +
+        Math.max(0, Number(local.local_cv_ms || 0)) +
+        (Date.now() - started);
       return json({
         error: 'Não encontrei uma correspondência geométrica segura para esta capa.',
         confidence: local.confidence,
