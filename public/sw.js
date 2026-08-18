@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-identificacao-v7';
+const CACHE_NAME = 'nisti-identificacao-v8';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -31,8 +31,8 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Vite gera nomes versionados por hash. Depois do primeiro carregamento,
-  // inclusive o chunk OpenCV/WASM fica disponível localmente no PWA.
+  // Vite gera assets versionados por hash. O bundle leve de visão local fica
+  // em cache depois do primeiro carregamento tanto no site quanto no PWA.
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(cacheFirst(request));
     return;
