@@ -16,7 +16,7 @@ function enhanceHeader() {
   const header = document.querySelector('main.shell > header');
   if (!header) return;
 
-  if (!header.classList.contains('nisti-app-header')) header.classList.add('nisti-app-header');
+  header.classList.add('nisti-app-header');
   setText(header.querySelector('h1'), 'Identificação Visual');
 
   const nav = header.querySelector('nav');
@@ -115,9 +115,9 @@ function applyCatalogFilter(details) {
   for (const card of cards) {
     const sku = normalizeSearch(card.querySelector('.product-copy strong')?.textContent);
     const name = normalizeSearch(card.querySelector('.product-copy span')?.textContent);
-    const variation = normalizeSearch(card.querySelector('.product-copy small')?.textContent);
+    const meta = normalizeSearch(card.querySelector('.product-copy small')?.textContent);
     const cardPlatform = getCatalogPlatform(card);
-    const matchesText = !query || sku.includes(query) || name.includes(query) || variation.includes(query);
+    const matchesText = !query || sku.includes(query) || name.includes(query) || meta.includes(query);
     const matchesPlatform = !platform || cardPlatform === platform;
     const show = matchesText && matchesPlatform;
     card.hidden = !show;
@@ -141,6 +141,7 @@ function syncPlatformOptions(details) {
 
   select.dataset.signature = signature;
   select.replaceChildren();
+
   const all = document.createElement('option');
   all.value = '';
   all.textContent = 'Todas as plataformas';
@@ -164,34 +165,28 @@ function enhanceCatalog() {
   const summary = details?.querySelector(':scope > summary');
   if (!details || !list || !summary) return;
 
+  const countMatch = String(summary.textContent || '').match(/\((\d+)\s*SKUs?\)/i);
+  if (countMatch) setText(summary, `Catálogo de produtos (${countMatch[1]} SKUs)`);
+
   let tools = details.querySelector(':scope > .catalog-tools');
   if (!tools) {
     tools = document.createElement('div');
     tools.className = 'catalog-tools';
     tools.innerHTML = `
-      <div class="catalog-tools-title">
-        <div>
-          <strong>Catálogo de produtos</strong>
-          <span>Localize um produto e edite o mockup sem percorrer a lista inteira.</span>
+      <label class="catalog-search-field">
+        <span>Buscar produto</span>
+        <div class="catalog-search-wrap">
+          <input type="search" class="catalog-search" placeholder="Nome ou SKU" autocomplete="off" />
+          <button type="button" class="catalog-search-clear">Limpar</button>
         </div>
-        <div class="catalog-filter-count" aria-live="polite">0 de 0</div>
-      </div>
-      <div class="catalog-tools-fields">
-        <label class="catalog-search-field">
-          <span>Buscar por nome ou SKU</span>
-          <div class="catalog-search-wrap">
-            <span class="catalog-search-icon" aria-hidden="true">⌕</span>
-            <input type="search" class="catalog-search" placeholder="Ex.: VACMNA_BQE1 ou Bosque Encantado" autocomplete="off" />
-            <button type="button" class="catalog-search-clear" title="Limpar pesquisa" aria-label="Limpar pesquisa">×</button>
-          </div>
-        </label>
-        <label class="catalog-platform-field">
-          <span>Filtrar por plataforma</span>
-          <select class="catalog-platform-filter">
-            <option value="">Todas as plataformas</option>
-          </select>
-        </label>
-      </div>
+      </label>
+      <label class="catalog-platform-field">
+        <span>Plataforma</span>
+        <select class="catalog-platform-filter">
+          <option value="">Todas as plataformas</option>
+        </select>
+      </label>
+      <div class="catalog-filter-count" aria-live="polite">0 de 0</div>
     `;
     summary.insertAdjacentElement('afterend', tools);
 
@@ -234,6 +229,7 @@ function startObserver() {
   const root = document.getElementById('root');
   if (!root) return;
   let scheduled = false;
+
   const observer = new MutationObserver(() => {
     if (scheduled) return;
     scheduled = true;
@@ -242,6 +238,7 @@ function startObserver() {
       applyInterface();
     });
   });
+
   observer.observe(root, { childList: true, subtree: true });
   applyInterface();
 }
