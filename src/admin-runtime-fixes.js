@@ -5,12 +5,10 @@ let applying = false;
 let activeView = 'geral';
 
 const VIEW_COPY = {
-  geral: ['Visão geral', 'Resumo do catálogo e saúde do sistema.'],
-  produtos: ['Produtos', 'Consulte o catálogo, pesquise SKUs e visualize os dados dos produtos.'],
-  mockups: ['Mockups', 'Localize produtos pela imagem e substitua mockups quando necessário.'],
-  importacao: ['Importação', 'Atualize produtos em massa por arquivo CSV.'],
-  ferramentas: ['Ferramentas', 'Ações administrativas disponíveis para manutenção do catálogo.'],
-  administracao: ['Administração', 'Acompanhe banco de dados, armazenamento, Gemini e estado técnico do sistema.']
+  geral: ['Dashboard', 'Visão rápida do catálogo e do estado do sistema.'],
+  mockups: ['Mockups', 'Pesquise produtos, confira imagens e substitua mockups quando necessário.'],
+  importacao: ['Importação', 'Atualize o catálogo por CSV ou cadastre um produto individualmente.'],
+  administracao: ['Administração', 'Acompanhe banco de dados, armazenamento e consumo do Gemini.']
 };
 
 function isAdmin() {
@@ -36,6 +34,19 @@ function closeToolPanels() {
   });
 }
 
+function simplifyNavigation() {
+  const tabs = document.querySelector('.admin-section-tabs');
+  if (!tabs) return;
+
+  tabs.querySelector('[data-section="produtos"]')?.remove();
+  tabs.querySelector('[data-section="ferramentas"]')?.remove();
+
+  const allowed = new Set(['geral', 'mockups', 'importacao', 'administracao']);
+  tabs.querySelectorAll('.admin-section-tab').forEach(button => {
+    if (!allowed.has(button.dataset.section)) button.remove();
+  });
+}
+
 function ensureViewHeader() {
   const panel = document.querySelector('.admin-dashboard-panel');
   if (!panel) return null;
@@ -43,25 +54,109 @@ function ensureViewHeader() {
   if (!header) {
     header = document.createElement('section');
     header.className = 'admin-view-header';
-    header.innerHTML = '<div><span>ADMIN</span><h2>Visão geral</h2><p>Resumo do catálogo e saúde do sistema.</p></div>';
+    header.innerHTML = '<div><span>NISTI PRINT</span><h2>Dashboard</h2><p>Visão rápida do catálogo e do estado do sistema.</p></div>';
     panel.prepend(header);
   }
   return header;
 }
 
-function setCatalogMode(mode) {
+function ensureHealthSummary() {
+  const grid = document.querySelector('.admin-kpi-grid');
+  if (!grid) return null;
+  let health = document.querySelector('.admin-health-summary');
+  if (!health) {
+    health = document.createElement('button');
+    health.type = 'button';
+    health.className = 'admin-health-summary';
+    health.innerHTML = `
+      <span class="health-icon" aria-hidden="true">⌁</span>
+      <span class="health-copy">
+        <small>Saúde do sistema</small>
+        <strong>Verificando serviços...</strong>
+        <em>D1 · R2 · Gemini</em>
+      </span>
+      <span class="health-state">Verificando</span>
+      <span class="health-arrow" aria-hidden="true">›</span>
+    `;
+    grid.insertAdjacentElement('afterend', health);
+  }
+  return health;
+}
+
+function setCatalogMode() {
   const catalog = document.querySelector('.catalog-details');
   if (!catalog) return;
-  catalog.classList.toggle('catalog-products-mode', mode === 'produtos');
-  catalog.classList.toggle('catalog-mockups-mode', mode === 'mockups');
+  catalog.classList.remove('catalog-products-mode');
+  catalog.classList.add('catalog-mockups-mode');
   const summary = catalog.querySelector(':scope > summary');
-  if (summary) summary.textContent = mode === 'mockups' ? 'Galeria de mockups' : 'Catálogo de produtos';
+  if (summary) summary.textContent = 'Biblioteca de mockups';
   const search = catalog.querySelector('.catalog-search');
-  if (search) search.placeholder = mode === 'mockups' ? 'Buscar mockup por nome ou SKU...' : 'Buscar por nome do produto ou SKU...';
+  if (search) search.placeholder = 'Buscar por nome do produto ou SKU...';
+}
 
-  const wantedView = mode === 'mockups' ? 'grid' : 'list';
-  const viewButton = catalog.querySelector(`.catalog-view-button[data-view="${wantedView}"]`);
-  if (viewButton && !viewButton.classList.contains('active')) viewButton.click();
+function prepareDashboard() {
+  if (!isAdmin()) return;
+  simplifyNavigation();
+
+  const kpiGrid = document.querySelector('.admin-kpi-grid');
+  if (kpiGrid) {
+    const productCard = kpiGrid.querySelector('[data-kpi="products"]');
+    const mockupCard = kpiGrid.querySelector('[data-kpi="mockups"]');
+    const pendingCard = kpiGrid.querySelector('[data-kpi="pending"]');
+    const progressCard = kpiGrid.querySelector('[data-kpi="progress"]');
+    const dbCard = kpiGrid.querySelector('[data-kpi="database"], [data-system-kpi="database"]');
+    const geminiCard = kpiGrid.querySelector('[data-kpi="gemini"], [data-system-kpi="gemini"]');
+
+    if (dbCard) {
+      dbCard.removeAttribute('data-kpi');
+      dbCard.dataset.systemKpi = 'database';
+      dbCard.hidden = true;
+    }
+    if (geminiCard) {
+      geminiCard.removeAttribute('data-kpi');
+      geminiCard.dataset.systemKpi = 'gemini';
+      geminiCard.hidden = true;
+    }
+
+    const progressLabel = progressCard?.querySelector('small');
+    if (progressLabel) progressLabel.textContent = 'Produção';
+    const productLabel = productCard?.querySelector('small');
+    if (productLabel) productLabel.textContent = 'Produtos cadastrados';
+    const mockupLabel = mockupCard?.querySelector('small');
+    if (mockupLabel) mockupLabel.textContent = 'Mockups';
+    const pendingLabel = pendingCard?.querySelector('small');
+    if (pendingLabel) pendingLabel.textContent = 'Pendentes';
+  }
+
+  document.querySelector('.admin-tools-section')?.setAttribute('hidden', '');
+
+  const systemKpiGrid = document.querySelector('.admin-kpi-grid');
+  if (systemKpiGrid && !document.querySelector('.admin-system-details')) {
+    const details = document.createElement('section');
+    details.className = 'admin-system-details';
+    details.innerHTML = `
+      <article class="system-detail-card" data-system-detail="database">
+        <span class="system-detail-icon">DB</span>
+        <div class="system-detail-copy"><strong>Banco de dados · Cloudflare D1</strong><b>Carregando...</b><span>Lendo o tamanho real do banco estruturado.</span></div>
+        <em class="system-status">Verificando</em>
+      </article>
+      <article class="system-detail-card" data-system-detail="r2">
+        <span class="system-detail-icon">R2</span>
+        <div class="system-detail-copy"><strong>Mockups e imagens · Cloudflare R2</strong><b>Carregando...</b><span>Somando os arquivos armazenados.</span></div>
+        <em class="system-status">Verificando</em>
+      </article>
+      <article class="system-detail-card" data-system-detail="gemini">
+        <span class="system-detail-icon">✦</span>
+        <div class="system-detail-copy"><strong>Gemini · identificação visual</strong><b>Carregando...</b><span>Lendo consultas e tokens medidos pelo NISTI.</span></div>
+        <em class="system-status">Verificando</em>
+      </article>
+      <div class="system-measurement-note">D1 e R2 são medidos separadamente. O uso do Gemini representa as chamadas feitas por este aplicativo desde que a telemetria foi ativada.</div>
+    `;
+    systemKpiGrid.insertAdjacentElement('afterend', details);
+  }
+
+  ensureHealthSummary();
+  ensureViewHeader();
 }
 
 function applyView(section, { scroll = false } = {}) {
@@ -80,9 +175,10 @@ function applyView(section, { scroll = false } = {}) {
   }
 
   const kpis = document.querySelector('.admin-kpi-grid');
+  const health = document.querySelector('.admin-health-summary');
   const system = document.querySelector('.admin-system-details');
-  const tools = document.querySelector('.admin-tools-section');
   const catalog = document.querySelector('.catalog-details');
+  const tools = document.querySelector('.admin-tools-section');
   const importPanel = document.querySelector('.admin-tool-panel[data-tool-panel="importacao"]');
   const cadastroPanel = document.querySelector('.admin-tool-panel[data-tool-panel="cadastro"]');
   const manualPanel = document.querySelector('.admin-tool-panel[data-tool-panel="manual"]');
@@ -90,39 +186,29 @@ function applyView(section, { scroll = false } = {}) {
 
   closeToolPanels();
   setVisible(kpis, activeView === 'geral');
-  setVisible(system, activeView === 'geral' || activeView === 'administracao');
-  setVisible(tools, activeView === 'ferramentas');
-  setVisible(catalog, activeView === 'produtos' || activeView === 'mockups');
+  setVisible(health, activeView === 'geral');
+  setVisible(system, activeView === 'administracao');
+  setVisible(catalog, activeView === 'mockups');
+  setVisible(tools, false);
   setVisible(importPanel, activeView === 'importacao');
-  setVisible(cadastroPanel, false);
+  setVisible(cadastroPanel, activeView === 'importacao');
   setVisible(manualPanel, false);
   setVisible(indexPanel, false);
 
-  if (activeView === 'importacao' && importPanel) {
-    importPanel.hidden = false;
-    importPanel.classList.add('tool-panel-visible');
+  if (activeView === 'importacao') {
+    [importPanel, cadastroPanel].forEach(panel => {
+      if (!panel) return;
+      panel.hidden = false;
+      panel.classList.add('tool-panel-visible');
+    });
   }
 
-  if (activeView === 'produtos' || activeView === 'mockups') {
+  if (activeView === 'mockups') {
     if (catalog) catalog.open = true;
-    setCatalogMode(activeView);
+    setCatalogMode();
   }
 
   if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
-}
-
-function showTool(name) {
-  if (name === 'catalogo') return applyView('produtos', { scroll: true });
-  if (name === 'mockups') return applyView('mockups', { scroll: true });
-  if (name === 'importacao') return applyView('importacao', { scroll: true });
-  if (name === 'system') return applyView('administracao', { scroll: true });
-
-  applyView('ferramentas', { scroll: true });
-  const target = document.querySelector(`.admin-tool-panel[data-tool-panel="${name}"]`);
-  if (!target) return;
-  target.hidden = false;
-  target.classList.add('tool-panel-visible');
-  target.scrollIntoView({ behavior: 'auto', block: 'start' });
 }
 
 function handleAdminNavigation(event) {
@@ -137,21 +223,10 @@ function handleAdminNavigation(event) {
     return;
   }
 
-  const tool = event.target.closest('.admin-tool-card[data-open-tool]');
-  if (tool) {
+  const health = event.target.closest('.admin-health-summary');
+  if (health) {
     event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    showTool(tool.dataset.openTool);
-    return;
-  }
-
-  const system = event.target.closest('.admin-tool-card[data-open-system="1"]');
-  if (system) {
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    showTool('system');
+    applyView('administracao', { scroll: true });
   }
 }
 
@@ -169,71 +244,6 @@ function formatNumber(value) {
   return Number(value || 0).toLocaleString('pt-BR');
 }
 
-function prepareDashboard() {
-  if (!isAdmin()) return;
-
-  const dbKpi = document.querySelector('.admin-kpi[data-kpi="database"], .admin-kpi[data-system-kpi="database"]');
-  const geminiKpi = document.querySelector('.admin-kpi[data-kpi="gemini"], .admin-kpi[data-system-kpi="gemini"]');
-  if (dbKpi) {
-    dbKpi.removeAttribute('data-kpi');
-    dbKpi.dataset.systemKpi = 'database';
-  }
-  if (geminiKpi) {
-    geminiKpi.removeAttribute('data-kpi');
-    geminiKpi.dataset.systemKpi = 'gemini';
-  }
-
-  const tools = document.querySelector('.admin-tools-grid');
-  if (tools) {
-    tools.querySelector('[data-open-tool="manual"]')?.remove();
-    tools.querySelector('[data-open-tool="indice"]')?.remove();
-
-    if (!tools.querySelector('[data-open-system="1"]')) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'admin-tool-card tool-slate';
-      button.dataset.openSystem = '1';
-      button.innerHTML = '<span>◉</span><div><strong>Dados do sistema</strong><small>D1, R2 e consumo medido do Gemini.</small></div><b>›</b>';
-      tools.appendChild(button);
-    }
-  }
-
-  const kpiGrid = document.querySelector('.admin-kpi-grid');
-  if (kpiGrid && !document.querySelector('.admin-system-details')) {
-    const details = document.createElement('section');
-    details.className = 'admin-system-details';
-    details.innerHTML = `
-      <article class="system-detail-card" data-system-detail="database">
-        <span class="system-detail-icon">DB</span>
-        <div class="system-detail-copy"><strong>Banco de dados · Cloudflare D1</strong><b>Carregando...</b><span>Lendo tamanho real do banco.</span></div>
-        <em class="system-status">Verificando</em>
-      </article>
-      <article class="system-detail-card" data-system-detail="r2">
-        <span class="system-detail-icon">R2</span>
-        <div class="system-detail-copy"><strong>Mockups e imagens · Cloudflare R2</strong><b>Carregando...</b><span>Somando os arquivos armazenados no bucket.</span></div>
-        <em class="system-status">Verificando</em>
-      </article>
-      <article class="system-detail-card" data-system-detail="gemini">
-        <span class="system-detail-icon">✦</span>
-        <div class="system-detail-copy"><strong>Gemini · identificação visual</strong><b>Carregando...</b><span>Lendo consultas e tokens medidos pelo sistema.</span></div>
-        <em class="system-status">Verificando</em>
-      </article>
-      <div class="system-measurement-note">D1 e R2 são medidos separadamente porque o banco estruturado e as imagens ficam em serviços diferentes. O consumo do Gemini mostra somente as chamadas feitas por este app desde que a telemetria foi ativada.</div>
-    `;
-    kpiGrid.insertAdjacentElement('afterend', details);
-  }
-
-  ensureViewHeader();
-}
-
-function updateKpi(card, value, sub) {
-  if (!card) return;
-  const valueNode = card.querySelector('.kpi-value');
-  const subNode = card.querySelector('.kpi-sub');
-  if (valueNode) valueNode.textContent = value;
-  if (subNode) subNode.textContent = sub;
-}
-
 function updateSystemDetail(key, value, description, state = 'Saudável', stateClass = '') {
   const card = document.querySelector(`[data-system-detail="${key}"]`);
   if (!card) return;
@@ -248,6 +258,28 @@ function updateSystemDetail(key, value, description, state = 'Saudável', stateC
   }
 }
 
+function updateHealthSummary({ database, r2, gemini, storageOk }) {
+  const health = document.querySelector('.admin-health-summary');
+  if (!health) return;
+
+  const dbUsed = formatBytes(database?.used_bytes);
+  const r2Used = storageOk ? formatBytes(r2?.used_bytes) : 'R2 indisponível';
+  const requests = Number(gemini?.today?.identify_requests || 0);
+  const tokens = Number(gemini?.today?.total_tokens || 0);
+  const freePercent = Number(database?.percent_of_free_limit || 0);
+  const healthy = gemini?.configured !== false && freePercent < 90 && storageOk;
+
+  const strong = health.querySelector('.health-copy strong');
+  const em = health.querySelector('.health-copy em');
+  const state = health.querySelector('.health-state');
+  if (strong) strong.textContent = healthy ? 'Tudo operacional' : 'Verificar sistema';
+  if (em) em.textContent = `D1 ${dbUsed} · R2 ${r2Used} · Gemini ${formatNumber(requests)} consulta(s) / ${formatNumber(tokens)} tokens hoje`;
+  if (state) {
+    state.textContent = healthy ? 'Saudável' : 'Atenção';
+    state.className = `health-state${healthy ? '' : ' warning'}`;
+  }
+}
+
 async function refreshRealMetrics() {
   if (!isAdmin()) return;
   prepareDashboard();
@@ -258,6 +290,7 @@ async function refreshRealMetrics() {
       fetch('/api/admin/storage-metrics', { cache: 'no-store' })
     ]);
     if (!systemResponse.ok) throw new Error(`system HTTP ${systemResponse.status}`);
+
     const data = await systemResponse.json();
     const storageData = storageResponse.ok ? await storageResponse.json() : {};
     const database = data.database || {};
@@ -267,21 +300,12 @@ async function refreshRealMetrics() {
 
     const dbUsed = formatBytes(database.used_bytes);
     const freePercent = Number(database.percent_of_free_limit || 0);
-    const dbSub = database.configured_limit_bytes
-      ? `${Number(database.configured_percent || 0).toFixed(2)}% do limite configurado`
-      : `${freePercent.toFixed(freePercent < 1 ? 3 : 1)}% de 500 MB Free · Paid 10 GB`;
-
-    updateKpi(
-      document.querySelector('.admin-kpi[data-system-kpi="database"]'),
-      dbUsed,
-      `D1 online · ${dbSub}`
-    );
-
     const dbState = freePercent >= 90 ? ['Atenção', 'warning'] : ['Saudável', ''];
+
     updateSystemDetail(
       'database',
       `${dbUsed} no D1`,
-      `Tamanho real do banco estruturado. Limite por banco: Workers Free 500 MB; Workers Paid 10 GB.`,
+      `Tamanho real do banco estruturado. Referência de limite por banco: Workers Free 500 MB; Workers Paid 10 GB.`,
       dbState[0],
       dbState[1]
     );
@@ -292,7 +316,7 @@ async function refreshRealMetrics() {
       updateSystemDetail(
         'r2',
         `${r2Used} · ${formatNumber(r2.object_count)} arquivo(s)`,
-        `${r2Percent.toFixed(r2Percent < 1 ? 3 : 1)}% dos 10 GB-mês incluídos no nível gratuito Standard. O bucket não tem limite fixo de armazenamento; acima da franquia há cobrança por uso.`,
+        `${r2Percent.toFixed(r2Percent < 1 ? 3 : 1)}% dos 10 GB-mês incluídos no nível gratuito Standard.`,
         'Saudável',
         ''
       );
@@ -303,25 +327,27 @@ async function refreshRealMetrics() {
     const requests = Number(today.identify_requests || 0);
     const tokens = Number(today.total_tokens || 0);
     const average = Number(gemini.average_tokens_per_identification_today || 0);
-    updateKpi(
-      document.querySelector('.admin-kpi[data-system-kpi="gemini"]'),
-      `${formatNumber(requests)} consulta${requests === 1 ? '' : 's'}`,
-      `${formatNumber(tokens)} tokens hoje${average ? ` · média ${formatNumber(average)}/consulta` : ''}`
-    );
-
     updateSystemDetail(
       'gemini',
-      `${formatNumber(tokens)} tokens medidos hoje`,
-      `${formatNumber(requests)} identificação(ões) hoje · ${gemini.model || 'Gemini'} · estes números vêm das respostas da API usada pelo próprio NISTI. RPM/TPM/RPD do projeto são consultados no AI Studio.`,
+      `${formatNumber(tokens)} tokens hoje`,
+      `${formatNumber(requests)} identificação(ões) hoje${average ? ` · média ${formatNumber(average)} tokens/consulta` : ''} · ${gemini.model || 'Gemini'}.`,
       gemini.configured ? 'Ativo' : 'Sem chave',
       gemini.configured ? '' : 'error'
     );
+
+    updateHealthSummary({ database, r2, gemini, storageOk: storageResponse.ok });
   } catch {
-    updateKpi(document.querySelector('.admin-kpi[data-system-kpi="database"]'), 'Erro', 'Não foi possível ler o D1');
-    updateKpi(document.querySelector('.admin-kpi[data-system-kpi="gemini"]'), 'Erro', 'Não foi possível ler a telemetria');
     updateSystemDetail('database', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error');
     updateSystemDetail('r2', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error');
     updateSystemDetail('gemini', 'Falha na leitura', 'Atualize a página depois do deploy.', 'Erro', 'error');
+    const health = document.querySelector('.admin-health-summary');
+    const strong = health?.querySelector('.health-copy strong');
+    const state = health?.querySelector('.health-state');
+    if (strong) strong.textContent = 'Não foi possível consultar os serviços';
+    if (state) {
+      state.textContent = 'Atenção';
+      state.className = 'health-state warning';
+    }
   }
 }
 
