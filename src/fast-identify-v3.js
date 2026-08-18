@@ -132,7 +132,9 @@ async function getCandidates(env, image, timings) {
   const top1 = candidates[0]?.retrieval_score ?? null;
   const top2 = candidates[1]?.retrieval_score ?? null;
   timings.retrieval_top1 = top1;
+  timings.retrieval_top1_code = candidates[0]?.capa_code || null;
   timings.retrieval_top2 = top2;
+  timings.retrieval_top2_code = candidates[1]?.capa_code || null;
   timings.retrieval_margin = Number.isFinite(top1) && Number.isFinite(top2) ? top1 - top2 : 1;
 
   return { uploadBytes, candidates };
@@ -294,6 +296,8 @@ async function verifyWithGemini(env, image, uploadBytes, candidates, timings) {
   const capaCode = String(result?.capa_code || '').trim().toUpperCase();
   const modelConfidence = Math.max(0, Math.min(1, Number(result?.confidence) || 0));
   timings.gemini_confidence = modelConfidence;
+  timings.gemini_matched = Boolean(result?.matched);
+  timings.gemini_proposed_capa_code = capaCode || null;
 
   if (!result?.matched || !capaCode || !allowed.has(capaCode)) {
     return { matched: false, capa_code: '', confidence: modelConfidence, candidates: usable };
