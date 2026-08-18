@@ -2,6 +2,7 @@ import app from './ml-browser-capture-router.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
 const SESSION_SECONDS = 60 * 60 * 12;
+const ADMIN_APP_PATH = '/?nisti_admin=1';
 
 function base64url(bytes) {
   let binary = '';
@@ -91,10 +92,6 @@ async function validSession(request, env) {
   }
 }
 
-function isAdminPage(pathname) {
-  return pathname === '/admin' || pathname.startsWith('/admin/');
-}
-
 function isProtectedApi(pathname) {
   if (pathname.startsWith('/api/admin/')) {
     return pathname !== '/api/admin/ml-browser-capture';
@@ -156,9 +153,9 @@ function html(body, status = 200, headers = {}) {
   });
 }
 
-function unauthorizedApi() {
-  return new Response(JSON.stringify({ error: 'Acesso administrativo não autorizado.' }), {
-    status: 401,
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store'
@@ -166,23 +163,8 @@ function unauthorizedApi() {
   });
 }
 
-async function serveAdminSpa(request, env) {
-  const indexUrl = new URL(request.url);
-  indexUrl.pathname = '/';
-  indexUrl.search = '';
-  const indexRequest = new Request(indexUrl.toString(), {
-    method: 'GET',
-    headers: request.headers
-  });
-  const response = await env.ASSETS.fetch(indexRequest);
-  const headers = new Headers(response.headers);
-  headers.set('cache-control', 'no-store, private');
-  headers.set('x-robots-tag', 'noindex, nofollow');
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers
-  });
+function unauthorizedApi() {
+  return json({ error: 'Acesso administrativo não autorizado.' }, 401);
 }
 
 export default {
@@ -190,9 +172,16 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
+    if (pathname === '/admin' && request.method === 'GET') {
+      if (!(await validSession(request, env))) {
+        return Response.redirect(new URL('/admin-login', url), 302);
+      }
+      return Response.redirect(new URL(ADMIN_APP_PATH, url), 302);
+    }
+
     if (pathname === '/admin-login' && request.method === 'GET') {
       if (await validSession(request, env)) {
-        return Response.redirect(new URL('/admin', url), 302);
+        return Response.redirect(new URL(ADMIN_APP_PATH, url), 302);
       }
       return html(loginPage(env.ADMIN_PASSWORD ? '' : 'A administração ainda não foi ativada. Configure o segredo ADMIN_PASSWORD no Cloudflare.'));
     }
@@ -213,7 +202,7 @@ export default {
       return new Response(null, {
         status: 302,
         headers: {
-          location: '/admin',
+          location: ADMIN_APP_PATH,
           'set-cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`,
           'cache-control': 'no-store'
         }
@@ -231,11 +220,10 @@ export default {
       });
     }
 
-    if (isAdminPage(pathname)) {
-      if (!(await validSession(request, env))) {
-        return Response.redirect(new URL('/admin-login', url), 302);
-      }
-      return serveAdminSpa(request, env);
+    if (pathname === '/api/admin/session' && request.method === 'GET') {
+      return (await validSession(request, env))
+        ? json({ ok: true, authenticated: true })
+        : unauthorizedApi();
     }
 
     if (isProtectedApi(pathname) && !(await validSession(request, env))) {
