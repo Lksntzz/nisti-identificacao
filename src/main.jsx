@@ -1,645 +1,296 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import './styles.css';
+import './app.css';
 
-const api = async (path, options = {}) => {
-  const res = await fetch(path, options);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Erro na operação');
+const LOGO = '/nisti-logo-transparent.webp';
+const PAGE_SIZE = 12;
+const WIREO_OPTIONS = [['P','Preto'],['B','Branco'],['R','Rose Gold']];
+const ACCESSORY_OPTIONS = [['P','Preto'],['B','Branco'],['A','Azul'],['R','Rosa'],['V','Verde'],['L','Laranja']];
+const TASSEL_OPTIONS = [['X','Sem tassel'], ...ACCESSORY_OPTIONS];
+
+async function api(path, options = {}) {
+  const response = await fetch(path, { credentials: 'same-origin', ...options });
+  const type = response.headers.get('content-type') || '';
+  const data = type.includes('application/json') ? await response.json() : null;
+  if (!response.ok) throw new Error(data?.error || `Erro ${response.status}`);
   return data;
-};
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(2)} MB`;
+  return `${(value / 1024 ** 3).toFixed(2)} GB`;
+}
+
+function productImage(product) {
+  if (!product?.image_url) return '';
+  const version = String(product.image_key || '').split('/').pop();
+  const join = product.image_url.includes('?') ? '&' : '?';
+  return version ? `${product.image_url}${join}v=${encodeURIComponent(version)}` : product.image_url;
+}
+
+async function compressPhoto(file) {
+  if (!file || !String(file.type || '').startsWith('image/')) return file;
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    bitmap = await createImageBitmap(file);
+  }
+  const maxSide = 1024;
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d', { alpha: false });
+  context.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+  return blob ? new File([blob], 'capa.jpg', { type: 'image/jpeg' }) : file;
+}
+
+function BrandHeader({ admin = false }) {
+  return <header className={`topbar ${admin ? 'admin-topbar' : ''}`}>
+    <img className="brand-logo" src={LOGO} alt="NISTI PRINT" />
+    <div className="top-title"><small>NISTI PRINT</small><h1>Identificação Visual</h1></div>
+    {admin && <div className="admin-actions"><a href="/admin-logout">Sair</a></div>}
+  </header>;
+}
 
 function Badge({ label, value }) {
-  const display = value === null || value === undefined || value === '' ? '—' : value;
-  return <div className="badge"><span>{label}</span><strong>{display}</strong></div>;
+  return <div className="badge"><span>{label}</span><strong>{value || '—'}</strong></div>;
 }
 
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let cell = '';
-  let quoted = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    const next = text[i + 1];
-
-    if (char === '"') {
-      if (quoted && next === '"') {
-        cell += '"';
-        i += 1;
-      } else {
-        quoted = !quoted;
-      }
-      continue;
-    }
-
-    if (char === ',' && !quoted) {
-      row.push(cell);
-      cell = '';
-      continue;
-    }
-
-    if ((char === '\n' || char === '\r') && !quoted) {
-      if (char === '\r' && next === '\n') i += 1;
-      row.push(cell);
-      if (row.some(value => String(value).trim() !== '')) rows.push(row);
-      row = [];
-      cell = '';
-      continue;
-    }
-
-    cell += char;
-  }
-
-  row.push(cell);
-  if (row.some(value => String(value).trim() !== '')) rows.push(row);
-  return rows;
-}
-
-function catalogRowsFromCsv(text) {
-  const table = parseCsv(String(text || '').replace(/^\uFEFF/, ''));
-  const catalog = [];
-
-  for (const row of table) {
-    const sku = String(row[5] || row[14] || '').trim();
-    if (!sku || sku.toUpperCase() === 'SKU') continue;
-
-    catalog.push({
-      nome: String(row[2] || row[9] || '').trim(),
-      variacao: String(row[3] || row[13] || '').trim(),
-      platform: String(row[4] || row[11] || '').trim(),
-      sku,
-      link: String(row[6] || row[12] || '').trim()
-    });
-  }
-
-  return catalog;
-}
-
-function Admin() {
-  const [products, setProducts] = useState([]);
-  const [form, setForm] = useState({ sku: '', nome: '', variacao: '', platform: '', link: '' });
-  const [parsed, setParsed] = useState(null);
-  const [image, setImage] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-
-  const [indexInfo, setIndexInfo] = useState(null);
-  const [indexBusy, setIndexBusy] = useState(false);
-  const [indexMessage, setIndexMessage] = useState('');
-
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkMessage, setBulkMessage] = useState('');
-
-  const [skuFiles, setSkuFiles] = useState({});
-  const [skuPreviews, setSkuPreviews] = useState({});
-  const [skuBusy, setSkuBusy] = useState(null);
-  const [skuMessage, setSkuMessage] = useState('');
-  const [skippedSkuIds, setSkippedSkuIds] = useState([]);
-
-  const [editingMockupId, setEditingMockupId] = useState(null);
-  const [mockupFiles, setMockupFiles] = useState({});
-  const [mockupPreviews, setMockupPreviews] = useState({});
-  const [mockupBusy, setMockupBusy] = useState(null);
-  const [mockupMessage, setMockupMessage] = useState('');
-
-  const refresh = async () => {
-    const data = await api('/api/products');
-    setProducts(data.products || []);
-  };
-
-  const refreshIndex = async () => {
-    const data = await api('/api/admin/cover-index');
-    setIndexInfo(data);
-    return data;
-  };
+function InstallApp() {
+  const [prompt, setPrompt] = useState(null);
+  const [help, setHelp] = useState(false);
+  const [standalone, setStandalone] = useState(() => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true);
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
   useEffect(() => {
-    refresh().catch(() => {});
-    refreshIndex().catch(() => {});
+    const before = event => { event.preventDefault(); setPrompt(event); };
+    const installed = () => setStandalone(true);
+    window.addEventListener('beforeinstallprompt', before);
+    window.addEventListener('appinstalled', installed);
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    return () => { window.removeEventListener('beforeinstallprompt', before); window.removeEventListener('appinstalled', installed); };
   }, []);
 
-  useEffect(() => {
-    const sku = form.sku.trim();
-    if (!sku) return setParsed(null);
-    const timer = setTimeout(() => {
-      api('/api/sku/parse', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ sku })
-      }).then(setParsed).catch(() => setParsed(null));
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [form.sku]);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    setMessage('');
-    try {
-      const created = await api('/api/products', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...form })
-      });
-
-      if (image) {
-        const fd = new FormData();
-        fd.append('image', image);
-        await api(`/api/products/${created.id}/image`, { method: 'POST', body: fd });
-      }
-
-      setForm({ sku: '', nome: '', variacao: '', platform: '', link: '' });
-      setImage(null);
-      setParsed(null);
-      setMessage('Produto cadastrado.');
-      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
-    } catch (err) {
-      setMessage(err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const importCatalogCsv = async (file) => {
-    if (!file) return;
-    setBulkBusy(true);
-    setBulkMessage('');
-    try {
-      const text = await file.text();
-      const rows = catalogRowsFromCsv(text);
-      if (!rows.length) throw new Error('Nenhum SKU encontrado no CSV. Exporte a aba ANÚNCIOS completa.');
-
-      let created = 0;
-      let updated = 0;
-      const errors = [];
-
-      for (let i = 0; i < rows.length; i += 50) {
-        const batch = rows.slice(i, i + 50);
-        const result = await api('/api/admin/bulk-products', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ rows: batch })
-        });
-        created += result.created || 0;
-        updated += result.updated || 0;
-        if (result.errors?.length) errors.push(...result.errors);
-      }
-
-      setBulkMessage(errors.length
-        ? `Catálogo processado: ${created} novos, ${updated} atualizados, ${errors.length} erro(s) para revisar.`
-        : `Catálogo importado: ${created} novos e ${updated} atualizados.`);
-
-      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
-    } catch (err) {
-      setBulkMessage(err.message);
-    } finally {
-      setBulkBusy(false);
-    }
-  };
-
-  const indexPendingCovers = async () => {
-    setIndexBusy(true);
-    setIndexMessage('');
-    try {
-      let info = await refreshIndex();
-      let safety = 0;
-      let processedTotal = 0;
-
-      while (info.pending_covers > 0 && safety < 100) {
-        const result = await api('/api/admin/reindex-cover-embeddings', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ limit: 6 })
-        });
-        processedTotal += result.processed?.length || 0;
-        if (result.errors?.length) {
-          setIndexMessage(`Indexação parcial: ${processedTotal} capa(s) processadas. ${result.errors.length} erro(s).`);
-          break;
-        }
-        info = await refreshIndex();
-        safety += 1;
-      }
-
-      info = await refreshIndex();
-      setIndexMessage(info.pending_covers === 0
-        ? `Índice visual atualizado. ${info.indexed_covers} capa(s) indexadas.`
-        : `Ainda faltam ${info.pending_covers} capa(s) para indexar.`);
-    } catch (err) {
-      setIndexMessage(err.message);
-    } finally {
-      setIndexBusy(false);
-    }
-  };
-
-  const chooseSkuImage = (product, file) => {
-    if (!file || !String(file.type || '').startsWith('image/')) return;
-    setSkuFiles(current => ({ ...current, [product.id]: file }));
-    setSkuPreviews(current => {
-      if (current[product.id]) URL.revokeObjectURL(current[product.id]);
-      return { ...current, [product.id]: URL.createObjectURL(file) };
-    });
-    setSkuMessage(`Imagem selecionada para ${product.sku}. Confira e salve.`);
-  };
-
-  const pasteSkuImage = (product, event) => {
-    const items = Array.from(event.clipboardData?.items || []);
-    const imageItem = items.find(item => String(item.type || '').startsWith('image/'));
-    const file = imageItem?.getAsFile?.();
-    if (file) {
-      event.preventDefault();
-      chooseSkuImage(product, file);
-    }
-  };
-
-  const dropSkuImage = (product, event) => {
-    event.preventDefault();
-    const file = Array.from(event.dataTransfer?.files || []).find(item => String(item.type || '').startsWith('image/'));
-    if (file) chooseSkuImage(product, file);
-  };
-
-  const clearSkuDraft = (productId) => {
-    setSkuFiles(current => {
-      const next = { ...current };
-      delete next[productId];
-      return next;
-    });
-    setSkuPreviews(current => {
-      const next = { ...current };
-      if (next[productId]) URL.revokeObjectURL(next[productId]);
-      delete next[productId];
-      return next;
-    });
-  };
-
-  const saveSkuImage = async (product) => {
-    const file = skuFiles[product.id];
-    if (!file) return;
-
-    setSkuBusy(product.id);
-    setSkuMessage('');
-    try {
-      const fd = new FormData();
-      fd.append('image', file);
-      const result = await api(`/api/products/${product.id}/image`, { method: 'POST', body: fd });
-
-      clearSkuDraft(product.id);
-      setSkippedSkuIds(current => current.filter(id => id !== product.id));
-      setSkuMessage(result.embedding_indexed
-        ? `SKU ${product.sku} salvo e indexado.`
-        : `SKU ${product.sku} salvo. Reindexe a capa: ${result.embedding_error || 'erro desconhecido'}`);
-      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
-    } catch (err) {
-      setSkuMessage(err.message);
-    } finally {
-      setSkuBusy(null);
-    }
-  };
-
-  const skipSku = (product) => {
-    clearSkuDraft(product.id);
-    setSkippedSkuIds(current => [...new Set([...current, product.id])]);
-    setSkuMessage(`SKU ${product.sku} pulado nesta sessão.`);
-  };
-
-  const chooseMockup = (product, file) => {
-    if (!file || !String(file.type || '').startsWith('image/')) return;
-    setMockupFiles(current => ({ ...current, [product.id]: file }));
-    setMockupPreviews(current => {
-      if (current[product.id]) URL.revokeObjectURL(current[product.id]);
-      return { ...current, [product.id]: URL.createObjectURL(file) };
-    });
-    setMockupMessage(`Nova imagem selecionada para ${product.sku}. Confira a prévia antes de salvar.`);
-  };
-
-  const pasteMockup = (product, event) => {
-    const items = Array.from(event.clipboardData?.items || []);
-    const imageItem = items.find(item => String(item.type || '').startsWith('image/'));
-    const file = imageItem?.getAsFile?.();
-    if (file) {
-      event.preventDefault();
-      chooseMockup(product, file);
-    }
-  };
-
-  const clearMockupDraft = (productId) => {
-    setMockupFiles(current => {
-      const next = { ...current };
-      delete next[productId];
-      return next;
-    });
-    setMockupPreviews(current => {
-      const next = { ...current };
-      if (next[productId]) URL.revokeObjectURL(next[productId]);
-      delete next[productId];
-      return next;
-    });
-  };
-
-  const cancelMockupEdit = (productId) => {
-    clearMockupDraft(productId);
-    setEditingMockupId(null);
-    setMockupMessage('');
-  };
-
-  const saveMockup = async (product) => {
-    const file = mockupFiles[product.id];
-    if (!file) {
-      setMockupMessage(`Selecione a nova imagem do SKU ${product.sku}.`);
+  if (standalone) return null;
+  const install = async () => {
+    if (prompt) {
+      await prompt.prompt();
+      await prompt.userChoice.catch(() => null);
+      setPrompt(null);
       return;
     }
-
-    setMockupBusy(product.id);
-    setMockupMessage('');
-    try {
-      const fd = new FormData();
-      fd.append('image', file);
-      const result = await api(`/api/products/${product.id}/image`, { method: 'POST', body: fd });
-
-      clearMockupDraft(product.id);
-      setEditingMockupId(null);
-      setMockupMessage(result.embedding_indexed
-        ? `Mockup do SKU ${product.sku} atualizado e índice visual refeito.`
-        : `Mockup do SKU ${product.sku} atualizado. A indexação ficou pendente: ${result.embedding_error || 'erro desconhecido'}`);
-      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
-    } catch (err) {
-      setMockupMessage(err.message);
-    } finally {
-      setMockupBusy(null);
-    }
+    if (ios) setHelp(true);
+    else alert('Abra o menu do navegador e escolha “Instalar app” ou “Adicionar à tela inicial”.');
   };
 
-  const withoutImage = products.filter(product => !product.image_url).length;
-  const withImage = products.length - withoutImage;
-  const pendingSkuProducts = products.filter(product => !product.image_url && !skippedSkuIds.includes(product.id));
-  const currentSku = pendingSkuProducts[0] || null;
-  const skippedCount = skippedSkuIds.filter(id => products.some(product => product.id === id && !product.image_url)).length;
-  const progressPercent = products.length ? Math.round((withImage / products.length) * 100) : 0;
-
-  return <section className="panel">
-    <div className="panel-head">
-      <div><p className="eyebrow">ADMIN</p><h2>Produtos</h2></div>
-      <span>{products.length} cadastrados</span>
-    </div>
-
-    <div className="form quick-workflow">
-      <div className="panel-head">
-        <div>
-          <strong>Modo manual — 1 SKU por vez</strong>
-          <small>Use somente para SKUs sem imagem ou correções pontuais.</small>
-        </div>
-        <span>{withImage}/{products.length}</span>
-      </div>
-
-      <div className="quick-progress">
-        <div className="quick-progress-bar"><span style={{ width: `${progressPercent}%` }} /></div>
-        <div className="parsed quick-stats">
-          <Badge label="Concluídos" value={withImage}/>
-          <Badge label="Restantes" value={withoutImage}/>
-          <Badge label="Progresso" value={`${progressPercent}%`}/>
-          <Badge label="Pulados" value={skippedCount}/>
-        </div>
-      </div>
-
-      {skuMessage && <p className="message quick-message">{skuMessage}</p>}
-
-      {!currentSku && withoutImage === 0 && <div className="quick-done">
-        <strong>Cadastro de imagens concluído.</strong>
-        <span>Todos os SKUs têm imagem. Para corrigir um mockup, use o catálogo completo abaixo.</span>
-      </div>}
-
-      {!currentSku && withoutImage > 0 && <div className="quick-done">
-        <strong>Não há SKU disponível nesta sessão.</strong>
-        <span>{skippedCount} SKU(s) foram pulados.</span>
-        <button type="button" onClick={() => setSkippedSkuIds([])}>Voltar aos SKUs pulados</button>
-      </div>}
-
-      {currentSku && (() => {
-        const product = currentSku;
-        const preview = skuPreviews[product.id];
-        const isBusy = skuBusy === product.id;
-        return <article className="sku-review quick-sku-card" key={product.id}>
-          <div className="quick-step">PRÓXIMO SKU · {withImage + 1} DE {products.length}</div>
-
-          <div className="sku-review-head">
-            <div>
-              <p className="eyebrow">SKU</p>
-              <h3>{product.sku}</h3>
-              <small><strong>Variação:</strong> {product.variacao || '—'}</small>
-              <small><strong>Nome:</strong> {product.nome || '—'}</small>
-              <small><strong>Capa:</strong> {product.capa_code}</small>
-            </div>
-            <span>{product.platform || 'SEM PLATAFORMA'}</span>
-          </div>
-
-          <div className="sku-actions-top">
-            {product.link
-              ? <a className="open-listing" href={product.link} target="_blank" rel="noreferrer">1. Abrir anúncio</a>
-              : <span className="no-link">Sem link de anúncio</span>}
-            <button type="button" className="secondary" disabled={isBusy} onClick={() => skipSku(product)}>Pular este SKU</button>
-          </div>
-
-          <div
-            className={`sku-dropzone ${preview ? 'has-preview' : ''}`}
-            tabIndex={0}
-            onPaste={event => pasteSkuImage(product, event)}
-            onDragOver={event => event.preventDefault()}
-            onDrop={event => dropSkuImage(product, event)}
-          >
-            {preview
-              ? <><img src={preview} alt={`Imagem selecionada para ${product.sku}`}/><strong className="preview-ok">Confira: esta é a imagem correta?</strong></>
-              : <div><strong>Cole a imagem aqui</strong><span>Clique nesta área e pressione Ctrl+V, ou selecione um arquivo.</span></div>}
-          </div>
-
-          <div className="sku-actions-bottom">
-            <label className="file-button">Selecionar arquivo<input type="file" accept="image/*" disabled={isBusy} onChange={e => chooseSkuImage(product, e.target.files?.[0] || null)} /></label>
-            {preview && <button type="button" className="secondary" disabled={isBusy} onClick={() => clearSkuDraft(product.id)}>Trocar imagem</button>}
-            <button type="button" className="save-next" disabled={isBusy || !skuFiles[product.id]} onClick={() => saveSkuImage(product)}>{isBusy ? 'Salvando...' : 'Salvar imagem'}</button>
-          </div>
-        </article>;
-      })()}
-    </div>
-
-    <div className="form">
-      <div className="panel-head">
-        <div><strong>Importação em massa</strong><small>CSV exportado da aba ANÚNCIOS da planilha ANUNCIOS NOVOS.</small></div>
-      </div>
-      <div className="parsed">
-        <Badge label="Produtos" value={products.length}/>
-        <Badge label="Sem imagem" value={withoutImage}/>
-      </div>
-      <label>Arquivo CSV<input type="file" accept=".csv,text/csv" disabled={bulkBusy} onChange={e => importCatalogCsv(e.target.files?.[0] || null)} /></label>
-      {bulkBusy && <p className="message">Importando catálogo em lotes...</p>}
-      {bulkMessage && <p className="message">{bulkMessage}</p>}
-    </div>
-
-    <div className="form">
-      <div className="panel-head">
-        <div><strong>Índice visual das capas</strong><small>Referências utilizadas na identificação visual.</small></div>
-        {indexInfo && <span>{indexInfo.indexed_covers}/{indexInfo.reference_covers}</span>}
-      </div>
-      {indexInfo && <div className="parsed">
-        <Badge label="Referências" value={indexInfo.reference_covers}/>
-        <Badge label="Indexadas" value={indexInfo.indexed_covers}/>
-        <Badge label="Pendentes" value={indexInfo.pending_covers}/>
-        <Badge label="Top-K" value={indexInfo.top_k}/>
-      </div>}
-      <button type="button" disabled={indexBusy || !indexInfo || indexInfo.pending_covers === 0} onClick={indexPendingCovers}>
-        {indexBusy ? 'Indexando capas...' : indexInfo?.pending_covers ? `Indexar ${indexInfo.pending_covers} capa(s) pendente(s)` : 'Índice visual atualizado'}
-      </button>
-      {indexMessage && <p className="message">{indexMessage}</p>}
-    </div>
-
-    <form className="form" onSubmit={submit}>
-      <div className="panel-head"><div><strong>Cadastro manual de produto</strong><small>Use quando precisar cadastrar um SKU individualmente.</small></div></div>
-      <label>SKU<input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="VACMNO_LIN1_BBB" required /></label>
-      <div className="grid2">
-        <label>Nome<input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} /></label>
-        <label>Variação<input value={form.variacao} onChange={e => setForm({ ...form, variacao: e.target.value })} /></label>
-      </div>
-      <div className="grid2">
-        <label>Plataforma<input value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })} placeholder="SHOPEE" /></label>
-        <label>Link do anúncio<input value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} placeholder="https://..." /></label>
-      </div>
-      <label>Imagem de referência da capa<input type="file" accept="image/*" onChange={e => setImage(e.target.files?.[0] || null)} /></label>
-      {parsed && <div className="parsed">
-        <Badge label="Miolo" value={parsed.mioloCode}/>
-        <Badge label="Capa" value={parsed.capaCode}/>
-        <Badge label="Wire-O" value={parsed.wireo}/>
-        <Badge label="Tassel" value={parsed.tassel}/>
-        <Badge label="Elástico" value={parsed.elastico}/>
-      </div>}
-      <button disabled={busy || !parsed}>{busy ? 'Salvando...' : 'Cadastrar produto'}</button>
-      {message && <p className="message">{message}</p>}
-    </form>
-
-    <details className="catalog-details">
-      <summary>Ver catálogo completo ({products.length} SKUs)</summary>
-      {mockupMessage && <p className="message mockup-message">{mockupMessage}</p>}
-      <div className="list catalog-edit-list">
-        {products.map(product => {
-          const editing = editingMockupId === product.id;
-          const preview = mockupPreviews[product.id];
-          const isBusy = mockupBusy === product.id;
-
-          return <article className={`product catalog-product ${editing ? 'editing' : ''}`} key={product.id}>
-            <div className="product-main">
-              {product.image_url
-                ? <img src={product.image_url} alt={`Imagem do SKU ${product.sku}`}/>
-                : <div className="image-placeholder">SEM FOTO</div>}
-              <div className="product-copy">
-                <strong>{product.sku}</strong>
-                <span>{product.nome || product.variacao || product.capa_code}</span>
-                <small>{product.wireo_code}/{product.tassel_code}/{product.elastico_code}{product.platform ? ` · ${product.platform}` : ''}</small>
-              </div>
-              <button type="button" className="secondary mockup-edit-button" onClick={() => {
-                if (editing) cancelMockupEdit(product.id);
-                else {
-                  if (editingMockupId) clearMockupDraft(editingMockupId);
-                  setEditingMockupId(product.id);
-                  setMockupMessage('');
-                }
-              }}>{editing ? 'Fechar' : 'Editar mockup'}</button>
-            </div>
-
-            {editing && <div className="mockup-editor">
-              <div className="mockup-current">
-                <span>Atual</span>
-                {product.image_url ? <img src={product.image_url} alt="Mockup atual"/> : <div className="image-placeholder">SEM FOTO</div>}
-              </div>
-              <div className="mockup-arrow">→</div>
-              <div className="mockup-new" tabIndex={0} onPaste={event => pasteMockup(product, event)}>
-                <span>Nova imagem</span>
-                {preview
-                  ? <img src={preview} alt="Nova imagem selecionada"/>
-                  : <div className="mockup-empty">Cole com Ctrl+V ou selecione um arquivo</div>}
-              </div>
-              <div className="mockup-actions">
-                <label className="file-button">Selecionar nova imagem<input type="file" accept="image/*" disabled={isBusy} onChange={e => chooseMockup(product, e.target.files?.[0] || null)} /></label>
-                {preview && <button type="button" className="secondary" disabled={isBusy} onClick={() => clearMockupDraft(product.id)}>Trocar</button>}
-                <button type="button" disabled={isBusy || !mockupFiles[product.id]} onClick={() => saveMockup(product)}>{isBusy ? 'Atualizando...' : 'Salvar novo mockup'}</button>
-              </div>
-              <small className="mockup-index-note">Ao salvar, a referência visual desse produto é atualizada e o índice é refeito quando possível.</small>
-            </div>}
-          </article>;
-        })}
-      </div>
-    </details>
-  </section>;
+  return <>
+    <button className="install-button" type="button" onClick={install}>↓ Instalar app</button>
+    {help && <div className="modal-backdrop" onClick={event => event.target === event.currentTarget && setHelp(false)}><div className="modal"><h3>Instalar no iPhone</h3><p>No Safari:</p><ol><li>Toque em Compartilhar.</li><li>Escolha Adicionar à Tela de Início.</li><li>Confirme em Adicionar.</li></ol><button type="button" onClick={() => setHelp(false)}>Entendi</button></div></div>}
+  </>;
 }
 
-function Expedition() {
+function ProductResult({ product, performance }) {
+  return <div className="result">
+    <p className="eyebrow">PRODUTO IDENTIFICADO PELA CAPA</p>
+    <h3>{product.sku}</h3>
+    {product.image_url && <img className="result-image" src={product.image_url} alt={`Mockup ${product.sku}`} />}
+    <div className="badges">
+      <Badge label="Capa" value={product.capa_code}/>
+      <Badge label="Wire-O" value={product.wireo}/>
+      <Badge label="Tassel" value={product.tassel}/>
+      <Badge label="Elástico" value={product.elastico}/>
+    </div>
+    {product.platform && <p className="platform"><strong>Plataforma:</strong> {product.platform}</p>}
+    {performance?.total_ms && <small className="perf">Identificado em {(performance.total_ms / 1000).toFixed(1)} s</small>}
+  </div>;
+}
+
+function ProductChoices({ capaCode, products, onSelect, performance }) {
+  return <div className="result">
+    <p className="eyebrow">CAPA IDENTIFICADA</p>
+    <h3 className="choice-title">{capaCode} · escolha o SKU</h3>
+    <div className="choices">{products.map(product => <article className="choice-card" key={product.id}>
+      {product.image_url ? <img src={product.image_url} alt={product.sku}/> : <div/>}
+      <div><h4>{product.sku}</h4><p>{product.nome || product.variacao || product.capa_code}</p><p>Miolo: {product.miolo_code} · Acabamento: {product.acabamento_code}</p></div>
+      <button type="button" onClick={() => onSelect(product)}>Selecionar este SKU</button>
+    </article>)}</div>
+    {performance?.total_ms && <small className="perf">Capa reconhecida em {(performance.total_ms / 1000).toFixed(1)} s</small>}
+  </div>;
+}
+
+function GeneralApp() {
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState('');
-  const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+  const [choices, setChoices] = useState(null);
+  const [performance, setPerformance] = useState(null);
+  const runId = useRef(0);
 
-  const choose = (file) => {
-    setPhoto(file || null);
-    setResult(null);
-    setError('');
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(file ? URL.createObjectURL(file) : '');
-  };
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
-  const identify = async () => {
-    if (!photo) return;
-    setBusy(true);
-    setError('');
-    setResult(null);
+  const identifyFile = async file => {
+    if (!file || busy) return;
+    const id = ++runId.current;
+    setBusy(true); setError(''); setResult(null); setChoices(null); setPerformance(null);
     try {
-      const fd = new FormData();
-      fd.append('image', photo);
-      const data = await api('/api/identify', { method: 'POST', body: fd });
-      setResult(data.product);
+      const optimized = await compressPhoto(file);
+      const form = new FormData(); form.append('image', optimized);
+      const data = await api('/api/identify', { method: 'POST', body: form });
+      if (id !== runId.current) return;
+      setPerformance(data.performance || null);
+      if (data.needs_selection) setChoices({ capaCode: data.capa_code, products: data.products || [] });
+      else setResult(data.product || null);
     } catch (err) {
-      setError(err.message);
+      if (id === runId.current) setError(err.message);
     } finally {
-      setBusy(false);
+      if (id === runId.current) setBusy(false);
     }
   };
 
-  return <section className="panel expedition">
-    <p className="eyebrow">EXPEDIÇÃO</p>
-    <h2>Identificar produto pela capa</h2>
-    <p>Fotografe a arte da capa de frente. A capa pode estar solta: não precisa ter Wire-O, tassel ou elástico.</p>
-    <label className="camera">
-      {preview
-        ? <img src={preview} alt="Foto da capa capturada"/>
-        : <><span className="camera-icon">◎</span><strong>Tirar foto da capa</strong><small>Toque para abrir a câmera</small></>}
-      <input type="file" accept="image/*" capture="environment" onChange={e => choose(e.target.files?.[0])}/>
-    </label>
-    <button disabled={!photo || busy} onClick={identify}>{busy ? 'Analisando capa...' : 'Identificar produto'}</button>
-    {error && <div className="not-found"><strong>Produto não identificado</strong><span>{error}</span></div>}
-    {result && <div className="result">
-      <p className="eyebrow">PRODUTO IDENTIFICADO PELA CAPA</p>
-      <h3>{result.sku}</h3>
-      {result.image_url && <img className="result-image" src={result.image_url} alt="Capa de referência"/>}
-      <div className="parsed">
-        <Badge label="Capa" value={result.capa_code}/>
-        <Badge label="Wire-O" value={result.wireo}/>
-        <Badge label="Tassel" value={result.tassel}/>
-        <Badge label="Elástico" value={result.elastico}/>
-      </div>
-      {result.platform && <p><strong>Plataforma:</strong> {result.platform}</p>}
-    </div>}
-  </section>;
-}
+  const choose = file => {
+    if (!file) return;
+    setPhoto(file); setError(''); setResult(null); setChoices(null); setPerformance(null);
+    setPreview(current => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(file); });
+    setTimeout(() => identifyFile(file), 160);
+  };
 
-function App() {
-  const [mode, setMode] = useState('expedition');
-  return <main className="shell">
-    <header>
-      <div><p className="eyebrow">NISTI PRINT</p><h1>Identificação Visual</h1></div>
-      <nav>
-        <button className={mode === 'expedition' ? 'active' : ''} onClick={() => setMode('expedition')}>Expedição</button>
-        <button className={mode === 'admin' ? 'active' : ''} onClick={() => setMode('admin')}>ADM</button>
-      </nav>
-    </header>
-    {mode === 'expedition' ? <Expedition/> : <Admin/>}
+  return <main className="app general">
+    <BrandHeader />
+    <section className="panel">
+      <p className="eyebrow">PAINEL GERAL</p>
+      <h2>Identificação de produto</h2>
+      <p className="lead">Fotografe a capa do produto de frente. O sistema localiza a referência visual e retorna o SKU correspondente.</p>
+      <label className="camera">
+        <span className="camera-label">CAPA DO PRODUTO</span>
+        {preview ? <><img className="photo-preview" src={preview} alt="Foto da capa"/><span className="photo-ready">Foto pronta</span></> : <div className="camera-empty"><span className="camera-icon">◎</span><strong>Fotografar ou enviar capa</strong><span>Use uma imagem frontal, nítida e com boa iluminação.</span></div>}
+        <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])}/>
+      </label>
+      <button className="primary" disabled={!photo || busy} onClick={() => identifyFile(photo)}>{busy ? 'Analisando capa…' : 'Identificar produto'}</button>
+      {error && <div className="status error"><h3>Produto não identificado</h3><p>{error}</p></div>}
+      {choices && <ProductChoices capaCode={choices.capaCode} products={choices.products} performance={performance} onSelect={product => { setResult(product); setChoices(null); }}/>} 
+      {result && <ProductResult product={result} performance={performance}/>} 
+    </section>
+    <InstallApp />
   </main>;
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+function parseCsv(text) {
+  const rows=[]; let row=[]; let cell=''; let quoted=false;
+  const source=String(text||'').replace(/^\uFEFF/,'');
+  for(let i=0;i<source.length;i++){
+    const char=source[i],next=source[i+1];
+    if(char==='"'){if(quoted&&next==='"'){cell+='"';i++}else quoted=!quoted;continue}
+    if(char===','&&!quoted){row.push(cell);cell='';continue}
+    if((char==='\n'||char==='\r')&&!quoted){if(char==='\r'&&next==='\n')i++;row.push(cell);if(row.some(value=>String(value).trim()))rows.push(row);row=[];cell='';continue}
+    cell+=char;
+  }
+  row.push(cell); if(row.some(value=>String(value).trim()))rows.push(row); return rows;
+}
+
+function catalogRowsFromCsv(text) {
+  return parseCsv(text).map(row => ({
+    nome:String(row[2]||row[9]||'').trim(), variacao:String(row[3]||row[13]||'').trim(),
+    platform:String(row[4]||row[11]||'').trim(), sku:String(row[5]||row[14]||'').trim(), link:String(row[6]||row[12]||'').trim()
+  })).filter(row => row.sku && row.sku.toUpperCase() !== 'SKU');
+}
+
+function ProductEditor({ product, onSaved, onClose }) {
+  const [file,setFile]=useState(null); const [preview,setPreview]=useState(''); const [busy,setBusy]=useState(false); const [message,setMessage]=useState('');
+  const [finish,setFinish]=useState({wireo:product.wireo_code||'B',tassel:product.tassel_code||'X',elastico:product.elastico_code||'B'});
+  useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview)},[preview]);
+  const choose=fileValue=>{if(!fileValue)return;setFile(fileValue);setPreview(current=>{if(current)URL.revokeObjectURL(current);return URL.createObjectURL(fileValue)})};
+  const save=async()=>{
+    setBusy(true);setMessage('');
+    try{
+      const finishChanged=finish.wireo!==product.wireo_code||finish.tassel!==product.tassel_code||finish.elastico!==product.elastico_code;
+      if(finishChanged) await api(`/api/products/${product.id}/finish`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({wireo_code:finish.wireo,tassel_code:finish.tassel,elastico_code:finish.elastico})});
+      if(file){const form=new FormData();form.append('image',file);await api(`/api/products/${product.id}/image`,{method:'POST',body:form})}
+      if(!finishChanged&&!file) throw new Error('Nenhuma alteração para salvar.');
+      setMessage('Alterações salvas.'); await onSaved();
+    }catch(err){setMessage(err.message)}finally{setBusy(false)}
+  };
+  return <div className="editor">
+    <div className="editor-grid">
+      <img className="editor-preview" src={preview || productImage(product)} alt={product.sku}/>
+      <div>
+        <label className="file-input">Nova imagem<input type="file" accept="image/*" onChange={event=>choose(event.target.files?.[0])}/></label>
+        <div className="editor-fields">
+          <label>Wire-O<select value={finish.wireo} onChange={e=>setFinish({...finish,wireo:e.target.value})}>{WIREO_OPTIONS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
+          <label>Tassel<select value={finish.tassel} onChange={e=>setFinish({...finish,tassel:e.target.value})}>{TASSEL_OPTIONS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
+          <label>Elástico<select value={finish.elastico} onChange={e=>setFinish({...finish,elastico:e.target.value})}>{ACCESSORY_OPTIONS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
+        </div>
+        <div className="editor-actions"><button className="small-primary" type="button" disabled={busy} onClick={save}>{busy?'Salvando…':'Salvar alterações'}</button><button className="secondary" type="button" onClick={onClose}>Fechar</button></div>
+        {message&&<p className="message">{message}</p>}
+      </div>
+    </div>
+  </div>;
+}
+
+function Catalog({ products, refresh, focused=false }) {
+  const [search,setSearch]=useState(''); const [platform,setPlatform]=useState(''); const [view,setView]=useState('grid'); const [page,setPage]=useState(1); const [editing,setEditing]=useState(null);
+  const platforms=useMemo(()=>[...new Set(products.map(p=>p.platform).filter(Boolean))].sort(),[products]);
+  const filtered=useMemo(()=>{const q=search.trim().toLowerCase();return products.filter(p=>(!platform||p.platform===platform)&&(!q||[p.sku,p.nome,p.variacao,p.capa_code].some(v=>String(v||'').toLowerCase().includes(q))))},[products,search,platform]);
+  useEffect(()=>setPage(1),[search,platform]);
+  const pages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE)); const slice=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
+  return <section className="section-card">
+    <div className="section-head"><div><h2>{focused?'Mockups':'Catálogo de produtos'}</h2><p>{filtered.length} produto(s)</p></div></div>
+    <div className="catalog-tools"><input type="text" placeholder="Buscar por nome, SKU ou capa…" value={search} onChange={e=>setSearch(e.target.value)}/><select value={platform} onChange={e=>setPlatform(e.target.value)}><option value="">Todas as plataformas</option>{platforms.map(item=><option key={item}>{item}</option>)}</select><div className="view-buttons"><button className={view==='grid'?'active':''} onClick={()=>setView('grid')}>▦</button><button className={view==='list'?'active':''} onClick={()=>setView('list')}>☷</button></div></div>
+    <div className="platform-chips"><button className={`chip ${!platform?'active':''}`} onClick={()=>setPlatform('')}>Todos</button>{platforms.map(item=><button key={item} className={`chip ${platform===item?'active':''}`} onClick={()=>setPlatform(item)}>{item}</button>)}</div>
+    <div className={`catalog ${view}`}>{slice.map(product=><article className={`product-card ${view}`} key={product.id}>
+      <div className="product-main">{product.image_url?<img className="product-thumb" src={productImage(product)} alt={product.sku}/>:<div className="product-thumb"/>}<div className="product-copy"><strong>{product.sku}</strong><span>{product.nome||product.variacao||product.capa_code}</span><small>{product.platform||'Sem plataforma'} · capa {product.capa_code}</small></div><button className="edit-button" onClick={()=>setEditing(editing===product.id?null:product.id)}>{editing===product.id?'Fechar':'Editar mockup'}</button></div>
+      {editing===product.id&&<ProductEditor product={product} onClose={()=>setEditing(null)} onSaved={async()=>{await refresh();setEditing(null)}}/>}
+    </article>)}</div>
+    {!slice.length&&<div className="empty">Nenhum produto encontrado.</div>}
+    <div className="pagination"><button disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Anterior</button><span>{page} / {pages}</span><button disabled={page>=pages} onClick={()=>setPage(p=>p+1)}>Próxima</button></div>
+  </section>;
+}
+
+function ImportPanel({ refresh }) {
+  const [bulkBusy,setBulkBusy]=useState(false); const [bulkMessage,setBulkMessage]=useState(''); const [manualBusy,setManualBusy]=useState(false); const [manualMessage,setManualMessage]=useState(''); const [image,setImage]=useState(null);
+  const [form,setForm]=useState({sku:'',nome:'',variacao:'',platform:'',link:''});
+  const importCsv=async file=>{if(!file)return;setBulkBusy(true);setBulkMessage('');try{const rows=catalogRowsFromCsv(await file.text());if(!rows.length)throw new Error('Nenhum SKU encontrado no CSV.');let created=0,updated=0,errors=0;for(let i=0;i<rows.length;i+=50){const data=await api('/api/admin/bulk-products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rows:rows.slice(i,i+50)})});created+=data.created||0;updated+=data.updated||0;errors+=(data.errors||[]).length}setBulkMessage(`Importação concluída: ${created} novos, ${updated} atualizados${errors?`, ${errors} erro(s)`:''}.`);await refresh()}catch(err){setBulkMessage(err.message)}finally{setBulkBusy(false)}};
+  const submit=async event=>{event.preventDefault();setManualBusy(true);setManualMessage('');try{const created=await api('/api/products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(form)});if(image){const fd=new FormData();fd.append('image',image);await api(`/api/products/${created.id}/image`,{method:'POST',body:fd})}setForm({sku:'',nome:'',variacao:'',platform:'',link:''});setImage(null);setManualMessage('Produto cadastrado.');await refresh()}catch(err){setManualMessage(err.message)}finally{setManualBusy(false)}};
+  return <>
+    <section className="section-card"><div className="section-head"><div><h2>Importação CSV</h2><p>Atualiza ou cadastra produtos em lote.</p></div></div><label className="file-input">Arquivo CSV<input type="file" accept=".csv,text/csv" disabled={bulkBusy} onChange={e=>importCsv(e.target.files?.[0])}/></label>{bulkMessage&&<p className="message">{bulkMessage}</p>}</section>
+    <section className="section-card"><div className="section-head"><div><h2>Cadastro manual</h2><p>Use para inclusões pontuais.</p></div></div><form className="form" onSubmit={submit}><div className="grid2"><label>SKU<input type="text" required value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})} placeholder="MIOLO_CAPA_BBB"/></label><label>Nome<input type="text" value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})}/></label></div><div className="grid2"><label>Variação<input type="text" value={form.variacao} onChange={e=>setForm({...form,variacao:e.target.value})}/></label><label>Plataforma<input type="text" value={form.platform} onChange={e=>setForm({...form,platform:e.target.value})}/></label></div><label>Link<input type="url" value={form.link} onChange={e=>setForm({...form,link:e.target.value})}/></label><label className="file-input">Mockup opcional<input type="file" accept="image/*" onChange={e=>setImage(e.target.files?.[0]||null)}/></label><div className="form-actions"><button disabled={manualBusy}>{manualBusy?'Salvando…':'Cadastrar produto'}</button></div>{manualMessage&&<p className="message">{manualMessage}</p>}</form></section>
+  </>;
+}
+
+function Administration({ metrics, storage, indexInfo }) {
+  const db=metrics?.database; const gemini=metrics?.gemini; const r2=storage?.r2;
+  return <section className="section-card"><div className="section-head"><div><h2>Administração do sistema</h2><p>Métricas reais dos serviços conectados.</p></div></div><div className="admin-metrics">
+    <article className="metric-card"><h3>Cloudflare D1</h3><div className="metric-value">{db?formatBytes(db.used_bytes):'—'}</div><p>{db?.products||0} produtos · {db?.cover_embeddings||0} referências indexadas.</p></article>
+    <article className="metric-card"><h3>Cloudflare R2</h3><div className="metric-value">{r2?formatBytes(r2.used_bytes):'—'}</div><p>{r2?.object_count||0} arquivos armazenados.</p></article>
+    <article className="metric-card"><h3>Gemini</h3><div className="metric-value">{gemini?.configured?'Ativo':'Inativo'}</div><p>{gemini?.model||'—'} · {gemini?.embedding_model||'—'} · Top-K {indexInfo?.top_k||8}</p></article>
+  </div></section>;
+}
+
+function AdminApp() {
+  const [tab,setTab]=useState('geral'); const [products,setProducts]=useState([]); const [metrics,setMetrics]=useState(null); const [storage,setStorage]=useState(null); const [indexInfo,setIndexInfo]=useState(null); const [loading,setLoading]=useState(true);
+  const refresh=async()=>{const [p,i]=await Promise.all([api('/api/products'),api('/api/admin/cover-index')]);setProducts(p.products||[]);setIndexInfo(i)};
+  const refreshMetrics=async()=>{const [m,s]=await Promise.all([api('/api/admin/system-metrics').catch(()=>null),api('/api/admin/storage-metrics').catch(()=>null)]);setMetrics(m);setStorage(s)};
+  useEffect(()=>{Promise.all([refresh(),refreshMetrics()]).catch(error=>{if(/não autorizado/i.test(error.message))location.href='/admin-login'}).finally(()=>setLoading(false))},[]);
+  const withImage=products.filter(p=>p.image_key).length; const pending=products.length-withImage; const progress=products.length?Math.round(withImage/products.length*100):0;
+  if(loading)return <main className="app"><BrandHeader admin/><div className="loading"><div><div className="spinner"/>Carregando administração…</div></div></main>;
+  return <main className="app"><BrandHeader admin/><nav className="tabs">{[['geral','Geral'],['mockups','Mockups'],['importacao','Importação'],['administracao','Administração']].map(([id,label])=><button key={id} className={`tab ${tab===id?'active':''}`} onClick={()=>setTab(id)}>{label}</button>)}</nav>
+    {tab==='geral'&&<><div className="kpis"><div className="kpi"><span>Produtos cadastrados</span><strong>{products.length}</strong><small>Total de SKUs</small></div><div className="kpi"><span>Mockups com imagem</span><strong>{withImage}</strong><small>Produtos com mockup</small></div><div className="kpi"><span>Pendentes</span><strong>{pending}</strong><small>Sem imagem</small></div><div className="kpi"><span>Progresso do catálogo</span><strong>{progress}%</strong><small>{withImage} de {products.length}</small></div><div className="kpi"><span>Banco de dados</span><strong>{metrics?.database?.status==='online'?'Online':'—'}</strong><small>{indexInfo?.indexed_covers||0} referências</small></div><div className="kpi"><span>Uso Gemini</span><strong>{metrics?.gemini?.configured?'Ativo':'—'}</strong><small>{metrics?.gemini?.embedding_model||'gemini-embedding-2'}</small></div></div><Catalog products={products} refresh={async()=>{await refresh();await refreshMetrics()}}/></>}
+    {tab==='mockups'&&<Catalog products={products} focused refresh={async()=>{await refresh();await refreshMetrics()}}/>}
+    {tab==='importacao'&&<ImportPanel refresh={async()=>{await refresh();await refreshMetrics()}}/>}
+    {tab==='administracao'&&<Administration metrics={metrics} storage={storage} indexInfo={indexInfo}/>} 
+  </main>;
+}
+
+function App(){return location.pathname==='/admin'?<AdminApp/>:<GeneralApp/>}
+
+createRoot(document.getElementById('root')).render(<App/>);
