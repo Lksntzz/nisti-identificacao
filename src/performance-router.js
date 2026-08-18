@@ -23,13 +23,10 @@ function versionedImageUrl(rawUrl, requestUrl, imageKey) {
   return target;
 }
 
-function directResultImageUrl(rawUrl, requestUrl, imageKey) {
-  const target = new URL(rawUrl, requestUrl);
-  const version = String(imageKey || '').split('/').pop() || 'current';
-  // Usa um parâmetro diferente de `v` para não passar pelo cache duplo
-  // do resultado. O Worker lê o objeto atual diretamente do R2.
-  target.searchParams.set('result', version);
-  return target;
+function resultImageUrl(product) {
+  if (!product?.id || !product?.image_key) return null;
+  const version = String(product.image_key).split('/').pop() || 'current';
+  return `/api/result-images/${product.id}?k=${encodeURIComponent(version)}`;
 }
 
 async function cacheImageRequest(request, env, ctx) {
@@ -54,10 +51,40 @@ async function cacheImageRequest(request, env, ctx) {
   return response;
 }
 
-function prepareProductImage(product, request) {
+async function serveCurrentResultImage(env, productId) {
+  const product = await env.DB.prepare(
+    `SELECT image_key FROM products WHERE id=? LIMIT 1`
+  ).bind(productId).first();
+
+  if (!product?.image_key) {
+    return new Response('Not found', {
+      status: 404,
+      headers: { 'cache-control': 'no-store' }
+    });
+  }
+
+  const object = await env.PRODUCT_IMAGES.get(product.image_key);
+  if (!object) {
+    return new Response('Not found', {
+      status: 404,
+      headers: { 'cache-control': 'no-store' }
+    });
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('cache-control', 'no-store, no-cache, must-revalidate, max-age=0');
+  headers.set('cdn-cache-control', 'no-store');
+  headers.set('pragma', 'no-cache');
+  headers.set('expires', '0');
+  headers.set('x-content-type-options', 'nosniff');
+  headers.set('x-nisti-image-source', 'current-r2');
+  return new Response(object.body, { headers });
+}
+
+function prepareProductImage(product) {
   if (!product?.image_url || !product?.image_key) return product;
-  const imageUrl = directResultImageUrl(product.image_url, request.url, product.image_key);
-  product.image_url = `${imageUrl.pathname}${imageUrl.search}`;
+  product.image_url = resultImageUrl(product);
   return product;
 }
 
@@ -154,6 +181,11 @@ export default {
       return updateFinishing(request, env, ctx, Number(finishingMatch[1]));
     }
 
+    const resultImageMatch = url.pathname.match(/^\/api\/result-images\/(\d+)$/);
+    if (resultImageMatch && request.method === 'GET') {
+      return serveCurrentResultImage(env, Number(resultImageMatch[1]));
+    }
+
     if (request.method === 'GET' && /^\/api\/images\/\d+$/.test(url.pathname) && url.searchParams.has('v')) {
       return cacheImageRequest(request, env, ctx);
     }
@@ -168,9 +200,9 @@ export default {
       const data = await response.clone().json().catch(() => null);
       if (!data) return response;
 
-      if (data.product) prepareProductImage(data.product, request);
+      if (data.product) prepareProductImage(data.product);
       if (Array.isArray(data.products)) {
-        data.products = data.products.map(product => prepareProductImage(product, request));
+        data.products = data.products.map(product => prepareProductImage(product));
       }
 
       return new Response(JSON.stringify(data), {
