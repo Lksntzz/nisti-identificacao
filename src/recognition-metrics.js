@@ -65,7 +65,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data) {
         day, attempts, successes, unmatched, system_errors,
         embedding_requests, generation_requests, total_ms,
         last_success_at, last_unmatched_at, last_error_at, last_error_message, updated_at
-      ) VALUES (?,1,?,?,?,?,?,?,?, ?,?,?,?,CURRENT_TIMESTAMP)
+      ) VALUES (?,1,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
       ON CONFLICT(day) DO UPDATE SET
         attempts = recognition_daily.attempts + 1,
         successes = recognition_daily.successes + excluded.successes,
