@@ -1,10 +1,11 @@
 import { parseSku } from './sku.js';
 
 const EMBEDDING_DIMENSIONS = 768;
-const CANDIDATE_LIMIT = 8;
+const COVER_CANDIDATE_LIMIT = 24;
+const MOCKUP_CANDIDATE_LIMIT = 48;
 const INDEX_CACHE_TTL_MS = 30_000;
 const TICKET_TTL_SECONDS = 120;
-const MAX_EMBEDDING_MS = 3200;
+const MAX_EMBEDDING_MS = 5000;
 const MIN_LOCAL_GOOD_MATCHES = 18;
 const MIN_LOCAL_INLIERS = 12;
 const MIN_LOCAL_INLIER_RATIO = 0.50;
@@ -184,45 +185,104 @@ async function loadVisualIndex(env, timings) {
   return rows;
 }
 
-async function attachCandidateImages(env, selected, timings) {
+function selectCoverCodes(rows, embeddingValues, timings) {
+  const scored = [];
+  for (const row of rows) {
+    const score = cosineSimilarity(embeddingValues, row.vector);
+    if (!Number.isFinite(score) || !row.capa_code) continue;
+    scored.push({ capa_code: row.capa_code, image_key: row.image_key, retrieval_score: score });
+  }
+  scored.sort((a, b) => b.retrieval_score - a.retrieval_score);
+
+  const seen = new Set();
+  const selected = [];
+  for (const candidate of scored) {
+    if (seen.has(candidate.capa_code)) continue;
+    seen.add(candidate.capa_code);
+    selected.push({ ...candidate, retrieval_rank: selected.length + 1 });
+    if (selected.length >= COVER_CANDIDATE_LIMIT) break;
+  }
+
+  timings.index_size = rows.length;
+  timings.cover_candidate_count = selected.length;
+  timings.retrieval_top1 = selected[0]?.retrieval_score ?? null;
+  timings.retrieval_top1_code = selected[0]?.capa_code || null;
+  timings.retrieval_top2 = selected[1]?.retrieval_score ?? null;
+  timings.retrieval_top2_code = selected[1]?.capa_code || null;
+  timings.retrieval_margin = Number.isFinite(timings.retrieval_top1) && Number.isFinite(timings.retrieval_top2)
+    ? timings.retrieval_top1 - timings.retrieval_top2
+    : 1;
+  return selected;
+}
+
+async function attachAllRegisteredMockups(env, selected, timings) {
   if (!selected.length) return [];
   const started = Date.now();
   const codes = selected.map(candidate => candidate.capa_code);
   const placeholders = codes.map(() => '?').join(',');
   const { results } = await env.DB.prepare(`
-    SELECT id,capa_code,image_key
+    SELECT id,sku,capa_code,image_key,updated_at
     FROM products
     WHERE capa_code IN (${placeholders}) AND image_key IS NOT NULL
     ORDER BY id DESC
   `).bind(...codes).all();
 
-  const byCode = new Map();
+  const coverInfo = new Map(selected.map(candidate => [candidate.capa_code, candidate]));
+  const byCode = new Map(selected.map(candidate => [candidate.capa_code, []]));
+
   for (const product of results || []) {
     const code = String(product.capa_code || '').trim().toUpperCase();
-    if (!byCode.has(code)) byCode.set(code, []);
+    if (!byCode.has(code) || !product.id || !product.image_key) continue;
     byCode.get(code).push(product);
   }
 
-  const candidates = [];
+  // A imagem que originou o embedding fica primeiro, mas TODOS os MKPs já
+  // cadastrados para a mesma capa continuam disponíveis para a verificação.
   for (const candidate of selected) {
-    const products = byCode.get(candidate.capa_code) || [];
-    const product = products.find(item => item.image_key === candidate.image_key) || products[0];
-    if (!product?.id || !product?.image_key) continue;
-    const version = String(product.image_key).split('/').pop() || 'current';
-    candidates.push({
-      capa_code: candidate.capa_code,
-      retrieval_rank: candidate.retrieval_rank,
-      retrieval_score: candidate.retrieval_score,
-      image_url: `/api/images/${product.id}?v=${encodeURIComponent(version)}`
+    const list = byCode.get(candidate.capa_code) || [];
+    list.sort((a, b) => {
+      const aExact = a.image_key === candidate.image_key ? 1 : 0;
+      const bExact = b.image_key === candidate.image_key ? 1 : 0;
+      return bExact - aExact || Number(b.id) - Number(a.id);
     });
   }
+
+  // Round-robin: primeiro uma referência de cada capa, depois a segunda de
+  // cada capa etc. Isso mantém os primeiros lotes diversos e ainda permite
+  // testar todas as variações de MKP já registradas.
+  const candidates = [];
+  let variant = 0;
+  while (candidates.length < MOCKUP_CANDIDATE_LIMIT) {
+    let added = false;
+    for (const selectedCover of selected) {
+      const product = (byCode.get(selectedCover.capa_code) || [])[variant];
+      if (!product) continue;
+      added = true;
+      const version = String(product.image_key).split('/').pop() || 'current';
+      candidates.push({
+        product_id: Number(product.id),
+        sku: product.sku,
+        capa_code: selectedCover.capa_code,
+        retrieval_rank: selectedCover.retrieval_rank,
+        retrieval_score: selectedCover.retrieval_score,
+        image_key: product.image_key,
+        image_url: `/api/images/${product.id}?v=${encodeURIComponent(version)}`
+      });
+      if (candidates.length >= MOCKUP_CANDIDATE_LIMIT) break;
+    }
+    if (!added) break;
+    variant += 1;
+  }
+
   timings.candidate_lookup_ms = Date.now() - started;
+  timings.mockup_candidate_count = candidates.length;
+  timings.mockups_available_for_selected_covers = (results || []).length;
   return candidates;
 }
 
 export async function buildLocalVisionCandidates(request, env) {
   const started = Date.now();
-  const timings = { pipeline_version: 'embedding-candidates-v2' };
+  const timings = { pipeline_version: 'embedding-cover+all-registered-mockups-v1' };
 
   try {
     const form = await request.formData();
@@ -242,44 +302,21 @@ export async function buildLocalVisionCandidates(request, env) {
     timings.model = embedding.model;
 
     const scoreStarted = Date.now();
-    const scored = [];
-    for (const row of rows) {
-      const score = cosineSimilarity(embedding.values, row.vector);
-      if (!Number.isFinite(score)) continue;
-      scored.push({ capa_code: row.capa_code, image_key: row.image_key, retrieval_score: score });
-    }
-    scored.sort((a, b) => b.retrieval_score - a.retrieval_score);
-
-    const seen = new Set();
-    const selected = [];
-    for (const candidate of scored) {
-      if (!candidate.capa_code || seen.has(candidate.capa_code)) continue;
-      seen.add(candidate.capa_code);
-      selected.push({ ...candidate, retrieval_rank: selected.length + 1 });
-      if (selected.length >= CANDIDATE_LIMIT) break;
-    }
+    const selectedCovers = selectCoverCodes(rows, embedding.values, timings);
     timings.score_ms = Date.now() - scoreStarted;
-    timings.index_size = rows.length;
-    timings.candidate_count = selected.length;
-    timings.retrieval_top1 = selected[0]?.retrieval_score ?? null;
-    timings.retrieval_top1_code = selected[0]?.capa_code || null;
-    timings.retrieval_top2 = selected[1]?.retrieval_score ?? null;
-    timings.retrieval_top2_code = selected[1]?.capa_code || null;
-    timings.retrieval_margin = Number.isFinite(timings.retrieval_top1) && Number.isFinite(timings.retrieval_top2)
-      ? timings.retrieval_top1 - timings.retrieval_top2
-      : 1;
 
-    const candidates = await attachCandidateImages(env, selected, timings);
+    const candidates = await attachAllRegisteredMockups(env, selectedCovers, timings);
     if (!candidates.length) {
-      throw new CandidateError('Nenhuma referência visual disponível para comparação.', 503, 'candidate_images_missing');
+      throw new CandidateError('Nenhum MKP cadastrado está disponível para comparação.', 503, 'candidate_images_missing');
     }
 
     timings.total_ms = Date.now() - started;
     const payload = {
       exp: Math.floor(Date.now() / 1000) + TICKET_TTL_SECONDS,
       nonce: crypto.randomUUID(),
-      codes: candidates.map(candidate => candidate.capa_code),
-      scores: Object.fromEntries(candidates.map(candidate => [candidate.capa_code, candidate.retrieval_score])),
+      codes: [...new Set(candidates.map(candidate => candidate.capa_code))],
+      product_ids: candidates.map(candidate => candidate.product_id),
+      scores: Object.fromEntries(selectedCovers.map(candidate => [candidate.capa_code, candidate.retrieval_score])),
       performance: timings
     };
     const ticket = await signTicket(env, payload);
@@ -324,7 +361,7 @@ function normalizeLocalMetrics(value) {
     median_distance: number('median_distance'),
     geometric_score: number('geometric_score'),
     confidence: number('confidence'),
-    runner: String(source.runner || 'opencv-orb-ransac').slice(0, 80)
+    runner: String(source.runner || 'jsfeat-orb-ransac').slice(0, 80)
   };
 }
 
@@ -356,9 +393,9 @@ export async function confirmLocalVision(request, env) {
       local_median_distance: local.median_distance,
       local_geometric_score: local.geometric_score,
       local_guard_pass: localGuardPass,
-      candidate_count: local.candidates_tested ?? ticketPerformance.candidate_count ?? null,
-      verification_mode: 'opencv-orb-ransac',
-      accepted_by: capaCode ? 'opencv-orb-ransac' : 'rejected-by-opencv-orb-ransac',
+      candidate_count: local.candidates_tested ?? ticketPerformance.mockup_candidate_count ?? null,
+      verification_mode: 'embedding-cover+registered-mockups+jsfeat-orb-ransac',
+      accepted_by: capaCode ? 'registered-mockup-geometric-match' : 'rejected-by-geometric-guard',
       model: env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2'
     };
 
@@ -367,9 +404,9 @@ export async function confirmLocalVision(request, env) {
         Math.max(0, Number(local.local_cv_ms || 0)) +
         (Date.now() - started);
       return json({
-        error: 'Não encontrei uma correspondência geométrica segura para esta capa.',
+        error: 'Não encontrei uma correspondência geométrica segura entre a foto e os MKPs cadastrados.',
         confidence: local.confidence,
-        identified_by: 'embedding+opencv-orb-ransac',
+        identified_by: 'embedding+registered-mockups+jsfeat-orb-ransac',
         performance
       }, 422);
     }
@@ -397,7 +434,7 @@ export async function confirmLocalVision(request, env) {
         capa_code: capaCode,
         confidence: local.confidence,
         retrieval_score: Number.isFinite(retrievalScore) ? retrievalScore : null,
-        identified_by: 'embedding+opencv-orb-ransac',
+        identified_by: 'embedding+registered-mockups+jsfeat-orb-ransac',
         performance
       }, 422);
     }
@@ -410,7 +447,7 @@ export async function confirmLocalVision(request, env) {
         products: results.map(productPayload),
         confidence: local.confidence,
         retrieval_score: Number.isFinite(retrievalScore) ? retrievalScore : null,
-        identified_by: 'embedding+opencv-orb-ransac+human-sku-selection',
+        identified_by: 'embedding+registered-mockups+jsfeat-orb-ransac+human-sku-selection',
         performance
       });
     }
@@ -420,7 +457,7 @@ export async function confirmLocalVision(request, env) {
       capa_code: capaCode,
       confidence: local.confidence,
       retrieval_score: Number.isFinite(retrievalScore) ? retrievalScore : null,
-      identified_by: 'embedding+opencv-orb-ransac',
+      identified_by: 'embedding+registered-mockups+jsfeat-orb-ransac',
       performance
     });
   } catch (error) {
