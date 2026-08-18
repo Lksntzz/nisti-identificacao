@@ -1,38 +1,37 @@
 import './general-photo-panel-fallback.css';
 
-const GENERAL_LOGO='/nisti-logo-transparent.webp';
+const GENERAL_LOGO='/nisti-brand-clean.svg';
 let lastAutoFile=null;
 let autoTimer=null;
 
 function isGeneral(){return document.documentElement.dataset.nistiAccess==='general';}
 
-function ensureBrandFallback(header){
-  if(!header||header.querySelector('.general-brand-fallback')) return;
-  const fallback=document.createElement('div');
-  fallback.className='general-brand-fallback';
-  fallback.innerHTML='<strong>NISTI PRINT</strong><small>papelaria criativa</small>';
-  header.prepend(fallback);
-}
-
 function fixGeneralLogo(){
   if(!isGeneral()) return;
   const header=document.querySelector('main.shell > header');
-  const logo=document.querySelector('.general-brand-real');
-  if(!header||!logo) return;
+  if(!header) return;
+
+  header.querySelectorAll('.general-brand-fallback').forEach(el=>el.remove());
+  const logos=[...header.querySelectorAll('.general-brand-real')];
+  const logo=logos.shift();
+  logos.forEach(el=>el.remove());
+  if(!logo) return;
 
   if(logo.getAttribute('src')!==GENERAL_LOGO) logo.setAttribute('src',GENERAL_LOGO);
+  logo.alt='NISTI PRINT';
+  logo.hidden=false;
   logo.style.background='transparent';
   logo.style.mixBlendMode='normal';
 
-  if(!logo.dataset.logoFallbackBound){
-    logo.dataset.logoFallbackBound='1';
+  if(!logo.dataset.brandCleanBound){
+    logo.dataset.brandCleanBound='1';
     logo.addEventListener('load',()=>{
       logo.hidden=false;
-      header.querySelector('.general-brand-fallback')?.remove();
+      header.classList.remove('nisti-logo-missing');
     });
     logo.addEventListener('error',()=>{
       logo.hidden=true;
-      ensureBrandFallback(header);
+      header.classList.add('nisti-logo-missing');
     });
   }
 }
@@ -100,7 +99,7 @@ function enhanceFlow(){
         if(!currentButton||currentButton.disabled) return;
         const text=(currentButton.textContent||'').toLowerCase();
         if(text.includes('identificar produto')) currentButton.click();
-      },220);
+      },180);
     });
   }
 }
@@ -112,4 +111,4 @@ function run(){
 }
 
 run();
-new MutationObserver(()=>queueMicrotask(run)).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['data-nisti-access','src']});
+new MutationObserver(()=>queueMicrotask(run)).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['data-nisti-access']});
