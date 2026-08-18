@@ -86,9 +86,103 @@ function enhanceGeneralPanel() {
   }
 }
 
+function normalizeSearch(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function getCatalogPlatform(card) {
+  const meta = card.querySelector('.product-copy small')?.textContent || '';
+  const separator = meta.lastIndexOf('·');
+  if (separator === -1) return 'SEM PLATAFORMA';
+  return meta.slice(separator + 1).trim() || 'SEM PLATAFORMA';
+}
+
+function enhanceCatalog() {
+  if (!isAdminArea) return;
+
+  const details = document.querySelector('.catalog-details');
+  const list = details?.querySelector('.catalog-edit-list');
+  const summary = details?.querySelector(':scope > summary');
+  if (!details || !list || !summary) return;
+
+  let tools = details.querySelector(':scope > .catalog-tools');
+  if (!tools) {
+    tools = document.createElement('div');
+    tools.className = 'catalog-tools';
+    tools.innerHTML = `
+      <label class="catalog-search-field">
+        <span>Pesquisar produto</span>
+        <input type="search" class="catalog-search" placeholder="Digite o nome ou SKU" autocomplete="off" />
+      </label>
+      <label class="catalog-platform-field">
+        <span>Plataforma</span>
+        <select class="catalog-platform-filter">
+          <option value="">Todas as plataformas</option>
+        </select>
+      </label>
+      <div class="catalog-filter-count" aria-live="polite"></div>
+    `;
+    summary.insertAdjacentElement('afterend', tools);
+  }
+
+  const search = tools.querySelector('.catalog-search');
+  const platformFilter = tools.querySelector('.catalog-platform-filter');
+  const count = tools.querySelector('.catalog-filter-count');
+  const cards = Array.from(list.querySelectorAll(':scope > .catalog-product'));
+
+  const platforms = [...new Set(cards.map(getCatalogPlatform).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const selectedPlatform = platformFilter.value;
+  const currentOptions = Array.from(platformFilter.options).slice(1).map(option => option.value);
+  if (currentOptions.join('|') !== platforms.join('|')) {
+    platformFilter.innerHTML = '<option value="">Todas as plataformas</option>';
+    for (const platform of platforms) {
+      const option = document.createElement('option');
+      option.value = platform;
+      option.textContent = platform;
+      platformFilter.appendChild(option);
+    }
+    if (platforms.includes(selectedPlatform)) platformFilter.value = selectedPlatform;
+  }
+
+  const applyFilter = () => {
+    const query = normalizeSearch(search.value);
+    const platform = platformFilter.value;
+    let visible = 0;
+
+    for (const card of cards) {
+      const copy = card.querySelector('.product-copy');
+      const searchable = normalizeSearch(copy?.textContent || card.textContent);
+      const cardPlatform = getCatalogPlatform(card);
+      const matchesQuery = !query || searchable.includes(query);
+      const matchesPlatform = !platform || cardPlatform === platform;
+      const show = matchesQuery && matchesPlatform;
+      card.hidden = !show;
+      if (show) visible += 1;
+    }
+
+    count.textContent = visible === cards.length
+      ? `${cards.length} produtos`
+      : `${visible} de ${cards.length} produtos`;
+  };
+
+  if (!tools.dataset.bound) {
+    tools.dataset.bound = '1';
+    search.addEventListener('input', applyFilter);
+    platformFilter.addEventListener('change', applyFilter);
+  }
+
+  applyFilter();
+}
+
 function applyInterface() {
   enhanceHeader();
   enhanceGeneralPanel();
+  enhanceCatalog();
 }
 
 function startObserver() {
