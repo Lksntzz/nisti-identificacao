@@ -77,55 +77,6 @@ function catalogRowsFromCsv(text) {
   return catalog;
 }
 
-function normalizeVariation(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
-function groupPendingShopee(products) {
-  const grouped = new Map();
-  for (const product of products) {
-    if (product.image_url) continue;
-    if (String(product.platform || '').trim().toUpperCase() !== 'SHOPEE') continue;
-    const link = String(product.link || '').trim();
-    if (!link) continue;
-
-    if (!grouped.has(link)) {
-      grouped.set(link, { link, products: [], name: product.nome || '' });
-    }
-    grouped.get(link).products.push(product);
-  }
-
-  return [...grouped.values()].sort((a, b) => {
-    if (b.products.length !== a.products.length) return b.products.length - a.products.length;
-    return a.link.localeCompare(b.link);
-  });
-}
-
-function exactShopeeVariation(product, variations) {
-  const target = normalizeVariation(product.variacao);
-  if (!target) return null;
-
-  const matched = (variations || []).filter(variation => {
-    const labels = [variation.name, ...(variation.labels || [])];
-    return labels.some(label => normalizeVariation(label) === target);
-  });
-
-  const uniqueByImage = new Map();
-  for (const variation of matched) {
-    if (variation.image_source_url && !uniqueByImage.has(variation.image_source_url)) {
-      uniqueByImage.set(variation.image_source_url, variation);
-    }
-  }
-
-  return uniqueByImage.size === 1 ? [...uniqueByImage.values()][0] : null;
-}
-
 function Admin() {
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({ sku: '', nome: '', variacao: '', platform: '', link: '' });
@@ -133,25 +84,25 @@ function Admin() {
   const [image, setImage] = useState(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+
   const [indexInfo, setIndexInfo] = useState(null);
   const [indexBusy, setIndexBusy] = useState(false);
   const [indexMessage, setIndexMessage] = useState('');
+
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
+
   const [skuFiles, setSkuFiles] = useState({});
   const [skuPreviews, setSkuPreviews] = useState({});
   const [skuBusy, setSkuBusy] = useState(null);
   const [skuMessage, setSkuMessage] = useState('');
   const [skippedSkuIds, setSkippedSkuIds] = useState([]);
-  const [shopeeAnalysis, setShopeeAnalysis] = useState(null);
-  const [shopeeSelections, setShopeeSelections] = useState({});
-  const [shopeeBusy, setShopeeBusy] = useState(false);
-  const [shopeeSaveBusy, setShopeeSaveBusy] = useState(false);
-  const [shopeeMessage, setShopeeMessage] = useState('');
 
-  const shopeeGroups = groupPendingShopee(products);
-  const currentShopeeGroup = shopeeGroups[0] || null;
-  const shopeePendingSkuCount = shopeeGroups.reduce((sum, group) => sum + group.products.length, 0);
+  const [editingMockupId, setEditingMockupId] = useState(null);
+  const [mockupFiles, setMockupFiles] = useState({});
+  const [mockupPreviews, setMockupPreviews] = useState({});
+  const [mockupBusy, setMockupBusy] = useState(null);
+  const [mockupMessage, setMockupMessage] = useState('');
 
   const refresh = async () => {
     const data = await api('/api/products');
@@ -168,12 +119,6 @@ function Admin() {
     refresh().catch(() => {});
     refreshIndex().catch(() => {});
   }, []);
-
-  useEffect(() => {
-    setShopeeAnalysis(null);
-    setShopeeSelections({});
-    setShopeeMessage('');
-  }, [currentShopeeGroup?.link]);
 
   useEffect(() => {
     const sku = form.sku.trim();
@@ -198,11 +143,13 @@ function Admin() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ ...form })
       });
+
       if (image) {
         const fd = new FormData();
         fd.append('image', image);
         await api(`/api/products/${created.id}/image`, { method: 'POST', body: fd });
       }
+
       setForm({ sku: '', nome: '', variacao: '', platform: '', link: '' });
       setImage(null);
       setParsed(null);
@@ -227,6 +174,7 @@ function Admin() {
       let created = 0;
       let updated = 0;
       const errors = [];
+
       for (let i = 0; i < rows.length; i += 50) {
         const batch = rows.slice(i, i + 50);
         const result = await api('/api/admin/bulk-products', {
@@ -236,14 +184,13 @@ function Admin() {
         });
         created += result.created || 0;
         updated += result.updated || 0;
-        if (result.errors?.length) {
-          errors.push(...result.errors.map(error => ({ ...error, batch_start: i + 1 })));
-        }
+        if (result.errors?.length) errors.push(...result.errors);
       }
 
       setBulkMessage(errors.length
-        ? `Catálogo processado: ${created} novos, ${updated} atualizados, ${errors.length} erro(s) de SKU para revisar.`
+        ? `Catálogo processado: ${created} novos, ${updated} atualizados, ${errors.length} erro(s) para revisar.`
         : `Catálogo importado: ${created} novos e ${updated} atualizados.`);
+
       await Promise.all([refresh(), refreshIndex().catch(() => null)]);
     } catch (err) {
       setBulkMessage(err.message);
@@ -259,6 +206,7 @@ function Admin() {
       let info = await refreshIndex();
       let safety = 0;
       let processedTotal = 0;
+
       while (info.pending_covers > 0 && safety < 100) {
         const result = await api('/api/admin/reindex-cover-embeddings', {
           method: 'POST',
@@ -273,105 +221,15 @@ function Admin() {
         info = await refreshIndex();
         safety += 1;
       }
+
       info = await refreshIndex();
-      if (info.pending_covers === 0) {
-        setIndexMessage(`Índice visual atualizado. ${info.indexed_covers} capa(s) indexadas.`);
-      } else {
-        setIndexMessage(`Ainda faltam ${info.pending_covers} capa(s) para indexar.`);
-      }
+      setIndexMessage(info.pending_covers === 0
+        ? `Índice visual atualizado. ${info.indexed_covers} capa(s) indexadas.`
+        : `Ainda faltam ${info.pending_covers} capa(s) para indexar.`);
     } catch (err) {
       setIndexMessage(err.message);
     } finally {
       setIndexBusy(false);
-    }
-  };
-
-  const analyzeShopeeGroup = async () => {
-    if (!currentShopeeGroup) return;
-    setShopeeBusy(true);
-    setShopeeMessage('');
-    setShopeeAnalysis(null);
-    setShopeeSelections({});
-
-    try {
-      const result = await api('/api/admin/shopee-analyze', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url: currentShopeeGroup.link })
-      });
-
-      const selections = {};
-      let automatic = 0;
-      for (const product of currentShopeeGroup.products) {
-        const match = exactShopeeVariation(product, result.variations || []);
-        if (match) {
-          selections[product.id] = match.key;
-          automatic += 1;
-        }
-      }
-
-      setShopeeAnalysis(result);
-      setShopeeSelections(selections);
-      setShopeeMessage(
-        `${result.variation_count || result.variations?.length || 0} variação(ões) encontrada(s). ` +
-        `${automatic} SKU(s) foram associados automaticamente por nome exato. Confira antes de salvar.`
-      );
-    } catch (err) {
-      setShopeeMessage(err.message);
-    } finally {
-      setShopeeBusy(false);
-    }
-  };
-
-  const saveShopeeSelections = async () => {
-    if (!currentShopeeGroup || !shopeeAnalysis) return;
-
-    const selectedRows = currentShopeeGroup.products
-      .map(product => ({
-        product,
-        variation: (shopeeAnalysis.variations || []).find(
-          variation => variation.key === shopeeSelections[product.id]
-        )
-      }))
-      .filter(row => row.variation?.image_source_url);
-
-    if (!selectedRows.length) {
-      setShopeeMessage('Selecione pelo menos uma correspondência antes de salvar.');
-      return;
-    }
-
-    setShopeeSaveBusy(true);
-    setShopeeMessage('');
-    let saved = 0;
-    const errors = [];
-
-    try {
-      for (const row of selectedRows) {
-        try {
-          await api(`/api/products/${row.product.id}/image-from-url`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ image_url: row.variation.image_source_url })
-          });
-          saved += 1;
-        } catch (err) {
-          errors.push(`${row.product.sku}: ${err.message}`);
-        }
-      }
-
-      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
-      setShopeeMessage(
-        errors.length
-          ? `${saved} SKU(s) salvos. ${errors.length} falharam: ${errors[0]}`
-          : `${saved} SKU(s) salvos neste anúncio. ${saved === currentShopeeGroup.products.length ? 'Próximo anúncio carregado.' : 'Revise os SKUs que ficaram sem correspondência.'}`
-      );
-
-      if (!errors.length && saved === currentShopeeGroup.products.length) {
-        setShopeeAnalysis(null);
-        setShopeeSelections({});
-      }
-    } finally {
-      setShopeeSaveBusy(false);
     }
   };
 
@@ -382,7 +240,7 @@ function Admin() {
       if (current[product.id]) URL.revokeObjectURL(current[product.id]);
       return { ...current, [product.id]: URL.createObjectURL(file) };
     });
-    setSkuMessage(`Imagem selecionada para ${product.sku}. Confira e salve para avançar.`);
+    setSkuMessage(`Imagem selecionada para ${product.sku}. Confira e salve.`);
   };
 
   const pasteSkuImage = (product, event) => {
@@ -417,28 +275,21 @@ function Admin() {
 
   const saveSkuImage = async (product) => {
     const file = skuFiles[product.id];
-    if (!file) {
-      setSkuMessage(`Selecione ou cole a imagem correta do SKU ${product.sku}.`);
-      return;
-    }
+    if (!file) return;
 
     setSkuBusy(product.id);
     setSkuMessage('');
     try {
       const fd = new FormData();
       fd.append('image', file);
-      const result = await api(`/api/products/${product.id}/image`, {
-        method: 'POST',
-        body: fd
-      });
+      const result = await api(`/api/products/${product.id}/image`, { method: 'POST', body: fd });
 
       clearSkuDraft(product.id);
       setSkippedSkuIds(current => current.filter(id => id !== product.id));
       setSkuMessage(result.embedding_indexed
-        ? `SKU ${product.sku} salvo e indexado. Próximo SKU carregado abaixo.`
-        : `SKU ${product.sku} salvo. O índice visual precisa ser refeito: ${result.embedding_error || 'erro desconhecido'}`);
+        ? `SKU ${product.sku} salvo e indexado.`
+        : `SKU ${product.sku} salvo. Reindexe a capa: ${result.embedding_error || 'erro desconhecido'}`);
       await Promise.all([refresh(), refreshIndex().catch(() => null)]);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setSkuMessage(err.message);
     } finally {
@@ -449,7 +300,74 @@ function Admin() {
   const skipSku = (product) => {
     clearSkuDraft(product.id);
     setSkippedSkuIds(current => [...new Set([...current, product.id])]);
-    setSkuMessage(`SKU ${product.sku} pulado nesta sessão. Próximo SKU carregado.`);
+    setSkuMessage(`SKU ${product.sku} pulado nesta sessão.`);
+  };
+
+  const chooseMockup = (product, file) => {
+    if (!file || !String(file.type || '').startsWith('image/')) return;
+    setMockupFiles(current => ({ ...current, [product.id]: file }));
+    setMockupPreviews(current => {
+      if (current[product.id]) URL.revokeObjectURL(current[product.id]);
+      return { ...current, [product.id]: URL.createObjectURL(file) };
+    });
+    setMockupMessage(`Nova imagem selecionada para ${product.sku}. Confira a prévia antes de salvar.`);
+  };
+
+  const pasteMockup = (product, event) => {
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find(item => String(item.type || '').startsWith('image/'));
+    const file = imageItem?.getAsFile?.();
+    if (file) {
+      event.preventDefault();
+      chooseMockup(product, file);
+    }
+  };
+
+  const clearMockupDraft = (productId) => {
+    setMockupFiles(current => {
+      const next = { ...current };
+      delete next[productId];
+      return next;
+    });
+    setMockupPreviews(current => {
+      const next = { ...current };
+      if (next[productId]) URL.revokeObjectURL(next[productId]);
+      delete next[productId];
+      return next;
+    });
+  };
+
+  const cancelMockupEdit = (productId) => {
+    clearMockupDraft(productId);
+    setEditingMockupId(null);
+    setMockupMessage('');
+  };
+
+  const saveMockup = async (product) => {
+    const file = mockupFiles[product.id];
+    if (!file) {
+      setMockupMessage(`Selecione a nova imagem do SKU ${product.sku}.`);
+      return;
+    }
+
+    setMockupBusy(product.id);
+    setMockupMessage('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const result = await api(`/api/products/${product.id}/image`, { method: 'POST', body: fd });
+
+      clearMockupDraft(product.id);
+      setEditingMockupId(null);
+      setMockupMessage(result.embedding_indexed
+        ? `Mockup do SKU ${product.sku} atualizado e índice visual refeito.`
+        : `Mockup do SKU ${product.sku} atualizado. A indexação ficou pendente: ${result.embedding_error || 'erro desconhecido'}`);
+      await Promise.all([refresh(), refreshIndex().catch(() => null)]);
+    } catch (err) {
+      setMockupMessage(err.message);
+    } finally {
+      setMockupBusy(null);
+    }
   };
 
   const withoutImage = products.filter(product => !product.image_url).length;
@@ -458,9 +376,6 @@ function Admin() {
   const currentSku = pendingSkuProducts[0] || null;
   const skippedCount = skippedSkuIds.filter(id => products.some(product => product.id === id && !product.image_url)).length;
   const progressPercent = products.length ? Math.round((withImage / products.length) * 100) : 0;
-  const selectedShopeeCount = currentShopeeGroup
-    ? currentShopeeGroup.products.filter(product => Boolean(shopeeSelections[product.id])).length
-    : 0;
 
   return <section className="panel">
     <div className="panel-head">
@@ -468,108 +383,11 @@ function Admin() {
       <span>{products.length} cadastrados</span>
     </div>
 
-    <div className="form shopee-batch">
-      <div className="panel-head">
-        <div>
-          <strong>Shopee em lote — 1 anúncio por vez</strong>
-          <small>Analisa as variações do anúncio, cruza com o nome da variação do catálogo e permite salvar vários SKUs de uma vez.</small>
-        </div>
-        <span>{shopeeGroups.length} anúncio(s) pendente(s)</span>
-      </div>
-
-      <div className="parsed quick-stats">
-        <Badge label="Anúncios Shopee" value={shopeeGroups.length}/>
-        <Badge label="SKUs Shopee" value={shopeePendingSkuCount}/>
-        <Badge label="Neste anúncio" value={currentShopeeGroup?.products.length || 0}/>
-        <Badge label="Selecionados" value={selectedShopeeCount}/>
-      </div>
-
-      {!currentShopeeGroup && <div className="quick-done">
-        <strong>Nenhum anúncio da Shopee pendente.</strong>
-        <span>Use o modo manual abaixo para outras plataformas ou SKUs sem link.</span>
-      </div>}
-
-      {currentShopeeGroup && <div className="listing-batch-card">
-        <div className="listing-batch-head">
-          <div>
-            <p className="eyebrow">PRÓXIMO ANÚNCIO SHOPEE</p>
-            <h3>{currentShopeeGroup.name || 'Anúncio da Shopee'}</h3>
-            <small>{currentShopeeGroup.products.length} SKU(s) sem imagem neste anúncio.</small>
-          </div>
-          <a className="open-listing" href={currentShopeeGroup.link} target="_blank" rel="noreferrer">Abrir anúncio</a>
-        </div>
-
-        <div className="listing-sku-chips">
-          {currentShopeeGroup.products.map(product =>
-            <span key={product.id}>{product.variacao || product.sku}</span>
-          )}
-        </div>
-
-        <button type="button" disabled={shopeeBusy || shopeeSaveBusy} onClick={analyzeShopeeGroup}>
-          {shopeeBusy ? 'Analisando variações da Shopee...' : shopeeAnalysis ? 'Analisar novamente' : 'Analisar variações deste anúncio'}
-        </button>
-
-        {shopeeMessage && <p className="message quick-message">{shopeeMessage}</p>}
-
-        {shopeeAnalysis && <div className="variation-mapping">
-          <div className="variation-source">
-            <strong>{shopeeAnalysis.variation_count} variação(ões) encontradas</strong>
-            <span>Fonte: {shopeeAnalysis.source || 'Shopee'} · selecione somente quando a variação e a imagem estiverem corretas.</span>
-          </div>
-
-          {currentShopeeGroup.products.map(product => {
-            const selectedKey = shopeeSelections[product.id] || '';
-            const selectedVariation = (shopeeAnalysis.variations || []).find(
-              variation => variation.key === selectedKey
-            );
-
-            return <div className={`variation-map-row ${selectedVariation ? 'matched' : 'unmatched'}`} key={product.id}>
-              <div className="variation-product">
-                <strong>{product.sku}</strong>
-                <span>Catálogo: {product.variacao || '—'}</span>
-              </div>
-
-              <select
-                value={selectedKey}
-                disabled={shopeeSaveBusy}
-                onChange={event => setShopeeSelections(current => ({
-                  ...current,
-                  [product.id]: event.target.value
-                }))}
-              >
-                <option value="">Selecionar variação da Shopee...</option>
-                {(shopeeAnalysis.variations || []).map(variation =>
-                  <option value={variation.key} key={variation.key}>{variation.name}</option>
-                )}
-              </select>
-
-              <div className="variation-preview">
-                {selectedVariation
-                  ? <><img src={selectedVariation.image_url} alt={`Variação ${selectedVariation.name}`}/><span>{selectedVariation.name}</span></>
-                  : <span>SEM CORRESPONDÊNCIA</span>}
-              </div>
-            </div>;
-          })}
-
-          <button
-            type="button"
-            className="save-next"
-            disabled={shopeeSaveBusy || selectedShopeeCount === 0}
-            onClick={saveShopeeSelections}
-          >
-            {shopeeSaveBusy
-              ? 'Salvando SKUs deste anúncio...'
-              : `Salvar ${selectedShopeeCount} correspondência(s) selecionada(s)`}
-          </button>
-        </div>}
-      </div>}
-    </div>
-
     <div className="form quick-workflow">
       <div className="panel-head">
         <div>
-          <strong>Modo manual de fallback — 1 SKU por vez</strong>
-          <small>Use quando o anúncio não puder ser analisado automaticamente ou para Mercado Livre/Amazon.</small>
+          <strong>Modo manual — 1 SKU por vez</strong>
+          <small>Use somente para SKUs sem imagem ou correções pontuais.</small>
         </div>
         <span>{withImage}/{products.length}</span>
       </div>
@@ -586,7 +404,10 @@ function Admin() {
 
       {skuMessage && <p className="message quick-message">{skuMessage}</p>}
 
-      {!currentSku && withoutImage === 0 && <div className="quick-done"><strong>Cadastro de imagens concluído.</strong><span>Todos os SKUs têm imagem própria.</span></div>}
+      {!currentSku && withoutImage === 0 && <div className="quick-done">
+        <strong>Cadastro de imagens concluído.</strong>
+        <span>Todos os SKUs têm imagem. Para corrigir um mockup, use o catálogo completo abaixo.</span>
+      </div>}
 
       {!currentSku && withoutImage > 0 && <div className="quick-done">
         <strong>Não há SKU disponível nesta sessão.</strong>
@@ -627,22 +448,14 @@ function Admin() {
             onDrop={event => dropSkuImage(product, event)}
           >
             {preview
-              ? <><img src={preview} alt={`Imagem selecionada para ${product.sku}`}/><strong className="preview-ok">2. Confira: esta é a imagem correta?</strong></>
-              : <div>
-                  <strong>2. Cole a imagem aqui</strong>
-                  <span>Depois de copiar a foto correta do anúncio, clique nesta área e pressione Ctrl+V.</span>
-                </div>}
+              ? <><img src={preview} alt={`Imagem selecionada para ${product.sku}`}/><strong className="preview-ok">Confira: esta é a imagem correta?</strong></>
+              : <div><strong>Cole a imagem aqui</strong><span>Clique nesta área e pressione Ctrl+V, ou selecione um arquivo.</span></div>}
           </div>
 
           <div className="sku-actions-bottom">
-            <label className="file-button">
-              Selecionar arquivo
-              <input type="file" accept="image/*" disabled={isBusy} onChange={e => chooseSkuImage(product, e.target.files?.[0] || null)} />
-            </label>
+            <label className="file-button">Selecionar arquivo<input type="file" accept="image/*" disabled={isBusy} onChange={e => chooseSkuImage(product, e.target.files?.[0] || null)} /></label>
             {preview && <button type="button" className="secondary" disabled={isBusy} onClick={() => clearSkuDraft(product.id)}>Trocar imagem</button>}
-            <button type="button" className="save-next" disabled={isBusy || !skuFiles[product.id]} onClick={() => saveSkuImage(product)}>
-              {isBusy ? 'Salvando...' : '3. Salvar e ir para o próximo'}
-            </button>
+            <button type="button" className="save-next" disabled={isBusy || !skuFiles[product.id]} onClick={() => saveSkuImage(product)}>{isBusy ? 'Salvando...' : 'Salvar imagem'}</button>
           </div>
         </article>;
       })()}
@@ -650,10 +463,7 @@ function Admin() {
 
     <div className="form">
       <div className="panel-head">
-        <div>
-          <strong>Importação em massa</strong>
-          <small>CSV exportado da aba ANÚNCIOS da planilha ANUNCIOS NOVOS</small>
-        </div>
+        <div><strong>Importação em massa</strong><small>CSV exportado da aba ANÚNCIOS da planilha ANUNCIOS NOVOS.</small></div>
       </div>
       <div className="parsed">
         <Badge label="Produtos" value={products.length}/>
@@ -666,7 +476,7 @@ function Admin() {
 
     <div className="form">
       <div className="panel-head">
-        <div><strong>Índice visual das capas</strong><small>Busca Top-K antes da confirmação pelo Gemini</small></div>
+        <div><strong>Índice visual das capas</strong><small>Referências utilizadas na identificação visual.</small></div>
         {indexInfo && <span>{indexInfo.indexed_covers}/{indexInfo.reference_covers}</span>}
       </div>
       {indexInfo && <div className="parsed">
@@ -682,7 +492,7 @@ function Admin() {
     </div>
 
     <form className="form" onSubmit={submit}>
-      <div className="panel-head"><div><strong>Cadastro manual de produto</strong><small>Use apenas quando precisar cadastrar um SKU fora da importação em massa.</small></div></div>
+      <div className="panel-head"><div><strong>Cadastro manual de produto</strong><small>Use quando precisar cadastrar um SKU individualmente.</small></div></div>
       <label>SKU<input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="VACMNO_LIN1_BBB" required /></label>
       <div className="grid2">
         <label>Nome<input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} /></label>
@@ -706,17 +516,54 @@ function Admin() {
 
     <details className="catalog-details">
       <summary>Ver catálogo completo ({products.length} SKUs)</summary>
-      <div className="list">
-        {products.map(product => <article className="product" key={product.id}>
-          {product.image_url
-            ? <img src={product.image_url} alt={`Imagem do SKU ${product.sku}`}/>
-            : <div className="image-placeholder">SEM FOTO</div>}
-          <div>
-            <strong>{product.sku}</strong>
-            <span>{product.nome || product.variacao || product.capa_code}</span>
-            <small>{product.wireo_code}/{product.tassel_code}/{product.elastico_code}{product.platform ? ` · ${product.platform}` : ''}</small>
-          </div>
-        </article>)}
+      {mockupMessage && <p className="message mockup-message">{mockupMessage}</p>}
+      <div className="list catalog-edit-list">
+        {products.map(product => {
+          const editing = editingMockupId === product.id;
+          const preview = mockupPreviews[product.id];
+          const isBusy = mockupBusy === product.id;
+
+          return <article className={`product catalog-product ${editing ? 'editing' : ''}`} key={product.id}>
+            <div className="product-main">
+              {product.image_url
+                ? <img src={product.image_url} alt={`Imagem do SKU ${product.sku}`}/>
+                : <div className="image-placeholder">SEM FOTO</div>}
+              <div className="product-copy">
+                <strong>{product.sku}</strong>
+                <span>{product.nome || product.variacao || product.capa_code}</span>
+                <small>{product.wireo_code}/{product.tassel_code}/{product.elastico_code}{product.platform ? ` · ${product.platform}` : ''}</small>
+              </div>
+              <button type="button" className="secondary mockup-edit-button" onClick={() => {
+                if (editing) cancelMockupEdit(product.id);
+                else {
+                  if (editingMockupId) clearMockupDraft(editingMockupId);
+                  setEditingMockupId(product.id);
+                  setMockupMessage('');
+                }
+              }}>{editing ? 'Fechar' : 'Editar mockup'}</button>
+            </div>
+
+            {editing && <div className="mockup-editor">
+              <div className="mockup-current">
+                <span>Atual</span>
+                {product.image_url ? <img src={product.image_url} alt="Mockup atual"/> : <div className="image-placeholder">SEM FOTO</div>}
+              </div>
+              <div className="mockup-arrow">→</div>
+              <div className="mockup-new" tabIndex={0} onPaste={event => pasteMockup(product, event)}>
+                <span>Nova imagem</span>
+                {preview
+                  ? <img src={preview} alt="Nova imagem selecionada"/>
+                  : <div className="mockup-empty">Cole com Ctrl+V ou selecione um arquivo</div>}
+              </div>
+              <div className="mockup-actions">
+                <label className="file-button">Selecionar nova imagem<input type="file" accept="image/*" disabled={isBusy} onChange={e => chooseMockup(product, e.target.files?.[0] || null)} /></label>
+                {preview && <button type="button" className="secondary" disabled={isBusy} onClick={() => clearMockupDraft(product.id)}>Trocar</button>}
+                <button type="button" disabled={isBusy || !mockupFiles[product.id]} onClick={() => saveMockup(product)}>{isBusy ? 'Atualizando...' : 'Salvar novo mockup'}</button>
+              </div>
+              <small className="mockup-index-note">Ao salvar, a referência visual desse produto é atualizada e o índice é refeito quando possível.</small>
+            </div>}
+          </article>;
+        })}
       </div>
     </details>
   </section>;
