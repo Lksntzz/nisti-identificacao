@@ -4,18 +4,20 @@ const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_COVERS = 8;
 const FOCUSED_CANDIDATES = 4;
 
-// O Embedding só encerra sozinho quando há separação forte.
+// Precisão em produção: o embedding ranqueia candidatos, mas não encerra a identificação sozinho.
+const ALLOW_DIRECT_EMBEDDING = false;
 const DIRECT_MIN_SCORE = 0.90;
 const DIRECT_MIN_MARGIN = 0.045;
 
 // No fallback, a confiança do modelo é combinada com a concordância do Embedding.
-const MODEL_MIN_CONFIDENCE = 0.80;
-const AGREEMENT_MIN_CONFIDENCE = 0.68;
+const MODEL_MIN_CONFIDENCE = 0.86;
+const AGREEMENT_MIN_CONFIDENCE = 0.75;
 const AGREEMENT_MIN_SCORE = 0.82;
 const AGREEMENT_MIN_MARGIN = 0.015;
 
+// Margem pequena indica capas visualmente parecidas; nesses casos enviamos as 8 candidatas ao verificador.
 const FOCUSED_MIN_SCORE = 0.80;
-const FOCUSED_MIN_MARGIN = 0.012;
+const FOCUSED_MIN_MARGIN = 0.025;
 const CANDIDATE_CACHE_LIMIT = 40;
 const candidateImageCache = new Map();
 
@@ -207,15 +209,18 @@ async function loadCandidates(env, candidates, timings) {
 
 function buildParts(image, uploadBytes, usable) {
   const parts = [{
-    text: `Você é o verificador visual interno da NISTI PRINT. Sua tarefa é identificar a ARTE-BASE da capa fotografada comparando-a SOMENTE com as candidatas fornecidas.
+    text: `Você é o verificador visual interno da NISTI PRINT. Sua tarefa é identificar a ARTE-BASE exata da capa fotografada comparando-a SOMENTE com as candidatas fornecidas.
 
 REGRAS IMPORTANTES:
 - Isto NÃO é uma tarefa de OCR. Nomes, palavras, iniciais, datas e qualquer texto personalizado podem ser completamente diferentes entre a foto e a referência. NÃO use texto diferente como motivo para rejeitar uma capa.
 - Ignore Wire-O, espiral, furos, tassel, elástico, miolo, acabamento, plataforma, mãos, mesa, piso, sombra, reflexo, brilho, perspectiva, corte e iluminação.
 - Uma candidata pode ser um mockup de marketplace e a foto pode ser a capa física real.
-- Compare principalmente: personagens/ilustrações, objetos decorativos, composição espacial, molduras, padrões de fundo, paleta de cores e posição relativa dos elementos.
+- Mesmo tema, mesma paleta, flores, borboletas, elementos delicados ou estilo parecido NÃO significam que seja a mesma capa.
+- Exija correspondência estrutural da arte: mesmos elementos decorativos principais, mesmas ilustrações e posição relativa essencialmente igual.
+- Compare especialmente molduras, quantidade e posição de flores/folhagens/borboletas, personagens, objetos, formas geométricas, brasões, padrões de fundo e distribuição dos elementos.
+- Se a composição principal for diferente, retorne matched=false mesmo que as duas capas sejam visualmente parecidas.
 - Se uma candidata tiver claramente a mesma arte-base, retorne matched=true e o CAPA_CODE dela, mesmo que o nome/texto personalizado seja diferente.
-- Retorne matched=false apenas quando NENHUMA candidata compartilhar a mesma arte-base.
+- Na dúvida entre duas candidatas, prefira matched=false em vez de adivinhar.
 - Nunca invente CAPA_CODE e nunca escolha um código fora da lista.`
   }];
 
@@ -355,7 +360,8 @@ export async function fastIdentify(request, env) {
     const { uploadBytes, candidates } = await getCandidates(env, image, timings);
     if (!candidates.length) throw new Error('Nenhuma capa candidata encontrada no índice visual');
 
-    const direct = tryDirectEmbedding(candidates, timings);
+    const direct = ALLOW_DIRECT_EMBEDDING ? tryDirectEmbedding(candidates, timings) : null;
+    if (!ALLOW_DIRECT_EMBEDDING) timings.embedding_direct_disabled = true;
     const ai = direct || await verifyWithGemini(env, image, uploadBytes, candidates, timings);
 
     if (!ai.matched || !ai.capa_code) {
