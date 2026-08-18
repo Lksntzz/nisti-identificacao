@@ -1,9 +1,9 @@
 import app from './edge-router.js';
-import { fastIdentify } from './fast-identify-v3.js';
+import { fastIdentify } from './fast-identify-v4.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
-// Reserva margem para upload/browser. O backend nunca fica esperando dezenas de segundos.
-const ROUTER_BUDGET_MS = 4300;
+// Orçamento total do Worker. A margem restante fica para upload/browser sem voltar aos 50+ segundos.
+const ROUTER_BUDGET_MS = 4600;
 
 function responseWithHeaders(response) {
   const headers = new Headers(response.headers);
