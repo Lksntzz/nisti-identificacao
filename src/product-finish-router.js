@@ -1,4 +1,4 @@
-import app from './storage-metrics-router.js';
+import app from './vectorize-admin-router.js';
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 
 function json(data, status = 200) {
