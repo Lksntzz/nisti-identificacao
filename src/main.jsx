@@ -8,7 +8,7 @@ const PAGE_SIZE = 12;
 const WIREO_OPTIONS = [['P','Preto'],['B','Branco'],['R','Rose Gold']];
 const ACCESSORY_OPTIONS = [['P','Preto'],['B','Branco'],['A','Azul'],['R','Rosa'],['V','Verde'],['L','Laranja']];
 const TASSEL_OPTIONS = [['X','Sem tassel'], ...ACCESSORY_OPTIONS];
-const ADMIN_TABS = [['geral','Geral'],['mockups','Mockups'],['importacao','Importação'],['administracao','Administração']];
+const ADMIN_TABS = [['geral','Geral'],['mockups','Mockups'],['importacao','Importação'],['diagnostico','Diagnóstico'],['administracao','Administração']];
 
 async function api(path, options = {}) {
   const response = await fetch(path, { credentials: 'same-origin', ...options });
@@ -34,7 +34,8 @@ function formatDashboardTime(value) {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      second: '2-digit'
     }).format(new Date(value));
   } catch {
     return '';
@@ -45,6 +46,18 @@ function compactText(value, max = 74) {
   const text = String(value || '').trim();
   if (!text) return '';
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function formatScore(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(4) : '—';
+}
+
+function eventKindLabel(kind) {
+  if (kind === 'success') return 'Reconhecido';
+  if (kind === 'unmatched') return 'Sem correspondência';
+  if (kind === 'system_error') return 'Erro técnico';
+  return 'Evento';
 }
 
 function productImage(product) {
@@ -98,20 +111,13 @@ async function compressPhoto(file) {
 }
 
 function BrandHeader({ admin = false, tab, onTab }) {
-  const handleLogoError = event => {
-    const image = event.currentTarget;
-    if (image.dataset.fallback === '1') {
-      image.style.display = 'none';
-      return;
-    }
-    image.dataset.fallback = '1';
-    image.classList.add('brand-logo-fallback');
-    image.src = LOGO_FALLBACK;
-  };
-
+  const [publicLogoFailed, setPublicLogoFailed] = useState(false);
   return <header className={`topbar ${admin ? 'admin-topbar' : ''}`}>
     <div className="brand-block">
-      <img className="brand-logo" src={LOGO} alt="NISTI PRINT" onError={handleLogoError} />
+      {admin ? <div className="admin-brand-lockup" aria-label="NISTI PRINT">
+        <img src={`${LOGO_FALLBACK}?v=admin-brand-2`} alt="" />
+        <span><strong>NISTI</strong><b>PRINT</b></span>
+      </div> : <img className="brand-logo" src={publicLogoFailed ? LOGO_FALLBACK : LOGO} alt="NISTI PRINT" onError={() => setPublicLogoFailed(true)} />}
       <div className="top-title"><small>NISTI PRINT</small><h1>Identificação Visual</h1></div>
     </div>
     {admin && <nav className="header-tabs" aria-label="Administração">
@@ -357,6 +363,63 @@ function ImportPanel({ refresh }) {
   </>;
 }
 
+function DiagnosticField({ label, value }) {
+  return <div className="diagnostic-field"><span>{label}</span><strong>{value ?? '—'}</strong></div>;
+}
+
+function RecognitionDiagnostics({ filter, onFilter }) {
+  const [events,setEvents]=useState([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(''); const [selected,setSelected]=useState(null);
+  const buildPath=()=>{
+    if(filter==='issues')return '/api/admin/recognition-events?scope=issues&limit=100';
+    if(['success','unmatched','system_error'].includes(filter))return `/api/admin/recognition-events?kind=${encodeURIComponent(filter)}&limit=100`;
+    return '/api/admin/recognition-events?scope=all&limit=100';
+  };
+  const load=async(silent=false)=>{if(!silent)setLoading(true);setError('');try{const data=await api(buildPath());setEvents(data.events||[])}catch(err){setError(err.message)}finally{if(!silent)setLoading(false)}};
+  useEffect(()=>{setSelected(null);load();const timer=setInterval(()=>load(true),30000);return()=>clearInterval(timer)},[filter]);
+  const filters=[['issues','Problemas'],['all','Todos'],['success','Reconhecidos'],['unmatched','Sem correspondência'],['system_error','Erros técnicos']];
+  return <section className="section-card diagnostics-section">
+    <div className="section-head diagnostics-head"><div><h2>Diagnóstico de reconhecimento</h2><p>Cada tentativa fica registrada com resultado, confiança, candidatos e tempos do pipeline.</p></div><button type="button" className="diagnostic-refresh" onClick={()=>load()}>Atualizar</button></div>
+    <div className="diagnostic-filters">{filters.map(([id,label])=><button key={id} type="button" className={filter===id?'active':''} onClick={()=>onFilter(id)}>{label}</button>)}</div>
+    {error&&<div className="diagnostic-error">{error}</div>}
+    {loading?<div className="diagnostic-loading"><div className="spinner"/>Carregando eventos…</div>:<div className="diagnostic-list">
+      {!events.length&&<div className="diagnostic-empty"><strong>Nenhum evento detalhado neste filtro.</strong><span>O histórico detalhado começa a ser gravado a partir desta versão do sistema.</span></div>}
+      {events.map(event=><button type="button" className={`diagnostic-row diagnostic-${event.kind}`} key={event.id} onClick={()=>setSelected(event)}>
+        <span className={`diagnostic-status status-${event.kind}`}>{eventKindLabel(event.kind)}</span>
+        <span className="diagnostic-time">{formatDashboardTime(event.created_at)}</span>
+        <span className="diagnostic-code"><strong>{event.sku||event.capa_code||event.retrieval_top1_code||'Sem SKU'}</strong><small>{event.error_message?compactText(event.error_message,90):(event.identified_by||event.verification_mode||'Reconhecimento concluído')}</small></span>
+        <span className="diagnostic-score"><small>Confiança</small><strong>{event.confidence===null?'—':`${Math.round(event.confidence*100)}%`}</strong></span>
+        <span className="diagnostic-duration"><small>Tempo</small><strong>{event.total_ms?`${(event.total_ms/1000).toFixed(1)}s`:'—'}</strong></span>
+        <span className="diagnostic-open">Ver detalhes</span>
+      </button>)}
+    </div>}
+    {selected&&<div className="editor-backdrop diagnostic-backdrop" role="presentation" onMouseDown={e=>e.target===e.currentTarget&&setSelected(null)}><div className="diagnostic-modal" role="dialog" aria-modal="true">
+      <div className="editor-modal-head"><div><small>{formatDashboardTime(selected.created_at)}</small><h3>{eventKindLabel(selected.kind)}</h3></div><button type="button" aria-label="Fechar" onClick={()=>setSelected(null)}><Icon name="close" size={20}/></button></div>
+      <div className="diagnostic-modal-body">
+        {selected.image_url&&<div className="diagnostic-product-image"><img src={selected.image_url} alt={selected.sku||selected.capa_code||'Produto retornado'}/><span>Imagem do produto retornado</span></div>}
+        {selected.error_message&&<div className="diagnostic-message"><strong>O que aconteceu</strong><p>{selected.error_message}</p></div>}
+        <div className="diagnostic-grid">
+          <DiagnosticField label="HTTP" value={selected.http_status}/>
+          <DiagnosticField label="SKU retornado" value={selected.sku}/>
+          <DiagnosticField label="Capa retornada/proposta" value={selected.capa_code}/>
+          <DiagnosticField label="Método" value={selected.identified_by||selected.verification_mode}/>
+          <DiagnosticField label="Confiança Gemini" value={selected.confidence===null?'—':`${(selected.confidence*100).toFixed(1)}%`}/>
+          <DiagnosticField label="Score selecionado" value={formatScore(selected.retrieval_score)}/>
+          <DiagnosticField label="Top 1 do embedding" value={`${selected.retrieval_top1_code||'—'} · ${formatScore(selected.retrieval_top1)}`}/>
+          <DiagnosticField label="Top 2 do embedding" value={`${selected.retrieval_top2_code||'—'} · ${formatScore(selected.retrieval_top2)}`}/>
+          <DiagnosticField label="Margem Top1/Top2" value={formatScore(selected.retrieval_margin)}/>
+          <DiagnosticField label="Candidatas verificadas" value={selected.candidate_count}/>
+          <DiagnosticField label="Aceito por" value={selected.accepted_by}/>
+          <DiagnosticField label="Modelo" value={selected.model}/>
+          <DiagnosticField label="Embedding + índice" value={selected.embedding_ms===null?'—':`${selected.embedding_ms} ms`}/>
+          <DiagnosticField label="Gemini" value={selected.gemini_ms===null?'—':`${selected.gemini_ms} ms`}/>
+          <DiagnosticField label="Tempo total" value={selected.total_ms?`${selected.total_ms} ms`:'—'}/>
+        </div>
+        <p className="diagnostic-note">A foto enviada pelo operador não é armazenada neste log. O painel registra somente a telemetria do reconhecimento e, quando existe, a imagem do produto que o sistema retornou.</p>
+      </div>
+    </div></div>}
+  </section>;
+}
+
 function Administration({ metrics, storage, indexInfo }) {
   const db=metrics?.database; const gemini=metrics?.gemini; const recognition=metrics?.recognition; const today=recognition?.today||{}; const r2=storage?.r2;
   const hasTechnicalErrors=Number(today.system_errors||0)>0;
@@ -374,15 +437,14 @@ function Administration({ metrics, storage, indexInfo }) {
   </div></section>;
 }
 
-function KpiCard({ tone, icon, label, value, meta, progress, online }) {
-  return <article className={`kpi kpi-${tone}`}>
-    <div className="kpi-icon"><Icon name={icon} size={24}/></div>
-    <div className="kpi-copy"><span>{label}</span><strong className={online?'status-value':''}>{online&&<i/>}{value}</strong><small>{meta}</small>{typeof progress==='number'&&<div className="kpi-progress"><span style={{width:`${Math.max(0,Math.min(100,progress))}%`}}/></div>}</div>
-  </article>;
+function KpiCard({ tone, icon, label, value, meta, progress, online, onClick }) {
+  const className=`kpi kpi-${tone}${onClick?' kpi-clickable':''}`;
+  const content=<><div className="kpi-icon"><Icon name={icon} size={24}/></div><div className="kpi-copy"><span>{label}</span><strong className={online?'status-value':''}>{online&&<i/>}{value}</strong><small>{meta}</small>{typeof progress==='number'&&<div className="kpi-progress"><span style={{width:`${Math.max(0,Math.min(100,progress))}%`}}/></div>}</div></>;
+  return onClick?<button type="button" className={className} onClick={onClick}>{content}</button>:<article className={className}>{content}</article>;
 }
 
 function AdminApp() {
-  const [tab,setTab]=useState('geral'); const [products,setProducts]=useState([]); const [metrics,setMetrics]=useState(null); const [storage,setStorage]=useState(null); const [indexInfo,setIndexInfo]=useState(null); const [loading,setLoading]=useState(true);
+  const [tab,setTab]=useState('geral'); const [products,setProducts]=useState([]); const [metrics,setMetrics]=useState(null); const [storage,setStorage]=useState(null); const [indexInfo,setIndexInfo]=useState(null); const [loading,setLoading]=useState(true); const [diagnosticFilter,setDiagnosticFilter]=useState('issues');
   const refresh=async()=>{const [p,i]=await Promise.all([api('/api/products'),api('/api/admin/cover-index')]);setProducts(p.products||[]);setIndexInfo(i)};
   const refreshMetrics=async()=>{const [m,s]=await Promise.all([api('/api/admin/system-metrics').catch(()=>null),api('/api/admin/storage-metrics').catch(()=>null)]);setMetrics(m);setStorage(s)};
   const refreshSystemMetrics=async()=>{const m=await api('/api/admin/system-metrics').catch(()=>null);if(m)setMetrics(m)};
@@ -390,27 +452,30 @@ function AdminApp() {
   useEffect(()=>{const timer=setInterval(refreshSystemMetrics,30000);return()=>clearInterval(timer)},[]);
   const withImage=products.filter(p=>p.image_key).length; const pending=products.length-withImage; const progress=products.length?Math.round(withImage/products.length*100):0;
   const refreshAll=async()=>{await refresh();await refreshMetrics()};
-  const db=metrics?.database; const recognition=metrics?.recognition; const today=recognition?.today||{}; const systemErrors=Number(today.system_errors||0);
+  const db=metrics?.database; const recognition=metrics?.recognition; const today=recognition?.today||{}; const systemErrors=Number(today.system_errors||0); const unmatched=Number(today.unmatched||0); const issues=systemErrors+unmatched;
   const databaseMeta=db?`${formatBytes(db.used_bytes)} · ${db.products||0} produtos · ${db.cover_embeddings||0} refs`:'Métricas indisponíveis';
-  const recognitionMeta=recognition?`${today.successes||0} reconhecidos · ${today.unmatched||0} sem correspondência`:'Métricas indisponíveis';
+  const recognitionMeta=recognition?`${today.successes||0} reconhecidos · ${unmatched} sem correspondência`:'Métricas indisponíveis';
   const errorMeta=!recognition
     ? 'Métricas indisponíveis'
-    : systemErrors>0
-      ? `${systemErrors} erro(s) técnico(s) hoje · ${compactText(recognition.latest_error_message)}`
-      : `Sem erro técnico · ${today.unmatched||0} sem correspondência hoje`;
-  if(loading)return <main className="app admin-app"><BrandHeader admin tab={tab} onTab={setTab}/><div className="loading"><div><div className="spinner"/>Carregando administração…</div></div></main>;
-  return <main className="app admin-app"><BrandHeader admin tab={tab} onTab={setTab}/>
+    : issues>0
+      ? `${unmatched} sem correspondência · ${systemErrors} erro(s) técnico(s)`
+      : 'Nenhum problema registrado hoje';
+  const changeTab=id=>{if(id==='diagnostico')setDiagnosticFilter('issues');setTab(id)};
+  const openDiagnostics=()=>{setDiagnosticFilter('issues');setTab('diagnostico')};
+  if(loading)return <main className="app admin-app"><BrandHeader admin tab={tab} onTab={changeTab}/><div className="loading"><div><div className="spinner"/>Carregando administração…</div></div></main>;
+  return <main className="app admin-app"><BrandHeader admin tab={tab} onTab={changeTab}/>
     {tab==='geral'&&<><div className="kpis">
       <KpiCard tone="lilac" icon="box" label="Produtos cadastrados" value={products.length} meta="Total de SKUs"/>
       <KpiCard tone="pink" icon="image" label="Mockups com imagem" value={withImage} meta="Produtos com mockup"/>
       <KpiCard tone="yellow" icon="clock" label="Pendentes" value={pending} meta="Sem imagem"/>
       <KpiCard tone="blue" icon="chart" label="Progresso do catálogo" value={`${progress}%`} meta={`${withImage} de ${products.length}`} progress={progress}/>
       <KpiCard tone="green" icon="database" label="Banco de dados" value={!db?'—':db.status==='online'?'Online':'Erro'} meta={databaseMeta} online={db?.status==='online'}/>
-      <KpiCard tone="amber" icon="sparkles" label="Gemini · reconhecimentos" value={recognition?today.attempts||0:'—'} meta={recognitionMeta}/>
-      <KpiCard tone={systemErrors>0?'danger':'green'} icon="alert" label="Erros do reconhecimento" value={recognition?systemErrors:'—'} meta={errorMeta} online={Boolean(recognition)&&systemErrors===0}/>
+      <KpiCard tone="amber" icon="sparkles" label="Gemini · reconhecimentos" value={recognition?today.attempts||0:'—'} meta={recognitionMeta} onClick={()=>{setDiagnosticFilter('all');setTab('diagnostico')}}/>
+      <KpiCard tone={issues>0?'danger':'green'} icon="alert" label="Problemas no reconhecimento" value={recognition?issues:'—'} meta={errorMeta} online={Boolean(recognition)&&issues===0} onClick={openDiagnostics}/>
     </div><Catalog products={products} refresh={refreshAll}/></>}
     {tab==='mockups'&&<Catalog products={products} focused refresh={refreshAll}/>} 
     {tab==='importacao'&&<ImportPanel refresh={refreshAll}/>} 
+    {tab==='diagnostico'&&<RecognitionDiagnostics filter={diagnosticFilter} onFilter={setDiagnosticFilter}/>} 
     {tab==='administracao'&&<Administration metrics={metrics} storage={storage} indexInfo={indexInfo}/>} 
   </main>;
 }
