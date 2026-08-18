@@ -2,9 +2,19 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import QuickRegistration from './QuickRegistration.jsx';
 
-const isAdminArea = /^\/admin(?:\/|$)/i.test(window.location.pathname);
+const params = new URLSearchParams(window.location.search);
+const adminRequested = params.get('nisti_admin') === '1';
 
-if (isAdminArea) {
+async function startQuickRegistration() {
+  if (!adminRequested) return;
+
+  try {
+    const response = await fetch('/api/admin/session', { cache: 'no-store' });
+    if (!response.ok) return;
+  } catch {
+    return;
+  }
+
   const host = document.createElement('div');
   host.id = 'quick-registration-extension';
 
@@ -52,3 +62,5 @@ if (isAdminArea) {
 
   schedulePlace();
 }
+
+startQuickRegistration();
