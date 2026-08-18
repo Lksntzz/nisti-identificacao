@@ -18,6 +18,40 @@ function vectorId(capaCode) {
   return `cover:${String(capaCode || '').trim().toUpperCase()}`.slice(0, 64);
 }
 
+function vectorFromRow(row) {
+  const values = JSON.parse(row.embedding_json);
+  if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
+    throw new Error('Embedding com dimensão inválida');
+  }
+  const capaCode = String(row.capa_code || '').trim().toUpperCase();
+  return {
+    id: vectorId(capaCode),
+    values,
+    metadata: {
+      capa_code: capaCode,
+      image_key: String(row.image_key || ''),
+      product_id: Number(row.product_id || 0),
+      embedding_model: String(row.embedding_model || ''),
+      updated_at: String(row.updated_at || '')
+    }
+  };
+}
+
+async function upsertProductVector(env, productId) {
+  if (!env.COVER_VECTORS?.upsert) return false;
+  const row = await env.DB.prepare(`
+    SELECT p.id AS product_id,p.capa_code,p.image_key,
+      ce.embedding_model,ce.dimensions,ce.embedding_json,ce.updated_at
+    FROM products p
+    JOIN cover_embeddings ce ON ce.capa_code=p.capa_code AND ce.image_key=p.image_key
+    WHERE p.id=?
+    LIMIT 1
+  `).bind(productId).first();
+  if (!row) return false;
+  await env.COVER_VECTORS.upsert([vectorFromRow(row)]);
+  return true;
+}
+
 async function syncVectors(env, body = {}) {
   if (!env.COVER_VECTORS?.upsert) {
     return json({
@@ -43,25 +77,9 @@ async function syncVectors(env, body = {}) {
   const invalid = [];
   for (const row of results || []) {
     try {
-      const values = JSON.parse(row.embedding_json);
-      if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
-        invalid.push({ capa_code: row.capa_code, reason: 'dimensão inválida' });
-        continue;
-      }
-      const capaCode = String(row.capa_code || '').trim().toUpperCase();
-      vectors.push({
-        id: vectorId(capaCode),
-        values,
-        metadata: {
-          capa_code: capaCode,
-          image_key: String(row.image_key || ''),
-          product_id: Number(row.product_id || 0),
-          embedding_model: String(row.embedding_model || ''),
-          updated_at: String(row.updated_at || '')
-        }
-      });
-    } catch {
-      invalid.push({ capa_code: row.capa_code, reason: 'embedding_json inválido' });
+      vectors.push(vectorFromRow(row));
+    } catch (error) {
+      invalid.push({ capa_code: row.capa_code, reason: error?.message || 'embedding_json inválido' });
     }
   }
 
@@ -109,6 +127,19 @@ export default {
         metric: 'cosine',
         d1_embeddings: Number(embeddings?.total || 0)
       });
+    }
+
+    const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
+    if (imageUpload && request.method === 'POST') {
+      const response = await app.fetch(request, env, ctx);
+      if (response.ok && env.COVER_VECTORS?.upsert) {
+        try {
+          await upsertProductVector(env, Number(imageUpload[1]));
+        } catch {
+          // A imagem e o embedding D1 já foram persistidos; o sync administrativo pode reparar o Vectorize.
+        }
+      }
+      return response;
     }
 
     return app.fetch(request, env, ctx);

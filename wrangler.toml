@@ -18,10 +18,9 @@ database_id = "10181c7e-ffdc-41d5-a40e-802173da9a02"
 binding = "PRODUCT_IMAGES"
 bucket_name = "nisti-identificacao-images"
 
-# Ativação do Vectorize (depois de criar o índice nisti-cover-embeddings):
-# [[vectorize]]
-# binding = "COVER_VECTORS"
-# index_name = "nisti-cover-embeddings"
+[[vectorize]]
+binding = "COVER_VECTORS"
+index_name = "nisti-cover-embeddings"
 
 [vars]
 APP_ENV = "production"
