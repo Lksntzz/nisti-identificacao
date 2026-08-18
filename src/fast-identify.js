@@ -3,6 +3,9 @@ import { parseSku } from './sku.js';
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_COVERS = 8;
 const MIN_CONFIDENCE = 0.85;
+const GEMINI_MEDIA_RESOLUTION = 'MEDIA_RESOLUTION_MEDIUM';
+const CANDIDATE_CACHE_LIMIT = 32;
+const candidateImageCache = new Map();
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -74,16 +77,20 @@ async function getCandidates(env, image, timings) {
   timings.read_photo_ms = Date.now() - uploadStarted;
 
   const embeddingStarted = Date.now();
-  const queryEmbedding = await embedImage(env, uploadBytes, image.type || 'image/jpeg');
-  timings.embedding_ms = Date.now() - embeddingStarted;
+  const embeddingPromise = embedImage(env, uploadBytes, image.type || 'image/jpeg');
 
   const d1Started = Date.now();
-  const { results } = await env.DB.prepare(`
+  const indexPromise = env.DB.prepare(`
     SELECT capa_code,image_key,embedding_json
     FROM cover_embeddings
   `).all();
+
+  const [queryEmbedding, indexData] = await Promise.all([embeddingPromise, indexPromise]);
+  timings.embedding_ms = Date.now() - embeddingStarted;
   timings.d1_index_ms = Date.now() - d1Started;
-  if (!results?.length) throw new Error('Índice visual vazio. Indexe as imagens das capas antes de identificar.');
+
+  const results = indexData?.results || [];
+  if (!results.length) throw new Error('Índice visual vazio. Indexe as imagens das capas antes de identificar.');
 
   const scoringStarted = Date.now();
   const scored = [];
@@ -104,23 +111,43 @@ async function getCandidates(env, image, timings) {
   return { uploadBytes, candidates: scored.slice(0, TOP_K_COVERS) };
 }
 
+function rememberCandidateImage(imageKey, value) {
+  if (!imageKey || !value) return;
+  if (candidateImageCache.has(imageKey)) candidateImageCache.delete(imageKey);
+  candidateImageCache.set(imageKey, value);
+  while (candidateImageCache.size > CANDIDATE_CACHE_LIMIT) {
+    const oldestKey = candidateImageCache.keys().next().value;
+    candidateImageCache.delete(oldestKey);
+  }
+}
+
+async function loadCandidateImage(env, candidate) {
+  const cached = candidateImageCache.get(candidate.image_key);
+  if (cached) {
+    candidateImageCache.delete(candidate.image_key);
+    candidateImageCache.set(candidate.image_key, cached);
+    return { ...candidate, ...cached, cacheHit: true };
+  }
+
+  const obj = await env.PRODUCT_IMAGES.get(candidate.image_key);
+  if (!obj) return null;
+  const value = {
+    bytes: new Uint8Array(await obj.arrayBuffer()),
+    mimeType: obj.httpMetadata?.contentType || 'image/jpeg'
+  };
+  rememberCandidateImage(candidate.image_key, value);
+  return { ...candidate, ...value, cacheHit: false };
+}
+
 async function verify(env, image, uploadBytes, candidates, timings) {
   if (!candidates.length) throw new Error('Nenhuma capa candidata encontrada no índice visual');
 
   const r2Started = Date.now();
-  const loaded = await Promise.all(candidates.map(async candidate => {
-    const obj = await env.PRODUCT_IMAGES.get(candidate.image_key);
-    if (!obj) return null;
-    const bytes = new Uint8Array(await obj.arrayBuffer());
-    return {
-      ...candidate,
-      bytes,
-      mimeType: obj.httpMetadata?.contentType || 'image/jpeg'
-    };
-  }));
+  const loaded = await Promise.all(candidates.map(candidate => loadCandidateImage(env, candidate)));
   const usable = loaded.filter(Boolean);
   timings.r2_candidates_ms = Date.now() - r2Started;
   timings.candidate_count = usable.length;
+  timings.candidate_cache_hits = usable.filter(item => item.cacheHit).length;
   timings.candidate_bytes = usable.reduce((sum, item) => sum + item.bytes.byteLength, 0);
   if (!usable.length) throw new Error('As imagens candidatas não foram encontradas no R2');
 
@@ -159,22 +186,27 @@ async function verify(env, image, uploadBytes, candidates, timings) {
       contents: [{ role: 'user', parts }],
       generationConfig: {
         temperature: 0,
+        maxOutputTokens: 128,
+        media_resolution: GEMINI_MEDIA_RESOLUTION,
+        thinkingConfig: {
+          thinkingLevel: 'minimal'
+        },
         response_mime_type: 'application/json',
         response_schema: {
           type: 'OBJECT',
           properties: {
             matched: { type: 'BOOLEAN' },
             capa_code: { type: 'STRING' },
-            confidence: { type: 'NUMBER' },
-            reason: { type: 'STRING' }
+            confidence: { type: 'NUMBER' }
           },
-          required: ['matched', 'capa_code', 'confidence', 'reason']
+          required: ['matched', 'capa_code', 'confidence']
         }
       }
     })
   });
   timings.gemini_ms = Date.now() - geminiStarted;
   timings.model = model;
+  timings.media_resolution = GEMINI_MEDIA_RESOLUTION;
   if (!response.ok) throw new Error(`Gemini falhou (${response.status})`);
   const payload = await response.json();
   const text = payload.candidates?.[0]?.content?.parts?.find(part => part.text)?.text;
