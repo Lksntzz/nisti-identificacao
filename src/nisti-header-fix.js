@@ -1,3 +1,11 @@
+if(!document.querySelector('link[data-nisti-logo-bg-fix]')){
+  const link=document.createElement('link');
+  link.rel='stylesheet';
+  link.href='/src/nisti-logo-background-fix.css';
+  link.dataset.nistiLogoBgFix='1';
+  document.head.appendChild(link);
+}
+
 function isAdmin(){
   return document.documentElement.dataset.nistiAccess === 'admin';
 }
@@ -14,7 +22,12 @@ function fixAdminHeader(){
   const logo=logos[0];
   if(logo){
     logo.href='/admin';
-    logo.querySelectorAll('img').forEach((img,index)=>{ if(index>0) img.remove(); });
+    logo.style.setProperty('background','transparent','important');
+    logo.querySelectorAll('img').forEach((img,index)=>{
+      if(index>0){ img.remove(); return; }
+      img.style.setProperty('background','transparent','important');
+      img.style.setProperty('mix-blend-mode','multiply','important');
+    });
   }
 
   let title=header.querySelector('.nisti-header-title');
