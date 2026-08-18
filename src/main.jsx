@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './app.css';
 
 const LOGO = '/nisti-logo-transparent.webp';
+const LOGO_FALLBACK = '/nisti-app-icon.svg';
 const PAGE_SIZE = 12;
 const WIREO_OPTIONS = [['P','Preto'],['B','Branco'],['R','Rose Gold']];
 const ACCESSORY_OPTIONS = [['P','Preto'],['B','Branco'],['A','Azul'],['R','Rosa'],['V','Verde'],['L','Laranja']];
@@ -25,6 +26,27 @@ function formatBytes(bytes) {
   return `${(value / 1024 ** 3).toFixed(2)} GB`;
 }
 
+function formatDashboardTime(value) {
+  if (!value) return '';
+  try {
+    return new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(value));
+  } catch {
+    return '';
+  }
+}
+
+function compactText(value, max = 74) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
 function productImage(product) {
   if (!product?.image_url) return '';
   const version = String(product.image_key || '').split('/').pop();
@@ -41,6 +63,7 @@ function Icon({ name, size = 20 }) {
     chart: <><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="M2 19h21"/></>,
     database: <><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></>,
     sparkles: <><path d="m12 3 1.3 3.7L17 8l-3.7 1.3L12 13l-1.3-3.7L7 8l3.7-1.3z"/><path d="m19 14 .8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8z"/><path d="m5 14 .6 1.4L7 16l-1.4.6L5 18l-.6-1.4L3 16l1.4-.6z"/></>,
+    alert: <><path d="M10.3 4.2 2.8 17.1A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.9L13.7 4.2a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></>,
     search: <><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></>,
     grid: <><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></>,
     list: <><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="18" r="1"/></>,
@@ -75,9 +98,20 @@ async function compressPhoto(file) {
 }
 
 function BrandHeader({ admin = false, tab, onTab }) {
+  const handleLogoError = event => {
+    const image = event.currentTarget;
+    if (image.dataset.fallback === '1') {
+      image.style.display = 'none';
+      return;
+    }
+    image.dataset.fallback = '1';
+    image.classList.add('brand-logo-fallback');
+    image.src = LOGO_FALLBACK;
+  };
+
   return <header className={`topbar ${admin ? 'admin-topbar' : ''}`}>
     <div className="brand-block">
-      <img className="brand-logo" src={LOGO} alt="NISTI PRINT" />
+      <img className="brand-logo" src={LOGO} alt="NISTI PRINT" onError={handleLogoError} />
       <div className="top-title"><small>NISTI PRINT</small><h1>Identificação Visual</h1></div>
     </div>
     {admin && <nav className="header-tabs" aria-label="Administração">
@@ -324,11 +358,19 @@ function ImportPanel({ refresh }) {
 }
 
 function Administration({ metrics, storage, indexInfo }) {
-  const db=metrics?.database; const gemini=metrics?.gemini; const r2=storage?.r2;
+  const db=metrics?.database; const gemini=metrics?.gemini; const recognition=metrics?.recognition; const today=recognition?.today||{}; const r2=storage?.r2;
+  const hasTechnicalErrors=Number(today.system_errors||0)>0;
+  const healthValue=!recognition?'—':hasTechnicalErrors?'Atenção':Number(today.attempts||0)>0?'Operacional':'Sem testes';
+  const healthText=!recognition
+    ? 'Métricas de reconhecimento indisponíveis.'
+    : hasTechnicalErrors
+      ? `${today.system_errors} erro(s) técnico(s) hoje. ${compactText(recognition.latest_error_message,110)}`
+      : `Nenhum erro técnico hoje. ${today.unmatched||0} imagem(ns) sem correspondência.`;
   return <section className="section-card"><div className="section-head"><div><h2>Administração do sistema</h2><p>Métricas reais dos serviços conectados.</p></div></div><div className="admin-metrics">
-    <article className="metric-card"><h3>Cloudflare D1</h3><div className="metric-value">{db?formatBytes(db.used_bytes):'—'}</div><p>{db?.products||0} produtos · {db?.cover_embeddings||0} referências indexadas.</p></article>
-    <article className="metric-card"><h3>Cloudflare R2</h3><div className="metric-value">{r2?formatBytes(r2.used_bytes):'—'}</div><p>{r2?.object_count||0} arquivos armazenados.</p></article>
-    <article className="metric-card"><h3>Gemini</h3><div className="metric-value">{gemini?.configured?'Ativo':'Inativo'}</div><p>{gemini?.model||'—'} · {gemini?.embedding_model||'—'} · Top-K {indexInfo?.top_k||8}</p></article>
+    <article className="metric-card"><h3>Cloudflare D1</h3><div className="metric-value">{db?formatBytes(db.used_bytes):'—'}</div><p>{db?.products||0} produtos · {db?.products_with_image||0} com imagem · {db?.cover_embeddings||0} referências indexadas.</p><div className="metric-detail">{db?.status==='online'?'Banco online':'Métrica indisponível'}{db?.served_by_region?` · região ${db.served_by_region}`:''}</div></article>
+    <article className="metric-card"><h3>Cloudflare R2</h3><div className="metric-value">{r2?formatBytes(r2.used_bytes):'—'}</div><p>{r2?.object_count||0} arquivos armazenados.</p><div className="metric-detail">{r2?.status==='online'?'Bucket online':'Métrica indisponível'}</div></article>
+    <article className="metric-card"><h3>Gemini · reconhecimentos</h3><div className="metric-value">{recognition?today.attempts||0:'—'}</div><p>{today.successes||0} reconhecidos · {today.unmatched||0} sem correspondência · {today.system_errors||0} erros técnicos hoje.</p><div className="metric-detail">{gemini?.embedding_model||'—'} · {today.embedding_requests||0} embeddings · {today.generation_requests||0} verificações Gemini</div></article>
+    <article className={`metric-card ${hasTechnicalErrors?'metric-alert':'metric-ok'}`}><h3>Saúde do reconhecimento</h3><div className="metric-value">{healthValue}</div><p>{healthText}</p><div className="metric-detail">{recognition?.latest_success_at?`Último sucesso: ${formatDashboardTime(recognition.latest_success_at)}`:'Nenhum sucesso registrado desde o início do monitoramento.'}</div></article>
   </div></section>;
 }
 
@@ -343,9 +385,19 @@ function AdminApp() {
   const [tab,setTab]=useState('geral'); const [products,setProducts]=useState([]); const [metrics,setMetrics]=useState(null); const [storage,setStorage]=useState(null); const [indexInfo,setIndexInfo]=useState(null); const [loading,setLoading]=useState(true);
   const refresh=async()=>{const [p,i]=await Promise.all([api('/api/products'),api('/api/admin/cover-index')]);setProducts(p.products||[]);setIndexInfo(i)};
   const refreshMetrics=async()=>{const [m,s]=await Promise.all([api('/api/admin/system-metrics').catch(()=>null),api('/api/admin/storage-metrics').catch(()=>null)]);setMetrics(m);setStorage(s)};
+  const refreshSystemMetrics=async()=>{const m=await api('/api/admin/system-metrics').catch(()=>null);if(m)setMetrics(m)};
   useEffect(()=>{Promise.all([refresh(),refreshMetrics()]).catch(error=>{if(/não autorizado/i.test(error.message))location.href='/admin-login'}).finally(()=>setLoading(false))},[]);
+  useEffect(()=>{const timer=setInterval(refreshSystemMetrics,30000);return()=>clearInterval(timer)},[]);
   const withImage=products.filter(p=>p.image_key).length; const pending=products.length-withImage; const progress=products.length?Math.round(withImage/products.length*100):0;
   const refreshAll=async()=>{await refresh();await refreshMetrics()};
+  const db=metrics?.database; const recognition=metrics?.recognition; const today=recognition?.today||{}; const systemErrors=Number(today.system_errors||0);
+  const databaseMeta=db?`${formatBytes(db.used_bytes)} · ${db.products||0} produtos · ${db.cover_embeddings||0} refs`:'Métricas indisponíveis';
+  const recognitionMeta=recognition?`${today.successes||0} reconhecidos · ${today.unmatched||0} sem correspondência`:'Métricas indisponíveis';
+  const errorMeta=!recognition
+    ? 'Métricas indisponíveis'
+    : systemErrors>0
+      ? `${systemErrors} erro(s) técnico(s) hoje · ${compactText(recognition.latest_error_message)}`
+      : `Sem erro técnico · ${today.unmatched||0} sem correspondência hoje`;
   if(loading)return <main className="app admin-app"><BrandHeader admin tab={tab} onTab={setTab}/><div className="loading"><div><div className="spinner"/>Carregando administração…</div></div></main>;
   return <main className="app admin-app"><BrandHeader admin tab={tab} onTab={setTab}/>
     {tab==='geral'&&<><div className="kpis">
@@ -353,8 +405,9 @@ function AdminApp() {
       <KpiCard tone="pink" icon="image" label="Mockups com imagem" value={withImage} meta="Produtos com mockup"/>
       <KpiCard tone="yellow" icon="clock" label="Pendentes" value={pending} meta="Sem imagem"/>
       <KpiCard tone="blue" icon="chart" label="Progresso do catálogo" value={`${progress}%`} meta={`${withImage} de ${products.length}`} progress={progress}/>
-      <KpiCard tone="green" icon="database" label="Banco de dados" value={metrics?.database?.status==='online'?'Online':'—'} meta={`${indexInfo?.indexed_covers||0} referências indexadas`} online={metrics?.database?.status==='online'}/>
-      <KpiCard tone="amber" icon="sparkles" label="Gemini" value={metrics?.gemini?.configured?'Ativo':'—'} meta={metrics?.gemini?.embedding_model||'gemini-embedding-2'}/>
+      <KpiCard tone="green" icon="database" label="Banco de dados" value={!db?'—':db.status==='online'?'Online':'Erro'} meta={databaseMeta} online={db?.status==='online'}/>
+      <KpiCard tone="amber" icon="sparkles" label="Gemini · reconhecimentos" value={recognition?today.attempts||0:'—'} meta={recognitionMeta}/>
+      <KpiCard tone={systemErrors>0?'danger':'green'} icon="alert" label="Erros do reconhecimento" value={recognition?systemErrors:'—'} meta={errorMeta} online={Boolean(recognition)&&systemErrors===0}/>
     </div><Catalog products={products} refresh={refreshAll}/></>}
     {tab==='mockups'&&<Catalog products={products} focused refresh={refreshAll}/>} 
     {tab==='importacao'&&<ImportPanel refresh={refreshAll}/>} 
