@@ -1,8 +1,9 @@
 import app from './edge-router.js';
 import { fastIdentify } from './fast-identify-v4.js';
+import { buildLocalVisionCandidates, confirmLocalVision } from './embedding-candidates.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
-// Orçamento total do Worker. A margem restante fica para upload/browser sem voltar aos 50+ segundos.
+// Orçamento do fallback generativo. O fluxo principal usa embedding + OpenCV local.
 const ROUTER_BUDGET_MS = 4600;
 
 function responseWithHeaders(response) {
@@ -45,6 +46,20 @@ function timeoutResult(started) {
   };
 }
 
+async function readJson(response) {
+  const type = response.headers.get('content-type') || '';
+  return type.includes('application/json')
+    ? response.clone().json().catch(() => null)
+    : null;
+}
+
+async function record(ctx, env, response, data) {
+  if (!data) return;
+  const telemetry = recordRecognitionAttempt(env, response.status, data);
+  if (ctx?.waitUntil) ctx.waitUntil(telemetry);
+  else await telemetry;
+}
+
 async function identifyWithinBudget(request, env) {
   const started = Date.now();
   let timer;
@@ -54,10 +69,7 @@ async function identifyWithinBudget(request, env) {
 
   const work = (async () => {
     const response = await fastIdentify(request, env, { deadlineAt: started + ROUTER_BUDGET_MS - 100 });
-    const type = response.headers.get('content-type') || '';
-    const data = type.includes('application/json')
-      ? await response.clone().json().catch(() => null)
-      : null;
+    const data = await readJson(response);
     return { response, data };
   })();
 
@@ -72,14 +84,22 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    if (request.method === 'POST' && url.pathname === '/api/identify-candidates') {
+      return buildLocalVisionCandidates(request, env);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/identify-confirm') {
+      const response = await confirmLocalVision(request, env);
+      const data = await readJson(response);
+      await record(ctx, env, response, data);
+      return response;
+    }
+
+    // Compatibilidade/fallback: mantém o identificador generativo anterior disponível.
     if (request.method === 'POST' && url.pathname === '/api/identify') {
       let { response, data } = await identifyWithinBudget(request, env);
 
-      if (data) {
-        const telemetry = recordRecognitionAttempt(env, response.status, data);
-        if (ctx?.waitUntil) ctx.waitUntil(telemetry);
-        else await telemetry;
-      }
+      await record(ctx, env, response, data);
 
       if (!response.ok || !data) return response;
 
