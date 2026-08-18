@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-identificacao-v6';
+const CACHE_NAME = 'nisti-identificacao-v7';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -11,6 +11,15 @@ self.addEventListener('activate', event => {
   })());
 });
 
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok) await cache.put(request, response.clone());
+  return response;
+}
+
 self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -18,14 +27,14 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
 
   if (url.pathname.startsWith('/api/images/') && url.searchParams.has('v')) {
-    event.respondWith((async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(request);
-      if (cached) return cached;
-      const response = await fetch(request);
-      if (response.ok) await cache.put(request, response.clone());
-      return response;
-    })());
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  // Vite gera nomes versionados por hash. Depois do primeiro carregamento,
+  // inclusive o chunk OpenCV/WASM fica disponível localmente no PWA.
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(cacheFirst(request));
     return;
   }
 
