@@ -1,0 +1,205 @@
+/* Public identification experience only. Kept separate from the admin dashboard styles. */
+
+@media (min-width: 761px) {
+  body .app.general {
+    width: min(1180px, calc(100% - 64px));
+    padding-top: 30px;
+    padding-bottom: 64px;
+  }
+
+  body .app.general > .topbar {
+    min-height: 116px;
+    padding: 10px 8px 24px;
+  }
+
+  body .app.general .brand-block {
+    width: 100%;
+    gap: 30px;
+  }
+
+  body .app.general .brand-logo {
+    width: 220px;
+    flex: 0 0 auto;
+  }
+
+  body .app.general .top-title small {
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+
+  body .app.general .top-title h1 {
+    font-size: 38px;
+    line-height: 1.02;
+  }
+
+  body .app.general > .panel {
+    padding: 38px 40px 40px;
+    border-radius: 28px;
+    box-shadow: 0 22px 60px rgba(38, 52, 78, .09);
+  }
+
+  body .app.general > .panel::before {
+    height: 6px;
+  }
+
+  body .app.general .eyebrow {
+    margin-bottom: 13px;
+    padding: 8px 13px;
+    font-size: 11px;
+  }
+
+  body .app.general .panel h2 {
+    font-size: 40px;
+    line-height: 1.05;
+  }
+
+  body .app.general .lead {
+    max-width: 860px;
+    margin-top: 11px;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  body .app.general .camera {
+    min-height: 410px;
+    margin-top: 28px;
+    border-radius: 24px;
+  }
+
+  body .app.general .camera-empty {
+    gap: 14px;
+    padding: 48px;
+  }
+
+  body .app.general .camera-icon {
+    width: 88px;
+    height: 88px;
+    border-radius: 25px;
+    font-size: 42px;
+  }
+
+  body .app.general .camera-empty strong {
+    font-size: 24px;
+  }
+
+  body .app.general .camera-empty span {
+    max-width: 520px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body .app.general .camera-label,
+  body .app.general .photo-ready {
+    top: 18px;
+    padding: 8px 13px;
+    font-size: 10px;
+  }
+
+  body .app.general .camera-label {
+    left: 18px;
+  }
+
+  body .app.general .photo-ready {
+    right: 18px;
+  }
+
+  body .app.general .photo-preview {
+    max-height: 620px;
+    padding: 14px;
+  }
+
+  body .app.general .primary {
+    min-height: 64px;
+    margin-top: 16px;
+    border-radius: 17px;
+    font-size: 18px;
+  }
+
+  body .app.general .status,
+  body .app.general .result {
+    margin-top: 20px;
+    padding: 22px;
+  }
+
+  body .app.general .result-image {
+    width: min(380px, 100%);
+    max-height: 440px;
+  }
+
+  body .app.general .badges {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  body .app.general .badge {
+    padding: 15px;
+  }
+
+  body .app.general .badge strong {
+    font-size: 18px;
+  }
+
+  body .app.general .choices {
+    gap: 14px;
+  }
+
+  body .app.general .choice-card {
+    grid-template-columns: 118px minmax(0, 1fr) auto;
+    padding: 14px;
+  }
+
+  body .app.general .choice-card img {
+    width: 118px;
+    height: 132px;
+  }
+
+  body .app.general .choice-card button {
+    grid-column: auto;
+    min-width: 170px;
+    align-self: center;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  body .app.general {
+    width: calc(100% - 36px);
+  }
+
+  body .app.general .brand-logo {
+    width: 180px;
+  }
+
+  body .app.general .top-title h1 {
+    font-size: 32px;
+  }
+
+  body .app.general > .panel {
+    padding: 30px;
+  }
+
+  body .app.general .panel h2 {
+    font-size: 34px;
+  }
+
+  body .app.general .camera {
+    min-height: 350px;
+  }
+
+  body .app.general .badges {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body .app.general .choice-card {
+    grid-template-columns: 100px minmax(0, 1fr);
+  }
+
+  body .app.general .choice-card img {
+    width: 100px;
+    height: 116px;
+  }
+
+  body .app.general .choice-card button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
