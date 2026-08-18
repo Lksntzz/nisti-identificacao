@@ -3,60 +3,67 @@ import { createRoot } from 'react-dom/client';
 import MercadoLivreBatch from './MercadoLivreBatch.jsx';
 import './mercadolivre.css';
 
-const host = document.createElement('div');
-host.id = 'mercadolivre-batch-extension';
-host.className = 'adm-extension-slot';
+const isAdminArea = /^\/admin(?:\/|$)/i.test(window.location.pathname);
 
-function Extension() {
-  const [products, setProducts] = useState([]);
+if (isAdminArea) {
+  const host = document.createElement('div');
+  host.id = 'mercadolivre-batch-extension';
+  host.className = 'adm-extension-slot';
 
-  const refresh = async () => {
-    const response = await fetch('/api/products');
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Falha ao carregar produtos');
-    setProducts(data.products || []);
-  };
+  function Extension() {
+    const [products, setProducts] = useState([]);
 
-  const refreshIndex = async () => {
-    const response = await fetch('/api/admin/cover-index');
-    if (!response.ok) throw new Error('Falha ao atualizar índice visual');
-    return response.json();
-  };
+    const refresh = async () => {
+      const response = await fetch('/api/products');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Falha ao carregar produtos');
+      setProducts(data.products || []);
+    };
 
-  useEffect(() => {
-    refresh().catch(() => {});
-  }, []);
+    const refreshIndex = async () => {
+      const response = await fetch('/api/admin/cover-index');
+      if (!response.ok) throw new Error('Falha ao atualizar índice visual');
+      return response.json();
+    };
 
-  return <MercadoLivreBatch
-    products={products}
-    onRefresh={refresh}
-    onRefreshIndex={refreshIndex}
-  />;
-}
+    useEffect(() => {
+      refresh().catch(() => {});
+    }, []);
 
-const extensionRoot = createRoot(host);
-extensionRoot.render(<Extension/>);
-
-let placing = false;
-function placeExtension() {
-  if (placing) return;
-  const shopeeSection = document.querySelector('.shopee-batch');
-  if (!shopeeSection?.parentElement) {
-    if (host.isConnected) host.remove();
-    return;
+    return <MercadoLivreBatch
+      products={products}
+      onRefresh={refresh}
+      onRefreshIndex={refreshIndex}
+    />;
   }
 
-  if (shopeeSection.nextElementSibling !== host) {
-    placing = true;
-    shopeeSection.insertAdjacentElement('afterend', host);
-    queueMicrotask(() => { placing = false; });
+  createRoot(host).render(<Extension/>);
+
+  let scheduled = false;
+  function placeExtension() {
+    scheduled = false;
+    const shopeeSection = document.querySelector('.shopee-batch');
+    if (!shopeeSection?.parentElement) {
+      if (host.isConnected) host.remove();
+      return;
+    }
+
+    if (shopeeSection.nextElementSibling !== host) {
+      shopeeSection.insertAdjacentElement('afterend', host);
+    }
   }
-}
 
-const appRoot = document.getElementById('root');
-if (appRoot) {
-  const observer = new MutationObserver(placeExtension);
-  observer.observe(appRoot, { childList: true, subtree: true });
-}
+  function schedulePlace() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(placeExtension);
+  }
 
-placeExtension();
+  const appRoot = document.getElementById('root');
+  if (appRoot) {
+    const observer = new MutationObserver(schedulePlace);
+    observer.observe(appRoot, { childList: true, subtree: true });
+  }
+
+  schedulePlace();
+}
