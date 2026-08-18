@@ -1,5 +1,5 @@
 import app from './core-router.js';
-import { readRecognitionMetrics } from './recognition-metrics.js';
+import { readRecognitionEvents, readRecognitionMetrics } from './recognition-metrics.js';
 
 const FREE_D1_LIMIT_BYTES = 500 * 1024 * 1024;
 const PAID_D1_LIMIT_BYTES = 10 * 1024 * 1024 * 1024;
@@ -72,6 +72,23 @@ async function handleSystemMetrics(env) {
   });
 }
 
+async function handleRecognitionEvents(url, env) {
+  const scope = String(url.searchParams.get('scope') || '').trim();
+  const kind = String(url.searchParams.get('kind') || '').trim();
+  const limit = Math.max(1, Math.min(200, Number(url.searchParams.get('limit')) || 100));
+  const events = await readRecognitionEvents(env, {
+    limit,
+    kind,
+    issuesOnly: scope === 'issues'
+  });
+  return json({
+    ok: true,
+    scope: scope || (kind || 'all'),
+    count: events.length,
+    events
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -80,6 +97,13 @@ export default {
         return await handleSystemMetrics(env);
       } catch (error) {
         return json({ error: error?.message || 'Falha ao ler métricas do sistema' }, 500);
+      }
+    }
+    if (url.pathname === '/api/admin/recognition-events' && request.method === 'GET') {
+      try {
+        return await handleRecognitionEvents(url, env);
+      } catch (error) {
+        return json({ error: error?.message || 'Falha ao ler diagnóstico de reconhecimento' }, 500);
       }
     }
     return app.fetch(request, env, ctx);
