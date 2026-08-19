@@ -25,7 +25,22 @@ async function handleSystemMetrics(env) {
   `).all();
   const productStats = productsProbe.results?.[0] || {};
   const sizeBytes = Number(productsProbe.meta?.size_after || 0);
-  const embeddingStats = await env.DB.prepare(`SELECT COUNT(*) AS total FROM cover_embeddings`).first();
+  const referenceStats = await env.DB.prepare(`
+    SELECT
+      COUNT(*) AS references_total,
+      SUM(CASE WHEN e.reference_id IS NOT NULL THEN 1 ELSE 0 END) AS indexed_total,
+      COUNT(DISTINCT CASE WHEN e.reference_id IS NOT NULL THEN r.capa_code END) AS indexed_covers
+    FROM cover_visual_references r
+    LEFT JOIN cover_reference_embeddings e ON e.reference_id=r.id
+    WHERE r.active=1
+  `).first().catch(async () => {
+    const legacy = await env.DB.prepare(`SELECT COUNT(*) AS total FROM cover_embeddings`).first();
+    return {
+      references_total: Number(legacy?.total || 0),
+      indexed_total: Number(legacy?.total || 0),
+      indexed_covers: Number(legacy?.total || 0)
+    };
+  });
   const recognition = await readRecognitionMetrics(env);
 
   const configuredLimitMb = Number(env.D1_DATABASE_LIMIT_MB || 0);
@@ -42,7 +57,9 @@ async function handleSystemMetrics(env) {
       used_bytes: sizeBytes,
       products: Number(productStats.total || 0),
       products_with_image: Number(productStats.with_image || 0),
-      cover_embeddings: Number(embeddingStats?.total || 0),
+      cover_embeddings: Number(referenceStats?.indexed_total || 0),
+      cover_visual_references: Number(referenceStats?.references_total || 0),
+      indexed_reference_covers: Number(referenceStats?.indexed_covers || 0),
       query_rows_read: Number(productsProbe.meta?.rows_read || 0),
       served_by_colo: productsProbe.meta?.served_by_colo || null,
       served_by_region: productsProbe.meta?.served_by_region || null,
