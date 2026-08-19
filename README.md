@@ -55,6 +55,8 @@ Referências adicionais podem representar condições reais como foto frontal, p
 5. Validar `/api/admin/vectorize-status` e `/api/admin/cover-index`.
 6. Fazer smoke/regressão com capas conhecidas, visualmente parecidas e imagens negativas antes de considerar a mudança estável.
 
+O Production Gate executa a migration completa contra um D1 local antes do build. Isso valida a sintaxe e a sequência das migrations sem alterar o banco de produção.
+
 ## Stack
 
 - React + Vite
