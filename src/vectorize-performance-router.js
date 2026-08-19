@@ -80,16 +80,21 @@ async function enforceCrossSignalAgreement(response) {
     ? performance.local_geometry_codes.map(code => String(code || '').trim().toUpperCase()).filter(Boolean)
     : [];
   const localTopCode = localGeometryCodes[0] || '';
+  const localGeometryUseful = performance.shortlist_strategy === 'local-geometry+retrieval-top1';
 
   // O Gemini não pode transformar "mais parecido" em identificação. Uma resposta
-  // positiva só é aceita quando existe concordância com um sinal independente:
-  // geometria local, quando disponível; caso contrário, o top-1 do retrieval.
-  const corroboratingCode = localTopCode || retrievalTopCode;
+  // positiva só é aceita quando existe concordância com um sinal independente.
+  // Evidência geométrica só entra no gate quando o V7 marcou que ela continha
+  // sinal útil; caso contrário usamos o top-1 do retrieval como corroborador.
+  const corroboratingCode = localGeometryUseful
+    ? (localTopCode || retrievalTopCode)
+    : retrievalTopCode;
   const corroborated = Boolean(selectedCode && corroboratingCode && selectedCode === corroboratingCode);
 
   if (corroborated) {
     performance.cross_signal_guard = 'passed';
     performance.cross_signal_code = corroboratingCode;
+    performance.cross_signal_source = localGeometryUseful ? 'local-geometry' : 'retrieval-top1';
     data.performance = performance;
     const headers = new Headers(response.headers);
     headers.delete('content-length');
@@ -105,6 +110,7 @@ async function enforceCrossSignalAgreement(response) {
   performance.cross_signal_selected_code = selectedCode || null;
   performance.cross_signal_retrieval_top1_code = retrievalTopCode || null;
   performance.cross_signal_local_top_code = localTopCode || null;
+  performance.cross_signal_source = localGeometryUseful ? 'local-geometry' : 'retrieval-top1';
 
   return new Response(JSON.stringify({
     error: 'A análise visual encontrou sinais conflitantes. Produto não identificado com segurança.',
