@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFinalIdentifyV4 } from './structural-final-v4.js';
+import { structuralFinalIdentifyV6 } from './structural-final-v6.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { syncPlatformVectors } from './platform-vector-sync.js';
@@ -8,7 +8,7 @@ import { consolidatePlatforms } from './platform-consolidation.js';
 import { syncVisualSignatures } from './visual-signatures.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'platform-semantic-recognition-v3';
+const RECOGNITION_BUILD = 'platform-comparative-catalog-v6';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -158,16 +158,17 @@ function previewBuild() {
   return new Response(JSON.stringify({
     ok: true,
     recognition_build: RECOGNITION_BUILD,
-    pipeline: 'platform namespace + embedding + single-image semantic fingerprint',
+    pipeline: 'platform namespace + embedding + comparative catalog verification',
     user_photo_max_side: 768,
+    max_catalog_candidates: 4,
     semantic_features: [
-      'fixed_text','primary_subjects','graphic_elements','colors','layout','style'
+      'fixed_text','primary_subjects','graphic_elements','dominant_colors','layout','personalization'
     ],
-    query_signature_timeout_ms: 5000,
-    exact_score: 0.86,
-    exact_margin: 0.08,
+    personalization_policy: 'ignore only proper-name/initial/date differences when they are clearly personalization over the same base art',
+    exact_confidence: 0.95,
     supported_platforms: ['MERCADO LIVRE', 'SHOPEE', 'AMAZON'],
     mercado_livre_aliases_consolidated: true,
+    thumbnail_source: 'retrieved catalog image, with product image kept separately',
     timeout_behavior: 'safe suggestions instead of wrong SKU'
   }), {
     status: 200,
@@ -299,7 +300,7 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      const response = await structuralFinalIdentifyV4(request, env);
+      const response = await structuralFinalIdentifyV6(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
