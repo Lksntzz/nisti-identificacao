@@ -49,7 +49,14 @@ jobs:
         run: npm run build
       - name: Upload multi-ref preview
         run: npx wrangler versions upload --preview-alias multi-ref
-      - name: Show latest recognition event
+
+  diagnostic:
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/multi-reference-retrieval'
+    needs: preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Read latest preview recognition diagnostic
         run: >-
-          npx wrangler d1 execute nisti-identificacao --remote
-          --command="SELECT id,created_at,kind,http_status,confidence,identified_by,error_message,total_ms,embedding_ms,vectorize_ms,local_cv_ms,reference_load_ms,gemini_ms,retrieval_top1,retrieval_top1_code,retrieval_top2,retrieval_top2_code,retrieval_margin,candidate_count,verification_mode,accepted_by,model,retrieval_source,reused_candidates,pipeline_version,reference_candidate_count,vector_top_k FROM recognition_events ORDER BY id DESC LIMIT 1;"
+          curl --fail --silent --show-error
+          https://multi-ref-nisti-identificacao.lksntz1411.workers.dev/api/preview/last-recognition
