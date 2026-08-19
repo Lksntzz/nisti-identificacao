@@ -49,6 +49,8 @@ jobs:
         run: npm run build
       - name: Upload multi-ref preview
         run: npx wrangler versions upload --preview-alias multi-ref
+      - name: Apply D1 platform consolidation
+        run: npx wrangler d1 migrations apply nisti-identificacao --remote
       - name: Sync platform-scoped Vectorize entries
         shell: bash
         run: |
