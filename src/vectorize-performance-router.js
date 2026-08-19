@@ -1,12 +1,12 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFinalIdentifyV2 } from './structural-final-v2.js';
+import { structuralFinalIdentifyV3 } from './structural-final-v3.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms } from './platform-scope.js';
 import { syncPlatformVectors } from './platform-vector-sync.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'platform-scoped-recognition-v1';
+const RECOGNITION_BUILD = 'platform-scoped-recognition-v2';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -100,9 +100,13 @@ function previewBuild() {
   return new Response(JSON.stringify({
     ok: true,
     recognition_build: RECOGNITION_BUILD,
-    pipeline: 'platform namespace + embedding + 3-cover Gemini verifier',
+    pipeline: 'platform namespace + embedding + parallel binary top-2 verifier',
     user_photo_max_side: 768,
-    exact_confidence: 0.97
+    verifier_media_resolution: 'LOW',
+    verifier_candidates: 2,
+    verifier_timeout_ms: 6500,
+    exact_confidence: 0.97,
+    timeout_behavior: 'safe suggestions instead of system error'
   }), {
     status: 200,
     headers: {
@@ -186,7 +190,7 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      const response = await structuralFinalIdentifyV2(request, env);
+      const response = await structuralFinalIdentifyV3(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
