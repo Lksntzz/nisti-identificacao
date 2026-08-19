@@ -61,6 +61,37 @@ async function previewLastRecognition(env) {
   });
 }
 
+async function previewCatalog(env, url) {
+  const code = String(url.searchParams.get('code') || '').trim().toUpperCase();
+  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 250)));
+  let rows;
+  if (code) {
+    const result = await env.DB.prepare(`
+      SELECT id,sku,capa_code,nome,variacao,image_key
+      FROM products
+      WHERE capa_code=?
+      ORDER BY id ASC
+      LIMIT ?
+    `).bind(code, limit).all();
+    rows = result.results || [];
+  } else {
+    const result = await env.DB.prepare(`
+      SELECT id,sku,capa_code,nome,variacao,image_key
+      FROM products
+      ORDER BY capa_code ASC,id ASC
+      LIMIT ?
+    `).bind(limit).all();
+    rows = result.results || [];
+  }
+  return new Response(JSON.stringify({ ok: true, products: rows }), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store'
+    }
+  });
+}
+
 function previewBuild() {
   return new Response(JSON.stringify({
     ok: true,
@@ -96,6 +127,10 @@ export default {
       return previewBuild();
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/preview/catalog' && previewDiagnosticAllowed(url)) {
+      return previewCatalog(env, url);
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/preview/last-recognition' && previewDiagnosticAllowed(url)) {
       return previewLastRecognition(env);
     }
@@ -110,8 +145,6 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // Vectorize gera recall, ORB/RANSAC só reordena as candidatas e o Gemini
-      // recebe no máximo três capas. Uma única decisão final libera o SKU.
       const response = await structuralFinalIdentifyV2(request, env);
       await recordFallback(ctx, env, response);
       return response;
