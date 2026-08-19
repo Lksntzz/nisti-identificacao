@@ -49,3 +49,7 @@ jobs:
         run: npm run build
       - name: Upload multi-ref preview
         run: npx wrangler versions upload --preview-alias multi-ref
+      - name: Show latest recognition event
+        run: >-
+          npx wrangler d1 execute nisti-identificacao --remote
+          --command="SELECT id,created_at,kind,http_status,confidence,identified_by,error_message,total_ms,embedding_ms,vectorize_ms,local_cv_ms,reference_load_ms,gemini_ms,retrieval_top1,retrieval_top1_code,retrieval_top2,retrieval_top2_code,retrieval_margin,candidate_count,verification_mode,accepted_by,model,retrieval_source,reused_candidates,pipeline_version,reference_candidate_count,vector_top_k FROM recognition_events ORDER BY id DESC LIMIT 1;"
