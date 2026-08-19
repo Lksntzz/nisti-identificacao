@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFallbackIdentifyV10 } from './structural-fallback-v10.js';
+import { structuralFinalIdentifyV1 } from './structural-final-v1.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
@@ -91,11 +91,10 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // V10 mantém a verificação binária V9 e, somente quando mais de uma capa
-      // passa, executa uma adjudicação comparativa final. Textos fixos e elementos
-      // distintivos da arte passam a ser discriminadores obrigatórios; nomes,
-      // iniciais e datas personalizadas continuam sendo ignorados.
-      const response = await structuralFallbackIdentifyV10(request, env);
+      // Pipeline consolidado: retrieval multi-reference + uma única decisão visual
+      // comparativa e estrita. Texto fixo, layout e elementos distintivos precisam
+      // concordar; similaridade genérica nunca libera SKU.
+      const response = await structuralFinalIdentifyV1(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
