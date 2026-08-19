@@ -23,3 +23,29 @@ jobs:
         run: npx wrangler d1 migrations apply nisti-identificacao --local
       - name: Build
         run: npm run build
+
+  preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/multi-reference-retrieval'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate Cloudflare token
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Cloudflare API token secret is missing"; exit 1; }
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Upload multi-ref preview
+        run: npx wrangler versions upload --preview-alias multi-ref
