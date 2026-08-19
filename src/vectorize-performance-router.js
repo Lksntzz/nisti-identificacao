@@ -41,6 +41,8 @@ export default {
       return withRecognitionTicketCookie(response);
     }
     if (request.method === 'POST' && url.pathname === '/api/identify') {
+      // V4 preserva as referências visuais recuperadas pelo Vectorize em vez de
+      // voltar a escolher um único mockup arbitrário por capa no fallback Gemini.
       const response = await structuralFallbackIdentifyV4(request, env);
       await recordFallback(ctx, env, response);
       return response;
