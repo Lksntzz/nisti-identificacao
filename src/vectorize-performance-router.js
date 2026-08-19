@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFallbackIdentifyV9 } from './structural-fallback-v9.js';
+import { structuralFallbackIdentifyV10 } from './structural-fallback-v10.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
@@ -86,17 +86,16 @@ export default {
       return withRecognitionTicketCookie(response);
     }
 
-    // O caminho antigo aceitava ORB/RANSAC como decisão final e podia liberar
-    // um SKU incorreto sem passar pelo verificador estrutural. Ele fica bloqueado
-    // para que clientes antigos falhem de forma segura em vez de gerar falso positivo.
     if (request.method === 'POST' && url.pathname === '/api/identify-confirm') {
       return deprecatedLocalConfirmationResponse();
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // V9 mantém comparação binária por capa, isola timeout por candidata e só
-      // libera SKU quando existe uma única vencedora estrutural >= 0.95.
-      const response = await structuralFallbackIdentifyV9(request, env);
+      // V10 mantém a verificação binária V9 e, somente quando mais de uma capa
+      // passa, executa uma adjudicação comparativa final. Textos fixos e elementos
+      // distintivos da arte passam a ser discriminadores obrigatórios; nomes,
+      // iniciais e datas personalizadas continuam sendo ignorados.
+      const response = await structuralFallbackIdentifyV10(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
