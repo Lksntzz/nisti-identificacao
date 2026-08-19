@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFallbackIdentifyV5 } from './structural-fallback-v5.js';
+import { structuralFallbackIdentifyV6 } from './structural-fallback-v6.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
@@ -73,9 +73,10 @@ export default {
       return withRecognitionTicketCookie(response);
     }
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // V5 amplia a verificação estrutural para as seis capas recuperadas,
-      // usando uma referência visual diversa por capa sem reduzir o limiar de aceitação.
-      const response = await structuralFallbackIdentifyV5(request, env);
+      // V6 preserva seis capas candidatas, faz pré-seleção em dois lotes paralelos
+      // de três referências e executa uma confirmação final estrita com no máximo
+      // dois finalistas. Isso reduz a carga multimodal sem reduzir o threshold.
+      const response = await structuralFallbackIdentifyV6(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
