@@ -28,7 +28,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.head_ref == 'feat/multi-reference-retrieval'
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
@@ -54,36 +54,6 @@ jobs:
           curl --fail --silent --show-error
           -X POST
           https://multi-ref-nisti-identificacao.lksntz1411.workers.dev/api/preview/consolidate-platforms
-      - name: Sync semantic visual signatures
-        shell: bash
-        run: |
-          set -euo pipefail
-          BASE_URL="https://multi-ref-nisti-identificacao.lksntz1411.workers.dev"
-          remaining=999999
-          for attempt in $(seq 1 260); do
-            http_code=$(curl --silent --show-error --max-time 20 \
-              -o /tmp/visual-signature-sync.json \
-              -w '%{http_code}' \
-              -X POST "$BASE_URL/api/preview/sync-visual-signatures" \
-              -H 'content-type: application/json' \
-              --data '{"limit":1}' || true)
-            body=$(cat /tmp/visual-signature-sync.json 2>/dev/null || true)
-            echo "HTTP $http_code $body"
-
-            if [ "$http_code" != "200" ]; then
-              sleep 6
-              continue
-            fi
-
-            remaining=$(node -e 'const d=JSON.parse(process.argv[1]); process.stdout.write(String(Number(d.remaining||0)))' "$body")
-            updated=$(node -e 'const d=JSON.parse(process.argv[1]); process.stdout.write(String(Number(d.updated||0)))' "$body")
-            if [ "$remaining" = "0" ]; then
-              break
-            fi
-
-            if [ "$updated" = "0" ]; then sleep 6; else sleep 4; fi
-          done
-          test "$remaining" = "0" || { echo "Visual signatures still pending: $remaining"; exit 1; }
       - name: Sync platform-scoped Vectorize entries
         shell: bash
         run: |
