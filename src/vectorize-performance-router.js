@@ -9,7 +9,7 @@ import { syncVisualSignatures } from './visual-signatures.js';
 import { handlePublicImageRequest } from './public-image-router.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'platform-comparative-catalog-v8.1';
+const RECOGNITION_BUILD = 'platform-overlay-aware-v8.6';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -109,7 +109,7 @@ async function previewLastRecognition(env) {
       retrieval_top1, retrieval_top1_code, retrieval_top2, retrieval_top2_code,
       retrieval_margin, candidate_count, verification_mode, accepted_by, model,
       retrieval_source, reused_candidates, pipeline_version, reference_candidate_count,
-      vector_top_k
+      vector_top_k, verifier_reason_code, verifier_evidence
     FROM recognition_events
     ORDER BY id DESC
     LIMIT 1
@@ -159,22 +159,27 @@ function previewBuild() {
   return new Response(JSON.stringify({
     ok: true,
     recognition_build: RECOGNITION_BUILD,
-    pipeline: 'platform namespace + embedding + comparative catalog evidence + deterministic adjudication + HTTPS file URI',
+    pipeline: 'platform namespace + embedding + Vectorize retrieval + top1-first inline R2 visual verification + deterministic adjudication',
     user_photo_max_side: 768,
-    max_catalog_candidates: 4,
-    candidate_transport: 'public HTTPS file_uri; Worker does not inline full catalog images into Gemini payload',
-    public_image_delivery: 'GET+HEAD with explicit content-type, cache metadata and public cross-origin access',
-    media_resolution: 'MEDIUM',
+    max_catalog_candidates: 3,
+    candidate_transport: 'catalog candidate bytes read directly from R2 and sent inline to verifier',
+    media_resolution: 'LOW',
     semantic_features: [
-      'fixed_text','primary_subjects','graphic_elements','dominant_colors','layout','personalization'
+      'fixed_text', 'primary_subjects', 'graphic_elements', 'dominant_colors',
+      'layout', 'personalization', 'physical_overlay_ignoring'
+    ],
+    ignored_physical_overlays: [
+      'wire-o', 'spiral', 'elastic', 'tassel', 'plastic_packaging', 'lamination',
+      'holographic_effect', 'glare', 'reflection', 'shadow', 'hand', 'table'
     ],
     personalization_policy: 'catalog-aware: personalized products ignore only variable name/initial/date while permanent text remains mandatory',
     minimum_structural_confidence: 0.90,
-    minimum_decision_gap: 0.08,
+    verifier_timeout_ms: 6000,
     supported_platforms: ['MERCADO LIVRE', 'SHOPEE', 'AMAZON'],
     mercado_livre_aliases_consolidated: true,
     thumbnail_source: 'retrieved catalog image with product-image fallback',
-    timeout_behavior: 'safe suggestions instead of wrong SKU'
+    diagnostic_evidence: 'reason_code + concise observable evidence persisted per recognition',
+    timeout_behavior: 'safe suggestions unless strict isolated retrieval fallback is satisfied'
   }), {
     status: 200,
     headers: {
