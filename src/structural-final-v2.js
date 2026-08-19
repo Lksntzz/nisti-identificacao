@@ -1,9 +1,11 @@
 import { parseSku } from './sku.js';
+import { normalizePlatform } from './platform-scope.js';
 
 const COOKIE_NAME = 'nisti_recognition_ticket';
-const MAX_RETRIEVAL_COVERS = 8;
+const MAX_RETRIEVAL_COVERS = 6;
 const FINAL_COVER_LIMIT = 3;
-const MIN_CONFIDENCE = 0.97;
+const MIN_EXACT_CONFIDENCE = 0.97;
+const MIN_SUGGESTION_CONFIDENCE = 0.72;
 const VERIFY_TIMEOUT_MS = 12_000;
 
 class RecognitionError extends Error {
@@ -97,7 +99,7 @@ function inheritTicketPerformance(performance, ticket) {
     'embedding_ms', 'vectorize_ms', 'retrieval_top1', 'retrieval_top1_code',
     'retrieval_top2', 'retrieval_top2_code', 'retrieval_margin', 'vector_top_k',
     'reference_candidate_count', 'cover_candidate_count', 'candidate_lookup_ms',
-    'read_photo_ms', 'model'
+    'read_photo_ms', 'model', 'platform', 'platform_key', 'vectorize_namespace'
   ];
   for (const field of fields) {
     if (source[field] !== undefined && source[field] !== null) {
@@ -109,7 +111,9 @@ function inheritTicketPerformance(performance, ticket) {
 
 function coversFromTicket(ticket) {
   const codes = Array.isArray(ticket?.codes) ? ticket.codes : [];
-  const scores = ticket?.scores && typeof ticket.scores === 'object' ? ticket.scores : {};
+  const scores = ticket?.scores && typeof ticket.scores === 'object'
+    ? ticket.scores
+    : {};
   const refs = Array.isArray(ticket?.references) ? ticket.references : [];
   const covers = [];
 
@@ -138,83 +142,6 @@ function coversFromTicket(ticket) {
   }
 
   return covers;
-}
-
-function parseLocalMatch(form) {
-  try {
-    const raw = form.get('local_match');
-    if (!raw) return null;
-    const value = JSON.parse(String(raw));
-    return value && typeof value === 'object' ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function geometricOrder(localMatch, allowedCodes) {
-  if (!localMatch || typeof localMatch !== 'object') return [];
-  const allowed = new Set(allowedCodes);
-  const bestByCode = new Map();
-  const debug = Array.isArray(localMatch.debug_candidates)
-    ? localMatch.debug_candidates
-    : [];
-
-  for (const raw of debug) {
-    const code = String(raw?.capa_code || '').trim().toUpperCase();
-    if (!allowed.has(code)) continue;
-    const candidate = {
-      capa_code: code,
-      accepted: raw?.accepted === true,
-      geometric_score: Number(raw?.geometric_score || 0),
-      inliers: Number(raw?.inliers || 0),
-      good_matches: Number(raw?.good_matches || 0),
-      inlier_ratio: Number(raw?.inlier_ratio || 0),
-      median_distance: Number.isFinite(Number(raw?.median_distance))
-        ? Number(raw.median_distance)
-        : 999999
-    };
-    const current = bestByCode.get(code);
-    if (!current ||
-        Number(candidate.accepted) > Number(current.accepted) ||
-        candidate.geometric_score > current.geometric_score ||
-        candidate.inliers > current.inliers) {
-      bestByCode.set(code, candidate);
-    }
-  }
-
-  const matchedCode = String(localMatch?.capa_code || '').trim().toUpperCase();
-  const ordered = [...bestByCode.values()].sort((a, b) =>
-    Number(b.accepted) - Number(a.accepted) ||
-    b.geometric_score - a.geometric_score ||
-    b.inliers - a.inliers ||
-    b.good_matches - a.good_matches ||
-    b.inlier_ratio - a.inlier_ratio ||
-    a.median_distance - b.median_distance
-  );
-
-  const result = [];
-  if (localMatch?.matched === true && allowed.has(matchedCode)) result.push(matchedCode);
-  for (const item of ordered) {
-    if (!result.includes(item.capa_code)) result.push(item.capa_code);
-  }
-  return result;
-}
-
-function shortlistCovers(covers, localMatch) {
-  const byCode = new Map(covers.map(item => [item.capa_code, item]));
-  const allowedCodes = covers.map(item => item.capa_code);
-  const order = [
-    ...geometricOrder(localMatch, allowedCodes),
-    ...allowedCodes
-  ];
-  const selected = [];
-  for (const code of order) {
-    const cover = byCode.get(code);
-    if (!cover || selected.some(item => item.capa_code === code)) continue;
-    selected.push(cover);
-    if (selected.length >= FINAL_COVER_LIMIT) break;
-  }
-  return selected;
 }
 
 async function loadReferenceGroups(env, covers) {
@@ -294,10 +221,10 @@ function parseStructuredJson(payload) {
   throw new Error('invalid_json');
 }
 
-function verificationParts(photoBytes, photoMime, groups) {
+function verificationParts(photoBytes, photoMime, groups, platform) {
   const allowedCodes = groups.map(group => group.cover.capa_code).join(', ');
   const parts = [{
-    text: `Você é o verificador final de identidade visual da NISTI PRINT. Compare a FOTO somente com as ${groups.length} referências fornecidas e decida se existe UMA ÚNICA ARTE-BASE idêntica.\n\nCAPA_CODE permitidos: ${allowedCodes}. Se não houver uma identidade única, selected_capa_code=NONE.\n\nREGRAS OBRIGATÓRIAS:\n1. NÃO escolha a opção mais parecida. Exija identidade da arte-base.\n2. Ignore apenas personalização variável do cliente: nome próprio, inicial/letra e datas personalizadas.\n3. NÃO ignore textos fixos da arte/produto. Títulos e frases fixas são discriminadores fortes. Se o texto fixo visível conflitar, descarte a candidata.\n4. Compare fundo/textura, faixas, molduras, linhas, posição dos blocos, ícones/ilustrações, tipografia fixa e assinatura gráfica.\n5. Cor isolada, Wire-O, elástico, tassel, brilho, reflexo, mão, mesa, recorte e perspectiva não provam identidade.\n6. Só retorne uma capa quando múltiplos elementos distintivos independentes concordarem e não existir conflito estrutural importante.`
+    text: `Você é o verificador final de identidade visual da NISTI PRINT para a plataforma ${platform}. Compare a FOTO somente com as ${groups.length} referências fornecidas.\n\nCAPA_CODE permitidos: ${allowedCodes}.\n\nREGRAS:\n1. Avalie cada candidata separadamente. NÃO escolha simplesmente a mais parecida.\n2. Ignore somente nome próprio, inicial/letra e datas personalizadas do cliente.\n3. Textos fixos da arte são discriminadores fortes. Texto fixo conflitante reprova a candidata.\n4. Compare fundo/textura, faixas, molduras, linhas, posição dos blocos, ícones/ilustrações, tipografia fixa e assinatura gráfica.\n5. Cor isolada, Wire-O, elástico, tassel, brilho, reflexo, mão, mesa, recorte e perspectiva não provam identidade.\n6. unique_match=true somente quando exatamente UMA candidata representar a mesma arte-base. Caso contrário selected_capa_code=NONE.\n7. Para cada candidata retorne também confidence de 0 a 1 para permitir ordenar possíveis correspondências sem tratá-las como identificação.`
   }, {
     text: 'FOTO A IDENTIFICAR:'
   }, {
@@ -320,14 +247,21 @@ function verificationParts(photoBytes, photoMime, groups) {
   return parts;
 }
 
-async function verifyFinal(env, photoBytes, photoMime, groups) {
+async function verifyFinal(env, photoBytes, photoMime, groups, platform) {
   if (!env.GEMINI_API_KEY) {
-    throw new RecognitionError('GEMINI_API_KEY não configurada', 503, 'gemini_not_configured');
+    throw new RecognitionError(
+      'GEMINI_API_KEY não configurada',
+      503,
+      'gemini_not_configured'
+    );
   }
 
-  const model = env.GEMINI_VERIFIER_MODEL || 'gemini-3.5-flash';
+  const model = env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort('verification-timeout'), VERIFY_TIMEOUT_MS);
+  const timer = setTimeout(
+    () => controller.abort('verification-timeout'),
+    VERIFY_TIMEOUT_MS
+  );
   const started = Date.now();
 
   try {
@@ -343,11 +277,11 @@ async function verifyFinal(env, photoBytes, photoMime, groups) {
         body: JSON.stringify({
           contents: [{
             role: 'user',
-            parts: verificationParts(photoBytes, photoMime, groups)
+            parts: verificationParts(photoBytes, photoMime, groups, platform)
           }],
           generationConfig: {
             temperature: 0,
-            maxOutputTokens: 220,
+            maxOutputTokens: 360,
             media_resolution: 'MEDIA_RESOLUTION_MEDIUM',
             thinkingConfig: { thinkingLevel: 'minimal' },
             response_mime_type: 'application/json',
@@ -356,18 +290,28 @@ async function verifyFinal(env, photoBytes, photoMime, groups) {
               properties: {
                 selected_capa_code: { type: 'STRING' },
                 unique_match: { type: 'BOOLEAN' },
-                base_art_match: { type: 'BOOLEAN' },
-                permanent_text_compatible: { type: 'BOOLEAN' },
-                layout_match: { type: 'BOOLEAN' },
-                distinctive_graphics_match: { type: 'BOOLEAN' },
-                disqualifying_conflict: { type: 'BOOLEAN' },
-                confidence: { type: 'NUMBER' }
+                assessments: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      capa_code: { type: 'STRING' },
+                      same_base_art: { type: 'BOOLEAN' },
+                      permanent_text_compatible: { type: 'BOOLEAN' },
+                      layout_match: { type: 'BOOLEAN' },
+                      distinctive_graphics_match: { type: 'BOOLEAN' },
+                      disqualifying_conflict: { type: 'BOOLEAN' },
+                      confidence: { type: 'NUMBER' }
+                    },
+                    required: [
+                      'capa_code', 'same_base_art', 'permanent_text_compatible',
+                      'layout_match', 'distinctive_graphics_match',
+                      'disqualifying_conflict', 'confidence'
+                    ]
+                  }
+                }
               },
-              required: [
-                'selected_capa_code', 'unique_match', 'base_art_match',
-                'permanent_text_compatible', 'layout_match',
-                'distinctive_graphics_match', 'disqualifying_conflict', 'confidence'
-              ]
+              required: ['selected_capa_code', 'unique_match', 'assessments']
             }
           }
         })
@@ -375,34 +319,62 @@ async function verifyFinal(env, photoBytes, photoMime, groups) {
     );
 
     if (!response.ok) {
-      throw new RecognitionError(`Gemini verificador falhou (${response.status})`, 503, 'gemini_verifier_failed');
+      throw new RecognitionError(
+        `Gemini verificador falhou (${response.status})`,
+        503,
+        'gemini_verifier_failed'
+      );
     }
 
     const result = parseStructuredJson(await response.json());
     const allowed = new Set(groups.map(group => group.cover.capa_code));
-    const selectedCode = String(result?.selected_capa_code || '').trim().toUpperCase();
-    const confidence = Math.max(0, Math.min(1, Number(result?.confidence) || 0));
+    const assessments = Array.isArray(result?.assessments)
+      ? result.assessments.map(item => ({
+          capa_code: String(item?.capa_code || '').trim().toUpperCase(),
+          same_base_art: item?.same_base_art === true,
+          permanent_text_compatible: item?.permanent_text_compatible === true,
+          layout_match: item?.layout_match === true,
+          distinctive_graphics_match: item?.distinctive_graphics_match === true,
+          disqualifying_conflict: item?.disqualifying_conflict === true,
+          confidence: Math.max(0, Math.min(1, Number(item?.confidence) || 0))
+        })).filter(item => allowed.has(item.capa_code))
+      : [];
+
+    const exact = assessments.filter(item =>
+      item.same_base_art === true &&
+      item.permanent_text_compatible === true &&
+      item.layout_match === true &&
+      item.distinctive_graphics_match === true &&
+      item.disqualifying_conflict !== true &&
+      item.confidence >= MIN_EXACT_CONFIDENCE
+    );
+
+    const proposedCode = String(result?.selected_capa_code || '').trim().toUpperCase();
     const accepted =
-      allowed.has(selectedCode) &&
       result?.unique_match === true &&
-      result?.base_art_match === true &&
-      result?.permanent_text_compatible === true &&
-      result?.layout_match === true &&
-      result?.distinctive_graphics_match === true &&
-      result?.disqualifying_conflict !== true &&
-      confidence >= MIN_CONFIDENCE;
+      exact.length === 1 &&
+      allowed.has(proposedCode) &&
+      exact[0].capa_code === proposedCode;
 
     return {
       accepted,
-      selected_capa_code: accepted ? selectedCode : null,
-      proposed_capa_code: selectedCode || null,
-      confidence,
+      selected_capa_code: accepted ? proposedCode : null,
+      proposed_capa_code: proposedCode || null,
+      unique_match: result?.unique_match === true,
+      assessments,
+      confidence: accepted
+        ? exact[0].confidence
+        : Math.max(0, ...assessments.map(item => item.confidence)),
       model,
       elapsed_ms: Date.now() - started
     };
   } catch (error) {
     if (controller.signal.aborted || error?.name === 'AbortError') {
-      throw new RecognitionError('Gemini verificador excedeu o tempo disponível.', 503, 'gemini_verifier_timeout');
+      throw new RecognitionError(
+        'Gemini verificador excedeu o tempo disponível.',
+        503,
+        'gemini_verifier_timeout'
+      );
     }
     throw error;
   } finally {
@@ -424,18 +396,59 @@ function productPayload(product) {
   };
 }
 
-async function productsForCover(env, capaCode) {
+async function productsForCover(env, capaCode, platform) {
   const { results } = await env.DB.prepare(`
-    SELECT p.*,
-      (SELECT pp.platform FROM product_platforms pp
-       WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
-      (SELECT pp.link FROM product_platforms pp
-       WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link
+    SELECT p.*, pp.platform, pp.link
     FROM products p
-    WHERE p.capa_code=?
-    ORDER BY p.id ASC
-  `).bind(capaCode).all();
-  return results || [];
+    JOIN product_platforms pp ON pp.product_id=p.id
+    WHERE UPPER(TRIM(p.capa_code))=?
+      AND UPPER(TRIM(pp.platform))=?
+    ORDER BY p.id ASC, pp.id ASC
+  `).bind(
+    String(capaCode || '').trim().toUpperCase(),
+    normalizePlatform(platform)
+  ).all();
+
+  const seen = new Set();
+  return (results || []).filter(product => {
+    const id = Number(product.id);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+async function buildSuggestions(env, assessments, groups, platform) {
+  const retrievalByCode = new Map(
+    groups.map(group => [group.cover.capa_code, group.cover.retrieval_score])
+  );
+
+  const eligible = assessments
+    .filter(item =>
+      item.disqualifying_conflict !== true &&
+      item.permanent_text_compatible === true &&
+      (item.layout_match === true || item.distinctive_graphics_match === true) &&
+      item.confidence >= MIN_SUGGESTION_CONFIDENCE
+    )
+    .sort((a, b) =>
+      b.confidence - a.confidence ||
+      Number(retrievalByCode.get(b.capa_code) || 0) -
+        Number(retrievalByCode.get(a.capa_code) || 0)
+    )
+    .slice(0, 3);
+
+  const suggestions = [];
+  for (const item of eligible) {
+    const products = await productsForCover(env, item.capa_code, platform);
+    if (!products.length) continue;
+    suggestions.push({
+      capa_code: item.capa_code,
+      confidence: item.confidence,
+      retrieval_score: Number(retrievalByCode.get(item.capa_code) || 0),
+      products: products.map(productPayload)
+    });
+  }
+  return suggestions;
 }
 
 function finalizePerformance(performance, started) {
@@ -447,44 +460,60 @@ function finalizePerformance(performance, started) {
 export async function structuralFinalIdentifyV2(request, env) {
   const started = Date.now();
   const performance = {
-    pipeline_version: 'vectorize+local-rerank+gemini-final-v2',
-    verification_mode: 'local-rerank+single-strict-comparative-classifier',
-    retrieval_source: 'vectorize-ticket-reuse',
+    pipeline_version: 'platform-scoped-vectorize+gemini-final-v1',
+    verification_mode: 'platform-scoped-strict-classifier',
+    retrieval_source: 'vectorize-platform-ticket-reuse',
     reused_candidates: true
   };
 
   try {
     const ticket = await readSignedTicket(env, cookieValue(request, COOKIE_NAME));
     if (!ticket) {
-      throw new RecognitionError('Ticket de candidatos ausente ou expirado. Refaça a foto.', 409, 'candidate_ticket_missing');
+      throw new RecognitionError(
+        'Ticket de candidatos ausente ou expirado. Refaça a foto.',
+        409,
+        'candidate_ticket_missing'
+      );
     }
     inheritTicketPerformance(performance, ticket);
 
+    const platform = normalizePlatform(ticket.platform);
+    if (!platform) {
+      throw new RecognitionError(
+        'Plataforma ausente no ticket de reconhecimento.',
+        409,
+        'candidate_platform_missing'
+      );
+    }
+    performance.platform = platform;
+
     const covers = coversFromTicket(ticket);
     if (!covers.length) {
-      throw new RecognitionError('Nenhuma capa candidata disponível.', 422, 'no_candidates');
+      throw new RecognitionError(
+        'Nenhuma capa candidata disponível.',
+        422,
+        'no_candidates'
+      );
     }
 
     const form = await request.formData();
     const image = form.get('image');
+    const requestedPlatform = normalizePlatform(form.get('platform'));
     if (!(image instanceof File)) {
       throw new RecognitionError('Foto da capa obrigatória.', 400, 'image_required');
     }
-    const localMatch = parseLocalMatch(form);
-    const shortlisted = shortlistCovers(covers, localMatch);
-    if (!shortlisted.length) {
-      throw new RecognitionError('Nenhuma capa candidata disponível para verificação.', 422, 'no_shortlist');
+    if (!requestedPlatform || requestedPlatform !== platform) {
+      throw new RecognitionError(
+        'A plataforma da confirmação não corresponde à busca iniciada.',
+        409,
+        'platform_mismatch'
+      );
     }
 
+    const shortlisted = covers.slice(0, FINAL_COVER_LIMIT);
     performance.candidate_count = covers.length;
     performance.candidate_codes = covers.map(item => item.capa_code);
     performance.verifier_candidate_codes = shortlisted.map(item => item.capa_code);
-    performance.local_cv_ms = Number(localMatch?.local_cv_ms || 0) || null;
-    performance.local_matched = localMatch?.matched === true;
-    performance.local_matched_code = localMatch?.matched
-      ? String(localMatch?.capa_code || '').trim().toUpperCase()
-      : null;
-    performance.local_geometric_order = geometricOrder(localMatch, covers.map(item => item.capa_code)).slice(0, 5);
 
     const photoBytes = new Uint8Array(await image.arrayBuffer());
     const photoMime = image.type || 'image/jpeg';
@@ -497,36 +526,65 @@ export async function structuralFinalIdentifyV2(request, env) {
     performance.reference_ids = groups.map(group => group.reference.id);
 
     if (!groups.length) {
-      throw new RecognitionError('As referências visuais não estão disponíveis.', 503, 'reference_images_missing');
+      throw new RecognitionError(
+        'As referências visuais não estão disponíveis.',
+        503,
+        'reference_images_missing'
+      );
     }
 
-    const decision = await verifyFinal(env, photoBytes, photoMime, groups);
+    const decision = await verifyFinal(
+      env,
+      photoBytes,
+      photoMime,
+      groups,
+      platform
+    );
     performance.gemini_ms = decision.elapsed_ms;
     performance.model = decision.model;
     performance.proposed_code = decision.proposed_capa_code;
     performance.confidence = decision.confidence;
+    performance.assessments = decision.assessments;
 
     if (!decision.accepted || !decision.selected_capa_code) {
+      const suggestions = await buildSuggestions(
+        env,
+        decision.assessments,
+        groups,
+        platform
+      );
       performance.accepted_by = 'strict-classifier-rejected';
+      performance.suggestion_count = suggestions.length;
       finalizePerformance(performance, started);
       return json({
-        error: 'Não encontrei uma correspondência visual única e segura para esta capa.',
+        error: suggestions.length
+          ? 'Não consegui confirmar um único produto. Confira as possíveis correspondências abaixo.'
+          : 'Não encontrei uma correspondência visual segura para esta capa.',
         confidence: decision.confidence,
-        identified_by: 'local-rerank+strict-classifier-no-match',
+        platform,
+        suggestions,
+        suggestions_are_unconfirmed: true,
+        identified_by: suggestions.length
+          ? 'platform-scoped-verified-suggestions'
+          : 'platform-scoped-strict-classifier-no-match',
         performance
       }, 422);
     }
 
-    const products = await productsForCover(env, decision.selected_capa_code);
+    const products = await productsForCover(
+      env,
+      decision.selected_capa_code,
+      platform
+    );
     if (!products.length) {
       throw new RecognitionError(
-        'A capa foi reconhecida, mas não existe produto correspondente no banco.',
+        'A capa foi reconhecida, mas não existe produto correspondente nesta plataforma.',
         422,
-        'product_missing'
+        'product_missing_for_platform'
       );
     }
 
-    performance.accepted_by = 'local-rerank+strict-comparative-unique-winner';
+    performance.accepted_by = 'platform-scoped-unique-winner';
     performance.winner_code = decision.selected_capa_code;
     finalizePerformance(performance, started);
 
@@ -535,9 +593,10 @@ export async function structuralFinalIdentifyV2(request, env) {
         needs_selection: true,
         selection_reason: 'same_cover_multiple_skus',
         capa_code: decision.selected_capa_code,
+        platform,
         products: products.map(productPayload),
         confidence: decision.confidence,
-        identified_by: 'local-rerank+strict-classifier+human-sku-selection',
+        identified_by: 'platform-scoped+human-sku-selection',
         performance
       });
     }
@@ -545,8 +604,9 @@ export async function structuralFinalIdentifyV2(request, env) {
     return json({
       product: productPayload(products[0]),
       capa_code: decision.selected_capa_code,
+      platform,
       confidence: decision.confidence,
-      identified_by: 'local-rerank+strict-classifier-unique-winner',
+      identified_by: 'platform-scoped-unique-winner',
       performance
     });
   } catch (error) {
