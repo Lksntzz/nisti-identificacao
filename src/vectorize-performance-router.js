@@ -1,9 +1,10 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFinalIdentifyV1 } from './structural-final-v1.js';
+import { structuralFinalIdentifyV2 } from './structural-final-v2.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
+const RECOGNITION_BUILD = 'local-rerank-final-v2';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -60,6 +61,20 @@ async function previewLastRecognition(env) {
   });
 }
 
+function previewBuild() {
+  return new Response(JSON.stringify({
+    ok: true,
+    recognition_build: RECOGNITION_BUILD,
+    pipeline: 'vectorize + local geometry rerank + 3-cover Gemini verifier'
+  }), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store'
+    }
+  });
+}
+
 function deprecatedLocalConfirmationResponse() {
   return new Response(JSON.stringify({
     error: 'A versão do aplicativo está desatualizada. Atualize a página para usar a verificação estrutural segura.',
@@ -77,6 +92,10 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    if (request.method === 'GET' && url.pathname === '/api/preview/build' && previewDiagnosticAllowed(url)) {
+      return previewBuild();
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/preview/last-recognition' && previewDiagnosticAllowed(url)) {
       return previewLastRecognition(env);
     }
@@ -91,10 +110,9 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // Pipeline consolidado: retrieval multi-reference + uma única decisão visual
-      // comparativa e estrita. Texto fixo, layout e elementos distintivos precisam
-      // concordar; similaridade genérica nunca libera SKU.
-      const response = await structuralFinalIdentifyV1(request, env);
+      // Vectorize gera recall, ORB/RANSAC só reordena as candidatas e o Gemini
+      // recebe no máximo três capas. Uma única decisão final libera o SKU.
+      const response = await structuralFinalIdentifyV2(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
