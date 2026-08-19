@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-identificacao-v14';
+const CACHE_NAME = 'nisti-identificacao-v16';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -26,16 +26,12 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (url.pathname.startsWith('/api/images/') && url.searchParams.has('v')) {
+  if ((url.pathname.startsWith('/api/images/') || url.pathname.startsWith('/api/reference-images/')) && url.searchParams.has('v')) {
     event.respondWith(cacheFirst(request));
     return;
   }
 
-  if (
-    url.pathname.startsWith('/assets/') ||
-    url.pathname === '/unmatched-suggestions.js' ||
-    url.pathname === '/unmatched-suggestions.css'
-  ) {
+  if (url.pathname.startsWith('/assets/')) {
     event.respondWith(cacheFirst(request));
     return;
   }
