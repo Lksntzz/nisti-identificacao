@@ -231,9 +231,13 @@ function GeneralApp() {
       try {
         localMatch = await matchLocalCandidates(optimized, candidateData.candidates || [], { deadlineMs: 2800 });
       } catch (localError) {
-        // Fallback de compatibilidade somente se o runtime OpenCV não conseguir executar no aparelho.
+        // A geometria pode ser inconclusiva sem ser inútil. Encaminhamos sua
+        // evidência ao fallback estrutural para que o Gemini não decida sozinho.
         const fallbackForm = new FormData();
         fallbackForm.append('image', optimized);
+        if (localError?.local_match) {
+          fallbackForm.append('local_match', JSON.stringify(localError.local_match));
+        }
         const fallbackData = await api('/api/identify', { method: 'POST', body: fallbackForm });
         if (id !== runId.current) return;
         applyData(fallbackData);
