@@ -212,6 +212,10 @@ function parseStructuredJson(payload) {
   throw new RecognitionError('Gemini retornou JSON inválido.', 502, 'catalog_comparator_invalid_json');
 }
 
+function cleanEvidence(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+}
+
 function normalizeAssessment(raw, capaCode) {
   return {
     capa_code: String(capaCode || '').trim().toUpperCase(),
@@ -219,8 +223,11 @@ function normalizeAssessment(raw, capaCode) {
     fixed_text_match: raw?.fixed_text_match === true,
     personalization_difference_only: raw?.personalization_difference_only === true,
     visual_elements_match: raw?.visual_elements_match === true,
+    ignored_physical_overlay: raw?.ignored_physical_overlay === true,
     disqualifying_conflict: raw?.disqualifying_conflict === true,
-    confidence: Math.max(0, Math.min(1, Number(raw?.confidence) || 0))
+    confidence: Math.max(0, Math.min(1, Number(raw?.confidence) || 0)),
+    reason_code: String(raw?.reason_code || 'unspecified').trim().toLowerCase().slice(0, 64),
+    evidence_summary: cleanEvidence(raw?.evidence_summary)
   };
 }
 
@@ -257,12 +264,13 @@ async function verifyCandidate(env, photoBytes, photoMime, candidate, candidateB
   const started = Date.now();
   const labels = candidate.catalog_labels?.length ? candidate.catalog_labels.join(' | ') : 'sem descrição adicional';
 
-  const prompt = `Decida se FOTO e CANDIDATA são a MESMA arte-base NISTI PRINT da plataforma ${platform}.
-Antes de responder, confira internamente: texto fixo, personagem/objeto principal, elementos gráficos, cores dominantes e layout.
-Se PERSONALIZADO=SIM, ignore somente nome próprio, inicial/letra ou data variável; títulos e frases fixas continuam obrigatórios.
-Ignore wire-o/espiral, elástico, tassel, mão, mesa, reflexo, brilho, perspectiva, recorte e fundo externo.
-visual_elements_match só pode ser true quando personagem/objeto, elementos gráficos, cores e layout forem compatíveis.
-Qualquer diferença permanente importante exige same_base_art=false e disqualifying_conflict=true.`;
+  const prompt = `Você é um verificador de identidade visual de produtos NISTI PRINT.
+Decida se FOTO e CANDIDATA são exatamente a MESMA ARTE-BASE na plataforma ${platform}.
+Compare apenas o que é impresso: texto fixo, personagem/objeto principal, flores/laços/ícones e demais elementos gráficos, paleta dominante e layout.
+ITENS FÍSICOS SOBREPOSTOS NÃO FAZEM PARTE DA ARTE: ignore completamente elástico vertical ou horizontal, wire-o/espiral, tassel, plástico de embalagem, laminação, efeito holográfico, brilho, reflexo, sombra, mão, mesa, perspectiva, recorte e fundo externo. Não reprove a candidata por esses itens, mesmo quando cobrirem parcialmente a arte.
+Se PERSONALIZADO=SIM, ignore somente nome próprio, inicial/letra ou data variável. Títulos e frases fixas continuam obrigatórios.
+visual_elements_match só pode ser true quando os elementos impressos visíveis, as cores e o layout forem compatíveis.
+Retorne evidence_summary com uma frase curta descrevendo somente evidências visuais observáveis, sem raciocínio interno. Use reason_code curto, por exemplo: exact_match, fixed_text_mismatch, visual_elements_mismatch, permanent_conflict ou insufficient_visible_evidence.`;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -285,7 +293,7 @@ Qualquer diferença permanente importante exige same_base_art=false e disqualify
         }],
         generationConfig: {
           temperature: 0,
-          maxOutputTokens: 64,
+          maxOutputTokens: 128,
           media_resolution: 'MEDIA_RESOLUTION_LOW',
           thinkingConfig: { thinkingLevel: 'minimal' },
           response_mime_type: 'application/json',
@@ -296,16 +304,22 @@ Qualquer diferença permanente importante exige same_base_art=false e disqualify
               fixed_text_match: { type: 'BOOLEAN' },
               personalization_difference_only: { type: 'BOOLEAN' },
               visual_elements_match: { type: 'BOOLEAN' },
+              ignored_physical_overlay: { type: 'BOOLEAN' },
               disqualifying_conflict: { type: 'BOOLEAN' },
-              confidence: { type: 'NUMBER' }
+              confidence: { type: 'NUMBER' },
+              reason_code: { type: 'STRING' },
+              evidence_summary: { type: 'STRING' }
             },
             required: [
               'same_base_art',
               'fixed_text_match',
               'personalization_difference_only',
               'visual_elements_match',
+              'ignored_physical_overlay',
               'disqualifying_conflict',
-              'confidence'
+              'confidence',
+              'reason_code',
+              'evidence_summary'
             ]
           }
         }
@@ -427,6 +441,13 @@ function finalizePerformance(performance, started) {
   performance.total_ms = Math.max(0, Number(performance.candidate_generation_ms || 0)) + verifierMs;
 }
 
+function attachAssessmentDiagnostic(performance, assessment) {
+  if (!assessment) return;
+  performance.verifier_reason_code = assessment.reason_code || null;
+  performance.verifier_evidence = assessment.evidence_summary || null;
+  performance.ignored_physical_overlay = assessment.ignored_physical_overlay === true;
+}
+
 async function successResponse(env, candidate, platform, confidence, performance, identifiedBy) {
   const products = await productsForCover(env, candidate.capa_code, platform);
   if (!products.length) {
@@ -460,8 +481,8 @@ async function successResponse(env, candidate, platform, confidence, performance
 export async function structuralFinalIdentifyV8(request, env) {
   const started = Date.now();
   const performance = {
-    pipeline_version: 'platform-vectorize+inline-binary-v8.5',
-    verification_mode: 'top1-first-inline-r2-binary-verification',
+    pipeline_version: 'platform-vectorize+overlay-aware-v8.6',
+    verification_mode: 'top1-first-inline-r2-overlay-aware-verification',
     retrieval_source: 'vectorize-platform-ticket-reuse',
     reused_candidates: true,
     candidate_transport: 'inline-r2-bytes'
@@ -533,6 +554,7 @@ export async function structuralFinalIdentifyV8(request, env) {
         calls += 1;
         model = verification.model;
         assessments.push(verification.assessment);
+        attachAssessmentDiagnostic(performance, verification.assessment);
 
         if (structuralPass(verification.assessment)) {
           winner = { candidate, assessment: verification.assessment };
@@ -550,6 +572,7 @@ export async function structuralFinalIdentifyV8(request, env) {
     performance.candidate_assessments = assessments;
 
     if (winner) {
+      attachAssessmentDiagnostic(performance, winner.assessment);
       performance.accepted_by = 'inline-structural-binary-winner';
       performance.winner_code = winner.candidate.capa_code;
       performance.personalization_difference_only = winner.assessment.personalization_difference_only;
@@ -560,13 +583,15 @@ export async function structuralFinalIdentifyV8(request, env) {
         platform,
         winner.assessment.confidence,
         performance,
-        'platform-catalog-v8.5-structural-winner'
+        'platform-catalog-v8.6-structural-winner'
       );
     }
 
     if (comparatorError) {
       performance.comparator_error = comparatorError.code || comparatorError.message || 'catalog_comparison_failed';
       performance.comparator_error_message = comparatorError.message || null;
+      performance.verifier_reason_code = performance.comparator_error;
+      performance.verifier_evidence = cleanEvidence(comparatorError.message || 'Falha técnica no verificador visual.');
 
       const fallbackCandidate = retrievalFallbackCandidate(loaded, performance);
       if (fallbackCandidate) {
@@ -579,9 +604,13 @@ export async function structuralFinalIdentifyV8(request, env) {
           platform,
           fallbackCandidate.retrieval_score,
           performance,
-          'platform-catalog-v8.5-high-separation-retrieval'
+          'platform-catalog-v8.6-high-separation-retrieval'
         );
       }
+    }
+
+    if (!performance.verifier_reason_code && assessments.length) {
+      attachAssessmentDiagnostic(performance, assessments[0]);
     }
 
     const suggestions = await buildSuggestions(env, loaded, assessments, platform);
@@ -600,11 +629,13 @@ export async function structuralFinalIdentifyV8(request, env) {
       suggestions,
       suggestions_are_unconfirmed: true,
       identified_by: suggestions.length
-        ? 'platform-catalog-visual-suggestions-v8.5'
-        : 'platform-catalog-no-match-v8.5',
+        ? 'platform-catalog-visual-suggestions-v8.6'
+        : 'platform-catalog-no-match-v8.6',
       performance
     }, 422);
   } catch (error) {
+    performance.verifier_reason_code = performance.verifier_reason_code || error?.code || 'recognition_error';
+    performance.verifier_evidence = performance.verifier_evidence || cleanEvidence(error?.message || 'Falha no reconhecimento visual.');
     finalizePerformance(performance, started);
     return json({
       error: error?.message || 'Falha no reconhecimento visual.',
