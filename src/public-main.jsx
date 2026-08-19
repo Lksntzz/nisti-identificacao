@@ -66,6 +66,31 @@ function Badge({ label, value }) {
   return <div className="badge"><span>{label}</span><strong>{value || '—'}</strong></div>;
 }
 
+function ProductImage({ product, className = '', alt }) {
+  const sources = [...new Set([
+    product?.image_url,
+    product?.product_image_url
+  ].filter(Boolean))];
+  const sourceKey = sources.join('|');
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => { setIndex(0); }, [sourceKey]);
+
+  const src = sources[index];
+  if (!src) {
+    return <div className={className || undefined} aria-label="Imagem indisponível">Imagem indisponível</div>;
+  }
+
+  return <img
+    className={className || undefined}
+    src={src}
+    alt={alt || product?.sku || 'Produto'}
+    loading="lazy"
+    decoding="async"
+    onError={() => setIndex(current => current + 1)}
+  />;
+}
+
 function InstallApp() {
   const [prompt, setPrompt] = useState(null);
   const [help, setHelp] = useState(false);
@@ -117,7 +142,7 @@ function ProductResult({ product, performance }) {
   return <div className="result">
     <p className="eyebrow">PRODUTO IDENTIFICADO PELA CAPA</p>
     <h3>{product.sku}</h3>
-    {product.image_url && <img className="result-image" src={product.image_url} alt={`Mockup ${product.sku}`} />}
+    <ProductImage product={product} className="result-image" alt={`Mockup ${product.sku}`} />
     <div className="badges">
       <Badge label="Capa" value={product.capa_code}/>
       <Badge label="Wire-O" value={product.wireo}/>
@@ -135,7 +160,7 @@ function ProductChoices({ capaCode, products, onSelect, performance }) {
     <h3 className="choice-title">{capaCode} · escolha o SKU</h3>
     <div className="choices">
       {products.map(product => <article className="choice-card" key={product.id}>
-        {product.image_url ? <img src={product.image_url} alt={product.sku}/> : <div/>}
+        <ProductImage product={product} alt={product.sku}/>
         <div>
           <h4>{product.sku}</h4>
           <p>{product.nome || product.variacao || product.capa_code}</p>
@@ -157,13 +182,13 @@ function PossibleMatches({ suggestions, onSelect }) {
     <div className="choices">
       {suggestions.flatMap(group => (group.products || []).map(product => (
         <article className="choice-card possible-card" key={`${group.capa_code}-${product.id}`}>
-          {product.image_url ? <img src={product.image_url} alt={product.sku}/> : <div/>}
+          <ProductImage product={product} alt={product.sku}/>
           <div>
             <h4>{product.sku}</h4>
             <p>Capa: {group.capa_code}</p>
             <p>{product.nome || product.variacao || product.platform}</p>
             <small>
-              {group.verification_source === 'gemini-verified'
+              {group.verification_source === 'catalog-visual-comparison' || group.verification_source === 'gemini-verified'
                 ? 'Verificação visual'
                 : 'Similaridade do índice'}: {Math.round(Number(group.confidence || 0) * 100)}%
             </small>
