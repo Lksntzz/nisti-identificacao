@@ -60,6 +60,66 @@ async function previewLastRecognition(env) {
   });
 }
 
+async function enforceCrossSignalAgreement(response) {
+  if (!response?.ok) return response;
+
+  const type = response.headers.get('content-type') || '';
+  if (!type.includes('application/json')) return response;
+
+  const data = await response.clone().json().catch(() => null);
+  if (!data || (!data.product && !data.needs_selection)) return response;
+
+  const performance = data.performance && typeof data.performance === 'object'
+    ? data.performance
+    : {};
+  const selectedCode = String(
+    data.capa_code || data.product?.capa_code || performance.gemini_proposed_code || ''
+  ).trim().toUpperCase();
+  const retrievalTopCode = String(performance.retrieval_top1_code || '').trim().toUpperCase();
+  const localGeometryCodes = Array.isArray(performance.local_geometry_codes)
+    ? performance.local_geometry_codes.map(code => String(code || '').trim().toUpperCase()).filter(Boolean)
+    : [];
+  const localTopCode = localGeometryCodes[0] || '';
+
+  // O Gemini não pode transformar "mais parecido" em identificação. Uma resposta
+  // positiva só é aceita quando existe concordância com um sinal independente:
+  // geometria local, quando disponível; caso contrário, o top-1 do retrieval.
+  const corroboratingCode = localTopCode || retrievalTopCode;
+  const corroborated = Boolean(selectedCode && corroboratingCode && selectedCode === corroboratingCode);
+
+  if (corroborated) {
+    performance.cross_signal_guard = 'passed';
+    performance.cross_signal_code = corroboratingCode;
+    data.performance = performance;
+    const headers = new Headers(response.headers);
+    headers.delete('content-length');
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    });
+  }
+
+  performance.accepted_by = 'rejected-by-cross-signal-guard';
+  performance.cross_signal_guard = 'rejected';
+  performance.cross_signal_selected_code = selectedCode || null;
+  performance.cross_signal_retrieval_top1_code = retrievalTopCode || null;
+  performance.cross_signal_local_top_code = localTopCode || null;
+
+  return new Response(JSON.stringify({
+    error: 'A análise visual encontrou sinais conflitantes. Produto não identificado com segurança.',
+    confidence: Number.isFinite(Number(data.confidence)) ? Number(data.confidence) : null,
+    identified_by: 'rejected-by-cross-signal-guard',
+    performance
+  }), {
+    status: 422,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store'
+    }
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -73,10 +133,11 @@ export default {
       return withRecognitionTicketCookie(response);
     }
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // V7 remove a pré-seleção Gemini que introduzia duas chamadas concorrentes e
-      // timeouts. O fallback final usa uma única chamada estrutural sobre no máximo
-      // três finalistas e mantém confidence >= 0.95.
-      const response = await structuralFallbackIdentifyV7(request, env);
+      // V7 mantém uma única chamada Gemini final. Antes de liberar qualquer SKU,
+      // aplicamos um gate de concordância entre sinais independentes para impedir
+      // que um candidato apenas "parecido" seja promovido a identificação.
+      const rawResponse = await structuralFallbackIdentifyV7(request, env);
+      const response = await enforceCrossSignalAgreement(rawResponse);
       await recordFallback(ctx, env, response);
       return response;
     }
