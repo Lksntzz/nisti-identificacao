@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFallbackIdentifyV4 } from './structural-fallback-v4.js';
+import { structuralFallbackIdentifyV5 } from './structural-fallback-v5.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
@@ -73,9 +73,9 @@ export default {
       return withRecognitionTicketCookie(response);
     }
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // V4 preserva as referências visuais recuperadas pelo Vectorize em vez de
-      // voltar a escolher um único mockup arbitrário por capa no fallback Gemini.
-      const response = await structuralFallbackIdentifyV4(request, env);
+      // V5 amplia a verificação estrutural para as seis capas recuperadas,
+      // usando uma referência visual diversa por capa sem reduzir o limiar de aceitação.
+      const response = await structuralFallbackIdentifyV5(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
