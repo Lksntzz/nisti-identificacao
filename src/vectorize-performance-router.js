@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFinalIdentifyV6 } from './structural-final-v6.js';
+import { structuralFinalIdentifyV7 } from './structural-final-v7.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { syncPlatformVectors } from './platform-vector-sync.js';
@@ -8,7 +8,7 @@ import { consolidatePlatforms } from './platform-consolidation.js';
 import { syncVisualSignatures } from './visual-signatures.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'platform-comparative-catalog-v6';
+const RECOGNITION_BUILD = 'platform-comparative-catalog-v7';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -158,17 +158,18 @@ function previewBuild() {
   return new Response(JSON.stringify({
     ok: true,
     recognition_build: RECOGNITION_BUILD,
-    pipeline: 'platform namespace + embedding + comparative catalog verification',
+    pipeline: 'platform namespace + embedding + comparative catalog evidence + deterministic adjudication',
     user_photo_max_side: 768,
     max_catalog_candidates: 4,
     semantic_features: [
       'fixed_text','primary_subjects','graphic_elements','dominant_colors','layout','personalization'
     ],
-    personalization_policy: 'ignore only proper-name/initial/date differences when they are clearly personalization over the same base art',
-    exact_confidence: 0.95,
+    personalization_policy: 'catalog-aware: personalized products ignore only variable name/initial/date while permanent text remains mandatory',
+    minimum_structural_confidence: 0.90,
+    minimum_decision_gap: 0.08,
     supported_platforms: ['MERCADO LIVRE', 'SHOPEE', 'AMAZON'],
     mercado_livre_aliases_consolidated: true,
-    thumbnail_source: 'retrieved catalog image, with product image kept separately',
+    thumbnail_source: 'retrieved catalog image with product-image fallback',
     timeout_behavior: 'safe suggestions instead of wrong SKU'
   }), {
     status: 200,
@@ -300,7 +301,7 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      const response = await structuralFinalIdentifyV6(request, env);
+      const response = await structuralFinalIdentifyV7(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
