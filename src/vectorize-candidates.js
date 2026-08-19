@@ -1,10 +1,10 @@
 import { normalizePlatform, platformExists, platformNamespace } from './platform-scope.js';
 
 const EMBEDDING_DIMENSIONS = 768;
-const VECTOR_TOP_K = 24;
-const COVER_LIMIT = 6;
+const VECTOR_TOP_K = 64;
+const COVER_LIMIT = 12;
 const REFERENCES_PER_COVER = 1;
-const MAX_REFERENCE_CANDIDATES = 6;
+const MAX_REFERENCE_CANDIDATES = 12;
 const TICKET_TTL_SECONDS = 120;
 const MAX_EMBEDDING_MS = 5000;
 
@@ -36,7 +36,10 @@ function base64(bytes) {
 }
 
 function base64url(bytes) {
-  return base64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return base64(bytes)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
 }
 
 function textBytes(value) {
@@ -115,12 +118,9 @@ async function embedImage(env, bytes, mimeType) {
     );
 
     if (!response.ok) {
-      const status = [429, 500, 502, 503, 504].includes(response.status)
-        ? 503
-        : 502;
       throw new RetrievalError(
         `Gemini Embedding falhou (${response.status})`,
-        status,
+        [429, 500, 502, 503, 504].includes(response.status) ? 503 : 502,
         'embedding_failed'
       );
     }
@@ -151,11 +151,7 @@ async function embedImage(env, bytes, mimeType) {
 }
 
 function codeFromMatch(match) {
-  const metadataCode = String(match?.metadata?.capa_code || '')
-    .trim()
-    .toUpperCase();
-  if (metadataCode) return metadataCode;
-  return '';
+  return String(match?.metadata?.capa_code || '').trim().toUpperCase();
 }
 
 function referenceFromMatch(match, vectorRank) {
@@ -205,6 +201,7 @@ async function queryVectorize(env, vector, timings, platform) {
 
   const byCode = new Map();
   let vectorRank = 0;
+
   for (const match of result?.matches || []) {
     vectorRank += 1;
     const capaCode = codeFromMatch(match);
@@ -223,6 +220,7 @@ async function queryVectorize(env, vector, timings, platform) {
 
     const reference = referenceFromMatch(match, vectorRank);
     if (!reference.reference_id || !reference.image_key) continue;
+
     if (
       !cover.references.some(item => item.reference_id === reference.reference_id) &&
       cover.references.length < REFERENCES_PER_COVER
@@ -233,7 +231,11 @@ async function queryVectorize(env, vector, timings, platform) {
 
   return [...byCode.values()]
     .filter(cover => cover.references.length > 0)
-    .slice(0, COVER_LIMIT);
+    .slice(0, COVER_LIMIT)
+    .map((cover, index) => ({
+      ...cover,
+      retrieval_rank: index + 1
+    }));
 }
 
 function buildCandidates(covers, timings) {
@@ -249,7 +251,7 @@ function buildCandidates(covers, timings) {
         capa_code: cover.capa_code,
         retrieval_rank: cover.retrieval_rank,
         vector_rank: ref.vector_rank,
-        retrieval_score: ref.retrieval_score,
+        retrieval_score: cover.retrieval_score,
         reference_kind: ref.reference_kind,
         platform: ref.platform,
         image_key: ref.image_key,
@@ -268,7 +270,7 @@ function buildCandidates(covers, timings) {
 export async function buildVectorizeCandidates(request, env) {
   const started = Date.now();
   const timings = {
-    pipeline_version: 'platform-scoped-embedding+vectorize-v1',
+    pipeline_version: 'platform-scoped-embedding+vectorize-v2-wide-recall',
     retrieval_source: 'vectorize-platform-namespace',
     vector_top_k: VECTOR_TOP_K
   };
@@ -301,7 +303,13 @@ export async function buildVectorizeCandidates(request, env) {
     timings.embedding_ms = Date.now() - embeddingStarted;
     timings.model = embedding.model;
 
-    const covers = await queryVectorize(env, embedding.values, timings, platform);
+    const covers = await queryVectorize(
+      env,
+      embedding.values,
+      timings,
+      platform
+    );
+
     if (!covers.length) {
       throw new RetrievalError(
         'Ainda não há referências visuais indexadas para esta plataforma.',
@@ -329,6 +337,7 @@ export async function buildVectorizeCandidates(request, env) {
     }
 
     timings.total_ms = Date.now() - started;
+
     const payload = {
       exp: Math.floor(Date.now() / 1000) + TICKET_TTL_SECONDS,
       nonce: crypto.randomUUID(),
@@ -346,6 +355,7 @@ export async function buildVectorizeCandidates(request, env) {
       })),
       performance: timings
     };
+
     const ticket = await signTicket(env, payload);
 
     return json({
