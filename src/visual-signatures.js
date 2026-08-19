@@ -1,7 +1,8 @@
+import { reserveGeminiBudget } from './gemini-budget.js';
+
 const SIGNATURE_MODEL_FALLBACK = 'gemini-3.5-flash-lite';
 const SIGNATURE_TIMEOUT_MS = 5500;
-const DEFAULT_SYNC_LIMIT = 4;
-const MAX_SYNC_LIMIT = 8;
+const GEMINI_FLASH_LITE_HARD_RPM = 12;
 let schemaReady = false;
 
 function base64(bytes) {
@@ -56,13 +57,17 @@ function parseStructuredJson(payload) {
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/i, '')
     .trim();
+
   if (!text) throw new Error('empty_signature_response');
   try {
     return JSON.parse(text);
   } catch {}
+
   const first = text.indexOf('{');
   const last = text.lastIndexOf('}');
-  if (first >= 0 && last > first) return JSON.parse(text.slice(first, last + 1));
+  if (first >= 0 && last > first) {
+    return JSON.parse(text.slice(first, last + 1));
+  }
   throw new Error('invalid_signature_json');
 }
 
@@ -72,11 +77,24 @@ function signaturePrompt() {
 
 export async function extractVisualSignature(env, bytes, mimeType, options = {}) {
   if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
+
+  const allowed = await reserveGeminiBudget(
+    env,
+    'gemini-3.5-flash-lite-signature',
+    GEMINI_FLASH_LITE_HARD_RPM
+  );
+  if (!allowed) {
+    const error = new Error('gemini_local_budget_exhausted');
+    error.code = 'gemini_local_budget_exhausted';
+    throw error;
+  }
+
   const model = options.model || env.GEMINI_MODEL || SIGNATURE_MODEL_FALLBACK;
   const timeoutMs = Math.max(1500, Number(options.timeoutMs || SIGNATURE_TIMEOUT_MS));
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort('visual-signature-timeout'), timeoutMs);
   const started = Date.now();
+
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -117,15 +135,23 @@ export async function extractVisualSignature(env, bytes, mimeType, options = {})
                 style_tokens: { type: 'ARRAY', items: { type: 'STRING' } }
               },
               required: [
-                'fixed_text','primary_subjects','graphic_elements',
-                'colors','layout_tokens','style_tokens'
+                'fixed_text',
+                'primary_subjects',
+                'graphic_elements',
+                'colors',
+                'layout_tokens',
+                'style_tokens'
               ]
             }
           }
         })
       }
     );
-    if (!response.ok) throw new Error(`gemini_signature_http_${response.status}`);
+
+    if (!response.ok) {
+      throw new Error(`gemini_signature_http_${response.status}`);
+    }
+
     const parsed = parseStructuredJson(await response.json());
     return {
       model,
@@ -163,79 +189,13 @@ export async function ensureVisualSignatureSchema(env) {
   schemaReady = true;
 }
 
-export async function syncVisualSignatures(env, options = {}) {
-  await ensureVisualSignatureSchema(env);
-  const limit = Math.max(1, Math.min(MAX_SYNC_LIMIT, Number(options.limit) || DEFAULT_SYNC_LIMIT));
-  const { results } = await env.DB.prepare(`
-    SELECT r.id,r.capa_code,r.image_key,r.updated_at
-    FROM cover_visual_references r
-    LEFT JOIN cover_visual_signatures s ON s.capa_code=r.capa_code
-    WHERE r.active=1
-      AND r.image_key IS NOT NULL
-      AND (s.capa_code IS NULL OR s.reference_id<>r.id OR s.updated_at<r.updated_at)
-      AND r.id=(
-        SELECT MIN(r2.id)
-        FROM cover_visual_references r2
-        WHERE r2.active=1 AND r2.image_key IS NOT NULL AND r2.capa_code=r.capa_code
-      )
-    ORDER BY r.id ASC
-    LIMIT ?
-  `).bind(limit).all();
-
-  const outcomes = await Promise.all((results || []).map(async row => {
-    try {
-      const object = await env.PRODUCT_IMAGES.get(row.image_key);
-      if (!object) throw new Error('reference_image_missing');
-      const bytes = new Uint8Array(await object.arrayBuffer());
-      const analyzed = await extractVisualSignature(
-        env,
-        bytes,
-        object.httpMetadata?.contentType || 'image/jpeg',
-        { timeoutMs: 7000 }
-      );
-      await env.DB.prepare(`
-        INSERT INTO cover_visual_signatures (
-          capa_code,reference_id,signature_model,signature_json,updated_at
-        ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
-        ON CONFLICT(capa_code) DO UPDATE SET
-          reference_id=excluded.reference_id,
-          signature_model=excluded.signature_model,
-          signature_json=excluded.signature_json,
-          updated_at=CURRENT_TIMESTAMP
-      `).bind(
-        String(row.capa_code || '').trim().toUpperCase(),
-        Number(row.id),
-        analyzed.model,
-        JSON.stringify(analyzed.signature)
-      ).run();
-      return { ok: true, capa_code: row.capa_code, reference_id: Number(row.id) };
-    } catch (error) {
-      return {
-        ok: false,
-        capa_code: row.capa_code,
-        reference_id: Number(row.id),
-        error: error?.message || 'signature_failed'
-      };
-    }
-  }));
-
-  const pending = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM (
-      SELECT r.capa_code
-      FROM cover_visual_references r
-      LEFT JOIN cover_visual_signatures s ON s.capa_code=r.capa_code
-      WHERE r.active=1 AND r.image_key IS NOT NULL
-      GROUP BY r.capa_code
-      HAVING MAX(CASE WHEN s.capa_code IS NOT NULL THEN 1 ELSE 0 END)=0
-    )
-  `).first();
-
+export async function syncVisualSignatures() {
   return {
-    ok: outcomes.every(item => item.ok),
-    attempted: outcomes.length,
-    updated: outcomes.filter(item => item.ok).length,
-    failed: outcomes.filter(item => !item.ok),
-    remaining: Number(pending?.total || 0)
+    ok: false,
+    disabled: true,
+    attempted: 0,
+    updated: 0,
+    failed: [],
+    error: 'bulk_visual_signature_sync_disabled'
   };
 }
