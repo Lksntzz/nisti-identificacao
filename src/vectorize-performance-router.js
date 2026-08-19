@@ -3,6 +3,7 @@ import { buildVectorizeCandidates } from './vectorize-candidates.js';
 import { structuralFinalIdentifyV2 } from './structural-final-v2.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms } from './platform-scope.js';
+import { syncPlatformVectors } from './platform-vector-sync.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
 const RECOGNITION_BUILD = 'platform-scoped-recognition-v1';
@@ -141,6 +142,30 @@ export default {
 
     if (request.method === 'GET' && url.pathname === '/api/preview/build' && previewDiagnosticAllowed(url)) {
       return previewBuild();
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/preview/sync-platform-vectors' && previewDiagnosticAllowed(url)) {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const data = await syncPlatformVectors(env, body);
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'no-store'
+          }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: error?.message || 'Falha ao sincronizar vetores por plataforma'
+        }), {
+          status: 500,
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'no-store'
+          }
+        });
+      }
     }
 
     if (request.method === 'GET' && url.pathname === '/api/preview/catalog' && previewDiagnosticAllowed(url)) {
