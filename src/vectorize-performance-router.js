@@ -6,9 +6,10 @@ import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { syncPlatformVectors } from './platform-vector-sync.js';
 import { consolidatePlatforms } from './platform-consolidation.js';
 import { syncVisualSignatures } from './visual-signatures.js';
+import { handlePublicImageRequest } from './public-image-router.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'platform-comparative-catalog-v8';
+const RECOGNITION_BUILD = 'platform-comparative-catalog-v8.1';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -162,6 +163,7 @@ function previewBuild() {
     user_photo_max_side: 768,
     max_catalog_candidates: 4,
     candidate_transport: 'public HTTPS file_uri; Worker does not inline full catalog images into Gemini payload',
+    public_image_delivery: 'GET+HEAD with explicit content-type, cache metadata and public cross-origin access',
     media_resolution: 'MEDIUM',
     semantic_features: [
       'fixed_text','primary_subjects','graphic_elements','dominant_colors','layout','personalization'
@@ -198,6 +200,9 @@ function deprecatedLocalConfirmationResponse() {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    const publicImageResponse = await handlePublicImageRequest(request, env);
+    if (publicImageResponse) return publicImageResponse;
 
     if (request.method === 'GET' && url.pathname === '/api/platforms') {
       const platforms = await listPlatforms(env);
