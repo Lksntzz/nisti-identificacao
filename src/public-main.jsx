@@ -153,7 +153,7 @@ function PossibleMatches({ suggestions, onSelect }) {
   return <section className="possible-matches">
     <p className="eyebrow">POSSÍVEIS CORRESPONDÊNCIAS</p>
     <h3>Confira antes de confirmar</h3>
-    <p className="possible-note">O sistema não encontrou identidade visual suficiente para confirmar automaticamente. As opções abaixo são apenas candidatas verificadas da plataforma selecionada.</p>
+    <p className="possible-note">O sistema não encontrou identidade visual suficiente para confirmar automaticamente. As opções abaixo pertencem à plataforma selecionada e nunca são tratadas como identificação automática.</p>
     <div className="choices">
       {suggestions.flatMap(group => (group.products || []).map(product => (
         <article className="choice-card possible-card" key={`${group.capa_code}-${product.id}`}>
@@ -162,7 +162,11 @@ function PossibleMatches({ suggestions, onSelect }) {
             <h4>{product.sku}</h4>
             <p>Capa: {group.capa_code}</p>
             <p>{product.nome || product.variacao || product.platform}</p>
-            <small>Similaridade verificada: {Math.round(Number(group.confidence || 0) * 100)}%</small>
+            <small>
+              {group.verification_source === 'gemini-verified'
+                ? 'Verificação visual'
+                : 'Similaridade do índice'}: {Math.round(Number(group.confidence || 0) * 100)}%
+            </small>
           </div>
           <button type="button" onClick={() => onSelect(product)}>É este produto</button>
         </article>
