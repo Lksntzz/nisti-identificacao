@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFallbackIdentifyV8 } from './structural-fallback-v8.js';
+import { structuralFallbackIdentifyV9 } from './structural-fallback-v9.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
@@ -74,11 +74,10 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // V8 verifica cada capa de forma binária e independente. O Gemini não recebe
-      // uma lista para escolher o item "mais parecido"; cada candidata precisa
-      // provar isoladamente que compartilha a mesma arte-base. Só liberamos SKU
-      // quando existe exatamente uma vencedora estrutural com confiança >= 0.95.
-      const response = await structuralFallbackIdentifyV8(request, env);
+      // V9 mantém comparação binária por capa, mas isola timeout por candidata.
+      // Falhas temporárias são reexecutadas somente para as capas afetadas e uma
+      // comparação não resolvida nunca é tratada como autorização para liberar SKU.
+      const response = await structuralFallbackIdentifyV9(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
