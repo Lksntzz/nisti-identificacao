@@ -4,6 +4,7 @@ import { structuralFinalIdentifyV3 } from './structural-final-v3.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { syncPlatformVectors } from './platform-vector-sync.js';
+import { consolidatePlatforms } from './platform-consolidation.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
 const RECOGNITION_BUILD = 'platform-scoped-recognition-v2';
@@ -204,6 +205,29 @@ export default {
 
     if (request.method === 'GET' && url.pathname === '/api/preview/build' && previewDiagnosticAllowed(url)) {
       return previewBuild();
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/preview/consolidate-platforms' && previewDiagnosticAllowed(url)) {
+      try {
+        const data = await consolidatePlatforms(env);
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'no-store'
+          }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: error?.message || 'Falha ao consolidar plataformas'
+        }), {
+          status: 500,
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'no-store'
+          }
+        });
+      }
     }
 
     if (request.method === 'POST' && url.pathname === '/api/preview/sync-platform-vectors' && previewDiagnosticAllowed(url)) {
