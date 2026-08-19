@@ -2,6 +2,7 @@ const SIGNATURE_MODEL_FALLBACK = 'gemini-3.5-flash-lite';
 const SIGNATURE_TIMEOUT_MS = 5500;
 const DEFAULT_SYNC_LIMIT = 4;
 const MAX_SYNC_LIMIT = 8;
+let schemaReady = false;
 
 function base64(bytes) {
   let binary = '';
@@ -101,7 +102,7 @@ export async function extractVisualSignature(env, bytes, mimeType, options = {})
           }],
           generationConfig: {
             temperature: 0,
-            maxOutputTokens: 180,
+            maxOutputTokens: 360,
             media_resolution: 'MEDIA_RESOLUTION_LOW',
             thinkingConfig: { thinkingLevel: 'minimal' },
             response_mime_type: 'application/json',
@@ -144,6 +145,7 @@ export async function extractVisualSignature(env, bytes, mimeType, options = {})
 }
 
 export async function ensureVisualSignatureSchema(env) {
+  if (schemaReady) return;
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS cover_visual_signatures (
       capa_code TEXT PRIMARY KEY,
@@ -158,6 +160,7 @@ export async function ensureVisualSignatureSchema(env) {
     CREATE INDEX IF NOT EXISTS idx_cover_visual_signatures_reference
       ON cover_visual_signatures(reference_id)
   `).run();
+  schemaReady = true;
 }
 
 export async function syncVisualSignatures(env, options = {}) {
