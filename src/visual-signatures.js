@@ -144,7 +144,7 @@ export async function extractVisualSignature(env, bytes, mimeType, options = {})
 }
 
 export async function ensureVisualSignatureSchema(env) {
-  await env.DB.exec(`
+  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS cover_visual_signatures (
       capa_code TEXT PRIMARY KEY,
       reference_id INTEGER,
@@ -152,10 +152,12 @@ export async function ensureVisualSignatureSchema(env) {
       signature_json TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (reference_id) REFERENCES cover_visual_references(id) ON DELETE SET NULL
-    );
+    )
+  `).run();
+  await env.DB.prepare(`
     CREATE INDEX IF NOT EXISTS idx_cover_visual_signatures_reference
-      ON cover_visual_signatures(reference_id);
-  `);
+      ON cover_visual_signatures(reference_id)
+  `).run();
 }
 
 export async function syncVisualSignatures(env, options = {}) {
