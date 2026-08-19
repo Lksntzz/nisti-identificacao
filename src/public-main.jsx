@@ -1,16 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { matchLocalCandidates, warmLocalVision } from './local-vision.js';
 import './app.css';
 
 const LOGO = '/nisti-logo-transparent.webp';
 const LOGO_FALLBACK = '/nisti-app-icon.svg';
 
+class ApiError extends Error {
+  constructor(message, status, data) {
+    super(message);
+    this.status = status;
+    this.data = data;
+  }
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, { credentials: 'same-origin', ...options });
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : null;
-  if (!response.ok) throw new Error(data?.error || `Erro ${response.status}`);
+  if (!response.ok) {
+    throw new ApiError(data?.error || `Erro ${response.status}`, response.status, data);
+  }
   return data;
 }
 
@@ -23,7 +32,7 @@ async function compressPhoto(file) {
     bitmap = await createImageBitmap(file);
   }
 
-  const maxSide = 1024;
+  const maxSide = 768;
   const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
@@ -34,7 +43,7 @@ async function compressPhoto(file) {
   context.drawImage(bitmap, 0, 0, width, height);
   bitmap.close?.();
 
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.72));
   return blob ? new File([blob], 'capa.jpg', { type: 'image/jpeg' }) : file;
 }
 
@@ -139,21 +148,71 @@ function ProductChoices({ capaCode, products, onSelect, performance }) {
   </div>;
 }
 
+function PossibleMatches({ suggestions, onSelect }) {
+  if (!suggestions?.length) return null;
+  return <section className="possible-matches">
+    <p className="eyebrow">POSSÍVEIS CORRESPONDÊNCIAS</p>
+    <h3>Confira antes de confirmar</h3>
+    <p className="possible-note">O sistema não encontrou identidade visual suficiente para confirmar automaticamente. As opções abaixo são apenas candidatas verificadas da plataforma selecionada.</p>
+    <div className="choices">
+      {suggestions.flatMap(group => (group.products || []).map(product => (
+        <article className="choice-card possible-card" key={`${group.capa_code}-${product.id}`}>
+          {product.image_url ? <img src={product.image_url} alt={product.sku}/> : <div/>}
+          <div>
+            <h4>{product.sku}</h4>
+            <p>Capa: {group.capa_code}</p>
+            <p>{product.nome || product.variacao || product.platform}</p>
+            <small>Similaridade verificada: {Math.round(Number(group.confidence || 0) * 100)}%</small>
+          </div>
+          <button type="button" onClick={() => onSelect(product)}>É este produto</button>
+        </article>
+      )))}
+    </div>
+  </section>;
+}
+
 function PublicIdentificationApp() {
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState('');
+  const [platforms, setPlatforms] = useState([]);
+  const [platform, setPlatform] = useState('');
+  const [platformError, setPlatformError] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [choices, setChoices] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
   const [performance, setPerformance] = useState(null);
   const runId = useRef(0);
 
-  useEffect(() => { warmLocalVision(); }, []);
+  useEffect(() => {
+    let active = true;
+    api('/api/platforms')
+      .then(data => {
+        if (!active) return;
+        setPlatforms(data.platforms || []);
+        setPlatformError('');
+      })
+      .catch(err => {
+        if (!active) return;
+        setPlatformError(err.message || 'Não foi possível carregar as plataformas.');
+      });
+    return () => { active = false; };
+  }, []);
+
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
+  const clearDecision = () => {
+    setError('');
+    setResult(null);
+    setChoices(null);
+    setSuggestions([]);
+    setPerformance(null);
+  };
 
   const applyData = data => {
     setPerformance(data.performance || null);
+    setSuggestions([]);
     if (data.needs_selection) {
       setChoices({ capaCode: data.capa_code, products: data.products || [] });
       setResult(null);
@@ -164,41 +223,26 @@ function PublicIdentificationApp() {
   };
 
   const identifyFile = async file => {
-    if (!file || busy) return;
+    if (!file || !platform || busy) return;
     const id = ++runId.current;
     setBusy(true);
-    setError('');
-    setResult(null);
-    setChoices(null);
-    setPerformance(null);
+    clearDecision();
 
     try {
       const optimized = await compressPhoto(file);
 
       const candidateForm = new FormData();
       candidateForm.append('image', optimized);
-      const candidateData = await api('/api/identify-candidates', {
+      candidateForm.append('platform', platform);
+      await api('/api/identify-candidates', {
         method: 'POST',
         body: candidateForm
       });
       if (id !== runId.current) return;
 
-      let localMatch = null;
-      try {
-        localMatch = await matchLocalCandidates(
-          optimized,
-          candidateData.candidates || [],
-          { deadlineMs: 2800 }
-        );
-      } catch (localError) {
-        localMatch = localError?.local_match || null;
-      }
-
-      // A geometria local é evidência auxiliar, nunca autorização final.
-      // Toda foto passa pelo verificador estrutural no Worker antes de liberar SKU.
       const verificationForm = new FormData();
       verificationForm.append('image', optimized);
-      if (localMatch) verificationForm.append('local_match', JSON.stringify(localMatch));
+      verificationForm.append('platform', platform);
 
       const data = await api('/api/identify', {
         method: 'POST',
@@ -207,7 +251,11 @@ function PublicIdentificationApp() {
       if (id !== runId.current) return;
       applyData(data);
     } catch (err) {
-      if (id === runId.current) setError(err.message);
+      if (id !== runId.current) return;
+      const data = err?.data || null;
+      setPerformance(data?.performance || null);
+      setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
+      setError(err.message || 'Não foi possível identificar o produto.');
     } finally {
       if (id === runId.current) setBusy(false);
     }
@@ -216,15 +264,16 @@ function PublicIdentificationApp() {
   const choose = file => {
     if (!file) return;
     setPhoto(file);
-    setError('');
-    setResult(null);
-    setChoices(null);
-    setPerformance(null);
+    clearDecision();
     setPreview(current => {
       if (current) URL.revokeObjectURL(current);
       return URL.createObjectURL(file);
     });
-    setTimeout(() => identifyFile(file), 160);
+  };
+
+  const changePlatform = event => {
+    setPlatform(event.target.value);
+    clearDecision();
   };
 
   return <main className="app general">
@@ -232,7 +281,21 @@ function PublicIdentificationApp() {
     <section className="panel">
       <p className="eyebrow">PAINEL GERAL</p>
       <h2>Identificação de produto</h2>
-      <p className="lead">Fotografe a capa do produto de frente. O sistema localiza a referência visual e retorna o SKU correspondente.</p>
+      <p className="lead">Selecione a plataforma e fotografe a capa de frente. A busca visual será feita somente dentro do catálogo dessa plataforma.</p>
+
+      <div className="platform-selector">
+        <label htmlFor="recognition-platform">PLATAFORMA</label>
+        <select id="recognition-platform" value={platform} onChange={changePlatform} disabled={busy}>
+          <option value="">Selecione a plataforma</option>
+          {platforms.map(item => <option key={item.platform_key} value={item.platform}>
+            {item.platform} ({item.product_count})
+          </option>)}
+        </select>
+        {platform && <small>Busca restrita a {platform}.</small>}
+      </div>
+
+      {platformError && <div className="status error"><h3>Plataformas indisponíveis</h3><p>{platformError}</p></div>}
+
       <label className="camera">
         <span className="camera-label">CAPA DO PRODUTO</span>
         {preview
@@ -240,10 +303,18 @@ function PublicIdentificationApp() {
           : <div className="camera-empty"><span className="camera-icon">◎</span><strong>Fotografar ou enviar capa</strong><span>Use uma imagem frontal, nítida e com boa iluminação.</span></div>}
         <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])}/>
       </label>
-      <button className="primary" disabled={!photo || busy} onClick={() => identifyFile(photo)}>
+
+      <button className="primary" disabled={!photo || !platform || busy} onClick={() => identifyFile(photo)}>
         {busy ? 'Comparando capa…' : 'Identificar produto'}
       </button>
+
       {error && <div className="status error"><h3>Produto não identificado</h3><p>{error}</p></div>}
+      <PossibleMatches suggestions={suggestions} onSelect={product => {
+        setResult(product);
+        setChoices(null);
+        setSuggestions([]);
+        setError('');
+      }}/>
       {choices && <ProductChoices
         capaCode={choices.capaCode}
         products={choices.products}
