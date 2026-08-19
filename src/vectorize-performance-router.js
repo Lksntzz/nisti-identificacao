@@ -1,7 +1,7 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
 import { structuralFinalIdentifyV8 } from './structural-final-v8.js';
-import { recordRecognitionAttempt } from './recognition-metrics.js';
+import { ensureRecognitionMetrics, recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { syncPlatformVectors } from './platform-vector-sync.js';
 import { consolidatePlatforms } from './platform-consolidation.js';
@@ -102,6 +102,7 @@ async function canonicalizeCatalogRequest(request, url) {
 }
 
 async function previewLastRecognition(env) {
+  await ensureRecognitionMetrics(env);
   const row = await env.DB.prepare(`
     SELECT
       id, created_at, kind, http_status, confidence, identified_by, error_message,
