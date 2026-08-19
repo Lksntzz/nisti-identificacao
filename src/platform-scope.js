@@ -1,8 +1,34 @@
-export function normalizePlatform(value) {
+const SUPPORTED_PLATFORMS = Object.freeze([
+  'MERCADO LIVRE',
+  'SHOPEE',
+  'AMAZON'
+]);
+
+function normalizedPlatformText(value) {
   return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
-    .toUpperCase();
+    .trim();
+}
+
+export function normalizePlatform(value) {
+  const normalized = normalizedPlatformText(value);
+  if (!normalized) return '';
+
+  // Mercado Livre antigo/novo passam a ser uma única plataforma canônica.
+  if (/^MERCADO LIVRE(?:\s|$)/.test(normalized)) return 'MERCADO LIVRE';
+  if (/^SHOPEE(?:\s|$)/.test(normalized)) return 'SHOPEE';
+  if (/^AMAZON(?:\s|$)/.test(normalized)) return 'AMAZON';
+
+  return '';
+}
+
+export function supportedPlatforms() {
+  return [...SUPPORTED_PLATFORMS];
 }
 
 export function platformNamespace(value) {
@@ -32,28 +58,33 @@ export async function listPlatforms(env) {
     FROM product_platforms
     WHERE TRIM(COALESCE(platform, '')) <> ''
     GROUP BY UPPER(TRIM(platform))
-    ORDER BY UPPER(TRIM(platform)) ASC
   `).all();
 
-  return (results || [])
-    .map(row => ({
-      platform: normalizePlatform(row.platform),
-      platform_key: platformNamespace(row.platform),
-      product_count: Number(row.product_count || 0)
-    }))
-    .filter(row => row.platform && row.platform_key);
+  const counts = new Map(SUPPORTED_PLATFORMS.map(platform => [platform, 0]));
+  for (const row of results || []) {
+    const platform = normalizePlatform(row.platform);
+    if (!platform || !counts.has(platform)) continue;
+    counts.set(platform, counts.get(platform) + Number(row.product_count || 0));
+  }
+
+  return SUPPORTED_PLATFORMS.map(platform => ({
+    platform,
+    platform_key: platformNamespace(platform),
+    product_count: counts.get(platform) || 0
+  }));
 }
 
 export async function platformExists(env, platform) {
   const normalized = normalizePlatform(platform);
   if (!normalized) return false;
-  const row = await env.DB.prepare(`
-    SELECT 1 AS found
+
+  const { results } = await env.DB.prepare(`
+    SELECT DISTINCT UPPER(TRIM(platform)) AS platform
     FROM product_platforms
-    WHERE UPPER(TRIM(platform))=?
-    LIMIT 1
-  `).bind(normalized).first();
-  return Boolean(row?.found);
+    WHERE TRIM(COALESCE(platform, '')) <> ''
+  `).all();
+
+  return (results || []).some(row => normalizePlatform(row.platform) === normalized);
 }
 
 export async function platformsForReference(env, reference) {
@@ -66,7 +97,6 @@ export async function platformsForReference(env, reference) {
       SELECT DISTINCT UPPER(TRIM(platform)) AS platform
       FROM product_platforms
       WHERE product_id=? AND TRIM(COALESCE(platform, '')) <> ''
-      ORDER BY UPPER(TRIM(platform)) ASC
     `).bind(sourceProductId).all());
   } else if (capaCode) {
     ({ results } = await env.DB.prepare(`
@@ -75,11 +105,12 @@ export async function platformsForReference(env, reference) {
       JOIN product_platforms pp ON pp.product_id=p.id
       WHERE UPPER(TRIM(p.capa_code))=?
         AND TRIM(COALESCE(pp.platform, '')) <> ''
-      ORDER BY UPPER(TRIM(pp.platform)) ASC
     `).bind(capaCode).all());
   }
 
-  return (results || [])
-    .map(row => normalizePlatform(row.platform))
-    .filter(Boolean);
+  return [...new Set(
+    (results || [])
+      .map(row => normalizePlatform(row.platform))
+      .filter(Boolean)
+  )];
 }
