@@ -60,6 +60,19 @@ async function previewLastRecognition(env) {
   });
 }
 
+function deprecatedLocalConfirmationResponse() {
+  return new Response(JSON.stringify({
+    error: 'A versão do aplicativo está desatualizada. Atualize a página para usar a verificação estrutural segura.',
+    technical_error: 'unsafe_local_confirmation_disabled'
+  }), {
+    status: 409,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store'
+    }
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -73,10 +86,16 @@ export default {
       return withRecognitionTicketCookie(response);
     }
 
+    // O caminho antigo aceitava ORB/RANSAC como decisão final e podia liberar
+    // um SKU incorreto sem passar pelo verificador estrutural. Ele fica bloqueado
+    // para que clientes antigos falhem de forma segura em vez de gerar falso positivo.
+    if (request.method === 'POST' && url.pathname === '/api/identify-confirm') {
+      return deprecatedLocalConfirmationResponse();
+    }
+
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // V9 mantém comparação binária por capa, mas isola timeout por candidata.
-      // Falhas temporárias são reexecutadas somente para as capas afetadas e uma
-      // comparação não resolvida nunca é tratada como autorização para liberar SKU.
+      // V9 mantém comparação binária por capa, isola timeout por candidata e só
+      // libera SKU quando existe uma única vencedora estrutural >= 0.95.
       const response = await structuralFallbackIdentifyV9(request, env);
       await recordFallback(ctx, env, response);
       return response;
