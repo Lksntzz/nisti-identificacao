@@ -19,5 +19,7 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Validate D1 migrations locally
+        run: npx wrangler d1 migrations apply nisti-identificacao --local
       - name: Build
         run: npm run build
