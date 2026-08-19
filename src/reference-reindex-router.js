@@ -1,4 +1,10 @@
 import app from './vectorize-admin-router.js';
+import {
+  normalizePlatform,
+  platformNamespace,
+  platformVectorId,
+  platformsForReference
+} from './platform-scope.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const MAX_REINDEX_LIMIT = 20;
@@ -60,21 +66,31 @@ async function embedImage(env, bytes, mimeType) {
   return { model, values };
 }
 
-function vectorFromReference(reference, model, values) {
+async function vectorsFromReference(env, reference, model, values) {
   const referenceId = Number(reference.id);
-  return {
-    id: `ref:${referenceId}`,
-    values,
-    metadata: {
-      reference_id: referenceId,
-      capa_code: String(reference.capa_code || '').trim().toUpperCase(),
-      image_key: String(reference.image_key || ''),
-      source_product_id: Number(reference.source_product_id || 0),
-      reference_kind: String(reference.reference_kind || 'product'),
-      embedding_model: model,
-      updated_at: new Date().toISOString()
-    }
-  };
+  const capaCode = String(reference.capa_code || '').trim().toUpperCase();
+  const platforms = await platformsForReference(env, reference);
+
+  return platforms.map(platform => {
+    const normalizedPlatform = normalizePlatform(platform);
+    const namespace = platformNamespace(normalizedPlatform);
+    return {
+      id: platformVectorId(referenceId, normalizedPlatform),
+      namespace,
+      values,
+      metadata: {
+        reference_id: referenceId,
+        capa_code: capaCode,
+        platform: normalizedPlatform,
+        platform_key: namespace,
+        image_key: String(reference.image_key || ''),
+        source_product_id: Number(reference.source_product_id || 0),
+        reference_kind: String(reference.reference_kind || 'product'),
+        embedding_model: model,
+        updated_at: new Date().toISOString()
+      }
+    };
+  }).filter(vector => vector.id && vector.namespace);
 }
 
 async function pendingReferences(env, model, limit) {
@@ -140,11 +156,18 @@ async function reindexPending(request, env) {
         JSON.stringify(values)
       ).run();
 
+      const scopedVectors = await vectorsFromReference(
+        env,
+        reference,
+        embeddingModel,
+        values
+      );
+      vectors.push(...scopedVectors);
       processed.push({
         reference_id: Number(reference.id),
-        capa_code: String(reference.capa_code || '').trim().toUpperCase()
+        capa_code: String(reference.capa_code || '').trim().toUpperCase(),
+        platform_vectors: scopedVectors.length
       });
-      vectors.push(vectorFromReference(reference, embeddingModel, values));
     } catch (error) {
       errors.push({
         reference_id: Number(reference.id),
@@ -179,7 +202,8 @@ async function reindexPending(request, env) {
     pending_references: pending,
     pending_covers: pending,
     embedding_model: model,
-    embedding_dimensions: EMBEDDING_DIMENSIONS
+    embedding_dimensions: EMBEDDING_DIMENSIONS,
+    vector_namespace: 'platform_key'
   }, errors.length || vectorizeError ? 207 : 200);
 }
 
