@@ -49,6 +49,25 @@ jobs:
         run: npm run build
       - name: Upload multi-ref preview
         run: npx wrangler versions upload --preview-alias multi-ref
+      - name: Sync platform-scoped Vectorize entries
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://multi-ref-nisti-identificacao.lksntz1411.workers.dev"
+          offset=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            response=$(curl --fail --silent --show-error \
+              -X POST "$BASE_URL/api/admin/vectorize-sync" \
+              -H 'content-type: application/json' \
+              --data "{\"limit\":500,\"offset\":$offset}")
+            echo "$response"
+            has_more=$(node -e 'const d=JSON.parse(process.argv[1]); process.stdout.write(String(Boolean(d.has_more)))' "$response")
+            if [ "$has_more" != "true" ]; then
+              break
+            fi
+            offset=$(node -e 'const d=JSON.parse(process.argv[1]); process.stdout.write(String(Number(d.next_offset||0)))' "$response")
+          done
+          sleep 5
 
   diagnostic:
     if: github.event_name == 'pull_request' && github.head_ref == 'feat/multi-reference-retrieval'
@@ -56,6 +75,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
+      - name: Verify preview build
+        run: >-
+          curl --fail --silent --show-error
+          https://multi-ref-nisti-identificacao.lksntz1411.workers.dev/api/preview/build
       - name: Read latest preview recognition diagnostic
         run: >-
           curl --fail --silent --show-error
