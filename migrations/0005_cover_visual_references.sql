@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS cover_visual_references (
   active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (capa_code, image_key)
+  UNIQUE (capa_code, image_key),
+  FOREIGN KEY (source_product_id) REFERENCES products(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_cover_visual_references_cover_active
