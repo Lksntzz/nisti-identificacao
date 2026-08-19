@@ -1,13 +1,14 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFinalIdentifyV3 } from './structural-final-v3.js';
+import { structuralFinalIdentifyV4 } from './structural-final-v4.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { syncPlatformVectors } from './platform-vector-sync.js';
 import { consolidatePlatforms } from './platform-consolidation.js';
+import { syncVisualSignatures } from './visual-signatures.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'platform-scoped-recognition-v2';
+const RECOGNITION_BUILD = 'platform-semantic-recognition-v3';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -157,15 +158,17 @@ function previewBuild() {
   return new Response(JSON.stringify({
     ok: true,
     recognition_build: RECOGNITION_BUILD,
-    pipeline: 'platform namespace + embedding + parallel binary top-2 verifier',
+    pipeline: 'platform namespace + embedding + single-image semantic fingerprint',
     user_photo_max_side: 768,
-    verifier_media_resolution: 'LOW',
-    verifier_candidates: 2,
-    verifier_timeout_ms: 6500,
-    exact_confidence: 0.97,
+    semantic_features: [
+      'fixed_text','primary_subjects','graphic_elements','colors','layout','style'
+    ],
+    query_signature_timeout_ms: 5000,
+    exact_score: 0.86,
+    exact_margin: 0.08,
     supported_platforms: ['MERCADO LIVRE', 'SHOPEE', 'AMAZON'],
     mercado_livre_aliases_consolidated: true,
-    timeout_behavior: 'safe suggestions instead of system error'
+    timeout_behavior: 'safe suggestions instead of wrong SKU'
   }), {
     status: 200,
     headers: {
@@ -230,6 +233,30 @@ export default {
       }
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/preview/sync-visual-signatures' && previewDiagnosticAllowed(url)) {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const data = await syncVisualSignatures(env, body);
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'no-store'
+          }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: error?.message || 'Falha ao sincronizar assinaturas visuais'
+        }), {
+          status: 500,
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'no-store'
+          }
+        });
+      }
+    }
+
     if (request.method === 'POST' && url.pathname === '/api/preview/sync-platform-vectors' && previewDiagnosticAllowed(url)) {
       try {
         const body = await request.json().catch(() => ({}));
@@ -272,7 +299,7 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      const response = await structuralFinalIdentifyV3(request, env);
+      const response = await structuralFinalIdentifyV4(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
