@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFallbackIdentifyV3 } from './structural-fallback-v3.js';
+import { structuralFallbackIdentifyV4 } from './structural-fallback-v4.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
@@ -41,7 +41,7 @@ export default {
       return withRecognitionTicketCookie(response);
     }
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      const response = await structuralFallbackIdentifyV3(request, env);
+      const response = await structuralFallbackIdentifyV4(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
