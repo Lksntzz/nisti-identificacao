@@ -33,9 +33,41 @@ async function withRecognitionTicketCookie(response) {
   });
 }
 
+function previewDiagnosticAllowed(url) {
+  return url.hostname === 'multi-ref-nisti-identificacao.lksntz1411.workers.dev';
+}
+
+async function previewLastRecognition(env) {
+  const row = await env.DB.prepare(`
+    SELECT
+      id, created_at, kind, http_status, confidence, identified_by, error_message,
+      total_ms, embedding_ms, vectorize_ms, local_cv_ms, reference_load_ms, gemini_ms,
+      retrieval_top1, retrieval_top1_code, retrieval_top2, retrieval_top2_code,
+      retrieval_margin, candidate_count, verification_mode, accepted_by, model,
+      retrieval_source, reused_candidates, pipeline_version, reference_candidate_count,
+      vector_top_k
+    FROM recognition_events
+    ORDER BY id DESC
+    LIMIT 1
+  `).first();
+
+  return new Response(JSON.stringify({ ok: true, event: row || null }), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store'
+    }
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (request.method === 'GET' && url.pathname === '/api/preview/last-recognition' && previewDiagnosticAllowed(url)) {
+      return previewLastRecognition(env);
+    }
+
     if (request.method === 'POST' && url.pathname === '/api/identify-candidates') {
       const response = await buildVectorizeCandidates(request, env);
       return withRecognitionTicketCookie(response);
