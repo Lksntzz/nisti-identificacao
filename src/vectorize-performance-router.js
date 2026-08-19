@@ -2,13 +2,16 @@ import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
 import { structuralFinalIdentifyV2 } from './structural-final-v2.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
+import { listPlatforms } from './platform-scope.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'local-rerank-final-v2';
+const RECOGNITION_BUILD = 'platform-scoped-recognition-v1';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
-  const data = type.includes('application/json') ? await response.clone().json().catch(() => null) : null;
+  const data = type.includes('application/json')
+    ? await response.clone().json().catch(() => null)
+    : null;
   if (!data) return;
   const telemetry = recordRecognitionAttempt(env, response.status, data);
   if (ctx?.waitUntil) ctx.waitUntil(telemetry);
@@ -96,7 +99,9 @@ function previewBuild() {
   return new Response(JSON.stringify({
     ok: true,
     recognition_build: RECOGNITION_BUILD,
-    pipeline: 'vectorize + local geometry rerank + 3-cover Gemini verifier'
+    pipeline: 'platform namespace + embedding + 3-cover Gemini verifier',
+    user_photo_max_side: 768,
+    exact_confidence: 0.97
   }), {
     status: 200,
     headers: {
@@ -122,6 +127,17 @@ function deprecatedLocalConfirmationResponse() {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (request.method === 'GET' && url.pathname === '/api/platforms') {
+      const platforms = await listPlatforms(env);
+      return new Response(JSON.stringify({ ok: true, platforms }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'no-store'
+        }
+      });
+    }
 
     if (request.method === 'GET' && url.pathname === '/api/preview/build' && previewDiagnosticAllowed(url)) {
       return previewBuild();
