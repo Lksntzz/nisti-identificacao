@@ -9,7 +9,7 @@ import { syncVisualSignatures } from './visual-signatures.js';
 import { handlePublicImageRequest } from './public-image-router.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'platform-overlay-aware-v8.6';
+const RECOGNITION_BUILD = 'platform-wide-catalog-v8.7';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -160,10 +160,12 @@ function previewBuild() {
   return new Response(JSON.stringify({
     ok: true,
     recognition_build: RECOGNITION_BUILD,
-    pipeline: 'platform namespace + embedding + Vectorize retrieval + top1-first inline R2 visual verification + deterministic adjudication',
+    pipeline: 'platform namespace + wide Vectorize recall + one comparative Gemini call across six catalog candidates + deterministic exact-art decision',
     user_photo_max_side: 768,
-    max_catalog_candidates: 3,
-    candidate_transport: 'catalog candidate bytes read directly from R2 and sent inline to verifier',
+    vector_top_k: 64,
+    retrieval_cover_limit: 12,
+    max_catalog_candidates: 6,
+    candidate_transport: 'catalog candidate bytes read directly from R2 and sent inline in one comparative request',
     media_resolution: 'LOW',
     semantic_features: [
       'fixed_text', 'primary_subjects', 'graphic_elements', 'dominant_colors',
@@ -174,13 +176,13 @@ function previewBuild() {
       'holographic_effect', 'glare', 'reflection', 'shadow', 'hand', 'table'
     ],
     personalization_policy: 'catalog-aware: personalized products ignore only variable name/initial/date while permanent text remains mandatory',
-    minimum_structural_confidence: 0.90,
-    verifier_timeout_ms: 6000,
+    minimum_structural_confidence: 0.92,
+    verifier_timeout_ms: 6500,
     supported_platforms: ['MERCADO LIVRE', 'SHOPEE', 'AMAZON'],
     mercado_livre_aliases_consolidated: true,
     thumbnail_source: 'retrieved catalog image with product-image fallback',
-    diagnostic_evidence: 'reason_code + concise observable evidence persisted per recognition',
-    timeout_behavior: 'safe suggestions unless strict isolated retrieval fallback is satisfied'
+    diagnostic_evidence: 'winner code + exact flag + confidence or technical reason persisted per recognition',
+    timeout_behavior: 'safe suggestions; retrieval score alone never becomes an automatic SKU'
   }), {
     status: 200,
     headers: {
