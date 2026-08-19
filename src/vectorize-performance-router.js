@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFinalIdentifyV7 } from './structural-final-v7.js';
+import { structuralFinalIdentifyV8 } from './structural-final-v8.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { syncPlatformVectors } from './platform-vector-sync.js';
@@ -8,7 +8,7 @@ import { consolidatePlatforms } from './platform-consolidation.js';
 import { syncVisualSignatures } from './visual-signatures.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'platform-comparative-catalog-v7';
+const RECOGNITION_BUILD = 'platform-comparative-catalog-v8';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -158,9 +158,11 @@ function previewBuild() {
   return new Response(JSON.stringify({
     ok: true,
     recognition_build: RECOGNITION_BUILD,
-    pipeline: 'platform namespace + embedding + comparative catalog evidence + deterministic adjudication',
+    pipeline: 'platform namespace + embedding + comparative catalog evidence + deterministic adjudication + HTTPS file URI',
     user_photo_max_side: 768,
     max_catalog_candidates: 4,
+    candidate_transport: 'public HTTPS file_uri; Worker does not inline full catalog images into Gemini payload',
+    media_resolution: 'MEDIUM',
     semantic_features: [
       'fixed_text','primary_subjects','graphic_elements','dominant_colors','layout','personalization'
     ],
@@ -301,7 +303,7 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      const response = await structuralFinalIdentifyV7(request, env);
+      const response = await structuralFinalIdentifyV8(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
