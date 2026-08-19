@@ -1,6 +1,6 @@
 import app from './performance-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
-import { structuralFallbackIdentifyV6 } from './structural-fallback-v6.js';
+import { structuralFallbackIdentifyV7 } from './structural-fallback-v7.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
@@ -73,10 +73,10 @@ export default {
       return withRecognitionTicketCookie(response);
     }
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      // V6 preserva seis capas candidatas, faz pré-seleção em dois lotes paralelos
-      // de três referências e executa uma confirmação final estrita com no máximo
-      // dois finalistas. Isso reduz a carga multimodal sem reduzir o threshold.
-      const response = await structuralFallbackIdentifyV6(request, env);
+      // V7 remove a pré-seleção Gemini que introduzia duas chamadas concorrentes e
+      // timeouts. O fallback final usa uma única chamada estrutural sobre no máximo
+      // três finalistas e mantém confidence >= 0.95.
+      const response = await structuralFallbackIdentifyV7(request, env);
       await recordFallback(ctx, env, response);
       return response;
     }
