@@ -359,7 +359,14 @@ function InstallApp() {
     const installed = () => setStandalone(true);
     window.addEventListener('beforeinstallprompt', before);
     window.addEventListener('appinstalled', installed);
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(reg => {
+        reg.update();
+      }).catch(() => {});
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+    }
     return () => {
       window.removeEventListener('beforeinstallprompt', before);
       window.removeEventListener('appinstalled', installed);
@@ -425,33 +432,6 @@ function ProductChoices({ capaCode, products, onSelect, performance }) {
     </div>
     {performance?.total_ms && <small className="perf">Capa reconhecida em {(performance.total_ms / 1000).toFixed(1)} s</small>}
   </div>;
-}
-
-function PossibleMatches({ suggestions, onSelect }) {
-  if (!suggestions?.length) return null;
-  return <section className="possible-matches">
-    <p className="eyebrow">POSSÍVEIS CORRESPONDÊNCIAS</p>
-    <h3>Confira antes de confirmar</h3>
-    <p className="possible-note">O sistema não encontrou identidade visual suficiente para confirmar automaticamente. As opções abaixo pertencem à plataforma selecionada e nunca são tratadas como identificação automática.</p>
-    <div className="choices">
-      {suggestions.flatMap(group => (group.products || []).map(product => (
-        <article className="choice-card possible-card" key={`${group.capa_code}-${product.id}`}>
-          <ProductImage product={product} alt={product.sku}/>
-          <div>
-            <h4>{product.sku}</h4>
-            <p>Capa: {group.capa_code}</p>
-            <p>{product.nome || product.variacao || product.platform}</p>
-            <small>
-              {group.verification_source === 'catalog-visual-comparison' || group.verification_source === 'gemini-verified'
-                ? 'Verificação visual'
-                : 'Similaridade do índice'}: {Math.round(Number(group.confidence || 0) * 100)}%
-            </small>
-          </div>
-          <button type="button" onClick={() => onSelect(product)}>É este produto</button>
-        </article>
-      )))}
-    </div>
-  </section>;
 }
 
 function PublicIdentificationApp() {
@@ -748,13 +728,6 @@ function PublicIdentificationApp() {
             )}
           </div>
         )}
-
-        <PossibleMatches suggestions={suggestions} onSelect={product => {
-          setResult(product);
-          setChoices(null);
-          setSuggestions([]);
-          setError('');
-        }}/>
 
         {choices && <ProductChoices
           capaCode={choices.capaCode}

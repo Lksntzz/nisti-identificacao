@@ -375,10 +375,8 @@ export async function buildVectorizeCandidates(request, env) {
       ? Number(covers[0].retrieval_score || 0) - Number(covers[1].retrieval_score || 0)
       : 1;
 
-    const topScore = Number(covers[0]?.retrieval_score || 0);
-
-    // Se outra plataforma tiver correspondência superior
-    if (crossMatch && crossMatch.score >= 0.88 && (topScore < 0.88 || crossMatch.score > topScore + 0.025)) {
+    // Se outra plataforma tiver correspondência superior ou igual
+    if (crossMatch && crossMatch.score >= 0.80 && (crossMatch.score >= topScore || (crossMatch.score >= 0.84 && topScore < 0.86))) {
       throw new RetrievalError(
         `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
         422,
@@ -387,7 +385,7 @@ export async function buildVectorizeCandidates(request, env) {
       );
     }
 
-    if (topScore < 0.65) {
+    if (topScore < 0.70) {
       if (crossMatch) {
         throw new RetrievalError(
           `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
