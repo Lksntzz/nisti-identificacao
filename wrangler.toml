@@ -1,0 +1,29 @@
+name = "nisti-identificacao"
+main = "src/operator-audit-router.js"
+compatibility_date = "2026-08-17"
+compatibility_flags = [ "nodejs_compat" ]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = true
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nisti-identificacao"
+database_id = "10181c7e-ffdc-41d5-a40e-802173da9a02"
+
+[[r2_buckets]]
+binding = "PRODUCT_IMAGES"
+bucket_name = "nisti-identificacao-images"
+
+[[vectorize]]
+binding = "COVER_VECTORS"
+index_name = "nisti-cover-embeddings"
+
+[vars]
+APP_ENV = "production"
+GEMINI_VERIFIER_MODEL = "gemini-3.5-flash-lite"
+GEMINI_MODEL = "gemini-3.5-flash"
+GEMINI_EMBEDDING_MODEL = "gemini-embedding-2"
