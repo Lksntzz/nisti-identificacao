@@ -179,19 +179,13 @@ async function resolveCandidate(env, candidate, platform) {
     row = await env.DB.prepare(`
       SELECT id,capa_code,image_key
       FROM cover_visual_references
-      WHERE id=? AND active=1 AND reference_kind='primary' AND image_key IS NOT NULL
+      WHERE id=? AND active=1 AND image_key IS NOT NULL
       LIMIT 1
     `).bind(candidate.reference_id).first();
   }
 
   if (!row || String(row.capa_code || '').trim().toUpperCase() !== candidate.capa_code) {
     row = await env.DB.prepare(`
-      SELECT id,capa_code,image_key
-      FROM cover_visual_references
-      WHERE UPPER(TRIM(capa_code))=? AND active=1 AND reference_kind='primary' AND image_key IS NOT NULL
-      ORDER BY id ASC
-      LIMIT 1
-    `).bind(candidate.capa_code).first() || await env.DB.prepare(`
       SELECT id,capa_code,image_key
       FROM cover_visual_references
       WHERE UPPER(TRIM(capa_code))=? AND active=1 AND image_key IS NOT NULL
