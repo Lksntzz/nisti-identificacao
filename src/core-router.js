@@ -1,4 +1,12 @@
 import { parseSku } from './sku.js';
+import {
+  recordNewCoverNotification,
+  updateNotificationImage,
+  listUserNotifications,
+  getUnreadNotificationsCount,
+  markNotificationRead,
+  markAllNotificationsRead
+} from './cover-notifications.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_REFERENCES = 24;
@@ -231,6 +239,18 @@ async function upsertCatalogProduct(env, row) {
     }
   }
 
+  if (created) {
+    await recordNewCoverNotification(env, {
+      capaCode: parsed.capaCode,
+      productId: product.id,
+      sku: parsed.sku,
+      productName: nome,
+      variacao: variacao,
+      platform: platform,
+      imageKey: product.image_key
+    }).catch(() => {});
+  }
+
   return {
     id: product.id,
     sku: parsed.sku,
@@ -388,11 +408,23 @@ export default {
           body.nome || null, body.variacao || null
         ).run();
         const id = result.meta.last_row_id;
-        if (body.platform) {
+        const platform = body.platform ? String(body.platform).trim().toUpperCase() : null;
+        if (platform) {
           await env.DB.prepare(`
             INSERT INTO product_platforms (product_id,platform,link) VALUES (?,?,?)
-          `).bind(id, String(body.platform).trim().toUpperCase(), body.link || null).run();
+          `).bind(id, platform, body.link || null).run();
         }
+
+        await recordNewCoverNotification(env, {
+          capaCode: parsed.capaCode,
+          productId: id,
+          sku: parsed.sku,
+          productName: body.nome || null,
+          variacao: body.variacao || null,
+          platform: platform,
+          imageKey: null
+        }).catch(() => {});
+
         return json({ ok: true, id, parsed }, 201);
       }
 
@@ -430,6 +462,12 @@ export default {
         if (!(file instanceof File)) return json({ error: 'Imagem obrigatória' }, 400);
         if (!file.type.startsWith('image/')) return json({ error: 'Arquivo deve ser uma imagem' }, 400);
         const saved = await saveProductImage(env, id, await file.arrayBuffer(), file.type);
+
+        const prod = await env.DB.prepare('SELECT capa_code, image_key FROM products WHERE id=?').bind(id).first();
+        if (prod?.image_key) {
+          await updateNotificationImage(env, id, prod.capa_code, prod.image_key).catch(() => {});
+        }
+
         return json({
           ok: true,
           image_url: `/api/images/${id}`,
@@ -535,6 +573,37 @@ export default {
           embedding_dimensions: EMBEDDING_DIMENSIONS,
           top_k: TOP_K_REFERENCES
         });
+      }
+
+      if (url.pathname === '/api/notifications' && request.method === 'GET') {
+        const userId = request.headers.get('x-user-id') || url.searchParams.get('user_id') || 'anonymous';
+        const limit = Number(url.searchParams.get('limit')) || 50;
+        const notifications = await listUserNotifications(env, userId, limit);
+        const unreadCount = await getUnreadNotificationsCount(env, userId);
+        return json({ ok: true, notifications, unread_count: unreadCount });
+      }
+
+      if (url.pathname === '/api/notifications/unread-count' && request.method === 'GET') {
+        const userId = request.headers.get('x-user-id') || url.searchParams.get('user_id') || 'anonymous';
+        const count = await getUnreadNotificationsCount(env, userId);
+        return json({ ok: true, unread_count: count });
+      }
+
+      const readSingle = url.pathname.match(/^\/api\/notifications\/(\d+)\/read$/);
+      if (readSingle && request.method === 'POST') {
+        const notificationId = Number(readSingle[1]);
+        const body = await request.json().catch(() => ({}));
+        const userId = request.headers.get('x-user-id') || body?.user_id || url.searchParams.get('user_id') || 'anonymous';
+        const success = await markNotificationRead(env, notificationId, userId);
+        const unreadCount = await getUnreadNotificationsCount(env, userId);
+        return json({ ok: success, unread_count: unreadCount });
+      }
+
+      if (url.pathname === '/api/notifications/mark-all-read' && request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const userId = request.headers.get('x-user-id') || body?.user_id || url.searchParams.get('user_id') || 'anonymous';
+        const updated = await markAllNotificationsRead(env, userId);
+        return json({ ok: true, marked_count: updated, unread_count: 0 });
       }
 
       if (env.ASSETS) return env.ASSETS.fetch(request);

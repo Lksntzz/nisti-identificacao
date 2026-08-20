@@ -13,8 +13,25 @@ class ApiError extends Error {
   }
 }
 
+function getUserId() {
+  try {
+    let id = localStorage.getItem('nisti_shipping_user_id');
+    if (!id) {
+      id = 'op_' + crypto.randomUUID();
+      localStorage.setItem('nisti_shipping_user_id', id);
+    }
+    return id;
+  } catch {
+    return 'op_guest';
+  }
+}
+
 async function api(path, options = {}) {
-  const response = await fetch(path, { credentials: 'same-origin', ...options });
+  const headers = {
+    'x-user-id': getUserId(),
+    ...(options.headers || {})
+  };
+  const response = await fetch(path, { credentials: 'same-origin', ...options, headers });
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : null;
   if (!response.ok) {
@@ -47,7 +64,135 @@ async function compressPhoto(file) {
   return blob ? new File([blob], 'capa.jpg', { type: 'image/jpeg' }) : file;
 }
 
-function BrandHeader() {
+function BellIcon({ unreadCount, onClick }) {
+  return (
+    <button
+      type="button"
+      className="notification-bell-btn"
+      onClick={onClick}
+      aria-label={`Notificações de novas capas (${unreadCount} não lidas)`}
+    >
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+      {unreadCount > 0 && (
+        <span className="notification-badge" aria-hidden="true">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await api('/api/notifications');
+      setNotifications(data.notifications || []);
+      if (typeof data.unread_count === 'number') {
+        setUnreadCount(data.unread_count);
+      }
+    } catch {}
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    if (isOpen) load();
+  }, [isOpen]);
+
+  const markOne = async (id) => {
+    try {
+      await api(`/api/notifications/${id}/read`, { method: 'POST' });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch {}
+  };
+
+  const markAll = async () => {
+    setMarkingAll(true);
+    try {
+      await api('/api/notifications/mark-all-read', { method: 'POST' });
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch {}
+    finally { setMarkingAll(false); }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="notifications-modal">
+        <div className="notifications-header">
+          <div>
+            <h3>Novas Capas e Variações</h3>
+            <small>{unreadCount} não lida{unreadCount === 1 ? '' : 's'}</small>
+          </div>
+          <div className="notifications-actions">
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                className="mark-all-btn"
+                disabled={markingAll}
+                onClick={markAll}
+              >
+                {markingAll ? 'Marcando…' : 'Marcar todas como lidas'}
+              </button>
+            )}
+            <button type="button" className="close-btn" onClick={onClose}>✕</button>
+          </div>
+        </div>
+
+        <div className="notifications-body">
+          {loading && <div className="notifications-loading">Carregando novidades…</div>}
+          {!loading && notifications.length === 0 && (
+            <div className="notifications-empty">
+              <p>Nenhuma nova capa cadastrada recentemente.</p>
+            </div>
+          )}
+          {!loading && notifications.map(item => (
+            <article
+              key={item.id}
+              className={`notification-card ${item.is_read ? 'read' : 'unread'}`}
+              onClick={() => !item.is_read && markOne(item.id)}
+            >
+              <div className="notification-thumb">
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.capa_code} loading="lazy" />
+                ) : (
+                  <div className="thumb-placeholder">Sem foto</div>
+                )}
+              </div>
+              <div className="notification-info">
+                <div className="notification-top-row">
+                  <span className="notif-capa-badge">{item.capa_code}</span>
+                  {item.platform && <span className="notif-platform-tag">{item.platform}</span>}
+                  {!item.is_read && <span className="unread-dot" title="Não lida" />}
+                </div>
+                <h4>{item.product_name || item.sku || 'Nova capa cadastrada'}</h4>
+                {item.variacao && <p className="notif-variacao"><strong>Variação:</strong> {item.variacao}</p>}
+                <small className="notif-date">
+                  {new Date(item.created_at).toLocaleDateString('pt-BR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  })}
+                </small>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BrandHeader({ unreadCount = 0, onOpenNotifications }) {
   const [logoFailed, setLogoFailed] = useState(false);
   return <header className="topbar">
     <div className="brand-block">
@@ -58,6 +203,9 @@ function BrandHeader() {
         onError={() => setLogoFailed(true)}
       />
       <div className="top-title"><small>NISTI PRINT</small><h1>Identificação Visual</h1></div>
+    </div>
+    <div className="header-actions">
+      <BellIcon unreadCount={unreadCount} onClick={onOpenNotifications} />
     </div>
   </header>;
 }
@@ -213,6 +361,8 @@ function PublicIdentificationApp() {
   const [suggestions, setSuggestions] = useState([]);
   const [suggestedPlatform, setSuggestedPlatform] = useState(null);
   const [performance, setPerformance] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const runId = useRef(0);
 
   useEffect(() => {
@@ -228,6 +378,27 @@ function PublicIdentificationApp() {
         setPlatformError(err.message || 'Não foi possível carregar as plataformas.');
       });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const fetchUnread = () => {
+      api('/api/notifications/unread-count')
+        .then(data => {
+          if (!active) return;
+          if (typeof data?.unread_count === 'number') {
+            setUnreadCount(data.unread_count);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
@@ -316,7 +487,10 @@ function PublicIdentificationApp() {
   };
 
   return <main className="app general">
-    <BrandHeader />
+    <BrandHeader
+      unreadCount={unreadCount}
+      onOpenNotifications={() => setNotificationsOpen(true)}
+    />
     <section className="panel">
       <p className="eyebrow">PAINEL GERAL</p>
       <h2>Identificação de produto</h2>
@@ -396,6 +570,14 @@ function PublicIdentificationApp() {
       />}
       {result && <ProductResult product={result} performance={performance}/>} 
     </section>
+
+    <NotificationsModal
+      isOpen={notificationsOpen}
+      onClose={() => setNotificationsOpen(false)}
+      unreadCount={unreadCount}
+      setUnreadCount={setUnreadCount}
+    />
+
     <InstallApp />
   </main>;
 }
