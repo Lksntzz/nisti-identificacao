@@ -27,41 +27,57 @@ function base64(bytes) {
   return btoa(binary);
 }
 
-async function embedImage(env, bytes, mimeType) {
+async function embedImage(env, bytes, mimeType, maxRetries = 3) {
   if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
   const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
-    {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-goog-api-key': env.GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        content: {
-          parts: [{
-            inline_data: {
-              mime_type: mimeType || 'image/jpeg',
-              data: base64(bytes)
-            }
-          }]
-        },
-        output_dimensionality: EMBEDDING_DIMENSIONS
-      })
+  const base64Data = base64(bytes);
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-goog-api-key': env.GEMINI_API_KEY
+          },
+          body: JSON.stringify({
+            content: {
+              parts: [{
+                inline_data: {
+                  mime_type: mimeType || 'image/jpeg',
+                  data: base64Data
+                }
+              }]
+            },
+            output_dimensionality: EMBEDDING_DIMENSIONS
+          })
+        }
+      );
+
+      if (!response.ok) {
+        if (attempt < maxRetries && [429, 500, 502, 503, 504].includes(response.status)) {
+          await new Promise(r => setTimeout(r, attempt * 350));
+          continue;
+        }
+        throw new Error(`Gemini Embedding falhou (${response.status})`);
+      }
+
+      const payload = await response.json();
+      const vector = payload?.embedding?.values;
+      if (!Array.isArray(vector) || vector.length !== EMBEDDING_DIMENSIONS) {
+        throw new Error('Dimensão de embedding inválida');
+      }
+      return vector;
+    } catch (err) {
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, attempt * 350));
+        continue;
+      }
+      throw err;
     }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Gemini Embedding falhou (${response.status})`);
   }
-
-  const payload = await response.json();
-  const vector = payload?.embedding?.values;
-  if (!Array.isArray(vector) || vector.length !== EMBEDDING_DIMENSIONS) {
-    throw new Error('Dimensão de embedding inválida');
-  }
-  return vector;
 }
 
 export async function recordScanOccurrence(env, {

@@ -80,76 +80,88 @@ async function signTicket(env, payload) {
   return `${encoded}.${base64url(signature)}`;
 }
 
-export async function embedImage(env, bytes, mimeType) {
+export async function embedImage(env, bytes, mimeType, maxRetries = 3) {
   if (!env.GEMINI_API_KEY) {
     throw new RetrievalError(
       'GEMINI_API_KEY não configurada',
-      503,
-      'gemini_not_configured'
+      500,
+      'missing_gemini_key'
     );
   }
 
   const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
-  const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort('embedding-timeout'),
-    MAX_EMBEDDING_MS
-  );
+  const base64Data = base64(bytes);
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-goog-api-key': env.GEMINI_API_KEY
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          content: {
-            parts: [{
-              inline_data: {
-                mime_type: mimeType || 'image/jpeg',
-                data: base64(bytes)
-              }
-            }]
-          },
-          output_dimensionality: EMBEDDING_DIMENSIONS
-        })
-      }
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort('embedding-timeout'),
+      MAX_EMBEDDING_MS
     );
 
-    if (!response.ok) {
-      throw new RetrievalError(
-        `Gemini Embedding falhou (${response.status})`,
-        [429, 500, 502, 503, 504].includes(response.status) ? 503 : 502,
-        'embedding_failed'
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-goog-api-key': env.GEMINI_API_KEY
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            content: {
+              parts: [{
+                inline_data: {
+                  mime_type: mimeType || 'image/jpeg',
+                  data: base64Data
+                }
+              }]
+            },
+            output_dimensionality: EMBEDDING_DIMENSIONS
+          })
+        }
       );
-    }
 
-    const payload = await response.json();
-    const values = payload?.embedding?.values || payload?.embeddings?.[0]?.values;
-    if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
-      throw new RetrievalError(
-        'Gemini Embedding não retornou vetor válido',
-        502,
-        'embedding_empty'
-      );
-    }
+      if (!response.ok) {
+        if (attempt < maxRetries && [429, 500, 502, 503, 504].includes(response.status)) {
+          await new Promise(r => setTimeout(r, attempt * 350));
+          continue;
+        }
+        throw new RetrievalError(
+          `Gemini Embedding falhou (${response.status})`,
+          [429, 500, 502, 503, 504].includes(response.status) ? 503 : 502,
+          'embedding_failed'
+        );
+      }
 
-    return { model, values };
-  } catch (error) {
-    if (controller.signal.aborted || error?.name === 'AbortError') {
-      throw new RetrievalError(
-        'O embedding da imagem excedeu o tempo máximo.',
-        503,
-        'embedding_timeout'
-      );
+      const payload = await response.json();
+      const values = payload?.embedding?.values || payload?.embeddings?.[0]?.values;
+      if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
+        throw new RetrievalError(
+          'Gemini Embedding não retornou vetor válido',
+          502,
+          'embedding_empty'
+        );
+      }
+
+      return { model, values };
+    } catch (error) {
+      if (attempt < maxRetries && error?.name !== 'RetrievalError') {
+        await new Promise(r => setTimeout(r, attempt * 350));
+        continue;
+      }
+      if (controller.signal.aborted || error?.name === 'AbortError') {
+        throw new RetrievalError(
+          'O embedding da imagem excedeu o tempo máximo.',
+          503,
+          'embedding_timeout'
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
-    throw error;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
