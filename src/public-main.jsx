@@ -263,7 +263,7 @@ function PublicIdentificationApp() {
       const candidateForm = new FormData();
       candidateForm.append('image', optimized);
       candidateForm.append('platform', platform);
-      await api('/api/identify-candidates', {
+      const candidateData = await api('/api/identify-candidates', {
         method: 'POST',
         body: candidateForm
       });
@@ -272,6 +272,9 @@ function PublicIdentificationApp() {
       const verificationForm = new FormData();
       verificationForm.append('image', optimized);
       verificationForm.append('platform', platform);
+      if (candidateData?.ticket) {
+        verificationForm.append('ticket', candidateData.ticket);
+      }
 
       const data = await api('/api/identify', {
         method: 'POST',

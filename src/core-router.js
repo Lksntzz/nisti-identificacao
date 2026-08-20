@@ -113,29 +113,6 @@ async function storeReferenceEmbedding(env, reference, bytes, mimeType) {
       updated_at=CURRENT_TIMESTAMP
   `).bind(reference.id, model, values.length, JSON.stringify(values)).run();
 
-  // Compatibilidade temporária com os módulos legados. O pipeline novo usa
-  // cover_visual_references + cover_reference_embeddings, mas manter um vetor
-  // principal por capa evita regressão nos fallbacks antigos durante a migração.
-  if (reference.reference_kind === 'product') {
-    await env.DB.prepare(`
-      INSERT INTO cover_embeddings (
-        capa_code,image_key,embedding_model,dimensions,embedding_json,updated_at
-      ) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
-      ON CONFLICT(capa_code) DO UPDATE SET
-        image_key=excluded.image_key,
-        embedding_model=excluded.embedding_model,
-        dimensions=excluded.dimensions,
-        embedding_json=excluded.embedding_json,
-        updated_at=CURRENT_TIMESTAMP
-    `).bind(
-      reference.capa_code,
-      reference.image_key,
-      model,
-      values.length,
-      JSON.stringify(values)
-    ).run();
-  }
-
   return { model, values };
 }
 
@@ -557,83 +534,6 @@ export default {
           embedding_model: env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2',
           embedding_dimensions: EMBEDDING_DIMENSIONS,
           top_k: TOP_K_REFERENCES
-        });
-      }
-
-      if (url.pathname === '/api/admin/reindex-cover-embeddings' && request.method === 'POST') {
-        const body = await request.json().catch(() => ({}));
-        const limit = Math.max(1, Math.min(20, Number(body.limit) || 8));
-        const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
-        const { results } = await env.DB.prepare(`
-          SELECT
-            r.id AS reference_id,r.capa_code,r.image_key,r.source_product_id,r.reference_kind
-          FROM cover_visual_references r
-          LEFT JOIN cover_reference_embeddings e
-            ON e.reference_id=r.id AND e.dimensions=? AND e.embedding_model=?
-          WHERE r.active=1 AND e.reference_id IS NULL
-          ORDER BY r.id ASC
-          LIMIT ?
-        `).bind(EMBEDDING_DIMENSIONS, model, limit).all();
-
-        const processed = [];
-        const errors = [];
-        const removedReferenceIds = [];
-        for (const reference of results || []) {
-          try {
-            const object = await env.PRODUCT_IMAGES.get(reference.image_key);
-            if (!object) throw new Error('Imagem não encontrada no R2');
-            await storeReferenceEmbedding(
-              env,
-              reference,
-              new Uint8Array(await object.arrayBuffer()),
-              object.httpMetadata?.contentType || 'image/jpeg'
-            );
-            processed.push({
-              reference_id: Number(reference.reference_id),
-              capa_code: reference.capa_code
-            });
-
-            if (reference.source_product_id) {
-              const product = await env.DB.prepare(`SELECT image_key FROM products WHERE id=?`)
-                .bind(reference.source_product_id).first();
-              if (product?.image_key === reference.image_key) {
-                const stale = await cleanupStaleProductReferences(
-                  env,
-                  Number(reference.source_product_id),
-                  reference.image_key
-                );
-                removedReferenceIds.push(...stale.map(item => Number(item.id)));
-                for (const item of stale) {
-                  if (item.image_key && item.image_key !== reference.image_key) {
-                    await env.PRODUCT_IMAGES.delete(item.image_key).catch(() => {});
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            errors.push({
-              reference_id: Number(reference.reference_id),
-              capa_code: reference.capa_code,
-              error: error?.message || 'Falha ao indexar'
-            });
-          }
-        }
-
-        const pending = await env.DB.prepare(`
-          SELECT COUNT(*) AS total
-          FROM cover_visual_references r
-          LEFT JOIN cover_reference_embeddings e
-            ON e.reference_id=r.id AND e.dimensions=? AND e.embedding_model=?
-          WHERE r.active=1 AND e.reference_id IS NULL
-        `).bind(EMBEDDING_DIMENSIONS, model).first();
-
-        return json({
-          ok: errors.length === 0,
-          processed,
-          errors,
-          removed_reference_ids: removedReferenceIds,
-          pending_references: Number(pending?.total || 0),
-          pending_covers: Number(pending?.total || 0)
         });
       }
 

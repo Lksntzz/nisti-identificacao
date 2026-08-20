@@ -5,16 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm install --no-audit --no-fund && vite build",
+    "build": "vite build",
     "deploy": "npm run build && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply nisti-identificacao --remote"
   },
   "dependencies": {
-    "jsfeat": "0.0.8",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "wrangler": "latest"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.2.0",
+    "wrangler": "^3.114.0"
   },
   "devDependencies": {}
 }

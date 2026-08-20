@@ -20,40 +20,41 @@ Sistema web da NISTI PRINT para identificar produtos pela arte frontal da capa n
 ## Arquitetura ativa
 
 Frontend:
+- `src/entry.jsx`
+- `src/public-main.jsx`
 - `src/main.jsx`
 - `src/app.css`
-- `src/local-vision.js`
-- `src/local-vision-v3.js`
-- `src/personalized-vision.js`
 
 Worker:
 - `src/vectorize-performance-router.js`
 - `src/vectorize-candidates.js`
-- `src/structural-fallback-v3.js`
-- `src/performance-router.js`
+- `src/structural-final-v8.js`
 - `src/edge-router.js`
 - `src/product-finish-router.js`
+- `src/reference-reindex-router.js`
 - `src/vectorize-admin-router.js`
 - `src/storage-metrics-router.js`
 - `src/system-metrics-clean-router.js`
 - `src/core-router.js`
+- `src/public-image-router.js`
+- `src/platform-scope.js`
 - `src/recognition-metrics.js`
+- `src/gemini-budget.js`
 - `src/sku.js`
 
 ## Referências visuais
 
-A partir da migration `0005_cover_visual_references.sql`, a mesma arte-base pode possuir várias referências oficiais. Cada referência recebe um embedding independente e um vetor `ref:<REFERENCE_ID>` no Vectorize. A consulta retorna referências semelhantes, agrupa por `capa_code` e envia um conjunto pequeno e diverso ao verificador local.
+A partir da migration `0005_cover_visual_references.sql`, a mesma arte-base pode possuir várias referências oficiais. Cada referência recebe um embedding independente e um vetor por plataforma no Vectorize. A consulta retorna referências semelhantes da plataforma selecionada, agrupa por `capa_code` e envia as candidatas mais relevantes para a verificação comparativa multimodal via Gemini.
 
 Referências adicionais podem representar condições reais como foto frontal, perspectiva, personalização e condição difícil. Elas não criam novos produtos nem SKUs; apenas aumentam a cobertura visual da capa existente.
 
-## Rollout da migration 0005
+## Rollout e Migrações
 
 1. Validar as migrations localmente: `npx wrangler d1 migrations apply nisti-identificacao --local`.
-2. Aplicar a migration no D1 remoto antes de publicar o Worker novo: `npx wrangler d1 migrations apply nisti-identificacao --remote`.
-3. Depois do deploy, executar `/api/admin/reindex-cover-embeddings` até `pending_references = 0`.
+2. Aplicar a migration no D1 remoto: `npm run db:migrate`.
+3. Após o deploy, executar `/api/admin/reindex-cover-embeddings` até `pending_references = 0`.
 4. Executar `/api/admin/vectorize-sync` até todas as referências estarem sincronizadas.
 5. Validar `/api/admin/vectorize-status` e `/api/admin/cover-index`.
-6. Fazer smoke/regressão com capas conhecidas, visualmente parecidas e imagens negativas antes de considerar a mudança estável.
 
 O Production Gate executa a migration completa contra um D1 local antes do build. Isso valida a sintaxe e a sequência das migrations sem alterar o banco de produção.
 
@@ -64,5 +65,4 @@ O Production Gate executa a migration completa contra um D1 local antes do build
 - Cloudflare D1
 - Cloudflare R2
 - Cloudflare Vectorize
-- Gemini API
-- JSFeat ORB/RANSAC
+- Google Gemini API (`gemini-embedding-2` + `gemini-3.5-flash-lite`)

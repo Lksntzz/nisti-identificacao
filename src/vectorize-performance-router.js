@@ -1,15 +1,11 @@
-import app from './performance-router.js';
+import app from './edge-router.js';
 import { buildVectorizeCandidates } from './vectorize-candidates.js';
 import { structuralFinalIdentifyV8 } from './structural-final-v8.js';
-import { ensureRecognitionMetrics, recordRecognitionAttempt } from './recognition-metrics.js';
+import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
-import { syncPlatformVectors } from './platform-vector-sync.js';
-import { consolidatePlatforms } from './platform-consolidation.js';
-import { syncVisualSignatures } from './visual-signatures.js';
 import { handlePublicImageRequest } from './public-image-router.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-const RECOGNITION_BUILD = 'platform-wide-catalog-v8.7';
 
 async function recordFallback(ctx, env, response) {
   const type = response.headers.get('content-type') || '';
@@ -39,10 +35,6 @@ async function withRecognitionTicketCookie(response) {
     statusText: response.statusText,
     headers
   });
-}
-
-function previewDiagnosticAllowed(url) {
-  return url.hostname === 'multi-ref-nisti-identificacao.lksntz1411.workers.dev';
 }
 
 function invalidPlatformResponse() {
@@ -101,110 +93,6 @@ async function canonicalizeCatalogRequest(request, url) {
   });
 }
 
-async function previewLastRecognition(env) {
-  await ensureRecognitionMetrics(env);
-  const row = await env.DB.prepare(`
-    SELECT
-      id, created_at, kind, http_status, confidence, identified_by, error_message,
-      total_ms, embedding_ms, vectorize_ms, local_cv_ms, reference_load_ms, gemini_ms,
-      retrieval_top1, retrieval_top1_code, retrieval_top2, retrieval_top2_code,
-      retrieval_margin, candidate_count, verification_mode, accepted_by, model,
-      retrieval_source, reused_candidates, pipeline_version, reference_candidate_count,
-      vector_top_k, verifier_reason_code, verifier_evidence
-    FROM recognition_events
-    ORDER BY id DESC
-    LIMIT 1
-  `).first();
-
-  return new Response(JSON.stringify({ ok: true, event: row || null }), {
-    status: 200,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store'
-    }
-  });
-}
-
-async function previewCatalog(env, url) {
-  const code = String(url.searchParams.get('code') || '').trim().toUpperCase();
-  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 250)));
-  let rows;
-  if (code) {
-    const result = await env.DB.prepare(`
-      SELECT id,sku,capa_code,nome,variacao,image_key
-      FROM products
-      WHERE capa_code=?
-      ORDER BY id ASC
-      LIMIT ?
-    `).bind(code, limit).all();
-    rows = result.results || [];
-  } else {
-    const result = await env.DB.prepare(`
-      SELECT id,sku,capa_code,nome,variacao,image_key
-      FROM products
-      ORDER BY capa_code ASC,id ASC
-      LIMIT ?
-    `).bind(limit).all();
-    rows = result.results || [];
-  }
-  return new Response(JSON.stringify({ ok: true, products: rows }), {
-    status: 200,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store'
-    }
-  });
-}
-
-function previewBuild() {
-  return new Response(JSON.stringify({
-    ok: true,
-    recognition_build: RECOGNITION_BUILD,
-    pipeline: 'platform namespace + wide Vectorize recall + one comparative Gemini call across six catalog candidates + deterministic exact-art decision',
-    user_photo_max_side: 768,
-    vector_top_k: 64,
-    retrieval_cover_limit: 12,
-    max_catalog_candidates: 6,
-    candidate_transport: 'catalog candidate bytes read directly from R2 and sent inline in one comparative request',
-    media_resolution: 'LOW',
-    semantic_features: [
-      'fixed_text', 'primary_subjects', 'graphic_elements', 'dominant_colors',
-      'layout', 'personalization', 'physical_overlay_ignoring'
-    ],
-    ignored_physical_overlays: [
-      'wire-o', 'spiral', 'elastic', 'tassel', 'plastic_packaging', 'lamination',
-      'holographic_effect', 'glare', 'reflection', 'shadow', 'hand', 'table'
-    ],
-    personalization_policy: 'catalog-aware: personalized products ignore only variable name/initial/date while permanent text remains mandatory',
-    minimum_structural_confidence: 0.92,
-    verifier_timeout_ms: 6500,
-    supported_platforms: ['MERCADO LIVRE', 'SHOPEE', 'AMAZON'],
-    mercado_livre_aliases_consolidated: true,
-    thumbnail_source: 'retrieved catalog image with product-image fallback',
-    diagnostic_evidence: 'winner code + exact flag + confidence or technical reason persisted per recognition',
-    timeout_behavior: 'safe suggestions; retrieval score alone never becomes an automatic SKU'
-  }), {
-    status: 200,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store'
-    }
-  });
-}
-
-function deprecatedLocalConfirmationResponse() {
-  return new Response(JSON.stringify({
-    error: 'A versão do aplicativo está desatualizada. Atualize a página para usar a verificação estrutural segura.',
-    technical_error: 'unsafe_local_confirmation_disabled'
-  }), {
-    status: 409,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store'
-    }
-  });
-}
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -223,96 +111,9 @@ export default {
       });
     }
 
-    if (request.method === 'GET' && url.pathname === '/api/preview/build' && previewDiagnosticAllowed(url)) {
-      return previewBuild();
-    }
-
-    if (request.method === 'POST' && url.pathname === '/api/preview/consolidate-platforms' && previewDiagnosticAllowed(url)) {
-      try {
-        const data = await consolidatePlatforms(env);
-        return new Response(JSON.stringify(data), {
-          status: 200,
-          headers: {
-            'content-type': 'application/json; charset=utf-8',
-            'cache-control': 'no-store'
-          }
-        });
-      } catch (error) {
-        return new Response(JSON.stringify({
-          error: error?.message || 'Falha ao consolidar plataformas'
-        }), {
-          status: 500,
-          headers: {
-            'content-type': 'application/json; charset=utf-8',
-            'cache-control': 'no-store'
-          }
-        });
-      }
-    }
-
-    if (request.method === 'POST' && url.pathname === '/api/preview/sync-visual-signatures' && previewDiagnosticAllowed(url)) {
-      try {
-        const body = await request.json().catch(() => ({}));
-        const data = await syncVisualSignatures(env, body);
-        return new Response(JSON.stringify(data), {
-          status: 200,
-          headers: {
-            'content-type': 'application/json; charset=utf-8',
-            'cache-control': 'no-store'
-          }
-        });
-      } catch (error) {
-        return new Response(JSON.stringify({
-          error: error?.message || 'Falha ao sincronizar assinaturas visuais'
-        }), {
-          status: 500,
-          headers: {
-            'content-type': 'application/json; charset=utf-8',
-            'cache-control': 'no-store'
-          }
-        });
-      }
-    }
-
-    if (request.method === 'POST' && url.pathname === '/api/preview/sync-platform-vectors' && previewDiagnosticAllowed(url)) {
-      try {
-        const body = await request.json().catch(() => ({}));
-        const data = await syncPlatformVectors(env, body);
-        return new Response(JSON.stringify(data), {
-          status: 200,
-          headers: {
-            'content-type': 'application/json; charset=utf-8',
-            'cache-control': 'no-store'
-          }
-        });
-      } catch (error) {
-        return new Response(JSON.stringify({
-          error: error?.message || 'Falha ao sincronizar vetores por plataforma'
-        }), {
-          status: 500,
-          headers: {
-            'content-type': 'application/json; charset=utf-8',
-            'cache-control': 'no-store'
-          }
-        });
-      }
-    }
-
-    if (request.method === 'GET' && url.pathname === '/api/preview/catalog' && previewDiagnosticAllowed(url)) {
-      return previewCatalog(env, url);
-    }
-
-    if (request.method === 'GET' && url.pathname === '/api/preview/last-recognition' && previewDiagnosticAllowed(url)) {
-      return previewLastRecognition(env);
-    }
-
     if (request.method === 'POST' && url.pathname === '/api/identify-candidates') {
       const response = await buildVectorizeCandidates(request, env);
       return withRecognitionTicketCookie(response);
-    }
-
-    if (request.method === 'POST' && url.pathname === '/api/identify-confirm') {
-      return deprecatedLocalConfirmationResponse();
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {

@@ -536,9 +536,16 @@ export async function structuralFinalIdentifyV8(request, env) {
   };
 
   try {
+    const form = await request.formData();
+    const image = form.get('image');
+    const requestedPlatform = normalizePlatform(form.get('platform'));
+    const formTicket = String(form.get('ticket') || '').trim();
+    const cookieTicket = cookieValue(request, COOKIE_NAME);
+    const headerTicket = request.headers.get('x-recognition-ticket');
+
     const ticket = await readSignedTicket(
       env,
-      cookieValue(request, COOKIE_NAME)
+      formTicket || cookieTicket || headerTicket
     );
     if (!ticket) {
       throw new RecognitionError(
@@ -558,10 +565,6 @@ export async function structuralFinalIdentifyV8(request, env) {
       );
     }
     performance.platform = platform;
-
-    const form = await request.formData();
-    const image = form.get('image');
-    const requestedPlatform = normalizePlatform(form.get('platform'));
 
     if (!(image instanceof File)) {
       throw new RecognitionError(

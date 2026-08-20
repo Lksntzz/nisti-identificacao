@@ -1,3 +1,5 @@
+import app from './product-finish-router.js';
+
 const COOKIE_NAME = 'nisti_admin_session';
 const SESSION_SECONDS = 60 * 60 * 12;
 const ADMIN_APP_PATH = '/admin';
@@ -95,11 +97,6 @@ function isProtectedApi(pathname) {
   return false;
 }
 
-async function loadApp() {
-  const module = await import('./product-finish-router.js');
-  return module.default;
-}
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -137,7 +134,6 @@ export default {
       return json({ error: 'Acesso administrativo não autorizado.' }, 401);
     }
 
-    const app = await loadApp();
     return app.fetch(request, env, ctx);
   }
 };

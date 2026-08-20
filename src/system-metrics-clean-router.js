@@ -33,14 +33,7 @@ async function handleSystemMetrics(env) {
     FROM cover_visual_references r
     LEFT JOIN cover_reference_embeddings e ON e.reference_id=r.id
     WHERE r.active=1
-  `).first().catch(async () => {
-    const legacy = await env.DB.prepare(`SELECT COUNT(*) AS total FROM cover_embeddings`).first();
-    return {
-      references_total: Number(legacy?.total || 0),
-      indexed_total: Number(legacy?.total || 0),
-      indexed_covers: Number(legacy?.total || 0)
-    };
-  });
+  `).first();
   const recognition = await readRecognitionMetrics(env);
 
   const configuredLimitMb = Number(env.D1_DATABASE_LIMIT_MB || 0);
