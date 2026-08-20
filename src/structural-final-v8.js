@@ -4,7 +4,7 @@ import { reserveGeminiBudget } from './gemini-budget.js';
 import { detectCrossPlatformMatch, embedImage } from './vectorize-candidates.js';
 
 const COOKIE_NAME = 'nisti_recognition_ticket';
-const MAX_CANDIDATES = 4;
+const MAX_CANDIDATES = 8;
 const SUGGESTION_LIMIT = 3;
 const MIN_STRUCTURAL_CONFIDENCE = 0.65;
 const VERIFY_TIMEOUT_MS = 16000;
@@ -314,18 +314,23 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
 Sua missão é identificar com precisão se a FOTO DO PRODUTO corresponde a uma das CANDIDATAS do catálogo pela ARTE-BASE impressa na capa.
 
 REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
-1. COR DOMINANTE E VARIAÇÕES DE UMA MESMA COLEÇÃO (CRUCIAL):
-   - Muitos cadernos da mesma coleção compartilham o mesmo título (ex: "Minhas Contas Organizadas", "Planeje Controle Realize", "Meu Diário de Leituras", etc.), mas existem em VARIAÇÕES DE CORES DIFERENTES (ex: Capa Preta/Dourada vs Capa Branca/Cinza com Listras Diagonais vs Capa Rosa vs Capa Azul).
-   - Você DEVE combinar a COR DE FUNDO E O PADRÃO VISUAL EXATO!
-   - Se a foto possui fundo claro (branco, cinza, bege, listras geométricas diagonais claras), JAMAIS escolha a candidata de fundo preto/escuro! Escolha a candidata com o mesmo padrão e esquema de cores da foto!
+1. MATIZ E COR DO FUNDO / COLEÇÃO (CRUCIAL):
+   - Muitos modelos de papelaria compartilham exatamente a mesma diagramação/layout e tipografia, mas pertencem a coleções de CORES DIFERENTES (ex: Coleção Minimalista Verde [MNV] vs Minimalista Azul [MNZ] vs Minimalista Cinza [MNCZ]; Conquista Financeira Clara vs Preta).
+   - Analise com MÁXIMA ATENÇÃO a matiz e cor da foto:
+     • Tons esverdeados, verde menta, verde oliva, sage, musgo = MODELOS VERDES (ex: MNV1, MNV2, MNV3, VFOS).
+     • Tons azulados, azul bebê, celeste, marinho = MODELOS AZUIS (ex: MNZ1, MNZ2, MNZ3).
+     • Tons cinza, grafite, prata = MODELOS CINZA (ex: MNCZ).
+     • Tons rosados, lilás, salmão, blush = MODELOS ROSA/LILÁS (ex: CPA, JAEN).
+     • Tons escuros / preto = MODELOS PRETOS (ex: BKF, CQF2).
+   - Se a foto possui tonalidade esverdeada/oliva, JAMAIS escolha o modelo azul (MNZ) ou cinza (MNCZ)! Escolha estritamente o modelo VERDE (MNV)!
 2. ESTRUTURA CENTRAL & MONOGRAMAS:
-   - ATENÇÃO A MONOGRAMAS / LETRAS INICIAIS: Se a capa na foto possui uma grande letra inicial maiúscula de destaque no centro (ex: letra "M", "A", "B", "L", etc.) cercada por flores/borboletas, ela é um modelo de MONOGRAMA/LETRA INICIAL. Não confunda com capas de moldura floral circular/oval simples que têm apenas nomes cursivos sem monograma!
-   - Se a foto possui uma letra monograma grande no centro, a candidata correta DEVE ser o modelo correspondente de monograma/letra inicial (ex: CPA1, CPA5, etc.).
+   - ATENÇÃO A MONOGRAMAS / LETRAS INICIAIS: Se a capa na foto possui uma grande letra inicial maiúscula de destaque no centro (ex: letra "M", "A", "B", "L", "O", "T", etc.), compare a diagramação e a letra central com o modelo do catálogo.
+   - O nome do cliente pode variar (ex: "Otávio", "Théo", "Arthur", "Mavie"), mas o estilo do monograma e a cor de fundo da coleção definem o modelo!
 3. FOCO NA ARTE GRÁFICA & ELEMENTOS-CHAVE:
    - Compare o design gráfico: ilustrações, desenhos, flores, animais/personagens, padrões geométricos, listras, blocos de cor, molduras e cores dominantes.
    - Textos fixos e títulos do produto são elementos-chave quando presentes.
 4. NOMES PERSONALIZADOS DO CLIENTE:
-   - Produtos de papelaria recebem nomes personalizados variáveis de clientes (ex: "Eloá", "Mavie", "Helena", "Arthur", "Maria", datas, etc.).
+   - Produtos de papelaria recebem nomes personalizados variáveis de clientes (ex: "Otávio", "Théo", "Eloá", "Mavie", "Helena", "Arthur", "Maria", datas, etc.).
    - A imagem de referência no catálogo pode estar sem nome próprio ou ter um nome fictício de exemplo diferente.
    - IGNORE a diferença do nome cursivo pequeno do cliente, contanto que o layout geral da arte, cores e monogramas correspondam!
 5. ITENS FÍSICOS E REFLEXOS (IGNORE COMPLETAMENTE):
