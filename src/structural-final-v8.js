@@ -369,71 +369,87 @@ REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
     });
   }
 
+  const candidateModels = [
+    env.GEMINI_VERIFIER_MODEL,
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
+  ].filter(Boolean);
+  const models = [...new Set(candidateModels)];
+
+  let lastError = null;
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-goog-api-key': env.GEMINI_API_KEY
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts }],
-          generationConfig: {
-            temperature: 0,
-            maxOutputTokens: 256,
-            thinkingConfig: { thinkingLevel: 'minimal' },
-            response_mime_type: 'application/json',
-            response_schema: {
-              type: 'OBJECT',
-              properties: {
-                winner_code: { type: 'STRING' },
-                exact_match: { type: 'BOOLEAN' },
-                confidence: { type: 'NUMBER' },
-                reason_code: { type: 'STRING' }
-              },
-              required: [
-                'winner_code',
-                'exact_match',
-                'confidence',
-                'reason_code'
-              ]
-            }
+    for (const model of models) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-goog-api-key': env.GEMINI_API_KEY
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts }],
+              generationConfig: {
+                temperature: 0,
+                maxOutputTokens: 256,
+                thinkingConfig: { thinkingLevel: 'minimal' },
+                response_mime_type: 'application/json',
+                response_schema: {
+                  type: 'OBJECT',
+                  properties: {
+                    winner_code: { type: 'STRING' },
+                    exact_match: { type: 'BOOLEAN' },
+                    confidence: { type: 'NUMBER' },
+                    reason_code: { type: 'STRING' }
+                  },
+                  required: [
+                    'winner_code',
+                    'exact_match',
+                    'confidence',
+                    'reason_code'
+                  ]
+                }
+              }
+            })
           }
-        })
+        );
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          const detail = geminiErrorDetail(payload);
+          lastError = new RecognitionError(
+            detail
+              ? `Gemini comparador (${model}) falhou (${response.status}): ${detail}`
+              : `Gemini comparador (${model}) falhou (${response.status})`,
+            [429, 500, 502, 503, 504].includes(response.status) ? 503 : 502,
+            `catalog_comparator_http_${response.status}`
+          );
+          continue;
+        }
+
+        const parsed = parseStructuredJson(await response.json());
+        const allowedCodes = new Set(candidates.map(item => item.capa_code));
+        return {
+          model,
+          elapsed_ms: Date.now() - started,
+          decision: normalizeDecision(parsed, allowedCodes)
+        };
+      } catch (err) {
+        if (controller.signal.aborted || err?.name === 'AbortError') {
+          throw new RecognitionError(
+            'A análise visual excedeu o tempo disponível.',
+            503,
+            'catalog_comparator_timeout'
+          );
+        }
+        lastError = err;
       }
-    );
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      const detail = geminiErrorDetail(payload);
-      throw new RecognitionError(
-        detail
-          ? `Gemini comparador falhou (${response.status}): ${detail}`
-          : `Gemini comparador falhou (${response.status})`,
-        [429, 500, 502, 503, 504].includes(response.status) ? 503 : 502,
-        `catalog_comparator_http_${response.status}`
-      );
     }
 
-    const parsed = parseStructuredJson(await response.json());
-    const allowedCodes = new Set(candidates.map(item => item.capa_code));
-    return {
-      model,
-      elapsed_ms: Date.now() - started,
-      decision: normalizeDecision(parsed, allowedCodes)
-    };
-  } catch (error) {
-    if (controller.signal.aborted || error?.name === 'AbortError') {
-      throw new RecognitionError(
-        'A análise visual excedeu o tempo disponível.',
-        503,
-        'catalog_comparator_timeout'
-      );
-    }
-    throw error;
+    throw lastError || new RecognitionError('Falha ao comparar com IA.', 503, 'comparator_failed');
   } finally {
     clearTimeout(timer);
   }
