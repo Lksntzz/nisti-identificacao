@@ -717,18 +717,43 @@ function PublicIdentificationApp() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const runId = useRef(0);
 
-  const addRecentScan = (product, previewUrl) => {
+  const addRecentScan = (product) => {
+    if (!product) return;
     setRecentScans(prev => {
       const entry = {
+        id: product.id,
         sku: product.sku,
         capaCode: product.capa_code,
-        preview: previewUrl || '',
+        nome: product.nome || '',
+        wireo: product.wireo || '',
+        tassel: product.tassel || '',
+        elastico: product.elastico || '',
+        platform: product.platform || '',
+        image_url: product.image_url || product.product_image_url || (product.id ? `/api/images/${product.id}` : ''),
         time: new Date().toISOString()
       };
-      const next = [entry, ...prev.filter(s => s.sku !== product.sku)].slice(0, 5);
+      const next = [entry, ...prev.filter(s => s.sku !== product.sku)].slice(0, 10);
       try { localStorage.setItem('nisti_recent_scans', JSON.stringify(next)); } catch {}
       return next;
     });
+  };
+
+  const restoreScan = (scan) => {
+    setResult({
+      id: scan.id,
+      sku: scan.sku,
+      capa_code: scan.capaCode,
+      nome: scan.nome,
+      wireo: scan.wireo,
+      tassel: scan.tassel,
+      elastico: scan.elastico,
+      platform: scan.platform,
+      image_url: scan.image_url,
+      confidence: 1
+    });
+    setChoices(null);
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -798,7 +823,7 @@ function PublicIdentificationApp() {
     } else if (data.product) {
       setChoices(null);
       setResult(data.product);
-      addRecentScan(data.product, currentPreview || '');
+      addRecentScan(data.product);
     }
   };
 
@@ -1066,7 +1091,7 @@ function PublicIdentificationApp() {
           onSelect={product => {
             setResult(product);
             setChoices(null);
-            addRecentScan(product, preview);
+            addRecentScan(product);
           }}
         />}
 
@@ -1089,15 +1114,34 @@ function PublicIdentificationApp() {
         {drawerOpen && (
           <div className="recent-scans-list">
             {recentScans.map((scan, i) => (
-              <div className="recent-scan-item" key={`${scan.sku}-${i}`}>
+              <div
+                className="recent-scan-item"
+                key={`${scan.sku}-${i}`}
+                onClick={() => restoreScan(scan)}
+                title="Toque para abrir este produto"
+              >
                 <div className="recent-scan-info">
-                  {scan.preview
-                    ? <img className="recent-scan-img" src={scan.preview} alt={scan.sku} />
-                    : <div className="recent-scan-img" />
-                  }
+                  {scan.image_url ? (
+                    <img
+                      className="recent-scan-img"
+                      src={scan.image_url}
+                      alt={scan.sku}
+                      onError={e => {
+                        e.currentTarget.style.opacity = '0.3';
+                      }}
+                    />
+                  ) : (
+                    <div className="recent-scan-img" />
+                  )}
                   <div className="recent-scan-details">
                     <h4>{scan.sku}</h4>
-                    <p>Capa {scan.capaCode}</p>
+                    <div className="recent-scan-meta">
+                      <span className="recent-scan-tag">Capa: <strong>{scan.capaCode}</strong></span>
+                      {scan.wireo && <span className="recent-scan-tag">Wire-o: {scan.wireo}</span>}
+                      {scan.elastico && <span className="recent-scan-tag">Elástico: {scan.elastico}</span>}
+                      {scan.tassel && <span className="recent-scan-tag">Tassel: {scan.tassel}</span>}
+                      {scan.platform && <span className="recent-scan-tag platform">{scan.platform}</span>}
+                    </div>
                   </div>
                 </div>
                 <span className="recent-scan-time">
