@@ -88,6 +88,9 @@ export async function recordRecognitionAttempt(env, responseStatus, data) {
       systemError ? errorMessage : null
     ).run();
 
+    const operatorName = textOrNull(options?.operatorName || data?.operator_name || performance?.operator_name, 120);
+    const operatorId = textOrNull(options?.operatorId || data?.operator_id || performance?.operator_id, 120);
+
     await env.DB.prepare(`
       INSERT INTO recognition_events (
         day, kind, http_status, product_id, capa_code, sku,
@@ -96,8 +99,8 @@ export async function recordRecognitionAttempt(env, responseStatus, data) {
         retrieval_top1, retrieval_top1_code, retrieval_top2, retrieval_top2_code, retrieval_margin,
         candidate_count, verification_mode, accepted_by, model,
         retrieval_source, reused_candidates, pipeline_version, reference_candidate_count, vector_top_k,
-        verifier_reason_code, verifier_evidence
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        verifier_reason_code, verifier_evidence, operator_name, operator_id
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).bind(
       day,
       kind,
@@ -130,7 +133,9 @@ export async function recordRecognitionAttempt(env, responseStatus, data) {
       numberOrNull(performance.reference_candidate_count),
       numberOrNull(performance.vector_top_k),
       textOrNull(performance.verifier_reason_code, 100),
-      textOrNull(performance.verifier_evidence, 500)
+      textOrNull(performance.verifier_evidence, 500),
+      operatorName,
+      operatorId
     ).run();
   } catch (error) {
     console.error('Falha ao registrar métrica de reconhecimento', error);
@@ -190,6 +195,8 @@ function normalizeEvent(row) {
     vector_top_k: numberOrNull(row?.vector_top_k),
     verifier_reason_code: row?.verifier_reason_code || null,
     verifier_evidence: row?.verifier_evidence || null,
+    operator_name: row?.operator_name || 'Operador Geral',
+    operator_id: row?.operator_id || null,
     image_url: row?.product_id && imageVersion
       ? `/api/images/${row.product_id}?v=${encodeURIComponent(imageVersion)}`
       : null
@@ -201,15 +208,24 @@ export async function readRecognitionEvents(env, options = {}) {
   const limit = Math.max(1, Math.min(200, Number(options.limit) || 100));
   const kind = String(options.kind || '').trim();
   const issuesOnly = Boolean(options.issuesOnly);
-  let where = '';
+  const operatorName = String(options.operator_name || options.operator || '').trim();
+  
+  const conditions = [];
   const binds = [];
 
   if (issuesOnly) {
-    where = `WHERE e.kind IN ('unmatched','system_error')`;
+    conditions.push(`e.kind IN ('unmatched','system_error')`);
   } else if (['success', 'unmatched', 'system_error'].includes(kind)) {
-    where = 'WHERE e.kind=?';
+    conditions.push('e.kind=?');
     binds.push(kind);
   }
+
+  if (operatorName) {
+    conditions.push('e.operator_name=?');
+    binds.push(operatorName);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const statement = env.DB.prepare(`
     SELECT e.*, p.image_key
@@ -221,6 +237,36 @@ export async function readRecognitionEvents(env, options = {}) {
   `);
   const { results } = await statement.bind(...binds, limit).all();
   return (results || []).map(normalizeEvent);
+}
+
+export async function readOperatorStats(env) {
+  await ensureRecognitionMetrics(env);
+  const rows = await env.DB.prepare(`
+    SELECT
+      COALESCE(NULLIF(TRIM(operator_name), ''), 'Operador Geral') AS operator_name,
+      MAX(operator_id) AS operator_id,
+      COUNT(*) AS total_attempts,
+      SUM(CASE WHEN kind = 'success' THEN 1 ELSE 0 END) AS successes,
+      SUM(CASE WHEN kind = 'unmatched' THEN 1 ELSE 0 END) AS unmatched,
+      SUM(CASE WHEN kind = 'system_error' THEN 1 ELSE 0 END) AS system_errors,
+      MAX(created_at) AS last_seen_at
+    FROM recognition_events
+    GROUP BY COALESCE(NULLIF(TRIM(operator_name), ''), 'Operador Geral')
+    ORDER BY last_seen_at DESC
+  `).all();
+
+  return (rows.results || []).map(r => ({
+    operator_name: r.operator_name,
+    operator_id: r.operator_id || null,
+    total_attempts: Number(r.total_attempts || 0),
+    successes: Number(r.successes || 0),
+    unmatched: Number(r.unmatched || 0),
+    system_errors: Number(r.system_errors || 0),
+    success_rate: Number(r.total_attempts || 0) > 0
+      ? Math.round((Number(r.successes || 0) / Number(r.total_attempts || 0)) * 100)
+      : 0,
+    last_seen_at: r.last_seen_at || null
+  }));
 }
 
 export async function readRecognitionMetrics(env) {

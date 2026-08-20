@@ -459,6 +459,70 @@ export default {
         });
       }
 
+      const productSingle = url.pathname.match(/^\/api\/products\/(\d+)$/);
+      if (productSingle && request.method === 'DELETE') {
+        const id = Number(productSingle[1]);
+        const product = await env.DB.prepare('SELECT capa_code, image_key FROM products WHERE id=?').bind(id).first();
+        if (!product) return json({ error: 'Produto não encontrado' }, 404);
+
+        await env.DB.prepare('DELETE FROM product_platforms WHERE product_id=?').bind(id).run();
+        await env.DB.prepare('DELETE FROM cover_visual_references WHERE product_id=?').bind(id).run();
+        await env.DB.prepare('DELETE FROM cover_notifications WHERE product_id=?').bind(id).run();
+        await env.DB.prepare('DELETE FROM products WHERE id=?').bind(id).run();
+
+        if (product.image_key) {
+          await env.PRODUCT_IMAGES.delete(product.image_key).catch(() => {});
+        }
+
+        return json({ ok: true, deleted_id: id });
+      }
+
+      if (productSingle && (request.method === 'PUT' || request.method === 'PATCH')) {
+        const id = Number(productSingle[1]);
+        const body = await request.json();
+        const existing = await env.DB.prepare('SELECT * FROM products WHERE id=?').bind(id).first();
+        if (!existing) return json({ error: 'Produto não encontrado' }, 404);
+
+        let parsed = {
+          sku: existing.sku,
+          mioloCode: existing.miolo_code,
+          capaCode: existing.capa_code,
+          acabamentoCode: existing.acabamento_code,
+          wireoCode: body.wireo_code || existing.wireo_code,
+          tasselCode: body.tassel_code || existing.tassel_code,
+          elasticoCode: body.elastico_code || existing.elastico_code
+        };
+
+        if (body.sku && body.sku !== existing.sku) {
+          parsed = parseSku(body.sku);
+        }
+
+        await env.DB.prepare(`
+          UPDATE products SET
+            sku = ?, miolo_code = ?, capa_code = ?, acabamento_code = ?,
+            wireo_code = ?, tassel_code = ?, elastico_code = ?,
+            nome = ?, variacao = ?
+          WHERE id = ?
+        `).bind(
+          parsed.sku, parsed.mioloCode, parsed.capaCode, parsed.acabamentoCode,
+          parsed.wireoCode, parsed.tasselCode, parsed.elasticoCode,
+          body.nome !== undefined ? body.nome : existing.nome,
+          body.variacao !== undefined ? body.variacao : existing.variacao,
+          id
+        ).run();
+
+        if (body.platform !== undefined) {
+          await env.DB.prepare('DELETE FROM product_platforms WHERE product_id=?').bind(id).run();
+          const plat = String(body.platform || '').trim().toUpperCase();
+          if (plat) {
+            await env.DB.prepare('INSERT INTO product_platforms (product_id, platform, link) VALUES (?, ?, ?)')
+              .bind(id, plat, body.link || null).run();
+          }
+        }
+
+        return json({ ok: true, id, updated: true });
+      }
+
       const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
       if (imageUpload && request.method === 'POST') {
         const id = Number(imageUpload[1]);

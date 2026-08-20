@@ -376,8 +376,12 @@ export async function buildVectorizeCandidates(request, env) {
       : 1;
     const topScore = Number(covers[0]?.retrieval_score || 0);
 
-    // Se outra plataforma tiver correspondência superior ou igual
-    if (crossMatch && crossMatch.score >= 0.80 && (crossMatch.score >= topScore || (crossMatch.score >= 0.84 && topScore < 0.86))) {
+    // Apenas bloquear se a outra plataforma tiver uma correspondência *significativamente* melhor
+    // ou se a plataforma atual for fraca e a outra for forte.
+    const isOtherMuchBetter = crossMatch && (crossMatch.score > topScore + 0.04);
+    const isCurrentWeakOtherStrong = crossMatch && topScore < 0.75 && crossMatch.score >= 0.80;
+
+    if (isOtherMuchBetter || isCurrentWeakOtherStrong) {
       throw new RetrievalError(
         `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
         422,

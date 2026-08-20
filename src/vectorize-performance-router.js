@@ -7,13 +7,21 @@ import { handlePublicImageRequest } from './public-image-router.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
 
-async function recordFallback(ctx, env, response) {
+async function recordFallback(ctx, env, response, request) {
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json')
     ? await response.clone().json().catch(() => null)
     : null;
   if (!data) return;
-  const telemetry = recordRecognitionAttempt(env, response.status, data);
+
+  let operatorName = null;
+  const rawOpName = request?.headers?.get('x-operator-name');
+  if (rawOpName) {
+    try { operatorName = decodeURIComponent(rawOpName); } catch { operatorName = rawOpName; }
+  }
+  const operatorId = request?.headers?.get('x-operator-id') || request?.headers?.get('x-user-id') || null;
+
+  const telemetry = recordRecognitionAttempt(env, response.status, data, { operatorName, operatorId });
   if (ctx?.waitUntil) ctx.waitUntil(telemetry);
   else await telemetry;
 }
@@ -118,7 +126,7 @@ export default {
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
       const response = await structuralFinalIdentifyV8(request, env);
-      await recordFallback(ctx, env, response);
+      await recordFallback(ctx, env, response, request);
       return response;
     }
 

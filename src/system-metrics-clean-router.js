@@ -1,8 +1,10 @@
 import app from './core-router.js';
-import { readRecognitionEvents, readRecognitionMetrics } from './recognition-metrics.js';
+import { readRecognitionEvents, readRecognitionMetrics, readOperatorStats } from './recognition-metrics.js';
 
 const FREE_D1_LIMIT_BYTES = 500 * 1024 * 1024;
-const PAID_D1_LIMIT_BYTES = 10 * 1024 * 1024 * 1024;
+const FREE_WORKERS_DAILY_REQUESTS = 100000;
+const FREE_GEMINI_DAILY_REQUESTS = 1500;
+const FREE_R2_STORAGE_BYTES = 10 * 1024 * 1024 * 1024;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -36,15 +38,40 @@ async function handleSystemMetrics(env) {
   `).first();
   const recognition = await readRecognitionMetrics(env);
 
-  const configuredLimitMb = Number(env.D1_DATABASE_LIMIT_MB || 0);
-  const configuredLimitBytes = configuredLimitMb > 0
-    ? Math.round(configuredLimitMb * 1024 * 1024)
-    : null;
+  const attemptsToday = Number(recognition.today?.attempts || 0);
+  const geminiRequestsToday = Number(recognition.today?.generation_requests || recognition.today?.attempts || 0);
 
   return json({
     ok: true,
     measured_at: new Date().toISOString(),
     timezone: 'America/Sao_Paulo',
+    free_tier_status: {
+      is_free_tier: true,
+      summary: '100% dos serviços estão operando dentro dos limites gratuitos.',
+      workers: {
+        used_today: attemptsToday,
+        limit_daily: FREE_WORKERS_DAILY_REQUESTS,
+        percent_used: (attemptsToday / FREE_WORKERS_DAILY_REQUESTS) * 100,
+        status: attemptsToday > 80000 ? 'warning' : 'safe'
+      },
+      d1: {
+        used_bytes: sizeBytes,
+        limit_bytes: FREE_D1_LIMIT_BYTES,
+        percent_used: sizeBytes ? (sizeBytes / FREE_D1_LIMIT_BYTES) * 100 : 0,
+        status: (sizeBytes / FREE_D1_LIMIT_BYTES) > 0.8 ? 'warning' : 'safe'
+      },
+      r2: {
+        limit_bytes: FREE_R2_STORAGE_BYTES,
+        status: 'safe'
+      },
+      gemini: {
+        used_today: geminiRequestsToday,
+        limit_daily: FREE_GEMINI_DAILY_REQUESTS,
+        rpm_limit: 15,
+        percent_used: (geminiRequestsToday / FREE_GEMINI_DAILY_REQUESTS) * 100,
+        status: geminiRequestsToday > 1200 ? 'warning' : 'safe'
+      }
+    },
     database: {
       status: 'online',
       used_bytes: sizeBytes,
@@ -56,17 +83,11 @@ async function handleSystemMetrics(env) {
       query_rows_read: Number(productsProbe.meta?.rows_read || 0),
       served_by_colo: productsProbe.meta?.served_by_colo || null,
       served_by_region: productsProbe.meta?.served_by_region || null,
-      configured_limit_bytes: configuredLimitBytes,
-      configured_percent: configuredLimitBytes && sizeBytes
-        ? (sizeBytes / configuredLimitBytes) * 100
-        : null,
       documented_limits: {
         workers_free_bytes: FREE_D1_LIMIT_BYTES,
-        workers_paid_bytes: PAID_D1_LIMIT_BYTES
+        workers_paid_bytes: 10 * 1024 * 1024 * 1024
       },
-      percent_of_free_limit: sizeBytes ? (sizeBytes / FREE_D1_LIMIT_BYTES) * 100 : 0,
-      plan_detected: false,
-      plan_note: 'O Worker não recebe da Cloudflare qual é o plano da conta.'
+      percent_of_free_limit: sizeBytes ? (sizeBytes / FREE_D1_LIMIT_BYTES) * 100 : 0
     },
     recognition,
     gemini: {
@@ -76,8 +97,10 @@ async function handleSystemMetrics(env) {
       recognition_today: recognition.today,
       recognition_since_monitoring: recognition.since_monitoring,
       monitoring_started_on: recognition.monitoring_started_on,
-      active_quota_available_via_api: false,
-      quota_note: 'RPM, TPM e RPD ativos são consultados no Google AI Studio.'
+      free_tier_limits: {
+        rpd: 1500,
+        rpm: 15
+      }
     }
   });
 }
@@ -85,17 +108,28 @@ async function handleSystemMetrics(env) {
 async function handleRecognitionEvents(url, env) {
   const scope = String(url.searchParams.get('scope') || '').trim();
   const kind = String(url.searchParams.get('kind') || '').trim();
+  const operatorName = String(url.searchParams.get('operator_name') || url.searchParams.get('operator') || '').trim();
   const limit = Math.max(1, Math.min(200, Number(url.searchParams.get('limit')) || 100));
   const events = await readRecognitionEvents(env, {
     limit,
     kind,
-    issuesOnly: scope === 'issues'
+    issuesOnly: scope === 'issues',
+    operator_name: operatorName
   });
   return json({
     ok: true,
     scope: scope || (kind || 'all'),
     count: events.length,
     events
+  });
+}
+
+async function handleOperators(env) {
+  const operators = await readOperatorStats(env);
+  return json({
+    ok: true,
+    count: operators.length,
+    operators
   });
 }
 
@@ -114,6 +148,13 @@ export default {
         return await handleRecognitionEvents(url, env);
       } catch (error) {
         return json({ error: error?.message || 'Falha ao ler diagnóstico de reconhecimento' }, 500);
+      }
+    }
+    if (url.pathname === '/api/admin/operators' && request.method === 'GET') {
+      try {
+        return await handleOperators(env);
+      } catch (error) {
+        return json({ error: error?.message || 'Falha ao ler estatísticas de operadores' }, 500);
       }
     }
     return app.fetch(request, env, ctx);

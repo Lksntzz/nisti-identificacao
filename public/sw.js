@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-identificacao-v18';
+const CACHE_NAME = 'nisti-id-v20';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -61,10 +61,10 @@ self.addEventListener('push', event => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: 'NISTI PRINT', body: event.data ? event.data.text() : 'Nova notificação de capa' };
+    data = { title: 'NISTI ID', body: event.data ? event.data.text() : 'Nova notificação de capa' };
   }
 
-  const title = data.title || '🔔 Nova Capa Cadastrada · NISTI PRINT';
+  const title = data.title || '🔔 Nova Capa Cadastrada · NISTI ID';
   const options = {
     body: data.body || 'Uma nova capa foi adicionada ao catálogo.',
     icon: '/nisti-app-icon.svg',

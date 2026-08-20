@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './app.css';
 
-const LOGO = '/nisti-logo-transparent.webp';
-const LOGO_FALLBACK = '/nisti-app-icon.svg';
+const LOGO = '/nisti-logo-transparent.webp?v=2';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -26,9 +25,26 @@ function getUserId() {
   }
 }
 
+function getOperatorName() {
+  try {
+    return localStorage.getItem('nisti_operator_name') || '';
+  } catch {
+    return '';
+  }
+}
+
+function setOperatorName(name) {
+  try {
+    if (name) localStorage.setItem('nisti_operator_name', name.trim());
+    else localStorage.removeItem('nisti_operator_name');
+  } catch {}
+}
+
 async function api(path, options = {}) {
+  const operatorName = getOperatorName();
   const headers = {
     'x-user-id': getUserId(),
+    ...(operatorName ? { 'x-operator-name': encodeURIComponent(operatorName) } : {}),
     ...(options.headers || {})
   };
   const response = await fetch(path, { credentials: 'same-origin', ...options, headers });
@@ -295,21 +311,85 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   );
 }
 
-function BrandHeader({ unreadCount = 0, onOpenNotifications }) {
+function OperatorProfileModal({ isOpen, onClose, currentName, onSave }) {
+  const [name, setName] = useState(currentName || '');
+
+  useEffect(() => {
+    setName(currentName || '');
+  }, [currentName, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (name.trim()) {
+      onSave(name.trim());
+      onClose();
+    }
+  };
+
+  return (
+    <div className="admin-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="admin-modal" style={{ maxWidth: '420px' }}>
+        <div className="admin-modal-head">
+          <div>
+            <h3>Perfil do Operador</h3>
+            <small>Identifique quem está realizando os reconhecimentos</small>
+          </div>
+          <button type="button" className="admin-modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="admin-modal-form">
+          <div className="form-group">
+            <label>Seu Nome ou Setor</label>
+            <input
+              type="text"
+              placeholder="Ex: Carlos (Expedição), Lucas, etc."
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoFocus
+              required
+            />
+            <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px' }}>
+              Este nome será gravado em cada identificação e exibido no histórico do painel administrativo.
+            </small>
+          </div>
+
+          <div className="admin-modal-foot">
+            <button type="button" className="btn-cancel" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn-submit-rainbow">Salvar Perfil</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpenOperatorModal }) {
+  const initials = operatorName
+    ? operatorName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase()
+    : 'OP';
+
   return (
     <header className="brand-topbar">
       <div className="brand-identity">
         <img
           className="brand-icon-mark"
-          src="/nisti-app-icon.svg"
-          alt="NISTI PRINT"
+          src={LOGO}
+          alt="NISTI"
+          onError={e => { e.currentTarget.style.opacity = '0.4'; }}
         />
-        <div className="brand-titles">
-          <span className="brand-subtext">NISTI PRINT</span>
-          <h1 className="brand-main-title">Identificação Visual</h1>
-        </div>
       </div>
       <div className="header-actions">
+        <button
+          type="button"
+          className="operator-profile-pill"
+          onClick={onOpenOperatorModal}
+          title="Editar perfil do operador"
+        >
+          <span className="operator-avatar-mini">{initials}</span>
+          <span className="operator-name-label">{operatorName || 'Identificar-se'}</span>
+        </button>
         <BellIcon unreadCount={unreadCount} onClick={onOpenNotifications} />
       </div>
     </header>
@@ -356,9 +436,15 @@ function InstallApp() {
 
   useEffect(() => {
     const before = event => { event.preventDefault(); setPrompt(event); };
-    const installed = () => setStandalone(true);
+    const installed = () => { setStandalone(true); setPrompt(null); };
     window.addEventListener('beforeinstallprompt', before);
     window.addEventListener('appinstalled', installed);
+    
+    // Check if window matchMedia changes (e.g., user opens in PWA mode)
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleMediaChange = (e) => { if (e.matches) setStandalone(true); };
+    if (mediaQuery.addEventListener) mediaQuery.addEventListener('change', handleMediaChange);
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(reg => {
         reg.update();
@@ -370,10 +456,13 @@ function InstallApp() {
     return () => {
       window.removeEventListener('beforeinstallprompt', before);
       window.removeEventListener('appinstalled', installed);
+      if (mediaQuery.removeEventListener) mediaQuery.removeEventListener('change', handleMediaChange);
     };
   }, []);
 
   if (standalone) return null;
+  // No Android/PC, só mostra se o navegador disparar o evento de instalação (não está instalado)
+  if (!ios && !prompt) return null;
 
   const install = async () => {
     if (prompt) {
@@ -383,14 +472,13 @@ function InstallApp() {
       return;
     }
     if (ios) setHelp(true);
-    else alert('Abra o menu do navegador e escolha “Instalar app” ou “Adicionar à tela inicial”.');
   };
 
   return <>
-    <button className="install-button" type="button" onClick={install}>↓ Instalar app</button>
+    <button className="install-button" type="button" onClick={install}>↓ Instalar NISTI ID</button>
     {help && <div className="modal-backdrop" onClick={event => event.target === event.currentTarget && setHelp(false)}>
       <div className="modal">
-        <h3>Instalar no iPhone</h3>
+        <h3>Instalar NISTI ID no iPhone</h3>
         <p>No Safari:</p>
         <ol><li>Toque em Compartilhar.</li><li>Escolha Adicionar à Tela de Início.</li><li>Confirme em Adicionar.</li></ol>
         <button type="button" onClick={() => setHelp(false)}>Entendi</button>
@@ -435,6 +523,8 @@ function ProductChoices({ capaCode, products, onSelect, performance }) {
 }
 
 function PublicIdentificationApp() {
+  const [operatorName, setOperatorNameState] = useState(() => getOperatorName());
+  const [operatorModalOpen, setOperatorModalOpen] = useState(false);
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState('');
   const [platforms, setPlatforms] = useState([]);
@@ -559,6 +649,9 @@ function PublicIdentificationApp() {
 
   const choose = file => {
     if (!file) return;
+    if (!getOperatorName()) {
+      setOperatorModalOpen(true);
+    }
     setPhoto(file);
     clearDecision();
     setPreview(current => {
@@ -576,6 +669,8 @@ function PublicIdentificationApp() {
     <BrandHeader
       unreadCount={unreadCount}
       onOpenNotifications={() => setNotificationsOpen(true)}
+      operatorName={operatorName}
+      onOpenOperatorModal={() => setOperatorModalOpen(true)}
     />
     
     <div className="main-card">
@@ -745,6 +840,16 @@ function PublicIdentificationApp() {
       onClose={() => setNotificationsOpen(false)}
       unreadCount={unreadCount}
       setUnreadCount={setUnreadCount}
+    />
+
+    <OperatorProfileModal
+      isOpen={operatorModalOpen}
+      onClose={() => setOperatorModalOpen(false)}
+      currentName={operatorName}
+      onSave={newName => {
+        setOperatorName(newName);
+        setOperatorNameState(newName);
+      }}
     />
 
     <InstallApp />
