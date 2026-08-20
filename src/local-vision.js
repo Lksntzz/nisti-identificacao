@@ -20,11 +20,16 @@ function personalizedDebug(rows) {
   }));
 }
 
-export async function matchLocalCandidates(photoFile, candidates) {
+export async function matchLocalCandidates(photoFile, candidates, options = {}) {
   const list = Array.isArray(candidates) ? candidates : [];
+  const deadlineMs = Number.isFinite(Number(options?.deadlineMs)) ? Number(options.deadlineMs) : null;
+  const startedAt = Date.now();
+  const deadlineExceeded = () => deadlineMs !== null && (Date.now() - startedAt) >= deadlineMs;
+
   let best = null;
   let totalMs = 0;
   let tested = 0;
+  let stoppedByDeadline = false;
   const debug = [];
 
   for (let offset = 0; offset < list.length; offset += BATCH_SIZE) {
@@ -47,15 +52,20 @@ export async function matchLocalCandidates(photoFile, candidates) {
       };
     }
 
+    if (deadlineExceeded()) {
+      stoppedByDeadline = true;
+      break;
+    }
+
     // Cede o event loop entre lotes para o Safari poder liberar memória e pintar a UI.
     await new Promise(resolve => setTimeout(resolve, 0));
   }
 
   // Capas personalizadas podem trocar inicial/nome sem trocar o modelo da capa.
-  // Só executamos este passe se o comparador original falhar e mantemos os
-  // mesmos limiares geométricos: o fallback remove a região variável, não
-  // reduz a exigência de segurança.
-  if (list.length) {
+  // Só executamos este passe se o comparador original falhar, se ainda houver
+  // orçamento de tempo, e mantemos os mesmos limiares geométricos: o fallback
+  // remove a região variável, não reduz a exigência de segurança.
+  if (list.length && !stoppedByDeadline && !deadlineExceeded()) {
     let prepared = null;
     try {
       prepared = await buildPersonalizationMaskedInput(photoFile, list.slice(0, PERSONALIZED_LIMIT));
@@ -93,12 +103,17 @@ export async function matchLocalCandidates(photoFile, candidates) {
   }
 
   // A geometria local continua sendo a primeira linha de decisão. Quando ela
-  // não consegue confirmar nenhuma capa, lançamos uma falha controlada para o
-  // fluxo já existente do app acionar /api/identify, que usa o verificador
-  // estrutural do Gemini e ignora nome/inicial personalizados. Assim não
-  // reduzimos os limiares ORB/RANSAC e evitamos falsos negativos como MCP1.
-  const inconclusive = new Error('Verificação geométrica inconclusiva; acionar verificador estrutural.');
-  inconclusive.code = 'LOCAL_GEOMETRY_INCONCLUSIVE';
+  // não consegue confirmar nenhuma capa (ou estoura o orçamento de tempo
+  // definido pelo chamador), lançamos uma falha controlada para o fluxo já
+  // existente do app acionar /api/identify, que usa o verificador estrutural
+  // do Gemini e ignora nome/inicial personalizados. Assim não reduzimos os
+  // limiares ORB/RANSAC e evitamos falsos negativos como MCP1.
+  const inconclusive = new Error(
+    stoppedByDeadline
+      ? 'Verificação geométrica excedeu o tempo local disponível; acionar verificador estrutural.'
+      : 'Verificação geométrica inconclusiva; acionar verificador estrutural.'
+  );
+  inconclusive.code = stoppedByDeadline ? 'LOCAL_GEOMETRY_DEADLINE_EXCEEDED' : 'LOCAL_GEOMETRY_INCONCLUSIVE';
   inconclusive.local_match = {
     ...(best || {}),
     matched: false,
@@ -106,6 +121,7 @@ export async function matchLocalCandidates(photoFile, candidates) {
     candidates_tested: tested,
     local_cv_ms: totalMs,
     debug_candidates: debug,
+    stopped_by_deadline: stoppedByDeadline,
     runner: `${best?.runner || 'jsfeat-orb-ransac-v3'}+progressive-batches+personalization-mask`
   };
   throw inconclusive;

@@ -58,6 +58,9 @@ export async function ensureRecognitionMetrics(env) {
       error_message TEXT,
       total_ms INTEGER NOT NULL DEFAULT 0,
       embedding_ms INTEGER,
+      vectorize_ms INTEGER,
+      local_cv_ms INTEGER,
+      reference_load_ms INTEGER,
       gemini_ms INTEGER,
       retrieval_top1 REAL,
       retrieval_top1_code TEXT,
@@ -67,7 +70,14 @@ export async function ensureRecognitionMetrics(env) {
       candidate_count INTEGER,
       verification_mode TEXT,
       accepted_by TEXT,
-      model TEXT
+      model TEXT,
+      retrieval_source TEXT,
+      reused_candidates INTEGER,
+      pipeline_version TEXT,
+      reference_candidate_count INTEGER,
+      vector_top_k INTEGER,
+      verifier_reason_code TEXT,
+      verifier_evidence TEXT
     )
   `).run();
 
@@ -76,7 +86,17 @@ export async function ensureRecognitionMetrics(env) {
     'ALTER TABLE recognition_events ADD COLUMN retrieval_top1_code TEXT',
     'ALTER TABLE recognition_events ADD COLUMN retrieval_top2_code TEXT',
     'ALTER TABLE recognition_events ADD COLUMN candidate_count INTEGER',
-    'ALTER TABLE recognition_events ADD COLUMN model TEXT'
+    'ALTER TABLE recognition_events ADD COLUMN model TEXT',
+    'ALTER TABLE recognition_events ADD COLUMN vectorize_ms INTEGER',
+    'ALTER TABLE recognition_events ADD COLUMN local_cv_ms INTEGER',
+    'ALTER TABLE recognition_events ADD COLUMN reference_load_ms INTEGER',
+    'ALTER TABLE recognition_events ADD COLUMN retrieval_source TEXT',
+    'ALTER TABLE recognition_events ADD COLUMN reused_candidates INTEGER',
+    'ALTER TABLE recognition_events ADD COLUMN pipeline_version TEXT',
+    'ALTER TABLE recognition_events ADD COLUMN reference_candidate_count INTEGER',
+    'ALTER TABLE recognition_events ADD COLUMN vector_top_k INTEGER',
+    'ALTER TABLE recognition_events ADD COLUMN verifier_reason_code TEXT',
+    'ALTER TABLE recognition_events ADD COLUMN verifier_evidence TEXT'
   ];
   for (const sql of extraColumns) await addColumnIfMissing(env, sql);
 
@@ -98,6 +118,11 @@ function numberOrNull(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function textOrNull(value, limit = 500) {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return text ? text.slice(0, limit) : null;
+}
+
 export async function recordRecognitionAttempt(env, responseStatus, data) {
   try {
     await ensureRecognitionMetrics(env);
@@ -111,12 +136,13 @@ export async function recordRecognitionAttempt(env, responseStatus, data) {
     const success = kind === 'success' ? 1 : 0;
     const unmatched = kind === 'unmatched' ? 1 : 0;
     const systemError = kind === 'system_error' ? 1 : 0;
-    const embedding = Number.isFinite(Number(performance.embedding_and_index_ms)) ? 1 : 0;
+    const embeddingMs = numberOrNull(performance.embedding_ms ?? performance.embedding_and_index_ms);
+    const embedding = embeddingMs !== null ? 1 : 0;
     const generation = Number.isFinite(Number(performance.gemini_ms)) ? 1 : 0;
     const totalMs = Math.max(0, Math.round(Number(performance.total_ms) || 0));
-    const errorMessage = kind === 'success' ? null : String(data?.error || `Erro HTTP ${responseStatus}`).slice(0, 500);
-    const capaCode = String(data?.capa_code || product?.capa_code || '').trim().toUpperCase() || null;
-    const sku = String(product?.sku || '').trim().toUpperCase() || null;
+    const errorMessage = kind === 'success' ? null : textOrNull(data?.error || `Erro HTTP ${responseStatus}`, 500);
+    const capaCode = textOrNull(data?.capa_code || product?.capa_code, 80)?.toUpperCase() || null;
+    const sku = textOrNull(product?.sku, 120)?.toUpperCase() || null;
 
     await env.DB.prepare(`
       INSERT INTO recognition_daily (
@@ -155,10 +181,12 @@ export async function recordRecognitionAttempt(env, responseStatus, data) {
       INSERT INTO recognition_events (
         day, kind, http_status, product_id, capa_code, sku,
         confidence, retrieval_score, identified_by, error_message,
-        total_ms, embedding_ms, gemini_ms,
+        total_ms, embedding_ms, vectorize_ms, local_cv_ms, reference_load_ms, gemini_ms,
         retrieval_top1, retrieval_top1_code, retrieval_top2, retrieval_top2_code, retrieval_margin,
-        candidate_count, verification_mode, accepted_by, model
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        candidate_count, verification_mode, accepted_by, model,
+        retrieval_source, reused_candidates, pipeline_version, reference_candidate_count, vector_top_k,
+        verifier_reason_code, verifier_evidence
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).bind(
       day,
       kind,
@@ -168,20 +196,30 @@ export async function recordRecognitionAttempt(env, responseStatus, data) {
       sku,
       numberOrNull(data?.confidence ?? performance.gemini_confidence),
       numberOrNull(data?.retrieval_score),
-      data?.identified_by || null,
+      textOrNull(data?.identified_by, 160),
       errorMessage,
       totalMs,
-      numberOrNull(performance.embedding_and_index_ms),
+      embeddingMs,
+      numberOrNull(performance.vectorize_ms),
+      numberOrNull(performance.local_cv_ms),
+      numberOrNull(performance.reference_load_ms),
       numberOrNull(performance.gemini_ms),
       numberOrNull(performance.retrieval_top1),
-      performance.retrieval_top1_code || null,
+      textOrNull(performance.retrieval_top1_code, 80),
       numberOrNull(performance.retrieval_top2),
-      performance.retrieval_top2_code || null,
+      textOrNull(performance.retrieval_top2_code, 80),
       numberOrNull(performance.retrieval_margin),
-      numberOrNull(performance.candidate_count),
-      performance.verification_mode || null,
-      performance.accepted_by || null,
-      performance.model || null
+      numberOrNull(performance.candidate_count ?? performance.cover_candidate_count),
+      textOrNull(performance.verification_mode, 160),
+      textOrNull(performance.accepted_by, 240),
+      textOrNull(performance.model, 120),
+      textOrNull(performance.retrieval_source, 160),
+      performance.reused_candidates === true ? 1 : performance.reused_candidates === false ? 0 : null,
+      textOrNull(performance.pipeline_version, 160),
+      numberOrNull(performance.reference_candidate_count),
+      numberOrNull(performance.vector_top_k),
+      textOrNull(performance.verifier_reason_code, 100),
+      textOrNull(performance.verifier_evidence, 500)
     ).run();
   } catch (error) {
     console.error('Falha ao registrar métrica de reconhecimento', error);
@@ -221,6 +259,9 @@ function normalizeEvent(row) {
     error_message: row?.error_message || null,
     total_ms: Number(row?.total_ms || 0),
     embedding_ms: numberOrNull(row?.embedding_ms),
+    vectorize_ms: numberOrNull(row?.vectorize_ms),
+    local_cv_ms: numberOrNull(row?.local_cv_ms),
+    reference_load_ms: numberOrNull(row?.reference_load_ms),
     gemini_ms: numberOrNull(row?.gemini_ms),
     retrieval_top1: numberOrNull(row?.retrieval_top1),
     retrieval_top1_code: row?.retrieval_top1_code || null,
@@ -231,6 +272,13 @@ function normalizeEvent(row) {
     verification_mode: row?.verification_mode || null,
     accepted_by: row?.accepted_by || null,
     model: row?.model || null,
+    retrieval_source: row?.retrieval_source || null,
+    reused_candidates: row?.reused_candidates === null || row?.reused_candidates === undefined ? null : Boolean(Number(row.reused_candidates)),
+    pipeline_version: row?.pipeline_version || null,
+    reference_candidate_count: numberOrNull(row?.reference_candidate_count),
+    vector_top_k: numberOrNull(row?.vector_top_k),
+    verifier_reason_code: row?.verifier_reason_code || null,
+    verifier_evidence: row?.verifier_evidence || null,
     image_url: row?.product_id && imageVersion
       ? `/api/images/${row.product_id}?v=${encodeURIComponent(imageVersion)}`
       : null
