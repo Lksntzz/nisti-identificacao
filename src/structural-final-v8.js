@@ -333,12 +333,13 @@ REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
    - Produtos de papelaria recebem nomes personalizados variáveis de clientes (ex: "Otávio", "Théo", "Eloá", "Mavie", "Helena", "Arthur", "Maria", datas, etc.).
    - A imagem de referência no catálogo pode estar sem nome próprio ou ter um nome fictício de exemplo diferente.
    - IGNORE a diferença do nome cursivo pequeno do cliente, contanto que o layout geral da arte, cores e monogramas correspondam!
-5. ITENS FÍSICOS E REFLEXOS (IGNORE COMPLETAMENTE):
-   - Wire-o / espirais / encadernação lateral (qualquer cor)
-   - Elásticos e passadores de elástico
-   - Tassel / pingentes
-   - Laminação plástica, holografia, glitter, reflexos de luz, sombras e brilhos na foto
-   - Dedos/mãos do operador segurando, mesa e fundo externo
+5. ITENS FÍSICOS, PERSPECTIVA E ILUMINAÇÃO (TOLERÂNCIA AMPLA):
+   - Wire-o / espirais / encadernação lateral (qualquer cor) e espessura lateral das folhas.
+   - Elásticos, passadores de elástico, tassel / pingentes.
+   - ÂNGULO E PERSPECTIVA 3D (CENÁRIO C): A foto pode ter sido tirada inclinada (a 30°-60°), com distorção trapezoidal de perspectiva. Desconsidere a deformação geométrica e foque nos elementos gráficos da estampa da capa.
+   - POUCA LUZ / PENUMBRA (CENÁRIO H): Se a foto estiver escura, com sombras ou granulado de câmera em baixa luminosidade, compense a subexposição e compare as formas, contrastes e ilustrações da capa.
+   - Laminação plástica, holografia, glitter, reflexos de luz, sombras e brilhos na foto.
+   - Dedos/mãos do operador segurando, mesa e fundo externo da bancada.
 6. RESULTADO:
    - Se uma das candidatas for exatamente a mesma arte, cor e modelo da foto, retorne winner_code com o CAPA_CODE dessa candidata, exact_match=true e confidence entre 0.70 e 1.00.
    - Se nenhuma candidata tiver a mesma arte gráfica e cor correspondente, retorne winner_code="NONE", exact_match=false e confidence baixa.`;

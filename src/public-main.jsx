@@ -74,7 +74,6 @@ function enhanceContrast(imageData) {
   const avgGray = (avgR + avgG + avgB) / 3;
 
   if (avgR > 10 && avgG > 10 && avgB > 10) {
-    // Fator suave de ganho para não estourar cores intencionais (ex: fundos pastel)
     const gainR = 1 + (avgGray / avgR - 1) * 0.45;
     const gainG = 1 + (avgGray / avgG - 1) * 0.45;
     const gainB = 1 + (avgGray / avgB - 1) * 0.45;
@@ -86,7 +85,28 @@ function enhanceContrast(imageData) {
     }
   }
 
-  // 2. Histograma e Expansão de Contraste com corte de reflexo especular
+  // 2. Correção Adaptativa de Baixa Luminosidade (Penumbra / Pouca Luz - Cenário H)
+  let totalLum = 0;
+  for (let i = 0; i < len; i += 4) {
+    totalLum += (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
+  }
+  const avgLum = totalLum / totalPixels;
+
+  if (avgLum < 115 && avgLum > 5) {
+    // Curva Gamma suave: clareia áreas escuras sem estourar o restante da capa
+    const gamma = Math.max(0.52, Math.min(0.92, Math.log(0.48) / Math.log(avgLum / 255)));
+    const gammaTable = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) {
+      gammaTable[i] = Math.min(255, Math.round(255 * Math.pow(i / 255, gamma)));
+    }
+    for (let i = 0; i < len; i += 4) {
+      data[i] = gammaTable[data[i]];
+      data[i + 1] = gammaTable[data[i + 1]];
+      data[i + 2] = gammaTable[data[i + 2]];
+    }
+  }
+
+  // 3. Histograma e Expansão de Contraste com corte de reflexo especular
   const histogram = new Uint32Array(256);
   for (let i = 0; i < len; i += 4) {
     const lum = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
