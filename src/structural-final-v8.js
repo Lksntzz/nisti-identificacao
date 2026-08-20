@@ -5,10 +5,10 @@ import { detectCrossPlatformMatch, embedImage } from './vectorize-candidates.js'
 import { recordScanOccurrence } from './occurrences-router.js';
 
 const COOKIE_NAME = 'nisti_recognition_ticket';
-const MAX_CANDIDATES = 8;
-const SUGGESTION_LIMIT = 3;
+const MAX_CANDIDATES = 16;
+const SUGGESTION_LIMIT = 4;
 const MIN_STRUCTURAL_CONFIDENCE = 0.65;
-const VERIFY_TIMEOUT_MS = 16000;
+const VERIFY_TIMEOUT_MS = 25000;
 const VERIFIER_RPM_LIMIT = 60;
 
 class RecognitionError extends Error {
@@ -415,8 +415,7 @@ REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
               contents: [{ role: 'user', parts }],
               generationConfig: {
                 temperature: 0,
-                maxOutputTokens: 256,
-                thinkingConfig: { thinkingLevel: 'minimal' },
+                maxOutputTokens: 1024,
                 response_mime_type: 'application/json',
                 response_schema: {
                   type: 'OBJECT',
