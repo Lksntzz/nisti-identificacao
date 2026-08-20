@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-id-v24';
+const CACHE_NAME = 'nisti-id-v25';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());

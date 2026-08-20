@@ -427,21 +427,40 @@ function ProductImage({ product, className = '', alt }) {
 function InstallApp() {
   const [prompt, setPrompt] = useState(null);
   const [help, setHelp] = useState(false);
-  const [standalone, setStandalone] = useState(() =>
-    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
-  );
+  const [installed, setInstalled] = useState(() => {
+    try {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      const wasInstalled = localStorage.getItem('nisti_pwa_installed') === '1';
+      if (isStandalone) {
+        localStorage.setItem('nisti_pwa_installed', '1');
+        return true;
+      }
+      return wasInstalled;
+    } catch {
+      return false;
+    }
+  });
+
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
     (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
   useEffect(() => {
     const before = event => { event.preventDefault(); setPrompt(event); };
-    const installed = () => { setStandalone(true); setPrompt(null); };
+    const onInstalled = () => {
+      try { localStorage.setItem('nisti_pwa_installed', '1'); } catch {}
+      setInstalled(true);
+      setPrompt(null);
+    };
     window.addEventListener('beforeinstallprompt', before);
-    window.addEventListener('appinstalled', installed);
+    window.addEventListener('appinstalled', onInstalled);
     
-    // Check if window matchMedia changes (e.g., user opens in PWA mode)
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
-    const handleMediaChange = (e) => { if (e.matches) setStandalone(true); };
+    const handleMediaChange = (e) => {
+      if (e.matches) {
+        try { localStorage.setItem('nisti_pwa_installed', '1'); } catch {}
+        setInstalled(true);
+      }
+    };
     if (mediaQuery.addEventListener) mediaQuery.addEventListener('change', handleMediaChange);
 
     if ('serviceWorker' in navigator) {
@@ -454,23 +473,33 @@ function InstallApp() {
     }
     return () => {
       window.removeEventListener('beforeinstallprompt', before);
-      window.removeEventListener('appinstalled', installed);
+      window.removeEventListener('appinstalled', onInstalled);
       if (mediaQuery.removeEventListener) mediaQuery.removeEventListener('change', handleMediaChange);
     };
   }, []);
 
-  if (standalone) return null;
-  // No Android/PC, só mostra se o navegador disparar o evento de instalação (não está instalado)
+  if (installed) return null;
+  // No Android/PC, só mostra se o navegador disparar o evento de instalação
   if (!ios && !prompt) return null;
 
   const install = async () => {
     if (prompt) {
       await prompt.prompt();
-      await prompt.userChoice.catch(() => null);
+      const choice = await prompt.userChoice.catch(() => null);
+      if (choice?.outcome === 'accepted') {
+        try { localStorage.setItem('nisti_pwa_installed', '1'); } catch {}
+        setInstalled(true);
+      }
       setPrompt(null);
       return;
     }
     if (ios) setHelp(true);
+  };
+
+  const acknowledgeIosInstall = () => {
+    try { localStorage.setItem('nisti_pwa_installed', '1'); } catch {}
+    setInstalled(true);
+    setHelp(false);
   };
 
   return <>
@@ -479,8 +508,8 @@ function InstallApp() {
       <div className="modal">
         <h3>Instalar NISTI ID no iPhone</h3>
         <p>No Safari:</p>
-        <ol><li>Toque em Compartilhar.</li><li>Escolha Adicionar à Tela de Início.</li><li>Confirme em Adicionar.</li></ol>
-        <button type="button" onClick={() => setHelp(false)}>Entendi</button>
+        <ol><li>Toque em Compartilhar (ícone do meio).</li><li>Escolha <strong>Adicionar à Tela de Início</strong>.</li><li>Confirme em <strong>Adicionar</strong>.</li></ol>
+        <button type="button" onClick={acknowledgeIosInstall}>Entendi, já adicionei</button>
       </div>
     </div>}
   </>;
