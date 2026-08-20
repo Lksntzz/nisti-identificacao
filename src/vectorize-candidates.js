@@ -80,7 +80,7 @@ async function signTicket(env, payload) {
   return `${encoded}.${base64url(signature)}`;
 }
 
-async function embedImage(env, bytes, mimeType) {
+export async function embedImage(env, bytes, mimeType) {
   if (!env.GEMINI_API_KEY) {
     throw new RetrievalError(
       'GEMINI_API_KEY não configurada',
@@ -270,7 +270,7 @@ function buildCandidates(covers, timings) {
   return candidates;
 }
 
-async function detectCrossPlatformMatch(env, vector, currentPlatform) {
+export async function detectCrossPlatformMatch(env, vector, currentPlatform) {
   try {
     const platforms = await listPlatforms(env);
     const otherPlatforms = platforms.filter(
@@ -289,7 +289,7 @@ async function detectCrossPlatformMatch(env, vector, currentPlatform) {
       });
       const topMatch = res?.matches?.[0];
       const score = Number(topMatch?.score || 0);
-      if (score >= CROSS_PLATFORM_MATCH_SCORE) {
+      if (score >= 0.82) {
         if (!bestMatch || score > bestMatch.score) {
           bestMatch = {
             found_platform: other.platform,
@@ -348,8 +348,9 @@ export async function buildVectorizeCandidates(request, env) {
       platform
     );
 
+    const crossMatch = await detectCrossPlatformMatch(env, embedding.values, platform);
+
     if (!covers.length) {
-      const crossMatch = await detectCrossPlatformMatch(env, embedding.values, platform);
       if (crossMatch) {
         throw new RetrievalError(
           `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
@@ -375,8 +376,18 @@ export async function buildVectorizeCandidates(request, env) {
       : 1;
 
     const topScore = Number(covers[0]?.retrieval_score || 0);
-    if (topScore < MIN_PLATFORM_RETRIEVAL_SCORE) {
-      const crossMatch = await detectCrossPlatformMatch(env, embedding.values, platform);
+
+    // Se outra plataforma tiver correspondência superior
+    if (crossMatch && crossMatch.score >= 0.88 && (topScore < 0.88 || crossMatch.score > topScore + 0.025)) {
+      throw new RetrievalError(
+        `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
+        422,
+        'product_on_different_platform',
+        { suggested_platform: crossMatch.found_platform }
+      );
+    }
+
+    if (topScore < 0.65) {
       if (crossMatch) {
         throw new RetrievalError(
           `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,

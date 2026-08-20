@@ -1,6 +1,7 @@
 import { parseSku } from './sku.js';
 import { normalizePlatform } from './platform-scope.js';
 import { reserveGeminiBudget } from './gemini-budget.js';
+import { detectCrossPlatformMatch, embedImage } from './vectorize-candidates.js';
 
 const COOKIE_NAME = 'nisti_recognition_ticket';
 const MAX_CANDIDATES = 6;
@@ -689,24 +690,39 @@ export async function structuralFinalIdentifyV8(request, env) {
       performance.verifier_evidence = String(comparatorError.message || '').slice(0, 220);
     }
 
-    const suggestions = await buildSuggestions(env, loaded, platform);
+    let crossMatch = null;
+    try {
+      const embedding = await embedImage(env, photoBytes, image.type || 'image/jpeg');
+      crossMatch = await detectCrossPlatformMatch(env, embedding.values, platform);
+    } catch {}
+
     performance.accepted_by = comparatorError
       ? `comparator-unavailable:${performance.comparator_error}`
-      : 'comparative-no-exact-winner';
-    performance.suggestion_count = suggestions.length;
+      : (crossMatch ? 'comparative-cross-platform-match' : 'comparative-no-exact-winner');
+    performance.suggestion_count = 0;
     finalizePerformance(performance, started);
 
+    if (crossMatch) {
+      return json({
+        error: `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
+        confidence: 0,
+        platform,
+        suggested_platform: crossMatch.found_platform,
+        suggestions: [],
+        suggestions_are_unconfirmed: false,
+        identified_by: 'platform-catalog-cross-match-v8.7',
+        performance
+      }, 422);
+    }
+
     return json({
-      error: suggestions.length
-        ? 'Não consegui confirmar um único produto. Confira as possíveis correspondências abaixo.'
-        : 'Não encontrei uma correspondência visual segura para este produto.',
-      confidence: comparison?.decision?.confidence || loaded[0]?.retrieval_score || 0,
+      error: `Produto não cadastrado na plataforma ${platform}. Verifique se a plataforma correta foi selecionada ou se a capa está cadastrada no catálogo.`,
+      confidence: comparison?.decision?.confidence || 0,
       platform,
-      suggestions,
-      suggestions_are_unconfirmed: true,
-      identified_by: suggestions.length
-        ? 'platform-catalog-visual-suggestions-v8.7'
-        : 'platform-catalog-no-match-v8.7',
+      suggested_platform: null,
+      suggestions: [],
+      suggestions_are_unconfirmed: false,
+      identified_by: 'platform-catalog-no-match-v8.7',
       performance
     }, 422);
   } catch (error) {
