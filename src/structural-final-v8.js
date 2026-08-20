@@ -179,13 +179,19 @@ async function resolveCandidate(env, candidate, platform) {
     row = await env.DB.prepare(`
       SELECT id,capa_code,image_key
       FROM cover_visual_references
-      WHERE id=? AND active=1 AND image_key IS NOT NULL
+      WHERE id=? AND active=1 AND reference_kind='primary' AND image_key IS NOT NULL
       LIMIT 1
     `).bind(candidate.reference_id).first();
   }
 
   if (!row || String(row.capa_code || '').trim().toUpperCase() !== candidate.capa_code) {
     row = await env.DB.prepare(`
+      SELECT id,capa_code,image_key
+      FROM cover_visual_references
+      WHERE UPPER(TRIM(capa_code))=? AND active=1 AND reference_kind='primary' AND image_key IS NOT NULL
+      ORDER BY id ASC
+      LIMIT 1
+    `).bind(candidate.capa_code).first() || await env.DB.prepare(`
       SELECT id,capa_code,image_key
       FROM cover_visual_references
       WHERE UPPER(TRIM(capa_code))=? AND active=1 AND image_key IS NOT NULL
@@ -434,7 +440,7 @@ REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
   }
 }
 
-function productPayload(product, displayImageUrl = null) {
+function productPayload(product) {
   const parsed = parseSku(product.sku);
   const version = String(product.image_key || '').split('/').pop();
   const productImage = product.image_key
@@ -447,7 +453,7 @@ function productPayload(product, displayImageUrl = null) {
     tassel: parsed.tassel,
     elastico: parsed.elastico,
     product_image_url: productImage,
-    image_url: displayImageUrl || productImage
+    image_url: productImage
   };
 }
 
@@ -485,9 +491,7 @@ async function buildSuggestions(env, candidates, platform) {
       verification_source: 'vector-retrieval',
       catalog_personalized: candidate.catalog_personalized === true,
       thumbnail_url: candidate.thumbnail_url,
-      products: products.map(product =>
-        productPayload(product, candidate.thumbnail_url)
-      )
+      products: products.map(product => productPayload(product))
     });
   }
   return suggestions;
@@ -519,17 +523,13 @@ async function successResponse(
     );
   }
 
-  const displayImageUrl = candidate.thumbnail_url;
-
   if (products.length > 1) {
     return json({
       needs_selection: true,
       selection_reason: 'same_cover_multiple_skus',
       capa_code: candidate.capa_code,
       platform,
-      products: products.map(product =>
-        productPayload(product, displayImageUrl)
-      ),
+      products: products.map(product => productPayload(product)),
       confidence,
       identified_by: `${identifiedBy}+human-sku-selection`,
       performance
@@ -537,7 +537,7 @@ async function successResponse(
   }
 
   return json({
-    product: productPayload(products[0], displayImageUrl),
+    product: productPayload(products[0]),
     capa_code: candidate.capa_code,
     platform,
     confidence,
@@ -681,7 +681,6 @@ export async function structuralFinalIdentifyV8(request, env) {
         const candidateMap = new Map(loaded.map(c => [c.capa_code, c]));
         const winner = candidateMap.get(winnerCode);
         if (winner) {
-          await autoLearnVisualSample(env, winnerCode, photoBytes, image.type || 'image/jpeg');
           performance.accepted_by = 'comparative-exact-winner';
           performance.suggestion_count = 0;
           finalizePerformance(performance, started);
