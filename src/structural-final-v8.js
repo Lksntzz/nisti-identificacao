@@ -6,7 +6,7 @@ import { detectCrossPlatformMatch, embedImage } from './vectorize-candidates.js'
 const COOKIE_NAME = 'nisti_recognition_ticket';
 const MAX_CANDIDATES = 6;
 const SUGGESTION_LIMIT = 3;
-const MIN_STRUCTURAL_CONFIDENCE = 0.85;
+const MIN_STRUCTURAL_CONFIDENCE = 0.70;
 const VERIFY_TIMEOUT_MS = 9000;
 const VERIFIER_RPM_LIMIT = 60;
 
@@ -310,20 +310,25 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
   );
   const started = Date.now();
 
-  const prompt = `Você é o classificador visual oficial da NISTI PRINT.
+  const prompt = `Você é o classificador visual oficial da gráfica NISTI PRINT.
 Sua missão é identificar com precisão se a FOTO DO PRODUTO corresponde a uma das CANDIDATAS do catálogo pela ARTE-BASE impressa na capa.
 
-REGRAS DE COMPARAÇÃO:
-1. FOCO NA ARTE GRÁFICA: Compare ilustrações, desenhos, flores, animais/personagens, sol, cercas, arranjos gráficos, cores dominantes, títulos fixos e layout geral da capa.
-2. NOMES PERSONALIZADOS DO CLIENTE: Produtos de papelaria (cadernetas, agendas, planners) recebem nomes personalizados variáveis de clientes (ex: "Agnes", "Helena", "Arthur", "Maria", datas, etc.). A imagem de referência no catálogo pode estar sem nome ou ter um nome fictício diferente. IGNORE a diferença de nome próprio do cliente e considere correspondência EXATA se a arte gráfica, ilustrações e estilo forem idênticos!
-3. ITENS FÍSICOS E REFLEXOS: IGNORE completamente:
-   - Wire-o / espirais / encadernação lateral
+REGRAS UNIVERSAIS DE COMPARAÇÃO:
+1. FOCO NA ARTE GRÁFICA & TÍTULOS:
+   - Compare o design gráfico geral: ilustrações, desenhos, flores, animais/personagens, padrões geométricos, listras, blocos de cor, molduras, arranjos e cores dominantes.
+   - Textos fixos e títulos do produto (ex: "Meu Diário de Leituras", "Minhas Contas Organizadas", "Controle Financeiro", "Caderneta de Saúde", "Agenda", "Planner", "Devocional", etc.) são elementos-chave de correspondência quando presentes.
+2. NOMES PERSONALIZADOS DO CLIENTE:
+   - Produtos de papelaria (cadernetas, agendas, planners) recebem nomes personalizados variáveis de clientes (ex: "Eloá", "Helena", "Arthur", "Maria", datas, etc.).
+   - A imagem de referência no catálogo pode estar sem nome ou ter um nome fictício diferente.
+   - IGNORE a diferença de nome próprio do cliente e considere correspondência EXATA se a arte gráfica, ilustrações, cores e estilo forem idênticos!
+3. ITENS FÍSICOS E REFLEXOS (IGNORE COMPLETAMENTE):
+   - Wire-o / espirais / encadernação lateral (qualquer cor)
    - Elásticos e passadores de elástico
    - Tassel / pingentes
-   - Laminação, holografia, glitter, reflexos de luz, sombras e brilhos na foto
+   - Laminação plástica, holografia, glitter, reflexos de luz, sombras e brilhos na foto
    - Dedos/mãos do operador segurando, mesa e fundo externo
 4. RESULTADO:
-   - Se uma das candidatas for a mesma arte da foto, retorne winner_code com o CAPA_CODE dessa candidata, exact_match=true e confidence alta (0.85 a 1.00).
+   - Se uma das candidatas for a mesma arte da foto, retorne winner_code com o CAPA_CODE dessa candidata, exact_match=true e confidence entre 0.70 e 1.00.
    - Se nenhuma candidata tiver a mesma arte gráfica (desenho diferente), retorne winner_code="NONE", exact_match=false e confidence baixa.`;
 
   const parts = [
@@ -600,7 +605,7 @@ export async function structuralFinalIdentifyV8(request, env) {
     }
 
     const topScore = Number(ticket.performance?.retrieval_top1 ?? rawCandidates[0]?.retrieval_score ?? 0);
-    if (topScore < 0.48) {
+    if (topScore < 0.45) {
       throw new RecognitionError(
         `Produto não corresponde ao catálogo da plataforma ${platform}. Identificação abortada para economia de recursos.`,
         422,

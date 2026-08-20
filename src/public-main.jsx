@@ -111,10 +111,10 @@ async function compressPhoto(file) {
     bitmap = await createImageBitmap(file);
   }
 
-  // Foco Central Inteligente: recorte suave de 5% das bordas externas para focar na capa
+  // Foco Central Inteligente: recorte sutil de 1.5% das bordas externas para preservar títulos e molduras
   const origW = bitmap.width;
   const origH = bitmap.height;
-  const cropRatio = 0.04;
+  const cropRatio = 0.015;
   const srcX = Math.round(origW * cropRatio);
   const srcY = Math.round(origH * cropRatio);
   const srcW = Math.max(1, Math.round(origW * (1 - cropRatio * 2)));

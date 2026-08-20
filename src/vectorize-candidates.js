@@ -7,7 +7,7 @@ const REFERENCES_PER_COVER = 1;
 const MAX_REFERENCE_CANDIDATES = 12;
 const TICKET_TTL_SECONDS = 120;
 const MAX_EMBEDDING_MS = 5000;
-const MIN_PLATFORM_RETRIEVAL_SCORE = 0.48;
+const MIN_PLATFORM_RETRIEVAL_SCORE = 0.45;
 const CROSS_PLATFORM_MATCH_SCORE = 0.58;
 
 class RetrievalError extends Error {
@@ -376,12 +376,11 @@ export async function buildVectorizeCandidates(request, env) {
       : 1;
     const topScore = Number(covers[0]?.retrieval_score || 0);
 
-    // Apenas bloquear se a outra plataforma tiver uma correspondência *significativamente* melhor
-    // ou se a plataforma atual for fraca e a outra for forte.
-    const isOtherMuchBetter = crossMatch && (crossMatch.score > topScore + 0.04);
-    const isCurrentWeakOtherStrong = crossMatch && topScore < 0.75 && crossMatch.score >= 0.80;
+    // Apenas bloquear se a outra plataforma tiver uma correspondência muito superior
+    // e a plataforma atual não tiver candidatos razoáveis.
+    const isOtherMuchBetter = crossMatch && (topScore < MIN_PLATFORM_RETRIEVAL_SCORE && crossMatch.score >= 0.78);
 
-    if (isOtherMuchBetter || isCurrentWeakOtherStrong) {
+    if (isOtherMuchBetter) {
       throw new RetrievalError(
         `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
         422,
@@ -390,8 +389,8 @@ export async function buildVectorizeCandidates(request, env) {
       );
     }
 
-    if (topScore < 0.70) {
-      if (crossMatch) {
+    if (topScore < MIN_PLATFORM_RETRIEVAL_SCORE) {
+      if (crossMatch && crossMatch.score >= 0.70) {
         throw new RetrievalError(
           `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
           422,
