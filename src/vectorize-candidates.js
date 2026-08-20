@@ -1,4 +1,4 @@
-import { normalizePlatform, platformExists, platformNamespace } from './platform-scope.js';
+import { listPlatforms, normalizePlatform, platformExists, platformNamespace } from './platform-scope.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const VECTOR_TOP_K = 50;
@@ -7,12 +7,15 @@ const REFERENCES_PER_COVER = 1;
 const MAX_REFERENCE_CANDIDATES = 12;
 const TICKET_TTL_SECONDS = 120;
 const MAX_EMBEDDING_MS = 5000;
+const MIN_PLATFORM_RETRIEVAL_SCORE = 0.48;
+const CROSS_PLATFORM_MATCH_SCORE = 0.58;
 
 class RetrievalError extends Error {
-  constructor(message, status = 400, code = 'vector_retrieval_error') {
+  constructor(message, status = 400, code = 'vector_retrieval_error', extra = {}) {
     super(message);
     this.status = status;
     this.code = code;
+    this.extra = extra;
   }
 }
 
@@ -267,6 +270,41 @@ function buildCandidates(covers, timings) {
   return candidates;
 }
 
+async function detectCrossPlatformMatch(env, vector, currentPlatform) {
+  try {
+    const platforms = await listPlatforms(env);
+    const otherPlatforms = platforms.filter(
+      p => p.platform !== currentPlatform && p.product_count > 0
+    );
+
+    let bestMatch = null;
+    for (const other of otherPlatforms) {
+      const namespace = platformNamespace(other.platform);
+      if (!namespace) continue;
+      const res = await env.COVER_VECTORS.query(vector, {
+        topK: 3,
+        namespace,
+        returnValues: false,
+        returnMetadata: 'all'
+      });
+      const topMatch = res?.matches?.[0];
+      const score = Number(topMatch?.score || 0);
+      if (score >= CROSS_PLATFORM_MATCH_SCORE) {
+        if (!bestMatch || score > bestMatch.score) {
+          bestMatch = {
+            found_platform: other.platform,
+            score,
+            capa_code: codeFromMatch(topMatch)
+          };
+        }
+      }
+    }
+    return bestMatch;
+  } catch {
+    return null;
+  }
+}
+
 export async function buildVectorizeCandidates(request, env) {
   const started = Date.now();
   const timings = {
@@ -311,9 +349,18 @@ export async function buildVectorizeCandidates(request, env) {
     );
 
     if (!covers.length) {
+      const crossMatch = await detectCrossPlatformMatch(env, embedding.values, platform);
+      if (crossMatch) {
+        throw new RetrievalError(
+          `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
+          422,
+          'product_on_different_platform',
+          { suggested_platform: crossMatch.found_platform }
+        );
+      }
       throw new RetrievalError(
-        'Ainda não há referências visuais indexadas para esta plataforma.',
-        503,
+        `Produto não cadastrado na plataforma ${platform}. Verifique se a plataforma correta foi selecionada.`,
+        422,
         'platform_index_empty'
       );
     }
@@ -326,6 +373,24 @@ export async function buildVectorizeCandidates(request, env) {
     timings.retrieval_margin = covers.length > 1
       ? Number(covers[0].retrieval_score || 0) - Number(covers[1].retrieval_score || 0)
       : 1;
+
+    const topScore = Number(covers[0]?.retrieval_score || 0);
+    if (topScore < MIN_PLATFORM_RETRIEVAL_SCORE) {
+      const crossMatch = await detectCrossPlatformMatch(env, embedding.values, platform);
+      if (crossMatch) {
+        throw new RetrievalError(
+          `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
+          422,
+          'product_on_different_platform',
+          { suggested_platform: crossMatch.found_platform }
+        );
+      }
+      throw new RetrievalError(
+        `Produto não cadastrado na plataforma ${platform}. Verifique se a plataforma correta foi selecionada ou se a capa está cadastrada no catálogo.`,
+        422,
+        'product_not_found_on_platform'
+      );
+    }
 
     const candidates = buildCandidates(covers, timings);
     if (!candidates.length) {
@@ -370,6 +435,7 @@ export async function buildVectorizeCandidates(request, env) {
     return json({
       error: error?.message || 'Falha ao localizar candidatas no Vectorize',
       technical_error: error?.code || 'vector_retrieval_error',
+      suggested_platform: error?.extra?.suggested_platform || null,
       performance: timings
     }, Number(error?.status) || 500);
   }

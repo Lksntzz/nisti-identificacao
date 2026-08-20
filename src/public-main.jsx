@@ -211,6 +211,7 @@ function PublicIdentificationApp() {
   const [result, setResult] = useState(null);
   const [choices, setChoices] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  const [suggestedPlatform, setSuggestedPlatform] = useState(null);
   const [performance, setPerformance] = useState(null);
   const runId = useRef(0);
 
@@ -233,6 +234,7 @@ function PublicIdentificationApp() {
 
   const clearDecision = () => {
     setError('');
+    setSuggestedPlatform(null);
     setResult(null);
     setChoices(null);
     setSuggestions([]);
@@ -242,6 +244,7 @@ function PublicIdentificationApp() {
   const applyData = data => {
     setPerformance(data.performance || null);
     setSuggestions([]);
+    setSuggestedPlatform(null);
     if (data.needs_selection) {
       setChoices({ capaCode: data.capa_code, products: data.products || [] });
       setResult(null);
@@ -251,8 +254,9 @@ function PublicIdentificationApp() {
     }
   };
 
-  const identifyFile = async file => {
-    if (!file || !platform || busy) return;
+  const identifyFileWithPlatform = async (file, targetPlatform) => {
+    const activePlatform = targetPlatform || platform;
+    if (!file || !activePlatform || busy) return;
     const id = ++runId.current;
     setBusy(true);
     clearDecision();
@@ -262,7 +266,7 @@ function PublicIdentificationApp() {
 
       const candidateForm = new FormData();
       candidateForm.append('image', optimized);
-      candidateForm.append('platform', platform);
+      candidateForm.append('platform', activePlatform);
       const candidateData = await api('/api/identify-candidates', {
         method: 'POST',
         body: candidateForm
@@ -271,7 +275,7 @@ function PublicIdentificationApp() {
 
       const verificationForm = new FormData();
       verificationForm.append('image', optimized);
-      verificationForm.append('platform', platform);
+      verificationForm.append('platform', activePlatform);
       if (candidateData?.ticket) {
         verificationForm.append('ticket', candidateData.ticket);
       }
@@ -287,11 +291,14 @@ function PublicIdentificationApp() {
       const data = err?.data || null;
       setPerformance(data?.performance || null);
       setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
+      setSuggestedPlatform(data?.suggested_platform || null);
       setError(err.message || 'Não foi possível identificar o produto.');
     } finally {
       if (id === runId.current) setBusy(false);
     }
   };
+
+  const identifyFile = file => identifyFileWithPlatform(file, platform);
 
   const choose = file => {
     if (!file) return;
@@ -340,7 +347,41 @@ function PublicIdentificationApp() {
         {busy ? 'Comparando capa…' : 'Identificar produto'}
       </button>
 
-      {error && <div className="status error"><h3>Produto não identificado</h3><p>{error}</p></div>}
+      {error && <div className="status error">
+        <h3>Produto não identificado</h3>
+        <p>{error}</p>
+        {suggestedPlatform && (
+          <div style={{ marginTop: '14px' }}>
+            <button
+              type="button"
+              className="primary"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                minHeight: '44px',
+                padding: '0 16px',
+                fontSize: '14px',
+                background: '#4f46e5',
+                color: '#fff',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+              onClick={() => {
+                const target = suggestedPlatform;
+                setPlatform(target);
+                setSuggestedPlatform(null);
+                identifyFileWithPlatform(photo, target);
+              }}
+            >
+              Alternar para {suggestedPlatform} e identificar
+            </button>
+          </div>
+        )}
+      </div>}
       <PossibleMatches suggestions={suggestions} onSelect={product => {
         setResult(product);
         setChoices(null);

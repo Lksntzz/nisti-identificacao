@@ -597,6 +597,15 @@ export async function structuralFinalIdentifyV8(request, env) {
       );
     }
 
+    const topScore = Number(ticket.performance?.retrieval_top1 ?? rawCandidates[0]?.retrieval_score ?? 0);
+    if (topScore < 0.48) {
+      throw new RecognitionError(
+        `Produto não corresponde ao catálogo da plataforma ${platform}. Identificação abortada para economia de recursos.`,
+        422,
+        'low_retrieval_score_barrier'
+      );
+    }
+
     const referenceStarted = Date.now();
     const loaded = (await Promise.all(
       rawCandidates.map(candidate =>
