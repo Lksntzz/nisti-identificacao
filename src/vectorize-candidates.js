@@ -1,7 +1,7 @@
 import { normalizePlatform, platformExists, platformNamespace } from './platform-scope.js';
 
 const EMBEDDING_DIMENSIONS = 768;
-const VECTOR_TOP_K = 64;
+const VECTOR_TOP_K = 50;
 const COVER_LIMIT = 12;
 const REFERENCES_PER_COVER = 1;
 const MAX_REFERENCE_CANDIDATES = 12;
