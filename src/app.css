@@ -41,18 +41,28 @@ img { max-width: 100%; }
 .app.general { width: min(460px, calc(100% - 24px)); margin: 0 auto; padding: 16px 0 44px; }
 .admin-app { padding-top: 0; }
 
-/* Brand Topbar */
+/* Brand Topbar / Header */
+.brand-header,
 .brand-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 4px 18px;
+  width: 100%;
 }
 
+.brand-header-left,
 .brand-identity {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.brand-header-actions,
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .brand-icon-mark {
@@ -63,6 +73,7 @@ img { max-width: 100%; }
   border-radius: 12px;
   flex-shrink: 0;
   display: block;
+  background: transparent;
 }
 
 .brand-titles {
