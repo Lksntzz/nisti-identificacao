@@ -22,11 +22,9 @@
 
 * { box-sizing: border-box; }
 html, body, #root {
-  height: 100%;
-  height: 100dvh;
+  min-height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
   min-width: 320px;
 }
 body {
@@ -38,8 +36,8 @@ body {
   background-attachment: fixed;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;
-  user-select: none;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
@@ -48,15 +46,12 @@ img { max-width: 100%; }
 .app { width: min(1800px, calc(100% - 56px)); margin: 0 auto; padding: 0 0 48px; }
 .app.general {
   width: min(480px, 100%);
-  height: 100%;
-  height: 100dvh;
-  max-height: 100dvh;
+  min-height: 100dvh;
   margin: 0 auto;
-  padding: 6px 12px 6px;
+  padding: 8px 12px 28px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  overflow: hidden;
   position: relative;
 }
 .admin-app { padding-top: 0; }
@@ -850,6 +845,127 @@ img { max-width: 100%; }
 .result-compact-badge strong {
   margin-left: 2px;
   color: #0f172a;
+}
+
+/* Compact Photo Strip (when result/choices is displayed) */
+.compact-photo-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 4px 8px;
+}
+
+.compact-strip-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid #cbd5e1;
+}
+
+.compact-strip-text {
+  flex: 1;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.compact-strip-change {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.compact-strip-change input[type="file"] {
+  display: none;
+}
+
+/* Compact Choices list */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.choice-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.choice-card:hover, .choice-card:active {
+  border-color: #6366f1;
+  background: #f0fdf4;
+  transform: translateY(-1px);
+}
+
+.choice-card img {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #f1f5f9;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
+
+.choice-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.choice-card-sku {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.choice-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.choice-card-tag {
+  font-size: 9.5px;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.choice-card-select-btn {
+  background: #4f46e5;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 /* Action Buttons Container */

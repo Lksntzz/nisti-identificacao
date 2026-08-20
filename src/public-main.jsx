@@ -668,7 +668,7 @@ function ProductChoices({ capaCode, products, platform, onSelect, performance, o
       if (data?.product) {
         onSelect(data.product);
       } else {
-        setDetailError('Não foi possível desempatar pelo detalhe. Escolha manualmente abaixo.');
+        setDetailError('Não foi possível desempatar pelo detalhe. Toque no SKU correto abaixo.');
       }
     } catch (err) {
       setDetailError(err?.message || 'Erro ao analisar detalhe.');
@@ -677,39 +677,53 @@ function ProductChoices({ capaCode, products, platform, onSelect, performance, o
     }
   };
 
-  return <div className="result">
-    <div className="result-header-row">
-      <p className="eyebrow" style={{ margin: 0 }}>CAPA IDENTIFICADA</p>
-      <ConfidenceBadge score={performance?.retrieval_top1} />
+  return (
+    <div className="result-compact-card" style={{ background: '#f8faff', borderColor: '#c7d2fe' }}>
+      <div className="result-compact-header">
+        <span style={{ fontSize: '11px', fontWeight: 800, color: '#4f46e5', textTransform: 'uppercase' }}>
+          Capa {capaCode} · Toque no SKU correto ({products.length})
+        </span>
+        <ConfidenceBadge score={performance?.retrieval_top1} />
+      </div>
+
+      <label className="btn-detail-tiebreaker" style={{ margin: '3px 0 5px', padding: '6px 10px', fontSize: '11px' }}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <span>{analyzingDetail ? 'Analisando detalhe com IA…' : '🔍 Desempatar por foto de detalhe / texto'}</span>
+        <input type="file" accept="image/*" capture="environment" disabled={analyzingDetail} onChange={e => handleDetailPhoto(e.target.files?.[0])} />
+      </label>
+
+      {detailError && <p className="status error" style={{ fontSize: '11px', margin: '2px 0 4px', padding: '4px 8px' }}>{detailError}</p>}
+
+      <div className="choices">
+        {products.map(product => (
+          <article className="choice-card" key={product.id} onClick={() => onSelect(product)}>
+            <ProductImage product={product} alt={product.sku}/>
+            <div className="choice-card-info">
+              <h4 className="choice-card-sku">{product.sku}</h4>
+              <div className="choice-card-tags">
+                <span className="choice-card-tag">Capa: {product.capa_code}</span>
+                {product.wireo && <span className="choice-card-tag">Wire-o: {product.wireo}</span>}
+                {product.elastico && <span className="choice-card-tag">Elástico: {product.elastico}</span>}
+                {product.tassel && <span className="choice-card-tag">Tassel: {product.tassel}</span>}
+              </div>
+            </div>
+            <button type="button" className="choice-card-select-btn" onClick={(e) => { e.stopPropagation(); onSelect(product); }}>
+              Selecionar
+            </button>
+          </article>
+        ))}
+      </div>
+
+      {performance?.total_ms && (
+        <small style={{ fontSize: '10px', color: '#64748b', textAlign: 'right' }}>
+          Identificado em {(performance.total_ms / 1000).toFixed(1)}s
+        </small>
+      )}
     </div>
-    <h3 className="choice-title">{capaCode} · escolha o SKU</h3>
-
-    <label className="btn-detail-tiebreaker">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        <line x1="11" y1="8" x2="11" y2="14" />
-        <line x1="8" y1="11" x2="14" y2="11" />
-      </svg>
-      <span>{analyzingDetail ? 'Analisando detalhe com IA…' : '🔍 Desempatar por foto de detalhe / texto da capa'}</span>
-      <input type="file" accept="image/*" capture="environment" disabled={analyzingDetail} onChange={e => handleDetailPhoto(e.target.files?.[0])} />
-    </label>
-
-    {detailError && <p className="status error" style={{ fontSize: '13px', margin: '0 0 14px' }}>{detailError}</p>}
-
-    <div className="choices">
-      {products.map(product => <article className="choice-card" key={product.id}>
-        <ProductImage product={product} alt={product.sku}/>
-        <div>
-          <h4>{product.sku}</h4>
-          <p>{product.nome || product.variacao || product.capa_code}</p>
-          <p>Miolo: {product.miolo_code} · Acabamento: {product.acabamento_code}</p>
-        </div>
-        <button type="button" onClick={() => onSelect(product)}>Selecionar este SKU</button>
-      </article>)}
-    </div>
-    {performance?.total_ms && <small className="perf">Capa reconhecida em {(performance.total_ms / 1000).toFixed(1)} s</small>}
-  </div>;
+  );
 }
 
 function PublicIdentificationApp() {
@@ -986,52 +1000,63 @@ function PublicIdentificationApp() {
           </div>
         )}
 
-        <div className="cover-card-container">
-          <div className="dashed-upload-zone">
-            {preview ? (
-              <div className="photo-preview-wrap">
-                <img className="photo-preview-img" src={preview} alt="Foto da capa" />
-                {busy && <ScanningOverlay elapsedMs={elapsedMs} stageText={scanStage} />}
-                {!busy && (
-                  <label className="change-photo-btn">
-                    <span>Trocar foto</span>
+        {preview && (result || choices) ? (
+          <div className="compact-photo-strip">
+            <img src={preview} alt="Foto da capa" className="compact-strip-thumb" />
+            <span className="compact-strip-text">Foto da capa enviada</span>
+            <label className="compact-strip-change">
+              <span>Trocar foto</span>
+              <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
+            </label>
+          </div>
+        ) : (
+          <div className="cover-card-container">
+            <div className="dashed-upload-zone">
+              {preview ? (
+                <div className="photo-preview-wrap">
+                  <img className="photo-preview-img" src={preview} alt="Foto da capa" />
+                  {busy && <ScanningOverlay elapsedMs={elapsedMs} stageText={scanStage} />}
+                  {!busy && (
+                    <label className="change-photo-btn">
+                      <span>Trocar foto</span>
+                      <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
+                    </label>
+                  )}
+                </div>
+              ) : (
+                <div className="dropzone-empty-state">
+                  <div className="camera-circle-badge">
+                    <svg className="camera-gradient-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="url(#camera-rainbow)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs>
+                        <linearGradient id="camera-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#06b6d4" />
+                          <stop offset="50%" stopColor="#6366f1" />
+                          <stop offset="100%" stopColor="#d946ef" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                      <circle cx="12" cy="13" r="3" />
+                    </svg>
+                    <svg className="sparkle-badge-icon" viewBox="0 0 24 24" width="10" height="10" fill="#06b6d4">
+                      <path d="m12 2 2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+                    </svg>
+                  </div>
+                  <h3 className="dropzone-title">Fotografar ou enviar capa</h3>
+                  <p className="dropzone-hint">Enquadre de frente com boa luz.</p>
+                  <label className="gallery-pill-btn">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span>Galeria / Câmera</span>
                     <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
                   </label>
-                )}
-              </div>
-            ) : (
-              <div className="dropzone-empty-state">
-                <div className="camera-circle-badge">
-                  <svg className="camera-gradient-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="url(#camera-rainbow)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <defs>
-                      <linearGradient id="camera-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#06b6d4" />
-                        <stop offset="50%" stopColor="#6366f1" />
-                        <stop offset="100%" stopColor="#d946ef" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                    <circle cx="12" cy="13" r="3" />
-                  </svg>
-                  <svg className="sparkle-badge-icon" viewBox="0 0 24 24" width="10" height="10" fill="#06b6d4">
-                    <path d="m12 2 2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
-                  </svg>
                 </div>
-                <h3 className="dropzone-title">Fotografar ou enviar capa</h3>
-                <p className="dropzone-hint">Enquadre de frente com boa luz.</p>
-                <label className="gallery-pill-btn">
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  <span>Galeria / Câmera</span>
-                  <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
-                </label>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="action-buttons-group">
           <button
