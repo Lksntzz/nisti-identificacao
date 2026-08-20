@@ -1917,7 +1917,7 @@ function SystemLogsView({ metrics, storage, indexInfo, onRefresh }) {
         <div className="system-metric-box">
           <div className="metric-box-head">
             <span className="metric-tag">IA & Visão</span>
-            <h4>Google Gemini 3.5 Flash</h4>
+            <h4>Google Gemini 2.5 Flash</h4>
           </div>
           <div className="metric-big-num">{geminiUsed} / 1.500</div>
           <div className="quota-progress-track">
@@ -1925,6 +1925,59 @@ function SystemLogsView({ metrics, storage, indexInfo, onRefresh }) {
           </div>
           <p>{geminiPct.toFixed(1)}% do limite diário consumido hoje.</p>
           <small className="metric-status-line">Limite Free: 1.500 req/dia · 15 RPM</small>
+        </div>
+      </div>
+
+      {/* Google Gemini Rate Limits Detailed Table */}
+      <div style={{ padding: '0 24px 20px' }}>
+        <h4 style={{ margin: '0 0 12px', fontSize: '15px', color: '#1e293b' }}>⚡ Limites de Taxa da API Google Gemini (Google AI Studio)</h4>
+        <div className="table-responsive-container" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+          <table className="admin-data-table">
+            <thead>
+              <tr>
+                <th>MODELO</th>
+                <th>CATEGORIA / FUNÇÃO</th>
+                <th>RPM (REQ/MIN)</th>
+                <th>TPM (TOKENS/MIN)</th>
+                <th>RPD (REQ/DIA)</th>
+                <th style={{ textAlign: 'right' }}>STATUS NO SISTEMA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Gemini 2.5 Flash</strong></td>
+                <td>Modelos de ponta de texto e visão</td>
+                <td>15 RPM</td>
+                <td>1.000.000 TPM</td>
+                <td>1.500 RPD</td>
+                <td style={{ textAlign: 'right' }}><span className="status-pill active">• Principal (Ativo)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Gemini 2.5 Flash-Lite</strong></td>
+                <td>Modelos de ponta de texto e visão</td>
+                <td>15 RPM</td>
+                <td>4.000.000 TPM</td>
+                <td>1.500 RPD</td>
+                <td style={{ textAlign: 'right' }}><span className="status-pill active">• Failover Automático</span></td>
+              </tr>
+              <tr>
+                <td><strong>Gemini Embedding 2</strong></td>
+                <td>Outros modelos (Embeddings Multimodais)</td>
+                <td>1.500 RPM</td>
+                <td>10.000.000 TPM</td>
+                <td>Ilimitado</td>
+                <td style={{ textAlign: 'right' }}><span className="status-pill active">• Vectorize (Ativo)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Gemini 2.0 Flash / 1.5 Flash</strong></td>
+                <td>Modelos para diversos tamanhos</td>
+                <td>15 RPM</td>
+                <td>1.000.000 TPM</td>
+                <td>1.500 RPD</td>
+                <td style={{ textAlign: 'right' }}><span className="status-pill pending">• Contingência</span></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1972,7 +2025,7 @@ function SystemLogsView({ metrics, storage, indexInfo, onRefresh }) {
                 <td style={{ textAlign: 'right' }}><span className="status-pill active">• 100% Gratuito</span></td>
               </tr>
               <tr>
-                <td><strong>Google Gemini AI (3.5 Flash & Embeddings)</strong></td>
+                <td><strong>Google Gemini AI (2.5 Flash & Embeddings)</strong></td>
                 <td>1.500 requisições / dia · 15 RPM</td>
                 <td>{geminiUsed} chamadas hoje</td>
                 <td>{1500 - geminiUsed} chamadas restantes hoje</td>
