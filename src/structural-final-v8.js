@@ -755,31 +755,6 @@ export async function structuralFinalIdentifyV8(request, env) {
       }
     }
 
-    let crossMatch = null;
-    try {
-      const embedding = await embedImage(env, photoBytes, image.type || 'image/jpeg');
-      crossMatch = await detectCrossPlatformMatch(env, embedding.values, platform);
-    } catch {}
-
-    performance.accepted_by = comparatorError
-      ? `comparator-unavailable:${performance.comparator_error}`
-      : (crossMatch ? 'comparative-cross-platform-match' : 'comparative-no-exact-winner');
-    performance.suggestion_count = 0;
-    finalizePerformance(performance, started);
-
-    if (crossMatch) {
-      return json({
-        error: `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
-        confidence: 0,
-        platform,
-        suggested_platform: crossMatch.found_platform,
-        suggestions: [],
-        suggestions_are_unconfirmed: false,
-        identified_by: 'platform-catalog-cross-match-v8.7',
-        performance
-      }, 422);
-    }
-
     // Registra ocorrência de falha no D1/R2 para aprendizado no Painel ADM
     let occurrenceId = null;
     try {
@@ -795,15 +770,47 @@ export async function structuralFinalIdentifyV8(request, env) {
         photoMime: image.type || 'image/jpeg',
         platform,
         suggestedCapaCode: loaded[0]?.capa_code || null,
-        confidence: comparison?.decision?.confidence || 0,
-        errorReason: 'no_match',
+        confidence: comparison?.decision?.confidence || (loaded[0]?.retrieval_score || 0),
+        errorReason: comparatorError ? 'comparator_timeout' : 'no_exact_winner',
         operatorName,
         operatorId
       });
-    } catch {}
+    } catch (e) {
+      console.error('Falha ao gravar ocorrencia:', e);
+    }
+
+    // Se temos candidatos no catálogo da plataforma, exibe opções para o operador escolher
+    if (loaded.length > 0) {
+      const topCapa = loaded[0].capa_code;
+      const matchingCapaProducts = loaded.filter(p => p.capa_code === topCapa);
+      const displayProducts = (matchingCapaProducts.length > 1 ? matchingCapaProducts : loaded.slice(0, 4)).map(productPayload);
+
+      performance.accepted_by = 'human-selection-from-candidates';
+      performance.suggestion_count = displayProducts.length;
+      finalizePerformance(performance, started);
+
+      return json({
+        ok: true,
+        multiple_choices: true,
+        capa_code: topCapa,
+        products: displayProducts,
+        confidence: Number(loaded[0].retrieval_score || 0.75),
+        suggestions: displayProducts,
+        suggestions_are_unconfirmed: true,
+        identified_by: 'platform-catalog-v8.7-human-selection',
+        occurrence_id: occurrenceId,
+        performance
+      });
+    }
+
+    performance.accepted_by = comparatorError
+      ? `comparator-unavailable:${performance.comparator_error}`
+      : 'comparative-no-exact-winner';
+    performance.suggestion_count = 0;
+    finalizePerformance(performance, started);
 
     return json({
-      error: `Produto não cadastrado na plataforma ${platform}. Verifique se a plataforma correta foi selecionada ou se a capa está cadastrada no catálogo.`,
+      error: `Produto não identificado na plataforma ${platform}. Verifique o enquadramento ou cadastre no catálogo.`,
       confidence: comparison?.decision?.confidence || 0,
       platform,
       suggested_platform: null,

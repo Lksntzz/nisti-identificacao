@@ -289,7 +289,7 @@ export async function detectCrossPlatformMatch(env, vector, currentPlatform) {
       });
       const topMatch = res?.matches?.[0];
       const score = Number(topMatch?.score || 0);
-      if (score >= 0.65) {
+      if (score >= 0.95) {
         if (!bestMatch || score > bestMatch.score) {
           bestMatch = {
             found_platform: other.platform,
