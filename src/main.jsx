@@ -1520,6 +1520,168 @@ function DiagnosticsView({ filter = 'all', initialOperator = '' }) {
   );
 }
 
+function OccurrenceProductSelector({ products, occPlatform, value, onChange }) {
+  const [platformFilter, setPlatformFilter] = useState(occPlatform ? occPlatform.toUpperCase() : 'ALL');
+  const [search, setSearch] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Lista de plataformas únicas do catálogo
+  const availablePlatforms = useMemo(() => {
+    const set = new Set();
+    products.forEach(p => {
+      if (p.platform) set.add(p.platform.toUpperCase());
+    });
+    return Array.from(set).sort();
+  }, [products]);
+
+  // Filtragem combinada por Plataforma + SKU / Código / Nome
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      if (platformFilter !== 'ALL') {
+        const pPlat = (p.platform || '').toUpperCase();
+        if (pPlat !== platformFilter) return false;
+      }
+      if (!search.trim()) return true;
+      const term = search.toLowerCase().trim();
+      const sku = (p.sku || '').toLowerCase();
+      const capa = (p.capa_code || '').toLowerCase();
+      const nome = (p.nome || p.name || '').toLowerCase();
+      return sku.includes(term) || capa.includes(term) || nome.includes(term);
+    });
+  }, [products, platformFilter, search]);
+
+  const selectedProduct = useMemo(() => {
+    if (!value) return null;
+    return products.find(p => p.capa_code === value || p.sku === value);
+  }, [products, value]);
+
+  return (
+    <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '10px', marginTop: '6px' }}>
+      {/* Linha 1: Filtro por Plataforma + Barra de Busca por SKU */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+        <select
+          value={platformFilter}
+          onChange={e => setPlatformFilter(e.target.value)}
+          style={{ height: '38px', borderRadius: '8px', border: '1.5px solid #cbd5e1', padding: '0 10px', fontSize: '12px', fontWeight: 700, color: '#0f172a', background: '#ffffff', cursor: 'pointer' }}
+        >
+          <option value="ALL">🌐 Todas Plataformas</option>
+          {availablePlatforms.map(plat => (
+            <option key={plat} value={plat}>{plat}</option>
+          ))}
+        </select>
+
+        <div style={{ flex: 1, minWidth: '220px', position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="🔍 Digite ou cole o SKU, código ou nome..."
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1.5px solid #cbd5e1', padding: '0 30px 0 10px', fontSize: '12.5px', color: '#0f172a', background: '#ffffff' }}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Produto Selecionado (Destaque Verde) */}
+      {selectedProduct ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ecfdf5', border: '1.5px solid #a7f3d0', borderRadius: '10px', padding: '8px 12px', marginBottom: isOpen ? '8px' : '0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {selectedProduct.image_url ? (
+              <img src={selectedProduct.image_url} alt={selectedProduct.sku} style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #6ee7b7' }} />
+            ) : (
+              <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📖</div>
+            )}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#065f46' }}>Capa: {selectedProduct.capa_code}</span>
+                <span style={{ fontSize: '11.5px', color: '#047857', fontWeight: 700 }}>({selectedProduct.sku})</span>
+                <span style={{ fontSize: '10px', background: '#d1fae5', color: '#065f46', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>{selectedProduct.platform || 'GERAL'}</span>
+              </div>
+              <div style={{ fontSize: '11px', color: '#047857', marginTop: '2px', maxWidth: '380px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {selectedProduct.nome || selectedProduct.name || ''}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsOpen(o => !o)}
+            style={{ background: '#ffffff', border: '1px solid #6ee7b7', color: '#065f46', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+          >
+            {isOpen ? 'Ocultar Lista ✕' : 'Trocar Capa ⇄'}
+          </button>
+        </div>
+      ) : (
+        <div style={{ padding: '6px 0', fontSize: '12px', color: '#64748b' }}>
+          <em>Nenhuma capa selecionada ainda. Busque ou selecione na lista abaixo:</em>
+        </div>
+      )}
+
+      {/* Lista de Seleção / Dropdown */}
+      {(isOpen || !selectedProduct) && (
+        <div style={{ maxHeight: '180px', overflowY: 'auto', background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          {filteredProducts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '14px', fontSize: '12px', color: '#64748b' }}>
+              Nenhum produto encontrado com o filtro "{search}".
+            </div>
+          ) : (
+            filteredProducts.slice(0, 60).map(p => {
+              const isCurrent = (p.capa_code === value || p.sku === value);
+              return (
+                <div
+                  key={`${p.id}_${p.sku}`}
+                  onClick={() => {
+                    onChange(p.capa_code);
+                    setIsOpen(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    background: isCurrent ? '#eef2ff' : '#ffffff',
+                    border: isCurrent ? '1.5px solid #6366f1' : '1px solid #f1f5f9',
+                    transition: 'all 0.1s ease'
+                  }}
+                  onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = '#f8fafc'; }}
+                  onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = isCurrent ? '#eef2ff' : '#ffffff'; }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                    {p.image_url && (
+                      <img src={p.image_url} alt={p.sku} style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'cover' }} />
+                    )}
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#0f172a' }}>{p.capa_code}</span>
+                      <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>{p.sku}</span>
+                      <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '6px' }}>• {p.nome || p.name}</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '10px', fontWeight: 800, background: '#f1f5f9', color: '#475569', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                    {p.platform || 'GERAL'}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* =========================================================================
    OPERATORS & ACTIVE LEARNING / OCCURRENCES UNIFIED VIEW
    ========================================================================= */
@@ -1837,33 +1999,16 @@ function OperatorsAndLearningView({ products, onRefresh }) {
                         )}
                       </div>
 
-                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
-                        🎯 Qual é o produto correto impresso nesta capa?
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#0f172a', marginBottom: '2px' }}>
+                        🎯 Vincular Produto/SKU Correto:
                       </label>
 
-                      <select
-                        style={{ width: '100%', height: '42px', borderRadius: '10px', border: '1.5px solid #cbd5e1', padding: '0 12px', fontSize: '13.5px', fontWeight: 700, color: '#0f172a', background: '#f8fafc' }}
+                      <OccurrenceProductSelector
+                        products={products}
+                        occPlatform={occ.platform}
                         value={currentSelected}
-                        onChange={e => setSelectedCapa(prev => ({ ...prev, [occ.id]: e.target.value }))}
-                      >
-                        <option value="">-- Selecione o produto correspondente --</option>
-                        {capaOptions.map(opt => (
-                          <option key={opt.code} value={opt.code}>
-                            {opt.code} — {opt.name} ({opt.platform || 'Geral'})
-                          </option>
-                        ))}
-                      </select>
-
-                      {targetProd && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px', background: '#f0fdf4', padding: '6px 10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                          {targetProd.image_url && (
-                            <img src={targetProd.image_url} alt="Mockup Oficial" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
-                          )}
-                          <span style={{ fontSize: '12px', color: '#166534', fontWeight: 700 }}>
-                            Mockup Oficial: <strong>{targetProd.code}</strong> · {targetProd.name}
-                          </span>
-                        </div>
-                      )}
+                        onChange={code => setSelectedCapa(prev => ({ ...prev, [occ.id]: code }))}
+                      />
                     </div>
 
                     {/* Coluna 3: Ações de Treinamento */}
