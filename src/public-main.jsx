@@ -594,7 +594,7 @@ function ConfidenceBadge({ confidence, score }) {
   );
 }
 
-function ProductResult({ product, performance }) {
+function ProductResult({ product, performance, onReset }) {
   return <div className="result">
     <div className="result-header-row">
       <p className="eyebrow" style={{ margin: 0 }}>PRODUTO IDENTIFICADO PELA CAPA</p>
@@ -610,10 +610,23 @@ function ProductResult({ product, performance }) {
     </div>
     {product.platform && <p className="platform"><strong>Plataforma:</strong> {product.platform}</p>}
     {performance?.total_ms && <small className="perf">Identificado em {(performance.total_ms / 1000).toFixed(1)} s</small>}
+    {onReset && (
+      <button
+        type="button"
+        className="btn-nova-consulta"
+        onClick={onReset}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+        <span>Nova consulta</span>
+      </button>
+    )}
   </div>;
 }
 
-function ProductChoices({ capaCode, products, platform, onSelect, performance }) {
+function ProductChoices({ capaCode, products, platform, onSelect, performance, onReset }) {
   const [analyzingDetail, setAnalyzingDetail] = useState(false);
   const [detailError, setDetailError] = useState('');
 
@@ -763,6 +776,16 @@ function PublicIdentificationApp() {
     setChoices(null);
     setSuggestions([]);
     setPerformance(null);
+  };
+
+  const resetAll = () => {
+    setPhoto(null);
+    setPreview(current => {
+      if (current) URL.revokeObjectURL(current);
+      return '';
+    });
+    setPlatform('');
+    clearDecision();
   };
 
   const applyData = (data, file, currentPreview) => {
@@ -987,6 +1010,21 @@ function PublicIdentificationApp() {
           <span>{busy ? 'Identificando capa…' : (result || choices || error) ? '🔄 Tentar novamente' : 'Identificar produto'}</span>
         </button>
 
+        {(photo || platform || result || choices || error) && (
+          <button
+            type="button"
+            className="btn-nova-consulta"
+            onClick={resetAll}
+            disabled={busy}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            <span>Nova consulta</span>
+          </button>
+        )}
+
         <div className="security-notice-footer">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
@@ -1024,6 +1062,7 @@ function PublicIdentificationApp() {
           products={choices.products}
           platform={platform}
           performance={performance}
+          onReset={resetAll}
           onSelect={product => {
             setResult(product);
             setChoices(null);
@@ -1031,7 +1070,7 @@ function PublicIdentificationApp() {
           }}
         />}
 
-        {result && <ProductResult product={result} performance={performance}/>}
+        {result && <ProductResult product={result} performance={performance} onReset={resetAll}/>}
       </div>
     </div>
 
