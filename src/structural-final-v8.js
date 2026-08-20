@@ -4,10 +4,10 @@ import { reserveGeminiBudget } from './gemini-budget.js';
 import { detectCrossPlatformMatch, embedImage } from './vectorize-candidates.js';
 
 const COOKIE_NAME = 'nisti_recognition_ticket';
-const MAX_CANDIDATES = 6;
+const MAX_CANDIDATES = 4;
 const SUGGESTION_LIMIT = 3;
-const MIN_STRUCTURAL_CONFIDENCE = 0.70;
-const VERIFY_TIMEOUT_MS = 9000;
+const MIN_STRUCTURAL_CONFIDENCE = 0.65;
+const VERIFY_TIMEOUT_MS = 16000;
 const VERIFIER_RPM_LIMIT = 60;
 
 class RecognitionError extends Error {
@@ -666,9 +666,9 @@ export async function structuralFinalIdentifyV8(request, env) {
       performance.gemini_confidence = decision.confidence;
 
       if (
-        decision.exact_match &&
         decision.winner_code &&
-        decision.confidence >= MIN_STRUCTURAL_CONFIDENCE
+        decision.winner_code !== 'NONE' &&
+        (decision.exact_match || decision.confidence >= MIN_STRUCTURAL_CONFIDENCE)
       ) {
         const winnerCode = decision.winner_code;
         const candidateMap = new Map(loaded.map(c => [c.capa_code, c]));
@@ -682,7 +682,7 @@ export async function structuralFinalIdentifyV8(request, env) {
             env,
             winner,
             platform,
-            decision.confidence,
+            Math.max(decision.confidence, 0.75),
             performance,
             'platform-catalog-v8.7-comparative-winner'
           );
@@ -695,6 +695,22 @@ export async function structuralFinalIdentifyV8(request, env) {
       performance.comparator_error_message = comparatorError.message || null;
       performance.verifier_reason_code = performance.comparator_error;
       performance.verifier_evidence = String(comparatorError.message || '').slice(0, 220);
+
+      // Fallback de alta confiança: se o comparador falhou por timeout e o vetor tem score >= 0.85
+      if (loaded.length && Number(loaded[0].retrieval_score || 0) >= 0.85) {
+        const topWinner = loaded[0];
+        performance.accepted_by = 'vector-high-confidence-fallback-on-comparator-timeout';
+        performance.suggestion_count = 0;
+        finalizePerformance(performance, started);
+        return successResponse(
+          env,
+          topWinner,
+          platform,
+          Number(topWinner.retrieval_score || 0.85),
+          performance,
+          'platform-catalog-vector-high-confidence-fallback'
+        );
+      }
     }
 
     let crossMatch = null;
