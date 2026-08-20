@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './app.css';
-
-const LOGO = '/nisti-logo-transparent.webp?v=2';
+import LOGO from './assets/logo.png';
 
 class ApiError extends Error {
   constructor(message, status, data) {

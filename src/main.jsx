@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './app.css';
+import LOGO from './assets/logo.png';
 
-const LOGO = '/nisti-logo-transparent.webp';
 const PAGE_SIZE = 10;
 
 const WIREO_OPTIONS = [
