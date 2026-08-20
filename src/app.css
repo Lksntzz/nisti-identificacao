@@ -309,6 +309,138 @@ img { max-width: 100%; }
   height: 100%;
 }
 
+/* Recent Scans Drawer */
+.recent-scans-drawer {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+
+.recent-scans-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #f8fafc;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.recent-scans-header:hover {
+  background: #f1f5f9;
+}
+
+.recent-scans-drawer.open .recent-scans-header {
+  border-bottom-color: #e2e8f0;
+}
+
+.recent-scans-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.recent-scans-badge {
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.recent-scans-chevron {
+  transition: transform 0.2s ease;
+  color: #64748b;
+}
+
+.recent-scans-drawer.open .recent-scans-chevron {
+  transform: rotate(180deg);
+}
+
+.recent-scans-list {
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recent-scan-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recent-scan-item:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateX(2px);
+}
+
+.recent-scan-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recent-scan-img {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #e2e8f0;
+}
+
+.recent-scan-details h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.recent-scan-details p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.recent-scan-time {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.btn-clear-history {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  text-decoration: underline;
+  align-self: flex-end;
+  margin-top: 4px;
+}
+
+.btn-clear-history:hover {
+  color: #ef4444;
+}
+
 .field-title {
   display: block;
   font-size: 11px;

@@ -698,7 +698,25 @@ function PublicIdentificationApp() {
   const [performance, setPerformance] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [recentScans, setRecentScans] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('nisti_recent_scans') || '[]'); } catch { return []; }
+  });
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const runId = useRef(0);
+
+  const addRecentScan = (product, previewUrl) => {
+    setRecentScans(prev => {
+      const entry = {
+        sku: product.sku,
+        capaCode: product.capa_code,
+        preview: previewUrl || '',
+        time: new Date().toISOString()
+      };
+      const next = [entry, ...prev.filter(s => s.sku !== product.sku)].slice(0, 5);
+      try { localStorage.setItem('nisti_recent_scans', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -747,16 +765,17 @@ function PublicIdentificationApp() {
     setPerformance(null);
   };
 
-  const applyData = data => {
+  const applyData = (data, file, currentPreview) => {
     setPerformance(data.performance || null);
     setSuggestions([]);
     setSuggestedPlatform(null);
     if (data.needs_selection) {
       setChoices({ capaCode: data.capa_code, products: data.products || [] });
       setResult(null);
-    } else {
+    } else if (data.product) {
       setChoices(null);
-      setResult(data.product || null);
+      setResult(data.product);
+      addRecentScan(data.product, currentPreview || '');
     }
   };
 
@@ -769,6 +788,7 @@ function PublicIdentificationApp() {
 
     try {
       const optimized = await compressPhoto(file);
+      const snap = preview;
 
       const candidateForm = new FormData();
       candidateForm.append('image', optimized);
@@ -791,7 +811,7 @@ function PublicIdentificationApp() {
         body: verificationForm
       });
       if (id !== runId.current) return;
-      applyData(data);
+      applyData(data, file, snap);
     } catch (err) {
       if (id !== runId.current) return;
       const data = err?.data || null;
@@ -811,17 +831,27 @@ function PublicIdentificationApp() {
     if (!getOperatorName()) {
       setOperatorModalOpen(true);
     }
+    const objectUrl = URL.createObjectURL(file);
     setPhoto(file);
     clearDecision();
     setPreview(current => {
       if (current) URL.revokeObjectURL(current);
-      return URL.createObjectURL(file);
+      return objectUrl;
     });
+    // ⚡ Auto-scan: se a plataforma já está selecionada, dispara na hora
+    if (platform) {
+      identifyFileWithPlatform(file, platform);
+    }
   };
 
   const changePlatform = event => {
-    setPlatform(event.target.value);
+    const newPlatform = event.target.value;
+    setPlatform(newPlatform);
     clearDecision();
+    // ⚡ Auto-scan: se já tem foto, identifica ao trocar plataforma
+    if (photo && newPlatform) {
+      identifyFileWithPlatform(photo, newPlatform);
+    }
   };
 
   return <main className="app general">
@@ -954,7 +984,7 @@ function PublicIdentificationApp() {
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <span>{busy ? 'Identificando capa…' : 'Identificar produto'}</span>
+          <span>{busy ? 'Identificando capa…' : (result || choices || error) ? '🔄 Tentar novamente' : 'Identificar produto'}</span>
         </button>
 
         <div className="security-notice-footer">
@@ -994,12 +1024,60 @@ function PublicIdentificationApp() {
           products={choices.products}
           platform={platform}
           performance={performance}
-          onSelect={product => { setResult(product); setChoices(null); }}
+          onSelect={product => {
+            setResult(product);
+            setChoices(null);
+            addRecentScan(product, preview);
+          }}
         />}
 
         {result && <ProductResult product={result} performance={performance}/>}
       </div>
     </div>
+
+    {/* Gaveta de histórico rápido da sessão */}
+    {recentScans.length > 0 && (
+      <div className={`recent-scans-drawer${drawerOpen ? ' open' : ''}`}>
+        <div className="recent-scans-header" onClick={() => setDrawerOpen(o => !o)}>
+          <span className="recent-scans-title">
+            🗂️ Histórico desta sessão
+            <span className="recent-scans-badge">{recentScans.length}</span>
+          </span>
+          <svg className="recent-scans-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+        {drawerOpen && (
+          <div className="recent-scans-list">
+            {recentScans.map((scan, i) => (
+              <div className="recent-scan-item" key={`${scan.sku}-${i}`}>
+                <div className="recent-scan-info">
+                  {scan.preview
+                    ? <img className="recent-scan-img" src={scan.preview} alt={scan.sku} />
+                    : <div className="recent-scan-img" />
+                  }
+                  <div className="recent-scan-details">
+                    <h4>{scan.sku}</h4>
+                    <p>Capa {scan.capaCode}</p>
+                  </div>
+                </div>
+                <span className="recent-scan-time">
+                  {new Date(scan.time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn-clear-history"
+              onClick={() => {
+                setRecentScans([]);
+                try { localStorage.removeItem('nisti_recent_scans'); } catch {}
+              }}
+            >Limpar histórico</button>
+          </div>
+        )}
+      </div>
+    )}
 
     <NotificationsModal
       isOpen={notificationsOpen}

@@ -664,12 +664,12 @@ export async function structuralFinalIdentifyV8(request, env) {
         decision.winner_code &&
         decision.confidence >= MIN_STRUCTURAL_CONFIDENCE
       ) {
-        const winner = loaded.find(
-          item => item.capa_code === decision.winner_code
-        );
-        if (winner) {
-          performance.accepted_by = 'comparative-exact-art-winner';
-          performance.winner_code = winner.capa_code;
+        const winnerCode = decision.winner_code;
+        const winner = candidateMap.get(winnerCode);
+        if (decision.exact_match && winnerCode) {
+          await autoLearnVisualSample(env, winnerCode, photoBytes, image.type || 'image/jpeg');
+          performance.accepted_by = 'comparative-exact-winner';
+          performance.suggestion_count = 0;
           finalizePerformance(performance, started);
           return successResponse(
             env,
@@ -833,4 +833,68 @@ Retorne exclusivamente um JSON no seguinte formato:
   } catch (err) {
     return json({ error: err.message || 'Erro ao processar foto de detalhe.' }, 500);
   }
+}
+
+export async function autoLearnVisualSample(env, capaCode, imageBytes, mimeType = 'image/jpeg') {
+  if (!env?.DB || !env?.PRODUCT_IMAGES || !env?.COVER_VECTORS) return;
+  const cleanCode = String(capaCode || '').trim().toUpperCase();
+  if (!cleanCode || !imageBytes || imageBytes.length < 500) return;
+
+  try {
+    const existing = await env.DB.prepare(`
+      SELECT COUNT(*) AS total
+      FROM cover_visual_references
+      WHERE capa_code=? AND reference_kind='auto_learned' AND active=1
+    `).bind(cleanCode).first();
+
+    if (Number(existing?.total || 0) >= 2) return;
+
+    const key = `references/learned/${cleanCode}/${crypto.randomUUID()}.jpg`;
+    await env.PRODUCT_IMAGES.put(key, imageBytes, { httpMetadata: { contentType: mimeType } });
+
+    const insertResult = await env.DB.prepare(`
+      INSERT INTO cover_visual_references (
+        capa_code, image_key, source_product_id, reference_kind, active, created_at, updated_at
+      ) VALUES (?, ?, NULL, 'auto_learned', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).bind(cleanCode, key).run();
+
+    const refId = Number(insertResult.meta?.last_row_id);
+    if (!refId) return;
+
+    const { model, values } = await embedImage(env, imageBytes, mimeType);
+
+    await env.DB.prepare(`
+      INSERT INTO cover_reference_embeddings (
+        reference_id, embedding_model, dimensions, embedding_json, updated_at
+      ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(refId, model, values.length, JSON.stringify(values)).run();
+
+    const { results } = await env.DB.prepare(`
+      SELECT DISTINCT pp.platform
+      FROM products p
+      JOIN product_platforms pp ON pp.product_id=p.id
+      WHERE UPPER(TRIM(p.capa_code))=?
+    `).bind(cleanCode).all();
+
+    const vectors = (results || []).map(row => {
+      const namespace = platformNamespace(row.platform);
+      return namespace ? {
+        id: `learned_${refId}_${cleanCode}`,
+        values,
+        namespace,
+        metadata: {
+          reference_id: refId,
+          capa_code: cleanCode,
+          reference_kind: 'auto_learned',
+          image_key: key,
+          platform: row.platform,
+          updated_at: new Date().toISOString()
+        }
+      } : null;
+    }).filter(Boolean);
+
+    if (vectors.length && env.COVER_VECTORS?.upsert) {
+      await env.COVER_VECTORS.upsert(vectors).catch(() => {});
+    }
+  } catch {}
 }
