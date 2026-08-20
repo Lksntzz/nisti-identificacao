@@ -4,6 +4,7 @@ import { structuralFinalIdentifyV8 } from './structural-final-v8.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { handlePublicImageRequest } from './public-image-router.js';
+import { handleOccurrencesAdminRequest } from './occurrences-router.js';
 
 const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
 
@@ -107,6 +108,9 @@ export default {
 
     const publicImageResponse = await handlePublicImageRequest(request, env);
     if (publicImageResponse) return publicImageResponse;
+
+    const occurrencesResponse = await handleOccurrencesAdminRequest(request, env);
+    if (occurrencesResponse) return occurrencesResponse;
 
     if (request.method === 'GET' && url.pathname === '/api/platforms') {
       const platforms = await listPlatforms(env);

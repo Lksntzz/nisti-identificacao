@@ -2,6 +2,7 @@ import { parseSku } from './sku.js';
 import { normalizePlatform, platformNamespace } from './platform-scope.js';
 import { reserveGeminiBudget } from './gemini-budget.js';
 import { detectCrossPlatformMatch, embedImage } from './vectorize-candidates.js';
+import { recordScanOccurrence } from './occurrences-router.js';
 
 const COOKIE_NAME = 'nisti_recognition_ticket';
 const MAX_CANDIDATES = 8;
@@ -779,6 +780,19 @@ export async function structuralFinalIdentifyV8(request, env) {
       }, 422);
     }
 
+    // Registra ocorrência de falha no D1/R2 para aprendizado no Painel ADM
+    let occurrenceId = null;
+    try {
+      occurrenceId = await recordScanOccurrence(env, {
+        photoBytes,
+        photoMime: image.type || 'image/jpeg',
+        platform,
+        suggestedCapaCode: loaded[0]?.capa_code || null,
+        confidence: comparison?.decision?.confidence || 0,
+        errorReason: 'no_match'
+      });
+    } catch {}
+
     return json({
       error: `Produto não cadastrado na plataforma ${platform}. Verifique se a plataforma correta foi selecionada ou se a capa está cadastrada no catálogo.`,
       confidence: comparison?.decision?.confidence || 0,
@@ -787,7 +801,9 @@ export async function structuralFinalIdentifyV8(request, env) {
       suggestions: [],
       suggestions_are_unconfirmed: false,
       identified_by: 'platform-catalog-no-match-v8.7',
-      performance
+      performance,
+      occurrence_id: occurrenceId,
+      sent_to_adm: true
     }, 422);
   } catch (error) {
     finalizePerformance(performance, started);

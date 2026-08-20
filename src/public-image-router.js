@@ -83,5 +83,13 @@ export async function handlePublicImageRequest(request, env) {
     return serveObject(request, env, imageKey, url);
   }
 
+  const occurrenceMatch = url.pathname.match(/^\/api\/occurrence-images\/(\d+)$/);
+  if (occurrenceMatch) {
+    const row = await env.DB.prepare(
+      'SELECT image_key FROM scan_occurrences WHERE id=? LIMIT 1'
+    ).bind(Number(occurrenceMatch[1])).first();
+    return serveObject(request, env, row?.image_key, url);
+  }
+
   return null;
 }

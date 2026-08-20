@@ -162,6 +162,7 @@ function AdminSidebar({ activeView, onViewChange, unreadCount, sidebarOpen, onCl
       title: 'PRINCIPAL',
       items: [
         { id: 'identificacao', label: 'Identificação Visual', icon: 'eye', href: '/' },
+        { id: 'ocorrencias', label: '🧠 Aprendizado & Ocorrências', icon: 'brain' },
         { id: 'catalogo', label: 'Catálogo de Produtos', icon: 'grid' },
         { id: 'nao-identificados', label: 'Produtos Não Identificados', icon: 'alert' },
         { id: 'similares', label: 'Produtos Similares', icon: 'sparkles' },
@@ -290,6 +291,8 @@ function SidebarIcon({ name }) {
   switch (name) {
     case 'eye':
       return <svg {...props}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>;
+    case 'brain':
+      return <svg {...props}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04ZM14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z"/></svg>;
     case 'grid':
       return <svg {...props}><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>;
     case 'alert':
@@ -2221,6 +2224,245 @@ function CoverVerifierView() {
 }
 
 /* =========================================================================
+   OCCURRENCES & ACTIVE LEARNING VIEW (Human-in-the-Loop)
+   ========================================================================= */
+function OccurrencesLearningView({ products, onRefresh }) {
+  const [data, setData] = useState({ occurrences: [], stats: { pending: 0, trained: 0, dismissed: 0 } });
+  const [loading, setLoading] = useState(true);
+  const [selectedCapa, setSelectedCapa] = useState({});
+  const [trainingId, setTrainingId] = useState(null);
+  const [feedbackMsg, setFeedbackMsg] = useState('');
+
+  const loadOccurrences = async () => {
+    try {
+      setLoading(true);
+      const res = await api('/api/admin/occurrences');
+      setData(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOccurrences();
+  }, []);
+
+  const handleTrain = async (occurrenceId) => {
+    const capaCode = selectedCapa[occurrenceId];
+    if (!capaCode) {
+      alert('Por favor, selecione qual é o produto/capa correta antes de aprovar.');
+      return;
+    }
+    try {
+      setTrainingId(occurrenceId);
+      await api(`/api/admin/occurrences/${occurrenceId}/train`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ capa_code: capaCode })
+      });
+      setFeedbackMsg(`✓ Foto da bancada aprendida com sucesso para o modelo ${capaCode}! O Vectorize foi atualizado.`);
+      await loadOccurrences();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert('Erro ao treinar sistema: ' + err.message);
+    } finally {
+      setTrainingId(null);
+    }
+  };
+
+  const handleDismiss = async (occurrenceId) => {
+    if (!confirm('Deseja descartar esta foto da fila de aprendizado?')) return;
+    try {
+      await api(`/api/admin/occurrences/${occurrenceId}/dismiss`, { method: 'POST' });
+      await loadOccurrences();
+    } catch (err) {
+      alert('Erro ao descartar: ' + err.message);
+    }
+  };
+
+  const capaOptions = useMemo(() => {
+    const map = new Map();
+    products.forEach(p => {
+      const code = String(p.capa_code || '').trim().toUpperCase();
+      if (code && !map.has(code)) {
+        map.set(code, {
+          code,
+          name: p.name || p.sku,
+          image_url: p.image_url,
+          platform: p.platform
+        });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, [products]);
+
+  return (
+    <div className="admin-table-card">
+      <div className="table-card-topbar">
+        <div className="table-title-group">
+          <div className="table-title-icon" style={{ background: '#eef2ff', color: '#4f46e5' }}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04ZM14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 className="table-main-title">Central de Aprendizado Ativo & Ocorrências da Bancada</h3>
+            <span className="table-sub-title">Corrija fotos reais dos operadores com 1 clique para auto-treinar o Vectorize e reduzir custos de IA</span>
+          </div>
+        </div>
+        <button type="button" className="btn-table-action" onClick={loadOccurrences}>
+          <span>🔄 Atualizar Fila</span>
+        </button>
+      </div>
+
+      {feedbackMsg && (
+        <div className="form-success-banner" style={{ margin: '0 24px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{feedbackMsg}</span>
+          <button type="button" onClick={() => setFeedbackMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, color: '#166534' }}>✕</button>
+        </div>
+      )}
+
+      {/* Estatísticas de Aprendizado */}
+      <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
+        <div className="system-metric-box">
+          <div className="metric-box-head">
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#b45309' }}>⏳ Pendentes de Revisão</span>
+            <span className="status-pill" style={{ background: '#fef3c7', color: '#92400e' }}>Aguardando ADM</span>
+          </div>
+          <div className="metric-big-num" style={{ color: '#d97706', marginTop: '8px' }}>{data.stats?.pending || 0}</div>
+          <p>Fotos da bancada aguardando sua aprovação para virar vetor.</p>
+        </div>
+
+        <div className="system-metric-box">
+          <div className="metric-box-head">
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d' }}>🧠 Fotos Reais Aprendidas</span>
+            <span className="status-pill active">• No Vectorize</span>
+          </div>
+          <div className="metric-big-num" style={{ color: '#16a34a', marginTop: '8px' }}>{data.stats?.trained || 0}</div>
+          <p>Exemplos reais gravados no banco vetorial que aceleram o reconhecimento (&lt;100ms).</p>
+        </div>
+
+        <div className="system-metric-box">
+          <div className="metric-box-head">
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>🗑️ Descartadas</span>
+            <span className="status-pill">• Limpas</span>
+          </div>
+          <div className="metric-big-num" style={{ color: '#64748b', marginTop: '8px' }}>{data.stats?.dismissed || 0}</div>
+          <p>Fotos borradas ou inválidas descartadas pelo administrador.</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+          <div className="admin-loading-spinner" style={{ margin: '0 auto 12px' }} />
+          <span>Carregando ocorrências da bancada…</span>
+        </div>
+      ) : data.occurrences.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 24px', background: '#f8fafc', margin: '0 24px 24px', borderRadius: '16px', border: '1.5px dashed #cbd5e1' }}>
+          <span style={{ fontSize: '36px' }}>🎉</span>
+          <h4 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: '10px 0 4px' }}>Nenhuma ocorrência pendente no momento!</h4>
+          <p style={{ fontSize: '13px', color: '#64748b', maxWidth: '460px', margin: '0 auto' }}>
+            Todas as fotos da bancada foram identificadas com sucesso ou já foram treinadas no Vectorize.
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '0 24px 24px' }}>
+          {data.occurrences.map(occ => {
+            const currentSelected = selectedCapa[occ.id] || occ.suggested_capa_code || '';
+            const isTraining = trainingId === occ.id;
+            const targetProd = capaOptions.find(c => c.code === currentSelected);
+
+            return (
+              <div key={occ.id} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 260px', gap: '18px', background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', alignItems: 'center' }}>
+                {/* Coluna 1: Foto Real de Bancada */}
+                <div style={{ textAlign: 'center' }}>
+                  <img
+                    src={occ.image_url}
+                    alt="Foto da bancada"
+                    style={{ width: '130px', height: '130px', objectFit: 'cover', borderRadius: '12px', border: '1.5px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                  />
+                  <span style={{ display: 'block', fontSize: '10.5px', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
+                    {new Date(occ.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · {new Date(occ.created_at).toLocaleDateString('pt-BR')}
+                  </span>
+                </div>
+
+                {/* Coluna 2: Detalhes & Seleção da Capa Correta */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <PlatformTag platform={occ.platform || 'MERCADO LIVRE'} />
+                    <span className="status-pill" style={{ background: '#fee2e2', color: '#991b1b' }}>⚠️ Não Identificado</span>
+                    {occ.suggested_capa_code && (
+                      <span style={{ fontSize: '11px', color: '#475569' }}>
+                        Sugestão da IA: <strong>{occ.suggested_capa_code}</strong> ({Math.round((occ.confidence || 0) * 100)}%)
+                      </span>
+                    )}
+                  </div>
+
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
+                    🎯 Qual é o produto correto impresso nesta capa?
+                  </label>
+
+                  <select
+                    style={{ width: '100%', height: '42px', borderRadius: '10px', border: '1.5px solid #cbd5e1', padding: '0 12px', fontSize: '13.5px', fontWeight: 700, color: '#0f172a', background: '#f8fafc' }}
+                    value={currentSelected}
+                    onChange={e => setSelectedCapa(prev => ({ ...prev, [occ.id]: e.target.value }))}
+                  >
+                    <option value="">-- Selecione o produto correspondente --</option>
+                    {capaOptions.map(opt => (
+                      <option key={opt.code} value={opt.code}>
+                        {opt.code} — {opt.name} ({opt.platform || 'Geral'})
+                      </option>
+                    ))}
+                  </select>
+
+                  {targetProd && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px', background: '#f0fdf4', padding: '6px 10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                      {targetProd.image_url && (
+                        <img src={targetProd.image_url} alt="Mockup Oficial" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
+                      )}
+                      <span style={{ fontSize: '12px', color: '#166534', fontWeight: 700 }}>
+                        Mockup Oficial: <strong>{targetProd.code}</strong> · {targetProd.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Coluna 3: Ações de Treinamento */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="btn-create-product-gradient"
+                    style={{ height: '44px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    disabled={isTraining || !currentSelected}
+                    onClick={() => handleTrain(occ.id)}
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                    <span>{isTraining ? 'Indexando no Vectorize…' : 'Aprovar & Treinar'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    style={{ height: '36px', borderRadius: '9px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#64748b', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                    disabled={isTraining}
+                    onClick={() => handleDismiss(occ.id)}
+                  >
+                    ✕ Descartar Foto
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================================
    MAIN ADMIN APP ROOT
    ========================================================================= */
 function AdminApp() {
@@ -2326,6 +2568,13 @@ function AdminApp() {
             unmatchedToday={unmatchedToday}
             platformsCount={platformsCount}
           />
+
+          {activeView === 'ocorrencias' && (
+            <OccurrencesLearningView
+              products={products}
+              onRefresh={refreshAll}
+            />
+          )}
 
           {activeView === 'catalogo' && (
             <CatalogView

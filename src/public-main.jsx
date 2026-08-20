@@ -1161,6 +1161,14 @@ function PublicIdentificationApp() {
             </div>
             <p style={{ fontSize: '11.5px', margin: '4px 0 6px', color: '#b91c1c' }}>{error}</p>
             
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, margin: '2px 0 4px' }}>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <span>Foto enviada para análise e aprendizado do ADM</span>
+            </div>
+
             <div style={{ background: 'rgba(255,255,255,0.7)', borderRadius: '8px', padding: '6px 8px', fontSize: '11px', color: '#334155', marginTop: '4px', lineHeight: 1.4 }}>
               <strong>💡 Dicas de ajuste na bancada:</strong>
               <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
