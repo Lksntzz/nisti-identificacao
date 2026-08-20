@@ -133,6 +133,25 @@ async function handleOperators(env) {
   });
 }
 
+async function handleUpdateOperatorName(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const userId = request.headers.get('x-user-id') || body?.operator_id || null;
+  const newName = String(body?.operator_name || '').trim().slice(0, 120);
+  if (!userId || !newName) {
+    return json({ ok: false, error: 'operator_id e operator_name são obrigatórios' }, 400);
+  }
+
+  const result = await env.DB.prepare(`
+    UPDATE recognition_events
+    SET operator_name = ?
+    WHERE operator_id = ?
+      AND (operator_name IS NULL OR operator_name = '' OR operator_name != ?)
+  `).bind(newName, userId, newName).run();
+
+  const updated = Number(result?.meta?.changes || 0);
+  return json({ ok: true, updated });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -155,6 +174,14 @@ export default {
         return await handleOperators(env);
       } catch (error) {
         return json({ error: error?.message || 'Falha ao ler estatísticas de operadores' }, 500);
+      }
+    }
+
+    if (url.pathname === '/api/operator/update-name' && request.method === 'POST') {
+      try {
+        return await handleUpdateOperatorName(request, env);
+      } catch (error) {
+        return json({ error: error?.message || 'Falha ao atualizar nome do operador' }, 500);
       }
     }
     return app.fetch(request, env, ctx);
