@@ -314,18 +314,37 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
 Sua missão é identificar com precisão se a FOTO DO PRODUTO corresponde a uma das CANDIDATAS do catálogo pela ARTE-BASE impressa na capa.
 
 REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
-1. MATIZ E COR DO FUNDO / COLEÇÃO (CRUCIAL):
-   - Muitos modelos de papelaria compartilham exatamente a mesma diagramação/layout e tipografia, mas pertencem a coleções de CORES DIFERENTES (ex: Coleção Minimalista Verde [MNV] vs Minimalista Azul [MNZ] vs Minimalista Cinza [MNCZ]; Conquista Financeira Clara vs Preta).
-   - Analise com MÁXIMA ATENÇÃO a matiz e cor da foto:
-     • Tons esverdeados, verde menta, verde oliva, sage, musgo = MODELOS VERDES (ex: MNV1, MNV2, MNV3, VFOS).
-     • Tons azulados, azul bebê, celeste, marinho = MODELOS AZUIS (ex: MNZ1, MNZ2, MNZ3).
-     • Tons cinza, grafite, prata = MODELOS CINZA (ex: MNCZ).
-     • Tons rosados, lilás, salmão, blush = MODELOS ROSA/LILÁS (ex: CPA, JAEN).
-     • Tons escuros / preto = MODELOS PRETOS (ex: BKF, CQF2).
-   - Se a foto possui tonalidade esverdeada/oliva, JAMAIS escolha o modelo azul (MNZ) ou cinza (MNCZ)! Escolha estritamente o modelo VERDE (MNV)!
-2. ESTRUTURA CENTRAL & MONOGRAMAS:
-   - ATENÇÃO A MONOGRAMAS / LETRAS INICIAIS: Se a capa na foto possui uma grande letra inicial maiúscula de destaque no centro (ex: letra "M", "A", "B", "L", "O", "T", etc.), compare a diagramação e a letra central com o modelo do catálogo.
-   - O nome do cliente pode variar (ex: "Otávio", "Théo", "Arthur", "Mavie"), mas o estilo do monograma e a cor de fundo da coleção definem o modelo!
+1. HIERARQUIA RIGOROSA DE CORES E SUB-TONS (CLARO vs MÉDIO vs ESCURO):
+   - Muitos modelos compartilham o mesmo layout e tipografia, variando apenas na FAMÍLIA DE COR ou no TOM ESPECÍFICO.
+   - Analise com MÁXIMA ATENÇÃO a matiz e a profundidade de tom (Luminosidade):
+     • VERDES:
+       - Verde Claro / Menta / Sage / Oliva Claro (ex: MNV1, VFOS).
+       - Verde Médio / Folha / Bandeira.
+       - Verde Escuro / Musgo / Militar / Floresta (ex: MNV2, MNV3).
+     • AZUIS:
+       - Azul Bebê / Celeste / Pastel / Serenity (ex: MNZ1).
+       - Azul Médio / Royal / Bic (ex: MNZ2).
+       - Azul Escuro / Marinho / Petróleo / Noite (ex: MNZ3).
+     • ROSAS, LILÁS E ROXO:
+       - Rosa Claro / Bebê / Blush / Nude Rosado (ex: CPA).
+       - Rosa Médio / Chiclete / Pink / Magenta.
+       - Lilás / Lavanda vs Roxo / Púrpura / Uva.
+     • BEGES, TERROSOS E AMARELOS:
+       - Bege Claro / Off-White / Marfim / Areia.
+       - Caramelo / Terracota / Telha.
+       - Marrom / Café / Chocolate.
+       - Amarelo Pastel / Manteiga vs Amarelo Ocre / Mostarda.
+     • NEUTROS, CINZAS E PRETOS:
+       - Branco / Cinza Claro / Prata (ex: MNCZ1).
+       - Cinza Chumbo / Grafite (ex: MNCZ2).
+       - Preto Absoluto / Fundo Escuro (ex: BKF, CQF2).
+   - REGRA DE ELIMINAÇÃO TONAL: Se a foto tiver tom CLARO/PASTEL, NUNCA escolha o modelo ESCURO da mesma cor, e vice-versa! O tom e a saturação da cor são critérios eliminatórios.
+
+2. ESTRUTURA CENTRAL, MONOGRAMAS E OCR DE LETRAS:
+   - Se a capa tiver uma letra inicial/monograma maiúsculo em destaque (ex: letra "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"):
+     • IDENTIFIQUE a letra central exata e valide que a candidata possui EXATAMENTE A MESMA LETRA e o mesmo estilo gráfico de monograma!
+     • Se a foto tem a letra "M" em fundo Verde Claro, escolha EXCLUSIVAMENTE a candidata com letra "M" em fundo Verde Claro!
+   - O nome pequeno cursivo do cliente pode variar (ex: "Maria", "Mavie", "Manuela"), mas a LETRA DO MONOGRAMA e a COR DO FUNDO definem o modelo exato.
 3. FOCO NA ARTE GRÁFICA & ELEMENTOS-CHAVE:
    - Compare o design gráfico: ilustrações, desenhos, flores, animais/personagens, padrões geométricos, listras, blocos de cor, molduras e cores dominantes.
    - Textos fixos e títulos do produto são elementos-chave quando presentes.
