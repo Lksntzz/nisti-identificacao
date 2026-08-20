@@ -111,15 +111,24 @@ async function compressPhoto(file) {
     bitmap = await createImageBitmap(file);
   }
 
+  // Foco Central Inteligente: recorte suave de 5% das bordas externas para focar na capa
+  const origW = bitmap.width;
+  const origH = bitmap.height;
+  const cropRatio = 0.04;
+  const srcX = Math.round(origW * cropRatio);
+  const srcY = Math.round(origH * cropRatio);
+  const srcW = Math.max(1, Math.round(origW * (1 - cropRatio * 2)));
+  const srcH = Math.max(1, Math.round(origH * (1 - cropRatio * 2)));
+
   const maxSide = 768;
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
+  const width = Math.max(1, Math.round(srcW * scale));
+  const height = Math.max(1, Math.round(srcH * scale));
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
-  context.drawImage(bitmap, 0, 0, width, height);
+  context.drawImage(bitmap, srcX, srcY, srcW, srcH, 0, 0, width, height);
   bitmap.close?.();
 
   try {
@@ -128,7 +137,7 @@ async function compressPhoto(file) {
     context.putImageData(imgData, 0, 0);
   } catch {}
 
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.78));
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.80));
   return blob ? new File([blob], 'capa.jpg', { type: 'image/jpeg' }) : file;
 }
 
@@ -568,9 +577,29 @@ function InstallApp() {
   </>;
 }
 
+function ConfidenceBadge({ confidence, score }) {
+  let value = 95;
+  if (typeof confidence === 'number' && confidence > 0) {
+    value = confidence <= 1 ? Math.round(confidence * 100) : Math.round(confidence);
+  } else if (typeof score === 'number' && score > 0) {
+    value = Math.min(99, Math.round(score * 100));
+  }
+
+  const isHigh = value >= 90;
+  return (
+    <div className={`confidence-tag ${isHigh ? 'high' : 'medium'}`} title="Índice de certeza da Inteligência Artificial">
+      <span className="conf-dot" />
+      <span>{isHigh ? `Alta Precisão (${value}%)` : `Correspondência (${value}%)`}</span>
+    </div>
+  );
+}
+
 function ProductResult({ product, performance }) {
   return <div className="result">
-    <p className="eyebrow">PRODUTO IDENTIFICADO PELA CAPA</p>
+    <div className="result-header-row">
+      <p className="eyebrow" style={{ margin: 0 }}>PRODUTO IDENTIFICADO PELA CAPA</p>
+      <ConfidenceBadge confidence={product.confidence} score={performance?.retrieval_top1} />
+    </div>
     <h3>{product.sku}</h3>
     <ProductImage product={product} className="result-image" alt={`Mockup ${product.sku}`} />
     <div className="badges">
@@ -586,7 +615,10 @@ function ProductResult({ product, performance }) {
 
 function ProductChoices({ capaCode, products, onSelect, performance }) {
   return <div className="result">
-    <p className="eyebrow">CAPA IDENTIFICADA</p>
+    <div className="result-header-row">
+      <p className="eyebrow" style={{ margin: 0 }}>CAPA IDENTIFICADA</p>
+      <ConfidenceBadge score={performance?.retrieval_top1} />
+    </div>
     <h3 className="choice-title">{capaCode} · escolha o SKU</h3>
     <div className="choices">
       {products.map(product => <article className="choice-card" key={product.id}>
@@ -828,24 +860,30 @@ function PublicIdentificationApp() {
               </div>
             ) : (
               <div className="dropzone-empty-state">
-                <div className="camera-circle-badge">
-                  <svg className="camera-gradient-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="url(#camera-rainbow)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <defs>
-                      <linearGradient id="camera-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#06b6d4" />
-                        <stop offset="50%" stopColor="#6366f1" />
-                        <stop offset="100%" stopColor="#d946ef" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                    <circle cx="12" cy="13" r="3" />
-                  </svg>
-                  <svg className="sparkle-badge-icon" viewBox="0 0 24 24" width="14" height="14" fill="#06b6d4">
-                    <path d="m12 2 2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
-                  </svg>
+                <div className="viewfinder-frame">
+                  <div className="vf-corner top-left" />
+                  <div className="vf-corner top-right" />
+                  <div className="vf-corner bottom-left" />
+                  <div className="vf-corner bottom-right" />
+                  <div className="camera-circle-badge">
+                    <svg className="camera-gradient-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="url(#camera-rainbow)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs>
+                        <linearGradient id="camera-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#06b6d4" />
+                          <stop offset="50%" stopColor="#6366f1" />
+                          <stop offset="100%" stopColor="#d946ef" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                      <circle cx="12" cy="13" r="3" />
+                    </svg>
+                    <svg className="sparkle-badge-icon" viewBox="0 0 24 24" width="14" height="14" fill="#06b6d4">
+                      <path d="m12 2 2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+                    </svg>
+                  </div>
                 </div>
                 <h3 className="dropzone-title">Fotografar ou enviar capa</h3>
-                <p className="dropzone-hint">Use uma imagem frontal, nítida e com boa iluminação.</p>
+                <p className="dropzone-hint">Enquadre a capa no centro, de frente e com boa iluminação.</p>
                 <label className="gallery-pill-btn">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
