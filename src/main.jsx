@@ -1665,24 +1665,29 @@ function OperatorsAndLearningView({ products, onRefresh }) {
         </div>
 
         <div className="table-actions-toolbar">
-          <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
+          <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: '3px', borderRadius: '12px', border: '1.5px solid #e2e8f0', gap: '2px' }}>
             <button
               type="button"
-              className={`btn-toolbar-filter ${subTab === 'ocorrencias' ? 'active' : ''}`}
               style={{
+                border: 'none',
                 background: subTab === 'ocorrencias' ? '#ffffff' : 'transparent',
-                fontWeight: 800,
                 color: subTab === 'ocorrencias' ? '#4f46e5' : '#64748b',
-                boxShadow: subTab === 'ocorrencias' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                display: 'flex',
+                boxShadow: subTab === 'ocorrencias' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                borderRadius: '9px',
+                padding: '7px 14px',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '6px',
+                transition: 'all 0.15s ease'
               }}
               onClick={() => setSubTab('ocorrencias')}
             >
               <span>🧠 Ocorrências da Bancada</span>
               {occData.stats?.pending > 0 && (
-                <span style={{ background: '#ef4444', color: '#ffffff', borderRadius: '999px', padding: '1px 6px', fontSize: '10px', fontWeight: 800 }}>
+                <span style={{ background: '#ef4444', color: '#ffffff', borderRadius: '999px', padding: '1px 6px', fontSize: '10.5px', fontWeight: 800 }}>
                   {occData.stats.pending}
                 </span>
               )}
@@ -1690,21 +1695,40 @@ function OperatorsAndLearningView({ products, onRefresh }) {
 
             <button
               type="button"
-              className={`btn-toolbar-filter ${subTab === 'equipe' ? 'active' : ''}`}
               style={{
+                border: 'none',
                 background: subTab === 'equipe' ? '#ffffff' : 'transparent',
-                fontWeight: 800,
                 color: subTab === 'equipe' ? '#4f46e5' : '#64748b',
-                boxShadow: subTab === 'equipe' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none'
+                boxShadow: subTab === 'equipe' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                borderRadius: '9px',
+                padding: '7px 14px',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease'
               }}
               onClick={() => setSubTab('equipe')}
             >
-              👥 Desempenho da Equipe ({operators.length})
+              <span>👥 Desempenho da Equipe ({operators.length})</span>
             </button>
           </div>
 
-          <button type="button" className="btn-table-action" onClick={() => { loadOccurrences(); loadOperators(); }}>
-            <span>🔄 Atualizar</span>
+          <button
+            type="button"
+            className="btn-toolbar-filter"
+            style={{ height: '40px', padding: '0 14px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
+            onClick={() => { loadOccurrences(); loadOperators(); }}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 21h5v-5" />
+            </svg>
+            <span>Atualizar</span>
           </button>
         </div>
       </div>
