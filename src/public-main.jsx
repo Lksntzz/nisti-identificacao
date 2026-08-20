@@ -59,15 +59,42 @@ function enhanceContrast(imageData) {
   const data = imageData.data;
   const len = data.length;
   const totalPixels = len / 4;
-  const histogram = new Uint32Array(256);
+  if (totalPixels < 16) return imageData;
 
+  // 1. Auto-White-Balance (Gray World Normalization para lâmpadas quentes/amareladas)
+  let sumR = 0, sumG = 0, sumB = 0;
+  for (let i = 0; i < len; i += 4) {
+    sumR += data[i];
+    sumG += data[i + 1];
+    sumB += data[i + 2];
+  }
+  const avgR = sumR / totalPixels;
+  const avgG = sumG / totalPixels;
+  const avgB = sumB / totalPixels;
+  const avgGray = (avgR + avgG + avgB) / 3;
+
+  if (avgR > 10 && avgG > 10 && avgB > 10) {
+    // Fator suave de ganho para não estourar cores intencionais (ex: fundos pastel)
+    const gainR = 1 + (avgGray / avgR - 1) * 0.45;
+    const gainG = 1 + (avgGray / avgG - 1) * 0.45;
+    const gainB = 1 + (avgGray / avgB - 1) * 0.45;
+
+    for (let i = 0; i < len; i += 4) {
+      data[i] = Math.min(255, Math.max(0, data[i] * gainR));
+      data[i + 1] = Math.min(255, Math.max(0, data[i + 1] * gainG));
+      data[i + 2] = Math.min(255, Math.max(0, data[i + 2] * gainB));
+    }
+  }
+
+  // 2. Histograma e Expansão de Contraste com corte de reflexo especular
+  const histogram = new Uint32Array(256);
   for (let i = 0; i < len; i += 4) {
     const lum = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
     histogram[lum]++;
   }
 
-  const clipLow = Math.floor(totalPixels * 0.015);
-  const clipHigh = Math.floor(totalPixels * 0.985);
+  const clipLow = Math.floor(totalPixels * 0.02);
+  const clipHigh = Math.floor(totalPixels * 0.98);
 
   let count = 0;
   let minLum = 0;
@@ -90,7 +117,7 @@ function enhanceContrast(imageData) {
   }
 
   const range = maxLum - minLum;
-  if (range > 25 && range < 235) {
+  if (range > 30 && range < 235) {
     const scale = 255 / range;
     for (let i = 0; i < len; i += 4) {
       data[i] = Math.min(255, Math.max(0, (data[i] - minLum) * scale));
@@ -1089,15 +1116,27 @@ function PublicIdentificationApp() {
         </div>
 
         {error && (
-          <div className="status error" style={{ padding: '8px 10px', margin: '2px 0' }}>
-            <h3 style={{ fontSize: '12px', margin: 0 }}>Produto não identificado</h3>
-            <p style={{ fontSize: '11px', margin: '2px 0 0' }}>{error}</p>
+          <div className="status error" style={{ padding: '10px 12px', margin: '4px 0', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '14px' }}>⚠️</span>
+              <h3 style={{ fontSize: '13px', margin: 0, fontWeight: 800 }}>{error.includes('conexão') || error.includes('fetch') ? 'Oscilação de Conexão' : 'Não foi possível identificar'}</h3>
+            </div>
+            <p style={{ fontSize: '11.5px', margin: '4px 0 6px', color: '#b91c1c' }}>{error}</p>
+            
+            <div style={{ background: 'rgba(255,255,255,0.7)', borderRadius: '8px', padding: '6px 8px', fontSize: '11px', color: '#334155', marginTop: '4px', lineHeight: 1.4 }}>
+              <strong>💡 Dicas de ajuste na bancada:</strong>
+              <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
+                <li>Se houver reflexo de lâmpada ou glitter, <strong>incline o caderno 5°</strong>.</li>
+                <li>Mantenha o flash desligado e enquadre de frente.</li>
+              </ul>
+            </div>
+
             {suggestedPlatform && (
-              <div style={{ marginTop: '6px' }}>
+              <div style={{ marginTop: '8px' }}>
                 <button
                   type="button"
                   className="btn-identify-rainbow"
-                  style={{ height: '36px', fontSize: '12px', background: '#4f46e5' }}
+                  style={{ height: '38px', fontSize: '12.5px', background: '#4f46e5' }}
                   onClick={() => {
                     const target = suggestedPlatform;
                     setPlatform(target);
@@ -1105,7 +1144,7 @@ function PublicIdentificationApp() {
                     identifyFileWithPlatform(photo, target);
                   }}
                 >
-                  Alternar para {suggestedPlatform}
+                  Alternar para {suggestedPlatform} e identificar
                 </button>
               </div>
             )}
