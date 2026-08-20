@@ -783,13 +783,22 @@ export async function structuralFinalIdentifyV8(request, env) {
     // Registra ocorrência de falha no D1/R2 para aprendizado no Painel ADM
     let occurrenceId = null;
     try {
+      let operatorName = null;
+      const rawOpName = request?.headers?.get('x-operator-name');
+      if (rawOpName) {
+        try { operatorName = decodeURIComponent(rawOpName); } catch { operatorName = rawOpName; }
+      }
+      const operatorId = request?.headers?.get('x-operator-id') || request?.headers?.get('x-user-id') || null;
+
       occurrenceId = await recordScanOccurrence(env, {
         photoBytes,
         photoMime: image.type || 'image/jpeg',
         platform,
         suggestedCapaCode: loaded[0]?.capa_code || null,
         confidence: comparison?.decision?.confidence || 0,
-        errorReason: 'no_match'
+        errorReason: 'no_match',
+        operatorName,
+        operatorId
       });
     } catch {}
 

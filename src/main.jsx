@@ -162,7 +162,6 @@ function AdminSidebar({ activeView, onViewChange, unreadCount, sidebarOpen, onCl
       title: 'PRINCIPAL',
       items: [
         { id: 'identificacao', label: 'Identificação Visual', icon: 'eye', href: '/' },
-        { id: 'ocorrencias', label: '🧠 Aprendizado & Ocorrências', icon: 'brain' },
         { id: 'catalogo', label: 'Catálogo de Produtos', icon: 'grid' },
         { id: 'nao-identificados', label: 'Produtos Não Identificados', icon: 'alert' },
         { id: 'similares', label: 'Produtos Similares', icon: 'sparkles' },
@@ -184,10 +183,10 @@ function AdminSidebar({ activeView, onViewChange, unreadCount, sidebarOpen, onCl
       ]
     },
     {
-      title: 'CONFIGURAÇÕES',
+      title: 'EQUIPE & CONFIGURAÇÕES',
       items: [
+        { id: 'usuarios', label: '👥 Operadores & Ocorrências', icon: 'users' },
         { id: 'plataformas', label: 'Plataformas', icon: 'layers' },
-        { id: 'usuarios', label: 'Usuários', icon: 'users' },
         { id: 'configuracoes', label: 'Configurações', icon: 'settings' },
       ]
     }
@@ -1522,26 +1521,87 @@ function DiagnosticsView({ filter = 'all', initialOperator = '' }) {
 }
 
 /* =========================================================================
-   OPERATORS & USERS MANAGEMENT VIEW
+   OPERATORS & ACTIVE LEARNING / OCCURRENCES UNIFIED VIEW
    ========================================================================= */
-function OperatorsView() {
+function OperatorsAndLearningView({ products, onRefresh }) {
+  const [subTab, setSubTab] = useState('ocorrencias'); // 'ocorrencias' | 'equipe'
+  
+  // Ocorrências State
+  const [occData, setOccData] = useState({ occurrences: [], stats: { pending: 0, trained: 0, dismissed: 0 } });
+  const [occLoading, setOccLoading] = useState(true);
+  const [selectedCapa, setSelectedCapa] = useState({});
+  const [trainingId, setTrainingId] = useState(null);
+  const [feedbackMsg, setFeedbackMsg] = useState('');
+
+  // Operadores State
   const [operators, setOperators] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [opLoading, setOpLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOperator, setSelectedOperator] = useState(null);
   const [operatorEvents, setOperatorEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
+  const loadOccurrences = async () => {
     try {
-      const data = await api('/api/admin/operators');
-      setOperators(data.operators || []);
-    } catch {}
-    finally { setLoading(false); }
+      setOccLoading(true);
+      const res = await api('/api/admin/occurrences');
+      setOccData(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setOccLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, []);
+  const loadOperators = async () => {
+    try {
+      setOpLoading(true);
+      const data = await api('/api/admin/operators');
+      setOperators(data.operators || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setOpLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOccurrences();
+    loadOperators();
+  }, []);
+
+  const handleTrain = async (occurrenceId) => {
+    const capaCode = selectedCapa[occurrenceId];
+    if (!capaCode) {
+      alert('Por favor, selecione qual é o produto/capa correta antes de aprovar.');
+      return;
+    }
+    try {
+      setTrainingId(occurrenceId);
+      await api(`/api/admin/occurrences/${occurrenceId}/train`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ capa_code: capaCode })
+      });
+      setFeedbackMsg(`✓ Foto da bancada aprendida com sucesso para o modelo ${capaCode}! O Vectorize foi atualizado.`);
+      await loadOccurrences();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert('Erro ao treinar sistema: ' + err.message);
+    } finally {
+      setTrainingId(null);
+    }
+  };
+
+  const handleDismiss = async (occurrenceId) => {
+    if (!confirm('Deseja descartar esta foto da fila de aprendizado?')) return;
+    try {
+      await api(`/api/admin/occurrences/${occurrenceId}/dismiss`, { method: 'POST' });
+      await loadOccurrences();
+    } catch (err) {
+      alert('Erro ao descartar: ' + err.message);
+    }
+  };
 
   const openOperatorHistory = async (op) => {
     setSelectedOperator(op);
@@ -1555,6 +1615,22 @@ function OperatorsView() {
       setEventsLoading(false);
     }
   };
+
+  const capaOptions = useMemo(() => {
+    const map = new Map();
+    products.forEach(p => {
+      const code = String(p.capa_code || '').trim().toUpperCase();
+      if (code && !map.has(code)) {
+        map.set(code, {
+          code,
+          name: p.name || p.sku,
+          image_url: p.image_url,
+          platform: p.platform
+        });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, [products]);
 
   const filteredOperators = useMemo(() => {
     if (!searchTerm.trim()) return operators;
@@ -1574,8 +1650,8 @@ function OperatorsView() {
     <div className="admin-table-card">
       <div className="table-card-topbar">
         <div className="table-title-group">
-          <div className="table-title-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="table-title-icon" style={{ background: '#eef2ff', color: '#4f46e5' }}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
@@ -1583,142 +1659,351 @@ function OperatorsView() {
             </svg>
           </div>
           <div>
-            <h3 className="table-main-title">Controle de Usuários & Operadores</h3>
-            <span className="table-sub-title">Rastreamento de quem realizou uploads, reconhecimentos e diagnósticos de erros</span>
+            <h3 className="table-main-title">Operadores, Ocorrências & Auto-Aprendizado</h3>
+            <span className="table-sub-title">Veja quem realizou cada foto, corrija falhas manualmente e auto-treine o sistema</span>
           </div>
         </div>
 
         <div className="table-actions-toolbar">
-          <div className="table-search-box">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94a3b8" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Buscar operador…"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
+          <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
+            <button
+              type="button"
+              className={`btn-toolbar-filter ${subTab === 'ocorrencias' ? 'active' : ''}`}
+              style={{
+                background: subTab === 'ocorrencias' ? '#ffffff' : 'transparent',
+                fontWeight: 800,
+                color: subTab === 'ocorrencias' ? '#4f46e5' : '#64748b',
+                boxShadow: subTab === 'ocorrencias' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              onClick={() => setSubTab('ocorrencias')}
+            >
+              <span>🧠 Ocorrências da Bancada</span>
+              {occData.stats?.pending > 0 && (
+                <span style={{ background: '#ef4444', color: '#ffffff', borderRadius: '999px', padding: '1px 6px', fontSize: '10px', fontWeight: 800 }}>
+                  {occData.stats.pending}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className={`btn-toolbar-filter ${subTab === 'equipe' ? 'active' : ''}`}
+              style={{
+                background: subTab === 'equipe' ? '#ffffff' : 'transparent',
+                fontWeight: 800,
+                color: subTab === 'equipe' ? '#4f46e5' : '#64748b',
+                boxShadow: subTab === 'equipe' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none'
+              }}
+              onClick={() => setSubTab('equipe')}
+            >
+              👥 Desempenho da Equipe ({operators.length})
+            </button>
           </div>
-          <button type="button" className="btn-toolbar-filter" onClick={load}>Atualizar</button>
+
+          <button type="button" className="btn-table-action" onClick={() => { loadOccurrences(); loadOperators(); }}>
+            <span>🔄 Atualizar</span>
+          </button>
         </div>
       </div>
 
-      {/* Operator KPIs */}
-      <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span className="metric-tag">Equipe</span>
-            <h4>Total de Operadores</h4>
-          </div>
-          <div className="metric-big-num">{operators.length}</div>
-          <p>Operadores ativos registrando identificações.</p>
+      {feedbackMsg && (
+        <div className="form-success-banner" style={{ margin: '0 24px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{feedbackMsg}</span>
+          <button type="button" onClick={() => setFeedbackMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, color: '#166534' }}>✕</button>
         </div>
+      )}
 
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span className="metric-tag">Volume</span>
-            <h4>Mais Ativo</h4>
-          </div>
-          <div className="metric-big-num" style={{ fontSize: '20px' }}>{mostActive?.operator_name || '—'}</div>
-          <p>{mostActive ? `${mostActive.total_attempts} leituras realizadas` : 'Nenhum registro'}</p>
-        </div>
+      {/* =========================================================================
+         SUBTAB 1: OCORRÊNCIAS & APRENDIZADO ATIVO COM IDENTIFICAÇÃO DO OPERADOR
+         ========================================================================= */}
+      {subTab === 'ocorrencias' && (
+        <div>
+          {/* Estatísticas de Aprendizado */}
+          <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
+            <div className="system-metric-box">
+              <div className="metric-box-head">
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#b45309' }}>⏳ Pendentes de Revisão</span>
+                <span className="status-pill" style={{ background: '#fef3c7', color: '#92400e' }}>Aguardando ADM</span>
+              </div>
+              <div className="metric-big-num" style={{ color: '#d97706', marginTop: '8px' }}>{occData.stats?.pending || 0}</div>
+              <p>Fotos da bancada aguardando sua correção para treinar o Vectorize.</p>
+            </div>
 
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span className="metric-tag">Assertividade</span>
-            <h4>Taxa de Sucesso</h4>
-          </div>
-          <div className="metric-big-num">
-            {totalAttempts > 0 ? `${Math.round((totalSuccesses / totalAttempts) * 100)}%` : '—'}
-          </div>
-          <p>{totalSuccesses} reconhecimentos confirmados com sucesso.</p>
-        </div>
+            <div className="system-metric-box">
+              <div className="metric-box-head">
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d' }}>🧠 Fotos Reais Aprendidas</span>
+                <span className="status-pill active">• No Vectorize</span>
+              </div>
+              <div className="metric-big-num" style={{ color: '#16a34a', marginTop: '8px' }}>{occData.stats?.trained || 0}</div>
+              <p>Exemplos reais gravados no banco vetorial que aceleram o reconhecimento (&lt;100ms).</p>
+            </div>
 
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span className="metric-tag">Ocorrências</span>
-            <h4>Total de Falhas / Bloqueios</h4>
+            <div className="system-metric-box">
+              <div className="metric-box-head">
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>🗑️ Descartadas</span>
+                <span className="status-pill">• Limpas</span>
+              </div>
+              <div className="metric-big-num" style={{ color: '#64748b', marginTop: '8px' }}>{occData.stats?.dismissed || 0}</div>
+              <p>Fotos borradas ou inválidas descartadas pelo administrador.</p>
+            </div>
           </div>
-          <div className="metric-big-num">{totalErrors}</div>
-          <p>Casos não identificados ou com erro técnico.</p>
-        </div>
-      </div>
 
-      <div className="table-responsive-container">
-        <table className="admin-data-table">
-          <thead>
-            <tr>
-              <th>OPERADOR</th>
-              <th style={{ width: '130px' }}>TOTAL UPLOADS</th>
-              <th style={{ width: '150px' }}>RECONHECIDOS</th>
-              <th style={{ width: '150px' }}>SEM MATCH</th>
-              <th style={{ width: '140px' }}>ERROS TÉCNICOS</th>
-              <th style={{ width: '170px' }}>ÚLTIMA ATIVIDADE</th>
-              <th style={{ width: '140px', textAlign: 'right' }}>AÇÕES</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="7" className="table-empty-row">Carregando operadores…</td></tr>
-            ) : filteredOperators.length === 0 ? (
-              <tr><td colSpan="7" className="table-empty-row">Nenhum operador registrado até o momento.</td></tr>
-            ) : (
-              filteredOperators.map(op => {
-                const initials = op.operator_name.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase();
+          {occLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+              <div className="admin-loading-spinner" style={{ margin: '0 auto 12px' }} />
+              <span>Carregando ocorrências da bancada…</span>
+            </div>
+          ) : occData.occurrences.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 24px', background: '#f8fafc', margin: '0 24px 24px', borderRadius: '16px', border: '1.5px dashed #cbd5e1' }}>
+              <span style={{ fontSize: '36px' }}>🎉</span>
+              <h4 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: '10px 0 4px' }}>Nenhuma ocorrência pendente no momento!</h4>
+              <p style={{ fontSize: '13px', color: '#64748b', maxWidth: '460px', margin: '0 auto' }}>
+                Todas as fotos da bancada foram identificadas com sucesso ou já foram treinadas no Vectorize.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '0 24px 24px' }}>
+              {occData.occurrences.map(occ => {
+                const currentSelected = selectedCapa[occ.id] || occ.suggested_capa_code || '';
+                const isTraining = trainingId === occ.id;
+                const targetProd = capaOptions.find(c => c.code === currentSelected);
+
                 return (
-                  <tr key={op.operator_name}>
-                    <td>
-                      <div className="operator-profile-cell">
-                        <div className="operator-avatar-circle">{initials}</div>
-                        <div>
-                          <strong className="operator-name-bold">{op.operator_name}</strong>
-                          <small className="operator-sub-id">{op.operator_id ? `ID: ${op.operator_id.slice(0, 10)}…` : 'Operador Web'}</small>
+                  <div key={occ.id} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 260px', gap: '18px', background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', alignItems: 'center' }}>
+                    {/* Coluna 1: Foto Real de Bancada */}
+                    <div style={{ textAlign: 'center' }}>
+                      <img
+                        src={occ.image_url}
+                        alt="Foto da bancada"
+                        style={{ width: '130px', height: '130px', objectFit: 'cover', borderRadius: '12px', border: '1.5px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                      />
+                      <span style={{ display: 'block', fontSize: '10.5px', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
+                        {new Date(occ.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · {new Date(occ.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+
+                    {/* Coluna 2: Detalhes do Operador & Seleção da Capa Correta */}
+                    <div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        {/* IDENTIFICAÇÃO DO OPERADOR */}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#e0e7ff', border: '1px solid #c7d2fe', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, color: '#3730a3' }}>
+                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                          <span>Operador: {occ.operator_name}</span>
                         </div>
+
+                        <PlatformTag platform={occ.platform || 'MERCADO LIVRE'} />
+                        <span className="status-pill" style={{ background: '#fee2e2', color: '#991b1b' }}>⚠️ Não Identificado</span>
+                        
+                        {occ.suggested_capa_code && (
+                          <span style={{ fontSize: '11px', color: '#475569' }}>
+                            Sugestão IA: <strong>{occ.suggested_capa_code}</strong> ({Math.round((occ.confidence || 0) * 100)}%)
+                          </span>
+                        )}
                       </div>
-                    </td>
-                    <td>
-                      <strong>{op.total_attempts}</strong>
-                    </td>
-                    <td>
-                      <span className="status-pill active">
-                        {op.successes} ({op.success_rate}%)
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-pill ${op.unmatched > 0 ? 'orange' : 'neutral'}`}>
-                        {op.unmatched}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-pill ${op.system_errors > 0 ? 'danger' : 'neutral'}`}>
-                        {op.system_errors}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="datetime-cell">
-                        <span>{op.last_seen_at ? formatProductDate(op.last_seen_at).date : '—'}</span>
-                        <small>{op.last_seen_at ? formatProductDate(op.last_seen_at).time : ''}</small>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
+
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
+                        🎯 Qual é o produto correto impresso nesta capa?
+                      </label>
+
+                      <select
+                        style={{ width: '100%', height: '42px', borderRadius: '10px', border: '1.5px solid #cbd5e1', padding: '0 12px', fontSize: '13.5px', fontWeight: 700, color: '#0f172a', background: '#f8fafc' }}
+                        value={currentSelected}
+                        onChange={e => setSelectedCapa(prev => ({ ...prev, [occ.id]: e.target.value }))}
+                      >
+                        <option value="">-- Selecione o produto correspondente --</option>
+                        {capaOptions.map(opt => (
+                          <option key={opt.code} value={opt.code}>
+                            {opt.code} — {opt.name} ({opt.platform || 'Geral'})
+                          </option>
+                        ))}
+                      </select>
+
+                      {targetProd && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px', background: '#f0fdf4', padding: '6px 10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                          {targetProd.image_url && (
+                            <img src={targetProd.image_url} alt="Mockup Oficial" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
+                          )}
+                          <span style={{ fontSize: '12px', color: '#166534', fontWeight: 700 }}>
+                            Mockup Oficial: <strong>{targetProd.code}</strong> · {targetProd.name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Coluna 3: Ações de Treinamento */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <button
                         type="button"
-                        className="btn-toolbar-filter"
-                        style={{ fontSize: '11px', padding: '5px 10px', height: 'auto' }}
-                        onClick={() => openOperatorHistory(op)}
+                        className="btn-create-product-gradient"
+                        style={{ height: '44px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        disabled={isTraining || !currentSelected}
+                        onClick={() => handleTrain(occ.id)}
                       >
-                        👁 Ver Histórico
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                        <span>{isTraining ? 'Indexando no Vectorize…' : 'Aprovar & Treinar'}</span>
                       </button>
-                    </td>
-                  </tr>
+
+                      <button
+                        type="button"
+                        style={{ height: '36px', borderRadius: '9px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#64748b', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                        disabled={isTraining}
+                        onClick={() => handleDismiss(occ.id)}
+                      >
+                        ✕ Descartar Foto
+                      </button>
+                    </div>
+                  </div>
                 );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+         SUBTAB 2: DESEMPENHO DA EQUIPE DE OPERADORES
+         ========================================================================= */}
+      {subTab === 'equipe' && (
+        <div>
+          {/* Operator KPIs */}
+          <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
+            <div className="system-metric-box">
+              <div className="metric-box-head">
+                <span className="metric-tag">Equipe</span>
+                <h4>Total de Operadores</h4>
+              </div>
+              <div className="metric-big-num">{operators.length}</div>
+              <p>Operadores ativos registrando identificações.</p>
+            </div>
+
+            <div className="system-metric-box">
+              <div className="metric-box-head">
+                <span className="metric-tag">Volume</span>
+                <h4>Mais Ativo</h4>
+              </div>
+              <div className="metric-big-num" style={{ fontSize: '20px' }}>{mostActive?.operator_name || '—'}</div>
+              <p>{mostActive ? `${mostActive.total_attempts} leituras realizadas` : 'Nenhum registro'}</p>
+            </div>
+
+            <div className="system-metric-box">
+              <div className="metric-box-head">
+                <span className="metric-tag">Assertividade</span>
+                <h4>Taxa de Sucesso</h4>
+              </div>
+              <div className="metric-big-num">
+                {totalAttempts > 0 ? `${Math.round((totalSuccesses / totalAttempts) * 100)}%` : '—'}
+              </div>
+              <p>{totalSuccesses} reconhecimentos confirmados com sucesso.</p>
+            </div>
+
+            <div className="system-metric-box">
+              <div className="metric-box-head">
+                <span className="metric-tag">Ocorrências</span>
+                <h4>Total de Falhas / Bloqueios</h4>
+              </div>
+              <div className="metric-big-num">{totalErrors}</div>
+              <p>Casos não identificados ou com erro técnico.</p>
+            </div>
+          </div>
+
+          <div style={{ padding: '0 24px 16px' }}>
+            <div className="table-search-box" style={{ maxWidth: '320px' }}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94a3b8" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Buscar operador…"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="table-responsive-container">
+            <table className="admin-data-table">
+              <thead>
+                <tr>
+                  <th>OPERADOR</th>
+                  <th style={{ width: '130px' }}>TOTAL UPLOADS</th>
+                  <th style={{ width: '150px' }}>RECONHECIDOS</th>
+                  <th style={{ width: '150px' }}>SEM MATCH</th>
+                  <th style={{ width: '140px' }}>ERROS TÉCNICOS</th>
+                  <th style={{ width: '170px' }}>ÚLTIMA ATIVIDADE</th>
+                  <th style={{ width: '140px', textAlign: 'right' }}>AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {opLoading ? (
+                  <tr><td colSpan="7" className="table-empty-row">Carregando operadores…</td></tr>
+                ) : filteredOperators.length === 0 ? (
+                  <tr><td colSpan="7" className="table-empty-row">Nenhum operador registrado até o momento.</td></tr>
+                ) : (
+                  filteredOperators.map(op => {
+                    const initials = op.operator_name.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase();
+                    return (
+                      <tr key={op.operator_name}>
+                        <td>
+                          <div className="operator-profile-cell">
+                            <div className="operator-avatar-circle">{initials}</div>
+                            <div>
+                              <strong className="operator-name-bold">{op.operator_name}</strong>
+                              <small className="operator-sub-id">{op.operator_id ? `ID: ${op.operator_id.slice(0, 10)}…` : 'Operador Web'}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <strong>{op.total_attempts}</strong>
+                        </td>
+                        <td>
+                          <span className="status-pill active">
+                            {op.successes} ({op.success_rate}%)
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-pill ${op.unmatched > 0 ? 'orange' : 'neutral'}`}>
+                            {op.unmatched}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-pill ${op.system_errors > 0 ? 'danger' : 'neutral'}`}>
+                            {op.system_errors}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="datetime-cell">
+                            <span>{op.last_seen_at ? formatProductDate(op.last_seen_at).date : '—'}</span>
+                            <small>{op.last_seen_at ? formatProductDate(op.last_seen_at).time : ''}</small>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            className="btn-toolbar-filter"
+                            style={{ fontSize: '11px', padding: '5px 10px', height: 'auto' }}
+                            onClick={() => openOperatorHistory(op)}
+                          >
+                            👁 Ver Histórico
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Operator Drill-down Modal */}
       {selectedOperator && (
@@ -1758,25 +2043,24 @@ function OperatorsView() {
                         </td>
                         <td>
                           <div className="datetime-cell">
-                            <span>{formatProductDate(ev.created_at).date}</span>
-                            <small>{formatProductDate(ev.created_at).time}</small>
+                            <span>{ev.created_at ? formatProductDate(ev.created_at).date : '—'}</span>
+                            <small>{ev.created_at ? formatProductDate(ev.created_at).time : ''}</small>
                           </div>
                         </td>
                         <td>
-                          <strong>{ev.sku || ev.capa_code || 'Sem correspondência'}</strong>
-                          {ev.error_message && <div style={{ fontSize: '11px', color: '#ef4444' }}>{ev.error_message}</div>}
+                          <strong>{ev.sku || ev.capa_code || '—'}</strong>
                         </td>
-                        <td>{ev.confidence === null ? '—' : `${Math.round(ev.confidence * 100)}%`}</td>
-                        <td>{ev.total_ms ? `${(ev.total_ms / 1000).toFixed(1)}s` : '—'}</td>
+                        <td>
+                          {ev.confidence ? `${Math.round(ev.confidence * 100)}%` : '—'}
+                        </td>
+                        <td>
+                          {ev.total_ms ? `${(ev.total_ms / 1000).toFixed(2)}s` : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
-            </div>
-
-            <div className="admin-modal-foot">
-              <button type="button" className="btn-cancel" onClick={() => setSelectedOperator(null)}>Fechar</button>
             </div>
           </div>
         </div>
@@ -2224,245 +2508,6 @@ function CoverVerifierView() {
 }
 
 /* =========================================================================
-   OCCURRENCES & ACTIVE LEARNING VIEW (Human-in-the-Loop)
-   ========================================================================= */
-function OccurrencesLearningView({ products, onRefresh }) {
-  const [data, setData] = useState({ occurrences: [], stats: { pending: 0, trained: 0, dismissed: 0 } });
-  const [loading, setLoading] = useState(true);
-  const [selectedCapa, setSelectedCapa] = useState({});
-  const [trainingId, setTrainingId] = useState(null);
-  const [feedbackMsg, setFeedbackMsg] = useState('');
-
-  const loadOccurrences = async () => {
-    try {
-      setLoading(true);
-      const res = await api('/api/admin/occurrences');
-      setData(res);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadOccurrences();
-  }, []);
-
-  const handleTrain = async (occurrenceId) => {
-    const capaCode = selectedCapa[occurrenceId];
-    if (!capaCode) {
-      alert('Por favor, selecione qual é o produto/capa correta antes de aprovar.');
-      return;
-    }
-    try {
-      setTrainingId(occurrenceId);
-      await api(`/api/admin/occurrences/${occurrenceId}/train`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ capa_code: capaCode })
-      });
-      setFeedbackMsg(`✓ Foto da bancada aprendida com sucesso para o modelo ${capaCode}! O Vectorize foi atualizado.`);
-      await loadOccurrences();
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      alert('Erro ao treinar sistema: ' + err.message);
-    } finally {
-      setTrainingId(null);
-    }
-  };
-
-  const handleDismiss = async (occurrenceId) => {
-    if (!confirm('Deseja descartar esta foto da fila de aprendizado?')) return;
-    try {
-      await api(`/api/admin/occurrences/${occurrenceId}/dismiss`, { method: 'POST' });
-      await loadOccurrences();
-    } catch (err) {
-      alert('Erro ao descartar: ' + err.message);
-    }
-  };
-
-  const capaOptions = useMemo(() => {
-    const map = new Map();
-    products.forEach(p => {
-      const code = String(p.capa_code || '').trim().toUpperCase();
-      if (code && !map.has(code)) {
-        map.set(code, {
-          code,
-          name: p.name || p.sku,
-          image_url: p.image_url,
-          platform: p.platform
-        });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
-  }, [products]);
-
-  return (
-    <div className="admin-table-card">
-      <div className="table-card-topbar">
-        <div className="table-title-group">
-          <div className="table-title-icon" style={{ background: '#eef2ff', color: '#4f46e5' }}>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04ZM14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z"/>
-            </svg>
-          </div>
-          <div>
-            <h3 className="table-main-title">Central de Aprendizado Ativo & Ocorrências da Bancada</h3>
-            <span className="table-sub-title">Corrija fotos reais dos operadores com 1 clique para auto-treinar o Vectorize e reduzir custos de IA</span>
-          </div>
-        </div>
-        <button type="button" className="btn-table-action" onClick={loadOccurrences}>
-          <span>🔄 Atualizar Fila</span>
-        </button>
-      </div>
-
-      {feedbackMsg && (
-        <div className="form-success-banner" style={{ margin: '0 24px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>{feedbackMsg}</span>
-          <button type="button" onClick={() => setFeedbackMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, color: '#166534' }}>✕</button>
-        </div>
-      )}
-
-      {/* Estatísticas de Aprendizado */}
-      <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#b45309' }}>⏳ Pendentes de Revisão</span>
-            <span className="status-pill" style={{ background: '#fef3c7', color: '#92400e' }}>Aguardando ADM</span>
-          </div>
-          <div className="metric-big-num" style={{ color: '#d97706', marginTop: '8px' }}>{data.stats?.pending || 0}</div>
-          <p>Fotos da bancada aguardando sua aprovação para virar vetor.</p>
-        </div>
-
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d' }}>🧠 Fotos Reais Aprendidas</span>
-            <span className="status-pill active">• No Vectorize</span>
-          </div>
-          <div className="metric-big-num" style={{ color: '#16a34a', marginTop: '8px' }}>{data.stats?.trained || 0}</div>
-          <p>Exemplos reais gravados no banco vetorial que aceleram o reconhecimento (&lt;100ms).</p>
-        </div>
-
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>🗑️ Descartadas</span>
-            <span className="status-pill">• Limpas</span>
-          </div>
-          <div className="metric-big-num" style={{ color: '#64748b', marginTop: '8px' }}>{data.stats?.dismissed || 0}</div>
-          <p>Fotos borradas ou inválidas descartadas pelo administrador.</p>
-        </div>
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-          <div className="admin-loading-spinner" style={{ margin: '0 auto 12px' }} />
-          <span>Carregando ocorrências da bancada…</span>
-        </div>
-      ) : data.occurrences.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 24px', background: '#f8fafc', margin: '0 24px 24px', borderRadius: '16px', border: '1.5px dashed #cbd5e1' }}>
-          <span style={{ fontSize: '36px' }}>🎉</span>
-          <h4 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: '10px 0 4px' }}>Nenhuma ocorrência pendente no momento!</h4>
-          <p style={{ fontSize: '13px', color: '#64748b', maxWidth: '460px', margin: '0 auto' }}>
-            Todas as fotos da bancada foram identificadas com sucesso ou já foram treinadas no Vectorize.
-          </p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '0 24px 24px' }}>
-          {data.occurrences.map(occ => {
-            const currentSelected = selectedCapa[occ.id] || occ.suggested_capa_code || '';
-            const isTraining = trainingId === occ.id;
-            const targetProd = capaOptions.find(c => c.code === currentSelected);
-
-            return (
-              <div key={occ.id} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 260px', gap: '18px', background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', alignItems: 'center' }}>
-                {/* Coluna 1: Foto Real de Bancada */}
-                <div style={{ textAlign: 'center' }}>
-                  <img
-                    src={occ.image_url}
-                    alt="Foto da bancada"
-                    style={{ width: '130px', height: '130px', objectFit: 'cover', borderRadius: '12px', border: '1.5px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-                  />
-                  <span style={{ display: 'block', fontSize: '10.5px', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
-                    {new Date(occ.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · {new Date(occ.created_at).toLocaleDateString('pt-BR')}
-                  </span>
-                </div>
-
-                {/* Coluna 2: Detalhes & Seleção da Capa Correta */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <PlatformTag platform={occ.platform || 'MERCADO LIVRE'} />
-                    <span className="status-pill" style={{ background: '#fee2e2', color: '#991b1b' }}>⚠️ Não Identificado</span>
-                    {occ.suggested_capa_code && (
-                      <span style={{ fontSize: '11px', color: '#475569' }}>
-                        Sugestão da IA: <strong>{occ.suggested_capa_code}</strong> ({Math.round((occ.confidence || 0) * 100)}%)
-                      </span>
-                    )}
-                  </div>
-
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
-                    🎯 Qual é o produto correto impresso nesta capa?
-                  </label>
-
-                  <select
-                    style={{ width: '100%', height: '42px', borderRadius: '10px', border: '1.5px solid #cbd5e1', padding: '0 12px', fontSize: '13.5px', fontWeight: 700, color: '#0f172a', background: '#f8fafc' }}
-                    value={currentSelected}
-                    onChange={e => setSelectedCapa(prev => ({ ...prev, [occ.id]: e.target.value }))}
-                  >
-                    <option value="">-- Selecione o produto correspondente --</option>
-                    {capaOptions.map(opt => (
-                      <option key={opt.code} value={opt.code}>
-                        {opt.code} — {opt.name} ({opt.platform || 'Geral'})
-                      </option>
-                    ))}
-                  </select>
-
-                  {targetProd && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px', background: '#f0fdf4', padding: '6px 10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                      {targetProd.image_url && (
-                        <img src={targetProd.image_url} alt="Mockup Oficial" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
-                      )}
-                      <span style={{ fontSize: '12px', color: '#166534', fontWeight: 700 }}>
-                        Mockup Oficial: <strong>{targetProd.code}</strong> · {targetProd.name}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Coluna 3: Ações de Treinamento */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button
-                    type="button"
-                    className="btn-create-product-gradient"
-                    style={{ height: '44px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                    disabled={isTraining || !currentSelected}
-                    onClick={() => handleTrain(occ.id)}
-                  >
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                    <span>{isTraining ? 'Indexando no Vectorize…' : 'Aprovar & Treinar'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    style={{ height: '36px', borderRadius: '9px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#64748b', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-                    disabled={isTraining}
-                    onClick={() => handleDismiss(occ.id)}
-                  >
-                    ✕ Descartar Foto
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* =========================================================================
    MAIN ADMIN APP ROOT
    ========================================================================= */
 function AdminApp() {
@@ -2569,13 +2614,6 @@ function AdminApp() {
             platformsCount={platformsCount}
           />
 
-          {activeView === 'ocorrencias' && (
-            <OccurrencesLearningView
-              products={products}
-              onRefresh={refreshAll}
-            />
-          )}
-
           {activeView === 'catalogo' && (
             <CatalogView
               products={products}
@@ -2623,7 +2661,10 @@ function AdminApp() {
           )}
 
           {activeView === 'usuarios' && (
-            <OperatorsView />
+            <OperatorsAndLearningView
+              products={products}
+              onRefresh={refreshAll}
+            />
           )}
 
           {activeView === 'configuracoes' && (
