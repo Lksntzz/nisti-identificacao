@@ -594,36 +594,54 @@ function ConfidenceBadge({ confidence, score }) {
   );
 }
 
+function ScanningOverlay({ elapsedMs, stageText }) {
+  const seconds = (elapsedMs / 1000).toFixed(1);
+  return (
+    <div className="scanning-hud-overlay">
+      <div className="scanning-grid-bg" />
+      <div className="scanning-laser-beam" />
+      <div className="scanning-hud-box">
+        <span className="scanning-timer-val">{seconds}s</span>
+        <div className="scanning-status-text">
+          <span className="scanning-radar-dot" />
+          <span>{stageText || 'Identificando capa…'}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProductResult({ product, performance, onReset }) {
-  return <div className="result">
-    <div className="result-header-row">
-      <p className="eyebrow" style={{ margin: 0 }}>PRODUTO IDENTIFICADO PELA CAPA</p>
-      <ConfidenceBadge confidence={product.confidence} score={performance?.retrieval_top1} />
+  return (
+    <div className="result-compact-card">
+      <div className="result-compact-header">
+        <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          ✓ Capa Identificada
+        </span>
+        <ConfidenceBadge confidence={product.confidence} score={performance?.retrieval_top1} />
+      </div>
+
+      <div className="result-compact-row">
+        <ProductImage product={product} className="result-compact-img" alt={`Mockup ${product.sku}`} />
+        <div className="result-compact-info">
+          <h4 className="result-compact-sku" title={product.sku}>{product.sku}</h4>
+          <div className="result-compact-badges">
+            <span className="result-compact-badge">Capa: <strong>{product.capa_code}</strong></span>
+            {product.wireo && <span className="result-compact-badge">Wire-o: <strong>{product.wireo}</strong></span>}
+            {product.elastico && <span className="result-compact-badge">Elástico: <strong>{product.elastico}</strong></span>}
+            {product.tassel && <span className="result-compact-badge">Tassel: <strong>{product.tassel}</strong></span>}
+          </div>
+        </div>
+      </div>
+
+      {performance?.total_ms && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
+          <span>{product.platform ? `Plataforma: ${product.platform}` : ''}</span>
+          <span style={{ fontWeight: 600 }}>Reconhecido em {(performance.total_ms / 1000).toFixed(1)}s</span>
+        </div>
+      )}
     </div>
-    <h3>{product.sku}</h3>
-    <ProductImage product={product} className="result-image" alt={`Mockup ${product.sku}`} />
-    <div className="badges">
-      <Badge label="Capa" value={product.capa_code}/>
-      <Badge label="Wire-O" value={product.wireo}/>
-      <Badge label="Tassel" value={product.tassel}/>
-      <Badge label="Elástico" value={product.elastico}/>
-    </div>
-    {product.platform && <p className="platform"><strong>Plataforma:</strong> {product.platform}</p>}
-    {performance?.total_ms && <small className="perf">Identificado em {(performance.total_ms / 1000).toFixed(1)} s</small>}
-    {onReset && (
-      <button
-        type="button"
-        className="btn-nova-consulta"
-        onClick={onReset}
-      >
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-          <path d="M3 3v5h5" />
-        </svg>
-        <span>Nova consulta</span>
-      </button>
-    )}
-  </div>;
+  );
 }
 
 function ProductChoices({ capaCode, products, platform, onSelect, performance, onReset }) {
@@ -715,7 +733,29 @@ function PublicIdentificationApp() {
     try { return JSON.parse(localStorage.getItem('nisti_recent_scans') || '[]'); } catch { return []; }
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [scanStage, setScanStage] = useState('Processando foto…');
   const runId = useRef(0);
+
+  useEffect(() => {
+    if (!busy) {
+      setElapsedMs(0);
+      return;
+    }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const diff = Date.now() - start;
+      setElapsedMs(diff);
+      if (diff < 400) {
+        setScanStage('1. Extraindo vetor visual…');
+      } else if (diff < 1200) {
+        setScanStage('2. Comparando com IA…');
+      } else {
+        setScanStage('3. Confirmando produto…');
+      }
+    }, 40);
+    return () => clearInterval(interval);
+  }, [busy]);
 
   const addRecentScan = (product) => {
     if (!product) return;
@@ -913,25 +953,9 @@ function PublicIdentificationApp() {
     <div className="main-card">
       <div className="card-top-gradient" />
       <div className="card-inner-body">
-        <div className="painel-badge">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <rect x="14" y="14" width="7" height="7" rx="1.5" />
-          </svg>
-          <span>PAINEL GERAL</span>
-        </div>
-
-        <h2 className="card-headline">Identificação de produto</h2>
-        <p className="card-subhead">
-          Selecione a plataforma e fotografe a capa de frente. A busca visual será feita somente dentro do catálogo dessa plataforma.
-        </p>
-
         <div className="platform-field-group">
-          <label className="field-title" htmlFor="recognition-platform">PLATAFORMA</label>
           <div className="select-container">
-            <svg className="select-icon-left" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="select-icon-left" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m12 2 10 5-10 5-10-5Z"/>
               <path d="m2 12 10 5 10-5"/>
               <path d="m2 17 10 5 10-5"/>
@@ -950,71 +974,58 @@ function PublicIdentificationApp() {
                 </option>
               ))}
             </select>
-            <svg className="select-chevron-right" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#334155" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="select-chevron-right" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#334155" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="m6 9 6 6 6-6" />
             </svg>
           </div>
         </div>
 
         {platformError && (
-          <div className="status error">
-            <h3>Plataformas indisponíveis</h3>
-            <p>{platformError}</p>
+          <div className="status error" style={{ padding: '6px 10px', margin: 0 }}>
+            <p style={{ margin: 0, fontSize: '11px' }}>{platformError}</p>
           </div>
         )}
 
         <div className="cover-card-container">
-          <div className="cover-card-header">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-              <circle cx="9" cy="9" r="2" />
-              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            </svg>
-            <span>CAPA DO PRODUTO</span>
-          </div>
-
           <div className="dashed-upload-zone">
             {preview ? (
               <div className="photo-preview-wrap">
                 <img className="photo-preview-img" src={preview} alt="Foto da capa" />
-                <label className="change-photo-btn">
-                  <span>Trocar foto</span>
-                  <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
-                </label>
+                {busy && <ScanningOverlay elapsedMs={elapsedMs} stageText={scanStage} />}
+                {!busy && (
+                  <label className="change-photo-btn">
+                    <span>Trocar foto</span>
+                    <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
+                  </label>
+                )}
               </div>
             ) : (
               <div className="dropzone-empty-state">
-                <div className="viewfinder-frame">
-                  <div className="vf-corner top-left" />
-                  <div className="vf-corner top-right" />
-                  <div className="vf-corner bottom-left" />
-                  <div className="vf-corner bottom-right" />
-                  <div className="camera-circle-badge">
-                    <svg className="camera-gradient-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="url(#camera-rainbow)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <defs>
-                        <linearGradient id="camera-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#06b6d4" />
-                          <stop offset="50%" stopColor="#6366f1" />
-                          <stop offset="100%" stopColor="#d946ef" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                      <circle cx="12" cy="13" r="3" />
-                    </svg>
-                    <svg className="sparkle-badge-icon" viewBox="0 0 24 24" width="14" height="14" fill="#06b6d4">
-                      <path d="m12 2 2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
-                    </svg>
-                  </div>
+                <div className="camera-circle-badge">
+                  <svg className="camera-gradient-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="url(#camera-rainbow)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <defs>
+                      <linearGradient id="camera-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#06b6d4" />
+                        <stop offset="50%" stopColor="#6366f1" />
+                        <stop offset="100%" stopColor="#d946ef" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                    <circle cx="12" cy="13" r="3" />
+                  </svg>
+                  <svg className="sparkle-badge-icon" viewBox="0 0 24 24" width="10" height="10" fill="#06b6d4">
+                    <path d="m12 2 2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+                  </svg>
                 </div>
                 <h3 className="dropzone-title">Fotografar ou enviar capa</h3>
-                <p className="dropzone-hint">Enquadre a capa no centro, de frente e com boa iluminação.</p>
+                <p className="dropzone-hint">Enquadre de frente com boa luz.</p>
                 <label className="gallery-pill-btn">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
-                  <span>Selecionar da galeria</span>
+                  <span>Galeria / Câmera</span>
                   <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
                 </label>
               </div>
@@ -1022,52 +1033,46 @@ function PublicIdentificationApp() {
           </div>
         </div>
 
-        <button
-          type="button"
-          className="btn-identify-rainbow"
-          disabled={!photo || !platform || busy}
-          onClick={() => identifyFile(photo)}
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <span>{busy ? 'Identificando capa…' : (result || choices || error) ? '🔄 Tentar novamente' : 'Identificar produto'}</span>
-        </button>
-
-        {(photo || platform || result || choices || error) && (
+        <div className="action-buttons-group">
           <button
             type="button"
-            className="btn-nova-consulta"
-            onClick={resetAll}
-            disabled={busy}
+            className="btn-identify-rainbow"
+            disabled={!photo || !platform || busy}
+            onClick={() => identifyFile(photo)}
           >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            <span>Nova consulta</span>
+            <span>{busy ? 'Identificando…' : (result || choices || error) ? 'Tentar novamente' : 'Identificar produto'}</span>
           </button>
-        )}
 
-        <div className="security-notice-footer">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-          <span>Suas imagens são processadas com segurança e não são armazenadas após a identificação.</span>
+          {(photo || platform || result || choices || error) && (
+            <button
+              type="button"
+              className="btn-nova-consulta"
+              onClick={resetAll}
+              disabled={busy}
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              <span>Nova consulta</span>
+            </button>
+          )}
         </div>
 
         {error && (
-          <div className="status error" style={{ marginTop: '20px' }}>
-            <h3>Produto não identificado</h3>
-            <p>{error}</p>
+          <div className="status error" style={{ padding: '8px 10px', margin: '2px 0' }}>
+            <h3 style={{ fontSize: '12px', margin: 0 }}>Produto não identificado</h3>
+            <p style={{ fontSize: '11px', margin: '2px 0 0' }}>{error}</p>
             {suggestedPlatform && (
-              <div style={{ marginTop: '14px' }}>
+              <div style={{ marginTop: '6px' }}>
                 <button
                   type="button"
                   className="btn-identify-rainbow"
-                  style={{ minHeight: '44px', fontSize: '14px', background: '#4f46e5' }}
+                  style={{ height: '36px', fontSize: '12px', background: '#4f46e5' }}
                   onClick={() => {
                     const target = suggestedPlatform;
                     setPlatform(target);
@@ -1075,7 +1080,7 @@ function PublicIdentificationApp() {
                     identifyFileWithPlatform(photo, target);
                   }}
                 >
-                  Alternar para {suggestedPlatform} e identificar
+                  Alternar para {suggestedPlatform}
                 </button>
               </div>
             )}
