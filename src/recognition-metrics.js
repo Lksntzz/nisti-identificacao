@@ -34,7 +34,7 @@ function textOrNull(value, limit = 500) {
   return text ? text.slice(0, limit) : null;
 }
 
-export async function recordRecognitionAttempt(env, responseStatus, data) {
+export async function recordRecognitionAttempt(env, responseStatus, data, options = {}) {
   try {
     await ensureRecognitionMetrics(env);
     const kind = classify(responseStatus, data);
