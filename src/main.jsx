@@ -2354,4 +2354,4 @@ function AdminApp() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<AdminApp />);
+export default AdminApp;

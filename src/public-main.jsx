@@ -1106,4 +1106,4 @@ function PublicIdentificationApp() {
   </main>;
 }
 
-createRoot(document.getElementById('root')).render(<PublicIdentificationApp/>);
+export default PublicIdentificationApp;
