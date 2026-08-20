@@ -374,6 +374,7 @@ export async function buildVectorizeCandidates(request, env) {
     timings.retrieval_margin = covers.length > 1
       ? Number(covers[0].retrieval_score || 0) - Number(covers[1].retrieval_score || 0)
       : 1;
+    const topScore = Number(covers[0]?.retrieval_score || 0);
 
     // Se outra plataforma tiver correspondência superior ou igual
     if (crossMatch && crossMatch.score >= 0.80 && (crossMatch.score >= topScore || (crossMatch.score >= 0.84 && topScore < 0.86))) {
