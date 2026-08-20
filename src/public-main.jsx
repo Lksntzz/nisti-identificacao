@@ -55,6 +55,53 @@ async function api(path, options = {}) {
   return data;
 }
 
+function enhanceContrast(imageData) {
+  const data = imageData.data;
+  const len = data.length;
+  const totalPixels = len / 4;
+  const histogram = new Uint32Array(256);
+
+  for (let i = 0; i < len; i += 4) {
+    const lum = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
+    histogram[lum]++;
+  }
+
+  const clipLow = Math.floor(totalPixels * 0.015);
+  const clipHigh = Math.floor(totalPixels * 0.985);
+
+  let count = 0;
+  let minLum = 0;
+  for (let i = 0; i < 256; i++) {
+    count += histogram[i];
+    if (count >= clipLow) {
+      minLum = i;
+      break;
+    }
+  }
+
+  count = 0;
+  let maxLum = 255;
+  for (let i = 255; i >= 0; i--) {
+    count += histogram[i];
+    if (count >= totalPixels - clipHigh) {
+      maxLum = i;
+      break;
+    }
+  }
+
+  const range = maxLum - minLum;
+  if (range > 25 && range < 235) {
+    const scale = 255 / range;
+    for (let i = 0; i < len; i += 4) {
+      data[i] = Math.min(255, Math.max(0, (data[i] - minLum) * scale));
+      data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - minLum) * scale));
+      data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - minLum) * scale));
+    }
+  }
+
+  return imageData;
+}
+
 async function compressPhoto(file) {
   if (!file || !String(file.type || '').startsWith('image/')) return file;
   let bitmap;
@@ -71,11 +118,17 @@ async function compressPhoto(file) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  const context = canvas.getContext('2d', { alpha: false });
+  const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
   context.drawImage(bitmap, 0, 0, width, height);
   bitmap.close?.();
 
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.72));
+  try {
+    const imgData = context.getImageData(0, 0, width, height);
+    enhanceContrast(imgData);
+    context.putImageData(imgData, 0, 0);
+  } catch {}
+
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.78));
   return blob ? new File([blob], 'capa.jpg', { type: 'image/jpeg' }) : file;
 }
 
