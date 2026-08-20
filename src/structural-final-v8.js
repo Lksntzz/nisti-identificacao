@@ -5,9 +5,9 @@ import { reserveGeminiBudget } from './gemini-budget.js';
 const COOKIE_NAME = 'nisti_recognition_ticket';
 const MAX_CANDIDATES = 6;
 const SUGGESTION_LIMIT = 3;
-const MIN_STRUCTURAL_CONFIDENCE = 0.92;
-const VERIFY_TIMEOUT_MS = 6500;
-const VERIFIER_RPM_LIMIT = 6;
+const MIN_STRUCTURAL_CONFIDENCE = 0.85;
+const VERIFY_TIMEOUT_MS = 9000;
+const VERIFIER_RPM_LIMIT = 60;
 
 class RecognitionError extends Error {
   constructor(message, status = 500, code = 'recognition_error') {
@@ -308,17 +308,25 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
   );
   const started = Date.now();
 
-  const prompt = `Você identifica a ARTE-BASE impressa de produtos NISTI PRINT.
-A FOTO deve ser comparada com TODAS as candidatas abaixo. Nenhuma candidata é referência principal e a ordem NÃO indica a resposta.
-Retorne winner_code somente se UMA candidata for exatamente a mesma arte-base da FOTO.
-Compare obrigatoriamente: texto fixo, personagem/objeto principal, elementos gráficos, cores dominantes e layout.
-Ignore completamente itens físicos que não fazem parte da impressão: wire-o/espiral, elástico, tassel, plástico, laminação, holografia, brilho, reflexo, sombra, mão, mesa, perspectiva, recorte e fundo externo.
-Quando PERSONALIZADO=SIM, ignore somente nome próprio, inicial/letra ou data variável; títulos e frases fixas continuam obrigatórios.
-Não aceite por tema, cor geral ou estilo parecido. Se houver diferença permanente relevante, ou se nenhuma candidata for exata, use winner_code="NONE" e exact_match=false.`;
+  const prompt = `Você é o classificador visual oficial da NISTI PRINT.
+Sua missão é identificar com precisão se a FOTO DO PRODUTO corresponde a uma das CANDIDATAS do catálogo pela ARTE-BASE impressa na capa.
+
+REGRAS DE COMPARAÇÃO:
+1. FOCO NA ARTE GRÁFICA: Compare ilustrações, desenhos, flores, animais/personagens, sol, cercas, arranjos gráficos, cores dominantes, títulos fixos e layout geral da capa.
+2. NOMES PERSONALIZADOS DO CLIENTE: Produtos de papelaria (cadernetas, agendas, planners) recebem nomes personalizados variáveis de clientes (ex: "Agnes", "Helena", "Arthur", "Maria", datas, etc.). A imagem de referência no catálogo pode estar sem nome ou ter um nome fictício diferente. IGNORE a diferença de nome próprio do cliente e considere correspondência EXATA se a arte gráfica, ilustrações e estilo forem idênticos!
+3. ITENS FÍSICOS E REFLEXOS: IGNORE completamente:
+   - Wire-o / espirais / encadernação lateral
+   - Elásticos e passadores de elástico
+   - Tassel / pingentes
+   - Laminação, holografia, glitter, reflexos de luz, sombras e brilhos na foto
+   - Dedos/mãos do operador segurando, mesa e fundo externo
+4. RESULTADO:
+   - Se uma das candidatas for a mesma arte da foto, retorne winner_code com o CAPA_CODE dessa candidata, exact_match=true e confidence alta (0.85 a 1.00).
+   - Se nenhuma candidata tiver a mesma arte gráfica (desenho diferente), retorne winner_code="NONE", exact_match=false e confidence baixa.`;
 
   const parts = [
     { text: prompt },
-    { text: 'FOTO DO PRODUTO:' },
+    { text: 'FOTO DO PRODUTO (Tirada na expedição):' },
     {
       inline_data: {
         mime_type: photoMime || 'image/jpeg',
@@ -332,7 +340,7 @@ Não aceite por tema, cor geral ou estilo parecido. Se houver diferença permane
       ? candidate.catalog_labels.join(' | ')
       : 'sem descrição adicional';
     parts.push({
-      text: `CANDIDATA CAPA_CODE=${candidate.capa_code}; PERSONALIZADO=${candidate.catalog_personalized ? 'SIM' : 'NÃO'}; CADASTRO=${labels}`
+      text: `CANDIDATA CAPA_CODE=${candidate.capa_code}; CADASTRO=${labels}`
     });
     parts.push({
       inline_data: {
@@ -356,8 +364,7 @@ Não aceite por tema, cor geral ou estilo parecido. Se houver diferença permane
           contents: [{ role: 'user', parts }],
           generationConfig: {
             temperature: 0,
-            maxOutputTokens: 80,
-            media_resolution: 'MEDIA_RESOLUTION_LOW',
+            maxOutputTokens: 256,
             thinkingConfig: { thinkingLevel: 'minimal' },
             response_mime_type: 'application/json',
             response_schema: {
