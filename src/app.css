@@ -274,6 +274,41 @@ img { max-width: 100%; }
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
 }
 
+/* Detail Tiebreaker Button */
+.btn-detail-tiebreaker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1.5px dashed #6366f1;
+  border-radius: 14px;
+  color: #4f46e5;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 12px 0 16px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.btn-detail-tiebreaker:hover {
+  background: #eef2ff;
+  border-color: #4338ca;
+  transform: translateY(-1px);
+}
+
+.btn-detail-tiebreaker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
 .field-title {
   display: block;
   font-size: 11px;

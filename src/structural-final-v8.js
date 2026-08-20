@@ -734,3 +734,103 @@ export async function structuralFinalIdentifyV8(request, env) {
     }, Number(error?.status) || 500);
   }
 }
+
+export async function identifyProductByDetail(request, env) {
+  try {
+    const form = await request.formData();
+    const image = form.get('image');
+    const capaCode = String(form.get('capa_code') || '').trim().toUpperCase();
+    const platform = normalizePlatform(form.get('platform'));
+
+    if (!(image instanceof File)) {
+      return json({ error: 'Foto de detalhe obrigatória.' }, 400);
+    }
+    if (!capaCode || !platform) {
+      return json({ error: 'Capa e plataforma obrigatórias.' }, 400);
+    }
+
+    const products = await productsForCover(env, capaCode, platform);
+    if (!products.length) {
+      return json({ error: 'Nenhum produto cadastrado para esta capa.' }, 404);
+    }
+
+    if (products.length === 1) {
+      return json({ ok: true, product: productPayload(products[0]) });
+    }
+
+    const bytes = new Uint8Array(await image.arrayBuffer());
+    const model = env.GEMINI_VERIFIER_MODEL || env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+
+    const productListDesc = products.map((p, idx) => 
+      `Opção [${idx}]: SKU="${p.sku}", Nome="${p.nome || ''}", Variação="${p.variacao || ''}", Miolo="${p.miolo_code}", Acabamento="${p.acabamento_code}"`
+    ).join('\n');
+
+    const prompt = `Você é um especialista em conferência de produtos da gráfica NISTI.
+Analise a foto de DETALHE/TEXTO/ZOOM enviada pelo operador e identifique a qual das seguintes opções de produtos ela corresponde.
+Preste atenção especial em:
+1. Textos, anos (ex: 2025, 2026), frases, títulos ou nomes gravados na capa.
+2. Tipo de acabamento, cor do wire-o/espiral, elástico ou tassel visíveis.
+3. Tipo de pauta ou miolo se visível.
+
+Opções disponíveis:
+${productListDesc}
+
+Retorne exclusivamente um JSON no seguinte formato:
+{
+  "selected_index": 0,
+  "confidence": 0.98,
+  "evidence": "Texto 2026 identificado no centro da capa"
+}`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-goog-api-key': env.GEMINI_API_KEY
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: image.type || 'image/jpeg',
+                  data: base64(bytes)
+                }
+              }
+            ]
+          }],
+          generationConfig: {
+            response_mime_type: 'application/json',
+            temperature: 0.1
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      return json({ error: 'Falha ao analisar detalhe com IA.' }, 502);
+    }
+
+    const payload = await response.json();
+    const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
+    let parsed = {};
+    try { parsed = JSON.parse(text); } catch {}
+
+    const index = Number(parsed.selected_index);
+    const selectedProduct = (Number.isInteger(index) && index >= 0 && index < products.length)
+      ? products[index]
+      : products[0];
+
+    return json({
+      ok: true,
+      product: productPayload(selectedProduct),
+      confidence: Number(parsed.confidence || 0.95),
+      evidence: parsed.evidence || null
+    });
+  } catch (err) {
+    return json({ error: err.message || 'Erro ao processar foto de detalhe.' }, 500);
+  }
+}

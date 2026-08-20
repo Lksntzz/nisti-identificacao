@@ -613,13 +613,59 @@ function ProductResult({ product, performance }) {
   </div>;
 }
 
-function ProductChoices({ capaCode, products, onSelect, performance }) {
+function ProductChoices({ capaCode, products, platform, onSelect, performance }) {
+  const [analyzingDetail, setAnalyzingDetail] = useState(false);
+  const [detailError, setDetailError] = useState('');
+
+  const handleDetailPhoto = async (file) => {
+    if (!file || analyzingDetail) return;
+    setAnalyzingDetail(true);
+    setDetailError('');
+
+    try {
+      const optimized = await compressPhoto(file);
+      const form = new FormData();
+      form.append('image', optimized);
+      form.append('capa_code', capaCode);
+      form.append('platform', platform);
+
+      const data = await api('/api/identify-detail', {
+        method: 'POST',
+        body: form
+      });
+
+      if (data?.product) {
+        onSelect(data.product);
+      } else {
+        setDetailError('Não foi possível desempatar pelo detalhe. Escolha manualmente abaixo.');
+      }
+    } catch (err) {
+      setDetailError(err?.message || 'Erro ao analisar detalhe.');
+    } finally {
+      setAnalyzingDetail(false);
+    }
+  };
+
   return <div className="result">
     <div className="result-header-row">
       <p className="eyebrow" style={{ margin: 0 }}>CAPA IDENTIFICADA</p>
       <ConfidenceBadge score={performance?.retrieval_top1} />
     </div>
     <h3 className="choice-title">{capaCode} · escolha o SKU</h3>
+
+    <label className="btn-detail-tiebreaker">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        <line x1="11" y1="8" x2="11" y2="14" />
+        <line x1="8" y1="11" x2="14" y2="11" />
+      </svg>
+      <span>{analyzingDetail ? 'Analisando detalhe com IA…' : '🔍 Desempatar por foto de detalhe / texto da capa'}</span>
+      <input type="file" accept="image/*" capture="environment" disabled={analyzingDetail} onChange={e => handleDetailPhoto(e.target.files?.[0])} />
+    </label>
+
+    {detailError && <p className="status error" style={{ fontSize: '13px', margin: '0 0 14px' }}>{detailError}</p>}
+
     <div className="choices">
       {products.map(product => <article className="choice-card" key={product.id}>
         <ProductImage product={product} alt={product.sku}/>
@@ -946,6 +992,7 @@ function PublicIdentificationApp() {
         {choices && <ProductChoices
           capaCode={choices.capaCode}
           products={choices.products}
+          platform={platform}
           performance={performance}
           onSelect={product => { setResult(product); setChoices(null); }}
         />}

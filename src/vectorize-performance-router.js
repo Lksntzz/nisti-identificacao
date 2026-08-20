@@ -130,6 +130,11 @@ export default {
       return response;
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/identify-detail') {
+      const { identifyProductByDetail } = await import('./structural-final-v8.js');
+      return identifyProductByDetail(request, env);
+    }
+
     const canonicalRequest = await canonicalizeCatalogRequest(request, url);
     if (canonicalRequest instanceof Response) return canonicalRequest;
     return app.fetch(canonicalRequest, env, ctx);
