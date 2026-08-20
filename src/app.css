@@ -673,100 +673,124 @@ img { max-width: 100%; }
   cursor: pointer;
 }
 
-/* Futuristic Laser Scanning Animation & Overlay */
-.scanning-hud-overlay {
+/* Minimalist Liquid Loader with Floating Card (Option 4) */
+.scanning-liquid-overlay {
   position: absolute;
   inset: 0;
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.82);
-  backdrop-filter: blur(2.5px);
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 25;
-  overflow: hidden;
+  padding: 10px;
   animation: fadeIn 0.2s ease-out;
 }
 
-.scanning-grid-bg {
-  position: absolute;
-  inset: 0;
-  background-image: 
-    linear-gradient(to right, rgba(56, 189, 248, 0.15) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(56, 189, 248, 0.15) 1px, transparent 1px);
-  background-size: 16px 16px;
-}
-
-.scanning-laser-beam {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent 0%, #38bdf8 25%, #d946ef 75%, transparent 100%);
-  box-shadow: 0 0 14px 4px rgba(56, 189, 248, 0.9), 0 0 28px 8px rgba(217, 70, 239, 0.6);
-  animation: laserSweep 1.3s ease-in-out infinite alternate;
-  z-index: 2;
-}
-
-@keyframes laserSweep {
-  0% { top: 6%; }
-  100% { top: 94%; }
-}
-
-.scanning-hud-box {
-  position: relative;
-  z-index: 5;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1.5px solid #38bdf8;
-  border-radius: 12px;
-  padding: 6px 14px;
+.liquid-floating-card {
+  background: #ffffff;
+  border: 1.5px solid #e0e7ff;
+  border-radius: 16px;
+  padding: 12px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
-  animation: hudPulse 1.8s infinite;
+  gap: 5px;
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.18), 0 2px 8px rgba(0, 0, 0, 0.04);
+  animation: floatPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  max-width: 230px;
+  width: 100%;
 }
 
-@keyframes hudPulse {
-  0%, 100% { border-color: #38bdf8; box-shadow: 0 0 14px rgba(56, 189, 248, 0.35); }
-  50% { border-color: #c084fc; box-shadow: 0 0 22px rgba(192, 132, 252, 0.55); }
+@keyframes floatPop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
-.scanning-timer-val {
-  font-family: 'Consolas', monospace;
-  font-size: 22px;
-  font-weight: 900;
-  color: #38bdf8;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
-  line-height: 1;
-}
-
-.scanning-status-text {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #f1f5f9;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.scanning-radar-dot {
-  width: 6px;
-  height: 6px;
+.liquid-icon-wrapper {
+  position: relative;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 8px #38bdf8;
-  animation: radarBlink 0.7s infinite alternate;
+  background: #f8faff;
+  display: grid;
+  place-items: center;
+  margin-bottom: 2px;
 }
 
-@keyframes radarBlink {
-  0% { opacity: 0.3; transform: scale(0.8); }
-  100% { opacity: 1; transform: scale(1.3); }
+.liquid-halo-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  border-top-color: #6366f1;
+  border-right-color: #d946ef;
+  animation: spinHalo 0.9s linear infinite;
+}
+
+@keyframes spinHalo {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.liquid-text-col {
+  text-align: center;
+}
+
+.liquid-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+}
+
+.liquid-stage-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #6366f1;
+  margin-top: 1px;
+}
+
+.liquid-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  margin-top: 4px;
+}
+
+.liquid-progress-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background: linear-gradient(90deg, #06b6d4 0%, #6366f1 50%, #d946ef 100%);
+  border-radius: 999px;
+  animation: liquidFlow 1.2s infinite ease-in-out alternate;
+}
+
+@keyframes liquidFlow {
+  0% { left: -10%; width: 35%; }
+  50% { width: 55%; }
+  100% { left: 75%; width: 35%; }
+}
+
+.liquid-timer-pill {
+  font-family: 'Consolas', monospace;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 1px 8px;
+  border-radius: 999px;
+  margin-top: 2px;
 }
 
 /* Compact Result Card */

@@ -624,15 +624,33 @@ function ConfidenceBadge({ confidence, score }) {
 function ScanningOverlay({ elapsedMs, stageText }) {
   const seconds = (elapsedMs / 1000).toFixed(1);
   return (
-    <div className="scanning-hud-overlay">
-      <div className="scanning-grid-bg" />
-      <div className="scanning-laser-beam" />
-      <div className="scanning-hud-box">
-        <span className="scanning-timer-val">{seconds}s</span>
-        <div className="scanning-status-text">
-          <span className="scanning-radar-dot" />
-          <span>{stageText || 'Identificando capa…'}</span>
+    <div className="scanning-liquid-overlay">
+      <div className="liquid-floating-card">
+        <div className="liquid-icon-wrapper">
+          <svg className="liquid-sparkle-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="url(#liquid-grad)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <defs>
+              <linearGradient id="liquid-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#06b6d4" />
+                <stop offset="50%" stopColor="#6366f1" />
+                <stop offset="100%" stopColor="#d946ef" />
+              </linearGradient>
+            </defs>
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <path d="M11 8v6M8 11h6" />
+          </svg>
+          <div className="liquid-halo-ring" />
         </div>
+        
+        <div className="liquid-text-col">
+          <h4 className="liquid-title">Identificando Capa…</h4>
+          <span className="liquid-stage-label">{stageText || 'Comparando com o catálogo'}</span>
+        </div>
+
+        <div className="liquid-progress-track">
+          <div className="liquid-progress-bar" />
+        </div>
+        <span className="liquid-timer-pill">{seconds}s</span>
       </div>
     </div>
   );
