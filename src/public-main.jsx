@@ -68,18 +68,16 @@ function BellIcon({ unreadCount, onClick }) {
   return (
     <button
       type="button"
-      className="notification-bell-btn"
+      className="bell-circle-btn"
       onClick={onClick}
       aria-label={`Notificações de novas capas (${unreadCount} não lidas)`}
     >
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
         <path d="M13.73 21a2 2 0 0 1-3.46 0" />
       </svg>
       {unreadCount > 0 && (
-        <span className="notification-badge" aria-hidden="true">
-          {unreadCount > 99 ? '99+' : unreadCount}
-        </span>
+        <span className="bell-pink-dot" aria-hidden="true" />
       )}
     </button>
   );
@@ -298,21 +296,24 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
 }
 
 function BrandHeader({ unreadCount = 0, onOpenNotifications }) {
-  const [logoFailed, setLogoFailed] = useState(false);
-  return <header className="topbar">
-    <div className="brand-block">
-      <img
-        className="brand-logo"
-        src={logoFailed ? LOGO_FALLBACK : LOGO}
-        alt="NISTI PRINT"
-        onError={() => setLogoFailed(true)}
-      />
-      <div className="top-title"><small>NISTI PRINT</small><h1>Identificação Visual</h1></div>
-    </div>
-    <div className="header-actions">
-      <BellIcon unreadCount={unreadCount} onClick={onOpenNotifications} />
-    </div>
-  </header>;
+  return (
+    <header className="brand-topbar">
+      <div className="brand-identity">
+        <img
+          className="brand-icon-mark"
+          src="/nisti-app-icon.svg"
+          alt="NISTI PRINT"
+        />
+        <div className="brand-titles">
+          <span className="brand-subtext">NISTI PRINT</span>
+          <h1 className="brand-main-title">Identificação Visual</h1>
+        </div>
+      </div>
+      <div className="header-actions">
+        <BellIcon unreadCount={unreadCount} onClick={onOpenNotifications} />
+      </div>
+    </header>
+  );
 }
 
 function Badge({ label, value }) {
@@ -596,85 +597,175 @@ function PublicIdentificationApp() {
       unreadCount={unreadCount}
       onOpenNotifications={() => setNotificationsOpen(true)}
     />
-    <section className="panel">
-      <p className="eyebrow">PAINEL GERAL</p>
-      <h2>Identificação de produto</h2>
-      <p className="lead">Selecione a plataforma e fotografe a capa de frente. A busca visual será feita somente dentro do catálogo dessa plataforma.</p>
+    
+    <div className="main-card">
+      <div className="card-top-gradient" />
+      <div className="card-inner-body">
+        <div className="painel-badge">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+          <span>PAINEL GERAL</span>
+        </div>
 
-      <div className="platform-selector">
-        <label htmlFor="recognition-platform">PLATAFORMA</label>
-        <select id="recognition-platform" value={platform} onChange={changePlatform} disabled={busy}>
-          <option value="">Selecione a plataforma</option>
-          {platforms.map(item => <option key={item.platform_key} value={item.platform}>
-            {item.platform} ({item.product_count})
-          </option>)}
-        </select>
-        {platform && <small>Busca restrita a {platform}.</small>}
-      </div>
+        <h2 className="card-headline">Identificação de produto</h2>
+        <p className="card-subhead">
+          Selecione a plataforma e fotografe a capa de frente. A busca visual será feita somente dentro do catálogo dessa plataforma.
+        </p>
 
-      {platformError && <div className="status error"><h3>Plataformas indisponíveis</h3><p>{platformError}</p></div>}
-
-      <label className="camera">
-        <span className="camera-label">CAPA DO PRODUTO</span>
-        {preview
-          ? <><img className="photo-preview" src={preview} alt="Foto da capa"/><span className="photo-ready">Foto pronta</span></>
-          : <div className="camera-empty"><span className="camera-icon">◎</span><strong>Fotografar ou enviar capa</strong><span>Use uma imagem frontal, nítida e com boa iluminação.</span></div>}
-        <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])}/>
-      </label>
-
-      <button className="primary" disabled={!photo || !platform || busy} onClick={() => identifyFile(photo)}>
-        {busy ? 'Comparando capa…' : 'Identificar produto'}
-      </button>
-
-      {error && <div className="status error">
-        <h3>Produto não identificado</h3>
-        <p>{error}</p>
-        {suggestedPlatform && (
-          <div style={{ marginTop: '14px' }}>
-            <button
-              type="button"
-              className="primary"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-                minHeight: '44px',
-                padding: '0 16px',
-                fontSize: '14px',
-                background: '#4f46e5',
-                color: '#fff',
-                borderRadius: '12px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: '600'
-              }}
-              onClick={() => {
-                const target = suggestedPlatform;
-                setPlatform(target);
-                setSuggestedPlatform(null);
-                identifyFileWithPlatform(photo, target);
-              }}
+        <div className="platform-field-group">
+          <label className="field-title" htmlFor="recognition-platform">PLATAFORMA</label>
+          <div className="select-container">
+            <svg className="select-icon-left" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 2 10 5-10 5-10-5Z"/>
+              <path d="m2 12 10 5 10-5"/>
+              <path d="m2 17 10 5 10-5"/>
+            </svg>
+            <select
+              id="recognition-platform"
+              className="platform-native-select"
+              value={platform}
+              onChange={changePlatform}
+              disabled={busy}
             >
-              Alternar para {suggestedPlatform} e identificar
-            </button>
+              <option value="">Selecione a plataforma</option>
+              {platforms.map(item => (
+                <option key={item.platform_key} value={item.platform}>
+                  {item.platform} ({item.product_count})
+                </option>
+              ))}
+            </select>
+            <svg className="select-chevron-right" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#334155" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
+        </div>
+
+        {platformError && (
+          <div className="status error">
+            <h3>Plataformas indisponíveis</h3>
+            <p>{platformError}</p>
           </div>
         )}
-      </div>}
-      <PossibleMatches suggestions={suggestions} onSelect={product => {
-        setResult(product);
-        setChoices(null);
-        setSuggestions([]);
-        setError('');
-      }}/>
-      {choices && <ProductChoices
-        capaCode={choices.capaCode}
-        products={choices.products}
-        performance={performance}
-        onSelect={product => { setResult(product); setChoices(null); }}
-      />}
-      {result && <ProductResult product={result} performance={performance}/>} 
-    </section>
+
+        <div className="cover-card-container">
+          <div className="cover-card-header">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+              <circle cx="9" cy="9" r="2" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            </svg>
+            <span>CAPA DO PRODUTO</span>
+          </div>
+
+          <div className="dashed-upload-zone">
+            {preview ? (
+              <div className="photo-preview-wrap">
+                <img className="photo-preview-img" src={preview} alt="Foto da capa" />
+                <label className="change-photo-btn">
+                  <span>Trocar foto</span>
+                  <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
+                </label>
+              </div>
+            ) : (
+              <div className="dropzone-empty-state">
+                <div className="camera-circle-badge">
+                  <svg className="camera-gradient-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="url(#camera-rainbow)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <defs>
+                      <linearGradient id="camera-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#06b6d4" />
+                        <stop offset="50%" stopColor="#6366f1" />
+                        <stop offset="100%" stopColor="#d946ef" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                    <circle cx="12" cy="13" r="3" />
+                  </svg>
+                  <svg className="sparkle-badge-icon" viewBox="0 0 24 24" width="14" height="14" fill="#06b6d4">
+                    <path d="m12 2 2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+                  </svg>
+                </div>
+                <h3 className="dropzone-title">Fotografar ou enviar capa</h3>
+                <p className="dropzone-hint">Use uma imagem frontal, nítida e com boa iluminação.</p>
+                <label className="gallery-pill-btn">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span>Selecionar da galeria</span>
+                  <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="btn-identify-rainbow"
+          disabled={!photo || !platform || busy}
+          onClick={() => identifyFile(photo)}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <span>{busy ? 'Identificando capa…' : 'Identificar produto'}</span>
+        </button>
+
+        <div className="security-notice-footer">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <span>Suas imagens são processadas com segurança e não são armazenadas após a identificação.</span>
+        </div>
+
+        {error && (
+          <div className="status error" style={{ marginTop: '20px' }}>
+            <h3>Produto não identificado</h3>
+            <p>{error}</p>
+            {suggestedPlatform && (
+              <div style={{ marginTop: '14px' }}>
+                <button
+                  type="button"
+                  className="btn-identify-rainbow"
+                  style={{ minHeight: '44px', fontSize: '14px', background: '#4f46e5' }}
+                  onClick={() => {
+                    const target = suggestedPlatform;
+                    setPlatform(target);
+                    setSuggestedPlatform(null);
+                    identifyFileWithPlatform(photo, target);
+                  }}
+                >
+                  Alternar para {suggestedPlatform} e identificar
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <PossibleMatches suggestions={suggestions} onSelect={product => {
+          setResult(product);
+          setChoices(null);
+          setSuggestions([]);
+          setError('');
+        }}/>
+
+        {choices && <ProductChoices
+          capaCode={choices.capaCode}
+          products={choices.products}
+          performance={performance}
+          onSelect={product => { setResult(product); setChoices(null); }}
+        />}
+
+        {result && <ProductResult product={result} performance={performance}/>}
+      </div>
+    </div>
 
     <NotificationsModal
       isOpen={notificationsOpen}
