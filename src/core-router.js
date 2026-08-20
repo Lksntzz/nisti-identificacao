@@ -7,6 +7,11 @@ import {
   markNotificationRead,
   markAllNotificationsRead
 } from './cover-notifications.js';
+import {
+  getVapidPublicKey,
+  savePushSubscription,
+  removePushSubscription
+} from './web-push.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_REFERENCES = 24;
@@ -604,6 +609,23 @@ export default {
         const userId = request.headers.get('x-user-id') || body?.user_id || url.searchParams.get('user_id') || 'anonymous';
         const updated = await markAllNotificationsRead(env, userId);
         return json({ ok: true, marked_count: updated, unread_count: 0 });
+      }
+
+      if (url.pathname === '/api/push/public-key' && request.method === 'GET') {
+        return json({ ok: true, publicKey: getVapidPublicKey(env) });
+      }
+
+      if (url.pathname === '/api/push/subscribe' && request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const userId = request.headers.get('x-user-id') || body?.user_id || 'anonymous';
+        const success = await savePushSubscription(env, userId, body?.subscription);
+        return json({ ok: success });
+      }
+
+      if (url.pathname === '/api/push/unsubscribe' && request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const success = await removePushSubscription(env, body?.endpoint);
+        return json({ ok: success });
       }
 
       if (env.ASSETS) return env.ASSETS.fetch(request);

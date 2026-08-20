@@ -85,10 +85,22 @@ function BellIcon({ unreadCount, onClick }) {
   );
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+  const [pushStatus, setPushStatus] = useState('unknown');
 
   const load = async () => {
     setLoading(true);
@@ -103,8 +115,73 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   };
 
   useEffect(() => {
-    if (isOpen) load();
+    if (isOpen) {
+      load();
+      if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.pushManager.getSubscription().then(sub => {
+              setPushStatus(sub ? 'granted' : 'supported');
+            }).catch(() => setPushStatus('supported'));
+          }).catch(() => setPushStatus('supported'));
+        } else if (Notification.permission === 'denied') {
+          setPushStatus('denied');
+        } else {
+          setPushStatus('supported');
+        }
+      } else {
+        setPushStatus('unsupported');
+      }
+    }
   }, [isOpen]);
+
+  const togglePush = async () => {
+    if (pushStatus === 'subscribing') return;
+    setPushStatus('subscribing');
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushStatus('denied');
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+
+      if (!sub) {
+        const keyData = await api('/api/push/public-key');
+        const appServerKey = urlBase64ToUint8Array(keyData.publicKey);
+
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: appServerKey
+        });
+      }
+
+      const rawKey = sub.getKey ? sub.getKey('p256dh') : null;
+      const rawAuth = sub.getKey ? sub.getKey('auth') : null;
+
+      const subData = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: rawKey ? btoa(String.fromCharCode(...new Uint8Array(rawKey))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') : '',
+          auth: rawAuth ? btoa(String.fromCharCode(...new Uint8Array(rawAuth))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') : ''
+        }
+      };
+
+      await api('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ subscription: subData })
+      });
+
+      setPushStatus('granted');
+    } catch (err) {
+      console.error('Push subscription error:', err);
+      setPushStatus('supported');
+    }
+  };
 
   const markOne = async (id) => {
     try {
@@ -147,6 +224,34 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
             )}
             <button type="button" className="close-btn" onClick={onClose}>✕</button>
           </div>
+        </div>
+
+        <div className="push-banner">
+          <div className="push-banner-copy">
+            <strong>📲 Notificações no celular</strong>
+            <span>
+              {pushStatus === 'granted'
+                ? 'Notificações ativas neste aparelho.'
+                : pushStatus === 'denied'
+                ? 'Permissão bloqueada no navegador.'
+                : pushStatus === 'unsupported'
+                ? 'Push indisponível neste navegador.'
+                : 'Receba avisos instantâneos ao cadastrar novas capas.'}
+            </span>
+          </div>
+          {pushStatus === 'supported' && (
+            <button type="button" className="push-enable-btn" onClick={togglePush}>
+              Ativar
+            </button>
+          )}
+          {pushStatus === 'subscribing' && (
+            <button type="button" className="push-enable-btn" disabled>
+              Ativando…
+            </button>
+          )}
+          {pushStatus === 'granted' && (
+            <span className="push-status-badge">✓ Ativo</span>
+          )}
         </div>
 
         <div className="notifications-body">

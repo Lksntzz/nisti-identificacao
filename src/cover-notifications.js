@@ -1,4 +1,6 @@
-﻿function clean(value) {
+import { broadcastNewCoverPush } from './web-push.js';
+
+function clean(value) {
   const text = String(value || '').trim();
   return text || null;
 }
@@ -54,10 +56,24 @@ export async function recordNewCoverNotification(env, {
     clean(platform)?.toUpperCase(),
     resolvedImageKey
   ).run();
+  const created = Number(result?.meta?.changes || 0) > 0;
+  if (created) {
+    const imageUrl = targetProductId > 0 && resolvedImageKey
+      ? `/api/images/${targetProductId}`
+      : null;
+
+    broadcastNewCoverPush(env, {
+      capaCode: code,
+      productName: clean(productName),
+      variacao: clean(variacao),
+      platform: clean(platform)?.toUpperCase(),
+      imageUrl
+    }).catch(() => {});
+  }
 
   return {
     capa_code: code,
-    created: Number(result?.meta?.changes || 0) > 0
+    created
   };
 }
 

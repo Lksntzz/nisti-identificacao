@@ -55,3 +55,46 @@ self.addEventListener('fetch', event => {
     })());
   }
 });
+
+self.addEventListener('push', event => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: 'NISTI PRINT', body: event.data ? event.data.text() : 'Nova notificação de capa' };
+  }
+
+  const title = data.title || '🔔 Nova Capa Cadastrada · NISTI PRINT';
+  const options = {
+    body: data.body || 'Uma nova capa foi adicionada ao catálogo.',
+    icon: '/nisti-app-icon.svg',
+    badge: '/nisti-app-icon.svg',
+    image: data.image_url || undefined,
+    tag: data.capa_code ? `capa-${data.capa_code}` : 'nisti-new-cover',
+    renotify: true,
+    data: {
+      url: data.url || '/',
+      capa_code: data.capa_code
+    }
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of allClients) {
+      if ('focus' in client) {
+        client.focus();
+        return;
+      }
+    }
+    if (self.clients.openWindow) {
+      await self.clients.openWindow(targetUrl);
+    }
+  })());
+});
