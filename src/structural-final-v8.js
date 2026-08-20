@@ -778,28 +778,41 @@ export async function structuralFinalIdentifyV8(request, env) {
       console.error('Falha ao gravar ocorrencia:', e);
     }
 
-    // Se temos candidatos no catálogo da plataforma, exibe opções para o operador escolher
+    // Se temos candidatos recuperados pelo vetor, carrega os produtos correspondentes para seleção na tela
     if (loaded.length > 0) {
-      const topCapa = loaded[0].capa_code;
-      const matchingCapaProducts = loaded.filter(p => p.capa_code === topCapa);
-      const displayProducts = (matchingCapaProducts.length > 1 ? matchingCapaProducts : loaded.slice(0, 4)).map(productPayload);
+      const candidateProducts = [];
+      const seenIds = new Set();
+      
+      for (const cand of loaded.slice(0, 8)) {
+        const prods = await productsForCover(env, cand.capa_code, platform);
+        for (const p of prods) {
+          if (!seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            candidateProducts.push(productPayload(p));
+          }
+          if (candidateProducts.length >= 6) break;
+        }
+        if (candidateProducts.length >= 6) break;
+      }
 
-      performance.accepted_by = 'human-selection-from-candidates';
-      performance.suggestion_count = displayProducts.length;
-      finalizePerformance(performance, started);
+      if (candidateProducts.length > 0) {
+        performance.accepted_by = 'human-selection-from-candidates';
+        performance.suggestion_count = candidateProducts.length;
+        finalizePerformance(performance, started);
 
-      return json({
-        ok: true,
-        multiple_choices: true,
-        capa_code: topCapa,
-        products: displayProducts,
-        confidence: Number(loaded[0].retrieval_score || 0.75),
-        suggestions: displayProducts,
-        suggestions_are_unconfirmed: true,
-        identified_by: 'platform-catalog-v8.7-human-selection',
-        occurrence_id: occurrenceId,
-        performance
-      });
+        return json({
+          ok: true,
+          multiple_choices: true,
+          capa_code: loaded[0].capa_code,
+          products: candidateProducts,
+          confidence: Number(loaded[0].retrieval_score || 0.75),
+          suggestions: candidateProducts,
+          suggestions_are_unconfirmed: true,
+          identified_by: 'platform-catalog-v8.7-human-selection',
+          occurrence_id: occurrenceId,
+          performance
+        });
+      }
     }
 
     performance.accepted_by = comparatorError

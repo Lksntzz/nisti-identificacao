@@ -816,7 +816,7 @@ function ProductChoices({ capaCode, products, platform, onSelect, performance, o
     <div className="result-compact-card" style={{ background: '#f8faff', borderColor: '#c7d2fe' }}>
       <div className="result-compact-header">
         <span style={{ fontSize: '11px', fontWeight: 800, color: '#4f46e5', textTransform: 'uppercase' }}>
-          Capa {capaCode} · Toque no SKU correto ({products.length})
+          💡 Modelos Similares Encontrados ({products.length}) · Toque no correto:
         </span>
         <ConfidenceBadge score={performance?.retrieval_top1} />
       </div>
@@ -1006,8 +1006,11 @@ function PublicIdentificationApp() {
     setPerformance(data.performance || null);
     setSuggestions([]);
     setSuggestedPlatform(null);
-    if (data.needs_selection) {
-      setChoices({ capaCode: data.capa_code, products: data.products || [] });
+    if (data.needs_selection || data.multiple_choices) {
+      setChoices({
+        capaCode: data.capa_code || data.products?.[0]?.capa_code || 'Sugestões',
+        products: data.products || []
+      });
       setResult(null);
     } else if (data.product) {
       setChoices(null);
