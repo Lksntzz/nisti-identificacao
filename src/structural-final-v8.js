@@ -738,17 +738,17 @@ export async function structuralFinalIdentifyV8(request, env) {
       performance.verifier_reason_code = performance.comparator_error;
       performance.verifier_evidence = String(comparatorError.message || '').slice(0, 220);
 
-      // Fallback de alta confiança: se o comparador falhou por timeout e o vetor tem score >= 0.85
-      if (loaded.length && Number(loaded[0].retrieval_score || 0) >= 0.85) {
+      // Fallback de ultra-alta confiança: apenas se o vetor tem score >= 0.94 (para não confundir monogramas parecidos)
+      if (loaded.length && Number(loaded[0].retrieval_score || 0) >= 0.94) {
         const topWinner = loaded[0];
-        performance.accepted_by = 'vector-high-confidence-fallback-on-comparator-timeout';
+        performance.accepted_by = 'vector-ultra-high-confidence-fallback-on-comparator-timeout';
         performance.suggestion_count = 0;
         finalizePerformance(performance, started);
         return successResponse(
           env,
           topWinner,
           platform,
-          Number(topWinner.retrieval_score || 0.85),
+          Number(topWinner.retrieval_score || 0.94),
           performance,
           'platform-catalog-vector-high-confidence-fallback'
         );

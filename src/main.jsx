@@ -1822,9 +1822,15 @@ function OperatorsAndLearningView({ products, onRefresh }) {
                         </div>
 
                         <PlatformTag platform={occ.platform || 'MERCADO LIVRE'} />
-                        <span className="status-pill" style={{ background: '#fee2e2', color: '#991b1b' }}>⚠️ Não Identificado</span>
+                        {occ.error_reason?.startsWith('reported_wrong_by_operator:') ? (
+                          <span className="status-pill" style={{ background: '#fef3c7', color: '#b45309', fontWeight: 800 }}>
+                            ⚠️ Reportado Incorreto pelo Operador (IA previu {occ.error_reason.replace('reported_wrong_by_operator:', '')})
+                          </span>
+                        ) : (
+                          <span className="status-pill" style={{ background: '#fee2e2', color: '#991b1b' }}>⚠️ Não Identificado</span>
+                        )}
                         
-                        {occ.suggested_capa_code && (
+                        {occ.suggested_capa_code && !occ.error_reason?.startsWith('reported_wrong_by_operator:') && (
                           <span style={{ fontSize: '11px', color: '#475569' }}>
                             Sugestão IA: <strong>{occ.suggested_capa_code}</strong> ({Math.round((occ.confidence || 0) * 100)}%)
                           </span>

@@ -676,7 +676,39 @@ function ScanningOverlay({ elapsedMs, stageText }) {
   );
 }
 
-function ProductResult({ product, performance, onReset }) {
+function ProductResult({ product, performance, onReset, photo, platform }) {
+  const [reporting, setReporting] = useState(false);
+  const [reported, setReported] = useState(false);
+  const [reportError, setReportError] = useState('');
+
+  const handleReportWrong = async () => {
+    if (reporting || reported || !photo) return;
+    if (!confirm('A capa identificada não corresponde à foto? Isso enviará a imagem para o Administrador corrigir e treinar o modelo.')) return;
+    
+    try {
+      setReporting(true);
+      setReportError('');
+      const form = new FormData();
+      form.append('image', photo);
+      form.append('platform', platform || product.platform || '');
+      form.append('predicted_sku', product.sku || '');
+      form.append('predicted_capa_code', product.capa_code || '');
+      form.append('confidence', String(product.confidence || 0));
+
+      const res = await api('/api/report-occurrence', {
+        method: 'POST',
+        body: form
+      });
+      if (res.ok) {
+        setReported(true);
+      }
+    } catch (err) {
+      setReportError(err.message || 'Falha ao enviar ao ADM');
+    } finally {
+      setReporting(false);
+    }
+  };
+
   return (
     <div className="result-compact-card">
       <div className="result-compact-header">
@@ -705,6 +737,44 @@ function ProductResult({ product, performance, onReset }) {
           <span style={{ fontWeight: 600 }}>Reconhecido em {(performance.total_ms / 1000).toFixed(1)}s</span>
         </div>
       )}
+
+      {/* Botão de Reportar Resultado Incorreto */}
+      <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {reported ? (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#15803d', fontWeight: 700 }}>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+            <span>Foto enviada para correção do ADM ✓</span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#d97706',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '2px 0'
+            }}
+            disabled={reporting || !photo}
+            onClick={handleReportWrong}
+          >
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>{reporting ? 'Enviando…' : 'Resultado incorreto? Enviar ao ADM'}</span>
+          </button>
+        )}
+        {reportError && <span style={{ fontSize: '10px', color: '#ef4444' }}>{reportError}</span>}
+      </div>
     </div>
   );
 }
@@ -1210,7 +1280,7 @@ function PublicIdentificationApp() {
           }}
         />}
 
-        {result && <ProductResult product={result} performance={performance} onReset={resetAll}/>}
+        {result && <ProductResult product={result} performance={performance} onReset={resetAll} photo={photo} platform={platform} />}
       </div>
     </div>
 
