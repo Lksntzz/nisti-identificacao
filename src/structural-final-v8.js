@@ -313,23 +313,26 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
   const prompt = `Você é o classificador visual oficial da gráfica NISTI PRINT.
 Sua missão é identificar com precisão se a FOTO DO PRODUTO corresponde a uma das CANDIDATAS do catálogo pela ARTE-BASE impressa na capa.
 
-REGRAS UNIVERSAIS DE COMPARAÇÃO:
-1. FOCO NA ARTE GRÁFICA & TÍTULOS:
-   - Compare o design gráfico geral: ilustrações, desenhos, flores, animais/personagens, padrões geométricos, listras, blocos de cor, molduras, arranjos e cores dominantes.
-   - Textos fixos e títulos do produto (ex: "Meu Diário de Leituras", "Minhas Contas Organizadas", "Controle Financeiro", "Caderneta de Saúde", "Agenda", "Planner", "Devocional", etc.) são elementos-chave de correspondência quando presentes.
-2. NOMES PERSONALIZADOS DO CLIENTE:
-   - Produtos de papelaria (cadernetas, agendas, planners) recebem nomes personalizados variáveis de clientes (ex: "Eloá", "Helena", "Arthur", "Maria", datas, etc.).
-   - A imagem de referência no catálogo pode estar sem nome ou ter um nome fictício diferente.
-   - IGNORE a diferença de nome próprio do cliente e considere correspondência EXATA se a arte gráfica, ilustrações, cores e estilo forem idênticos!
-3. ITENS FÍSICOS E REFLEXOS (IGNORE COMPLETAMENTE):
+REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
+1. ESTRUTURA CENTRAL & MONOGRAMAS:
+   - ATENÇÃO A MONOGRAMAS / LETRAS INICIAIS: Se a capa na foto possui uma grande letra inicial maiúscula de destaque no centro (ex: letra "M", "A", "B", "L", etc.) cercada por flores/borboletas, ela é um modelo de MONOGRAMA/LETRA INICIAL. Não confunda com capas de moldura floral circular/oval simples que têm apenas nomes cursivos sem monograma!
+   - Se a foto possui uma letra monograma grande no centro, a candidata correta DEVE ser o modelo correspondente de monograma/letra inicial (ex: CPA1, CPA5, etc.).
+2. FOCO NA ARTE GRÁFICA & ELEMENTOS-CHAVE:
+   - Compare o design gráfico: ilustrações, desenhos, flores, animais/personagens, padrões geométricos, listras, blocos de cor, molduras e cores dominantes.
+   - Textos fixos e títulos do produto (ex: "Meu Diário de Leituras", "Minhas Contas Organizadas", "Caderneta de Saúde", "Acredite em Você", etc.) são elementos-chave de correspondência quando presentes.
+3. NOMES PERSONALIZADOS DO CLIENTE:
+   - Produtos de papelaria (cadernetas, agendas, planners) recebem nomes personalizados variáveis de clientes (ex: "Eloá", "Mavie", "Helena", "Arthur", "Maria", datas, etc.).
+   - A imagem de referência no catálogo pode estar sem nome próprio ou ter um nome fictício de exemplo diferente.
+   - IGNORE a diferença do nome cursivo pequeno do cliente, contanto que o layout geral da arte e a presença de monogramas/elementos gráficos centrais correspondam!
+4. ITENS FÍSICOS E REFLEXOS (IGNORE COMPLETAMENTE):
    - Wire-o / espirais / encadernação lateral (qualquer cor)
    - Elásticos e passadores de elástico
    - Tassel / pingentes
    - Laminação plástica, holografia, glitter, reflexos de luz, sombras e brilhos na foto
    - Dedos/mãos do operador segurando, mesa e fundo externo
-4. RESULTADO:
-   - Se uma das candidatas for a mesma arte da foto, retorne winner_code com o CAPA_CODE dessa candidata, exact_match=true e confidence entre 0.70 e 1.00.
-   - Se nenhuma candidata tiver a mesma arte gráfica (desenho diferente), retorne winner_code="NONE", exact_match=false e confidence baixa.`;
+5. RESULTADO:
+   - Se uma das candidatas for exatamente a mesma arte/modelo da foto, retorne winner_code com o CAPA_CODE dessa candidata, exact_match=true e confidence entre 0.70 e 1.00.
+   - Se nenhuma candidata tiver a mesma arte gráfica (desenho diferente ou estrutura central diferente), retorne winner_code="NONE", exact_match=false e confidence baixa.`;
 
   const parts = [
     { text: prompt },
