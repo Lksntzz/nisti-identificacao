@@ -723,6 +723,30 @@ export default {
         return json({ ok: true, marked_count: updated, unread_count: 0 });
       }
 
+      if (url.pathname === '/api/admin/push/debug' && request.method === 'GET') {
+        const privateKey = env.VAPID_PRIVATE_KEY ? 'presente (tamanho: ' + env.VAPID_PRIVATE_KEY.length + ')' : 'ausente';
+        const apiKey = env.GEMINI_API_KEY ? 'presente' : 'ausente';
+        const publicKey = env.VAPID_PUBLIC_KEY ? 'presente' : 'usando default';
+
+        const { results } = await env.DB.prepare(`
+          SELECT id, endpoint, p256dh, auth
+          FROM push_subscriptions
+        `).all();
+
+        const subscriptions = results || [];
+
+        return json({
+          vapid_private_key: privateKey,
+          gemini_api_key: apiKey,
+          vapid_public_key: publicKey,
+          active_subscriptions_count: subscriptions.length,
+          subscriptions: subscriptions.map(s => ({
+            id: s.id,
+            endpoint: s.endpoint.slice(0, 45) + '...'
+          }))
+        });
+      }
+
       if (url.pathname === '/api/admin/notifications/test' && request.method === 'POST') {
         const randomId = Math.floor(100 + Math.random() * 900);
         const capaCode = `TEST${randomId}`;

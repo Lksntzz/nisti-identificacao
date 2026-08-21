@@ -1,4 +1,4 @@
-const DEFAULT_VAPID_PUBLIC = 'BPr_pvHRMOBWzs4htw6Ey8kKvcHAQhQa0sTY0of0AD8DfpBmzk-x7rJw7c9NnSSQjeKsNmXO7wBOBROmQmJEgRQ';
+const DEFAULT_VAPID_PUBLIC = 'BMGQFguG_CSRv9PiIgqRweD8o9cHv0LzzU9lZFwZLQv_Rmcn-xweIt0lCQwXVYgII2tyA68bBLskNe6s7XJ-oBc';
 const DEFAULT_VAPID_SUBJECT = 'mailto:contato@nistiprint.com.br';
 
 function b64url(buf) {
