@@ -223,20 +223,6 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [pushStatus, setPushStatus] = useState('unknown');
-  const [testingNotif, setTestingNotif] = useState(false);
-
-  const testNotification = async () => {
-    setTestingNotif(true);
-    try {
-      await api('/api/admin/notifications/test', { method: 'POST' });
-      await load();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTestingNotif(false);
-    }
-  };
-
   const load = async () => {
     setLoading(true);
     try {
@@ -347,15 +333,6 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
             <small>{unreadCount} não lida{unreadCount === 1 ? '' : 's'}</small>
           </div>
           <div className="notifications-actions">
-            <button
-              type="button"
-              className="mark-all-btn"
-              style={{ background: '#f0fdf4', color: '#16a34a', border: '1.5px solid #bbf7d0', marginRight: '6px' }}
-              disabled={testingNotif}
-              onClick={testNotification}
-            >
-              {testingNotif ? 'Simulando…' : '🔔 Simular'}
-            </button>
             {unreadCount > 0 && (
               <button
                 type="button"
