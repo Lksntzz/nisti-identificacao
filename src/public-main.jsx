@@ -373,16 +373,7 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
             </button>
           )}
           {pushStatus === 'granted' && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-              <span className="push-status-badge">✓ Ativo</span>
-              <button
-                type="button"
-                style={{ background: 'transparent', border: 'none', color: '#6366f1', fontSize: '11px', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600, padding: 0 }}
-                onClick={togglePush}
-              >
-                Atualizar Conexão
-              </button>
-            </div>
+            <span className="push-status-badge">✓ Ativo</span>
           )}
         </div>
 
