@@ -441,7 +441,8 @@ export async function buildVectorizeCandidates(request, env) {
         reference_id: candidate.reference_id,
         capa_code: candidate.capa_code,
         retrieval_score: candidate.retrieval_score,
-        vector_rank: candidate.vector_rank
+        vector_rank: candidate.vector_rank,
+        reference_kind: candidate.reference_kind
       })),
       performance: timings
     };

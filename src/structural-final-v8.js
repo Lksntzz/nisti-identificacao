@@ -132,7 +132,8 @@ function candidatesFromTicket(ticket) {
       capa_code: capaCode,
       retrieval_rank: out.length + 1,
       retrieval_score: Number(scores[capaCode] ?? ref?.retrieval_score ?? 0),
-      reference_id: Number(ref?.reference_id || 0) || null
+      reference_id: Number(ref?.reference_id || 0) || null,
+      reference_kind: ref?.reference_kind || 'product'
     });
     if (out.length >= MAX_CANDIDATES) break;
   }
@@ -178,7 +179,7 @@ async function resolveCandidate(env, candidate, platform) {
 
   if (candidate.reference_id) {
     row = await env.DB.prepare(`
-      SELECT id,capa_code,image_key
+      SELECT id,capa_code,image_key,reference_kind
       FROM cover_visual_references
       WHERE id=? AND active=1 AND image_key IS NOT NULL
       LIMIT 1
@@ -187,7 +188,7 @@ async function resolveCandidate(env, candidate, platform) {
 
   if (!row || String(row.capa_code || '').trim().toUpperCase() !== candidate.capa_code) {
     row = await env.DB.prepare(`
-      SELECT id,capa_code,image_key
+      SELECT id,capa_code,image_key,reference_kind
       FROM cover_visual_references
       WHERE UPPER(TRIM(capa_code))=? AND active=1 AND image_key IS NOT NULL
       ORDER BY id ASC
@@ -212,6 +213,7 @@ async function resolveCandidate(env, candidate, platform) {
     ...candidate,
     ...metadata,
     reference_id: id,
+    reference_kind: row.reference_kind || candidate.reference_kind || 'product',
     image_key: row.image_key,
     thumbnail_url: `/api/reference-images/${id}?v=${encodeURIComponent(version)}`,
     mime_type: mime.startsWith('image/') ? mime : 'image/jpeg',
@@ -376,11 +378,16 @@ REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
   ];
 
   for (const candidate of candidates) {
-    const labels = candidate.catalog_labels?.length
+    const isRealScan = candidate.reference_kind === 'real_scan';
+    const baseLabels = candidate.catalog_labels?.length
       ? candidate.catalog_labels.join(' | ')
       : 'sem descrição adicional';
+    const labels = isRealScan
+      ? `${baseLabels} [FOTO REAL DE BANCADA APROVADA PELO ADMINISTRADOR - PRIORIDADE MÁXIMA]`
+      : baseLabels;
+
     parts.push({
-      text: `CANDIDATA CAPA_CODE=${candidate.capa_code}; CADASTRO=${labels}`
+      text: `CANDIDATA CAPA_CODE=${candidate.capa_code}; CADASTRO=${labels}${isRealScan ? ' [GROUND_TRUTH_ADM]' : ''}`
     });
     parts.push({
       inline_data: {
@@ -663,6 +670,17 @@ export async function structuralFinalIdentifyV8(request, env) {
     )).filter(Boolean);
     performance.reference_load_ms = Date.now() - referenceStarted;
 
+    // ⚡ Priorização de Capas Treinadas pelo ADM (real_scan)
+    // Se há alguma referência real treinada pelo ADM com boa pontuação (>= 0.82)
+    // trazemos ela para o topo da lista de verificação para garantir prioridade de aprendizado.
+    loaded.sort((a, b) => {
+      const aTrained = a.reference_kind === 'real_scan' && Number(a.retrieval_score || 0) >= 0.82;
+      const bTrained = b.reference_kind === 'real_scan' && Number(b.retrieval_score || 0) >= 0.82;
+      if (aTrained && !bTrained) return -1;
+      if (!aTrained && bTrained) return 1;
+      return Number(b.retrieval_score || 0) - Number(a.retrieval_score || 0);
+    });
+
     if (!loaded.length) {
       throw new RecognitionError(
         'As imagens candidatas do catálogo não estão disponíveis.',
@@ -680,6 +698,23 @@ export async function structuralFinalIdentifyV8(request, env) {
 
     const photoBytes = new Uint8Array(await image.arrayBuffer());
     performance.upload_bytes = image.size;
+
+    // ⚡ Fast-path de Aprendizado do ADM:
+    // Se o topo é uma referência real já aprovada e treinada pelo ADM com score alto (>= 0.82)
+    if (loaded.length && loaded[0].reference_kind === 'real_scan' && Number(loaded[0].retrieval_score || 0) >= 0.82) {
+      const topTrained = loaded[0];
+      performance.accepted_by = 'vector-trained-real-scan-match';
+      performance.suggestion_count = 0;
+      finalizePerformance(performance, started);
+      return successResponse(
+        env,
+        topTrained,
+        platform,
+        Math.max(Number(topTrained.retrieval_score || 0.95), 0.95),
+        performance,
+        'platform-catalog-trained-real-scan-ground-truth'
+      );
+    }
 
     let comparison = null;
     let comparatorError = null;
