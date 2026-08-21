@@ -270,15 +270,17 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
 
-      if (!sub) {
-        const keyData = await api('/api/push/public-key');
-        const appServerKey = urlBase64ToUint8Array(keyData.publicKey);
-
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: appServerKey
-        });
+      if (sub) {
+        await sub.unsubscribe().catch(() => {});
       }
+
+      const keyData = await api('/api/push/public-key');
+      const appServerKey = urlBase64ToUint8Array(keyData.publicKey);
+
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: appServerKey
+      });
 
       const rawKey = sub.getKey ? sub.getKey('p256dh') : null;
       const rawAuth = sub.getKey ? sub.getKey('auth') : null;
@@ -371,7 +373,16 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
             </button>
           )}
           {pushStatus === 'granted' && (
-            <span className="push-status-badge">✓ Ativo</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+              <span className="push-status-badge">✓ Ativo</span>
+              <button
+                type="button"
+                style={{ background: 'transparent', border: 'none', color: '#6366f1', fontSize: '11px', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+                onClick={togglePush}
+              >
+                Atualizar Conexão
+              </button>
+            </div>
           )}
         </div>
 
