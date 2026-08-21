@@ -1686,7 +1686,7 @@ function OccurrenceProductSelector({ products, occPlatform, value, onChange }) {
    OPERATORS & ACTIVE LEARNING / OCCURRENCES UNIFIED VIEW
    ========================================================================= */
 function OperatorsAndLearningView({ products, onRefresh }) {
-  const [subTab, setSubTab] = useState('ocorrencias'); // 'ocorrencias' | 'equipe'
+  const [subTab, setSubTab] = useState('ocorrencias'); // 'ocorrencias' | 'equipe' | 'cerebro'
   
   // Ocorrências State
   const [occData, setOccData] = useState({ occurrences: [], stats: { pending: 0, trained: 0, dismissed: 0 } });
@@ -1702,6 +1702,10 @@ function OperatorsAndLearningView({ products, onRefresh }) {
   const [selectedOperator, setSelectedOperator] = useState(null);
   const [operatorEvents, setOperatorEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+
+  // Cérebro (Treinos ADM) State
+  const [trainedRefs, setTrainedRefs] = useState([]);
+  const [refsLoading, setRefsLoading] = useState(false);
 
   const loadOccurrences = async () => {
     try {
@@ -1727,10 +1731,40 @@ function OperatorsAndLearningView({ products, onRefresh }) {
     }
   };
 
+  const loadTrainedReferences = async () => {
+    try {
+      setRefsLoading(true);
+      const res = await api('/api/admin/trained-references');
+      setTrainedRefs(res.references || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRefsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadOccurrences();
     loadOperators();
   }, []);
+
+  useEffect(() => {
+    if (subTab === 'cerebro') {
+      loadTrainedReferences();
+    }
+  }, [subTab]);
+
+  const handleDeleteReference = async (referenceId) => {
+    if (!confirm('Deseja realmente excluir este treinamento? Isso apagará a foto do banco e o vetor correspondente no Vectorize. O sistema voltará ao comportamento padrão para esta imagem.')) return;
+    try {
+      await api(`/api/admin/cover-references/${referenceId}`, { method: 'DELETE' });
+      alert('Treinamento excluído e removido do Vectorize com sucesso!');
+      await loadTrainedReferences();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert('Erro ao excluir treinamento: ' + err.message);
+    }
+  };
 
   const handleTrain = async (occurrenceId) => {
     const capaCode = selectedCapa[occurrenceId];
@@ -1875,6 +1909,28 @@ function OperatorsAndLearningView({ products, onRefresh }) {
               onClick={() => setSubTab('equipe')}
             >
               <span>👥 Desempenho da Equipe ({operators.length})</span>
+            </button>
+
+            <button
+              type="button"
+              style={{
+                border: 'none',
+                background: subTab === 'cerebro' ? '#ffffff' : 'transparent',
+                color: subTab === 'cerebro' ? '#4f46e5' : '#64748b',
+                boxShadow: subTab === 'cerebro' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                borderRadius: '9px',
+                padding: '7px 14px',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease'
+              }}
+              onClick={() => setSubTab('cerebro')}
+            >
+              <span>🔬 Cérebro ({trainedRefs.length} Treinos)</span>
             </button>
           </div>
 
@@ -2173,6 +2229,116 @@ function OperatorsAndLearningView({ products, onRefresh }) {
                       </tr>
                     );
                   })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+         SUBTAB 3: CÉREBRO DO SISTEMA (TREINOS DO ADM)
+         ========================================================================= */}
+      {subTab === 'cerebro' && (
+        <div>
+          {/* Cérebro KPIs */}
+          <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
+            <div className="system-metric-box" style={{ gridColumn: 'span 2' }}>
+              <div className="metric-box-head">
+                <span className="metric-tag" style={{ background: '#ecfdf5', color: '#059669' }}>Banco de Vetores</span>
+                <h4>Cérebro do Sistema (Auto-Aprendizado)</h4>
+              </div>
+              <p style={{ margin: '8px 0', fontSize: '13px', color: '#475569', lineHeight: '1.5' }}>
+                Estas são as capas e fotos reais que você corrigiu e treinou na bancada. 
+                Elas são salvas no banco de vetores (Vectorize) e são <strong>priorizadas com 100% de garantia</strong> nas próximas leituras, sem depender do Gemini e respondendo em menos de 50 milissegundos.
+              </p>
+            </div>
+
+            <div className="system-metric-box">
+              <div className="metric-box-head">
+                <span className="metric-tag">Volume</span>
+                <h4>Capas Treinadas</h4>
+              </div>
+              <div className="metric-big-num">{trainedRefs.length}</div>
+              <p>Fotos reais aprendidas e ativas no sistema.</p>
+            </div>
+          </div>
+
+          <div className="table-responsive-container">
+            <table className="admin-data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '80px' }}>FOTO REAL</th>
+                  <th style={{ width: '150px' }}>CÓDIGO DA CAPA</th>
+                  <th style={{ width: '180px' }}>STATUS DE INDEXAÇÃO</th>
+                  <th>DATA DO TREINO</th>
+                  <th style={{ width: '160px', textAlign: 'right' }}>AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {refsLoading ? (
+                  <tr><td colSpan="5" className="table-empty-row">Carregando cérebro do sistema…</td></tr>
+                ) : trainedRefs.length === 0 ? (
+                  <tr><td colSpan="5" className="table-empty-row">Nenhuma foto real de bancada treinada ainda. As ocorrências treinadas aparecerão aqui.</td></tr>
+                ) : (
+                  trainedRefs.map(ref => (
+                    <tr key={ref.id}>
+                      <td>
+                        {ref.image_url ? (
+                          <img
+                            src={ref.image_url}
+                            alt={`Treino ${ref.capa_code}`}
+                            className="table-thumb-img"
+                            style={{ width: '50px', height: '50px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #e2e8f0' }}
+                          />
+                        ) : (
+                          <div className="table-thumb-placeholder" style={{ width: '50px', height: '50px' }}>🖼️</div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="badge-capa-code" style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>
+                          {ref.capa_code}
+                        </span>
+                      </td>
+                      <td>
+                        {ref.is_indexed ? (
+                          <span className="status-pill active" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            ✓ Ativo no Vectorize
+                          </span>
+                        ) : (
+                          <span className="status-pill orange">
+                            ⚠️ Pendente
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="datetime-cell">
+                          <span>{ref.created_at ? formatProductDate(ref.created_at).date : '—'}</span>
+                          <small>{ref.created_at ? formatProductDate(ref.created_at).time : ''}</small>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          className="btn-action-delete"
+                          style={{
+                            background: '#fef2f2',
+                            color: '#ef4444',
+                            border: '1.5px solid #fee2e2',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onClick={() => handleDeleteReference(ref.id)}
+                        >
+                          🗑️ Excluir Treino
+                        </button>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>

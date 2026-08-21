@@ -884,7 +884,65 @@ function PublicIdentificationApp() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [scanStage, setScanStage] = useState('Processando foto…');
+  const [qualityWarning, setQualityWarning] = useState('');
   const runId = useRef(0);
+
+  const checkImageQuality = (file) => {
+    return new Promise((resolve) => {
+      if (!file || !file.type.startsWith('image/')) {
+        resolve('');
+        return;
+      }
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(img.src);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve('');
+          return;
+        }
+        canvas.width = 50;
+        canvas.height = 50;
+        ctx.drawImage(img, 0, 0, 50, 50);
+        try {
+          const imgData = ctx.getImageData(0, 0, 50, 50);
+          const data = imgData.data;
+          let totalLuma = 0;
+          let whitePixels = 0;
+          const totalPixels = 50 * 50;
+
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i+1];
+            const b = data[i+2];
+            const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+            totalLuma += luma;
+            if (r > 245 && g > 245 && b > 245) {
+              whitePixels++;
+            }
+          }
+
+          const avgLuma = totalLuma / totalPixels;
+          const whiteRatio = whitePixels / totalPixels;
+
+          if (avgLuma < 45) {
+            resolve('⚠️ Foto muito escura. Aumente a iluminação da bancada ou tire a sombra.');
+          } else if (whiteRatio > 0.15) {
+            resolve('⚠️ Reflexo detectado. Incline o caderno 5° para desviar o brilho direto da lâmpada.');
+          } else {
+            resolve('');
+          }
+        } catch (err) {
+          resolve('');
+        }
+      };
+      img.onerror = () => {
+        resolve('');
+      };
+    });
+  };
 
   useEffect(() => {
     if (!busy) {
@@ -990,6 +1048,7 @@ function PublicIdentificationApp() {
     setChoices(null);
     setSuggestions([]);
     setPerformance(null);
+    setQualityWarning('');
   };
 
   const resetAll = () => {
@@ -1066,7 +1125,7 @@ function PublicIdentificationApp() {
 
   const identifyFile = file => identifyFileWithPlatform(file, platform);
 
-  const choose = file => {
+  const choose = async file => {
     if (!file) return;
     if (!getOperatorName()) {
       setOperatorModalOpen(true);
@@ -1078,6 +1137,11 @@ function PublicIdentificationApp() {
       if (current) URL.revokeObjectURL(current);
       return objectUrl;
     });
+
+    // Analisar qualidade da foto
+    const warning = await checkImageQuality(file);
+    setQualityWarning(warning);
+
     // ⚡ Auto-scan: se a plataforma já está selecionada, dispara na hora
     if (platform) {
       identifyFileWithPlatform(file, platform);
@@ -1193,6 +1257,12 @@ function PublicIdentificationApp() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {qualityWarning && (
+          <div style={{ padding: '8px 12px', margin: '8px 0', background: '#fffbeb', border: '1.5px solid #fef3c7', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11.5px', color: '#d97706', fontWeight: 700, lineHeight: '1.4' }}>{qualityWarning}</span>
           </div>
         )}
 

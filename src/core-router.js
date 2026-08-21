@@ -12,6 +12,10 @@ import {
   savePushSubscription,
   removePushSubscription
 } from './web-push.js';
+import {
+  platformVectorId,
+  supportedPlatforms
+} from './platform-scope.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_REFERENCES = 24;
@@ -353,10 +357,24 @@ async function deleteExtraReference(env, referenceId) {
     throw new Error('A referência principal do produto deve ser alterada pelo mockup do produto');
   }
 
+  // 1. Excluir do Vectorize
+  if (env.COVER_VECTORS?.deleteByIds) {
+    const platforms = supportedPlatforms();
+    const vectorIds = platforms.map(p => platformVectorId(referenceId, p)).filter(Boolean);
+    if (vectorIds.length > 0) {
+      await env.COVER_VECTORS.deleteByIds(vectorIds).catch(e => {
+        console.error('Falha ao excluir vetores do Vectorize:', e);
+      });
+    }
+  }
+
+  // 2. Excluir do Banco de Dados D1
   await env.DB.prepare('DELETE FROM cover_reference_embeddings WHERE reference_id=?')
     .bind(referenceId).run();
   await env.DB.prepare('DELETE FROM cover_visual_references WHERE id=?')
     .bind(referenceId).run();
+
+  // 3. Excluir do R2 Bucket
   if (reference.image_key) {
     await env.PRODUCT_IMAGES.delete(reference.image_key).catch(() => {});
   }
@@ -612,6 +630,28 @@ export default {
         return json({
           ok: true,
           deleted: await deleteExtraReference(env, Number(deleteReference[1]))
+        });
+      }
+
+      if (url.pathname === '/api/admin/trained-references' && request.method === 'GET') {
+        const { results } = await env.DB.prepare(`
+          SELECT r.id, r.capa_code, r.image_key, r.reference_kind, r.created_at,
+                 (SELECT COUNT(*) FROM cover_reference_embeddings e WHERE e.reference_id=r.id) AS is_indexed
+          FROM cover_visual_references r
+          WHERE r.active=1 AND r.reference_kind='real_scan'
+          ORDER BY r.created_at DESC
+          LIMIT 200
+        `).all();
+
+        const references = (results || []).map(row => ({
+          ...row,
+          image_url: referenceImageUrl(row),
+          is_indexed: Number(row.is_indexed) > 0
+        }));
+
+        return json({
+          ok: true,
+          references
         });
       }
 
