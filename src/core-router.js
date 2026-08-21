@@ -11,6 +11,7 @@ import {
   getVapidPublicKey,
   savePushSubscription,
   removePushSubscription,
+  sendWebPushNotification,
   broadcastNewCoverPush
 } from './web-push.js';
 import {
@@ -729,21 +730,46 @@ export default {
         const publicKey = env.VAPID_PUBLIC_KEY ? 'presente' : 'usando default';
 
         const { results } = await env.DB.prepare(`
-          SELECT id, endpoint, p256dh, auth
+          SELECT id, user_id, endpoint, p256dh, auth
           FROM push_subscriptions
         `).all();
 
         const subscriptions = results || [];
+
+        const testPayload = {
+          title: '🔔 Teste de Sinal · NISTI PRINT',
+          body: 'Verificando integridade das conexões push em segundo plano.',
+          url: '/'
+        };
+
+        const sendResults = [];
+        for (const sub of subscriptions) {
+          try {
+            const res = await sendWebPushNotification(env, sub, testPayload);
+            sendResults.push({
+              id: sub.id,
+              user_id: sub.user_id,
+              endpoint: sub.endpoint.slice(0, 50) + '...',
+              ok: res.ok,
+              status: res.status
+            });
+          } catch (err) {
+            sendResults.push({
+              id: sub.id,
+              user_id: sub.user_id,
+              endpoint: sub.endpoint.slice(0, 50) + '...',
+              ok: false,
+              error: err.message
+            });
+          }
+        }
 
         return json({
           vapid_private_key: privateKey,
           gemini_api_key: apiKey,
           vapid_public_key: publicKey,
           active_subscriptions_count: subscriptions.length,
-          subscriptions: subscriptions.map(s => ({
-            id: s.id,
-            endpoint: s.endpoint.slice(0, 45) + '...'
-          }))
+          send_results: sendResults
         });
       }
 

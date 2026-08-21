@@ -67,8 +67,8 @@ self.addEventListener('push', event => {
   const title = data.title || '🔔 Nova Capa Cadastrada · NISTI ID';
   const options = {
     body: data.body || 'Uma nova capa foi adicionada ao catálogo.',
-    icon: '/nisti-logo.png',
-    badge: '/nisti-logo.png',
+    icon: new URL('/nisti-logo.png', self.location.origin).href,
+    badge: new URL('/nisti-logo.png', self.location.origin).href,
     image: data.image_url || undefined,
     tag: data.capa_code ? `capa-${data.capa_code}` : 'nisti-new-cover',
     renotify: true,
