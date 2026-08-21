@@ -10,7 +10,8 @@ import {
 import {
   getVapidPublicKey,
   savePushSubscription,
-  removePushSubscription
+  removePushSubscription,
+  broadcastNewCoverPush
 } from './web-push.js';
 import {
   platformVectorId,
@@ -720,6 +721,31 @@ export default {
         const userId = request.headers.get('x-user-id') || body?.user_id || url.searchParams.get('user_id') || 'anonymous';
         const updated = await markAllNotificationsRead(env, userId);
         return json({ ok: true, marked_count: updated, unread_count: 0 });
+      }
+
+      if (url.pathname === '/api/admin/notifications/test' && request.method === 'POST') {
+        const randomId = Math.floor(100 + Math.random() * 900);
+        const capaCode = `TEST${randomId}`;
+
+        await env.DB.prepare(`
+          INSERT INTO notifications (
+            type, capa_code, product_id, sku, product_name, variacao, platform, image_key, created_at
+          ) VALUES ('new_cover', ?, null, 'TEST_SKU', 'Capa de Teste do Sistema', 'Variação Teste', 'SHOPEE', null, CURRENT_TIMESTAMP)
+        `).bind(capaCode).run();
+
+        try {
+          await broadcastNewCoverPush(env, {
+            capaCode,
+            productName: 'Capa de Teste do Sistema',
+            variacao: 'Variação Teste',
+            platform: 'SHOPEE',
+            imageUrl: null
+          });
+        } catch (err) {
+          console.error('Push test broadcast failed:', err);
+        }
+
+        return json({ ok: true, capa_code: capaCode });
       }
 
       if (url.pathname === '/api/push/public-key' && request.method === 'GET') {
