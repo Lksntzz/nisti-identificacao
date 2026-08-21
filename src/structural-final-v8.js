@@ -520,25 +520,6 @@ async function productsForCover(env, capaCode, platform) {
   });
 }
 
-async function buildSuggestions(env, candidates, platform) {
-  const suggestions = [];
-  for (const candidate of candidates) {
-    if (suggestions.length >= SUGGESTION_LIMIT) break;
-    const products = await productsForCover(env, candidate.capa_code, platform);
-    if (!products.length) continue;
-    suggestions.push({
-      capa_code: candidate.capa_code,
-      confidence: Number(candidate.retrieval_score || 0),
-      retrieval_score: Number(candidate.retrieval_score || 0),
-      verification_source: 'vector-retrieval',
-      catalog_personalized: candidate.catalog_personalized === true,
-      thumbnail_url: candidate.thumbnail_url,
-      products: products.map(product => productPayload(product))
-    });
-  }
-  return suggestions;
-}
-
 function finalizePerformance(performance, started) {
   const verifierMs = Date.now() - started;
   performance.fallback_ms = verifierMs;
