@@ -1767,7 +1767,8 @@ function OperatorsAndLearningView({ products, onRefresh }) {
   };
 
   const handleTrain = async (occurrenceId) => {
-    const capaCode = selectedCapa[occurrenceId];
+    const occ = occData?.occurrences?.find(o => o.id === occurrenceId);
+    const capaCode = selectedCapa[occurrenceId] || occ?.suggested_capa_code;
     if (!capaCode) {
       alert('Por favor, selecione qual é o produto/capa correta antes de aprovar.');
       return;
