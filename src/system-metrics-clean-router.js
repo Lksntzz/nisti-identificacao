@@ -8,7 +8,7 @@ const FREE_R2_STORAGE_BYTES = 10 * 1024 * 1024 * 1024;
 
 const SYSTEM_METRICS_CACHE_MS = 5 * 60 * 1000;
 const COVER_INDEX_CACHE_MS = 5 * 60 * 1000;
-const PRODUCTS_CACHE_MS = 60 * 1000;
+const PRODUCTS_CACHE_MS = 5 * 60 * 1000;
 
 let systemMetricsCache = null;
 let systemMetricsPromise = null;
