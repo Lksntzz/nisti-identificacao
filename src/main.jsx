@@ -185,7 +185,8 @@ function AdminSidebar({ activeView, onViewChange, unreadCount, sidebarOpen, onCl
     {
       title: 'EQUIPE & CONFIGURAÇÕES',
       items: [
-        { id: 'usuarios', label: '👥 Operadores & Ocorrências', icon: 'users' },
+        { id: 'ocorrencias', label: '🧠 Erros & Aprendizado', icon: 'brain' },
+        { id: 'usuarios', label: '👥 Desempenho da Equipe', icon: 'users' },
         { id: 'plataformas', label: 'Plataformas', icon: 'layers' },
         { id: 'configuracoes', label: 'Configurações', icon: 'settings' },
       ]
@@ -1685,8 +1686,12 @@ function OccurrenceProductSelector({ products, occPlatform, value, onChange }) {
 /* =========================================================================
    OPERATORS & ACTIVE LEARNING / OCCURRENCES UNIFIED VIEW
    ========================================================================= */
-function OperatorsAndLearningView({ products, onRefresh }) {
-  const [subTab, setSubTab] = useState('ocorrencias'); // 'ocorrencias' | 'equipe' | 'cerebro'
+function OperatorsAndLearningView({ products, onRefresh, initialSubTab = 'ocorrencias' }) {
+  const [subTab, setSubTab] = useState(initialSubTab);
+
+  useEffect(() => {
+    setSubTab(initialSubTab);
+  }, [initialSubTab]);
   
   // Ocorrências State
   const [occData, setOccData] = useState({ occurrences: [], stats: { pending: 0, trained: 0, dismissed: 0 } });
@@ -3002,10 +3007,19 @@ function AdminApp() {
             />
           )}
 
+          {activeView === 'ocorrencias' && (
+            <OperatorsAndLearningView
+              products={products}
+              onRefresh={refreshAll}
+              initialSubTab="ocorrencias"
+            />
+          )}
+
           {activeView === 'usuarios' && (
             <OperatorsAndLearningView
               products={products}
               onRefresh={refreshAll}
+              initialSubTab="equipe"
             />
           )}
 
