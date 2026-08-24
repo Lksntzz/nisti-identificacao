@@ -269,11 +269,21 @@ export async function broadcastNewCoverPush(env, {
         console.log(`[Push] Iniciando envio para sub ${sub.id}: ${sub.endpoint.slice(0, 40)}...`);
         const res = await sendWebPushNotification(env, sub, payload);
         console.log(`[Push] Retorno da sub ${sub.id}: status=${res.status}, ok=${res.ok}`);
+        
+        await env.DB.prepare(`
+          INSERT INTO push_logs (capa_code, endpoint, status, ok, error)
+          VALUES (?, ?, ?, ?, NULL)
+        `).bind(capaCode, sub.endpoint, res.status, res.ok ? 1 : 0).run().catch(() => {});
+
         if (res.status === 404 || res.status === 410) {
           deadEndpoints.push(sub.endpoint);
         }
       } catch (err) {
         console.error(`[Push] Erro catastrófico na sub ${sub.id}:`, err.message);
+        await env.DB.prepare(`
+          INSERT INTO push_logs (capa_code, endpoint, status, ok, error)
+          VALUES (?, ?, NULL, 0, ?)
+        `).bind(capaCode, sub.endpoint, err.message).run().catch(() => {});
       }
     })
   );
