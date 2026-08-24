@@ -494,116 +494,128 @@ function PlatformTag({ platform }) {
    PRODUCT MODALS: CREATE, EDIT, VIEW, DELETE
    ========================================================================= */
 function CreateProductModal({ isOpen, onClose, onCreated }) {
-  const [sku, setSku] = useState('');
   const [nome, setNome] = useState('');
-  const [variacao, setVariacao] = useState('');
   const [platform, setPlatform] = useState('MERCADO LIVRE');
   const [link, setLink] = useState('');
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState('');
+  const [variants, setVariants] = useState([
+    { id: 1, sku: '', variacao: '', file: null, preview: '' }
+  ]);
   const [busy, setBusy] = useState(false);
+  const [progressMsg, setProgressMsg] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!isOpen) {
-      setSku('');
       setNome('');
-      setVariacao('');
       setPlatform('MERCADO LIVRE');
       setLink('');
-      setFile(null);
-      setPreview('');
+      setVariants([{ id: 1, sku: '', variacao: '', file: null, preview: '' }]);
+      setProgressMsg('');
       setError('');
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleFile = (f) => {
-    if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+  const addVariant = () => {
+    setVariants(prev => [
+      ...prev,
+      { id: Date.now(), sku: '', variacao: '', file: null, preview: '' }
+    ]);
+  };
+
+  const removeVariant = (id) => {
+    if (variants.length <= 1) return;
+    setVariants(prev => prev.filter(v => v.id !== id));
+  };
+
+  const updateVariant = (id, field, value) => {
+    setVariants(prev => prev.map(v => {
+      if (v.id !== id) return v;
+      if (field === 'file') {
+        return {
+          ...v,
+          file: value,
+          preview: value ? URL.createObjectURL(value) : ''
+        };
+      }
+      return { ...v, [field]: value };
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!sku.trim()) {
-      setError('SKU é obrigatório.');
-      return;
+    
+    // Validar todos os SKUs
+    for (let i = 0; i < variants.length; i++) {
+      if (!variants[i].sku.trim()) {
+        setError(`O SKU da variação #${i + 1} é obrigatório.`);
+        return;
+      }
     }
 
     setBusy(true);
     setError('');
 
     try {
-      const created = await api('/api/products', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          sku: sku.trim().toUpperCase(),
-          nome: nome.trim() || undefined,
-          variacao: variacao.trim() || undefined,
-          platform: platform.trim().toUpperCase() || undefined,
-          link: link.trim() || undefined
-        })
-      });
-
-      if (file && created?.id) {
-        const fd = new FormData();
-        fd.append('image', file);
-        await api(`/api/products/${created.id}/image`, {
+      for (let i = 0; i < variants.length; i++) {
+        const v = variants[i];
+        setProgressMsg(`Cadastrando variação ${i + 1} de ${variants.length}…`);
+        
+        const created = await api('/api/products', {
           method: 'POST',
-          body: fd
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            sku: v.sku.trim().toUpperCase(),
+            nome: nome.trim() || undefined,
+            variacao: v.variacao.trim() || undefined,
+            platform: platform.trim().toUpperCase() || undefined,
+            link: link.trim() || undefined
+          })
         });
+
+        if (v.file && created?.id) {
+          setProgressMsg(`Enviando imagem ${i + 1} de ${variants.length}…`);
+          const fd = new FormData();
+          fd.append('image', v.file);
+          await api(`/api/products/${created.id}/image`, {
+            method: 'POST',
+            body: fd
+          });
+        }
       }
 
       await onCreated();
       onClose();
     } catch (err) {
-      setError(err.message || 'Falha ao cadastrar produto.');
+      setError(err.message || 'Falha ao cadastrar produtos.');
     } finally {
       setBusy(false);
+      setProgressMsg('');
     }
   };
 
   return (
     <div className="admin-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="admin-modal">
+      <div className="admin-modal" style={{ maxWidth: '680px', width: '90%' }}>
         <div className="admin-modal-head">
           <div>
             <h3>Cadastrar Novo Produto</h3>
-            <small>Adicione SKU, informações do catálogo e mockup da capa.</small>
+            <small>Adicione as informações gerais e depois liste todas as variantes/SKUs com suas fotos.</small>
           </div>
           <button type="button" className="admin-modal-close" onClick={onClose}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="admin-modal-form">
-          <div className="form-row-2">
-            <div className="form-group">
-              <label>SKU * (Ex: VACMNO_MNV1_BVV)</label>
-              <input
-                type="text"
-                required
-                placeholder="MIOLO_CAPA_ACABAMENTO"
-                value={sku}
-                onChange={e => setSku(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label>Plataforma</label>
-              <select value={platform} onChange={e => setPlatform(e.target.value)}>
-                <option value="MERCADO LIVRE">Mercado Livre</option>
-                <option value="SHOPEE">Shopee</option>
-                <option value="AMAZON">Amazon</option>
-                <option value="MAGALU">Magalu</option>
-              </select>
-            </div>
-          </div>
+          <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#4f46e5', margin: '0 0 12px 0', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '6px' }}>
+            📋 Informações Gerais (Comuns a todas as variações)
+          </h4>
 
           <div className="form-group">
-            <label>Nome do Produto</label>
+            <label>Nome Geral do Produto *</label>
             <input
               type="text"
+              required
               placeholder="Ex: Caderneta de Vacinação Menino Personalizado"
               value={nome}
               onChange={e => setNome(e.target.value)}
@@ -612,13 +624,13 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
 
           <div className="form-row-2">
             <div className="form-group">
-              <label>Variação / Capa</label>
-              <input
-                type="text"
-                placeholder="Ex: CAPA 1 - Verde Minimalista"
-                value={variacao}
-                onChange={e => setVariacao(e.target.value)}
-              />
+              <label>Plataforma *</label>
+              <select value={platform} onChange={e => setPlatform(e.target.value)}>
+                <option value="MERCADO LIVRE">Mercado Livre</option>
+                <option value="SHOPEE">Shopee</option>
+                <option value="AMAZON">Amazon</option>
+                <option value="MAGALU">Magalu</option>
+              </select>
             </div>
             <div className="form-group">
               <label>Link do Anúncio (Opcional)</label>
@@ -631,38 +643,122 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Mockup / Foto da Capa</label>
-            <div className="photo-upload-dropzone">
-              {preview ? (
-                <div className="photo-upload-preview">
-                  <img src={preview} alt="Prévia" />
-                  <label className="photo-change-btn">
-                    Trocar foto
-                    <input type="file" accept="image/*" onChange={e => handleFile(e.target.files?.[0])} />
-                  </label>
-                </div>
-              ) : (
-                <label className="photo-empty-drop">
-                  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                  </svg>
-                  <strong>Clique para selecionar ou arraste o mockup</strong>
-                  <span>Formato JPG, PNG ou WEBP</span>
-                  <input type="file" accept="image/*" onChange={e => handleFile(e.target.files?.[0])} />
-                </label>
-              )}
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '24px 0 12px 0', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '6px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#4f46e5', margin: 0 }}>
+              🎨 Variações & SKUs (Diferentes)
+            </h4>
+            <button
+              type="button"
+              onClick={addVariant}
+              disabled={busy}
+              style={{
+                background: '#4f46e5',
+                color: '#ffffff',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              ＋ Adicionar Variante
+            </button>
           </div>
 
-          {error && <div className="form-error-banner">{error}</div>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+            {variants.map((v, index) => (
+              <div
+                key={v.id}
+                style={{
+                  background: '#f8fafc',
+                  border: '1.5px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  position: 'relative'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#64748b' }}>Variante #{index + 1}</span>
+                  {variants.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeVariant(v.id)}
+                      disabled={busy}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#ef4444',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      ✕ Remover
+                    </button>
+                  )}
+                </div>
 
-          <div className="admin-modal-foot">
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label>SKU * (Ex: VACMNO_PQV{index + 1}_BBB)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="SKU da variação"
+                      value={v.sku}
+                      onChange={e => updateVariant(v.id, 'sku', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Nome da Variação / Capa (Ex: CAPA {index + 1})</label>
+                    <input
+                      type="text"
+                      placeholder={`Ex: CAPA ${index + 1}`}
+                      value={v.variacao}
+                      onChange={e => updateVariant(v.id, 'variacao', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Mockup da Variante</label>
+                  <div className="photo-upload-dropzone" style={{ height: '110px', padding: '10px' }}>
+                    {v.preview ? (
+                      <div className="photo-upload-preview" style={{ height: '90px' }}>
+                        <img src={v.preview} alt="Prévia" style={{ height: '80px', width: '80px' }} />
+                        <label className="photo-change-btn" style={{ fontSize: '11px', padding: '4px 8px' }}>
+                          Trocar foto
+                          <input type="file" accept="image/*" onChange={e => updateVariant(v.id, 'file', e.target.files?.[0])} />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="photo-empty-drop" style={{ padding: '10px' }}>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                          <circle cx="9" cy="9" r="2" />
+                          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                        </svg>
+                        <strong style={{ fontSize: '11px' }}>Selecionar mockup</strong>
+                        <input type="file" accept="image/*" onChange={e => updateVariant(v.id, 'file', e.target.files?.[0])} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {error && <div className="form-error-banner" style={{ marginTop: '16px' }}>{error}</div>}
+
+          <div className="admin-modal-foot" style={{ marginTop: '20px' }}>
             <button type="button" className="btn-cancel" onClick={onClose} disabled={busy}>Cancelar</button>
-            <button type="submit" className="btn-submit-rainbow" disabled={busy}>
-              {busy ? 'Cadastrando produto…' : 'Salvar Produto'}
+            <button type="submit" className="btn-submit-rainbow" disabled={busy} style={{ minWidth: '180px' }}>
+              {busy ? (progressMsg || 'Cadastrando variações…') : `Salvar ${variants.length} produto(s)`}
             </button>
           </div>
         </form>
