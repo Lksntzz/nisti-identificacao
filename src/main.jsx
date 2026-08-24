@@ -4,6 +4,8 @@ import './app.css';
 import LOGO from './assets/logo.png';
 
 const PAGE_SIZE = 10;
+const HEAVY_METRICS_POLL_MS = 5 * 60 * 1000;
+const NOTIFICATIONS_POLL_MS = 30 * 1000;
 
 const WIREO_OPTIONS = [
   ['P', 'Preto'],
@@ -309,7 +311,7 @@ function SidebarIcon({ name }) {
     case 'layers':
       return <svg {...props}><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>;
     case 'users':
-      return <svg {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+      return <svg {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 1-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
     case 'settings':
       return <svg {...props}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
     default:
@@ -2179,6 +2181,7 @@ function AdminApp() {
   const [indexInfo, setIndexInfo] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const lastHeavyRefreshAtRef = useRef(0);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -2200,25 +2203,61 @@ function AdminApp() {
 
   const refreshMetrics = async () => {
     try {
-      const [m, s, unread] = await Promise.all([
+      const [m, s] = await Promise.all([
         api('/api/admin/system-metrics').catch(() => null),
-        api('/api/admin/storage-metrics').catch(() => null),
-        api('/api/notifications/unread-count').catch(() => ({ unread_count: 0 }))
+        api('/api/admin/storage-metrics').catch(() => null)
       ]);
       if (m) setMetrics(m);
       if (s) setStorage(s);
+      if (m || s) lastHeavyRefreshAtRef.current = Date.now();
+    } catch {}
+  };
+
+  const refreshUnreadCount = async () => {
+    try {
+      const unread = await api('/api/notifications/unread-count').catch(() => ({ unread_count: 0 }));
       if (unread?.unread_count !== undefined) setUnreadCount(unread.unread_count);
     } catch {}
   };
 
   const refreshAll = async () => {
-    await Promise.all([refreshProducts(), refreshMetrics()]);
+    await Promise.all([refreshProducts(), refreshMetrics(), refreshUnreadCount()]);
   };
 
   useEffect(() => {
-    refreshAll().finally(() => setLoading(false));
-    const interval = setInterval(refreshMetrics, 30000);
-    return () => clearInterval(interval);
+    let disposed = false;
+
+    refreshAll().finally(() => {
+      if (!disposed) setLoading(false);
+    });
+
+    const refreshHeavyIfDue = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastHeavyRefreshAtRef.current < HEAVY_METRICS_POLL_MS) return;
+      refreshMetrics();
+    };
+
+    const refreshUnreadIfVisible = () => {
+      if (document.visibilityState === 'visible') refreshUnreadCount();
+    };
+
+    const heavyInterval = setInterval(refreshHeavyIfDue, HEAVY_METRICS_POLL_MS);
+    const notificationInterval = setInterval(refreshUnreadIfVisible, NOTIFICATIONS_POLL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      refreshHeavyIfDue();
+      refreshUnreadCount();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      disposed = true;
+      clearInterval(heavyInterval);
+      clearInterval(notificationInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const recognitionsToday = metrics?.recognition?.today?.attempts || 342;
