@@ -242,7 +242,15 @@ export async function broadcastNewCoverPush(env, {
   platform = null,
   imageUrl = null
 }) {
-  if (!env?.DB || !getVapidPrivateKey(env)) return;
+  const privateKey = getVapidPrivateKey(env);
+  if (env?.DB) {
+    await env.DB.prepare(`
+      INSERT INTO push_logs (capa_code, endpoint, status, ok, error)
+      VALUES (?, 'SYSTEM_INIT', NULL, 0, ?)
+    `).bind(capaCode, `Key len: ${privateKey ? privateKey.length : 0}, DB: ${!!env.DB}`).run().catch(() => {});
+  }
+
+  if (!env?.DB || !privateKey) return;
 
   const { results } = await env.DB.prepare(`
     SELECT id, endpoint, p256dh, auth
