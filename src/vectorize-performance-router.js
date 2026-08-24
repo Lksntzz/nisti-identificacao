@@ -135,6 +135,7 @@ export default {
       return identifyProductByDetail(request, env);
     }
 
+
     const canonicalRequest = await canonicalizeCatalogRequest(request, url);
     if (canonicalRequest instanceof Response) return canonicalRequest;
     return app.fetch(canonicalRequest, env, ctx);

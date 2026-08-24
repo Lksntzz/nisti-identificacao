@@ -102,6 +102,62 @@ function enhanceContrast(imageData) {
   return imageData;
 }
 
+function smartCropCoverBounds(imgData) {
+  const w = imgData.width;
+  const h = imgData.height;
+  const data = imgData.data;
+  
+  const getCol = (x, y) => {
+    let i = (y * w + x) * 4;
+    return [data[i], data[i+1], data[i+2]];
+  };
+
+  const corners = [
+    getCol(0, 0), getCol(w-1, 0), getCol(0, h-1), getCol(w-1, h-1),
+    getCol(Math.floor(w/2), 0), getCol(Math.floor(w/2), h-1),
+    getCol(0, Math.floor(h/2)), getCol(w-1, Math.floor(h/2))
+  ];
+
+  let minX = w, minY = h, maxX = 0, maxY = 0;
+  
+  for (let y = 0; y < h; y += 4) {
+    for (let x = 0; x < w; x += 4) {
+      let idx = (y * w + x) * 4;
+      let r = data[idx], g = data[idx+1], b = data[idx+2];
+      
+      let isContent = true;
+      for (let c of corners) {
+        if (Math.abs(r - c[0]) + Math.abs(g - c[1]) + Math.abs(b - c[2]) < 60) {
+          isContent = false;
+          break;
+        }
+      }
+      
+      if (isContent) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  const boxW = maxX - minX;
+  const boxH = maxY - minY;
+  const areaRatio = (boxW * boxH) / (w * h);
+
+  if (minX >= maxX || areaRatio < 0.20 || areaRatio > 0.95) {
+    return { x: 0, y: 0, w, h };
+  }
+
+  const pad = Math.floor(Math.max(w, h) * 0.04);
+  let finalX = Math.max(0, minX - pad);
+  let finalY = Math.max(0, minY - pad);
+  let finalW = Math.min(w - finalX, boxW + pad * 2);
+  let finalH = Math.min(h - finalY, boxH + pad * 2);
+  return { x: finalX, y: finalY, w: finalW, h: finalH };
+}
+
 async function compressPhoto(file) {
   if (!file || !String(file.type || '').startsWith('image/')) return file;
   let bitmap;
@@ -111,7 +167,6 @@ async function compressPhoto(file) {
     bitmap = await createImageBitmap(file);
   }
 
-  // Foco Central Inteligente: recorte suave de 5% das bordas externas para focar na capa
   const origW = bitmap.width;
   const origH = bitmap.height;
   const cropRatio = 0.04;
@@ -132,12 +187,27 @@ async function compressPhoto(file) {
   bitmap.close?.();
 
   try {
-    const imgData = context.getImageData(0, 0, width, height);
+    let imgData = context.getImageData(0, 0, width, height);
+    const bounds = smartCropCoverBounds(imgData);
+    
+    if (bounds.w < width || bounds.h < height) {
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = bounds.w;
+      cropCanvas.height = bounds.h;
+      const cropCtx = cropCanvas.getContext('2d', { alpha: false });
+      cropCtx.putImageData(imgData, -bounds.x, -bounds.y);
+      
+      canvas.width = bounds.w;
+      canvas.height = bounds.h;
+      context.drawImage(cropCanvas, 0, 0);
+      imgData = context.getImageData(0, 0, bounds.w, bounds.h);
+    }
+    
     enhanceContrast(imgData);
     context.putImageData(imgData, 0, 0);
   } catch {}
 
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.80));
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
   return blob ? new File([blob], 'capa.jpg', { type: 'image/jpeg' }) : file;
 }
 

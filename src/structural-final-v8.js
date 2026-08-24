@@ -313,17 +313,17 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
 Sua missão é identificar com precisão se a FOTO DO PRODUTO corresponde a uma das CANDIDATAS do catálogo pela ARTE-BASE impressa na capa.
 
 REGRAS DE COMPARAÇÃO:
-1. FOCO NA ARTE GRÁFICA: Compare ilustrações, desenhos, flores, animais/personagens, sol, cercas, arranjos gráficos, cores dominantes, títulos fixos e layout geral da capa.
-2. NOMES PERSONALIZADOS DO CLIENTE: Produtos de papelaria (cadernetas, agendas, planners) recebem nomes personalizados variáveis de clientes (ex: "Agnes", "Helena", "Arthur", "Maria", datas, etc.). A imagem de referência no catálogo pode estar sem nome ou ter um nome fictício diferente. IGNORE a diferença de nome próprio do cliente e considere correspondência EXATA se a arte gráfica, ilustrações e estilo forem idênticos!
-3. ITENS FÍSICOS E REFLEXOS: IGNORE completamente:
-   - Wire-o / espirais / encadernação lateral
-   - Elásticos e passadores de elástico
-   - Tassel / pingentes
-   - Laminação, holografia, glitter, reflexos de luz, sombras e brilhos na foto
-   - Dedos/mãos do operador segurando, mesa e fundo externo
+1. FOCO NA ARTE GRÁFICA: Compare rigorosamente as ilustrações, personagens, arranjos gráficos, cores dominantes, estampas, tipografia de títulos fixos e layout geral da capa.
+2. NOMES PERSONALIZADOS DO CLIENTE: Cadernetas/agendas recebem nomes próprios variáveis (ex: "Agnes", "Helena", "Professora Maria"). A candidata pode estar sem nome ou com outro nome. **IGNORE a diferença de nome próprio** e considere correspondência EXATA se a arte de fundo for idêntica!
+3. ITENS FÍSICOS E REFLEXOS (IGNORAR TOTALMENTE):
+   - Wire-o / espirais / furos de encadernação
+   - Elásticos, passadores, tassel / pingentes
+   - Reflexos fortes de luz, plástico filme de embalagem, brilho de laminação (holográfico/glitter)
+   - Distorções de perspectiva (foto inclinada) ou cores levemente alteradas pela iluminação do ambiente
+   - Mãos segurando a capa, fundo da mesa
 4. RESULTADO:
-   - Se uma das candidatas for a mesma arte da foto, retorne winner_code com o CAPA_CODE dessa candidata, exact_match=true e confidence alta (0.85 a 1.00).
-   - Se nenhuma candidata tiver a mesma arte gráfica (desenho diferente), retorne winner_code="NONE", exact_match=false e confidence baixa.`;
+   - Se uma das candidatas tiver **a mesma arte gráfica** (mesmo com os reflexos ou variação no nome do cliente), retorne winner_code com o CAPA_CODE dessa candidata, exact_match=true e confidence alta (0.85 a 1.00).
+   - Se nenhuma candidata corresponder ao desenho exato, retorne winner_code="NONE", exact_match=false e confidence baixa.`;
 
   const parts = [
     { text: prompt },
@@ -599,7 +599,7 @@ export async function structuralFinalIdentifyV8(request, env) {
     }
 
     const topScore = Number(ticket.performance?.retrieval_top1 ?? rawCandidates[0]?.retrieval_score ?? 0);
-    if (topScore < 0.48) {
+    if (topScore < 0.40) {
       throw new RecognitionError(
         `Produto não corresponde ao catálogo da plataforma ${platform}. Identificação abortada para economia de recursos.`,
         422,
