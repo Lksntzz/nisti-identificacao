@@ -42,21 +42,28 @@ export async function recordNewCoverNotification(env, {
     if (ref?.image_key) resolvedImageKey = ref.image_key;
   }
 
-  const result = await env.DB.prepare(`
-    INSERT INTO notifications (
-      type, capa_code, product_id, sku, product_name, variacao, platform, image_key, created_at
-    ) VALUES ('new_cover', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(capa_code) DO NOTHING
-  `).bind(
-    code,
-    targetProductId > 0 ? targetProductId : null,
-    clean(sku),
-    clean(productName),
-    clean(variacao),
-    clean(platform)?.toUpperCase(),
-    resolvedImageKey
-  ).run();
-  const created = Number(result?.meta?.changes || 0) > 0;
+  const existingNotification = await env.DB.prepare(`
+    SELECT id FROM notifications WHERE UPPER(TRIM(capa_code)) = ?
+  `).bind(code).first();
+
+  let created = false;
+  if (!existingNotification) {
+    await env.DB.prepare(`
+      INSERT INTO notifications (
+        type, capa_code, product_id, sku, product_name, variacao, platform, image_key, created_at
+      ) VALUES ('new_cover', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(
+      code,
+      targetProductId > 0 ? targetProductId : null,
+      clean(sku),
+      clean(productName),
+      clean(variacao),
+      clean(platform)?.toUpperCase(),
+      resolvedImageKey
+    ).run();
+    created = true;
+  }
+
   if (created) {
     const imageUrl = targetProductId > 0 && resolvedImageKey
       ? `/api/images/${targetProductId}`
