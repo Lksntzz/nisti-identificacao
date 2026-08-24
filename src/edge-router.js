@@ -91,7 +91,6 @@ function json(data, status = 200) {
 }
 
 function isProtectedApi(pathname) {
-  if (pathname === '/api/admin/push/six-covers') return false;
   if (pathname.startsWith('/api/admin/')) return true;
   if (pathname === '/api/products' || pathname.startsWith('/api/products/')) return true;
   if (pathname.startsWith('/api/sku/')) return true;
