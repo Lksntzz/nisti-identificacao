@@ -734,8 +734,10 @@ export default {
         
         for (const code of covers) {
           const prod = await env.DB.prepare(`
-            SELECT id, nome, variacao, platform, image_key
-            FROM products WHERE UPPER(TRIM(capa_code)) = ? LIMIT 1
+            SELECT p.id, p.nome, p.variacao, p.image_key, pp.platform
+            FROM products p
+            LEFT JOIN product_platforms pp ON p.id = pp.product_id
+            WHERE UPPER(TRIM(p.capa_code)) = ? LIMIT 1
           `).bind(code).first();
           
           if (prod) {
