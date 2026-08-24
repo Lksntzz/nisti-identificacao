@@ -266,12 +266,14 @@ export async function broadcastNewCoverPush(env, {
   await Promise.all(
     subscriptions.map(async sub => {
       try {
+        console.log(`[Push] Iniciando envio para sub ${sub.id}: ${sub.endpoint.slice(0, 40)}...`);
         const res = await sendWebPushNotification(env, sub, payload);
+        console.log(`[Push] Retorno da sub ${sub.id}: status=${res.status}, ok=${res.ok}`);
         if (res.status === 404 || res.status === 410) {
           deadEndpoints.push(sub.endpoint);
         }
-      } catch {
-        // Ignora erros transitórios individuais
+      } catch (err) {
+        console.error(`[Push] Erro catastrófico na sub ${sub.id}:`, err.message);
       }
     })
   );

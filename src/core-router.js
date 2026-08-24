@@ -259,7 +259,9 @@ async function upsertCatalogProduct(env, row) {
       variacao: variacao,
       platform: platform,
       imageKey: product.image_key
-    }).catch(() => {});
+    }).catch(err => {
+      console.error('[Error] Falha no recordNewCoverNotification em upsertCatalogProduct:', err);
+    });
   }
 
   return {
@@ -448,7 +450,9 @@ export default {
           variacao: body.variacao || null,
           platform: platform,
           imageKey: null
-        }).catch(() => {});
+        }).catch(err => {
+          console.error('[Error] Falha no recordNewCoverNotification em POST /api/products:', err);
+        });
 
         return json({ ok: true, id, parsed }, 201);
       }
