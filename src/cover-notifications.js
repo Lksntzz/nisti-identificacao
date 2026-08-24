@@ -69,13 +69,15 @@ export async function recordNewCoverNotification(env, {
       ? `/api/images/${targetProductId}`
       : null;
 
-    broadcastNewCoverPush(env, {
+    await broadcastNewCoverPush(env, {
       capaCode: code,
       productName: clean(productName),
       variacao: clean(variacao),
       platform: clean(platform)?.toUpperCase(),
       imageUrl
-    }).catch(() => {});
+    }).catch(err => {
+      console.error('[Error] Falha no broadcastNewCoverPush:', err);
+    });
   }
 
   return {
