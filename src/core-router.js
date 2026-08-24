@@ -728,6 +728,34 @@ export default {
         return json({ ok: true, marked_count: updated, unread_count: 0 });
       }
 
+      if (url.pathname === '/api/admin/push/six-covers' && request.method === 'GET') {
+        const covers = ['PQV1', 'PQV2', 'PQV3', 'PQV4', 'PQV5', 'PQV6'];
+        const results = [];
+        
+        for (const code of covers) {
+          const prod = await env.DB.prepare(`
+            SELECT id, nome, variacao, platform, image_key
+            FROM products WHERE UPPER(TRIM(capa_code)) = ? LIMIT 1
+          `).bind(code).first();
+          
+          if (prod) {
+            const imageUrl = `/api/images/${prod.id}`;
+            await broadcastNewCoverPush(env, {
+              capaCode: code,
+              productName: prod.nome,
+              variacao: prod.variacao,
+              platform: prod.platform,
+              imageUrl
+            });
+            results.push({ code, status: 'disparado', imageUrl });
+          } else {
+            results.push({ code, status: 'produto não encontrado' });
+          }
+        }
+        
+        return json({ ok: true, results });
+      }
+
       if (url.pathname === '/api/admin/push/debug' && request.method === 'GET') {
         const privateKey = env.VAPID_PRIVATE_KEY ? 'presente (tamanho: ' + env.VAPID_PRIVATE_KEY.length + ')' : 'ausente';
         const apiKey = env.GEMINI_API_KEY ? 'presente' : 'ausente';
