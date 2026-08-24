@@ -4,6 +4,8 @@ import './app.css';
 import LOGO from './assets/logo.png';
 
 const PAGE_SIZE = 10;
+const HEAVY_METRICS_POLL_MS = 5 * 60 * 1000;
+const NOTIFICATIONS_POLL_MS = 30 * 1000;
 
 const WIREO_OPTIONS = [
   ['P', 'Preto'],
@@ -2179,6 +2181,7 @@ function AdminApp() {
   const [indexInfo, setIndexInfo] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const lastHeavyRefreshAtRef = useRef(0);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -2200,25 +2203,61 @@ function AdminApp() {
 
   const refreshMetrics = async () => {
     try {
-      const [m, s, unread] = await Promise.all([
+      const [m, s] = await Promise.all([
         api('/api/admin/system-metrics').catch(() => null),
-        api('/api/admin/storage-metrics').catch(() => null),
-        api('/api/notifications/unread-count').catch(() => ({ unread_count: 0 }))
+        api('/api/admin/storage-metrics').catch(() => null)
       ]);
       if (m) setMetrics(m);
       if (s) setStorage(s);
+      if (m || s) lastHeavyRefreshAtRef.current = Date.now();
+    } catch {}
+  };
+
+  const refreshUnreadCount = async () => {
+    try {
+      const unread = await api('/api/notifications/unread-count').catch(() => ({ unread_count: 0 }));
       if (unread?.unread_count !== undefined) setUnreadCount(unread.unread_count);
     } catch {}
   };
 
   const refreshAll = async () => {
-    await Promise.all([refreshProducts(), refreshMetrics()]);
+    await Promise.all([refreshProducts(), refreshMetrics(), refreshUnreadCount()]);
   };
 
   useEffect(() => {
-    refreshAll().finally(() => setLoading(false));
-    const interval = setInterval(refreshMetrics, 30000);
-    return () => clearInterval(interval);
+    let disposed = false;
+
+    refreshAll().finally(() => {
+      if (!disposed) setLoading(false);
+    });
+
+    const refreshHeavyIfDue = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastHeavyRefreshAtRef.current < HEAVY_METRICS_POLL_MS) return;
+      refreshMetrics();
+    };
+
+    const refreshUnreadIfVisible = () => {
+      if (document.visibilityState === 'visible') refreshUnreadCount();
+    };
+
+    const heavyInterval = setInterval(refreshHeavyIfDue, HEAVY_METRICS_POLL_MS);
+    const notificationInterval = setInterval(refreshUnreadIfVisible, NOTIFICATIONS_POLL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      refreshHeavyIfDue();
+      refreshUnreadCount();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      disposed = true;
+      clearInterval(heavyInterval);
+      clearInterval(notificationInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const recognitionsToday = metrics?.recognition?.today?.attempts || 342;
