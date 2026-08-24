@@ -185,8 +185,7 @@ function AdminSidebar({ activeView, onViewChange, unreadCount, sidebarOpen, onCl
     {
       title: 'EQUIPE & CONFIGURAÇÕES',
       items: [
-        { id: 'ocorrencias', label: '🧠 Erros & Aprendizado', icon: 'brain' },
-        { id: 'usuarios', label: '👥 Desempenho da Equipe', icon: 'users' },
+        { id: 'usuarios', label: 'Operadores & Ocorrências', icon: 'users' },
         { id: 'plataformas', label: 'Plataformas', icon: 'layers' },
         { id: 'configuracoes', label: 'Configurações', icon: 'settings' },
       ]
@@ -3007,19 +3006,11 @@ function AdminApp() {
             />
           )}
 
-          {activeView === 'ocorrencias' && (
-            <OperatorsAndLearningView
-              products={products}
-              onRefresh={refreshAll}
-              initialSubTab="ocorrencias"
-            />
-          )}
-
           {activeView === 'usuarios' && (
             <OperatorsAndLearningView
               products={products}
               onRefresh={refreshAll}
-              initialSubTab="equipe"
+              initialSubTab="ocorrencias"
             />
           )}
 
