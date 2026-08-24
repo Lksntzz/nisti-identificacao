@@ -6,17 +6,88 @@ const FREE_WORKERS_DAILY_REQUESTS = 100000;
 const FREE_GEMINI_DAILY_REQUESTS = 1500;
 const FREE_R2_STORAGE_BYTES = 10 * 1024 * 1024 * 1024;
 
-function json(data, status = 200) {
+const SYSTEM_METRICS_CACHE_MS = 5 * 60 * 1000;
+const COVER_INDEX_CACHE_MS = 5 * 60 * 1000;
+const PRODUCTS_CACHE_MS = 60 * 1000;
+
+let systemMetricsCache = null;
+let systemMetricsPromise = null;
+const delegatedReadCache = new Map();
+
+function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store'
+      'cache-control': 'no-store',
+      ...headers
     }
   });
 }
 
-async function handleSystemMetrics(env) {
+function isFresh(entry) {
+  return Boolean(entry && entry.expires_at > Date.now());
+}
+
+function invalidateCatalogCaches() {
+  delegatedReadCache.delete('products');
+  delegatedReadCache.delete('cover-index');
+  systemMetricsCache = null;
+}
+
+function invalidateIndexCaches() {
+  delegatedReadCache.delete('cover-index');
+  systemMetricsCache = null;
+}
+
+function invalidateAfterMutation(pathname, method) {
+  if (method === 'GET' || method === 'HEAD') return;
+
+  if (
+    pathname === '/api/products' ||
+    pathname.startsWith('/api/products/') ||
+    pathname === '/api/admin/bulk-products'
+  ) {
+    invalidateCatalogCaches();
+    return;
+  }
+
+  if (
+    pathname.startsWith('/api/admin/covers/') ||
+    pathname.startsWith('/api/admin/cover-references/') ||
+    pathname === '/api/admin/reindex-cover-embeddings' ||
+    pathname === '/api/admin/vectorize-sync'
+  ) {
+    invalidateIndexCaches();
+  }
+}
+
+async function cachedDownstreamJson(cacheKey, ttlMs, request, env, ctx) {
+  const cached = delegatedReadCache.get(cacheKey);
+  if (isFresh(cached)) {
+    return json(cached.data, cached.status, { 'x-nisti-cache': 'hit' });
+  }
+
+  const response = await app.fetch(request, env, ctx);
+  if (!response.ok) return response;
+
+  const type = response.headers.get('content-type') || '';
+  if (!type.includes('application/json')) return response;
+
+  const data = await response.clone().json().catch(() => null);
+  if (!data) return response;
+
+  const snapshot = {
+    data,
+    status: response.status,
+    expires_at: Date.now() + ttlMs
+  };
+  delegatedReadCache.set(cacheKey, snapshot);
+
+  return json(data, response.status, { 'x-nisti-cache': 'miss' });
+}
+
+async function buildSystemMetrics(env) {
   if (!env.DB) throw new Error('Binding DB não configurado');
 
   const productsProbe = await env.DB.prepare(`
@@ -41,13 +112,14 @@ async function handleSystemMetrics(env) {
   const attemptsToday = Number(recognition.today?.attempts || 0);
   const geminiRequestsToday = Number(recognition.today?.generation_requests || recognition.today?.attempts || 0);
 
-  return json({
+  return {
     ok: true,
     measured_at: new Date().toISOString(),
     timezone: 'America/Sao_Paulo',
+    cache_ttl_seconds: Math.round(SYSTEM_METRICS_CACHE_MS / 1000),
     free_tier_status: {
       is_free_tier: true,
-      summary: '100% dos serviços estão operando dentro dos limites gratuitos.',
+      summary: 'Estimativa interna. Leituras e gravações reais do D1 devem ser confirmadas no Cloudflare Analytics.',
       workers: {
         used_today: attemptsToday,
         limit_daily: FREE_WORKERS_DAILY_REQUESTS,
@@ -58,7 +130,8 @@ async function handleSystemMetrics(env) {
         used_bytes: sizeBytes,
         limit_bytes: FREE_D1_LIMIT_BYTES,
         percent_used: sizeBytes ? (sizeBytes / FREE_D1_LIMIT_BYTES) * 100 : 0,
-        status: (sizeBytes / FREE_D1_LIMIT_BYTES) > 0.8 ? 'warning' : 'safe'
+        status: (sizeBytes / FREE_D1_LIMIT_BYTES) > 0.8 ? 'warning' : 'safe',
+        usage_note: 'Este endpoint mede armazenamento, não rows_read/rows_written da conta.'
       },
       r2: {
         limit_bytes: FREE_R2_STORAGE_BYTES,
@@ -102,7 +175,30 @@ async function handleSystemMetrics(env) {
         rpm: 15
       }
     }
-  });
+  };
+}
+
+async function handleSystemMetrics(env) {
+  if (isFresh(systemMetricsCache)) {
+    return json(systemMetricsCache.data, 200, { 'x-nisti-cache': 'hit' });
+  }
+
+  if (!systemMetricsPromise) {
+    systemMetricsPromise = buildSystemMetrics(env)
+      .then(data => {
+        systemMetricsCache = {
+          data,
+          expires_at: Date.now() + SYSTEM_METRICS_CACHE_MS
+        };
+        return data;
+      })
+      .finally(() => {
+        systemMetricsPromise = null;
+      });
+  }
+
+  const data = await systemMetricsPromise;
+  return json(data, 200, { 'x-nisti-cache': 'miss' });
 }
 
 async function handleRecognitionEvents(url, env) {
@@ -155,6 +251,7 @@ async function handleUpdateOperatorName(request, env) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
     if (url.pathname === '/api/admin/system-metrics' && request.method === 'GET') {
       try {
         return await handleSystemMetrics(env);
@@ -162,6 +259,23 @@ export default {
         return json({ error: error?.message || 'Falha ao ler métricas do sistema' }, 500);
       }
     }
+
+    if (url.pathname === '/api/admin/cover-index' && request.method === 'GET') {
+      try {
+        return await cachedDownstreamJson('cover-index', COVER_INDEX_CACHE_MS, request, env, ctx);
+      } catch (error) {
+        return json({ error: error?.message || 'Falha ao ler índice de capas' }, 500);
+      }
+    }
+
+    if (url.pathname === '/api/products' && request.method === 'GET') {
+      try {
+        return await cachedDownstreamJson('products', PRODUCTS_CACHE_MS, request, env, ctx);
+      } catch (error) {
+        return json({ error: error?.message || 'Falha ao carregar produtos' }, 500);
+      }
+    }
+
     if (url.pathname === '/api/admin/recognition-events' && request.method === 'GET') {
       try {
         return await handleRecognitionEvents(url, env);
@@ -169,6 +283,7 @@ export default {
         return json({ error: error?.message || 'Falha ao ler diagnóstico de reconhecimento' }, 500);
       }
     }
+
     if (url.pathname === '/api/admin/operators' && request.method === 'GET') {
       try {
         return await handleOperators(env);
@@ -184,6 +299,9 @@ export default {
         return json({ error: error?.message || 'Falha ao atualizar nome do operador' }, 500);
       }
     }
-    return app.fetch(request, env, ctx);
+
+    const response = await app.fetch(request, env, ctx);
+    if (response.ok) invalidateAfterMutation(url.pathname, request.method);
+    return response;
   }
 };
