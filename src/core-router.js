@@ -729,33 +729,31 @@ export default {
       }
 
       if (url.pathname === '/api/admin/push/six-covers' && request.method === 'GET') {
-        const covers = ['PQV1', 'PQV2', 'PQV3', 'PQV4', 'PQV5', 'PQV6'];
-        const results = [];
+        const payload = {
+          title: '📚 6 Novas Capas Cadastradas!',
+          body: 'As capas PQV1, PQV2, PQV3, PQV4, PQV5 e PQV6 (Pequenas Aventuras) já estão prontas no catálogo.',
+          image_url: 'https://nisti-identificacao.lksntz1411.workers.dev/api/images/210',
+          url: '/'
+        };
         
-        for (const code of covers) {
-          const prod = await env.DB.prepare(`
-            SELECT p.id, p.nome, p.variacao, p.image_key, pp.platform
-            FROM products p
-            LEFT JOIN product_platforms pp ON p.id = pp.product_id
-            WHERE UPPER(TRIM(p.capa_code)) = ? LIMIT 1
-          `).bind(code).first();
-          
-          if (prod) {
-            const imageUrl = `/api/images/${prod.id}`;
-            await broadcastNewCoverPush(env, {
-              capaCode: code,
-              productName: prod.nome,
-              variacao: prod.variacao,
-              platform: prod.platform,
-              imageUrl
-            });
-            results.push({ code, status: 'disparado', imageUrl });
-          } else {
-            results.push({ code, status: 'produto não encontrado' });
+        const { results } = await env.DB.prepare(`
+          SELECT id, endpoint, p256dh, auth
+          FROM push_subscriptions
+        `).all();
+        
+        const subscriptions = results || [];
+        const sendResults = [];
+        
+        await Promise.all(subscriptions.map(async sub => {
+          try {
+            const res = await sendWebPushNotification(env, sub, payload);
+            sendResults.push({ sub_id: sub.id, status: res.status });
+          } catch (err) {
+            sendResults.push({ sub_id: sub.id, error: err.message });
           }
-        }
+        }));
         
-        return json({ ok: true, results });
+        return json({ ok: true, sent_count: sendResults.length, results: sendResults });
       }
 
       if (url.pathname === '/api/admin/push/debug' && request.method === 'GET') {
