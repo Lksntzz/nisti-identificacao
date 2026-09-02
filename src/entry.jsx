@@ -11,9 +11,19 @@ if (rootElement) {
       root.render(<Component />);
     });
   } else {
-    import('./public-main.jsx').then(mod => {
-      const Component = mod.default || mod.PublicIdentificationApp;
-      root.render(<Component />);
+    Promise.all([
+      import('./public-main.jsx'),
+      import('./shadow-confirmation-client.js'),
+      import('./shadow-confirmation-prompt.jsx')
+    ]).then(([publicMod, _clientMod, promptMod]) => {
+      const Component = publicMod.default || publicMod.PublicIdentificationApp;
+      const ShadowConfirmationPrompt = promptMod.default;
+      root.render(
+        <>
+          <Component />
+          <ShadowConfirmationPrompt />
+        </>
+      );
     });
   }
 }
