@@ -8,7 +8,7 @@ const COOKIE_NAME = 'nisti_recognition_ticket';
 const MAX_CANDIDATES = 4;
 const SUGGESTION_LIMIT = 4;
 const MIN_STRUCTURAL_CONFIDENCE = 0.65;
-const VERIFY_TIMEOUT_MS = 8000;
+const VERIFY_TIMEOUT_MS = 10000;
 const VERIFIER_RPM_LIMIT = 60;
 
 class RecognitionError extends Error {
@@ -335,6 +335,9 @@ DECISÃO:
       inline_data: {
         mime_type: photoMime || 'image/jpeg',
         data: base64(photoBytes)
+      },
+      media_resolution: {
+        level: 'MEDIA_RESOLUTION_MEDIUM'
       }
     }
   ];
@@ -355,6 +358,9 @@ DECISÃO:
       inline_data: {
         mime_type: candidate.mime_type,
         data: base64(candidate.bytes)
+      },
+      media_resolution: {
+        level: 'MEDIA_RESOLUTION_MEDIUM'
       }
     });
   }
@@ -372,8 +378,10 @@ DECISÃO:
         body: JSON.stringify({
           contents: [{ role: 'user', parts }],
           generationConfig: {
-            temperature: 0,
-            maxOutputTokens: 256,
+            thinkingConfig: {
+              thinkingLevel: 'minimal'
+            },
+            maxOutputTokens: 128,
             response_mime_type: 'application/json',
             response_schema: {
               type: 'OBJECT',
@@ -518,11 +526,13 @@ async function successResponse(
 export async function structuralFinalIdentifyV8(request, env) {
   const started = Date.now();
   const performance = {
-    pipeline_version: 'platform-vectorize+single-gemini-v8.8',
-    verification_mode: 'single-model-exact-art-fail-closed',
+    pipeline_version: 'platform-vectorize+gemini36-minimal-v8.9',
+    verification_mode: 'single-model-exact-art-fail-closed-minimal-thinking',
     retrieval_source: 'vectorize-platform-ticket-reuse',
     reused_candidates: true,
-    candidate_transport: 'inline-r2-bytes'
+    candidate_transport: 'inline-r2-bytes',
+    verifier_thinking_level: 'minimal',
+    verifier_media_resolution: 'medium'
   };
 
   try {
@@ -673,7 +683,7 @@ export async function structuralFinalIdentifyV8(request, env) {
             platform,
             Math.max(decision.confidence, 0.75),
             performance,
-            'platform-catalog-v8.8-comparative-winner'
+            'platform-catalog-v8.9-comparative-winner'
           );
         }
       }
@@ -726,7 +736,7 @@ export async function structuralFinalIdentifyV8(request, env) {
       suggested_platform: null,
       suggestions: [],
       suggestions_are_unconfirmed: false,
-      identified_by: 'platform-catalog-no-match-v8.8',
+      identified_by: 'platform-catalog-no-match-v8.9',
       performance,
       occurrence_id: occurrenceId,
       sent_to_adm: true
