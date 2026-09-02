@@ -213,7 +213,7 @@ test('Recognition Verification: trained real_scan still requires one exact Gemin
 
     assert.equal(response.status, 200);
     assert.equal(data.capa_code, 'CP5');
-    assert.equal(data.identified_by, 'platform-catalog-v8.8-comparative-winner');
+    assert.equal(data.identified_by, 'platform-catalog-v8.9-comparative-winner');
     assert.equal(fetchCalls, 1);
     assert.match(requestedUrl, /models\/gemini-3\.6-flash:generateContent$/);
   } finally {
@@ -317,7 +317,7 @@ test('Recognition Fail-Closed: high confidence without exact_match is not accept
     const data = await response.json();
 
     assert.equal(response.status, 422);
-    assert.equal(data.identified_by, 'platform-catalog-no-match-v8.8');
+    assert.equal(data.identified_by, 'platform-catalog-no-match-v8.9');
     assert.equal(data.performance.gemini_confidence, 0.99);
     assert.equal(data.performance.verifier_reason_code, 'different_layout');
   } finally {
