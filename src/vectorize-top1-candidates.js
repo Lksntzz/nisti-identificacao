@@ -3,6 +3,9 @@ import { buildVectorizeCandidates } from './vectorize-candidates.js';
 import { canonicalizeActiveVectorMatches } from './vector-match-authority.js';
 
 const VERIFICATION_COVER_LIMIT = 1;
+const SHADOW_COVER_LIMIT = 10;
+const SHADOW_TTL_SECONDS = 15 * 60;
+const SHADOW_PURPOSE = 'geometric-shadow-evidence-v818';
 
 function base64url(bytes) {
   return Buffer.from(bytes).toString('base64url');
@@ -157,6 +160,65 @@ export function rebuildPayloadFromAuthoritativeMatches(sourcePayload, matches) {
   };
 }
 
+export function buildShadowEvidencePayload(
+  rebuiltPayload,
+  rebuiltCandidates,
+  {
+    nowSeconds = Math.floor(Date.now() / 1000),
+    nonce = crypto.randomUUID()
+  } = {}
+) {
+  if (!rebuiltPayload || typeof rebuiltPayload !== 'object') return null;
+  const platform = String(rebuiltPayload.platform || '').trim().toUpperCase();
+  if (!platform) return null;
+
+  const candidates = [];
+  const seenCodes = new Set();
+  for (const candidate of rebuiltCandidates || []) {
+    const capaCode = normalizeCode(candidate?.capa_code);
+    const referenceId = Number(candidate?.reference_id || 0) || null;
+    const retrievalScore = Number(candidate?.retrieval_score);
+    const imageKey = String(candidate?.image_key || '').trim();
+    if (!capaCode || seenCodes.has(capaCode) || !referenceId || !imageKey || !Number.isFinite(retrievalScore)) continue;
+    seenCodes.add(capaCode);
+    const version = imageKey.split('/').pop() || 'current';
+    candidates.push({
+      capa_code: capaCode,
+      cover_rank: candidates.length + 1,
+      vector_rank: Number(candidate?.vector_rank || candidates.length + 1),
+      retrieval_score: retrievalScore,
+      reference_id: referenceId,
+      reference_kind: String(candidate?.reference_kind || 'product').trim().toLowerCase() || 'product',
+      image_url: `/api/reference-images/${referenceId}?v=${encodeURIComponent(version)}`
+    });
+    if (candidates.length >= SHADOW_COVER_LIMIT) break;
+  }
+
+  if (candidates.length < 2) return null;
+
+  const token = String(nonce || '').trim();
+  if (!token) return null;
+  const signedPayload = {
+    purpose: SHADOW_PURPOSE,
+    exp: Number(nowSeconds) + SHADOW_TTL_SECONDS,
+    nonce: token,
+    platform,
+    candidates: candidates.map(candidate => ({
+      capa_code: candidate.capa_code,
+      vector_rank: candidate.vector_rank,
+      retrieval_score: candidate.retrieval_score,
+      reference_id: candidate.reference_id,
+      reference_kind: candidate.reference_kind
+    }))
+  };
+
+  return {
+    token,
+    signed_payload: signedPayload,
+    candidates
+  };
+}
+
 function staleIndexResponse(data) {
   return new Response(JSON.stringify({
     error: 'O índice vetorial contém apenas referências que não estão mais ativas no catálogo.',
@@ -200,13 +262,29 @@ export async function buildVectorizeTop1Candidates(request, env) {
     .filter(item => normalizeCode(item?.capa_code) === topCode)
     .slice(0, 1);
 
+  let shadowEvidence = null;
+  const shadow = buildShadowEvidencePayload(rebuilt.payload, rebuilt.candidates);
+  if (shadow) {
+    const shadowTicket = await signTicket(env, shadow.signed_payload);
+    shadowEvidence = {
+      version: 'v8.18',
+      gate: 'strict_core_v816',
+      token: shadow.token,
+      ticket: shadowTicket,
+      candidates: shadow.candidates,
+      production_changed: false
+    };
+  }
+
   const performance = {
     ...(data.performance || {}),
     ...(rebuilt.payload.performance || {}),
     verification_strategy: 'vectorize-top1-binary',
     verification_cover_limit: VERIFICATION_COVER_LIMIT,
     verification_candidate_count: candidates.length,
-    authoritative_candidate_count: rebuilt.candidates.length
+    authoritative_candidate_count: rebuilt.candidates.length,
+    shadow_evidence_candidate_count: shadowEvidence?.candidates?.length || 0,
+    shadow_evidence_version: shadowEvidence ? 'v8.18' : null
   };
 
   const headers = new Headers(response.headers);
@@ -216,6 +294,7 @@ export async function buildVectorizeTop1Candidates(request, env) {
     ...data,
     ticket,
     candidates,
+    shadow_evidence: shadowEvidence,
     performance
   }), {
     status: response.status,
