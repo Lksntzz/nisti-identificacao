@@ -1,5 +1,5 @@
 import app from './edge-router.js';
-import { buildVectorizeCandidates } from './vectorize-candidates.js';
+import { buildVectorizeTop1Candidates } from './vectorize-top1-candidates.js';
 import { structuralFinalIdentifyV8 } from './structural-final-v8.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
@@ -124,7 +124,7 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify-candidates') {
-      const response = await buildVectorizeCandidates(request, env);
+      const response = await buildVectorizeTop1Candidates(request, env);
       return withRecognitionTicketCookie(response);
     }
 
