@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NISTI — Geometric Shadow Benchmark v8.15</title>
+  <title>NISTI — Hybrid Retrieval + Geometric Gate Shadow v8.16</title>
   <style>
     :root { font-family: Inter, system-ui, sans-serif; color-scheme: dark; background:#111; color:#eee; }
     body { max-width:920px; margin:0 auto; padding:32px 20px; }
@@ -17,14 +17,14 @@
   </style>
 </head>
 <body>
-  <h1>Geometric Shadow Benchmark v8.15</h1>
-  <p>Executa no navegador o reranking geométrico dos Top-10 candidatos por plataforma usando descritores binários orientados e RANSAC/homografia. Não altera a identificação de produção.</p>
+  <h1>Hybrid Retrieval + Geometric Gate Shadow v8.16</h1>
+  <p>Executa no navegador a calibração shadow do fastpath atual combinado com recuperação geométrica incremental sobre os Top-10 candidatos por plataforma. Também deduplica evidência por SHA-256. Não altera a identificação de produção.</p>
   <p><strong>Importante:</strong> mantenha esta aba aberta até concluir. O processamento pode levar alguns minutos.</p>
   <button id="run">Executar benchmark</button>
   <button id="download" disabled>Baixar JSON</button>
   <progress id="progress" value="0" max="1"></progress>
   <p id="status">Pronto para iniciar.</p>
   <pre id="output"></pre>
-  <script type="module" src="/geometric-shadow.js"></script>
+  <script type="module" src="/geometric-shadow.js?v=8.16"></script>
 </body>
 </html>
