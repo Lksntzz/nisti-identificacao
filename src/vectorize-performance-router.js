@@ -2,6 +2,7 @@ import app from './edge-router.js';
 import { buildVectorizeTop1Candidates } from './vectorize-top1-candidates.js';
 import { structuralFinalIdentifyV8 } from './structural-final-v8.js';
 import { tryRetrievalFastPath } from './retrieval-fastpath.js';
+import { handleRetrievalBenchmarkRequest } from './retrieval-benchmark.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { handlePublicImageRequest } from './public-image-router.js';
@@ -109,6 +110,9 @@ export default {
 
     const publicImageResponse = await handlePublicImageRequest(request, env);
     if (publicImageResponse) return publicImageResponse;
+
+    const benchmarkResponse = await handleRetrievalBenchmarkRequest(request, env);
+    if (benchmarkResponse) return benchmarkResponse;
 
     const occurrencesResponse = await handleOccurrencesAdminRequest(request, env);
     if (occurrencesResponse) return occurrencesResponse;
