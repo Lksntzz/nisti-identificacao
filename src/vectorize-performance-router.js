@@ -5,6 +5,7 @@ import { tryRetrievalFastPath } from './retrieval-fastpath.js';
 import { handleRetrievalBenchmarkRequest } from './retrieval-benchmark.js';
 import { handleRetrievalConsensusBenchmarkRequest } from './retrieval-consensus-benchmark.js';
 import { handleRetrievalRecallBenchmarkRequest } from './retrieval-recall-benchmark.js';
+import { handleGeometricShadowManifestRequest } from './geometric-shadow-manifest.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { handlePublicImageRequest } from './public-image-router.js';
@@ -121,6 +122,9 @@ export default {
 
     const recallBenchmarkResponse = await handleRetrievalRecallBenchmarkRequest(request, env);
     if (recallBenchmarkResponse) return recallBenchmarkResponse;
+
+    const geometricShadowManifestResponse = await handleGeometricShadowManifestRequest(request, env);
+    if (geometricShadowManifestResponse) return geometricShadowManifestResponse;
 
     const occurrencesResponse = await handleOccurrencesAdminRequest(request, env);
     if (occurrencesResponse) return occurrencesResponse;
