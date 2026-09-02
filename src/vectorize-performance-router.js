@@ -3,6 +3,7 @@ import { buildVectorizeTop1Candidates } from './vectorize-top1-candidates.js';
 import { structuralFinalIdentifyV8 } from './structural-final-v8.js';
 import { tryRetrievalFastPath } from './retrieval-fastpath.js';
 import { handleRetrievalBenchmarkRequest } from './retrieval-benchmark.js';
+import { handleRetrievalConsensusBenchmarkRequest } from './retrieval-consensus-benchmark.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { handlePublicImageRequest } from './public-image-router.js';
@@ -113,6 +114,9 @@ export default {
 
     const benchmarkResponse = await handleRetrievalBenchmarkRequest(request, env);
     if (benchmarkResponse) return benchmarkResponse;
+
+    const consensusBenchmarkResponse = await handleRetrievalConsensusBenchmarkRequest(request, env);
+    if (consensusBenchmarkResponse) return consensusBenchmarkResponse;
 
     const occurrencesResponse = await handleOccurrencesAdminRequest(request, env);
     if (occurrencesResponse) return occurrencesResponse;
