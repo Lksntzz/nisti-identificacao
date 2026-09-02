@@ -92,6 +92,14 @@ if (!location.pathname.startsWith('/admin')) {
     });
   }
 
+  async function createBitmap(blob) {
+    try {
+      return await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    } catch {
+      return createImageBitmap(blob);
+    }
+  }
+
   async function blobFromUrl(url) {
     const response = await nativeFetch(url, { credentials: 'same-origin', cache: 'force-cache' });
     if (!response.ok) throw new Error(`reference_http_${response.status}`);
@@ -102,7 +110,10 @@ if (!location.pathname.startsWith('/admin')) {
     if (referenceCache.has(url)) return referenceCache.get(url);
     const promise = (async () => {
       const blob = await blobFromUrl(url);
-      const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+      const [referenceSha256, bitmap] = await Promise.all([
+        sha256(blob),
+        createBitmap(blob)
+      ]);
       try {
         const maxDimension = 520;
         const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
@@ -116,7 +127,7 @@ if (!location.pathname.startsWith('/admin')) {
         const rgba = ctx.getImageData(0, 0, width, height).data;
         const gray = core.rgbaToGray(rgba, width, height);
         const features = core.extractOrbLikeFeatures(gray, width, height, FEATURE_OPTIONS);
-        return { width, height, features, feature_count: features.length };
+        return { width, height, features, feature_count: features.length, sha256: referenceSha256 };
       } finally {
         bitmap.close?.();
       }
@@ -131,7 +142,7 @@ if (!location.pathname.startsWith('/admin')) {
   }
 
   async function queryFeatures(file, core) {
-    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const bitmap = await createBitmap(file);
     try {
       const maxDimension = 520;
       const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
@@ -174,6 +185,8 @@ if (!location.pathname.startsWith('/admin')) {
     const retrievalInput = retrievalResultForGate(candidates);
     const retrievalGate = gateModule.evaluateRetrievalGate(retrievalInput, gateModule.RETRIEVAL_GATE);
     const photoSha256 = await sha256(context.photo);
+    let sameContentReferenceCount = 0;
+    let referenceLoadErrorCount = 0;
 
     let geometric = {
       geometric_evaluated: false,
@@ -199,6 +212,10 @@ if (!location.pathname.startsWith('/admin')) {
         await idle();
         try {
           const ref = await loadReferenceFeatures(candidate.image_url, core);
+          if (ref.sha256 === photoSha256) {
+            sameContentReferenceCount += 1;
+            continue;
+          }
           featureCandidates.push({
             capa_code: candidate.capa_code,
             vector_rank: Number(candidate.cover_rank || candidate.vector_rank || featureCandidates.length + 1),
@@ -211,52 +228,44 @@ if (!location.pathname.startsWith('/admin')) {
             features: ref.features
           });
         } catch {
-          featureCandidates.push({
-            capa_code: candidate.capa_code,
-            vector_rank: Number(candidate.cover_rank || candidate.vector_rank || featureCandidates.length + 1),
-            vector_score: Number(candidate.retrieval_score || 0),
-            reference_id: Number(candidate.reference_id || 0) || null,
-            reference_kind: candidate.reference_kind,
-            width: 1,
-            height: 1,
-            feature_count: 0,
-            features: []
-          });
+          referenceLoadErrorCount += 1;
         }
       }
 
-      const ranked = core.rankGeometricCandidates(photoFeatures, featureCandidates, FEATURE_OPTIONS);
-      const gateInput = {
-        candidates: ranked.map(item => ({
-          capa_code: item.capa_code,
-          vector_rank: item.vector_rank,
-          vector_score: item.vector_score,
-          reference_kind: item.reference_kind,
-          geometric_score: item.score,
-          good_matches: item.good_matches,
-          inliers: item.inliers,
-          inlier_ratio: item.inlier_ratio,
-          reference_coverage: item.reference_coverage
-        }))
-      };
-      const decision = gateModule.evaluateGeometricGate(gateInput, gateModule.GEOMETRIC_GATES.strict_core_v816);
-      const winner = ranked.find(item => normalizeCode(item.capa_code) === normalizeCode(decision.capa_code)) || ranked[0] || null;
-      const runnerUp = decision.runner_up_code
-        ? ranked.find(item => normalizeCode(item.capa_code) === normalizeCode(decision.runner_up_code))
-        : ranked.find(item => item !== winner) || null;
+      if (featureCandidates.length >= 2 && sameContentReferenceCount === 0 && referenceLoadErrorCount === 0) {
+        const ranked = core.rankGeometricCandidates(photoFeatures, featureCandidates, FEATURE_OPTIONS);
+        const gateInput = {
+          candidates: ranked.map(item => ({
+            capa_code: item.capa_code,
+            vector_rank: item.vector_rank,
+            vector_score: item.vector_score,
+            reference_kind: item.reference_kind,
+            geometric_score: item.score,
+            good_matches: item.good_matches,
+            inliers: item.inliers,
+            inlier_ratio: item.inlier_ratio,
+            reference_coverage: item.reference_coverage
+          }))
+        };
+        const decision = gateModule.evaluateGeometricGate(gateInput, gateModule.GEOMETRIC_GATES.strict_core_v816);
+        const winner = ranked.find(item => normalizeCode(item.capa_code) === normalizeCode(decision.capa_code)) || ranked[0] || null;
+        const runnerUp = decision.runner_up_code
+          ? ranked.find(item => normalizeCode(item.capa_code) === normalizeCode(decision.runner_up_code))
+          : ranked.find(item => item !== winner) || null;
 
-      geometric = {
-        geometric_evaluated: true,
-        geometric_capa_code: decision.capa_code || winner?.capa_code || null,
-        geometric_score: Number(decision.score ?? winner?.score ?? 0),
-        geometric_runner_up_code: decision.runner_up_code || runnerUp?.capa_code || null,
-        geometric_runner_up_score: Number(decision.runner_up_score ?? runnerUp?.score ?? 0),
-        geometric_good_matches: Number(decision.good_matches ?? winner?.good_matches ?? 0),
-        geometric_inliers: Number(decision.inliers ?? winner?.inliers ?? 0),
-        geometric_inlier_ratio: Number(decision.inlier_ratio ?? winner?.inlier_ratio ?? 0),
-        geometric_reference_coverage: Number(decision.reference_coverage ?? winner?.reference_coverage ?? 0),
-        geometric_vector_rank: Number(decision.vector_rank ?? winner?.vector_rank ?? 0) || null
-      };
+        geometric = {
+          geometric_evaluated: true,
+          geometric_capa_code: decision.capa_code || winner?.capa_code || null,
+          geometric_score: Number(decision.score ?? winner?.score ?? 0),
+          geometric_runner_up_code: decision.runner_up_code || runnerUp?.capa_code || null,
+          geometric_runner_up_score: Number(decision.runner_up_score ?? runnerUp?.score ?? 0),
+          geometric_good_matches: Number(decision.good_matches ?? winner?.good_matches ?? 0),
+          geometric_inliers: Number(decision.inliers ?? winner?.inliers ?? 0),
+          geometric_inlier_ratio: Number(decision.inlier_ratio ?? winner?.inlier_ratio ?? 0),
+          geometric_reference_coverage: Number(decision.reference_coverage ?? winner?.reference_coverage ?? 0),
+          geometric_vector_rank: Number(decision.vector_rank ?? winner?.vector_rank ?? 0) || null
+        };
+      }
     }
 
     const body = {
@@ -267,6 +276,9 @@ if (!location.pathname.startsWith('/admin')) {
       production_capa_code: productionData?.product?.capa_code || productionData?.capa_code || null,
       production_identified_by: productionData?.identified_by || productionData?.accepted_by || null,
       processing_ms: Math.round(performance.now() - started),
+      same_content_reference_count: sameContentReferenceCount,
+      reference_load_error_count: referenceLoadErrorCount,
+      content_independent: sameContentReferenceCount === 0 && referenceLoadErrorCount === 0,
       ...geometric
     };
 
@@ -350,7 +362,8 @@ if (!location.pathname.startsWith('/admin')) {
     if (method === 'POST' && pathname === '/api/report-occurrence') {
       const form = formBody(init);
       const platform = String(form?.get('platform') || '').trim().toUpperCase();
-      const context = latestByPlatform.get(platform) || [...latestByPlatform.values()].at(-1) || null;
+      const recentContexts = Array.from(latestByPlatform.values());
+      const context = latestByPlatform.get(platform) || recentContexts[recentContexts.length - 1] || null;
       const response = await nativeFetch(input, init);
       const data = await cloneJson(response);
       if (response.ok && context && Number(data?.occurrence_id || 0)) {
