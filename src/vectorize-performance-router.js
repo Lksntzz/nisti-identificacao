@@ -1,6 +1,7 @@
 import app from './edge-router.js';
 import { buildVectorizeTop1Candidates } from './vectorize-top1-candidates.js';
 import { structuralFinalIdentifyV8 } from './structural-final-v8.js';
+import { tryRetrievalFastPath } from './retrieval-fastpath.js';
 import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { handlePublicImageRequest } from './public-image-router.js';
@@ -129,7 +130,8 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/identify') {
-      const response = await structuralFinalIdentifyV8(request, env);
+      const fastResponse = await tryRetrievalFastPath(request.clone(), env);
+      const response = fastResponse || await structuralFinalIdentifyV8(request, env);
       await recordFallback(ctx, env, response, request);
       return response;
     }
