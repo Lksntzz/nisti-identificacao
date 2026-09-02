@@ -255,7 +255,6 @@ async function reconcileTrainedOccurrence(env, evidence) {
   if (String(occurrence?.status || '') !== 'trained' || !code) return 0;
   return confirmGeometricShadowEvidence(env, {
     occurrenceId: id,
-    photoSha256: evidence.photo_sha256,
     capaCode: code,
     source: 'reconciled_trained_occurrence'
   });
@@ -320,7 +319,7 @@ export async function linkGeometricShadowEvidenceToOccurrence(env, evidenceToken
   const changed = Number(result?.meta?.changes || 0) > 0;
   if (changed) {
     const evidence = await env.DB.prepare(`
-      SELECT occurrence_id, photo_sha256
+      SELECT occurrence_id
       FROM geometric_shadow_evidence
       WHERE evidence_token=?
       LIMIT 1
@@ -343,13 +342,7 @@ export async function confirmGeometricShadowEvidence(env, {
   if (!code || (!id && !hash)) return 0;
 
   let result;
-  if (id && hash) {
-    result = await env.DB.prepare(`
-      UPDATE geometric_shadow_evidence
-      SET confirmed_capa_code=?, confirmation_source=?, confirmed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
-      WHERE occurrence_id=? OR photo_sha256=?
-    `).bind(code, source, id, hash).run();
-  } else if (id) {
+  if (id) {
     result = await env.DB.prepare(`
       UPDATE geometric_shadow_evidence
       SET confirmed_capa_code=?, confirmation_source=?, confirmed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
