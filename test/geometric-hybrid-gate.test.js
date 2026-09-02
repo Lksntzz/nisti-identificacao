@@ -6,7 +6,9 @@ import {
   simulateHybridDecision,
   summarizeHybridGates,
   duplicateGroups,
-  GEOMETRIC_GATES
+  selectContentIndependentCandidates,
+  GEOMETRIC_GATES,
+  GEOMETRIC_ROLLOUT_GATE
 } from '../public/geometric-hybrid-gate.js';
 
 function candidate({
@@ -125,4 +127,53 @@ test('Hybrid Gate: exact image duplicates are grouped and deduplicated for evide
   assert.equal(summary.exact_image_deduplication.evaluated_before, 3);
   assert.equal(summary.exact_image_deduplication.evaluated_after, 2);
   assert.equal(summary.production_changed, false);
+});
+
+test('Hybrid Gate v8.17: exact query-reference content is excluded and an independent ref of the same cover can replace it', () => {
+  const pool = [
+    { capa_code: 'A', reference_id: 10, vector_rank: 1, reference_sha256: 'queryhash' },
+    { capa_code: 'A', reference_id: 11, vector_rank: 2, reference_sha256: 'independent-a' },
+    { capa_code: 'B', reference_id: 12, vector_rank: 3, reference_sha256: 'independent-b' }
+  ];
+
+  const selection = selectContentIndependentCandidates(pool, 'queryhash', 10);
+  assert.deepEqual(selection.selected.map(item => item.reference_id), [11, 12]);
+  assert.equal(selection.selected[0].cover_rank, 1);
+  assert.deepEqual(selection.excluded_same_content.map(item => item.reference_id), [10]);
+  assert.equal(selection.query_hash_missing, false);
+});
+
+test('Hybrid Gate v8.17: content holdout fails closed when query hash is unavailable', () => {
+  const selection = selectContentIndependentCandidates([
+    { capa_code: 'A', reference_id: 1, vector_rank: 1, reference_sha256: 'abc' }
+  ], '', 10);
+
+  assert.equal(selection.selected.length, 0);
+  assert.equal(selection.query_hash_missing, true);
+  assert.equal(selection.exhausted_before_limit, true);
+});
+
+test('Hybrid Gate v8.17: rollout remains blocked below 30 unique strict incremental acceptances', () => {
+  const sample = result({
+    occurrence_id: 50,
+    photo_sha256: 'unique-photo',
+    ground_truth: 'B',
+    vector_top1: 'A',
+    vector_top1_score: 0.91,
+    content_holdout: {
+      applied: true,
+      query_hash_missing: false,
+      unhashed_reference_count: 0
+    },
+    candidates: [
+      candidate({ code: 'A', vectorRank: 1, vectorScore: 0.91, geometricScore: 0, good: 2 }),
+      candidate({ code: 'B', vectorRank: 2, vectorScore: 0.89, geometricScore: 4.2, good: 10, inliers: 8, ratio: 0.8, coverage: 0.04 })
+    ]
+  });
+
+  const summary = summarizeHybridGates([sample]);
+  assert.equal(summary.rollout_evidence.min_unique_incremental_accepted, GEOMETRIC_ROLLOUT_GATE.minUniqueIncrementalAccepted);
+  assert.equal(summary.rollout_evidence.observed_unique_incremental_accepted, 1);
+  assert.equal(summary.rollout_evidence.reference_content_holdout_complete, true);
+  assert.equal(summary.rollout_evidence.safe_for_promotion, false);
 });
