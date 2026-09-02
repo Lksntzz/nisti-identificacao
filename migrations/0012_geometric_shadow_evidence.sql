@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS geometric_shadow_evidence (
   geometric_evaluated INTEGER NOT NULL DEFAULT 0,
   geometric_eligible INTEGER NOT NULL DEFAULT 0,
   geometric_capa_code TEXT,
+  content_independent INTEGER NOT NULL DEFAULT 1,
+  same_content_reference_count INTEGER NOT NULL DEFAULT 0,
   evidence_json TEXT NOT NULL,
   confirmed_capa_code TEXT,
   confirmation_source TEXT,
@@ -29,3 +31,6 @@ CREATE INDEX IF NOT EXISTS idx_geometric_shadow_evidence_occurrence
 
 CREATE INDEX IF NOT EXISTS idx_geometric_shadow_evidence_confirmed
   ON geometric_shadow_evidence(confirmed_capa_code, confirmed_at);
+
+CREATE INDEX IF NOT EXISTS idx_geometric_shadow_evidence_independent
+  ON geometric_shadow_evidence(content_independent, confirmed_at);
