@@ -23,6 +23,12 @@ export const GEOMETRIC_GATES = Object.freeze({
   })
 });
 
+export const GEOMETRIC_ROLLOUT_GATE = Object.freeze({
+  minUniqueIncrementalAccepted: 30,
+  maxIncrementalIncorrect: 0,
+  maxHybridIncorrect: 0
+});
+
 function finite(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
@@ -36,6 +42,10 @@ function normalizeCode(value) {
   return String(value || '').trim().toUpperCase();
 }
 
+function normalizeHash(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function byVectorRank(a, b) {
   return Number(a?.vector_rank || 999999) - Number(b?.vector_rank || 999999);
 }
@@ -46,6 +56,55 @@ function byGeometricEvidence(a, b) {
   const inlierDelta = Number(b?.inliers || 0) - Number(a?.inliers || 0);
   if (inlierDelta) return inlierDelta;
   return byVectorRank(a, b);
+}
+
+export function selectContentIndependentCandidates(referencePool, querySha256, limit = 10) {
+  const queryHash = normalizeHash(querySha256);
+  const selected = [];
+  const excludedSameContent = [];
+  const unhashedReferences = [];
+  const seenCovers = new Set();
+
+  if (!queryHash) {
+    return {
+      selected,
+      excluded_same_content: excludedSameContent,
+      unhashed_references: unhashedReferences,
+      query_hash_missing: true,
+      exhausted_before_limit: true
+    };
+  }
+
+  const ordered = [...(referencePool || [])].sort(byVectorRank);
+  for (const item of ordered) {
+    const capaCode = normalizeCode(item?.capa_code);
+    if (!capaCode || seenCovers.has(capaCode)) continue;
+    const referenceHash = normalizeHash(item?.reference_sha256);
+    if (!referenceHash) {
+      unhashedReferences.push(item);
+      continue;
+    }
+    if (referenceHash === queryHash) {
+      excludedSameContent.push(item);
+      continue;
+    }
+
+    seenCovers.add(capaCode);
+    selected.push({
+      ...item,
+      capa_code: capaCode,
+      cover_rank: selected.length + 1
+    });
+    if (selected.length >= limit) break;
+  }
+
+  return {
+    selected,
+    excluded_same_content: excludedSameContent,
+    unhashed_references: unhashedReferences,
+    query_hash_missing: false,
+    exhausted_before_limit: selected.length < limit
+  };
 }
 
 export function evaluateRetrievalGate(result, gate = RETRIEVAL_GATE) {
@@ -187,11 +246,26 @@ function summarizeAccepted(results, decide) {
   };
 }
 
+function summarizeByPlatform(results, decide) {
+  const platforms = [...new Set((results || [])
+    .filter(item => item.status === 'evaluated')
+    .map(item => String(item.platform || '').trim())
+    .filter(Boolean))];
+  const out = {};
+  for (const platform of platforms) {
+    out[platform] = summarizeAccepted(
+      (results || []).filter(item => item.status !== 'evaluated' || String(item.platform || '').trim() === platform),
+      decide
+    );
+  }
+  return out;
+}
+
 export function duplicateGroups(results) {
   const groups = new Map();
   for (const item of results || []) {
     if (item.status !== 'evaluated') continue;
-    const hash = String(item.photo_sha256 || '').trim().toLowerCase();
+    const hash = normalizeHash(item.photo_sha256);
     if (!hash) continue;
     if (!groups.has(hash)) groups.set(hash, []);
     groups.get(hash).push(item);
@@ -216,7 +290,7 @@ export function dedupeExactImages(results) {
       out.push(item);
       continue;
     }
-    const hash = String(item.photo_sha256 || '').trim().toLowerCase();
+    const hash = normalizeHash(item.photo_sha256);
     if (!hash) {
       out.push(item);
       continue;
@@ -229,18 +303,42 @@ export function dedupeExactImages(results) {
 }
 
 export function summarizeHybridGates(results) {
-  const retrieval = summarizeAccepted(results, item => {
+  const retrievalDecide = item => {
     const decision = evaluateRetrievalGate(item);
     return {
       accepted: decision.eligible,
       capa_code: decision.eligible ? decision.capa_code : null,
       accepted_by: decision.eligible ? 'retrieval-fastpath' : null
     };
-  });
-  const observed = summarizeAccepted(results, item => simulateHybridDecision(item, GEOMETRIC_GATES.observed_v815));
-  const strict = summarizeAccepted(results, item => simulateHybridDecision(item, GEOMETRIC_GATES.strict_core_v816));
+  };
+  const observedDecide = item => simulateHybridDecision(item, GEOMETRIC_GATES.observed_v815);
+  const strictDecide = item => simulateHybridDecision(item, GEOMETRIC_GATES.strict_core_v816);
+
+  const retrieval = summarizeAccepted(results, retrievalDecide);
+  const observed = summarizeAccepted(results, observedDecide);
+  const strict = summarizeAccepted(results, strictDecide);
   const duplicates = duplicateGroups(results);
   const deduped = dedupeExactImages(results);
+  const dedupedRetrieval = summarizeAccepted(deduped, retrievalDecide);
+  const dedupedObserved = summarizeAccepted(deduped, observedDecide);
+  const dedupedStrict = summarizeAccepted(deduped, strictDecide);
+  const dedupedEvaluated = deduped.filter(item => item.status === 'evaluated');
+  const skippedCount = (results || []).filter(item => item.status !== 'evaluated').length;
+  const labelConflictCount = duplicates.filter(group => group.label_conflict).length;
+  const referenceContentHoldoutComplete = skippedCount === 0 &&
+    dedupedEvaluated.length > 0 &&
+    dedupedEvaluated.every(item =>
+      item?.content_holdout?.applied === true &&
+      item?.content_holdout?.query_hash_missing !== true &&
+      Number(item?.content_holdout?.unhashed_reference_count || 0) === 0 &&
+      Number(item?.content_holdout?.load_error_count || 0) === 0
+    );
+  const incremental = dedupedStrict.geometric_incremental;
+  const rolloutSafe = referenceContentHoldoutComplete &&
+    labelConflictCount === 0 &&
+    incremental.accepted >= GEOMETRIC_ROLLOUT_GATE.minUniqueIncrementalAccepted &&
+    incremental.incorrect <= GEOMETRIC_ROLLOUT_GATE.maxIncrementalIncorrect &&
+    dedupedStrict.incorrect <= GEOMETRIC_ROLLOUT_GATE.maxHybridIncorrect;
 
   return {
     retrieval_fastpath: retrieval,
@@ -248,11 +346,28 @@ export function summarizeHybridGates(results) {
     hybrid_strict_core_v816: strict,
     exact_image_deduplication: {
       evaluated_before: (results || []).filter(item => item.status === 'evaluated').length,
-      evaluated_after: deduped.filter(item => item.status === 'evaluated').length,
+      evaluated_after: dedupedEvaluated.length,
       duplicate_group_count: duplicates.length,
       duplicate_groups: duplicates,
-      hybrid_observed_v815: summarizeAccepted(deduped, item => simulateHybridDecision(item, GEOMETRIC_GATES.observed_v815)),
-      hybrid_strict_core_v816: summarizeAccepted(deduped, item => simulateHybridDecision(item, GEOMETRIC_GATES.strict_core_v816))
+      retrieval_fastpath: dedupedRetrieval,
+      hybrid_observed_v815: dedupedObserved,
+      hybrid_strict_core_v816: dedupedStrict,
+      strict_by_platform: summarizeByPlatform(deduped, strictDecide)
+    },
+    rollout_evidence: {
+      gate: 'strict_core_v816',
+      min_unique_incremental_accepted: GEOMETRIC_ROLLOUT_GATE.minUniqueIncrementalAccepted,
+      max_incremental_incorrect: GEOMETRIC_ROLLOUT_GATE.maxIncrementalIncorrect,
+      max_hybrid_incorrect: GEOMETRIC_ROLLOUT_GATE.maxHybridIncorrect,
+      observed_unique_incremental_accepted: incremental.accepted,
+      observed_unique_incremental_correct: incremental.correct,
+      observed_unique_incremental_incorrect: incremental.incorrect,
+      observed_unique_hybrid_incorrect: dedupedStrict.incorrect,
+      exact_query_deduplication_applied: true,
+      reference_content_holdout_complete: referenceContentHoldoutComplete,
+      benchmark_skipped: skippedCount,
+      duplicate_label_conflicts: labelConflictCount,
+      safe_for_promotion: rolloutSafe
     },
     production_changed: false
   };

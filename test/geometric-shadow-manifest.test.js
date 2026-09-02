@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGeometricCandidateRanking } from '../src/geometric-shadow-manifest.js';
+import {
+  buildGeometricCandidateRanking,
+  buildGeometricReferencePool
+} from '../src/geometric-shadow-manifest.js';
 
 test('Geometric Shadow Manifest: excludes held-out self and keeps distinct Top-10 covers', () => {
   const sample = { reference_id: 99, image_key: 'occurrences/self.jpg' };
@@ -30,4 +33,19 @@ test('Geometric Shadow Manifest: limits reranking to ten distinct covers', () =>
   const ranking = buildGeometricCandidateRanking(matches, {}, 10);
   assert.equal(ranking.length, 10);
   assert.equal(ranking[9].capa_code, 'C10');
+});
+
+test('Geometric Shadow Manifest v8.17: reference pool keeps alternate refs from the same cover for content holdout replacement', () => {
+  const sample = { reference_id: 99, image_key: 'occurrences/self.jpg' };
+  const matches = [
+    { score: 0.99, metadata: { reference_id: 99, image_key: 'occurrences/self.jpg', capa_code: 'A', reference_kind: 'real_scan' } },
+    { score: 0.96, metadata: { reference_id: 10, image_key: 'refs/a-scan.jpg', capa_code: 'A', reference_kind: 'real_scan' } },
+    { score: 0.95, metadata: { reference_id: 11, image_key: 'refs/a-product.jpg', capa_code: 'A', reference_kind: 'product' } },
+    { score: 0.94, metadata: { reference_id: 12, image_key: 'refs/b.jpg', capa_code: 'B', reference_kind: 'product' } }
+  ];
+
+  const pool = buildGeometricReferencePool(matches, sample, 50);
+  assert.deepEqual(pool.map(item => item.reference_id), [10, 11, 12]);
+  assert.deepEqual(pool.map(item => item.capa_code), ['A', 'A', 'B']);
+  assert.deepEqual(pool.map(item => item.vector_rank), [2, 3, 4]);
 });

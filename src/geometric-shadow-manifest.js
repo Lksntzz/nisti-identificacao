@@ -3,6 +3,7 @@ import { canonicalizeActiveVectorMatches } from './vector-match-authority.js';
 
 const VECTOR_TOP_K = 50;
 const CANDIDATE_COVER_LIMIT = 10;
+const REFERENCE_POOL_LIMIT = 50;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 
@@ -35,33 +36,64 @@ function versionFromKey(imageKey) {
   return String(imageKey || '').split('/').pop() || 'current';
 }
 
-export function buildGeometricCandidateRanking(matches, sample, limit = CANDIDATE_COVER_LIMIT) {
+function isHeldOutSelf(metadata, sample) {
   const selfReferenceId = Number(sample?.reference_id || 0);
   const selfImageKey = String(sample?.image_key || '').trim();
-  const seen = new Set();
-  const ranking = [];
+  const referenceId = Number(metadata?.reference_id || 0);
+  const imageKey = String(metadata?.image_key || '').trim();
+  if (selfReferenceId > 0 && referenceId === selfReferenceId) return true;
+  if (selfImageKey && imageKey && imageKey === selfImageKey) return true;
+  return false;
+}
+
+function referencePayload(match, vectorRank) {
+  const metadata = match?.metadata || {};
+  const referenceId = Number(metadata.reference_id || 0);
+  const imageKey = String(metadata.image_key || '').trim();
+  const capaCode = normalizeCode(metadata.capa_code);
+  const score = Number(match?.score);
+  if (!capaCode || !Number.isFinite(score) || !referenceId || !imageKey) return null;
+  return {
+    vector_rank: vectorRank,
+    capa_code: capaCode,
+    retrieval_score: score,
+    reference_id: referenceId,
+    reference_kind: String(metadata.reference_kind || 'product').trim().toLowerCase() || 'product',
+    image_key: imageKey,
+    image_url: `/api/reference-images/${referenceId}?v=${encodeURIComponent(versionFromKey(imageKey))}`
+  };
+}
+
+export function buildGeometricReferencePool(matches, sample, limit = REFERENCE_POOL_LIMIT) {
+  const seenReferences = new Set();
+  const pool = [];
   let vectorRank = 0;
 
   for (const match of matches || []) {
     vectorRank += 1;
     const metadata = match?.metadata || {};
-    const referenceId = Number(metadata.reference_id || 0);
-    const imageKey = String(metadata.image_key || '').trim();
-    if (selfReferenceId > 0 && referenceId === selfReferenceId) continue;
-    if (selfImageKey && imageKey && imageKey === selfImageKey) continue;
+    if (isHeldOutSelf(metadata, sample)) continue;
+    const item = referencePayload(match, vectorRank);
+    if (!item || seenReferences.has(item.reference_id)) continue;
+    seenReferences.add(item.reference_id);
+    pool.push(item);
+    if (pool.length >= limit) break;
+  }
 
-    const capaCode = normalizeCode(metadata.capa_code);
-    const score = Number(match?.score);
-    if (!capaCode || !Number.isFinite(score) || !referenceId || !imageKey || seen.has(capaCode)) continue;
-    seen.add(capaCode);
+  return pool;
+}
+
+export function buildGeometricCandidateRanking(matches, sample, limit = CANDIDATE_COVER_LIMIT) {
+  const pool = buildGeometricReferencePool(matches, sample, Math.max(limit, (matches || []).length));
+  const seen = new Set();
+  const ranking = [];
+
+  for (const item of pool) {
+    if (seen.has(item.capa_code)) continue;
+    seen.add(item.capa_code);
     ranking.push({
-      vector_rank: vectorRank,
-      cover_rank: ranking.length + 1,
-      capa_code: capaCode,
-      retrieval_score: score,
-      reference_id: referenceId,
-      reference_kind: String(metadata.reference_kind || 'product').trim().toLowerCase() || 'product',
-      image_url: `/api/reference-images/${referenceId}?v=${encodeURIComponent(versionFromKey(imageKey))}`
+      ...item,
+      cover_rank: ranking.length + 1
     });
     if (ranking.length >= limit) break;
   }
@@ -109,8 +141,9 @@ async function buildSampleManifest(env, sample) {
     returnMetadata: 'all'
   });
   const authoritativeMatches = await canonicalizeActiveVectorMatches(env, response?.matches || []);
-  const candidates = buildGeometricCandidateRanking(authoritativeMatches, sample);
-  if (!candidates.length) {
+  const referencePool = buildGeometricReferencePool(authoritativeMatches, sample, REFERENCE_POOL_LIMIT);
+  const candidates = buildGeometricCandidateRanking(authoritativeMatches, sample, CANDIDATE_COVER_LIMIT);
+  if (!referencePool.length || !candidates.length) {
     return {
       status: 'skipped',
       reason: 'no_candidates_after_holdout',
@@ -131,7 +164,8 @@ async function buildSampleManifest(env, sample) {
     vector_top1: candidates[0]?.capa_code || null,
     vector_top1_score: candidates[0]?.retrieval_score ?? null,
     correct_cover_rank_within_top10: correct?.cover_rank ?? null,
-    candidates
+    candidates,
+    candidate_reference_pool: referencePool
   };
 }
 
@@ -163,10 +197,11 @@ export async function handleGeometricShadowManifestRequest(request, env) {
 
   return json({
     ok: true,
-    methodology: 'held-out+d1-authoritative+platform-scoped+vector-top10+browser-geometric-shadow',
+    methodology: 'held-out+d1-authoritative+platform-scoped+vector-top50-reference-pool-for-browser-content-holdout',
     production_changed: false,
     vector_top_k: VECTOR_TOP_K,
     candidate_cover_limit: CANDIDATE_COVER_LIMIT,
+    reference_pool_limit: REFERENCE_POOL_LIMIT,
     pagination: {
       offset,
       limit,
