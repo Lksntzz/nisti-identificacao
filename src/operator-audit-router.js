@@ -1,4 +1,5 @@
 import app from './vectorize-performance-router.js';
+import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -30,6 +31,9 @@ function isRecognitionRequest(url, request) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    const shadowConfirmationResponse = await handleGeometricShadowConfirmationRequest(request, env);
+    if (shadowConfirmationResponse) return shadowConfirmationResponse;
 
     // Public operator app always sends x-user-id. If it does, require a
     // non-empty operator name before any recognition work starts. This
