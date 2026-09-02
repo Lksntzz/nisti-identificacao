@@ -68,7 +68,7 @@ const createMockEnv = ({
               }
               return { results: [] };
             },
-            run: async () => ({ success: true })
+            run: async () => ({ success: true, meta: { changes: 1 } })
           }),
           first: async () => {
             if (cleanSql.includes('FROM scan_occurrences')) {
