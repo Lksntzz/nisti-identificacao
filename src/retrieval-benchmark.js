@@ -1,10 +1,12 @@
 import { normalizePlatform, platformNamespace } from './platform-scope.js';
 import { evaluateRetrievalFastPath } from './retrieval-fastpath.js';
+import { canonicalizeActiveVectorMatches } from './vector-match-authority.js';
 
 const VECTOR_TOP_K = 50;
 const COVER_LIMIT = 4;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+const MIN_ACCEPTED_FOR_GLOBAL_ROLLOUT = 30;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -180,7 +182,11 @@ export function summarizeHeldOutResults(results) {
     fastpath_correct: acceptedCorrect,
     fastpath_precision: accepted ? acceptedCorrect / accepted : null,
     false_positives: falsePositives,
-    safe_for_global_rollout: evaluated.length >= 30 && falsePositives === 0,
+    minimum_accepted_for_global_rollout: MIN_ACCEPTED_FOR_GLOBAL_ROLLOUT,
+    safe_for_global_rollout:
+      evaluated.length >= 30 &&
+      accepted >= MIN_ACCEPTED_FOR_GLOBAL_ROLLOUT &&
+      falsePositives === 0,
     per_cover: [...perCover.values()].sort((a, b) => a.capa_code.localeCompare(b.capa_code))
   };
 }
@@ -237,8 +243,12 @@ async function querySample(env, sample) {
     returnValues: false,
     returnMetadata: 'all'
   });
+  const authoritativeMatches = await canonicalizeActiveVectorMatches(
+    env,
+    response?.matches || []
+  );
 
-  return evaluateHeldOutSample(sample, response?.matches || [], env);
+  return evaluateHeldOutSample(sample, authoritativeMatches, env);
 }
 
 export async function handleRetrievalBenchmarkRequest(request, env) {
@@ -274,7 +284,7 @@ export async function handleRetrievalBenchmarkRequest(request, env) {
   const summary = summarizeHeldOutResults(results);
   return json({
     ok: true,
-    methodology: 'held-out-trained-occurrences-self-reference-excluded',
+    methodology: 'held-out-trained-occurrences-self-reference-excluded+d1-authoritative-vector-matches',
     thresholds: {
       min_score: Number(env.RETRIEVAL_FASTPATH_MIN_SCORE || 0.92),
       min_margin: Number(env.RETRIEVAL_FASTPATH_MIN_MARGIN || 0.008)
