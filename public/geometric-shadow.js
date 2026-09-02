@@ -3,6 +3,13 @@ import {
   extractOrbLikeFeatures,
   rankGeometricCandidates
 } from './geometric-core.js';
+import {
+  RETRIEVAL_GATE,
+  GEOMETRIC_GATES,
+  evaluateRetrievalGate,
+  evaluateGeometricGate,
+  summarizeHybridGates
+} from './geometric-hybrid-gate.js';
 
 const $ = selector => document.querySelector(selector);
 const runButton = $('#run');
@@ -31,17 +38,24 @@ const FEATURE_OPTIONS = {
 function setStatus(text) { statusEl.textContent = text; }
 function yieldUi() { return new Promise(resolve => requestAnimationFrame(() => resolve())); }
 
-async function bitmapFromUrl(url) {
-  const response = await fetch(url, { credentials: 'same-origin', cache: 'force-cache' });
-  if (!response.ok) throw new Error(`Falha ao carregar imagem ${response.status}: ${url}`);
-  const blob = await response.blob();
-  return createImageBitmap(blob, { imageOrientation: 'from-image' });
+function hex(bytes) {
+  return Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, '0')).join('');
 }
 
-async function imageFeatures(url, cache = false) {
+async function blobFromUrl(url) {
+  const response = await fetch(url, { credentials: 'same-origin', cache: 'force-cache' });
+  if (!response.ok) throw new Error(`Falha ao carregar imagem ${response.status}: ${url}`);
+  return response.blob();
+}
+
+async function imageFeatures(url, cache = false, includeHash = false) {
   if (cache && referenceCache.has(url)) return referenceCache.get(url);
   const promise = (async () => {
-    const bitmap = await bitmapFromUrl(url);
+    const blob = await blobFromUrl(url);
+    const digestPromise = includeHash
+      ? blob.arrayBuffer().then(buffer => crypto.subtle.digest('SHA-256', buffer)).then(hex)
+      : Promise.resolve(null);
+    const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
     try {
       const maxDimension = 520;
       const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
@@ -55,7 +69,13 @@ async function imageFeatures(url, cache = false) {
       const rgba = ctx.getImageData(0, 0, width, height).data;
       const gray = rgbaToGray(rgba, width, height);
       const features = extractOrbLikeFeatures(gray, width, height, FEATURE_OPTIONS);
-      return { width, height, features, feature_count: features.length };
+      return {
+        width,
+        height,
+        features,
+        feature_count: features.length,
+        sha256: await digestPromise
+      };
     } finally {
       bitmap.close?.();
     }
@@ -65,7 +85,7 @@ async function imageFeatures(url, cache = false) {
   catch (error) { if (cache) referenceCache.delete(url); throw error; }
 }
 
-function summarize(results) {
+function summarizeBaseline(results) {
   const evaluated = results.filter(r => r.status === 'evaluated');
   const vectorCorrect = evaluated.filter(r => r.vector_top1_correct).length;
   const geometricCorrect = evaluated.filter(r => r.geometric_top1_correct).length;
@@ -92,18 +112,17 @@ function summarize(results) {
     elapsed_ms: {
       mean: elapsed.length ? elapsed.reduce((a,b) => a+b, 0) / elapsed.length : null,
       max: elapsed.length ? Math.max(...elapsed) : null
-    },
-    production_changed: false
+    }
   };
 }
 
 async function runSample(sample) {
   const started = performance.now();
-  const photo = await imageFeatures(sample.occurrence_image_url, false);
+  const photo = await imageFeatures(sample.occurrence_image_url, false, true);
   const candidates = [];
   for (const candidate of sample.candidates) {
     try {
-      const ref = await imageFeatures(candidate.image_url, true);
+      const ref = await imageFeatures(candidate.image_url, true, false);
       candidates.push({
         capa_code: candidate.capa_code,
         vector_rank: candidate.cover_rank,
@@ -134,7 +153,7 @@ async function runSample(sample) {
   const ranked = rankGeometricCandidates(photo.features, candidates, FEATURE_OPTIONS);
   const winner = ranked[0] || null;
   const groundTruthRank = ranked.findIndex(item => item.capa_code === sample.ground_truth);
-  return {
+  const result = {
     status: 'evaluated',
     occurrence_id: sample.occurrence_id,
     platform: sample.platform,
@@ -145,6 +164,7 @@ async function runSample(sample) {
     vector_top1_score: sample.vector_top1_score,
     vector_top1_correct: sample.vector_top1 === sample.ground_truth,
     photo_feature_count: photo.feature_count,
+    photo_sha256: photo.sha256,
     geometric_top1: winner?.capa_code || null,
     geometric_top1_correct: winner?.capa_code === sample.ground_truth,
     geometric_top1_valid: winner?.valid === true,
@@ -167,6 +187,11 @@ async function runSample(sample) {
       load_error: item.load_error || null
     }))
   };
+
+  result.retrieval_gate = evaluateRetrievalGate(result, RETRIEVAL_GATE);
+  result.geometric_gate_observed_v815 = evaluateGeometricGate(result, GEOMETRIC_GATES.observed_v815);
+  result.geometric_gate_strict_core_v816 = evaluateGeometricGate(result, GEOMETRIC_GATES.strict_core_v816);
+  return result;
 }
 
 async function loadManifest() {
@@ -213,18 +238,26 @@ async function run() {
       await yieldUi();
     }
 
+    const baseline = summarizeBaseline(results);
+    const hybrid = summarizeHybridGates(results);
     lastReport = {
       ok: true,
-      methodology: 'held-out+d1-authoritative+platform-scoped+vector-top10+browser-orb-like-brief+ransac-homography-shadow',
+      methodology: 'held-out+d1-authoritative+platform-scoped+vector-top10+browser-orb-like-brief+ransac-homography+hybrid-gate+exact-image-dedupe-shadow',
       production_changed: false,
       generated_at: new Date().toISOString(),
       feature_options: FEATURE_OPTIONS,
+      retrieval_gate: RETRIEVAL_GATE,
+      geometric_gates: GEOMETRIC_GATES,
       manifest_skipped: skipped,
-      summary: summarize(results),
+      summary: {
+        ...baseline,
+        hybrid,
+        production_changed: false
+      },
       results
     };
     outputEl.textContent = JSON.stringify(lastReport.summary, null, 2);
-    setStatus('Benchmark concluído. Baixe o JSON e envie para análise.');
+    setStatus('Benchmark híbrido concluído. Baixe o JSON e envie para análise.');
     downloadButton.disabled = false;
   } catch (error) {
     setStatus(`Erro: ${String(error?.message || error)}`);
@@ -239,7 +272,7 @@ function download() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'geometric-shadow-benchmark.json';
+  a.download = 'geometric-hybrid-shadow-benchmark.json';
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
