@@ -164,9 +164,11 @@ test('Recognition Verification: trained real_scan still requires one exact Gemin
   const originalFetch = global.fetch;
   let fetchCalls = 0;
   let requestedUrl = '';
-  global.fetch = async (url) => {
+  let requestBody = null;
+  global.fetch = async (url, init = {}) => {
     fetchCalls += 1;
     requestedUrl = String(url);
+    requestBody = JSON.parse(String(init.body || '{}'));
     return new Response(JSON.stringify({
       candidates: [{
         content: {
@@ -213,9 +215,14 @@ test('Recognition Verification: trained real_scan still requires one exact Gemin
 
     assert.equal(response.status, 200);
     assert.equal(data.capa_code, 'CP5');
-    assert.equal(data.identified_by, 'platform-catalog-v8.9-comparative-winner');
+    assert.equal(data.identified_by, 'platform-catalog-v8.9.1-comparative-winner');
+    assert.equal(data.performance.pipeline_version, 'platform-vectorize+gemini36-minimal-v8.9.1');
     assert.equal(fetchCalls, 1);
     assert.match(requestedUrl, /models\/gemini-3\.6-flash:generateContent$/);
+    assert.equal(requestBody.generationConfig?.thinkingConfig?.thinkingLevel, 'minimal');
+    assert.equal(requestBody.generationConfig?.mediaResolution, 'MEDIA_RESOLUTION_MEDIUM');
+    assert.equal(requestBody.generationConfig?.temperature, undefined);
+    assert.equal(requestBody.contents?.[0]?.parts?.some(part => 'media_resolution' in part), false);
   } finally {
     global.fetch = originalFetch;
   }
@@ -317,7 +324,7 @@ test('Recognition Fail-Closed: high confidence without exact_match is not accept
     const data = await response.json();
 
     assert.equal(response.status, 422);
-    assert.equal(data.identified_by, 'platform-catalog-no-match-v8.9');
+    assert.equal(data.identified_by, 'platform-catalog-no-match-v8.9.1');
     assert.equal(data.performance.gemini_confidence, 0.99);
     assert.equal(data.performance.verifier_reason_code, 'different_layout');
   } finally {
