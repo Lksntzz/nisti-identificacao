@@ -3,7 +3,8 @@ import {
   normalizePlatform,
   platformNamespace,
   platformVectorId,
-  platformsForReference
+  platformsForReference,
+  supportedPlatforms
 } from './platform-scope.js';
 
 const EMBEDDING_DIMENSIONS = 768;
@@ -59,7 +60,10 @@ function vectorForPlatform(row, platform) {
 }
 
 async function vectorsFromRow(env, row) {
-  const platforms = await platformsForReference(env, row);
+  let platforms = await platformsForReference(env, row);
+  if (!platforms.length) {
+    platforms = supportedPlatforms();
+  }
   return platforms.map(platform => vectorForPlatform(row, platform));
 }
 

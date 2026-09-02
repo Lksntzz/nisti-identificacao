@@ -2,9 +2,9 @@ import { listPlatforms, normalizePlatform, platformExists, platformNamespace } f
 
 const EMBEDDING_DIMENSIONS = 768;
 const VECTOR_TOP_K = 50;
-const COVER_LIMIT = 12;
+const COVER_LIMIT = 4;
 const REFERENCES_PER_COVER = 1;
-const MAX_REFERENCE_CANDIDATES = 12;
+const MAX_REFERENCE_CANDIDATES = 4;
 const TICKET_TTL_SECONDS = 120;
 const MAX_EMBEDDING_MS = 5000;
 const MIN_PLATFORM_RETRIEVAL_SCORE = 0.45;
@@ -29,20 +29,14 @@ function json(data, status = 200) {
   });
 }
 
+import { Buffer } from 'node:buffer';
+
 function base64(bytes) {
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
+  return Buffer.from(bytes).toString('base64');
 }
 
 function base64url(bytes) {
-  return base64(bytes)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+  return Buffer.from(bytes).toString('base64url');
 }
 
 function textBytes(value) {
@@ -360,17 +354,7 @@ export async function buildVectorizeCandidates(request, env) {
       platform
     );
 
-    const crossMatch = await detectCrossPlatformMatch(env, embedding.values, platform);
-
     if (!covers.length) {
-      if (crossMatch) {
-        throw new RetrievalError(
-          `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
-          422,
-          'product_on_different_platform',
-          { suggested_platform: crossMatch.found_platform }
-        );
-      }
       throw new RetrievalError(
         `Produto não cadastrado na plataforma ${platform}. Verifique se a plataforma correta foi selecionada.`,
         422,
@@ -388,30 +372,9 @@ export async function buildVectorizeCandidates(request, env) {
       : 1;
     const topScore = Number(covers[0]?.retrieval_score || 0);
 
-    // Apenas bloquear se a outra plataforma tiver uma correspondência muito superior
-    // e a plataforma atual não tiver candidatos razoáveis.
-    const isOtherMuchBetter = crossMatch && (topScore < MIN_PLATFORM_RETRIEVAL_SCORE && crossMatch.score >= 0.78);
-
-    if (isOtherMuchBetter) {
-      throw new RetrievalError(
-        `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
-        422,
-        'product_on_different_platform',
-        { suggested_platform: crossMatch.found_platform }
-      );
-    }
-
     if (topScore < MIN_PLATFORM_RETRIEVAL_SCORE) {
-      if (crossMatch && crossMatch.score >= 0.70) {
-        throw new RetrievalError(
-          `Este produto não está cadastrado na plataforma ${platform}. Encontramos correspondência no catálogo da plataforma ${crossMatch.found_platform}.`,
-          422,
-          'product_on_different_platform',
-          { suggested_platform: crossMatch.found_platform }
-        );
-      }
       throw new RetrievalError(
-        `Produto não cadastrado na plataforma ${platform}. Verifique se a plataforma correta foi selecionada ou se a capa está cadastrada no catálogo.`,
+        `Produto não corresponde ao catálogo da plataforma ${platform}. Verifique se a plataforma correta foi selecionada ou se a capa está cadastrada.`,
         422,
         'product_not_found_on_platform'
       );

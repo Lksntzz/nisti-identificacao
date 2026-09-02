@@ -86,6 +86,40 @@ function formatProductDate(dateVal) {
   }
 }
 
+async function compressAdminImage(file) {
+  if (!file) return null;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  await new Promise(resolve => {
+    img.onload = resolve;
+    img.src = url;
+  });
+  URL.revokeObjectURL(url);
+
+  let width = img.width;
+  let height = img.height;
+  const maxSide = 768;
+  
+  if (width > height && width > maxSide) {
+    height = Math.round(height * maxSide / width);
+    width = maxSide;
+  } else if (height > width && height > maxSide) {
+    width = Math.round(width * maxSide / height);
+    height = maxSide;
+  } else if (width <= maxSide && height <= maxSide) {
+    return file;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, width, height);
+  
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+  return blob ? new File([blob], file.name.replace(/\\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }) : file;
+}
+
 function productImage(product) {
   if (!product?.image_url) return '';
   const version = String(product.image_key || '').split('/').pop();
@@ -524,6 +558,25 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
     ]);
   };
 
+  const handleMultipleFiles = (files) => {
+    if (!files || files.length === 0) return;
+    const newVariants = Array.from(files).map((file, i) => ({
+      id: Date.now() + i,
+      sku: '',
+      variacao: `CAPA ${variants.length + i + (variants[0].file ? 1 : 0)}`,
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+
+    setVariants(prev => {
+      // Se a primeira variante estiver vazia (sem arquivo e sem SKU), substitui. Senão, adiciona.
+      if (prev.length === 1 && !prev[0].file && !prev[0].sku && !prev[0].variacao) {
+        return newVariants;
+      }
+      return [...prev, ...newVariants];
+    });
+  };
+
   const removeVariant = (id) => {
     if (variants.length <= 1) return;
     setVariants(prev => prev.filter(v => v.id !== id));
@@ -576,8 +629,9 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
 
         if (v.file && created?.id) {
           setProgressMsg(`Enviando imagem ${i + 1} de ${variants.length}…`);
+          const compressed = await compressAdminImage(v.file);
           const fd = new FormData();
-          fd.append('image', v.file);
+          fd.append('image', compressed || v.file);
           await api(`/api/products/${created.id}/image`, {
             method: 'POST',
             body: fd
@@ -647,26 +701,54 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
             <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#4f46e5', margin: 0 }}>
               🎨 Variações & SKUs (Diferentes)
             </h4>
-            <button
-              type="button"
-              onClick={addVariant}
-              disabled={busy}
-              style={{
-                background: '#4f46e5',
-                color: '#ffffff',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              ＋ Adicionar Variante
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <label
+                style={{
+                  background: '#e0e7ff',
+                  color: '#4f46e5',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: busy ? 0.6 : 1
+                }}
+              >
+                <span>＋ Imagens em Lote</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  disabled={busy}
+                  onChange={(e) => handleMultipleFiles(e.target.files)}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={addVariant}
+                disabled={busy}
+                style={{
+                  background: '#4f46e5',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                ＋ 1 Variante
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
@@ -827,8 +909,9 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
       });
 
       if (file) {
+        const compressed = await compressAdminImage(file);
         const fd = new FormData();
-        fd.append('image', file);
+        fd.append('image', compressed || file);
         await api(`/api/products/${product.id}/image`, {
           method: 'POST',
           body: fd
@@ -1982,7 +2065,7 @@ function OperatorsAndLearningView({ products, onRefresh, initialSubTab = 'ocorre
               }}
               onClick={() => setSubTab('ocorrencias')}
             >
-              <span>🧠 Ocorrências da Bancada</span>
+              <span>Ocorrências da Bancada</span>
               {occData.stats?.pending > 0 && (
                 <span style={{ background: '#ef4444', color: '#ffffff', borderRadius: '999px', padding: '1px 6px', fontSize: '10.5px', fontWeight: 800 }}>
                   {occData.stats.pending}
@@ -2009,7 +2092,7 @@ function OperatorsAndLearningView({ products, onRefresh, initialSubTab = 'ocorre
               }}
               onClick={() => setSubTab('equipe')}
             >
-              <span>👥 Desempenho da Equipe ({operators.length})</span>
+              <span>Desempenho da Equipe ({operators.length})</span>
             </button>
 
             <button
@@ -2031,7 +2114,7 @@ function OperatorsAndLearningView({ products, onRefresh, initialSubTab = 'ocorre
               }}
               onClick={() => setSubTab('cerebro')}
             >
-              <span>🔬 Cérebro ({trainedRefs.length} Treinos)</span>
+              <span>Cérebro ({trainedRefs.length} Treinos)</span>
             </button>
           </div>
 

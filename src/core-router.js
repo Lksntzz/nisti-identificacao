@@ -16,7 +16,10 @@ import {
 } from './web-push.js';
 import {
   platformVectorId,
-  supportedPlatforms
+  supportedPlatforms,
+  platformsForReference,
+  platformNamespace,
+  normalizePlatform
 } from './platform-scope.js';
 
 const EMBEDDING_DIMENSIONS = 768;
@@ -131,6 +134,44 @@ async function storeReferenceEmbedding(env, reference, bytes, mimeType) {
       embedding_json=excluded.embedding_json,
       updated_at=CURRENT_TIMESTAMP
   `).bind(reference.id, model, values.length, JSON.stringify(values)).run();
+
+  if (env.COVER_VECTORS?.upsert) {
+    try {
+      const referenceId = Number(reference.id);
+      const capaCode = String(reference.capa_code || '').trim().toUpperCase();
+      let platforms = await platformsForReference(env, reference);
+      if (!platforms.length) {
+        platforms = supportedPlatforms();
+      }
+
+      const vectors = platforms.map(platform => {
+        const normalizedPlatform = normalizePlatform(platform);
+        const namespace = platformNamespace(normalizedPlatform);
+        return {
+          id: platformVectorId(referenceId, normalizedPlatform),
+          namespace,
+          values,
+          metadata: {
+            reference_id: referenceId,
+            capa_code: capaCode,
+            platform: normalizedPlatform,
+            platform_key: namespace,
+            image_key: String(reference.image_key || ''),
+            source_product_id: Number(reference.source_product_id || 0),
+            reference_kind: String(reference.reference_kind || 'product'),
+            embedding_model: model,
+            updated_at: new Date().toISOString()
+          }
+        };
+      }).filter(v => v.id && v.namespace);
+
+      if (vectors.length) {
+        await env.COVER_VECTORS.upsert(vectors);
+      }
+    } catch (vErr) {
+      console.error('[Vectorize] Falha ao sincronizar vetor imediatamente:', vErr);
+    }
+  }
 
   return { model, values };
 }

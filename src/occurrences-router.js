@@ -128,6 +128,118 @@ export async function recordScanOccurrence(env, {
   }
 }
 
+export async function trainOccurrenceDirectly(env, occurrenceId, capaCode, operatorName = null) {
+  const id = Number(occurrenceId);
+  const cleanCapaCode = String(capaCode || '').trim().toUpperCase();
+  if (!id || !cleanCapaCode) {
+    throw new Error('ID da ocorrência e capa_code são obrigatórios.');
+  }
+
+  const occurrence = await env.DB.prepare(
+    'SELECT id, image_key, platform FROM scan_occurrences WHERE id=? LIMIT 1'
+  ).bind(id).first();
+
+  if (!occurrence) {
+    throw new Error('Ocorrência não encontrada.');
+  }
+
+  const imageObj = await env.PRODUCT_IMAGES.get(occurrence.image_key);
+  if (!imageObj) {
+    throw new Error('Foto não encontrada no R2.');
+  }
+  const photoBytes = new Uint8Array(await imageObj.arrayBuffer());
+
+  // 1. Inserir em cover_visual_references como foto real de bancada
+  await env.DB.prepare(`
+    INSERT INTO cover_visual_references (
+      capa_code,
+      image_key,
+      reference_kind,
+      active
+    ) VALUES (?, ?, 'real_scan', 1)
+    ON CONFLICT(capa_code, image_key) DO UPDATE SET active=1, updated_at=CURRENT_TIMESTAMP
+  `).bind(cleanCapaCode, occurrence.image_key).run();
+
+  const refRow = await env.DB.prepare(
+    'SELECT id FROM cover_visual_references WHERE capa_code=? AND image_key=? LIMIT 1'
+  ).bind(cleanCapaCode, occurrence.image_key).first();
+
+  const referenceId = refRow?.id;
+  if (!referenceId) {
+    throw new Error('Falha ao obter ID da referência visual.');
+  }
+
+  // 2. Gerar Embedding
+  const vector = await embedImage(env, photoBytes, 'image/jpeg');
+
+  // 3. Salvar embedding no D1
+  await env.DB.prepare(`
+    INSERT OR REPLACE INTO cover_reference_embeddings (
+      reference_id,
+      embedding_model,
+      dimensions,
+      embedding_json,
+      updated_at
+    ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+  `).bind(
+    referenceId,
+    env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2',
+    EMBEDDING_DIMENSIONS,
+    JSON.stringify(vector)
+  ).run();
+
+  // 4. Inserir no Vectorize para cada plataforma suportada
+  if (env.COVER_VECTORS?.upsert) {
+    const refObj = { capa_code: cleanCapaCode, source_product_id: null };
+    let platforms = await platformsForReference(env, refObj);
+    if (!platforms.length && occurrence.platform) {
+      platforms = [occurrence.platform];
+    }
+    if (!platforms.length) {
+      platforms = supportedPlatforms();
+    }
+
+    const vectorInserts = [];
+    for (const plat of platforms) {
+      const normPlat = normalizePlatform(plat);
+      const namespace = platformNamespace(normPlat);
+      const vectorId = platformVectorId(referenceId, normPlat) || `ref:${referenceId}:p:${namespace}`;
+      vectorInserts.push({
+        id: vectorId,
+        values: vector,
+        namespace,
+        metadata: {
+          reference_id: referenceId,
+          capa_code: cleanCapaCode,
+          reference_kind: 'real_scan',
+          platform: normPlat,
+          platform_key: namespace,
+          image_key: String(occurrence.image_key || '')
+        }
+      });
+    }
+
+    if (vectorInserts.length) {
+      await env.COVER_VECTORS.upsert(vectorInserts);
+    }
+  }
+
+  // 5. Marcar ocorrência como treinada
+  await env.DB.prepare(`
+    UPDATE scan_occurrences
+    SET status = 'trained', trained_capa_code = ?, trained_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(cleanCapaCode, id).run();
+
+  return {
+    ok: true,
+    trained: true,
+    capa_code: cleanCapaCode,
+    reference_id: referenceId,
+    message: `Sistema treinado com sucesso para a capa ${cleanCapaCode}!`
+  };
+}
+
 export async function handleOccurrencesAdminRequest(request, env) {
   const url = new URL(request.url);
 
@@ -185,112 +297,36 @@ export async function handleOccurrencesAdminRequest(request, env) {
         return json({ error: 'capa_code é obrigatório para treinar o sistema' }, 400);
       }
 
-      const occurrence = await env.DB.prepare(
-        'SELECT id, image_key, platform FROM scan_occurrences WHERE id=? LIMIT 1'
-      ).bind(id).first();
-
-      if (!occurrence) {
-        return json({ error: 'Ocorrência não encontrada' }, 404);
-      }
-
-      const imageObj = await env.PRODUCT_IMAGES.get(occurrence.image_key);
-      if (!imageObj) {
-        return json({ error: 'Foto não encontrada no R2' }, 404);
-      }
-      const photoBytes = new Uint8Array(await imageObj.arrayBuffer());
-
-      // 1. Inserir em cover_visual_references como foto real de bancada
-      await env.DB.prepare(`
-        INSERT INTO cover_visual_references (
-          capa_code,
-          image_key,
-          reference_kind,
-          active
-        ) VALUES (?, ?, 'real_scan', 1)
-        ON CONFLICT(capa_code, image_key) DO UPDATE SET active=1, updated_at=CURRENT_TIMESTAMP
-      `).bind(capaCode, occurrence.image_key).run();
-
-      const refRow = await env.DB.prepare(
-        'SELECT id FROM cover_visual_references WHERE capa_code=? AND image_key=? LIMIT 1'
-      ).bind(capaCode, occurrence.image_key).first();
-
-      const referenceId = refRow?.id;
-      if (!referenceId) {
-        return json({ error: 'Falha ao obter ID da referência visual' }, 500);
-      }
-
-      // 2. Gerar Embedding
-      const vector = await embedImage(env, photoBytes, 'image/jpeg');
-
-      // 3. Salvar embedding no D1
-      await env.DB.prepare(`
-        INSERT OR REPLACE INTO cover_reference_embeddings (
-          reference_id,
-          embedding_model,
-          dimensions,
-          embedding_json,
-          updated_at
-        ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `).bind(
-        referenceId,
-        env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2',
-        EMBEDDING_DIMENSIONS,
-        JSON.stringify(vector)
-      ).run();
-
-      // 4. Inserir no Vectorize para cada plataforma suportada
-      if (env.COVER_VECTORS?.upsert) {
-        const refObj = { capa_code: capaCode, source_product_id: null };
-        let platforms = await platformsForReference(env, refObj);
-        if (!platforms.length && occurrence.platform) {
-          platforms = [occurrence.platform];
-        }
-        if (!platforms.length) {
-          platforms = supportedPlatforms();
-        }
-
-        const vectorInserts = [];
-        for (const plat of platforms) {
-          const normPlat = normalizePlatform(plat);
-          const namespace = platformNamespace(normPlat);
-          const vectorId = platformVectorId(referenceId, normPlat) || `ref:${referenceId}:p:${namespace}`;
-          vectorInserts.push({
-            id: vectorId,
-            values: vector,
-            namespace,
-            metadata: {
-              reference_id: referenceId,
-              capa_code: capaCode,
-              reference_kind: 'real_scan',
-              platform: normPlat,
-              platform_key: namespace,
-              image_key: String(occurrence.image_key || '')
-            }
-          });
-        }
-
-        if (vectorInserts.length) {
-          await env.COVER_VECTORS.upsert(vectorInserts);
-        }
-      }
-
-      // 5. Marcar ocorrência como treinada
-      await env.DB.prepare(`
-        UPDATE scan_occurrences
-        SET status = 'trained', trained_capa_code = ?, trained_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).bind(capaCode, id).run();
-
-      return json({
-        ok: true,
-        trained: true,
-        capa_code: capaCode,
-        reference_id: referenceId,
-        message: `Sistema treinado com sucesso para a capa ${capaCode}!`
-      });
+      const result = await trainOccurrenceDirectly(env, id, capaCode);
+      return json(result);
     } catch (err) {
       console.error('Erro ao treinar ocorrência:', err);
       return json({ error: `Erro ao treinar sistema: ${err.message || err}` }, 500);
+    }
+  }
+
+  // POST /api/operator/confirm-selection (Auto-aprendizado automático do operador)
+  if (request.method === 'POST' && url.pathname === '/api/operator/confirm-selection') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const occurrenceId = Number(body.occurrence_id);
+      const capaCode = String(body.capa_code || '').trim().toUpperCase();
+      const operatorName = body.operator_name || null;
+
+      if (!occurrenceId || !capaCode) {
+        return json({ ok: false, error: 'occurrence_id e capa_code são obrigatórios' }, 400);
+      }
+
+      const result = await trainOccurrenceDirectly(env, occurrenceId, capaCode, operatorName);
+      return json({
+        ok: true,
+        auto_learned: true,
+        capa_code: capaCode,
+        message: `IA auto-treinada para a capa ${capaCode} com sucesso!`
+      });
+    } catch (err) {
+      console.error('Erro no auto-treino do operador:', err);
+      return json({ ok: false, error: err.message || 'Falha ao registrar auto-treino.' }, 500);
     }
   }
 

@@ -126,10 +126,6 @@ export default {
       return new Response(null, { status: 302, headers: { location: '/', 'set-cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`, 'cache-control': 'no-store' } });
     }
 
-    if (pathname === '/api/admin/session' && request.method === 'GET') {
-      return (await validSession(request, env)) ? json({ ok: true, authenticated: true }) : json({ error: 'Acesso administrativo não autorizado.' }, 401);
-    }
-
     if (isProtectedApi(pathname) && !(await validSession(request, env))) {
       return json({ error: 'Acesso administrativo não autorizado.' }, 401);
     }

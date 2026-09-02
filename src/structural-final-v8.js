@@ -5,10 +5,10 @@ import { detectCrossPlatformMatch, embedImage } from './vectorize-candidates.js'
 import { recordScanOccurrence } from './occurrences-router.js';
 
 const COOKIE_NAME = 'nisti_recognition_ticket';
-const MAX_CANDIDATES = 16;
+const MAX_CANDIDATES = 4;
 const SUGGESTION_LIMIT = 4;
 const MIN_STRUCTURAL_CONFIDENCE = 0.65;
-const VERIFY_TIMEOUT_MS = 25000;
+const VERIFY_TIMEOUT_MS = 45000;
 const VERIFIER_RPM_LIMIT = 60;
 
 class RecognitionError extends Error {
@@ -18,6 +18,8 @@ class RecognitionError extends Error {
     this.code = code;
   }
 }
+
+import { Buffer } from 'node:buffer';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -30,19 +32,11 @@ function json(data, status = 200) {
 }
 
 function base64(bytes) {
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
+  return Buffer.from(bytes).toString('base64');
 }
 
 function base64urlDecode(value) {
-  const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized + '='.repeat((4 - (normalized.length % 4 || 4)) % 4);
-  const binary = atob(padded);
-  return Uint8Array.from(binary, char => char.charCodeAt(0));
+  return new Uint8Array(Buffer.from(value, 'base64url'));
 }
 
 function textBytes(value) {
@@ -274,12 +268,18 @@ function normalizeDecision(raw, allowedCodes) {
     .trim()
     .toLowerCase()
     .slice(0, 80);
+  const photoOcrText = String(raw?.photo_ocr_text || '').trim();
+  const photoMonogramLetter = String(raw?.photo_monogram_letter || '').trim().toUpperCase();
+  const photoDominantColor = String(raw?.photo_dominant_color || '').trim();
 
   return {
     winner_code: allowedCodes.has(winnerCode) ? winnerCode : null,
     exact_match: exactMatch,
     confidence,
-    reason_code: reasonCode
+    reason_code: reasonCode,
+    photo_ocr_text: photoOcrText || null,
+    photo_monogram_letter: (photoMonogramLetter && photoMonogramLetter !== 'NONE') ? photoMonogramLetter : null,
+    photo_dominant_color: photoDominantColor || null
   };
 }
 
@@ -305,7 +305,7 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
     );
   }
 
-  const model = env.GEMINI_VERIFIER_MODEL || env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+  const model = env.GEMINI_VERIFIER_MODEL || env.GEMINI_MODEL || 'gemini-1.5-flash-8b';
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort('catalog-comparison-timeout'),
@@ -314,57 +314,26 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
   const started = Date.now();
 
   const prompt = `Você é o classificador visual oficial da gráfica NISTI PRINT.
-Sua missão é identificar com precisão se a FOTO DO PRODUTO corresponde a uma das CANDIDATAS do catálogo pela ARTE-BASE impressa na capa.
+Sua missão é identificar com máxima precisão se a FOTO DO PRODUTO corresponde a uma das CANDIDATAS do catálogo pela ARTE-BASE impressa na capa.
 
-REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
-1. HIERARQUIA RIGOROSA DE CORES E SUB-TONS (CLARO vs MÉDIO vs ESCURO):
-   - Muitos modelos compartilham o mesmo layout e tipografia, variando apenas na FAMÍLIA DE COR ou no TOM ESPECÍFICO.
-   - Analise com MÁXIMA ATENÇÃO a matiz e a profundidade de tom (Luminosidade):
-     • VERDES:
-       - Verde Claro / Menta / Sage / Oliva Claro (ex: MNV1, VFOS).
-       - Verde Médio / Folha / Bandeira.
-       - Verde Escuro / Musgo / Militar / Floresta (ex: MNV2, MNV3).
-     • AZUIS:
-       - Azul Bebê / Celeste / Pastel / Serenity (ex: MNZ1).
-       - Azul Médio / Royal / Bic (ex: MNZ2).
-       - Azul Escuro / Marinho / Petróleo / Noite (ex: MNZ3).
-     • ROSAS, LILÁS E ROXO:
-       - Rosa Claro / Bebê / Blush / Nude Rosado (ex: CPA).
-       - Rosa Médio / Chiclete / Pink / Magenta.
-       - Lilás / Lavanda vs Roxo / Púrpura / Uva.
-     • BEGES, TERROSOS E AMARELOS:
-       - Bege Claro / Off-White / Marfim / Areia.
-       - Caramelo / Terracota / Telha.
-       - Marrom / Café / Chocolate.
-       - Amarelo Pastel / Manteiga vs Amarelo Ocre / Mostarda.
-     • NEUTROS, CINZAS E PRETOS:
-       - Branco / Cinza Claro / Prata (ex: MNCZ1).
-       - Cinza Chumbo / Grafite (ex: MNCZ2).
-       - Preto Absoluto / Fundo Escuro (ex: BKF, CQF2).
-   - REGRA DE ELIMINAÇÃO TONAL: Se a foto tiver tom CLARO/PASTEL, NUNCA escolha o modelo ESCURO da mesma cor, e vice-versa! O tom e a saturação da cor são critérios eliminatórios.
+EXECUTE SEU RACIOCÍNIO SILENCIOSAMENTE NAS ETAPAS ABAIXO E DEVOLVA APENAS A DECISÃO FINAL EM JSON:
 
-2. ESTRUTURA CENTRAL, MONOGRAMAS E OCR DE LETRAS:
-   - Se a capa tiver uma letra inicial/monograma maiúsculo em destaque (ex: letra "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"):
-     • IDENTIFIQUE a letra central exata e valide que a candidata possui EXATAMENTE A MESMA LETRA e o mesmo estilo gráfico de monograma!
-     • Se a foto tem a letra "M" em fundo Verde Claro, escolha EXCLUSIVAMENTE a candidata com letra "M" em fundo Verde Claro!
-   - O nome pequeno cursivo do cliente pode variar (ex: "Maria", "Mavie", "Manuela"), mas a LETRA DO MONOGRAMA e a COR DO FUNDO definem o modelo exato.
-3. FOCO NA ARTE GRÁFICA & ELEMENTOS-CHAVE:
-   - Compare o design gráfico: ilustrações, desenhos, flores, animais/personagens, padrões geométricos, listras, blocos de cor, molduras e cores dominantes.
-   - Textos fixos e títulos do produto são elementos-chave quando presentes.
-4. NOMES PERSONALIZADOS DO CLIENTE:
-   - Produtos de papelaria recebem nomes personalizados variáveis de clientes (ex: "Otávio", "Théo", "Eloá", "Mavie", "Helena", "Arthur", "Maria", datas, etc.).
-   - A imagem de referência no catálogo pode estar sem nome próprio ou ter um nome fictício de exemplo diferente.
-   - IGNORE a diferença do nome cursivo pequeno do cliente, contanto que o layout geral da arte, cores e monogramas correspondam!
-5. ITENS FÍSICOS, PERSPECTIVA E ILUMINAÇÃO (TOLERÂNCIA AMPLA):
-   - Wire-o / espirais / encadernação lateral (qualquer cor) e espessura lateral das folhas.
-   - Elásticos, passadores de elástico, tassel / pingentes.
-   - ÂNGULO E PERSPECTIVA 3D (CENÁRIO C): A foto pode ter sido tirada inclinada (a 30°-60°), com distorção trapezoidal de perspectiva. Desconsidere a deformação geométrica e foque nos elementos gráficos da estampa da capa.
-   - POUCA LUZ / PENUMBRA (CENÁRIO H): Se a foto estiver escura, com sombras ou granulado de câmera em baixa luminosidade, compense a subexposição e compare as formas, contrastes e ilustrações da capa.
-   - Laminação plástica, holografia, glitter, reflexos de luz, sombras e brilhos na foto.
-   - Dedos/mãos do operador segurando, mesa e fundo externo da bancada.
-6. RESULTADO:
-   - Se uma das candidatas for exatamente a mesma arte, cor e modelo da foto, retorne winner_code com o CAPA_CODE dessa candidata, exact_match=true e confidence entre 0.70 e 1.00.
-   - Se nenhuma candidata tiver a mesma arte gráfica e cor correspondente, retorne winner_code="NONE", exact_match=false e confidence baixa.`;
+ETAPA 1: ANÁLISE INTERNA (NÃO PRECISA ESCREVER)
+- Leia qualquer texto visível na foto da capa (títulos, nomes, palavras).
+- Identifique a letra de monograma central se houver.
+- Identifique a cor dominante e o sub-tom específico.
+
+ETAPA 2: REGRAS DE ELIMINAÇÃO RÍGIDA
+1. ELIMINAÇÃO POR MONOGRAMA/LETRA: Se a foto tem a letra "M", você DEVE ELIMINAR imediatamente qualquer candidata com letra diferente (ex: "A", "B", "N").
+2. ELIMINAÇÃO POR SUB-TOM DE COR (CLARO vs ESCURO):
+   - Se a foto for tom CLARO/PASTEL, NUNCA escolha o modelo ESCURO da mesma cor, e vice-versa!
+3. NOMES PERSONALIZADOS DE CLIENTES: Produtos de papelaria recebem nomes personalizados variáveis de clientes (ex: "Mavie", "Helena"). Ignore a diferença no nome cursivo do cliente, contanto que o layout geral da arte, a letra do monograma e a cor correspondam.
+4. TOLERÂNCIA A ELEMENTOS FÍSICOS (REALIDADE vs DIGITAL): A foto é um produto físico e as candidatas são artes digitais (mockups). Ignore diferenças de iluminação, reflexos de laminação, sombras, ângulo torto da foto, ou a cor levemente mais escura/opaca devido à tinta e calibração da impressora. Ignore também acessórios como wire-o, elásticos, tassel ou dedos do operador.
+5. RIGIDEZ VISUAL (PROIBIDO IGNORAR): Você é ESTRITAMENTE PROIBIDA de ignorar mudanças na ilustração em si. Se elementos desenhados forem diferentes, se os nomes impressos na arte não baterem (exceto nomes personalizados), ou se a cor principal mudar DRASTICAMENTE, SÃO PRODUTOS DIFERENTES.
+
+ETAPA 3: DECISÃO FINAL (DEVOLVER NO JSON)
+1. Se uma das candidatas possuir a mesma ilustração e paleta essencial, defina 'winner_code' com o CAPA_CODE dessa candidata, 'exact_match'=true e 'confidence' entre 0.70 e 1.00.
+2. Se nenhuma candidata corresponder exatamente à ilustração, retorne 'winner_code'="NONE", 'exact_match'=false e 'confidence' baixa.`;
 
   const parts = [
     { text: prompt },
@@ -399,7 +368,8 @@ REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
 
   const candidateModels = [
     env.GEMINI_VERIFIER_MODEL,
-    'gemini-2.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-3.6-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash'
   ].filter(Boolean);
@@ -429,14 +399,12 @@ REGRAS DE OURO PARA COMPARAÇÃO PRECISA:
                   properties: {
                     winner_code: { type: 'STRING' },
                     exact_match: { type: 'BOOLEAN' },
-                    confidence: { type: 'NUMBER' },
-                    reason_code: { type: 'STRING' }
+                    confidence: { type: 'NUMBER' }
                   },
                   required: [
                     'winner_code',
                     'exact_match',
-                    'confidence',
-                    'reason_code'
+                    'confidence'
                   ]
                 }
               }
@@ -680,23 +648,6 @@ export async function structuralFinalIdentifyV8(request, env) {
     const photoBytes = new Uint8Array(await image.arrayBuffer());
     performance.upload_bytes = image.size;
 
-    // ⚡ Fast-path de Aprendizado do ADM:
-    // Se o topo é uma referência real já aprovada e treinada pelo ADM com score alto (>= 0.82)
-    if (loaded.length && loaded[0].reference_kind === 'real_scan' && Number(loaded[0].retrieval_score || 0) >= 0.82) {
-      const topTrained = loaded[0];
-      performance.accepted_by = 'vector-trained-real-scan-match';
-      performance.suggestion_count = 0;
-      finalizePerformance(performance, started);
-      return successResponse(
-        env,
-        topTrained,
-        platform,
-        Math.max(Number(topTrained.retrieval_score || 0.95), 0.95),
-        performance,
-        'platform-catalog-trained-real-scan-ground-truth'
-      );
-    }
-
     let comparison = null;
     let comparatorError = null;
     const verifyStarted = Date.now();
@@ -722,6 +673,9 @@ export async function structuralFinalIdentifyV8(request, env) {
       performance.verifier_reason_code = decision.reason_code;
       performance.verifier_evidence = `winner=${decision.winner_code || 'NONE'}; exact=${decision.exact_match}; confidence=${decision.confidence.toFixed(3)}`;
       performance.gemini_confidence = decision.confidence;
+      if (decision.photo_ocr_text) performance.ocr_text = decision.photo_ocr_text;
+      if (decision.photo_monogram_letter) performance.monogram_letter = decision.photo_monogram_letter;
+      if (decision.photo_dominant_color) performance.dominant_color = decision.photo_dominant_color;
 
       if (
         decision.winner_code &&

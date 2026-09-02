@@ -729,11 +729,31 @@ function ProductResult({ product, performance, onReset, photo, platform }) {
             {product.elastico && <span className="result-compact-badge">Elástico: <strong>{product.elastico}</strong></span>}
             {product.tassel && <span className="result-compact-badge">Tassel: <strong>{product.tassel}</strong></span>}
           </div>
+
+          {(performance?.monogram_letter || performance?.ocr_text || performance?.dominant_color) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '5px' }}>
+              {performance?.monogram_letter && (
+                <span style={{ fontSize: '10px', color: '#0369a1', background: '#e0f2fe', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                  🔤 Monograma: {performance.monogram_letter}
+                </span>
+              )}
+              {performance?.dominant_color && (
+                <span style={{ fontSize: '10px', color: '#0f766e', background: '#ccfbf1', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                  🎨 Tom: {performance.dominant_color}
+                </span>
+              )}
+              {performance?.ocr_text && (
+                <span style={{ fontSize: '10px', color: '#4338ca', background: '#e0e7ff', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                  📝 Texto: "{performance.ocr_text}"
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {performance?.total_ms && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#64748b', marginTop: '4px' }}>
           <span>{product.platform ? `Plataforma: ${product.platform}` : ''}</span>
           <span style={{ fontWeight: 600 }}>Reconhecido em {(performance.total_ms / 1000).toFixed(1)}s</span>
         </div>
@@ -886,6 +906,8 @@ function PublicIdentificationApp() {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [scanStage, setScanStage] = useState('Processando foto…');
   const [qualityWarning, setQualityWarning] = useState('');
+  const [autoLearnNotice, setAutoLearnNotice] = useState('');
+  const [lastOccurrenceId, setLastOccurrenceId] = useState(null);
   const runId = useRef(0);
 
   const checkImageQuality = (file) => {
@@ -1066,16 +1088,46 @@ function PublicIdentificationApp() {
     setPerformance(data.performance || null);
     setSuggestions([]);
     setSuggestedPlatform(null);
+    if (data.occurrence_id) {
+      setLastOccurrenceId(data.occurrence_id);
+    }
     if (data.needs_selection || data.multiple_choices) {
       setChoices({
         capaCode: data.capa_code || data.products?.[0]?.capa_code || 'Sugestões',
-        products: data.products || []
+        products: data.products || [],
+        occurrenceId: data.occurrence_id || null
       });
       setResult(null);
     } else if (data.product) {
       setChoices(null);
       setResult(data.product);
       addRecentScan(data.product);
+    }
+  };
+
+  const handleSelectChoice = (product) => {
+    const occId = choices?.occurrenceId || lastOccurrenceId;
+    setResult(product);
+    setChoices(null);
+    addRecentScan(product);
+
+    if (occId && product.capa_code) {
+      api('/api/operator/confirm-selection', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          occurrence_id: occId,
+          capa_code: product.capa_code,
+          platform: platform || product.platform,
+          operator_name: operatorName || getOperatorName(),
+          operator_id: getOperatorId()
+        })
+      }).then(res => {
+        if (res?.ok) {
+          setAutoLearnNotice(`✨ IA auto-treinada: a foto foi vinculada como referência para a capa ${product.capa_code}!`);
+          setTimeout(() => setAutoLearnNotice(''), 5000);
+        }
+      }).catch(() => {});
     }
   };
 
@@ -1115,6 +1167,9 @@ function PublicIdentificationApp() {
     } catch (err) {
       if (id !== runId.current) return;
       const data = err?.data || null;
+      if (data?.occurrence_id) {
+        setLastOccurrenceId(data.occurrence_id);
+      }
       setPerformance(data?.performance || null);
       setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
       setSuggestedPlatform(data?.suggested_platform || null);
@@ -1341,17 +1396,30 @@ function PublicIdentificationApp() {
           </div>
         )}
 
+        {autoLearnNotice && (
+          <div style={{
+            padding: '9px 12px',
+            margin: '6px 0 10px',
+            background: '#ecfdf5',
+            border: '1.5px solid #6ee7b7',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '12px', color: '#065f46', fontWeight: 700, lineHeight: '1.4' }}>
+              {autoLearnNotice}
+            </span>
+          </div>
+        )}
+
         {choices && <ProductChoices
           capaCode={choices.capaCode}
           products={choices.products}
           platform={platform}
           performance={performance}
           onReset={resetAll}
-          onSelect={product => {
-            setResult(product);
-            setChoices(null);
-            addRecentScan(product);
-          }}
+          onSelect={handleSelectChoice}
         />}
 
         {result && <ProductResult product={result} performance={performance} onReset={resetAll} photo={photo} platform={platform} />}
