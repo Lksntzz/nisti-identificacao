@@ -8,6 +8,7 @@ const COOKIE_NAME = 'nisti_recognition_ticket';
 const MAX_CANDIDATES = 4;
 const SUGGESTION_LIMIT = 4;
 const MIN_STRUCTURAL_CONFIDENCE = 0.65;
+const MIN_TOP1_MARGIN_FOR_SINGLE_CANDIDATE = 0.005;
 const VERIFY_TIMEOUT_MS = 10000;
 const VERIFIER_RPM_LIMIT = 60;
 
@@ -373,7 +374,7 @@ DECISÃO:
           contents: [{ role: 'user', parts }],
           generationConfig: {
             thinkingConfig: {
-              thinkingLevel: 'minimal'
+              thinkingLevel: 'low'
             },
             mediaResolution: 'MEDIA_RESOLUTION_MEDIUM',
             maxOutputTokens: 128,
@@ -521,12 +522,12 @@ async function successResponse(
 export async function structuralFinalIdentifyV8(request, env) {
   const started = Date.now();
   const performance = {
-    pipeline_version: 'platform-vectorize+gemini36-minimal-v8.9.1',
-    verification_mode: 'single-model-exact-art-fail-closed-minimal-thinking',
+    pipeline_version: 'platform-vectorize-top1+gemini37-low-v8.10.1',
+    verification_mode: 'top1-exact-art-fail-closed-low-thinking',
     retrieval_source: 'vectorize-platform-ticket-reuse',
     reused_candidates: true,
     candidate_transport: 'inline-r2-bytes',
-    verifier_thinking_level: 'minimal',
+    verifier_thinking_level: 'low',
     verifier_media_resolution: 'medium-global'
   };
 
@@ -591,6 +592,23 @@ export async function structuralFinalIdentifyV8(request, env) {
         `Produto não corresponde ao catálogo da plataforma ${platform}. Identificação abortada para economia de recursos.`,
         422,
         'low_retrieval_score_barrier'
+      );
+    }
+
+    const retrievalMargin = Number(ticket.performance?.retrieval_margin ?? 0);
+    const retrievalCoverCount = Number(
+      ticket.performance?.cover_candidate_count ?? rawCandidates.length
+    );
+
+    if (
+      rawCandidates.length === 1 &&
+      retrievalCoverCount > 1 &&
+      retrievalMargin < MIN_TOP1_MARGIN_FOR_SINGLE_CANDIDATE
+    ) {
+      throw new RecognitionError(
+        'As duas melhores capas são visualmente próximas demais para uma confirmação Top-1 segura.',
+        422,
+        'ambiguous_top1_margin'
       );
     }
 
@@ -678,7 +696,7 @@ export async function structuralFinalIdentifyV8(request, env) {
             platform,
             Math.max(decision.confidence, 0.75),
             performance,
-            'platform-catalog-v8.9.1-comparative-winner'
+            'platform-catalog-v8.10.1-top1-winner'
           );
         }
       }
@@ -731,7 +749,7 @@ export async function structuralFinalIdentifyV8(request, env) {
       suggested_platform: null,
       suggestions: [],
       suggestions_are_unconfirmed: false,
-      identified_by: 'platform-catalog-no-match-v8.9.1',
+      identified_by: 'platform-catalog-no-match-v8.10.1',
       performance,
       occurrence_id: occurrenceId,
       sent_to_adm: true
@@ -770,7 +788,7 @@ export async function identifyProductByDetail(request, env) {
     }
 
     const bytes = new Uint8Array(await image.arrayBuffer());
-    const model = env.GEMINI_VERIFIER_MODEL || env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+    const model = env.GEMINI_DETAIL_MODEL || env.GEMINI_MODEL || env.GEMINI_VERIFIER_MODEL || 'gemini-3.6-flash';
 
     const productListDesc = products.map((p, idx) =>
       `Opção [${idx}]: SKU="${p.sku}", Nome="${p.nome || ''}", Variação="${p.variacao || ''}", Miolo="${p.miolo_code}", Acabamento="${p.acabamento_code}"`

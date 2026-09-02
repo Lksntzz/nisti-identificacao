@@ -45,7 +45,7 @@ const createMockEnv = ({
 } = {}) => {
   return {
     GEMINI_API_KEY: 'test-api-key',
-    GEMINI_VERIFIER_MODEL: 'gemini-3.6-flash',
+    GEMINI_VERIFIER_MODEL: 'gemini-3.7-flash',
     GEMINI_MODEL: 'gemini-3.6-flash',
     GEMINI_EMBEDDING_MODEL: 'gemini-embedding-2',
     DB: {
@@ -215,11 +215,11 @@ test('Recognition Verification: trained real_scan still requires one exact Gemin
 
     assert.equal(response.status, 200);
     assert.equal(data.capa_code, 'CP5');
-    assert.equal(data.identified_by, 'platform-catalog-v8.9.1-comparative-winner');
-    assert.equal(data.performance.pipeline_version, 'platform-vectorize+gemini36-minimal-v8.9.1');
+    assert.equal(data.identified_by, 'platform-catalog-v8.10.1-top1-winner');
+    assert.equal(data.performance.pipeline_version, 'platform-vectorize-top1+gemini37-low-v8.10.1');
     assert.equal(fetchCalls, 1);
-    assert.match(requestedUrl, /models\/gemini-3\.6-flash:generateContent$/);
-    assert.equal(requestBody.generationConfig?.thinkingConfig?.thinkingLevel, 'minimal');
+    assert.match(requestedUrl, /models\/gemini-3\.7-flash:generateContent$/);
+    assert.equal(requestBody.generationConfig?.thinkingConfig?.thinkingLevel, 'low');
     assert.equal(requestBody.generationConfig?.mediaResolution, 'MEDIA_RESOLUTION_MEDIUM');
     assert.equal(requestBody.generationConfig?.temperature, undefined);
     assert.equal(requestBody.contents?.[0]?.parts?.some(part => 'media_resolution' in part), false);
@@ -324,7 +324,7 @@ test('Recognition Fail-Closed: high confidence without exact_match is not accept
     const data = await response.json();
 
     assert.equal(response.status, 422);
-    assert.equal(data.identified_by, 'platform-catalog-no-match-v8.9.1');
+    assert.equal(data.identified_by, 'platform-catalog-no-match-v8.10.1');
     assert.equal(data.performance.gemini_confidence, 0.99);
     assert.equal(data.performance.verifier_reason_code, 'different_layout');
   } finally {

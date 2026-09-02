@@ -24,6 +24,7 @@ index_name = "nisti-cover-embeddings"
 
 [vars]
 APP_ENV = "production"
-GEMINI_VERIFIER_MODEL = "gemini-3.6-flash"
+GEMINI_VERIFIER_MODEL = "gemini-3.7-flash"
 GEMINI_MODEL = "gemini-3.6-flash"
+GEMINI_DETAIL_MODEL = "gemini-3.6-flash"
 GEMINI_EMBEDDING_MODEL = "gemini-embedding-2"
