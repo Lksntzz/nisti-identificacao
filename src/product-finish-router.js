@@ -1,4 +1,4 @@
-import app from './reference-reindex-router.js';
+import app from './geometric-shadow-evidence-admin-router.js';
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 
 function json(data, status = 200) {
