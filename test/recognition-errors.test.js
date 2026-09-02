@@ -45,7 +45,8 @@ const createMockEnv = ({
 } = {}) => {
   return {
     GEMINI_API_KEY: 'test-api-key',
-    GEMINI_MODEL: 'gemini-2.5-flash',
+    GEMINI_VERIFIER_MODEL: 'gemini-3.6-flash',
+    GEMINI_MODEL: 'gemini-3.6-flash',
     GEMINI_EMBEDDING_MODEL: 'gemini-embedding-2',
     DB: {
       prepare: (sql) => {
@@ -67,7 +68,7 @@ const createMockEnv = ({
               }
               return { results: [] };
             },
-            run: async () => ({ success: true })
+            run: async () => ({ success: true, meta: { changes: 1 } })
           }),
           first: async () => {
             if (cleanSql.includes('FROM scan_occurrences')) {
@@ -159,7 +160,32 @@ test('Recognition Error: Handles missing catalog images gracefully', async () =>
   assert.equal(data.technical_error, 'candidate_images_missing');
 });
 
-test('Recognition Fast-Path: Instantly accepts trained real_scan reference (score >= 0.82)', async () => {
+test('Recognition Verification: trained real_scan still requires one exact Gemini confirmation', async () => {
+  const originalFetch = global.fetch;
+  let fetchCalls = 0;
+  let requestedUrl = '';
+  global.fetch = async (url) => {
+    fetchCalls += 1;
+    requestedUrl = String(url);
+    return new Response(JSON.stringify({
+      candidates: [{
+        content: {
+          parts: [{
+            text: JSON.stringify({
+              winner_code: 'CP5',
+              exact_match: true,
+              confidence: 0.96,
+              reason_code: 'exact_base_art'
+            })
+          }]
+        }
+      }]
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    });
+  };
+
   const fakeBytes = new Uint8Array([1, 2, 3]);
   const env = createMockEnv({
     r2Object: {
@@ -181,17 +207,25 @@ test('Recognition Fast-Path: Instantly accepts trained real_scan reference (scor
   };
   const request = await createMockRequest('SHOPEE', ticketPayload);
 
-  const response = await structuralFinalIdentifyV8(request, env);
-  const data = await response.json();
+  try {
+    const response = await structuralFinalIdentifyV8(request, env);
+    const data = await response.json();
 
-  assert.equal(response.status, 200);
-  assert.equal(data.capa_code, 'CP5');
-  assert.equal(data.identified_by, 'platform-catalog-trained-real-scan-ground-truth');
+    assert.equal(response.status, 200);
+    assert.equal(data.capa_code, 'CP5');
+    assert.equal(data.identified_by, 'platform-catalog-v8.8-comparative-winner');
+    assert.equal(fetchCalls, 1);
+    assert.match(requestedUrl, /models\/gemini-3\.6-flash:generateContent$/);
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 
-test('Recognition Fallback: Handles Gemini API 500 error and falls back to choice options', async () => {
+test('Recognition Fail-Closed: Gemini API 500 does not expose unconfirmed candidate products', async () => {
   const originalFetch = global.fetch;
+  let fetchCalls = 0;
   global.fetch = async () => {
+    fetchCalls += 1;
     return new Response(JSON.stringify({ error: { message: 'Gemini internal error' } }), {
       status: 500,
       headers: { 'content-type': 'application/json' }
@@ -223,10 +257,69 @@ test('Recognition Fallback: Handles Gemini API 500 error and falls back to choic
     const response = await structuralFinalIdentifyV8(request, env);
     const data = await response.json();
 
-    assert.equal(response.status, 200);
-    assert.equal(data.multiple_choices, true);
-    assert.equal(data.capa_code, 'CP4');
-    assert.equal(data.products.length, 1);
+    assert.equal(response.status, 422);
+    assert.equal(fetchCalls, 1);
+    assert.deepEqual(data.suggestions, []);
+    assert.equal(data.suggestions_are_unconfirmed, false);
+    assert.equal(data.multiple_choices, undefined);
+    assert.equal(data.performance.comparator_error, 'catalog_comparator_http_500');
+    assert.equal(data.performance.gemini_calls, 1);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('Recognition Fail-Closed: high confidence without exact_match is not accepted', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    return new Response(JSON.stringify({
+      candidates: [{
+        content: {
+          parts: [{
+            text: JSON.stringify({
+              winner_code: 'CP4',
+              exact_match: false,
+              confidence: 0.99,
+              reason_code: 'different_layout'
+            })
+          }]
+        }
+      }]
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    });
+  };
+
+  const fakeBytes = new Uint8Array([1, 2, 3]);
+  const env = createMockEnv({
+    r2Object: {
+      arrayBuffer: async () => fakeBytes.buffer,
+      httpMetadata: { contentType: 'image/jpeg' }
+    },
+    dbRows: {
+      reference: { id: 4, capa_code: 'CP4', image_key: 'mocks/cp4.jpg', reference_kind: 'product' },
+      products: [{ id: 2, sku: 'VACMNO_CP4_BBB', capa_code: 'CP4' }]
+    }
+  });
+
+  const ticketPayload = {
+    platform: 'SHOPEE',
+    performance: { retrieval_top1: 0.91 },
+    codes: ['CP4'],
+    scores: { CP4: 0.91 },
+    references: [{ reference_id: 4, capa_code: 'CP4', retrieval_score: 0.91, vector_rank: 1, reference_kind: 'product' }]
+  };
+  const request = await createMockRequest('SHOPEE', ticketPayload);
+
+  try {
+    const response = await structuralFinalIdentifyV8(request, env);
+    const data = await response.json();
+
+    assert.equal(response.status, 422);
+    assert.equal(data.identified_by, 'platform-catalog-no-match-v8.8');
+    assert.equal(data.performance.gemini_confidence, 0.99);
+    assert.equal(data.performance.verifier_reason_code, 'different_layout');
   } finally {
     global.fetch = originalFetch;
   }
