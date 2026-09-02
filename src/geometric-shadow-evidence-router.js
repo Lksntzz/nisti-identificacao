@@ -197,8 +197,17 @@ export function normalizeLiveEvidence(body, signedPayload) {
   const candidates = canonicalCandidates(signedPayload);
   const retrieval = evaluateLiveRetrievalGate(candidates);
   const allowedCodes = new Set(candidates.map(item => item.capa_code));
-  const geometric = evaluateLiveStrictGeometry(body, allowedCodes);
+  const rawGeometric = evaluateLiveStrictGeometry(body, allowedCodes);
   const occurrenceId = Number(body?.occurrence_id || 0) || null;
+  const sameContentReferenceCount = Math.max(0, Number(body?.same_content_reference_count || 0));
+  const referenceLoadErrorCount = Math.max(0, Number(body?.reference_load_error_count || 0));
+  const contentIndependent = body?.content_independent === true &&
+    sameContentReferenceCount === 0 &&
+    referenceLoadErrorCount === 0;
+  const geometric = {
+    ...rawGeometric,
+    eligible: contentIndependent && rawGeometric.eligible
+  };
 
   if (!platform || !photoSha256 || !candidates.length) return null;
 
@@ -207,6 +216,9 @@ export function normalizeLiveEvidence(body, signedPayload) {
     photo_sha256: photoSha256,
     platform,
     occurrence_id: occurrenceId,
+    content_independent: contentIndependent,
+    same_content_reference_count: sameContentReferenceCount,
+    reference_load_error_count: referenceLoadErrorCount,
     retrieval,
     geometric,
     evidence_json: JSON.stringify({
@@ -219,10 +231,34 @@ export function normalizeLiveEvidence(body, signedPayload) {
       },
       processing_ms: Number(body?.processing_ms || 0) || null,
       candidate_count: candidates.length,
+      content_holdout: {
+        independent: contentIndependent,
+        same_content_reference_count: sameContentReferenceCount,
+        reference_load_error_count: referenceLoadErrorCount
+      },
       retrieval,
       geometric
     })
   };
+}
+
+async function reconcileTrainedOccurrence(env, evidence) {
+  const id = Number(evidence?.occurrence_id || 0);
+  if (!id) return 0;
+  const occurrence = await env.DB.prepare(`
+    SELECT status, trained_capa_code
+    FROM scan_occurrences
+    WHERE id=?
+    LIMIT 1
+  `).bind(id).first();
+  const code = normalizeCode(occurrence?.trained_capa_code);
+  if (String(occurrence?.status || '') !== 'trained' || !code) return 0;
+  return confirmGeometricShadowEvidence(env, {
+    occurrenceId: id,
+    photoSha256: evidence.photo_sha256,
+    capaCode: code,
+    source: 'reconciled_trained_occurrence'
+  });
 }
 
 async function saveEvidence(env, evidence, operator) {
@@ -230,8 +266,9 @@ async function saveEvidence(env, evidence, operator) {
     INSERT INTO geometric_shadow_evidence (
       evidence_token,photo_sha256,platform,operator_id,operator_name,occurrence_id,
       shadow_version,gate_version,retrieval_fastpath_eligible,retrieval_capa_code,
-      geometric_evaluated,geometric_eligible,geometric_capa_code,evidence_json,updated_at
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+      geometric_evaluated,geometric_eligible,geometric_capa_code,
+      content_independent,same_content_reference_count,evidence_json,updated_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
     ON CONFLICT(evidence_token) DO UPDATE SET
       photo_sha256=excluded.photo_sha256,
       platform=excluded.platform,
@@ -245,6 +282,8 @@ async function saveEvidence(env, evidence, operator) {
       geometric_evaluated=excluded.geometric_evaluated,
       geometric_eligible=excluded.geometric_eligible,
       geometric_capa_code=excluded.geometric_capa_code,
+      content_independent=excluded.content_independent,
+      same_content_reference_count=excluded.same_content_reference_count,
       evidence_json=excluded.evidence_json,
       updated_at=CURRENT_TIMESTAMP
   `).bind(
@@ -261,8 +300,12 @@ async function saveEvidence(env, evidence, operator) {
     evidence.geometric.evaluated ? 1 : 0,
     evidence.geometric.eligible ? 1 : 0,
     evidence.geometric.capa_code,
+    evidence.content_independent ? 1 : 0,
+    evidence.same_content_reference_count,
     evidence.evidence_json
   ).run();
+
+  await reconcileTrainedOccurrence(env, evidence).catch(() => 0);
 }
 
 export async function linkGeometricShadowEvidenceToOccurrence(env, evidenceToken, occurrenceId) {
@@ -274,7 +317,17 @@ export async function linkGeometricShadowEvidenceToOccurrence(env, evidenceToken
     SET occurrence_id=?, updated_at=CURRENT_TIMESTAMP
     WHERE evidence_token=?
   `).bind(id, token).run();
-  return Number(result?.meta?.changes || 0) > 0;
+  const changed = Number(result?.meta?.changes || 0) > 0;
+  if (changed) {
+    const evidence = await env.DB.prepare(`
+      SELECT occurrence_id, photo_sha256
+      FROM geometric_shadow_evidence
+      WHERE evidence_token=?
+      LIMIT 1
+    `).bind(token).first();
+    await reconcileTrainedOccurrence(env, evidence).catch(() => 0);
+  }
+  return changed;
 }
 
 export async function confirmGeometricShadowEvidence(env, {
@@ -369,8 +422,10 @@ function summarizeDecisionRows(rows) {
 }
 
 export function summarizeGeometricShadowEvidence(rows, counts = {}) {
+  const independentRows = (rows || []).filter(row => Number(row.content_independent ?? 1) === 1);
+  const excludedNonIndependent = (rows || []).length - independentRows.length;
   const groups = new Map();
-  for (const row of rows || []) {
+  for (const row of independentRows) {
     const hash = normalizeHash(row.photo_sha256);
     const platform = normalizePlatform(row.platform);
     const truth = normalizeCode(row.confirmed_capa_code);
@@ -403,14 +458,17 @@ export function summarizeGeometricShadowEvidence(rows, counts = {}) {
     overall.hybrid.incorrect === 0 &&
     conflicts.length === 0;
 
+  const confirmedRows = Number(counts.confirmed_rows ?? rows?.length ?? 0);
   return {
     shadow_version: SHADOW_VERSION,
     gate_version: GATE_VERSION,
     total_rows: Number(counts.total_rows || 0),
     pending_rows: Number(counts.pending_rows || 0),
-    confirmed_rows: Number(counts.confirmed_rows || rows?.length || 0),
+    confirmed_rows: confirmedRows,
+    confirmed_content_independent_rows: independentRows.length,
+    excluded_non_independent_confirmed_rows: excludedNonIndependent,
     confirmed_unique: uniqueRows.length,
-    duplicate_or_repeated_confirmed_rows: Math.max(0, Number(counts.confirmed_rows || rows?.length || 0) - uniqueRows.length),
+    duplicate_or_repeated_confirmed_rows: Math.max(0, independentRows.length - uniqueRows.length),
     label_conflicts: conflicts,
     overall,
     by_platform: byPlatform,
@@ -420,6 +478,7 @@ export function summarizeGeometricShadowEvidence(rows, counts = {}) {
       observed_unique_incremental_correct: overall.geometric_incremental.correct,
       observed_unique_incremental_incorrect: overall.geometric_incremental.incorrect,
       observed_unique_hybrid_incorrect: overall.hybrid.incorrect,
+      content_independent_only: true,
       safe_for_promotion: safeForPromotion
     },
     production_changed: false
@@ -438,8 +497,8 @@ async function summaryResponse(env) {
     env.DB.prepare(`
       SELECT
         id,evidence_token,photo_sha256,platform,retrieval_fastpath_eligible,retrieval_capa_code,
-        geometric_evaluated,geometric_eligible,geometric_capa_code,confirmed_capa_code,
-        confirmation_source,confirmed_at,created_at
+        geometric_evaluated,geometric_eligible,geometric_capa_code,content_independent,
+        same_content_reference_count,confirmed_capa_code,confirmation_source,confirmed_at,created_at
       FROM geometric_shadow_evidence
       WHERE confirmed_capa_code IS NOT NULL
       ORDER BY id ASC
@@ -467,6 +526,7 @@ export async function handleGeometricShadowEvidenceRequest(request, env) {
       retrieval_fastpath_eligible: evidence.retrieval.eligible,
       geometric_evaluated: evidence.geometric.evaluated,
       geometric_eligible: evidence.geometric.eligible,
+      content_independent: evidence.content_independent,
       shadow_only: true,
       production_changed: false
     });
