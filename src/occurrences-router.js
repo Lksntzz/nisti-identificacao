@@ -5,6 +5,7 @@ import {
   supportedPlatforms,
   normalizePlatform
 } from './platform-scope.js';
+import { confirmGeometricShadowEvidence } from './geometric-shadow-evidence-router.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 
@@ -25,6 +26,11 @@ function base64(bytes) {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   }
   return btoa(binary);
+}
+
+async function sha256Hex(bytes) {
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
 }
 
 async function embedImage(env, bytes, mimeType, maxRetries = 3) {
@@ -231,6 +237,19 @@ export async function trainOccurrenceDirectly(env, occurrenceId, capaCode, opera
     WHERE id = ?
   `).bind(cleanCapaCode, id).run();
 
+  // 6. Só confirmação humana/administrativa transforma shadow em ground truth.
+  // Falha de telemetria não pode impedir o treinamento real já concluído.
+  try {
+    await confirmGeometricShadowEvidence(env, {
+      occurrenceId: id,
+      photoSha256: await sha256Hex(photoBytes),
+      capaCode: cleanCapaCode,
+      source: operatorName ? 'operator_confirmed_training' : 'admin_confirmed_training'
+    });
+  } catch (error) {
+    console.error('Falha ao confirmar evidência geométrica shadow:', error);
+  }
+
   return {
     ok: true,
     trained: true,
@@ -317,7 +336,7 @@ export async function handleOccurrencesAdminRequest(request, env) {
         return json({ ok: false, error: 'occurrence_id e capa_code são obrigatórios' }, 400);
       }
 
-      const result = await trainOccurrenceDirectly(env, occurrenceId, capaCode, operatorName);
+      await trainOccurrenceDirectly(env, occurrenceId, capaCode, operatorName);
       return json({
         ok: true,
         auto_learned: true,
