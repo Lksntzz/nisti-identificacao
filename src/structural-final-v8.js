@@ -8,7 +8,7 @@ const COOKIE_NAME = 'nisti_recognition_ticket';
 const MAX_CANDIDATES = 4;
 const SUGGESTION_LIMIT = 4;
 const MIN_STRUCTURAL_CONFIDENCE = 0.65;
-const VERIFY_TIMEOUT_MS = 45000;
+const VERIFY_TIMEOUT_MS = 8000;
 const VERIFIER_RPM_LIMIT = 60;
 
 class RecognitionError extends Error {
@@ -305,7 +305,7 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
     );
   }
 
-  const model = env.GEMINI_VERIFIER_MODEL || env.GEMINI_MODEL || 'gemini-1.5-flash-8b';
+  const model = env.GEMINI_VERIFIER_MODEL || 'gemini-3.6-flash';
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort('catalog-comparison-timeout'),
@@ -314,26 +314,19 @@ async function compareCatalog(env, photoBytes, photoMime, candidates, platform) 
   const started = Date.now();
 
   const prompt = `Você é o classificador visual oficial da gráfica NISTI PRINT.
-Sua missão é identificar com máxima precisão se a FOTO DO PRODUTO corresponde a uma das CANDIDATAS do catálogo pela ARTE-BASE impressa na capa.
+Sua missão é confirmar se a FOTO DO PRODUTO corresponde exatamente à ARTE-BASE de uma das CANDIDATAS do catálogo.
 
-EXECUTE SEU RACIOCÍNIO SILENCIOSAMENTE NAS ETAPAS ABAIXO E DEVOLVA APENAS A DECISÃO FINAL EM JSON:
+REGRAS OBRIGATÓRIAS:
+1. Compare principalmente a ilustração fixa, composição, personagens, elementos gráficos, geometria, tipografia fixa e paleta essencial da ARTE-BASE.
+2. PERSONALIZAÇÃO VARIÁVEL NÃO DEFINE CAPA: nomes de clientes, iniciais e monogramas personalizados podem mudar entre a foto e a referência. Ignore essas diferenças quando forem campos variáveis de personalização. Só use uma letra/monograma como evidência discriminante quando estiver claramente integrado à arte-base fixa.
+3. Não elimine uma candidata apenas por pequenas diferenças de luminosidade, saturação ou sub-tom causadas por impressão, câmera, laminação ou iluminação. Rejeite quando a paleta-base ou a composição realmente forem diferentes.
+4. Ignore wire-o, furos, elásticos, tassel, plástico, reflexos, sombras, mãos, fundo, recorte e perspectiva.
+5. Não invente correspondência. Se nenhuma candidata tiver a mesma arte-base, retorne NONE.
 
-ETAPA 1: ANÁLISE INTERNA (NÃO PRECISA ESCREVER)
-- Leia qualquer texto visível na foto da capa (títulos, nomes, palavras).
-- Identifique a letra de monograma central se houver.
-- Identifique a cor dominante e o sub-tom específico.
-
-ETAPA 2: REGRAS DE ELIMINAÇÃO RÍGIDA
-1. ELIMINAÇÃO POR MONOGRAMA/LETRA: Se a foto tem a letra "M", você DEVE ELIMINAR imediatamente qualquer candidata com letra diferente (ex: "A", "B", "N").
-2. ELIMINAÇÃO POR SUB-TOM DE COR (CLARO vs ESCURO):
-   - Se a foto for tom CLARO/PASTEL, NUNCA escolha o modelo ESCURO da mesma cor, e vice-versa!
-3. NOMES PERSONALIZADOS DE CLIENTES: Produtos de papelaria recebem nomes personalizados variáveis de clientes (ex: "Mavie", "Helena"). Ignore a diferença no nome cursivo do cliente, contanto que o layout geral da arte, a letra do monograma e a cor correspondam.
-4. TOLERÂNCIA A ELEMENTOS FÍSICOS (REALIDADE vs DIGITAL): A foto é um produto físico e as candidatas são artes digitais (mockups). Ignore diferenças de iluminação, reflexos de laminação, sombras, ângulo torto da foto, ou a cor levemente mais escura/opaca devido à tinta e calibração da impressora. Ignore também acessórios como wire-o, elásticos, tassel ou dedos do operador.
-5. RIGIDEZ VISUAL (PROIBIDO IGNORAR): Você é ESTRITAMENTE PROIBIDA de ignorar mudanças na ilustração em si. Se elementos desenhados forem diferentes, se os nomes impressos na arte não baterem (exceto nomes personalizados), ou se a cor principal mudar DRASTICAMENTE, SÃO PRODUTOS DIFERENTES.
-
-ETAPA 3: DECISÃO FINAL (DEVOLVER NO JSON)
-1. Se uma das candidatas possuir a mesma ilustração e paleta essencial, defina 'winner_code' com o CAPA_CODE dessa candidata, 'exact_match'=true e 'confidence' entre 0.70 e 1.00.
-2. Se nenhuma candidata corresponder exatamente à ilustração, retorne 'winner_code'="NONE", 'exact_match'=false e 'confidence' baixa.`;
+DECISÃO:
+- Se houver correspondência inequívoca de ARTE-BASE, retorne winner_code com o CAPA_CODE, exact_match=true e confidence entre 0 e 1.
+- Caso contrário, retorne winner_code="NONE", exact_match=false e confidence baixa.
+- reason_code deve ser curto e técnico, por exemplo: exact_base_art, different_illustration, different_layout, insufficient_visual_evidence.`;
 
   const parts = [
     { text: prompt },
@@ -366,85 +359,70 @@ ETAPA 3: DECISÃO FINAL (DEVOLVER NO JSON)
     });
   }
 
-  const candidateModels = [
-    env.GEMINI_VERIFIER_MODEL,
-    'gemini-1.5-flash-8b',
-    'gemini-3.6-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
-  ].filter(Boolean);
-  const models = [...new Set(candidateModels)];
-
-  let lastError = null;
   try {
-    for (const model of models) {
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-          {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-              'x-goog-api-key': env.GEMINI_API_KEY
-            },
-            signal: controller.signal,
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts }],
-              generationConfig: {
-                temperature: 0,
-                maxOutputTokens: 1024,
-                response_mime_type: 'application/json',
-                response_schema: {
-                  type: 'OBJECT',
-                  properties: {
-                    winner_code: { type: 'STRING' },
-                    exact_match: { type: 'BOOLEAN' },
-                    confidence: { type: 'NUMBER' }
-                  },
-                  required: [
-                    'winner_code',
-                    'exact_match',
-                    'confidence'
-                  ]
-                }
-              }
-            })
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-goog-api-key': env.GEMINI_API_KEY
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts }],
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 256,
+            response_mime_type: 'application/json',
+            response_schema: {
+              type: 'OBJECT',
+              properties: {
+                winner_code: { type: 'STRING' },
+                exact_match: { type: 'BOOLEAN' },
+                confidence: { type: 'NUMBER' },
+                reason_code: { type: 'STRING' }
+              },
+              required: [
+                'winner_code',
+                'exact_match',
+                'confidence',
+                'reason_code'
+              ]
+            }
           }
-        );
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          const detail = geminiErrorDetail(payload);
-          lastError = new RecognitionError(
-            detail
-              ? `Gemini comparador (${model}) falhou (${response.status}): ${detail}`
-              : `Gemini comparador (${model}) falhou (${response.status})`,
-            [429, 500, 502, 503, 504].includes(response.status) ? 503 : 502,
-            `catalog_comparator_http_${response.status}`
-          );
-          continue;
-        }
-
-        const parsed = parseStructuredJson(await response.json());
-        const allowedCodes = new Set(candidates.map(item => item.capa_code));
-        return {
-          model,
-          elapsed_ms: Date.now() - started,
-          decision: normalizeDecision(parsed, allowedCodes)
-        };
-      } catch (err) {
-        if (controller.signal.aborted || err?.name === 'AbortError') {
-          throw new RecognitionError(
-            'A análise visual excedeu o tempo disponível.',
-            503,
-            'catalog_comparator_timeout'
-          );
-        }
-        lastError = err;
+        })
       }
+    );
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      const detail = geminiErrorDetail(payload);
+      throw new RecognitionError(
+        detail
+          ? `Gemini comparador (${model}) falhou (${response.status}): ${detail}`
+          : `Gemini comparador (${model}) falhou (${response.status})`,
+        [429, 500, 502, 503, 504].includes(response.status) ? 503 : 502,
+        `catalog_comparator_http_${response.status}`
+      );
     }
 
-    throw lastError || new RecognitionError('Falha ao comparar com IA.', 503, 'comparator_failed');
+    const parsed = parseStructuredJson(await response.json());
+    const allowedCodes = new Set(candidates.map(item => item.capa_code));
+    return {
+      model,
+      elapsed_ms: Date.now() - started,
+      decision: normalizeDecision(parsed, allowedCodes)
+    };
+  } catch (err) {
+    if (controller.signal.aborted || err?.name === 'AbortError') {
+      throw new RecognitionError(
+        'A análise visual excedeu o tempo disponível.',
+        503,
+        'catalog_comparator_timeout'
+      );
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -540,8 +518,8 @@ async function successResponse(
 export async function structuralFinalIdentifyV8(request, env) {
   const started = Date.now();
   const performance = {
-    pipeline_version: 'platform-vectorize+comparative-six-v8.7',
-    verification_mode: 'single-call-multi-candidate-exact-art',
+    pipeline_version: 'platform-vectorize+single-gemini-v8.8',
+    verification_mode: 'single-model-exact-art-fail-closed',
     retrieval_source: 'vectorize-platform-ticket-reuse',
     reused_candidates: true,
     candidate_transport: 'inline-r2-bytes'
@@ -619,9 +597,6 @@ export async function structuralFinalIdentifyV8(request, env) {
     )).filter(Boolean);
     performance.reference_load_ms = Date.now() - referenceStarted;
 
-    // ⚡ Priorização de Capas Treinadas pelo ADM (real_scan)
-    // Se há alguma referência real treinada pelo ADM com boa pontuação (>= 0.82)
-    // trazemos ela para o topo da lista de verificação para garantir prioridade de aprendizado.
     loaded.sort((a, b) => {
       const aTrained = a.reference_kind === 'real_scan' && Number(a.retrieval_score || 0) >= 0.82;
       const bTrained = b.reference_kind === 'real_scan' && Number(b.retrieval_score || 0) >= 0.82;
@@ -665,8 +640,10 @@ export async function structuralFinalIdentifyV8(request, env) {
     }
 
     performance.gemini_ms = Date.now() - verifyStarted;
-    performance.gemini_calls = comparison ? 1 : 0;
-    performance.model = comparison?.model || env.GEMINI_VERIFIER_MODEL || env.GEMINI_MODEL || null;
+    performance.gemini_calls = ['gemini_not_configured', 'gemini_local_budget_exhausted'].includes(comparatorError?.code)
+      ? 0
+      : 1;
+    performance.model = comparison?.model || env.GEMINI_VERIFIER_MODEL || 'gemini-3.6-flash';
 
     if (comparison) {
       const decision = comparison.decision;
@@ -680,7 +657,8 @@ export async function structuralFinalIdentifyV8(request, env) {
       if (
         decision.winner_code &&
         decision.winner_code !== 'NONE' &&
-        (decision.exact_match || decision.confidence >= MIN_STRUCTURAL_CONFIDENCE)
+        decision.exact_match === true &&
+        decision.confidence >= MIN_STRUCTURAL_CONFIDENCE
       ) {
         const winnerCode = decision.winner_code;
         const candidateMap = new Map(loaded.map(c => [c.capa_code, c]));
@@ -695,7 +673,7 @@ export async function structuralFinalIdentifyV8(request, env) {
             platform,
             Math.max(decision.confidence, 0.75),
             performance,
-            'platform-catalog-v8.7-comparative-winner'
+            'platform-catalog-v8.8-comparative-winner'
           );
         }
       }
@@ -706,25 +684,8 @@ export async function structuralFinalIdentifyV8(request, env) {
       performance.comparator_error_message = comparatorError.message || null;
       performance.verifier_reason_code = performance.comparator_error;
       performance.verifier_evidence = String(comparatorError.message || '').slice(0, 220);
-
-      // Fallback de ultra-alta confiança: apenas se o vetor tem score >= 0.94 (para não confundir monogramas parecidos)
-      if (loaded.length && Number(loaded[0].retrieval_score || 0) >= 0.94) {
-        const topWinner = loaded[0];
-        performance.accepted_by = 'vector-ultra-high-confidence-fallback-on-comparator-timeout';
-        performance.suggestion_count = 0;
-        finalizePerformance(performance, started);
-        return successResponse(
-          env,
-          topWinner,
-          platform,
-          Number(topWinner.retrieval_score || 0.94),
-          performance,
-          'platform-catalog-vector-high-confidence-fallback'
-        );
-      }
     }
 
-    // Registra ocorrência de falha no D1/R2 para aprendizado no Painel ADM
     let occurrenceId = null;
     try {
       let operatorName = null;
@@ -740,49 +701,14 @@ export async function structuralFinalIdentifyV8(request, env) {
         platform,
         suggestedCapaCode: loaded[0]?.capa_code || null,
         confidence: comparison?.decision?.confidence || (loaded[0]?.retrieval_score || 0),
-        errorReason: comparatorError ? 'comparator_timeout' : 'no_exact_winner',
+        errorReason: comparatorError
+          ? (comparatorError.code || 'catalog_comparison_failed')
+          : 'no_exact_winner',
         operatorName,
         operatorId
       });
     } catch (e) {
       console.error('Falha ao gravar ocorrencia:', e);
-    }
-
-    // Se temos candidatos recuperados pelo vetor, carrega os produtos correspondentes para seleção na tela
-    if (loaded.length > 0) {
-      const candidateProducts = [];
-      const seenIds = new Set();
-      
-      for (const cand of loaded.slice(0, 8)) {
-        const prods = await productsForCover(env, cand.capa_code, platform);
-        for (const p of prods) {
-          if (!seenIds.has(p.id)) {
-            seenIds.add(p.id);
-            candidateProducts.push(productPayload(p));
-          }
-          if (candidateProducts.length >= 6) break;
-        }
-        if (candidateProducts.length >= 6) break;
-      }
-
-      if (candidateProducts.length > 0) {
-        performance.accepted_by = 'human-selection-from-candidates';
-        performance.suggestion_count = candidateProducts.length;
-        finalizePerformance(performance, started);
-
-        return json({
-          ok: true,
-          multiple_choices: true,
-          capa_code: loaded[0].capa_code,
-          products: candidateProducts,
-          confidence: Number(loaded[0].retrieval_score || 0.75),
-          suggestions: candidateProducts,
-          suggestions_are_unconfirmed: true,
-          identified_by: 'platform-catalog-v8.7-human-selection',
-          occurrence_id: occurrenceId,
-          performance
-        });
-      }
     }
 
     performance.accepted_by = comparatorError
@@ -792,13 +718,15 @@ export async function structuralFinalIdentifyV8(request, env) {
     finalizePerformance(performance, started);
 
     return json({
-      error: `Produto não identificado na plataforma ${platform}. Verifique o enquadramento ou cadastre no catálogo.`,
+      error: comparatorError
+        ? 'Não foi possível confirmar a capa com segurança. Tente outra foto.'
+        : `Produto não identificado na plataforma ${platform}. Verifique o enquadramento ou cadastre no catálogo.`,
       confidence: comparison?.decision?.confidence || 0,
       platform,
       suggested_platform: null,
       suggestions: [],
       suggestions_are_unconfirmed: false,
-      identified_by: 'platform-catalog-no-match-v8.7',
+      identified_by: 'platform-catalog-no-match-v8.8',
       performance,
       occurrence_id: occurrenceId,
       sent_to_adm: true
@@ -839,7 +767,7 @@ export async function identifyProductByDetail(request, env) {
     const bytes = new Uint8Array(await image.arrayBuffer());
     const model = env.GEMINI_VERIFIER_MODEL || env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
-    const productListDesc = products.map((p, idx) => 
+    const productListDesc = products.map((p, idx) =>
       `Opção [${idx}]: SKU="${p.sku}", Nome="${p.nome || ''}", Variação="${p.variacao || ''}", Miolo="${p.miolo_code}", Acabamento="${p.acabamento_code}"`
     ).join('\n');
 
