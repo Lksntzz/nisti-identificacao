@@ -83,16 +83,41 @@ test('Live shadow: normalization keeps production decision informational and sha
     production_http_status: 200,
     production_capa_code: 'A',
     production_identified_by: 'retrieval-score-margin-fastpath',
+    content_independent: true,
+    same_content_reference_count: 0,
+    reference_load_error_count: 0,
     geometric_evaluated: false
   }, signedPayload());
 
   assert.equal(normalized.platform, 'SHOPEE');
   assert.equal(normalized.photo_sha256, 'a'.repeat(64));
+  assert.equal(normalized.content_independent, true);
   assert.equal(normalized.retrieval.eligible, false);
   assert.equal(normalized.geometric.eligible, false);
   const detail = JSON.parse(normalized.evidence_json);
   assert.equal(detail.production.capa_code, 'A');
   assert.equal(detail.shadow_version, 'v8.18');
+});
+
+test('Live shadow: same-content reference makes geometric evidence fail closed', () => {
+  const normalized = normalizeLiveEvidence({
+    photo_sha256: 'b'.repeat(64),
+    content_independent: false,
+    same_content_reference_count: 1,
+    reference_load_error_count: 0,
+    geometric_evaluated: true,
+    geometric_capa_code: 'B',
+    geometric_score: 20,
+    geometric_runner_up_score: 0,
+    geometric_good_matches: 30,
+    geometric_inliers: 25,
+    geometric_inlier_ratio: 0.83,
+    geometric_reference_coverage: 0.4
+  }, signedPayload());
+
+  assert.equal(normalized.content_independent, false);
+  assert.equal(normalized.same_content_reference_count, 1);
+  assert.equal(normalized.geometric.eligible, false);
 });
 
 test('Live shadow: rollout evidence dedupes exact photos and stays blocked below 30 incrementals', () => {
@@ -101,6 +126,7 @@ test('Live shadow: rollout evidence dedupes exact photos and stays blocked below
     evidence_token: `t${id}`,
     photo_sha256: hash,
     platform: id % 2 ? 'SHOPEE' : 'MERCADO LIVRE',
+    content_independent: 1,
     retrieval_fastpath_eligible: 0,
     retrieval_capa_code: 'WRONG',
     geometric_evaluated: 1,
@@ -127,12 +153,32 @@ test('Live shadow: rollout evidence dedupes exact photos and stays blocked below
   assert.equal(summary.rollout_evidence.safe_for_promotion, false);
 });
 
+test('Live shadow: non-independent confirmed rows are excluded from rollout evidence', () => {
+  const summary = summarizeGeometricShadowEvidence([{
+    id: 1,
+    evidence_token: 'leak-1',
+    photo_sha256: 'e'.repeat(64),
+    platform: 'SHOPEE',
+    content_independent: 0,
+    retrieval_fastpath_eligible: 0,
+    geometric_evaluated: 1,
+    geometric_eligible: 1,
+    geometric_capa_code: 'A',
+    confirmed_capa_code: 'A'
+  }], { total_rows: 1, pending_rows: 0, confirmed_rows: 1 });
+
+  assert.equal(summary.excluded_non_independent_confirmed_rows, 1);
+  assert.equal(summary.confirmed_unique, 0);
+  assert.equal(summary.overall.geometric_incremental.accepted, 0);
+});
+
 test('Live shadow: a confirmed wrong geometric decision is counted as a false positive', () => {
   const summary = summarizeGeometricShadowEvidence([{
     id: 1,
     evidence_token: 'bad-1',
     photo_sha256: 'f'.repeat(64),
     platform: 'SHOPEE',
+    content_independent: 1,
     retrieval_fastpath_eligible: 0,
     retrieval_capa_code: 'A',
     geometric_evaluated: 1,
