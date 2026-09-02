@@ -323,12 +323,16 @@ export function summarizeHybridGates(results) {
   const dedupedObserved = summarizeAccepted(deduped, observedDecide);
   const dedupedStrict = summarizeAccepted(deduped, strictDecide);
   const dedupedEvaluated = deduped.filter(item => item.status === 'evaluated');
+  const skippedCount = (results || []).filter(item => item.status !== 'evaluated').length;
   const labelConflictCount = duplicates.filter(group => group.label_conflict).length;
-  const referenceContentHoldoutComplete = dedupedEvaluated.length > 0 && dedupedEvaluated.every(item =>
-    item?.content_holdout?.applied === true &&
-    item?.content_holdout?.query_hash_missing !== true &&
-    Number(item?.content_holdout?.unhashed_reference_count || 0) === 0
-  );
+  const referenceContentHoldoutComplete = skippedCount === 0 &&
+    dedupedEvaluated.length > 0 &&
+    dedupedEvaluated.every(item =>
+      item?.content_holdout?.applied === true &&
+      item?.content_holdout?.query_hash_missing !== true &&
+      Number(item?.content_holdout?.unhashed_reference_count || 0) === 0 &&
+      Number(item?.content_holdout?.load_error_count || 0) === 0
+    );
   const incremental = dedupedStrict.geometric_incremental;
   const rolloutSafe = referenceContentHoldoutComplete &&
     labelConflictCount === 0 &&
@@ -361,6 +365,7 @@ export function summarizeHybridGates(results) {
       observed_unique_hybrid_incorrect: dedupedStrict.incorrect,
       exact_query_deduplication_applied: true,
       reference_content_holdout_complete: referenceContentHoldoutComplete,
+      benchmark_skipped: skippedCount,
       duplicate_label_conflicts: labelConflictCount,
       safe_for_promotion: rolloutSafe
     },
