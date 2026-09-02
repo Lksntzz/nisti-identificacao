@@ -335,9 +335,6 @@ DECISÃO:
       inline_data: {
         mime_type: photoMime || 'image/jpeg',
         data: base64(photoBytes)
-      },
-      media_resolution: {
-        level: 'MEDIA_RESOLUTION_MEDIUM'
       }
     }
   ];
@@ -358,9 +355,6 @@ DECISÃO:
       inline_data: {
         mime_type: candidate.mime_type,
         data: base64(candidate.bytes)
-      },
-      media_resolution: {
-        level: 'MEDIA_RESOLUTION_MEDIUM'
       }
     });
   }
@@ -381,6 +375,7 @@ DECISÃO:
             thinkingConfig: {
               thinkingLevel: 'minimal'
             },
+            mediaResolution: 'MEDIA_RESOLUTION_MEDIUM',
             maxOutputTokens: 128,
             response_mime_type: 'application/json',
             response_schema: {
@@ -526,13 +521,13 @@ async function successResponse(
 export async function structuralFinalIdentifyV8(request, env) {
   const started = Date.now();
   const performance = {
-    pipeline_version: 'platform-vectorize+gemini36-minimal-v8.9',
+    pipeline_version: 'platform-vectorize+gemini36-minimal-v8.9.1',
     verification_mode: 'single-model-exact-art-fail-closed-minimal-thinking',
     retrieval_source: 'vectorize-platform-ticket-reuse',
     reused_candidates: true,
     candidate_transport: 'inline-r2-bytes',
     verifier_thinking_level: 'minimal',
-    verifier_media_resolution: 'medium'
+    verifier_media_resolution: 'medium-global'
   };
 
   try {
@@ -683,7 +678,7 @@ export async function structuralFinalIdentifyV8(request, env) {
             platform,
             Math.max(decision.confidence, 0.75),
             performance,
-            'platform-catalog-v8.9-comparative-winner'
+            'platform-catalog-v8.9.1-comparative-winner'
           );
         }
       }
@@ -736,7 +731,7 @@ export async function structuralFinalIdentifyV8(request, env) {
       suggested_platform: null,
       suggestions: [],
       suggestions_are_unconfirmed: false,
-      identified_by: 'platform-catalog-no-match-v8.9',
+      identified_by: 'platform-catalog-no-match-v8.9.1',
       performance,
       occurrence_id: occurrenceId,
       sent_to_adm: true
