@@ -24,15 +24,26 @@ for (const [from, to] of replacements) {
   source = source.replace(from, to);
 }
 
+const fakeDateFallback = "return { date: '18/05/2026', time: '20:00' };";
+const truthfulDateFallback = "return { date: '—', time: '' };";
+const fakeDateCount = source.split(fakeDateFallback).length - 1;
+if (fakeDateCount !== 0 && fakeDateCount !== 2) {
+  throw new Error(`Fallback de data: esperado 0 ou 2 marcadores, encontrado ${fakeDateCount}`);
+}
+if (fakeDateCount === 2) {
+  source = source.split(fakeDateFallback).join(truthfulDateFallback);
+}
+
 for (const forbidden of [
   '100% de garantia',
   'menos de 50 milissegundos',
-  'sem depender do Gemini'
+  'sem depender do Gemini',
+  '18/05/2026'
 ]) {
   if (source.includes(forbidden)) {
-    throw new Error(`Afirmação não verificável ainda presente em src/main.jsx: ${forbidden}`);
+    throw new Error(`Afirmação/dado não verificável ainda presente em src/main.jsx: ${forbidden}`);
   }
 }
 
 fs.writeFileSync(file, source, 'utf8');
-console.log('✓ Texto da base vetorial corrigido: sem garantia absoluta, latência fixa ou independência fictícia do Gemini.');
+console.log('✓ Textos administrativos corrigidos: sem garantia absoluta, latência fixa, independência fictícia do Gemini ou data fallback inventada.');
