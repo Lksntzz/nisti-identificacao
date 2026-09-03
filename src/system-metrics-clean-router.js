@@ -132,7 +132,7 @@ async function handleSystemMetrics(env) {
       COUNT(*) AS embeddings_updated_today,
       COUNT(DISTINCT reference_id) AS references_updated_today
     FROM cover_reference_embeddings
-    WHERE substr(updated_at, 1, 10) = ?
+    WHERE date(datetime(updated_at, '-3 hours')) = ?
   `).bind(today).first();
 
   const recognition = await readRecognitionMetrics(env);
