@@ -25,6 +25,7 @@ function row(overrides = {}) {
     created_at: '2026-09-02 22:59:00',
     updated_at: '2026-09-02 23:00:00',
     evidence_json: JSON.stringify({
+      evidence_schema_version: 'v8.23',
       production: { http_status: 200, capa_code: 'LTE2', identified_by: 'fallback' },
       processing_ms: 742,
       retrieval: {
@@ -34,7 +35,11 @@ function row(overrides = {}) {
         top2_code: 'LTE1',
         top2_score: 0.9181,
         margin: 0.0033,
-        reference_kind: 'product'
+        reference_kind: 'product',
+        candidates: [
+          { capa_code: 'LTE2', retrieval_score: 0.9214, vector_rank: 1, reference_id: 101, reference_kind: 'product' },
+          { capa_code: 'LTE1', retrieval_score: 0.9181, vector_rank: 2, reference_id: 102, reference_kind: 'real_scan' }
+        ]
       },
       geometric: {
         evaluated: true,
@@ -64,6 +69,11 @@ test('v8.20 observability marks a strict geometric recovery that would fix produ
   assert.equal(normalized.would_worsen_production, false);
   assert.equal(normalized.geometric.capa_code, 'LTE1');
   assert.equal(normalized.retrieval.margin, 0.0033);
+  assert.equal(normalized.evidence_schema_version, 'v8.23');
+  assert.equal(normalized.retrieval.candidate_count, 2);
+  assert.deepEqual(normalized.retrieval.candidates.map(candidate => candidate.capa_code), ['LTE2', 'LTE1']);
+  assert.equal(normalized.retrieval.candidates[1].reference_id, 102);
+  assert.equal(normalized.retrieval.candidates[1].reference_kind, 'real_scan');
 });
 
 test('v8.20 observability marks a geometric false positive that would worsen a correct production result', () => {
@@ -79,6 +89,7 @@ test('v8.20 observability marks a geometric false positive that would worsen a c
   assert.equal(normalized.verdict, 'geometric_incremental_incorrect');
   assert.equal(normalized.would_fix_production, false);
   assert.equal(normalized.would_worsen_production, true);
+  assert.deepEqual(normalized.retrieval.candidates, []);
 });
 
 test('v8.20 observability keeps pending evidence out of correctness claims', () => {

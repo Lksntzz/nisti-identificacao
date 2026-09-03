@@ -97,6 +97,11 @@ test('Live shadow: normalization keeps production decision informational and sha
   const detail = JSON.parse(normalized.evidence_json);
   assert.equal(detail.production.capa_code, 'A');
   assert.equal(detail.shadow_version, 'v8.18');
+  assert.equal(detail.evidence_schema_version, 'v8.23');
+  assert.deepEqual(detail.retrieval.candidates.map(candidate => candidate.capa_code), ['A', 'B', 'C']);
+  assert.deepEqual(detail.retrieval.candidates.map(candidate => candidate.vector_rank), [1, 2, 3]);
+  assert.equal(detail.retrieval.candidates[2].reference_id, 3);
+  assert.equal(detail.retrieval.candidates[2].reference_kind, 'real_scan');
 });
 
 test('Live shadow: same-content reference makes geometric evidence fail closed', () => {
