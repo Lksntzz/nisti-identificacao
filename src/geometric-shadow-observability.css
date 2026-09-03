@@ -486,3 +486,28 @@
     width: 100%;
   }
 }
+
+
+/* v8.22: observabilidade integrada ao shell do Painel ADM */
+.shadow-observability-page.embedded {
+  min-height: 0;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+}
+
+.shadow-observability-page.embedded .shadow-observability-header,
+.shadow-observability-page.embedded .shadow-error,
+.shadow-observability-page.embedded .shadow-loading,
+.shadow-observability-page.embedded .shadow-metrics-grid,
+.shadow-observability-page.embedded .shadow-rollout-card,
+.shadow-observability-page.embedded .shadow-platform-grid,
+.shadow-observability-page.embedded .shadow-evidence-card,
+.shadow-observability-page.embedded .shadow-observability-footer {
+  max-width: none;
+}
+
+.shadow-observability-page.embedded .shadow-observability-header {
+  border-radius: 14px;
+  box-shadow: none;
+}

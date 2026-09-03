@@ -37,10 +37,12 @@ test('Admin navigation does not reintroduce removed duplicate/dead entries', () 
 test('Operator identification remains a utility outside the admin tool menu', () => {
   const hrefs = flattenedItems().map(item => item.href).filter(Boolean);
   assert.equal(hrefs.includes('/'), false);
-  assert.equal(
-    flattenedItems().find(item => item.id === 'shadow-observability')?.href,
-    '/admin/shadow-observability'
-  );
+});
+
+test('Shadow observability is embedded instead of navigating to a standalone admin page', () => {
+  const shadow = flattenedItems().find(item => item.id === 'shadow-observability');
+  assert.ok(shadow);
+  assert.equal(shadow.href, undefined);
 });
 
 test('Admin navigation keeps catalog, correction, audit, AI quality and health capabilities', () => {

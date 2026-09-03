@@ -1,6 +1,6 @@
 import app from './system-metrics-clean-router.js';
 
-const R2_FREE_INCLUDED_BYTES = 10 * 1000 * 1000 * 1000;
+const R2_FREE_STANDARD_STORAGE_REFERENCE_BYTES = 10 * 1000 * 1000 * 1000;
 const MAX_PAGES = 20;
 
 function json(data, status = 200) {
@@ -46,11 +46,16 @@ async function measureBucket(bucket) {
     status: 'online',
     object_count: objects,
     used_bytes: usedBytes,
+    measurement: complete ? 'complete_bucket_snapshot' : 'partial_bucket_snapshot',
     complete,
     pages_scanned: pages,
-    free_included_storage_bytes: R2_FREE_INCLUDED_BYTES,
-    percent_of_free_included_storage: usedBytes ? (usedBytes / R2_FREE_INCLUDED_BYTES) * 100 : 0,
-    bucket_storage_limit: 'unlimited'
+    max_objects_scanned: MAX_PAGES * 1000,
+    free_standard_storage_reference_bytes: R2_FREE_STANDARD_STORAGE_REFERENCE_BYTES,
+    snapshot_percent_of_10gb_reference: usedBytes
+      ? (usedBytes / R2_FREE_STANDARD_STORAGE_REFERENCE_BYTES) * 100
+      : 0,
+    billing_usage: null,
+    billing_note: 'R2 cobra armazenamento em GB-mês e operações. Este endpoint mede o tamanho atual do bucket; não representa a fatura mensal nem as operações Class A/B.'
   };
 }
 
