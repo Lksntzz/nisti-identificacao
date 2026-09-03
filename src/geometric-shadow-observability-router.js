@@ -31,6 +31,21 @@ function parseEvidenceJson(value) {
   }
 }
 
+function normalizeRetrievalCandidates(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, 10)
+    .map((candidate, index) => ({
+      capa_code: normalizeCode(candidate?.capa_code),
+      retrieval_score: finite(candidate?.retrieval_score),
+      vector_rank: Number(candidate?.vector_rank || index + 1) || index + 1,
+      reference_id: Number(candidate?.reference_id || 0) || null,
+      reference_kind: String(candidate?.reference_kind || '').trim().toLowerCase() || null
+    }))
+    .filter(candidate => candidate.capa_code && candidate.retrieval_score !== null)
+    .sort((a, b) => a.vector_rank - b.vector_rank);
+}
+
 function clampLimit(value) {
   const parsed = Number(value || DEFAULT_LIMIT);
   if (!Number.isFinite(parsed)) return DEFAULT_LIMIT;
@@ -42,6 +57,7 @@ export function normalizeObservabilityRow(row) {
   const retrieval = evidence?.retrieval || {};
   const geometric = evidence?.geometric || {};
   const production = evidence?.production || {};
+  const retrievalCandidates = normalizeRetrievalCandidates(retrieval?.candidates);
 
   const truth = normalizeCode(row?.confirmed_capa_code);
   const productionCode = normalizeCode(production?.capa_code);
@@ -96,6 +112,7 @@ export function normalizeObservabilityRow(row) {
     occurrence_id: Number(row?.occurrence_id || 0) || null,
     shadow_version: row?.shadow_version || evidence?.shadow_version || null,
     gate_version: row?.gate_version || evidence?.gate_version || null,
+    evidence_schema_version: evidence?.evidence_schema_version || null,
     created_at: row?.created_at || null,
     updated_at: row?.updated_at || null,
     confirmed_at: row?.confirmed_at || null,
@@ -116,7 +133,9 @@ export function normalizeObservabilityRow(row) {
       top2_code: normalizeCode(retrieval?.top2_code),
       top2_score: finite(retrieval?.top2_score),
       margin: finite(retrieval?.margin),
-      reference_kind: retrieval?.reference_kind || null
+      reference_kind: retrieval?.reference_kind || null,
+      candidate_count: Number(evidence?.candidate_count || retrievalCandidates.length) || retrievalCandidates.length,
+      candidates: retrievalCandidates
     },
     geometric: {
       evaluated: Number(row?.geometric_evaluated || 0) === 1,
@@ -204,7 +223,7 @@ export async function buildGeometricShadowObservability(env, { limit = DEFAULT_L
   };
 
   return {
-    observability_version: 'v8.20',
+    observability_version: 'v8.23',
     generated_at: new Date().toISOString(),
     production_changed: false,
     summary,

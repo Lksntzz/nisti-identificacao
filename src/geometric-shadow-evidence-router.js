@@ -4,6 +4,7 @@ import { normalizePlatform } from './platform-scope.js';
 const SHADOW_PURPOSE = 'geometric-shadow-evidence-v818';
 const SHADOW_VERSION = 'v8.18';
 const GATE_VERSION = 'strict_core_v816';
+const EVIDENCE_SCHEMA_VERSION = 'v8.23';
 const RETRIEVAL_MIN_SCORE = 0.920;
 const RETRIEVAL_MIN_MARGIN = 0.008;
 const ALLOWED_REFERENCE_KINDS = new Set(['product', 'real_scan']);
@@ -224,6 +225,7 @@ export function normalizeLiveEvidence(body, signedPayload) {
     evidence_json: JSON.stringify({
       shadow_version: SHADOW_VERSION,
       gate_version: GATE_VERSION,
+      evidence_schema_version: EVIDENCE_SCHEMA_VERSION,
       production: {
         http_status: Number(body?.production_http_status || 0) || null,
         capa_code: normalizeCode(body?.production_capa_code) || null,
@@ -236,7 +238,10 @@ export function normalizeLiveEvidence(body, signedPayload) {
         same_content_reference_count: sameContentReferenceCount,
         reference_load_error_count: referenceLoadErrorCount
       },
-      retrieval,
+      retrieval: {
+        ...retrieval,
+        candidates
+      },
       geometric
     })
   };
