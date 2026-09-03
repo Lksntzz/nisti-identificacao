@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import './app.css';
 import LOGO from './assets/logo.png';
+import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';
 
 const PAGE_SIZE = 10;
 
@@ -190,42 +190,7 @@ function pageItems(page, pages) {
 /* =========================================================================
    SIDEBAR COMPONENT
    ========================================================================= */
-function AdminSidebar({ activeView, onViewChange, unreadCount, sidebarOpen, onCloseSidebar }) {
-  const menuSections = [
-    {
-      title: 'PRINCIPAL',
-      items: [
-        { id: 'identificacao', label: 'Identificação Visual', icon: 'eye', href: '/' },
-        { id: 'catalogo', label: 'Catálogo de Produtos', icon: 'grid' },
-        { id: 'nao-identificados', label: 'Produtos Não Identificados', icon: 'alert' },
-        { id: 'similares', label: 'Produtos Similares', icon: 'sparkles' },
-        { id: 'verificar', label: 'Verificar Capa', icon: 'shield-check' },
-      ]
-    },
-    {
-      title: 'CADASTRO',
-      items: [
-        { id: 'cadastrar', label: 'Cadastrar Produto', icon: 'box-plus' },
-        { id: 'importar', label: 'Importar Produtos', icon: 'cloud-upload' },
-      ]
-    },
-    {
-      title: 'RELATÓRIOS',
-      items: [
-        { id: 'historico', label: 'Histórico de Identificações', icon: 'history' },
-        { id: 'logs', label: 'Logs do Sistema', icon: 'terminal' },
-      ]
-    },
-    {
-      title: 'EQUIPE & CONFIGURAÇÕES',
-      items: [
-        { id: 'usuarios', label: 'Operadores & Ocorrências', icon: 'users' },
-        { id: 'plataformas', label: 'Plataformas', icon: 'layers' },
-        { id: 'configuracoes', label: 'Configurações', icon: 'settings' },
-      ]
-    }
-  ];
-
+function AdminSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar }) {
   return (
     <>
       {sidebarOpen && <div className="sidebar-mobile-backdrop" onClick={onCloseSidebar} />}
@@ -241,19 +206,24 @@ function AdminSidebar({ activeView, onViewChange, unreadCount, sidebarOpen, onCl
         </div>
 
         <div className="sidebar-highlight-wrap">
-          <a href="/" className="sidebar-highlight-btn">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <rect x="3" y="3" width="7" height="7" rx="1.5" />
-              <rect x="14" y="3" width="7" height="7" rx="1.5" />
-              <rect x="3" y="14" width="7" height="7" rx="1.5" />
-              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          <a
+            href="/"
+            className="sidebar-highlight-btn"
+            target="_blank"
+            rel="noreferrer"
+            title="Abrir o painel operacional em uma nova aba"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 3h7v7" />
+              <path d="M10 14 21 3" />
+              <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
             </svg>
-            <span>Painel Geral</span>
+            <span>Abrir NISTI ID</span>
           </a>
         </div>
 
         <nav className="sidebar-nav">
-          {menuSections.map(section => (
+          {ADMIN_MENU_SECTIONS.map(section => (
             <div key={section.title} className="sidebar-section">
               <span className="sidebar-section-title">{section.title}</span>
               <ul className="sidebar-section-list">
@@ -322,32 +292,20 @@ function SidebarIcon({ name }) {
   };
 
   switch (name) {
-    case 'eye':
-      return <svg {...props}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>;
     case 'brain':
       return <svg {...props}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04ZM14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z"/></svg>;
     case 'grid':
       return <svg {...props}><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>;
     case 'alert':
       return <svg {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>;
-    case 'sparkles':
-      return <svg {...props}><path d="m12 3 1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" /></svg>;
     case 'shield-check':
       return <svg {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>;
-    case 'box-plus':
-      return <svg {...props}><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>;
-    case 'cloud-upload':
-      return <svg {...props}><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" /><path d="M12 12v9" /><path d="m16 16-4-4-4 4" /></svg>;
     case 'history':
       return <svg {...props}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
     case 'terminal':
       return <svg {...props}><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>;
-    case 'layers':
-      return <svg {...props}><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>;
     case 'users':
       return <svg {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
-    case 'settings':
-      return <svg {...props}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
     default:
       return null;
   }
@@ -2852,55 +2810,6 @@ function SystemLogsView({ metrics, storage, indexInfo, onRefresh }) {
 }
 
 /* =========================================================================
-   PLATFORMS MANAGEMENT VIEW
-   ========================================================================= */
-function PlatformsView({ products, onRefresh }) {
-  const platformStats = useMemo(() => {
-    const map = {};
-    products.forEach(p => {
-      const plat = (p.platform || 'OUTROS').toUpperCase();
-      if (!map[plat]) map[plat] = { count: 0, withImage: 0 };
-      map[plat].count++;
-      if (p.image_url) map[plat].withImage++;
-    });
-    return Object.entries(map).map(([name, data]) => ({ name, ...data }));
-  }, [products]);
-
-  return (
-    <div className="admin-table-card">
-      <div className="table-card-topbar">
-        <div className="table-title-group">
-          <div className="table-title-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 2 7 12 12 22 7 12 2" />
-              <polyline points="2 17 12 22 22 17" />
-              <polyline points="2 12 12 17 22 12" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="table-main-title">Plataformas de Venda</h3>
-            <span className="table-sub-title">Canais integrados e distribuição do catálogo de produtos</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="admin-metrics-grid" style={{ padding: '0 24px 24px' }}>
-        {platformStats.map(plat => (
-          <div key={plat.name} className="system-metric-box">
-            <div className="metric-box-head">
-              <PlatformTag platform={plat.name} />
-              <span className="status-pill active">• Ativa</span>
-            </div>
-            <div className="metric-big-num" style={{ marginTop: '12px' }}>{plat.count} produtos</div>
-            <p>{plat.withImage} mockups cadastrados ({Math.round(plat.withImage / (plat.count || 1) * 100)}% de cobertura).</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================================
    TEST COVER VERIFIER VIEW
    ========================================================================= */
 function CoverVerifierView() {
@@ -3092,17 +3001,7 @@ function AdminApp() {
     return new Set(products.map(p => p.platform).filter(Boolean)).size || 4;
   }, [products]);
 
-  const handleNavChange = viewId => {
-    if (viewId === 'cadastrar') {
-      setCreateModalOpen(true);
-      return;
-    }
-    if (viewId === 'importar') {
-      setImportModalOpen(true);
-      return;
-    }
-    setActiveView(viewId);
-  };
+  const handleNavChange = viewId => setActiveView(viewId);
 
   if (loading) {
     return (
@@ -3118,7 +3017,6 @@ function AdminApp() {
       <AdminSidebar
         activeView={activeView}
         onViewChange={handleNavChange}
-        unreadCount={unreadCount}
         sidebarOpen={sidebarOpen}
         onCloseSidebar={() => setSidebarOpen(false)}
       />
@@ -3152,15 +3050,6 @@ function AdminApp() {
             <DiagnosticsView filter="issues" />
           )}
 
-          {activeView === 'similares' && (
-            <CatalogView
-              products={products}
-              onRefresh={refreshAll}
-              onOpenCreate={() => setCreateModalOpen(true)}
-              onOpenImport={() => setImportModalOpen(true)}
-            />
-          )}
-
           {activeView === 'verificar' && (
             <CoverVerifierView />
           )}
@@ -3178,27 +3067,11 @@ function AdminApp() {
             />
           )}
 
-          {activeView === 'plataformas' && (
-            <PlatformsView
-              products={products}
-              onRefresh={refreshAll}
-            />
-          )}
-
           {activeView === 'usuarios' && (
             <OperatorsAndLearningView
               products={products}
               onRefresh={refreshAll}
               initialSubTab="ocorrencias"
-            />
-          )}
-
-          {activeView === 'configuracoes' && (
-            <SystemLogsView
-              metrics={metrics}
-              storage={storage}
-              indexInfo={indexInfo}
-              onRefresh={refreshAll}
             />
           )}
         </main>
