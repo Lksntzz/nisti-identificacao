@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -55,4 +56,27 @@ test('Admin navigation keeps catalog, correction, audit, AI quality and health c
   ]) {
     assert.equal(labels.has(expected), true, `${expected} deve permanecer disponível`);
   }
+});
+
+test('Admin source has no legacy duplicate navigation or dead PlatformsView', () => {
+  const source = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+
+  for (const forbidden of [
+    "id: 'identificacao'",
+    "id: 'similares'",
+    "id: 'cadastrar'",
+    "id: 'importar'",
+    "id: 'plataformas'",
+    "id: 'configuracoes'",
+    'function PlatformsView',
+    "activeView === 'similares'",
+    "activeView === 'plataformas'",
+    "activeView === 'configuracoes'",
+    "import { createRoot } from 'react-dom/client';"
+  ]) {
+    assert.equal(source.includes(forbidden), false, `código morto ainda presente: ${forbidden}`);
+  }
+
+  assert.equal(source.includes("import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';"), true);
+  assert.equal(source.includes('Abrir NISTI ID'), true);
 });
