@@ -34,7 +34,7 @@ test('R2 metric explicitly distinguishes bucket snapshot from billing usage', ()
   assert.equal(source.includes('GB-mês'), true);
 });
 
-test('Admin UI has no fabricated free-tier guarantee or fixed Gemini quota after refactor', () => {
+test('Admin UI has no fabricated free-tier guarantee, quota, trend or fallback metric after refactor', () => {
   const main = read('src/main.jsx');
   for (const forbidden of [
     '100% Plano Gratuito (Zero Custos)',
@@ -45,9 +45,15 @@ test('Admin UI has no fabricated free-tier guarantee or fixed Gemini quota after
     'sem depender do Gemini',
     '18/05/2026',
     '|| 342',
-    '|| 23'
+    '|| 23',
+    'products.length || 1248',
+    '.size || 4',
+    '+24 esta semana',
+    '+18% vs ontem',
+    '+{unmatchedToday} pendentes',
+    '(&lt;100ms)'
   ]) {
-    assert.equal(main.includes(forbidden), false, `texto fictício ainda presente: ${forbidden}`);
+    assert.equal(main.includes(forbidden), false, `texto/dado fictício ainda presente: ${forbidden}`);
   }
 });
 
