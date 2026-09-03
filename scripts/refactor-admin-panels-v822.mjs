@@ -38,7 +38,7 @@ main = replaceBetween(
   main,
   'function formatBytes(bytes) {',
   'function formatCurrentDateTime()',
-  'function formatCurrentDateTime()',
+  '',
   'formatBytes legado'
 );
 
@@ -67,7 +67,7 @@ main = replaceBetween(
   main,
   '/* =========================================================================\n   SYSTEM LOGS & FREE TIER INFRASTRUCTURE METRICS VIEW',
   '/* =========================================================================\n   TEST COVER VERIFIER VIEW',
-  '/* =========================================================================\n   TEST COVER VERIFIER VIEW',
+  '',
   'SystemLogsView legado'
 );
 
