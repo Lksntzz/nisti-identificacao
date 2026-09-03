@@ -90,7 +90,7 @@ export default function SystemHealthView({ metrics, storage, onRefresh }) {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error || `Erro ${response.status}`);
-      setSyncMessage(`Reindexação concluída: ${data?.indexed || 0} referências sincronizadas.`);
+      setSyncMessage(`Reindexação concluída: ${data?.processed?.length || 0} referências processadas · ${data?.vectorized || 0} vetores atualizados.`);
       await onRefresh?.();
     } catch (error) {
       setSyncMessage(`Falha na reindexação: ${error?.message || 'erro desconhecido'}`);

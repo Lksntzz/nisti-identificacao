@@ -99,7 +99,7 @@ function MetricCard({ label, value, detail, tone = 'default' }) {
   );
 }
 
-export default function GeometricShadowObservability() {
+export default function GeometricShadowObservability({ embedded = false }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -178,10 +178,10 @@ export default function GeometricShadowObservability() {
   };
 
   return (
-    <main className="shadow-observability-page">
+    <section className={`shadow-observability-page ${embedded ? 'embedded' : ''}`}>
       <header className="shadow-observability-header">
         <div>
-          <a className="shadow-back-link" href="/admin">← Voltar ao Painel ADM</a>
+          {!embedded && <a className="shadow-back-link" href="/admin">← Voltar ao Painel ADM</a>}
           <h1>Observabilidade do Reconhecimento Shadow</h1>
           <p>Fastpath + geometria estrita em produção real, sem autoridade sobre o resultado entregue ao operador.</p>
         </div>
@@ -325,6 +325,6 @@ export default function GeometricShadowObservability() {
           </footer>
         </>
       )}
-    </main>
+    </section>
   );
 }

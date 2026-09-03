@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './app.css';
 import LOGO from './assets/logo.png';
 import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';
+import SystemHealthView from './system-health-view.jsx';
+import GeometricShadowObservability from './geometric-shadow-observability.jsx';
 
 const PAGE_SIZE = 10;
 
@@ -66,7 +68,7 @@ function formatCurrentDateTime() {
 }
 
 function formatProductDate(dateVal) {
-  if (!dateVal) return { date: '18/05/2026', time: '20:00' };
+  if (!dateVal) return { date: '—', time: '' };
   try {
     const d = new Date(dateVal);
     const date = new Intl.DateTimeFormat('pt-BR', {
@@ -82,7 +84,7 @@ function formatProductDate(dateVal) {
     }).format(d);
     return { date, time };
   } catch {
-    return { date: '18/05/2026', time: '20:00' };
+    return { date: '—', time: '' };
   }
 }
 
@@ -407,7 +409,7 @@ function KpiSection({ productsCount, recognitionsToday, unmatchedToday, platform
         <div className="kpi-body">
           <span className="kpi-title">Total de Produtos</span>
           <strong className="kpi-num">{productsCount.toLocaleString('pt-BR')}</strong>
-          <span className="kpi-tag green">+24 esta semana</span>
+          <span className="kpi-tag green">Dados atuais do catálogo</span>
         </div>
       </div>
 
@@ -421,7 +423,7 @@ function KpiSection({ productsCount, recognitionsToday, unmatchedToday, platform
         <div className="kpi-body">
           <span className="kpi-title">Identificações Hoje</span>
           <strong className="kpi-num">{recognitionsToday.toLocaleString('pt-BR')}</strong>
-          <span className="kpi-tag green">+18% vs ontem</span>
+          <span className="kpi-tag green">Medição registrada hoje</span>
         </div>
       </div>
 
@@ -435,7 +437,7 @@ function KpiSection({ productsCount, recognitionsToday, unmatchedToday, platform
         <div className="kpi-body">
           <span className="kpi-title">Não Identificados</span>
           <strong className="kpi-num">{unmatchedToday}</strong>
-          <span className="kpi-tag orange">+{unmatchedToday} pendentes</span>
+          <span className="kpi-tag orange">{unmatchedToday} registrados hoje</span>
         </div>
       </div>
 
@@ -450,7 +452,7 @@ function KpiSection({ productsCount, recognitionsToday, unmatchedToday, platform
         <div className="kpi-body">
           <span className="kpi-title">Plataformas</span>
           <strong className="kpi-num">{platformsCount}</strong>
-          <span className="kpi-tag green">Ativas</span>
+          <span className="kpi-tag green">No catálogo</span>
         </div>
       </div>
     </div>
@@ -2122,7 +2124,7 @@ function OperatorsAndLearningView({ products, onRefresh, initialSubTab = 'ocorre
                 <span className="status-pill active">• No Vectorize</span>
               </div>
               <div className="metric-big-num" style={{ color: '#16a34a', marginTop: '8px' }}>{occData.stats?.trained || 0}</div>
-              <p>Exemplos reais gravados no banco vetorial que aceleram o reconhecimento (&lt;100ms).</p>
+              <p>Exemplos reais gravados no banco vetorial e usados como referências supervisionadas na recuperação visual.</p>
             </div>
 
             <div className="system-metric-box">
@@ -2388,11 +2390,11 @@ function OperatorsAndLearningView({ products, onRefresh, initialSubTab = 'ocorre
             <div className="system-metric-box" style={{ gridColumn: 'span 2' }}>
               <div className="metric-box-head">
                 <span className="metric-tag" style={{ background: '#ecfdf5', color: '#059669' }}>Banco de Vetores</span>
-                <h4>Cérebro do Sistema (Auto-Aprendizado)</h4>
+                <h4>Base Vetorial Supervisionada</h4>
               </div>
               <p style={{ margin: '8px 0', fontSize: '13px', color: '#475569', lineHeight: '1.5' }}>
                 Estas são as capas e fotos reais que você corrigiu e treinou na bancada. 
-                Elas são salvas no banco de vetores (Vectorize) e são <strong>priorizadas com 100% de garantia</strong> nas próximas leituras, sem depender do Gemini e respondendo em menos de 50 milissegundos.
+                Elas são salvas como referências supervisionadas e passam a compor a recuperação visual no Vectorize. Isso pode melhorar futuras leituras semelhantes, mas não garante prioridade, acerto ou latência fixa; a decisão final continua sujeita aos gates de confiança e às verificações configuradas.
               </p>
             </div>
 
@@ -2555,260 +2557,6 @@ function OperatorsAndLearningView({ products, onRefresh, initialSubTab = 'ocorre
 /* =========================================================================
    SYSTEM LOGS & FREE TIER INFRASTRUCTURE METRICS VIEW
    ========================================================================= */
-function SystemLogsView({ metrics, storage, indexInfo, onRefresh }) {
-  const [syncing, setSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState('');
-
-  const handleSyncVectorize = async () => {
-    setSyncing(true);
-    setSyncMessage('');
-    try {
-      const data = await api('/api/admin/reindex-cover-embeddings', { method: 'POST' });
-      setSyncMessage(`Reindexação concluída: ${data.indexed || 0} capas sincronizadas.`);
-      await onRefresh();
-    } catch (err) {
-      setSyncMessage(`Erro: ${err.message}`);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const db = metrics?.database;
-  const recognition = metrics?.recognition;
-  const today = recognition?.today || {};
-  const r2 = storage?.r2;
-  const freeTier = metrics?.free_tier_status;
-
-  const workersUsed = Number(today.attempts || 0);
-  const workersLimit = 100000;
-  const workersPct = Math.min(100, Math.max(0.1, (workersUsed / workersLimit) * 100));
-
-  const d1UsedBytes = Number(db?.used_bytes || 0);
-  const d1LimitBytes = 500 * 1024 * 1024;
-  const d1Pct = Math.min(100, Math.max(0.1, (d1UsedBytes / d1LimitBytes) * 100));
-
-  const r2UsedBytes = Number(r2?.used_bytes || 0);
-  const r2LimitBytes = 10 * 1024 * 1024 * 1024;
-  const r2Pct = Math.min(100, Math.max(0.1, (r2UsedBytes / r2LimitBytes) * 100));
-
-  const geminiUsed = Number(today.generation_requests || today.attempts || 0);
-  const geminiLimit = 1500;
-  const geminiPct = Math.min(100, Math.max(0.1, (geminiUsed / geminiLimit) * 100));
-
-  return (
-    <div className="admin-table-card">
-      <div className="table-card-topbar">
-        <div className="table-title-group">
-          <div className="table-title-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="4 17 10 11 4 5" />
-              <line x1="12" y1="19" x2="20" y2="19" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="table-main-title">Logs do Sistema & Auditoria de Infraestrutura Free</h3>
-            <span className="table-sub-title">Acompanhamento em tempo real dos limites dos planos gratuitos da Cloudflare e Google Gemini</span>
-          </div>
-        </div>
-
-        <div className="table-actions-toolbar">
-          <button
-            type="button"
-            className="btn-create-product-gradient"
-            onClick={handleSyncVectorize}
-            disabled={syncing}
-          >
-            <span>{syncing ? 'Sincronizando Vetores…' : '🔄 Reindexar Vectorize'}</span>
-          </button>
-        </div>
-      </div>
-
-      {syncMessage && (
-        <div style={{ padding: '0 24px 16px' }}>
-          <div className="form-success-banner">{syncMessage}</div>
-        </div>
-      )}
-
-      {/* Free Tier Health Guarantee Banner */}
-      <div style={{ padding: '0 24px 20px' }}>
-        <div className="free-tier-health-banner">
-          <div className="free-tier-health-icon">🛡️</div>
-          <div>
-            <strong>100% Plano Gratuito (Zero Custos)</strong>
-            <p>Todos os serviços estão operando com ampla folga dentro dos limites gratuitos. Nenhuma cobrança será gerada.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
-        {/* Workers Quota */}
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span className="metric-tag">Requisições Diárias</span>
-            <h4>Cloudflare Workers</h4>
-          </div>
-          <div className="metric-big-num">{workersUsed} / 100k</div>
-          <div className="quota-progress-track">
-            <div className="quota-progress-fill" style={{ width: `${workersPct}%` }} />
-          </div>
-          <p>{workersPct.toFixed(2)}% da cota diária utilizada hoje.</p>
-          <small className="metric-status-line">Limite Free: 100.000 requisições / dia</small>
-        </div>
-
-        {/* D1 Database Storage */}
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span className="metric-tag">Banco de Dados</span>
-            <h4>Cloudflare D1</h4>
-          </div>
-          <div className="metric-big-num">{formatBytes(d1UsedBytes)} / 500 MB</div>
-          <div className="quota-progress-track">
-            <div className="quota-progress-fill" style={{ width: `${d1Pct}%` }} />
-          </div>
-          <p>{db?.products || 0} produtos cadastrados · {d1Pct.toFixed(2)}% ocupado.</p>
-          <small className="metric-status-line">Status: 🟢 5M leituras/dia disponíveis</small>
-        </div>
-
-        {/* R2 Image Storage */}
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span className="metric-tag">Armazenamento</span>
-            <h4>Cloudflare R2</h4>
-          </div>
-          <div className="metric-big-num">{formatBytes(r2UsedBytes)} / 10 GB</div>
-          <div className="quota-progress-track">
-            <div className="quota-progress-fill" style={{ width: `${r2Pct}%` }} />
-          </div>
-          <p>{r2?.object_count || 0} mockups armazenados · Zero custo de tráfego.</p>
-          <small className="metric-status-line">Status: 🟢 10 GB gratuitos perpétuos</small>
-        </div>
-
-        {/* Gemini Vision API */}
-        <div className="system-metric-box">
-          <div className="metric-box-head">
-            <span className="metric-tag">IA & Visão</span>
-            <h4>Google Gemini 2.5 Flash</h4>
-          </div>
-          <div className="metric-big-num">{geminiUsed} / 1.500</div>
-          <div className="quota-progress-track">
-            <div className="quota-progress-fill" style={{ width: `${geminiPct}%` }} />
-          </div>
-          <p>{geminiPct.toFixed(1)}% do limite diário consumido hoje.</p>
-          <small className="metric-status-line">Limite Free: 1.500 req/dia · 15 RPM</small>
-        </div>
-      </div>
-
-      {/* Google Gemini Rate Limits Detailed Table */}
-      <div style={{ padding: '0 24px 20px' }}>
-        <h4 style={{ margin: '0 0 12px', fontSize: '15px', color: '#1e293b' }}>⚡ Limites de Taxa da API Google Gemini (Google AI Studio)</h4>
-        <div className="table-responsive-container" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
-          <table className="admin-data-table">
-            <thead>
-              <tr>
-                <th>MODELO</th>
-                <th>CATEGORIA / FUNÇÃO</th>
-                <th>RPM (REQ/MIN)</th>
-                <th>TPM (TOKENS/MIN)</th>
-                <th>RPD (REQ/DIA)</th>
-                <th style={{ textAlign: 'right' }}>STATUS NO SISTEMA</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>Gemini 2.5 Flash</strong></td>
-                <td>Modelos de ponta de texto e visão</td>
-                <td>15 RPM</td>
-                <td>1.000.000 TPM</td>
-                <td>1.500 RPD</td>
-                <td style={{ textAlign: 'right' }}><span className="status-pill active">• Principal (Ativo)</span></td>
-              </tr>
-              <tr>
-                <td><strong>Gemini 2.5 Flash-Lite</strong></td>
-                <td>Modelos de ponta de texto e visão</td>
-                <td>15 RPM</td>
-                <td>4.000.000 TPM</td>
-                <td>1.500 RPD</td>
-                <td style={{ textAlign: 'right' }}><span className="status-pill active">• Failover Automático</span></td>
-              </tr>
-              <tr>
-                <td><strong>Gemini Embedding 2</strong></td>
-                <td>Outros modelos (Embeddings Multimodais)</td>
-                <td>1.500 RPM</td>
-                <td>10.000.000 TPM</td>
-                <td>Ilimitado</td>
-                <td style={{ textAlign: 'right' }}><span className="status-pill active">• Vectorize (Ativo)</span></td>
-              </tr>
-              <tr>
-                <td><strong>Gemini 2.0 Flash / 1.5 Flash</strong></td>
-                <td>Modelos para diversos tamanhos</td>
-                <td>15 RPM</td>
-                <td>1.000.000 TPM</td>
-                <td>1.500 RPD</td>
-                <td style={{ textAlign: 'right' }}><span className="status-pill pending">• Contingência</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Free Tier Audit Table */}
-      <div style={{ padding: '0 24px 28px' }}>
-        <h4 style={{ margin: '0 0 12px', fontSize: '15px', color: '#1e293b' }}>Auditoria de Conformidade dos Limites Gratuitos</h4>
-        <div className="table-responsive-container" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
-          <table className="admin-data-table">
-            <thead>
-              <tr>
-                <th>SERVIÇO / INFRA</th>
-                <th>LIMITE GRATUITO (FREE)</th>
-                <th>CONSUMO ATUAL</th>
-                <th>FOLGA ESTIMADA</th>
-                <th style={{ textAlign: 'right' }}>STATUS DE CUSTO</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>Cloudflare Workers (Edge Routing)</strong></td>
-                <td>100.000 requisições / dia</td>
-                <td>{workersUsed} reqs hoje</td>
-                <td>{(100000 - workersUsed).toLocaleString()} requisições restantes</td>
-                <td style={{ textAlign: 'right' }}><span className="status-pill active">• 100% Gratuito</span></td>
-              </tr>
-              <tr>
-                <td><strong>Cloudflare D1 (Banco Relacional)</strong></td>
-                <td>500 MB de armazenamento</td>
-                <td>{formatBytes(d1UsedBytes)}</td>
-                <td>{formatBytes(d1LimitBytes - d1UsedBytes)} livres</td>
-                <td style={{ textAlign: 'right' }}><span className="status-pill active">• 100% Gratuito</span></td>
-              </tr>
-              <tr>
-                <td><strong>Cloudflare R2 (Mockups e Imagens)</strong></td>
-                <td>10 GB de armazenamento + 10M downloads/mês</td>
-                <td>{formatBytes(r2UsedBytes)} ({r2?.object_count || 0} arquivos)</td>
-                <td>{formatBytes(r2LimitBytes - r2UsedBytes)} livres</td>
-                <td style={{ textAlign: 'right' }}><span className="status-pill active">• 100% Gratuito</span></td>
-              </tr>
-              <tr>
-                <td><strong>Cloudflare Vectorize (Embeddings)</strong></td>
-                <td>5.000.000 dimensões consultadas / mês</td>
-                <td>{db?.cover_embeddings || 0} capas (768 dimensões)</td>
-                <td>&gt; 99% disponível</td>
-                <td style={{ textAlign: 'right' }}><span className="status-pill active">• 100% Gratuito</span></td>
-              </tr>
-              <tr>
-                <td><strong>Google Gemini AI (2.5 Flash & Embeddings)</strong></td>
-                <td>1.500 requisições / dia · 15 RPM</td>
-                <td>{geminiUsed} chamadas hoje</td>
-                <td>{1500 - geminiUsed} chamadas restantes hoje</td>
-                <td style={{ textAlign: 'right' }}><span className="status-pill active">• 100% Gratuito</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* =========================================================================
    TEST COVER VERIFIER VIEW
    ========================================================================= */
@@ -2950,7 +2698,6 @@ function AdminApp() {
   const [products, setProducts] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [storage, setStorage] = useState(null);
-  const [indexInfo, setIndexInfo] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -2959,12 +2706,8 @@ function AdminApp() {
 
   const refreshProducts = async () => {
     try {
-      const [p, i] = await Promise.all([
-        api('/api/products'),
-        api('/api/admin/cover-index').catch(() => null)
-      ]);
+      const p = await api('/api/products');
       setProducts(p.products || []);
-      setIndexInfo(i);
     } catch (err) {
       if (/não autorizado|401|403/i.test(err.message)) {
         window.location.href = '/admin-login';
@@ -2995,10 +2738,10 @@ function AdminApp() {
     return () => clearInterval(interval);
   }, []);
 
-  const recognitionsToday = metrics?.recognition?.today?.attempts || 342;
-  const unmatchedToday = metrics?.recognition?.today?.unmatched || 23;
+  const recognitionsToday = Number(metrics?.recognition?.today?.attempts ?? 0);
+  const unmatchedToday = Number(metrics?.recognition?.today?.unmatched ?? 0);
   const platformsCount = useMemo(() => {
-    return new Set(products.map(p => p.platform).filter(Boolean)).size || 4;
+    return new Set(products.map(p => p.platform).filter(Boolean)).size;
   }, [products]);
 
   const handleNavChange = viewId => setActiveView(viewId);
@@ -3031,7 +2774,7 @@ function AdminApp() {
           <WelcomeDateBanner />
 
           <KpiSection
-            productsCount={products.length || 1248}
+            productsCount={products.length}
             recognitionsToday={recognitionsToday}
             unmatchedToday={unmatchedToday}
             platformsCount={platformsCount}
@@ -3050,6 +2793,10 @@ function AdminApp() {
             <DiagnosticsView filter="issues" />
           )}
 
+          {activeView === 'shadow-observability' && (
+            <GeometricShadowObservability embedded />
+          )}
+
           {activeView === 'verificar' && (
             <CoverVerifierView />
           )}
@@ -3059,10 +2806,9 @@ function AdminApp() {
           )}
 
           {activeView === 'logs' && (
-            <SystemLogsView
+            <SystemHealthView
               metrics={metrics}
               storage={storage}
-              indexInfo={indexInfo}
               onRefresh={refreshAll}
             />
           )}
