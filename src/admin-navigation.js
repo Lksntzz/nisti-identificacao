@@ -16,12 +16,7 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
   {
     title: 'IA & QUALIDADE',
     items: Object.freeze([
-      {
-        id: 'shadow-observability',
-        label: 'Observabilidade IA',
-        icon: 'brain',
-        href: '/admin/shadow-observability'
-      },
+      { id: 'shadow-observability', label: 'Observabilidade IA', icon: 'brain' },
       { id: 'verificar', label: 'Testar Reconhecimento', icon: 'shield-check' }
     ])
   },
