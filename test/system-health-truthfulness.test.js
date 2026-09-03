@@ -41,6 +41,8 @@ test('Admin UI has no fabricated free-tier guarantee or fixed Gemini quota after
     'Nenhuma cobrança será gerada',
     '1.500 req/dia',
     '100% de garantia',
+    'menos de 50 milissegundos',
+    'sem depender do Gemini',
     '18/05/2026',
     '|| 342',
     '|| 23'
