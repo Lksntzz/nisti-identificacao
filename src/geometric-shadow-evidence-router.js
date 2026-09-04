@@ -4,7 +4,7 @@ import { normalizePlatform } from './platform-scope.js';
 const SHADOW_PURPOSE = 'geometric-shadow-evidence-v818';
 const SHADOW_VERSION = 'v8.18';
 const GATE_VERSION = 'strict_core_v816';
-const EVIDENCE_SCHEMA_VERSION = 'v8.23';
+const EVIDENCE_SCHEMA_VERSION = 'v8.24';
 const RETRIEVAL_MIN_SCORE = 0.920;
 const RETRIEVAL_MIN_MARGIN = 0.008;
 const ALLOWED_REFERENCE_KINDS = new Set(['product', 'real_scan']);
@@ -82,6 +82,7 @@ async function verifyShadowTicket(env, token) {
     if (Number(payload?.exp || 0) <= Math.floor(Date.now() / 1000)) return null;
     if (!payload?.nonce || !normalizePlatform(payload?.platform)) return null;
     if (!Array.isArray(payload?.candidates) || !payload.candidates.length || payload.candidates.length > 10) return null;
+    if (payload?.reference_evidence != null && (!Array.isArray(payload.reference_evidence) || payload.reference_evidence.length > 50)) return null;
     return payload;
   } catch {
     return null;
@@ -98,6 +99,26 @@ function canonicalCandidates(payload) {
       reference_kind: String(candidate?.reference_kind || '').trim().toLowerCase() || null
     }))
     .filter(candidate => candidate.capa_code && candidate.retrieval_score !== null)
+    .sort((a, b) => a.vector_rank - b.vector_rank);
+}
+
+function canonicalReferenceEvidence(payload) {
+  const seenReferenceIds = new Set();
+  return (payload?.reference_evidence || [])
+    .slice(0, 50)
+    .map((reference, index) => ({
+      capa_code: normalizeCode(reference?.capa_code),
+      retrieval_score: finite(reference?.retrieval_score),
+      vector_rank: Number(reference?.vector_rank || index + 1),
+      reference_id: Number(reference?.reference_id || 0) || null,
+      reference_kind: String(reference?.reference_kind || '').trim().toLowerCase() || null
+    }))
+    .filter(reference => {
+      if (!reference.capa_code || reference.retrieval_score === null || !reference.reference_id) return false;
+      if (seenReferenceIds.has(reference.reference_id)) return false;
+      seenReferenceIds.add(reference.reference_id);
+      return true;
+    })
     .sort((a, b) => a.vector_rank - b.vector_rank);
 }
 
@@ -196,6 +217,7 @@ export function normalizeLiveEvidence(body, signedPayload) {
   const platform = normalizePlatform(signedPayload?.platform);
   const photoSha256 = normalizeHash(body?.photo_sha256);
   const candidates = canonicalCandidates(signedPayload);
+  const referenceEvidence = canonicalReferenceEvidence(signedPayload);
   const retrieval = evaluateLiveRetrievalGate(candidates);
   const allowedCodes = new Set(candidates.map(item => item.capa_code));
   const rawGeometric = evaluateLiveStrictGeometry(body, allowedCodes);
@@ -240,7 +262,9 @@ export function normalizeLiveEvidence(body, signedPayload) {
       },
       retrieval: {
         ...retrieval,
-        candidates
+        candidates,
+        reference_evidence_count: referenceEvidence.length,
+        reference_evidence: referenceEvidence
       },
       geometric
     })

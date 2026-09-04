@@ -25,7 +25,7 @@ function row(overrides = {}) {
     created_at: '2026-09-02 22:59:00',
     updated_at: '2026-09-02 23:00:00',
     evidence_json: JSON.stringify({
-      evidence_schema_version: 'v8.23',
+      evidence_schema_version: 'v8.24',
       production: { http_status: 200, capa_code: 'LTE2', identified_by: 'fallback' },
       processing_ms: 742,
       retrieval: {
@@ -39,6 +39,12 @@ function row(overrides = {}) {
         candidates: [
           { capa_code: 'LTE2', retrieval_score: 0.9214, vector_rank: 1, reference_id: 101, reference_kind: 'product' },
           { capa_code: 'LTE1', retrieval_score: 0.9181, vector_rank: 2, reference_id: 102, reference_kind: 'real_scan' }
+        ],
+        reference_evidence_count: 3,
+        reference_evidence: [
+          { capa_code: 'LTE2', retrieval_score: 0.9214, vector_rank: 1, reference_id: 101, reference_kind: 'product' },
+          { capa_code: 'LTE2', retrieval_score: 0.9190, vector_rank: 2, reference_id: 111, reference_kind: 'real_scan' },
+          { capa_code: 'LTE1', retrieval_score: 0.9181, vector_rank: 3, reference_id: 102, reference_kind: 'real_scan' }
         ]
       },
       geometric: {
@@ -69,11 +75,14 @@ test('v8.20 observability marks a strict geometric recovery that would fix produ
   assert.equal(normalized.would_worsen_production, false);
   assert.equal(normalized.geometric.capa_code, 'LTE1');
   assert.equal(normalized.retrieval.margin, 0.0033);
-  assert.equal(normalized.evidence_schema_version, 'v8.23');
+  assert.equal(normalized.evidence_schema_version, 'v8.24');
   assert.equal(normalized.retrieval.candidate_count, 2);
   assert.deepEqual(normalized.retrieval.candidates.map(candidate => candidate.capa_code), ['LTE2', 'LTE1']);
   assert.equal(normalized.retrieval.candidates[1].reference_id, 102);
   assert.equal(normalized.retrieval.candidates[1].reference_kind, 'real_scan');
+  assert.equal(normalized.retrieval.reference_evidence_count, 3);
+  assert.deepEqual(normalized.retrieval.reference_evidence.slice(0, 2).map(reference => reference.capa_code), ['LTE2', 'LTE2']);
+  assert.equal(normalized.retrieval.reference_evidence[1].reference_kind, 'real_scan');
 });
 
 test('v8.20 observability marks a geometric false positive that would worsen a correct production result', () => {

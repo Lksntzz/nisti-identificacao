@@ -5,6 +5,7 @@ const VECTOR_TOP_K = 50;
 const COVER_LIMIT = 10;
 const REFERENCES_PER_COVER = 1;
 const MAX_REFERENCE_CANDIDATES = 10;
+const MAX_REFERENCE_EVIDENCE = VECTOR_TOP_K;
 const TICKET_TTL_SECONDS = 120;
 const MAX_EMBEDDING_MS = 5000;
 const MIN_PLATFORM_RETRIEVAL_SCORE = 0.45;
@@ -209,6 +210,7 @@ async function queryVectorize(env, vector, timings, platform) {
   timings.vectorize_namespace = namespace;
 
   const byCode = new Map();
+  const referenceEvidence = [];
   let vectorRank = 0;
 
   for (const match of result?.matches || []) {
@@ -228,6 +230,23 @@ async function queryVectorize(env, vector, timings, platform) {
     }
 
     const reference = referenceFromMatch(match, vectorRank);
+    if (
+      reference.reference_id &&
+      reference.image_key &&
+      referenceEvidence.length < MAX_REFERENCE_EVIDENCE
+    ) {
+      referenceEvidence.push({
+        reference_id: reference.reference_id,
+        product_id: reference.source_product_id,
+        capa_code: capaCode,
+        retrieval_score: reference.retrieval_score,
+        vector_rank: reference.vector_rank,
+        reference_kind: reference.reference_kind,
+        platform: reference.platform,
+        image_key: reference.image_key,
+        vector_id: reference.vector_id
+      });
+    }
     if (!reference.reference_id || !reference.image_key) continue;
 
     if (
@@ -238,13 +257,16 @@ async function queryVectorize(env, vector, timings, platform) {
     }
   }
 
-  return [...byCode.values()]
+  const covers = [...byCode.values()]
     .filter(cover => cover.references.length > 0)
     .slice(0, COVER_LIMIT)
     .map((cover, index) => ({
       ...cover,
       retrieval_rank: index + 1
     }));
+
+  timings.reference_evidence_count = referenceEvidence.length;
+  return { covers, reference_evidence: referenceEvidence };
 }
 
 function buildCandidates(covers, timings) {
@@ -347,7 +369,7 @@ export async function buildVectorizeCandidates(request, env) {
     timings.embedding_ms = Date.now() - embeddingStarted;
     timings.model = embedding.model;
 
-    const covers = await queryVectorize(
+    const { covers, reference_evidence: referenceEvidence } = await queryVectorize(
       env,
       embedding.values,
       timings,
@@ -406,6 +428,17 @@ export async function buildVectorizeCandidates(request, env) {
         retrieval_score: candidate.retrieval_score,
         vector_rank: candidate.vector_rank,
         reference_kind: candidate.reference_kind
+      })),
+      reference_evidence: referenceEvidence.map(reference => ({
+        reference_id: reference.reference_id,
+        product_id: reference.product_id,
+        capa_code: reference.capa_code,
+        retrieval_score: reference.retrieval_score,
+        vector_rank: reference.vector_rank,
+        reference_kind: reference.reference_kind,
+        platform: reference.platform,
+        image_key: reference.image_key,
+        vector_id: reference.vector_id
       })),
       performance: timings
     };

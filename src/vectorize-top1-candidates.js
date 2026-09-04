@@ -71,8 +71,10 @@ export function restrictTicketPayloadToTop1(payload) {
     ? payload.references
     : [];
 
+  const { reference_evidence: _referenceEvidence, ...productionPayload } = payload;
+
   return {
-    ...payload,
+    ...productionPayload,
     codes: [topCode].slice(0, VERIFICATION_COVER_LIMIT),
     scores: {
       [topCode]: Number(sourceScores[topCode] ?? 0)
@@ -165,7 +167,8 @@ export function buildShadowEvidencePayload(
   rebuiltCandidates,
   {
     nowSeconds = Math.floor(Date.now() / 1000),
-    nonce = crypto.randomUUID()
+    nonce = crypto.randomUUID(),
+    referenceEvidence = []
   } = {}
 ) {
   if (!rebuiltPayload || typeof rebuiltPayload !== 'object') return null;
@@ -196,6 +199,32 @@ export function buildShadowEvidencePayload(
 
   if (candidates.length < 2) return null;
 
+  const diagnosticReferences = [];
+  const seenReferenceIds = new Set();
+  for (const reference of referenceEvidence || []) {
+    const capaCode = normalizeCode(reference?.capa_code);
+    const referenceId = Number(reference?.reference_id || 0) || null;
+    const retrievalScore = Number(reference?.retrieval_score);
+    const vectorRank = Number(reference?.vector_rank || diagnosticReferences.length + 1);
+    if (
+      !capaCode ||
+      !referenceId ||
+      seenReferenceIds.has(referenceId) ||
+      !Number.isFinite(retrievalScore) ||
+      !Number.isFinite(vectorRank)
+    ) continue;
+    seenReferenceIds.add(referenceId);
+    diagnosticReferences.push({
+      capa_code: capaCode,
+      retrieval_score: retrievalScore,
+      vector_rank: vectorRank,
+      reference_id: referenceId,
+      reference_kind: String(reference?.reference_kind || 'product').trim().toLowerCase() || 'product'
+    });
+    if (diagnosticReferences.length >= 50) break;
+  }
+  diagnosticReferences.sort((a, b) => a.vector_rank - b.vector_rank);
+
   const token = String(nonce || '').trim();
   if (!token) return null;
   const signedPayload = {
@@ -209,13 +238,15 @@ export function buildShadowEvidencePayload(
       retrieval_score: candidate.retrieval_score,
       reference_id: candidate.reference_id,
       reference_kind: candidate.reference_kind
-    }))
+    })),
+    reference_evidence: diagnosticReferences
   };
 
   return {
     token,
     signed_payload: signedPayload,
-    candidates
+    candidates,
+    reference_evidence: diagnosticReferences
   };
 }
 
@@ -250,6 +281,20 @@ export async function buildVectorizeTop1Candidates(request, env) {
   const rawMatches = (Array.isArray(data.candidates) ? data.candidates : [])
     .map(asVectorMatch);
   const authoritativeMatches = await canonicalizeActiveVectorMatches(env, rawMatches);
+
+  const rawReferenceEvidence = (Array.isArray(sourcePayload.reference_evidence)
+    ? sourcePayload.reference_evidence
+    : []).map(asVectorMatch);
+  const authoritativeReferenceMatches = await canonicalizeActiveVectorMatches(env, rawReferenceEvidence);
+  const authoritativeReferenceEvidence = authoritativeReferenceMatches.map((match, index) => ({
+    reference_id: Number(match?.metadata?.reference_id || 0) || null,
+    product_id: Number(match?.metadata?.source_product_id || 0) || null,
+    capa_code: normalizeCode(match?.metadata?.capa_code),
+    retrieval_score: Number(match?.score || 0),
+    vector_rank: Number(match?.__candidate?.vector_rank || index + 1),
+    reference_kind: String(match?.metadata?.reference_kind || 'product').trim().toLowerCase() || 'product'
+  })).filter(reference => reference.reference_id && reference.capa_code);
+
   const rebuilt = rebuildPayloadFromAuthoritativeMatches(sourcePayload, authoritativeMatches);
   if (!rebuilt?.payload?.codes?.length) return staleIndexResponse(data);
 
@@ -263,7 +308,9 @@ export async function buildVectorizeTop1Candidates(request, env) {
     .slice(0, 1);
 
   let shadowEvidence = null;
-  const shadow = buildShadowEvidencePayload(rebuilt.payload, rebuilt.candidates);
+  const shadow = buildShadowEvidencePayload(rebuilt.payload, rebuilt.candidates, {
+    referenceEvidence: authoritativeReferenceEvidence
+  });
   if (shadow) {
     const shadowTicket = await signTicket(env, shadow.signed_payload);
     shadowEvidence = {
@@ -272,6 +319,7 @@ export async function buildVectorizeTop1Candidates(request, env) {
       token: shadow.token,
       ticket: shadowTicket,
       candidates: shadow.candidates,
+      reference_evidence_count: shadow.reference_evidence.length,
       production_changed: false
     };
   }
@@ -284,6 +332,7 @@ export async function buildVectorizeTop1Candidates(request, env) {
     verification_candidate_count: candidates.length,
     authoritative_candidate_count: rebuilt.candidates.length,
     shadow_evidence_candidate_count: shadowEvidence?.candidates?.length || 0,
+    shadow_reference_evidence_count: shadowEvidence?.reference_evidence_count || 0,
     shadow_evidence_version: shadowEvidence ? 'v8.18' : null
   };
 

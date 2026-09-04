@@ -56,7 +56,12 @@ test('v8.18 shadow payload carries Top-10 evidence without changing the producti
   const sourcePayload = {
     platform: 'SHOPEE',
     codes: Array.from({ length: 10 }, (_, index) => `C${index + 1}`),
-    scores: {}
+    scores: {},
+    reference_evidence: [
+      { capa_code: 'C1', vector_rank: 1, retrieval_score: 0.95, reference_id: 1, reference_kind: 'product' },
+      { capa_code: 'C1', vector_rank: 2, retrieval_score: 0.94, reference_id: 11, reference_kind: 'real_scan' },
+      { capa_code: 'C2', vector_rank: 3, retrieval_score: 0.93, reference_id: 2, reference_kind: 'product' }
+    ]
   };
   const candidates = Array.from({ length: 10 }, (_, index) => ({
     capa_code: `C${index + 1}`,
@@ -69,7 +74,8 @@ test('v8.18 shadow payload carries Top-10 evidence without changing the producti
 
   const shadow = buildShadowEvidencePayload(sourcePayload, candidates, {
     nowSeconds: 1000,
-    nonce: 'shadow-token-1'
+    nonce: 'shadow-token-1',
+    referenceEvidence: sourcePayload.reference_evidence
   });
   const production = restrictTicketPayloadToTop1({
     ...sourcePayload,
@@ -82,6 +88,10 @@ test('v8.18 shadow payload carries Top-10 evidence without changing the producti
   assert.equal(shadow.candidates.length, 10);
   assert.equal(shadow.candidates[0].capa_code, 'C1');
   assert.match(shadow.candidates[0].image_url, /^\/api\/reference-images\/1\?v=/);
+  assert.equal(shadow.signed_payload.reference_evidence.length, 3);
+  assert.deepEqual(shadow.signed_payload.reference_evidence.slice(0, 2).map(item => item.capa_code), ['C1', 'C1']);
+  assert.equal(shadow.signed_payload.reference_evidence[1].reference_kind, 'real_scan');
   assert.deepEqual(production.codes, ['C1']);
   assert.equal(production.references.length, 1);
+  assert.equal(production.reference_evidence, undefined);
 });
