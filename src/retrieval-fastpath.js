@@ -1,6 +1,10 @@
 import { Buffer } from 'node:buffer';
 import { parseSku } from './sku.js';
 import { normalizePlatform } from './platform-scope.js';
+import {
+  preferSupabaseRead,
+  supabaseProductsForCover
+} from './supabase-read-store.js';
 
 const COOKIE_NAME = 'nisti_recognition_ticket';
 const DEFAULT_MIN_SCORE = 0.925;
@@ -162,7 +166,7 @@ function productPayload(product) {
   };
 }
 
-async function productsForCover(env, capaCode, platform) {
+async function productsForCoverFromD1(env, capaCode, platform) {
   const { results } = await env.DB.prepare(`
     SELECT p.*, pp.platform, pp.link
     FROM products p
@@ -173,6 +177,16 @@ async function productsForCover(env, capaCode, platform) {
     normalizeCode(capaCode),
     normalizePlatform(platform)
   ).all();
+  return results || [];
+}
+
+async function productsForCover(env, capaCode, platform) {
+  const results = await preferSupabaseRead(
+    env,
+    () => supabaseProductsForCover(env, capaCode, normalizePlatform(platform)),
+    () => productsForCoverFromD1(env, capaCode, platform),
+    'fastpath-products-for-cover'
+  );
 
   const seen = new Set();
   return (results || []).filter(product => {
