@@ -1,3 +1,8 @@
+import {
+  preferSupabaseRead,
+  supabaseImageKey
+} from './supabase-read-store.js';
+
 function notFound() {
   return new Response('Not found', {
     status: 404,
@@ -34,29 +39,46 @@ function responseHeaders(object, url) {
   return headers;
 }
 
-async function productImageKey(env, id) {
-  const row = await env.DB.prepare(
-    'SELECT image_key FROM products WHERE id=? LIMIT 1'
-  ).bind(id).first();
-  return row?.image_key || null;
+async function imageKeyFromD1(env, entity, id) {
+  if (entity === 'product') {
+    const row = await env.DB.prepare(
+      'SELECT image_key FROM products WHERE id=? LIMIT 1'
+    ).bind(id).first();
+    return row?.image_key || null;
+  }
+  if (entity === 'reference') {
+    const row = await env.DB.prepare(`
+      SELECT image_key
+      FROM cover_visual_references
+      WHERE id=? AND active=1
+      LIMIT 1
+    `).bind(id).first();
+    return row?.image_key || null;
+  }
+  if (entity === 'occurrence') {
+    const row = await env.DB.prepare(
+      'SELECT image_key FROM scan_occurrences WHERE id=? LIMIT 1'
+    ).bind(id).first();
+    return row?.image_key || null;
+  }
+  return null;
 }
 
-async function referenceImageKey(env, id) {
-  const row = await env.DB.prepare(`
-    SELECT image_key
-    FROM cover_visual_references
-    WHERE id=? AND active=1
-    LIMIT 1
-  `).bind(id).first();
-  return row?.image_key || null;
+async function imageKey(env, entity, id) {
+  return preferSupabaseRead(
+    env,
+    () => supabaseImageKey(env, entity, id),
+    () => imageKeyFromD1(env, entity, id),
+    `image-key:${entity}`
+  );
 }
 
-async function serveObject(request, env, imageKey, url) {
-  if (!imageKey) return notFound();
+async function serveObject(request, env, objectKey, url) {
+  if (!objectKey) return notFound();
 
   const object = request.method === 'HEAD'
-    ? await env.PRODUCT_IMAGES.head(imageKey)
-    : await env.PRODUCT_IMAGES.get(imageKey);
+    ? await env.PRODUCT_IMAGES.head(objectKey)
+    : await env.PRODUCT_IMAGES.get(objectKey);
 
   if (!object) return notFound();
   const headers = responseHeaders(object, url);
@@ -73,22 +95,20 @@ export async function handlePublicImageRequest(request, env) {
   const url = new URL(request.url);
   const productMatch = url.pathname.match(/^\/api\/images\/(\d+)$/);
   if (productMatch) {
-    const imageKey = await productImageKey(env, Number(productMatch[1]));
-    return serveObject(request, env, imageKey, url);
+    const objectKey = await imageKey(env, 'product', Number(productMatch[1]));
+    return serveObject(request, env, objectKey, url);
   }
 
   const referenceMatch = url.pathname.match(/^\/api\/reference-images\/(\d+)$/);
   if (referenceMatch) {
-    const imageKey = await referenceImageKey(env, Number(referenceMatch[1]));
-    return serveObject(request, env, imageKey, url);
+    const objectKey = await imageKey(env, 'reference', Number(referenceMatch[1]));
+    return serveObject(request, env, objectKey, url);
   }
 
   const occurrenceMatch = url.pathname.match(/^\/api\/occurrence-images\/(\d+)$/);
   if (occurrenceMatch) {
-    const row = await env.DB.prepare(
-      'SELECT image_key FROM scan_occurrences WHERE id=? LIMIT 1'
-    ).bind(Number(occurrenceMatch[1])).first();
-    return serveObject(request, env, row?.image_key, url);
+    const objectKey = await imageKey(env, 'occurrence', Number(occurrenceMatch[1]));
+    return serveObject(request, env, objectKey, url);
   }
 
   return null;
