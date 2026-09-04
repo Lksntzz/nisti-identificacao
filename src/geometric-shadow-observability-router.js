@@ -2,6 +2,8 @@ import { summarizeGeometricShadowEvidence } from './geometric-shadow-evidence-ro
 
 const DEFAULT_LIMIT = 300;
 const MAX_LIMIT = 1000;
+const OBSERVABILITY_CACHE_TTL_MS = 5 * 60 * 1000;
+const observabilityCacheByLimit = new Map();
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -256,6 +258,35 @@ export async function buildGeometricShadowObservability(env, { limit = DEFAULT_L
   };
 }
 
+async function getCachedGeometricShadowObservability(env, { limit = DEFAULT_LIMIT, forceFresh = false } = {}) {
+  const safeLimit = clampLimit(limit);
+  const now = Date.now();
+  const cached = observabilityCacheByLimit.get(safeLimit);
+
+  if (!forceFresh && cached?.report && cached.expiresAt > now) {
+    return cached.report;
+  }
+  if (!forceFresh && cached?.promise) {
+    return cached.promise;
+  }
+
+  const promise = buildGeometricShadowObservability(env, { limit: safeLimit });
+  observabilityCacheByLimit.set(safeLimit, { promise, report: null, expiresAt: 0 });
+
+  try {
+    const report = await promise;
+    observabilityCacheByLimit.set(safeLimit, {
+      promise: null,
+      report,
+      expiresAt: Date.now() + OBSERVABILITY_CACHE_TTL_MS
+    });
+    return report;
+  } catch (error) {
+    observabilityCacheByLimit.delete(safeLimit);
+    throw error;
+  }
+}
+
 export async function handleGeometricShadowObservabilityRequest(request, env) {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.pathname !== '/api/admin/geometric-shadow-evidence/observability') {
@@ -264,8 +295,10 @@ export async function handleGeometricShadowObservabilityRequest(request, env) {
   if (!env?.DB) return json({ error: 'D1 não configurado.' }, 503);
 
   try {
-    const report = await buildGeometricShadowObservability(env, {
-      limit: url.searchParams.get('limit')
+    const forceFresh = url.searchParams.get('fresh') === '1';
+    const report = await getCachedGeometricShadowObservability(env, {
+      limit: url.searchParams.get('limit'),
+      forceFresh
     });
     return json({ ok: true, report });
   } catch (error) {
