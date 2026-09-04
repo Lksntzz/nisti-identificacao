@@ -23,6 +23,13 @@ test('v8.24.2 client starts review only for ambiguous_top1_margin', () => {
   assert.match(client, /sent_to_adm: review\.sent_to_adm/);
 });
 
+test('v8.24.2 links a late-created review occurrence back to shadow evidence', () => {
+  assert.match(client, /linkAmbiguousOccurrence/);
+  assert.match(client, /\/link-occurrence/);
+  assert.match(client, /shadow_ticket: shadowTicket/);
+  assert.match(client, /occurrence_id: id/);
+});
+
 test('v8.24.2 migration persists candidates and an unguessable review token hash', () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS scan_occurrence_candidates/);
   assert.match(migration, /PRIMARY KEY \(occurrence_id, capa_code\)/);
