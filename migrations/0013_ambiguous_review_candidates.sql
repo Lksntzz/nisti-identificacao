@@ -12,3 +12,10 @@ CREATE TABLE IF NOT EXISTS scan_occurrence_candidates (
 
 CREATE INDEX IF NOT EXISTS idx_scan_occurrence_candidates_occurrence_rank
   ON scan_occurrence_candidates(occurrence_id, candidate_rank ASC);
+
+CREATE TABLE IF NOT EXISTS scan_occurrence_review_sessions (
+  occurrence_id INTEGER PRIMARY KEY,
+  review_token_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (occurrence_id) REFERENCES scan_occurrences(id) ON DELETE CASCADE
+);
