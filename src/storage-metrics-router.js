@@ -2,6 +2,9 @@ import app from './system-metrics-clean-router.js';
 
 const R2_FREE_STANDARD_STORAGE_REFERENCE_BYTES = 10 * 1000 * 1000 * 1000;
 const MAX_PAGES = 20;
+const STORAGE_METRICS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+let storageMetricsCache = { payload: null, expires_at: 0 };
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -59,17 +62,34 @@ async function measureBucket(bucket) {
   };
 }
 
+async function storageMetrics(env, { force = false } = {}) {
+  const now = Date.now();
+  if (!force && storageMetricsCache.payload && now < storageMetricsCache.expires_at) {
+    return storageMetricsCache.payload;
+  }
+
+  const payload = {
+    ok: true,
+    measured_at: new Date().toISOString(),
+    cache_ttl_seconds: STORAGE_METRICS_CACHE_TTL_MS / 1000,
+    r2: await measureBucket(env.PRODUCT_IMAGES)
+  };
+  storageMetricsCache = {
+    payload,
+    expires_at: now + STORAGE_METRICS_CACHE_TTL_MS
+  };
+  return payload;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (url.pathname === '/api/admin/storage-metrics' && request.method === 'GET') {
       try {
-        return json({
-          ok: true,
-          measured_at: new Date().toISOString(),
-          r2: await measureBucket(env.PRODUCT_IMAGES)
-        });
+        return json(await storageMetrics(env, {
+          force: url.searchParams.get('fresh') === '1'
+        }));
       } catch (error) {
         return json({ error: error?.message || 'Falha ao medir R2' }, 500);
       }

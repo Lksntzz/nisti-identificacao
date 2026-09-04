@@ -78,13 +78,17 @@ export async function platformExists(env, platform) {
   const normalized = normalizePlatform(platform);
   if (!normalized) return false;
 
-  const { results } = await env.DB.prepare(`
-    SELECT DISTINCT UPPER(TRIM(platform)) AS platform
+  // Hot path: every identification validates the selected platform. Keep the
+  // existing UPPER(TRIM()) semantics, but ask D1 for a single matching row so
+  // idx_product_platforms_platform_normalized_product can satisfy the lookup.
+  const row = await env.DB.prepare(`
+    SELECT 1 AS found
     FROM product_platforms
-    WHERE TRIM(COALESCE(platform, '')) <> ''
-  `).all();
+    WHERE UPPER(TRIM(platform))=?
+    LIMIT 1
+  `).bind(normalized).first();
 
-  return (results || []).some(row => normalizePlatform(row.platform) === normalized);
+  return Boolean(row?.found);
 }
 
 export async function platformsForReference(env, reference) {
