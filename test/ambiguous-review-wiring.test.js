@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const operatorRouter = readFileSync(new URL('../src/operator-audit-router.js', import.meta.url), 'utf8');
 const entry = readFileSync(new URL('../src/entry.jsx', import.meta.url), 'utf8');
 const client = readFileSync(new URL('../src/shadow-confirmation-client.js', import.meta.url), 'utf8');
-const migration = readFileSync(new URL('../migrations/0013_ambiguous_review_candidates.sql', import.meta.url), 'utf8');
+const migration = readFileSync(new URL('../migrations/0014_ambiguous_review_candidates.sql', import.meta.url), 'utf8');
 
 test('v8.24.2 routes operator traffic through ambiguous review router', () => {
   assert.match(operatorRouter, /import app from '\.\/ambiguous-review-router\.js'/);
