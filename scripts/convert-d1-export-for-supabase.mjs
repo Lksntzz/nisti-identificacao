@@ -127,7 +127,7 @@ function stripLeadingComments(statement) {
 
 export function insertTableName(statement) {
   const value = stripLeadingComments(statement);
-  const match = value.match(/^INSERT\s+INTO\s+(?:"((?:[^"]|"")+)"|([A-Za-z_][A-Za-z0-9_]*))\b/i);
+  const match = value.match(/^INSERT\s+INTO\s+(?:"((?:[^"]|"")+)"|([A-Za-z_][A-Za-z0-9_]*))(?=\s|\(|$)/i);
   if (!match) return null;
   return String(match[1] || match[2] || '').replace(/""/g, '"').toLowerCase();
 }
