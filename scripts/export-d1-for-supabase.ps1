@@ -1,10 +1,10 @@
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
-
 param(
   [string]$Database = 'nisti-identificacao',
   [string]$OutputRoot = 'migration-export'
 )
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
 function Invoke-WranglerCapture {
   param([Parameter(Mandatory = $true)][string[]]$Arguments)
