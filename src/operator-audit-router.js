@@ -1,4 +1,4 @@
-import app from './vectorize-performance-router.js';
+import app from './ambiguous-review-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 
 function json(data, status = 200) {

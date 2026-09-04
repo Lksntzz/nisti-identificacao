@@ -238,14 +238,25 @@ export async function trainOccurrenceDirectly(env, occurrenceId, capaCode, opera
   `).bind(cleanCapaCode, id).run();
 
   // 6. Só confirmação humana/administrativa transforma shadow em ground truth.
+  // Em ocorrências criadas depois do snapshot shadow (ex.: revisão ambígua),
+  // a evidência ainda pode não ter occurrence_id. Primeiro tenta por ID e,
+  // se nenhuma linha foi atualizada, usa o SHA exato da mesma foto.
   // Falha de telemetria não pode impedir o treinamento real já concluído.
   try {
-    await confirmGeometricShadowEvidence(env, {
+    const photoSha256 = await sha256Hex(photoBytes);
+    const source = operatorName ? 'operator_confirmed_training' : 'admin_confirmed_training';
+    const confirmedByOccurrence = await confirmGeometricShadowEvidence(env, {
       occurrenceId: id,
-      photoSha256: await sha256Hex(photoBytes),
       capaCode: cleanCapaCode,
-      source: operatorName ? 'operator_confirmed_training' : 'admin_confirmed_training'
+      source
     });
+    if (!confirmedByOccurrence) {
+      await confirmGeometricShadowEvidence(env, {
+        photoSha256,
+        capaCode: cleanCapaCode,
+        source
+      });
+    }
   } catch (error) {
     console.error('Falha ao confirmar evidência geométrica shadow:', error);
   }
