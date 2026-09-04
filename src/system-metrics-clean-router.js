@@ -3,6 +3,11 @@ import { readRecognitionEvents, readRecognitionMetrics, readOperatorStats } from
 
 const TIMEZONE = 'America/Sao_Paulo';
 const EMBEDDING_DIMENSIONS = 768;
+const SYSTEM_METRICS_CACHE_TTL_MS = 5 * 60 * 1000;
+const OPERATOR_STATS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+let systemMetricsCache = { payload: null, expires_at: 0 };
+let operatorStatsCache = { operators: null, expires_at: 0 };
 
 // Referências documentais verificadas em 2026-09-02. Elas NÃO representam
 // consumo medido da conta Cloudflare/Google. O painel separa explicitamente
@@ -58,36 +63,48 @@ function saoPauloDay(date = new Date()) {
 }
 
 async function readExpectedVectorFootprint(env) {
+  // v8.24.3: the previous query executed a correlated product/platform lookup
+  // once per indexed real_scan reference. As supervised references grew, the
+  // global ADM 30 s refresh multiplied those scans into millions of rows/day.
+  // Pre-aggregate both scopes once and join them back to the references.
   const row = await env.DB.prepare(`
     WITH indexed_refs AS (
       SELECT r.id, r.capa_code, r.source_product_id
       FROM cover_visual_references r
       JOIN cover_reference_embeddings e ON e.reference_id = r.id
       WHERE r.active = 1
-    ), platform_counts AS (
+    ), product_platform_counts AS (
+      SELECT
+        pp.product_id,
+        COUNT(DISTINCT UPPER(TRIM(pp.platform))) AS platform_count
+      FROM product_platforms pp
+      WHERE UPPER(TRIM(pp.platform)) IN ('MERCADO LIVRE','SHOPEE','AMAZON')
+      GROUP BY pp.product_id
+    ), cover_platform_counts AS (
+      SELECT
+        UPPER(TRIM(p.capa_code)) AS capa_code,
+        COUNT(DISTINCT UPPER(TRIM(pp.platform))) AS platform_count
+      FROM products p
+      JOIN product_platforms pp ON pp.product_id = p.id
+      WHERE UPPER(TRIM(pp.platform)) IN ('MERCADO LIVRE','SHOPEE','AMAZON')
+      GROUP BY UPPER(TRIM(p.capa_code))
+    ), resolved AS (
       SELECT
         r.id,
         CASE
-          WHEN r.source_product_id IS NOT NULL THEN (
-            SELECT COUNT(DISTINCT UPPER(TRIM(pp.platform)))
-            FROM product_platforms pp
-            WHERE pp.product_id = r.source_product_id
-              AND UPPER(TRIM(pp.platform)) IN ('MERCADO LIVRE','SHOPEE','AMAZON')
-          )
-          ELSE (
-            SELECT COUNT(DISTINCT UPPER(TRIM(pp.platform)))
-            FROM products p
-            JOIN product_platforms pp ON pp.product_id = p.id
-            WHERE UPPER(TRIM(p.capa_code)) = UPPER(TRIM(r.capa_code))
-              AND UPPER(TRIM(pp.platform)) IN ('MERCADO LIVRE','SHOPEE','AMAZON')
-          )
+          WHEN r.source_product_id IS NOT NULL THEN COALESCE(product_scope.platform_count, 0)
+          ELSE COALESCE(cover_scope.platform_count, 0)
         END AS platform_count
       FROM indexed_refs r
+      LEFT JOIN product_platform_counts product_scope
+        ON product_scope.product_id = r.source_product_id
+      LEFT JOIN cover_platform_counts cover_scope
+        ON cover_scope.capa_code = UPPER(TRIM(r.capa_code))
     )
     SELECT
       COUNT(*) AS indexed_references,
       COALESCE(SUM(CASE WHEN platform_count > 0 THEN platform_count ELSE 3 END), 0) AS expected_vector_copies
-    FROM platform_counts
+    FROM resolved
   `).first();
 
   const indexedReferences = Number(row?.indexed_references || 0);
@@ -103,8 +120,13 @@ async function readExpectedVectorFootprint(env) {
   };
 }
 
-async function handleSystemMetrics(env) {
+async function handleSystemMetrics(env, { force = false } = {}) {
   if (!env.DB) throw new Error('Binding DB não configurado');
+
+  const now = Date.now();
+  if (!force && systemMetricsCache.payload && now < systemMetricsCache.expires_at) {
+    return json(systemMetricsCache.payload);
+  }
 
   const productsProbe = await env.DB.prepare(`
     SELECT
@@ -141,10 +163,11 @@ async function handleSystemMetrics(env) {
   const d1Limit = DOCUMENTED_LIMITS.d1.free_max_database_bytes;
   const d1Percent = d1Limit > 0 ? (sizeBytes / d1Limit) * 100 : null;
 
-  return json({
+  const payload = {
     ok: true,
     measured_at: new Date().toISOString(),
     timezone: TIMEZONE,
+    cache_ttl_seconds: SYSTEM_METRICS_CACHE_TTL_MS / 1000,
     measurement_policy: {
       provider_billing_connected: false,
       cost_guarantee: false,
@@ -191,7 +214,13 @@ async function handleSystemMetrics(env) {
       quota_usage: null,
       quota_note: DOCUMENTED_LIMITS.gemini.note
     }
-  });
+  };
+
+  systemMetricsCache = {
+    payload,
+    expires_at: now + SYSTEM_METRICS_CACHE_TTL_MS
+  };
+  return json(payload);
 }
 
 async function handleRecognitionEvents(url, env) {
@@ -213,12 +242,27 @@ async function handleRecognitionEvents(url, env) {
   });
 }
 
-async function handleOperators(env) {
+async function handleOperators(env, { force = false } = {}) {
+  const now = Date.now();
+  if (!force && operatorStatsCache.operators && now < operatorStatsCache.expires_at) {
+    return json({
+      ok: true,
+      count: operatorStatsCache.operators.length,
+      operators: operatorStatsCache.operators,
+      cache_ttl_seconds: OPERATOR_STATS_CACHE_TTL_MS / 1000
+    });
+  }
+
   const operators = await readOperatorStats(env);
+  operatorStatsCache = {
+    operators,
+    expires_at: now + OPERATOR_STATS_CACHE_TTL_MS
+  };
   return json({
     ok: true,
     count: operators.length,
-    operators
+    operators,
+    cache_ttl_seconds: OPERATOR_STATS_CACHE_TTL_MS / 1000
   });
 }
 
@@ -237,6 +281,11 @@ async function handleUpdateOperatorName(request, env) {
       AND (operator_name IS NULL OR operator_name = '' OR operator_name != ?)
   `).bind(newName, userId, newName).run();
 
+  // The operator aggregate is intentionally cached because GROUP BY over the
+  // append-only event table is one of the most expensive ADM reads. A rename
+  // is a rare explicit write, so invalidate only this in-memory snapshot.
+  operatorStatsCache = { operators: null, expires_at: 0 };
+
   const updated = Number(result?.meta?.changes || 0);
   return json({ ok: true, updated });
 }
@@ -244,9 +293,11 @@ async function handleUpdateOperatorName(request, env) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const force = url.searchParams.get('fresh') === '1';
+
     if (url.pathname === '/api/admin/system-metrics' && request.method === 'GET') {
       try {
-        return await handleSystemMetrics(env);
+        return await handleSystemMetrics(env, { force });
       } catch (error) {
         return json({ error: error?.message || 'Falha ao ler métricas do sistema' }, 500);
       }
@@ -260,7 +311,7 @@ export default {
     }
     if (url.pathname === '/api/admin/operators' && request.method === 'GET') {
       try {
-        return await handleOperators(env);
+        return await handleOperators(env, { force });
       } catch (error) {
         return json({ error: error?.message || 'Falha ao ler estatísticas de operadores' }, 500);
       }
