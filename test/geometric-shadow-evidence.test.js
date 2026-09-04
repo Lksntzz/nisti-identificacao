@@ -17,6 +17,11 @@ function signedPayload() {
       { capa_code: 'A', retrieval_score: 0.921, vector_rank: 1, reference_id: 1, reference_kind: 'product' },
       { capa_code: 'B', retrieval_score: 0.918, vector_rank: 2, reference_id: 2, reference_kind: 'product' },
       { capa_code: 'C', retrieval_score: 0.85, vector_rank: 3, reference_id: 3, reference_kind: 'real_scan' }
+    ],
+    reference_evidence: [
+      { capa_code: 'A', retrieval_score: 0.921, vector_rank: 1, reference_id: 1, reference_kind: 'product' },
+      { capa_code: 'A', retrieval_score: 0.919, vector_rank: 2, reference_id: 11, reference_kind: 'real_scan' },
+      { capa_code: 'B', retrieval_score: 0.918, vector_rank: 3, reference_id: 2, reference_kind: 'product' }
     ]
   };
 }
@@ -97,11 +102,14 @@ test('Live shadow: normalization keeps production decision informational and sha
   const detail = JSON.parse(normalized.evidence_json);
   assert.equal(detail.production.capa_code, 'A');
   assert.equal(detail.shadow_version, 'v8.18');
-  assert.equal(detail.evidence_schema_version, 'v8.23');
+  assert.equal(detail.evidence_schema_version, 'v8.24');
   assert.deepEqual(detail.retrieval.candidates.map(candidate => candidate.capa_code), ['A', 'B', 'C']);
   assert.deepEqual(detail.retrieval.candidates.map(candidate => candidate.vector_rank), [1, 2, 3]);
   assert.equal(detail.retrieval.candidates[2].reference_id, 3);
   assert.equal(detail.retrieval.candidates[2].reference_kind, 'real_scan');
+  assert.equal(detail.retrieval.reference_evidence_count, 3);
+  assert.deepEqual(detail.retrieval.reference_evidence.slice(0, 2).map(reference => reference.capa_code), ['A', 'A']);
+  assert.equal(detail.retrieval.reference_evidence[1].reference_kind, 'real_scan');
 });
 
 test('Live shadow: same-content reference makes geometric evidence fail closed', () => {

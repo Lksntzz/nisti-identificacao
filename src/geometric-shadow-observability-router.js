@@ -46,6 +46,27 @@ function normalizeRetrievalCandidates(value) {
     .sort((a, b) => a.vector_rank - b.vector_rank);
 }
 
+function normalizeReferenceEvidence(value) {
+  if (!Array.isArray(value)) return [];
+  const seenReferenceIds = new Set();
+  return value
+    .slice(0, 50)
+    .map((reference, index) => ({
+      capa_code: normalizeCode(reference?.capa_code),
+      retrieval_score: finite(reference?.retrieval_score),
+      vector_rank: Number(reference?.vector_rank || index + 1) || index + 1,
+      reference_id: Number(reference?.reference_id || 0) || null,
+      reference_kind: String(reference?.reference_kind || '').trim().toLowerCase() || null
+    }))
+    .filter(reference => {
+      if (!reference.capa_code || reference.retrieval_score === null || !reference.reference_id) return false;
+      if (seenReferenceIds.has(reference.reference_id)) return false;
+      seenReferenceIds.add(reference.reference_id);
+      return true;
+    })
+    .sort((a, b) => a.vector_rank - b.vector_rank);
+}
+
 function clampLimit(value) {
   const parsed = Number(value || DEFAULT_LIMIT);
   if (!Number.isFinite(parsed)) return DEFAULT_LIMIT;
@@ -58,6 +79,7 @@ export function normalizeObservabilityRow(row) {
   const geometric = evidence?.geometric || {};
   const production = evidence?.production || {};
   const retrievalCandidates = normalizeRetrievalCandidates(retrieval?.candidates);
+  const referenceEvidence = normalizeReferenceEvidence(retrieval?.reference_evidence);
 
   const truth = normalizeCode(row?.confirmed_capa_code);
   const productionCode = normalizeCode(production?.capa_code);
@@ -135,7 +157,9 @@ export function normalizeObservabilityRow(row) {
       margin: finite(retrieval?.margin),
       reference_kind: retrieval?.reference_kind || null,
       candidate_count: Number(evidence?.candidate_count || retrievalCandidates.length) || retrievalCandidates.length,
-      candidates: retrievalCandidates
+      candidates: retrievalCandidates,
+      reference_evidence_count: Number(retrieval?.reference_evidence_count || referenceEvidence.length) || referenceEvidence.length,
+      reference_evidence: referenceEvidence
     },
     geometric: {
       evaluated: Number(row?.geometric_evaluated || 0) === 1,
@@ -223,7 +247,7 @@ export async function buildGeometricShadowObservability(env, { limit = DEFAULT_L
   };
 
   return {
-    observability_version: 'v8.23',
+    observability_version: 'v8.24',
     generated_at: new Date().toISOString(),
     production_changed: false,
     summary,
