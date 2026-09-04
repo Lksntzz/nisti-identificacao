@@ -23,6 +23,7 @@ Cloudflare Worker
 - Não executar cutover antes da validação de paridade.
 - Não versionar snapshots/exportações; `migration-export/` é ignorado pelo Git.
 - Wrangler deve permanecer exatamente em `3.114.17` durante esta operação.
+- Nunca executar o SQL bruto do SQLite/D1 diretamente no PostgreSQL sem a etapa de conversão/inspeção.
 
 ## 1. Snapshot do D1
 
@@ -49,9 +50,37 @@ migration-export/<UTC>/
 
 `manifest.json` contém SHA-256 dos dois exports SQL. Preserve o diretório sem edição até a conclusão da migração.
 
-## 2. Importação
+## 2. Conversão fail-closed do export
 
-A importação deve preservar os IDs do D1. A ordem de dependências é:
+O SQL de dados do D1 é um dump SQLite. Antes de importar no PostgreSQL, execute:
+
+```powershell
+node .\scripts\convert-d1-export-for-supabase.mjs .\migration-export\<UTC>\d1-data.sql
+```
+
+A conversão gera:
+
+```text
+migration-export/<UTC>/
+├── postgres-data.sql
+└── conversion-report.json
+```
+
+O conversor:
+
+- preserva os IDs explícitos;
+- reorganiza os INSERTs na ordem de dependências do schema PostgreSQL;
+- ignora somente tabelas efêmeras/internas explicitamente conhecidas;
+- aborta ao encontrar tabela de negócio desconhecida, `INSERT OR REPLACE/IGNORE`, blob SQLite ou instrução não mapeada;
+- preserva SHA-256 de origem e saída no relatório.
+
+Se o conversor abortar, não corrigir o dump manualmente. Inspecionar a divergência de schema antes de prosseguir.
+
+## 3. Importação
+
+Importar **`postgres-data.sql`**, não `d1-data.sql`.
+
+A ordem de dependências aplicada pelo conversor é:
 
 1. `products`
 2. `product_platforms`
@@ -69,11 +98,11 @@ A importação deve preservar os IDs do D1. A ordem de dependências é:
 
 Não importar tabelas internas do Wrangler/D1.
 
-## 3. Sincronização de IDENTITY
+## 4. Sincronização de IDENTITY
 
 Depois da importação, executar `supabase/sql/after_d1_import.sql` para posicionar as sequences PostgreSQL após os maiores IDs importados.
 
-## 4. Validação de paridade
+## 5. Validação de paridade
 
 Executar `supabase/sql/validate_d1_import.sql`.
 
@@ -86,6 +115,6 @@ Critérios obrigatórios antes do cutover:
 - IDs preservados;
 - nenhuma tabela de produção apontando para Supabase ainda.
 
-## 5. Cutover
+## 6. Cutover
 
 O cutover será uma fase separada. Primeiro serão migrados os reads críticos de operação e validada a equivalência D1/Supabase. D1 permanecerá disponível como rollback até a validação em produção.
