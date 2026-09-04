@@ -1,3 +1,10 @@
+import {
+  preferSupabaseRead,
+  supabaseListPlatforms,
+  supabasePlatformExists,
+  supabasePlatformsForReference
+} from './supabase-read-store.js';
+
 const SUPPORTED_PLATFORMS = Object.freeze([
   'MERCADO LIVRE',
   'SHOPEE',
@@ -50,7 +57,7 @@ export function platformVectorId(referenceId, platform) {
   return `ref:${id}:p:${namespace}`;
 }
 
-export async function listPlatforms(env) {
+async function listPlatformsFromD1(env) {
   const { results } = await env.DB.prepare(`
     SELECT
       UPPER(TRIM(platform)) AS platform,
@@ -59,9 +66,19 @@ export async function listPlatforms(env) {
     WHERE TRIM(COALESCE(platform, '')) <> ''
     GROUP BY UPPER(TRIM(platform))
   `).all();
+  return results || [];
+}
+
+export async function listPlatforms(env) {
+  const rows = await preferSupabaseRead(
+    env,
+    () => supabaseListPlatforms(env),
+    () => listPlatformsFromD1(env),
+    'list-platforms'
+  );
 
   const counts = new Map(SUPPORTED_PLATFORMS.map(platform => [platform, 0]));
-  for (const row of results || []) {
+  for (const row of rows || []) {
     const platform = normalizePlatform(row.platform);
     if (!platform || !counts.has(platform)) continue;
     counts.set(platform, counts.get(platform) + Number(row.product_count || 0));
@@ -74,10 +91,7 @@ export async function listPlatforms(env) {
   }));
 }
 
-export async function platformExists(env, platform) {
-  const normalized = normalizePlatform(platform);
-  if (!normalized) return false;
-
+async function platformExistsInD1(env, normalized) {
   // Hot path: every identification validates the selected platform. Keep the
   // existing UPPER(TRIM()) semantics, but ask D1 for a single matching row so
   // idx_product_platforms_platform_normalized_product can satisfy the lookup.
@@ -91,10 +105,19 @@ export async function platformExists(env, platform) {
   return Boolean(row?.found);
 }
 
-export async function platformsForReference(env, reference) {
-  const sourceProductId = Number(reference?.source_product_id || 0);
-  const capaCode = String(reference?.capa_code || '').trim().toUpperCase();
+export async function platformExists(env, platform) {
+  const normalized = normalizePlatform(platform);
+  if (!normalized) return false;
 
+  return preferSupabaseRead(
+    env,
+    () => supabasePlatformExists(env, normalized),
+    () => platformExistsInD1(env, normalized),
+    'platform-exists'
+  );
+}
+
+async function platformsForReferenceFromD1(env, sourceProductId, capaCode) {
   let results = [];
   if (sourceProductId > 0) {
     ({ results } = await env.DB.prepare(`
@@ -111,9 +134,22 @@ export async function platformsForReference(env, reference) {
         AND TRIM(COALESCE(pp.platform, '')) <> ''
     `).bind(capaCode).all());
   }
+  return results || [];
+}
+
+export async function platformsForReference(env, reference) {
+  const sourceProductId = Number(reference?.source_product_id || 0);
+  const capaCode = String(reference?.capa_code || '').trim().toUpperCase();
+
+  const rows = await preferSupabaseRead(
+    env,
+    () => supabasePlatformsForReference(env, sourceProductId, capaCode),
+    () => platformsForReferenceFromD1(env, sourceProductId, capaCode),
+    'platforms-for-reference'
+  );
 
   return [...new Set(
-    (results || [])
+    (rows || [])
       .map(row => normalizePlatform(row.platform))
       .filter(Boolean)
   )];
