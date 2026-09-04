@@ -1,7 +1,10 @@
 const CONFIRMATION_VERSION = 'v8.19';
+const AMBIGUOUS_REVIEW_VERSION = 'v8.24.2';
 const MAX_CONTEXT_AGE_MS = 15 * 60 * 1000;
 const READY_EVENT = 'nisti:shadow-confirmation-ready';
 const STATE_EVENT = 'nisti:shadow-confirmation-state';
+const AMBIGUOUS_READY_EVENT = 'nisti:ambiguous-review-ready';
+const AMBIGUOUS_STATE_EVENT = 'nisti:ambiguous-review-state';
 
 function normalizeCode(value) {
   return String(value || '').trim().toUpperCase();
@@ -34,7 +37,19 @@ async function cloneJson(response) {
   return response.clone().json().catch(() => null);
 }
 
-function operatorHeaders() {
+function responseWithJson(response, data) {
+  const headers = new Headers(response.headers);
+  headers.delete('content-length');
+  headers.set('content-type', 'application/json; charset=utf-8');
+  headers.set('cache-control', 'no-store');
+  return new Response(JSON.stringify(data), {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
+function operatorHeaders({ json = true } = {}) {
   let operatorId = 'op_guest';
   let operatorName = '';
   try {
@@ -42,7 +57,7 @@ function operatorHeaders() {
     operatorName = localStorage.getItem('nisti_operator_name') || '';
   } catch {}
   return {
-    'content-type': 'application/json',
+    ...(json ? { 'content-type': 'application/json' } : {}),
     'x-user-id': operatorId,
     ...(operatorName ? { 'x-operator-name': encodeURIComponent(operatorName) } : {})
   };
@@ -132,8 +147,73 @@ function install() {
     throw new Error('A evidência shadow não ficou disponível a tempo para confirmação.');
   }
 
+  async function startAmbiguousReview({ context, form, errorMessage }) {
+    if (!context?.shadow_ticket || !context?.production_ticket) {
+      throw new Error('Tickets da revisão ambígua não estão disponíveis.');
+    }
+    if (context.ambiguous_review) return context.ambiguous_review;
+    if (context.ambiguous_review_starting) return context.ambiguous_review_starting;
+
+    const image = form?.get('image');
+    const platform = normalizePlatform(form?.get('platform') || context.platform);
+    if (!(image instanceof File) || !platform) {
+      throw new Error('Foto ou plataforma ausente para revisão ambígua.');
+    }
+
+    dispatch(AMBIGUOUS_STATE_EVENT, {
+      status: 'starting',
+      platform,
+      error: errorMessage || null
+    });
+
+    context.ambiguous_review_starting = (async () => {
+      const reviewForm = new FormData();
+      reviewForm.append('image', image, image.name || 'capa.jpg');
+      reviewForm.append('platform', platform);
+      reviewForm.append('production_ticket', context.production_ticket);
+      reviewForm.append('shadow_ticket', context.shadow_ticket);
+
+      const response = await previousFetch('/api/operator/ambiguous-review/start', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: operatorHeaders({ json: false }),
+        body: reviewForm
+      });
+      const data = await cloneJson(response);
+      if (!response.ok || !data?.ok || !data?.occurrence_id || !data?.review_token) {
+        throw new Error(data?.error || `Falha ao iniciar revisão (${response.status}).`);
+      }
+
+      context.ambiguous_review = {
+        occurrence_id: Number(data.occurrence_id),
+        review_token: String(data.review_token),
+        platform: normalizePlatform(data.platform || platform),
+        candidates: Array.isArray(data.candidates) ? data.candidates : [],
+        sent_to_adm: data.sent_to_adm === true
+      };
+      dispatch(AMBIGUOUS_READY_EVENT, {
+        ...context.ambiguous_review,
+        review_version: data.review_version || AMBIGUOUS_REVIEW_VERSION,
+        original_error: errorMessage || null
+      });
+      dispatch(AMBIGUOUS_STATE_EVENT, {
+        status: 'ready',
+        occurrence_id: context.ambiguous_review.occurrence_id,
+        platform: context.ambiguous_review.platform
+      });
+      return context.ambiguous_review;
+    })();
+
+    try {
+      return await context.ambiguous_review_starting;
+    } finally {
+      context.ambiguous_review_starting = null;
+    }
+  }
+
   window.__NISTI_CONFIRM_SHADOW_RESULT__ = confirmCurrent;
   window.__NISTI_SHADOW_CONFIRMATION_VERSION__ = CONFIRMATION_VERSION;
+  window.__NISTI_AMBIGUOUS_REVIEW_VERSION__ = AMBIGUOUS_REVIEW_VERSION;
 
   window.fetch = async function confirmationObservedFetch(input, init = {}) {
     const url = requestUrl(input);
@@ -154,7 +234,9 @@ function install() {
           platform,
           created_at_ms: Date.now(),
           production_capa_code: null,
-          confirmed: false
+          confirmed: false,
+          ambiguous_review: null,
+          ambiguous_review_starting: null
         };
         contextsByProductionTicket.set(context.production_ticket, context);
         if (platform) latestByPlatform.set(platform, context);
@@ -180,7 +262,36 @@ function install() {
           platform: context.platform,
           confirmation_version: CONFIRMATION_VERSION
         });
+        return response;
       }
+
+      if (
+        response.status === 422 &&
+        data?.technical_error === 'ambiguous_top1_margin' &&
+        context
+      ) {
+        try {
+          const review = await startAmbiguousReview({
+            context,
+            form,
+            errorMessage: data?.error || null
+          });
+          return responseWithJson(response, {
+            ...data,
+            occurrence_id: review.occurrence_id,
+            sent_to_adm: review.sent_to_adm,
+            review_candidates: review.candidates,
+            review_version: AMBIGUOUS_REVIEW_VERSION
+          });
+        } catch (error) {
+          dispatch(AMBIGUOUS_STATE_EVENT, {
+            status: 'error',
+            platform,
+            error: error?.message || 'Falha ao preparar revisão humana.'
+          });
+        }
+      }
+
       return response;
     }
 
@@ -190,4 +301,11 @@ function install() {
 
 install();
 
-export { CONFIRMATION_VERSION, READY_EVENT, STATE_EVENT };
+export {
+  CONFIRMATION_VERSION,
+  AMBIGUOUS_REVIEW_VERSION,
+  READY_EVENT,
+  STATE_EVENT,
+  AMBIGUOUS_READY_EVENT,
+  AMBIGUOUS_STATE_EVENT
+};
