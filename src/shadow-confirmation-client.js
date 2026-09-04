@@ -147,6 +147,32 @@ function install() {
     throw new Error('A evidência shadow não ficou disponível a tempo para confirmação.');
   }
 
+  async function linkAmbiguousOccurrence(context, occurrenceId) {
+    const id = Number(occurrenceId || 0);
+    const token = String(context?.shadow_token || '').trim();
+    const shadowTicket = String(context?.shadow_ticket || '').trim();
+    if (!id || !token || !shadowTicket) return false;
+
+    const path = `/api/operator/geometric-shadow-evidence/${encodeURIComponent(token)}/link-occurrence`;
+    for (let attempt = 0; attempt < 7; attempt++) {
+      if (attempt) await new Promise(resolve => setTimeout(resolve, 400 + attempt * 300));
+      try {
+        const response = await previousFetch(path, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: operatorHeaders(),
+          body: JSON.stringify({
+            shadow_ticket: shadowTicket,
+            occurrence_id: id
+          })
+        });
+        if (response.ok) return true;
+        if (response.status !== 404) return false;
+      } catch {}
+    }
+    return false;
+  }
+
   async function startAmbiguousReview({ context, form, errorMessage }) {
     if (!context?.shadow_ticket || !context?.production_ticket) {
       throw new Error('Tickets da revisão ambígua não estão disponíveis.');
@@ -191,6 +217,12 @@ function install() {
         candidates: Array.isArray(data.candidates) ? data.candidates : [],
         sent_to_adm: data.sent_to_adm === true
       };
+
+      // O snapshot shadow pode estar sendo persistido em background pela camada
+      // geométrica. Vincular com retry garante que uma confirmação muito rápida
+      // ainda seja reconciliada como ground truth quando a evidência aparecer.
+      void linkAmbiguousOccurrence(context, context.ambiguous_review.occurrence_id);
+
       dispatch(AMBIGUOUS_READY_EVENT, {
         ...context.ambiguous_review,
         review_version: data.review_version || AMBIGUOUS_REVIEW_VERSION,
