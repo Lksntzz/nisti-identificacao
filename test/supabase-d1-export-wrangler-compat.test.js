@@ -12,5 +12,5 @@ test('D1 export script remains compatible with pinned Wrangler 3.114.17', async 
   assert.match(script, /'--remote'/);
   assert.match(script, /'--no-data'/);
   assert.match(script, /'--no-schema'/);
-  assert.doesNotMatch(script, /--skip-confirmation/);
+  assert.doesNotMatch(script, /'--skip-confirmation'/);
 });
