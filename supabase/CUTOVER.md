@@ -18,7 +18,7 @@ SUPABASE_CUTOVER_WRITE_FREEZE=0
 
 - D1 continua sendo a autoridade até a conclusão explícita do cutover.
 - O navegador nunca recebe a service-role key nem acessa o PostgreSQL diretamente.
-- Não alterar thresholds de reconhecimento durante o cutover.
+- Não alterar os thresholds de reconhecimento durante o cutover.
 - Não importar `push_logs`; essa tabela permanece legado/diagnóstico fora da autoridade PostgreSQL.
 - Não aplicar a migration não mergeada `0014_ambiguous_review_candidates.sql` como parte deste procedimento.
 - `postgres-data.sql` é um arquivo de carga inicial. Para a substituição final use **somente** `postgres-final-replace.sql` gerado pelo script NISTI.
@@ -31,7 +31,7 @@ Todos os itens abaixo são obrigatórios antes da janela final:
 1. schema e RPCs Supabase aplicados e auditados como `SECURITY INVOKER`;
 2. `PUBLIC`, `anon` e `authenticated` sem `EXECUTE` nas RPCs privilegiadas;
 3. `service_role` com `EXECUTE` nas RPCs necessárias;
-4. snapshot inicial importado e validado;
+4. snapshot inicial com as 13 tabelas importadas e validado;
 5. Production Gate verde na versão a ser implantada;
 6. `SUPABASE_SERVICE_ROLE_KEY` configurada no Worker;
 7. Phase 6 de write mirroring concluída no código;
