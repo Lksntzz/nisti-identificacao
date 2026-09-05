@@ -34,12 +34,14 @@ $schemaPath = Join-Path $outDir 'd1-schema.sql'
 $countsPath = Join-Path $outDir 'd1-counts.json'
 $manifestPath = Join-Path $outDir 'manifest.json'
 
+# Wrangler 3.114.17 is deliberately pinned for this project. Its `d1 export`
+# command does not implement --skip-confirmation (that option was added later),
+# and this pinned version performs remote exports without that prompt.
 Write-Host "Exportando schema remoto de $Database..."
 Invoke-WranglerCapture -Arguments @(
   'd1', 'export', $Database,
   '--remote',
   '--no-data',
-  '--skip-confirmation',
   '--output', $schemaPath
 ) | Out-Null
 
@@ -48,7 +50,6 @@ Invoke-WranglerCapture -Arguments @(
   'd1', 'export', $Database,
   '--remote',
   '--no-schema',
-  '--skip-confirmation',
   '--output', $dataPath
 ) | Out-Null
 
