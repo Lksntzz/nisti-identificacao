@@ -77,33 +77,76 @@ Invoke-WranglerCapture -Arguments @(
   '--output', $dataPath
 ) | Out-Null
 
-# Important: npx.cmd is a Windows batch shim. Passing a multiline value to
-# --command can be truncated at the first newline by cmd.exe. Keep this SQL as a
-# single physical line so all 13 authoritative table counts are returned.
-$countSql = "SELECT 'products' AS table_name, COUNT(*) AS row_count FROM products UNION ALL SELECT 'product_platforms', COUNT(*) FROM product_platforms UNION ALL SELECT 'cover_embeddings', COUNT(*) FROM cover_embeddings UNION ALL SELECT 'recognition_daily', COUNT(*) FROM recognition_daily UNION ALL SELECT 'recognition_events', COUNT(*) FROM recognition_events UNION ALL SELECT 'cover_visual_references', COUNT(*) FROM cover_visual_references UNION ALL SELECT 'cover_reference_embeddings', COUNT(*) FROM cover_reference_embeddings UNION ALL SELECT 'cover_visual_signatures', COUNT(*) FROM cover_visual_signatures UNION ALL SELECT 'notifications', COUNT(*) FROM notifications UNION ALL SELECT 'notification_reads', COUNT(*) FROM notification_reads UNION ALL SELECT 'push_subscriptions', COUNT(*) FROM push_subscriptions UNION ALL SELECT 'scan_occurrences', COUNT(*) FROM scan_occurrences UNION ALL SELECT 'geometric_shadow_evidence', COUNT(*) FROM geometric_shadow_evidence ORDER BY table_name;"
+# D1/workerd intentionally enforces a low SQLITE_LIMIT_COMPOUND_SELECT. Do not
+# aggregate these counts with UNION ALL: even a modest number of SELECT terms can
+# be rejected. Query each hard-coded authoritative table independently instead.
+$authoritativeTables = @(
+  'products',
+  'product_platforms',
+  'cover_embeddings',
+  'recognition_daily',
+  'recognition_events',
+  'cover_visual_references',
+  'cover_reference_embeddings',
+  'cover_visual_signatures',
+  'notifications',
+  'notification_reads',
+  'push_subscriptions',
+  'scan_occurrences',
+  'geometric_shadow_evidence'
+)
 
 Write-Host 'Capturando contagens de origem...'
-$countOutput = Invoke-WranglerCapture -Arguments @(
-  'd1', 'execute', $Database,
-  '--remote',
-  '--json',
-  '--command', $countSql
-)
-$countJson = @($countOutput) -join [Environment]::NewLine
-try {
-  $parsedCounts = $countJson | ConvertFrom-Json
-}
-catch {
-  throw "Wrangler retornou JSON de contagens inválido: $($_.Exception.Message)"
+$countRecords = @()
+foreach ($table in $authoritativeTables) {
+  $countSql = "SELECT COUNT(*) AS row_count FROM `"$table`";"
+  $countOutput = Invoke-WranglerCapture -Arguments @(
+    'd1', 'execute', $Database,
+    '--remote',
+    '--json',
+    '--command', $countSql
+  )
+  $rawJson = @($countOutput) -join [Environment]::NewLine
+
+  try {
+    $parsed = $rawJson | ConvertFrom-Json
+  }
+  catch {
+    throw "Wrangler retornou JSON inválido ao contar '$table': $($_.Exception.Message)"
+  }
+
+  $responses = @($parsed)
+  if ($responses.Count -ne 1) {
+    throw "Contagem de '$table' retornou $($responses.Count) resposta(s); esperado: 1."
+  }
+
+  $response = $responses[0]
+  if (-not $response.success) {
+    throw "Contagem remota de '$table' não retornou success=true."
+  }
+
+  $rows = @($response.results)
+  if ($rows.Count -ne 1 -or $null -eq $rows[0].row_count) {
+    throw "Contagem remota de '$table' não retornou exatamente um row_count."
+  }
+
+  $countRecords += [pscustomobject]@{
+    table_name = $table
+    row_count = [long]$rows[0].row_count
+  }
 }
 
-if (-not $parsedCounts.success) {
-  throw 'Consulta remota de contagens D1 não retornou success=true.'
+if ($countRecords.Count -ne $authoritativeTables.Count -or $countRecords.Count -ne 13) {
+  throw "Consulta remota de contagens retornou $($countRecords.Count) tabela(s); esperado: 13. Snapshot abortado."
 }
-if (-not $parsedCounts.results -or @($parsedCounts.results).Count -ne 13) {
-  $actual = if ($parsedCounts.results) { @($parsedCounts.results).Count } else { 0 }
-  throw "Consulta remota de contagens retornou $actual tabela(s); esperado: 13. Snapshot abortado."
+
+$countPayload = [ordered]@{
+  results = @($countRecords)
+  success = $true
+  query_count = $countRecords.Count
+  captured_at_utc = (Get-Date).ToUniversalTime().ToString('o')
 }
+$countJson = $countPayload | ConvertTo-Json -Depth 6
 $countJson | Set-Content -Path $countsPath -Encoding utf8
 
 if (-not (Test-Path $dataPath) -or (Get-Item $dataPath).Length -le 0) {

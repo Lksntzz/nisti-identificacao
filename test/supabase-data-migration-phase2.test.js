@@ -16,7 +16,10 @@ test('phase 2 keeps D1 snapshot export read-only and pinned', () => {
   assert.match(source, /'--remote'/);
   assert.match(source, /'--no-data'/);
   assert.match(source, /'--no-schema'/);
-  assert.match(source, /SELECT 'products' AS table_name, COUNT\(\*\)/);
+  assert.match(source, /\$authoritativeTables = @\(/);
+  assert.match(source, /foreach \(\$table in \$authoritativeTables\)/);
+  assert.match(source, /SELECT COUNT\(\*\) AS row_count FROM/);
+  assert.match(source, /\$countRecords\.Count -ne 13/);
   assert.doesNotMatch(source, /d1', 'migrations', 'apply/i);
   assert.doesNotMatch(source, /d1', 'execute'.*--file/s);
   assert.doesNotMatch(source, /wrangler deploy/i);
