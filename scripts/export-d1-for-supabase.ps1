@@ -9,10 +9,38 @@ $ErrorActionPreference = 'Stop'
 function Invoke-WranglerCapture {
   param([Parameter(Mandatory = $true)][string[]]$Arguments)
 
-  $output = & npx.cmd wrangler @Arguments 2>&1
-  if ($LASTEXITCODE -ne 0) {
-    throw "Wrangler falhou ($LASTEXITCODE):`n$($output -join [Environment]::NewLine)"
+  # Windows PowerShell 5.1 converts stderr from native commands into PowerShell
+  # error records. With the script-wide ErrorActionPreference=Stop, harmless
+  # Wrangler warnings (for example the pinned-version update notice) would abort
+  # the snapshot even when Wrangler exits with code 0. Capture stderr separately,
+  # decide success exclusively from the native exit code, and never mix warnings
+  # into stdout because stdout is persisted as JSON for the row-count snapshot.
+  $stderrPath = Join-Path ([System.IO.Path]::GetTempPath()) (
+    'nisti-wrangler-' + [Guid]::NewGuid().ToString('N') + '.stderr.log'
+  )
+  $previousErrorActionPreference = $ErrorActionPreference
+  $output = @()
+  $stderr = ''
+  $exitCode = -1
+
+  try {
+    $ErrorActionPreference = 'Continue'
+    $output = @(& npx.cmd wrangler @Arguments 2> $stderrPath)
+    $exitCode = $LASTEXITCODE
+    if (Test-Path $stderrPath) {
+      $stderr = Get-Content -Path $stderrPath -Raw -ErrorAction SilentlyContinue
+    }
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+    Remove-Item -Path $stderrPath -Force -ErrorAction SilentlyContinue
   }
+
+  if ($exitCode -ne 0) {
+    $diagnostic = @($output)
+    if ($stderr) { $diagnostic += $stderr.TrimEnd() }
+    throw "Wrangler falhou ($exitCode):`n$($diagnostic -join [Environment]::NewLine)"
+  }
+
   return $output
 }
 
