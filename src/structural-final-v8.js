@@ -1,12 +1,16 @@
 import { parseSku } from './sku.js';
-import { normalizePlatform, platformNamespace } from './platform-scope.js';
+import { normalizePlatform } from './platform-scope.js';
 import { reserveGeminiBudget } from './gemini-budget.js';
-import { detectCrossPlatformMatch, embedImage } from './vectorize-candidates.js';
 import { recordScanOccurrence } from './occurrences-router.js';
+import {
+  preferSupabaseRead,
+  supabaseProductsForCover,
+  supabaseReferenceById,
+  supabaseReferenceByCover
+} from './supabase-read-store.js';
 
 const COOKIE_NAME = 'nisti_recognition_ticket';
 const MAX_CANDIDATES = 4;
-const SUGGESTION_LIMIT = 4;
 const MIN_STRUCTURAL_CONFIDENCE = 0.65;
 const MIN_TOP1_MARGIN_FOR_SINGLE_CANDIDATE = 0.005;
 const VERIFY_TIMEOUT_MS = 10000;
@@ -143,20 +147,9 @@ function personalizedFromCatalogText(values) {
 }
 
 async function candidateCatalogMetadata(env, capaCode, platform) {
-  const { results } = await env.DB.prepare(`
-    SELECT p.nome,p.variacao
-    FROM products p
-    JOIN product_platforms pp ON pp.product_id=p.id
-    WHERE UPPER(TRIM(p.capa_code))=? AND UPPER(TRIM(pp.platform))=?
-    ORDER BY p.id ASC
-    LIMIT 8
-  `).bind(
-    String(capaCode || '').trim().toUpperCase(),
-    normalizePlatform(platform)
-  ).all();
-
+  const products = await productsForCover(env, capaCode, platform);
   const labels = [];
-  for (const row of results || []) {
+  for (const row of products.slice(0, 8)) {
     for (const raw of [row.nome, row.variacao]) {
       const value = String(raw || '').trim();
       if (value && !labels.includes(value)) labels.push(value);
@@ -169,26 +162,44 @@ async function candidateCatalogMetadata(env, capaCode, platform) {
   };
 }
 
+async function d1ReferenceById(env, referenceId) {
+  return env.DB.prepare(`
+    SELECT id,capa_code,image_key,source_product_id,reference_kind,active
+    FROM cover_visual_references
+    WHERE id=? AND active=1 AND image_key IS NOT NULL
+    LIMIT 1
+  `).bind(referenceId).first();
+}
+
+async function d1ReferenceByCover(env, capaCode) {
+  return env.DB.prepare(`
+    SELECT id,capa_code,image_key,source_product_id,reference_kind,active
+    FROM cover_visual_references
+    WHERE UPPER(TRIM(capa_code))=? AND active=1 AND image_key IS NOT NULL
+    ORDER BY id ASC
+    LIMIT 1
+  `).bind(String(capaCode || '').trim().toUpperCase()).first();
+}
+
 async function resolveCandidate(env, candidate, platform) {
   let row = null;
 
   if (candidate.reference_id) {
-    row = await env.DB.prepare(`
-      SELECT id,capa_code,image_key,reference_kind
-      FROM cover_visual_references
-      WHERE id=? AND active=1 AND image_key IS NOT NULL
-      LIMIT 1
-    `).bind(candidate.reference_id).first();
+    row = await preferSupabaseRead(
+      env,
+      () => supabaseReferenceById(env, candidate.reference_id),
+      () => d1ReferenceById(env, candidate.reference_id),
+      'structural reference by id'
+    );
   }
 
   if (!row || String(row.capa_code || '').trim().toUpperCase() !== candidate.capa_code) {
-    row = await env.DB.prepare(`
-      SELECT id,capa_code,image_key,reference_kind
-      FROM cover_visual_references
-      WHERE UPPER(TRIM(capa_code))=? AND active=1 AND image_key IS NOT NULL
-      ORDER BY id ASC
-      LIMIT 1
-    `).bind(candidate.capa_code).first();
+    row = await preferSupabaseRead(
+      env,
+      () => supabaseReferenceByCover(env, candidate.capa_code),
+      () => d1ReferenceByCover(env, candidate.capa_code),
+      'structural reference by cover'
+    );
   }
 
   if (!row?.image_key) return null;
@@ -449,7 +460,7 @@ function productPayload(product) {
   };
 }
 
-async function productsForCover(env, capaCode, platform) {
+async function d1ProductsForCover(env, capaCode, platform) {
   const { results } = await env.DB.prepare(`
     SELECT p.*, pp.platform, pp.link
     FROM products p
@@ -460,6 +471,16 @@ async function productsForCover(env, capaCode, platform) {
     String(capaCode || '').trim().toUpperCase(),
     normalizePlatform(platform)
   ).all();
+  return results || [];
+}
+
+async function productsForCover(env, capaCode, platform) {
+  const results = await preferSupabaseRead(
+    env,
+    () => supabaseProductsForCover(env, capaCode, platform),
+    () => d1ProductsForCover(env, capaCode, platform),
+    'structural products for cover'
+  );
 
   const seen = new Set();
   return (results || []).filter(product => {
@@ -862,68 +883,4 @@ Retorne exclusivamente um JSON no seguinte formato:
   } catch (err) {
     return json({ error: err.message || 'Erro ao processar foto de detalhe.' }, 500);
   }
-}
-
-export async function autoLearnVisualSample(env, capaCode, imageBytes, mimeType = 'image/jpeg') {
-  if (!env?.DB || !env?.PRODUCT_IMAGES || !env?.COVER_VECTORS) return;
-  const cleanCode = String(capaCode || '').trim().toUpperCase();
-  if (!cleanCode || !imageBytes || imageBytes.length < 500) return;
-
-  try {
-    const existing = await env.DB.prepare(`
-      SELECT COUNT(*) AS total
-      FROM cover_visual_references
-      WHERE capa_code=? AND reference_kind='auto_learned' AND active=1
-    `).bind(cleanCode).first();
-
-    if (Number(existing?.total || 0) >= 2) return;
-
-    const key = `references/learned/${cleanCode}/${crypto.randomUUID()}.jpg`;
-    await env.PRODUCT_IMAGES.put(key, imageBytes, { httpMetadata: { contentType: mimeType } });
-
-    const insertResult = await env.DB.prepare(`
-      INSERT INTO cover_visual_references (
-        capa_code, image_key, source_product_id, reference_kind, active, created_at, updated_at
-      ) VALUES (?, ?, NULL, 'auto_learned', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `).bind(cleanCode, key).run();
-
-    const refId = Number(insertResult.meta?.last_row_id);
-    if (!refId) return;
-
-    const { model, values } = await embedImage(env, imageBytes, mimeType);
-
-    await env.DB.prepare(`
-      INSERT INTO cover_reference_embeddings (
-        reference_id, embedding_model, dimensions, embedding_json, updated_at
-      ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).bind(refId, model, values.length, JSON.stringify(values)).run();
-
-    const { results } = await env.DB.prepare(`
-      SELECT DISTINCT pp.platform
-      FROM products p
-      JOIN product_platforms pp ON pp.product_id=p.id
-      WHERE UPPER(TRIM(p.capa_code))=?
-    `).bind(cleanCode).all();
-
-    const vectors = (results || []).map(row => {
-      const namespace = platformNamespace(row.platform);
-      return namespace ? {
-        id: `learned_${refId}_${cleanCode}`,
-        values,
-        namespace,
-        metadata: {
-          reference_id: refId,
-          capa_code: cleanCode,
-          reference_kind: 'auto_learned',
-          image_key: key,
-          platform: row.platform,
-          updated_at: new Date().toISOString()
-        }
-      } : null;
-    }).filter(Boolean);
-
-    if (vectors.length && env.COVER_VECTORS?.upsert) {
-      await env.COVER_VECTORS.upsert(vectors).catch(() => {});
-    }
-  } catch {}
 }
