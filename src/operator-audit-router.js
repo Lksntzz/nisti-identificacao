@@ -1,5 +1,6 @@
 import app from './vectorize-performance-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
+import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -49,6 +50,15 @@ export default {
       }
     }
 
-    return app.fetch(request, env, ctx);
+    // Only confirm-selection needs its JSON body again after the downstream
+    // router consumes it. Other mirrored mutations are identified by URL and
+    // their response payload, avoiding clones of large image uploads.
+    const mirrorRequest = request.method === 'POST' && url.pathname === '/api/operator/confirm-selection'
+      ? request.clone()
+      : request;
+
+    const response = await app.fetch(request, env, ctx);
+    await mirrorSuccessfulMutation(mirrorRequest, response, env);
+    return response;
   }
 };
