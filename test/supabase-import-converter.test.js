@@ -38,10 +38,24 @@ COMMIT;
   assert.deepEqual(Object.keys(converted.statementCounts), [...TABLE_ORDER]);
 });
 
-test('converter fails closed for unknown application tables', () => {
+test('converter preserves legacy push_logs only in raw snapshot and excludes them from PostgreSQL authority', () => {
+  const endpoint = 'https://web.push.apple.com/private-endpoint-value';
+  const converted = convertD1DataSql(`INSERT INTO "push_logs" VALUES(1,'PQV1','${endpoint}',200,1,NULL,'2026-09-04');`);
+
+  assert.equal(converted.ignored.push_logs, 1);
+  assert.doesNotMatch(converted.sql, /push_logs/);
+  assert.doesNotMatch(converted.sql, /private-endpoint-value/);
+});
+
+test('converter fails closed for unknown application tables without echoing row contents', () => {
+  const secret = 'https://example.invalid/private-value';
   assert.throws(
-    () => convertD1DataSql(`INSERT INTO "mystery_business_table" VALUES(1,'x');`),
-    /Tabela não mapeada mystery_business_table/
+    () => convertD1DataSql(`INSERT INTO "mystery_business_table" VALUES(1,'${secret}');`),
+    error => {
+      assert.match(error.message, /Tabela não mapeada mystery_business_table: 1/);
+      assert.doesNotMatch(error.message, /private-value/);
+      return true;
+    }
   );
 });
 

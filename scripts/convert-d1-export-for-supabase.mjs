@@ -20,14 +20,26 @@ export const TABLE_ORDER = Object.freeze([
 ]);
 
 const ALLOWED_TABLES = new Set(TABLE_ORDER);
-const IGNORED_EPHEMERAL_TABLES = new Set([
+
+// These tables are deliberately preserved only in the immutable raw D1 snapshot.
+// They are not part of the current application schema/migrations and are not an
+// authoritative input to catalog, recognition, ground truth or operator state.
+// push_logs is a legacy delivery/debug table containing endpoint-level telemetry;
+// carrying it into the new relational authority would retain stale endpoint data
+// without any current application consumer.
+const IGNORED_NON_AUTHORITATIVE_TABLES = new Set([
   'sqlite_sequence',
   'd1_migrations',
-  'gemini_call_budget'
+  'gemini_call_budget',
+  'push_logs'
 ]);
 
 function sha256(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
+}
+
+function incrementCounter(target, key) {
+  target[key] = (target[key] || 0) + 1;
 }
 
 export function splitSqlStatements(source) {
@@ -142,14 +154,20 @@ function classifyNonInsert(statement) {
 export function convertD1DataSql(source) {
   const grouped = new Map(TABLE_ORDER.map(table => [table, []]));
   const ignored = {};
-  const unsupported = [];
+  const unsupported = {};
+  let unsupportedTotal = 0;
+
+  const reject = (reason) => {
+    unsupportedTotal += 1;
+    incrementCounter(unsupported, reason);
+  };
 
   for (const statement of splitSqlStatements(source)) {
     const value = stripLeadingComments(statement);
     if (!value) continue;
 
     if (/^INSERT\s+OR\s+(?:REPLACE|IGNORE)\b/i.test(value) || /^REPLACE\s+INTO\b/i.test(value)) {
-      unsupported.push(value.slice(0, 180));
+      reject('INSERT OR REPLACE/IGNORE não suportado');
       continue;
     }
 
@@ -157,30 +175,34 @@ export function convertD1DataSql(source) {
     if (table) {
       if (ALLOWED_TABLES.has(table)) {
         if (/\bX'[0-9A-F]*'/i.test(value)) {
-          unsupported.push(`SQLite blob literal em ${table}: ${value.slice(0, 140)}`);
+          reject(`SQLite blob literal em ${table}`);
           continue;
         }
         grouped.get(table).push(value.endsWith(';') ? value : `${value};`);
         continue;
       }
-      if (IGNORED_EPHEMERAL_TABLES.has(table) || table.startsWith('_cf_')) {
-        ignored[table] = (ignored[table] || 0) + 1;
+      if (IGNORED_NON_AUTHORITATIVE_TABLES.has(table) || table.startsWith('_cf_')) {
+        incrementCounter(ignored, table);
         continue;
       }
-      unsupported.push(`Tabela não mapeada ${table}: ${value.slice(0, 140)}`);
+      reject(`Tabela não mapeada ${table}`);
       continue;
     }
 
     const classification = classifyNonInsert(value);
     if (classification !== 'control' && classification !== 'empty') {
-      unsupported.push(value.slice(0, 180));
+      const keyword = value.match(/^([A-Za-z]+)/)?.[1]?.toUpperCase() || 'DESCONHECIDO';
+      reject(`SQL não suportado (${keyword})`);
     }
   }
 
-  if (unsupported.length) {
-    const sample = unsupported.slice(0, 5).join('\n---\n');
+  if (unsupportedTotal) {
+    const summary = Object.entries(unsupported)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([reason, count]) => `${reason}: ${count}`)
+      .join('\n');
     throw new Error(
-      `Export contém ${unsupported.length} instrução(ões) não convertidas. Migração abortada para evitar perda silenciosa.\n${sample}`
+      `Export contém ${unsupportedTotal} instrução(ões) não convertidas. Migração abortada para evitar perda silenciosa.\n${summary}`
     );
   }
 
@@ -230,7 +252,7 @@ export function convertFile(inputPath) {
     output_bytes: Buffer.byteLength(converted.sql),
     output_sha256: sha256(converted.sql),
     statement_counts: converted.statementCounts,
-    ignored_ephemeral_statements: converted.ignored,
+    ignored_non_authoritative_statements: converted.ignored,
     table_order: TABLE_ORDER
   };
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
