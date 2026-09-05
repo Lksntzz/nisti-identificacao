@@ -222,14 +222,44 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.nisti_mirror_operator_name(
+  p_operator_id TEXT,
+  p_operator_name TEXT
+)
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  v_changed BIGINT := 0;
+  v_operator_id TEXT := NULLIF(BTRIM(p_operator_id), '');
+  v_operator_name TEXT := NULLIF(BTRIM(p_operator_name), '');
+BEGIN
+  IF v_operator_id IS NULL OR v_operator_name IS NULL THEN
+    RAISE EXCEPTION 'operator id and name are required';
+  END IF;
+
+  UPDATE public.recognition_events
+  SET operator_name = LEFT(v_operator_name, 120)
+  WHERE operator_id = v_operator_id
+    AND (operator_name IS NULL OR operator_name = '' OR operator_name <> LEFT(v_operator_name, 120));
+
+  GET DIAGNOSTICS v_changed = ROW_COUNT;
+  RETURN v_changed;
+END;
+$$;
+
 REVOKE ALL ON FUNCTION public.nisti_mirror_visual_references_batch(JSONB, JSONB) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.nisti_mirror_notifications_batch(JSONB) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.nisti_mirror_notification_reads_batch(JSONB) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.nisti_mirror_push_subscription(JSONB) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.nisti_delete_push_subscription(TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.nisti_mirror_operator_name(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION public.nisti_mirror_visual_references_batch(JSONB, JSONB) TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_mirror_notifications_batch(JSONB) TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_mirror_notification_reads_batch(JSONB) TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_mirror_push_subscription(JSONB) TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_delete_push_subscription(TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.nisti_mirror_operator_name(TEXT, TEXT) TO service_role;
