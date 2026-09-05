@@ -95,10 +95,11 @@ test('Phase 6D notification and push writers mirror only after committed D1 writ
   assert.doesNotMatch(push, /nisti_mirror_push_log/);
 });
 
-test('Phase 6D covers finish edits, synthetic notifications, reindex maintenance and direct shadow confirmation', () => {
+test('Phase 6D covers finish edits, synthetic notifications, reindex maintenance, shadow confirmation and operator rename', () => {
   const mutationMirror = fs.readFileSync('src/supabase-mutation-mirror.js', 'utf8');
   const reindex = fs.readFileSync('src/reference-reindex-router.js', 'utf8');
   const shadowConfirmation = fs.readFileSync('src/geometric-shadow-confirmation-router.js', 'utf8');
+  const systemMetrics = fs.readFileSync('src/system-metrics-clean-router.js', 'utf8');
 
   assert.ok(mutationMirror.includes('const productFinish = url.pathname.match'));
   assert.ok(mutationMirror.includes('mirrorProductCatalogFromD1(env, Number(productFinish[1]))'));
@@ -108,6 +109,8 @@ test('Phase 6D covers finish edits, synthetic notifications, reindex maintenance
   assert.match(reindex, /processedIds/);
   assert.match(shadowConfirmation, /supabaseWriteMode\(env\) === 'mirror'/);
   assert.match(shadowConfirmation, /nisti_mirror_confirm_geometric_shadow/);
+  assert.match(systemMetrics, /supabaseWriteMode\(env\) === 'mirror'/);
+  assert.match(systemMetrics, /nisti_mirror_operator_name/);
 });
 
 test('Phase 6D SQL is SECURITY INVOKER and service-role only', () => {
@@ -121,7 +124,8 @@ test('Phase 6D SQL is SECURITY INVOKER and service-role only', () => {
     'nisti_mirror_notifications_batch',
     'nisti_mirror_notification_reads_batch',
     'nisti_mirror_push_subscription',
-    'nisti_delete_push_subscription'
+    'nisti_delete_push_subscription',
+    'nisti_mirror_operator_name'
   ];
 
   for (const fn of functions) {
@@ -135,6 +139,7 @@ test('Phase 6D SQL is SECURITY INVOKER and service-role only', () => {
   assert.match(source, /INSERT INTO public\.notifications \(\s*id,/);
   assert.match(source, /INSERT INTO public\.notification_reads \(id,notification_id,user_id,read_at\)/);
   assert.match(source, /INSERT INTO public\.push_subscriptions \(\s*id,/);
+  assert.match(source, /UPDATE public\.recognition_events[\s\S]*operator_name/);
 });
 
 test('active D1 mutations remain confined to reviewed writer modules', () => {
@@ -142,7 +147,7 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
     ['products', new Set(['core-router.js', 'product-finish-router.js'])],
     ['product_platforms', new Set(['core-router.js'])],
     ['recognition_daily', new Set(['recognition-metrics.js'])],
-    ['recognition_events', new Set(['recognition-metrics.js'])],
+    ['recognition_events', new Set(['recognition-metrics.js', 'system-metrics-clean-router.js'])],
     ['cover_visual_references', new Set(['core-router.js', 'occurrences-router.js'])],
     ['cover_reference_embeddings', new Set(['core-router.js', 'occurrences-router.js', 'reference-reindex-router.js'])],
     ['notifications', new Set(['core-router.js', 'cover-notifications.js'])],
