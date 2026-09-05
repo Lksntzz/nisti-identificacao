@@ -34,13 +34,30 @@ test('D1 count JSON is sourced from stdout only, not Wrangler warnings', async (
   assert.match(script, /Get-Content -Path \$stderrPath -Raw/);
 });
 
-test('D1 count command is a single physical line and requires all 13 authoritative tables', async () => {
+test('D1 counts query all 13 authoritative tables independently without compound SELECT', async () => {
   const script = await readFile(scriptUrl, 'utf8');
-  const countAssignment = script.match(/^\$countSql = "([^"]+)"$/m);
+  const expectedTables = [
+    'products',
+    'product_platforms',
+    'cover_embeddings',
+    'recognition_daily',
+    'recognition_events',
+    'cover_visual_references',
+    'cover_reference_embeddings',
+    'cover_visual_signatures',
+    'notifications',
+    'notification_reads',
+    'push_subscriptions',
+    'scan_occurrences',
+    'geometric_shadow_evidence'
+  ];
 
-  assert.ok(countAssignment, 'countSql must be a single-line quoted string for npx.cmd/cmd.exe');
-  assert.match(countAssignment[1], /UNION ALL SELECT 'geometric_shadow_evidence'/);
-  assert.doesNotMatch(countAssignment[1], /[\r\n]/);
-  assert.match(script, /@\(\$parsedCounts\.results\)\.Count -ne 13/);
-  assert.match(script, /esperado: 13/);
+  for (const table of expectedTables) {
+    assert.match(script, new RegExp(`'${table}'`));
+  }
+
+  assert.match(script, /foreach \(\$table in \$authoritativeTables\)/);
+  assert.match(script, /SELECT COUNT\(\*\) AS row_count FROM/);
+  assert.match(script, /\$countRecords\.Count -ne 13/);
+  assert.doesNotMatch(script, /UNION ALL/);
 });
