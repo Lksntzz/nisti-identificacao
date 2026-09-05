@@ -1,3 +1,5 @@
+import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
+
 const TIMEZONE = 'America/Sao_Paulo';
 let tableReady = false;
 
@@ -37,6 +39,7 @@ function textOrNull(value, limit = 500) {
 export async function recordRecognitionAttempt(env, responseStatus, data, options = {}) {
   try {
     await ensureRecognitionMetrics(env);
+    const writeMode = supabaseWriteMode(env);
     const kind = classify(responseStatus, data);
     if (kind === 'invalid') return;
 
@@ -91,7 +94,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
     const operatorName = textOrNull(options?.operatorName || data?.operator_name || performance?.operator_name, 120);
     const operatorId = textOrNull(options?.operatorId || data?.operator_id || performance?.operator_id, 120);
 
-    await env.DB.prepare(`
+    const eventResult = await env.DB.prepare(`
       INSERT INTO recognition_events (
         day, kind, http_status, product_id, capa_code, sku,
         confidence, retrieval_score, identified_by, error_message,
@@ -137,6 +140,24 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
       operatorName,
       operatorId
     ).run();
+
+    if (writeMode === 'mirror') {
+      const eventId = Number(eventResult?.meta?.last_row_id || 0);
+      if (eventId) {
+        const eventRow = await env.DB.prepare(`
+          SELECT *
+          FROM recognition_events
+          WHERE id=?
+          LIMIT 1
+        `).bind(eventId).first();
+
+        if (eventRow) {
+          await mirrorSupabaseRpc(env, 'nisti_mirror_recognition_event', {
+            p_row: eventRow
+          }, 'recognition telemetry');
+        }
+      }
+    }
   } catch (error) {
     console.error('Falha ao registrar métrica de reconhecimento', error);
   }
