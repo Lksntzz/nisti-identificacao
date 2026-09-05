@@ -81,6 +81,55 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.nisti_mirror_product_catalog_batch(
+  p_products JSONB,
+  p_platforms JSONB DEFAULT '[]'::JSONB
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  v_product JSONB;
+  v_product_id BIGINT;
+  v_product_platforms JSONB;
+BEGIN
+  IF jsonb_typeof(COALESCE(p_products, '[]'::JSONB)) <> 'array'
+     OR jsonb_typeof(COALESCE(p_platforms, '[]'::JSONB)) <> 'array' THEN
+    RAISE EXCEPTION 'batch arguments must be arrays';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(COALESCE(p_platforms, '[]'::JSONB)) AS platform_row
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(COALESCE(p_products, '[]'::JSONB)) AS product_row
+      WHERE NULLIF(product_row->>'id', '')::BIGINT = NULLIF(platform_row->>'product_id', '')::BIGINT
+    )
+  ) THEN
+    RAISE EXCEPTION 'platform row references product outside batch';
+  END IF;
+
+  FOR v_product IN
+    SELECT value FROM jsonb_array_elements(COALESCE(p_products, '[]'::JSONB))
+  LOOP
+    v_product_id := NULLIF(v_product->>'id', '')::BIGINT;
+    IF v_product_id IS NULL OR v_product_id <= 0 THEN
+      RAISE EXCEPTION 'invalid product id in batch';
+    END IF;
+
+    SELECT COALESCE(jsonb_agg(value), '[]'::JSONB)
+    INTO v_product_platforms
+    FROM jsonb_array_elements(COALESCE(p_platforms, '[]'::JSONB))
+    WHERE NULLIF(value->>'product_id', '')::BIGINT = v_product_id;
+
+    PERFORM public.nisti_mirror_product_catalog(v_product, v_product_platforms);
+  END LOOP;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.nisti_delete_product_catalog(p_product_id BIGINT)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -92,9 +141,7 @@ BEGIN
     RAISE EXCEPTION 'invalid product id';
   END IF;
 
-  -- Match the D1 deletion semantics: product-owned visual references and their
-  -- embeddings are removed, notification rows for the product are removed,
-  -- then the product itself is deleted. product_platforms cascades from products.
+  -- Match D1 deletion semantics before deleting the product itself.
   DELETE FROM public.cover_visual_references WHERE source_product_id = p_product_id;
   DELETE FROM public.notifications WHERE product_id = p_product_id;
   DELETE FROM public.products WHERE id = p_product_id;
@@ -178,60 +225,14 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.nisti_mirror_occurrence_state(p_row JSONB)
-RETURNS VOID
-LANGUAGE plpgsql
-SECURITY INVOKER
-SET search_path = public
-AS $$
-DECLARE
-  v_id BIGINT;
-BEGIN
-  v_id := NULLIF(p_row->>'id', '')::BIGINT;
-  IF v_id IS NULL OR v_id <= 0 THEN
-    RAISE EXCEPTION 'invalid occurrence id';
-  END IF;
-
-  INSERT INTO public.scan_occurrences (
-    id,image_key,platform,suggested_capa_code,confidence,error_reason,
-    operator_name,operator_id,status,trained_capa_code,trained_at,created_at
-  ) VALUES (
-    v_id,
-    p_row->>'image_key',
-    p_row->>'platform',
-    p_row->>'suggested_capa_code',
-    NULLIF(p_row->>'confidence', '')::DOUBLE PRECISION,
-    p_row->>'error_reason',
-    p_row->>'operator_name',
-    p_row->>'operator_id',
-    COALESCE(NULLIF(p_row->>'status', ''), 'pending'),
-    p_row->>'trained_capa_code',
-    NULLIF(p_row->>'trained_at', '')::TIMESTAMPTZ,
-    COALESCE(NULLIF(p_row->>'created_at', '')::TIMESTAMPTZ, now())
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    image_key = EXCLUDED.image_key,
-    platform = EXCLUDED.platform,
-    suggested_capa_code = EXCLUDED.suggested_capa_code,
-    confidence = EXCLUDED.confidence,
-    error_reason = EXCLUDED.error_reason,
-    operator_name = EXCLUDED.operator_name,
-    operator_id = EXCLUDED.operator_id,
-    status = EXCLUDED.status,
-    trained_capa_code = EXCLUDED.trained_capa_code,
-    trained_at = EXCLUDED.trained_at,
-    created_at = EXCLUDED.created_at;
-END;
-$$;
-
 REVOKE ALL ON FUNCTION public.nisti_mirror_product_catalog(JSONB, JSONB) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.nisti_mirror_product_catalog_batch(JSONB, JSONB) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.nisti_delete_product_catalog(BIGINT) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.nisti_mirror_visual_reference(JSONB, JSONB) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.nisti_delete_visual_reference(BIGINT) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.nisti_mirror_occurrence_state(JSONB) FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION public.nisti_mirror_product_catalog(JSONB, JSONB) TO service_role;
+GRANT EXECUTE ON FUNCTION public.nisti_mirror_product_catalog_batch(JSONB, JSONB) TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_delete_product_catalog(BIGINT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_mirror_visual_reference(JSONB, JSONB) TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_delete_visual_reference(BIGINT) TO service_role;
-GRANT EXECUTE ON FUNCTION public.nisti_mirror_occurrence_state(JSONB) TO service_role;
