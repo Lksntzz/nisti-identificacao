@@ -2,12 +2,15 @@ import app from './vectorize-performance-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
 
-function json(data, status = 200) {
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function json(data, status = 200, extraHeaders = null) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store'
+      'cache-control': 'no-store',
+      ...(extraHeaders || {})
     }
   });
 }
@@ -29,9 +32,43 @@ function isRecognitionRequest(url, request) {
     || url.pathname === '/api/identify-detail';
 }
 
+function isMutatingApiRequest(url, request) {
+  return url.pathname.startsWith('/api/') && MUTATING_METHODS.has(String(request.method || '').toUpperCase());
+}
+
+export function cutoverWriteFreezeEnabled(env) {
+  const raw = String(env?.SUPABASE_CUTOVER_WRITE_FREEZE ?? '0').trim();
+  if (raw === '0') return false;
+  if (raw === '1') return true;
+  throw new Error(`SUPABASE_CUTOVER_WRITE_FREEZE inválido: ${raw}`);
+}
+
+function cutoverFreezeResponse(configError = null) {
+  return json({
+    error: configError
+      ? 'Configuração de manutenção inválida. Escritas bloqueadas por segurança.'
+      : 'Sistema temporariamente em manutenção para sincronização do banco. Tente novamente em instantes.',
+    technical_error: configError ? 'cutover_write_freeze_invalid_config' : 'cutover_write_freeze',
+    retryable: true
+  }, 503, {
+    'retry-after': '60',
+    'x-nisti-maintenance': 'supabase-cutover-write-freeze'
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (isMutatingApiRequest(url, request)) {
+      try {
+        if (cutoverWriteFreezeEnabled(env)) return cutoverFreezeResponse();
+      } catch {
+        // Invalid maintenance configuration must fail closed for writes. Reads
+        // remain available so health/parity checks can still be performed.
+        return cutoverFreezeResponse(true);
+      }
+    }
 
     const shadowConfirmationResponse = await handleGeometricShadowConfirmationRequest(request, env);
     if (shadowConfirmationResponse) return shadowConfirmationResponse;
