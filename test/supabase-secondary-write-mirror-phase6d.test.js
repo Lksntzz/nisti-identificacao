@@ -95,9 +95,10 @@ test('Phase 6D notification and push writers mirror only after committed D1 writ
   assert.doesNotMatch(push, /nisti_mirror_push_log/);
 });
 
-test('Phase 6D covers finish edits, synthetic notifications and reference reindex maintenance', () => {
+test('Phase 6D covers finish edits, synthetic notifications, reindex maintenance and direct shadow confirmation', () => {
   const mutationMirror = fs.readFileSync('src/supabase-mutation-mirror.js', 'utf8');
   const reindex = fs.readFileSync('src/reference-reindex-router.js', 'utf8');
+  const shadowConfirmation = fs.readFileSync('src/geometric-shadow-confirmation-router.js', 'utf8');
 
   assert.ok(mutationMirror.includes('const productFinish = url.pathname.match'));
   assert.ok(mutationMirror.includes('mirrorProductCatalogFromD1(env, Number(productFinish[1]))'));
@@ -105,6 +106,8 @@ test('Phase 6D covers finish edits, synthetic notifications and reference reinde
   assert.match(mutationMirror, /mirrorNotificationByCapaFromD1/);
   assert.match(reindex, /mirrorVisualReferencesBatchFromD1/);
   assert.match(reindex, /processedIds/);
+  assert.match(shadowConfirmation, /supabaseWriteMode\(env\) === 'mirror'/);
+  assert.match(shadowConfirmation, /nisti_mirror_confirm_geometric_shadow/);
 });
 
 test('Phase 6D SQL is SECURITY INVOKER and service-role only', () => {
@@ -146,7 +149,7 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
     ['notification_reads', new Set(['cover-notifications.js'])],
     ['push_subscriptions', new Set(['web-push.js'])],
     ['scan_occurrences', new Set(['occurrences-router.js'])],
-    ['geometric_shadow_evidence', new Set(['geometric-shadow-evidence-router.js'])],
+    ['geometric_shadow_evidence', new Set(['geometric-shadow-evidence-router.js', 'geometric-shadow-confirmation-router.js'])],
     ['gemini_call_budget', new Set(['gemini-budget.js'])],
     ['push_logs', new Set(['web-push.js'])]
   ]);
