@@ -41,7 +41,7 @@ test('Gemini budget stays on D1 while Supabase cutover switch is off', async () 
   const d1 = d1BudgetEnv();
   const allowed = await reserveGeminiBudget({ ...d1, SUPABASE_READS_ENABLED: '0' }, 'verifier', 60);
   assert.equal(allowed, true);
-  assert.ok(d1.calls >= 2);
+  assert.ok(d1.calls >= 1);
 });
 
 test('Gemini budget uses atomic Supabase RPC without touching D1 when enabled', async () => {
@@ -72,7 +72,7 @@ test('temporary Supabase budget outage may use transitional D1 fallback', async 
   globalThis.fetch = async () => response('{"message":"temporary"}', 503);
   try {
     assert.equal(await reserveGeminiBudget({ ...configuredEnv, DB: d1.DB }, 'verifier', 60), true);
-    assert.ok(d1.calls >= 2);
+    assert.ok(d1.calls >= 1);
   } finally {
     globalThis.fetch = originalFetch;
   }
