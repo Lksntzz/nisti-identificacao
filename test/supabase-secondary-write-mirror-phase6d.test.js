@@ -99,7 +99,8 @@ test('Phase 6D covers finish edits, synthetic notifications and reference reinde
   const mutationMirror = fs.readFileSync('src/supabase-mutation-mirror.js', 'utf8');
   const reindex = fs.readFileSync('src/reference-reindex-router.js', 'utf8');
 
-  assert.match(mutationMirror, /api\\/products\\\/(\\d\+\)\\\/finish/);
+  assert.ok(mutationMirror.includes('const productFinish = url.pathname.match'));
+  assert.ok(mutationMirror.includes('mirrorProductCatalogFromD1(env, Number(productFinish[1]))'));
   assert.match(mutationMirror, /\/api\/admin\/notifications\/test/);
   assert.match(mutationMirror, /mirrorNotificationByCapaFromD1/);
   assert.match(reindex, /mirrorVisualReferencesBatchFromD1/);
