@@ -38,6 +38,16 @@ Todos os itens abaixo são obrigatórios antes da janela final:
 8. ferramenta `scripts/build-supabase-final-replace.mjs` presente;
 9. `SUPABASE_READS_ENABLED=0` durante toda a sincronização final.
 
+## Configurar a service-role key
+
+A credencial privilegiada deve ser configurada somente como secret do Cloudflare Worker. Execute localmente:
+
+```powershell
+npx.cmd wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+```
+
+Digite o valor diretamente no prompt do Wrangler. Não envie a key por chat, não faça commit dela e não a coloque em `.env` versionado ou em qualquer arquivo de exportação/migração.
+
 ## Por que existe uma trava de escrita
 
 O snapshot inicial deixa de ser autoritativo assim que o D1 recebe uma nova escrita. Portanto a sincronização final não pode ser feita com operadores/admin gravando ao mesmo tempo.
