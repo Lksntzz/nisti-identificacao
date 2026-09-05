@@ -7,6 +7,7 @@ const exportScriptPath = 'scripts/export-d1-for-supabase.ps1';
 const runbookPath = 'supabase/MIGRATION_PHASE2.md';
 const afterImportPath = 'supabase/sql/after_d1_import.sql';
 const validatePath = 'supabase/sql/validate_d1_import.sql';
+const scanOccurrenceReconcilePath = 'supabase/migrations/202609050112_reconcile_scan_occurrence_operator_columns.sql';
 
 test('phase 2 keeps D1 snapshot export read-only and pinned', () => {
   const source = fs.readFileSync(exportScriptPath, 'utf8');
@@ -54,6 +55,14 @@ test('validation SQL covers all 13 migrated tables and integrity checks', () => 
   assert.match(source, /BUSINESS_INVARIANTS/);
   assert.match(source, /PLATFORM_DOMAIN/);
   assert.match(source, /ID_RANGES/);
+});
+
+test('Supabase schema reconciles operator metadata present in authoritative scan_occurrences export', () => {
+  const source = fs.readFileSync(scanOccurrenceReconcilePath, 'utf8');
+  assert.match(source, /ALTER TABLE public\.scan_occurrences/);
+  assert.match(source, /ADD COLUMN operator_name TEXT/);
+  assert.match(source, /ADD COLUMN operator_id TEXT/);
+  assert.doesNotMatch(source, /\bUPDATE\b|\bDELETE\b|\bINSERT\b/i);
 });
 
 test('PowerShell parser accepts export script when pwsh is available', (t) => {
