@@ -1,3 +1,8 @@
+import {
+  mirrorDeletedPushSubscriptionToSupabase,
+  mirrorPushSubscriptionByEndpointFromD1
+} from './supabase-secondary-write-store.js';
+
 const DEFAULT_VAPID_PUBLIC = 'BMGQFguG_CSRv9PiIgqRweD8o9cHv0LzzU9lZFwZLQv_Rmcn-xweIt0lCQwXVYgII2tyA68bBLskNe6s7XJ-oBc';
 const DEFAULT_VAPID_SUBJECT = 'mailto:contato@nistiprint.com.br';
 
@@ -195,13 +200,23 @@ export async function savePushSubscription(env, userId, subscription) {
       updated_at=CURRENT_TIMESTAMP
   `).bind(safeUserId, endpoint, p256dh, auth).run();
 
+  await mirrorPushSubscriptionByEndpointFromD1(env, endpoint).catch(error => {
+    console.error('[Supabase mirror] push subscription falhou', error?.message || error);
+  });
+
   return true;
 }
 
 export async function removePushSubscription(env, endpoint) {
   if (!env?.DB || !endpoint) return false;
+  const cleanEndpoint = String(endpoint).trim();
   await env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint=?')
-    .bind(String(endpoint).trim()).run();
+    .bind(cleanEndpoint).run();
+
+  await mirrorDeletedPushSubscriptionToSupabase(env, cleanEndpoint).catch(error => {
+    console.error('[Supabase mirror] delete push subscription falhou', error?.message || error);
+  });
+
   return true;
 }
 
