@@ -102,28 +102,29 @@ BEGIN
 
   IF EXISTS (
     SELECT 1
-    FROM jsonb_array_elements(COALESCE(p_platforms, '[]'::JSONB)) AS platform_row
+    FROM jsonb_array_elements(COALESCE(p_platforms, '[]'::JSONB)) AS p(value)
     WHERE NOT EXISTS (
       SELECT 1
-      FROM jsonb_array_elements(COALESCE(p_products, '[]'::JSONB)) AS product_row
-      WHERE NULLIF(product_row->>'id', '')::BIGINT = NULLIF(platform_row->>'product_id', '')::BIGINT
+      FROM jsonb_array_elements(COALESCE(p_products, '[]'::JSONB)) AS q(value)
+      WHERE NULLIF(q.value->>'id', '')::BIGINT = NULLIF(p.value->>'product_id', '')::BIGINT
     )
   ) THEN
     RAISE EXCEPTION 'platform row references product outside batch';
   END IF;
 
   FOR v_product IN
-    SELECT value FROM jsonb_array_elements(COALESCE(p_products, '[]'::JSONB))
+    SELECT p.value
+    FROM jsonb_array_elements(COALESCE(p_products, '[]'::JSONB)) AS p(value)
   LOOP
     v_product_id := NULLIF(v_product->>'id', '')::BIGINT;
     IF v_product_id IS NULL OR v_product_id <= 0 THEN
       RAISE EXCEPTION 'invalid product id in batch';
     END IF;
 
-    SELECT COALESCE(jsonb_agg(value), '[]'::JSONB)
+    SELECT COALESCE(jsonb_agg(p.value), '[]'::JSONB)
     INTO v_product_platforms
-    FROM jsonb_array_elements(COALESCE(p_platforms, '[]'::JSONB))
-    WHERE NULLIF(value->>'product_id', '')::BIGINT = v_product_id;
+    FROM jsonb_array_elements(COALESCE(p_platforms, '[]'::JSONB)) AS p(value)
+    WHERE NULLIF(p.value->>'product_id', '')::BIGINT = v_product_id;
 
     PERFORM public.nisti_mirror_product_catalog(v_product, v_product_platforms);
   END LOOP;
