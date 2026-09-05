@@ -30,6 +30,17 @@ test('D1 count JSON is sourced from stdout only, not Wrangler warnings', async (
   const script = await readFile(scriptUrl, 'utf8');
 
   assert.match(script, /\$countOutput = Invoke-WranglerCapture/);
-  assert.match(script, /\$countOutput \| Set-Content -Path \$countsPath -Encoding utf8/);
+  assert.match(script, /\$countJson \| Set-Content -Path \$countsPath -Encoding utf8/);
   assert.match(script, /Get-Content -Path \$stderrPath -Raw/);
+});
+
+test('D1 count command is a single physical line and requires all 13 authoritative tables', async () => {
+  const script = await readFile(scriptUrl, 'utf8');
+  const countAssignment = script.match(/^\$countSql = "([^"]+)"$/m);
+
+  assert.ok(countAssignment, 'countSql must be a single-line quoted string for npx.cmd/cmd.exe');
+  assert.match(countAssignment[1], /UNION ALL SELECT 'geometric_shadow_evidence'/);
+  assert.doesNotMatch(countAssignment[1], /[\r\n]/);
+  assert.match(script, /@\(\$parsedCounts\.results\)\.Count -ne 13/);
+  assert.match(script, /esperado: 13/);
 });
