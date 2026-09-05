@@ -1,8 +1,18 @@
 import { broadcastNewCoverPush } from './web-push.js';
+import {
+  mirrorNotificationByCapaFromD1,
+  mirrorNotificationReadFromD1,
+  mirrorNotificationReadsForUserFromD1,
+  mirrorNotificationsForProductOrCoverFromD1
+} from './supabase-secondary-write-store.js';
 
 function clean(value) {
   const text = String(value || '').trim();
   return text || null;
+}
+
+function logMirrorFailure(label, error) {
+  console.error(`[Supabase mirror] ${label} falhou`, error?.message || error);
 }
 
 export async function recordNewCoverNotification(env, {
@@ -62,6 +72,9 @@ export async function recordNewCoverNotification(env, {
       resolvedImageKey
     ).run();
     created = true;
+
+    await mirrorNotificationByCapaFromD1(env, code)
+      .catch(error => logMirrorFailure(`notification ${code}`, error));
   }
 
   if (created) {
@@ -110,6 +123,9 @@ export async function updateNotificationImage(env, productId, capaCode, imageKey
       WHERE UPPER(TRIM(capa_code))=? AND (image_key IS NULL OR image_key='')
     `).bind(imageKey, code).run().catch(() => {});
   }
+
+  await mirrorNotificationsForProductOrCoverFromD1(env, targetId, code)
+    .catch(error => logMirrorFailure(`notification image ${targetId || code}`, error));
 }
 
 export async function listUserNotifications(env, userId, limit = 50) {
@@ -186,6 +202,9 @@ export async function markNotificationRead(env, notificationId, userId) {
     ON CONFLICT(notification_id, user_id) DO NOTHING
   `).bind(id, safeUserId).run();
 
+  await mirrorNotificationReadFromD1(env, id, safeUserId)
+    .catch(error => logMirrorFailure(`notification read ${id}`, error));
+
   return true;
 }
 
@@ -201,6 +220,9 @@ export async function markAllNotificationsRead(env, userId) {
       SELECT notification_id FROM notification_reads WHERE user_id = ?
     )
   `).bind(safeUserId, safeUserId).run();
+
+  await mirrorNotificationReadsForUserFromD1(env, safeUserId)
+    .catch(error => logMirrorFailure(`notification reads for ${safeUserId}`, error));
 
   return Number(result?.meta?.changes || 0);
 }
