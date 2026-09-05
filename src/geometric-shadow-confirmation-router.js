@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { normalizePlatform } from './platform-scope.js';
+import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
 
 const SHADOW_PURPOSE = 'geometric-shadow-evidence-v818';
 const CONFIRMATION_VERSION = 'v8.19';
@@ -125,7 +126,8 @@ export async function handleGeometricShadowConfirmationRequest(request, env) {
   }
 
   const evidenceRow = await env.DB.prepare(`
-    SELECT evidence_token, platform, evidence_json, confirmed_capa_code
+    SELECT evidence_token, platform, evidence_json, confirmed_capa_code,
+           occurrence_id, photo_sha256, confirmed_at
     FROM geometric_shadow_evidence
     WHERE evidence_token=?
     LIMIT 1
@@ -138,6 +140,7 @@ export async function handleGeometricShadowConfirmationRequest(request, env) {
   });
   if (!validation.ok) return json({ ok: false, error: validation.error }, validation.status);
 
+  let confirmed = evidenceRow;
   if (!validation.already_confirmed) {
     await env.DB.prepare(`
       UPDATE geometric_shadow_evidence
@@ -147,6 +150,23 @@ export async function handleGeometricShadowConfirmationRequest(request, env) {
           updated_at=CURRENT_TIMESTAMP
       WHERE evidence_token=?
     `).bind(validation.requested_code, String(signedPayload.nonce)).run();
+
+    confirmed = await env.DB.prepare(`
+      SELECT evidence_token, occurrence_id, photo_sha256, confirmed_at
+      FROM geometric_shadow_evidence
+      WHERE evidence_token=?
+      LIMIT 1
+    `).bind(String(signedPayload.nonce)).first();
+
+    if (supabaseWriteMode(env) === 'mirror') {
+      await mirrorSupabaseRpc(env, 'nisti_mirror_confirm_geometric_shadow', {
+        p_occurrence_id: Number(confirmed?.occurrence_id || 0) || null,
+        p_photo_sha256: String(confirmed?.photo_sha256 || '').trim().toLowerCase() || null,
+        p_capa_code: validation.requested_code,
+        p_source: 'operator_confirmed_production_result',
+        p_confirmed_at: confirmed?.confirmed_at || new Date().toISOString()
+      }, 'operator geometric shadow confirmation');
+    }
   }
 
   return json({
