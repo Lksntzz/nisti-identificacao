@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { normalizePlatform } from './platform-scope.js';
+import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
 
 const SHADOW_PURPOSE = 'geometric-shadow-evidence-v818';
 const SHADOW_VERSION = 'v8.18';
@@ -290,6 +291,7 @@ async function reconcileTrainedOccurrence(env, evidence) {
 }
 
 async function saveEvidence(env, evidence, operator) {
+  const writeMode = supabaseWriteMode(env);
   await env.DB.prepare(`
     INSERT INTO geometric_shadow_evidence (
       evidence_token,photo_sha256,platform,operator_id,operator_name,occurrence_id,
@@ -333,6 +335,20 @@ async function saveEvidence(env, evidence, operator) {
     evidence.evidence_json
   ).run();
 
+  if (writeMode === 'mirror') {
+    const row = await env.DB.prepare(`
+      SELECT *
+      FROM geometric_shadow_evidence
+      WHERE evidence_token=?
+      LIMIT 1
+    `).bind(evidence.evidence_token).first();
+    if (row) {
+      await mirrorSupabaseRpc(env, 'nisti_mirror_geometric_shadow_evidence', {
+        p_row: row
+      }, 'geometric shadow evidence');
+    }
+  }
+
   await reconcileTrainedOccurrence(env, evidence).catch(() => 0);
 }
 
@@ -340,6 +356,7 @@ export async function linkGeometricShadowEvidenceToOccurrence(env, evidenceToken
   const token = String(evidenceToken || '').trim();
   const id = Number(occurrenceId || 0);
   if (!token || !id || !env?.DB) return false;
+  const writeMode = supabaseWriteMode(env);
   const result = await env.DB.prepare(`
     UPDATE geometric_shadow_evidence
     SET occurrence_id=?, updated_at=CURRENT_TIMESTAMP
@@ -348,11 +365,20 @@ export async function linkGeometricShadowEvidenceToOccurrence(env, evidenceToken
   const changed = Number(result?.meta?.changes || 0) > 0;
   if (changed) {
     const evidence = await env.DB.prepare(`
-      SELECT occurrence_id
+      SELECT occurrence_id, updated_at
       FROM geometric_shadow_evidence
       WHERE evidence_token=?
       LIMIT 1
     `).bind(token).first();
+
+    if (writeMode === 'mirror') {
+      await mirrorSupabaseRpc(env, 'nisti_mirror_link_geometric_shadow', {
+        p_evidence_token: token,
+        p_occurrence_id: id,
+        p_updated_at: evidence?.updated_at || new Date().toISOString()
+      }, 'geometric shadow occurrence link');
+    }
+
     await reconcileTrainedOccurrence(env, evidence).catch(() => 0);
   }
   return changed;
@@ -365,6 +391,7 @@ export async function confirmGeometricShadowEvidence(env, {
   source = 'human_confirmed'
 } = {}) {
   if (!env?.DB) return 0;
+  const writeMode = supabaseWriteMode(env);
   const id = Number(occurrenceId || 0) || null;
   const hash = normalizeHash(photoSha256);
   const code = normalizeCode(capaCode);
@@ -384,7 +411,35 @@ export async function confirmGeometricShadowEvidence(env, {
       WHERE photo_sha256=?
     `).bind(code, source, hash).run();
   }
-  return Number(result?.meta?.changes || 0);
+
+  const changed = Number(result?.meta?.changes || 0);
+  if (changed > 0 && writeMode === 'mirror') {
+    const confirmed = id
+      ? await env.DB.prepare(`
+          SELECT confirmed_at
+          FROM geometric_shadow_evidence
+          WHERE occurrence_id=?
+          ORDER BY id ASC
+          LIMIT 1
+        `).bind(id).first()
+      : await env.DB.prepare(`
+          SELECT confirmed_at
+          FROM geometric_shadow_evidence
+          WHERE photo_sha256=?
+          ORDER BY id ASC
+          LIMIT 1
+        `).bind(hash).first();
+
+    await mirrorSupabaseRpc(env, 'nisti_mirror_confirm_geometric_shadow', {
+      p_occurrence_id: id,
+      p_photo_sha256: hash,
+      p_capa_code: code,
+      p_source: source,
+      p_confirmed_at: confirmed?.confirmed_at || new Date().toISOString()
+    }, 'geometric shadow confirmation');
+  }
+
+  return changed;
 }
 
 function summarizeDecisionRows(rows) {
