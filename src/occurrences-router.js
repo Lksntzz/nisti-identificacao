@@ -6,6 +6,7 @@ import {
   normalizePlatform
 } from './platform-scope.js';
 import { confirmGeometricShadowEvidence } from './geometric-shadow-evidence-router.js';
+import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 
@@ -98,6 +99,7 @@ export async function recordScanOccurrence(env, {
 }) {
   try {
     if (!photoBytes || !env.PRODUCT_IMAGES || !env.DB) return null;
+    const writeMode = supabaseWriteMode(env);
 
     const occurrenceId = crypto.randomUUID();
     const imageKey = `occurrences/${Date.now()}_${occurrenceId.slice(0, 8)}.jpg`;
@@ -127,7 +129,24 @@ export async function recordScanOccurrence(env, {
       operatorId
     ).run();
 
-    return res.meta?.last_row_id || null;
+    const rowId = Number(res.meta?.last_row_id || 0) || null;
+    if (rowId && writeMode === 'mirror') {
+      const row = await env.DB.prepare(`
+        SELECT id, image_key, platform, suggested_capa_code, confidence, error_reason,
+               operator_name, operator_id, status, trained_capa_code, trained_at, created_at
+        FROM scan_occurrences
+        WHERE id=?
+        LIMIT 1
+      `).bind(rowId).first();
+
+      if (row) {
+        await mirrorSupabaseRpc(env, 'nisti_mirror_scan_occurrence', {
+          p_row: row
+        }, 'scan occurrence');
+      }
+    }
+
+    return rowId;
   } catch (err) {
     console.error('Falha ao registrar ocorrência:', err);
     return null;
@@ -324,7 +343,7 @@ export async function handleOccurrencesAdminRequest(request, env) {
     }
   }
 
-  // POST /api/operator/confirm-selection (Auto-aprendizado automático do operador)
+  // POST /api/operator/confirm-selection (confirmação humana supervisionada do operador)
   if (request.method === 'POST' && url.pathname === '/api/operator/confirm-selection') {
     try {
       const body = await request.json().catch(() => ({}));
@@ -341,11 +360,11 @@ export async function handleOccurrencesAdminRequest(request, env) {
         ok: true,
         auto_learned: true,
         capa_code: capaCode,
-        message: `IA auto-treinada para a capa ${capaCode} com sucesso!`
+        message: `IA treinada após confirmação humana para a capa ${capaCode} com sucesso!`
       });
     } catch (err) {
-      console.error('Erro no auto-treino do operador:', err);
-      return json({ ok: false, error: err.message || 'Falha ao registrar auto-treino.' }, 500);
+      console.error('Erro no treino supervisionado do operador:', err);
+      return json({ ok: false, error: err.message || 'Falha ao registrar treinamento supervisionado.' }, 500);
     }
   }
 
