@@ -8,6 +8,7 @@ import {
   mirrorVisualReferenceFromD1,
   supabaseMirrorWritesRequested
 } from './supabase-write-store.js';
+import { mirrorNotificationByCapaFromD1 } from './supabase-secondary-write-store.js';
 
 function successful(response) {
   return Number(response?.status || 0) >= 200 && Number(response?.status || 0) < 300;
@@ -59,6 +60,12 @@ export async function mirrorSuccessfulMutation(request, response, env) {
       return;
     }
 
+    const productFinish = url.pathname.match(/^\/api\/products\/(\d+)\/finish$/);
+    if (productFinish && method === 'PATCH') {
+      await mirrorProductCatalogFromD1(env, Number(productFinish[1]));
+      return;
+    }
+
     const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
     if (imageUpload && method === 'POST') {
       const productId = Number(imageUpload[1]);
@@ -95,6 +102,12 @@ export async function mirrorSuccessfulMutation(request, response, env) {
     const dismissOccurrence = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/dismiss$/);
     if (dismissOccurrence && method === 'POST') {
       await mirrorOccurrenceStateFromD1(env, Number(dismissOccurrence[1]));
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/admin/notifications/test') {
+      const data = await responseJson(response);
+      await mirrorNotificationByCapaFromD1(env, data?.capa_code);
       return;
     }
 
