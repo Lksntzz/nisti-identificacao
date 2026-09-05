@@ -1,5 +1,6 @@
 import app from './core-router.js';
 import { readRecognitionEvents, readRecognitionMetrics, readOperatorStats } from './recognition-metrics.js';
+import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
 
 const TIMEZONE = 'America/Sao_Paulo';
 const EMBEDDING_DIMENSIONS = 768;
@@ -287,6 +288,13 @@ async function handleUpdateOperatorName(request, env) {
   operatorStatsCache = { operators: null, expires_at: 0 };
 
   const updated = Number(result?.meta?.changes || 0);
+  if (updated > 0 && supabaseWriteMode(env) === 'mirror') {
+    await mirrorSupabaseRpc(env, 'nisti_mirror_operator_name', {
+      p_operator_id: String(userId),
+      p_operator_name: newName
+    }, `operator name ${String(userId)}`);
+  }
+
   return json({ ok: true, updated });
 }
 
