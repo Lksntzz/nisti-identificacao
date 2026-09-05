@@ -30,3 +30,123 @@ export async function mirrorSupabaseRpc(env, rpcName, args, label = rpcName) {
     return { attempted: true, ok: false, error };
   }
 }
+
+export async function mirrorProductCatalogFromD1(env, productId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted: false, ok: true };
+  const id = Number(productId || 0);
+  if (!id) return { attempted: false, ok: true };
+
+  const product = await env.DB.prepare(`
+    SELECT id,sku,miolo_code,capa_code,acabamento_code,wireo_code,tassel_code,elastico_code,
+           nome,variacao,image_key,created_at,updated_at
+    FROM products
+    WHERE id=?
+    LIMIT 1
+  `).bind(id).first();
+
+  if (!product) {
+    return mirrorSupabaseRpc(
+      env,
+      'nisti_delete_product_catalog',
+      { p_product_id: id },
+      `delete product ${id}`
+    );
+  }
+
+  const { results: platforms } = await env.DB.prepare(`
+    SELECT id,product_id,platform,link
+    FROM product_platforms
+    WHERE product_id=?
+    ORDER BY id ASC
+  `).bind(id).all();
+
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_mirror_product_catalog',
+    { p_product: product, p_platforms: platforms || [] },
+    `product catalog ${id}`
+  );
+}
+
+export async function mirrorDeletedProductToSupabase(env, productId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted: false, ok: true };
+  const id = Number(productId || 0);
+  if (!id) return { attempted: false, ok: true };
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_delete_product_catalog',
+    { p_product_id: id },
+    `delete product ${id}`
+  );
+}
+
+export async function mirrorVisualReferenceFromD1(env, referenceId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted: false, ok: true };
+  const id = Number(referenceId || 0);
+  if (!id) return { attempted: false, ok: true };
+
+  const reference = await env.DB.prepare(`
+    SELECT id,capa_code,image_key,source_product_id,reference_kind,active,created_at,updated_at
+    FROM cover_visual_references
+    WHERE id=?
+    LIMIT 1
+  `).bind(id).first();
+
+  if (!reference) {
+    return mirrorSupabaseRpc(
+      env,
+      'nisti_delete_visual_reference',
+      { p_reference_id: id },
+      `delete visual reference ${id}`
+    );
+  }
+
+  const embedding = await env.DB.prepare(`
+    SELECT reference_id,embedding_model,dimensions,embedding_json,updated_at
+    FROM cover_reference_embeddings
+    WHERE reference_id=?
+    LIMIT 1
+  `).bind(id).first();
+
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_mirror_visual_reference',
+    { p_reference: reference, p_embedding: embedding || null },
+    `visual reference ${id}`
+  );
+}
+
+export async function mirrorDeletedVisualReferenceToSupabase(env, referenceId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted: false, ok: true };
+  const id = Number(referenceId || 0);
+  if (!id) return { attempted: false, ok: true };
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_delete_visual_reference',
+    { p_reference_id: id },
+    `delete visual reference ${id}`
+  );
+}
+
+export async function mirrorOccurrenceStateFromD1(env, occurrenceId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted: false, ok: true };
+  const id = Number(occurrenceId || 0);
+  if (!id) return { attempted: false, ok: true };
+
+  const row = await env.DB.prepare(`
+    SELECT id,image_key,platform,suggested_capa_code,confidence,error_reason,
+           operator_name,operator_id,status,trained_capa_code,trained_at,created_at
+    FROM scan_occurrences
+    WHERE id=?
+    LIMIT 1
+  `).bind(id).first();
+
+  if (!row) return { attempted: false, ok: true };
+
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_mirror_scan_occurrence',
+    { p_row: row },
+    `scan occurrence state ${id}`
+  );
+}
