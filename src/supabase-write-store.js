@@ -158,7 +158,7 @@ export async function mirrorOccurrenceStateFromD1(env, occurrenceId) {
 
   return mirrorSupabaseRpc(
     env,
-    'nisti_mirror_occurrence_state',
+    'nisti_mirror_scan_occurrence',
     { p_row: row },
     `scan occurrence state ${id}`
   );
