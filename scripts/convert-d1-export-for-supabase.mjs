@@ -181,10 +181,16 @@ export function convertD1DataSql(source) {
         grouped.get(table).push(value.endsWith(';') ? value : `${value};`);
         continue;
       }
-      if (IGNORED_NON_AUTHORITATIVE_TABLES.has(table) || table.startsWith('_cf_')) {
+
+      if (
+        IGNORED_NON_AUTHORITATIVE_TABLES.has(table) ||
+        table.startsWith('_cf_') ||
+        /^sqlite_stat\d+$/.test(table)
+      ) {
         incrementCounter(ignored, table);
         continue;
       }
+
       reject(`Tabela não mapeada ${table}`);
       continue;
     }

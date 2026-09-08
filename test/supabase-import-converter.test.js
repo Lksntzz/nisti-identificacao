@@ -47,6 +47,15 @@ test('converter preserves legacy push_logs only in raw snapshot and excludes the
   assert.doesNotMatch(converted.sql, /private-endpoint-value/);
 });
 
+test('converter excludes SQLite ANALYZE statistics from PostgreSQL authority', () => {
+  const converted = convertD1DataSql(`
+INSERT INTO "sqlite_stat1" VALUES('products','idx_products_sku','221 1');
+`);
+
+  assert.equal(converted.ignored.sqlite_stat1, 1);
+  assert.doesNotMatch(converted.sql, /sqlite_stat1/);
+});
+
 test('converter fails closed for unknown application tables without echoing row contents', () => {
   const secret = 'https://example.invalid/private-value';
   assert.throws(
