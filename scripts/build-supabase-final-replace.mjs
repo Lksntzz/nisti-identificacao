@@ -11,6 +11,7 @@ import {
 const ALLOWED_TABLES = new Set(TABLE_ORDER);
 const IDENTITY_TABLES = Object.freeze([
   'products',
+  'product_gtins',
   'product_platforms',
   'recognition_events',
   'cover_visual_references',
@@ -99,7 +100,7 @@ export function buildFinalReplaceSql(source) {
   const quotedTables = TABLE_ORDER.map(table => `public."${table}"`).join(',\n  ');
   const sections = [
     '-- NISTI ID — FINAL CUTOVER REPLACE',
-    '-- DESTRUTIVO: substitui atomicamente as 15 tabelas autoritativas do Supabase.',
+    '-- DESTRUTIVO: substitui atomicamente as 16 tabelas autoritativas do Supabase.',
     '-- Pré-condição obrigatória: SUPABASE_CUTOVER_WRITE_FREEZE=1 em produção e confirmado.',
     '-- Não executa CASCADE: qualquer dependência relacional inesperada aborta em vez de apagar dados silenciosamente.',
     'BEGIN;',

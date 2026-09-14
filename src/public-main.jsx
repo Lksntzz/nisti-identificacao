@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import './app.css';
 import LOGO from './assets/logo.png';
 
@@ -677,6 +678,57 @@ function ScanningOverlay({ elapsedMs, stageText }) {
   );
 }
 
+function GtinScanner({ open, platform, busy, onClose, onResolve }) {
+  const videoRef = useRef(null);
+  const controlsRef = useRef(null);
+  const [manualGtin, setManualGtin] = useState('');
+  const [cameraError, setCameraError] = useState('');
+
+  useEffect(() => {
+    if (!open) return undefined;
+    let active = true;
+    const reader = new BrowserMultiFormatReader();
+    reader.decodeFromConstraints(
+      { audio: false, video: { facingMode: { ideal: 'environment' } } },
+      videoRef.current,
+      (result) => {
+        if (!active || !result) return;
+        controlsRef.current?.stop();
+        onResolve(result.getText());
+      }
+    ).then(controls => {
+      if (!active) controls.stop();
+      else controlsRef.current = controls;
+    }).catch(() => {
+      if (active) setCameraError('Câmera indisponível. Digite o GTIN abaixo.');
+    });
+    return () => {
+      active = false;
+      controlsRef.current?.stop();
+      controlsRef.current = null;
+    };
+  }, [open, onResolve]);
+
+  if (!open) return null;
+  return (
+    <div className="gtin-modal-backdrop" role="dialog" aria-modal="true" aria-label="Leitor de código de barras">
+      <div className="gtin-modal">
+        <div className="gtin-modal-header">
+          <div><strong>Ler código de barras</strong><span>{platform}</span></div>
+          <button type="button" onClick={onClose} aria-label="Fechar leitor">×</button>
+        </div>
+        <video ref={videoRef} className="gtin-video" muted playsInline />
+        <p className="gtin-help">Aponte a câmera para o EAN-13 da contracapa.</p>
+        {cameraError && <p className="status error">{cameraError}</p>}
+        <form className="gtin-manual" onSubmit={event => { event.preventDefault(); onResolve(manualGtin); }}>
+          <input value={manualGtin} onChange={event => setManualGtin(event.target.value)} inputMode="numeric" autoComplete="off" placeholder="Digite os 13 números" maxLength={16} />
+          <button type="submit" disabled={busy || !manualGtin.trim()}>Consultar</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function ProductResult({ product, performance, onReset, photo, platform }) {
   const [reporting, setReporting] = useState(false);
   const [reported, setReported] = useState(false);
@@ -714,7 +766,7 @@ function ProductResult({ product, performance, onReset, photo, platform }) {
     <div className="result-compact-card">
       <div className="result-compact-header">
         <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          ✓ Capa Identificada
+          {product.identified_by === 'gtin-gs1-v1' ? '✓ Produto identificado por GTIN' : '✓ Capa Identificada'}
         </span>
         <ConfidenceBadge confidence={product.confidence} score={performance?.retrieval_top1} />
       </div>
@@ -890,6 +942,7 @@ function PublicIdentificationApp() {
   const [platforms, setPlatforms] = useState([]);
   const [platform, setPlatform] = useState('');
   const [platformError, setPlatformError] = useState('');
+  const [gtinScannerOpen, setGtinScannerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
@@ -909,6 +962,22 @@ function PublicIdentificationApp() {
   const [autoLearnNotice, setAutoLearnNotice] = useState('');
   const [lastOccurrenceId, setLastOccurrenceId] = useState(null);
   const runId = useRef(0);
+
+  const resolveGtin = React.useCallback(async rawGtin => {
+    if (!platform || busy) return;
+    setBusy(true);
+    clearDecision();
+    try {
+      const data = await api(`/api/gtin/resolve?gtin=${encodeURIComponent(rawGtin)}&platform=${encodeURIComponent(platform)}`);
+      setResult(data.product);
+      addRecentScan(data.product);
+      setGtinScannerOpen(false);
+    } catch (err) {
+      setError(err?.message || 'Não foi possível consultar o GTIN.');
+    } finally {
+      setBusy(false);
+    }
+  }, [platform, busy]);
 
   const checkImageQuality = (file) => {
     return new Promise((resolve) => {
@@ -1325,6 +1394,15 @@ function PublicIdentificationApp() {
         <div className="action-buttons-group">
           <button
             type="button"
+            className="btn-gtin-scan"
+            disabled={!platform || busy}
+            onClick={() => setGtinScannerOpen(true)}
+          >
+            <span aria-hidden="true">▥</span>
+            <span>Ler código de barras</span>
+          </button>
+          <button
+            type="button"
             className="btn-identify-rainbow"
             disabled={!photo || !platform || busy}
             onClick={() => identifyFile(photo)}
@@ -1425,6 +1503,14 @@ function PublicIdentificationApp() {
         {result && <ProductResult product={result} performance={performance} onReset={resetAll} photo={photo} platform={platform} />}
       </div>
     </div>
+
+    <GtinScanner
+      open={gtinScannerOpen}
+      platform={platform}
+      busy={busy}
+      onClose={() => setGtinScannerOpen(false)}
+      onResolve={resolveGtin}
+    />
 
     {/* Gaveta de histórico rápido da sessão */}
     {recentScans.length > 0 && (

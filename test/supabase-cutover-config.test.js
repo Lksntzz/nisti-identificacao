@@ -16,6 +16,6 @@ test('cutover runbook keeps service role secret out of repository', () => {
   const source = fs.readFileSync('supabase/CUTOVER.md', 'utf8');
   assert.match(source, /wrangler secret put SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(source, /SUPABASE_READS_ENABLED=1/);
-  assert.match(source, /13 tabelas importadas/);
+  assert.match(source, /16 tabelas autoritativas importadas/);
   assert.match(source, /Não alterar os thresholds/);
 });

@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 export const TABLE_ORDER = Object.freeze([
   'products',
+  'product_gtins',
   'product_platforms',
   'cover_embeddings',
   'recognition_daily',

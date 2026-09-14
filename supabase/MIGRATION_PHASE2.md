@@ -112,7 +112,7 @@ Executar `supabase/sql/validate_d1_import.sql`.
 
 Critérios obrigatórios antes do cutover:
 
-- contagem de cada uma das 15 tabelas igual ao snapshot `d1-counts.json`;
+- contagem de cada uma das 16 tabelas igual ao snapshot `d1-counts.json`;
 - zero violações referenciais;
 - zero violações dos invariantes de negócio;
 - plataformas somente `MERCADO LIVRE`, `SHOPEE` e `AMAZON`;
