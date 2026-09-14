@@ -1,0 +1,8 @@
+{
+  "version": "nisti-gtin-gs1-v1",
+  "canonical_source_file": "reconciliacao_gs1_nisti_fechada.xlsx",
+  "canonical_source_sha256": "c2160914f7dc32ff1e743f16b41de9f99bc10052334d4f83e1f57832e38b2ce3",
+  "reconciliation_workbook": "reconciliacao_gs1_nisti_final.xlsx",
+  "reconciliation_workbook_sha256": "fb186523fb2786e678422a0683ed0297eec1c31d988abf8294cd1c9f268785f5",
+  "note": "A planilha fechada é a fonte canônica preservada. A planilha final é o artefato de reconciliação que originou o manifesto versionado de 220 vínculos. Os hashes foram calculados sobre os arquivos binários preservados no handoff de 2026-09-14."
+}
