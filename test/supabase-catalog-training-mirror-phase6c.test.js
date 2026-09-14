@@ -138,6 +138,6 @@ test('Phase 6C SQL is invoker-only, service-role-only and preserves D1 IDs', () 
 
 test('Phase 6C does not enable production cutover switches', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
-  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
+  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"off"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
 });
