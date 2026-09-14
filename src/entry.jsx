@@ -14,14 +14,17 @@ if (rootElement) {
     Promise.all([
       import('./public-main.jsx'),
       import('./shadow-confirmation-client.js'),
-      import('./shadow-confirmation-prompt.jsx')
-    ]).then(([publicMod, _clientMod, promptMod]) => {
+      import('./shadow-confirmation-prompt.jsx'),
+      import('./ambiguous-review-prompt.jsx')
+    ]).then(([publicMod, _clientMod, promptMod, ambiguousPromptMod]) => {
       const Component = publicMod.default || publicMod.PublicIdentificationApp;
       const ShadowConfirmationPrompt = promptMod.default;
+      const AmbiguousReviewPrompt = ambiguousPromptMod.default;
       root.render(
         <>
           <Component />
           <ShadowConfirmationPrompt />
+          <AmbiguousReviewPrompt />
         </>
       );
     });
