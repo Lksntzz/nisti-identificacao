@@ -31,11 +31,13 @@ test('phase 2 runbook forbids cutover before parity', () => {
   assert.match(source, /Não executar cutover antes da validação de paridade/);
   assert.match(source, /Wrangler deve permanecer exatamente em `3\.114\.17`/);
   assert.match(source, /D1 permanecerá disponível como rollback/);
+  assert.match(source, /2\. `product_gtins`/);
 });
 
 test('post-import SQL only synchronizes identity sequences', () => {
   const source = fs.readFileSync(afterImportPath, 'utf8');
   assert.match(source, /pg_get_serial_sequence\('public\.products', 'id'\)/);
+  assert.match(source, /pg_get_serial_sequence\('public\.product_gtins', 'id'\)/);
   assert.match(source, /pg_get_serial_sequence\('public\.geometric_shadow_evidence', 'id'\)/);
   assert.doesNotMatch(source, /\bINSERT\b/i);
   assert.doesNotMatch(source, /\bDELETE\b/i);
