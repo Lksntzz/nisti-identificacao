@@ -14,6 +14,8 @@ UNION ALL SELECT 'products', COUNT(*) FROM public.products
 UNION ALL SELECT 'push_subscriptions', COUNT(*) FROM public.push_subscriptions
 UNION ALL SELECT 'recognition_daily', COUNT(*) FROM public.recognition_daily
 UNION ALL SELECT 'recognition_events', COUNT(*) FROM public.recognition_events
+UNION ALL SELECT 'scan_occurrence_candidates', COUNT(*) FROM public.scan_occurrence_candidates
+UNION ALL SELECT 'scan_occurrence_review_sessions', COUNT(*) FROM public.scan_occurrence_review_sessions
 UNION ALL SELECT 'scan_occurrences', COUNT(*) FROM public.scan_occurrences
 ORDER BY table_name;
 
@@ -43,6 +45,21 @@ FROM public.notification_reads nr
 LEFT JOIN public.notifications n ON n.id = nr.notification_id
 WHERE n.id IS NULL
 UNION ALL
+SELECT 'review_candidates_without_occurrence', COUNT(*)
+FROM public.scan_occurrence_candidates c
+LEFT JOIN public.scan_occurrences o ON o.id = c.occurrence_id
+WHERE o.id IS NULL
+UNION ALL
+SELECT 'review_sessions_without_occurrence', COUNT(*)
+FROM public.scan_occurrence_review_sessions s
+LEFT JOIN public.scan_occurrences o ON o.id = s.occurrence_id
+WHERE o.id IS NULL
+UNION ALL
+SELECT 'review_candidates_missing_reference', COUNT(*)
+FROM public.scan_occurrence_candidates c
+LEFT JOIN public.cover_visual_references r ON r.id = c.reference_id
+WHERE c.reference_id IS NOT NULL AND r.id IS NULL
+UNION ALL
 SELECT 'shadow_occurrence_missing', COUNT(*)
 FROM public.geometric_shadow_evidence g
 LEFT JOIN public.scan_occurrences o ON o.id = g.occurrence_id
@@ -68,6 +85,14 @@ FROM (
   SELECT capa_code, image_key
   FROM public.cover_visual_references
   GROUP BY capa_code, image_key
+  HAVING COUNT(*) > 1
+) q
+UNION ALL
+SELECT 'duplicate_review_candidate_rank', COUNT(*)
+FROM (
+  SELECT occurrence_id, candidate_rank
+  FROM public.scan_occurrence_candidates
+  GROUP BY occurrence_id, candidate_rank
   HAVING COUNT(*) > 1
 ) q
 UNION ALL
