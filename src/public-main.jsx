@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserMultiFormatReader } from '@zxing/browser';
+import { detectGtinInImage, startGtinVideoScanner } from './gtin-camera.js';
 import './app.css';
 import LOGO from './assets/logo.png';
 
@@ -687,16 +687,12 @@ function GtinScanner({ open, platform, busy, onClose, onResolve }) {
   useEffect(() => {
     if (!open) return undefined;
     let active = true;
-    const reader = new BrowserMultiFormatReader();
-    reader.decodeFromConstraints(
-      { audio: false, video: { facingMode: { ideal: 'environment' } } },
-      videoRef.current,
-      (result) => {
-        if (!active || !result) return;
-        controlsRef.current?.stop();
-        onResolve(result.getText());
-      }
-    ).then(controls => {
+    setCameraError('');
+    startGtinVideoScanner(videoRef.current, gtin => {
+      if (!active) return;
+      controlsRef.current?.stop?.();
+      onResolve(gtin);
+    }).then(controls => {
       if (!active) controls.stop();
       else controlsRef.current = controls;
     }).catch(() => {
@@ -704,7 +700,7 @@ function GtinScanner({ open, platform, busy, onClose, onResolve }) {
     });
     return () => {
       active = false;
-      controlsRef.current?.stop();
+      controlsRef.current?.stop?.();
       controlsRef.current = null;
     };
   }, [open, onResolve]);
@@ -733,9 +729,10 @@ function ProductResult({ product, performance, onReset, photo, platform }) {
   const [reporting, setReporting] = useState(false);
   const [reported, setReported] = useState(false);
   const [reportError, setReportError] = useState('');
+  const identifiedByGtin = product.identified_by === 'gtin-gs1-v1';
 
   const handleReportWrong = async () => {
-    if (reporting || reported || !photo) return;
+    if (identifiedByGtin || reporting || reported || !photo) return;
     if (!confirm('A capa identificada não corresponde à foto? Isso enviará a imagem para o Administrador corrigir e treinar o modelo.')) return;
     
     try {
@@ -766,7 +763,7 @@ function ProductResult({ product, performance, onReset, photo, platform }) {
     <div className="result-compact-card">
       <div className="result-compact-header">
         <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          {product.identified_by === 'gtin-gs1-v1' ? '✓ Produto identificado por GTIN' : '✓ Capa Identificada'}
+          {identifiedByGtin ? '✓ Produto identificado por GTIN' : '✓ Capa Identificada'}
         </span>
         <ConfidenceBadge confidence={product.confidence} score={performance?.retrieval_top1} />
       </div>
@@ -811,43 +808,44 @@ function ProductResult({ product, performance, onReset, photo, platform }) {
         </div>
       )}
 
-      {/* Botão de Reportar Resultado Incorreto */}
-      <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        {reported ? (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#15803d', fontWeight: 700 }}>
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-            <span>Foto enviada para correção do ADM ✓</span>
-          </div>
-        ) : (
-          <button
-            type="button"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#d97706',
-              fontSize: '11px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '2px 0'
-            }}
-            disabled={reporting || !photo}
-            onClick={handleReportWrong}
-          >
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span>{reporting ? 'Enviando…' : 'Resultado incorreto? Enviar ao ADM'}</span>
-          </button>
-        )}
-        {reportError && <span style={{ fontSize: '10px', color: '#ef4444' }}>{reportError}</span>}
-      </div>
+      {!identifiedByGtin && (
+        <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {reported ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#15803d', fontWeight: 700 }}>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              <span>Foto enviada para correção do ADM ✓</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#d97706',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 0'
+              }}
+              disabled={reporting || !photo}
+              onClick={handleReportWrong}
+            >
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span>{reporting ? 'Enviando…' : 'Resultado incorreto? Enviar ao ADM'}</span>
+            </button>
+          )}
+          {reportError && <span style={{ fontSize: '10px', color: '#ef4444' }}>{reportError}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -962,18 +960,22 @@ function PublicIdentificationApp() {
   const [autoLearnNotice, setAutoLearnNotice] = useState('');
   const [lastOccurrenceId, setLastOccurrenceId] = useState(null);
   const runId = useRef(0);
+  const preflightRunId = useRef(0);
 
-  const resolveGtin = React.useCallback(async rawGtin => {
-    if (!platform || busy) return;
+  const resolveGtin = React.useCallback(async (rawGtin, targetPlatform = platform) => {
+    const activePlatform = targetPlatform || platform;
+    if (!activePlatform || busy) return false;
     setBusy(true);
     clearDecision();
     try {
-      const data = await api(`/api/gtin/resolve?gtin=${encodeURIComponent(rawGtin)}&platform=${encodeURIComponent(platform)}`);
+      const data = await api(`/api/gtin/resolve?gtin=${encodeURIComponent(rawGtin)}&platform=${encodeURIComponent(activePlatform)}`);
       setResult(data.product);
       addRecentScan(data.product);
       setGtinScannerOpen(false);
+      return true;
     } catch (err) {
       setError(err?.message || 'Não foi possível consultar o GTIN.');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -1144,6 +1146,7 @@ function PublicIdentificationApp() {
   };
 
   const resetAll = () => {
+    preflightRunId.current += 1;
     setPhoto(null);
     setPreview(current => {
       if (current) URL.revokeObjectURL(current);
@@ -1248,7 +1251,20 @@ function PublicIdentificationApp() {
     }
   };
 
-  const identifyFile = file => identifyFileWithPlatform(file, platform);
+  const identifyCapturedFile = async (file, targetPlatform = platform) => {
+    const activePlatform = targetPlatform || platform;
+    if (!file || !activePlatform || busy) return;
+    const id = ++preflightRunId.current;
+    const gtin = await detectGtinInImage(file);
+    if (id !== preflightRunId.current) return;
+    if (gtin) {
+      await resolveGtin(gtin, activePlatform);
+      return;
+    }
+    await identifyFileWithPlatform(file, activePlatform);
+  };
+
+  const identifyFile = file => identifyCapturedFile(file, platform);
 
   const choose = async file => {
     if (!file) return;
@@ -1263,13 +1279,11 @@ function PublicIdentificationApp() {
       return objectUrl;
     });
 
-    // Analisar qualidade da foto
     const warning = await checkImageQuality(file);
     setQualityWarning(warning);
 
-    // ⚡ Auto-scan: se a plataforma já está selecionada, dispara na hora
     if (platform) {
-      identifyFileWithPlatform(file, platform);
+      identifyCapturedFile(file, platform);
     }
   };
 
@@ -1277,9 +1291,8 @@ function PublicIdentificationApp() {
     const newPlatform = event.target.value;
     setPlatform(newPlatform);
     clearDecision();
-    // ⚡ Auto-scan: se já tem foto, identifica ao trocar plataforma
     if (photo && newPlatform) {
-      identifyFileWithPlatform(photo, newPlatform);
+      identifyCapturedFile(photo, newPlatform);
     }
   };
 
@@ -1329,8 +1342,8 @@ function PublicIdentificationApp() {
 
         {preview && (result || choices) ? (
           <div className="compact-photo-strip">
-            <img src={preview} alt="Foto da capa" className="compact-strip-thumb" />
-            <span className="compact-strip-text">Foto da capa enviada</span>
+            <img src={preview} alt="Imagem enviada" className="compact-strip-thumb" />
+            <span className="compact-strip-text">Imagem enviada</span>
             <label className="compact-strip-change">
               <span>Trocar foto</span>
               <input type="file" accept="image/*" capture="environment" onChange={event => choose(event.target.files?.[0])} />
@@ -1341,7 +1354,7 @@ function PublicIdentificationApp() {
             <div className="dashed-upload-zone">
               {preview ? (
                 <div className="photo-preview-wrap">
-                  <img className="photo-preview-img" src={preview} alt="Foto da capa" />
+                  <img className="photo-preview-img" src={preview} alt="Imagem enviada" />
                   {busy && <ScanningOverlay elapsedMs={elapsedMs} stageText={scanStage} />}
                   {!busy && (
                     <label className="change-photo-btn">
@@ -1368,8 +1381,8 @@ function PublicIdentificationApp() {
                       <path d="m12 2 2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
                     </svg>
                   </div>
-                  <h3 className="dropzone-title">Fotografar ou enviar capa</h3>
-                  <p className="dropzone-hint">Enquadre de frente com boa luz.</p>
+                  <h3 className="dropzone-title">Fotografar ou enviar produto</h3>
+                  <p className="dropzone-hint">O sistema tenta GTIN primeiro e usa a capa quando não encontra código.</p>
                   <label className="gallery-pill-btn">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1464,7 +1477,7 @@ function PublicIdentificationApp() {
                     const target = suggestedPlatform;
                     setPlatform(target);
                     setSuggestedPlatform(null);
-                    identifyFileWithPlatform(photo, target);
+                    identifyCapturedFile(photo, target);
                   }}
                 >
                   Alternar para {suggestedPlatform} e identificar
