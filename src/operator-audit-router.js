@@ -1,4 +1,4 @@
-import app from './vectorize-performance-router.js';
+import app from './ambiguous-review-mirror-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
 

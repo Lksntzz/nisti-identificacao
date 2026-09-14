@@ -20,7 +20,7 @@ test('phase 2 keeps D1 snapshot export read-only and pinned', () => {
   assert.match(source, /\$authoritativeTables = @\(/);
   assert.match(source, /foreach \(\$table in \$authoritativeTables\)/);
   assert.match(source, /SELECT COUNT\(\*\) AS row_count FROM/);
-  assert.match(source, /\$countRecords\.Count -ne 13/);
+  assert.match(source, /\$countRecords\.Count -ne 16/);
   assert.doesNotMatch(source, /d1', 'migrations', 'apply/i);
   assert.doesNotMatch(source, /d1', 'execute'.*--file/s);
   assert.doesNotMatch(source, /wrangler deploy/i);
@@ -31,26 +31,33 @@ test('phase 2 runbook forbids cutover before parity', () => {
   assert.match(source, /Não executar cutover antes da validação de paridade/);
   assert.match(source, /Wrangler deve permanecer exatamente em `3\.114\.17`/);
   assert.match(source, /D1 permanecerá disponível como rollback/);
+  assert.match(source, /2\. `product_gtins`/);
 });
 
 test('post-import SQL only synchronizes identity sequences', () => {
   const source = fs.readFileSync(afterImportPath, 'utf8');
   assert.match(source, /pg_get_serial_sequence\('public\.products', 'id'\)/);
+  assert.match(source, /pg_get_serial_sequence\('public\.product_gtins', 'id'\)/);
   assert.match(source, /pg_get_serial_sequence\('public\.geometric_shadow_evidence', 'id'\)/);
   assert.doesNotMatch(source, /\bINSERT\b/i);
   assert.doesNotMatch(source, /\bDELETE\b/i);
   assert.doesNotMatch(source, /\bUPDATE\b/i);
 });
 
-test('validation SQL covers all 13 migrated tables and integrity checks', () => {
+test('validation SQL covers all 16 migrated tables and integrity checks', () => {
   const source = fs.readFileSync(validatePath, 'utf8');
   const tables = [
-    'products', 'product_platforms', 'cover_embeddings', 'recognition_daily',
+    'products', 'product_gtins', 'product_platforms', 'cover_embeddings', 'recognition_daily',
     'recognition_events', 'cover_visual_references', 'cover_reference_embeddings',
     'cover_visual_signatures', 'notifications', 'notification_reads',
-    'push_subscriptions', 'scan_occurrences', 'geometric_shadow_evidence'
+    'push_subscriptions', 'scan_occurrences', 'scan_occurrence_candidates',
+    'scan_occurrence_review_sessions', 'geometric_shadow_evidence'
   ];
   for (const table of tables) assert.match(source, new RegExp(`public\\.${table}`));
+  assert.match(source, /review_candidates_without_occurrence/);
+  assert.match(source, /review_sessions_without_occurrence/);
+  assert.match(source, /review_candidates_missing_reference/);
+  assert.match(source, /duplicate_review_candidate_rank/);
   assert.match(source, /REFERENTIAL_INTEGRITY/);
   assert.match(source, /BUSINESS_INVARIANTS/);
   assert.match(source, /PLATFORM_DOMAIN/);
@@ -67,11 +74,10 @@ test('Supabase schema reconciles operator metadata present in authoritative scan
 
 test('PowerShell parser accepts export script when pwsh is available', (t) => {
   const probe = spawnSync('pwsh', ['-NoLogo', '-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()'], { encoding: 'utf8' });
-  if (probe.error?.code === 'ENOENT') {
-    t.skip('pwsh unavailable in this environment');
+  if (probe.error?.code === 'ENOENT' || probe.status !== 0) {
+    t.skip('pwsh unavailable or unhealthy in this environment');
     return;
   }
-  assert.equal(probe.status, 0, probe.stderr || probe.stdout);
   const escaped = exportScriptPath.replaceAll("'", "''");
   const command = `$errorsRef = $null; [void][System.Management.Automation.Language.Parser]::ParseFile('${escaped}', [ref]$null, [ref]$errorsRef); if ($errorsRef.Count -gt 0) { $errorsRef | ForEach-Object { Write-Error $_.Message }; exit 1 }`;
   const parsed = spawnSync('pwsh', ['-NoLogo', '-NoProfile', '-Command', command], { encoding: 'utf8' });

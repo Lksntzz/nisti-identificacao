@@ -1,4 +1,4 @@
-import app from './core-router.js';
+import app from './gtin-router.js';
 import { readRecognitionEvents, readRecognitionMetrics, readOperatorStats } from './recognition-metrics.js';
 import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
 

@@ -20,7 +20,8 @@ SUPABASE_CUTOVER_WRITE_FREEZE=0
 - O navegador nunca recebe a service-role key nem acessa o PostgreSQL diretamente.
 - Não alterar os thresholds de reconhecimento durante o cutover.
 - Não importar `push_logs`; essa tabela permanece legado/diagnóstico fora da autoridade PostgreSQL.
-- Não aplicar a migration não mergeada `0014_ambiguous_review_candidates.sql` como parte deste procedimento.
+- A migration D1 `0014_ambiguous_review_candidates.sql` só pode ser aplicada no rollout controlado da revisão supervisionada v8.25, depois que o schema/RPC equivalente do Supabase estiver aplicado e auditado.
+- A partir da v8.25, `scan_occurrence_candidates` e `scan_occurrence_review_sessions` integram a autoridade relacional e devem participar de snapshot, replace e validação de paridade.
 - `postgres-data.sql` é um arquivo de carga inicial. Para a substituição final use **somente** `postgres-final-replace.sql` gerado pelo script NISTI.
 - Nunca executar o replace final sem a trava de escrita confirmada em produção.
 
@@ -31,7 +32,7 @@ Todos os itens abaixo são obrigatórios antes da janela final:
 1. schema e RPCs Supabase aplicados e auditados como `SECURITY INVOKER`;
 2. `PUBLIC`, `anon` e `authenticated` sem `EXECUTE` nas RPCs privilegiadas;
 3. `service_role` com `EXECUTE` nas RPCs necessárias;
-4. snapshot inicial com as 13 tabelas importadas e validado;
+4. snapshot com as 16 tabelas autoritativas importadas e validado quando o GTIN/GS1 v1 estiver ativo;
 5. Production Gate verde na versão a ser implantada;
 6. `SUPABASE_SERVICE_ROLE_KEY` configurada no Worker;
 7. Phase 6 de write mirroring concluída no código;
@@ -82,13 +83,15 @@ Não prossiga se qualquer escrita ainda alcançar D1.
 
 ### 2. Gerar snapshot D1 novo
 
-No clone limpo e na `main` exata implantada, executar o export oficial:
+No clone limpo e na revisão exata implantada, executar o export oficial:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\export-d1-for-supabase.ps1
 ```
 
 Preservar todos os artefatos e hashes. Não reutilizar o snapshot de uma janela anterior.
+
+Com o GTIN/GS1 v1 ativo, o export exige as 16 tabelas autoritativas. Ausência de qualquer uma delas aborta o snapshot por segurança.
 
 ### 3. Converter o snapshot
 
@@ -114,7 +117,7 @@ final-replace-report.json
 O SQL gerado:
 
 - abre uma única transação;
-- faz `TRUNCATE` exatamente das 13 tabelas autoritativas;
+- faz `TRUNCATE` exatamente das 16 tabelas autoritativas quando o GTIN/GS1 v1 estiver ativo;
 - **não usa CASCADE**;
 - reinsere o snapshot preservando IDs;
 - sincroniza as sequences IDENTITY;
@@ -153,10 +156,10 @@ Sucesso exige `COMMIT` no fim. Qualquer erro antes do `COMMIT` aborta a janela; 
 
 Com a trava ainda em `1`:
 
-- comparar as 13 contagens com o snapshot recém-gerado;
+- comparar as 16 contagens com o snapshot recém-gerado quando o GTIN/GS1 v1 estiver ativo;
 - executar `supabase/sql/validate_d1_import.sql`;
 - confirmar zero órfãos e zero violações de negócio;
-- confirmar IDs máximos e sequences;
+- confirmar IDs máximos e sequences das tabelas que usam IDENTITY;
 - auditar permissões das RPCs;
 - executar sanity checks das RPCs de leitura.
 
@@ -177,6 +180,8 @@ Neste ponto D1 continua autoridade, mas novas escritas passam a ser espelhadas n
 ### 8. Validar mirroring em produção
 
 Executar operações reais/controladas que cubram os writers relevantes e confirmar que o estado correspondente aparece no Supabase sem divergência. Falha de mirror não pode ser ignorada antes do read cutover.
+
+Para a revisão supervisionada v8.25, validar também `scan_occurrence_candidates`, `scan_occurrence_review_sessions`, o lifecycle de `scan_occurrences`, a referência visual treinada e a evidência geométrica confirmada.
 
 ### 9. Read cutover — somente após paridade pós-freeze
 

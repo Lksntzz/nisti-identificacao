@@ -3064,4 +3064,29 @@ select:focus,input[type=text]:focus,input[type=url]:focus { border-color: #b9c7f
   transition: width 0.4s ease;
 }
 
+.btn-gtin-scan {
+  min-height: 42px;
+  border: 1.5px solid #0ea5e9;
+  border-radius: 12px;
+  background: #f0f9ff;
+  color: #0369a1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-gtin-scan:disabled { opacity: .45; cursor: not-allowed; }
+.gtin-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(15,23,42,.72); }
+.gtin-modal { width: min(440px,100%); padding: 16px; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(0,0,0,.3); }
+.gtin-modal-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.gtin-modal-header div { display: grid; gap: 2px; }
+.gtin-modal-header span { color: #64748b; font-size: 11px; }
+.gtin-modal-header button { border: 0; background: transparent; font-size: 28px; cursor: pointer; }
+.gtin-video { display: block; width: 100%; min-height: 230px; border-radius: 12px; background: #0f172a; object-fit: cover; }
+.gtin-help { margin: 10px 0; color: #475569; font-size: 12px; text-align: center; }
+.gtin-manual { display: flex; gap: 8px; }
+.gtin-manual input { min-width: 0; flex: 1; padding: 11px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; }
+.gtin-manual button { border: 0; border-radius: 10px; padding: 0 14px; background: #0369a1; color: #fff; font-weight: 800; }
+
 
