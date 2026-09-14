@@ -6,8 +6,8 @@ import { isValidGtin13 } from '../src/gtin.js';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'data/gtin/product_gtins_v1.json'), 'utf8'));
 const provenance = JSON.parse(fs.readFileSync(path.join(root, 'data/gtin/source_provenance_v1.json'), 'utf8'));
-const d1Seed = fs.readFileSync(path.join(root, 'migrations/0016_product_gtins_seed_v1.sql'), 'utf8');
-const supabaseSeed = fs.readFileSync(path.join(root, 'supabase/migrations/202609142010_nisti_gtin_gs1_seed_v1.sql'), 'utf8');
+const d1Seed = fs.readFileSync(path.join(root, 'data/gtin/load_product_gtins_d1_v1.sql'), 'utf8');
+const supabaseSeed = fs.readFileSync(path.join(root, 'supabase/sql/load_product_gtins_v1.sql'), 'utf8');
 const records = manifest.records || [];
 
 function fail(message) { throw new Error(`Auditoria GTIN falhou: ${message}`); }
@@ -41,6 +41,8 @@ console.log(JSON.stringify({
   unique_gtins: 220,
   unique_products: 220,
   excluded_product_id: 84,
+  d1_load_file: 'data/gtin/load_product_gtins_d1_v1.sql',
+  supabase_load_file: 'supabase/sql/load_product_gtins_v1.sql',
   canonical_source_file: provenance.canonical_source_file,
   canonical_source_sha256: provenance.canonical_source_sha256,
   reconciliation_workbook: provenance.reconciliation_workbook,
