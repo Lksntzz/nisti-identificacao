@@ -88,56 +88,67 @@ export async function detectGtinInImage(file) {
 
 async function startNativeVideoScanner(videoElement, onDetected) {
   if (!(await nativeEan13Supported())) return null;
-  if (!navigator?.mediaDevices?.getUserMedia) return null;
+  const mediaDevices = globalThis.navigator?.mediaDevices;
+  if (!mediaDevices?.getUserMedia) return null;
 
-  const stream = await navigator.mediaDevices.getUserMedia({
+  const stream = await mediaDevices.getUserMedia({
     audio: false,
     video: { facingMode: { ideal: 'environment' } }
   });
-  const detector = new globalThis.BarcodeDetector({ formats: ['ean_13'] });
-  let stopped = false;
-  let animationFrame = 0;
-  let detecting = false;
-
-  const stop = () => {
-    if (stopped) return;
-    stopped = true;
-    if (animationFrame) cancelAnimationFrame(animationFrame);
+  const stopTracks = () => {
     for (const track of stream.getTracks()) track.stop();
-    if (videoElement.srcObject === stream) videoElement.srcObject = null;
   };
 
-  videoElement.srcObject = stream;
-  videoElement.muted = true;
-  videoElement.playsInline = true;
-  await videoElement.play();
+  try {
+    const detector = new globalThis.BarcodeDetector({ formats: ['ean_13'] });
+    let stopped = false;
+    let animationFrame = 0;
+    let detecting = false;
 
-  const tick = async () => {
-    if (stopped) return;
-    if (!detecting && videoElement.readyState >= 2) {
-      detecting = true;
-      try {
-        const detected = await detector.detect(videoElement);
-        for (const barcode of detected || []) {
-          const gtin = acceptedGtin(barcode?.rawValue);
-          if (gtin) {
-            stop();
-            onDetected(gtin);
-            return;
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      stopTracks();
+      if (videoElement.srcObject === stream) videoElement.srcObject = null;
+    };
+
+    videoElement.srcObject = stream;
+    videoElement.muted = true;
+    videoElement.playsInline = true;
+    await videoElement.play();
+
+    const tick = async () => {
+      if (stopped) return;
+      if (!detecting && videoElement.readyState >= 2) {
+        detecting = true;
+        try {
+          const detected = await detector.detect(videoElement);
+          for (const barcode of detected || []) {
+            const gtin = acceptedGtin(barcode?.rawValue);
+            if (gtin) {
+              stop();
+              onDetected(gtin);
+              return;
+            }
           }
+        } catch {
+          // Native detection can transiently fail while camera frames settle.
+          // Keep scanning; hard camera failures are handled during setup.
+        } finally {
+          detecting = false;
         }
-      } catch {
-        // Native detection can transiently fail while camera frames settle.
-        // Keep scanning; hard camera failures are handled during setup.
-      } finally {
-        detecting = false;
       }
-    }
-    if (!stopped) animationFrame = requestAnimationFrame(tick);
-  };
+      if (!stopped) animationFrame = requestAnimationFrame(tick);
+    };
 
-  animationFrame = requestAnimationFrame(tick);
-  return { stop, engine: 'barcode-detector' };
+    animationFrame = requestAnimationFrame(tick);
+    return { stop, engine: 'barcode-detector' };
+  } catch (error) {
+    stopTracks();
+    if (videoElement.srcObject === stream) videoElement.srcObject = null;
+    throw error;
+  }
 }
 
 async function startZxingVideoScanner(videoElement, onDetected) {
