@@ -124,6 +124,7 @@ ORDER BY platform;
 
 -- ID_RANGES: usado para conferir preservação de IDs e sequences.
 SELECT 'products' AS table_name, MIN(id) AS min_id, MAX(id) AS max_id FROM public.products
+UNION ALL SELECT 'product_gtins', MIN(id), MAX(id) FROM public.product_gtins
 UNION ALL SELECT 'product_platforms', MIN(id), MAX(id) FROM public.product_platforms
 UNION ALL SELECT 'recognition_events', MIN(id), MAX(id) FROM public.recognition_events
 UNION ALL SELECT 'cover_visual_references', MIN(id), MAX(id) FROM public.cover_visual_references
