@@ -16,6 +16,8 @@ export const TABLE_ORDER = Object.freeze([
   'notification_reads',
   'push_subscriptions',
   'scan_occurrences',
+  'scan_occurrence_candidates',
+  'scan_occurrence_review_sessions',
   'geometric_shadow_evidence'
 ]);
 
