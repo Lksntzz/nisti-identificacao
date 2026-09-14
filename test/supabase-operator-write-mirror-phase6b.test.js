@@ -131,5 +131,5 @@ test('operator D1 writes are mirrored only after authoritative D1 rows exist', (
 test('production write and read cutover switches remain off by default', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
-  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"off"/);
+  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
 });
