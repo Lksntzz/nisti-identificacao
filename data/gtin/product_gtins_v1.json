@@ -1,0 +1,1555 @@
+{
+  "version": "nisti-gtin-gs1-v1",
+  "source_file": "reconciliacao_gs1_nisti_final.xlsx",
+  "approved_count": 220,
+  "reconciliation_note": "219 vínculos da aba Plano GTIN Final + aprovação registrada do Product ID 19; Product ID 84 excluído por conflito com Product ID 208.",
+  "excluded": [
+    {
+      "product_id": 84,
+      "gtin": "7898764983201",
+      "reason": "GTIN pertence ao Product ID 208."
+    }
+  ],
+  "records": [
+    {
+      "product_id": 1,
+      "sku": "VACMNO_LIN1_BBB",
+      "gtin": "7898764982617",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Linho",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 2,
+      "sku": "VACMNO_URSBA_BAA",
+      "gtin": "7898764981665",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Príncipe Urso",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 3,
+      "sku": "VACMNO_URSAV_BAA",
+      "gtin": "7898764981672",
+      "description": "Caderneta de Vacinação Menino Personalizado Coleção Príncipe Urso",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 4,
+      "sku": "VACMNO_URSAT_BBB",
+      "gtin": "7898764981689",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Príncipe Urso",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 5,
+      "sku": "VACMNO_CP1_BBB",
+      "gtin": "7898764981696",
+      "description": "Nisti Print Caderneta de Vacinação menino Coleção Minimalista Personalizado com Nome",
+      "decision_origin": "REVISÃO HUMANA"
+    },
+    {
+      "product_id": 6,
+      "sku": "VACMNO_CP2_BAA",
+      "gtin": "7898764981702",
+      "description": "Nisti Print Caderneta de Vacinação menino Coleção Minimalista Personalizada com Nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 7,
+      "sku": "VACMNO_CP3_BAA",
+      "gtin": "7898764981719",
+      "description": "Nisti Print Caderneta de vacinação menino Coleção Minimalista Personalizada com nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 8,
+      "sku": "VACMNO_CP4_BAA",
+      "gtin": "7898764981726",
+      "description": "Nisti Print Caderneta de vacinação Menino Coleção Minimalista Personalizada com nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 9,
+      "sku": "VACMNO_CP5_BBB",
+      "gtin": "7898764981740",
+      "description": "Nisti Print Caderneta de vacinação menino Coleção Minimalista Personalizada com nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 10,
+      "sku": "VACMNO_CP6_BBB",
+      "gtin": "7898764981757",
+      "description": "Nisti Print Caderneta de vacinação menino Coleção Minimalista Personalizada com nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 11,
+      "sku": "VACMNO_CP7_BBB",
+      "gtin": "7898764981764",
+      "description": "Nisti Print Caderneta de vacinação menino Coleção Minimalista Personalizada com nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 12,
+      "sku": "VACMNO_CP8_BBB",
+      "gtin": "7898764981771",
+      "description": "Nisti Print Caderneta de vacinação menino Coleção Minimalista Personalizada com nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 13,
+      "sku": "VACMNO_CP9_BBB",
+      "gtin": "7898764981788",
+      "description": "Nisti Print Caderneta de vacinação menino Coleção Minimalista Personalizada com nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 14,
+      "sku": "VACMNO_CP10_PXP",
+      "gtin": "7898764981795",
+      "description": "Nisti Print Caderneta de vacinação menino Coleção Minimalista Personalizada com nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 15,
+      "sku": "VACMNO_MCP1_BBB",
+      "gtin": "7898764981801",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizada Com Nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 16,
+      "sku": "VACMNO_MCP3_BBB",
+      "gtin": "7898764981825",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizada Com Nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 17,
+      "sku": "VACMNO_MCP5_PBP",
+      "gtin": "7898764981849",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizada Com Nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 18,
+      "sku": "VACMNO_MCP2_BBB",
+      "gtin": "7898764981818",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizada Com Nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 19,
+      "sku": "VACMNO_MCP4_PAP",
+      "gtin": "7898764981832",
+      "description": "Caderneta De Vacinação Menino Personalizada com Nome Capa Dura Versão Atualizada",
+      "decision_origin": "APROVAÇÃO DO USUÁRIO"
+    },
+    {
+      "product_id": 20,
+      "sku": "VACMNO_MCP6_BBB",
+      "gtin": "7898764981856",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizada Com Nome",
+      "decision_origin": "REVISÃO HUMANA"
+    },
+    {
+      "product_id": 21,
+      "sku": "VACMNA_CP01_BBB",
+      "gtin": "7898764981900",
+      "description": "Nisti Print Caderneta De Vacinação Menina - Encanto Rosé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 22,
+      "sku": "VACMNA_CP02_BBB",
+      "gtin": "7898764981917",
+      "description": "Nisti Print Caderneta De Vacinação Menina Encanto Rosé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 23,
+      "sku": "VACMNA_CP03_BBB",
+      "gtin": "7898764981924",
+      "description": "Nisti Print Caderneta De Vacinação Menina Encanto Rosé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 24,
+      "sku": "VACMNO_QUAR1_BBB",
+      "gtin": "7898764981931",
+      "description": "Nisti Print Caderneta de Vacinação Menino Quarto Bebê",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 25,
+      "sku": "VACMNO_QUAR2_BBB",
+      "gtin": "7898764981948",
+      "description": "Nisti Print Caderneta de Vacinação Menino Quarto Bebê",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 26,
+      "sku": "VACMNO_QUAR3_BBB",
+      "gtin": "7898764981955",
+      "description": "Nisti Print Caderneta de Vacinação Menino Quarto Bebê",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 27,
+      "sku": "VACMNO_QUAR4_BBB",
+      "gtin": "7898764981962",
+      "description": "Nisti Print Caderneta de Vacinação Menino Quarto Bebê",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 28,
+      "sku": "VACMNA_CPA1_BBB",
+      "gtin": "7898764982129",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 29,
+      "sku": "VACMNA_CPA3_BRR",
+      "gtin": "7898764982143",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 30,
+      "sku": "VACMNA_CPA5_BRB",
+      "gtin": "7898764982167",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 31,
+      "sku": "VACMNA_CPA2_BRR",
+      "gtin": "7898764982136",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 32,
+      "sku": "VACMNA_CPA4_BRR",
+      "gtin": "7898764982150",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 33,
+      "sku": "VACMNA_CPA6_BBB",
+      "gtin": "7898764982174",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 34,
+      "sku": "VACMNA_JAEN1_BBB",
+      "gtin": "7898764982082",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 35,
+      "sku": "VACMNA_JAEN2_BBB",
+      "gtin": "7898764982099",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 36,
+      "sku": "VACMNA_JAEN3_RBB",
+      "gtin": "7898764982105",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 37,
+      "sku": "VACMNA_JAEN4_BBB",
+      "gtin": "7898764982112",
+      "description": "Nisti Print Caderneta de Vacinação Menina Personalizado C/ nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 38,
+      "sku": "PTD180_CAPI1_BBB",
+      "gtin": "7898764982013",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Capivara",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 39,
+      "sku": "PTD180_CAPI2_BBB",
+      "gtin": "7898764982020",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Capivara",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 40,
+      "sku": "PTD180_CAPI3_PXP",
+      "gtin": "7898764982037",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Capivara",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 41,
+      "sku": "PTD180_CAPI4_PXP",
+      "gtin": "7898764982044",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Capivara",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 42,
+      "sku": "PTD180_CAPI5_BXR",
+      "gtin": "7898764982051",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Capivara",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 43,
+      "sku": "PTD180_CAPI6_BXB",
+      "gtin": "7898764982068",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Capivara",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 44,
+      "sku": "PTD180_CAPI7_BXB",
+      "gtin": "7898764982075",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Capivara",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 45,
+      "sku": "RECTAS_CAPI1_PXP",
+      "gtin": "7898764981993",
+      "description": "Nisti Print Caderno de Receitas Com Capa Dura - Coleção - Capivara",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 46,
+      "sku": "RECTAS_CAPI2_BXB",
+      "gtin": "7898764982006",
+      "description": "Nisti Print Caderno de Receitas Com Capa Dura - Coleção - Capivara",
+      "decision_origin": "REVISÃO HUMANA"
+    },
+    {
+      "product_id": 47,
+      "sku": "DEV365_MARP_PXP",
+      "gtin": "7898764981979",
+      "description": "Nisti Print Caderno Devocional Leitura e Estudos Bíblicos Capa dura Mármore",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 48,
+      "sku": "DEV365_MARB_PXP",
+      "gtin": "7898764981986",
+      "description": "Nisti Print Caderno Devocional Leitura e Estudos Bíblicos Capa dura Mármore",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 49,
+      "sku": "PTD180_TULI_BBB",
+      "gtin": "7898764981894",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Jardim",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 50,
+      "sku": "PTD180_MARG_BBB",
+      "gtin": "7898764981887",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Jardim",
+      "decision_origin": "REVISÃO HUMANA"
+    },
+    {
+      "product_id": 51,
+      "sku": "PTD180_LIRI_BBB",
+      "gtin": "7898764981870",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Jardim",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 52,
+      "sku": "PTD180_GIRA_BVB",
+      "gtin": "7898764981863",
+      "description": "Nisti Print Caderno De Anotações Capa Dura Coleção Jardim",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 53,
+      "sku": "AGDPERM_SHIN1_BBB",
+      "gtin": "7898764982181",
+      "description": "Nisti Print Agenda Permanente Shine - Organize Sua Rotina C/ Estilo e Qualidade",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 54,
+      "sku": "AGDPERM_SHIN2_BBB",
+      "gtin": "7898764982198",
+      "description": "Nisti Print Agenda Permanente Shine - Organize Sua Rotina C/ Estilo e Qualidade",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 55,
+      "sku": "AGDPERM_SHIN3_BBB",
+      "gtin": "7898764982204",
+      "description": "Nisti Print Agenda Permanente Shine - Organize Sua Rotina C/ Estilo e Qualidade",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 56,
+      "sku": "AGDPERM_SHIN4_BBB",
+      "gtin": "7898764982211",
+      "description": "Nisti Print Agenda Permanente Shine - Organize Sua Rotina C/ Estilo e Qualidade",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 57,
+      "sku": "AGDPERM_SHIN5_BBB",
+      "gtin": "7898764982228",
+      "description": "Nisti Print Agenda Permanente Shine - Organize Sua Rotina C/ Estilo e Qualidade",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 58,
+      "sku": "AGDPERM_SHIN6_BBB",
+      "gtin": "7898764982235",
+      "description": "Nisti Print Agenda Permanente Shine - Organize Sua Rotina C/ Estilo e Qualidade",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 59,
+      "sku": "CADISC_CRM1_PXP",
+      "gtin": "7898764983072",
+      "description": "Nisti Print Caderno De Discos Folhas Reposicionáveis Capa Dura - Caramelo",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 60,
+      "sku": "CADISC_CRM2_PXP",
+      "gtin": "7898764983089",
+      "description": "Nisti Print Caderno De Discos Folhas Reposicionáveis Capa Dura - Caramelo",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 61,
+      "sku": "CADISC_CRM3_PXP",
+      "gtin": "7898764983096",
+      "description": "Nisti Print Caderno De Discos Folhas Reposicionáveis Capa Dura - Caramelo",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 62,
+      "sku": "CADISC_CRM4_PXP",
+      "gtin": "7898764983102",
+      "description": "Nisti Print Caderno De Discos Folhas Reposicionáveis Capa Dura - Caramelo",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 63,
+      "sku": "PTDVOV_CRJ1_BBB",
+      "gtin": "7898764982945",
+      "description": "Nisti Print Caderno De Anotações Folhas Pautadas - Cereja",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 64,
+      "sku": "PTDVOV_CRJ2_BBB",
+      "gtin": "7898764982952",
+      "description": "Nisti Print Caderno De Anotações Folhas Pautadas - Cereja",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 65,
+      "sku": "VACMNA_JDF1_BRB",
+      "gtin": "7898764983027",
+      "description": "Nisti Print Caderneta De Vacinação Personalizada com Nome - Jardim Das Fadas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 66,
+      "sku": "VACMNA_JDF2_BBB",
+      "gtin": "7898764983034",
+      "description": "Nisti Print Caderneta De Vacinação Personalizada com Nome - Jardim Das Fadas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 67,
+      "sku": "VACMNA_JDF3_BRR",
+      "gtin": "7898764983041",
+      "description": "Nisti Print Caderneta De Vacinação Personalizada com Nome - Jardim Das Fadas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 68,
+      "sku": "VACMNA_JDF4_BRR",
+      "gtin": "7898764983058",
+      "description": "Nisti Print Caderneta De Vacinação Personalizada com Nome - Jardim Das Fadas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 69,
+      "sku": "VACMNA_JDF5_BBB",
+      "gtin": "7898764983065",
+      "description": "Nisti Print Caderneta De Vacinação Personalizada com Nome - Jardim Das Fadas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 70,
+      "sku": "PTDVOV_L&C2_BRB",
+      "gtin": "7898764982976",
+      "description": "Nisti Print Caderno De Anotações Personalizado Com Folhas Pautadas - Laços e Cerejas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 71,
+      "sku": "VACMNO_SAF1_BBB",
+      "gtin": "7898764982570",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Safari",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 72,
+      "sku": "VACMNO_SAF2_BBB",
+      "gtin": "7898764982587",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Safari",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 73,
+      "sku": "VACMNO_SAF3_BBB",
+      "gtin": "7898764982594",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Safari",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 74,
+      "sku": "VACMNO_SAF4_BBB",
+      "gtin": "7898764982600",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Safari",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 75,
+      "sku": "VACMNO_LIN2_BBB",
+      "gtin": "7898764982624",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Linho",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 76,
+      "sku": "CONFIN_PCR1_BXB",
+      "gtin": "7898764982808",
+      "description": "Nisti Print Caderno De Controle Financeiro - Planeje Controle Realize",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 77,
+      "sku": "CONFIN_PCR2_BXB",
+      "gtin": "7898764982815",
+      "description": "Nisti Print Caderno De Controle Financeiro - Planeje Controle Realize",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 78,
+      "sku": "CONFIN_PCR3_PXP",
+      "gtin": "7898764982822",
+      "description": "Nisti Print Caderno De Controle Financeiro - Planeje Controle Realize",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 79,
+      "sku": "CONFIN_PCR4_PXP",
+      "gtin": "7898764982839",
+      "description": "Nisti Print Caderno De Controle Financeiro - Planeje Controle Realize",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 80,
+      "sku": "CONFIN_PCR5_PXP",
+      "gtin": "7898764983133",
+      "description": "Nisti Print Caderno De Controle Financeiro - Planeje Controle Realize",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 81,
+      "sku": "CONFIN_PCR6_BXB",
+      "gtin": "7898764983140",
+      "description": "Nisti Print Caderno De Controle Financeiro - Planeje Controle Realize",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 82,
+      "sku": "CONFIN_MHC1_BBB",
+      "gtin": "7898764983188",
+      "description": "Nisti Print Caderno De Controle Financeiro - Minhas Contas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 83,
+      "sku": "CONFIN_MHC2_PBP",
+      "gtin": "7898764983195",
+      "description": "Nisti Print Caderno De Controle Financeiro - Minhas Contas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 85,
+      "sku": "CONFIN_PJP1_PXP",
+      "gtin": "7898764983157",
+      "description": "Nisti Print Caderno De Controle Financeiro - Planejamento Pessoal",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 86,
+      "sku": "CONFIN_PJP2_BXB",
+      "gtin": "7898764983164",
+      "description": "Nisti Print Caderno De Controle Financeiro - Planejamento Pessoal",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 87,
+      "sku": "CONFIN_PJP3_BXB",
+      "gtin": "7898764983171",
+      "description": "Nisti Print Caderno De Controle Financeiro - Planejamento Pessoal",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 88,
+      "sku": "CONFIN_BKF1_PXP",
+      "gtin": "7898764982846",
+      "description": "Nisti Print Caderno De Controle Financeiro - Black Finance",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 89,
+      "sku": "CONFIN_BKF2_PXP",
+      "gtin": "7898764982853",
+      "description": "Nisti Print Caderno De Controle Financeiro - Black Finance",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 90,
+      "sku": "CONFIN_BKF3_PXP",
+      "gtin": "7898764982860",
+      "description": "Nisti Print Caderno De Controle Financeiro - Black Finance",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 91,
+      "sku": "CONFIN_BKF4_PXP",
+      "gtin": "7898764982877",
+      "description": "Nisti Print Caderno De Controle Financeiro - Black Finance",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 92,
+      "sku": "CONFIN_BKF5_BXB",
+      "gtin": "7898764983119",
+      "description": "Nisti Print Caderno De Controle Financeiro - Black Finance",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 93,
+      "sku": "CONFIN_BKF6_PXP",
+      "gtin": "7898764983126",
+      "description": "Nisti Print Caderno De Controle Financeiro - Black Finance",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 94,
+      "sku": "VACMNA_BQE1_BRR",
+      "gtin": "7898764982631",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Bosque Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 95,
+      "sku": "VACMNA_BQE2_BRR",
+      "gtin": "7898764982648",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Bosque Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 96,
+      "sku": "VACMNA_BQE3_BBB",
+      "gtin": "7898764982655",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Bosque Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 97,
+      "sku": "VACMNA_BQE4_BBB",
+      "gtin": "7898764982662",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Bosque Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 98,
+      "sku": "VACMNA_BQE5_BVV",
+      "gtin": "7898764982679",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Bosque Encantado",
+      "decision_origin": "REVISÃO HUMANA"
+    },
+    {
+      "product_id": 99,
+      "sku": "VACMNA_BQE6_BRR",
+      "gtin": "7898764982686",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Bosque Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 100,
+      "sku": "VACMNA_JBQ1_BRR",
+      "gtin": "7898764982693",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Jardim Boutique",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 101,
+      "sku": "VACMNA_JBQ2_BRR",
+      "gtin": "7898764982709",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Jardim Boutique",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 102,
+      "sku": "VACMNA_JBQ3_BBB",
+      "gtin": "7898764982716",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Jardim Boutique",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 103,
+      "sku": "VACMNA_JBQ4_BBB",
+      "gtin": "7898764982723",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Jardim Boutique",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 104,
+      "sku": "VACMNA_JBQ5_BBB",
+      "gtin": "7898764982730",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Jardim Boutique",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 105,
+      "sku": "VACMNA_JBQ6_BBB",
+      "gtin": "7898764982747",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Jardim Boutique",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 106,
+      "sku": "VACMNA_PEC1_BBB",
+      "gtin": "7898764982754",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Pequeno Encanto",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 107,
+      "sku": "VACMNA_PEC2_BBB",
+      "gtin": "7898764982761",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Pequeno Encanto",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 108,
+      "sku": "VACMNA_PEC3_BVV",
+      "gtin": "7898764982778",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Pequeno Encanto",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 109,
+      "sku": "VACMNA_PEC4_BBB",
+      "gtin": "7898764982785",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Pequeno Encanto",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 110,
+      "sku": "VACMNA_PEC5_BBB",
+      "gtin": "7898764982792",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizada C/ Nome - Pequeno Encanto",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 111,
+      "sku": "SCRABK_CAN_PXP",
+      "gtin": "7898764982471",
+      "description": "Nisti Print Caderno Scrapbook Para Colagem de Fotos Capa Dura",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 112,
+      "sku": "SCRABK_MOME_PXP",
+      "gtin": "7898764982488",
+      "description": "Nisti Print Caderno Scrapbook Para Colagem de Fotos Capa Dura",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 113,
+      "sku": "SCRABK_CMOM_PXP",
+      "gtin": "7898764982495",
+      "description": "Nisti Print Caderno Scrapbook Para Colagem de Fotos Capa Dura",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 114,
+      "sku": "SCRABK_AMOR_PXP",
+      "gtin": "7898764982501",
+      "description": "Nisti Print Caderno Scrapbook Para Colagem de Fotos Capa Dura",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 115,
+      "sku": "SCRABK_CORA_PXP",
+      "gtin": "7898764982518",
+      "description": "Nisti Print Caderno Scrapbook Para Colagem de Fotos Capa Dura",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 116,
+      "sku": "DEVNP_CAP1_PXR",
+      "gtin": "7898764982303",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Jardim Da Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 117,
+      "sku": "DEVNP_CAP2_RXB",
+      "gtin": "7898764982334",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Jardim Da Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 118,
+      "sku": "DEVNP_CAP3_RXB",
+      "gtin": "7898764982341",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Jardim Da Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 119,
+      "sku": "DEVNP_CAP4_PXP",
+      "gtin": "7898764982310",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Jardim Da Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 120,
+      "sku": "DEVNP_CAP5_PXP",
+      "gtin": "7898764982327",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Jardim Da Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 121,
+      "sku": "DEVNP_CAP6_RXB",
+      "gtin": "7898764982358",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Jardim Da Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 122,
+      "sku": "DEVNP_CPPT_RBB",
+      "gtin": "7898764982365",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Coleção Propósito",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 123,
+      "sku": "DEVNP_CPT2_RBB",
+      "gtin": "7898764982372",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Coleção Propósito",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 124,
+      "sku": "DEVNP_CPT3_RBB",
+      "gtin": "7898764982389",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Coleção Propósito",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 125,
+      "sku": "DEVNP_CPT4_RBB",
+      "gtin": "7898764982396",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Coleção Propósito",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 126,
+      "sku": "DEVNP_CPT5_RBB",
+      "gtin": "7898764982402",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Coleção Propósito",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 127,
+      "sku": "DEVNP_CPT6_RBB",
+      "gtin": "7898764982419",
+      "description": "Nisti Print Caderno Planner Devocional Com Capa Dura Coleção Propósito",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 128,
+      "sku": "VACMNO_SP1_BAA",
+      "gtin": "7898764983270",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Com Nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 129,
+      "sku": "VACMNO_SP2_BAA",
+      "gtin": "7898764983287",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Com Nome",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 130,
+      "sku": "VACMNO_OC3_BAA",
+      "gtin": "7898764983294",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Com Nome",
+      "decision_origin": "REVISÃO HUMANA"
+    },
+    {
+      "product_id": 131,
+      "sku": "VACMNO_MNZ1_BAA",
+      "gtin": "7898764983218",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Minimalista Azul",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 132,
+      "sku": "VACMNO_MNZ2_BAB",
+      "gtin": "7898764983225",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Minimalista Azul",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 133,
+      "sku": "VACMNO_MNZ3_BAA",
+      "gtin": "7898764983232",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Minimalista Azul",
+      "decision_origin": "REVISÃO HUMANA"
+    },
+    {
+      "product_id": 134,
+      "sku": "VACMNO_MNV1_BVV",
+      "gtin": "7898764983249",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Minimalista Verde",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 135,
+      "sku": "VACMNO_MNV2_BVB",
+      "gtin": "7898764983256",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Minimalista Verde",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 136,
+      "sku": "VACMNO_MNV3_BVV",
+      "gtin": "7898764983263",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Minimalista Verde",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 137,
+      "sku": "DIALE_LTE1_BBB",
+      "gtin": "7898764983300",
+      "description": "Nisti Print Caderno Diário de Leitura - Leitura Encantada",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 138,
+      "sku": "DIALE_LTE2_BBB",
+      "gtin": "7898764983317",
+      "description": "Nisti Print Caderno Diário de Leitura - Leitura Encantada",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 139,
+      "sku": "DIALE_LTE3_BBB",
+      "gtin": "7898764983324",
+      "description": "Nisti Print Caderno Diário de Leitura - Leitura Encantada",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 140,
+      "sku": "VACMNO_MNCZ_BBB",
+      "gtin": "7898764983348",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Minimalista Cinza",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 141,
+      "sku": "VACMNA_JADE_BBB",
+      "gtin": "7898764983331",
+      "description": "Nisti Print Caderneta de Vacinação Menina C/ Nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 142,
+      "sku": "VACMNA_SFRA_BRR",
+      "gtin": "7898764983355",
+      "description": "Nisti Print Caderneta De Vacina Menina Safari Atualizado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 143,
+      "sku": "VACMNA_BORB_BRR",
+      "gtin": "7898764983362",
+      "description": "Nisti Print Caderneta De Vacina Personalizado Com Nome Menina Borboleta",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 144,
+      "sku": "CONFIN_CQF1_BXB",
+      "gtin": "7898764982884",
+      "description": "Nisti Print Caderno De Controle Financeiro - Conquista Financeira",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 145,
+      "sku": "CONFIN_CQF2_PXP",
+      "gtin": "7898764982891",
+      "description": "Nisti Print Caderno De Controle Financeiro - Conquista Financeira",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 146,
+      "sku": "CONFIN_CQF3_PXP",
+      "gtin": "7898764982907",
+      "description": "Nisti Print Caderno De Controle Financeiro - Conquista Financeira",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 147,
+      "sku": "CONFIN_CQF4_BXB",
+      "gtin": "7898764982914",
+      "description": "Nisti Print Caderno De Controle Financeiro - Conquista Financeira",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 148,
+      "sku": "CONFIN_CQF5_PXP",
+      "gtin": "7898764982921",
+      "description": "Nisti Print Caderno De Controle Financeiro - Conquista Financeira",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 149,
+      "sku": "CONFIN_CQF6_BXB",
+      "gtin": "7898764982938",
+      "description": "Nisti Print Caderno De Controle Financeiro - Conquista Financeira",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 150,
+      "sku": "VACMNO_SFR_BVV",
+      "gtin": "7898764983379",
+      "description": "Nisti Print Caderneta De Vacinação Safari Personalizado Capa Dura",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 151,
+      "sku": "VACMNA_FLRS1_BRR",
+      "gtin": "7898764983386",
+      "description": "Nisti Print Caderneta De Vacinação Personalizado Capa Dura Atulizado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 152,
+      "sku": "VACMNA_FLRS2_BBB",
+      "gtin": "7898764983393",
+      "description": "Nisti Print Caderneta De Vacinação Personalizado Capa Dura Atulizado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 153,
+      "sku": "CADGES_CBL1_BBB",
+      "gtin": "7898764983409",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome Atualizado 2026",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 154,
+      "sku": "CADGES_CBL2_BBB",
+      "gtin": "7898764983416",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome Atualizado 2026",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 155,
+      "sku": "CADGES_CBL3_BBB",
+      "gtin": "7898764983423",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome Atualizado 2026",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 156,
+      "sku": "CADGES_CBL4_BBB",
+      "gtin": "7898764983430",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome Atualizado 2026",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 157,
+      "sku": "CADGES_CBL5_BBB",
+      "gtin": "7898764983447",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome Atualizado 2026",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 158,
+      "sku": "CADGES_CBL6_BBB",
+      "gtin": "7898764983454",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome Atualizado 2026",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 159,
+      "sku": "CADGES_JARD1_BBB",
+      "gtin": "7898764983492",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 160,
+      "sku": "CADGES_JARD2_BBB",
+      "gtin": "7898764983508",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 161,
+      "sku": "CADGES_JARD3_BBB",
+      "gtin": "7898764983515",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 162,
+      "sku": "CADGES_JARD4_BBB",
+      "gtin": "7898764983522",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 163,
+      "sku": "CADGES_JARD5_BBB",
+      "gtin": "7898764983539",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 164,
+      "sku": "CADGES_JARD6_BBB",
+      "gtin": "7898764983546",
+      "description": "Nisti Print Caderneta Da Gestante Personalizado Com Nome - Jardim Encantado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 165,
+      "sku": "VACMNO_CEU1_BAA",
+      "gtin": "7898764983461",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado - Ceu",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 166,
+      "sku": "VACMNO_CEU2_BAA",
+      "gtin": "7898764983478",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado - Ceu",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 167,
+      "sku": "VACMNO_CEU3_BAA",
+      "gtin": "7898764983485",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado - Ceu",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 168,
+      "sku": "VACMNO_LIST1_BAA",
+      "gtin": "7898764983553",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado - Listrado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 169,
+      "sku": "VACMNO_LIST2_BAA",
+      "gtin": "7898764983577",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado - Listrado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 170,
+      "sku": "VACMNO_LIST3_BAA",
+      "gtin": "7898764983584",
+      "description": "Nisti Print Caderneta de Vacinação Menino Personalizado - Listrado",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 171,
+      "sku": "VACMNO_VFOS1_BBB",
+      "gtin": "7898764983591",
+      "description": "Nisti Print Caderneta de Vacinação Menino Atualizado Verde - Fosco",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 172,
+      "sku": "VACMNO_VFOS2_BBB",
+      "gtin": "7898764983607",
+      "description": "Nisti Print Caderneta de Vacinação Menino Atualizado Verde - Fosco",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 173,
+      "sku": "VACMNO_VFOS3_BBB",
+      "gtin": "7898764983614",
+      "description": "Nisti Print Caderneta de Vacinação Menino Atualizado Verde - Fosco",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 174,
+      "sku": "PB27_PRET_PXP",
+      "gtin": "7898764983621",
+      "description": "Nisti Print Agenda Executiva 2027 Capa Dura Diária Anual",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 175,
+      "sku": "PB27_BRAN_PXP",
+      "gtin": "7898764983638",
+      "description": "Nisti Print Agenda Executiva 2027 Capa Dura Diária Anual",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 176,
+      "sku": "PB27_CINZ_PXP",
+      "gtin": "7898764983645",
+      "description": "Nisti Print Agenda Executiva 2027 Capa Dura Diária Anual",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 177,
+      "sku": "PB27_AZUL_BXB",
+      "gtin": "7898764983652",
+      "description": "Nisti Print Agenda Executiva 2027 Capa Dura Diária Anual",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 178,
+      "sku": "PB27_BEGE_BXB",
+      "gtin": "7898764983669",
+      "description": "Nisti Print Agenda Executiva 2027 Capa Dura Diária Anual",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 179,
+      "sku": "PTD200_CARB_PXP",
+      "gtin": "7898764983676",
+      "description": "Caderno 2027 De Anotações -200 Pag- Carbono",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 180,
+      "sku": "PB27_PTEX_PXP",
+      "gtin": "7898764983683",
+      "description": "Nisti Print Agenda Diária 2027 - Espiral Aço Revestido - Capa Dura - Negocios",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 181,
+      "sku": "PB27_BTEX_PXP",
+      "gtin": "7898764983690",
+      "description": "Nisti Print Agenda Diária 2027 - Espiral Aço Revestido - Capa Dura - Negocios",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 182,
+      "sku": "PB27_ATEX_PXP",
+      "gtin": "7898764983706",
+      "description": "Nisti Print Agenda Diária 2027 - Espiral Aço Revestido - Capa Dura - Negocios",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 183,
+      "sku": "PB27_VTEX_BXB",
+      "gtin": "7898764983713",
+      "description": "Nisti Print Agenda Diária 2027 - Espiral Aço Revestido - Capa Dura - Negocios",
+      "decision_origin": "REVISÃO HUMANA"
+    },
+    {
+      "product_id": 184,
+      "sku": "PB27_EDEX1_PXP",
+      "gtin": "7898764983720",
+      "description": "Nisti Print Agenda Executiva 2027 Capa Dura Diária Anual Personalizada",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 185,
+      "sku": "PB27_EDEX2_PXP",
+      "gtin": "7898764983737",
+      "description": "Nisti Print Agenda Executiva 2027 Capa Dura Diária Anual Personalizada",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 186,
+      "sku": "PB27_EDEX3_PXP",
+      "gtin": "7898764983744",
+      "description": "Nisti Print Agenda Executiva 2027 Capa Dura Diária Anual Personalizada",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 187,
+      "sku": "DEVNP_FE1_PXP",
+      "gtin": "7898764982525",
+      "description": "Nisti Print Caderno Planner Devocional  200 Pag  Coleção Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 188,
+      "sku": "DEVNP_FE2_BXB",
+      "gtin": "7898764982532",
+      "description": "Nisti Print Caderno Planner Devocional  200 Pag  Coleção Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 189,
+      "sku": "DEVNP_FE3_BXB",
+      "gtin": "7898764982549",
+      "description": "Nisti Print Caderno Planner Devocional  200 Pag  Coleção Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 190,
+      "sku": "DEVNP_FE4_BXB",
+      "gtin": "7898764982556",
+      "description": "Nisti Print Caderno Planner Devocional  200 Pag  Coleção Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 191,
+      "sku": "DEVNP_FE5_PXP",
+      "gtin": "7898764982563",
+      "description": "Nisti Print Caderno Planner Devocional  200 Pag  Coleção Fé",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 192,
+      "sku": "PB27_MADP_PXP",
+      "gtin": "7898764983751",
+      "description": "Nisti Print Agenda Diária 2027 - Espiral Aço Revestido - Capa Dura - Madeira",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 193,
+      "sku": "PB27_MADB_PXP",
+      "gtin": "7898764983560",
+      "description": "Nisti Print Agenda Diária 2027 - Espiral Aço Revestido - Capa Dura - Madeira",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 194,
+      "sku": "PB27_MADM_PXP",
+      "gtin": "7898764983775",
+      "description": "Nisti Print Agenda Diária 2027 - Espiral Aço Revestido - Capa Dura - Madeira",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 195,
+      "sku": "AGMT27_MANI1_BBB",
+      "gtin": "7898764983782",
+      "description": "Nisti Print Agenda Manicure 2027 Pedicure Agendamentos com Pagamento",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 196,
+      "sku": "AGMT27_MANI2_PBP",
+      "gtin": "7898764983799",
+      "description": "Nisti Print Agenda Manicure 2027 Pedicure Agendamentos com Pagamento",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 197,
+      "sku": "AGMT27_MANI3_BBB",
+      "gtin": "7898764983805",
+      "description": "Nisti Print Agenda Manicure 2027 Pedicure Agendamentos com Pagamento",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 198,
+      "sku": "AGMT27_MAVI1_PBP",
+      "gtin": "7898764983812",
+      "description": "Nisti Print Agenda Manicure 2027 Agendamentos com Pagamento - Vinho",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 199,
+      "sku": "AGMT27_MAVI2_PBP",
+      "gtin": "7898764983829",
+      "description": "isti Print Agenda Manicure 2027 Agendamentos com Pagamento - Vinho",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 200,
+      "sku": "AGMT27_MASE1_BBB",
+      "gtin": "7898764983836",
+      "description": "Nisti Print Agenda Manicure 2027 Agendamentos com Pagamento - ROSE",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 201,
+      "sku": "AGMT27_MASE2_BBB",
+      "gtin": "7898764983843",
+      "description": "Nisti Print Agenda Manicure 2027 Agendamentos com Pagamento - ROSE",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 202,
+      "sku": "VACMNO_MLVS_BAA",
+      "gtin": "7898764983850",
+      "description": "Nisti Print Caderneta De Vacinação Menino Personalizado Atualizado - Safari",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 203,
+      "sku": "VACMNA_JAFE1_BBB",
+      "gtin": "7898764983867",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizado - Jardim de Afetos",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 204,
+      "sku": "VACMNA_JAFE2_BRR",
+      "gtin": "7898764983874",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizado - Jardim de Afetos",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 205,
+      "sku": "VACMNA_JAFE3_BLL",
+      "gtin": "7898764983881",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizado - Jardim de Afetos",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 206,
+      "sku": "VACMNA_JAFE4_BBB",
+      "gtin": "7898764983898",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizado - Jardim de Afetos",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 207,
+      "sku": "VACMNA_JAFE5_BBB",
+      "gtin": "7898764983904",
+      "description": "Nisti Print Caderneta De Vacinação Menina Personalizado - Jardim de Afetos",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 208,
+      "sku": "CONFIN_MHC3_BBB",
+      "gtin": "7898764983201",
+      "description": "Nisti Print Caderno De Controle Financeiro - Minhas Contas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 209,
+      "sku": "PTDVOV_L&C1_BRB",
+      "gtin": "7898764982969",
+      "description": "Nisti Print Caderno De Anotações Personalizado Com Folhas Pautadas - Laços e Cerejas",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 210,
+      "sku": "VACMNO_PQV1_BBB",
+      "gtin": "7898764983911",
+      "description": "Nisti Print Caderneta De Vacinação Menino Personalizado - Pequenas Aventuras",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 211,
+      "sku": "VACMNO_PQV2_BAA",
+      "gtin": "7898764983928",
+      "description": "Nisti Print Caderneta De Vacinação Menino Personalizado - Pequenas Aventuras",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 212,
+      "sku": "VACMNO_PQV3_BVV",
+      "gtin": "7898764983935",
+      "description": "Nisti Print Caderneta De Vacinação Menino Personalizado - Pequenas Aventuras",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 213,
+      "sku": "VACMNO_PQV4_BAA",
+      "gtin": "7898764983942",
+      "description": "Nisti Print Caderneta De Vacinação Menino Personalizado - Pequenas Aventuras",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 214,
+      "sku": "VACMNO_PQV5_BBB",
+      "gtin": "7898764983959",
+      "description": "Nisti Print Caderneta De Vacinação Menino Personalizado - Pequenas Aventuras",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 215,
+      "sku": "VACMNO_PQV6_BBB",
+      "gtin": "7898764983966",
+      "description": "Nisti Print Caderneta De Vacinação Menino Personalizado - Pequenas Aventuras",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 216,
+      "sku": "VACMNA_FLC1_BRR",
+      "gtin": "7898764983973",
+      "description": "Nisti Print Caderneta de Vacinação do Bebê Atualizada com Capa Dura para Menina",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 217,
+      "sku": "VACMNA_FLC2_BBB",
+      "gtin": "7898764983980",
+      "description": "Nisti Print Caderneta de Vacinação do Bebê Atualizada com Capa Dura para Menina",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 218,
+      "sku": "VACMNA_FLC3_BRR",
+      "gtin": "7898764983997",
+      "description": "Nisti Print Caderneta de Vacinação do Bebê Atualizada com Capa Dura para Menina",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 219,
+      "sku": "PB27_BKD1_PXP",
+      "gtin": "7898764984000",
+      "description": "Nisti Print Agenda 2027 Capa Dura Diária Anual Executiva - Black",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 220,
+      "sku": "PB27_BKD2_PXP",
+      "gtin": "7898764984017",
+      "description": "Nisti Print Agenda 2027 Capa Dura Diária Anual Executiva - Black",
+      "decision_origin": "AUTOMÁTICO"
+    },
+    {
+      "product_id": 221,
+      "sku": "PB27_BKD3_PXP",
+      "gtin": "7898764984024",
+      "description": "Nisti Print Agenda 2027 Capa Dura Diária Anual Executiva - Black",
+      "decision_origin": "AUTOMÁTICO"
+    }
+  ]
+}

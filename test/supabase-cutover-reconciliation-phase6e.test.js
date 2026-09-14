@@ -18,12 +18,13 @@ test('Phase 6E final replace is one transaction, exact-table and non-cascading',
   const { sql, statementCounts } = buildFinalReplaceSql(sampleConvertedSql());
 
   assert.equal(statementCounts.products, 1);
+  assert.equal(statementCounts.product_gtins, 0);
   assert.equal(statementCounts.product_platforms, 0);
   assert.equal(statementCounts.scan_occurrence_candidates, 0);
   assert.equal(statementCounts.scan_occurrence_review_sessions, 0);
-  assert.equal(Object.keys(statementCounts).length, 15);
+  assert.equal(Object.keys(statementCounts).length, 16);
   assert.match(sql, /^-- NISTI ID — FINAL CUTOVER REPLACE/m);
-  assert.match(sql, /15 tabelas autoritativas/);
+  assert.match(sql, /16 tabelas autoritativas/);
   assert.equal((sql.match(/\bBEGIN;/g) || []).length, 1);
   assert.equal((sql.match(/\bCOMMIT;/g) || []).length, 1);
   assert.match(sql, /TRUNCATE TABLE[\s\S]*public\."products"[\s\S]*public\."scan_occurrence_candidates"[\s\S]*public\."scan_occurrence_review_sessions"[\s\S]*public\."geometric_shadow_evidence"[\s\S]*RESTART IDENTITY;/);

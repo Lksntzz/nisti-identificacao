@@ -83,28 +83,29 @@ Importar **`postgres-data.sql`**, não `d1-data.sql`.
 A ordem de dependências aplicada pelo conversor é:
 
 1. `products`
-2. `product_platforms`
-3. `cover_embeddings`
-4. `recognition_daily`
-5. `recognition_events`
-6. `cover_visual_references`
-7. `cover_reference_embeddings`
-8. `cover_visual_signatures`
-9. `notifications`
-10. `notification_reads`
-11. `push_subscriptions`
-12. `scan_occurrences`
-13. `scan_occurrence_candidates`
-14. `scan_occurrence_review_sessions`
-15. `geometric_shadow_evidence`
+2. `product_gtins`
+3. `product_platforms`
+4. `cover_embeddings`
+5. `recognition_daily`
+6. `recognition_events`
+7. `cover_visual_references`
+8. `cover_reference_embeddings`
+9. `cover_visual_signatures`
+10. `notifications`
+11. `notification_reads`
+12. `push_subscriptions`
+13. `scan_occurrences`
+14. `scan_occurrence_candidates`
+15. `scan_occurrence_review_sessions`
+16. `geometric_shadow_evidence`
 
-As tabelas `scan_occurrence_candidates` e `scan_occurrence_review_sessions` passam a integrar a autoridade relacional a partir da revisão supervisionada v8.25 e não podem ser descartadas de snapshots de reconciliação.
+As tabelas `scan_occurrence_candidates` e `scan_occurrence_review_sessions` passam a integrar a autoridade relacional a partir da revisão supervisionada v8.25. `product_gtins` passa a integrar a autoridade relacional com o GTIN/GS1 v1. Nenhuma dessas tabelas pode ser descartada de snapshots de reconciliação.
 
 Não importar tabelas internas do Wrangler/D1.
 
 ## 4. Sincronização de IDENTITY
 
-Depois da importação, executar `supabase/sql/after_d1_import.sql` para posicionar as sequences PostgreSQL após os maiores IDs importados. As duas tabelas de revisão supervisionada usam `occurrence_id` como chave e não possuem sequence própria.
+Depois da importação, executar `supabase/sql/after_d1_import.sql` para posicionar as sequences PostgreSQL após os maiores IDs importados. `product_gtins` possui sequence própria. As duas tabelas de revisão supervisionada usam `occurrence_id` como chave e não possuem sequence própria.
 
 ## 5. Validação de paridade
 
@@ -112,7 +113,7 @@ Executar `supabase/sql/validate_d1_import.sql`.
 
 Critérios obrigatórios antes do cutover:
 
-- contagem de cada uma das 15 tabelas igual ao snapshot `d1-counts.json`;
+- contagem de cada uma das 16 tabelas igual ao snapshot `d1-counts.json`;
 - zero violações referenciais;
 - zero violações dos invariantes de negócio;
 - plataformas somente `MERCADO LIVRE`, `SHOPEE` e `AMAZON`;

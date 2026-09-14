@@ -32,7 +32,7 @@ Todos os itens abaixo são obrigatórios antes da janela final:
 1. schema e RPCs Supabase aplicados e auditados como `SECURITY INVOKER`;
 2. `PUBLIC`, `anon` e `authenticated` sem `EXECUTE` nas RPCs privilegiadas;
 3. `service_role` com `EXECUTE` nas RPCs necessárias;
-4. snapshot com as 15 tabelas autoritativas importadas e validado quando a v8.25 estiver ativa;
+4. snapshot com as 16 tabelas autoritativas importadas e validado quando o GTIN/GS1 v1 estiver ativo;
 5. Production Gate verde na versão a ser implantada;
 6. `SUPABASE_SERVICE_ROLE_KEY` configurada no Worker;
 7. Phase 6 de write mirroring concluída no código;
@@ -91,7 +91,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\export-d1-for-supabase.ps1
 
 Preservar todos os artefatos e hashes. Não reutilizar o snapshot de uma janela anterior.
 
-Quando a v8.25 estiver ativa, o export exige as 15 tabelas autoritativas. Ausência de qualquer uma delas aborta o snapshot por segurança.
+Com o GTIN/GS1 v1 ativo, o export exige as 16 tabelas autoritativas. Ausência de qualquer uma delas aborta o snapshot por segurança.
 
 ### 3. Converter o snapshot
 
@@ -117,7 +117,7 @@ final-replace-report.json
 O SQL gerado:
 
 - abre uma única transação;
-- faz `TRUNCATE` exatamente das 15 tabelas autoritativas quando a v8.25 estiver ativa;
+- faz `TRUNCATE` exatamente das 16 tabelas autoritativas quando o GTIN/GS1 v1 estiver ativo;
 - **não usa CASCADE**;
 - reinsere o snapshot preservando IDs;
 - sincroniza as sequences IDENTITY;
@@ -156,7 +156,7 @@ Sucesso exige `COMMIT` no fim. Qualquer erro antes do `COMMIT` aborta a janela; 
 
 Com a trava ainda em `1`:
 
-- comparar as 15 contagens com o snapshot recém-gerado quando a v8.25 estiver ativa;
+- comparar as 16 contagens com o snapshot recém-gerado quando o GTIN/GS1 v1 estiver ativo;
 - executar `supabase/sql/validate_d1_import.sql`;
 - confirmar zero órfãos e zero violações de negócio;
 - confirmar IDs máximos e sequences das tabelas que usam IDENTITY;

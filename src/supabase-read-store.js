@@ -160,6 +160,14 @@ export async function supabaseProductsForCover(env, capaCode, platform) {
   }));
 }
 
+export async function supabaseProductByGtin(env, gtin, platform) {
+  const result = rows(await supabaseRpc(env, 'nisti_product_by_gtin', {
+    p_gtin: String(gtin || '').trim(),
+    p_platform: String(platform || '').trim().toUpperCase()
+  }));
+  return result[0] || null;
+}
+
 export async function supabaseImageKey(env, entity, id) {
   const value = await supabaseRpc(env, 'nisti_image_key', {
     p_entity: String(entity || '').trim().toLowerCase(),

@@ -42,7 +42,7 @@ COMMIT;
   assert.ok(converted.sql.indexOf('-- products: 1 statement') < converted.sql.indexOf('-- product_platforms: 1 statement'));
   assert.ok(converted.sql.indexOf('-- scan_occurrences: 1 statement') < converted.sql.indexOf('-- scan_occurrence_candidates: 1 statement'));
   assert.ok(converted.sql.indexOf('-- scan_occurrence_candidates: 1 statement') < converted.sql.indexOf('-- scan_occurrence_review_sessions: 1 statement'));
-  assert.equal(Object.keys(converted.statementCounts).length, 15);
+  assert.equal(Object.keys(converted.statementCounts).length, 16);
   assert.deepEqual(Object.keys(converted.statementCounts), [...TABLE_ORDER]);
 });
 

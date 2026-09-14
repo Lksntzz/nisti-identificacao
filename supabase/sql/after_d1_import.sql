@@ -9,6 +9,12 @@ SELECT setval(
 );
 
 SELECT setval(
+  pg_get_serial_sequence('public.product_gtins', 'id'),
+  COALESCE((SELECT MAX(id) FROM public.product_gtins), 1),
+  EXISTS (SELECT 1 FROM public.product_gtins)
+);
+
+SELECT setval(
   pg_get_serial_sequence('public.product_platforms', 'id'),
   COALESCE((SELECT MAX(id) FROM public.product_platforms), 1),
   EXISTS (SELECT 1 FROM public.product_platforms)

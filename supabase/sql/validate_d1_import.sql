@@ -9,6 +9,7 @@ UNION ALL SELECT 'cover_visual_signatures', COUNT(*) FROM public.cover_visual_si
 UNION ALL SELECT 'geometric_shadow_evidence', COUNT(*) FROM public.geometric_shadow_evidence
 UNION ALL SELECT 'notification_reads', COUNT(*) FROM public.notification_reads
 UNION ALL SELECT 'notifications', COUNT(*) FROM public.notifications
+UNION ALL SELECT 'product_gtins', COUNT(*) FROM public.product_gtins
 UNION ALL SELECT 'product_platforms', COUNT(*) FROM public.product_platforms
 UNION ALL SELECT 'products', COUNT(*) FROM public.products
 UNION ALL SELECT 'push_subscriptions', COUNT(*) FROM public.push_subscriptions
@@ -23,6 +24,11 @@ ORDER BY table_name;
 SELECT 'product_platforms_without_product' AS check_name, COUNT(*)::bigint AS violations
 FROM public.product_platforms pp
 LEFT JOIN public.products p ON p.id = pp.product_id
+WHERE p.id IS NULL
+UNION ALL
+SELECT 'product_gtins_without_product', COUNT(*)
+FROM public.product_gtins g
+LEFT JOIN public.products p ON p.id = g.product_id
 WHERE p.id IS NULL
 UNION ALL
 SELECT 'visual_references_without_product', COUNT(*)
@@ -80,6 +86,11 @@ FROM (
   HAVING COUNT(*) > 1
 ) q
 UNION ALL
+SELECT 'duplicate_gtin', COUNT(*)
+FROM (
+  SELECT gtin FROM public.product_gtins GROUP BY gtin HAVING COUNT(*) > 1
+) q
+UNION ALL
 SELECT 'duplicate_cover_image_reference', COUNT(*)
 FROM (
   SELECT capa_code, image_key
@@ -113,6 +124,7 @@ ORDER BY platform;
 
 -- ID_RANGES: usado para conferir preservação de IDs e sequences.
 SELECT 'products' AS table_name, MIN(id) AS min_id, MAX(id) AS max_id FROM public.products
+UNION ALL SELECT 'product_gtins', MIN(id), MAX(id) FROM public.product_gtins
 UNION ALL SELECT 'product_platforms', MIN(id), MAX(id) FROM public.product_platforms
 UNION ALL SELECT 'recognition_events', MIN(id), MAX(id) FROM public.recognition_events
 UNION ALL SELECT 'cover_visual_references', MIN(id), MAX(id) FROM public.cover_visual_references

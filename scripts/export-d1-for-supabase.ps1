@@ -82,6 +82,7 @@ Invoke-WranglerCapture -Arguments @(
 # be rejected. Query each hard-coded authoritative table independently instead.
 $authoritativeTables = @(
   'products',
+  'product_gtins',
   'product_platforms',
   'cover_embeddings',
   'recognition_daily',
@@ -138,8 +139,8 @@ foreach ($table in $authoritativeTables) {
   }
 }
 
-if ($countRecords.Count -ne $authoritativeTables.Count -or $countRecords.Count -ne 15) {
-  throw "Consulta remota de contagens retornou $($countRecords.Count) tabela(s); esperado: 15. Snapshot abortado."
+if ($countRecords.Count -ne $authoritativeTables.Count -or $countRecords.Count -ne 16) {
+  throw "Consulta remota de contagens retornou $($countRecords.Count) tabela(s); esperado: 16. Snapshot abortado."
 }
 
 $countPayload = [ordered]@{
