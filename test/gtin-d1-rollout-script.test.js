@@ -18,7 +18,8 @@ test('GTIN D1 rollout is fail-closed and cannot deploy the Worker', () => {
   assert.match(source, /product_id = 19 AND gtin = '7898764981832'/);
   assert.match(source, /product_id = 208 AND gtin = '7898764983201'/);
   assert.match(source, /deploy_performed = \$false/);
-  assert.doesNotMatch(source, /wrangler\s+deploy/i);
+  assert.doesNotMatch(source, /&\s*\$wrangler\s+deploy\b/i);
+  assert.doesNotMatch(source, /\bwrangler(?:\.cmd)?\s+deploy\b/i);
   assert.doesNotMatch(source, /SUPABASE_READS_ENABLED\s*=/i);
   assert.doesNotMatch(source, /RETRIEVAL_FASTPATH_MIN_/i);
 });
