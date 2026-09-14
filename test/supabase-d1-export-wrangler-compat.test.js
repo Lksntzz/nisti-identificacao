@@ -34,7 +34,7 @@ test('D1 count JSON is sourced from stdout only, not Wrangler warnings', async (
   assert.match(script, /Get-Content -Path \$stderrPath -Raw/);
 });
 
-test('D1 counts query all 13 authoritative tables independently without compound SELECT', async () => {
+test('D1 counts query all 15 authoritative tables independently without compound SELECT', async () => {
   const script = await readFile(scriptUrl, 'utf8');
   const executable = script.replace(/^\s*#.*$/gm, '');
   const expectedTables = [
@@ -50,6 +50,8 @@ test('D1 counts query all 13 authoritative tables independently without compound
     'notification_reads',
     'push_subscriptions',
     'scan_occurrences',
+    'scan_occurrence_candidates',
+    'scan_occurrence_review_sessions',
     'geometric_shadow_evidence'
   ];
 
@@ -59,6 +61,6 @@ test('D1 counts query all 13 authoritative tables independently without compound
 
   assert.match(script, /foreach \(\$table in \$authoritativeTables\)/);
   assert.match(script, /SELECT COUNT\(\*\) AS row_count FROM/);
-  assert.match(script, /\$countRecords\.Count -ne 13/);
+  assert.match(script, /\$countRecords\.Count -ne 15/);
   assert.doesNotMatch(executable, /UNION ALL/);
 });
