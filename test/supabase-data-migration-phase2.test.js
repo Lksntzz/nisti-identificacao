@@ -20,7 +20,7 @@ test('phase 2 keeps D1 snapshot export read-only and pinned', () => {
   assert.match(source, /\$authoritativeTables = @\(/);
   assert.match(source, /foreach \(\$table in \$authoritativeTables\)/);
   assert.match(source, /SELECT COUNT\(\*\) AS row_count FROM/);
-  assert.match(source, /\$countRecords\.Count -ne 13/);
+  assert.match(source, /\$countRecords\.Count -ne 15/);
   assert.doesNotMatch(source, /d1', 'migrations', 'apply/i);
   assert.doesNotMatch(source, /d1', 'execute'.*--file/s);
   assert.doesNotMatch(source, /wrangler deploy/i);
@@ -42,15 +42,20 @@ test('post-import SQL only synchronizes identity sequences', () => {
   assert.doesNotMatch(source, /\bUPDATE\b/i);
 });
 
-test('validation SQL covers all 13 migrated tables and integrity checks', () => {
+test('validation SQL covers all 15 migrated tables and integrity checks', () => {
   const source = fs.readFileSync(validatePath, 'utf8');
   const tables = [
     'products', 'product_platforms', 'cover_embeddings', 'recognition_daily',
     'recognition_events', 'cover_visual_references', 'cover_reference_embeddings',
     'cover_visual_signatures', 'notifications', 'notification_reads',
-    'push_subscriptions', 'scan_occurrences', 'geometric_shadow_evidence'
+    'push_subscriptions', 'scan_occurrences', 'scan_occurrence_candidates',
+    'scan_occurrence_review_sessions', 'geometric_shadow_evidence'
   ];
   for (const table of tables) assert.match(source, new RegExp(`public\\.${table}`));
+  assert.match(source, /review_candidates_without_occurrence/);
+  assert.match(source, /review_sessions_without_occurrence/);
+  assert.match(source, /review_candidates_missing_reference/);
+  assert.match(source, /duplicate_review_candidate_rank/);
   assert.match(source, /REFERENTIAL_INTEGRITY/);
   assert.match(source, /BUSINESS_INVARIANTS/);
   assert.match(source, /PLATFORM_DOMAIN/);
