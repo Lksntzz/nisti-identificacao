@@ -175,6 +175,6 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
 
 test('Phase 6D still does not enable production cutover', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
-  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"off"/);
+  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
 });
