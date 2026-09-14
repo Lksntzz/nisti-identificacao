@@ -94,13 +94,17 @@ A ordem de dependências aplicada pelo conversor é:
 10. `notification_reads`
 11. `push_subscriptions`
 12. `scan_occurrences`
-13. `geometric_shadow_evidence`
+13. `scan_occurrence_candidates`
+14. `scan_occurrence_review_sessions`
+15. `geometric_shadow_evidence`
+
+As tabelas `scan_occurrence_candidates` e `scan_occurrence_review_sessions` passam a integrar a autoridade relacional a partir da revisão supervisionada v8.25 e não podem ser descartadas de snapshots de reconciliação.
 
 Não importar tabelas internas do Wrangler/D1.
 
 ## 4. Sincronização de IDENTITY
 
-Depois da importação, executar `supabase/sql/after_d1_import.sql` para posicionar as sequences PostgreSQL após os maiores IDs importados.
+Depois da importação, executar `supabase/sql/after_d1_import.sql` para posicionar as sequences PostgreSQL após os maiores IDs importados. As duas tabelas de revisão supervisionada usam `occurrence_id` como chave e não possuem sequence própria.
 
 ## 5. Validação de paridade
 
@@ -108,7 +112,7 @@ Executar `supabase/sql/validate_d1_import.sql`.
 
 Critérios obrigatórios antes do cutover:
 
-- contagem de cada tabela igual ao snapshot `d1-counts.json`;
+- contagem de cada uma das 15 tabelas igual ao snapshot `d1-counts.json`;
 - zero violações referenciais;
 - zero violações dos invariantes de negócio;
 - plataformas somente `MERCADO LIVRE`, `SHOPEE` e `AMAZON`;
