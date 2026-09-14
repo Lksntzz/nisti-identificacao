@@ -19,7 +19,18 @@ const failures = [...source.matchAll(/^not ok \d+ - (.+)$/gm)].map(match => matc
 const unexpected = failures.filter(name => !expected.has(name));
 const missing = [...expected].filter(name => !failures.includes(name));
 
-if (unexpected.length || missing.length || failures.length !== expected.size || exitCode === 0) {
+if (exitCode === 0 && failures.length === 0) {
+  console.log(JSON.stringify({
+    ok: true,
+    classification: 'full-regression-green',
+    exit_code: exitCode,
+    failure_count: 0,
+    failures: []
+  }, null, 2));
+  process.exit(0);
+}
+
+if (unexpected.length || missing.length || failures.length !== expected.size) {
   console.error(JSON.stringify({
     ok: false,
     exit_code: exitCode,
