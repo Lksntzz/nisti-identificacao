@@ -1,0 +1,38 @@
+name: GTIN Feature Gate
+
+on:
+  push:
+    branches: [feat/nisti-gtin-gs1-v1]
+  pull_request:
+    branches: [feat/ambiguous-review-supabase-v825]
+
+jobs:
+  gtin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Confirm Wrangler line
+        run: npx wrangler --version
+
+      - name: Validate D1 migrations locally
+        run: npx wrangler d1 migrations apply nisti-identificacao --local
+
+      - name: Audit approved GTIN load
+        run: npm run audit:gtin
+
+      - name: Run GTIN tests
+        run: node --test test/gtin*.test.js
+
+      - name: Build
+        run: npm run build
