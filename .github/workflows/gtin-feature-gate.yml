@@ -34,5 +34,15 @@ jobs:
       - name: Run GTIN tests
         run: node --test test/gtin*.test.js
 
+      - name: Full regression classification
+        shell: bash
+        run: |
+          set +e
+          npm test > full-test.log 2>&1
+          code=$?
+          set -e
+          cat full-test.log
+          node scripts/verify-operational-branch-test-result.mjs full-test.log "$code"
+
       - name: Build
         run: npm run build
