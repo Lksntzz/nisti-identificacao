@@ -93,6 +93,8 @@ $authoritativeTables = @(
   'notification_reads',
   'push_subscriptions',
   'scan_occurrences',
+  'scan_occurrence_candidates',
+  'scan_occurrence_review_sessions',
   'geometric_shadow_evidence'
 )
 
@@ -136,8 +138,8 @@ foreach ($table in $authoritativeTables) {
   }
 }
 
-if ($countRecords.Count -ne $authoritativeTables.Count -or $countRecords.Count -ne 13) {
-  throw "Consulta remota de contagens retornou $($countRecords.Count) tabela(s); esperado: 13. Snapshot abortado."
+if ($countRecords.Count -ne $authoritativeTables.Count -or $countRecords.Count -ne 15) {
+  throw "Consulta remota de contagens retornou $($countRecords.Count) tabela(s); esperado: 15. Snapshot abortado."
 }
 
 $countPayload = [ordered]@{
