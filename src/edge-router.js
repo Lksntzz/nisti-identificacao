@@ -1,4 +1,4 @@
-import app from './product-finish-router.js';
+import app from './gtin-router.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
 const SESSION_SECONDS = 60 * 60 * 12;
