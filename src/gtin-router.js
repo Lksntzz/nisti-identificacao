@@ -1,5 +1,6 @@
 import app from './product-finish-router.js';
 import { normalizeGtin, requireValidGtin13 } from './gtin.js';
+import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -14,6 +15,16 @@ function json(data, status = 200) {
 function normalizeSource(value) {
   const source = String(value || 'GS1').trim().toUpperCase();
   return source || 'GS1';
+}
+
+function productFinishLabels(row) {
+  return {
+    wireo: WIREO_COLORS[row?.wireo_code] || row?.wireo_code || null,
+    tassel: row?.tassel_code === 'X'
+      ? 'Sem tassel'
+      : ACCESSORY_COLORS[row?.tassel_code] || row?.tassel_code || null,
+    elastico: ACCESSORY_COLORS[row?.elastico_code] || row?.elastico_code || null
+  };
 }
 
 async function productExists(env, productId) {
@@ -60,6 +71,8 @@ async function lookupProductByGtin(env, gtin) {
     ORDER BY id ASC
   `).bind(row.id).all();
 
+  const finishLabels = productFinishLabels(row);
+
   return {
     gtin: row.gtin,
     gtin_type: row.gtin_type,
@@ -73,6 +86,9 @@ async function lookupProductByGtin(env, gtin) {
       wireo_code: row.wireo_code,
       tassel_code: row.tassel_code,
       elastico_code: row.elastico_code,
+      wireo: finishLabels.wireo,
+      tassel: finishLabels.tassel,
+      elastico: finishLabels.elastico,
       nome: row.nome,
       variacao: row.variacao,
       image_key: row.image_key,
@@ -241,5 +257,6 @@ export {
   lookupProductByGtin,
   bindGtinToProduct,
   deactivateProductGtin,
-  listProductGtins
+  listProductGtins,
+  productFinishLabels
 };
