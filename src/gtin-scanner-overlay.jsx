@@ -54,8 +54,8 @@ function ProductSummary({ gtin, product }) {
   );
 }
 
-export default function GtinScannerOverlay() {
-  const [open, setOpen] = useState(false);
+export default function GtinScannerOverlay({ embedded = false, onProductResolved }) {
+  const [open, setOpen] = useState(embedded);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [lookupError, setLookupError] = useState('');
@@ -122,6 +122,7 @@ export default function GtinScannerOverlay() {
 
       setLastGtin(gtin);
       setProduct(data.product);
+      onProductResolved?.(data.product, gtin);
       setLookupError('');
       stopCamera();
       if (navigator.vibrate) navigator.vibrate(80);
@@ -133,7 +134,7 @@ export default function GtinScannerOverlay() {
       lookupBusyRef.current = false;
       setLookupBusy(false);
     }
-  }, [stopCamera]);
+  }, [onProductResolved, stopCamera]);
 
   const fallbackDetect = useCallback(() => {
     const video = videoRef.current;
@@ -284,24 +285,18 @@ export default function GtinScannerOverlay() {
     startCamera();
   };
 
-  return (
-    <>
-      <button type="button" className="gtin-scanner-fab" onClick={openScanner} aria-label="Abrir scanner de EAN">
-        <BarcodeIcon />
-        <span>Scanner EAN</span>
-      </button>
-
-      {open && (
-        <div className="gtin-scanner-backdrop" role="dialog" aria-modal="true" aria-label="Scanner de código de barras">
-          <div className="gtin-scanner-panel">
+  const scannerPanel = (
+    <div className={`gtin-scanner-panel${embedded ? ' embedded' : ''}`}>
             <header className="gtin-scanner-header">
               <div>
                 <span className="gtin-scanner-eyebrow">NISTI PRINT</span>
                 <h2>Scanner de EAN</h2>
               </div>
-              <button type="button" className="gtin-scanner-close" onClick={closeScanner} aria-label="Fechar scanner">
-                <CloseIcon />
-              </button>
+              {!embedded && (
+                <button type="button" className="gtin-scanner-close" onClick={closeScanner} aria-label="Fechar scanner">
+                  <CloseIcon />
+                </button>
+              )}
             </header>
 
             {!product && (
@@ -315,7 +310,11 @@ export default function GtinScannerOverlay() {
                   {!cameraActive && !cameraError && (
                     <div className="gtin-camera-loading">
                       <CameraIcon />
-                      <span>Abrindo câmera…</span>
+                      {embedded ? (
+                        <button type="button" className="gtin-camera-start" onClick={startCamera}>Abrir câmera</button>
+                      ) : (
+                        <span>Abrindo câmera…</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -360,11 +359,31 @@ export default function GtinScannerOverlay() {
                 <ProductSummary gtin={lastGtin} product={product} />
                 <div className="gtin-result-actions">
                   <button type="button" className="gtin-read-another" onClick={readAnother}>Ler outro EAN</button>
-                  <button type="button" className="gtin-done" onClick={closeScanner}>Concluir</button>
+                  {!embedded && <button type="button" className="gtin-done" onClick={closeScanner}>Concluir</button>}
                 </div>
               </>
             )}
-          </div>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <section className="gtin-scanner-inline" aria-label="Scanner de código de barras">
+        {scannerPanel}
+      </section>
+    );
+  }
+
+  return (
+    <>
+      <button type="button" className="gtin-scanner-fab" onClick={openScanner} aria-label="Abrir scanner de EAN">
+        <BarcodeIcon />
+        <span>Scanner EAN</span>
+      </button>
+
+      {open && (
+        <div className="gtin-scanner-backdrop" role="dialog" aria-modal="true" aria-label="Scanner de código de barras">
+          {scannerPanel}
         </div>
       )}
     </>

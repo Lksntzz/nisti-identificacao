@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './app.css';
 import LOGO from './assets/logo.png';
+import GtinScannerOverlay from './gtin-scanner-overlay.jsx';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -882,7 +883,7 @@ function ProductChoices({ capaCode, products, platform, onSelect, performance, o
   );
 }
 
-function PublicIdentificationApp() {
+function LegacyVisualIdentificationApp() {
   const [operatorName, setOperatorNameState] = useState(() => getOperatorName());
   const [operatorModalOpen, setOperatorModalOpen] = useState(false);
   const [photo, setPhoto] = useState(null);
@@ -1514,6 +1515,73 @@ function PublicIdentificationApp() {
 
     <InstallApp />
   </main>;
+}
+
+function PublicIdentificationApp() {
+  const [operatorName, setOperatorNameState] = useState(() => getOperatorName());
+  const [operatorModalOpen, setOperatorModalOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchUnread = () => {
+      api('/api/notifications/unread-count')
+        .then(data => {
+          if (active && typeof data?.unread_count === 'number') setUnreadCount(data.unread_count);
+        })
+        .catch(() => {});
+    };
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  return (
+    <main className="app general">
+      <BrandHeader
+        unreadCount={unreadCount}
+        onOpenNotifications={() => setNotificationsOpen(true)}
+        operatorName={operatorName}
+        onOpenOperatorModal={() => setOperatorModalOpen(true)}
+      />
+
+      <div className="main-card ean-primary-card">
+        <div className="card-top-gradient" />
+        <div className="card-inner-body ean-primary-body">
+          <GtinScannerOverlay embedded />
+        </div>
+      </div>
+
+      <NotificationsModal
+        isOpen={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        unreadCount={unreadCount}
+        setUnreadCount={setUnreadCount}
+      />
+
+      <OperatorProfileModal
+        isOpen={operatorModalOpen}
+        onClose={() => setOperatorModalOpen(false)}
+        currentName={operatorName}
+        onSave={newName => {
+          setOperatorName(newName);
+          setOperatorNameState(newName);
+          api('/api/operator/update-name', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ operator_name: newName })
+          }).catch(() => {});
+        }}
+      />
+
+      <InstallApp />
+    </main>
+  );
 }
 
 export default PublicIdentificationApp;
