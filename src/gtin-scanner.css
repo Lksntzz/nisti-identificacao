@@ -23,6 +23,10 @@
 
 .gtin-scanner-fab:active { transform: translateY(1px); }
 
+.gtin-scanner-inline {
+  width: 100%;
+}
+
 .gtin-scanner-backdrop {
   position: fixed;
   inset: 0;
@@ -42,6 +46,14 @@
   border-radius: 22px;
   background: #fff;
   box-shadow: 0 28px 80px rgba(2, 6, 23, 0.45);
+}
+
+.gtin-scanner-panel.embedded {
+  width: 100%;
+  max-height: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
 .gtin-scanner-header {
@@ -147,6 +159,19 @@
   font-size: 13px;
   font-weight: 700;
   background: #020617;
+}
+
+.gtin-camera-start {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .gtin-scanner-instructions {
@@ -312,6 +337,10 @@
 .gtin-read-another { background: #e2e8f0; color: #0f172a; }
 .gtin-done { background: #0f172a; }
 
+.gtin-scanner-panel.embedded .gtin-result-actions {
+  grid-template-columns: 1fr;
+}
+
 @media (max-width: 640px) {
   .gtin-scanner-fab {
     right: 12px;
@@ -325,11 +354,15 @@
     padding: 0;
   }
 
-  .gtin-scanner-panel {
+  .gtin-scanner-backdrop .gtin-scanner-panel {
     width: 100%;
     max-height: 100dvh;
     min-height: 100dvh;
     border-radius: 0;
+  }
+
+  .gtin-scanner-panel.embedded {
+    border-radius: 14px;
   }
 
   .gtin-camera-shell {

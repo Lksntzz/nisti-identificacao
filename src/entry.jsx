@@ -14,17 +14,14 @@ if (rootElement) {
     Promise.all([
       import('./public-main.jsx'),
       import('./shadow-confirmation-client.js'),
-      import('./shadow-confirmation-prompt.jsx'),
-      import('./gtin-scanner-overlay.jsx')
-    ]).then(([publicMod, _clientMod, promptMod, scannerMod]) => {
+      import('./shadow-confirmation-prompt.jsx')
+    ]).then(([publicMod, _clientMod, promptMod]) => {
       const Component = publicMod.default || publicMod.PublicIdentificationApp;
       const ShadowConfirmationPrompt = promptMod.default;
-      const GtinScannerOverlay = scannerMod.default;
       root.render(
         <>
           <Component />
           <ShadowConfirmationPrompt />
-          <GtinScannerOverlay />
         </>
       );
     });
