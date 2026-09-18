@@ -35,3 +35,10 @@ test('EAN result highlights product finishes and camera guide is static', () => 
   assert.doesNotMatch(scannerSource, /gtin-guide-line/);
   assert.doesNotMatch(scannerStyles, /@keyframes gtin-scan-line/);
 });
+
+test('EAN result groups finishes in a compact three-column row', () => {
+  assert.match(scannerSource, /gtin-result-finishes/);
+  assert.match(scannerSource, /Acabamentos/);
+  assert.match(scannerStyles, /\.gtin-result-finishes\s*\{[^}]*grid-template-columns: repeat\(3,/s);
+  assert.doesNotMatch(scannerStyles, /\.gtin-result-details\s*\{\s*grid-template-columns: 1fr;/s);
+});

@@ -383,13 +383,13 @@
 .gtin-result-details {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 22px 0 0;
+  gap: 8px;
+  margin: 18px 0 0;
 }
 
 .gtin-result-detail {
   min-width: 0;
-  padding: 11px 12px;
+  padding: 9px 11px;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #f8fafc;
@@ -409,6 +409,55 @@
   font-size: 14px;
   font-weight: 850;
   line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.gtin-result-finishes-block {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.gtin-result-section-label {
+  display: block;
+  margin-bottom: 7px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.gtin-result-finishes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.gtin-result-finish {
+  min-width: 0;
+  padding: 9px 7px;
+  border: 1px solid #dbeafe;
+  border-radius: 11px;
+  background: #eff6ff;
+  text-align: center;
+}
+
+.gtin-result-finish dt {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gtin-result-finish dd {
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
@@ -496,7 +545,7 @@
   }
 
   .gtin-result-details {
-    margin-top: 18px;
+    margin-top: 15px;
   }
 
   .gtin-result-actions {
@@ -526,7 +575,19 @@
     min-height: 44px;
   }
 
-  .gtin-result-details {
-    grid-template-columns: 1fr;
+  .gtin-result-copy {
+    padding: 17px;
+  }
+
+  .gtin-result-detail {
+    padding: 8px 9px;
+  }
+
+  .gtin-result-finish {
+    padding: 8px 4px;
+  }
+
+  .gtin-result-finish dd {
+    font-size: 11px;
   }
 }
