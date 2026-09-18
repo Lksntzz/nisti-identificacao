@@ -34,22 +34,46 @@ function CameraIcon() {
 
 function ProductSummary({ gtin, product }) {
   if (!product) return null;
+
+  const details = [
+    ['Capa', product.capa_code],
+    ['Variação', product.variacao],
+    ['Wire-o', product.wireo || product.wireo_code],
+    ['Tassel', product.tassel || product.tassel_code],
+    ['Elástico', product.elastico || product.elastico_code]
+  ].filter(([, value]) => value);
+
   return (
     <div className="gtin-scanner-result">
-      <div className="gtin-result-check">✓</div>
-      <div className="gtin-result-copy">
-        <span className="gtin-result-label">EAN reconhecido</span>
-        <strong className="gtin-result-code">{gtin}</strong>
-        <h3>{product.sku}</h3>
-        {product.nome && <p>{product.nome}</p>}
-        <div className="gtin-result-tags">
-          {product.capa_code && <span>Capa: <strong>{product.capa_code}</strong></span>}
-          {product.variacao && <span>Variação: <strong>{product.variacao}</strong></span>}
+      <div className="gtin-result-status">
+        <div className="gtin-result-check" aria-hidden="true">✓</div>
+        <div>
+          <span className="gtin-result-label">Produto identificado</span>
+          <strong className="gtin-result-code">EAN {gtin}</strong>
         </div>
       </div>
-      {product.image_url && (
-        <img className="gtin-result-image" src={product.image_url} alt={product.sku || gtin} />
-      )}
+
+      <div className="gtin-result-content">
+        {product.image_url && (
+          <div className="gtin-result-image-frame">
+            <img className="gtin-result-image" src={product.image_url} alt={product.sku || gtin} />
+          </div>
+        )}
+
+        <div className="gtin-result-copy">
+          <h3>{product.nome || product.sku}</h3>
+          {product.nome && <p className="gtin-result-sku">SKU {product.sku}</p>}
+
+          <dl className="gtin-result-details">
+            {details.map(([label, value]) => (
+              <div className="gtin-result-detail" key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
     </div>
   );
 }
@@ -288,9 +312,13 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   const scannerPanel = (
     <div className={`gtin-scanner-panel${embedded ? ' embedded' : ''}`}>
             <header className="gtin-scanner-header">
-              <div>
-                <span className="gtin-scanner-eyebrow">NISTI PRINT</span>
-                <h2>Scanner de EAN</h2>
+              <div className="gtin-scanner-heading">
+                <span className="gtin-scanner-header-icon"><BarcodeIcon size={24} /></span>
+                <div>
+                  <span className="gtin-scanner-eyebrow">NISTI PRINT</span>
+                  <h2>Scanner de EAN</h2>
+                  <p>Identifique a capa pelo código de barras.</p>
+                </div>
               </div>
               {!embedded && (
                 <button type="button" className="gtin-scanner-close" onClick={closeScanner} aria-label="Fechar scanner">
@@ -304,9 +332,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
                 <div className="gtin-camera-shell">
                   <video ref={videoRef} className="gtin-camera-video" muted autoPlay playsInline />
                   <canvas ref={canvasRef} className="gtin-camera-canvas" aria-hidden="true" />
-                  <div className="gtin-camera-guide" aria-hidden="true">
-                    <span className="gtin-guide-line" />
-                  </div>
+                  <div className="gtin-camera-guide" aria-hidden="true" />
                   {!cameraActive && !cameraError && (
                     <div className="gtin-camera-loading">
                       <CameraIcon />
@@ -320,7 +346,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
                 </div>
 
                 <div className="gtin-scanner-instructions">
-                  <strong>Posicione o código de barras dentro da faixa.</strong>
+                  <strong>Centralize o código de barras dentro do quadro.</strong>
                   <span>A leitura é automática. Mantenha o EAN na horizontal e com boa iluminação.</span>
                   {decoderMode && cameraActive && <small>Leitor: {decoderMode}</small>}
                 </div>

@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const publicSource = fs.readFileSync(new URL('../src/public-main.jsx', import.meta.url), 'utf8');
 const entrySource = fs.readFileSync(new URL('../src/entry.jsx', import.meta.url), 'utf8');
 const scannerSource = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
+const scannerStyles = fs.readFileSync(new URL('../src/gtin-scanner.css', import.meta.url), 'utf8');
 
 test('public application uses the embedded EAN scanner as its primary panel', () => {
   const primaryApp = publicSource.slice(publicSource.indexOf('function PublicIdentificationApp()'));
@@ -25,4 +26,12 @@ test('embedded scanner keeps camera and manual EAN workflows', () => {
   assert.match(scannerSource, /Leitor físico ou digitação manual/);
   assert.match(scannerSource, /\/api\/gtin\/\$\{encodeURIComponent\(gtin\)\}/);
   assert.match(scannerSource, /gtin-camera-start/);
+});
+
+test('EAN result highlights product finishes and camera guide is static', () => {
+  assert.match(scannerSource, /\['Wire-o', product\.wireo/);
+  assert.match(scannerSource, /\['Tassel', product\.tassel/);
+  assert.match(scannerSource, /\['Elástico', product\.elastico/);
+  assert.doesNotMatch(scannerSource, /gtin-guide-line/);
+  assert.doesNotMatch(scannerStyles, /@keyframes gtin-scan-line/);
 });
