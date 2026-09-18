@@ -35,9 +35,12 @@ function CameraIcon() {
 function ProductSummary({ gtin, product }) {
   if (!product) return null;
 
-  const details = [
+  const productDetails = [
     ['Capa', product.capa_code],
-    ['Variação', product.variacao],
+    ['Variação', product.variacao]
+  ].filter(([, value]) => value);
+
+  const finishDetails = [
     ['Wire-o', product.wireo || product.wireo_code],
     ['Tassel', product.tassel || product.tassel_code],
     ['Elástico', product.elastico || product.elastico_code]
@@ -65,13 +68,25 @@ function ProductSummary({ gtin, product }) {
           {product.nome && <p className="gtin-result-sku">SKU {product.sku}</p>}
 
           <dl className="gtin-result-details">
-            {details.map(([label, value]) => (
+            {productDetails.map(([label, value]) => (
               <div className="gtin-result-detail" key={label}>
                 <dt>{label}</dt>
                 <dd>{value}</dd>
               </div>
             ))}
           </dl>
+
+          <div className="gtin-result-finishes-block">
+            <span className="gtin-result-section-label">Acabamentos</span>
+            <dl className="gtin-result-finishes">
+              {finishDetails.map(([label, value]) => (
+                <div className="gtin-result-finish" key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </div>
       </div>
     </div>
