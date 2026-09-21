@@ -785,8 +785,8 @@
   .gtin-history {
     display: flex;
     min-height: 0;
-    max-height: 160px;
-    flex: 0 1 auto;
+    max-height: 142px;
+    flex: 0 0 auto;
     flex-direction: column;
     margin: 0 10px 9px;
     border-radius: 12px;
@@ -797,27 +797,54 @@
   .gtin-history-icon { width: 28px; height: 28px; border-radius: 8px; }
   .gtin-history-title h3 { font-size: 11px; }
   .gtin-history-title p { margin-top: 1px; font-size: 8px; }
-  .gtin-history-list { min-height: 0; max-height: none; flex: 1 1 auto; overflow-y: auto; }
+  .gtin-history-list {
+    display: grid;
+    grid-auto-columns: minmax(230px, 78%);
+    grid-auto-flow: column;
+    min-height: 0;
+    max-height: none;
+    flex: 0 0 auto;
+    gap: 8px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .gtin-history-list::-webkit-scrollbar { display: none; }
   .gtin-history-empty { min-height: 34px; padding: 7px 10px; font-size: 9px; }
 
   .gtin-history-item {
-    grid-template-columns: 64px minmax(0, 1fr);
-    gap: 11px;
-    padding: 11px 12px;
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 8px;
+    min-width: 0;
+    min-height: 64px;
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    scroll-snap-align: start;
   }
 
   .gtin-history-thumb {
-    width: 64px;
-    height: 64px;
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
   }
 
-  .gtin-history-copy strong { font-size: 12.5px; }
+  .gtin-history-copy strong { font-size: 10.5px; }
+  .gtin-history-copy span { font-size: 8.5px; }
+  .gtin-history-copy small { font-size: 8px; }
 
   .gtin-history-time {
     grid-column: 2;
     justify-self: start;
     padding-top: 0;
-    margin-top: -6px;
+    margin-top: -10px;
+    font-size: 7.5px;
   }
 }
 
@@ -835,4 +862,5 @@
   .gtin-result-content { grid-template-columns: 112px minmax(0, 1fr); }
   .gtin-result-image { height: 168px; }
   .gtin-result-detail dd { font-size: 9px; }
+  .gtin-history-list { grid-auto-columns: minmax(210px, 84%); }
 }
