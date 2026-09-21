@@ -1,4 +1,5 @@
 import { parseSku } from './sku.js';
+import { requireValidGtin13 } from './gtin.js';
 import {
   recordNewCoverNotification,
   updateNotificationImage,
@@ -245,6 +246,7 @@ async function upsertCatalogProduct(env, row) {
   const variacao = clean(row?.variacao);
   const platform = clean(row?.platform)?.toUpperCase() || null;
   const link = clean(row?.link);
+  const gtin = clean(row?.gtin);
 
   let product = await env.DB.prepare(`SELECT id,image_key FROM products WHERE sku=?`)
     .bind(parsed.sku).first();
@@ -291,6 +293,21 @@ async function upsertCatalogProduct(env, row) {
     }
   }
 
+  if (gtin) {
+    const validGtin = requireValidGtin13(gtin);
+    const conflict = await env.DB.prepare('SELECT product_id FROM product_gtins WHERE gtin=? AND active=1 LIMIT 1')
+      .bind(validGtin).first();
+    if (conflict && Number(conflict.product_id) !== Number(product.id)) {
+      throw new Error(`EAN ${validGtin} já está vinculado a outro produto.`);
+    }
+    await env.DB.prepare(`
+      INSERT INTO product_gtins (product_id,gtin,gtin_type,source,active,updated_at)
+      VALUES (?,?,'GTIN-13','IMPORT',1,CURRENT_TIMESTAMP)
+      ON CONFLICT(gtin) DO UPDATE SET
+        product_id=excluded.product_id,source='IMPORT',active=1,updated_at=CURRENT_TIMESTAMP
+    `).bind(product.id, validGtin).run();
+  }
+
   if (created) {
     await recordNewCoverNotification(env, {
       capaCode: parsed.capaCode,
@@ -309,6 +326,7 @@ async function upsertCatalogProduct(env, row) {
     id: product.id,
     sku: parsed.sku,
     capa_code: parsed.capaCode,
+    gtin: gtin || null,
     created,
     has_image: Boolean(product.image_key)
   };
