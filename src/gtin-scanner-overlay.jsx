@@ -118,6 +118,7 @@ function ProductSummary({ gtin, product }) {
       <div className="gtin-result-content">
         {product.image_url && (
           <div className="gtin-result-image-frame">
+            <span className="gtin-result-image-label">Capa do produto</span>
             <img className="gtin-result-image" src={product.image_url} alt={product.sku || gtin} />
           </div>
         )}
