@@ -1652,6 +1652,7 @@ function BarcodeGeneratorView() {
   const [previewId, setPreviewId] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [generatingCollection, setGeneratingCollection] = useState('');
+  const [viewMode, setViewMode] = useState('products');
 
   const load = async () => {
     setLoading(true);
@@ -1667,7 +1668,8 @@ function BarcodeGeneratorView() {
   const platforms = useMemo(() => Array.from(new Set(activeRows.flatMap(item => item.platforms || []))).sort(), [activeRows]);
   const collections = useMemo(() => buildEanCollections(activeRows).map(collection => {
     const items = collection.items.filter(item => platform === 'all' || (item.platforms || []).includes(platform));
-    return { ...collection, items, coverCount: new Set(items.map(item => item.capa_code)).size };
+    const filteredPlatforms = Array.from(new Set(items.flatMap(item => item.platforms || []))).sort();
+    return { ...collection, items, platforms: filteredPlatforms, coverCount: new Set(items.map(item => item.capa_code)).size };
   }).filter(collection => {
     const query = search.trim().toLowerCase();
     const matchesSearch = !query || [collection.name, collection.family, ...collection.items.flatMap(item => [item.sku, item.capa_code, item.gtin])]
@@ -1728,14 +1730,14 @@ function BarcodeGeneratorView() {
         </div>
         <div className="barcode-generator-stats">
           <strong>{activeRows.length}</strong><span>EANs disponíveis</span>
-          <strong>{selected.length}</strong><span>selecionados</span>
+          <strong>{viewMode === 'collections' ? collections.length : selected.length}</strong><span>{viewMode === 'collections' ? 'coleções encontradas' : 'selecionados'}</span>
         </div>
       </section>
 
       {error && <div className="barcode-generator-error">{error} <button type="button" onClick={load}>Tentar novamente</button></div>}
 
-      <section className="barcode-generator-workspace">
-        <div className="barcode-generator-preview">
+      <section className={`barcode-generator-workspace ${viewMode === 'collections' ? 'collection-mode' : ''}`}>
+        {viewMode === 'products' && <div className="barcode-generator-preview">
           <div className="barcode-preview-head"><span>Pré-visualização</span><small>{preview ? preview.gtin : 'Selecione um produto'}</small></div>
           {preview ? (
             <>
@@ -1745,21 +1747,30 @@ function BarcodeGeneratorView() {
               </div>
             </>
           ) : <div className="barcode-preview-empty">Nenhum EAN disponível neste filtro.</div>}
-        </div>
+        </div>}
 
         <div className="barcode-generator-controls">
+          <div className="barcode-mode-filter">
+            <span>Modo de download</span>
+            <div className="barcode-mode-switch" role="group" aria-label="Modo de download">
+              <button type="button" className={viewMode === 'products' ? 'active' : ''} onClick={() => setViewMode('products')}>Produtos individuais</button>
+              <button type="button" className={viewMode === 'collections' ? 'active' : ''} onClick={() => setViewMode('collections')}>Download por coleção</button>
+            </div>
+          </div>
           <label><span>Plataforma</span><select value={platform} onChange={event => { setPlatform(event.target.value); setSelected([]); }}>
             <option value="all">Todas as plataformas</option>
             {platforms.map(item => <option value={item} key={item}>{item}</option>)}
           </select></label>
-          <label><span>Buscar produto</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="EAN, SKU, nome ou capa" /></label>
-          <div className="barcode-selection-summary"><strong>{selectedRows.length}</strong><span>etiqueta{selectedRows.length === 1 ? '' : 's'} pronta{selectedRows.length === 1 ? '' : 's'} para baixar</span></div>
-          <button type="button" className="barcode-download-mass" disabled={!selectedRows.length || generating} onClick={downloadMass}>{generating ? 'Gerando PNGs…' : 'Baixar PNGs em massa (.ZIP)'}</button>
-          <small>O pacote contém um PNG oficial de 543 × 189 px e 300 DPI para cada EAN selecionado.</small>
+          <label><span>{viewMode === 'collections' ? 'Buscar coleção' : 'Buscar produto'}</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder={viewMode === 'collections' ? 'Nome, família ou código da capa' : 'EAN, SKU, nome ou capa'} /></label>
+          {viewMode === 'products' ? <>
+            <div className="barcode-selection-summary"><strong>{selectedRows.length}</strong><span>etiqueta{selectedRows.length === 1 ? '' : 's'} pronta{selectedRows.length === 1 ? '' : 's'} para baixar</span></div>
+            <button type="button" className="barcode-download-mass" disabled={!selectedRows.length || generating} onClick={downloadMass}>{generating ? 'Gerando PNGs…' : 'Baixar PNGs em massa (.ZIP)'}</button>
+            <small>O pacote contém um PNG oficial de 543 × 189 px e 300 DPI para cada EAN selecionado.</small>
+          </> : <div className="barcode-collection-filter-help"><strong>{collections.length}</strong><span>Escolha uma coleção abaixo para gerar todas as etiquetas das capas em um único ZIP.</span></div>}
         </div>
       </section>
 
-      <section className="barcode-collections-section">
+      {viewMode === 'collections' && <section className="barcode-collections-section">
         <div className="barcode-collections-heading">
           <div>
             <span className="barcode-generator-eyebrow">DOWNLOAD POR COLEÇÃO</span>
@@ -1784,6 +1795,9 @@ function BarcodeGeneratorView() {
                     <span>{collection.items.length} etiquetas</span>
                     <span>{collection.coverCount} capas</span>
                   </div>
+                  <div className="barcode-collection-platforms">
+                    {collection.platforms.map(value => <span key={value}>{value}</span>)}
+                  </div>
                   <div className="barcode-collection-codes">
                     {collection.items.slice(0, 6).map(item => <span key={item.id}>{item.capa_code}</span>)}
                     {collection.items.length > 6 && <span>+{collection.items.length - 6}</span>}
@@ -1794,7 +1808,7 @@ function BarcodeGeneratorView() {
                   onClick={() => downloadCollection(collection)}
                   disabled={Boolean(generatingCollection)}
                 >
-                  {generatingCollection === collection.id ? 'Gerando ZIP…' : `Baixar coleção (${collection.items.length})`}
+                  {generatingCollection === collection.id ? 'Gerando ZIP…' : `Baixar coleção em ZIP (${collection.items.length})`}
                 </button>
               </article>
             ))}
@@ -1802,9 +1816,9 @@ function BarcodeGeneratorView() {
         ) : (
           <div className="barcode-collections-empty">Nenhuma coleção com duas ou mais capas foi encontrada neste filtro.</div>
         )}
-      </section>
+      </section>}
 
-      <section className="admin-table-card barcode-generator-table">
+      {viewMode === 'products' && <section className="admin-table-card barcode-generator-table">
         <div className="table-card-topbar">
           <div className="table-title-group"><div className="table-title-icon"><SidebarIcon name="barcode" /></div><div><h3 className="table-main-title">Produtos com EAN</h3><span className="table-sub-title">{rows.length} produto{rows.length === 1 ? '' : 's'} no filtro atual</span></div></div>
           <div className="table-actions-toolbar"><button type="button" className="btn-toolbar-filter" onClick={toggleAllVisible}>{allVisibleSelected ? 'Desmarcar exibidos' : 'Selecionar exibidos'}</button><button type="button" className="btn-toolbar-filter" disabled={!selected.length} onClick={() => setSelected([])}>Limpar seleção</button></div>
@@ -1825,7 +1839,7 @@ function BarcodeGeneratorView() {
             </tbody>
           </table>
         </div>
-      </section>
+      </section>}
     </div>
   );
 }

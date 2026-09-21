@@ -37,3 +37,11 @@ test('barcode generator exposes collection downloads without removing individual
   assert.match(main, /Baixar PNG oficial/);
   assert.match(router, /p\.sku,p\.miolo_code,p\.nome/);
 });
+
+test('barcode generator presents collection download as an explicit view filter', () => {
+  assert.match(main, /const \[viewMode, setViewMode\]/);
+  assert.match(main, /Modo de download/);
+  assert.match(main, /Produtos individuais/);
+  assert.match(main, /Download por coleção/);
+  assert.match(main, /viewMode === 'collections'/);
+});
