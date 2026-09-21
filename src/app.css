@@ -3145,4 +3145,45 @@ select:focus,input[type=text]:focus,input[type=url]:focus { border-color: #b9c7f
   border-radius: inherit;
   transition: width 0.4s ease;
 }
+.product-gtin-manager {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #dbe3ee;
+  border-radius: 14px;
+  background: #f8fafc;
+}
 
+.product-gtin-heading,
+.product-gtin-add,
+.product-gtin-row {
+  display: flex;
+  align-items: center;
+}
+
+.product-gtin-heading { justify-content: space-between; gap: 12px; }
+.product-gtin-heading div { display: grid; gap: 3px; }
+.product-gtin-heading strong { color: #0f172a; font-size: 13px; }
+.product-gtin-heading small { color: #64748b; font-size: 10px; }
+.product-gtin-heading > span { padding: 5px 8px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 9px; font-weight: 800; }
+.product-gtin-add { gap: 8px; margin-top: 12px; }
+.product-gtin-add input { min-width: 0; flex: 1; }
+.product-gtin-add button { height: 42px; padding: 0 14px; border: 0; border-radius: 10px; background: #0f172a; color: #fff; font: inherit; font-size: 11px; font-weight: 800; }
+.product-gtin-add button:disabled { opacity: .45; }
+.product-gtin-list { display: grid; gap: 6px; margin-top: 10px; }
+.product-gtin-row { gap: 8px; padding: 8px 9px; border: 1px solid #e2e8f0; border-radius: 9px; background: #fff; }
+.product-gtin-row > span { color: #64748b; }
+.product-gtin-row strong { color: #0f172a; font-size: 12px; letter-spacing: .04em; }
+.product-gtin-row small { margin-left: auto; color: #94a3b8; font-size: 8px; }
+.product-gtin-row button { border: 0; background: transparent; color: #dc2626; font: inherit; font-size: 9px; font-weight: 800; }
+.product-gtin-empty { margin: 10px 0 0; color: #94a3b8; font-size: 10px; }
+
+.ean-code-cell { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #0f172a; font-weight: 800; letter-spacing: .04em; }
+.ean-status-copy { display: grid; gap: 2px; }
+.ean-status-copy small { color: #94a3b8; font-size: 10px; }
+.table-search-input { min-width: 220px; height: 40px; padding: 0 12px; border: 1.5px solid #dbe3ee; border-radius: 10px; outline: none; background: #fff; color: #0f172a; font: inherit; font-size: 12px; }
+.table-search-input:focus { border-color: #64748b; box-shadow: 0 0 0 3px rgba(100,116,139,.10); }
+
+@media (max-width: 720px) {
+  .table-search-input { min-width: 0; width: 100%; }
+  .product-gtin-heading { align-items: flex-start; }
+}
