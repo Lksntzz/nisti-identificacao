@@ -160,13 +160,13 @@ async function adminGtinRegistry(env) {
     env.DB.prepare(`
       SELECT
         g.id,g.product_id,g.gtin,g.gtin_type,g.source,g.active,g.created_at,g.updated_at,
-        p.sku,p.nome,p.variacao,p.capa_code,p.image_key,
+        p.sku,p.miolo_code,p.nome,p.variacao,p.capa_code,p.image_key,
         GROUP_CONCAT(DISTINCT pp.platform) AS platforms_csv
       FROM product_gtins g
       INNER JOIN products p ON p.id=g.product_id
       LEFT JOIN product_platforms pp ON pp.product_id=p.id
       GROUP BY g.id,g.product_id,g.gtin,g.gtin_type,g.source,g.active,g.created_at,g.updated_at,
-        p.sku,p.nome,p.variacao,p.capa_code,p.image_key
+        p.sku,p.miolo_code,p.nome,p.variacao,p.capa_code,p.image_key
       ORDER BY g.active DESC,g.id DESC
       LIMIT 2000
     `).all(),

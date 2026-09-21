@@ -8,6 +8,7 @@ import {
   downloadBarcodePng,
   downloadBarcodeZip
 } from './ean-barcode.js';
+import { buildEanCollections, collectionZipFilename } from './ean-collections.js';
 
 const PAGE_SIZE = 10;
 
@@ -1650,6 +1651,7 @@ function BarcodeGeneratorView() {
   const [selected, setSelected] = useState([]);
   const [previewId, setPreviewId] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [generatingCollection, setGeneratingCollection] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -1663,6 +1665,15 @@ function BarcodeGeneratorView() {
 
   const activeRows = useMemo(() => (data.gtins || []).filter(item => item.active), [data.gtins]);
   const platforms = useMemo(() => Array.from(new Set(activeRows.flatMap(item => item.platforms || []))).sort(), [activeRows]);
+  const collections = useMemo(() => buildEanCollections(activeRows).map(collection => {
+    const items = collection.items.filter(item => platform === 'all' || (item.platforms || []).includes(platform));
+    return { ...collection, items, coverCount: new Set(items.map(item => item.capa_code)).size };
+  }).filter(collection => {
+    const query = search.trim().toLowerCase();
+    const matchesSearch = !query || [collection.name, collection.family, ...collection.items.flatMap(item => [item.sku, item.capa_code, item.gtin])]
+      .some(value => String(value || '').toLowerCase().includes(query));
+    return collection.items.length >= 2 && collection.coverCount >= 2 && matchesSearch;
+  }), [activeRows, platform, search]);
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return activeRows.filter(item => {
@@ -1693,6 +1704,18 @@ function BarcodeGeneratorView() {
     try { await downloadBarcodeZip(selectedRows, selectedPlatform); }
     catch (downloadError) { setError(downloadError?.message || 'Não foi possível gerar o pacote.'); }
     finally { setGenerating(false); }
+  };
+
+  const downloadCollection = async collection => {
+    setGeneratingCollection(collection.id);
+    setError('');
+    try {
+      await downloadBarcodeZip(collection.items, selectedPlatform, collectionZipFilename(collection));
+    } catch (downloadError) {
+      setError(downloadError?.message || 'Não foi possível gerar as etiquetas da coleção.');
+    } finally {
+      setGeneratingCollection('');
+    }
   };
 
   return (
@@ -1734,6 +1757,51 @@ function BarcodeGeneratorView() {
           <button type="button" className="barcode-download-mass" disabled={!selectedRows.length || generating} onClick={downloadMass}>{generating ? 'Gerando PNGs…' : 'Baixar PNGs em massa (.ZIP)'}</button>
           <small>O pacote contém um PNG oficial de 543 × 189 px e 300 DPI para cada EAN selecionado.</small>
         </div>
+      </section>
+
+      <section className="barcode-collections-section">
+        <div className="barcode-collections-heading">
+          <div>
+            <span className="barcode-generator-eyebrow">DOWNLOAD POR COLEÇÃO</span>
+            <h3>Coleções identificadas</h3>
+            <p>Produtos com o mesmo título e a mesma família de SKU são agrupados com segurança.</p>
+          </div>
+          <strong>{collections.length}</strong>
+        </div>
+        {collections.length > 0 ? (
+          <div className="barcode-collection-grid">
+            {collections.map(collection => (
+              <article className="barcode-collection-card" key={collection.id}>
+                <div className="barcode-collection-cover-stack" aria-hidden="true">
+                  {collection.items.slice(0, 4).map((item, index) => item.image_url ? (
+                    <img key={item.id} src={item.image_url} alt="" style={{ '--cover-index': index }} />
+                  ) : <span key={item.id} style={{ '--cover-index': index }}>▥</span>)}
+                </div>
+                <div className="barcode-collection-copy">
+                  <small>{collection.family || 'COLEÇÃO'}</small>
+                  <h4>{collection.name}</h4>
+                  <div className="barcode-collection-meta">
+                    <span>{collection.items.length} etiquetas</span>
+                    <span>{collection.coverCount} capas</span>
+                  </div>
+                  <div className="barcode-collection-codes">
+                    {collection.items.slice(0, 6).map(item => <span key={item.id}>{item.capa_code}</span>)}
+                    {collection.items.length > 6 && <span>+{collection.items.length - 6}</span>}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => downloadCollection(collection)}
+                  disabled={Boolean(generatingCollection)}
+                >
+                  {generatingCollection === collection.id ? 'Gerando ZIP…' : `Baixar coleção (${collection.items.length})`}
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="barcode-collections-empty">Nenhuma coleção com duas ou mais capas foi encontrada neste filtro.</div>
+        )}
       </section>
 
       <section className="admin-table-card barcode-generator-table">
