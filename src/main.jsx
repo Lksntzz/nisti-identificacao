@@ -605,17 +605,10 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
             nome: nome.trim() || undefined,
             variacao: v.variacao.trim() || undefined,
             platform: platform.trim().toUpperCase() || undefined,
-            link: link.trim() || undefined
+            link: link.trim() || undefined,
+            gtin: v.gtin
           })
         });
-
-        if (created?.id) {
-          await api(`/api/products/${created.id}/gtins`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ gtin: v.gtin, source: 'ADMIN' })
-          });
-        }
 
         if (v.file && created?.id) {
           setProgressMsg(`Enviando imagem ${i + 1} de ${variants.length}…`);
@@ -880,7 +873,7 @@ function ProductGtinManager({ productId }) {
       await api(`/api/products/${productId}/gtins`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ gtin, source: 'ADMIN' })
+        body: JSON.stringify({ gtin, source: 'NISTI' })
       });
       setValue('');
       await load();
@@ -931,7 +924,7 @@ function ProductGtinManager({ productId }) {
             <div key={item.id} className="product-gtin-row">
               <span>▥</span>
               <strong>{item.gtin}</strong>
-              <small>{item.source || 'ADMIN'}</small>
+              <small>{item.source || 'NISTI'}</small>
               <button type="button" onClick={() => remove(item.gtin)} disabled={busy}>Remover</button>
             </div>
           ))}

@@ -250,6 +250,15 @@ async function upsertCatalogProduct(env, row) {
 
   let product = await env.DB.prepare(`SELECT id,image_key FROM products WHERE sku=?`)
     .bind(parsed.sku).first();
+  let validGtin = null;
+  if (gtin) {
+    validGtin = requireValidGtin13(gtin);
+    const conflict = await env.DB.prepare('SELECT product_id FROM product_gtins WHERE gtin=? AND active=1 LIMIT 1')
+      .bind(validGtin).first();
+    if (conflict && Number(conflict.product_id) !== Number(product?.id || 0)) {
+      throw new Error(`EAN ${validGtin} já está vinculado a outro produto.`);
+    }
+  }
   let created = false;
 
   if (!product) {
@@ -293,18 +302,12 @@ async function upsertCatalogProduct(env, row) {
     }
   }
 
-  if (gtin) {
-    const validGtin = requireValidGtin13(gtin);
-    const conflict = await env.DB.prepare('SELECT product_id FROM product_gtins WHERE gtin=? AND active=1 LIMIT 1')
-      .bind(validGtin).first();
-    if (conflict && Number(conflict.product_id) !== Number(product.id)) {
-      throw new Error(`EAN ${validGtin} já está vinculado a outro produto.`);
-    }
+  if (validGtin) {
     await env.DB.prepare(`
       INSERT INTO product_gtins (product_id,gtin,gtin_type,source,active,updated_at)
-      VALUES (?,?,'GTIN-13','IMPORT',1,CURRENT_TIMESTAMP)
+      VALUES (?,?,'GTIN-13','NISTI',1,CURRENT_TIMESTAMP)
       ON CONFLICT(gtin) DO UPDATE SET
-        product_id=excluded.product_id,source='IMPORT',active=1,updated_at=CURRENT_TIMESTAMP
+        product_id=excluded.product_id,source='NISTI',active=1,updated_at=CURRENT_TIMESTAMP
     `).bind(product.id, validGtin).run();
   }
 
@@ -483,37 +486,8 @@ export default {
 
       if (url.pathname === '/api/products' && request.method === 'POST') {
         const body = await request.json();
-        const parsed = parseSku(body.sku);
-        const result = await env.DB.prepare(`
-          INSERT INTO products (
-            sku,miolo_code,capa_code,acabamento_code,wireo_code,tassel_code,elastico_code,nome,variacao
-          ) VALUES (?,?,?,?,?,?,?,?,?)
-        `).bind(
-          parsed.sku, parsed.mioloCode, parsed.capaCode, parsed.acabamentoCode,
-          parsed.wireoCode, parsed.tasselCode, parsed.elasticoCode,
-          body.nome || null, body.variacao || null
-        ).run();
-        const id = result.meta.last_row_id;
-        const platform = body.platform ? String(body.platform).trim().toUpperCase() : null;
-        if (platform) {
-          await env.DB.prepare(`
-            INSERT INTO product_platforms (product_id,platform,link) VALUES (?,?,?)
-          `).bind(id, platform, body.link || null).run();
-        }
-
-        await recordNewCoverNotification(env, {
-          capaCode: parsed.capaCode,
-          productId: id,
-          sku: parsed.sku,
-          productName: body.nome || null,
-          variacao: body.variacao || null,
-          platform: platform,
-          imageKey: null
-        }).catch(err => {
-          console.error('[Error] Falha no recordNewCoverNotification em POST /api/products:', err);
-        });
-
-        return json({ ok: true, id, parsed }, 201);
+        const saved = await upsertCatalogProduct(env, body);
+        return json({ ok: true, ...saved }, saved.created ? 201 : 200);
       }
 
       if (url.pathname === '/api/admin/bulk-products' && request.method === 'POST') {

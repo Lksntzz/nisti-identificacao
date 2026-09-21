@@ -12,9 +12,9 @@ function json(data, status = 200) {
   });
 }
 
-function normalizeSource(value) {
+export function normalizeSource(value) {
   const source = String(value || 'GS1').trim().toUpperCase();
-  return source || 'GS1';
+  return source === 'GS1' ? 'GS1' : 'NISTI';
 }
 
 const GTIN_EVENT_STATUSES = new Set(['identified', 'not_found', 'system_error']);
