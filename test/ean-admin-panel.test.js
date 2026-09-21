@@ -29,3 +29,11 @@ test('EAN history reports loading failures and offers retry', () => {
   assert.match(main, /setLoadError\(error\?\.message/);
   assert.match(main, /Tentar novamente/);
 });
+
+test('barcode generator exposes collection downloads without removing individual downloads', () => {
+  assert.match(main, /buildEanCollections/);
+  assert.match(main, /Baixar coleção/);
+  assert.match(main, /downloadCollection/);
+  assert.match(main, /Baixar PNG oficial/);
+  assert.match(router, /p\.sku,p\.miolo_code,p\.nome/);
+});

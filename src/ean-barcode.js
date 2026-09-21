@@ -211,8 +211,9 @@ export async function createBarcodeZip(items) {
   return createStoredZip(files);
 }
 
-export async function downloadBarcodeZip(items, platform = '') {
+export async function downloadBarcodeZip(items, platform = '', filename = '') {
   if (!items.length) throw new Error('Selecione pelo menos um produto.');
   const suffix = platform && platform !== 'all' ? `-${platform.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : '';
-  downloadBlob(await createBarcodeZip(items), `codigos-ean-nisti${suffix}.zip`);
+  const safeFilename = String(filename || '').trim().replace(/[^a-zA-Z0-9._-]+/g, '-');
+  downloadBlob(await createBarcodeZip(items), safeFilename || `codigos-ean-nisti${suffix}.zip`);
 }
