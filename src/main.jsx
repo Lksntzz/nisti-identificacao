@@ -3,6 +3,12 @@ import './app.css';
 import LOGO from './assets/logo.png';
 import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';
 import SystemHealthView from './system-health-view.jsx';
+import {
+  createEan13Svg,
+  downloadBarcodePng,
+  downloadBarcodeSvg,
+  downloadBarcodeZip
+} from './ean-barcode.js';
 
 const PAGE_SIZE = 10;
 
@@ -1636,22 +1642,144 @@ function GtinRegistryView() {
   );
 }
 
+function BarcodeGeneratorView() {
+  const [data, setData] = useState({ gtins: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [platform, setPlatform] = useState('all');
+  const [selected, setSelected] = useState([]);
+  const [previewId, setPreviewId] = useState(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try { setData(await api('/api/admin/gtins')); }
+    catch (loadError) { setError(loadError?.message || 'Não foi possível carregar os códigos EAN.'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const activeRows = useMemo(() => (data.gtins || []).filter(item => item.active), [data.gtins]);
+  const platforms = useMemo(() => Array.from(new Set(activeRows.flatMap(item => item.platforms || []))).sort(), [activeRows]);
+  const rows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return activeRows.filter(item => {
+      const matchesPlatform = platform === 'all' || (item.platforms || []).includes(platform);
+      const matchesSearch = !query || [item.gtin, item.sku, item.nome, item.variacao, item.capa_code]
+        .some(value => String(value || '').toLowerCase().includes(query));
+      return matchesPlatform && matchesSearch;
+    });
+  }, [activeRows, platform, search]);
+
+  const selectedRows = useMemo(() => activeRows.filter(item => selected.includes(item.id)), [activeRows, selected]);
+  const preview = activeRows.find(item => item.id === previewId) || selectedRows[0] || rows[0] || null;
+  const allVisibleSelected = rows.length > 0 && rows.every(item => selected.includes(item.id));
+
+  const toggleAllVisible = () => {
+    const visibleIds = rows.map(item => item.id);
+    setSelected(current => allVisibleSelected
+      ? current.filter(id => !visibleIds.includes(id))
+      : Array.from(new Set([...current, ...visibleIds])));
+  };
+
+  const toggleOne = id => setSelected(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
+  const selectedPlatform = platform === 'all' ? '' : platform;
+
+  const downloadMass = () => {
+    try { downloadBarcodeZip(selectedRows, selectedPlatform); }
+    catch (downloadError) { setError(downloadError?.message || 'Não foi possível gerar o pacote.'); }
+  };
+
+  return (
+    <div className="barcode-generator-page">
+      <section className="barcode-generator-hero">
+        <div>
+          <span className="barcode-generator-eyebrow">FERRAMENTA GS1</span>
+          <h2>Gerador de Códigos de Barras</h2>
+          <p>Crie etiquetas EAN-13 vetoriais a partir dos códigos oficiais já vinculados ao catálogo. A ferramenta não cria números novos.</p>
+        </div>
+        <div className="barcode-generator-stats">
+          <strong>{activeRows.length}</strong><span>EANs disponíveis</span>
+          <strong>{selected.length}</strong><span>selecionados</span>
+        </div>
+      </section>
+
+      {error && <div className="barcode-generator-error">{error} <button type="button" onClick={load}>Tentar novamente</button></div>}
+
+      <section className="barcode-generator-workspace">
+        <div className="barcode-generator-preview">
+          <div className="barcode-preview-head"><span>Pré-visualização</span><small>{preview ? preview.gtin : 'Selecione um produto'}</small></div>
+          {preview ? (
+            <>
+              <div className="barcode-preview-canvas" dangerouslySetInnerHTML={{ __html: createEan13Svg(preview, { platform: selectedPlatform }) }} />
+              <div className="barcode-preview-actions">
+                <button type="button" onClick={() => downloadBarcodeSvg(preview, selectedPlatform)}>Baixar SVG</button>
+                <button type="button" className="primary" onClick={() => downloadBarcodePng(preview, selectedPlatform).catch(err => setError(err.message))}>Baixar PNG</button>
+              </div>
+            </>
+          ) : <div className="barcode-preview-empty">Nenhum EAN disponível neste filtro.</div>}
+        </div>
+
+        <div className="barcode-generator-controls">
+          <label><span>Plataforma</span><select value={platform} onChange={event => { setPlatform(event.target.value); setSelected([]); }}>
+            <option value="all">Todas as plataformas</option>
+            {platforms.map(item => <option value={item} key={item}>{item}</option>)}
+          </select></label>
+          <label><span>Buscar produto</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="EAN, SKU, nome ou capa" /></label>
+          <div className="barcode-selection-summary"><strong>{selectedRows.length}</strong><span>etiqueta{selectedRows.length === 1 ? '' : 's'} pronta{selectedRows.length === 1 ? '' : 's'} para baixar</span></div>
+          <button type="button" className="barcode-download-mass" disabled={!selectedRows.length} onClick={downloadMass}>Baixar pacote em massa (.ZIP)</button>
+          <small>O pacote inclui uma imagem SVG por produto e um manifesto CSV para conferência.</small>
+        </div>
+      </section>
+
+      <section className="admin-table-card barcode-generator-table">
+        <div className="table-card-topbar">
+          <div className="table-title-group"><div className="table-title-icon"><SidebarIcon name="barcode" /></div><div><h3 className="table-main-title">Produtos com EAN</h3><span className="table-sub-title">{rows.length} produto{rows.length === 1 ? '' : 's'} no filtro atual</span></div></div>
+          <div className="table-actions-toolbar"><button type="button" className="btn-toolbar-filter" onClick={toggleAllVisible}>{allVisibleSelected ? 'Desmarcar exibidos' : 'Selecionar exibidos'}</button><button type="button" className="btn-toolbar-filter" disabled={!selected.length} onClick={() => setSelected([])}>Limpar seleção</button></div>
+        </div>
+        <div className="table-responsive-container">
+          <table className="admin-data-table">
+            <thead><tr><th className="barcode-check-column">✓</th><th>EAN</th><th>PRODUTO</th><th>PLATAFORMA</th><th>ARQUIVOS</th></tr></thead>
+            <tbody>
+              {loading ? <tr><td colSpan="5" className="table-empty-row">Carregando códigos…</td></tr> : rows.length === 0 ? <tr><td colSpan="5" className="table-empty-row">Nenhum EAN encontrado.</td></tr> : rows.map(item => (
+                <tr key={item.id} className={preview?.id === item.id ? 'barcode-row-previewing' : ''}>
+                  <td><input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggleOne(item.id)} aria-label={`Selecionar ${item.gtin}`} /></td>
+                  <td><button type="button" className="barcode-preview-link" onClick={() => setPreviewId(item.id)}>{item.gtin}</button></td>
+                  <td><div className="product-info-cell"><strong>{item.nome || item.sku}</strong><small>{item.sku} · {item.variacao || 'Sem variação'}</small></div></td>
+                  <td><div className="barcode-platform-pills">{(item.platforms || []).length ? item.platforms.map(value => <span key={value}>{value}</span>) : <span>Sem plataforma</span>}</div></td>
+                  <td><div className="barcode-row-actions"><button type="button" onClick={() => downloadBarcodeSvg(item, selectedPlatform)}>SVG</button><button type="button" onClick={() => downloadBarcodePng(item, selectedPlatform).catch(err => setError(err.message))}>PNG</button></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function GtinEventsView({ initialStatus = '' }) {
   const [events, setEvents] = useState([]);
   const [status, setStatus] = useState(initialStatus);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => { setStatus(initialStatus); }, [initialStatus]);
 
   const load = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const params = new URLSearchParams({ limit: '250' });
       if (status) params.set('status', status);
       if (search.trim()) params.set('q', search.trim());
       const data = await api(`/api/admin/gtin-events?${params.toString()}`);
       setEvents(data.events || []);
+    } catch (error) {
+      setLoadError(error?.message || 'Não foi possível carregar o histórico de leituras.');
     } finally { setLoading(false); }
   };
 
@@ -1690,7 +1818,9 @@ function GtinEventsView({ initialStatus = '' }) {
         <table className="admin-data-table">
           <thead><tr><th>STATUS</th><th>HORÁRIO</th><th>OPERADOR</th><th>EAN</th><th>PRODUTO</th><th>TEMPO</th></tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan="6" className="table-empty-row">Carregando leituras…</td></tr> : events.length === 0 ? (
+            {loading ? <tr><td colSpan="6" className="table-empty-row">Carregando leituras…</td></tr> : loadError ? (
+              <tr><td colSpan="6" className="table-empty-row"><span>{loadError}</span> <button type="button" className="btn-toolbar-filter" onClick={load}>Tentar novamente</button></td></tr>
+            ) : events.length === 0 ? (
               <tr><td colSpan="6" className="table-empty-row">Nenhuma leitura registrada neste filtro.</td></tr>
             ) : events.map(event => (
               <tr key={event.id}>
@@ -3053,6 +3183,8 @@ function AdminApp() {
           )}
 
           {activeView === 'gtins' && <GtinRegistryView />}
+
+          {activeView === 'gerador-barras' && <BarcodeGeneratorView />}
 
           {activeView === 'historico-ean' && <GtinEventsView />}
 

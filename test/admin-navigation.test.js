@@ -18,6 +18,7 @@ test('Admin navigation exposes only operationally useful tools', () => {
   assert.deepEqual(ids, [
     'catalogo',
     'gtins',
+    'gerador-barras',
     'historico-ean',
     'ean-nao-cadastrados',
     'logs'
@@ -49,6 +50,7 @@ test('Admin navigation keeps EAN catalog, registry, operations and health capabi
   for (const expected of [
     'Catálogo de Produtos',
     'Códigos EAN',
+    'Gerador de Barras',
     'Histórico de Leituras',
     'EAN não Cadastrados',
     'Saúde & Logs'

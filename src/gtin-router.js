@@ -56,10 +56,22 @@ function cleanEventText(value, maxLength = 80) {
   return String(value || '').trim().slice(0, maxLength) || null;
 }
 
-async function recordGtinScanEvent(request, env) {
-  const body = await request.json().catch(() => ({}));
-  const gtin = requireValidGtin13(body?.gtin);
-  const status = String(body?.status || '').trim();
+function eventOperator(request, body = {}) {
+  const operatorHeader = request.headers.get('x-operator-name');
+  let operatorName = cleanEventText(body?.operator_name);
+  if (!operatorName && operatorHeader) {
+    try { operatorName = cleanEventText(decodeURIComponent(operatorHeader)); }
+    catch { operatorName = cleanEventText(operatorHeader); }
+  }
+  return {
+    operatorName,
+    operatorId: cleanEventText(request.headers.get('x-user-id'))
+  };
+}
+
+async function insertGtinScanEvent(request, env, event) {
+  const gtin = requireValidGtin13(event?.gtin);
+  const status = String(event?.status || '').trim();
   if (!GTIN_EVENT_STATUSES.has(status)) {
     const error = new Error('Status de leitura EAN inválido.');
     error.code = 'gtin_event_status_invalid';
@@ -68,14 +80,9 @@ async function recordGtinScanEvent(request, env) {
   }
 
   await ensureGtinScanEventsTable(env);
-  const productId = Number(body?.product_id || 0) || null;
-  const responseMs = Math.max(0, Math.min(120000, Math.round(Number(body?.response_ms || 0))));
-  const operatorHeader = request.headers.get('x-operator-name');
-  let operatorName = cleanEventText(body?.operator_name);
-  if (!operatorName && operatorHeader) {
-    try { operatorName = cleanEventText(decodeURIComponent(operatorHeader)); }
-    catch { operatorName = cleanEventText(operatorHeader); }
-  }
+  const productId = Number(event?.product_id || 0) || null;
+  const responseMs = Math.max(0, Math.min(120000, Math.round(Number(event?.response_ms || 0))));
+  const { operatorName, operatorId } = eventOperator(request, event);
 
   await env.DB.prepare(`
     INSERT INTO gtin_scan_events (
@@ -86,12 +93,24 @@ async function recordGtinScanEvent(request, env) {
     status,
     productId,
     operatorName,
-    cleanEventText(request.headers.get('x-user-id')),
+    operatorId,
     responseMs,
-    cleanEventText(body?.error_code, 100)
+    cleanEventText(event?.error_code, 100)
   ).run();
+}
+
+async function recordGtinScanEvent(request, env) {
+  const body = await request.json().catch(() => ({}));
+  await insertGtinScanEvent(request, env, body);
 
   return json({ ok: true }, 201);
+}
+
+function scheduleGtinScanEvent(ctx, request, env, event) {
+  const task = insertGtinScanEvent(request, env, event).catch(error => {
+    console.error('Falha ao registrar leitura EAN.', error);
+  });
+  if (ctx?.waitUntil) ctx.waitUntil(task);
 }
 
 async function adminGtinEvents(url, env) {
@@ -141,9 +160,13 @@ async function adminGtinRegistry(env) {
     env.DB.prepare(`
       SELECT
         g.id,g.product_id,g.gtin,g.gtin_type,g.source,g.active,g.created_at,g.updated_at,
-        p.sku,p.nome,p.variacao,p.capa_code,p.image_key
+        p.sku,p.nome,p.variacao,p.capa_code,p.image_key,
+        GROUP_CONCAT(DISTINCT pp.platform) AS platforms_csv
       FROM product_gtins g
       INNER JOIN products p ON p.id=g.product_id
+      LEFT JOIN product_platforms pp ON pp.product_id=p.id
+      GROUP BY g.id,g.product_id,g.gtin,g.gtin_type,g.source,g.active,g.created_at,g.updated_at,
+        p.sku,p.nome,p.variacao,p.capa_code,p.image_key
       ORDER BY g.active DESC,g.id DESC
       LIMIT 2000
     `).all(),
@@ -155,6 +178,7 @@ async function adminGtinRegistry(env) {
     id: Number(row.id),
     product_id: Number(row.product_id),
     active: Number(row.active) === 1,
+    platforms: String(row.platforms_csv || '').split(',').map(value => value.trim()).filter(Boolean),
     image_url: row.image_key ? `/api/images/${Number(row.product_id)}` : null
   }));
   return json({
@@ -379,18 +403,40 @@ export default {
 
     const publicLookup = pathname.match(/^\/api\/gtin\/([^/]+)$/);
     if (publicLookup && request.method === 'GET') {
+      const lookupStartedAt = Date.now();
+      let gtin = '';
       try {
-        const gtin = requireValidGtin13(decodeURIComponent(publicLookup[1]));
+        gtin = requireValidGtin13(decodeURIComponent(publicLookup[1]));
         const result = await lookupProductByGtin(env, gtin);
         if (!result) {
+          scheduleGtinScanEvent(ctx, request, env, {
+            gtin,
+            status: 'not_found',
+            response_ms: Date.now() - lookupStartedAt,
+            error_code: 'gtin_not_found'
+          });
           return json({
             error: 'GTIN não cadastrado.',
             technical_error: 'gtin_not_found',
             gtin
           }, 404);
         }
+        scheduleGtinScanEvent(ctx, request, env, {
+          gtin,
+          status: 'identified',
+          product_id: result.product.id,
+          response_ms: Date.now() - lookupStartedAt
+        });
         return json({ ok: true, ...result });
       } catch (error) {
+        if (gtin) {
+          scheduleGtinScanEvent(ctx, request, env, {
+            gtin,
+            status: 'system_error',
+            response_ms: Date.now() - lookupStartedAt,
+            error_code: error?.code || 'gtin_lookup_error'
+          });
+        }
         return errorResponse(error);
       }
     }

@@ -3178,6 +3178,51 @@ select:focus,input[type=text]:focus,input[type=url]:focus { border-color: #b9c7f
 .product-gtin-empty { margin: 10px 0 0; color: #94a3b8; font-size: 10px; }
 
 .ean-code-cell { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #0f172a; font-weight: 800; letter-spacing: .04em; }
+
+.barcode-generator-page { display: grid; gap: 18px; }
+.barcode-generator-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 26px 28px; border-radius: 22px; color: #fff; background: linear-gradient(135deg,#0b1329 0%,#172554 58%,#155e75 100%); box-shadow: 0 18px 44px rgba(15,23,42,.14); }
+.barcode-generator-eyebrow { display: block; margin-bottom: 7px; color: #67e8f9; font-size: 10px; font-weight: 900; letter-spacing: .18em; }
+.barcode-generator-hero h2 { margin: 0 0 8px; font-size: 25px; letter-spacing: -.03em; }
+.barcode-generator-hero p { max-width: 680px; margin: 0; color: #cbd5e1; font-size: 12px; line-height: 1.55; }
+.barcode-generator-stats { display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 4px 10px; min-width: 170px; padding: 15px 18px; border: 1px solid rgba(255,255,255,.14); border-radius: 16px; background: rgba(255,255,255,.08); }
+.barcode-generator-stats strong { color: #fff; font-size: 22px; }
+.barcode-generator-stats span { color: #cbd5e1; font-size: 10px; }
+.barcode-generator-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 15px; border: 1px solid #fecdd3; border-radius: 12px; background: #fff1f2; color: #9f1239; font-size: 12px; font-weight: 700; }
+.barcode-generator-error button { border: 0; background: transparent; color: inherit; font-weight: 900; text-decoration: underline; }
+.barcode-generator-workspace { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(300px,.65fr); gap: 18px; }
+.barcode-generator-preview,.barcode-generator-controls { padding: 20px; border: 1px solid #e2e8f0; border-radius: 20px; background: #fff; box-shadow: 0 6px 24px rgba(15,23,42,.035); }
+.barcode-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; color: #0f172a; font-size: 13px; font-weight: 850; }
+.barcode-preview-head small { color: #64748b; font-family: ui-monospace,monospace; font-size: 10px; }
+.barcode-preview-canvas { display: grid; place-items: center; min-height: 250px; padding: 12px; border: 1px dashed #cbd5e1; border-radius: 15px; background: #f8fafc; overflow: auto; }
+.barcode-preview-canvas svg { width: min(100%,520px); height: auto; filter: drop-shadow(0 9px 16px rgba(15,23,42,.08)); }
+.barcode-preview-empty { display: grid; place-items: center; min-height: 250px; color: #94a3b8; font-size: 12px; }
+.barcode-preview-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 14px; }
+.barcode-preview-actions button,.barcode-row-actions button { min-height: 36px; padding: 0 14px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: #334155; font-size: 11px; font-weight: 800; }
+.barcode-preview-actions button.primary { border-color: #0f172a; background: #0f172a; color: #fff; }
+.barcode-generator-controls { display: flex; flex-direction: column; gap: 13px; }
+.barcode-generator-controls label { display: grid; gap: 6px; color: #475569; font-size: 10px; font-weight: 850; }
+.barcode-generator-controls select,.barcode-generator-controls input { width: 100%; height: 42px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 11px; outline: none; background: #fff; color: #0f172a; font-size: 12px; }
+.barcode-generator-controls select:focus,.barcode-generator-controls input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+.barcode-selection-summary { display: flex; align-items: center; gap: 9px; margin-top: 4px; padding: 14px; border-radius: 12px; background: #f1f5f9; }
+.barcode-selection-summary strong { color: #4f46e5; font-size: 22px; }
+.barcode-selection-summary span { color: #475569; font-size: 11px; font-weight: 750; }
+.barcode-download-mass { min-height: 44px; border: 0; border-radius: 12px; background: linear-gradient(135deg,#4f46e5,#0891b2); color: #fff; font-size: 12px; font-weight: 850; box-shadow: 0 8px 18px rgba(79,70,229,.18); }
+.barcode-download-mass:disabled { opacity: .45; box-shadow: none; cursor: default; }
+.barcode-generator-controls > small { color: #94a3b8; font-size: 9px; line-height: 1.45; }
+.barcode-generator-table { margin-top: 0; }
+.barcode-check-column { width: 44px; }
+.barcode-row-previewing td { background: #f8faff; }
+.barcode-preview-link { padding: 0; border: 0; background: transparent; color: #4338ca; font-family: ui-monospace,monospace; font-size: 11px; font-weight: 850; cursor: pointer; }
+.barcode-platform-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.barcode-platform-pills span { padding: 4px 7px; border-radius: 999px; background: #ecfeff; color: #0e7490; font-size: 8px; font-weight: 850; }
+.barcode-row-actions { display: flex; gap: 6px; }
+.barcode-row-actions button { min-height: 30px; padding: 0 10px; font-size: 9px; }
+
+@media (max-width: 900px) {
+  .barcode-generator-workspace { grid-template-columns: 1fr; }
+  .barcode-generator-hero { align-items: flex-start; flex-direction: column; }
+  .barcode-generator-stats { width: 100%; }
+}
 .ean-status-copy { display: grid; gap: 2px; }
 .ean-status-copy small { color: #94a3b8; font-size: 10px; }
 .table-search-input { min-width: 220px; height: 40px; padding: 0 12px; border: 1.5px solid #dbe3ee; border-radius: 10px; outline: none; background: #fff; color: #0f172a; font: inherit; font-size: 12px; }

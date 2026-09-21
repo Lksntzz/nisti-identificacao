@@ -16,10 +16,16 @@ test('EAN admin exposes registry, history and uncatalogued-code operations', () 
 });
 
 test('scanner records central EAN events for the admin history', () => {
-  assert.match(scanner, /fetch\('\/api\/gtin-events'/);
-  assert.match(scanner, /status: 'identified'/);
-  assert.match(scanner, /status: 'not_found'/);
+  assert.match(scanner, /'x-operator-name'/);
+  assert.match(router, /scheduleGtinScanEvent\(ctx, request, env/);
+  assert.match(router, /status: 'identified'/);
+  assert.match(router, /status: 'not_found'/);
   assert.match(router, /\/api\/admin\/gtin-events/);
   assert.match(router, /\/api\/admin\/gtin-dashboard/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS gtin_scan_events/);
+});
+
+test('EAN history reports loading failures and offers retry', () => {
+  assert.match(main, /setLoadError\(error\?\.message/);
+  assert.match(main, /Tentar novamente/);
 });
