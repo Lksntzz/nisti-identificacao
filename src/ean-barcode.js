@@ -28,48 +28,34 @@ function escapeXml(value) {
     .replaceAll("'", '&apos;');
 }
 
-export function safeBarcodeFilename(item, extension = 'svg') {
-  const base = `${item?.sku || 'produto'}_${item?.gtin || 'ean'}`
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 100);
-  return `${base || 'codigo-ean'}.${extension}`;
+export function safeBarcodeFilename(item) {
+  return `EAN_${String(item?.gtin || '').replace(/\D/g, '')}_padrao_oficial.png`;
 }
 
-export function createEan13Svg(item, options = {}) {
+export function createEan13Svg(item) {
   const gtin = String(item?.gtin || '');
   const modules = encodeEan13(gtin);
-  const width = 520;
-  const height = 250;
-  const moduleWidth = 4;
-  const barcodeX = 70;
-  const barcodeY = 78;
-  const normalHeight = 104;
-  const guardHeight = 116;
-  const platform = options.platform && options.platform !== 'all' ? options.platform : '';
+  const width = 543;
+  const height = 189;
+  const moduleWidth = 4.35;
+  const barcodeWidth = modules.length * moduleWidth;
+  const barcodeX = (width - barcodeWidth) / 2;
+  const barcodeY = 18;
+  const normalHeight = 92;
+  const guardHeight = 104;
   const bars = [];
   for (let index = 0; index < modules.length; index++) {
     if (modules[index] !== '1') continue;
     const guard = index < 3 || (index >= 45 && index < 50) || index >= 92;
-    bars.push(`<rect x="${barcodeX + index * moduleWidth}" y="${barcodeY}" width="${moduleWidth}" height="${guard ? guardHeight : normalHeight}"/>`);
+    bars.push(`<rect x="${(barcodeX + index * moduleWidth).toFixed(2)}" y="${barcodeY}" width="${moduleWidth}" height="${guard ? guardHeight : normalHeight}"/>`);
   }
 
-  const productName = String(item?.nome || 'Produto NISTI').slice(0, 56);
-  const variation = String(item?.variacao || '').slice(0, 42);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Código EAN ${escapeXml(gtin)}">
-  <rect width="520" height="250" rx="18" fill="#fff"/>
-  <rect x="1" y="1" width="518" height="248" rx="17" fill="none" stroke="#dbe3ef" stroke-width="2"/>
-  <text x="28" y="32" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#64748b">NISTI PRINT${platform ? ` · ${escapeXml(platform)}` : ''}</text>
-  <text x="28" y="54" font-family="Arial,sans-serif" font-size="16" font-weight="800" fill="#0f172a">${escapeXml(productName)}</text>
-  ${variation ? `<text x="28" y="72" font-family="Arial,sans-serif" font-size="12" fill="#64748b">${escapeXml(variation)}</text>` : ''}
-  <g fill="#020617" shape-rendering="crispEdges">${bars.join('')}</g>
-  <text x="34" y="211" font-family="Arial,sans-serif" font-size="19" fill="#020617">${gtin[0]}</text>
-  <text x="143" y="211" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" letter-spacing="10" fill="#020617">${gtin.slice(1, 7)}</text>
-  <text x="376" y="211" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" letter-spacing="10" fill="#020617">${gtin.slice(7)}</text>
-  <text x="28" y="234" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#64748b">SKU ${escapeXml(item?.sku || '—')}</text>
-  <text x="492" y="234" text-anchor="end" font-family="Arial,sans-serif" font-size="11" fill="#94a3b8">GTIN-13 · GS1</text>
+  <rect width="543" height="189" rx="18" fill="#fff"/>
+  <g fill="#000" shape-rendering="crispEdges">${bars.join('')}</g>
+  <text x="43" y="158" text-anchor="middle" font-family="DejaVu Sans,Arial,sans-serif" font-size="24" fill="#000">${gtin[0]}</text>
+  <text x="169.28" y="158" text-anchor="middle" font-family="DejaVu Sans,Arial,sans-serif" font-size="24" letter-spacing="8" fill="#000">${gtin.slice(1, 7)}</text>
+  <text x="373.73" y="158" text-anchor="middle" font-family="DejaVu Sans,Arial,sans-serif" font-size="24" letter-spacing="8" fill="#000">${gtin.slice(7)}</text>
 </svg>`;
 }
 
@@ -84,12 +70,44 @@ export function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function downloadBarcodeSvg(item, platform = '') {
-  downloadBlob(new Blob([createEan13Svg(item, { platform })], { type: 'image/svg+xml;charset=utf-8' }), safeBarcodeFilename(item));
+function uint32Bytes(value) {
+  const bytes = new Uint8Array(4);
+  new DataView(bytes.buffer).setUint32(0, value, false);
+  return bytes;
 }
 
-export async function downloadBarcodePng(item, platform = '') {
-  const svg = createEan13Svg(item, { platform });
+export async function withPngDpiMetadata(pngBlob, dpi = 300) {
+  const source = new Uint8Array(await pngBlob.arrayBuffer());
+  const signature = source.slice(0, 8);
+  const parts = [signature];
+  const pixelsPerMeter = Math.round(dpi / 0.0254);
+  let offset = 8;
+  let inserted = false;
+
+  while (offset + 12 <= source.length) {
+    const length = new DataView(source.buffer, source.byteOffset + offset, 4).getUint32(0, false);
+    const chunkEnd = offset + 12 + length;
+    if (chunkEnd > source.length) throw new Error('Arquivo PNG inválido.');
+    const type = String.fromCharCode(...source.slice(offset + 4, offset + 8));
+    if (type !== 'pHYs') parts.push(source.slice(offset, chunkEnd));
+    if (type === 'IHDR' && !inserted) {
+      const typeBytes = new TextEncoder().encode('pHYs');
+      const data = new Uint8Array(9);
+      const view = new DataView(data.buffer);
+      view.setUint32(0, pixelsPerMeter, false);
+      view.setUint32(4, pixelsPerMeter, false);
+      data[8] = 1;
+      const crcInput = joinBytes([typeBytes, data]);
+      parts.push(uint32Bytes(data.length), typeBytes, data, uint32Bytes(crc32(crcInput)));
+      inserted = true;
+    }
+    offset = chunkEnd;
+  }
+  return new Blob(parts, { type: 'image/png' });
+}
+
+export async function renderBarcodePngBlob(item) {
+  const svg = createEan13Svg(item);
   const sourceUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
   try {
     const image = new Image();
@@ -100,18 +118,21 @@ export async function downloadBarcodePng(item, platform = '') {
       image.src = sourceUrl;
     });
     const canvas = document.createElement('canvas');
-    canvas.width = 1040;
-    canvas.height = 500;
+    canvas.width = 543;
+    canvas.height = 189;
     const context = canvas.getContext('2d');
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     if (!blob) throw new Error('Não foi possível criar o arquivo PNG.');
-    downloadBlob(blob, safeBarcodeFilename(item, 'png'));
+    return withPngDpiMetadata(blob, 300);
   } finally {
     URL.revokeObjectURL(sourceUrl);
   }
+}
+
+export async function downloadBarcodePng(item) {
+  downloadBlob(await renderBarcodePngBlob(item), safeBarcodeFilename(item));
 }
 
 function crc32(bytes) {
@@ -139,18 +160,8 @@ function joinBytes(parts) {
   return result;
 }
 
-export function createBarcodeZip(items, platform = '') {
+function createStoredZip(files) {
   const encoder = new TextEncoder();
-  const manifest = ['EAN,SKU,Produto,Variacao,Plataformas', ...items.map(item => [
-    item.gtin,
-    item.sku,
-    item.nome,
-    item.variacao,
-    (item.platforms || []).join(' | ')
-  ].map(value => `"${String(value || '').replaceAll('"', '""')}"`).join(','))].join('\r\n');
-  const files = items.map(item => ({ name: safeBarcodeFilename(item), data: encoder.encode(createEan13Svg(item, { platform })) }));
-  files.push({ name: 'manifesto.csv', data: encoder.encode(`\uFEFF${manifest}`) });
-
   const locals = [];
   const centrals = [];
   let offset = 0;
@@ -191,8 +202,17 @@ export function createBarcodeZip(items, platform = '') {
   return new Blob([...locals, centralBytes, end], { type: 'application/zip' });
 }
 
-export function downloadBarcodeZip(items, platform = '') {
+export async function createBarcodeZip(items) {
+  const files = [];
+  for (const item of items) {
+    const blob = await renderBarcodePngBlob(item);
+    files.push({ name: safeBarcodeFilename(item), data: new Uint8Array(await blob.arrayBuffer()) });
+  }
+  return createStoredZip(files);
+}
+
+export async function downloadBarcodeZip(items, platform = '') {
   if (!items.length) throw new Error('Selecione pelo menos um produto.');
   const suffix = platform && platform !== 'all' ? `-${platform.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : '';
-  downloadBlob(createBarcodeZip(items, platform), `codigos-ean-nisti${suffix}.zip`);
+  downloadBlob(await createBarcodeZip(items), `codigos-ean-nisti${suffix}.zip`);
 }

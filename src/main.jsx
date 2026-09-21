@@ -6,7 +6,6 @@ import SystemHealthView from './system-health-view.jsx';
 import {
   createEan13Svg,
   downloadBarcodePng,
-  downloadBarcodeSvg,
   downloadBarcodeZip
 } from './ean-barcode.js';
 
@@ -1650,6 +1649,7 @@ function BarcodeGeneratorView() {
   const [platform, setPlatform] = useState('all');
   const [selected, setSelected] = useState([]);
   const [previewId, setPreviewId] = useState(null);
+  const [generating, setGenerating] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -1687,9 +1687,12 @@ function BarcodeGeneratorView() {
   const toggleOne = id => setSelected(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
   const selectedPlatform = platform === 'all' ? '' : platform;
 
-  const downloadMass = () => {
-    try { downloadBarcodeZip(selectedRows, selectedPlatform); }
+  const downloadMass = async () => {
+    setGenerating(true);
+    setError('');
+    try { await downloadBarcodeZip(selectedRows, selectedPlatform); }
     catch (downloadError) { setError(downloadError?.message || 'Não foi possível gerar o pacote.'); }
+    finally { setGenerating(false); }
   };
 
   return (
@@ -1698,7 +1701,7 @@ function BarcodeGeneratorView() {
         <div>
           <span className="barcode-generator-eyebrow">FERRAMENTA GS1</span>
           <h2>Gerador de Códigos de Barras</h2>
-          <p>Crie etiquetas EAN-13 vetoriais a partir dos códigos oficiais já vinculados ao catálogo. A ferramenta não cria números novos.</p>
+          <p>Crie etiquetas EAN-13 oficiais em PNG, com 543 × 189 px e 300 DPI, a partir dos códigos já vinculados ao catálogo. A ferramenta não cria números novos.</p>
         </div>
         <div className="barcode-generator-stats">
           <strong>{activeRows.length}</strong><span>EANs disponíveis</span>
@@ -1713,10 +1716,9 @@ function BarcodeGeneratorView() {
           <div className="barcode-preview-head"><span>Pré-visualização</span><small>{preview ? preview.gtin : 'Selecione um produto'}</small></div>
           {preview ? (
             <>
-              <div className="barcode-preview-canvas" dangerouslySetInnerHTML={{ __html: createEan13Svg(preview, { platform: selectedPlatform }) }} />
+              <div className="barcode-preview-canvas" dangerouslySetInnerHTML={{ __html: createEan13Svg(preview) }} />
               <div className="barcode-preview-actions">
-                <button type="button" onClick={() => downloadBarcodeSvg(preview, selectedPlatform)}>Baixar SVG</button>
-                <button type="button" className="primary" onClick={() => downloadBarcodePng(preview, selectedPlatform).catch(err => setError(err.message))}>Baixar PNG</button>
+                <button type="button" className="primary" onClick={() => downloadBarcodePng(preview).catch(err => setError(err.message))}>Baixar PNG oficial</button>
               </div>
             </>
           ) : <div className="barcode-preview-empty">Nenhum EAN disponível neste filtro.</div>}
@@ -1729,8 +1731,8 @@ function BarcodeGeneratorView() {
           </select></label>
           <label><span>Buscar produto</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="EAN, SKU, nome ou capa" /></label>
           <div className="barcode-selection-summary"><strong>{selectedRows.length}</strong><span>etiqueta{selectedRows.length === 1 ? '' : 's'} pronta{selectedRows.length === 1 ? '' : 's'} para baixar</span></div>
-          <button type="button" className="barcode-download-mass" disabled={!selectedRows.length} onClick={downloadMass}>Baixar pacote em massa (.ZIP)</button>
-          <small>O pacote inclui uma imagem SVG por produto e um manifesto CSV para conferência.</small>
+          <button type="button" className="barcode-download-mass" disabled={!selectedRows.length || generating} onClick={downloadMass}>{generating ? 'Gerando PNGs…' : 'Baixar PNGs em massa (.ZIP)'}</button>
+          <small>O pacote contém um PNG oficial de 543 × 189 px e 300 DPI para cada EAN selecionado.</small>
         </div>
       </section>
 
@@ -1749,7 +1751,7 @@ function BarcodeGeneratorView() {
                   <td><button type="button" className="barcode-preview-link" onClick={() => setPreviewId(item.id)}>{item.gtin}</button></td>
                   <td><div className="product-info-cell"><strong>{item.nome || item.sku}</strong><small>{item.sku} · {item.variacao || 'Sem variação'}</small></div></td>
                   <td><div className="barcode-platform-pills">{(item.platforms || []).length ? item.platforms.map(value => <span key={value}>{value}</span>) : <span>Sem plataforma</span>}</div></td>
-                  <td><div className="barcode-row-actions"><button type="button" onClick={() => downloadBarcodeSvg(item, selectedPlatform)}>SVG</button><button type="button" onClick={() => downloadBarcodePng(item, selectedPlatform).catch(err => setError(err.message))}>PNG</button></div></td>
+                  <td><div className="barcode-row-actions"><button type="button" onClick={() => downloadBarcodePng(item).catch(err => setError(err.message))}>Baixar PNG</button></div></td>
                 </tr>
               ))}
             </tbody>
