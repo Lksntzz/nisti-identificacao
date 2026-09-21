@@ -17,6 +17,184 @@ function normalizeSource(value) {
   return source || 'GS1';
 }
 
+const GTIN_EVENT_STATUSES = new Set(['identified', 'not_found', 'system_error']);
+let gtinEventsTableReady = false;
+let gtinEventsTablePromise = null;
+
+async function ensureGtinScanEventsTable(env) {
+  if (gtinEventsTableReady) return;
+  if (!gtinEventsTablePromise) gtinEventsTablePromise = env.DB.batch([
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS gtin_scan_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        gtin TEXT NOT NULL,
+        status TEXT NOT NULL,
+        product_id INTEGER,
+        operator_name TEXT,
+        operator_id TEXT,
+        response_ms INTEGER NOT NULL DEFAULT 0,
+        error_code TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+        CHECK (length(gtin) = 13 AND gtin NOT GLOB '*[^0-9]*'),
+        CHECK (status IN ('identified','not_found','system_error'))
+      )
+    `),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_gtin_scan_events_created_at ON gtin_scan_events(created_at DESC)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_gtin_scan_events_status_created_at ON gtin_scan_events(status,created_at DESC)')
+  ]);
+  try {
+    await gtinEventsTablePromise;
+    gtinEventsTableReady = true;
+  } catch (error) {
+    gtinEventsTablePromise = null;
+    throw error;
+  }
+}
+
+function cleanEventText(value, maxLength = 80) {
+  return String(value || '').trim().slice(0, maxLength) || null;
+}
+
+async function recordGtinScanEvent(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const gtin = requireValidGtin13(body?.gtin);
+  const status = String(body?.status || '').trim();
+  if (!GTIN_EVENT_STATUSES.has(status)) {
+    const error = new Error('Status de leitura EAN inválido.');
+    error.code = 'gtin_event_status_invalid';
+    error.status = 400;
+    throw error;
+  }
+
+  await ensureGtinScanEventsTable(env);
+  const productId = Number(body?.product_id || 0) || null;
+  const responseMs = Math.max(0, Math.min(120000, Math.round(Number(body?.response_ms || 0))));
+  const operatorHeader = request.headers.get('x-operator-name');
+  let operatorName = cleanEventText(body?.operator_name);
+  if (!operatorName && operatorHeader) {
+    try { operatorName = cleanEventText(decodeURIComponent(operatorHeader)); }
+    catch { operatorName = cleanEventText(operatorHeader); }
+  }
+
+  await env.DB.prepare(`
+    INSERT INTO gtin_scan_events (
+      gtin,status,product_id,operator_name,operator_id,response_ms,error_code
+    ) VALUES (?,?,?,?,?,?,?)
+  `).bind(
+    gtin,
+    status,
+    productId,
+    operatorName,
+    cleanEventText(request.headers.get('x-user-id')),
+    responseMs,
+    cleanEventText(body?.error_code, 100)
+  ).run();
+
+  return json({ ok: true }, 201);
+}
+
+async function adminGtinEvents(url, env) {
+  await ensureGtinScanEventsTable(env);
+  const requestedStatus = String(url.searchParams.get('status') || '').trim();
+  const status = GTIN_EVENT_STATUSES.has(requestedStatus) ? requestedStatus : '';
+  const query = String(url.searchParams.get('q') || '').trim().slice(0, 80);
+  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 150)));
+  const clauses = [];
+  const bindings = [];
+  if (status) {
+    clauses.push('e.status=?');
+    bindings.push(status);
+  }
+  if (query) {
+    clauses.push('(e.gtin LIKE ? OR e.operator_name LIKE ? OR p.sku LIKE ? OR p.nome LIKE ?)');
+    const pattern = `%${query}%`;
+    bindings.push(pattern, pattern, pattern, pattern);
+  }
+  bindings.push(limit);
+
+  const { results } = await env.DB.prepare(`
+    SELECT
+      e.id,e.gtin,e.status,e.product_id,e.operator_name,e.operator_id,
+      e.response_ms,e.error_code,e.created_at,
+      p.sku,p.nome,p.variacao,p.capa_code,p.image_key
+    FROM gtin_scan_events e
+    LEFT JOIN products p ON p.id=e.product_id
+    ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
+    ORDER BY e.id DESC
+    LIMIT ?
+  `).bind(...bindings).all();
+
+  return json({
+    events: (results || []).map(row => ({
+      ...row,
+      id: Number(row.id),
+      product_id: row.product_id ? Number(row.product_id) : null,
+      response_ms: Number(row.response_ms || 0),
+      image_url: row.image_key && row.product_id ? `/api/images/${Number(row.product_id)}` : null
+    }))
+  });
+}
+
+async function adminGtinRegistry(env) {
+  const [{ results }, totals, covered] = await Promise.all([
+    env.DB.prepare(`
+      SELECT
+        g.id,g.product_id,g.gtin,g.gtin_type,g.source,g.active,g.created_at,g.updated_at,
+        p.sku,p.nome,p.variacao,p.capa_code,p.image_key
+      FROM product_gtins g
+      INNER JOIN products p ON p.id=g.product_id
+      ORDER BY g.active DESC,g.id DESC
+      LIMIT 2000
+    `).all(),
+    env.DB.prepare('SELECT COUNT(*) AS total FROM products').first(),
+    env.DB.prepare('SELECT COUNT(DISTINCT product_id) AS total FROM product_gtins WHERE active=1').first()
+  ]);
+  const gtins = (results || []).map(row => ({
+    ...row,
+    id: Number(row.id),
+    product_id: Number(row.product_id),
+    active: Number(row.active) === 1,
+    image_url: row.image_key ? `/api/images/${Number(row.product_id)}` : null
+  }));
+  return json({
+    gtins,
+    stats: {
+      active_gtins: gtins.filter(item => item.active).length,
+      products_total: Number(totals?.total || 0),
+      products_with_gtin: Number(covered?.total || 0),
+      products_without_gtin: Math.max(0, Number(totals?.total || 0) - Number(covered?.total || 0))
+    }
+  });
+}
+
+async function adminGtinDashboard(env) {
+  await ensureGtinScanEventsTable(env);
+  const [active, covered, today] = await Promise.all([
+    env.DB.prepare('SELECT COUNT(*) AS total FROM product_gtins WHERE active=1').first(),
+    env.DB.prepare('SELECT COUNT(DISTINCT product_id) AS total FROM product_gtins WHERE active=1').first(),
+    env.DB.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status='identified' THEN 1 ELSE 0 END) AS identified,
+        SUM(CASE WHEN status='not_found' THEN 1 ELSE 0 END) AS not_found,
+        SUM(CASE WHEN status='system_error' THEN 1 ELSE 0 END) AS system_errors
+      FROM gtin_scan_events
+      WHERE date(created_at,'-3 hours')=date('now','-3 hours')
+    `).first()
+  ]);
+  return json({
+    active_gtins: Number(active?.total || 0),
+    products_with_gtin: Number(covered?.total || 0),
+    today: {
+      total: Number(today?.total || 0),
+      identified: Number(today?.identified || 0),
+      not_found: Number(today?.not_found || 0),
+      system_errors: Number(today?.system_errors || 0)
+    }
+  });
+}
+
 function productFinishLabels(row) {
   return {
     wireo: WIREO_COLORS[row?.wireo_code] || row?.wireo_code || null,
@@ -178,6 +356,26 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
+
+    if (pathname === '/api/gtin-events' && request.method === 'POST') {
+      try { return await recordGtinScanEvent(request, env); }
+      catch (error) { return errorResponse(error); }
+    }
+
+    if (pathname === '/api/admin/gtin-events' && request.method === 'GET') {
+      try { return await adminGtinEvents(url, env); }
+      catch (error) { return errorResponse(error); }
+    }
+
+    if (pathname === '/api/admin/gtins' && request.method === 'GET') {
+      try { return await adminGtinRegistry(env); }
+      catch (error) { return errorResponse(error); }
+    }
+
+    if (pathname === '/api/admin/gtin-dashboard' && request.method === 'GET') {
+      try { return await adminGtinDashboard(env); }
+      catch (error) { return errorResponse(error); }
+    }
 
     const publicLookup = pathname.match(/^\/api\/gtin\/([^/]+)$/);
     if (publicLookup && request.method === 'GET') {
