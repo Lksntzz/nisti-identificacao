@@ -647,26 +647,74 @@
     border-radius: 0;
   }
 
-  .gtin-scanner-panel.embedded { border-radius: 18px; }
-  .gtin-scanner-header { padding: 18px; }
+  .gtin-scanner-inline { height: 100%; }
+
+  .gtin-scanner-panel.embedded {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  .gtin-scanner-header {
+    flex: 0 0 auto;
+    gap: 10px;
+    padding: 9px 11px;
+  }
+
+  .gtin-scanner-header-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .gtin-scanner-header h2 { font-size: 18px; }
+  .gtin-scanner-eyebrow { font-size: 8px; }
+  .gtin-scanner-header p { display: none; }
 
   .gtin-camera-shell {
-    aspect-ratio: 4 / 3;
-    margin: 14px 14px 0;
-    border-radius: 16px;
+    height: clamp(178px, 31dvh, 238px);
+    min-height: 178px;
+    flex: 0 0 auto;
+    aspect-ratio: auto;
+    margin: 8px 10px 0;
+    border-radius: 14px;
   }
 
   .gtin-scanner-instructions {
-    padding-right: 18px;
-    padding-left: 18px;
+    flex: 0 0 auto;
+    gap: 1px;
+    padding: 8px 12px 7px;
   }
 
+  .gtin-scanner-instructions strong { font-size: 12px; line-height: 1.25; }
+  .gtin-scanner-instructions span { font-size: 10px; line-height: 1.3; }
+  .gtin-scanner-instructions small { display: none; }
+
   .gtin-manual-form {
-    padding-right: 18px;
-    padding-left: 18px;
+    flex: 0 0 auto;
+    margin-top: 0;
+    padding: 7px 10px 9px;
+  }
+
+  .gtin-manual-form label { margin-bottom: 4px; font-size: 10px; }
+  .gtin-manual-row { grid-template-columns: minmax(0, 1fr) 96px; gap: 6px; }
+  .gtin-manual-row input { height: 42px; padding: 0 11px; font-size: 14px; }
+  .gtin-manual-row button { min-height: 42px; padding: 0 10px; }
+
+  .gtin-scanner-alert {
+    flex: 0 0 auto;
+    margin: 4px 10px;
+    padding: 7px 9px;
+    font-size: 10px;
   }
 
   .gtin-scanner-result {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
     margin: 12px 14px 10px;
     border-radius: 16px;
   }
@@ -718,12 +766,22 @@
   .gtin-result-actions { padding: 0 14px 12px; }
 
   .gtin-history {
-    margin: 8px 14px 14px;
-    border-radius: 14px;
+    display: flex;
+    min-height: 0;
+    max-height: 160px;
+    flex: 0 1 auto;
+    flex-direction: column;
+    margin: 0 10px 9px;
+    border-radius: 12px;
   }
 
-  .gtin-history-header { padding: 11px 12px; }
-  .gtin-history-list { max-height: 320px; }
+  .gtin-history:has(.gtin-history-empty) { flex: 0 0 auto; }
+  .gtin-history-header { flex: 0 0 auto; padding: 8px 10px; }
+  .gtin-history-icon { width: 28px; height: 28px; border-radius: 8px; }
+  .gtin-history-title h3 { font-size: 11px; }
+  .gtin-history-title p { margin-top: 1px; font-size: 8px; }
+  .gtin-history-list { min-height: 0; max-height: none; flex: 1 1 auto; overflow-y: auto; }
+  .gtin-history-empty { min-height: 34px; padding: 7px 10px; font-size: 9px; }
 
   .gtin-history-item {
     grid-template-columns: 64px minmax(0, 1fr);
@@ -747,16 +805,7 @@
 }
 
 @media (max-width: 420px) {
-  .gtin-scanner-header-icon {
-    width: 42px;
-    height: 42px;
-  }
-
-  .gtin-scanner-header h2 { font-size: 19px; }
-  .gtin-scanner-header p { display: none; }
-
-  .gtin-manual-row { grid-template-columns: 1fr; }
-  .gtin-manual-row button { min-height: 44px; }
+  .gtin-manual-row { grid-template-columns: minmax(0, 1fr) 90px; }
 
   .gtin-result-image { width: min(100%, 240px); height: 225px; }
   .gtin-result-copy { padding: 14px; }
