@@ -17,11 +17,9 @@ test('Admin navigation exposes only operationally useful tools', () => {
 
   assert.deepEqual(ids, [
     'catalogo',
-    'usuarios',
-    'historico',
-    'nao-identificados',
-    'shadow-observability',
-    'verificar',
+    'gtins',
+    'historico-ean',
+    'ean-nao-cadastrados',
     'logs'
   ]);
   assert.equal(new Set(ids).size, ids.length);
@@ -39,21 +37,20 @@ test('Operator identification remains a utility outside the admin tool menu', ()
   assert.equal(hrefs.includes('/'), false);
 });
 
-test('Shadow observability is embedded instead of navigating to a standalone admin page', () => {
-  const shadow = flattenedItems().find(item => item.id === 'shadow-observability');
-  assert.ok(shadow);
-  assert.equal(shadow.href, undefined);
+test('Legacy visual recognition tools stay outside the EAN admin menu', () => {
+  const ids = new Set(flattenedItems().map(item => item.id));
+  for (const legacy of ['usuarios', 'historico', 'nao-identificados', 'shadow-observability', 'verificar']) {
+    assert.equal(ids.has(legacy), false);
+  }
 });
 
-test('Admin navigation keeps catalog, correction, audit, AI quality and health capabilities', () => {
+test('Admin navigation keeps EAN catalog, registry, operations and health capabilities', () => {
   const labels = new Set(flattenedItems().map(item => item.label));
   for (const expected of [
     'Catálogo de Produtos',
-    'Ocorrências & Operadores',
-    'Histórico de Identificações',
-    'Falhas de Identificação',
-    'Observabilidade IA',
-    'Testar Reconhecimento',
+    'Códigos EAN',
+    'Histórico de Leituras',
+    'EAN não Cadastrados',
     'Saúde & Logs'
   ]) {
     assert.equal(labels.has(expected), true, `${expected} deve permanecer disponível`);
