@@ -178,12 +178,16 @@ export function decodeEan13LumaRow(luma) {
 
 export function imageDataToLumaRow(imageData) {
   const { data, width, height } = imageData;
-  if (!data || !width || height !== 1) return null;
+  if (!data || !width || !height) return null;
 
   const luma = new Uint8Array(width);
   for (let x = 0; x < width; x += 1) {
-    const offset = x * 4;
-    luma[x] = Math.round(data[offset] * 0.299 + data[offset + 1] * 0.587 + data[offset + 2] * 0.114);
+    let sum = 0;
+    for (let y = 0; y < height; y += 1) {
+      const offset = (y * width + x) * 4;
+      sum += data[offset] * 0.299 + data[offset + 1] * 0.587 + data[offset + 2] * 0.114;
+    }
+    luma[x] = Math.round(sum / height);
   }
   return luma;
 }

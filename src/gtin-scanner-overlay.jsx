@@ -3,10 +3,41 @@ import { isValidGtin13 } from './gtin.js';
 import { decodeEan13LumaRow, imageDataToLumaRow } from './gtin-camera-decoder.js';
 import './gtin-scanner.css';
 
-const CAMERA_SCAN_INTERVAL_MS = 120;
+const CAMERA_SCAN_INTERVAL_MS = 90;
 const NOT_FOUND_COOLDOWN_MS = 1200;
 const GTIN_HISTORY_STORAGE_KEY = 'nisti_gtin_scan_history_v1';
 const GTIN_HISTORY_LIMIT = 20;
+const CAMERA_ACCESS_STORAGE_KEY = 'nisti_gtin_camera_access_v1';
+
+function hasRememberedCameraAccess() {
+  try { return localStorage.getItem(CAMERA_ACCESS_STORAGE_KEY) === 'granted'; } catch { return false; }
+}
+
+function rememberCameraAccess() {
+  try { localStorage.setItem(CAMERA_ACCESS_STORAGE_KEY, 'granted'); } catch {}
+}
+
+function forgetCameraAccess() {
+  try { localStorage.removeItem(CAMERA_ACCESS_STORAGE_KEY); } catch {}
+}
+
+async function improveCameraTrack(track) {
+  if (!track?.getCapabilities || !track?.applyConstraints) return;
+
+  let capabilities;
+  try { capabilities = track.getCapabilities(); } catch { return; }
+
+  const preferredModes = [
+    ['focusMode', 'continuous'],
+    ['exposureMode', 'continuous'],
+    ['whiteBalanceMode', 'continuous']
+  ];
+
+  for (const [name, value] of preferredModes) {
+    if (!Array.isArray(capabilities?.[name]) || !capabilities[name].includes(value)) continue;
+    try { await track.applyConstraints({ advanced: [{ [name]: value }] }); } catch {}
+  }
+}
 
 function BarcodeIcon({ size = 22 }) {
   return (
@@ -214,6 +245,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   const lastFrameRef = useRef(0);
   const animationRef = useRef(0);
   const lastRejectedRef = useRef({ value: '', at: 0 });
+  const autoStartAttemptedRef = useRef(false);
 
   const stopCamera = useCallback(() => {
     activeRef.current = false;
@@ -297,8 +329,12 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     const canvas = canvasRef.current;
     if (!video || !canvas || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return null;
 
-    const targetWidth = Math.min(720, video.videoWidth);
-    const targetHeight = Math.max(1, Math.round(targetWidth * video.videoHeight / video.videoWidth));
+    const sourceX = Math.round(video.videoWidth * 0.06);
+    const sourceY = Math.round(video.videoHeight * 0.27);
+    const sourceWidth = Math.max(1, Math.round(video.videoWidth * 0.88));
+    const sourceHeight = Math.max(1, Math.round(video.videoHeight * 0.46));
+    const targetWidth = Math.min(1280, sourceWidth);
+    const targetHeight = Math.max(1, Math.round(targetWidth * sourceHeight / sourceWidth));
     if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
       canvas.width = targetWidth;
       canvas.height = targetHeight;
@@ -306,12 +342,18 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
 
     const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) return null;
-    context.drawImage(video, 0, 0, targetWidth, targetHeight);
+    context.drawImage(
+      video,
+      sourceX, sourceY, sourceWidth, sourceHeight,
+      0, 0, targetWidth, targetHeight
+    );
 
-    const rowRatios = [0.50, 0.46, 0.54, 0.42, 0.58];
+    const rowRatios = [0.50, 0.46, 0.54, 0.42, 0.58, 0.38, 0.62, 0.34, 0.66, 0.30, 0.70];
+    const bandHeight = Math.max(1, Math.min(5, Math.round(targetHeight * 0.012)));
     for (const ratio of rowRatios) {
-      const y = Math.max(0, Math.min(targetHeight - 1, Math.round(targetHeight * ratio)));
-      const row = context.getImageData(0, y, targetWidth, 1);
+      const centerY = Math.round(targetHeight * ratio);
+      const y = Math.max(0, Math.min(targetHeight - bandHeight, centerY - Math.floor(bandHeight / 2)));
+      const row = context.getImageData(0, y, targetWidth, bandHeight);
       const luma = imageDataToLumaRow(row);
       const decoded = luma ? decodeEan13LumaRow(luma) : null;
       if (decoded) return decoded;
@@ -363,11 +405,16 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
         audio: false,
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 }
         }
       });
       streamRef.current = stream;
+
+      const [videoTrack] = stream.getVideoTracks();
+      await improveCameraTrack(videoTrack);
+      rememberCameraAccess();
 
       const video = videoRef.current;
       if (!video) {
@@ -395,17 +442,45 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       }
 
       activeRef.current = true;
+      videoTrack?.addEventListener?.('ended', () => {
+        if (!activeRef.current) return;
+        activeRef.current = false;
+        setCameraActive(false);
+        setCameraError('A câmera foi interrompida. Toque para ativar novamente.');
+      }, { once: true });
       lastFrameRef.current = 0;
       setCameraActive(true);
       animationRef.current = requestAnimationFrame(scanFrame);
     } catch (error) {
       const denied = error?.name === 'NotAllowedError' || error?.name === 'SecurityError';
+      if (denied) forgetCameraAccess();
       setCameraError(denied
         ? 'A câmera está bloqueada. Libere a permissão do navegador e tente novamente.'
         : 'Não foi possível iniciar a câmera deste aparelho.');
       stopCamera();
     }
   }, [scanFrame, stopCamera]);
+
+  useEffect(() => {
+    if (!embedded || autoStartAttemptedRef.current) return;
+    autoStartAttemptedRef.current = true;
+    let cancelled = false;
+
+    const resumeAuthorizedCamera = async () => {
+      let authorized = hasRememberedCameraAccess();
+      if (navigator.permissions?.query) {
+        try {
+          const permission = await navigator.permissions.query({ name: 'camera' });
+          if (permission.state === 'granted') authorized = true;
+          if (permission.state !== 'granted') authorized = false;
+        } catch {}
+      }
+      if (!cancelled && authorized) startCamera();
+    };
+
+    resumeAuthorizedCamera();
+    return () => { cancelled = true; };
+  }, [embedded, startCamera]);
 
   const openScanner = useCallback(() => {
     setOpen(true);
