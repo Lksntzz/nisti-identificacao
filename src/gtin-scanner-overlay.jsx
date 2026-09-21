@@ -17,6 +17,32 @@ function rememberCameraAccess() {
   try { localStorage.setItem(CAMERA_ACCESS_STORAGE_KEY, 'granted'); } catch {}
 }
 
+function scannerOperatorContext() {
+  try {
+    return {
+      operatorName: localStorage.getItem('nisti_operator_name') || '',
+      operatorId: localStorage.getItem('nisti_shipping_user_id') || ''
+    };
+  } catch {
+    return { operatorName: '', operatorId: '' };
+  }
+}
+
+function recordServerScanEvent(payload) {
+  const { operatorName, operatorId } = scannerOperatorContext();
+  fetch('/api/gtin-events', {
+    method: 'POST',
+    credentials: 'same-origin',
+    keepalive: true,
+    headers: {
+      'content-type': 'application/json',
+      ...(operatorName ? { 'x-operator-name': encodeURIComponent(operatorName) } : {}),
+      ...(operatorId ? { 'x-user-id': operatorId } : {})
+    },
+    body: JSON.stringify({ ...payload, operator_name: operatorName || undefined })
+  }).catch(() => {});
+}
+
 function forgetCameraAccess() {
   try { localStorage.removeItem(CAMERA_ACCESS_STORAGE_KEY); } catch {}
 }
@@ -284,6 +310,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     if (rejected.value === gtin && Date.now() - rejected.at < NOT_FOUND_COOLDOWN_MS) return false;
 
     lookupBusyRef.current = true;
+    const lookupStartedAt = performance.now();
     setLookupBusy(true);
     setLookupError('');
     setManualValue(gtin);
@@ -299,16 +326,34 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
 
       if (!response.ok || !data?.product) {
         if (response.status === 404) {
+          recordServerScanEvent({
+            gtin,
+            status: 'not_found',
+            response_ms: performance.now() - lookupStartedAt,
+            error_code: data?.technical_error || 'gtin_not_found'
+          });
           lastRejectedRef.current = { value: gtin, at: Date.now() };
           setLookupError(`EAN ${gtin} não está cadastrado no sistema.`);
           return false;
         }
+        recordServerScanEvent({
+          gtin,
+          status: 'system_error',
+          response_ms: performance.now() - lookupStartedAt,
+          error_code: data?.technical_error || `http_${response.status}`
+        });
         setLookupError(data?.error || 'Não foi possível consultar este EAN.');
         return false;
       }
 
       setLastGtin(gtin);
       setProduct(data.product);
+      recordServerScanEvent({
+        gtin,
+        status: 'identified',
+        product_id: data.product.id,
+        response_ms: performance.now() - lookupStartedAt
+      });
       if (options.recordHistory !== false) addToHistory(gtin, data.product);
       onProductResolved?.(data.product, gtin);
       setLookupError('');
@@ -316,6 +361,12 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       if (navigator.vibrate) navigator.vibrate(80);
       return true;
     } catch {
+      recordServerScanEvent({
+        gtin,
+        status: 'system_error',
+        response_ms: performance.now() - lookupStartedAt,
+        error_code: 'network_error'
+      });
       setLookupError('Falha de conexão ao consultar o EAN.');
       return false;
     } finally {

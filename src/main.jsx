@@ -3,7 +3,6 @@ import './app.css';
 import LOGO from './assets/logo.png';
 import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';
 import SystemHealthView from './system-health-view.jsx';
-import GeometricShadowObservability from './geometric-shadow-observability.jsx';
 
 const PAGE_SIZE = 10;
 
@@ -168,12 +167,22 @@ function parseCsv(text) {
 }
 
 function catalogRowsFromCsv(text) {
-  return parseCsv(text).map(row => ({
-    nome: String(row[2] || row[9] || '').trim(),
-    variacao: String(row[3] || row[13] || '').trim(),
-    platform: String(row[4] || row[11] || '').trim(),
-    sku: String(row[5] || row[14] || '').trim(),
-    link: String(row[6] || row[12] || '').trim()
+  const parsed = parseCsv(text);
+  if (!parsed.length) return [];
+  const headers = parsed[0].map(value => String(value || '').trim().toLowerCase());
+  const indexOf = (...names) => headers.findIndex(header => names.includes(header));
+  const skuIndex = indexOf('sku');
+  const gtinIndex = indexOf('ean', 'ean-13', 'gtin', 'gtin-13');
+  const hasHeader = skuIndex >= 0;
+  const valueAt = (row, index, fallback = '') => String(index >= 0 ? row[index] : fallback || '').trim();
+
+  return (hasHeader ? parsed.slice(1) : parsed).map(row => ({
+    nome: hasHeader ? valueAt(row, indexOf('nome', 'produto', 'nome do produto')) : String(row[2] || row[9] || '').trim(),
+    variacao: hasHeader ? valueAt(row, indexOf('variacao', 'variação', 'capa')) : String(row[3] || row[13] || '').trim(),
+    platform: hasHeader ? valueAt(row, indexOf('plataforma', 'platform')) : String(row[4] || row[11] || '').trim(),
+    sku: hasHeader ? valueAt(row, skuIndex) : String(row[5] || row[14] || '').trim(),
+    gtin: hasHeader ? valueAt(row, gtinIndex) : String(row[7] || '').replace(/\D/g, '').trim(),
+    link: hasHeader ? valueAt(row, indexOf('link', 'url')) : String(row[6] || row[12] || '').trim()
   })).filter(row => row.sku && row.sku.toUpperCase() !== 'SKU');
 }
 
@@ -308,6 +317,8 @@ function SidebarIcon({ name }) {
       return <svg {...props}><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>;
     case 'users':
       return <svg {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+    case 'barcode':
+      return <svg {...props}><path d="M3 5v14M6 5v14M10 5v14M13 5v14M17 5v14M21 5v14" /><path d="M8 5v14M15 5v14M19 5v14" strokeWidth="1" /></svg>;
     default:
       return null;
   }
@@ -394,7 +405,7 @@ function WelcomeDateBanner() {
 /* =========================================================================
    4 KPI STAT CARDS
    ========================================================================= */
-function KpiSection({ productsCount, recognitionsToday, unmatchedToday, platformsCount }) {
+function KpiSection({ productsCount, activeGtins, scansToday, missingToday }) {
   return (
     <div className="kpis-row">
       <div className="kpi-box kpi-blue">
@@ -421,9 +432,9 @@ function KpiSection({ productsCount, recognitionsToday, unmatchedToday, platform
           </svg>
         </div>
         <div className="kpi-body">
-          <span className="kpi-title">Identificações Hoje</span>
-          <strong className="kpi-num">{recognitionsToday.toLocaleString('pt-BR')}</strong>
-          <span className="kpi-tag green">Medição registrada hoje</span>
+          <span className="kpi-title">EANs Ativos</span>
+          <strong className="kpi-num">{activeGtins.toLocaleString('pt-BR')}</strong>
+          <span className="kpi-tag green">Vinculados ao catálogo</span>
         </div>
       </div>
 
@@ -435,9 +446,9 @@ function KpiSection({ productsCount, recognitionsToday, unmatchedToday, platform
           </svg>
         </div>
         <div className="kpi-body">
-          <span className="kpi-title">Não Identificados</span>
-          <strong className="kpi-num">{unmatchedToday}</strong>
-          <span className="kpi-tag orange">{unmatchedToday} registrados hoje</span>
+          <span className="kpi-title">Leituras Hoje</span>
+          <strong className="kpi-num">{scansToday.toLocaleString('pt-BR')}</strong>
+          <span className="kpi-tag green">Consultas por código EAN</span>
         </div>
       </div>
 
@@ -450,9 +461,9 @@ function KpiSection({ productsCount, recognitionsToday, unmatchedToday, platform
           </svg>
         </div>
         <div className="kpi-body">
-          <span className="kpi-title">Plataformas</span>
-          <strong className="kpi-num">{platformsCount}</strong>
-          <span className="kpi-tag green">No catálogo</span>
+          <span className="kpi-title">EAN não Cadastrados</span>
+          <strong className="kpi-num">{missingToday.toLocaleString('pt-BR')}</strong>
+          <span className="kpi-tag orange">Encontrados hoje</span>
         </div>
       </div>
     </div>
@@ -492,7 +503,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
   const [platform, setPlatform] = useState('MERCADO LIVRE');
   const [link, setLink] = useState('');
   const [variants, setVariants] = useState([
-    { id: 1, sku: '', variacao: '', file: null, preview: '' }
+    { id: 1, sku: '', gtin: '', variacao: '', file: null, preview: '' }
   ]);
   const [busy, setBusy] = useState(false);
   const [progressMsg, setProgressMsg] = useState('');
@@ -503,7 +514,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
       setNome('');
       setPlatform('MERCADO LIVRE');
       setLink('');
-      setVariants([{ id: 1, sku: '', variacao: '', file: null, preview: '' }]);
+      setVariants([{ id: 1, sku: '', gtin: '', variacao: '', file: null, preview: '' }]);
       setProgressMsg('');
       setError('');
     }
@@ -514,7 +525,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
   const addVariant = () => {
     setVariants(prev => [
       ...prev,
-      { id: Date.now(), sku: '', variacao: '', file: null, preview: '' }
+      { id: Date.now(), sku: '', gtin: '', variacao: '', file: null, preview: '' }
     ]);
   };
 
@@ -523,6 +534,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
     const newVariants = Array.from(files).map((file, i) => ({
       id: Date.now() + i,
       sku: '',
+      gtin: '',
       variacao: `CAPA ${variants.length + i + (variants[0].file ? 1 : 0)}`,
       file,
       preview: URL.createObjectURL(file)
@@ -565,6 +577,10 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
         setError(`O SKU da variação #${i + 1} é obrigatório.`);
         return;
       }
+      if (!/^\d{13}$/.test(variants[i].gtin)) {
+        setError(`O EAN-13 da variação #${i + 1} deve ter 13 números.`);
+        return;
+      }
     }
 
     setBusy(true);
@@ -586,6 +602,14 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
             link: link.trim() || undefined
           })
         });
+
+        if (created?.id) {
+          await api(`/api/products/${created.id}/gtins`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ gtin: v.gtin, source: 'ADMIN' })
+          });
+        }
 
         if (v.file && created?.id) {
           setProgressMsg(`Enviando imagem ${i + 1} de ${variants.length}…`);
@@ -745,7 +769,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
                   )}
                 </div>
 
-                <div className="form-row-2">
+                <div className="form-row-3">
                   <div className="form-group">
                     <label>SKU * (Ex: VACMNO_PQV{index + 1}_BBB)</label>
                     <input
@@ -754,6 +778,18 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
                       placeholder="SKU da variação"
                       value={v.sku}
                       onChange={e => updateVariant(v.id, 'sku', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>EAN-13 *</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      maxLength="13"
+                      placeholder="7890000000000"
+                      value={v.gtin}
+                      onChange={e => updateVariant(v.id, 'gtin', e.target.value.replace(/\D/g, '').slice(0, 13))}
                     />
                   </div>
                   <div className="form-group">
@@ -806,6 +842,97 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
         </form>
       </div>
     </div>
+  );
+}
+
+function ProductGtinManager({ productId }) {
+  const [gtins, setGtins] = useState([]);
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    try {
+      const data = await api(`/api/products/${productId}/gtins`);
+      setGtins((data.gtins || []).filter(item => item.active));
+    } catch (err) {
+      setError(err.message || 'Não foi possível carregar os códigos EAN.');
+    }
+  };
+
+  useEffect(() => { load(); }, [productId]);
+
+  const add = async () => {
+    const gtin = value.replace(/\D/g, '');
+    if (gtin.length !== 13) {
+      setError('Informe um EAN-13 válido com 13 dígitos.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      await api(`/api/products/${productId}/gtins`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ gtin, source: 'ADMIN' })
+      });
+      setValue('');
+      await load();
+    } catch (err) {
+      setError(err.message || 'Não foi possível vincular o EAN.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async gtin => {
+    if (!confirm(`Desvincular o EAN ${gtin} deste produto?`)) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api(`/api/products/${productId}/gtins/${encodeURIComponent(gtin)}`, { method: 'DELETE' });
+      await load();
+    } catch (err) {
+      setError(err.message || 'Não foi possível desvincular o EAN.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="product-gtin-manager">
+      <div className="product-gtin-heading">
+        <div>
+          <strong>Códigos EAN vinculados</strong>
+          <small>O scanner usa estes códigos para localizar o produto diretamente.</small>
+        </div>
+        <span>{gtins.length} ativo{gtins.length === 1 ? '' : 's'}</span>
+      </div>
+      <div className="product-gtin-add">
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength="13"
+          placeholder="Digite os 13 números do EAN"
+          value={value}
+          onChange={event => setValue(event.target.value.replace(/\D/g, '').slice(0, 13))}
+        />
+        <button type="button" onClick={add} disabled={busy || value.length !== 13}>Vincular</button>
+      </div>
+      {gtins.length > 0 ? (
+        <div className="product-gtin-list">
+          {gtins.map(item => (
+            <div key={item.id} className="product-gtin-row">
+              <span>▥</span>
+              <strong>{item.gtin}</strong>
+              <small>{item.source || 'ADMIN'}</small>
+              <button type="button" onClick={() => remove(item.gtin)} disabled={busy}>Remover</button>
+            </div>
+          ))}
+        </div>
+      ) : <p className="product-gtin-empty">Nenhum EAN cadastrado para este produto.</p>}
+      {error && <div className="form-error-banner">{error}</div>}
+    </section>
   );
 }
 
@@ -994,6 +1121,8 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
             </div>
           </div>
 
+          <ProductGtinManager productId={product.id} />
+
           {error && <div className="form-error-banner">{error}</div>}
 
           <div className="admin-modal-foot">
@@ -1143,7 +1272,7 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
               <path d="m16 16-4-4-4 4" />
             </svg>
             <strong>{busy ? 'Processando planilha…' : 'Clique para selecionar a planilha CSV'}</strong>
-            <span>Suporta arquivos exportados com colunas SKU, Nome, Variação e Plataforma</span>
+            <span>Use as colunas SKU, EAN, Nome, Variação, Plataforma e Link</span>
             <input type="file" accept=".csv,text/csv" disabled={busy} onChange={e => handleUpload(e.target.files?.[0])} />
           </label>
 
@@ -1447,8 +1576,141 @@ function CatalogView({ products, onRefresh, onOpenCreate, onOpenImport }) {
   );
 }
 
+function GtinRegistryView() {
+  const [data, setData] = useState({ gtins: [], stats: {} });
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    try { setData(await api('/api/admin/gtins')); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const rows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return data.gtins || [];
+    return (data.gtins || []).filter(item => [item.gtin, item.sku, item.nome, item.capa_code]
+      .some(value => String(value || '').toLowerCase().includes(query)));
+  }, [data.gtins, search]);
+
+  return (
+    <div className="admin-table-card">
+      <div className="table-card-topbar">
+        <div className="table-title-group">
+          <div className="table-title-icon"><SidebarIcon name="barcode" /></div>
+          <div>
+            <h3 className="table-main-title">Códigos EAN do Catálogo</h3>
+            <span className="table-sub-title">
+              {data.stats?.active_gtins || 0} códigos ativos · {data.stats?.products_without_gtin || 0} produtos ainda sem EAN
+            </span>
+          </div>
+        </div>
+        <div className="table-actions-toolbar">
+          <input className="table-search-input" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar EAN, SKU ou produto" />
+          <button type="button" className="btn-toolbar-filter" onClick={load}>Atualizar</button>
+        </div>
+      </div>
+      <div className="table-responsive-container">
+        <table className="admin-data-table">
+          <thead><tr><th>EAN</th><th>PRODUTO</th><th>SKU / CAPA</th><th>ORIGEM</th><th>STATUS</th><th>ATUALIZADO</th></tr></thead>
+          <tbody>
+            {loading ? <tr><td colSpan="6" className="table-empty-row">Carregando códigos EAN…</td></tr> : rows.length === 0 ? (
+              <tr><td colSpan="6" className="table-empty-row">Nenhum código encontrado.</td></tr>
+            ) : rows.map(item => (
+              <tr key={item.id}>
+                <td><span className="ean-code-cell">{item.gtin}</span></td>
+                <td><div className="product-info-cell"><strong>{item.nome || item.sku}</strong><small>{item.variacao || 'Sem variação informada'}</small></div></td>
+                <td><div className="ean-status-copy"><strong>{item.sku}</strong><small>Capa {item.capa_code || '—'}</small></div></td>
+                <td>{item.source || '—'}</td>
+                <td><span className={`status-pill ${item.active ? 'active' : 'danger'}`}>{item.active ? '• Ativo' : '• Inativo'}</span></td>
+                <td>{formatProductDate(item.updated_at).date}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function GtinEventsView({ initialStatus = '' }) {
+  const [events, setEvents] = useState([]);
+  const [status, setStatus] = useState(initialStatus);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { setStatus(initialStatus); }, [initialStatus]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '250' });
+      if (status) params.set('status', status);
+      if (search.trim()) params.set('q', search.trim());
+      const data = await api(`/api/admin/gtin-events?${params.toString()}`);
+      setEvents(data.events || []);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, [status]);
+
+  const statusLabel = value => ({
+    identified: 'Identificado',
+    not_found: 'Não cadastrado',
+    system_error: 'Erro técnico'
+  }[value] || value);
+
+  return (
+    <div className="admin-table-card">
+      <div className="table-card-topbar">
+        <div className="table-title-group">
+          <div className="table-title-icon"><SidebarIcon name={initialStatus === 'not_found' ? 'alert' : 'history'} /></div>
+          <div>
+            <h3 className="table-main-title">{initialStatus === 'not_found' ? 'EAN não Cadastrados' : 'Histórico de Leituras EAN'}</h3>
+            <span className="table-sub-title">Leituras registradas pelos aparelhos e operadores</span>
+          </div>
+        </div>
+        <div className="table-actions-toolbar">
+          {!initialStatus && (
+            <select className="table-platform-select" value={status} onChange={event => setStatus(event.target.value)}>
+              <option value="">Todos os resultados</option>
+              <option value="identified">Identificados</option>
+              <option value="not_found">Não cadastrados</option>
+              <option value="system_error">Erros técnicos</option>
+            </select>
+          )}
+          <input className="table-search-input" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === 'Enter' && load()} placeholder="Buscar EAN, operador ou SKU" />
+          <button type="button" className="btn-toolbar-filter" onClick={load}>Buscar</button>
+        </div>
+      </div>
+      <div className="table-responsive-container">
+        <table className="admin-data-table">
+          <thead><tr><th>STATUS</th><th>HORÁRIO</th><th>OPERADOR</th><th>EAN</th><th>PRODUTO</th><th>TEMPO</th></tr></thead>
+          <tbody>
+            {loading ? <tr><td colSpan="6" className="table-empty-row">Carregando leituras…</td></tr> : events.length === 0 ? (
+              <tr><td colSpan="6" className="table-empty-row">Nenhuma leitura registrada neste filtro.</td></tr>
+            ) : events.map(event => (
+              <tr key={event.id}>
+                <td><span className={`status-pill ${event.status === 'identified' ? 'active' : event.status === 'not_found' ? 'orange' : 'danger'}`}>• {statusLabel(event.status)}</span></td>
+                <td><div className="datetime-cell"><span>{formatProductDate(event.created_at).date}</span><small>{formatProductDate(event.created_at).time}</small></div></td>
+                <td><strong>{event.operator_name || 'Não identificado'}</strong></td>
+                <td><span className="ean-code-cell">{event.gtin}</span></td>
+                <td><div className="product-info-cell"><strong>{event.nome || event.sku || 'Sem produto vinculado'}</strong><small>{event.sku || event.error_code || '—'}</small></div></td>
+                <td>{event.response_ms ? `${event.response_ms} ms` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* =========================================================================
-   RECOGNITION DIAGNOSTICS & TELEMETRY VIEW
+   LEGACY RECOGNITION DIAGNOSTICS (kept outside the active EAN navigation)
    ========================================================================= */
 function DiagnosticsView({ filter = 'all', initialOperator = '' }) {
   const [events, setEvents] = useState([]);
@@ -2698,6 +2960,7 @@ function AdminApp() {
   const [products, setProducts] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [storage, setStorage] = useState(null);
+  const [gtinDashboard, setGtinDashboard] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -2717,13 +2980,15 @@ function AdminApp() {
 
   const refreshMetrics = async () => {
     try {
-      const [m, s, unread] = await Promise.all([
+      const [m, s, unread, gtin] = await Promise.all([
         api('/api/admin/system-metrics').catch(() => null),
         api('/api/admin/storage-metrics').catch(() => null),
-        api('/api/notifications/unread-count').catch(() => ({ unread_count: 0 }))
+        api('/api/notifications/unread-count').catch(() => ({ unread_count: 0 })),
+        api('/api/admin/gtin-dashboard').catch(() => null)
       ]);
       if (m) setMetrics(m);
       if (s) setStorage(s);
+      if (gtin) setGtinDashboard(gtin);
       if (unread?.unread_count !== undefined) setUnreadCount(unread.unread_count);
     } catch {}
   };
@@ -2738,11 +3003,9 @@ function AdminApp() {
     return () => clearInterval(interval);
   }, []);
 
-  const recognitionsToday = Number(metrics?.recognition?.today?.attempts ?? 0);
-  const unmatchedToday = Number(metrics?.recognition?.today?.unmatched ?? 0);
-  const platformsCount = useMemo(() => {
-    return new Set(products.map(p => p.platform).filter(Boolean)).size;
-  }, [products]);
+  const activeGtins = Number(gtinDashboard?.active_gtins || 0);
+  const scansToday = Number(gtinDashboard?.today?.total || 0);
+  const missingToday = Number(gtinDashboard?.today?.not_found || 0);
 
   const handleNavChange = viewId => setActiveView(viewId);
 
@@ -2775,9 +3038,9 @@ function AdminApp() {
 
           <KpiSection
             productsCount={products.length}
-            recognitionsToday={recognitionsToday}
-            unmatchedToday={unmatchedToday}
-            platformsCount={platformsCount}
+            activeGtins={activeGtins}
+            scansToday={scansToday}
+            missingToday={missingToday}
           />
 
           {activeView === 'catalogo' && (
@@ -2789,21 +3052,11 @@ function AdminApp() {
             />
           )}
 
-          {activeView === 'nao-identificados' && (
-            <DiagnosticsView filter="issues" />
-          )}
+          {activeView === 'gtins' && <GtinRegistryView />}
 
-          {activeView === 'shadow-observability' && (
-            <GeometricShadowObservability embedded />
-          )}
+          {activeView === 'historico-ean' && <GtinEventsView />}
 
-          {activeView === 'verificar' && (
-            <CoverVerifierView />
-          )}
-
-          {activeView === 'historico' && (
-            <DiagnosticsView filter="all" />
-          )}
+          {activeView === 'ean-nao-cadastrados' && <GtinEventsView initialStatus="not_found" />}
 
           {activeView === 'logs' && (
             <SystemHealthView
@@ -2813,17 +3066,10 @@ function AdminApp() {
             />
           )}
 
-          {activeView === 'usuarios' && (
-            <OperatorsAndLearningView
-              products={products}
-              onRefresh={refreshAll}
-              initialSubTab="ocorrencias"
-            />
-          )}
         </main>
 
         <footer className="admin-global-footer">
-          <p>© {new Date().getFullYear()} NISTI ID · Sistema de Identificação Visual. Todos os direitos reservados.</p>
+          <p>© {new Date().getFullYear()} NISTI ID · Sistema de Identificação por EAN. Todos os direitos reservados.</p>
         </footer>
       </div>
 

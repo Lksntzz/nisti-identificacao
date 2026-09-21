@@ -14,18 +14,20 @@ test('Saúde & Logs não usa mais o painel legado com quotas inventadas', () => 
   assert.equal(source.includes('100% Gratuito'), false);
 });
 
-test('Painel de saúde separa medição local de billing externo', () => {
+test('Painel de saúde descreve somente a infraestrutura do fluxo EAN', () => {
   const source = read('src/system-health-view.jsx');
-  assert.equal(source.includes('Sem números inventados de billing'), true);
-  assert.equal(source.includes('Quota ativa não é estimada'), true);
-  assert.equal(source.includes('Snapshot atual'), true);
-  assert.equal(source.includes('billing real do Vectorize não é consultado'), true);
+  assert.equal(source.includes('Saúde do Sistema EAN'), true);
+  assert.equal(source.includes('Fluxo principal sem dependência de IA'), true);
+  assert.equal(source.includes('Reindexar Vectorize'), false);
+  assert.equal(source.includes('Atividade de IA hoje'), false);
 });
 
-test('Observabilidade Shadow é renderizada dentro do AdminApp', () => {
+test('Ferramentas visuais antigas não são renderizadas no AdminApp EAN', () => {
   const source = read('src/main.jsx');
-  assert.equal(source.includes("activeView === 'shadow-observability'"), true);
-  assert.equal(source.includes('<GeometricShadowObservability embedded />'), true);
+  assert.equal(source.includes("activeView === 'shadow-observability'"), false);
+  assert.equal(source.includes('<GeometricShadowObservability embedded />'), false);
+  assert.equal(source.includes('<GtinRegistryView />'), true);
+  assert.equal(source.includes('<GtinEventsView'), true);
 });
 
 test('Shadow suporta modo embedded sem backlink administrativo redundante', () => {

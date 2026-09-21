@@ -2,22 +2,15 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
   {
     title: 'CATÁLOGO',
     items: Object.freeze([
-      { id: 'catalogo', label: 'Catálogo de Produtos', icon: 'grid' }
+      { id: 'catalogo', label: 'Catálogo de Produtos', icon: 'grid' },
+      { id: 'gtins', label: 'Códigos EAN', icon: 'barcode' }
     ])
   },
   {
     title: 'OPERAÇÃO',
     items: Object.freeze([
-      { id: 'usuarios', label: 'Ocorrências & Operadores', icon: 'users' },
-      { id: 'historico', label: 'Histórico de Identificações', icon: 'history' },
-      { id: 'nao-identificados', label: 'Falhas de Identificação', icon: 'alert' }
-    ])
-  },
-  {
-    title: 'IA & QUALIDADE',
-    items: Object.freeze([
-      { id: 'shadow-observability', label: 'Observabilidade IA', icon: 'brain' },
-      { id: 'verificar', label: 'Testar Reconhecimento', icon: 'shield-check' }
+      { id: 'historico-ean', label: 'Histórico de Leituras', icon: 'history' },
+      { id: 'ean-nao-cadastrados', label: 'EAN não Cadastrados', icon: 'alert' }
     ])
   },
   {
@@ -34,5 +27,10 @@ export const REMOVED_ADMIN_NAV_IDS = Object.freeze([
   'cadastrar',
   'importar',
   'plataformas',
-  'configuracoes'
+  'configuracoes',
+  'usuarios',
+  'historico',
+  'nao-identificados',
+  'shadow-observability',
+  'verificar'
 ]);

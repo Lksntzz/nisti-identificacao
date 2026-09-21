@@ -57,11 +57,13 @@ test('Admin UI has no fabricated free-tier guarantee, quota, trend or fallback m
   }
 });
 
-test('Shadow observability renders inside AdminApp instead of a standalone entry route', () => {
+test('EAN operations replace visual AI tools in the active AdminApp', () => {
   const main = read('src/main.jsx');
   const entry = read('src/entry.jsx');
-  assert.equal(main.includes("activeView === 'shadow-observability'"), true);
-  assert.equal(main.includes('<GeometricShadowObservability embedded />'), true);
+  assert.equal(main.includes("activeView === 'historico-ean'"), true);
+  assert.equal(main.includes("activeView === 'ean-nao-cadastrados'"), true);
+  assert.equal(main.includes("activeView === 'shadow-observability'"), false);
+  assert.equal(main.includes('<GeometricShadowObservability embedded />'), false);
   assert.equal(entry.includes("pathname === '/admin/shadow-observability'"), false);
   assert.equal(entry.includes("pathname.startsWith('/admin')"), true);
 });
