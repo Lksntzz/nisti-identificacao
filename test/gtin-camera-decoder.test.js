@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeEan13Bits, decodeEan13LumaRow } from '../src/gtin-camera-decoder.js';
+import { decodeEan13Bits, decodeEan13LumaRow, imageDataToLumaRow } from '../src/gtin-camera-decoder.js';
 
 const L = {
   0:'0001101',1:'0011001',2:'0010011',3:'0111101',4:'0100011',
@@ -56,4 +56,17 @@ test('decodes EAN-13 from a synthetic camera scan row', () => {
 test('rejects a checksum-invalid pattern', () => {
   const invalid = '7898764983769';
   assert.equal(decodeEan13Bits(encodeEan13(invalid)), null);
+});
+
+test('averages a multi-pixel camera band into one stable luma row', () => {
+  const imageData = {
+    width: 2,
+    height: 2,
+    data: new Uint8ClampedArray([
+      0, 0, 0, 255, 100, 100, 100, 255,
+      100, 100, 100, 255, 200, 200, 200, 255
+    ])
+  };
+
+  assert.deepEqual([...imageDataToLumaRow(imageData)], [50, 150]);
 });
