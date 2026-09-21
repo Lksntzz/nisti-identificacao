@@ -475,7 +475,7 @@ function OperatorProfileModal({ isOpen, onClose, currentName, onSave }) {
   );
 }
 
-function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpenOperatorModal }) {
+function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpenOperatorModal, showInstall = false }) {
   const initials = operatorName
     ? operatorName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase()
     : 'OP';
@@ -500,6 +500,7 @@ function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpe
           <span className="operator-avatar-mini">{initials}</span>
           <span className="operator-name-label">{operatorName || 'Identificar-se'}</span>
         </button>
+        {showInstall && <InstallApp compact />}
         <BellIcon unreadCount={unreadCount} onClick={onOpenNotifications} />
       </div>
     </header>
@@ -535,7 +536,7 @@ function ProductImage({ product, className = '', alt }) {
   />;
 }
 
-function InstallApp() {
+function InstallApp({ compact = false }) {
   const [prompt, setPrompt] = useState(null);
   const [help, setHelp] = useState(false);
   const [installed, setInstalled] = useState(() => {
@@ -614,7 +615,13 @@ function InstallApp() {
   };
 
   return <>
-    <button className="install-button" type="button" onClick={install}>↓ Instalar NISTI ID</button>
+    <button
+      className={`install-button${compact ? ' compact' : ''}`}
+      type="button"
+      onClick={install}
+      aria-label={compact ? 'Instalar NISTI ID' : undefined}
+      title={compact ? 'Instalar NISTI ID' : undefined}
+    >{compact ? '↓' : '↓ Instalar NISTI ID'}</button>
     {help && <div className="modal-backdrop" onClick={event => event.target === event.currentTarget && setHelp(false)}>
       <div className="modal">
         <h3>Instalar NISTI ID no iPhone</h3>
@@ -1542,12 +1549,13 @@ function PublicIdentificationApp() {
   }, []);
 
   return (
-    <main className="app general">
+    <main className="app general ean-viewport">
       <BrandHeader
         unreadCount={unreadCount}
         onOpenNotifications={() => setNotificationsOpen(true)}
         operatorName={operatorName}
         onOpenOperatorModal={() => setOperatorModalOpen(true)}
+        showInstall
       />
 
       <div className="main-card ean-primary-card">
@@ -1578,8 +1586,6 @@ function PublicIdentificationApp() {
           }).catch(() => {});
         }}
       />
-
-      <InstallApp />
     </main>
   );
 }
