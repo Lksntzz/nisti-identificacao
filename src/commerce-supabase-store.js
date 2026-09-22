@@ -100,3 +100,51 @@ export async function commerceImportBatch(env, batchId) {
   if (!id) throw new Error('batch_id inválido.');
   return await supabaseRpc(env, 'commerce_import_batch_v1', { p_batch_id: id });
 }
+
+export async function commerceReconcileImportBatch(env, batchId) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  return await supabaseRpc(env, 'commerce_reconcile_import_batch_v1', { p_batch_id: id });
+}
+
+export async function commerceImportRows(env, batchId, filters = {}) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  const limit = cleanPageSize(filters.limit);
+  const offset = cleanOffset(filters.offset);
+  const rows = await supabaseRpc(env, 'commerce_list_import_rows_v1', {
+    p_batch_id: id,
+    p_status: cleanText(filters.status),
+    p_limit: limit,
+    p_offset: offset
+  });
+  return {
+    items: Array.isArray(rows) ? rows : [],
+    limit,
+    offset
+  };
+}
+
+export async function commerceDecideImportRow(env, rowId, action, productId = null) {
+  const id = cleanId(rowId);
+  if (!id) throw new Error('import_row_id inválido.');
+  const product = productId == null ? null : cleanId(productId);
+  return await supabaseRpc(env, 'commerce_decide_import_row_v1', {
+    p_import_row_id: id,
+    p_action: cleanText(action),
+    p_product_id: product
+  });
+}
+
+export async function commerceApproveNewRows(env, batchId) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  const count = await supabaseRpc(env, 'commerce_approve_new_rows_v1', { p_batch_id: id });
+  return Number(count || 0);
+}
+
+export async function commerceCommitImportBatch(env, batchId) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  return await supabaseRpc(env, 'commerce_commit_import_batch_v1', { p_batch_id: id });
+}
