@@ -13,7 +13,7 @@ export default function CommerceOverviewView({ dashboard, onNavigate }) {
         <CommerceMetricCard label="Produtos Mestre" value={dashboard?.products} helper="Produtos comerciais cadastrados" />
         <CommerceMetricCard label="Anúncios" value={dashboard?.listings} helper="Em todos os marketplaces" />
         <CommerceMetricCard label="Multiplataforma" value={dashboard?.multi_platform_products} helper="Presentes em 2 ou mais plataformas" />
-        <CommerceMetricCard label="Sem anúncio" value={dashboard?.products_without_listing} helper="Produtos sem publicação vinculada" />
+        <CommerceMetricCard label="Exclusivos" value={dashboard?.single_platform_products} helper="Presentes em apenas uma plataforma" />
       </section>
 
       <section className="commerce-panel">
@@ -55,8 +55,8 @@ export default function CommerceOverviewView({ dashboard, onNavigate }) {
             <strong>{commerceFormatNumber(dashboard?.update_items_pending || 0)}</strong>
           </button>
           <button type="button" onClick={() => onNavigate('products')}>
-            <span>Produtos em uma única plataforma</span>
-            <strong>{commerceFormatNumber(dashboard?.single_platform_products || 0)}</strong>
+            <span>Produtos sem anúncio</span>
+            <strong>{commerceFormatNumber(dashboard?.products_without_listing || 0)}</strong>
           </button>
         </div>
       </section>
