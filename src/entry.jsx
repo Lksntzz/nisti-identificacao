@@ -5,7 +5,12 @@ const rootElement = document.getElementById('root');
 if (rootElement) {
   const root = createRoot(rootElement);
 
-  if (window.location.pathname.startsWith('/admin')) {
+  if (window.location.pathname === '/admin-commerce') {
+    import('./commerce-admin-app.jsx').then(mod => {
+      const Component = mod.default || mod.CommerceAdminApp;
+      root.render(<Component />);
+    });
+  } else if (window.location.pathname.startsWith('/admin')) {
     import('./main.jsx').then(mod => {
       const Component = mod.default || mod.AdminApp;
       root.render(<Component />);
