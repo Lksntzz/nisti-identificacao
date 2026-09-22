@@ -463,18 +463,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   useEffect(() => {
     if (!embedded || autoStartAttemptedRef.current) return;
     autoStartAttemptedRef.current = true;
-    let cancelled = false;
-
-    const resumeAuthorizedCamera = async () => {
-      if (!navigator.permissions?.query) return;
-      try {
-        const permission = await navigator.permissions.query({ name: 'camera' });
-        if (!cancelled && permission.state === 'granted') startCamera();
-      } catch {}
-    };
-
-    resumeAuthorizedCamera();
-    return () => { cancelled = true; };
+    startCamera();
   }, [embedded, startCamera]);
 
   const openScanner = useCallback(() => {
