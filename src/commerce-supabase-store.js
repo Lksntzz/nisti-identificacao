@@ -118,7 +118,7 @@ export async function commerceImportBatch(env, batchId) {
 export async function commerceReconcileImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  return await supabaseRpc(env, 'commerce_reconcile_import_batch_v4', { p_batch_id: id });
+  return await supabaseRpc(env, 'commerce_reconcile_import_batch_v5', { p_batch_id: id });
 }
 
 export async function commerceImportRows(env, batchId, filters = {}) {
