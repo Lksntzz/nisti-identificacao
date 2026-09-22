@@ -6,13 +6,17 @@ function read(path) {
   return fs.readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 }
 
-test('preview do Worker não habilita commit do Catálogo Comercial', () => {
+test('preview do Worker habilita commit somente no sandbox comercial isolado', () => {
   const config = read('wrangler.preview.toml');
   const router = read('src/commerce-admin-router.js');
+  const rpc = read('src/commerce-rpc.js');
 
   assert.equal(config.includes('preview_urls = true'), true);
   assert.equal(config.includes('APP_ENV = "preview"'), true);
-  assert.equal(config.includes('COMMERCE_COMMIT_ENABLED = "0"'), true);
+  assert.equal(config.includes('COMMERCE_DATA_SCOPE = "preview"'), true);
+  assert.equal(config.includes('COMMERCE_COMMIT_ENABLED = "1"'), true);
+  assert.equal(rpc.includes("appEnv === 'preview' && scope !== 'preview'"), true);
+  assert.equal(rpc.includes('Worker preview não pode acessar o Catálogo Comercial live.'), true);
   assert.equal(router.includes("env?.COMMERCE_COMMIT_ENABLED"), true);
   assert.equal(router.includes("technical_error: 'commerce_commit_disabled'"), true);
 });
