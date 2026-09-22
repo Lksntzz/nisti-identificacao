@@ -1,6 +1,10 @@
 import { SupabaseReadError } from './supabase-read-store.js';
 import {
+  commerceAppendImportRows,
+  commerceCreateImportBatch,
   commerceDashboard,
+  commerceFinalizeImportBatch,
+  commerceImportBatch,
   commerceListings,
   commerceProducts
 } from './commerce-supabase-store.js';
@@ -22,19 +26,47 @@ function query(url, name) {
   return value == null ? null : value;
 }
 
+async function bodyJson(request) {
+  try {
+    const data = await request.json();
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function operatorName(request) {
+  const raw = String(request.headers.get('x-operator-name') || '').trim();
+  if (!raw) return 'Administrador';
+  try {
+    return decodeURIComponent(raw).trim().slice(0, 120) || 'Administrador';
+  } catch {
+    return raw.slice(0, 120) || 'Administrador';
+  }
+}
+
+function positiveId(value) {
+  const id = Number(value || 0);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
 function errorResponse(error) {
   if (error instanceof SupabaseReadError) {
-    console.error(`[Commerce] Supabase read failed: ${error.code}`, error.message);
+    console.error(`[Commerce] Supabase RPC failed: ${error.code}`, error.message);
+    const clientError = error.status >= 400 && error.status < 500 && !error.fallbackEligible;
     return json({
-      error: 'Não foi possível consultar o Catálogo Comercial.',
+      error: clientError
+        ? 'Dados inválidos para a operação do Catálogo Comercial.'
+        : 'Não foi possível acessar o Catálogo Comercial.',
       technical_error: error.code,
       retryable: Boolean(error.fallbackEligible)
-    }, error.status >= 400 && error.status < 600 ? error.status : 502);
+    }, clientError ? 400 : (error.status >= 400 && error.status < 600 ? error.status : 502));
   }
 
   console.error('[Commerce] unexpected error', error);
   return json({
-    error: 'Erro interno ao consultar o Catálogo Comercial.',
+    error: 'Erro interno no Catálogo Comercial.',
     technical_error: 'commerce_internal_error',
     retryable: false
   }, 500);
@@ -57,18 +89,15 @@ function paginationPayload(result) {
 export async function handleCommerceAdminRequest(request, env) {
   const url = new URL(request.url);
   const pathname = url.pathname;
+  const method = String(request.method || 'GET').toUpperCase();
   if (pathname !== BASE_PATH && !pathname.startsWith(`${BASE_PATH}/`)) return null;
 
-  if (request.method !== 'GET') {
-    return json({ error: 'Método não permitido.' }, 405);
-  }
-
   try {
-    if (pathname === BASE_PATH || pathname === `${BASE_PATH}/dashboard`) {
+    if (method === 'GET' && (pathname === BASE_PATH || pathname === `${BASE_PATH}/dashboard`)) {
       return json(await commerceDashboard(env));
     }
 
-    if (pathname === `${BASE_PATH}/health`) {
+    if (method === 'GET' && pathname === `${BASE_PATH}/health`) {
       const dashboard = await commerceDashboard(env);
       return json({
         ok: true,
@@ -78,7 +107,7 @@ export async function handleCommerceAdminRequest(request, env) {
       });
     }
 
-    if (pathname === `${BASE_PATH}/products`) {
+    if (method === 'GET' && pathname === `${BASE_PATH}/products`) {
       const result = await commerceProducts(env, {
         search: query(url, 'search'),
         marketplace: query(url, 'marketplace'),
@@ -90,7 +119,7 @@ export async function handleCommerceAdminRequest(request, env) {
       return json(paginationPayload(result));
     }
 
-    if (pathname === `${BASE_PATH}/listings`) {
+    if (method === 'GET' && pathname === `${BASE_PATH}/listings`) {
       const result = await commerceListings(env, {
         search: query(url, 'search'),
         marketplace: query(url, 'marketplace'),
@@ -99,6 +128,58 @@ export async function handleCommerceAdminRequest(request, env) {
         offset: query(url, 'offset')
       });
       return json(paginationPayload(result));
+    }
+
+    if (method === 'POST' && pathname === `${BASE_PATH}/imports`) {
+      const body = await bodyJson(request);
+      const marketplace = String(body?.marketplace || '').trim();
+      const filename = String(body?.filename || '').trim();
+      const sha256 = String(body?.sha256 || '').trim() || null;
+      if (!marketplace || !filename) {
+        return json({ error: 'marketplace e filename são obrigatórios.' }, 400);
+      }
+      if (sha256 && !/^[0-9a-f]{64}$/i.test(sha256)) {
+        return json({ error: 'sha256 inválido.' }, 400);
+      }
+      const batchId = await commerceCreateImportBatch(env, {
+        marketplace,
+        filename,
+        sha256,
+        createdBy: operatorName(request)
+      });
+      return json({ batch_id: batchId }, 201);
+    }
+
+    const importBatchMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)$/);
+    if (method === 'GET' && importBatchMatch) {
+      const batchId = positiveId(importBatchMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      const batch = await commerceImportBatch(env, batchId);
+      return batch ? json(batch) : json({ error: 'Importação não encontrada.' }, 404);
+    }
+
+    const importRowsMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/rows$/);
+    if (method === 'POST' && importRowsMatch) {
+      const batchId = positiveId(importRowsMatch[1]);
+      const body = await bodyJson(request);
+      const rows = body?.rows;
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      if (!Array.isArray(rows) || rows.length < 1 || rows.length > 100) {
+        return json({ error: 'rows deve conter entre 1 e 100 linhas.' }, 400);
+      }
+      const inserted = await commerceAppendImportRows(env, batchId, rows);
+      return json({ batch_id: batchId, accepted_rows: inserted });
+    }
+
+    const importFinalizeMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/finalize$/);
+    if (method === 'POST' && importFinalizeMatch) {
+      const batchId = positiveId(importFinalizeMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      return json(await commerceFinalizeImportBatch(env, batchId));
+    }
+
+    if (!['GET', 'POST'].includes(method)) {
+      return json({ error: 'Método não permitido.' }, 405);
     }
 
     return json({ error: 'Rota do Catálogo Comercial não encontrada.' }, 404);
