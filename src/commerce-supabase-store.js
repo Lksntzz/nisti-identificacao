@@ -64,6 +64,20 @@ export async function commerceListings(env, filters = {}) {
   };
 }
 
+export async function commerceImportBatches(env, filters = {}) {
+  const limit = cleanPageSize(filters.limit, 30);
+  const offset = cleanOffset(filters.offset);
+  const rows = await supabaseRpc(env, 'commerce_list_import_batches_v1', {
+    p_limit: limit,
+    p_offset: offset
+  });
+  return {
+    items: Array.isArray(rows) ? rows : [],
+    limit,
+    offset
+  };
+}
+
 export async function commerceCreateImportBatch(env, input = {}) {
   const batchId = await supabaseRpc(env, 'commerce_create_import_batch_v1', {
     p_marketplace_code: cleanText(input.marketplace),
