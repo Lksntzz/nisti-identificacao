@@ -4,205 +4,182 @@
 
 Centralizar produtos, anúncios e controles comerciais de marketplaces no painel administrativo existente, substituindo as planilhas Excel como fonte de verdade sem remover a capacidade de importar/exportar Excel.
 
-## Decisões arquiteturais
+## Arquitetura
 
-- O painel administrativo atual continua sendo a interface única de administração.
-- O novo módulo fica isolado do catálogo operacional de reconhecimento visual.
-- `public.products` e `public.product_platforms` existentes não serão alteradas por este módulo.
-- O Catálogo Comercial usa tabelas próprias com prefixo `commerce_` no Supabase PostgreSQL.
-- Cloudflare Worker continua sendo a fronteira de API/autenticação; o navegador não recebe `SUPABASE_SERVICE_ROLE_KEY`.
-- R2 continua responsável por imagens/arquivos grandes. PostgreSQL guarda somente dados estruturados e referências de arquivo.
-- D1 continua autoridade do pipeline atual de reconhecimento até o cutover D1 → Supabase já documentado no projeto.
-- Não haverá dual-write do Catálogo Comercial entre D1 e Supabase.
+- **Painel administrativo existente:** ponto de entrada para o módulo.
+- **Cloudflare Worker:** autenticação e API administrativa.
+- **Supabase PostgreSQL:** fonte de verdade exclusiva do Catálogo Comercial.
+- **D1:** permanece autoridade do pipeline atual de identificação visual até eventual cutover independente.
+- **R2:** arquivos e imagens quando necessário.
+- **Vectorize:** continua restrito à busca visual.
 
-## Navegação proposta no ADM
+O módulo comercial não faz dual-write para D1.
 
-### CATÁLOGO
-- Catálogo de Produtos
-- Códigos EAN
-- Gerador de Barras
+## Navegação do ADM
 
-### COMERCIAL
-- Visão Geral
-- Produtos Mestre
-- Anúncios
-- Atualização Anual
-- Importações
-- Reconciliação
+O menu administrativo passa a possuir uma seção **COMERCIAL** apontando para `/admin-commerce`.
 
-### OPERAÇÃO
-- Histórico de Leituras
-- EAN não Cadastrados
+A área comercial contém:
 
-### SISTEMA
-- Saúde & Logs
+1. Visão Geral;
+2. Produtos Mestre;
+3. Anúncios;
+4. Importações Excel;
+5. Atualização Anual.
 
-## Modelo conceitual
+A rota `/admin-commerce` reutiliza a mesma sessão administrativa de `/admin`.
 
-```text
-commerce_products
-  ├── commerce_product_skus
-  ├── commerce_listing_products ── commerce_listings ── commerce_marketplaces
-  └── commerce_update_items ── commerce_update_checks
+## Modelo de domínio
 
-commerce_categories
-  └── commerce_subcategories
+### Produto mestre
 
-commerce_import_batches
-  └── commerce_import_rows
-      └── commerce_reconciliation_candidates
+`commerce_products` representa a identidade comercial da NISTI. O identificador interno é imutável e não depende de marketplace, URL ou ano no SKU.
 
-commerce_update_campaigns
-  └── commerce_update_items
-      └── commerce_update_checks
-```
+SKUs ficam em `commerce_product_skus`, permitindo:
 
-## Regras centrais
+- SKU atual;
+- SKU histórico;
+- aliases;
+- uma única referência `CURRENT` ativa por produto.
 
-### Produto Mestre
+### Marketplace e anúncio
 
-`commerce_products` representa a identidade comercial interna do produto. O ID não muda quando SKU, ano ou marketplace mudam.
+`commerce_marketplaces` contém as plataformas. A V1 inicia com:
 
-Os códigos ficam em `commerce_product_skus`. Cada produto pode ter SKUs `CURRENT`, `HISTORICAL` e `ALIAS`, mas somente um SKU `CURRENT` ativo. O banco impede que o mesmo SKU normalizado pertença simultaneamente a produtos diferentes.
+- Shopee;
+- Mercado Livre;
+- Amazon.
 
-### Produto anual vs. permanente
+`commerce_listings` representa o anúncio na plataforma.
 
-`temporal_type`:
+`commerce_listing_products` implementa a relação N:N entre anúncio e produto. Isso suporta tanto um produto publicado em várias plataformas quanto anúncios com várias variações/produtos.
 
-- `ANNUAL`: exige `edition_year` e participa de campanhas anuais.
-- `PERMANENT`: não entra automaticamente em viradas de ano.
-- `UNCLASSIFIED`: estado temporário para dados ainda não classificados.
+A URL não é a identidade do produto. O ID externo do anúncio é armazenado quando disponível.
 
-### Anúncio não é produto
+## Estado comercial
 
-`commerce_listings` representa o anúncio na plataforma. Um anúncio pode conter vários produtos/variações, e um produto pode estar em vários anúncios/plataformas. A relação N:N é mantida em `commerce_listing_products`.
+Status do anúncio e situação comercial são separados:
 
-Quando for conhecido, `product_sku_id` liga a variação do anúncio a uma versão específica do SKU interno. `platform_sku` preserva o código usado pelo marketplace quando ele divergir do código interno.
+- anúncio: `UNKNOWN`, `ACTIVE`, `PAUSED`, `INACTIVE`, `REMOVED`;
+- venda: `UNKNOWN`, `SELLING`, `NO_SALES`.
 
-### Exclusividade
+A V1 não inventa automaticamente o estado ativo/vendendo quando a fonte Excel não comprova isso.
 
-“Exclusivo Shopee”, “Exclusivo Mercado Livre” e “Multiplataforma” são informações derivadas dos anúncios vinculados. Não serão campos editáveis.
+## Importação de Excel
 
-### Ativo e vendendo
-
-São estados independentes:
-
-- `listing_status`: `UNKNOWN`, `ACTIVE`, `PAUSED`, `INACTIVE`, `REMOVED`.
-- `sales_status`: `UNKNOWN`, `SELLING`, `NO_SALES`.
-
-Enquanto não houver API oficial da plataforma, os estados podem permanecer `UNKNOWN` ou ser revisados manualmente.
-
-### Vídeo
-
-`video_status`: `UNKNOWN`, `ACTIVE`, `ABSENT`, `DISABLED`.
-
-Isso evita valores ambíguos das planilhas como `sim/desa`.
-
-## Importação Excel
-
-Fluxo obrigatório:
+O fluxo é fail-closed:
 
 ```text
-Excel
-  → commerce_import_batches
-  → commerce_import_rows (bruto)
-  → normalização
-  → matching
-  → reconciliação
-  → catálogo definitivo
+XLSX
+  ↓
+normalização no navegador
+  ↓
+commerce_import_batches / commerce_import_rows
+  ↓
+reconciliação
+  ↓
+revisão humana quando necessário
+  ↓
+commit transacional
+  ↓
+catálogo definitivo
 ```
 
-A importação nunca grava diretamente em `commerce_products` sem passar pela etapa de reconciliação.
+O payload original de cada linha é preservado junto da versão normalizada.
 
-### Estados de linha importada
+A normalização possui perfis próprios para Shopee e para as diferentes abas do Mercado Livre porque as planilhas reais não usam um layout único.
 
-- `PENDING`
-- `MATCHED`
-- `PROBABLE`
-- `NEW_PRODUCT`
-- `CONFLICT`
-- `INVALID`
-- `IGNORED`
-- `COMMITTED`
+## Reconciliação
 
-### Matching
+A reconciliação implementada segue esta precedência:
 
-Ordem recomendada:
+1. SKU oficial/alias exato;
+2. SKU já usado em marketplace;
+3. nome normalizado + categoria;
+4. nome normalizado;
+5. nome sem ano, para detectar mudanças como 2025 → 2026;
+6. sem candidato → produto novo.
 
-1. SKU `CURRENT` exato;
-2. SKU `HISTORICAL`/`ALIAS`;
-3. `platform_sku` já conhecido;
-4. nome normalizado + categoria;
-5. correspondência provável;
-6. revisão humana.
+Regras de segurança:
 
-Correspondência aproximada nunca cria vínculo automaticamente quando houver ambiguidade.
+- um único SKU exato pode ser vinculado automaticamente;
+- mais de um produto compatível por SKU vira `CONFLICT`;
+- correspondência por nome vira `PROBABLE` e exige decisão humana;
+- produto novo começa como `NO_MATCH` e exige aprovação explícita, inclusive na aprovação em lote do primeiro onboarding;
+- SKU duplicado dentro do mesmo arquivo vira conflito;
+- linha sem URL válida do anúncio não pode ser commitada;
+- o commit é bloqueado enquanto existirem `PENDING`, `PROBABLE`, `CONFLICT` ou `INVALID`.
+
+As decisões humanas possíveis são:
+
+- confirmar um produto existente;
+- criar como novo produto;
+- ignorar a linha.
+
+## Commit da importação
+
+O commit é executado dentro de uma função PostgreSQL e falha integralmente quando detecta inconsistência estrutural.
+
+Para produtos novos:
+
+- cria categoria quando necessário;
+- cria `commerce_products` como `DRAFT`;
+- cria SKU `CURRENT`;
+- preserva SKU secundário como alias quando aplicável.
+
+Para produtos existentes:
+
+- adiciona aliases somente se não pertencerem a outro produto;
+- conflito de propriedade de SKU aborta a transação.
+
+Anúncios iguais podem receber múltiplos produtos, desde que a identidade do anúncio seja consistente.
 
 ## Atualização anual
 
-Uma campanha como `Atualização 2027` é criada em `commerce_update_campaigns`.
+`commerce_update_campaigns`, `commerce_update_items` e `commerce_update_checks` suportam campanhas como 2026 → 2027.
 
-Cada relação produto/anúncio entra em `commerce_update_items` por meio de `listing_product_id` e recebe verificações em `commerce_update_checks`.
+Cada item pode controlar separadamente:
 
-Tipos iniciais de verificação:
+- SKU;
+- título;
+- descrição;
+- imagens;
+- vídeo;
+- atributos.
 
-- `SKU`
-- `TITLE`
-- `DESCRIPTION`
-- `IMAGES`
-- `VIDEO`
-- `ATTRIBUTES`
-
-Estados:
-
-- `NOT_CHECKED`
-- `OK`
-- `NEEDS_UPDATE`
-- `IN_PROGRESS`
-- `BLOCKED`
-- `NOT_APPLICABLE`
-
-Cada verificação também informa `is_required`. O anúncio só é considerado atualizado quando todas as verificações obrigatórias estiverem `OK` ou `NOT_APPLICABLE`.
+Produtos `PERMANENT` não precisam entrar automaticamente na virada anual.
 
 ## Segurança
 
-- tabelas `commerce_*` não serão acessadas diretamente pelo navegador;
-- RLS fica habilitado;
-- `anon` e `authenticated` não recebem acesso direto;
-- o Worker usa a service-role key somente no servidor;
-- rotas comerciais ficam sob a autenticação administrativa existente;
-- importação mantém o payload bruto para auditoria e rastreabilidade.
+As tabelas comerciais possuem RLS habilitado e não são acessíveis diretamente por `anon` ou `authenticated`.
 
-## Escopo da V1
+As RPCs administrativas são executáveis somente por `service_role` e são chamadas server-side pelo Worker. A service-role key nunca é enviada ao navegador.
 
-Incluído:
+A API fica em `/api/admin/commerce/*` e passa pelo guard da sessão administrativa existente.
 
-- catálogo mestre;
-- categorias/subcategorias;
-- histórico/aliases de SKU;
-- anúncios por marketplace;
-- vínculo N:N produto ↔ anúncio;
-- importação Excel auditável;
-- reconciliação;
-- campanha anual;
-- filtros/paginação;
-- cálculo de exclusividade/multiplataforma.
+## Estado atual da implementação
 
-Fora da V1:
+Implementado:
 
-- alteração automática de anúncios em Shopee/Mercado Livre;
-- captura automática de vendas;
-- edição automática de imagens 2026 → 2027;
-- integração direta com APIs de marketplaces.
+- schema `commerce_*` no Supabase;
+- índices e foreign keys;
+- dashboard, produtos e anúncios paginados;
+- módulo visual `/admin-commerce`;
+- staging de importação;
+- normalização Shopee/Mercado Livre;
+- reconciliação automática/determinística;
+- candidatos prováveis para revisão humana;
+- decisões de revisão;
+- aprovação em lote de produtos novos;
+- commit transacional do catálogo;
+- listagem de lotes de importação;
+- testes e smoke test transacional no Supabase.
 
-## Estratégia de entrega
+Pendente antes de liberar a V1 em produção:
 
-1. Schema Supabase e validações.
-2. API administrativa no Worker.
-3. telas base no ADM.
-4. importador Excel Shopee/Mercado Livre.
-5. reconciliação.
-6. atualização anual 2027.
-7. métricas e critérios de aceite.
-
-Nenhuma etapa deve modificar o pipeline de reconhecimento visual existente.
+- integrar um parser `.xlsx` browser-side versionado e reprodutível;
+- ligar o seletor de arquivo à normalização/staging;
+- finalizar a tela de revisão de importações;
+- implementar as operações da campanha 2027 na interface;
+- smoke test ponta a ponta com cópias reais das planilhas;
+- merge/deploy somente após Production Gate verde e critérios de aceite.
