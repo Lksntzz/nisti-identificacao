@@ -1,6 +1,7 @@
 import app from './gtin-router.js';
 import { handleCommerceAdminRequest } from './commerce-admin-router.js';
 import { handleCommerceUpdateAdminRequest } from './commerce-update-admin-router.js';
+import { handleCommerceListingStateRequest } from './commerce-listing-state-router.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
 const SESSION_SECONDS = 60 * 60 * 12;
@@ -136,6 +137,9 @@ export default {
     if (isProtectedApi(pathname) && !(await validSession(request, env))) {
       return json({ error: 'Acesso administrativo não autorizado.' }, 401);
     }
+
+    const listingStateResponse = await handleCommerceListingStateRequest(request, env);
+    if (listingStateResponse) return listingStateResponse;
 
     const commerceUpdateResponse = await handleCommerceUpdateAdminRequest(request, env);
     if (commerceUpdateResponse) return commerceUpdateResponse;
