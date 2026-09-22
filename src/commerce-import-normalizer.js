@@ -67,6 +67,16 @@ function extractObservedYear(...values) {
   return null;
 }
 
+function decodeUrlForMatching(value) {
+  const raw = text(value);
+  if (!raw) return '';
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 function extractExternalListingId(marketplace, value) {
   const raw = text(value);
   if (!raw) return null;
@@ -77,10 +87,14 @@ function extractExternalListingId(marketplace, value) {
   }
 
   if (marketplace === 'MERCADO_LIVRE') {
-    const itemFilter = raw.match(/item_id[:=](MLB\d+)/i);
+    const decoded = decodeUrlForMatching(raw);
+    const itemFilter = decoded.match(/item_id[:=](MLB\d+)/i);
     if (itemFilter) return itemFilter[1].toUpperCase();
-    const itemPath = raw.match(/\b(MLB)-?(\d{6,})\b/i);
-    if (itemPath) return `${itemPath[1].toUpperCase()}${itemPath[2]}`;
+
+    // Direct seller listing URLs use MLB-<id> on produto.mercadolivre.com.br.
+    // Do not treat MLBU or /p/MLB catalogue identifiers as seller listing IDs.
+    const sellerItemPath = decoded.match(/produto\.mercadolivre\.com\.br\/(MLB)-?(\d{6,})/i);
+    if (sellerItemPath) return `${sellerItemPath[1].toUpperCase()}${sellerItemPath[2]}`;
     return null;
   }
 
@@ -166,6 +180,9 @@ function validateNormalized(row) {
   if (!row.listing_ref) issues.push('missing_listing_reference');
   if (row.category && !CATEGORY_HINTS.has(fold(row.category))) issues.push('nonstandard_category');
   if (row.listing_ref && !row.listing_url) issues.push('listing_reference_not_url');
+  if (row.source_update_hint === 'NOT_LISTED' && row.listing_url) {
+    issues.push('not_listed_with_listing_reference');
+  }
   return issues;
 }
 
@@ -192,6 +209,9 @@ export function normalizeCommerceImportRow({ marketplace, sheetName, row, rowNum
   const updateRaw = valueAt(row, profile.update);
   const videoRaw = valueAt(row, profile.video);
   const notes = nonEmptyTail(row, profile.notesStart);
+  const listingUrl = isUrl(listingRef) ? listingRef : null;
+  const sourceUpdateHint = normalizeUpdateHint(updateRaw);
+  const updateHint = sourceUpdateHint === 'NOT_LISTED' && listingUrl ? 'REVIEW' : sourceUpdateHint;
 
   const normalized = {
     source_sheet: text(sheetName),
@@ -202,12 +222,14 @@ export function normalizeCommerceImportRow({ marketplace, sheetName, row, rowNum
     product_name: productName || null,
     category: category || null,
     update_raw: updateRaw || null,
-    update_hint: normalizeUpdateHint(updateRaw),
+    source_update_hint: sourceUpdateHint,
+    update_hint: updateHint,
+    listing_presence_hint: listingUrl ? 'LISTED' : (sourceUpdateHint === 'NOT_LISTED' ? 'NOT_LISTED' : 'UNKNOWN'),
     video_raw: videoRaw || null,
     video_status: normalizeVideoStatus(videoRaw),
     listing_ref: listingRef || null,
-    listing_url: isUrl(listingRef) ? listingRef : null,
-    external_listing_id: isUrl(listingRef) ? extractExternalListingId(market, listingRef) : null,
+    listing_url: listingUrl,
+    external_listing_id: listingUrl ? extractExternalListingId(market, listingUrl) : null,
     observed_year: extractObservedYear(productName, listingRef),
     notes
   };
