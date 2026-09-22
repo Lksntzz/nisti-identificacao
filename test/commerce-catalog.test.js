@@ -54,10 +54,23 @@ test('API comercial passa pelo guard administrativo antes do handler', () => {
   assert.equal(edge.includes("pathname.startsWith('/api/admin/')"), true);
 });
 
-test('Primeira API comercial é somente leitura', () => {
+test('API comercial oferece leitura e staging de importação sem commit direto no catálogo', () => {
   const router = read('src/commerce-admin-router.js');
-  assert.equal(router.includes("request.method !== 'GET'"), true);
   assert.equal(router.includes('/dashboard'), true);
   assert.equal(router.includes('/products'), true);
   assert.equal(router.includes('/listings'), true);
+  assert.equal(router.includes("pathname === `${BASE_PATH}/imports`"), true);
+  assert.equal(router.includes('/imports\\/(\\d+)\\/rows'), true);
+  assert.equal(router.includes('/imports\\/(\\d+)\\/finalize'), true);
+  assert.equal(router.includes('commerceCreateImportBatch'), true);
+  assert.equal(router.includes('commerceAppendImportRows'), true);
+  assert.equal(router.includes('commerceFinalizeImportBatch'), true);
+  assert.equal(router.includes('commerce_products'), false, 'router não deve gravar produto final diretamente');
+});
+
+test('RPC de importação limita chunks a 100 linhas e preserva payload bruto', () => {
+  const migration = read('supabase/migrations/202609221235_commerce_import_rpc_v1.sql');
+  assert.equal(migration.includes('jsonb_array_length(p_rows) > 100'), true);
+  assert.equal(migration.includes("coalesce(v_row->'original', '{}'::jsonb)"), true);
+  assert.equal(migration.includes("case when v_parser_status = 'INVALID' then 'INVALID' else 'PENDING' end"), true);
 });
