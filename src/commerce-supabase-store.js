@@ -1,4 +1,4 @@
-import { supabaseRpc } from './supabase-read-store.js';
+import { commerceRpc as supabaseRpc } from './commerce-rpc.js';
 
 function cleanText(value) {
   const text = String(value ?? '').trim();
