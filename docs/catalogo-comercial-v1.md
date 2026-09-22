@@ -13,11 +13,11 @@ Centralizar produtos, anúncios e controles comerciais de marketplaces no painel
 - **R2:** arquivos e imagens quando necessário.
 - **Vectorize:** continua restrito à busca visual.
 
-O módulo comercial não faz dual-write para D1.
+O módulo comercial não faz dual-write para D1 e não altera `products`/`product_platforms` do reconhecimento.
 
 ## Navegação do ADM
 
-O menu administrativo passa a possuir uma seção **COMERCIAL** apontando para `/admin-commerce`.
+O menu administrativo possui uma seção **COMERCIAL** apontando para `/admin-commerce`.
 
 A área comercial contém:
 
@@ -44,17 +44,11 @@ SKUs ficam em `commerce_product_skus`, permitindo:
 
 ### Marketplace e anúncio
 
-`commerce_marketplaces` contém as plataformas. A V1 inicia com:
+`commerce_marketplaces` contém as plataformas. A V1 inicia com Shopee, Mercado Livre e Amazon.
 
-- Shopee;
-- Mercado Livre;
-- Amazon.
+`commerce_listings` representa o anúncio na plataforma e `commerce_listing_products` implementa a relação N:N entre anúncio e produto. Isso suporta tanto um produto publicado em várias plataformas quanto anúncios com várias variações/produtos.
 
-`commerce_listings` representa o anúncio na plataforma.
-
-`commerce_listing_products` implementa a relação N:N entre anúncio e produto. Isso suporta tanto um produto publicado em várias plataformas quanto anúncios com várias variações/produtos.
-
-A URL não é a identidade do produto. O ID externo do anúncio é armazenado quando disponível.
+A URL não é identidade de produto. O ID externo do anúncio é armazenado quando disponível.
 
 ## Estado comercial
 
@@ -72,7 +66,7 @@ O fluxo é fail-closed:
 ```text
 XLSX
   ↓
-normalização no navegador
+leitura e normalização no navegador
   ↓
 commerce_import_batches / commerce_import_rows
   ↓
@@ -89,9 +83,29 @@ O payload original de cada linha é preservado junto da versão normalizada.
 
 A normalização possui perfis próprios para Shopee e para as diferentes abas do Mercado Livre porque as planilhas reais não usam um layout único.
 
+### Hyperlinks embutidos
+
+A planilha real do Mercado Livre contém células cujo texto visível é apenas o título do anúncio, enquanto a URL real está armazenada como hyperlink OOXML. O importador recupera o destino real para normalização e preserva o texto originalmente visível para auditoria.
+
+O leitor distingue:
+
+- hyperlinks existentes no workbook;
+- hyperlinks efetivamente recuperados porque o texto visível não era uma URL.
+
+### Produtos sem anúncio (`NOT_LISTED`)
+
+`N Cadastrado`/`NOT_LISTED` sem URL significa evidência de produto, não anúncio quebrado. O produto pode existir no catálogo mestre sem que o sistema crie listing ou URL sintética naquela plataforma.
+
+Se a linha diz `NOT_LISTED`, mas também contém uma URL válida, o dado é contraditório:
+
+- a URL é preservada como evidência de anúncio;
+- o sinal original é preservado em `source_update_hint`;
+- o estado efetivo passa para `REVIEW`;
+- a linha exige revisão antes do commit.
+
 ## Reconciliação
 
-A reconciliação implementada segue esta precedência:
+A reconciliação segue esta precedência:
 
 1. SKU oficial/alias exato;
 2. SKU já usado em marketplace;
@@ -105,16 +119,20 @@ Regras de segurança:
 - um único SKU exato pode ser vinculado automaticamente;
 - mais de um produto compatível por SKU vira `CONFLICT`;
 - correspondência por nome vira `PROBABLE` e exige decisão humana;
-- produto novo começa como `NO_MATCH` e exige aprovação explícita, inclusive na aprovação em lote do primeiro onboarding;
-- SKU duplicado dentro do mesmo arquivo vira conflito;
-- linha sem URL válida do anúncio não pode ser commitada;
-- o commit é bloqueado enquanto existirem `PENDING`, `PROBABLE`, `CONFLICT` ou `INVALID`.
+- produto novo exige aprovação explícita;
+- SKU duplicado dentro do mesmo arquivo permanece conflito;
+- correspondência aproximada nunca cria vínculo automaticamente;
+- o commit é bloqueado enquanto existirem pendências obrigatórias.
+
+Para conflitos de SKU duplicado, a reconciliação v3 mantém o estado `CONFLICT`, mas gera candidatos de produtos existentes para que o administrador consiga decidir qual vínculo é correto no ADM.
 
 As decisões humanas possíveis são:
 
 - confirmar um produto existente;
 - criar como novo produto;
 - ignorar a linha.
+
+Produtos explicitamente sem anúncio também podem ser confirmados/criados sem fabricar uma URL.
 
 ## Commit da importação
 
@@ -132,7 +150,21 @@ Para produtos existentes:
 - adiciona aliases somente se não pertencerem a outro produto;
 - conflito de propriedade de SKU aborta a transação.
 
-Anúncios iguais podem receber múltiplos produtos, desde que a identidade do anúncio seja consistente.
+Linhas `NOT_LISTED` podem criar/vincular o produto mestre com `matched_listing_id = null`. As demais linhas criam ou atualizam listings reais. Anúncios iguais podem receber múltiplos produtos, desde que a identidade do anúncio seja consistente.
+
+## Primeiro onboarding
+
+Com base nas cópias reais analisadas, a ordem definida é:
+
+1. importar Shopee;
+2. revisar/aprovar produtos mestre;
+3. commit da Shopee;
+4. importar Mercado Livre;
+5. resolver correspondências prováveis, produtos realmente novos e conflitos de SKU duplicado;
+6. validar uma amostra do catálogo;
+7. somente então abrir a campanha anual 2027.
+
+A Shopee é usada primeiro porque a cópia analisada é estruturalmente mais consistente e não apresentou SKU duplicado entre linhas.
 
 ## Atualização anual
 
@@ -147,7 +179,7 @@ Cada item pode controlar separadamente:
 - vídeo;
 - atributos.
 
-Produtos `PERMANENT` não precisam entrar automaticamente na virada anual.
+Produtos `PERMANENT` não entram automaticamente na virada anual.
 
 ## Segurança
 
@@ -165,21 +197,26 @@ Implementado:
 - índices e foreign keys;
 - dashboard, produtos e anúncios paginados;
 - módulo visual `/admin-commerce`;
-- staging de importação;
+- parser `.xlsx` browser-side versionado;
+- recuperação de hyperlinks embutidos no Excel;
+- staging de importação em lotes;
 - normalização Shopee/Mercado Livre;
-- reconciliação automática/determinística;
-- candidatos prováveis para revisão humana;
-- decisões de revisão;
+- reconciliação determinística e candidatos prováveis;
+- candidatos para conflitos de SKU duplicado;
+- decisões de revisão inclusive para produto sem anúncio;
 - aprovação em lote de produtos novos;
 - commit transacional do catálogo;
-- listagem de lotes de importação;
-- testes e smoke test transacional no Supabase.
+- operações da campanha anual na interface;
+- testes e smoke tests transacionais no Supabase.
 
-Pendente antes de liberar a V1 em produção:
+## Critérios de liberação da V1
 
-- integrar um parser `.xlsx` browser-side versionado e reprodutível;
-- ligar o seletor de arquivo à normalização/staging;
-- finalizar a tela de revisão de importações;
-- implementar as operações da campanha 2027 na interface;
-- smoke test ponta a ponta com cópias reais das planilhas;
-- merge/deploy somente após Production Gate verde e critérios de aceite.
+A V1 só deve sair do Draft quando:
+
+- Production Gate estiver verde no head final;
+- smoke test no navegador com cópias reais de Shopee e Mercado Livre estiver concluído;
+- contagens do staging forem comparadas com as planilhas reais;
+- conflitos críticos estiverem visíveis e resolvíveis no ADM;
+- amostra de produtos/listings após primeiro onboarding for validada;
+- campanha 2027 for revisada com dados reais importados;
+- não houver alteração regressiva no pipeline de identificação visual.
