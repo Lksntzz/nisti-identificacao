@@ -2570,6 +2570,34 @@ select:focus,input[type=text]:focus,input[type=url]:focus { border-color: #b9c7f
   margin-top: 8px;
 }
 
+.registration-result { display: flex; flex-direction: column; gap: 16px; max-height: 78vh; padding: 22px 24px; overflow-y: auto; }
+.registration-result-hero { display: flex; align-items: center; gap: 13px; padding: 15px 17px; border: 1px solid #bbf7d0; border-radius: 15px; background: #f0fdf4; }
+.registration-result-check { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; background: #16a34a; color: #fff; font-size: 22px; font-weight: 900; }
+.registration-result-hero h4 { margin: 0 0 3px; color: #14532d; font-size: 15px; }
+.registration-result-hero p { margin: 0; color: #15803d; font-size: 12px; }
+.registration-barcode-list { display: grid; gap: 11px; }
+.registration-barcode-card { display: grid; grid-template-columns: 180px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 13px; border: 1px solid #dbe3ef; border-radius: 14px; background: #fff; }
+.registration-barcode-preview { display: grid; place-items: center; padding: 7px; border-radius: 10px; background: #f8fafc; }
+.registration-barcode-preview svg { display: block; width: 100%; height: auto; }
+.registration-barcode-info { display: grid; gap: 3px; min-width: 0; }
+.registration-barcode-info strong { overflow: hidden; color: #0f172a; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.registration-barcode-info span { overflow: hidden; color: #64748b; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.registration-barcode-info code { margin-top: 3px; color: #4338ca; font-size: 11px; font-weight: 850; }
+.registration-barcode-card > button,.btn-download-labels { min-height: 38px; padding: 0 13px; border: 0; border-radius: 9px; background: #0f172a; color: #fff; font-size: 10px; font-weight: 850; cursor: pointer; }
+.registration-result-errors { padding: 13px 15px; border: 1px solid #fecaca; border-radius: 12px; background: #fff7f7; color: #991b1b; }
+.registration-result-errors > strong { display: block; margin-bottom: 7px; font-size: 12px; }
+.registration-result-errors p { margin: 4px 0; font-size: 10px; line-height: 1.4; }
+.registration-result-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 9px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+.btn-download-labels { min-height: 40px; background: linear-gradient(135deg,#4f46e5,#0891b2); font-size: 12px; }
+.btn-download-labels:disabled { opacity: .55; cursor: wait; }
+
+@media (max-width: 640px) {
+  .registration-barcode-card { grid-template-columns: 1fr; }
+  .registration-barcode-preview { max-width: 280px; margin: 0 auto; }
+  .registration-barcode-card > button { min-height: 42px; }
+  .registration-result-actions > button { width: 100%; }
+}
+
 .btn-cancel {
   padding: 10px 18px;
   border-radius: 10px;
