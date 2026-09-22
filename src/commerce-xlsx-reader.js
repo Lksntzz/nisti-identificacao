@@ -59,6 +59,17 @@ function rowWithHyperlinks(row, links) {
   return normalizedRow;
 }
 
+function countRecoveredHyperlinks(row, links) {
+  let recovered = 0;
+  for (const indexRaw of Object.keys(links || {})) {
+    const index = Number(indexRaw);
+    if (!Number.isInteger(index) || index < 0) continue;
+    const displayed = String(row?.[index] ?? '').trim();
+    if (!/^https?:\/\//i.test(displayed)) recovered += 1;
+  }
+  return recovered;
+}
+
 export async function sha256Hex(arrayBuffer) {
   if (!globalThis.crypto?.subtle) throw new Error('SHA-256 indisponível neste navegador.');
   return bytesToHex(await globalThis.crypto.subtle.digest('SHA-256', arrayBuffer));
@@ -81,6 +92,7 @@ export async function readCommerceXlsx(file, marketplace) {
   const rows = [];
   const sheets = [];
   let physicalRows = 0;
+  let workbookHyperlinkCount = 0;
   let recoveredHyperlinks = 0;
 
   for (const sheet of workbook) {
@@ -95,12 +107,14 @@ export async function readCommerceXlsx(file, marketplace) {
     let acceptedRows = 0;
     let invalidRows = 0;
     let reviewRows = 0;
+    let sheetWorkbookHyperlinks = 0;
     let sheetRecoveredHyperlinks = 0;
 
     data.forEach((rawRow, index) => {
       const row = stableRow(rawRow);
       const hyperlinks = hyperlinksForRow(sheetLinks, index + 1);
       const hyperlinkCount = Object.keys(hyperlinks).length;
+      const recoveredCount = countRecoveredHyperlinks(row, hyperlinks);
       const normalizedInput = hyperlinkCount ? rowWithHyperlinks(row, hyperlinks) : row;
       const result = normalizeCommerceImportRow({
         marketplace: market,
@@ -116,8 +130,10 @@ export async function readCommerceXlsx(file, marketplace) {
       const item = stagingRow(result, sheetName, index + 1);
       rows.push(item);
       acceptedRows += 1;
-      recoveredHyperlinks += hyperlinkCount;
-      sheetRecoveredHyperlinks += hyperlinkCount;
+      workbookHyperlinkCount += hyperlinkCount;
+      recoveredHyperlinks += recoveredCount;
+      sheetWorkbookHyperlinks += hyperlinkCount;
+      sheetRecoveredHyperlinks += recoveredCount;
       if (result.status === 'INVALID') invalidRows += 1;
       else if (result.status === 'REVIEW') reviewRows += 1;
     });
@@ -128,6 +144,7 @@ export async function readCommerceXlsx(file, marketplace) {
       accepted_rows: acceptedRows,
       invalid_rows: invalidRows,
       review_rows: reviewRows,
+      workbook_hyperlinks: sheetWorkbookHyperlinks,
       recovered_hyperlinks: sheetRecoveredHyperlinks
     });
   }
@@ -150,6 +167,7 @@ export async function readCommerceXlsx(file, marketplace) {
       ready_rows: rows.filter(row => row.parser_status === 'READY').length,
       review_rows: rows.filter(row => row.parser_status === 'REVIEW').length,
       invalid_rows: rows.filter(row => row.parser_status === 'INVALID').length,
+      workbook_hyperlinks: workbookHyperlinkCount,
       recovered_hyperlinks: recoveredHyperlinks
     }
   };
