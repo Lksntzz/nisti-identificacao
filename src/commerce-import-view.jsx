@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   approveCommerceNewRows,
+  approveCommerceProbableRows,
   commitCommerceImport,
   decideCommerceImportRow,
   getCommerceImport,
@@ -384,6 +385,37 @@ export default function CommerceImportView({ onCatalogChanged }) {
     }
   }
 
+  async function handleApproveProbable() {
+    if (!selectedBatchId) return;
+    const count = Number(batch?.approvable_probable_count || 0);
+    if (!count) return;
+    if (!window.confirm(
+      `Aprovar ${formatNumber(count)} correspondência(s) provável(is)? ` +
+      'Somente linhas com nome e categoria exatos e exatamente um candidato serão vinculadas.'
+    )) return;
+
+    setBatchBusy(true);
+    setError('');
+    try {
+      const result = await approveCommerceProbableRows(selectedBatchId);
+      const approved = Number(result?.approved_probable_rows || 0);
+      const remaining = Number(result?.remaining_probable_rows || 0);
+      setMessage(
+        remaining > 0
+          ? `${formatNumber(approved)} correspondência(s) provável(is) aprovadas; ${formatNumber(remaining)} permanecem para revisão individual.`
+          : `${formatNumber(approved)} correspondência(s) provável(is) aprovadas com candidato único, nome e categoria exatos.`
+      );
+      await Promise.all([
+        loadBatch(selectedBatchId, { status: reviewStatus, offset: 0 }),
+        refreshImports()
+      ]);
+    } catch (err) {
+      setError(err.message || 'Não foi possível aprovar as correspondências prováveis.');
+    } finally {
+      setBatchBusy(false);
+    }
+  }
+
   async function handleCommit() {
     if (!selectedBatchId || !batch?.can_commit) return;
     if (!window.confirm(`Confirmar o commit do lote #${selectedBatchId}? Esta ação grava os dados aprovados no Catálogo Comercial.`)) return;
@@ -487,6 +519,17 @@ export default function CommerceImportView({ onCatalogChanged }) {
                 <option value="IGNORED">Ignoradas</option>
                 <option value="COMMITTED">Concluídas</option>
               </select>
+              {Number(batch.approvable_probable_count || 0) > 0 && (
+                <button
+                  type="button"
+                  className="commerce-secondary-button"
+                  disabled={batchBusy}
+                  onClick={handleApproveProbable}
+                  title="Aprova somente correspondências com nome e categoria exatos e exatamente um candidato."
+                >
+                  Aprovar {formatNumber(batch.approvable_probable_count)} provável(is) seguros
+                </button>
+              )}
               {Number(batch.unapproved_new_count || 0) > 0 && (
                 <button type="button" className="commerce-secondary-button" disabled={batchBusy} onClick={handleApproveNew}>
                   Aprovar {formatNumber(batch.unapproved_new_count)} novo(s)
