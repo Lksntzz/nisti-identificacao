@@ -6,8 +6,8 @@ if (rootElement) {
   const root = createRoot(rootElement);
 
   if (window.location.pathname === '/admin-commerce') {
-    import('./commerce-admin-app.jsx').then(mod => {
-      const Component = mod.default || mod.CommerceAdminApp;
+    import('./commerce-admin-app-v2.jsx').then(mod => {
+      const Component = mod.default || mod.CommerceAdminAppV2;
       root.render(<Component />);
     });
   } else if (window.location.pathname.startsWith('/admin')) {
