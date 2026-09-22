@@ -7,16 +7,6 @@ const CAMERA_SCAN_INTERVAL_MS = 90;
 const NOT_FOUND_COOLDOWN_MS = 1200;
 const GTIN_HISTORY_STORAGE_KEY = 'nisti_gtin_scan_history_v1';
 const GTIN_HISTORY_LIMIT = 20;
-const CAMERA_ACCESS_STORAGE_KEY = 'nisti_gtin_camera_access_v1';
-
-function hasRememberedCameraAccess() {
-  try { return localStorage.getItem(CAMERA_ACCESS_STORAGE_KEY) === 'granted'; } catch { return false; }
-}
-
-function rememberCameraAccess() {
-  try { localStorage.setItem(CAMERA_ACCESS_STORAGE_KEY, 'granted'); } catch {}
-}
-
 function scannerOperatorContext() {
   try {
     return {
@@ -26,10 +16,6 @@ function scannerOperatorContext() {
   } catch {
     return { operatorName: '', operatorId: '' };
   }
-}
-
-function forgetCameraAccess() {
-  try { localStorage.removeItem(CAMERA_ACCESS_STORAGE_KEY); } catch {}
 }
 
 async function improveCameraTrack(track) {
@@ -430,8 +416,6 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
 
       const [videoTrack] = stream.getVideoTracks();
       await improveCameraTrack(videoTrack);
-      rememberCameraAccess();
-
       const video = videoRef.current;
       if (!video) {
         for (const track of stream.getTracks()) track.stop();
@@ -469,7 +453,6 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       animationRef.current = requestAnimationFrame(scanFrame);
     } catch (error) {
       const denied = error?.name === 'NotAllowedError' || error?.name === 'SecurityError';
-      if (denied) forgetCameraAccess();
       setCameraError(denied
         ? 'A câmera está bloqueada. Libere a permissão do navegador e tente novamente.'
         : 'Não foi possível iniciar a câmera deste aparelho.');
@@ -483,15 +466,11 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     let cancelled = false;
 
     const resumeAuthorizedCamera = async () => {
-      let authorized = hasRememberedCameraAccess();
-      if (navigator.permissions?.query) {
-        try {
-          const permission = await navigator.permissions.query({ name: 'camera' });
-          if (permission.state === 'granted') authorized = true;
-          if (permission.state !== 'granted') authorized = false;
-        } catch {}
-      }
-      if (!cancelled && authorized) startCamera();
+      if (!navigator.permissions?.query) return;
+      try {
+        const permission = await navigator.permissions.query({ name: 'camera' });
+        if (!cancelled && permission.state === 'granted') startCamera();
+      } catch {}
     };
 
     resumeAuthorizedCamera();
@@ -646,3 +625,19 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
