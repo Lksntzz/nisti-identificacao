@@ -59,6 +59,11 @@ function label(value) {
   return IMPORT_STATUS_LABELS[value] || value || '—';
 }
 
+function isProductOnlyNotListed(payload) {
+  if (!payload || payload.listing_url) return false;
+  return payload.listing_presence_hint === 'NOT_LISTED' || payload.update_hint === 'NOT_LISTED';
+}
+
 function ImportStatus({ value }) {
   const normalized = String(value || '').toUpperCase();
   const tone = ['MATCHED', 'COMMITTED', 'PARSED'].includes(normalized)
@@ -139,13 +144,16 @@ function BatchStats({ batch }) {
 
 function RowActions({ row, busy, onDecision }) {
   const candidates = Array.isArray(row.candidates) ? row.candidates : [];
-  const hasListingUrl = Boolean(row.normalized_payload?.listing_url);
+  const payload = row.normalized_payload || {};
+  const hasListingUrl = Boolean(payload.listing_url);
+  const productOnlyNotListed = isProductOnlyNotListed(payload);
+  const canResolveProduct = hasListingUrl || productOnlyNotListed;
 
   if (row.status === 'MATCHED' || row.status === 'COMMITTED' || row.status === 'IGNORED') return null;
 
   return (
     <div className="commerce-import-row-actions">
-      {['PROBABLE', 'CONFLICT'].includes(row.status) && hasListingUrl && candidates.map(candidate => (
+      {['PROBABLE', 'CONFLICT'].includes(row.status) && canResolveProduct && candidates.map(candidate => (
         <button
           type="button"
           key={candidate.product_id}
@@ -155,10 +163,10 @@ function RowActions({ row, busy, onDecision }) {
           Vincular #{candidate.product_id} · {candidate.product_name}
         </button>
       ))}
-      {row.status === 'NEW_PRODUCT' && row.match_method === 'NO_MATCH' && hasListingUrl && (
+      {row.status === 'NEW_PRODUCT' && ['NO_MATCH', 'NO_MATCH_NOT_LISTED'].includes(row.match_method) && canResolveProduct && (
         <button type="button" disabled={busy} onClick={() => onDecision(row.id, 'CREATE_NEW')}>Aprovar como produto novo</button>
       )}
-      {row.status === 'PROBABLE' && hasListingUrl && (
+      {row.status === 'PROBABLE' && canResolveProduct && (
         <button type="button" className="secondary" disabled={busy} onClick={() => onDecision(row.id, 'CREATE_NEW')}>Não é o mesmo · criar novo</button>
       )}
       <button type="button" className="secondary danger" disabled={busy} onClick={() => onDecision(row.id, 'IGNORE')}>Ignorar linha</button>
@@ -175,6 +183,7 @@ function ReviewTable({ rows, busyRowId, onDecision }) {
       {rows.map(row => {
         const payload = row.normalized_payload || {};
         const candidates = Array.isArray(row.candidates) ? row.candidates : [];
+        const productOnlyNotListed = isProductOnlyNotListed(payload);
         return (
           <article key={row.id} className={`commerce-import-review-row status-${String(row.status || '').toLowerCase()}`}>
             <div className="commerce-import-review-main">
@@ -190,8 +199,13 @@ function ReviewTable({ rows, busyRowId, onDecision }) {
                 <span><small>Categoria</small><strong>{payload.category || '—'}</strong></span>
                 <span><small>Ano</small><strong>{payload.observed_year || '—'}</strong></span>
               </div>
-              {payload.listing_url ? <a href={payload.listing_url} target="_blank" rel="noreferrer">Abrir anúncio da planilha</a> : <span className="commerce-import-row-warning">Sem URL válida do anúncio</span>}
+              {payload.listing_url
+                ? <a href={payload.listing_url} target="_blank" rel="noreferrer">Abrir anúncio da planilha</a>
+                : productOnlyNotListed
+                  ? <span className="commerce-import-row-warning">Produto sem anúncio nesta plataforma</span>
+                  : <span className="commerce-import-row-warning">Sem URL válida do anúncio</span>}
               {row.error_code ? <div className="commerce-import-row-warning">Conflito: {row.error_code}</div> : null}
+              {row.notes ? <div className="commerce-import-row-warning">Aviso de origem: {row.notes}</div> : null}
             </div>
 
             <div className="commerce-import-candidates">
