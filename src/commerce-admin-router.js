@@ -57,6 +57,10 @@ function positiveId(value) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
+function commerceCommitEnabled(env) {
+  return String(env?.COMMERCE_COMMIT_ENABLED || '').trim() === '1';
+}
+
 function errorResponse(error) {
   if (error instanceof SupabaseReadError) {
     console.error(`[Commerce] Supabase RPC failed: ${error.code}`, error.message);
@@ -109,7 +113,8 @@ export async function handleCommerceAdminRequest(request, env) {
         ok: true,
         backend: 'supabase',
         products: Number(dashboard?.products || 0),
-        listings: Number(dashboard?.listings || 0)
+        listings: Number(dashboard?.listings || 0),
+        commit_enabled: commerceCommitEnabled(env)
       });
     }
 
@@ -222,6 +227,13 @@ export async function handleCommerceAdminRequest(request, env) {
     if (method === 'POST' && importCommitMatch) {
       const batchId = positiveId(importCommitMatch[1]);
       if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      if (!commerceCommitEnabled(env)) {
+        return json({
+          error: 'Commit do Catálogo Comercial desabilitado neste ambiente.',
+          technical_error: 'commerce_commit_disabled',
+          retryable: false
+        }, 409);
+      }
       return json(await commerceCommitImportBatch(env, batchId));
     }
 
