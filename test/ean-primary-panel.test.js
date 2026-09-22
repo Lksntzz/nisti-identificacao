@@ -28,11 +28,11 @@ test('embedded scanner keeps camera and manual EAN workflows', () => {
   assert.match(scannerSource, /gtin-camera-start/);
 });
 
-test('scanner only auto-starts when the browser confirms camera permission', () => {
-  assert.match(scannerSource, /permission\.state === 'granted'/);
-  assert.match(scannerSource, /if \(!navigator\.permissions\?\.query\) return/);
+test('embedded scanner attempts to open the camera as soon as the application loads', () => {
+  assert.match(scannerSource, /if \(!embedded \|\| autoStartAttemptedRef\.current\) return/);
+  assert.match(scannerSource, /autoStartAttemptedRef\.current = true;\s+startCamera\(\);/);
+  assert.doesNotMatch(scannerSource, /navigator\.permissions\?\.query/);
   assert.doesNotMatch(scannerSource, /CAMERA_ACCESS_STORAGE_KEY/);
-  assert.doesNotMatch(scannerSource, /hasRememberedCameraAccess/);
 });
 
 test('EAN result highlights product finishes and camera guide is static', () => {
