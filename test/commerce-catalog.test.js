@@ -54,7 +54,7 @@ test('API comercial passa pelo guard administrativo antes do handler', () => {
   assert.equal(edge.includes("pathname.startsWith('/api/admin/')"), true);
 });
 
-test('API comercial oferece leitura e staging de importação sem commit direto no catálogo', () => {
+test('API comercial separa staging, reconciliação e commit do catálogo', () => {
   const router = read('src/commerce-admin-router.js');
   assert.equal(router.includes('/dashboard'), true);
   assert.equal(router.includes('/products'), true);
@@ -62,10 +62,14 @@ test('API comercial oferece leitura e staging de importação sem commit direto 
   assert.equal(router.includes("pathname === `${BASE_PATH}/imports`"), true);
   assert.equal(router.includes('/imports\\/(\\d+)\\/rows'), true);
   assert.equal(router.includes('/imports\\/(\\d+)\\/finalize'), true);
+  assert.equal(router.includes('/imports\\/(\\d+)\\/reconcile'), true);
+  assert.equal(router.includes('/imports\\/(\\d+)\\/commit'), true);
   assert.equal(router.includes('commerceCreateImportBatch'), true);
   assert.equal(router.includes('commerceAppendImportRows'), true);
   assert.equal(router.includes('commerceFinalizeImportBatch'), true);
-  assert.equal(router.includes('commerce_products'), false, 'router não deve gravar produto final diretamente');
+  assert.equal(router.includes('commerceReconcileImportBatch'), true);
+  assert.equal(router.includes('commerceCommitImportBatch'), true);
+  assert.equal(router.includes('commerce_products'), false, 'router não deve escrever SQL direto em produto final');
 });
 
 test('RPC de importação limita chunks a 100 linhas e preserva payload bruto', () => {
@@ -73,4 +77,12 @@ test('RPC de importação limita chunks a 100 linhas e preserva payload bruto', 
   assert.equal(migration.includes('jsonb_array_length(p_rows) > 100'), true);
   assert.equal(migration.includes("coalesce(v_row->'original', '{}'::jsonb)"), true);
   assert.equal(migration.includes("case when v_parser_status = 'INVALID' then 'INVALID' else 'PENDING' end"), true);
+});
+
+test('lotes de importação possuem listagem paginada server-side', () => {
+  const migration = read('supabase/migrations/202609221310_commerce_import_list_rpc_v1.sql');
+  const router = read('src/commerce-admin-router.js');
+  assert.equal(migration.includes('commerce_list_import_batches_v1'), true);
+  assert.equal(migration.includes('count(*) over() as total_count'), true);
+  assert.equal(router.includes('commerceImportBatches'), true);
 });
