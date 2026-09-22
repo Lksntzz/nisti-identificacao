@@ -41,7 +41,7 @@ Centralizar produtos, anúncios e controles comerciais de marketplaces no painel
 
 ```text
 commerce_products
-  ├── commerce_product_sku_aliases
+  ├── commerce_product_skus
   ├── commerce_listing_products ── commerce_listings ── commerce_marketplaces
   └── commerce_update_items ── commerce_update_checks
 
@@ -63,7 +63,7 @@ commerce_update_campaigns
 
 `commerce_products` representa a identidade comercial interna do produto. O ID não muda quando SKU, ano ou marketplace mudam.
 
-`current_sku` é o SKU canônico atual. Códigos históricos ou aliases ficam em `commerce_product_sku_aliases`.
+Os códigos ficam em `commerce_product_skus`. Cada produto pode ter SKUs `CURRENT`, `HISTORICAL` e `ALIAS`, mas somente um SKU `CURRENT` ativo. O banco impede que o mesmo SKU normalizado pertença simultaneamente a produtos diferentes.
 
 ### Produto anual vs. permanente
 
@@ -71,11 +71,13 @@ commerce_update_campaigns
 
 - `ANNUAL`: exige `edition_year` e participa de campanhas anuais.
 - `PERMANENT`: não entra automaticamente em viradas de ano.
-- `UNCLASSIFIED`: estado temporário para dados importados ainda não reconciliados.
+- `UNCLASSIFIED`: estado temporário para dados ainda não classificados.
 
 ### Anúncio não é produto
 
 `commerce_listings` representa o anúncio na plataforma. Um anúncio pode conter vários produtos/variações, e um produto pode estar em vários anúncios/plataformas. A relação N:N é mantida em `commerce_listing_products`.
+
+Quando for conhecido, `product_sku_id` liga a variação do anúncio a uma versão específica do SKU interno. `platform_sku` preserva o código usado pelo marketplace quando ele divergir do código interno.
 
 ### Exclusividade
 
@@ -127,8 +129,8 @@ A importação nunca grava diretamente em `commerce_products` sem passar pela et
 
 Ordem recomendada:
 
-1. `current_sku` exato;
-2. alias/histórico de SKU;
+1. SKU `CURRENT` exato;
+2. SKU `HISTORICAL`/`ALIAS`;
 3. `platform_sku` já conhecido;
 4. nome normalizado + categoria;
 5. correspondência provável;
@@ -140,7 +142,7 @@ Correspondência aproximada nunca cria vínculo automaticamente quando houver am
 
 Uma campanha como `Atualização 2027` é criada em `commerce_update_campaigns`.
 
-Cada combinação produto/anúncio entra em `commerce_update_items` e recebe verificações em `commerce_update_checks`.
+Cada relação produto/anúncio entra em `commerce_update_items` por meio de `listing_product_id` e recebe verificações em `commerce_update_checks`.
 
 Tipos iniciais de verificação:
 
@@ -160,11 +162,12 @@ Estados:
 - `BLOCKED`
 - `NOT_APPLICABLE`
 
-O anúncio só é considerado atualizado quando todas as verificações obrigatórias estiverem `OK` ou `NOT_APPLICABLE`.
+Cada verificação também informa `is_required`. O anúncio só é considerado atualizado quando todas as verificações obrigatórias estiverem `OK` ou `NOT_APPLICABLE`.
 
 ## Segurança
 
 - tabelas `commerce_*` não serão acessadas diretamente pelo navegador;
+- RLS fica habilitado;
 - `anon` e `authenticated` não recebem acesso direto;
 - o Worker usa a service-role key somente no servidor;
 - rotas comerciais ficam sob a autenticação administrativa existente;
@@ -176,9 +179,9 @@ Incluído:
 
 - catálogo mestre;
 - categorias/subcategorias;
+- histórico/aliases de SKU;
 - anúncios por marketplace;
 - vínculo N:N produto ↔ anúncio;
-- aliases de SKU;
 - importação Excel auditável;
 - reconciliação;
 - campanha anual;
