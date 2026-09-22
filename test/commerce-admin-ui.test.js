@@ -55,3 +55,12 @@ test('importação XLSX é browser-side, versionada e usa staging antes do commi
   assert.equal(view.includes('Criar lote e reconciliar'), true);
   assert.equal(view.includes('Commitar catálogo'), true);
 });
+
+test('cliente comercial confirma estado antes de tratar timeout de mutação como falha', () => {
+  const client = read('src/commerce-import-client.js');
+  assert.equal(client.includes('recoverBatchAfterRetryableError'), true);
+  assert.equal(client.includes("['PARSED', 'REVIEW', 'COMMITTED']"), true);
+  assert.equal(client.includes("['REVIEW', 'COMMITTED']"), true);
+  assert.equal(client.includes("['COMMITTED']"), true);
+  assert.equal(client.includes('recovered_after_timeout'), true);
+});
