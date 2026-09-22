@@ -2,9 +2,23 @@ import { supabaseRpc } from './supabase-read-store.js';
 
 export function commerceDataScope(env) {
   const raw = String(env?.COMMERCE_DATA_SCOPE || '').trim().toLowerCase();
-  if (!raw || raw === 'live') return 'live';
-  if (raw === 'preview') return 'preview';
-  throw new Error(`COMMERCE_DATA_SCOPE inválido: ${raw}`);
+  const scope = !raw || raw === 'live'
+    ? 'live'
+    : raw === 'preview'
+      ? 'preview'
+      : null;
+
+  if (!scope) throw new Error(`COMMERCE_DATA_SCOPE inválido: ${raw}`);
+
+  const appEnv = String(env?.APP_ENV || '').trim().toLowerCase();
+  if (appEnv === 'preview' && scope !== 'preview') {
+    throw new Error('Worker preview não pode acessar o Catálogo Comercial live.');
+  }
+  if (appEnv === 'production' && scope === 'preview') {
+    throw new Error('Worker de produção não pode acessar o sandbox comercial.');
+  }
+
+  return scope;
 }
 
 export function commerceRpcName(env, rpcName) {
