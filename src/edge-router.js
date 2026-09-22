@@ -4,6 +4,7 @@ import { handleCommerceAdminRequest } from './commerce-admin-router.js';
 const COOKIE_NAME = 'nisti_admin_session';
 const SESSION_SECONDS = 60 * 60 * 12;
 const ADMIN_APP_PATH = '/admin';
+const COMMERCE_ADMIN_APP_PATH = '/admin-commerce';
 
 function base64url(bytes) {
   let binary = '';
@@ -98,14 +99,18 @@ function isProtectedApi(pathname) {
   return false;
 }
 
+async function serveProtectedAdminApp(request, env, url) {
+  if (!(await validSession(request, env))) return Response.redirect(new URL('/admin-login', url), 302);
+  return env.ASSETS.fetch(new Request(new URL('/', url), { headers: request.headers }));
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
-    if (pathname === '/admin' && request.method === 'GET') {
-      if (!(await validSession(request, env))) return Response.redirect(new URL('/admin-login', url), 302);
-      return env.ASSETS.fetch(new Request(new URL('/', url), { headers: request.headers }));
+    if ((pathname === ADMIN_APP_PATH || pathname === COMMERCE_ADMIN_APP_PATH) && request.method === 'GET') {
+      return serveProtectedAdminApp(request, env, url);
     }
 
     if (pathname === '/admin-login' && request.method === 'GET') {
