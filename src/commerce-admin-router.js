@@ -1,12 +1,17 @@
 import { SupabaseReadError } from './supabase-read-store.js';
 import {
   commerceAppendImportRows,
+  commerceApproveNewRows,
+  commerceCommitImportBatch,
   commerceCreateImportBatch,
   commerceDashboard,
+  commerceDecideImportRow,
   commerceFinalizeImportBatch,
   commerceImportBatch,
+  commerceImportRows,
   commerceListings,
-  commerceProducts
+  commerceProducts,
+  commerceReconcileImportBatch
 } from './commerce-supabase-store.js';
 
 const BASE_PATH = '/api/admin/commerce';
@@ -171,11 +176,60 @@ export async function handleCommerceAdminRequest(request, env) {
       return json({ batch_id: batchId, accepted_rows: inserted });
     }
 
+    if (method === 'GET' && importRowsMatch) {
+      const batchId = positiveId(importRowsMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      const result = await commerceImportRows(env, batchId, {
+        status: query(url, 'status'),
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      });
+      return json(paginationPayload(result));
+    }
+
     const importFinalizeMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/finalize$/);
     if (method === 'POST' && importFinalizeMatch) {
       const batchId = positiveId(importFinalizeMatch[1]);
       if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
       return json(await commerceFinalizeImportBatch(env, batchId));
+    }
+
+    const importReconcileMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/reconcile$/);
+    if (method === 'POST' && importReconcileMatch) {
+      const batchId = positiveId(importReconcileMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      return json(await commerceReconcileImportBatch(env, batchId));
+    }
+
+    const importApproveNewMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/approve-new$/);
+    if (method === 'POST' && importApproveNewMatch) {
+      const batchId = positiveId(importApproveNewMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      const approved = await commerceApproveNewRows(env, batchId);
+      return json({ batch_id: batchId, approved_new_rows: approved });
+    }
+
+    const importCommitMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/commit$/);
+    if (method === 'POST' && importCommitMatch) {
+      const batchId = positiveId(importCommitMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      return json(await commerceCommitImportBatch(env, batchId));
+    }
+
+    const importDecisionMatch = pathname.match(/^\/api\/admin\/commerce\/import-rows\/(\d+)\/decision$/);
+    if (method === 'POST' && importDecisionMatch) {
+      const rowId = positiveId(importDecisionMatch[1]);
+      const body = await bodyJson(request);
+      const action = String(body?.action || '').trim().toUpperCase();
+      const productId = body?.product_id == null ? null : positiveId(body.product_id);
+      if (!rowId) return json({ error: 'row_id inválido.' }, 400);
+      if (!['CONFIRM_PRODUCT', 'CREATE_NEW', 'IGNORE'].includes(action)) {
+        return json({ error: 'action inválida.' }, 400);
+      }
+      if (action === 'CONFIRM_PRODUCT' && !productId) {
+        return json({ error: 'product_id é obrigatório para CONFIRM_PRODUCT.' }, 400);
+      }
+      return json(await commerceDecideImportRow(env, rowId, action, productId));
     }
 
     if (!['GET', 'POST'].includes(method)) {
