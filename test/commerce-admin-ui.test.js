@@ -18,7 +18,7 @@ test('entry resolve /admin-commerce antes do prefixo genérico /admin', () => {
   const admin = entry.indexOf("window.location.pathname.startsWith('/admin')");
   assert.ok(commerce >= 0);
   assert.ok(admin > commerce);
-  assert.equal(entry.includes("import('./commerce-admin-app.jsx')"), true);
+  assert.equal(entry.includes("import('./commerce-admin-app-v2.jsx')"), true);
 });
 
 test('rota do Catálogo Comercial reutiliza a sessão administrativa', () => {
@@ -28,12 +28,30 @@ test('rota do Catálogo Comercial reutiliza a sessão administrativa', () => {
   assert.equal(edge.includes("pathname.startsWith('/api/admin/')"), true);
 });
 
-test('UI comercial possui visões essenciais da V1', () => {
-  const source = read('src/commerce-admin-app.jsx');
+test('UI comercial modular possui as cinco visões essenciais', () => {
+  const shell = read('src/commerce-admin-app-v2.jsx');
   for (const label of ['Visão Geral', 'Produtos Mestre', 'Anúncios', 'Importações Excel', 'Atualização Anual']) {
-    assert.equal(source.includes(label), true, `${label} deve existir`);
+    assert.equal(shell.includes(label), true, `${label} deve existir`);
   }
-  assert.equal(source.includes('/api/admin/commerce/dashboard'), true);
-  assert.equal(source.includes('/api/admin/commerce/products'), true);
-  assert.equal(source.includes('/api/admin/commerce/listings'), true);
+  assert.equal(shell.includes('CommerceImportView'), true);
+  assert.equal(shell.includes('CommerceProductsView'), true);
+  assert.equal(shell.includes('CommerceListingsView'), true);
+});
+
+test('importação XLSX é browser-side, versionada e usa staging antes do commit', () => {
+  const reader = read('src/commerce-xlsx-reader.js');
+  const client = read('src/commerce-import-client.js');
+  const view = read('src/commerce-import-view.jsx');
+  const pkg = JSON.parse(read('package.json'));
+
+  assert.equal(pkg.dependencies['read-excel-file'], '9.3.10');
+  assert.equal(reader.includes("from 'read-excel-file/browser'"), true);
+  assert.equal(reader.includes('crypto.subtle.digest'), true);
+  assert.equal(reader.includes('COMMERCE_XLSX_MAX_BYTES'), true);
+  assert.equal(client.includes('/imports/${batchId}/rows'), true);
+  assert.equal(client.includes('/finalize'), true);
+  assert.equal(client.includes('/reconcile'), true);
+  assert.equal(client.includes('/commit'), true);
+  assert.equal(view.includes('Criar lote e reconciliar'), true);
+  assert.equal(view.includes('Commitar catálogo'), true);
 });
