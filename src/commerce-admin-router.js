@@ -2,6 +2,7 @@ import { SupabaseReadError } from './supabase-read-store.js';
 import {
   commerceAppendImportRows,
   commerceApproveNewRows,
+  commerceApproveProbableRows,
   commerceCommitImportBatch,
   commerceCreateImportBatch,
   commerceDashboard,
@@ -221,6 +222,13 @@ export async function handleCommerceAdminRequest(request, env) {
       if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
       const approved = await commerceApproveNewRows(env, batchId);
       return json({ batch_id: batchId, approved_new_rows: approved });
+    }
+
+    const importApproveProbableMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/approve-probable$/);
+    if (method === 'POST' && importApproveProbableMatch) {
+      const batchId = positiveId(importApproveProbableMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      return json(await commerceApproveProbableRows(env, batchId));
     }
 
     const importCommitMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/commit$/);
