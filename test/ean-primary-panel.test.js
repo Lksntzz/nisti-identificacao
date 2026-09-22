@@ -35,10 +35,12 @@ test('embedded scanner attempts to open the camera as soon as the application lo
   assert.doesNotMatch(scannerSource, /CAMERA_ACCESS_STORAGE_KEY/);
 });
 
-test('EAN result highlights product finishes and camera guide is static', () => {
+test('EAN result highlights product finishes and scanner motion remains accessible', () => {
   assert.match(scannerSource, /\['Wire-o', product\.wireo/);
   assert.match(scannerSource, /\['Tassel', product\.tassel/);
   assert.match(scannerSource, /\['Elástico', product\.elastico/);
-  assert.doesNotMatch(scannerSource, /gtin-guide-line/);
-  assert.doesNotMatch(scannerStyles, /@keyframes gtin-scan-line/);
+  assert.match(scannerSource, /cameraActive && <span className="gtin-camera-scan-beam"/);
+  assert.match(scannerStyles, /@keyframes gtin-scan-beam/);
+  assert.match(scannerStyles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(scannerStyles, /\.gtin-scanner-result[\s\S]*?animation: gtin-result-in/);
 });
