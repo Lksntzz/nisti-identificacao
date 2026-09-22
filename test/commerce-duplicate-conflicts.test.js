@@ -32,8 +32,8 @@ test('commit v3 preserva SKU secundário conflitante apenas como platform_sku', 
   assert.equal(migration.includes('platform_sku_owned_by_product'), true);
 });
 
-test('Worker usa reconciliação v4 e commit v3', () => {
+test('Worker usa reconciliação v5 e commit v3', () => {
   const store = read('src/commerce-supabase-store.js');
-  assert.equal(store.includes("supabaseRpc(env, 'commerce_reconcile_import_batch_v4'"), true);
+  assert.equal(store.includes("supabaseRpc(env, 'commerce_reconcile_import_batch_v5'"), true);
   assert.equal(store.includes("supabaseRpc(env, 'commerce_commit_import_batch_v3'"), true);
 });
