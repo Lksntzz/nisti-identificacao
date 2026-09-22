@@ -98,7 +98,7 @@ export default function CommerceAdminAppV2() {
               {activeView === 'products' && <CommerceProductsView />}
               {activeView === 'listings' && <CommerceListingsView />}
               {activeView === 'imports' && <CommerceImportView onCatalogChanged={refreshDashboard} />}
-              {activeView === 'updates' && <CommerceUpdateView dashboard={dashboard || {}} />}
+              {activeView === 'updates' && <CommerceUpdateView onCatalogChanged={refreshDashboard} />}
             </>
           )}
         </main>
