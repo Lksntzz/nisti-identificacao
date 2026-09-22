@@ -145,6 +145,13 @@ export async function approveCommerceNewRows(batchId) {
   });
 }
 
+export async function approveCommerceProbableRows(batchId) {
+  return requestJson(`${API_BASE}/imports/${Number(batchId)}/approve-probable`, {
+    method: 'POST',
+    body: '{}'
+  });
+}
+
 export async function commitCommerceImport(batchId) {
   try {
     return await requestJson(`${API_BASE}/imports/${Number(batchId)}/commit`, {
