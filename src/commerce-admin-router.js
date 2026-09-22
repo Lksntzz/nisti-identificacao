@@ -8,6 +8,7 @@ import {
   commerceDecideImportRow,
   commerceFinalizeImportBatch,
   commerceImportBatch,
+  commerceImportBatches,
   commerceImportRows,
   commerceListings,
   commerceProducts,
@@ -129,6 +130,14 @@ export async function handleCommerceAdminRequest(request, env) {
         search: query(url, 'search'),
         marketplace: query(url, 'marketplace'),
         status: query(url, 'status'),
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      });
+      return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/imports`) {
+      const result = await commerceImportBatches(env, {
         limit: query(url, 'limit'),
         offset: query(url, 'offset')
       });
