@@ -14,11 +14,11 @@ test('linhas explicitamente não cadastradas são reconciliadas sem fabricar an�
   assert.equal(sql.includes('commerce_commit_import_batch_v1(p_batch_id)'), true);
 });
 
-test('store administrativo encadeia reconcile v3 e approve/commit v2', () => {
+test('store administrativo encadeia reconcile v4, approve v2 e commit v3', () => {
   const source = read('src/commerce-supabase-store.js');
-  assert.equal(source.includes("'commerce_reconcile_import_batch_v3'"), true);
+  assert.equal(source.includes("'commerce_reconcile_import_batch_v4'"), true);
   assert.equal(source.includes("'commerce_approve_new_rows_v2'"), true);
-  assert.equal(source.includes("'commerce_commit_import_batch_v2'"), true);
+  assert.equal(source.includes("'commerce_commit_import_batch_v3'"), true);
 });
 
 test('produto sem anúncio só é criado após aprovação explícita', () => {
