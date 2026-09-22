@@ -504,6 +504,59 @@ function PlatformTag({ platform }) {
 /* =========================================================================
    PRODUCT MODALS: CREATE, EDIT, VIEW, DELETE
    ========================================================================= */
+function RegistrationBarcodeResult({ items, errors = [], onReset, onClose, title = 'Produtos cadastrados' }) {
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
+  const barcodeItems = items.filter(item => /^\d{13}$/.test(String(item.gtin || '')));
+
+  const downloadAll = async () => {
+    setDownloadBusy(true);
+    setDownloadError('');
+    try {
+      await downloadBarcodeZip(barcodeItems, '', 'etiquetas-produtos-cadastrados.zip');
+    } catch (error) {
+      setDownloadError(error?.message || 'Não foi possível gerar o pacote de etiquetas.');
+    } finally {
+      setDownloadBusy(false);
+    }
+  };
+
+  return (
+    <div className="registration-result">
+      <div className="registration-result-hero">
+        <span className="registration-result-check">✓</span>
+        <div><h4>{title}</h4><p>{barcodeItems.length} etiqueta{barcodeItems.length === 1 ? '' : 's'} pronta{barcodeItems.length === 1 ? '' : 's'} para baixar.</p></div>
+      </div>
+
+      {barcodeItems.length > 0 && <div className="registration-barcode-list">
+        {barcodeItems.map(item => (
+          <article className="registration-barcode-card" key={`${item.id || item.sku}-${item.gtin}`}>
+            <div className="registration-barcode-preview" dangerouslySetInnerHTML={{ __html: createEan13Svg(item) }} />
+            <div className="registration-barcode-info">
+              <strong>{item.nome || item.sku}</strong>
+              <span>{item.variacao || item.sku}</span>
+              <code>{item.gtin}</code>
+            </div>
+            <button type="button" onClick={() => downloadBarcodePng(item).catch(error => setDownloadError(error.message))}>Baixar PNG</button>
+          </article>
+        ))}
+      </div>}
+
+      {errors.length > 0 && <div className="registration-result-errors">
+        <strong>{errors.length} item{errors.length === 1 ? '' : 's'} precisa{errors.length === 1 ? '' : 'm'} de atenção</strong>
+        {errors.map((item, index) => <p key={`${item.sku || 'item'}-${index}`}><b>{item.sku || `Linha ${item.row || index + 1}`}:</b> {item.error}</p>)}
+      </div>}
+      {downloadError && <div className="form-error-banner">{downloadError}</div>}
+
+      <div className="registration-result-actions">
+        <button type="button" className="btn-cancel" onClick={onReset}>Cadastrar outros produtos</button>
+        {barcodeItems.length > 1 && <button type="button" className="btn-download-labels" disabled={downloadBusy} onClick={downloadAll}>{downloadBusy ? 'Gerando ZIP…' : 'Baixar todas em ZIP'}</button>}
+        <button type="button" className="btn-submit-rainbow" onClick={onClose}>Concluir</button>
+      </div>
+    </div>
+  );
+}
+
 function CreateProductModal({ isOpen, onClose, onCreated }) {
   const [nome, setNome] = useState('');
   const [platform, setPlatform] = useState('MERCADO LIVRE');
@@ -514,6 +567,17 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
   const [busy, setBusy] = useState(false);
   const [progressMsg, setProgressMsg] = useState('');
   const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  const resetForm = () => {
+    setNome('');
+    setPlatform('MERCADO LIVRE');
+    setLink('');
+    setVariants([{ id: Date.now(), sku: '', gtin: '', variacao: '', file: null, preview: '' }]);
+    setProgressMsg('');
+    setError('');
+    setResult(null);
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -523,6 +587,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
       setVariants([{ id: 1, sku: '', gtin: '', variacao: '', file: null, preview: '' }]);
       setProgressMsg('');
       setError('');
+      setResult(null);
     }
   }, [isOpen]);
 
@@ -592,9 +657,11 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
     setBusy(true);
     setError('');
 
-    try {
-      for (let i = 0; i < variants.length; i++) {
-        const v = variants[i];
+    const registered = [];
+    const failures = [];
+    for (let i = 0; i < variants.length; i++) {
+      const v = variants[i];
+      try {
         setProgressMsg(`Cadastrando variação ${i + 1} de ${variants.length}…`);
         
         const created = await api('/api/products', {
@@ -610,22 +677,37 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
           })
         });
 
+        registered.push({
+          id: created?.id,
+          gtin: v.gtin,
+          sku: v.sku.trim().toUpperCase(),
+          nome: nome.trim(),
+          variacao: v.variacao.trim(),
+          platforms: [platform.trim().toUpperCase()].filter(Boolean)
+        });
+
         if (v.file && created?.id) {
           setProgressMsg(`Enviando imagem ${i + 1} de ${variants.length}…`);
           const compressed = await compressAdminImage(v.file);
           const fd = new FormData();
           fd.append('image', compressed || v.file);
-          await api(`/api/products/${created.id}/image`, {
-            method: 'POST',
-            body: fd
-          });
+          try {
+            await api(`/api/products/${created.id}/image`, { method: 'POST', body: fd });
+          } catch (imageError) {
+            failures.push({ sku: v.sku.trim().toUpperCase(), error: `Produto e EAN salvos, mas a imagem falhou: ${imageError.message}` });
+          }
         }
+      } catch (itemError) {
+        failures.push({ sku: v.sku.trim().toUpperCase(), error: itemError.message || 'Falha ao cadastrar produto.' });
       }
+    }
 
+    try {
       await onCreated();
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Falha ao cadastrar produtos.');
+      setResult({ items: registered, errors: failures });
+      if (!registered.length) setError('Nenhum produto foi cadastrado. Verifique os erros abaixo.');
+    } catch (refreshError) {
+      setResult({ items: registered, errors: [...failures, { sku: 'Catálogo', error: refreshError.message || 'Falha ao atualizar a lista.' }] });
     } finally {
       setBusy(false);
       setProgressMsg('');
@@ -643,7 +725,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
           <button type="button" className="admin-modal-close" onClick={onClose}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="admin-modal-form">
+        {result ? <RegistrationBarcodeResult items={result.items} errors={result.errors} onReset={resetForm} onClose={onClose} /> : <form onSubmit={handleSubmit} className="admin-modal-form">
           <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#4f46e5', margin: '0 0 12px 0', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '6px' }}>
             📋 Informações Gerais (Comuns a todas as variações)
           </h4>
@@ -838,7 +920,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
               {busy ? (progressMsg || 'Cadastrando variações…') : `Salvar ${variants.length} produto(s)`}
             </button>
           </div>
-        </form>
+        </form>}
       </div>
     </div>
   );
@@ -1215,6 +1297,15 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setMessage('');
+      setError('');
+      setResult(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -1230,7 +1321,9 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
 
       let created = 0;
       let updated = 0;
-      let errors = 0;
+      const importedItems = [];
+      const importErrors = [];
+      const rowsBySku = new Map(rows.map(row => [String(row.sku || '').trim().toUpperCase(), row]));
 
       for (let i = 0; i < rows.length; i += 50) {
         const data = await api('/api/admin/bulk-products', {
@@ -1240,10 +1333,20 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
         });
         created += data.created || 0;
         updated += data.updated || 0;
-        errors += (data.errors || []).length;
+        for (const item of data.imported || []) {
+          const source = rowsBySku.get(String(item.sku || '').trim().toUpperCase()) || {};
+          importedItems.push({ ...source, ...item, gtin: item.gtin || source.gtin, nome: source.nome, variacao: source.variacao });
+        }
+        importErrors.push(...(data.errors || []));
       }
 
       setMessage(`Importação concluída: ${created} novos produtos cadastrados, ${updated} atualizados.`);
+      for (const item of importedItems) {
+        if (!/^\d{13}$/.test(String(item.gtin || ''))) {
+          importErrors.push({ sku: item.sku, error: 'Produto salvo sem EAN válido; nenhuma etiqueta foi gerada.' });
+        }
+      }
+      setResult({ items: importedItems, errors: importErrors, created, updated });
       await onImported();
     } catch (err) {
       setError(err.message || 'Falha ao importar arquivo CSV.');
@@ -1263,7 +1366,13 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
           <button type="button" className="admin-modal-close" onClick={onClose}>✕</button>
         </div>
 
-        <div className="admin-modal-form">
+        {result ? <RegistrationBarcodeResult
+          items={result.items}
+          errors={result.errors}
+          title={`Importação concluída: ${result.created} novos e ${result.updated} atualizados`}
+          onReset={() => { setResult(null); setMessage(''); setError(''); }}
+          onClose={onClose}
+        /> : <div className="admin-modal-form">
           <label className="photo-empty-drop" style={{ minHeight: '180px' }}>
             <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
@@ -1281,7 +1390,7 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
           <div className="admin-modal-foot">
             <button type="button" className="btn-cancel" onClick={onClose}>Fechar</button>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
