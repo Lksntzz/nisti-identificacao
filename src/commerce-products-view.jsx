@@ -73,16 +73,20 @@ export default function CommerceProductsView() {
           <table className="commerce-table">
             <thead><tr><th>Produto</th><th>SKU atual</th><th>Categoria</th><th>Tipo</th><th>Plataformas</th><th>Status</th></tr></thead>
             <tbody>
-              {data.items.map(product => (
-                <tr key={product.id}>
-                  <td><strong>{product.name}</strong><small>#{product.id}</small></td>
-                  <td><code>{product.current_sku || '—'}</code></td>
-                  <td>{product.category_name || '—'}{product.subcategory_name ? <small>{product.subcategory_name}</small> : null}</td>
-                  <td>{commerceStatusLabel(product.temporal_type)}{product.edition_year ? <small>Edição {product.edition_year}</small> : null}</td>
-                  <td>{commerceFormatNumber(product.marketplace_count || 0)}<small>{product.marketplaces || 'Sem anúncio'}</small></td>
-                  <td><CommerceStatusPill value={product.internal_status} /></td>
-                </tr>
-              ))}
+              {data.items.map(product => {
+                const productId = Number(product.product_id || 0);
+                const marketplaceCodes = Array.isArray(product.marketplace_codes) ? product.marketplace_codes : [];
+                return (
+                  <tr key={productId}>
+                    <td><strong>{product.name}</strong><small>#{productId}</small></td>
+                    <td><code>{product.current_sku || '—'}</code></td>
+                    <td>{product.category_name || '—'}{product.subcategory_name ? <small>{product.subcategory_name}</small> : null}</td>
+                    <td>{commerceStatusLabel(product.temporal_type)}{product.edition_year ? <small>Edição {product.edition_year}</small> : null}</td>
+                    <td>{commerceFormatNumber(product.marketplace_count || 0)}<small>{marketplaceCodes.length ? marketplaceCodes.join(' · ') : 'Sem anúncio'}</small></td>
+                    <td><CommerceStatusPill value={product.internal_status} /></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
