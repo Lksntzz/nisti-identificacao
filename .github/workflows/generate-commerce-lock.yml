@@ -1,0 +1,32 @@
+name: Generate Commerce Lockfile
+
+on:
+  push:
+    branches:
+      - feat/catalogo-comercial-v1
+    paths:
+      - '.github/workflows/generate-commerce-lock.yml'
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Generate pinned lockfile
+        run: npm install --save-exact read-excel-file@9.3.10 --ignore-scripts --no-audit --no-fund
+      - name: Upload package files
+        uses: actions/upload-artifact@v4
+        with:
+          name: commerce-lockfile
+          path: |
+            package.json
+            package-lock.json
+          if-no-files-found: error
+          retention-days: 1
