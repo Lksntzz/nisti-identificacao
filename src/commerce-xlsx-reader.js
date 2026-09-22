@@ -1,5 +1,6 @@
 import readExcelFile from 'read-excel-file/browser';
 import { normalizeCommerceImportRow } from './commerce-import-normalizer.js';
+import { extractCommerceXlsxHyperlinks, hyperlinksForRow } from './commerce-xlsx-hyperlinks.js';
 
 export const COMMERCE_XLSX_MAX_BYTES = 25 * 1024 * 1024;
 export const COMMERCE_XLSX_MAX_ROWS = 50000;
@@ -47,6 +48,17 @@ function stagingRow(result, sheetName, rowNumber) {
   };
 }
 
+function rowWithHyperlinks(row, links) {
+  const normalizedRow = row.slice();
+  for (const [indexRaw, target] of Object.entries(links || {})) {
+    const index = Number(indexRaw);
+    if (!Number.isInteger(index) || index < 0) continue;
+    while (normalizedRow.length <= index) normalizedRow.push(null);
+    normalizedRow[index] = target;
+  }
+  return normalizedRow;
+}
+
 export async function sha256Hex(arrayBuffer) {
   if (!globalThis.crypto?.subtle) throw new Error('SHA-256 indisponível neste navegador.');
   return bytesToHex(await globalThis.crypto.subtle.digest('SHA-256', arrayBuffer));
@@ -56,9 +68,10 @@ export async function readCommerceXlsx(file, marketplace) {
   const market = cleanMarketplace(marketplace);
   const filename = validateFile(file);
   const buffer = await file.arrayBuffer();
-  const [sha256, workbook] = await Promise.all([
+  const [sha256, workbook, workbookHyperlinks] = await Promise.all([
     sha256Hex(buffer),
-    readExcelFile(buffer)
+    readExcelFile(buffer),
+    extractCommerceXlsxHyperlinks(buffer)
   ]);
 
   if (!Array.isArray(workbook) || !workbook.length) {
@@ -68,10 +81,12 @@ export async function readCommerceXlsx(file, marketplace) {
   const rows = [];
   const sheets = [];
   let physicalRows = 0;
+  let recoveredHyperlinks = 0;
 
   for (const sheet of workbook) {
     const sheetName = String(sheet?.sheet || '').trim() || 'Sem nome';
     const data = Array.isArray(sheet?.data) ? sheet.data : [];
+    const sheetLinks = workbookHyperlinks.get(sheetName) || new Map();
     physicalRows += data.length;
     if (physicalRows > COMMERCE_XLSX_MAX_ROWS) {
       throw new Error(`O arquivo excede o limite operacional de ${COMMERCE_XLSX_MAX_ROWS.toLocaleString('pt-BR')} linhas.`);
@@ -80,20 +95,29 @@ export async function readCommerceXlsx(file, marketplace) {
     let acceptedRows = 0;
     let invalidRows = 0;
     let reviewRows = 0;
+    let sheetRecoveredHyperlinks = 0;
 
     data.forEach((rawRow, index) => {
       const row = stableRow(rawRow);
+      const hyperlinks = hyperlinksForRow(sheetLinks, index + 1);
+      const hyperlinkCount = Object.keys(hyperlinks).length;
+      const normalizedInput = hyperlinkCount ? rowWithHyperlinks(row, hyperlinks) : row;
       const result = normalizeCommerceImportRow({
         marketplace: market,
         sheetName,
-        row,
+        row: normalizedInput,
         rowNumber: index + 1
       });
       if (!result) return;
 
+      // Preserve exactly what the operator saw in the workbook while using the
+      // actual hyperlink target for normalized listing URLs.
+      result.original = row;
       const item = stagingRow(result, sheetName, index + 1);
       rows.push(item);
       acceptedRows += 1;
+      recoveredHyperlinks += hyperlinkCount;
+      sheetRecoveredHyperlinks += hyperlinkCount;
       if (result.status === 'INVALID') invalidRows += 1;
       else if (result.status === 'REVIEW') reviewRows += 1;
     });
@@ -103,7 +127,8 @@ export async function readCommerceXlsx(file, marketplace) {
       physical_rows: data.length,
       accepted_rows: acceptedRows,
       invalid_rows: invalidRows,
-      review_rows: reviewRows
+      review_rows: reviewRows,
+      recovered_hyperlinks: sheetRecoveredHyperlinks
     });
   }
 
@@ -124,7 +149,8 @@ export async function readCommerceXlsx(file, marketplace) {
       accepted_rows: rows.length,
       ready_rows: rows.filter(row => row.parser_status === 'READY').length,
       review_rows: rows.filter(row => row.parser_status === 'REVIEW').length,
-      invalid_rows: rows.filter(row => row.parser_status === 'INVALID').length
+      invalid_rows: rows.filter(row => row.parser_status === 'INVALID').length,
+      recovered_hyperlinks: recoveredHyperlinks
     }
   };
 }
