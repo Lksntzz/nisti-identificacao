@@ -36,6 +36,26 @@ function chunks(rows, size = CHUNK_SIZE) {
   return result;
 }
 
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function recoverBatchAfterRetryableError(batchId, expectedStatuses, originalError) {
+  const delays = [250, 750, 1500, 2500];
+  for (const delay of delays) {
+    await wait(delay);
+    try {
+      const batch = await getCommerceImport(batchId);
+      if (expectedStatuses.includes(String(batch?.status || '').toUpperCase())) {
+        return batch;
+      }
+    } catch {
+      // A confirmação é best-effort. Preservamos o erro original se o estado não puder ser confirmado.
+    }
+  }
+  throw originalError;
+}
+
 export async function listCommerceImports({ limit = 30, offset = 0 } = {}) {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   return requestJson(`${API_BASE}/imports?${params}`);
@@ -82,16 +102,30 @@ export async function stageCommerceWorkbook(parsedWorkbook, onProgress = () => {
   }
 
   onProgress({ phase: 'finalize', completed, total: rows.length, batchId });
-  const finalized = await requestJson(`${API_BASE}/imports/${batchId}/finalize`, {
-    method: 'POST',
-    body: '{}'
-  });
+  let finalized;
+  try {
+    finalized = await requestJson(`${API_BASE}/imports/${batchId}/finalize`, {
+      method: 'POST',
+      body: '{}'
+    });
+  } catch (error) {
+    if (!error?.retryable) throw error;
+    const recovered = await recoverBatchAfterRetryableError(batchId, ['PARSED', 'REVIEW', 'COMMITTED'], error);
+    finalized = { recovered_after_timeout: true, batch: recovered };
+  }
 
   onProgress({ phase: 'reconcile', completed, total: rows.length, batchId });
-  const reconciled = await requestJson(`${API_BASE}/imports/${batchId}/reconcile`, {
-    method: 'POST',
-    body: '{}'
-  });
+  let reconciled;
+  try {
+    reconciled = await requestJson(`${API_BASE}/imports/${batchId}/reconcile`, {
+      method: 'POST',
+      body: '{}'
+    });
+  } catch (error) {
+    if (!error?.retryable) throw error;
+    const recovered = await recoverBatchAfterRetryableError(batchId, ['REVIEW', 'COMMITTED'], error);
+    reconciled = { recovered_after_timeout: true, batch: recovered };
+  }
 
   onProgress({ phase: 'done', completed, total: rows.length, batchId });
   return { batchId, finalized, reconciled };
@@ -112,8 +146,14 @@ export async function approveCommerceNewRows(batchId) {
 }
 
 export async function commitCommerceImport(batchId) {
-  return requestJson(`${API_BASE}/imports/${Number(batchId)}/commit`, {
-    method: 'POST',
-    body: '{}'
-  });
+  try {
+    return await requestJson(`${API_BASE}/imports/${Number(batchId)}/commit`, {
+      method: 'POST',
+      body: '{}'
+    });
+  } catch (error) {
+    if (!error?.retryable) throw error;
+    const recovered = await recoverBatchAfterRetryableError(Number(batchId), ['COMMITTED'], error);
+    return { recovered_after_timeout: true, batch: recovered };
+  }
 }
