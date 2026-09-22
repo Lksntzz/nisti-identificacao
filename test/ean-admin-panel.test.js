@@ -54,3 +54,13 @@ test('new product registration writes its EAN atomically with an accepted source
   assert.doesNotMatch(coreRouter, /source='IMPORT'/);
   assert.match(coreRouter, /upsertCatalogProduct\(env, body\)/);
 });
+
+test('manual and bulk registration immediately expose downloadable barcode labels', () => {
+  assert.match(main, /function RegistrationBarcodeResult/);
+  assert.match(main, /createEan13Svg\(item\)/);
+  assert.match(main, /downloadBarcodePng\(item\)/);
+  assert.match(main, /downloadBarcodeZip\(barcodeItems/);
+  assert.match(main, /Baixar todas em ZIP/);
+  assert.match(main, /setResult\(\{ items: registered, errors: failures \}\)/);
+  assert.match(main, /setResult\(\{ items: importedItems, errors: importErrors, created, updated \}\)/);
+});
