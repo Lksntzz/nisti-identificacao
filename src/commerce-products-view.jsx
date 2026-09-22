@@ -10,6 +10,16 @@ import {
   commerceStatusLabel
 } from './commerce-admin-shared.jsx';
 
+function coverageLabel(marketplaceCodes = []) {
+  if (!Array.isArray(marketplaceCodes) || marketplaceCodes.length === 0) return 'Sem anúncio';
+  if (marketplaceCodes.length > 1) return 'Multiplataforma';
+  const code = marketplaceCodes[0];
+  if (code === 'SHOPEE') return 'Exclusivo Shopee';
+  if (code === 'MERCADO_LIVRE') return 'Exclusivo Mercado Livre';
+  if (code === 'AMAZON') return 'Exclusivo Amazon';
+  return `Exclusivo ${code}`;
+}
+
 export default function CommerceProductsView() {
   const [search, setSearch] = useState('');
   const [marketplace, setMarketplace] = useState('');
@@ -48,7 +58,7 @@ export default function CommerceProductsView() {
       <div className="commerce-panel-header commerce-panel-header-stack">
         <div>
           <h2>Produtos Mestre</h2>
-          <p>Identidade comercial canônica. SKU histórico e presença em marketplaces são relacionados sem duplicar o produto.</p>
+          <p>Identidade comercial canônica. A cobertura mostra claramente se o produto é exclusivo de uma plataforma ou compartilhado entre marketplaces.</p>
         </div>
         <div className="commerce-filter-row">
           <form onSubmit={event => { event.preventDefault(); load(0); }}>
@@ -71,18 +81,23 @@ export default function CommerceProductsView() {
       {loading ? <CommerceLoadingBlock label="Carregando produtos…" /> : data.items?.length ? (
         <div className="commerce-table-wrap">
           <table className="commerce-table">
-            <thead><tr><th>Produto</th><th>SKU atual</th><th>Categoria</th><th>Tipo</th><th>Plataformas</th><th>Status</th></tr></thead>
+            <thead><tr><th>Produto</th><th>SKU atual</th><th>Categoria</th><th>Tipo</th><th>Cobertura</th><th>Status</th></tr></thead>
             <tbody>
               {data.items.map(product => {
                 const productId = Number(product.product_id || 0);
                 const marketplaceCodes = Array.isArray(product.marketplace_codes) ? product.marketplace_codes : [];
+                const listingCount = Number(product.listing_count || 0);
                 return (
                   <tr key={productId}>
                     <td><strong>{product.name}</strong><small>#{productId}</small></td>
                     <td><code>{product.current_sku || '—'}</code></td>
                     <td>{product.category_name || '—'}{product.subcategory_name ? <small>{product.subcategory_name}</small> : null}</td>
                     <td>{commerceStatusLabel(product.temporal_type)}{product.edition_year ? <small>Edição {product.edition_year}</small> : null}</td>
-                    <td>{commerceFormatNumber(product.marketplace_count || 0)}<small>{marketplaceCodes.length ? marketplaceCodes.join(' · ') : 'Sem anúncio'}</small></td>
+                    <td>
+                      <strong>{coverageLabel(marketplaceCodes)}</strong>
+                      <small>{marketplaceCodes.length ? marketplaceCodes.join(' · ') : 'Nenhuma plataforma'}</small>
+                      <small>{commerceFormatNumber(listingCount)} anúncio(s)</small>
+                    </td>
                     <td><CommerceStatusPill value={product.internal_status} /></td>
                   </tr>
                 );
