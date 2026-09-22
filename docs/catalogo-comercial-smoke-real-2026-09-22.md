@@ -83,4 +83,4 @@ Após os smoke tests, as tabelas comerciais de produtos, listings e importaçõe
 6. validar amostra de produtos/listings;
 7. somente então abrir a primeira campanha anual 2027.
 
-O merge/deploy da V1 continua bloqueado até smoke test pelo navegador e validação visual do ADM.
+O merge/deploy da V1 continua bloqueado até smoke test pelo navegador e validação visual do ADM. O Production Gate deve estar verde no head final imediatamente antes da liberação.
