@@ -576,12 +576,6 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
           <span className="gtin-laser-corner top-right" />
           <span className="gtin-laser-corner bottom-left" />
           <span className="gtin-laser-corner bottom-right" />
-          {cameraActive && !scannerPaused && (
-            <div className="gtin-laser-dynamic-beam">
-              <div className="gtin-laser-dynamic-line" />
-              <div className="gtin-laser-dynamic-glow" />
-            </div>
-          )}
         </div>
         {cameraActive && (
           <button type="button" className="gtin-camera-pause" onClick={toggleScannerPaused}>
@@ -679,7 +673,6 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     </>
   );
 }
-
 
 
 
