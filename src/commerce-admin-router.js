@@ -152,7 +152,7 @@ export async function handleCommerceAdminRequest(request, env) {
       return json(paginationPayload(result));
     }
 
-    const reconciliationResolveMatch = pathname.match(/^\\/api\\/admin\\/commerce\\/reconciliation\\/(\\d+)\\/resolve$/);
+    const reconciliationResolveMatch = pathname.match(/^\/api\/admin\/commerce\/reconciliation\/(\d+)\/resolve$/);
     if (method === 'POST' && reconciliationResolveMatch) {
       const listingId = positiveId(reconciliationResolveMatch[1]);
       const body = await bodyJson(request);
