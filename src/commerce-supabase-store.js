@@ -169,3 +169,35 @@ export async function commerceCommitImportBatch(env, batchId) {
   if (!id) throw new Error('batch_id inválido.');
   return await supabaseRpc(env, 'commerce_commit_import_batch_v3', { p_batch_id: id });
 }
+
+
+export async function commerceReconciliationQueue(env, filters = {}) {
+  const limit = cleanPageSize(filters.limit, 50);
+  const offset = cleanOffset(filters.offset);
+  const rows = await supabaseRpc(env, 'commerce_list_reconciliation_queue_v1', {
+    p_limit: limit,
+    p_offset: offset
+  });
+  return { items: Array.isArray(rows) ? rows : [], limit, offset };
+}
+
+export async function commerceResolveReconciliationListing(env, listingId, input = {}) {
+  const id = cleanId(listingId);
+  if (!id) throw new Error('listing_id inválido.');
+  const productId = input.productId == null ? null : cleanId(input.productId);
+  const categoryId = input.categoryId == null ? null : cleanId(input.categoryId);
+  const platformSkus = Array.isArray(input.platformSkus)
+    ? input.platformSkus.map(cleanText).filter(Boolean).slice(0, 100)
+    : null;
+  return await supabaseRpc(env, 'commerce_resolve_reconciliation_listing_v1', {
+    p_listing_id: id,
+    p_action: cleanText(input.action),
+    p_product_id: productId,
+    p_product_name: cleanText(input.productName),
+    p_category_id: categoryId,
+    p_platform_skus: platformSkus,
+    p_apply_family: Boolean(input.applyFamily),
+    p_resolve: input.resolve !== false,
+    p_operator: cleanText(input.operator)
+  });
+}
