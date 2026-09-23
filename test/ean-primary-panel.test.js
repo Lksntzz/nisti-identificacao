@@ -21,6 +21,12 @@ test('entry does not mount a second floating EAN scanner', () => {
   assert.doesNotMatch(entrySource, /<GtinScannerOverlay/);
 });
 
+test('public EAN scanner does not expose an administrative shortcut', () => {
+  assert.doesNotMatch(publicSource, /Painel Admin/);
+  assert.doesNotMatch(publicSource, /navigateToAdmin/);
+  assert.doesNotMatch(publicSource, /Abrir Painel Administrativo/);
+});
+
 test('embedded scanner keeps camera and manual EAN workflows', () => {
   assert.match(scannerSource, /facingMode: \{ ideal: 'environment' \}/);
   assert.match(scannerSource, /Leitor físico ou digitação manual/);
