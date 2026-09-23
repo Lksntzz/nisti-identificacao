@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate }) {
+export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, onShowProductsWithoutGtin }) {
   const activeGtins = Number(gtinDashboard?.active_gtins || 0);
   const productsWithGtin = Number(gtinDashboard?.products_with_gtin || 0);
   const todayTotal = Number(gtinDashboard?.today?.total || 0);
@@ -10,7 +10,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate }
 
   const successRate = todayTotal > 0 ? Math.round((todayIdentified / todayTotal) * 100) : 100;
   const coverageRate = productsCount > 0 ? Math.round((productsWithGtin / productsCount) * 100) : 0;
-  const productsWithoutGtin = Math.max(0, productsCount - productsWithGtin);
+  const productsWithoutGtin = Number(gtinDashboard?.products_without_gtin_count ?? Math.max(0, productsCount - productsWithGtin));
 
   return (
     <div className="expedition-dashboard-container" style={{ marginBottom: '24px' }}>
@@ -60,29 +60,27 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate }
           </div>
         </div>
 
-        <div
-          className="kpi-box kpi-purple"
-          style={{ cursor: todayNotFound > 0 && onNavigate ? 'pointer' : 'default' }}
-          onClick={() => {
-            if (todayNotFound > 0 && onNavigate) onNavigate('ean-nao-cadastrados');
-          }}
-          title={todayNotFound > 0 ? 'Clique para ver os EANs não cadastrados' : ''}
-        >
-          <div className="kpi-icon-circle purple">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#9333ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 2 7 12 12 22 7 12 2" />
-              <polyline points="2 17 12 22 22 17" />
-              <polyline points="2 12 12 17 22 12" />
-            </svg>
-          </div>
-          <div className="kpi-body">
-            <span className="kpi-title">EAN não Cadastrados</span>
-            <strong className="kpi-num">{todayNotFound.toLocaleString('pt-BR')}</strong>
-            <span className={`kpi-tag ${todayNotFound > 0 ? 'orange' : 'green'}`}>
-              {todayNotFound > 0 ? 'Aguardando vínculo' : 'Nenhum pendente'}
-            </span>
-          </div>
-        </div>
+        {todayNotFound > 0 && (
+          <button
+            type="button"
+            className="kpi-box kpi-purple kpi-action"
+            onClick={() => onNavigate?.('ean-nao-cadastrados')}
+            title="Ver os EANs não cadastrados"
+          >
+            <div className="kpi-icon-circle purple">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#9333ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                <polyline points="2 17 12 22 22 17" />
+                <polyline points="2 12 12 17 22 12" />
+              </svg>
+            </div>
+            <div className="kpi-body">
+              <span className="kpi-title">EAN não Cadastrados</span>
+              <strong className="kpi-num">{todayNotFound.toLocaleString('pt-BR')}</strong>
+              <span className="kpi-tag orange">Aguardando vínculo</span>
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Painel de Produtividade da Expedição & Cobertura */}
@@ -192,42 +190,16 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate }
             </div>
 
             {/* Alerta de Produtos sem EAN ou Ação Rápida */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: productsWithoutGtin > 0 ? '#fffbeb' : '#f0fdf4',
-              border: `1px solid ${productsWithoutGtin > 0 ? '#fef3c7' : '#bbf7d0'}`,
-              padding: '10px 14px',
-              borderRadius: '12px',
-              marginTop: '4px'
-            }}>
-              <div style={{ fontSize: '12px', color: productsWithoutGtin > 0 ? '#92400e' : '#166534' }}>
-                {productsWithoutGtin > 0 ? (
-                  <span>⚠️ <strong>{productsWithoutGtin}</strong> produto{productsWithoutGtin === 1 ? '' : 's'} sem EAN vinculado</span>
-                ) : (
-                  <span>✓ Todos os produtos do catálogo possuem código EAN!</span>
-                )}
-              </div>
-              {onNavigate && (
-                <button
-                  type="button"
-                  onClick={() => onNavigate('gerador-barras')}
-                  style={{
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    padding: '5px 10px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#334155',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Gerar Etiquetas ↗
-                </button>
-              )}
-            </div>
+            {productsWithoutGtin > 0 && (
+              <button
+                type="button"
+                className="missing-gtin-alert"
+                onClick={onShowProductsWithoutGtin}
+              >
+                <span>⚠️ <strong>{productsWithoutGtin}</strong> produto{productsWithoutGtin === 1 ? '' : 's'} sem EAN vinculado</span>
+                <span>Ver produtos →</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
