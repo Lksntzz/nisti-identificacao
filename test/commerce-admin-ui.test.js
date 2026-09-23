@@ -28,14 +28,15 @@ test('rota do Catálogo Comercial reutiliza a sessão administrativa', () => {
   assert.equal(edge.includes("pathname.startsWith('/api/admin/')"), true);
 });
 
-test('UI comercial modular possui as cinco visões essenciais', () => {
+test('UI comercial modular possui as visões essenciais', () => {
   const shell = read('src/commerce-admin-app-v2.jsx');
-  for (const label of ['Visão Geral', 'Produtos Mestre', 'Anúncios', 'Importações Excel', 'Atualização Anual']) {
+  for (const label of ['Visão Geral', 'Produtos Mestre', 'Anúncios', 'Importações Excel', 'Revisão de vínculos', 'Atualização Anual']) {
     assert.equal(shell.includes(label), true, `${label} deve existir`);
   }
   assert.equal(shell.includes('CommerceImportView'), true);
   assert.equal(shell.includes('CommerceProductsView'), true);
   assert.equal(shell.includes('CommerceListingsView'), true);
+  assert.equal(shell.includes('CommerceReconciliationView'), true);
 });
 
 test('importação XLSX é browser-side, versionada e usa staging antes do commit', () => {
@@ -63,4 +64,21 @@ test('cliente comercial confirma estado antes de tratar timeout de mutação com
   assert.equal(client.includes("['REVIEW', 'COMMITTED']"), true);
   assert.equal(client.includes("['COMMITTED']"), true);
   assert.equal(client.includes('recovered_after_timeout'), true);
+});
+
+
+test('fila de revisão comercial suporta produto existente, produto novo e anúncios N:N', () => {
+  const router = read('src/commerce-admin-router.js');
+  const store = read('src/commerce-supabase-store.js');
+  const view = read('src/commerce-reconciliation-view.jsx');
+
+  assert.equal(router.includes('/reconciliation'), true);
+  assert.equal(router.includes('LINK_EXISTING'), true);
+  assert.equal(router.includes('CREATE_NEW'), true);
+  assert.equal(router.includes('MARK_RESOLVED'), true);
+  assert.equal(store.includes('commerce_list_reconciliation_queue_v1'), true);
+  assert.equal(store.includes('commerce_resolve_reconciliation_listing_v1'), true);
+  assert.equal(view.includes('Vincular seleção e continuar'), true);
+  assert.equal(view.includes('Um Produto Mestre para toda a família'), true);
+  assert.equal(view.includes('Concluir revisão'), true);
 });
