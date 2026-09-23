@@ -8,6 +8,7 @@ import CatalogView from './admin/CatalogView.jsx';
 import GtinRegistryView from './admin/GtinRegistryView.jsx';
 import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
+import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import {
   createEan13Svg,
   downloadBarcodePng,
@@ -1288,6 +1289,15 @@ function AdminApp() {
   };
 
   const handleNavChange = viewId => setActiveView(viewId);
+  const productsWithoutGtin = gtinDashboard?.products_without_gtin || [];
+
+  const showProductsWithoutGtin = () => {
+    if (productsWithoutGtin.length === 1) {
+      setViewProduct(productsWithoutGtin[0]);
+      return;
+    }
+    if (productsWithoutGtin.length > 1) setActiveView('produtos-sem-ean');
+  };
 
   if (loading) {
     return (
@@ -1321,6 +1331,7 @@ function AdminApp() {
             gtinDashboard={gtinDashboard}
             productsCount={products.length}
             onNavigate={handleNavChange}
+            onShowProductsWithoutGtin={showProductsWithoutGtin}
           />
 
           {activeView === 'catalogo' && (
@@ -1353,6 +1364,14 @@ function AdminApp() {
               api={api}
               products={products}
               onLinkSuccess={refreshAll}
+            />
+          )}
+
+          {activeView === 'produtos-sem-ean' && (
+            <ProductsWithoutGtinView
+              products={productsWithoutGtin}
+              onSelect={product => setViewProduct(product)}
+              onBack={() => setActiveView('catalogo')}
             />
           )}
 
