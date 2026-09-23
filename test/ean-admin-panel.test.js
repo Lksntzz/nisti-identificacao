@@ -12,6 +12,7 @@ const gtinEvents = fs.readFileSync(new URL('../src/admin/GtinEventsView.jsx', im
 const barcodeGen = fs.readFileSync(new URL('../src/admin/BarcodeGeneratorView.jsx', import.meta.url), 'utf8');
 const expeditionDashboard = fs.readFileSync(new URL('../src/admin/ExpeditionDashboard.jsx', import.meta.url), 'utf8');
 const productsWithoutGtinView = fs.readFileSync(new URL('../src/admin/ProductsWithoutGtinView.jsx', import.meta.url), 'utf8');
+const catalogView = fs.readFileSync(new URL('../src/admin/CatalogView.jsx', import.meta.url), 'utf8');
 
 test('EAN admin exposes registry, history and uncatalogued-code operations', () => {
   assert.match(gtinRegistry + main, /function GtinRegistryView/);
@@ -85,4 +86,12 @@ test('clicking the missing EAN alert opens the affected products', () => {
   assert.match(main, /setViewProduct\(productsWithoutGtin\[0\]\)/);
   assert.match(productsWithoutGtinView, /Produtos sem EAN/);
   assert.match(productsWithoutGtinView, /onClick=\{\(\) => onSelect\?\.\(product\)\}/);
+});
+
+test('catalog missing EAN filter uses the active GTIN relationship', () => {
+  assert.match(coreRouter, /AS has_active_gtin/);
+  assert.match(coreRouter, /AS gtin/);
+  assert.match(catalogView, /!p\.has_active_gtin/);
+  assert.doesNotMatch(catalogView, /!p\.capa_code && !p\.gtin/);
+  assert.match(catalogView, /Apenas sem EAN/);
 });
