@@ -10,6 +10,8 @@ const migration = fs.readFileSync(new URL('../migrations/0017_gtin_scan_events.s
 const gtinRegistry = fs.readFileSync(new URL('../src/admin/GtinRegistryView.jsx', import.meta.url), 'utf8');
 const gtinEvents = fs.readFileSync(new URL('../src/admin/GtinEventsView.jsx', import.meta.url), 'utf8');
 const barcodeGen = fs.readFileSync(new URL('../src/admin/BarcodeGeneratorView.jsx', import.meta.url), 'utf8');
+const expeditionDashboard = fs.readFileSync(new URL('../src/admin/ExpeditionDashboard.jsx', import.meta.url), 'utf8');
+const productsWithoutGtinView = fs.readFileSync(new URL('../src/admin/ProductsWithoutGtinView.jsx', import.meta.url), 'utf8');
 
 test('EAN admin exposes registry, history and uncatalogued-code operations', () => {
   assert.match(gtinRegistry + main, /function GtinRegistryView/);
@@ -66,4 +68,21 @@ test('manual and bulk registration immediately expose downloadable barcode label
   assert.match(main, /Baixar todas em ZIP/);
   assert.match(main, /setResult\(\{ items: registered, errors: failures \}\)/);
   assert.match(main, /setResult\(\{ items: importedItems, errors: importErrors, created, updated \}\)/);
+});
+
+test('admin dashboard only shows actionable EAN pending blocks', () => {
+  assert.match(router, /products_without_gtin_count/);
+  assert.match(router, /products_without_gtin:/);
+  assert.match(router, /NOT EXISTS \([\s\S]*?product_gtins g[\s\S]*?g\.active=1/);
+  assert.match(expeditionDashboard, /todayNotFound > 0 && \(/);
+  assert.match(expeditionDashboard, /productsWithoutGtin > 0 && \(/);
+  assert.doesNotMatch(expeditionDashboard, /Todos os produtos do catálogo possuem código EAN/);
+});
+
+test('clicking the missing EAN alert opens the affected products', () => {
+  assert.match(expeditionDashboard, /onShowProductsWithoutGtin/);
+  assert.match(main, /activeView === 'produtos-sem-ean'/);
+  assert.match(main, /setViewProduct\(productsWithoutGtin\[0\]\)/);
+  assert.match(productsWithoutGtinView, /Produtos sem EAN/);
+  assert.match(productsWithoutGtinView, /onClick=\{\(\) => onSelect\?\.\(product\)\}/);
 });
