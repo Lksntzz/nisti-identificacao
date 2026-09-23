@@ -35,6 +35,14 @@ test('embedded scanner attempts to open the camera as soon as the application lo
   assert.doesNotMatch(scannerSource, /CAMERA_ACCESS_STORAGE_KEY/);
 });
 
+test('consecutive EAN reading resumes the warm camera stream before opening a new one', () => {
+  assert.match(scannerSource, /const CAMERA_IDLE_TIMEOUT_MS = 20000/);
+  assert.match(scannerSource, /pauseCameraScan\(\);\s+if \(navigator\.vibrate\)/);
+  assert.match(scannerSource, /const resumeCameraStream = useCallback/);
+  assert.match(scannerSource, /resumeCameraRequestedRef\.current = true;\s+setProduct\(null\)/);
+  assert.match(scannerSource, /if \(!cancelled && !resumed\) startCamera\(\)/);
+});
+
 test('EAN result highlights product finishes without an animated camera overlay', () => {
   assert.match(scannerSource, /\['Wire-o', product\.wireo/);
   assert.match(scannerSource, /\['Tassel', product\.tassel/);
