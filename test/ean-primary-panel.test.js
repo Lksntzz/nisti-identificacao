@@ -35,12 +35,23 @@ test('embedded scanner attempts to open the camera as soon as the application lo
   assert.doesNotMatch(scannerSource, /CAMERA_ACCESS_STORAGE_KEY/);
 });
 
-test('consecutive EAN reading resumes the warm camera stream before opening a new one', () => {
-  assert.match(scannerSource, /const CAMERA_IDLE_TIMEOUT_MS = 20000/);
-  assert.match(scannerSource, /pauseCameraScan\(\);\s+if \(navigator\.vibrate\)/);
-  assert.match(scannerSource, /const resumeCameraStream = useCallback/);
-  assert.match(scannerSource, /resumeCameraRequestedRef\.current = true;\s+setProduct\(null\)/);
-  assert.match(scannerSource, /if \(!cancelled && !resumed\) startCamera\(\)/);
+test('continuous EAN reading keeps the camera mounted and blocks duplicate scans', () => {
+  assert.match(scannerSource, /const SAME_EAN_RELEASE_MS = 1800/);
+  assert.match(scannerSource, /acceptedGtinRef\.current = \{ value: gtin, lastSeenAt: Date\.now\(\) \}/);
+  assert.match(scannerSource, /if \(accepted\.value === value\)/);
+  assert.match(scannerSource, /Date\.now\(\) - accepted\.lastSeenAt >= SAME_EAN_RELEASE_MS/);
+  assert.match(scannerSource, /<video ref=\{videoRef\}[\s\S]*?\{product && \(/);
+  assert.doesNotMatch(scannerSource, /\{!product && \(/);
+  assert.doesNotMatch(scannerSource, /pauseCameraScan/);
+  assert.doesNotMatch(scannerSource, /Ler outro EAN/);
+});
+
+test('continuous scanner can be paused without stopping the camera stream', () => {
+  assert.match(scannerSource, /const \[scannerPaused, setScannerPaused\] = useState\(false\)/);
+  assert.match(scannerSource, /activeRef\.current = false;\s+if \(animationRef\.current\) cancelAnimationFrame/);
+  assert.match(scannerSource, /scannerPaused \? 'Continuar leitura' : 'Pausar leitura'/);
+  assert.match(scannerStyles, /\.gtin-camera-pause/);
+  assert.match(scannerStyles, /\.gtin-scanner-result\.is-continuous/);
 });
 
 test('EAN result highlights product finishes without an animated camera overlay', () => {
