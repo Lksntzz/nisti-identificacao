@@ -84,22 +84,11 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
       </div>
 
       {/* Painel de Produtividade da Expedição & Cobertura */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '16px',
-        marginTop: '16px'
-      }}>
+      <div className="expedition-panels-grid">
         {/* Card 1: Eficiência Operacional Hoje */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '16px',
-          border: '1px solid #e2e8f0',
-          padding: '20px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="expedition-card">
+          <div className="expedition-card-head">
+            <div className="expedition-card-title">
               <span style={{ fontSize: '18px' }}>⚡</span>
               <strong style={{ fontSize: '14px', color: '#0f172a', fontWeight: 800 }}>Produtividade da Expedição Hoje</strong>
             </div>
@@ -121,22 +110,13 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
                   height: '100%',
                   background: successRate >= 95 ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #f59e0b, #d97706)',
                   borderRadius: '999px',
-                  transition: 'width 0.4s ease'
+                  transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
                 }} />
               </div>
             </div>
 
             {/* Sub-métricas em 3 colunas */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '8px',
-              background: '#f8fafc',
-              padding: '10px 12px',
-              borderRadius: '12px',
-              border: '1px solid #edf2f7',
-              marginTop: '4px'
-            }}>
+            <div className="expedition-metrics-subgrid">
               <div>
                 <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block', fontWeight: 600 }}>Identificados</span>
                 <strong style={{ fontSize: '16px', color: '#16a34a', fontWeight: 800 }}>{todayIdentified}</strong>
@@ -154,15 +134,9 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
         </div>
 
         {/* Card 2: Cobertura do Catálogo EAN */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '16px',
-          border: '1px solid #e2e8f0',
-          padding: '20px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="expedition-card">
+          <div className="expedition-card-head">
+            <div className="expedition-card-title">
               <span style={{ fontSize: '18px' }}>🏷️</span>
               <strong style={{ fontSize: '14px', color: '#0f172a', fontWeight: 800 }}>Cobertura EAN do Catálogo</strong>
             </div>
@@ -184,7 +158,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
                   height: '100%',
                   background: 'linear-gradient(90deg, #3b82f6, #1d4ed8)',
                   borderRadius: '999px',
-                  transition: 'width 0.4s ease'
+                  transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
                 }} />
               </div>
             </div>

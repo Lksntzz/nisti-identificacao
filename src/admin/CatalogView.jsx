@@ -75,6 +75,7 @@ export function CatalogView({
 }) {
   const [search, setSearch] = useState('');
   const [platformFilter, setPlatformFilter] = useState('');
+  const [onlyWithoutEan, setOnlyWithoutEan] = useState(false);
   const [page, setPage] = useState(1);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
 
@@ -86,14 +87,38 @@ export function CatalogView({
     const q = search.trim().toLowerCase();
     return products.filter(p => {
       const matchPlatform = !platformFilter || p.platform === platformFilter;
-      const matchQuery = !q || [p.sku, p.nome, p.variacao, p.capa_code, p.platform].some(
+      const matchEanFilter = !onlyWithoutEan || (!p.capa_code && !p.gtin);
+      const matchQuery = !q || [p.sku, p.nome, p.variacao, p.capa_code, p.platform, p.gtin].some(
         val => String(val || '').toLowerCase().includes(q)
       );
-      return matchPlatform && matchQuery;
+      return matchPlatform && matchEanFilter && matchQuery;
     });
-  }, [products, search, platformFilter]);
+  }, [products, search, platformFilter, onlyWithoutEan]);
 
-  useEffect(() => setPage(1), [search, platformFilter]);
+  useEffect(() => setPage(1), [search, platformFilter, onlyWithoutEan]);
+
+  const exportCsv = () => {
+    const headers = ['ID', 'SKU', 'NOME', 'VARIACAO', 'CAPA_CODE', 'PLATAFORMA', 'CRIADO_EM'];
+    const rows = filtered.map(p => [
+      p.id,
+      `"${String(p.sku || '').replace(/"/g, '""')}"`,
+      `"${String(p.nome || '').replace(/"/g, '""')}"`,
+      `"${String(p.variacao || '').replace(/"/g, '""')}"`,
+      `"${String(p.capa_code || '').replace(/"/g, '""')}"`,
+      `"${String(p.platform || '').replace(/"/g, '""')}"`,
+      `"${String(p.created_at || '').replace(/"/g, '""')}"`
+    ]);
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `catalogo_nisti_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   useEffect(() => {
@@ -136,29 +161,38 @@ export function CatalogView({
           <div className="filter-dropdown-wrap">
             <button
               type="button"
-              className={`btn-toolbar-filter ${platformFilter ? 'active' : ''}`}
+              className={`btn-toolbar-filter ${platformFilter || onlyWithoutEan ? 'active' : ''}`}
               onClick={() => setFilterMenuOpen(prev => !prev)}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
               </svg>
-              <span>{platformFilter || 'Filtros'}</span>
+              <span>{onlyWithoutEan ? 'Sem EAN' : (platformFilter || 'Filtros')}</span>
             </button>
 
             {filterMenuOpen && (
               <div className="filter-dropdown-menu">
                 <button
                   type="button"
-                  className={!platformFilter ? 'selected' : ''}
-                  onClick={() => { setPlatformFilter(''); setFilterMenuOpen(false); }}
+                  className={!platformFilter && !onlyWithoutEan ? 'selected' : ''}
+                  onClick={() => { setPlatformFilter(''); setOnlyWithoutEan(false); setFilterMenuOpen(false); }}
                 >
-                  Todas as plataformas
+                  Todos os produtos
                 </button>
+                <button
+                  type="button"
+                  className={onlyWithoutEan ? 'selected' : ''}
+                  onClick={() => { setOnlyWithoutEan(prev => !prev); setFilterMenuOpen(false); }}
+                  style={{ color: '#d97706', fontWeight: 600 }}
+                >
+                  Apenas sem EAN/Capa
+                </button>
+                <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0' }} />
                 {platforms.map(p => (
                   <button
                     key={p}
                     className={platformFilter === p ? 'selected' : ''}
-                    onClick={() => { setPlatformFilter(p); setFilterMenuOpen(false); }}
+                    onClick={() => { setPlatformFilter(p); setOnlyWithoutEan(false); setFilterMenuOpen(false); }}
                   >
                     {p}
                   </button>
@@ -166,6 +200,20 @@ export function CatalogView({
               </div>
             )}
           </div>
+
+          <button
+            type="button"
+            className="btn-toolbar-filter"
+            title="Exportar catálogo filtrado para planilha CSV"
+            onClick={exportCsv}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>CSV</span>
+          </button>
 
           <button
             type="button"

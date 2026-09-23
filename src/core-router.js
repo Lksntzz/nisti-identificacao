@@ -763,7 +763,7 @@ export default {
 
       if (url.pathname === '/api/admin/push/six-covers' && request.method === 'GET') {
         const payload = {
-          title: '📚 6 Novas Capas Cadastradas!',
+          title: '6 Novas Capas Cadastradas',
           body: 'As capas PQV1, PQV2, PQV3, PQV4, PQV5 e PQV6 (Pequenas Aventuras) já estão prontas no catálogo.',
           image_url: 'https://nisti-identificacao.lksntz1411.workers.dev/api/images/210',
           url: '/'
@@ -802,7 +802,7 @@ export default {
         const subscriptions = results || [];
 
         const testPayload = {
-          title: '🔔 Teste de Sinal · NISTI PRINT',
+          title: 'Teste de Sinal · NISTI PRINT',
           body: 'Verificando integridade das conexões push em segundo plano.',
           url: '/'
         };

@@ -352,7 +352,7 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
 
         <div className="push-banner">
           <div className="push-banner-copy">
-            <strong>📲 Notificações no celular</strong>
+            <strong>Notificações no celular</strong>
             <span>
               {pushStatus === 'granted'
                 ? 'Notificações ativas neste aparelho.'
@@ -374,7 +374,7 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
             </button>
           )}
           {pushStatus === 'granted' && (
-            <span className="push-status-badge">✓ Ativo</span>
+            <span className="push-status-badge">Ativo</span>
           )}
         </div>
 
@@ -722,7 +722,7 @@ function ProductResult({ product, performance, onReset, photo, platform }) {
     <div className="result-compact-card">
       <div className="result-compact-header">
         <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          ✓ Capa Identificada
+          Capa Identificada
         </span>
         <ConfidenceBadge confidence={product.confidence} score={performance?.retrieval_top1} />
       </div>
@@ -742,17 +742,17 @@ function ProductResult({ product, performance, onReset, photo, platform }) {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '5px' }}>
               {performance?.monogram_letter && (
                 <span style={{ fontSize: '10px', color: '#0369a1', background: '#e0f2fe', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                  🔤 Monograma: {performance.monogram_letter}
+                  Monograma: {performance.monogram_letter}
                 </span>
               )}
               {performance?.dominant_color && (
                 <span style={{ fontSize: '10px', color: '#0f766e', background: '#ccfbf1', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                  🎨 Tom: {performance.dominant_color}
+                  Tom: {performance.dominant_color}
                 </span>
               )}
               {performance?.ocr_text && (
                 <span style={{ fontSize: '10px', color: '#4338ca', background: '#e0e7ff', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                  📝 Texto: "{performance.ocr_text}"
+                  Texto: "{performance.ocr_text}"
                 </span>
               )}
             </div>
@@ -845,7 +845,7 @@ function ProductChoices({ capaCode, products, platform, onSelect, performance, o
     <div className="result-compact-card" style={{ background: '#f8faff', borderColor: '#c7d2fe' }}>
       <div className="result-compact-header">
         <span style={{ fontSize: '11px', fontWeight: 800, color: '#4f46e5', textTransform: 'uppercase' }}>
-          💡 Modelos Similares Encontrados ({products.length}) · Toque no correto:
+          Modelos Similares Encontrados ({products.length}) · Selecione o correto:
         </span>
         <ConfidenceBadge score={performance?.retrieval_top1} />
       </div>
@@ -855,7 +855,7 @@ function ProductChoices({ capaCode, products, platform, onSelect, performance, o
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <span>{analyzingDetail ? 'Analisando detalhe com IA…' : '🔍 Desempatar por foto de detalhe / texto'}</span>
+        <span>{analyzingDetail ? 'Analisando detalhe com IA…' : 'Desempatar por foto de detalhe / texto'}</span>
         <input type="file" accept="image/*" capture="environment" disabled={analyzingDetail} onChange={e => handleDetailPhoto(e.target.files?.[0])} />
       </label>
 
@@ -1132,7 +1132,7 @@ function LegacyVisualIdentificationApp() {
         })
       }).then(res => {
         if (res?.ok) {
-          setAutoLearnNotice(`✨ IA auto-treinada: a foto foi vinculada como referência para a capa ${product.capa_code}!`);
+          setAutoLearnNotice(`Referência vinculada com sucesso para a capa ${product.capa_code}!`);
           setTimeout(() => setAutoLearnNotice(''), 5000);
         }
       }).catch(() => {});
@@ -1363,7 +1363,11 @@ function LegacyVisualIdentificationApp() {
         {error && (
           <div className="status error" style={{ padding: '10px 12px', margin: '4px 0', borderRadius: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '14px' }}>⚠️</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
               <h3 style={{ fontSize: '13px', margin: 0, fontWeight: 800 }}>{error.includes('conexão') || error.includes('fetch') ? 'Oscilação de Conexão' : 'Não foi possível identificar'}</h3>
             </div>
             <p style={{ fontSize: '11.5px', margin: '4px 0 6px', color: '#b91c1c' }}>{error}</p>
@@ -1377,7 +1381,7 @@ function LegacyVisualIdentificationApp() {
             </div>
 
             <div style={{ background: 'rgba(255,255,255,0.7)', borderRadius: '8px', padding: '6px 8px', fontSize: '11px', color: '#334155', marginTop: '4px', lineHeight: 1.4 }}>
-              <strong>💡 Dicas de ajuste na bancada:</strong>
+              <strong>Dicas de ajuste na bancada:</strong>
               <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
                 <li>Se houver reflexo de lâmpada ou glitter, <strong>incline o caderno 5°</strong>.</li>
                 <li>Mantenha o flash desligado e enquadre de frente.</li>
@@ -1438,8 +1442,12 @@ function LegacyVisualIdentificationApp() {
     {recentScans.length > 0 && (
       <div className={`recent-scans-drawer${drawerOpen ? ' open' : ''}`}>
         <div className="recent-scans-header" onClick={() => setDrawerOpen(o => !o)}>
-          <span className="recent-scans-title">
-            🗂️ Histórico desta sessão
+          <span className="recent-scans-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>Histórico desta sessão</span>
             <span className="recent-scans-badge">{recentScans.length}</span>
           </span>
           <svg className="recent-scans-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

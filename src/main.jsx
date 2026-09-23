@@ -254,7 +254,18 @@ function AdminSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar })
         </nav>
 
         <div className="sidebar-footer">
-          <a href="/admin-logout" className="sidebar-logout-btn">
+          <a
+            href="/admin-logout"
+            className="sidebar-logout-btn"
+            onClick={e => {
+              if (window.location.hash) {
+                e.preventDefault();
+                document.cookie = 'nisti_admin_session=; Path=/; Max-Age=0; SameSite=Strict';
+                window.location.hash = '';
+                window.location.pathname = '/';
+              }
+            }}
+          >
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" />
@@ -348,7 +359,18 @@ function AdminTopbar({ onToggleSidebar, unreadCount }) {
           {unreadCount > 0 && <span className="topbar-bell-badge">{unreadCount}</span>}
         </a>
 
-        <a href="/admin-logout" className="topbar-logout-btn">
+        <a
+          href="/admin-logout"
+          className="topbar-logout-btn"
+          onClick={e => {
+            if (window.location.hash) {
+              e.preventDefault();
+              document.cookie = 'nisti_admin_session=; Path=/; Max-Age=0; SameSite=Strict';
+              window.location.hash = '';
+              window.location.pathname = '/';
+            }
+          }}
+        >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <polyline points="16 17 21 12 16 7" />
@@ -375,7 +397,7 @@ function WelcomeDateBanner() {
   return (
     <div className="welcome-banner">
       <div className="welcome-copy">
-        <h2>Bem-vindo, Administrador 👋</h2>
+        <h2>Bem-vindo, Administrador</h2>
         <p>Gerencie o catálogo de produtos e acompanhe as identificações da expedição.</p>
       </div>
 
@@ -655,9 +677,16 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
             </div>
 
             <div className="variants-section-header">
-              <h4>Capas / Variações ({variants.length})</h4>
+              <div className="variants-header-title">
+                <h4>Capas / Variações</h4>
+                <span className="variants-count-badge">{variants.length}</span>
+              </div>
               <button type="button" className="btn-add-variant" onClick={addVariant}>
-                + Adicionar Outra Capa
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Adicionar Outra Capa</span>
               </button>
             </div>
 
@@ -1113,7 +1142,11 @@ function ViewProductModal({ product, isOpen, onClose, onEdit }) {
         <div className="admin-modal-foot">
           <button type="button" className="btn-cancel" onClick={onClose}>Fechar</button>
           <button type="button" className="btn-edit-action" onClick={() => { onClose(); onEdit(product); }}>
-            ✏️ Editar Produto
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: '-2px', marginRight: '6px' }}>
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            <span>Editar Produto</span>
           </button>
         </div>
       </div>
