@@ -471,7 +471,12 @@ export default {
             p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,p.wireo_code,
             p.tassel_code,p.elastico_code,p.nome,p.variacao,p.image_key,p.created_at,
             (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
-            (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link
+            (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link,
+            (SELECT pg.gtin FROM product_gtins pg WHERE pg.product_id=p.id AND pg.active=1 ORDER BY pg.id ASC LIMIT 1) AS gtin,
+            EXISTS(
+              SELECT 1 FROM product_gtins pg
+              WHERE pg.product_id=p.id AND pg.active=1
+            ) AS has_active_gtin
           FROM products p
           ORDER BY p.id DESC
           LIMIT 1000
@@ -479,6 +484,7 @@ export default {
         return json({
           products: (results || []).map(product => ({
             ...product,
+            has_active_gtin: Number(product.has_active_gtin) === 1,
             image_url: product.image_key ? `/api/images/${product.id}` : null
           }))
         });
