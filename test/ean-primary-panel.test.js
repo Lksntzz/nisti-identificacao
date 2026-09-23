@@ -59,7 +59,9 @@ test('EAN result highlights product finishes without an animated camera overlay'
   assert.match(scannerSource, /\['Tassel', product\.tassel/);
   assert.match(scannerSource, /\['Elástico', product\.elastico/);
   assert.doesNotMatch(scannerSource, /gtin-camera-scan-beam/);
+  assert.doesNotMatch(scannerSource, /gtin-laser-dynamic/);
   assert.doesNotMatch(scannerStyles, /@keyframes gtin-scan-beam/);
+  assert.doesNotMatch(scannerStyles, /@keyframes gtin-laser-traverse/);
   assert.match(scannerStyles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(scannerStyles, /\.gtin-scanner-result[\s\S]*?animation: gtin-result-in/);
 });
