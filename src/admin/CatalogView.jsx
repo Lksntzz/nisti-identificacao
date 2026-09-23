@@ -87,7 +87,7 @@ export function CatalogView({
     const q = search.trim().toLowerCase();
     return products.filter(p => {
       const matchPlatform = !platformFilter || p.platform === platformFilter;
-      const matchEanFilter = !onlyWithoutEan || (!p.capa_code && !p.gtin);
+      const matchEanFilter = !onlyWithoutEan || !p.has_active_gtin;
       const matchQuery = !q || [p.sku, p.nome, p.variacao, p.capa_code, p.platform, p.gtin].some(
         val => String(val || '').toLowerCase().includes(q)
       );
@@ -98,13 +98,14 @@ export function CatalogView({
   useEffect(() => setPage(1), [search, platformFilter, onlyWithoutEan]);
 
   const exportCsv = () => {
-    const headers = ['ID', 'SKU', 'NOME', 'VARIACAO', 'CAPA_CODE', 'PLATAFORMA', 'CRIADO_EM'];
+    const headers = ['ID', 'SKU', 'NOME', 'VARIACAO', 'CAPA_CODE', 'EAN', 'PLATAFORMA', 'CRIADO_EM'];
     const rows = filtered.map(p => [
       p.id,
       `"${String(p.sku || '').replace(/"/g, '""')}"`,
       `"${String(p.nome || '').replace(/"/g, '""')}"`,
       `"${String(p.variacao || '').replace(/"/g, '""')}"`,
       `"${String(p.capa_code || '').replace(/"/g, '""')}"`,
+      `"${String(p.gtin || '').replace(/"/g, '""')}"`,
       `"${String(p.platform || '').replace(/"/g, '""')}"`,
       `"${String(p.created_at || '').replace(/"/g, '""')}"`
     ]);
@@ -185,7 +186,7 @@ export function CatalogView({
                   onClick={() => { setOnlyWithoutEan(prev => !prev); setFilterMenuOpen(false); }}
                   style={{ color: '#d97706', fontWeight: 600 }}
                 >
-                  Apenas sem EAN/Capa
+                  Apenas sem EAN
                 </button>
                 <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0' }} />
                 {platforms.map(p => (
