@@ -12,9 +12,14 @@ function uniqSkus(variants = []) {
     .filter(Boolean))];
 }
 
+function defaultSkuSelection(variants = []) {
+  const skus = uniqSkus(variants);
+  return skus.length === 1 ? skus : [];
+}
+
 function Editor({ item, busy, onClose, onResolve }) {
   const variants = Array.isArray(item?.variants) ? item.variants : [];
-  const [selectedSkus, setSelectedSkus] = useState(() => uniqSkus(variants));
+  const [selectedSkus, setSelectedSkus] = useState(() => defaultSkuSelection(variants));
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState(null);
@@ -22,12 +27,12 @@ function Editor({ item, busy, onClose, onResolve }) {
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    setSelectedSkus(uniqSkus(variants));
+    setSelectedSkus(defaultSkuSelection(variants));
     setProducts([]);
     setSelectedProductId(null);
     setSearch('');
     setNewName(item?.source_product || item?.title || '');
-  }, [item?.listing_id]);
+  }, [item?.listing_id, item?.relation_count]);
 
   async function searchProducts(event) {
     event.preventDefault();
@@ -50,6 +55,8 @@ function Editor({ item, busy, onClose, onResolve }) {
 
   const familyCount = Number(item?.family_pending_count || 0);
   const relationCount = Number(item?.relation_count || 0);
+  const selectableSkus = uniqSkus(variants);
+  const selectionRequired = selectableSkus.length > 0 && selectedSkus.length === 0;
 
   return (
     <div className="commerce-reconciliation-editor">
@@ -95,6 +102,7 @@ function Editor({ item, busy, onClose, onResolve }) {
             );
           })}
         </div>
+        {selectionRequired ? <div className="commerce-error">Selecione pelo menos um SKU/variação antes de vincular ou criar um Produto Mestre.</div> : null}
       </section>
 
       <div className="commerce-reconciliation-columns">
@@ -121,13 +129,13 @@ function Editor({ item, busy, onClose, onResolve }) {
             })}
           </div>
           <div className="commerce-reconciliation-actions">
-            <button type="button" disabled={!selectedProductId || busy} onClick={() => onResolve({
+            <button type="button" disabled={!selectedProductId || busy || selectionRequired} onClick={() => onResolve({
               action: 'LINK_EXISTING', product_id: selectedProductId, platform_skus: selectedSkus, resolve: true
             })}>Vincular e concluir</button>
-            <button type="button" className="secondary" disabled={!selectedProductId || busy} onClick={() => onResolve({
+            <button type="button" className="secondary" disabled={!selectedProductId || busy || selectionRequired} onClick={() => onResolve({
               action: 'LINK_EXISTING', product_id: selectedProductId, platform_skus: selectedSkus, resolve: false
             })}>Vincular seleção e continuar</button>
-            {familyCount > 1 ? <button type="button" className="secondary" disabled={!selectedProductId || busy} onClick={() => onResolve({
+            {familyCount > 1 ? <button type="button" className="secondary" disabled={!selectedProductId || busy || selectionRequired} onClick={() => onResolve({
               action: 'LINK_EXISTING', product_id: selectedProductId, platform_skus: selectedSkus, apply_family: true, resolve: true
             })}>Mesma família → mesmo produto</button> : null}
           </div>
@@ -140,13 +148,13 @@ function Editor({ item, busy, onClose, onResolve }) {
             <input value={newName} onChange={e => setNewName(e.target.value)} disabled={busy} />
           </label>
           <div className="commerce-reconciliation-actions">
-            <button type="button" disabled={!newName.trim() || busy} onClick={() => onResolve({
+            <button type="button" disabled={!newName.trim() || busy || selectionRequired} onClick={() => onResolve({
               action: 'CREATE_NEW', product_name: newName.trim(), platform_skus: selectedSkus, resolve: true
             })}>Criar e concluir</button>
-            <button type="button" className="secondary" disabled={!newName.trim() || busy} onClick={() => onResolve({
+            <button type="button" className="secondary" disabled={!newName.trim() || busy || selectionRequired} onClick={() => onResolve({
               action: 'CREATE_NEW', product_name: newName.trim(), platform_skus: selectedSkus, resolve: false
             })}>Criar para seleção e continuar</button>
-            {familyCount > 1 ? <button type="button" className="secondary" disabled={!newName.trim() || busy} onClick={() => onResolve({
+            {familyCount > 1 ? <button type="button" className="secondary" disabled={!newName.trim() || busy || selectionRequired} onClick={() => onResolve({
               action: 'CREATE_NEW', product_name: newName.trim(), platform_skus: selectedSkus, apply_family: true, resolve: true
             })}>Um Produto Mestre para toda a família</button> : null}
           </div>
