@@ -13,7 +13,9 @@ import {
   commerceImportRows,
   commerceListings,
   commerceProducts,
-  commerceReconcileImportBatch
+  commerceReconciliationQueue,
+  commerceReconcileImportBatch,
+  commerceResolveReconciliationListing
 } from './commerce-supabase-store.js';
 
 const BASE_PATH = '/api/admin/commerce';
@@ -140,6 +142,49 @@ export async function handleCommerceAdminRequest(request, env) {
         offset: query(url, 'offset')
       });
       return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/reconciliation`) {
+      const result = await commerceReconciliationQueue(env, {
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      });
+      return json(paginationPayload(result));
+    }
+
+    const reconciliationResolveMatch = pathname.match(/^\\/api\\/admin\\/commerce\\/reconciliation\\/(\\d+)\\/resolve$/);
+    if (method === 'POST' && reconciliationResolveMatch) {
+      const listingId = positiveId(reconciliationResolveMatch[1]);
+      const body = await bodyJson(request);
+      const action = String(body?.action || '').trim().toUpperCase();
+      const productId = body?.product_id == null ? null : positiveId(body.product_id);
+      const categoryId = body?.category_id == null ? null : positiveId(body.category_id);
+      const productName = String(body?.product_name || '').trim() || null;
+      const platformSkus = Array.isArray(body?.platform_skus)
+        ? body.platform_skus.map(value => String(value || '').trim()).filter(Boolean).slice(0, 100)
+        : null;
+
+      if (!listingId) return json({ error: 'listing_id inválido.' }, 400);
+      if (!['LINK_EXISTING', 'CREATE_NEW', 'MARK_RESOLVED'].includes(action)) {
+        return json({ error: 'action inválida.' }, 400);
+      }
+      if (action === 'LINK_EXISTING' && !productId) {
+        return json({ error: 'product_id é obrigatório para LINK_EXISTING.' }, 400);
+      }
+      if (action === 'CREATE_NEW' && !productName) {
+        return json({ error: 'product_name é obrigatório para CREATE_NEW.' }, 400);
+      }
+
+      return json(await commerceResolveReconciliationListing(env, listingId, {
+        action,
+        productId,
+        productName,
+        categoryId,
+        platformSkus,
+        applyFamily: body?.apply_family === true,
+        resolve: body?.resolve !== false,
+        operator: operatorName(request)
+      }));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/imports`) {
