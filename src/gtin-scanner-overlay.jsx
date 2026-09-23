@@ -4,6 +4,7 @@ import { decodeEan13LumaRow, imageDataToLumaRow } from './gtin-camera-decoder.js
 import './gtin-scanner.css';
 
 const CAMERA_SCAN_INTERVAL_MS = 90;
+const CAMERA_IDLE_TIMEOUT_MS = 20000;
 const NOT_FOUND_COOLDOWN_MS = 1200;
 const GTIN_HISTORY_STORAGE_KEY = 'nisti_gtin_scan_history_v1';
 const GTIN_HISTORY_LIMIT = 20;
@@ -241,10 +242,14 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   const lookupBusyRef = useRef(false);
   const lastFrameRef = useRef(0);
   const animationRef = useRef(0);
+  const cameraIdleTimerRef = useRef(0);
   const lastRejectedRef = useRef({ value: '', at: 0 });
   const autoStartAttemptedRef = useRef(false);
+  const resumeCameraRequestedRef = useRef(false);
 
   const stopCamera = useCallback(() => {
+    if (cameraIdleTimerRef.current) clearTimeout(cameraIdleTimerRef.current);
+    cameraIdleTimerRef.current = 0;
     activeRef.current = false;
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
     animationRef.current = 0;
@@ -257,6 +262,17 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraActive(false);
   }, []);
+
+  const pauseCameraScan = useCallback(() => {
+    activeRef.current = false;
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    animationRef.current = 0;
+    if (cameraIdleTimerRef.current) clearTimeout(cameraIdleTimerRef.current);
+    cameraIdleTimerRef.current = setTimeout(() => {
+      cameraIdleTimerRef.current = 0;
+      stopCamera();
+    }, CAMERA_IDLE_TIMEOUT_MS);
+  }, [stopCamera]);
 
   const addToHistory = useCallback((gtin, resolvedProduct) => {
     const entry = historyEntry(gtin, resolvedProduct);
@@ -314,7 +330,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       if (options.recordHistory !== false) addToHistory(gtin, data.product);
       onProductResolved?.(data.product, gtin);
       setLookupError('');
-      stopCamera();
+      pauseCameraScan();
       if (navigator.vibrate) navigator.vibrate(80);
       return true;
     } catch {
@@ -324,7 +340,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       lookupBusyRef.current = false;
       setLookupBusy(false);
     }
-  }, [addToHistory, onProductResolved, stopCamera]);
+  }, [addToHistory, onProductResolved, pauseCameraScan]);
 
   const fallbackDetect = useCallback(() => {
     const video = videoRef.current;
@@ -388,6 +404,31 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
 
     if (activeRef.current) animationRef.current = requestAnimationFrame(scanFrame);
   }, [fallbackDetect, lookup]);
+
+  const resumeCameraStream = useCallback(async () => {
+    const stream = streamRef.current;
+    const video = videoRef.current;
+    const [videoTrack] = stream?.getVideoTracks?.() || [];
+    if (!stream || !video || !videoTrack || videoTrack.readyState !== 'live') return false;
+
+    try {
+      if (cameraIdleTimerRef.current) clearTimeout(cameraIdleTimerRef.current);
+      cameraIdleTimerRef.current = 0;
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      await improveCameraTrack(videoTrack);
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      await video.play();
+      activeRef.current = true;
+      lastFrameRef.current = 0;
+      setCameraActive(true);
+      setCameraError('');
+      animationRef.current = requestAnimationFrame(scanFrame);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [scanFrame]);
 
   const startCamera = useCallback(async () => {
     stopCamera();
@@ -461,6 +502,20 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   }, [scanFrame, stopCamera]);
 
   useEffect(() => {
+    if (product || !resumeCameraRequestedRef.current) return;
+    resumeCameraRequestedRef.current = false;
+    let cancelled = false;
+
+    const resume = async () => {
+      const resumed = await resumeCameraStream();
+      if (!cancelled && !resumed) startCamera();
+    };
+    resume();
+
+    return () => { cancelled = true; };
+  }, [product, resumeCameraStream, startCamera]);
+
+  useEffect(() => {
     if (!embedded || autoStartAttemptedRef.current) return;
     autoStartAttemptedRef.current = true;
     startCamera();
@@ -493,11 +548,11 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   };
 
   const readAnother = () => {
+    resumeCameraRequestedRef.current = true;
     setProduct(null);
     setLastGtin('');
     setManualValue('');
     setLookupError('');
-    startCamera();
   };
 
   const reopenHistoryItem = gtin => {
@@ -622,7 +677,6 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     </>
   );
 }
-
 
 
 
