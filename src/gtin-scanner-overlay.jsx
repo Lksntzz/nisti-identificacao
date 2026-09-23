@@ -233,6 +233,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   const [product, setProduct] = useState(null);
   const [decoderMode, setDecoderMode] = useState('');
   const [scannerPaused, setScannerPaused] = useState(false);
+  const [captureFeedback, setCaptureFeedback] = useState('idle');
   const [history, setHistory] = useState(() => loadGtinHistory());
 
   const videoRef = useRef(null);
@@ -243,9 +244,16 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   const lookupBusyRef = useRef(false);
   const lastFrameRef = useRef(0);
   const animationRef = useRef(0);
+  const feedbackTimeoutRef = useRef(null);
   const lastRejectedRef = useRef({ value: '', at: 0 });
   const acceptedGtinRef = useRef({ value: '', lastSeenAt: 0 });
   const autoStartAttemptedRef = useRef(false);
+
+  const triggerHaptic = useCallback((pattern = [40, 30, 80]) => {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      try { navigator.vibrate(pattern); } catch {}
+    }
+  }, []);
 
   const stopCamera = useCallback(() => {
     activeRef.current = false;
@@ -260,6 +268,8 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraActive(false);
     setScannerPaused(false);
+    setCaptureFeedback('idle');
+    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
   }, []);
 
   const addToHistory = useCallback((gtin, resolvedProduct) => {
@@ -288,6 +298,9 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     setLookupBusy(true);
     setLookupError('');
     setManualValue(gtin);
+    setCaptureFeedback('captured');
+    triggerHaptic([40, 30, 80]);
+    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
 
     try {
       const { operatorName, operatorId } = scannerOperatorContext();
@@ -304,6 +317,8 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.product) {
+        setCaptureFeedback('error');
+        feedbackTimeoutRef.current = setTimeout(() => setCaptureFeedback('idle'), 900);
         if (response.status === 404) {
           lastRejectedRef.current = { value: gtin, at: Date.now() };
           setLookupError(`EAN ${gtin} não está cadastrado no sistema.`);
@@ -319,16 +334,20 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       if (options.recordHistory !== false) addToHistory(gtin, data.product);
       onProductResolved?.(data.product, gtin);
       setLookupError('');
-      if (navigator.vibrate) navigator.vibrate(80);
+      setCaptureFeedback('captured');
+      triggerHaptic(80);
+      feedbackTimeoutRef.current = setTimeout(() => setCaptureFeedback('idle'), 1100);
       return true;
     } catch {
+      setCaptureFeedback('error');
+      feedbackTimeoutRef.current = setTimeout(() => setCaptureFeedback('idle'), 900);
       setLookupError('Falha de conexão ao consultar o EAN.');
       return false;
     } finally {
       lookupBusyRef.current = false;
       setLookupBusy(false);
     }
-  }, [addToHistory, onProductResolved]);
+  }, [addToHistory, onProductResolved, triggerHaptic]);
 
   const fallbackDetect = useCallback(() => {
     const video = videoRef.current;
@@ -549,10 +568,21 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
         )}
       </header>
 
-      <div className={`gtin-camera-shell${lookupBusy ? ' is-looking-up' : ''}${scannerPaused ? ' is-paused' : ''}`}>
+      <div className={`gtin-camera-shell${lookupBusy ? ' is-looking-up' : ''}${scannerPaused ? ' is-paused' : ''}${captureFeedback === 'captured' ? ' is-captured' : ''}${captureFeedback === 'error' ? ' is-capture-error' : ''}`}>
         <video ref={videoRef} className="gtin-camera-video" muted autoPlay playsInline />
         <canvas ref={canvasRef} className="gtin-camera-canvas" aria-hidden="true" />
-        <div className="gtin-camera-guide" aria-hidden="true" />
+        <div className="gtin-camera-guide" aria-hidden="true">
+          <span className="gtin-laser-corner top-left" />
+          <span className="gtin-laser-corner top-right" />
+          <span className="gtin-laser-corner bottom-left" />
+          <span className="gtin-laser-corner bottom-right" />
+          {cameraActive && !scannerPaused && (
+            <div className="gtin-laser-dynamic-beam">
+              <div className="gtin-laser-dynamic-line" />
+              <div className="gtin-laser-dynamic-glow" />
+            </div>
+          )}
+        </div>
         {cameraActive && (
           <button type="button" className="gtin-camera-pause" onClick={toggleScannerPaused}>
             {scannerPaused ? 'Continuar leitura' : 'Pausar leitura'}

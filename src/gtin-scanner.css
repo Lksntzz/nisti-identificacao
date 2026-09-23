@@ -164,9 +164,164 @@
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
+/* Corner Reticle Markers */
+.gtin-laser-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid #38bdf8;
+  pointer-events: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.gtin-laser-corner.top-left {
+  top: -2px;
+  left: -2px;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: 14px;
+}
+
+.gtin-laser-corner.top-right {
+  top: -2px;
+  right: -2px;
+  border-left: none;
+  border-bottom: none;
+  border-top-right-radius: 14px;
+}
+
+.gtin-laser-corner.bottom-left {
+  bottom: -2px;
+  left: -2px;
+  border-right: none;
+  border-top: none;
+  border-bottom-left-radius: 14px;
+}
+
+.gtin-laser-corner.bottom-right {
+  bottom: -2px;
+  right: -2px;
+  border-left: none;
+  border-top: none;
+  border-bottom-right-radius: 14px;
+}
+
+/* Dynamic Laser Beam (Blue/Cyan in standby & searching) */
+.gtin-laser-dynamic-beam {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.gtin-laser-dynamic-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0) 0%, #38bdf8 18%, #ffffff 50%, #38bdf8 82%, rgba(56, 189, 248, 0) 100%);
+  box-shadow: 0 0 10px 2px rgba(56, 189, 248, 0.9), 0 0 20px 4px rgba(14, 165, 233, 0.45);
+  animation: gtin-laser-traverse 2.2s ease-in-out infinite alternate;
+}
+
+.gtin-laser-dynamic-glow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 32px;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.16) 0%, rgba(56, 189, 248, 0) 100%);
+  animation: gtin-laser-traverse 2.2s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes gtin-laser-traverse {
+  0% {
+    top: 4%;
+    opacity: 0.82;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 92%;
+    opacity: 0.82;
+  }
+}
+
 .gtin-camera-shell.is-looking-up .gtin-camera-guide {
   border-color: #38bdf8;
   box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.28), 0 0 28px rgba(56, 189, 248, 0.42);
+}
+
+.gtin-camera-shell.is-looking-up .gtin-laser-corner {
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+}
+
+.gtin-camera-shell.is-looking-up .gtin-camera-guide::after {
+  content: 'EAN · LENDO';
+  background: #38bdf8;
+  color: #0f172a;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+}
+
+/* Instant Capture: Flash to Neon Emerald Green with Haptic Glow */
+.gtin-camera-shell.is-captured .gtin-camera-guide {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.28), 0 0 34px rgba(34, 197, 94, 0.75);
+  animation: gtin-laser-captured-bounce 360ms ease-out;
+}
+
+.gtin-camera-shell.is-captured .gtin-laser-corner {
+  border-color: #22c55e;
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.95);
+  transform: scale(1.1);
+}
+
+.gtin-camera-shell.is-captured .gtin-laser-dynamic-line {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0) 0%, #22c55e 18%, #f0fdf4 50%, #22c55e 82%, rgba(34, 197, 94, 0) 100%);
+  box-shadow: 0 0 16px 3px rgba(34, 197, 94, 0.95), 0 0 32px 6px rgba(22, 163, 74, 0.6);
+  height: 3px;
+}
+
+.gtin-camera-shell.is-captured .gtin-laser-dynamic-glow {
+  height: 44px;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.35) 0%, rgba(34, 197, 94, 0) 100%);
+}
+
+.gtin-camera-shell.is-captured .gtin-camera-guide::after {
+  content: 'EAN ✓ CAPTURADO';
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.7);
+}
+
+@keyframes gtin-laser-captured-bounce {
+  0% { transform: translateY(-50%) scale(0.97); }
+  50% { transform: translateY(-50%) scale(1.03); }
+  100% { transform: translateY(-50%) scale(1); }
+}
+
+/* Capture Error State */
+.gtin-camera-shell.is-capture-error .gtin-camera-guide {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.28), 0 0 24px rgba(239, 68, 68, 0.6);
+}
+
+.gtin-camera-shell.is-capture-error .gtin-laser-corner {
+  border-color: #ef4444;
+}
+
+.gtin-camera-shell.is-capture-error .gtin-laser-dynamic-line {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0) 0%, #ef4444 18%, #fee2e2 50%, #ef4444 82%, rgba(239, 68, 68, 0) 100%);
+  box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.9);
+}
+
+.gtin-camera-shell.is-capture-error .gtin-camera-guide::after {
+  content: 'EAN ✕ NÃO CADASTRADO';
+  background: #ef4444;
+  color: #ffffff;
 }
 
 .gtin-camera-shell.is-paused .gtin-camera-video {
@@ -1050,11 +1205,14 @@
   .gtin-loading-spinner,
   .gtin-button-spinner,
   .gtin-scanner-result,
-  .gtin-result-check {
+  .gtin-result-check,
+  .gtin-laser-dynamic-line,
+  .gtin-laser-dynamic-glow {
     animation: none !important;
   }
 
   .gtin-camera-guide,
+  .gtin-laser-corner,
   .gtin-history-item {
     transition: none !important;
   }

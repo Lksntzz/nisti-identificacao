@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { parseSku } from './sku.js';
 import { normalizePlatform } from './platform-scope.js';
 import { reserveGeminiBudget } from './gemini-budget.js';
@@ -23,8 +24,6 @@ class RecognitionError extends Error {
     this.code = code;
   }
 }
-
-import { Buffer } from 'node:buffer';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
