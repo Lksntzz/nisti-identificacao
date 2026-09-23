@@ -206,49 +206,6 @@
   border-bottom-right-radius: 14px;
 }
 
-/* Dynamic Laser Beam (Blue/Cyan in standby & searching) */
-.gtin-laser-dynamic-beam {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border-radius: 14px;
-  pointer-events: none;
-}
-
-.gtin-laser-dynamic-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0) 0%, #38bdf8 18%, #ffffff 50%, #38bdf8 82%, rgba(56, 189, 248, 0) 100%);
-  box-shadow: 0 0 10px 2px rgba(56, 189, 248, 0.9), 0 0 20px 4px rgba(14, 165, 233, 0.45);
-  animation: gtin-laser-traverse 2.2s ease-in-out infinite alternate;
-}
-
-.gtin-laser-dynamic-glow {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 32px;
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.16) 0%, rgba(56, 189, 248, 0) 100%);
-  animation: gtin-laser-traverse 2.2s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-
-@keyframes gtin-laser-traverse {
-  0% {
-    top: 4%;
-    opacity: 0.82;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    top: 92%;
-    opacity: 0.82;
-  }
-}
-
 .gtin-camera-shell.is-looking-up .gtin-camera-guide {
   border-color: #38bdf8;
   box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.28), 0 0 28px rgba(56, 189, 248, 0.42);
@@ -279,17 +236,6 @@
   transform: scale(1.1);
 }
 
-.gtin-camera-shell.is-captured .gtin-laser-dynamic-line {
-  background: linear-gradient(90deg, rgba(34, 197, 94, 0) 0%, #22c55e 18%, #f0fdf4 50%, #22c55e 82%, rgba(34, 197, 94, 0) 100%);
-  box-shadow: 0 0 16px 3px rgba(34, 197, 94, 0.95), 0 0 32px 6px rgba(22, 163, 74, 0.6);
-  height: 3px;
-}
-
-.gtin-camera-shell.is-captured .gtin-laser-dynamic-glow {
-  height: 44px;
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.35) 0%, rgba(34, 197, 94, 0) 100%);
-}
-
 .gtin-camera-shell.is-captured .gtin-camera-guide::after {
   content: 'EAN ✓ CAPTURADO';
   background: #10b981;
@@ -311,11 +257,6 @@
 
 .gtin-camera-shell.is-capture-error .gtin-laser-corner {
   border-color: #ef4444;
-}
-
-.gtin-camera-shell.is-capture-error .gtin-laser-dynamic-line {
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0) 0%, #ef4444 18%, #fee2e2 50%, #ef4444 82%, rgba(239, 68, 68, 0) 100%);
-  box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.9);
 }
 
 .gtin-camera-shell.is-capture-error .gtin-camera-guide::after {
@@ -1205,9 +1146,7 @@
   .gtin-loading-spinner,
   .gtin-button-spinner,
   .gtin-scanner-result,
-  .gtin-result-check,
-  .gtin-laser-dynamic-line,
-  .gtin-laser-dynamic-glow {
+  .gtin-result-check {
     animation: none !important;
   }
 
