@@ -81,4 +81,7 @@ test('fila de revisão comercial suporta produto existente, produto novo e anún
   assert.equal(view.includes('Vincular seleção e continuar'), true);
   assert.equal(view.includes('Um Produto Mestre para toda a família'), true);
   assert.equal(view.includes('Concluir revisão'), true);
+  assert.equal(view.includes('defaultSkuSelection'), true);
+  assert.equal(view.includes('selectionRequired'), true);
+  assert.equal(view.includes('Selecione pelo menos um SKU/variação'), true);
 });
