@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event.head_commit.message == 'ops: deploy descarte EAN em produção'
+    if: "github.event.head_commit.message == 'ops: deploy descarte EAN em produção'"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
