@@ -1321,7 +1321,13 @@ function AdminApp() {
     }
   };
 
-  const handleNavChange = viewId => setActiveView(viewId);
+  const handleNavChange = viewId => {
+    if (viewId === 'commerce') {
+      window.location.href = '/admin-commerce';
+      return;
+    }
+    setActiveView(viewId);
+  };
   const productsWithoutGtin = gtinDashboard?.products_without_gtin || [];
 
   const showProductsWithoutGtin = () => {
