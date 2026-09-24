@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { organizedCatalogCsv } from './catalog-export.js';
 
 const PAGE_SIZE = 10;
 
@@ -98,23 +99,12 @@ export function CatalogView({
   useEffect(() => setPage(1), [search, platformFilter, onlyWithoutEan]);
 
   const exportCsv = () => {
-    const headers = ['ID', 'SKU', 'NOME', 'VARIACAO', 'CAPA_CODE', 'EAN', 'PLATAFORMA', 'CRIADO_EM'];
-    const rows = filtered.map(p => [
-      p.id,
-      `"${String(p.sku || '').replace(/"/g, '""')}"`,
-      `"${String(p.nome || '').replace(/"/g, '""')}"`,
-      `"${String(p.variacao || '').replace(/"/g, '""')}"`,
-      `"${String(p.capa_code || '').replace(/"/g, '""')}"`,
-      `"${String(p.gtin || '').replace(/"/g, '""')}"`,
-      `"${String(p.platform || '').replace(/"/g, '""')}"`,
-      `"${String(p.created_at || '').replace(/"/g, '""')}"`
-    ]);
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const csvContent = organizedCatalogCsv(filtered);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `catalogo_nisti_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `catalogo_nisti_organizado_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -205,7 +195,7 @@ export function CatalogView({
           <button
             type="button"
             className="btn-toolbar-filter"
-            title="Exportar catálogo filtrado para planilha CSV"
+            title="Exportar catálogo filtrado, agrupado por plataforma e família do SKU"
             onClick={exportCsv}
           >
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -213,7 +203,7 @@ export function CatalogView({
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>CSV</span>
+            <span>CSV organizado</span>
           </button>
 
           <button
