@@ -12,7 +12,7 @@ test('listagem v4 reutiliza imagem do mesmo produto em outra plataforma', () => 
   assert.equal(sql.includes('commerce_preview_list_listings_v4'), true);
   assert.equal(sql.includes("'OTHER_MARKETPLACE'"), true);
   assert.equal(sql.includes('inherited_product_images jsonb'), true);
-  assert.equal(sql.includes('src_lp.product_id=target.product_id'), true);
+  assert.equal(sql.includes('lp2.product_id=target.product_id'), true);
 });
 
 test('foto própria mantém prioridade e NISTI ID continua como último fallback', () => {
