@@ -9,7 +9,7 @@ function read(path) {
 test('RPC de detalhe multiplataforma existe em live e preview', () => {
   const sql = read('supabase/migrations/202609241445_commerce_cross_platform_image_fallback_v1.sql');
   assert.equal(sql.includes('commerce_product_platform_detail_v2'), true);
-  assert.equal(sql.includes('commerce_preview_product_platform_detail_v1'), true);
+  assert.equal(sql.includes('commerce_preview_product_platform_detail_v2'), true);
   assert.equal(sql.includes("'marketplaces'"), true);
   assert.equal(sql.includes("'listings'"), true);
   assert.equal(sql.includes("'platform_sku'"), true);
