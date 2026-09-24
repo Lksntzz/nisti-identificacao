@@ -276,7 +276,7 @@ export async function broadcastNewCoverPush(env, {
   if (!subscriptions.length) return;
 
   const payload = {
-    title: '🔔 Nova Capa Cadastrada · NISTI PRINT',
+    title: 'Nova Capa Cadastrada · NISTI PRINT',
     body: `${productName || 'Novo Produto'} (${capaCode})${platform ? ` · ${platform}` : ''}${variacao ? ` - ${variacao}` : ''}`,
     image_url: imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `https://nisti-identificacao.lksntz1411.workers.dev${imageUrl}`) : undefined,
     capa_code: capaCode,

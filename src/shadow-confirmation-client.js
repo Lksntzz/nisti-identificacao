@@ -135,7 +135,22 @@ function install() {
   window.__NISTI_CONFIRM_SHADOW_RESULT__ = confirmCurrent;
   window.__NISTI_SHADOW_CONFIRMATION_VERSION__ = CONFIRMATION_VERSION;
 
-  window.fetch = async function confirmationObservedFetch(input, init = {}) {
+  function patchGlobalFetch(fn) {
+    try {
+      window.fetch = fn;
+    } catch {
+      try {
+        Object.defineProperty(window, 'fetch', {
+          value: fn,
+          writable: true,
+          configurable: true,
+          enumerable: true
+        });
+      } catch {}
+    }
+  }
+
+  patchGlobalFetch(async function confirmationObservedFetch(input, init = {}) {
     const url = requestUrl(input);
     const method = methodOf(input, init);
     const pathname = url?.pathname || '';
@@ -185,7 +200,7 @@ function install() {
     }
 
     return previousFetch(input, init);
-  };
+  });
 }
 
 install();

@@ -194,7 +194,7 @@ async function adminGtinRegistry(env) {
 
 async function adminGtinDashboard(env) {
   await ensureGtinScanEventsTable(env);
-  const [active, covered, today] = await Promise.all([
+  const [active, covered, today, missingCount, missingProducts] = await Promise.all([
     env.DB.prepare('SELECT COUNT(*) AS total FROM product_gtins WHERE active=1').first(),
     env.DB.prepare('SELECT COUNT(DISTINCT product_id) AS total FROM product_gtins WHERE active=1').first(),
     env.DB.prepare(`
@@ -205,11 +205,37 @@ async function adminGtinDashboard(env) {
         SUM(CASE WHEN status='system_error' THEN 1 ELSE 0 END) AS system_errors
       FROM gtin_scan_events
       WHERE date(created_at,'-3 hours')=date('now','-3 hours')
-    `).first()
+    `).first(),
+    env.DB.prepare(`
+      SELECT COUNT(*) AS total
+      FROM products p
+      WHERE NOT EXISTS (
+        SELECT 1 FROM product_gtins g WHERE g.product_id=p.id AND g.active=1
+      )
+    `).first(),
+    env.DB.prepare(`
+      SELECT
+        p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,p.wireo_code,
+        p.tassel_code,p.elastico_code,p.nome,p.variacao,p.image_key,p.created_at,
+        (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
+        (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link
+      FROM products p
+      WHERE NOT EXISTS (
+        SELECT 1 FROM product_gtins g WHERE g.product_id=p.id AND g.active=1
+      )
+      ORDER BY p.id DESC
+      LIMIT 1000
+    `).all()
   ]);
   return json({
     active_gtins: Number(active?.total || 0),
     products_with_gtin: Number(covered?.total || 0),
+    products_without_gtin_count: Number(missingCount?.total || 0),
+    products_without_gtin: (missingProducts?.results || []).map(product => ({
+      ...product,
+      id: Number(product.id),
+      image_url: product.image_key ? `/api/images/${Number(product.id)}` : null
+    })),
     today: {
       total: Number(today?.total || 0),
       identified: Number(today?.identified || 0),

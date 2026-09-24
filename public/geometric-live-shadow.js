@@ -317,7 +317,22 @@ if (!location.pathname.startsWith('/admin')) {
     }
   }
 
-  window.fetch = async function patchedFetch(input, init = {}) {
+  function patchGlobalFetch(fn) {
+    try {
+      window.fetch = fn;
+    } catch {
+      try {
+        Object.defineProperty(window, 'fetch', {
+          value: fn,
+          writable: true,
+          configurable: true,
+          enumerable: true
+        });
+      } catch {}
+    }
+  }
+
+  patchGlobalFetch(async function patchedFetch(input, init = {}) {
     const url = requestUrl(input);
     const method = methodOf(input, init);
     const pathname = url?.pathname || '';
@@ -373,7 +388,7 @@ if (!location.pathname.startsWith('/admin')) {
     }
 
     return nativeFetch(input, init);
-  };
+  });
 
   window.__NISTI_GEOMETRIC_SHADOW_VERSION__ = SHADOW_VERSION;
 }

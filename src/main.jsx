@@ -1,8 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './app.css';
 import LOGO from './assets/logo.png';
 import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';
 import SystemHealthView from './system-health-view.jsx';
+import ExpeditionDashboard from './admin/ExpeditionDashboard.jsx';
+import CatalogView from './admin/CatalogView.jsx';
+import GtinRegistryView from './admin/GtinRegistryView.jsx';
+import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
+import GtinEventsView from './admin/GtinEventsView.jsx';
+import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import {
   createEan13Svg,
   downloadBarcodePng,
@@ -38,14 +44,6 @@ async function api(path, options = {}) {
   const data = type.includes('application/json') ? await response.json() : null;
   if (!response.ok) throw new Error(data?.error || `Erro ${response.status}`);
   return data;
-}
-
-function formatBytes(bytes) {
-  const value = Number(bytes || 0);
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
-  if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(2)} MB`;
-  return `${(value / 1024 ** 3).toFixed(2)} GB`;
 }
 
 function formatCurrentDateTime() {
@@ -124,7 +122,7 @@ async function compressAdminImage(file) {
   ctx.drawImage(img, 0, 0, width, height);
   
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
-  return blob ? new File([blob], file.name.replace(/\\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }) : file;
+  return blob ? new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }) : file;
 }
 
 function productImage(product) {
@@ -192,18 +190,6 @@ function catalogRowsFromCsv(text) {
   })).filter(row => row.sku && row.sku.toUpperCase() !== 'SKU');
 }
 
-function pageItems(page, pages) {
-  if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1);
-  const values = new Set([1, pages, page - 1, page, page + 1].filter(value => value >= 1 && value <= pages));
-  const sorted = [...values].sort((a, b) => a - b);
-  const result = [];
-  sorted.forEach((value, index) => {
-    if (index && value - sorted[index - 1] > 1) result.push('…');
-    result.push(value);
-  });
-  return result;
-}
-
 /* =========================================================================
    SIDEBAR COMPONENT
    ========================================================================= */
@@ -246,16 +232,6 @@ function AdminSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar })
               <ul className="sidebar-section-list">
                 {section.items.map(item => {
                   const isActive = activeView === item.id;
-                  if (item.href) {
-                    return (
-                      <li key={item.id}>
-                        <a href={item.href} className="sidebar-nav-item">
-                          <SidebarIcon name={item.icon} />
-                          <span>{item.label}</span>
-                        </a>
-                      </li>
-                    );
-                  }
                   return (
                     <li key={item.id}>
                       <button
@@ -267,7 +243,7 @@ function AdminSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar })
                         }}
                       >
                         <SidebarIcon name={item.icon} />
-                        <span>{item.label}</span>
+                        <span className="sidebar-item-label">{item.label}</span>
                       </button>
                     </li>
                   );
@@ -278,18 +254,25 @@ function AdminSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar })
         </nav>
 
         <div className="sidebar-footer">
-          <div className="sidebar-user-card">
-            <div className="sidebar-avatar">AD</div>
-            <div className="sidebar-user-info">
-              <strong>Administrador</strong>
-              <small>admin@nisti.print</small>
-            </div>
-            <a href="/admin-logout" className="sidebar-logout-link" title="Sair do painel">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </a>
-          </div>
+          <a
+            href="/admin-logout"
+            className="sidebar-logout-btn"
+            onClick={e => {
+              if (window.location.hash) {
+                e.preventDefault();
+                document.cookie = 'nisti_admin_session=; Path=/; Max-Age=0; SameSite=Strict';
+                window.location.hash = '';
+                window.location.pathname = '/';
+              }
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Encerrar Sessão</span>
+          </a>
         </div>
       </aside>
     </>
@@ -309,20 +292,14 @@ function SidebarIcon({ name }) {
   };
 
   switch (name) {
-    case 'brain':
-      return <svg {...props}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04ZM14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z"/></svg>;
     case 'grid':
       return <svg {...props}><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>;
     case 'alert':
       return <svg {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>;
-    case 'shield-check':
-      return <svg {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>;
     case 'history':
       return <svg {...props}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
     case 'terminal':
       return <svg {...props}><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>;
-    case 'users':
-      return <svg {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
     case 'barcode':
       return <svg {...props}><path d="M3 5v14M6 5v14M10 5v14M13 5v14M17 5v14M21 5v14" /><path d="M8 5v14M15 5v14M19 5v14" strokeWidth="1" /></svg>;
     default:
@@ -353,6 +330,27 @@ function AdminTopbar({ onToggleSidebar, unreadCount }) {
       </div>
 
       <div className="topbar-right">
+        <a
+          href="#scanner"
+          onClick={e => {
+            e.preventDefault();
+            window.location.hash = '';
+            window.location.pathname = '/';
+          }}
+          className="topbar-logout-btn"
+          style={{ background: '#f1f5f9', color: '#1e293b', border: '1px solid #cbd5e1' }}
+          title="Voltar ao Scanner de Expedição"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+            <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+            <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+            <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+            <line x1="7" y1="12" x2="17" y2="12" />
+          </svg>
+          <span>Scanner</span>
+        </a>
+
         <a href="/" className="topbar-bell-btn" title="Notificações">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -361,7 +359,18 @@ function AdminTopbar({ onToggleSidebar, unreadCount }) {
           {unreadCount > 0 && <span className="topbar-bell-badge">{unreadCount}</span>}
         </a>
 
-        <a href="/admin-logout" className="topbar-logout-btn">
+        <a
+          href="/admin-logout"
+          className="topbar-logout-btn"
+          onClick={e => {
+            if (window.location.hash) {
+              e.preventDefault();
+              document.cookie = 'nisti_admin_session=; Path=/; Max-Age=0; SameSite=Strict';
+              window.location.hash = '';
+              window.location.pathname = '/';
+            }
+          }}
+        >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <polyline points="16 17 21 12 16 7" />
@@ -388,8 +397,8 @@ function WelcomeDateBanner() {
   return (
     <div className="welcome-banner">
       <div className="welcome-copy">
-        <h2>Bem-vindo, Administrador 👋</h2>
-        <p>Gerencie o catálogo de produtos e acompanhe as identificações do sistema.</p>
+        <h2>Bem-vindo, Administrador</h2>
+        <p>Gerencie o catálogo de produtos e acompanhe as identificações da expedição.</p>
       </div>
 
       <div className="live-date-card">
@@ -402,74 +411,6 @@ function WelcomeDateBanner() {
         <div className="live-date-info">
           <strong>{nowData.date}</strong>
           <small>{nowData.weekdayTime}</small>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================================
-   4 KPI STAT CARDS
-   ========================================================================= */
-function KpiSection({ productsCount, activeGtins, scansToday, missingToday }) {
-  return (
-    <div className="kpis-row">
-      <div className="kpi-box kpi-blue">
-        <div className="kpi-icon-circle blue">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m7.5 4.27 9 5.15" />
-            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-            <path d="m3.3 7 8.7 5 8.7-5" />
-            <path d="M12 22V12" />
-          </svg>
-        </div>
-        <div className="kpi-body">
-          <span className="kpi-title">Total de Produtos</span>
-          <strong className="kpi-num">{productsCount.toLocaleString('pt-BR')}</strong>
-          <span className="kpi-tag green">Dados atuais do catálogo</span>
-        </div>
-      </div>
-
-      <div className="kpi-box kpi-green">
-        <div className="kpi-icon-circle green">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-            <path d="m9 12 2 2 4-4" />
-          </svg>
-        </div>
-        <div className="kpi-body">
-          <span className="kpi-title">EANs Ativos</span>
-          <strong className="kpi-num">{activeGtins.toLocaleString('pt-BR')}</strong>
-          <span className="kpi-tag green">Vinculados ao catálogo</span>
-        </div>
-      </div>
-
-      <div className="kpi-box kpi-yellow">
-        <div className="kpi-icon-circle yellow">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        </div>
-        <div className="kpi-body">
-          <span className="kpi-title">Leituras Hoje</span>
-          <strong className="kpi-num">{scansToday.toLocaleString('pt-BR')}</strong>
-          <span className="kpi-tag green">Consultas por código EAN</span>
-        </div>
-      </div>
-
-      <div className="kpi-box kpi-purple">
-        <div className="kpi-icon-circle purple">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#9333ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="12 2 2 7 12 12 22 7 12 2" />
-            <polyline points="2 17 12 22 22 17" />
-            <polyline points="2 12 12 17 22 12" />
-          </svg>
-        </div>
-        <div className="kpi-body">
-          <span className="kpi-title">EAN não Cadastrados</span>
-          <strong className="kpi-num">{missingToday.toLocaleString('pt-BR')}</strong>
-          <span className="kpi-tag orange">Encontrados hoje</span>
         </div>
       </div>
     </div>
@@ -502,7 +443,7 @@ function PlatformTag({ platform }) {
 }
 
 /* =========================================================================
-   PRODUCT MODALS: CREATE, EDIT, VIEW, DELETE
+   REGISTRATION & MODAL HELPERS
    ========================================================================= */
 function RegistrationBarcodeResult({ items, errors = [], onReset, onClose, title = 'Produtos cadastrados' }) {
   const [downloadBusy, setDownloadBusy] = useState(false);
@@ -580,15 +521,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
   };
 
   useEffect(() => {
-    if (!isOpen) {
-      setNome('');
-      setPlatform('MERCADO LIVRE');
-      setLink('');
-      setVariants([{ id: 1, sku: '', gtin: '', variacao: '', file: null, preview: '' }]);
-      setProgressMsg('');
-      setError('');
-      setResult(null);
-    }
+    if (!isOpen) resetForm();
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -600,26 +533,6 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
     ]);
   };
 
-  const handleMultipleFiles = (files) => {
-    if (!files || files.length === 0) return;
-    const newVariants = Array.from(files).map((file, i) => ({
-      id: Date.now() + i,
-      sku: '',
-      gtin: '',
-      variacao: `CAPA ${variants.length + i + (variants[0].file ? 1 : 0)}`,
-      file,
-      preview: URL.createObjectURL(file)
-    }));
-
-    setVariants(prev => {
-      // Se a primeira variante estiver vazia (sem arquivo e sem SKU), substitui. Senão, adiciona.
-      if (prev.length === 1 && !prev[0].file && !prev[0].sku && !prev[0].variacao) {
-        return newVariants;
-      }
-      return [...prev, ...newVariants];
-    });
-  };
-
   const removeVariant = (id) => {
     if (variants.length <= 1) return;
     setVariants(prev => prev.filter(v => v.id !== id));
@@ -629,11 +542,9 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
     setVariants(prev => prev.map(v => {
       if (v.id !== id) return v;
       if (field === 'file') {
-        return {
-          ...v,
-          file: value,
-          preview: value ? URL.createObjectURL(value) : ''
-        };
+        const file = value;
+        const preview = file ? URL.createObjectURL(file) : '';
+        return { ...v, file, preview };
       }
       return { ...v, [field]: value };
     }));
@@ -641,73 +552,72 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validar todos os SKUs
-    for (let i = 0; i < variants.length; i++) {
-      if (!variants[i].sku.trim()) {
-        setError(`O SKU da variação #${i + 1} é obrigatório.`);
-        return;
-      }
-      if (!/^\d{13}$/.test(variants[i].gtin)) {
-        setError(`O EAN-13 da variação #${i + 1} deve ter 13 números.`);
-        return;
-      }
-    }
-
     setBusy(true);
     setError('');
-
-    const registered = [];
-    const failures = [];
-    for (let i = 0; i < variants.length; i++) {
-      const v = variants[i];
-      try {
-        setProgressMsg(`Cadastrando variação ${i + 1} de ${variants.length}…`);
-        
-        const created = await api('/api/products', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            sku: v.sku.trim().toUpperCase(),
-            nome: nome.trim() || undefined,
-            variacao: v.variacao.trim() || undefined,
-            platform: platform.trim().toUpperCase() || undefined,
-            link: link.trim() || undefined,
-            gtin: v.gtin
-          })
-        });
-
-        registered.push({
-          id: created?.id,
-          gtin: v.gtin,
-          sku: v.sku.trim().toUpperCase(),
-          nome: nome.trim(),
-          variacao: v.variacao.trim(),
-          platforms: [platform.trim().toUpperCase()].filter(Boolean)
-        });
-
-        if (v.file && created?.id) {
-          setProgressMsg(`Enviando imagem ${i + 1} de ${variants.length}…`);
-          const compressed = await compressAdminImage(v.file);
-          const fd = new FormData();
-          fd.append('image', compressed || v.file);
-          try {
-            await api(`/api/products/${created.id}/image`, { method: 'POST', body: fd });
-          } catch (imageError) {
-            failures.push({ sku: v.sku.trim().toUpperCase(), error: `Produto e EAN salvos, mas a imagem falhou: ${imageError.message}` });
-          }
-        }
-      } catch (itemError) {
-        failures.push({ sku: v.sku.trim().toUpperCase(), error: itemError.message || 'Falha ao cadastrar produto.' });
-      }
-    }
+    setProgressMsg('');
 
     try {
+      const failures = [];
+      const registered = [];
+
+      for (let i = 0; i < variants.length; i++) {
+        const v = variants[i];
+        const cleanSku = v.sku.trim().toUpperCase();
+        if (!cleanSku) continue;
+        const cleanGtin = v.gtin.replace(/\D/g, '');
+        if (cleanGtin.length !== 13) {
+          failures.push({ sku: cleanSku, error: 'Código EAN-13 inválido (deve ter 13 dígitos).' });
+          continue;
+        }
+
+        setProgressMsg(`Salvando variação ${i + 1} de ${variants.length} (${cleanSku})…`);
+
+        try {
+          const res = await api('/api/products', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              sku: cleanSku,
+              gtin: cleanGtin,
+              nome: nome.trim(),
+              variacao: v.variacao.trim() || cleanSku,
+              platform: platform.trim().toUpperCase(),
+              link: link.trim()
+            })
+          });
+
+          if (v.file) {
+            const compressed = await compressAdminImage(v.file);
+            const fd = new FormData();
+            fd.append('image', compressed || v.file);
+            await api(`/api/products/${res.product.id}/image`, {
+              method: 'POST',
+              body: fd
+            });
+          }
+
+          registered.push({
+            id: res.product.id,
+            sku: cleanSku,
+            gtin: cleanGtin,
+            nome: nome.trim(),
+            variacao: v.variacao.trim() || cleanSku,
+            platform: platform.trim().toUpperCase()
+          });
+        } catch (err) {
+          failures.push({ sku: cleanSku, error: err.message || 'Falha ao salvar produto.' });
+        }
+      }
+
       await onCreated();
-      setResult({ items: registered, errors: failures });
-      if (!registered.length) setError('Nenhum produto foi cadastrado. Verifique os erros abaixo.');
-    } catch (refreshError) {
-      setResult({ items: registered, errors: [...failures, { sku: 'Catálogo', error: refreshError.message || 'Falha ao atualizar a lista.' }] });
+
+      if (registered.length > 0) {
+        setResult({ items: registered, errors: failures });
+      } else if (failures.length > 0) {
+        setError(`Falha ao cadastrar: ${failures.map(f => `${f.sku}: ${f.error}`).join('; ')}`);
+      }
+    } catch (err) {
+      setError(err.message || 'Falha ao criar produto.');
     } finally {
       setBusy(false);
       setProgressMsg('');
@@ -716,211 +626,154 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
 
   return (
     <div className="admin-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="admin-modal" style={{ maxWidth: '680px', width: '90%' }}>
+      <div className="admin-modal create-modal" style={{ maxWidth: '820px' }}>
         <div className="admin-modal-head">
           <div>
-            <h3>Cadastrar Novo Produto</h3>
-            <small>Adicione as informações gerais e depois liste todas as variantes/SKUs com suas fotos.</small>
+            <h3>Cadastrar Novo Produto com Variações</h3>
+            <small>Defina o produto pai e adicione todas as capas/variantes de uma vez.</small>
           </div>
           <button type="button" className="admin-modal-close" onClick={onClose}>✕</button>
         </div>
 
-        {result ? <RegistrationBarcodeResult items={result.items} errors={result.errors} onReset={resetForm} onClose={onClose} /> : <form onSubmit={handleSubmit} className="admin-modal-form">
-          <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#4f46e5', margin: '0 0 12px 0', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '6px' }}>
-            📋 Informações Gerais (Comuns a todas as variações)
-          </h4>
-
-          <div className="form-group">
-            <label>Nome Geral do Produto *</label>
-            <input
-              type="text"
-              required
-              placeholder="Ex: Caderneta de Vacinação Menino Personalizado"
-              value={nome}
-              onChange={e => setNome(e.target.value)}
-            />
-          </div>
-
-          <div className="form-row-2">
-            <div className="form-group">
-              <label>Plataforma *</label>
-              <select value={platform} onChange={e => setPlatform(e.target.value)}>
-                <option value="MERCADO LIVRE">Mercado Livre</option>
-                <option value="SHOPEE">Shopee</option>
-                <option value="AMAZON">Amazon</option>
-                <option value="MAGALU">Magalu</option>
-              </select>
+        {result ? (
+          <RegistrationBarcodeResult
+            items={result.items}
+            errors={result.errors}
+            onReset={resetForm}
+            onClose={onClose}
+          />
+        ) : (
+          <form onSubmit={handleSubmit} className="admin-modal-form">
+            <div className="form-row-2">
+              <div className="form-group">
+                <label>Nome do Produto Pai *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Agenda 2026 Personalizada"
+                  value={nome}
+                  onChange={e => setNome(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Plataforma Padrão</label>
+                <select value={platform} onChange={e => setPlatform(e.target.value)}>
+                  <option value="MERCADO LIVRE">Mercado Livre</option>
+                  <option value="SHOPEE">Shopee</option>
+                  <option value="AMAZON">Amazon</option>
+                  <option value="MAGALU">Magalu</option>
+                </select>
+              </div>
             </div>
+
             <div className="form-group">
               <label>Link do Anúncio (Opcional)</label>
               <input
                 type="url"
-                placeholder="https://..."
+                placeholder="https://produto.mercadolivre.com.br/..."
                 value={link}
                 onChange={e => setLink(e.target.value)}
               />
             </div>
-          </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '24px 0 12px 0', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '6px' }}>
-            <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#4f46e5', margin: 0 }}>
-              🎨 Variações & SKUs (Diferentes)
-            </h4>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <label
-                style={{
-                  background: '#e0e7ff',
-                  color: '#4f46e5',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: busy ? 'not-allowed' : 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  opacity: busy ? 0.6 : 1
-                }}
-              >
-                <span>＋ Imagens em Lote</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  disabled={busy}
-                  onChange={(e) => handleMultipleFiles(e.target.files)}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={addVariant}
-                disabled={busy}
-                style={{
-                  background: '#4f46e5',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                ＋ 1 Variante
+            <div className="variants-section-header">
+              <div className="variants-header-title">
+                <h4>Capas / Variações</h4>
+                <span className="variants-count-badge">{variants.length}</span>
+              </div>
+              <button type="button" className="btn-add-variant" onClick={addVariant}>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Adicionar Outra Capa</span>
               </button>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
-            {variants.map((v, index) => (
-              <div
-                key={v.id}
-                style={{
-                  background: '#f8fafc',
-                  border: '1.5px solid #e2e8f0',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  position: 'relative'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#64748b' }}>Variante #{index + 1}</span>
-                  {variants.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeVariant(v.id)}
-                      disabled={busy}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#ef4444',
-                        fontSize: '11.5px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        padding: 0
-                      }}
-                    >
-                      ✕ Remover
-                    </button>
-                  )}
-                </div>
-
-                <div className="form-row-3">
-                  <div className="form-group">
-                    <label>SKU * (Ex: VACMNO_PQV{index + 1}_BBB)</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="SKU da variação"
-                      value={v.sku}
-                      onChange={e => updateVariant(v.id, 'sku', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>EAN-13 *</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      required
-                      maxLength="13"
-                      placeholder="7890000000000"
-                      value={v.gtin}
-                      onChange={e => updateVariant(v.id, 'gtin', e.target.value.replace(/\D/g, '').slice(0, 13))}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Nome da Variação / Capa (Ex: CAPA {index + 1})</label>
-                    <input
-                      type="text"
-                      placeholder={`Ex: CAPA ${index + 1}`}
-                      value={v.variacao}
-                      onChange={e => updateVariant(v.id, 'variacao', e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Mockup da Variante</label>
-                  <div className="photo-upload-dropzone" style={{ height: '110px', padding: '10px' }}>
-                    {v.preview ? (
-                      <div className="photo-upload-preview" style={{ height: '90px' }}>
-                        <img src={v.preview} alt="Prévia" style={{ height: '80px', width: '80px' }} />
-                        <label className="photo-change-btn" style={{ fontSize: '11px', padding: '4px 8px' }}>
-                          Trocar foto
-                          <input type="file" accept="image/*" onChange={e => updateVariant(v.id, 'file', e.target.files?.[0])} />
-                        </label>
-                      </div>
-                    ) : (
-                      <label className="photo-empty-drop" style={{ padding: '10px' }}>
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                          <circle cx="9" cy="9" r="2" />
-                          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                        </svg>
-                        <strong style={{ fontSize: '11px' }}>Selecionar mockup</strong>
-                        <input type="file" accept="image/*" onChange={e => updateVariant(v.id, 'file', e.target.files?.[0])} />
-                      </label>
+            <div className="variants-card-list">
+              {variants.map((v, index) => (
+                <div key={v.id} className="variant-entry-box">
+                  <div className="variant-entry-head">
+                    <span className="variant-badge">Capa #{index + 1}</span>
+                    {variants.length > 1 && (
+                      <button type="button" className="btn-remove-variant" onClick={() => removeVariant(v.id)}>
+                        Remover
+                      </button>
                     )}
                   </div>
+
+                  <div className="form-row-3">
+                    <div className="form-group">
+                      <label>SKU * (Ex: VACMNO_PQV{index + 1}_BBB)</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="SKU da variação"
+                        value={v.sku}
+                        onChange={e => updateVariant(v.id, 'sku', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>EAN-13 *</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        maxLength="13"
+                        placeholder="7890000000000"
+                        value={v.gtin}
+                        onChange={e => updateVariant(v.id, 'gtin', e.target.value.replace(/\D/g, '').slice(0, 13))}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Nome da Variação / Capa (Ex: CAPA {index + 1})</label>
+                      <input
+                        type="text"
+                        placeholder={`Ex: CAPA ${index + 1}`}
+                        value={v.variacao}
+                        onChange={e => updateVariant(v.id, 'variacao', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Mockup da Variante</label>
+                    <div className="photo-upload-dropzone" style={{ height: '110px', padding: '10px' }}>
+                      {v.preview ? (
+                        <div className="photo-upload-preview" style={{ height: '90px' }}>
+                          <img src={v.preview} alt="Prévia" style={{ height: '80px', width: '80px' }} />
+                          <label className="photo-change-btn" style={{ fontSize: '11px', padding: '4px 8px' }}>
+                            Trocar foto
+                            <input type="file" accept="image/*" onChange={e => updateVariant(v.id, 'file', e.target.files?.[0])} />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="photo-empty-drop" style={{ padding: '10px' }}>
+                          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                            <circle cx="9" cy="9" r="2" />
+                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                          </svg>
+                          <strong style={{ fontSize: '11px' }}>Selecionar mockup</strong>
+                          <input type="file" accept="image/*" onChange={e => updateVariant(v.id, 'file', e.target.files?.[0])} />
+                        </label>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {error && <div className="form-error-banner" style={{ marginTop: '16px' }}>{error}</div>}
+            {error && <div className="form-error-banner" style={{ marginTop: '16px' }}>{error}</div>}
 
-          <div className="admin-modal-foot" style={{ marginTop: '20px' }}>
-            <button type="button" className="btn-cancel" onClick={onClose} disabled={busy}>Cancelar</button>
-            <button type="submit" className="btn-submit-rainbow" disabled={busy} style={{ minWidth: '180px' }}>
-              {busy ? (progressMsg || 'Cadastrando variações…') : `Salvar ${variants.length} produto(s)`}
-            </button>
-          </div>
-        </form>}
+            <div className="admin-modal-foot" style={{ marginTop: '20px' }}>
+              <button type="button" className="btn-cancel" onClick={onClose} disabled={busy}>Cancelar</button>
+              <button type="submit" className="btn-submit-rainbow" disabled={busy} style={{ minWidth: '180px' }}>
+                {busy ? (progressMsg || 'Cadastrando variações…') : `Salvar ${variants.length} produto(s)`}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -1160,42 +1013,46 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
             <div className="form-group">
               <label>Wire-O</label>
               <select value={wireo} onChange={e => setWireo(e.target.value)}>
-                {WIREO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {WIREO_OPTIONS.map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
               </select>
             </div>
             <div className="form-group">
               <label>Tassel</label>
               <select value={tassel} onChange={e => setTassel(e.target.value)}>
-                {TASSEL_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {TASSEL_OPTIONS.map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
               </select>
             </div>
             <div className="form-group">
               <label>Elástico</label>
               <select value={elastico} onChange={e => setElastico(e.target.value)}>
-                {ACCESSORY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {ACCESSORY_OPTIONS.map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
               </select>
             </div>
           </div>
 
           <div className="form-group">
-            <label>Mockup / Foto da Capa</label>
+            <label>Mockup / Capa</label>
             <div className="photo-upload-dropzone">
-              {preview || productImage(product) ? (
+              {preview || product.image_url ? (
                 <div className="photo-upload-preview">
-                  <img src={preview || productImage(product)} alt="Capa" />
+                  <img src={preview || productImage(product)} alt="Prévia" />
                   <label className="photo-change-btn">
-                    Substituir foto
+                    Trocar foto
                     <input type="file" accept="image/*" onChange={e => handleFile(e.target.files?.[0])} />
                   </label>
                 </div>
               ) : (
                 <label className="photo-empty-drop">
-                  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#6366f1" strokeWidth="2">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
                   </svg>
-                  <strong>Clique para adicionar mockup</strong>
+                  <strong>Selecione uma imagem</strong>
                   <input type="file" accept="image/*" onChange={e => handleFile(e.target.files?.[0])} />
                 </label>
               )}
@@ -1285,7 +1142,11 @@ function ViewProductModal({ product, isOpen, onClose, onEdit }) {
         <div className="admin-modal-foot">
           <button type="button" className="btn-cancel" onClick={onClose}>Fechar</button>
           <button type="button" className="btn-edit-action" onClick={() => { onClose(); onEdit(product); }}>
-            ✏️ Editar Produto
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: '-2px', marginRight: '6px' }}>
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            <span>Editar Produto</span>
           </button>
         </div>
       </div>
@@ -1397,1877 +1258,6 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
 }
 
 /* =========================================================================
-   CATALOG TABLE VIEW (MAIN VIEW)
-   ========================================================================= */
-function CatalogView({ products, onRefresh, onOpenCreate, onOpenImport }) {
-  const [search, setSearch] = useState('');
-  const [platformFilter, setPlatformFilter] = useState('');
-  const [page, setPage] = useState(1);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
-
-  const platforms = useMemo(() => {
-    return [...new Set(products.map(p => p.platform).filter(Boolean))].sort();
-  }, [products]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return products.filter(p => {
-      const matchPlatform = !platformFilter || p.platform === platformFilter;
-      const matchQuery = !q || [p.sku, p.nome, p.variacao, p.capa_code, p.platform].some(
-        val => String(val || '').toLowerCase().includes(q)
-      );
-      return matchPlatform && matchQuery;
-    });
-  }, [products, search, platformFilter]);
-
-  useEffect(() => setPage(1), [search, platformFilter]);
-
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  useEffect(() => {
-    if (page > pages) setPage(pages);
-  }, [page, pages]);
-
-  const slice = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const handleDelete = async (id, sku) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o produto ${sku}?`)) return;
-    try {
-      await api(`/api/products/${id}`, { method: 'DELETE' });
-      await onRefresh();
-    } catch (err) {
-      alert(err.message || 'Falha ao excluir produto.');
-    }
-  };
-
-  return (
-    <div className="admin-table-card">
-      <div className="table-card-topbar">
-        <div className="table-title-group">
-          <div className="table-title-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-              <path d="m3.3 7 8.7 5 8.7-5" />
-              <path d="M12 22V12" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="table-main-title">Catálogo de Produtos</h3>
-            <span className="table-sub-title">Produtos cadastrados no sistema</span>
-          </div>
-        </div>
-
-        <div className="table-actions-toolbar">
-          <div className="search-pill-box">
-            <input
-              type="text"
-              placeholder="Buscar produto, código ou plataforma..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </div>
-
-          <div className="filter-dropdown-wrap">
-            <button
-              type="button"
-              className={`btn-toolbar-filter ${platformFilter ? 'active' : ''}`}
-              onClick={() => setFilterMenuOpen(prev => !prev)}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-              </svg>
-              <span>{platformFilter || 'Filtros'}</span>
-            </button>
-
-            {filterMenuOpen && (
-              <div className="filter-dropdown-menu">
-                <button
-                  type="button"
-                  className={!platformFilter ? 'selected' : ''}
-                  onClick={() => { setPlatformFilter(''); setFilterMenuOpen(false); }}
-                >
-                  Todas as plataformas
-                </button>
-                {platforms.map(p => (
-                  <button
-                    key={p}
-                    className={platformFilter === p ? 'selected' : ''}
-                    onClick={() => { setPlatformFilter(p); setFilterMenuOpen(false); }}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            className="btn-create-product-gradient"
-            onClick={onOpenCreate}
-          >
-            <span>+ Cadastrar Produto</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="table-responsive-container">
-        <table className="admin-data-table">
-          <thead>
-            <tr>
-              <th style={{ width: '130px' }}>CAPA CODE</th>
-              <th>PRODUTO</th>
-              <th style={{ width: '160px' }}>PLATAFORMA</th>
-              <th style={{ width: '150px' }}>CADASTRADO EM</th>
-              <th style={{ width: '110px' }}>STATUS</th>
-              <th style={{ width: '120px', textAlign: 'right' }}>AÇÕES</th>
-            </tr>
-          </thead>
-          <tbody>
-            {slice.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="table-empty-row">
-                  Nenhum produto encontrado com os filtros atuais.
-                </td>
-              </tr>
-            ) : (
-              slice.map(product => {
-                const dateInfo = formatProductDate(product.created_at);
-                return (
-                  <tr key={product.id}>
-                    <td>
-                      <div className="capa-cell-wrap">
-                        {product.image_url ? (
-                          <img
-                            src={productImage(product)}
-                            alt={product.sku}
-                            className="table-thumb-img"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="table-thumb-placeholder">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94a3b8" strokeWidth="2">
-                              <rect width="18" height="18" x="3" y="3" rx="2" />
-                            </svg>
-                          </div>
-                        )}
-                        <span className="capa-code-text">{product.capa_code || '—'}</span>
-                      </div>
-                    </td>
-
-                    <td>
-                      <div className="product-info-cell">
-                        <strong className="product-name-txt">{product.nome || product.sku}</strong>
-                        <small className="product-sub-txt">{product.variacao ? `${product.variacao} · ${product.sku}` : product.sku}</small>
-                      </div>
-                    </td>
-
-                    <td>
-                      <PlatformTag platform={product.platform} />
-                    </td>
-
-                    <td>
-                      <div className="datetime-cell">
-                        <span>{dateInfo.date}</span>
-                        <small>{dateInfo.time}</small>
-                      </div>
-                    </td>
-
-                    <td>
-                      <span className="status-pill active">• Ativo</span>
-                    </td>
-
-                    <td>
-                      <div className="table-action-btns">
-                        <button
-                          type="button"
-                          className="action-icon-btn"
-                          title="Visualizar detalhes"
-                          onClick={() => setSelectedProduct(product)}
-                        >
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="action-icon-btn"
-                          title="Editar produto"
-                          onClick={() => setEditingProduct(product)}
-                        >
-                          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="action-icon-btn delete"
-                          title="Excluir produto"
-                          onClick={() => handleDelete(product.id, product.sku)}
-                        >
-                          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="table-card-footer">
-        <span className="showing-entries-txt">
-          Mostrando {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} a {Math.min(page * PAGE_SIZE, filtered.length)} de {filtered.length} produtos
-        </span>
-
-        <div className="table-pagination-nav">
-          <button
-            type="button"
-            className="pag-btn"
-            disabled={page <= 1}
-            onClick={() => setPage(p => p - 1)}
-          >
-            ‹
-          </button>
-          {pageItems(page, pages).map((item, idx) => (
-            item === '…' ? (
-              <span key={`ell-${idx}`} className="pag-ellipsis">…</span>
-            ) : (
-              <button
-                key={item}
-                type="button"
-                className={`pag-num ${page === item ? 'active' : ''}`}
-                onClick={() => setPage(item)}
-              >
-                {item}
-              </button>
-            )
-          ))}
-          <button
-            type="button"
-            className="pag-btn"
-            disabled={page >= pages}
-            onClick={() => setPage(p => p + 1)}
-          >
-            ›
-          </button>
-        </div>
-      </div>
-
-      <ViewProductModal
-        product={selectedProduct}
-        isOpen={Boolean(selectedProduct)}
-        onClose={() => setSelectedProduct(null)}
-        onEdit={p => setEditingProduct(p)}
-      />
-
-      <EditProductModal
-        product={editingProduct}
-        isOpen={Boolean(editingProduct)}
-        onClose={() => setEditingProduct(null)}
-        onUpdated={onRefresh}
-      />
-    </div>
-  );
-}
-
-function GtinRegistryView() {
-  const [data, setData] = useState({ gtins: [], stats: {} });
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-
-  const load = async () => {
-    setLoading(true);
-    try { setData(await api('/api/admin/gtins')); }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const rows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return data.gtins || [];
-    return (data.gtins || []).filter(item => [item.gtin, item.sku, item.nome, item.capa_code]
-      .some(value => String(value || '').toLowerCase().includes(query)));
-  }, [data.gtins, search]);
-
-  return (
-    <div className="admin-table-card">
-      <div className="table-card-topbar">
-        <div className="table-title-group">
-          <div className="table-title-icon"><SidebarIcon name="barcode" /></div>
-          <div>
-            <h3 className="table-main-title">Códigos EAN do Catálogo</h3>
-            <span className="table-sub-title">
-              {data.stats?.active_gtins || 0} códigos ativos · {data.stats?.products_without_gtin || 0} produtos ainda sem EAN
-            </span>
-          </div>
-        </div>
-        <div className="table-actions-toolbar">
-          <input className="table-search-input" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar EAN, SKU ou produto" />
-          <button type="button" className="btn-toolbar-filter" onClick={load}>Atualizar</button>
-        </div>
-      </div>
-      <div className="table-responsive-container">
-        <table className="admin-data-table">
-          <thead><tr><th>EAN</th><th>PRODUTO</th><th>SKU / CAPA</th><th>ORIGEM</th><th>STATUS</th><th>ATUALIZADO</th></tr></thead>
-          <tbody>
-            {loading ? <tr><td colSpan="6" className="table-empty-row">Carregando códigos EAN…</td></tr> : rows.length === 0 ? (
-              <tr><td colSpan="6" className="table-empty-row">Nenhum código encontrado.</td></tr>
-            ) : rows.map(item => (
-              <tr key={item.id}>
-                <td><span className="ean-code-cell">{item.gtin}</span></td>
-                <td><div className="product-info-cell"><strong>{item.nome || item.sku}</strong><small>{item.variacao || 'Sem variação informada'}</small></div></td>
-                <td><div className="ean-status-copy"><strong>{item.sku}</strong><small>Capa {item.capa_code || '—'}</small></div></td>
-                <td>{item.source || '—'}</td>
-                <td><span className={`status-pill ${item.active ? 'active' : 'danger'}`}>{item.active ? '• Ativo' : '• Inativo'}</span></td>
-                <td>{formatProductDate(item.updated_at).date}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function BarcodeGeneratorView() {
-  const [data, setData] = useState({ gtins: [] });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
-  const [platform, setPlatform] = useState('all');
-  const [selected, setSelected] = useState([]);
-  const [previewId, setPreviewId] = useState(null);
-  const [generating, setGenerating] = useState(false);
-  const [generatingCollection, setGeneratingCollection] = useState('');
-  const [viewMode, setViewMode] = useState('products');
-
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try { setData(await api('/api/admin/gtins')); }
-    catch (loadError) { setError(loadError?.message || 'Não foi possível carregar os códigos EAN.'); }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const activeRows = useMemo(() => (data.gtins || []).filter(item => item.active), [data.gtins]);
-  const platforms = useMemo(() => Array.from(new Set(activeRows.flatMap(item => item.platforms || []))).sort(), [activeRows]);
-  const collections = useMemo(() => buildEanCollections(activeRows).map(collection => {
-    const items = collection.items.filter(item => platform === 'all' || (item.platforms || []).includes(platform));
-    const filteredPlatforms = Array.from(new Set(items.flatMap(item => item.platforms || []))).sort();
-    return { ...collection, items, platforms: filteredPlatforms, coverCount: new Set(items.map(item => item.capa_code)).size };
-  }).filter(collection => {
-    const query = search.trim().toLowerCase();
-    const matchesSearch = !query || [collection.name, collection.family, ...collection.items.flatMap(item => [item.sku, item.capa_code, item.gtin])]
-      .some(value => String(value || '').toLowerCase().includes(query));
-    return collection.items.length >= 2 && collection.coverCount >= 2 && matchesSearch;
-  }), [activeRows, platform, search]);
-  const rows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return activeRows.filter(item => {
-      const matchesPlatform = platform === 'all' || (item.platforms || []).includes(platform);
-      const matchesSearch = !query || [item.gtin, item.sku, item.nome, item.variacao, item.capa_code]
-        .some(value => String(value || '').toLowerCase().includes(query));
-      return matchesPlatform && matchesSearch;
-    });
-  }, [activeRows, platform, search]);
-
-  const selectedRows = useMemo(() => activeRows.filter(item => selected.includes(item.id)), [activeRows, selected]);
-  const preview = activeRows.find(item => item.id === previewId) || selectedRows[0] || rows[0] || null;
-  const allVisibleSelected = rows.length > 0 && rows.every(item => selected.includes(item.id));
-
-  const toggleAllVisible = () => {
-    const visibleIds = rows.map(item => item.id);
-    setSelected(current => allVisibleSelected
-      ? current.filter(id => !visibleIds.includes(id))
-      : Array.from(new Set([...current, ...visibleIds])));
-  };
-
-  const toggleOne = id => setSelected(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
-  const selectedPlatform = platform === 'all' ? '' : platform;
-
-  const downloadMass = async () => {
-    setGenerating(true);
-    setError('');
-    try { await downloadBarcodeZip(selectedRows, selectedPlatform); }
-    catch (downloadError) { setError(downloadError?.message || 'Não foi possível gerar o pacote.'); }
-    finally { setGenerating(false); }
-  };
-
-  const downloadCollection = async collection => {
-    setGeneratingCollection(collection.id);
-    setError('');
-    try {
-      await downloadBarcodeZip(collection.items, selectedPlatform, collectionZipFilename(collection));
-    } catch (downloadError) {
-      setError(downloadError?.message || 'Não foi possível gerar as etiquetas da coleção.');
-    } finally {
-      setGeneratingCollection('');
-    }
-  };
-
-  return (
-    <div className="barcode-generator-page">
-      <section className="barcode-generator-hero">
-        <div>
-          <span className="barcode-generator-eyebrow">FERRAMENTA GS1</span>
-          <h2>Gerador de Códigos de Barras</h2>
-          <p>Crie etiquetas EAN-13 oficiais em PNG, com 543 × 189 px e 300 DPI, a partir dos códigos já vinculados ao catálogo. A ferramenta não cria números novos.</p>
-        </div>
-        <div className="barcode-generator-stats">
-          <strong>{activeRows.length}</strong><span>EANs disponíveis</span>
-          <strong>{viewMode === 'collections' ? collections.length : selected.length}</strong><span>{viewMode === 'collections' ? 'coleções encontradas' : 'selecionados'}</span>
-        </div>
-      </section>
-
-      {error && <div className="barcode-generator-error">{error} <button type="button" onClick={load}>Tentar novamente</button></div>}
-
-      <section className={`barcode-generator-workspace ${viewMode === 'collections' ? 'collection-mode' : ''}`}>
-        {viewMode === 'products' && <div className="barcode-generator-preview">
-          <div className="barcode-preview-head"><span>Pré-visualização</span><small>{preview ? preview.gtin : 'Selecione um produto'}</small></div>
-          {preview ? (
-            <>
-              <div className="barcode-preview-canvas" dangerouslySetInnerHTML={{ __html: createEan13Svg(preview) }} />
-              <div className="barcode-preview-actions">
-                <button type="button" className="primary" onClick={() => downloadBarcodePng(preview).catch(err => setError(err.message))}>Baixar PNG oficial</button>
-              </div>
-            </>
-          ) : <div className="barcode-preview-empty">Nenhum EAN disponível neste filtro.</div>}
-        </div>}
-
-        <div className="barcode-generator-controls">
-          <div className="barcode-mode-filter">
-            <span>Modo de download</span>
-            <div className="barcode-mode-switch" role="group" aria-label="Modo de download">
-              <button type="button" className={viewMode === 'products' ? 'active' : ''} onClick={() => setViewMode('products')}>Produtos individuais</button>
-              <button type="button" className={viewMode === 'collections' ? 'active' : ''} onClick={() => setViewMode('collections')}>Download por coleção</button>
-            </div>
-          </div>
-          <label><span>Plataforma</span><select value={platform} onChange={event => { setPlatform(event.target.value); setSelected([]); }}>
-            <option value="all">Todas as plataformas</option>
-            {platforms.map(item => <option value={item} key={item}>{item}</option>)}
-          </select></label>
-          <label><span>{viewMode === 'collections' ? 'Buscar coleção' : 'Buscar produto'}</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder={viewMode === 'collections' ? 'Nome, família ou código da capa' : 'EAN, SKU, nome ou capa'} /></label>
-          {viewMode === 'products' ? <>
-            <div className="barcode-selection-summary"><strong>{selectedRows.length}</strong><span>etiqueta{selectedRows.length === 1 ? '' : 's'} pronta{selectedRows.length === 1 ? '' : 's'} para baixar</span></div>
-            <button type="button" className="barcode-download-mass" disabled={!selectedRows.length || generating} onClick={downloadMass}>{generating ? 'Gerando PNGs…' : 'Baixar PNGs em massa (.ZIP)'}</button>
-            <small>O pacote contém um PNG oficial de 543 × 189 px e 300 DPI para cada EAN selecionado.</small>
-          </> : <div className="barcode-collection-filter-help"><strong>{collections.length}</strong><span>Escolha uma coleção abaixo para gerar todas as etiquetas das capas em um único ZIP.</span></div>}
-        </div>
-      </section>
-
-      {viewMode === 'collections' && <section className="barcode-collections-section">
-        <div className="barcode-collections-heading">
-          <div>
-            <span className="barcode-generator-eyebrow">DOWNLOAD POR COLEÇÃO</span>
-            <h3>Coleções identificadas</h3>
-            <p>Produtos com o mesmo título e a mesma família de SKU são agrupados com segurança.</p>
-          </div>
-          <strong>{collections.length}</strong>
-        </div>
-        {collections.length > 0 ? (
-          <div className="barcode-collection-grid">
-            {collections.map(collection => (
-              <article className="barcode-collection-card" key={collection.id}>
-                <div className="barcode-collection-cover-stack" aria-hidden="true">
-                  {collection.items.slice(0, 4).map((item, index) => item.image_url ? (
-                    <img key={item.id} src={item.image_url} alt="" style={{ '--cover-index': index }} />
-                  ) : <span key={item.id} style={{ '--cover-index': index }}>▥</span>)}
-                </div>
-                <div className="barcode-collection-copy">
-                  <small>{collection.family || 'COLEÇÃO'}</small>
-                  <h4>{collection.name}</h4>
-                  <div className="barcode-collection-meta">
-                    <span>{collection.items.length} etiquetas</span>
-                    <span>{collection.coverCount} capas</span>
-                  </div>
-                  <div className="barcode-collection-platforms">
-                    {collection.platforms.map(value => <span key={value}>{value}</span>)}
-                  </div>
-                  <div className="barcode-collection-codes">
-                    {collection.items.slice(0, 6).map(item => <span key={item.id}>{item.capa_code}</span>)}
-                    {collection.items.length > 6 && <span>+{collection.items.length - 6}</span>}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => downloadCollection(collection)}
-                  disabled={Boolean(generatingCollection)}
-                >
-                  {generatingCollection === collection.id ? 'Gerando ZIP…' : `Baixar coleção em ZIP (${collection.items.length})`}
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="barcode-collections-empty">Nenhuma coleção com duas ou mais capas foi encontrada neste filtro.</div>
-        )}
-      </section>}
-
-      {viewMode === 'products' && <section className="admin-table-card barcode-generator-table">
-        <div className="table-card-topbar">
-          <div className="table-title-group"><div className="table-title-icon"><SidebarIcon name="barcode" /></div><div><h3 className="table-main-title">Produtos com EAN</h3><span className="table-sub-title">{rows.length} produto{rows.length === 1 ? '' : 's'} no filtro atual</span></div></div>
-          <div className="table-actions-toolbar"><button type="button" className="btn-toolbar-filter" onClick={toggleAllVisible}>{allVisibleSelected ? 'Desmarcar exibidos' : 'Selecionar exibidos'}</button><button type="button" className="btn-toolbar-filter" disabled={!selected.length} onClick={() => setSelected([])}>Limpar seleção</button></div>
-        </div>
-        <div className="table-responsive-container">
-          <table className="admin-data-table">
-            <thead><tr><th className="barcode-check-column">✓</th><th>EAN</th><th>PRODUTO</th><th>PLATAFORMA</th><th>ARQUIVOS</th></tr></thead>
-            <tbody>
-              {loading ? <tr><td colSpan="5" className="table-empty-row">Carregando códigos…</td></tr> : rows.length === 0 ? <tr><td colSpan="5" className="table-empty-row">Nenhum EAN encontrado.</td></tr> : rows.map(item => (
-                <tr key={item.id} className={preview?.id === item.id ? 'barcode-row-previewing' : ''}>
-                  <td><input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggleOne(item.id)} aria-label={`Selecionar ${item.gtin}`} /></td>
-                  <td><button type="button" className="barcode-preview-link" onClick={() => setPreviewId(item.id)}>{item.gtin}</button></td>
-                  <td><div className="product-info-cell"><strong>{item.nome || item.sku}</strong><small>{item.sku} · {item.variacao || 'Sem variação'}</small></div></td>
-                  <td><div className="barcode-platform-pills">{(item.platforms || []).length ? item.platforms.map(value => <span key={value}>{value}</span>) : <span>Sem plataforma</span>}</div></td>
-                  <td><div className="barcode-row-actions"><button type="button" onClick={() => downloadBarcodePng(item).catch(err => setError(err.message))}>Baixar PNG</button></div></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>}
-    </div>
-  );
-}
-
-function GtinEventsView({ initialStatus = '' }) {
-  const [events, setEvents] = useState([]);
-  const [status, setStatus] = useState(initialStatus);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-
-  useEffect(() => { setStatus(initialStatus); }, [initialStatus]);
-
-  const load = async () => {
-    setLoading(true);
-    setLoadError('');
-    try {
-      const params = new URLSearchParams({ limit: '250' });
-      if (status) params.set('status', status);
-      if (search.trim()) params.set('q', search.trim());
-      const data = await api(`/api/admin/gtin-events?${params.toString()}`);
-      setEvents(data.events || []);
-    } catch (error) {
-      setLoadError(error?.message || 'Não foi possível carregar o histórico de leituras.');
-    } finally { setLoading(false); }
-  };
-
-  useEffect(() => { load(); }, [status]);
-
-  const statusLabel = value => ({
-    identified: 'Identificado',
-    not_found: 'Não cadastrado',
-    system_error: 'Erro técnico'
-  }[value] || value);
-
-  return (
-    <div className="admin-table-card">
-      <div className="table-card-topbar">
-        <div className="table-title-group">
-          <div className="table-title-icon"><SidebarIcon name={initialStatus === 'not_found' ? 'alert' : 'history'} /></div>
-          <div>
-            <h3 className="table-main-title">{initialStatus === 'not_found' ? 'EAN não Cadastrados' : 'Histórico de Leituras EAN'}</h3>
-            <span className="table-sub-title">Leituras registradas pelos aparelhos e operadores</span>
-          </div>
-        </div>
-        <div className="table-actions-toolbar">
-          {!initialStatus && (
-            <select className="table-platform-select" value={status} onChange={event => setStatus(event.target.value)}>
-              <option value="">Todos os resultados</option>
-              <option value="identified">Identificados</option>
-              <option value="not_found">Não cadastrados</option>
-              <option value="system_error">Erros técnicos</option>
-            </select>
-          )}
-          <input className="table-search-input" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === 'Enter' && load()} placeholder="Buscar EAN, operador ou SKU" />
-          <button type="button" className="btn-toolbar-filter" onClick={load}>Buscar</button>
-        </div>
-      </div>
-      <div className="table-responsive-container">
-        <table className="admin-data-table">
-          <thead><tr><th>STATUS</th><th>HORÁRIO</th><th>OPERADOR</th><th>EAN</th><th>PRODUTO</th><th>TEMPO</th></tr></thead>
-          <tbody>
-            {loading ? <tr><td colSpan="6" className="table-empty-row">Carregando leituras…</td></tr> : loadError ? (
-              <tr><td colSpan="6" className="table-empty-row"><span>{loadError}</span> <button type="button" className="btn-toolbar-filter" onClick={load}>Tentar novamente</button></td></tr>
-            ) : events.length === 0 ? (
-              <tr><td colSpan="6" className="table-empty-row">Nenhuma leitura registrada neste filtro.</td></tr>
-            ) : events.map(event => (
-              <tr key={event.id}>
-                <td><span className={`status-pill ${event.status === 'identified' ? 'active' : event.status === 'not_found' ? 'orange' : 'danger'}`}>• {statusLabel(event.status)}</span></td>
-                <td><div className="datetime-cell"><span>{formatProductDate(event.created_at).date}</span><small>{formatProductDate(event.created_at).time}</small></div></td>
-                <td><strong>{event.operator_name || 'Não identificado'}</strong></td>
-                <td><span className="ean-code-cell">{event.gtin}</span></td>
-                <td><div className="product-info-cell"><strong>{event.nome || event.sku || 'Sem produto vinculado'}</strong><small>{event.sku || event.error_code || '—'}</small></div></td>
-                <td>{event.response_ms ? `${event.response_ms} ms` : '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================================
-   LEGACY RECOGNITION DIAGNOSTICS (kept outside the active EAN navigation)
-   ========================================================================= */
-function DiagnosticsView({ filter = 'all', initialOperator = '' }) {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState(filter);
-  const [operatorFilter, setOperatorFilter] = useState(initialOperator || '');
-  const [selectedEvent, setSelectedEvent] = useState(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      let path = '/api/admin/recognition-events?limit=100';
-      const params = new URLSearchParams({ limit: '100' });
-      if (activeFilter === 'issues') params.set('scope', 'issues');
-      else if (activeFilter !== 'all') params.set('kind', activeFilter);
-      if (operatorFilter) params.set('operator_name', operatorFilter);
-
-      path = `/api/admin/recognition-events?${params.toString()}`;
-      const data = await api(path);
-      setEvents(data.events || []);
-    } catch {}
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { load(); }, [activeFilter, operatorFilter]);
-
-  const uniqueOperators = useMemo(() => {
-    const set = new Set(events.map(e => e.operator_name).filter(Boolean));
-    return Array.from(set);
-  }, [events]);
-
-  return (
-    <div className="admin-table-card">
-      <div className="table-card-topbar">
-        <div className="table-title-group">
-          <div className="table-title-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="table-main-title">Histórico de Reconhecimentos</h3>
-            <span className="table-sub-title">Telemetria de cada imagem fotografada e operador responsável</span>
-          </div>
-        </div>
-
-        <div className="table-actions-toolbar">
-          <div className="diag-filter-pills">
-            {[['all', 'Todos'], ['issues', 'Problemas / Sem Match'], ['success', 'Reconhecidos'], ['system_error', 'Erros Técnicos']].map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                className={`diag-pill-btn ${activeFilter === k ? 'active' : ''}`}
-                onClick={() => setActiveFilter(k)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {uniqueOperators.length > 1 && (
-            <select
-              className="table-platform-select"
-              value={operatorFilter}
-              onChange={e => setOperatorFilter(e.target.value)}
-              style={{ minWidth: '150px' }}
-            >
-              <option value="">Todos Operadores</option>
-              {uniqueOperators.map(op => (
-                <option key={op} value={op}>{op}</option>
-              ))}
-            </select>
-          )}
-
-          <button type="button" className="btn-toolbar-filter" onClick={load}>Atualizar</button>
-        </div>
-      </div>
-
-      <div className="table-responsive-container">
-        <table className="admin-data-table">
-          <thead>
-            <tr>
-              <th style={{ width: '130px' }}>STATUS</th>
-              <th style={{ width: '140px' }}>HORÁRIO</th>
-              <th style={{ width: '170px' }}>OPERADOR</th>
-              <th>SKU / CAPA DETECTADA</th>
-              <th style={{ width: '110px' }}>CONFIANÇA</th>
-              <th style={{ width: '110px' }}>TEMPO</th>
-              <th style={{ width: '100px', textAlign: 'right' }}>DETALHES</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="7" className="table-empty-row">Carregando histórico…</td></tr>
-            ) : events.length === 0 ? (
-              <tr><td colSpan="7" className="table-empty-row">Nenhum evento registrado neste filtro.</td></tr>
-            ) : (
-              events.map(ev => (
-                <tr key={ev.id}>
-                  <td>
-                    <span className={`status-pill ${ev.kind === 'success' ? 'active' : ev.kind === 'unmatched' ? 'orange' : 'danger'}`}>
-                      {ev.kind === 'success' ? '• Reconhecido' : ev.kind === 'unmatched' ? '• Sem Match' : '• Erro Técnico'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="datetime-cell">
-                      <span>{formatProductDate(ev.created_at).date}</span>
-                      <small>{formatProductDate(ev.created_at).time}</small>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="operator-badge-cell">
-                      <span className="operator-dot"></span>
-                      <strong>{ev.operator_name || 'Operador Geral'}</strong>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="product-info-cell">
-                      <strong className="product-name-txt">{ev.sku || ev.capa_code || ev.retrieval_top1_code || 'Sem correspondência'}</strong>
-                      <small className="product-sub-txt">{ev.error_message || ev.identified_by || 'Busca vetorial concluída'}</small>
-                    </div>
-                  </td>
-                  <td>
-                    <strong style={{ color: '#0f172a' }}>
-                      {ev.confidence === null ? '—' : `${Math.round(ev.confidence * 100)}%`}
-                    </strong>
-                  </td>
-                  <td>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>
-                      {ev.total_ms ? `${(ev.total_ms / 1000).toFixed(1)}s` : '—'}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button type="button" className="action-icon-btn" onClick={() => setSelectedEvent(ev)}>
-                      👁
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {selectedEvent && (
-        <div className="admin-modal-backdrop" onClick={e => e.target === e.currentTarget && setSelectedEvent(null)}>
-          <div className="admin-modal view-modal">
-            <div className="admin-modal-head">
-              <div>
-                <h3>Telemetria do Reconhecimento</h3>
-                <small>{formatProductDate(selectedEvent.created_at).date} às {formatProductDate(selectedEvent.created_at).time}</small>
-              </div>
-              <button type="button" className="admin-modal-close" onClick={() => setSelectedEvent(null)}>✕</button>
-            </div>
-
-            <div className="view-modal-body">
-              {selectedEvent.image_url && (
-                <div className="view-modal-image-col">
-                  <img src={selectedEvent.image_url} alt="Produto retornado" className="view-large-thumb" />
-                  <span style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', marginTop: '6px' }}>Produto correspondente</span>
-                </div>
-              )}
-
-              <div className="view-modal-info-col" style={{ width: '100%' }}>
-                {selectedEvent.error_message && (
-                  <div className="form-error-banner" style={{ marginBottom: '14px' }}>
-                    <strong>Resultado:</strong> {selectedEvent.error_message}
-                  </div>
-                )}
-
-                <div className="view-spec-grid">
-                  <div className="view-spec-item">
-                    <span>Operador Responsável</span>
-                    <strong style={{ color: '#3b82f6' }}>{selectedEvent.operator_name || 'Operador Geral'}</strong>
-                  </div>
-                  <div className="view-spec-item">
-                    <span>Status HTTP</span>
-                    <strong>{selectedEvent.http_status}</strong>
-                  </div>
-                  <div className="view-spec-item">
-                    <span>SKU Retornado</span>
-                    <strong>{selectedEvent.sku || '—'}</strong>
-                  </div>
-                  <div className="view-spec-item">
-                    <span>Capa Retornada</span>
-                    <strong>{selectedEvent.capa_code || '—'}</strong>
-                  </div>
-                  <div className="view-spec-item">
-                    <span>Top 1 Vectorize</span>
-                    <strong>{selectedEvent.retrieval_top1_code || '—'} ({Number(selectedEvent.retrieval_top1 || 0).toFixed(3)})</strong>
-                  </div>
-                  <div className="view-spec-item">
-                    <span>Tempo Total</span>
-                    <strong>{selectedEvent.total_ms ? `${selectedEvent.total_ms} ms` : '—'}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="admin-modal-foot">
-              <button type="button" className="btn-cancel" onClick={() => setSelectedEvent(null)}>Fechar</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function OccurrenceProductSelector({ products, occPlatform, value, onChange }) {
-  const [platformFilter, setPlatformFilter] = useState(occPlatform ? occPlatform.toUpperCase() : 'ALL');
-  const [search, setSearch] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Lista de plataformas únicas do catálogo
-  const availablePlatforms = useMemo(() => {
-    const set = new Set();
-    products.forEach(p => {
-      if (p.platform) set.add(p.platform.toUpperCase());
-    });
-    return Array.from(set).sort();
-  }, [products]);
-
-  // Filtragem combinada por Plataforma + SKU / Código / Nome
-  const filteredProducts = useMemo(() => {
-    return products.filter(p => {
-      if (platformFilter !== 'ALL') {
-        const pPlat = (p.platform || '').toUpperCase();
-        if (pPlat !== platformFilter) return false;
-      }
-      if (!search.trim()) return true;
-      const term = search.toLowerCase().trim();
-      const sku = (p.sku || '').toLowerCase();
-      const capa = (p.capa_code || '').toLowerCase();
-      const nome = (p.nome || p.name || '').toLowerCase();
-      return sku.includes(term) || capa.includes(term) || nome.includes(term);
-    });
-  }, [products, platformFilter, search]);
-
-  const selectedProduct = useMemo(() => {
-    if (!value) return null;
-    return products.find(p => p.capa_code === value || p.sku === value);
-  }, [products, value]);
-
-  return (
-    <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '10px', marginTop: '6px' }}>
-      {/* Linha 1: Filtro por Plataforma + Barra de Busca por SKU */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
-        <select
-          value={platformFilter}
-          onChange={e => setPlatformFilter(e.target.value)}
-          style={{ height: '38px', borderRadius: '8px', border: '1.5px solid #cbd5e1', padding: '0 10px', fontSize: '12px', fontWeight: 700, color: '#0f172a', background: '#ffffff', cursor: 'pointer' }}
-        >
-          <option value="ALL">🌐 Todas Plataformas</option>
-          {availablePlatforms.map(plat => (
-            <option key={plat} value={plat}>{plat}</option>
-          ))}
-        </select>
-
-        <div style={{ flex: 1, minWidth: '220px', position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="🔍 Digite ou cole o SKU, código ou nome..."
-            value={search}
-            onChange={e => {
-              setSearch(e.target.value);
-              setIsOpen(true);
-            }}
-            onFocus={() => setIsOpen(true)}
-            style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1.5px solid #cbd5e1', padding: '0 30px 0 10px', fontSize: '12.5px', color: '#0f172a', background: '#ffffff' }}
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Produto Selecionado (Destaque Verde) */}
-      {selectedProduct ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ecfdf5', border: '1.5px solid #a7f3d0', borderRadius: '10px', padding: '8px 12px', marginBottom: isOpen ? '8px' : '0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {selectedProduct.image_url ? (
-              <img src={selectedProduct.image_url} alt={selectedProduct.sku} style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #6ee7b7' }} />
-            ) : (
-              <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📖</div>
-            )}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#065f46' }}>Capa: {selectedProduct.capa_code}</span>
-                <span style={{ fontSize: '11.5px', color: '#047857', fontWeight: 700 }}>({selectedProduct.sku})</span>
-                <span style={{ fontSize: '10px', background: '#d1fae5', color: '#065f46', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>{selectedProduct.platform || 'GERAL'}</span>
-              </div>
-              <div style={{ fontSize: '11px', color: '#047857', marginTop: '2px', maxWidth: '380px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {selectedProduct.nome || selectedProduct.name || ''}
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsOpen(o => !o)}
-            style={{ background: '#ffffff', border: '1px solid #6ee7b7', color: '#065f46', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-          >
-            {isOpen ? 'Ocultar Lista ✕' : 'Trocar Capa ⇄'}
-          </button>
-        </div>
-      ) : (
-        <div style={{ padding: '6px 0', fontSize: '12px', color: '#64748b' }}>
-          <em>Nenhuma capa selecionada ainda. Busque ou selecione na lista abaixo:</em>
-        </div>
-      )}
-
-      {/* Lista de Seleção / Dropdown */}
-      {(isOpen || !selectedProduct) && (
-        <div style={{ maxHeight: '180px', overflowY: 'auto', background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          {filteredProducts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '14px', fontSize: '12px', color: '#64748b' }}>
-              Nenhum produto encontrado com o filtro "{search}".
-            </div>
-          ) : (
-            filteredProducts.slice(0, 60).map(p => {
-              const isCurrent = (p.capa_code === value || p.sku === value);
-              return (
-                <div
-                  key={`${p.id}_${p.sku}`}
-                  onClick={() => {
-                    onChange(p.capa_code);
-                    setIsOpen(false);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 10px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    background: isCurrent ? '#eef2ff' : '#ffffff',
-                    border: isCurrent ? '1.5px solid #6366f1' : '1px solid #f1f5f9',
-                    transition: 'all 0.1s ease'
-                  }}
-                  onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = '#f8fafc'; }}
-                  onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = isCurrent ? '#eef2ff' : '#ffffff'; }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                    {p.image_url && (
-                      <img src={p.image_url} alt={p.sku} style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'cover' }} />
-                    )}
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#0f172a' }}>{p.capa_code}</span>
-                      <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>{p.sku}</span>
-                      <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '6px' }}>• {p.nome || p.name}</span>
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '10px', fontWeight: 800, background: '#f1f5f9', color: '#475569', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
-                    {p.platform || 'GERAL'}
-                  </span>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* =========================================================================
-   OPERATORS & ACTIVE LEARNING / OCCURRENCES UNIFIED VIEW
-   ========================================================================= */
-function OperatorsAndLearningView({ products, onRefresh, initialSubTab = 'ocorrencias' }) {
-  const [subTab, setSubTab] = useState(initialSubTab);
-
-  useEffect(() => {
-    setSubTab(initialSubTab);
-  }, [initialSubTab]);
-  
-  // Ocorrências State
-  const [occData, setOccData] = useState({ occurrences: [], stats: { pending: 0, trained: 0, dismissed: 0 } });
-  const [occLoading, setOccLoading] = useState(true);
-  const [selectedCapa, setSelectedCapa] = useState({});
-  const [trainingId, setTrainingId] = useState(null);
-  const [feedbackMsg, setFeedbackMsg] = useState('');
-
-  // Operadores State
-  const [operators, setOperators] = useState([]);
-  const [opLoading, setOpLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedOperator, setSelectedOperator] = useState(null);
-  const [operatorEvents, setOperatorEvents] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-
-  // Cérebro (Treinos ADM) State
-  const [trainedRefs, setTrainedRefs] = useState([]);
-  const [refsLoading, setRefsLoading] = useState(false);
-
-  const loadOccurrences = async () => {
-    try {
-      setOccLoading(true);
-      const res = await api('/api/admin/occurrences');
-      setOccData(res);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setOccLoading(false);
-    }
-  };
-
-  const loadOperators = async () => {
-    try {
-      setOpLoading(true);
-      const data = await api('/api/admin/operators');
-      setOperators(data.operators || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setOpLoading(false);
-    }
-  };
-
-  const loadTrainedReferences = async () => {
-    try {
-      setRefsLoading(true);
-      const res = await api('/api/admin/trained-references');
-      setTrainedRefs(res.references || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setRefsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadOccurrences();
-    loadOperators();
-  }, []);
-
-  useEffect(() => {
-    if (subTab === 'cerebro') {
-      loadTrainedReferences();
-    }
-  }, [subTab]);
-
-  const handleDeleteReference = async (referenceId) => {
-    if (!confirm('Deseja realmente excluir este treinamento? Isso apagará a foto do banco e o vetor correspondente no Vectorize. O sistema voltará ao comportamento padrão para esta imagem.')) return;
-    try {
-      await api(`/api/admin/cover-references/${referenceId}`, { method: 'DELETE' });
-      alert('Treinamento excluído e removido do Vectorize com sucesso!');
-      await loadTrainedReferences();
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      alert('Erro ao excluir treinamento: ' + err.message);
-    }
-  };
-
-  const handleTrain = async (occurrenceId) => {
-    const occ = occData?.occurrences?.find(o => o.id === occurrenceId);
-    const capaCode = selectedCapa[occurrenceId] || occ?.suggested_capa_code;
-    if (!capaCode) {
-      alert('Por favor, selecione qual é o produto/capa correta antes de aprovar.');
-      return;
-    }
-    try {
-      setTrainingId(occurrenceId);
-      await api(`/api/admin/occurrences/${occurrenceId}/train`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ capa_code: capaCode })
-      });
-      setFeedbackMsg(`✓ Foto da bancada aprendida com sucesso para o modelo ${capaCode}! O Vectorize foi atualizado.`);
-      await loadOccurrences();
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      alert('Erro ao treinar sistema: ' + err.message);
-    } finally {
-      setTrainingId(null);
-    }
-  };
-
-  const handleDismiss = async (occurrenceId) => {
-    if (!confirm('Deseja descartar esta foto da fila de aprendizado?')) return;
-    try {
-      await api(`/api/admin/occurrences/${occurrenceId}/dismiss`, { method: 'POST' });
-      await loadOccurrences();
-    } catch (err) {
-      alert('Erro ao descartar: ' + err.message);
-    }
-  };
-
-  const openOperatorHistory = async (op) => {
-    setSelectedOperator(op);
-    setEventsLoading(true);
-    try {
-      const data = await api(`/api/admin/recognition-events?operator_name=${encodeURIComponent(op.operator_name)}&limit=100`);
-      setOperatorEvents(data.events || []);
-    } catch {
-      setOperatorEvents([]);
-    } finally {
-      setEventsLoading(false);
-    }
-  };
-
-  const capaOptions = useMemo(() => {
-    const map = new Map();
-    products.forEach(p => {
-      const code = String(p.capa_code || '').trim().toUpperCase();
-      if (code && !map.has(code)) {
-        map.set(code, {
-          code,
-          name: p.name || p.sku,
-          image_url: p.image_url,
-          platform: p.platform
-        });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
-  }, [products]);
-
-  const filteredOperators = useMemo(() => {
-    if (!searchTerm.trim()) return operators;
-    const term = searchTerm.toLowerCase();
-    return operators.filter(op => op.operator_name.toLowerCase().includes(term));
-  }, [operators, searchTerm]);
-
-  const totalAttempts = useMemo(() => operators.reduce((acc, o) => acc + (o.total_attempts || 0), 0), [operators]);
-  const totalSuccesses = useMemo(() => operators.reduce((acc, o) => acc + (o.successes || 0), 0), [operators]);
-  const totalErrors = useMemo(() => operators.reduce((acc, o) => acc + (o.system_errors || 0) + (o.unmatched || 0), 0), [operators]);
-  const mostActive = useMemo(() => {
-    if (!operators.length) return null;
-    return [...operators].sort((a, b) => (b.total_attempts || 0) - (a.total_attempts || 0))[0];
-  }, [operators]);
-
-  return (
-    <div className="admin-table-card">
-      <div className="table-card-topbar">
-        <div className="table-title-group">
-          <div className="table-title-icon" style={{ background: '#eef2ff', color: '#4f46e5' }}>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="table-main-title">Operadores, Ocorrências & Auto-Aprendizado</h3>
-            <span className="table-sub-title">Veja quem realizou cada foto, corrija falhas manualmente e auto-treine o sistema</span>
-          </div>
-        </div>
-
-        <div className="table-actions-toolbar">
-          <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: '3px', borderRadius: '12px', border: '1.5px solid #e2e8f0', gap: '2px' }}>
-            <button
-              type="button"
-              style={{
-                border: 'none',
-                background: subTab === 'ocorrencias' ? '#ffffff' : 'transparent',
-                color: subTab === 'ocorrencias' ? '#4f46e5' : '#64748b',
-                boxShadow: subTab === 'ocorrencias' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                borderRadius: '9px',
-                padding: '7px 14px',
-                fontSize: '12.5px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.15s ease'
-              }}
-              onClick={() => setSubTab('ocorrencias')}
-            >
-              <span>Ocorrências da Bancada</span>
-              {occData.stats?.pending > 0 && (
-                <span style={{ background: '#ef4444', color: '#ffffff', borderRadius: '999px', padding: '1px 6px', fontSize: '10.5px', fontWeight: 800 }}>
-                  {occData.stats.pending}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              style={{
-                border: 'none',
-                background: subTab === 'equipe' ? '#ffffff' : 'transparent',
-                color: subTab === 'equipe' ? '#4f46e5' : '#64748b',
-                boxShadow: subTab === 'equipe' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                borderRadius: '9px',
-                padding: '7px 14px',
-                fontSize: '12.5px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.15s ease'
-              }}
-              onClick={() => setSubTab('equipe')}
-            >
-              <span>Desempenho da Equipe ({operators.length})</span>
-            </button>
-
-            <button
-              type="button"
-              style={{
-                border: 'none',
-                background: subTab === 'cerebro' ? '#ffffff' : 'transparent',
-                color: subTab === 'cerebro' ? '#4f46e5' : '#64748b',
-                boxShadow: subTab === 'cerebro' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                borderRadius: '9px',
-                padding: '7px 14px',
-                fontSize: '12.5px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.15s ease'
-              }}
-              onClick={() => setSubTab('cerebro')}
-            >
-              <span>Cérebro ({trainedRefs.length} Treinos)</span>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className="btn-toolbar-filter"
-            style={{ height: '40px', padding: '0 14px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
-            onClick={() => { loadOccurrences(); loadOperators(); }}
-          >
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-              <path d="M16 21h5v-5" />
-            </svg>
-            <span>Atualizar</span>
-          </button>
-        </div>
-      </div>
-
-      {feedbackMsg && (
-        <div className="form-success-banner" style={{ margin: '0 24px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>{feedbackMsg}</span>
-          <button type="button" onClick={() => setFeedbackMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, color: '#166534' }}>✕</button>
-        </div>
-      )}
-
-      {/* =========================================================================
-         SUBTAB 1: OCORRÊNCIAS & APRENDIZADO ATIVO COM IDENTIFICAÇÃO DO OPERADOR
-         ========================================================================= */}
-      {subTab === 'ocorrencias' && (
-        <div>
-          {/* Estatísticas de Aprendizado */}
-          <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
-            <div className="system-metric-box">
-              <div className="metric-box-head">
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#b45309' }}>⏳ Pendentes de Revisão</span>
-                <span className="status-pill" style={{ background: '#fef3c7', color: '#92400e' }}>Aguardando ADM</span>
-              </div>
-              <div className="metric-big-num" style={{ color: '#d97706', marginTop: '8px' }}>{occData.stats?.pending || 0}</div>
-              <p>Fotos da bancada aguardando sua correção para treinar o Vectorize.</p>
-            </div>
-
-            <div className="system-metric-box">
-              <div className="metric-box-head">
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d' }}>🧠 Fotos Reais Aprendidas</span>
-                <span className="status-pill active">• No Vectorize</span>
-              </div>
-              <div className="metric-big-num" style={{ color: '#16a34a', marginTop: '8px' }}>{occData.stats?.trained || 0}</div>
-              <p>Exemplos reais gravados no banco vetorial e usados como referências supervisionadas na recuperação visual.</p>
-            </div>
-
-            <div className="system-metric-box">
-              <div className="metric-box-head">
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>🗑️ Descartadas</span>
-                <span className="status-pill">• Limpas</span>
-              </div>
-              <div className="metric-big-num" style={{ color: '#64748b', marginTop: '8px' }}>{occData.stats?.dismissed || 0}</div>
-              <p>Fotos borradas ou inválidas descartadas pelo administrador.</p>
-            </div>
-          </div>
-
-          {occLoading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-              <div className="admin-loading-spinner" style={{ margin: '0 auto 12px' }} />
-              <span>Carregando ocorrências da bancada…</span>
-            </div>
-          ) : occData.occurrences.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 24px', background: '#f8fafc', margin: '0 24px 24px', borderRadius: '16px', border: '1.5px dashed #cbd5e1' }}>
-              <span style={{ fontSize: '36px' }}>🎉</span>
-              <h4 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: '10px 0 4px' }}>Nenhuma ocorrência pendente no momento!</h4>
-              <p style={{ fontSize: '13px', color: '#64748b', maxWidth: '460px', margin: '0 auto' }}>
-                Todas as fotos da bancada foram identificadas com sucesso ou já foram treinadas no Vectorize.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '0 24px 24px' }}>
-              {occData.occurrences.map(occ => {
-                const currentSelected = selectedCapa[occ.id] || occ.suggested_capa_code || '';
-                const isTraining = trainingId === occ.id;
-                const targetProd = capaOptions.find(c => c.code === currentSelected);
-
-                return (
-                  <div key={occ.id} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 260px', gap: '18px', background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', alignItems: 'center' }}>
-                    {/* Coluna 1: Foto Real de Bancada */}
-                    <div style={{ textAlign: 'center' }}>
-                      <img
-                        src={occ.image_url}
-                        alt="Foto da bancada"
-                        style={{ width: '130px', height: '130px', objectFit: 'cover', borderRadius: '12px', border: '1.5px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-                      />
-                      <span style={{ display: 'block', fontSize: '10.5px', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
-                        {new Date(occ.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · {new Date(occ.created_at).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-
-                    {/* Coluna 2: Detalhes do Operador & Seleção da Capa Correta */}
-                    <div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        {/* IDENTIFICAÇÃO DO OPERADOR */}
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#e0e7ff', border: '1px solid #c7d2fe', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, color: '#3730a3' }}>
-                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                          </svg>
-                          <span>Operador: {occ.operator_name}</span>
-                        </div>
-
-                        <PlatformTag platform={occ.platform || 'MERCADO LIVRE'} />
-                        {occ.error_reason?.startsWith('reported_wrong_by_operator:') ? (
-                          <span className="status-pill" style={{ background: '#fef3c7', color: '#b45309', fontWeight: 800 }}>
-                            ⚠️ Reportado Incorreto pelo Operador (IA previu {occ.error_reason.replace('reported_wrong_by_operator:', '')})
-                          </span>
-                        ) : (
-                          <span className="status-pill" style={{ background: '#fee2e2', color: '#991b1b' }}>⚠️ Não Identificado</span>
-                        )}
-                        
-                        {occ.suggested_capa_code && !occ.error_reason?.startsWith('reported_wrong_by_operator:') && (
-                          <span style={{ fontSize: '11px', color: '#475569' }}>
-                            Sugestão IA: <strong>{occ.suggested_capa_code}</strong> ({Math.round((occ.confidence || 0) * 100)}%)
-                          </span>
-                        )}
-                      </div>
-
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#0f172a', marginBottom: '2px' }}>
-                        🎯 Vincular Produto/SKU Correto:
-                      </label>
-
-                      <OccurrenceProductSelector
-                        products={products}
-                        occPlatform={occ.platform}
-                        value={currentSelected}
-                        onChange={code => setSelectedCapa(prev => ({ ...prev, [occ.id]: code }))}
-                      />
-                    </div>
-
-                    {/* Coluna 3: Ações de Treinamento */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button
-                        type="button"
-                        className="btn-create-product-gradient"
-                        style={{ height: '44px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                        disabled={isTraining || !currentSelected}
-                        onClick={() => handleTrain(occ.id)}
-                      >
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                        <span>{isTraining ? 'Indexando no Vectorize…' : 'Aprovar & Treinar'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        style={{ height: '36px', borderRadius: '9px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#64748b', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-                        disabled={isTraining}
-                        onClick={() => handleDismiss(occ.id)}
-                      >
-                        ✕ Descartar Foto
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* =========================================================================
-         SUBTAB 2: DESEMPENHO DA EQUIPE DE OPERADORES
-         ========================================================================= */}
-      {subTab === 'equipe' && (
-        <div>
-          {/* Operator KPIs */}
-          <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
-            <div className="system-metric-box">
-              <div className="metric-box-head">
-                <span className="metric-tag">Equipe</span>
-                <h4>Total de Operadores</h4>
-              </div>
-              <div className="metric-big-num">{operators.length}</div>
-              <p>Operadores ativos registrando identificações.</p>
-            </div>
-
-            <div className="system-metric-box">
-              <div className="metric-box-head">
-                <span className="metric-tag">Volume</span>
-                <h4>Mais Ativo</h4>
-              </div>
-              <div className="metric-big-num" style={{ fontSize: '20px' }}>{mostActive?.operator_name || '—'}</div>
-              <p>{mostActive ? `${mostActive.total_attempts} leituras realizadas` : 'Nenhum registro'}</p>
-            </div>
-
-            <div className="system-metric-box">
-              <div className="metric-box-head">
-                <span className="metric-tag">Assertividade</span>
-                <h4>Taxa de Sucesso</h4>
-              </div>
-              <div className="metric-big-num">
-                {totalAttempts > 0 ? `${Math.round((totalSuccesses / totalAttempts) * 100)}%` : '—'}
-              </div>
-              <p>{totalSuccesses} reconhecimentos confirmados com sucesso.</p>
-            </div>
-
-            <div className="system-metric-box">
-              <div className="metric-box-head">
-                <span className="metric-tag">Ocorrências</span>
-                <h4>Total de Falhas / Bloqueios</h4>
-              </div>
-              <div className="metric-big-num">{totalErrors}</div>
-              <p>Casos não identificados ou com erro técnico.</p>
-            </div>
-          </div>
-
-          <div style={{ padding: '0 24px 16px' }}>
-            <div className="table-search-box" style={{ maxWidth: '320px' }}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94a3b8" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Buscar operador…"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="table-responsive-container">
-            <table className="admin-data-table">
-              <thead>
-                <tr>
-                  <th>OPERADOR</th>
-                  <th style={{ width: '130px' }}>TOTAL UPLOADS</th>
-                  <th style={{ width: '150px' }}>RECONHECIDOS</th>
-                  <th style={{ width: '150px' }}>SEM MATCH</th>
-                  <th style={{ width: '140px' }}>ERROS TÉCNICOS</th>
-                  <th style={{ width: '170px' }}>ÚLTIMA ATIVIDADE</th>
-                  <th style={{ width: '140px', textAlign: 'right' }}>AÇÕES</th>
-                </tr>
-              </thead>
-              <tbody>
-                {opLoading ? (
-                  <tr><td colSpan="7" className="table-empty-row">Carregando operadores…</td></tr>
-                ) : filteredOperators.length === 0 ? (
-                  <tr><td colSpan="7" className="table-empty-row">Nenhum operador registrado até o momento.</td></tr>
-                ) : (
-                  filteredOperators.map(op => {
-                    const initials = op.operator_name.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase();
-                    return (
-                      <tr key={op.operator_name}>
-                        <td>
-                          <div className="operator-profile-cell">
-                            <div className="operator-avatar-circle">{initials}</div>
-                            <div>
-                              <strong className="operator-name-bold">{op.operator_name}</strong>
-                              <small className="operator-sub-id">{op.operator_id ? `ID: ${op.operator_id.slice(0, 10)}…` : 'Operador Web'}</small>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <strong>{op.total_attempts}</strong>
-                        </td>
-                        <td>
-                          <span className="status-pill active">
-                            {op.successes} ({op.success_rate}%)
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-pill ${op.unmatched > 0 ? 'orange' : 'neutral'}`}>
-                            {op.unmatched}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-pill ${op.system_errors > 0 ? 'danger' : 'neutral'}`}>
-                            {op.system_errors}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="datetime-cell">
-                            <span>{op.last_seen_at ? formatProductDate(op.last_seen_at).date : '—'}</span>
-                            <small>{op.last_seen_at ? formatProductDate(op.last_seen_at).time : ''}</small>
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button
-                            type="button"
-                            className="btn-toolbar-filter"
-                            style={{ fontSize: '11px', padding: '5px 10px', height: 'auto' }}
-                            onClick={() => openOperatorHistory(op)}
-                          >
-                            👁 Ver Histórico
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-         SUBTAB 3: CÉREBRO DO SISTEMA (TREINOS DO ADM)
-         ========================================================================= */}
-      {subTab === 'cerebro' && (
-        <div>
-          {/* Cérebro KPIs */}
-          <div className="admin-metrics-grid" style={{ padding: '0 24px 20px' }}>
-            <div className="system-metric-box" style={{ gridColumn: 'span 2' }}>
-              <div className="metric-box-head">
-                <span className="metric-tag" style={{ background: '#ecfdf5', color: '#059669' }}>Banco de Vetores</span>
-                <h4>Base Vetorial Supervisionada</h4>
-              </div>
-              <p style={{ margin: '8px 0', fontSize: '13px', color: '#475569', lineHeight: '1.5' }}>
-                Estas são as capas e fotos reais que você corrigiu e treinou na bancada. 
-                Elas são salvas como referências supervisionadas e passam a compor a recuperação visual no Vectorize. Isso pode melhorar futuras leituras semelhantes, mas não garante prioridade, acerto ou latência fixa; a decisão final continua sujeita aos gates de confiança e às verificações configuradas.
-              </p>
-            </div>
-
-            <div className="system-metric-box">
-              <div className="metric-box-head">
-                <span className="metric-tag">Volume</span>
-                <h4>Capas Treinadas</h4>
-              </div>
-              <div className="metric-big-num">{trainedRefs.length}</div>
-              <p>Fotos reais aprendidas e ativas no sistema.</p>
-            </div>
-          </div>
-
-          <div className="table-responsive-container">
-            <table className="admin-data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '80px' }}>FOTO REAL</th>
-                  <th style={{ width: '150px' }}>CÓDIGO DA CAPA</th>
-                  <th style={{ width: '180px' }}>STATUS DE INDEXAÇÃO</th>
-                  <th>DATA DO TREINO</th>
-                  <th style={{ width: '160px', textAlign: 'right' }}>AÇÕES</th>
-                </tr>
-              </thead>
-              <tbody>
-                {refsLoading ? (
-                  <tr><td colSpan="5" className="table-empty-row">Carregando cérebro do sistema…</td></tr>
-                ) : trainedRefs.length === 0 ? (
-                  <tr><td colSpan="5" className="table-empty-row">Nenhuma foto real de bancada treinada ainda. As ocorrências treinadas aparecerão aqui.</td></tr>
-                ) : (
-                  trainedRefs.map(ref => (
-                    <tr key={ref.id}>
-                      <td>
-                        {ref.image_url ? (
-                          <img
-                            src={ref.image_url}
-                            alt={`Treino ${ref.capa_code}`}
-                            className="table-thumb-img"
-                            style={{ width: '50px', height: '50px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #e2e8f0' }}
-                          />
-                        ) : (
-                          <div className="table-thumb-placeholder" style={{ width: '50px', height: '50px' }}>🖼️</div>
-                        )}
-                      </td>
-                      <td>
-                        <span className="badge-capa-code" style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>
-                          {ref.capa_code}
-                        </span>
-                      </td>
-                      <td>
-                        {ref.is_indexed ? (
-                          <span className="status-pill active" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            ✓ Ativo no Vectorize
-                          </span>
-                        ) : (
-                          <span className="status-pill orange">
-                            ⚠️ Pendente
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="datetime-cell">
-                          <span>{ref.created_at ? formatProductDate(ref.created_at).date : '—'}</span>
-                          <small>{ref.created_at ? formatProductDate(ref.created_at).time : ''}</small>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          className="btn-action-delete"
-                          style={{
-                            background: '#fef2f2',
-                            color: '#ef4444',
-                            border: '1.5px solid #fee2e2',
-                            borderRadius: '8px',
-                            padding: '6px 12px',
-                            fontSize: '11.5px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                          onClick={() => handleDeleteReference(ref.id)}
-                        >
-                          🗑️ Excluir Treino
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Operator Drill-down Modal */}
-      {selectedOperator && (
-        <div className="admin-modal-backdrop" onClick={e => e.target === e.currentTarget && setSelectedOperator(null)}>
-          <div className="admin-modal view-modal" style={{ maxWidth: '900px' }}>
-            <div className="admin-modal-head">
-              <div>
-                <h3>Histórico do Operador: {selectedOperator.operator_name}</h3>
-                <small>Últimas identificações e uploads realizados</small>
-              </div>
-              <button type="button" className="admin-modal-close" onClick={() => setSelectedOperator(null)}>✕</button>
-            </div>
-
-            <div style={{ maxHeight: '480px', overflowY: 'auto', padding: '16px 20px' }}>
-              {eventsLoading ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Carregando eventos do operador…</div>
-              ) : operatorEvents.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Nenhum evento registrado para este operador.</div>
-              ) : (
-                <table className="admin-data-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '120px' }}>STATUS</th>
-                      <th style={{ width: '140px' }}>HORÁRIO</th>
-                      <th>CAPA / SKU</th>
-                      <th style={{ width: '110px' }}>CONFIANÇA</th>
-                      <th style={{ width: '100px' }}>TEMPO</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {operatorEvents.map(ev => (
-                      <tr key={ev.id}>
-                        <td>
-                          <span className={`status-pill ${ev.kind === 'success' ? 'active' : ev.kind === 'unmatched' ? 'orange' : 'danger'}`}>
-                            {ev.kind === 'success' ? '• Sucesso' : ev.kind === 'unmatched' ? '• Sem Match' : '• Erro'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="datetime-cell">
-                            <span>{ev.created_at ? formatProductDate(ev.created_at).date : '—'}</span>
-                            <small>{ev.created_at ? formatProductDate(ev.created_at).time : ''}</small>
-                          </div>
-                        </td>
-                        <td>
-                          <strong>{ev.sku || ev.capa_code || '—'}</strong>
-                        </td>
-                        <td>
-                          {ev.confidence ? `${Math.round(ev.confidence * 100)}%` : '—'}
-                        </td>
-                        <td>
-                          {ev.total_ms ? `${(ev.total_ms / 1000).toFixed(2)}s` : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* =========================================================================
-   SYSTEM LOGS & FREE TIER INFRASTRUCTURE METRICS VIEW
-   ========================================================================= */
-/* =========================================================================
-   TEST COVER VERIFIER VIEW
-   ========================================================================= */
-function CoverVerifierView() {
-  const [photo, setPhoto] = useState(null);
-  const [preview, setPreview] = useState('');
-  const [platform, setPlatform] = useState('MERCADO LIVRE');
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-
-  const handleFile = f => {
-    if (!f) return;
-    setPhoto(f);
-    setPreview(URL.createObjectURL(f));
-    setResult(null);
-    setError('');
-  };
-
-  const handleVerify = async () => {
-    if (!photo) return;
-    setBusy(true);
-    setResult(null);
-    setError('');
-
-    try {
-      const candidateForm = new FormData();
-      candidateForm.append('image', photo);
-      candidateForm.append('platform', platform);
-      const candidateData = await api('/api/identify-candidates', {
-        method: 'POST',
-        body: candidateForm
-      });
-
-      const verificationForm = new FormData();
-      verificationForm.append('image', photo);
-      verificationForm.append('platform', platform);
-      if (candidateData?.ticket) {
-        verificationForm.append('ticket', candidateData.ticket);
-      }
-
-      const data = await api('/api/identify', {
-        method: 'POST',
-        body: verificationForm
-      });
-      setResult(data);
-    } catch (err) {
-      setError(err.message || 'Produto não identificado nesta plataforma.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="admin-table-card">
-      <div className="table-card-topbar">
-        <div className="table-title-group">
-          <div className="table-title-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <path d="m9 12 2 2 4-4" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="table-main-title">Verificar Capa (Teste do Pipeline)</h3>
-            <span className="table-sub-title">Envie uma foto para testar a barreira vetorial e a resposta do modelo</span>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: '0 24px 28px', maxWidth: '640px' }}>
-        <div className="form-group">
-          <label>Selecione a Plataforma de Teste</label>
-          <select value={platform} onChange={e => setPlatform(e.target.value)}>
-            <option value="MERCADO LIVRE">Mercado Livre</option>
-            <option value="SHOPEE">Shopee</option>
-            <option value="AMAZON">Amazon</option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Foto da Capa</label>
-          <div className="photo-upload-dropzone">
-            {preview ? (
-              <div className="photo-upload-preview">
-                <img src={preview} alt="Prévia" />
-                <label className="photo-change-btn">
-                  Trocar foto
-                  <input type="file" accept="image/*" onChange={e => handleFile(e.target.files?.[0])} />
-                </label>
-              </div>
-            ) : (
-              <label className="photo-empty-drop">
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#6366f1" strokeWidth="2">
-                  <rect width="18" height="18" x="3" y="3" rx="2" />
-                </svg>
-                <strong>Selecione uma imagem da capa</strong>
-                <input type="file" accept="image/*" onChange={e => handleFile(e.target.files?.[0])} />
-              </label>
-            )}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className="btn-create-product-gradient"
-          style={{ width: '100%', height: '48px', marginTop: '12px' }}
-          disabled={!photo || busy}
-          onClick={handleVerify}
-        >
-          <span>{busy ? 'Testando reconhecimento…' : '🔍 Testar Reconhecimento'}</span>
-        </button>
-
-        {error && (
-          <div className="form-error-banner" style={{ marginTop: '18px' }}>
-            {error}
-          </div>
-        )}
-
-        {result && (
-          <div className="form-success-banner" style={{ marginTop: '18px' }}>
-            <h4 style={{ margin: '0 0 6px', color: '#166534' }}>✓ Reconhecido com Sucesso!</h4>
-            <p style={{ margin: 0, fontSize: '13px' }}>
-              <strong>SKU:</strong> {result.product?.sku || result.sku} · <strong>Capa:</strong> {result.product?.capa_code || result.capa_code}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================================
    MAIN ADMIN APP ROOT
    ========================================================================= */
 function AdminApp() {
@@ -3282,6 +1272,8 @@ function AdminApp() {
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [viewProduct, setViewProduct] = useState(null);
+  const [editProduct, setEditProduct] = useState(null);
 
   const refreshProducts = async () => {
     try {
@@ -3319,11 +1311,26 @@ function AdminApp() {
     return () => clearInterval(interval);
   }, []);
 
-  const activeGtins = Number(gtinDashboard?.active_gtins || 0);
-  const scansToday = Number(gtinDashboard?.today?.total || 0);
-  const missingToday = Number(gtinDashboard?.today?.not_found || 0);
+  const handleDeleteProduct = async (id, sku) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o produto ${sku}?`)) return;
+    try {
+      await api(`/api/products/${id}`, { method: 'DELETE' });
+      await refreshAll();
+    } catch (err) {
+      alert(err.message || 'Falha ao excluir produto.');
+    }
+  };
 
   const handleNavChange = viewId => setActiveView(viewId);
+  const productsWithoutGtin = gtinDashboard?.products_without_gtin || [];
+
+  const showProductsWithoutGtin = () => {
+    if (productsWithoutGtin.length === 1) {
+      setViewProduct(productsWithoutGtin[0]);
+      return;
+    }
+    if (productsWithoutGtin.length > 1) setActiveView('produtos-sem-ean');
+  };
 
   if (loading) {
     return (
@@ -3352,11 +1359,12 @@ function AdminApp() {
         <main className="admin-page-content">
           <WelcomeDateBanner />
 
-          <KpiSection
+          {/* Dashboard de Produtividade da Expedição & KPIs */}
+          <ExpeditionDashboard
+            gtinDashboard={gtinDashboard}
             productsCount={products.length}
-            activeGtins={activeGtins}
-            scansToday={scansToday}
-            missingToday={missingToday}
+            onNavigate={handleNavChange}
+            onShowProductsWithoutGtin={showProductsWithoutGtin}
           />
 
           {activeView === 'catalogo' && (
@@ -3365,16 +1373,40 @@ function AdminApp() {
               onRefresh={refreshAll}
               onOpenCreate={() => setCreateModalOpen(true)}
               onOpenImport={() => setImportModalOpen(true)}
+              onViewProduct={p => setViewProduct(p)}
+              onEditProduct={p => setEditProduct(p)}
+              onDeleteProduct={handleDeleteProduct}
             />
           )}
 
           {activeView === 'gtins' && <GtinRegistryView />}
 
-          {activeView === 'gerador-barras' && <BarcodeGeneratorView />}
+          {activeView === 'gerador-barras' && <BarcodeGeneratorView api={api} />}
 
-          {activeView === 'historico-ean' && <GtinEventsView />}
+          {activeView === 'historico-ean' && (
+            <GtinEventsView
+              api={api}
+              products={products}
+              onLinkSuccess={refreshAll}
+            />
+          )}
 
-          {activeView === 'ean-nao-cadastrados' && <GtinEventsView initialStatus="not_found" />}
+          {activeView === 'ean-nao-cadastrados' && (
+            <GtinEventsView
+              initialStatus="not_found"
+              api={api}
+              products={products}
+              onLinkSuccess={refreshAll}
+            />
+          )}
+
+          {activeView === 'produtos-sem-ean' && (
+            <ProductsWithoutGtinView
+              products={productsWithoutGtin}
+              onSelect={product => setViewProduct(product)}
+              onBack={() => setActiveView('catalogo')}
+            />
+          )}
 
           {activeView === 'logs' && (
             <SystemHealthView
@@ -3383,7 +1415,6 @@ function AdminApp() {
               onRefresh={refreshAll}
             />
           )}
-
         </main>
 
         <footer className="admin-global-footer">
@@ -3402,8 +1433,31 @@ function AdminApp() {
         onClose={() => setImportModalOpen(false)}
         onImported={refreshAll}
       />
+
+      <ViewProductModal
+        product={viewProduct}
+        isOpen={Boolean(viewProduct)}
+        onClose={() => setViewProduct(null)}
+        onEdit={p => setEditProduct(p)}
+      />
+
+      <EditProductModal
+        product={editProduct}
+        isOpen={Boolean(editProduct)}
+        onClose={() => setEditProduct(null)}
+        onUpdated={refreshAll}
+      />
     </div>
   );
 }
+
+export {
+  CatalogView,
+  GtinRegistryView,
+  BarcodeGeneratorView,
+  GtinEventsView,
+  ProductGtinManager,
+  RegistrationBarcodeResult
+};
 
 export default AdminApp;
