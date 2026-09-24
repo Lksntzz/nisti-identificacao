@@ -8,7 +8,7 @@ function read(path) {
 
 test('RPC de detalhe multiplataforma existe em live e preview', () => {
   const sql = read('supabase/migrations/202609241425_commerce_product_platform_detail_v1.sql');
-  assert.equal(sql.includes('commerce_product_platform_detail_v1'), true);
+  assert.equal(sql.includes('commerce_product_platform_detail_v2'), true);
   assert.equal(sql.includes('commerce_preview_product_platform_detail_v1'), true);
   assert.equal(sql.includes("'marketplaces'"), true);
   assert.equal(sql.includes("'listings'"), true);
@@ -27,7 +27,7 @@ test('detalhe multiplataforma preserva imagem específica e fallback NISTI ID', 
 test('store e router expõem detalhe por Produto Mestre', () => {
   const store = read('src/commerce-supabase-store.js');
   const router = read('src/commerce-admin-router.js');
-  assert.equal(store.includes("'commerce_product_platform_detail_v1'"), true);
+  assert.equal(store.includes("'commerce_product_platform_detail_v2'"), true);
   assert.equal(store.includes('commerceProductDetail'), true);
   assert.equal(router.includes('/products\\/(\\d+)\\/details'), true);
 });
