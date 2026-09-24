@@ -49,6 +49,8 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [actionBusyId, setActionBusyId] = useState(null);
+  const [actionError, setActionError] = useState('');
 
   // Estado para Associação Rápida de EAN não cadastrado
   const [linkingEvent, setLinkingEvent] = useState(null);
@@ -65,6 +67,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
     try {
       const params = new URLSearchParams({ limit: '250' });
       if (status) params.set('status', status);
+      if (initialStatus === 'not_found') params.set('pending', '1');
       if (search.trim()) params.set('q', search.trim());
       const data = await api(`/api/admin/gtin-events?${params.toString()}`);
       setEvents(data.events || []);
@@ -82,6 +85,20 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
     not_found: 'Não cadastrado',
     system_error: 'Erro técnico'
   }[value] || value);
+
+  const changeDismissal = async (event, dismiss) => {
+    setActionBusyId(event.id);
+    setActionError('');
+    try {
+      await api(`/api/admin/gtin-events/${event.id}/${dismiss ? 'dismiss' : 'restore'}`, { method: 'POST' });
+      await load();
+      if (onLinkSuccess) onLinkSuccess();
+    } catch (error) {
+      setActionError(error?.message || 'Não foi possível atualizar esta leitura.');
+    } finally {
+      setActionBusyId(null);
+    }
+  };
 
   const handleAssociate = async (e) => {
     e.preventDefault();
@@ -140,6 +157,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
           <button type="button" className="btn-toolbar-filter" onClick={load}>Buscar</button>
         </div>
       </div>
+      {actionError && <div className="form-error-banner" role="alert">{actionError}</div>}
       <div className="table-responsive-container">
         <table className="admin-data-table">
           <thead>
@@ -150,24 +168,26 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
               <th>EAN</th>
               <th>PRODUTO</th>
               <th>TEMPO</th>
-              {initialStatus === 'not_found' && <th style={{ textAlign: 'right', width: '130px' }}>AÇÃO</th>}
+              <th style={{ textAlign: 'right', width: '190px' }}>AÇÃO</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? <tr><td colSpan={initialStatus === 'not_found' ? 7 : 6} className="table-empty-row">Carregando leituras…</td></tr> : loadError ? (
-              <tr><td colSpan={initialStatus === 'not_found' ? 7 : 6} className="table-empty-row"><span>{loadError}</span> <button type="button" className="btn-toolbar-filter" onClick={load}>Tentar novamente</button></td></tr>
+            {loading ? <tr><td colSpan={7} className="table-empty-row">Carregando leituras…</td></tr> : loadError ? (
+              <tr><td colSpan={7} className="table-empty-row"><span>{loadError}</span> <button type="button" className="btn-toolbar-filter" onClick={load}>Tentar novamente</button></td></tr>
             ) : events.length === 0 ? (
-              <tr><td colSpan={initialStatus === 'not_found' ? 7 : 6} className="table-empty-row">Nenhuma leitura registrada neste filtro.</td></tr>
+              <tr><td colSpan={7} className="table-empty-row">Nenhuma leitura registrada neste filtro.</td></tr>
             ) : events.map(event => (
               <tr key={event.id}>
-                <td><span className={`status-pill ${event.status === 'identified' ? 'active' : event.status === 'not_found' ? 'orange' : 'danger'}`}>• {statusLabel(event.status)}</span></td>
+                <td><span className={`status-pill ${event.dismissed_at ? '' : event.status === 'identified' ? 'active' : event.status === 'not_found' ? 'orange' : 'danger'}`}>• {event.dismissed_at ? 'Descartado' : statusLabel(event.status)}</span></td>
                 <td><div className="datetime-cell"><span>{formatProductDate(event.created_at).date}</span><small>{formatProductDate(event.created_at).time}</small></div></td>
                 <td><strong>{event.operator_name || 'Não identificado'}</strong></td>
                 <td><span className="ean-code-cell">{event.gtin}</span></td>
                 <td><div className="product-info-cell"><strong>{event.nome || event.sku || 'Sem produto vinculado'}</strong><small>{event.sku || event.error_code || '—'}</small></div></td>
                 <td>{event.response_ms ? `${event.response_ms} ms` : '—'}</td>
-                {initialStatus === 'not_found' && (
-                  <td style={{ textAlign: 'right' }}>
+                <td style={{ textAlign: 'right' }}>
+                  {event.status === 'not_found' && (event.dismissed_at ? (
+                    <button type="button" className="btn-toolbar-filter" disabled={actionBusyId === event.id} onClick={() => changeDismissal(event, false)}>Restaurar</button>
+                  ) : <>
                     <button
                       type="button"
                       className="btn-toolbar-filter"
@@ -181,8 +201,10 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
                     >
                       + Associar
                     </button>
-                  </td>
-                )}
+                    {' '}
+                    <button type="button" className="btn-toolbar-filter" disabled={actionBusyId === event.id} onClick={() => changeDismissal(event, true)}>Descartar</button>
+                  </>)}
+                </td>
               </tr>
             ))}
           </tbody>
