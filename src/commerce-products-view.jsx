@@ -180,7 +180,11 @@ export default function CommerceProductsView() {
                             referrerPolicy="no-referrer"
                           />
                         ) : <div className="commerce-product-thumbnail commerce-image-placeholder">Sem foto</div>}
-                        <div><strong>{product.name}</strong><small>#{productId}</small></div>
+                        <div>
+                          <strong>{product.name}</strong>
+                          <small>#{productId}</small>
+                          {product.thumbnail_source === 'NISTI_ID' ? <small className="commerce-media-source">Imagem do NISTI ID · SKU exato</small> : null}
+                        </div>
                       </div>
                     </td>
                     <td><code>{product.current_sku || '—'}</code></td>
