@@ -12,6 +12,12 @@ test('menu administrativo expõe o Catálogo Comercial como módulo protegido', 
   assert.equal(nav.includes("href: '/admin-commerce'"), true);
 });
 
+test('menu principal navega para o módulo comercial ao selecionar commerce', () => {
+  const main = read('src/main.jsx');
+  assert.equal(main.includes("if (viewId === 'commerce')"), true);
+  assert.equal(main.includes("window.location.href = '/admin-commerce'"), true);
+});
+
 test('entry resolve /admin-commerce antes do prefixo genérico /admin', () => {
   const entry = read('src/entry.jsx');
   const commerce = entry.indexOf("window.location.pathname === '/admin-commerce'");
