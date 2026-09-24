@@ -45,6 +45,17 @@ async function ensureGtinScanEventsTable(env) {
   ]);
   try {
     await gtinEventsTablePromise;
+    const { results: columns } = await env.DB.prepare('PRAGMA table_info(gtin_scan_events)').all();
+    const existing = new Set((columns || []).map(column => column.name));
+    for (const column of ['dismissed_at', 'dismissed_by']) {
+      if (!existing.has(column)) {
+        try { await env.DB.prepare(`ALTER TABLE gtin_scan_events ADD COLUMN ${column} TEXT`).run(); }
+        catch (error) {
+          if (!/duplicate column name/i.test(String(error?.message || error))) throw error;
+        }
+      }
+    }
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_gtin_scan_events_pending ON gtin_scan_events(status, dismissed_at, id DESC)').run();
     gtinEventsTableReady = true;
   } catch (error) {
     gtinEventsTablePromise = null;
@@ -125,6 +136,7 @@ async function adminGtinEvents(url, env) {
     clauses.push('e.status=?');
     bindings.push(status);
   }
+  if (url.searchParams.get('pending') === '1') clauses.push('e.dismissed_at IS NULL');
   if (query) {
     clauses.push('(e.gtin LIKE ? OR e.operator_name LIKE ? OR p.sku LIKE ? OR p.nome LIKE ?)');
     const pattern = `%${query}%`;
@@ -135,7 +147,7 @@ async function adminGtinEvents(url, env) {
   const { results } = await env.DB.prepare(`
     SELECT
       e.id,e.gtin,e.status,e.product_id,e.operator_name,e.operator_id,
-      e.response_ms,e.error_code,e.created_at,
+      e.response_ms,e.error_code,e.created_at,e.dismissed_at,e.dismissed_by,
       p.sku,p.nome,p.variacao,p.capa_code,p.image_key
     FROM gtin_scan_events e
     LEFT JOIN products p ON p.id=e.product_id
@@ -153,6 +165,21 @@ async function adminGtinEvents(url, env) {
       image_url: row.image_key && row.product_id ? `/api/images/${Number(row.product_id)}` : null
     }))
   });
+}
+
+async function adminSetGtinEventDismissal(id, env, dismiss) {
+  await ensureGtinScanEventsTable(env);
+  const result = await env.DB.prepare(dismiss ? `
+    UPDATE gtin_scan_events
+    SET dismissed_at=CURRENT_TIMESTAMP, dismissed_by='admin'
+    WHERE id=? AND status='not_found' AND dismissed_at IS NULL
+  ` : `
+    UPDATE gtin_scan_events
+    SET dismissed_at=NULL, dismissed_by=NULL
+    WHERE id=? AND status='not_found' AND dismissed_at IS NOT NULL
+  `).bind(id).run();
+  if (!result.meta?.changes) return json({ error: 'Leitura não encontrada ou já alterada.' }, 404);
+  return json({ ok: true, dismissed: dismiss });
 }
 
 async function adminGtinRegistry(env) {
@@ -201,7 +228,7 @@ async function adminGtinDashboard(env) {
       SELECT
         COUNT(*) AS total,
         SUM(CASE WHEN status='identified' THEN 1 ELSE 0 END) AS identified,
-        SUM(CASE WHEN status='not_found' THEN 1 ELSE 0 END) AS not_found,
+        SUM(CASE WHEN status='not_found' AND dismissed_at IS NULL THEN 1 ELSE 0 END) AS not_found,
         SUM(CASE WHEN status='system_error' THEN 1 ELSE 0 END) AS system_errors
       FROM gtin_scan_events
       WHERE date(created_at,'-3 hours')=date('now','-3 hours')
@@ -414,6 +441,12 @@ export default {
 
     if (pathname === '/api/admin/gtin-events' && request.method === 'GET') {
       try { return await adminGtinEvents(url, env); }
+      catch (error) { return errorResponse(error); }
+    }
+
+    const dismissal = pathname.match(/^\/api\/admin\/gtin-events\/(\d+)\/(dismiss|restore)$/);
+    if (dismissal && request.method === 'POST') {
+      try { return await adminSetGtinEventDismissal(Number(dismissal[1]), env, dismissal[2] === 'dismiss'); }
       catch (error) { return errorResponse(error); }
     }
 
