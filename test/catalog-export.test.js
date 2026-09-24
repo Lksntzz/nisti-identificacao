@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { organizedCatalogCsv, sortedCatalogProducts } from '../src/admin/catalog-export.js';
+import { legacyCatalogCsv, organizedCatalogCsv, sortedCatalogProducts } from '../src/admin/catalog-export.js';
 
 test('export groups platforms and SKU families while keeping the catalog untouched', () => {
   const products = [
@@ -17,5 +17,6 @@ test('export groups platforms and SKU families while keeping the catalog untouch
   assert.match(csv, /"SHOPEE";"PB27";"PB27_ROSA_BBB"/);
   assert.match(csv, /"0123456789012"/);
   assert.match(csv, /"Nome; com ""aspas"""/);
+  assert.match(legacyCatalogCsv(products), /^\uFEFFID,SKU,NOME,VARIACAO,CAPA_CODE,EAN,PLATAFORMA,CRIADO_EM\r\n3,/);
   assert.equal(JSON.stringify(products), before);
 });
