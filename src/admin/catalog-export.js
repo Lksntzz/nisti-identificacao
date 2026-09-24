@@ -32,3 +32,13 @@ export function organizedCatalogCsv(products) {
   ]);
   return '\uFEFF' + [headers, ...rows].map(row => row.map(csvCell).join(';')).join('\r\n');
 }
+
+export function legacyCatalogCsv(products) {
+  const headers = ['ID', 'SKU', 'NOME', 'VARIACAO', 'CAPA_CODE', 'EAN', 'PLATAFORMA', 'CRIADO_EM'];
+  const rows = products.map(p => [
+    p.id, p.sku, p.nome, p.variacao, p.capa_code, p.gtin, p.platform, p.created_at
+  ]);
+  return '\uFEFF' + [headers.join(','), ...rows.map(row => [
+    row[0], ...row.slice(1).map(csvCell)
+  ].join(','))].join('\r\n');
+}
