@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 function getInitialRoute() {
-  const pathname = window.location.pathname;
   const hash = window.location.hash;
-  if (pathname === '/admin-commerce') {
+  if (window.location.pathname === '/admin-commerce') {
     return 'commerce';
   }
-  if (pathname.startsWith('/admin') || hash === '#admin' || hash.startsWith('#/admin')) {
+  if (window.location.pathname.startsWith('/admin') || hash === '#admin' || hash.startsWith('#/admin')) {
     return 'admin';
   }
   return 'public';
