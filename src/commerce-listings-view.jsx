@@ -208,18 +208,22 @@ export default function CommerceListingsView() {
                 const listingId = Number(listing.listing_id || 0);
                 const platformSkus = Array.isArray(listing.platform_skus) ? listing.platform_skus : [];
                 const variations = Array.isArray(listing.variation_options) ? listing.variation_options : [];
+                const fallbackImages = Array.isArray(listing.fallback_product_images) ? listing.fallback_product_images : [];
                 return (
                   <tr key={listingId}>
                     <td>
-                      {listing.cover_image_url ? (
-                        <img
-                          className="commerce-listing-thumbnail"
-                          src={listing.cover_image_url}
-                          alt={listing.title || `Anúncio #${listingId}`}
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : <div className="commerce-listing-thumbnail commerce-image-placeholder">Sem foto</div>}
+                      <div className="commerce-listing-cover-cell">
+                        {listing.cover_image_url ? (
+                          <img
+                            className="commerce-listing-thumbnail"
+                            src={listing.cover_image_url}
+                            alt={listing.title || `Anúncio #${listingId}`}
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : <div className="commerce-listing-thumbnail commerce-image-placeholder">Sem foto</div>}
+                        {listing.cover_image_source === 'NISTI_ID' ? <small className="commerce-media-source">NISTI ID</small> : null}
+                      </div>
                     </td>
                     <td><strong>{listing.marketplace_name || listing.marketplace_code}</strong><small>{listing.external_listing_id || `#${listingId}`}</small></td>
                     <td>
@@ -242,6 +246,25 @@ export default function CommerceListingsView() {
                             </figure>
                           ))}
                           {variations.length > 6 ? <span>+{variations.length - 6}</span> : null}
+                        </div>
+                      ) : null}
+                      {listing.cover_image_source === 'NISTI_ID' && fallbackImages.length ? (
+                        <div className="commerce-nisti-fallback-strip">
+                          <strong>Imagens por SKU do NISTI ID</strong>
+                          <div>
+                            {fallbackImages.slice(0, 6).map((image, index) => (
+                              <figure key={`${listingId}-nisti-${image.product_id || index}`}>
+                                <img
+                                  src={image.image_url}
+                                  alt={image.variation_name || image.sku || `Produto ${index + 1}`}
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <figcaption>{image.variation_name || image.sku || `SKU ${index + 1}`}</figcaption>
+                              </figure>
+                            ))}
+                            {fallbackImages.length > 6 ? <span>+{fallbackImages.length - 6}</span> : null}
+                          </div>
                         </div>
                       ) : null}
                     </td>
