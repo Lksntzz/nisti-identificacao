@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { organizedCatalogCsv, legacyCatalogCsv } from './catalog-export.js';
+import { createCatalogXlsx } from './catalog-xlsx.js';
 
 const PAGE_SIZE = 10;
 
@@ -111,6 +112,20 @@ export function CatalogView({
     URL.revokeObjectURL(url);
   };
 
+  const exportExcel = () => {
+    const blob = new Blob([createCatalogXlsx(filtered)], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `catalogo_nisti_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   useEffect(() => {
     if (page > pages) setPage(pages);
@@ -191,6 +206,10 @@ export function CatalogView({
               </div>
             )}
           </div>
+
+          <button type="button" className="btn-toolbar-filter" title="Baixar planilha Excel com tabela e filtro por plataforma" onClick={exportExcel}>
+            <span>Excel (.xlsx)</span>
+          </button>
 
           <button
             type="button"
