@@ -49,7 +49,7 @@ export async function commerceProducts(env, filters = {}) {
 export async function commerceProductDetail(env, productId) {
   const id = cleanId(productId);
   if (!id) throw new Error('product_id inválido.');
-  const result = await supabaseRpc(env, 'commerce_product_platform_detail_v1', {
+  const result = await supabaseRpc(env, 'commerce_product_platform_detail_v2', {
     p_product_id: id
   });
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
@@ -58,7 +58,7 @@ export async function commerceProductDetail(env, productId) {
 export async function commerceListings(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);
-  const rows = await supabaseRpc(env, 'commerce_list_listings_v3', {
+  const rows = await supabaseRpc(env, 'commerce_list_listings_v4', {
     p_search: cleanText(filters.search),
     p_marketplace_code: cleanText(filters.marketplace),
     p_listing_status: cleanText(filters.status),

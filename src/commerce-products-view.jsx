@@ -150,6 +150,9 @@ function ListingPlatformCard({ listing }) {
         ) : (
           <div className="commerce-image-placeholder">Sem foto</div>
         )}
+        {listing.image_source === 'OTHER_MARKETPLACE' ? (
+          <small>Mesma foto do produto · {listing.image_source_marketplace_name || marketplaceLabel(listing.image_source_marketplace_code)}</small>
+        ) : null}
         {listing.image_source === 'NISTI_ID' ? <small>Imagem NISTI ID</small> : null}
       </div>
 

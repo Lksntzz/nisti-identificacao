@@ -209,6 +209,7 @@ export default function CommerceListingsView() {
                 const platformSkus = Array.isArray(listing.platform_skus) ? listing.platform_skus : [];
                 const variations = Array.isArray(listing.variation_options) ? listing.variation_options : [];
                 const fallbackImages = Array.isArray(listing.fallback_product_images) ? listing.fallback_product_images : [];
+                const inheritedImages = Array.isArray(listing.inherited_product_images) ? listing.inherited_product_images : [];
                 return (
                   <tr key={listingId}>
                     <td>
@@ -222,6 +223,9 @@ export default function CommerceListingsView() {
                             referrerPolicy="no-referrer"
                           />
                         ) : <div className="commerce-listing-thumbnail commerce-image-placeholder">Sem foto</div>}
+                        {listing.cover_image_source === 'OTHER_MARKETPLACE' ? (
+                          <small className="commerce-media-source">Mesma foto · {listing.inherited_source_marketplace_name || listing.inherited_source_marketplace_code || 'outra plataforma'}</small>
+                        ) : null}
                         {listing.cover_image_source === 'NISTI_ID' ? <small className="commerce-media-source">NISTI ID</small> : null}
                       </div>
                     </td>
@@ -246,6 +250,25 @@ export default function CommerceListingsView() {
                             </figure>
                           ))}
                           {variations.length > 6 ? <span>+{variations.length - 6}</span> : null}
+                        </div>
+                      ) : null}
+                      {listing.cover_image_source === 'OTHER_MARKETPLACE' && inheritedImages.length > 1 ? (
+                        <div className="commerce-nisti-fallback-strip">
+                          <strong>Fotos do mesmo produto em outras plataformas</strong>
+                          <div>
+                            {inheritedImages.slice(0, 6).map((image, index) => (
+                              <figure key={`${listingId}-inherited-${image.product_id || index}`}>
+                                <img
+                                  src={image.image_url}
+                                  alt={image.variation_name || image.sku || `Produto ${index + 1}`}
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <figcaption>{image.variation_name || image.sku || image.source_marketplace_name || `SKU ${index + 1}`}</figcaption>
+                              </figure>
+                            ))}
+                            {inheritedImages.length > 6 ? <span>+{inheritedImages.length - 6}</span> : null}
+                          </div>
                         </div>
                       ) : null}
                       {listing.cover_image_source === 'NISTI_ID' && fallbackImages.length ? (

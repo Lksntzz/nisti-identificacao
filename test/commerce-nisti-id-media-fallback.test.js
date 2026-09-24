@@ -41,7 +41,7 @@ test('store comercial usa RPCs v3 e UI identifica mídia NISTI ID', () => {
   const products = read('src/commerce-products-view.jsx');
   const listings = read('src/commerce-listings-view.jsx');
   assert.equal(store.includes("'commerce_list_products_v3'"), true);
-  assert.equal(store.includes("'commerce_list_listings_v3'"), true);
+  assert.equal(store.includes("'commerce_list_listings_v4'"), true);
   assert.equal(products.includes("product.thumbnail_source === 'NISTI_ID'"), true);
   assert.equal(listings.includes("listing.cover_image_source === 'NISTI_ID'"), true);
   assert.equal(listings.includes('fallback_product_images'), true);
