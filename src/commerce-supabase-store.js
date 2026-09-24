@@ -46,6 +46,15 @@ export async function commerceProducts(env, filters = {}) {
   };
 }
 
+export async function commerceProductDetail(env, productId) {
+  const id = cleanId(productId);
+  if (!id) throw new Error('product_id inválido.');
+  const result = await supabaseRpc(env, 'commerce_product_platform_detail_v1', {
+    p_product_id: id
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
 export async function commerceListings(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);

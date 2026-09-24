@@ -13,6 +13,7 @@ import {
   commerceImportRows,
   commerceListings,
   commerceProducts,
+  commerceProductDetail,
   commerceShopeeSnapshot,
   commerceReconciliationQueue,
   commerceReconcileImportBatch,
@@ -132,6 +133,13 @@ export async function handleCommerceAdminRequest(request, env) {
         offset: query(url, 'offset')
       });
       return json(paginationPayload(result));
+    }
+
+    const productDetailMatch = pathname.match(/^\/api\/admin\/commerce\/products\/(\d+)\/details$/);
+    if (method === 'GET' && productDetailMatch) {
+      const productId = positiveId(productDetailMatch[1]);
+      if (!productId) return json({ error: 'product_id inválido.' }, 400);
+      return json(await commerceProductDetail(env, productId));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/listings`) {

@@ -11,14 +11,78 @@ import {
 } from './commerce-admin-shared.jsx';
 import './commerce-listing-state.css';
 
-function coverageLabel(marketplaceCodes = []) {
-  if (!Array.isArray(marketplaceCodes) || marketplaceCodes.length === 0) return 'Sem anúncio';
-  if (marketplaceCodes.length > 1) return 'Multiplataforma';
-  const code = marketplaceCodes[0];
-  if (code === 'SHOPEE') return 'Exclusivo Shopee';
-  if (code === 'MERCADO_LIVRE') return 'Exclusivo Mercado Livre';
-  if (code === 'AMAZON') return 'Exclusivo Amazon';
-  return `Exclusivo ${code}`;
+const MARKETPLACE_LABELS = Object.freeze({
+  SHOPEE: 'Shopee',
+  MERCADO_LIVRE: 'Mercado Livre',
+  AMAZON: 'Amazon',
+  SHEIN: 'Shein',
+  MAGALU: 'Magalu',
+  ALIEXPRESS: 'AliExpress',
+  TIKTOK: 'TikTok Shop',
+  KAWAI: 'Kwai',
+  LOJA_INTEGRADA: 'Loja Integrada'
+});
+
+function marketplaceLabel(code) {
+  const normalized = String(code || '').trim().toUpperCase();
+  if (MARKETPLACE_LABELS[normalized]) return MARKETPLACE_LABELS[normalized];
+  return normalized
+    ? normalized.toLowerCase().split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+    : 'Plataforma';
+}
+
+function coverageInfo(marketplaceCodes = []) {
+  const codes = Array.isArray(marketplaceCodes) ? marketplaceCodes.filter(Boolean) : [];
+  if (codes.length === 0) return { kind: 'none', label: 'Sem anúncio' };
+  if (codes.length === 1) return { kind: 'exclusive', label: 'Exclusivo' };
+  return { kind: 'multi', label: 'Multiplataforma' };
+}
+
+function formatDate(value) {
+  if (!value) return 'Nunca verificado';
+  try {
+    return new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(value));
+  } catch {
+    return 'Data inválida';
+  }
+}
+
+function ProductImage({ product, className }) {
+  if (!product?.thumbnail_url) {
+    return <div className={`${className} commerce-image-placeholder`}>Sem foto</div>;
+  }
+  return (
+    <img
+      className={className}
+      src={product.thumbnail_url}
+      alt={product.name || `Produto #${product.product_id}`}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  );
+}
+
+function ProductCoverage({ marketplaceCodes = [], compact = false }) {
+  const coverage = coverageInfo(marketplaceCodes);
+  return (
+    <div className={`commerce-product-coverage ${compact ? 'compact' : ''}`}>
+      <span className={`commerce-coverage-tag ${coverage.kind}`}>{coverage.label}</span>
+      {marketplaceCodes.length ? (
+        <div className="commerce-platform-tags">
+          {marketplaceCodes.map(code => (
+            <span className="commerce-platform-tag" key={code}>{marketplaceLabel(code)}</span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function ProductStateEditor({ product, busy, onClose, onSave }) {
@@ -39,7 +103,7 @@ function ProductStateEditor({ product, busy, onClose, onSave }) {
 
         <div className="commerce-listing-state-context">
           <div><span>Categoria</span><strong>{product.category_name || '—'}</strong></div>
-          <div><span>Cobertura</span><strong>{coverageLabel(marketplaceCodes)}</strong></div>
+          <div><span>Cobertura</span><strong>{coverageInfo(marketplaceCodes).label}</strong></div>
           <div><span>Anúncios</span><strong>{commerceFormatNumber(product.listing_count || 0)}</strong></div>
         </div>
 
@@ -72,6 +136,147 @@ function ProductStateEditor({ product, busy, onClose, onSave }) {
   );
 }
 
+function ListingPlatformCard({ listing }) {
+  return (
+    <article className="commerce-platform-listing-card">
+      <div className="commerce-platform-listing-media">
+        {listing.image_url ? (
+          <img
+            src={listing.image_url}
+            alt={listing.title || `Anúncio #${listing.listing_id}`}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="commerce-image-placeholder">Sem foto</div>
+        )}
+        {listing.image_source === 'NISTI_ID' ? <small>Imagem NISTI ID</small> : null}
+      </div>
+
+      <div className="commerce-platform-listing-copy">
+        <div className="commerce-platform-listing-title">
+          <div>
+            <span>Anúncio #{listing.listing_id}</span>
+            <h4>{listing.title || 'Título não capturado'}</h4>
+          </div>
+          {listing.canonical_url ? (
+            <a href={listing.canonical_url} target="_blank" rel="noreferrer">Abrir anúncio</a>
+          ) : null}
+        </div>
+
+        <div className="commerce-platform-listing-meta">
+          <div><span>ID da plataforma</span><strong>{listing.external_listing_id || '—'}</strong></div>
+          <div><span>SKU na plataforma</span><strong>{listing.platform_sku || '—'}</strong></div>
+          <div><span>Variação</span><strong>{listing.variation_name || '—'}</strong></div>
+          <div><span>Última verificação</span><strong>{formatDate(listing.last_checked_at)}</strong></div>
+        </div>
+
+        {listing.marketplace_category ? (
+          <div className="commerce-platform-category">
+            <span>Categoria da plataforma</span>
+            <strong>{listing.marketplace_category}</strong>
+          </div>
+        ) : null}
+
+        <div className="commerce-platform-statuses">
+          <div><span>Anúncio</span><CommerceStatusPill value={listing.listing_status} /></div>
+          <div><span>Venda</span><CommerceStatusPill value={listing.sales_status} /></div>
+          <div><span>Vídeo</span><CommerceStatusPill value={listing.video_status} /></div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ProductPlatformDrawer({
+  product,
+  detail,
+  loading,
+  error,
+  activePlatform,
+  onPlatformChange,
+  onClose,
+  onReviewStatus
+}) {
+  const marketplaces = Array.isArray(detail?.marketplaces) ? detail.marketplaces : [];
+  const active = marketplaces.find(item => item.code === activePlatform) || marketplaces[0] || null;
+  const codes = marketplaces.map(item => item.code);
+
+  return (
+    <div className="commerce-listing-state-backdrop" onClick={onClose}>
+      <aside className="commerce-product-detail-panel" onClick={event => event.stopPropagation()}>
+        <div className="commerce-product-detail-head">
+          <ProductImage product={product} className="commerce-product-detail-image" />
+          <div className="commerce-product-detail-heading">
+            <span>Produto Mestre #{product.product_id}</span>
+            <h3>{product.name}</h3>
+            <code>{product.current_sku || 'SKU não informado'}</code>
+            <ProductCoverage marketplaceCodes={codes.length ? codes : (product.marketplace_codes || [])} compact />
+          </div>
+          <button type="button" className="commerce-detail-close" onClick={onClose}>Fechar</button>
+        </div>
+
+        <div className="commerce-product-detail-summary">
+          <div><span>Categoria</span><strong>{detail?.category_name || product.category_name || '—'}</strong></div>
+          <div><span>Tipo</span><strong>{commerceStatusLabel(detail?.temporal_type || product.temporal_type)}</strong></div>
+          <div><span>Anúncios</span><strong>{commerceFormatNumber(detail?.listing_count ?? product.listing_count ?? 0)}</strong></div>
+          <div><span>Status</span><CommerceStatusPill value={detail?.internal_status || product.internal_status} /></div>
+        </div>
+
+        {loading ? (
+          <CommerceLoadingBlock label="Carregando informações das plataformas…" />
+        ) : error ? (
+          <div className="commerce-error commerce-product-detail-error">{error}</div>
+        ) : marketplaces.length ? (
+          <>
+            <div className="commerce-platform-tabs" role="tablist" aria-label="Plataformas do produto">
+              {marketplaces.map(item => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={active?.code === item.code}
+                  className={active?.code === item.code ? 'active' : ''}
+                  key={item.code}
+                  onClick={() => onPlatformChange(item.code)}
+                >
+                  <span>{item.name || marketplaceLabel(item.code)}</span>
+                  <small>{commerceFormatNumber(item.listing_count || 0)}</small>
+                </button>
+              ))}
+            </div>
+
+            <section className="commerce-platform-detail-section">
+              <div className="commerce-platform-detail-title">
+                <div>
+                  <span>Informações da plataforma</span>
+                  <h4>{active?.name || marketplaceLabel(active?.code)}</h4>
+                </div>
+                <strong>{commerceFormatNumber(active?.listing_count || 0)} anúncio(s)</strong>
+              </div>
+
+              <div className="commerce-platform-listings">
+                {(active?.listings || []).map(listing => (
+                  <ListingPlatformCard key={listing.listing_id} listing={listing} />
+                ))}
+              </div>
+            </section>
+          </>
+        ) : (
+          <CommerceEmptyState
+            title="Produto sem anúncio vinculado"
+            detail="O Produto Mestre existe no catálogo, mas ainda não possui uma plataforma comercial vinculada."
+          />
+        )}
+
+        <div className="commerce-product-detail-actions">
+          <button type="button" className="secondary" onClick={onClose}>Fechar</button>
+          <button type="button" onClick={() => onReviewStatus(product)}>Revisar status do produto</button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 export default function CommerceProductsView() {
   const [search, setSearch] = useState('');
   const [marketplace, setMarketplace] = useState('');
@@ -81,7 +286,12 @@ export default function CommerceProductsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [stateProduct, setStateProduct] = useState(null);
+  const [detailProduct, setDetailProduct] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const [activePlatform, setActivePlatform] = useState('');
   const [saving, setSaving] = useState(false);
 
   async function load(nextOffset = offset) {
@@ -104,8 +314,28 @@ export default function CommerceProductsView() {
 
   useEffect(() => { load(0); }, [marketplace, status]);
 
+  async function openProductDetail(product) {
+    const productId = Number(product?.product_id || 0);
+    if (!productId) return;
+    setDetailProduct(product);
+    setDetail(null);
+    setDetailError('');
+    setActivePlatform('');
+    setDetailLoading(true);
+    try {
+      const result = await commerceApi(`/api/admin/commerce/products/${productId}/details`);
+      setDetail(result || {});
+      const marketplaces = Array.isArray(result?.marketplaces) ? result.marketplaces : [];
+      setActivePlatform(marketplaces[0]?.code || '');
+    } catch (err) {
+      setDetailError(err.message || 'Não foi possível carregar as plataformas deste produto.');
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
   async function saveProductState(values) {
-    const productId = Number(selectedProduct?.product_id || 0);
+    const productId = Number(stateProduct?.product_id || 0);
     if (!productId) return;
 
     setSaving(true);
@@ -119,7 +349,9 @@ export default function CommerceProductsView() {
       });
 
       setMessage(`Produto Mestre #${productId} atualizado para ${commerceStatusLabel(updated.internal_status)}.`);
-      setSelectedProduct(null);
+      setStateProduct(null);
+      setDetailProduct(null);
+      setDetail(null);
       await load(0);
     } catch (err) {
       setError(err.message || 'Não foi possível atualizar o Produto Mestre.');
@@ -137,7 +369,7 @@ export default function CommerceProductsView() {
       <div className="commerce-panel-header commerce-panel-header-stack">
         <div>
           <h2>Produtos Mestre</h2>
-          <p>Identidade comercial canônica. Revise o status manualmente sem apagar histórico; a cobertura mostra se o produto é exclusivo de uma plataforma ou compartilhado entre marketplaces.</p>
+          <p>Visão central por produto. A tag mostra se ele é exclusivo de uma plataforma ou está publicado em múltiplas plataformas.</p>
         </div>
         <div className="commerce-filter-row">
           <form onSubmit={event => { event.preventDefault(); load(0); }}>
@@ -158,52 +390,55 @@ export default function CommerceProductsView() {
 
       {error && <div className="commerce-error">{error}</div>}
       {message && <div className="commerce-listing-state-message">{message}</div>}
+
       {loading ? <CommerceLoadingBlock label="Carregando produtos…" /> : data.items?.length ? (
-        <div className="commerce-table-wrap">
-          <table className="commerce-table">
-            <thead><tr><th>Produto</th><th>SKU atual</th><th>Categoria</th><th>Tipo</th><th>Cobertura</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              {data.items.map(product => {
-                const productId = Number(product.product_id || 0);
-                const marketplaceCodes = Array.isArray(product.marketplace_codes) ? product.marketplace_codes : [];
-                const listingCount = Number(product.listing_count || 0);
-                return (
-                  <tr key={productId}>
-                    <td>
-                      <div className="commerce-product-identity">
-                        {product.thumbnail_url ? (
-                          <img
-                            className="commerce-product-thumbnail"
-                            src={product.thumbnail_url}
-                            alt={product.name || `Produto #${productId}`}
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : <div className="commerce-product-thumbnail commerce-image-placeholder">Sem foto</div>}
-                        <div>
-                          <strong>{product.name}</strong>
-                          <small>#{productId}</small>
-                          {product.thumbnail_source === 'NISTI_ID' ? <small className="commerce-media-source">Imagem do NISTI ID · SKU exato</small> : null}
-                        </div>
+        <div className="commerce-product-card-grid">
+          {data.items.map(product => {
+            const productId = Number(product.product_id || 0);
+            const marketplaceCodes = Array.isArray(product.marketplace_codes) ? product.marketplace_codes : [];
+            return (
+              <article className="commerce-product-card" key={productId}>
+                <button
+                  type="button"
+                  className="commerce-product-card-main"
+                  onClick={() => openProductDetail(product)}
+                  aria-label={`Abrir detalhes de ${product.name || product.current_sku || `produto ${productId}`}`}
+                >
+                  <ProductImage product={product} className="commerce-product-card-image" />
+
+                  <div className="commerce-product-card-copy">
+                    <div className="commerce-product-card-title">
+                      <div>
+                        <h3>{product.name}</h3>
+                        <code>{product.current_sku || 'SKU não informado'}</code>
                       </div>
-                    </td>
-                    <td><code>{product.current_sku || '—'}</code></td>
-                    <td>{product.category_name || '—'}{product.subcategory_name ? <small>{product.subcategory_name}</small> : null}</td>
-                    <td>{commerceStatusLabel(product.temporal_type)}{product.edition_year ? <small>Edição {product.edition_year}</small> : null}</td>
-                    <td>
-                      <strong>{coverageLabel(marketplaceCodes)}</strong>
-                      <small>{marketplaceCodes.length ? marketplaceCodes.join(' · ') : 'Nenhuma plataforma'}</small>
-                      <small>{commerceFormatNumber(listingCount)} anúncio(s)</small>
-                    </td>
-                    <td><CommerceStatusPill value={product.internal_status} /></td>
-                    <td><button type="button" className="commerce-secondary-button" onClick={() => setSelectedProduct(product)}>Revisar</button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      <CommerceStatusPill value={product.internal_status} />
+                    </div>
+
+                    <ProductCoverage marketplaceCodes={marketplaceCodes} />
+
+                    <div className="commerce-product-card-meta">
+                      <span>{product.category_name || 'Sem categoria'}</span>
+                      <span>{commerceFormatNumber(product.listing_count || 0)} anúncio(s)</span>
+                      {product.thumbnail_source === 'NISTI_ID' ? <span className="commerce-media-source">Foto NISTI ID</span> : null}
+                    </div>
+                  </div>
+                </button>
+
+                <div className="commerce-product-card-footer">
+                  <span>Produto Mestre #{productId}</span>
+                  <div>
+                    <button type="button" className="commerce-card-review-button" onClick={() => setStateProduct(product)}>Revisar status</button>
+                    <button type="button" className="commerce-card-detail-button" onClick={() => openProductDetail(product)}>Ver plataformas</button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
-      ) : <CommerceEmptyState title="Nenhum produto comercial cadastrado" detail="Os produtos aparecerão aqui após a reconciliação das planilhas." />}
+      ) : (
+        <CommerceEmptyState title="Nenhum produto comercial cadastrado" detail="Os produtos aparecerão aqui após a reconciliação das fontes comerciais." />
+      )}
 
       <div className="commerce-pagination">
         <span>Página {page} de {pages} · {commerceFormatNumber(total)} registros</span>
@@ -213,11 +448,32 @@ export default function CommerceProductsView() {
         </div>
       </div>
 
-      {selectedProduct && (
+      {detailProduct && (
+        <ProductPlatformDrawer
+          product={detailProduct}
+          detail={detail}
+          loading={detailLoading}
+          error={detailError}
+          activePlatform={activePlatform}
+          onPlatformChange={setActivePlatform}
+          onClose={() => {
+            setDetailProduct(null);
+            setDetail(null);
+            setDetailError('');
+            setActivePlatform('');
+          }}
+          onReviewStatus={product => {
+            setDetailProduct(null);
+            setStateProduct(product);
+          }}
+        />
+      )}
+
+      {stateProduct && (
         <ProductStateEditor
-          product={selectedProduct}
+          product={stateProduct}
           busy={saving}
-          onClose={() => !saving && setSelectedProduct(null)}
+          onClose={() => !saving && setStateProduct(null)}
           onSave={saveProductState}
         />
       )}
