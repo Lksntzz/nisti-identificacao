@@ -586,24 +586,33 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
             })
           });
 
-          if (v.file) {
-            const compressed = await compressAdminImage(v.file);
-            const fd = new FormData();
-            fd.append('image', compressed || v.file);
-            await api(`/api/products/${res.product.id}/image`, {
-              method: 'POST',
-              body: fd
-            });
+          const productId = Number(res.id);
+          if (!Number.isSafeInteger(productId) || productId <= 0) {
+            throw new Error('O cadastro não retornou o ID do produto. Atualize a lista antes de tentar novamente.');
           }
 
           registered.push({
-            id: res.product.id,
+            id: productId,
             sku: cleanSku,
             gtin: cleanGtin,
             nome: nome.trim(),
             variacao: v.variacao.trim() || cleanSku,
             platform: platform.trim().toUpperCase()
           });
+
+          if (v.file) {
+            try {
+              const compressed = await compressAdminImage(v.file);
+              const fd = new FormData();
+              fd.append('image', compressed || v.file);
+              await api(`/api/products/${productId}/image`, {
+                method: 'POST',
+                body: fd
+              });
+            } catch (imageError) {
+              failures.push({ sku: cleanSku, error: `Produto cadastrado, mas a imagem não foi salva: ${imageError.message || 'falha no envio'}. Abra o produto para reenviar a imagem.` });
+            }
+          }
         } catch (err) {
           failures.push({ sku: cleanSku, error: err.message || 'Falha ao salvar produto.' });
         }
