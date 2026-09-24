@@ -6,7 +6,7 @@ language sql
 immutable
 security invoker
 set search_path=public
-as $
+as $$
   with value as (
     select upper(btrim(coalesce(p_sku,''))) as sku
   ),
@@ -22,7 +22,7 @@ as $
     else null
   end
   from extracted;
-$;
+$$;
 
 create or replace function public.commerce_text_edition_year(p_text text)
 returns integer
@@ -30,13 +30,13 @@ language sql
 immutable
 security invoker
 set search_path=public
-as $
+as $$
   select case
     when substring(coalesce(p_text,'') from '20(2[4-9]|3[0-5])') is not null
       then 2000 + substring(coalesce(p_text,'') from '20(2[4-9]|3[0-5])')::integer
     else null
   end;
-$;
+$$;
 
 create or replace function public.commerce_image_years_compatible(
   p_target_sku text,
@@ -48,7 +48,7 @@ language sql
 immutable
 security invoker
 set search_path=public
-as $
+as $$
   with years as (
     select
       public.commerce_sku_edition_year(p_target_sku) as target_year,
@@ -68,7 +68,7 @@ as $
       and target_sku_norm=source_sku_norm
     )
   from years;
-$;
+$$;
 
 create or replace function public.commerce_list_listings_v4(
   p_search text default null,
