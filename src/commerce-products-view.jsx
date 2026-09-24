@@ -169,7 +169,20 @@ export default function CommerceProductsView() {
                 const listingCount = Number(product.listing_count || 0);
                 return (
                   <tr key={productId}>
-                    <td><strong>{product.name}</strong><small>#{productId}</small></td>
+                    <td>
+                      <div className="commerce-product-identity">
+                        {product.thumbnail_url ? (
+                          <img
+                            className="commerce-product-thumbnail"
+                            src={product.thumbnail_url}
+                            alt={product.name || `Produto #${productId}`}
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : <div className="commerce-product-thumbnail commerce-image-placeholder">Sem foto</div>}
+                        <div><strong>{product.name}</strong><small>#{productId}</small></div>
+                      </div>
+                    </td>
                     <td><code>{product.current_sku || '—'}</code></td>
                     <td>{product.category_name || '—'}{product.subcategory_name ? <small>{product.subcategory_name}</small> : null}</td>
                     <td>{commerceStatusLabel(product.temporal_type)}{product.edition_year ? <small>Edição {product.edition_year}</small> : null}</td>

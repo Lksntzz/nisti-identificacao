@@ -10,11 +10,13 @@ import CommerceListingsView from './commerce-listings-view.jsx';
 import CommerceImportView from './commerce-import-view.jsx';
 import CommerceUpdateView from './commerce-update-view.jsx';
 import CommerceReconciliationView from './commerce-reconciliation-view.jsx';
+import CommerceShopeeSnapshotView from './commerce-shopee-snapshot-view.jsx';
 
 const NAV_ITEMS = Object.freeze([
   { id: 'overview', label: 'Visão Geral' },
   { id: 'products', label: 'Produtos Mestre' },
   { id: 'listings', label: 'Anúncios' },
+  { id: 'shopee', label: 'Shopee · Capas' },
   { id: 'imports', label: 'Importações Excel' },
   { id: 'reconciliation', label: 'Revisão de vínculos' },
   { id: 'updates', label: 'Atualização Anual' }
@@ -99,6 +101,7 @@ export default function CommerceAdminAppV2() {
               {activeView === 'overview' && <CommerceOverviewView dashboard={dashboard || {}} onNavigate={setActiveView} />}
               {activeView === 'products' && <CommerceProductsView />}
               {activeView === 'listings' && <CommerceListingsView />}
+              {activeView === 'shopee' && <CommerceShopeeSnapshotView />}
               {activeView === 'imports' && <CommerceImportView onCatalogChanged={refreshDashboard} />}
               {activeView === 'reconciliation' && <CommerceReconciliationView onCatalogChanged={refreshDashboard} />}
               {activeView === 'updates' && <CommerceUpdateView onCatalogChanged={refreshDashboard} />}

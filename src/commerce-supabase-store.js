@@ -30,7 +30,7 @@ export async function commerceDashboard(env) {
 export async function commerceProducts(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);
-  const rows = await supabaseRpc(env, 'commerce_list_products_v1', {
+  const rows = await supabaseRpc(env, 'commerce_list_products_v2', {
     p_search: cleanText(filters.search),
     p_marketplace_code: cleanText(filters.marketplace),
     p_category_id: cleanId(filters.categoryId),
@@ -49,7 +49,7 @@ export async function commerceProducts(env, filters = {}) {
 export async function commerceListings(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);
-  const rows = await supabaseRpc(env, 'commerce_list_listings_v1', {
+  const rows = await supabaseRpc(env, 'commerce_list_listings_v2', {
     p_search: cleanText(filters.search),
     p_marketplace_code: cleanText(filters.marketplace),
     p_listing_status: cleanText(filters.status),
@@ -200,4 +200,21 @@ export async function commerceResolveReconciliationListing(env, listingId, input
     p_resolve: input.resolve !== false,
     p_operator: cleanText(input.operator)
   });
+}
+
+
+export async function commerceShopeeSnapshot(env, filters = {}) {
+  const limit = cleanPageSize(filters.limit, 40);
+  const offset = cleanOffset(filters.offset);
+  const rows = await supabaseRpc(env, 'commerce_list_shopee_snapshot_v1', {
+    p_search: cleanText(filters.search),
+    p_match_status: cleanText(filters.status),
+    p_limit: limit,
+    p_offset: offset
+  });
+  return {
+    items: Array.isArray(rows) ? rows : [],
+    limit,
+    offset
+  };
 }

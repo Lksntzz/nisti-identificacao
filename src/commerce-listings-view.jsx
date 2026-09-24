@@ -202,17 +202,48 @@ export default function CommerceListingsView() {
       {loading ? <CommerceLoadingBlock label="Carregando anúncios…" /> : data.items?.length ? (
         <div className="commerce-table-wrap">
           <table className="commerce-table commerce-listings-table">
-            <thead><tr><th>Plataforma</th><th>Anúncio</th><th>Produtos</th><th>Ano</th><th>Vídeo</th><th>Venda</th><th>Status</th><th>Verificação</th><th></th></tr></thead>
+            <thead><tr><th>Capa</th><th>Plataforma</th><th>Anúncio</th><th>Produtos</th><th>Ano</th><th>Vídeo</th><th>Venda</th><th>Status</th><th>Verificação</th><th></th></tr></thead>
             <tbody>
               {data.items.map(listing => {
                 const listingId = Number(listing.listing_id || 0);
                 const platformSkus = Array.isArray(listing.platform_skus) ? listing.platform_skus : [];
+                const variations = Array.isArray(listing.variation_options) ? listing.variation_options : [];
                 return (
                   <tr key={listingId}>
+                    <td>
+                      {listing.cover_image_url ? (
+                        <img
+                          className="commerce-listing-thumbnail"
+                          src={listing.cover_image_url}
+                          alt={listing.title || `Anúncio #${listingId}`}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : <div className="commerce-listing-thumbnail commerce-image-placeholder">Sem foto</div>}
+                    </td>
                     <td><strong>{listing.marketplace_name || listing.marketplace_code}</strong><small>{listing.external_listing_id || `#${listingId}`}</small></td>
                     <td>
                       <strong>{listing.title || 'Título não capturado'}</strong>
+                      {listing.marketplace_category ? <small>{listing.marketplace_category}</small> : null}
                       {listing.canonical_url ? <a href={listing.canonical_url} target="_blank" rel="noreferrer">Abrir anúncio</a> : null}
+                      {variations.length ? (
+                        <div className="commerce-listing-variation-strip">
+                          {variations.slice(0, 6).map((variation, index) => (
+                            <figure key={`${listingId}-${variation.position || index}`}>
+                              {variation.image_url ? (
+                                <img
+                                  src={variation.image_url}
+                                  alt={variation.name || `Opção ${index + 1}`}
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : <div className="commerce-image-placeholder">—</div>}
+                              <figcaption>{variation.name || `Opção ${index + 1}`}</figcaption>
+                            </figure>
+                          ))}
+                          {variations.length > 6 ? <span>+{variations.length - 6}</span> : null}
+                        </div>
+                      ) : null}
                     </td>
                     <td>{commerceFormatNumber(listing.product_count || 0)}<small>{platformSkus.length ? platformSkus.join(' · ') : 'Sem SKU vinculado'}</small></td>
                     <td>{listing.observed_year || '—'}</td>

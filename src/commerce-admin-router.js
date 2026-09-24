@@ -13,6 +13,7 @@ import {
   commerceImportRows,
   commerceListings,
   commerceProducts,
+  commerceShopeeSnapshot,
   commerceReconciliationQueue,
   commerceReconcileImportBatch,
   commerceResolveReconciliationListing
@@ -137,6 +138,16 @@ export async function handleCommerceAdminRequest(request, env) {
       const result = await commerceListings(env, {
         search: query(url, 'search'),
         marketplace: query(url, 'marketplace'),
+        status: query(url, 'status'),
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      });
+      return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/shopee-snapshot`) {
+      const result = await commerceShopeeSnapshot(env, {
+        search: query(url, 'search'),
         status: query(url, 'status'),
         limit: query(url, 'limit'),
         offset: query(url, 'offset')
