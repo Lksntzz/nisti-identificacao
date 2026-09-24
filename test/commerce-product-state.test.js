@@ -36,7 +36,7 @@ test('UI de Produtos Mestre permite revisão manual sem exclusão de histórico'
   assert.equal(view.includes('Salvar revisão'), true);
   assert.equal(view.includes('/products/${productId}/state'), true);
   assert.equal(view.includes('DISCONTINUED'), true);
-  assert.equal(view.includes('setSelectedProduct(product)'), true);
+  assert.equal(view.includes('setStateProduct(product)'), true);
 });
 
 test('store de status usa RPC comercial com escopo live/preview', () => {
