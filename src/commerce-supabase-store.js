@@ -30,7 +30,7 @@ export async function commerceDashboard(env) {
 export async function commerceProducts(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);
-  const rows = await supabaseRpc(env, 'commerce_list_products_v2', {
+  const rows = await supabaseRpc(env, 'commerce_list_products_v3', {
     p_search: cleanText(filters.search),
     p_marketplace_code: cleanText(filters.marketplace),
     p_category_id: cleanId(filters.categoryId),
@@ -49,7 +49,7 @@ export async function commerceProducts(env, filters = {}) {
 export async function commerceListings(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);
-  const rows = await supabaseRpc(env, 'commerce_list_listings_v2', {
+  const rows = await supabaseRpc(env, 'commerce_list_listings_v3', {
     p_search: cleanText(filters.search),
     p_marketplace_code: cleanText(filters.marketplace),
     p_listing_status: cleanText(filters.status),
