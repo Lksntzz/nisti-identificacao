@@ -83,3 +83,17 @@ test('preview da Gestão continua isolado da produção', () => {
   assert.equal(cards.includes('commerce_preview_management_products_v1'), true);
   assert.equal(cards.includes('commerce_preview_management_product_summary_v1'), true);
 });
+
+
+test('resumo simplificado é leve e não mostra zero falso', () => {
+  const sql = read('supabase/migrations/20260925184000_optimize_commerce_management_product_summary.sql');
+  const view = read('src/commerce-management-view.jsx');
+
+  assert.equal(sql.includes('commerce_management_product_summary_v1'), true);
+  assert.equal(sql.includes('commerce_preview_management_product_summary_v1'), true);
+  assert.equal(sql.includes('commerce_management_products_v1(null,null,null'), false);
+  assert.equal(sql.includes('count(distinct code)'), true);
+  assert.equal(view.includes("summaryError ? '—'"), true);
+  assert.equal(view.includes('Indicadores indisponíveis no momento.'), true);
+  assert.equal(view.includes('Tentar novamente'), true);
+});
