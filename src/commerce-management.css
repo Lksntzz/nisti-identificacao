@@ -130,3 +130,23 @@
 .commerce-gs-review-filter{border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;border-radius:999px;padding:6px 9px;font:inherit;font-size:8.5px;font-weight:900;cursor:pointer}
 .commerce-gs-review-filter:hover,.commerce-gs-review-filter.active{background:#3730a3;color:#fff;border-color:#3730a3}
 .commerce-gs-card-badge{position:absolute;right:8px;top:8px;display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:24px;border-radius:999px;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;font-size:8px;font-weight:950;letter-spacing:.03em}
+
+.commerce-review-filter{border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:999px;padding:6px 9px;font:inherit;font-size:8.5px;font-weight:900;cursor:pointer}
+.commerce-review-filter:hover,.commerce-review-filter.active{background:#0f172a;color:#fff;border-color:#0f172a}
+.commerce-review-filter.gs{border-color:#c7d2fe;background:#eef2ff;color:#3730a3}
+.commerce-review-filter.sku{border-color:#a7f3d0;background:#ecfdf5;color:#047857}
+.commerce-card-evidence-badges{position:absolute;right:8px;top:8px;display:flex;gap:5px;flex-direction:column;align-items:flex-end}
+.commerce-card-evidence-badges .commerce-gs-card-badge,.commerce-card-evidence-badges .commerce-sku-card-badge{position:static}
+.commerce-sku-card-badge{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:24px;border-radius:999px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size:8px;font-weight:950;letter-spacing:.03em}
+.commerce-sku-pattern{margin:14px 22px 0;border:1px solid #a7f3d0;background:#f0fdf4;border-radius:14px;padding:13px;display:grid;gap:10px}
+.commerce-sku-pattern-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.commerce-sku-pattern-head span{font-size:8px;text-transform:uppercase;color:#047857;font-weight:950}
+.commerce-sku-pattern-head code{font-size:9px;font-weight:900;color:#065f46;background:#fff;border:1px solid #bbf7d0;border-radius:999px;padding:5px 8px}
+.commerce-sku-pattern-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.commerce-sku-pattern-grid>div{display:grid;gap:4px;background:#fff;border:1px solid #dcfce7;border-radius:9px;padding:8px}
+.commerce-sku-pattern-grid span{font-size:7.5px;text-transform:uppercase;color:#64748b;font-weight:900}
+.commerce-sku-pattern-grid strong{font-size:9px;overflow-wrap:anywhere}
+.commerce-sku-pattern>small{font-size:8.5px;color:#166534;line-height:1.4}
+.commerce-sku-match-reason{display:inline-flex;width:max-content;max-width:100%;border-radius:999px;padding:4px 6px;background:#ecfdf5;color:#047857;font-size:7.5px;font-style:normal;font-weight:900}
+.commerce-sku-match-reason.cover_collection,.commerce-sku-match-reason.cover_collection_history{background:#fff7ed;color:#c2410c}
+@media(max-width:640px){.commerce-sku-pattern-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
