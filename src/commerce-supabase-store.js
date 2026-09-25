@@ -93,6 +93,28 @@ export async function commerceManagementProducts(env, filters = {}) {
   };
 }
 
+export async function commerceManagementLinkCandidates(env, sourceRowId) {
+  const id = cleanId(sourceRowId);
+  if (!id) throw new Error('source_row_id inválido.');
+  const result = await supabaseRpc(env, 'commerce_management_link_candidates_v1', {
+    p_source_row_id: id
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
+export async function commerceResolveManagementLink(env, sourceRowId, productId, operator = null) {
+  const rowId = cleanId(sourceRowId);
+  const linkedProductId = cleanId(productId);
+  if (!rowId) throw new Error('source_row_id inválido.');
+  if (!linkedProductId) throw new Error('product_id inválido.');
+  const result = await supabaseRpc(env, 'commerce_management_resolve_link_v1', {
+    p_source_row_id: rowId,
+    p_product_id: linkedProductId,
+    p_operator: cleanText(operator)
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
 export async function commerceManagementProductSummary(env) {
   const result = await supabaseRpc(env, 'commerce_management_product_summary_v1');
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
