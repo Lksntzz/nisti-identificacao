@@ -179,3 +179,16 @@ test('fallback de imagem GS só preenche faltas e preserva regra de ano', () => 
   assert.equal(sql.toLowerCase().includes('security definer'), false);
   assert.equal(view.includes('GS · imagem de referência'), true);
 });
+
+
+test('consulta dos cards expande o GS uma vez e evita fallback N+1', () => {
+  const sql = read('supabase/migrations/20260925203000_optimize_preview_gs_card_query.sql');
+
+  assert.equal(sql.includes('commerce_preview_management_products_v2'), true);
+  assert.equal(sql.includes('commerce_preview_management_rows_v1('), true);
+  assert.equal(sql.includes('commerce_preview_management_rows_v2('), false);
+  assert.equal(sql.includes('gs_map as ('), true);
+  assert.equal(sql.includes("source_code='GS_REFERENCIA'"), true);
+  assert.equal(sql.includes('commerce_image_years_compatible'), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
