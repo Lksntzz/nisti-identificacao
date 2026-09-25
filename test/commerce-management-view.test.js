@@ -47,3 +47,20 @@ test('Gestão prioriza fonte curada sem alterar a fonte comercial original', () 
   assert.equal(sql.includes("then 'ACTIVE'"), true);
   assert.equal(sql.includes("then 'OTHER_MARKETPLACE'"), true);
 });
+
+
+test('painel de Gestão compara o mesmo produto entre plataformas', () => {
+  const router = read('src/commerce-admin-router.js');
+  const store = read('src/commerce-supabase-store.js');
+  const view = read('src/commerce-management-view.jsx');
+  const sql = read('supabase/migrations/20260925172400_commerce_management_detail_v1.sql');
+
+  assert.equal(router.includes('/management\\/(\\d+)\\/details'), true);
+  assert.equal(store.includes("'commerce_management_detail_v1'"), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+  assert.equal(sql.includes("o.source_code||'_GESTAO'"), true);
+  assert.equal(view.includes('Mesmo produto em outras plataformas'), true);
+  assert.equal(view.includes('Pendências'), true);
+  assert.equal(view.includes('Sem foto segura'), true);
+  assert.equal(view.includes('/management/${sourceRowId}/details'), true);
+});
