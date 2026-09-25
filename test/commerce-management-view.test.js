@@ -302,3 +302,34 @@ test('NISTI ID só cria mestre para capa exata unívoca', () => {
   assert.equal(sql.includes('preview exact-cover match to NISTI ID'), true);
   assert.equal(sql.includes('base_signature'), false);
 });
+
+
+test('SKU parser aceita acabamento legado de 2 letras sem perder a capa', () => {
+  const sql = read('supabase/migrations/20260925221500_commerce_preview_remaining_catalog_reconciliation.sql');
+
+  assert.equal(sql.includes("^[A-Z]{2,3}$"), true);
+  assert.equal(sql.includes("'cover'"), true);
+  assert.equal(sql.includes("'finish'"), true);
+  assert.equal(sql.includes('preview legacy SKU match: exact family+cover from linked Shopee history; 2-letter finish supported'), true);
+});
+
+test('reconciliação final cria mestres apenas para casos isolados e mantém revisão manual', () => {
+  const sql = read('supabase/migrations/20260925221500_commerce_preview_remaining_catalog_reconciliation.sql');
+
+  assert.equal(sql.includes('Provisional exclusive set changed'), true);
+  assert.equal(sql.includes('expected 54'), true);
+  assert.equal(sql.includes('Final manual review count changed'), true);
+  assert.equal(sql.includes('expected 12'), true);
+  assert.equal(sql.includes('3811,4959,3658,4908'), true);
+  assert.equal(sql.includes('3638,3639,3640,3641,4934,4935,4936,4937'), true);
+});
+
+test('resumo preview usa o estado real dos cards não vinculados', () => {
+  const sql = read('supabase/migrations/20260925221500_commerce_preview_remaining_catalog_reconciliation.sql');
+
+  assert.equal(sql.includes("from public.commerce_preview_management_products_v2(null,null,null,'UNLINKED',1000,0)"), true);
+  assert.equal(sql.includes("'safe_candidates'"), true);
+  assert.equal(sql.includes("'ambiguous_candidates'"), true);
+  assert.equal(sql.includes("'no_safe_candidate'"), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
