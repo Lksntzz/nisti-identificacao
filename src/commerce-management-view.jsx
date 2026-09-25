@@ -147,6 +147,82 @@ function PlatformDrawer({ selection, onClose }) {
   );
 }
 
+function LinkReviewDrawer({ review, loading, error, saving, onClose, onResolve }) {
+  if (!review) return null;
+  const source = review.data?.source || null;
+  const candidates = Array.isArray(review.data?.candidates) ? review.data.candidates : [];
+
+  return (
+    <div className="commerce-management-backdrop" onClick={onClose}>
+      <aside className="commerce-management-drawer commerce-link-review-drawer" onClick={event => event.stopPropagation()}>
+        <div className="commerce-management-drawer-head">
+          <div>
+            <span>Revisão de vínculo</span>
+            <h3>{source?.product_name || review.card?.product_name || 'Produto para vincular'}</h3>
+            <code>{source?.sku || review.card?.master_sku || 'SKU não informado'}</code>
+          </div>
+          <button type="button" onClick={onClose}>Fechar</button>
+        </div>
+
+        <div className="commerce-link-source">
+          <ProductImage src={source?.image_url || review.card?.image_url} alt={source?.product_name || review.card?.product_name} large />
+          <div>
+            <span>Item da plataforma</span>
+            <strong>{source?.platform || review.card?.platforms?.[0]?.label || '—'}</strong>
+            <code>{source?.sku || review.card?.master_sku || '—'}</code>
+            <small>{source?.category_name || review.card?.category_name || 'Sem categoria'} · {source?.edition_year || review.card?.edition_year || 'Sem ano'}</small>
+          </div>
+        </div>
+
+        <div className="commerce-link-review-note">
+          Homologação: a escolha abaixo altera somente o sandbox/preview.
+        </div>
+
+        {loading ? <CommerceLoadingBlock label="Buscando Produtos Mestre candidatos…" /> : null}
+        {error ? <div className="commerce-error commerce-management-error">{error}</div> : null}
+
+        {!loading && !error ? (
+          <div className="commerce-link-candidates">
+            {candidates.length ? candidates.map(candidate => (
+              <article className="commerce-link-candidate" key={candidate.product_id}>
+                <div className="commerce-link-candidate-media">
+                  <ProductImage src={candidate.image_url} alt={candidate.product_name} large />
+                </div>
+                <div className="commerce-link-candidate-body">
+                  <span>Produto Mestre #{candidate.product_id}</span>
+                  <h4>{candidate.product_name || 'Produto sem nome'}</h4>
+                  <code>{candidate.master_sku || 'SKU não informado'}</code>
+                  <div className="commerce-link-candidate-meta">
+                    <small>{candidate.category_name || 'Sem categoria'}</small>
+                    <small>{candidate.edition_year || 'Sem ano'}</small>
+                  </div>
+                  <div className="commerce-link-candidate-platforms">
+                    {(candidate.platforms || []).map(platform => (
+                      <span key={platform.source_code}>{platform.label}</span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={Boolean(saving)}
+                    onClick={() => onResolve(candidate.product_id)}
+                  >
+                    {saving === candidate.product_id ? 'Vinculando…' : 'Vincular a este no preview'}
+                  </button>
+                </div>
+              </article>
+            )) : (
+              <div className="commerce-empty-state">
+                <strong>Nenhum candidato encontrado.</strong>
+                <p>Este item precisa de investigação manual.</p>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </aside>
+    </div>
+  );
+}
+
 export default function CommerceManagementView() {
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
@@ -159,6 +235,10 @@ export default function CommerceManagementView() {
   const [summaryError, setSummaryError] = useState('');
   const [error, setError] = useState('');
   const [selection, setSelection] = useState(null);
+  const [linkReview, setLinkReview] = useState(null);
+  const [linkReviewLoading, setLinkReviewLoading] = useState(false);
+  const [linkReviewError, setLinkReviewError] = useState('');
+  const [linkReviewSaving, setLinkReviewSaving] = useState(null);
 
   async function load(nextOffset = 0) {
     setLoading(true);
@@ -179,6 +259,43 @@ export default function CommerceManagementView() {
       setError(err.message || 'Não foi possível carregar a Gestão.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function openLinkReview(card) {
+    const sourceRowId = card?.platforms?.[0]?.items?.[0]?.source_row_id;
+    if (!sourceRowId) return;
+    setLinkReview({ card, data: null });
+    setLinkReviewLoading(true);
+    setLinkReviewError('');
+    setLinkReviewSaving(null);
+    try {
+      const result = await commerceApi(`/api/admin/commerce/management/link-review/${sourceRowId}`);
+      setLinkReview({ card, data: result });
+    } catch (err) {
+      setLinkReviewError(err.message || 'Não foi possível carregar os candidatos.');
+    } finally {
+      setLinkReviewLoading(false);
+    }
+  }
+
+  async function resolveLinkReview(productId) {
+    const sourceRowId = linkReview?.data?.source?.source_row_id;
+    if (!sourceRowId || !productId) return;
+    setLinkReviewSaving(productId);
+    setLinkReviewError('');
+    try {
+      await commerceApi(`/api/admin/commerce/management/link-review/${sourceRowId}/resolve`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ product_id: productId })
+      });
+      setLinkReview(null);
+      await Promise.all([load(offset), loadSummary()]);
+    } catch (err) {
+      setLinkReviewError(err.message || 'Não foi possível salvar o vínculo no preview.');
+    } finally {
+      setLinkReviewSaving(null);
     }
   }
 
@@ -313,7 +430,17 @@ export default function CommerceManagementView() {
                       <strong>{presenceText(card)}</strong>
                       {card.product_id
                         ? <span>Produto Mestre #{card.product_id}</span>
-                        : <span className={`commerce-link-review ${String(card.link_review_status || '').toLowerCase()}`}>{linkReviewText(card)}</span>}
+                        : ['AMBIGUOUS', 'SAFE_CANDIDATE'].includes(card.link_review_status)
+                          ? (
+                            <button
+                              type="button"
+                              className={`commerce-link-review ${String(card.link_review_status || '').toLowerCase()}`}
+                              onClick={() => openLinkReview(card)}
+                            >
+                              {card.link_review_status === 'AMBIGUOUS' ? `Comparar ${card.candidate_count || 0} candidatos` : linkReviewText(card)}
+                            </button>
+                          )
+                          : <span className={`commerce-link-review ${String(card.link_review_status || '').toLowerCase()}`}>{linkReviewText(card)}</span>}
                     </div>
                   </div>
                 </article>
@@ -337,6 +464,14 @@ export default function CommerceManagementView() {
       </section>
 
       <PlatformDrawer selection={selection} onClose={() => setSelection(null)} />
+      <LinkReviewDrawer
+        review={linkReview}
+        loading={linkReviewLoading}
+        error={linkReviewError}
+        saving={linkReviewSaving}
+        onClose={() => setLinkReview(null)}
+        onResolve={resolveLinkReview}
+      />
     </div>
   );
 }
