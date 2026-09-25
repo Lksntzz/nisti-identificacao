@@ -150,6 +150,7 @@ function PlatformDrawer({ selection, onClose }) {
 function LinkReviewDrawer({ review, loading, error, saving, onClose, onResolve }) {
   if (!review) return null;
   const source = review.data?.source || null;
+  const gsReference = review.data?.gs_reference || null;
   const candidates = Array.isArray(review.data?.candidates) ? review.data.candidates : [];
 
   return (
@@ -177,6 +178,37 @@ function LinkReviewDrawer({ review, loading, error, saving, onClose, onResolve }
         <div className="commerce-link-review-note">
           Homologação: a escolha abaixo altera somente o sandbox/preview.
         </div>
+
+        {gsReference ? (
+          <section className="commerce-gs-reference">
+            <div className="commerce-gs-reference-head">
+              <div>
+                <span>Referência oficial GS</span>
+                <strong>{gsReference.product_name || 'Produto GS'}</strong>
+              </div>
+              <span className="commerce-gs-status">{gsReference.status || '—'}</span>
+            </div>
+            <div className="commerce-gs-reference-body">
+              <ProductImage src={gsReference.image_url} alt={gsReference.product_name} large />
+              <div>
+                <div><span>GTIN / EAN</span><code>{gsReference.gtin || '—'}</code></div>
+                <div><span>SKU GS</span><code>{gsReference.sku || '—'}</code></div>
+                <div><span>Formato do SKU</span><strong>{gsReference.sku_format || '—'}</strong></div>
+                <div><span>NCM</span><strong>{gsReference.ncm || '—'}</strong></div>
+              </div>
+            </div>
+            {Array.isArray(gsReference.sku_all) && gsReference.sku_all.length > 1 ? (
+              <div className="commerce-gs-aliases">
+                <span>SKUs cadastrados no GS</span>
+                <div>{gsReference.sku_all.map(sku => <code key={sku}>{sku}</code>)}</div>
+              </div>
+            ) : null}
+          </section>
+        ) : (
+          <div className="commerce-gs-reference-empty">
+            Nenhuma referência GS encontrada para este SKU.
+          </div>
+        )}
 
         {loading ? <CommerceLoadingBlock label="Buscando Produtos Mestre candidatos…" /> : null}
         {error ? <div className="commerce-error commerce-management-error">{error}</div> : null}
@@ -349,7 +381,7 @@ export default function CommerceManagementView() {
                   : code === 'EXCLUSIVE'
                     ? 'somente 1 plataforma'
                     : code === 'UNLINKED'
-                      ? `${commerceFormatNumber(summary?.ambiguous_candidates || 0)} ambíguos · ${commerceFormatNumber(summary?.no_safe_candidate || 0)} sem candidato`
+                      ? `${commerceFormatNumber(summary?.ambiguous_candidates || 0)} ambíguos · ${commerceFormatNumber(summary?.no_safe_candidate || 0)} sem candidato · ${commerceFormatNumber(summary?.gs_reference_matches || 0)} com GS`
                       : 'Produtos Mestre cruzados'}
               </small>
             </button>
@@ -430,17 +462,19 @@ export default function CommerceManagementView() {
                       <strong>{presenceText(card)}</strong>
                       {card.product_id
                         ? <span>Produto Mestre #{card.product_id}</span>
-                        : ['AMBIGUOUS', 'SAFE_CANDIDATE'].includes(card.link_review_status)
-                          ? (
-                            <button
-                              type="button"
-                              className={`commerce-link-review ${String(card.link_review_status || '').toLowerCase()}`}
-                              onClick={() => openLinkReview(card)}
-                            >
-                              {card.link_review_status === 'AMBIGUOUS' ? `Comparar ${card.candidate_count || 0} candidatos` : linkReviewText(card)}
-                            </button>
-                          )
-                          : <span className={`commerce-link-review ${String(card.link_review_status || '').toLowerCase()}`}>{linkReviewText(card)}</span>}
+                        : (
+                          <button
+                            type="button"
+                            className={`commerce-link-review ${String(card.link_review_status || '').toLowerCase()}`}
+                            onClick={() => openLinkReview(card)}
+                          >
+                            {card.link_review_status === 'AMBIGUOUS'
+                              ? `Comparar ${card.candidate_count || 0} candidatos`
+                              : card.link_review_status === 'SAFE_CANDIDATE'
+                                ? linkReviewText(card)
+                                : 'Investigar vínculo'}
+                          </button>
+                        )}
                     </div>
                   </div>
                 </article>
