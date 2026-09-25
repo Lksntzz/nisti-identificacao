@@ -73,8 +73,25 @@ function ImageCell({ item }) {
   );
 }
 
-function DetailDrawer({ item, onClose }) {
+function issueList(item) {
+  if (!item) return [];
+  const issues = [];
+  if (!item.image_url) issues.push('Sem foto segura');
+  if (item.relation_status === 'UNMATCHED') issues.push('Sem vínculo com Produto Mestre');
+  if (item.relation_status === 'REVIEW') issues.push('Vínculo precisa ser verificado');
+  if (['UNKNOWN', 'NO_DATA', 'DISABLED'].includes(item.video_status)) issues.push('Vídeo precisa ser verificado');
+  if (item.update_status === 'NOT_UPDATED') issues.push('Produto não atualizado');
+  if (['REVIEW', 'NO_DATA'].includes(item.update_status)) issues.push('Atualização precisa ser verificada');
+  if (!item.listing_url) issues.push('Sem link do anúncio');
+  if (['UNVERIFIED', 'NO_LISTING'].includes(item.listing_status)) issues.push('Status do anúncio não confirmado');
+  return issues;
+}
+
+function DetailDrawer({ item, detail, detailLoading, detailError, onClose }) {
   if (!item) return null;
+  const issues = issueList(item);
+  const platforms = Array.isArray(detail?.platforms) ? detail.platforms : [];
+
   return (
     <div className="commerce-management-backdrop" onClick={onClose}>
       <aside className="commerce-management-drawer" onClick={event => event.stopPropagation()}>
@@ -97,10 +114,25 @@ function DetailDrawer({ item, onClose }) {
           </div>
         </div>
 
+        {issues.length ? (
+          <section className="commerce-management-pending">
+            <div>
+              <span>Pendências</span>
+              <strong>{issues.length}</strong>
+            </div>
+            <ul>{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>
+          </section>
+        ) : (
+          <section className="commerce-management-pending ok">
+            <div><span>Pendências</span><strong>0</strong></div>
+            <p>Sem pendências básicas nesta linha.</p>
+          </section>
+        )}
+
         <div className="commerce-management-drawer-grid">
           <div><span>Categoria</span><strong>{item.category_name || '—'}</strong></div>
           <div><span>Ano</span><strong>{item.edition_year || '—'}</strong></div>
-          <div><span>Produto Mestre</span><strong>{item.product_id ? `#${item.product_id}` : 'Sem vínculo'}</strong></div>
+          <div><span>Produto Mestre</span><strong>{detail?.product?.id ? `#${detail.product.id} · ${detail.product.current_sku || ''}` : item.product_id ? `#${item.product_id}` : 'Sem vínculo'}</strong></div>
           <div><span>Anúncio interno</span><strong>{item.listing_id ? `#${item.listing_id}` : 'Ainda não criado'}</strong></div>
           <div><span>Atualizado</span><ManagementPill value={item.update_status} labels={UPDATE_LABELS} /></div>
           <div><span>Vídeo</span><ManagementPill value={item.video_status} labels={VIDEO_LABELS} /></div>
@@ -108,8 +140,46 @@ function DetailDrawer({ item, onClose }) {
           <div><span>Vínculo</span><ManagementPill value={item.relation_status} labels={RELATION_LABELS} /></div>
         </div>
 
+        <section className="commerce-management-cross-platform">
+          <div className="commerce-management-section-title">
+            <span>Mesmo produto em outras plataformas</span>
+            {detail?.product?.name ? <small>{detail.product.name}</small> : null}
+          </div>
+
+          {detailLoading ? <p className="commerce-management-detail-state">Carregando plataformas…</p> : null}
+          {detailError ? <p className="commerce-management-detail-state error">{detailError}</p> : null}
+          {!detailLoading && !detailError && platforms.length === 0 ? (
+            <p className="commerce-management-detail-state">Nenhuma relação segura encontrada em outra plataforma.</p>
+          ) : null}
+
+          {!detailLoading && !detailError ? platforms.map(platform => (
+            <article className="commerce-management-platform-card" key={platform.source_code}>
+              <div className="commerce-management-platform-card-head">
+                <strong>{platform.label}</strong>
+                <span>{platform.item_count} {Number(platform.item_count) === 1 ? 'item' : 'itens'}</span>
+              </div>
+              <div className="commerce-management-platform-items">
+                {(platform.items || []).map(related => (
+                  <div className="commerce-management-platform-item" key={related.source_row_id}>
+                    <div>
+                      <code>{related.sku || 'SKU não informado'}</code>
+                      <small>{related.product_name || 'Produto sem nome'}</small>
+                    </div>
+                    <div className="commerce-management-platform-status">
+                      <ManagementPill value={related.update_status} labels={UPDATE_LABELS} />
+                      <ManagementPill value={related.video_status} labels={VIDEO_LABELS} />
+                      <ManagementPill value={related.relation_status} labels={RELATION_LABELS} />
+                    </div>
+                    {related.listing_url ? <a href={related.listing_url} target="_blank" rel="noreferrer">Abrir</a> : <span className="commerce-management-no-link">Sem link</span>}
+                  </div>
+                ))}
+              </div>
+            </article>
+          )) : null}
+        </section>
+
         <div className="commerce-management-drawer-actions">
-          {item.listing_url ? <a href={item.listing_url} target="_blank" rel="noreferrer">Abrir anúncio</a> : <span>Link não disponível nesta fonte.</span>}
+          {item.listing_url ? <a href={item.listing_url} target="_blank" rel="noreferrer">Abrir anúncio desta plataforma</a> : <span>Link não disponível nesta fonte.</span>}
         </div>
       </aside>
     </div>
@@ -129,6 +199,9 @@ export default function CommerceManagementView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
 
   async function load(nextOffset = 0) {
     setLoading(true);
@@ -157,6 +230,29 @@ export default function CommerceManagementView() {
   }
 
   useEffect(() => { load(0); }, [source, updateStatus, videoStatus, imageStatus, relationStatus, submittedSearch]);
+
+  async function loadDetail(sourceRowId) {
+    if (!sourceRowId) return;
+    setDetailLoading(true);
+    setDetailError('');
+    setDetail(null);
+    try {
+      setDetail(await commerceApi(`/api/admin/commerce/management/${sourceRowId}/details`));
+    } catch (err) {
+      setDetailError(err.message || 'Não foi possível carregar as outras plataformas.');
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (selected?.source_row_id) loadDetail(selected.source_row_id);
+    else {
+      setDetail(null);
+      setDetailError('');
+      setDetailLoading(false);
+    }
+  }, [selected?.source_row_id]);
 
   const items = Array.isArray(data?.items) ? data.items : [];
   const total = Number(data?.pagination?.total || 0);
@@ -303,7 +399,13 @@ export default function CommerceManagementView() {
         </div>
       </section>
 
-      <DetailDrawer item={selected} onClose={() => setSelected(null)} />
+      <DetailDrawer
+        item={selected}
+        detail={detail}
+        detailLoading={detailLoading}
+        detailError={detailError}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }
