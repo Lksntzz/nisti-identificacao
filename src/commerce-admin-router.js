@@ -152,7 +152,7 @@ export async function handleCommerceAdminRequest(request, env) {
       return json(await commerceManagementSummary(env, query(url, 'source') || 'AMAZON'));
     }
 
-    const managementDetailMatch = pathname.match(/^\\/api\\/admin\\/commerce\\/management\\/(\\d+)\\/details$/);
+    const managementDetailMatch = pathname.match(/^\/api\/admin\/commerce\/management\/(\d+)\/details$/);
     if (method === 'GET' && managementDetailMatch) {
       const sourceRowId = positiveId(managementDetailMatch[1]);
       if (!sourceRowId) return json({ error: 'source_row_id inválido.' }, 400);
