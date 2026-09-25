@@ -127,7 +127,8 @@ test('fila ambígua compara candidatos e resolve somente no preview', () => {
   const css = read('src/commerce-management.css');
   const sql = read('supabase/migrations/20260925191500_commerce_management_link_review_v1.sql');
 
-  assert.equal(router.includes('/management/link-review/'), true);
+  assert.equal(router.includes('managementLinkReviewMatch'), true);
+  assert.equal(router.includes('managementLinkResolveMatch'), true);
   assert.equal(router.includes('commercePreviewSandbox(env)'), true);
   assert.equal(router.includes('commerce_preview_only'), true);
   assert.equal(store.includes("'commerce_management_link_candidates_v1'"), true);
