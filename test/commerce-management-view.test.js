@@ -97,3 +97,24 @@ test('resumo simplificado é leve e não mostra zero falso', () => {
   assert.equal(view.includes('Indicadores indisponíveis no momento.'), true);
   assert.equal(view.includes('Tentar novamente'), true);
 });
+
+
+test('Gestão separa ambíguos e itens sem candidato seguro', () => {
+  const store = read('src/commerce-supabase-store.js');
+  const view = read('src/commerce-management-view.jsx');
+  const css = read('src/commerce-management.css');
+  const sql = read('supabase/migrations/20260925190000_commerce_management_link_audit_v1.sql');
+
+  assert.equal(store.includes("'commerce_management_products_v2'"), true);
+  assert.equal(sql.includes("'SAFE_CANDIDATE'"), true);
+  assert.equal(sql.includes("'AMBIGUOUS'"), true);
+  assert.equal(sql.includes("'NO_CANDIDATE'"), true);
+  assert.equal(sql.includes('commerce_preview_source_rows'), true);
+  assert.equal(sql.includes('exact name + category + year'), true);
+  assert.equal(view.includes('Ambíguo'), true);
+  assert.equal(view.includes('Sem candidato seguro'), true);
+  assert.equal(view.includes('summary?.ambiguous_candidates'), true);
+  assert.equal(view.includes('summary?.no_safe_candidate'), true);
+  assert.equal(css.includes('.commerce-link-review.ambiguous'), true);
+  assert.equal(css.includes('.commerce-link-review.no_candidate'), true);
+});
