@@ -131,7 +131,9 @@ function PlatformDrawer({ selection, onClose }) {
                       ? `Outra plataforma${item.image_source_marketplace_name ? ` · ${item.image_source_marketplace_name}` : ''}`
                       : item.image_source === 'NISTI_ID'
                         ? 'NISTI ID'
-                        : 'Sem foto'}
+                        : item.image_source === 'GS_REFERENCE'
+                          ? 'GS · imagem de referência'
+                          : 'Sem foto'}
                 </strong>
                 {item.image_source_sku ? <code>{item.image_source_sku}</code> : null}
               </div>
