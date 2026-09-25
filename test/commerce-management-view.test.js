@@ -290,3 +290,15 @@ test('reconciliação mantém capa exata e coleção apenas como revisão', () =
   assert.equal(sql.includes('COVER_COLLECTION'), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
+
+
+test('NISTI ID só cria mestre para capa exata unívoca', () => {
+  const sql = read('supabase/migrations/20260925215500_commerce_preview_nisti_exact_cover_reconciliation.sql');
+
+  assert.equal(sql.includes("->>'signature'=u.pattern->>'signature'"), true);
+  assert.equal(sql.includes('where c.n=1'), true);
+  assert.equal(sql.includes("pml.source_kind='NISTI_ID'"), true);
+  assert.equal(sql.includes("'NISTI_ID'"), true);
+  assert.equal(sql.includes('preview exact-cover match to NISTI ID'), true);
+  assert.equal(sql.includes('base_signature'), false);
+});
