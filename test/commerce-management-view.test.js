@@ -151,3 +151,19 @@ test('prioridade é aplicada antes da paginação da Gestão', () => {
   assert.equal(sql.includes("r.normalized_video_status in ('UNKNOWN','NO_DATA','DISABLED')"), true);
   assert.equal(sql.includes('r.source_row_number'), true);
 });
+
+
+test('preview da Gestão usa sandbox comercial isolado', () => {
+  const workflow = read('.github/workflows/commerce-preview.yml');
+  const rpc = read('src/commerce-rpc.js');
+  const sql = read('supabase/migrations/20260925181500_commerce_preview_management_v1.sql');
+
+  assert.equal(workflow.includes("feat/commerce-management"), true);
+  assert.equal(rpc.includes("return name.replace(/^commerce_/, 'commerce_preview_')"), true);
+  assert.equal(sql.includes('commerce_preview_management_rows_v1'), true);
+  assert.equal(sql.includes('commerce_preview_management_summary_v1'), true);
+  assert.equal(sql.includes('commerce_preview_management_detail_v1'), true);
+  assert.equal(sql.includes('commerce_preview_management_filter_options_v1'), true);
+  assert.equal(sql.includes('commerce_preview_source_files'), true);
+  assert.equal(sql.includes("preview_snapshot"), true);
+});
