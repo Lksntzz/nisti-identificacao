@@ -13,6 +13,8 @@ import {
   commerceImportRows,
   commerceListings,
   commerceManagement,
+  commerceManagementProducts,
+  commerceManagementProductSummary,
   commerceManagementDetail,
   commerceManagementFilterOptions,
   commerceManagementSummary,
@@ -125,6 +127,22 @@ export async function handleCommerceAdminRequest(request, env) {
         listings: Number(dashboard?.listings || 0),
         commit_enabled: commerceCommitEnabled(env)
       });
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management/products`) {
+      const result = await commerceManagementProducts(env, {
+        search: query(url, 'search'),
+        category: query(url, 'category'),
+        year: query(url, 'year'),
+        presence: query(url, 'presence') || 'LINKED',
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      });
+      return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management/product-summary`) {
+      return json(await commerceManagementProductSummary(env));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/management`) {
