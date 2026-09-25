@@ -48,7 +48,7 @@ test('API expõe cards e resumo da Gestão simplificada', () => {
 
   assert.equal(router.includes('/management/products'), true);
   assert.equal(router.includes('/management/product-summary'), true);
-  assert.equal(store.includes("'commerce_management_products_v1'"), true);
+  assert.equal(store.includes("'commerce_management_products_v2'"), true);
   assert.equal(store.includes("'commerce_management_product_summary_v1'"), true);
   assert.equal(store.includes("p_presence: cleanText(filters.presence) || 'LINKED'"), true);
 });
