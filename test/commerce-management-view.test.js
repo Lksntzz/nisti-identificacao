@@ -192,3 +192,18 @@ test('consulta dos cards expande o GS uma vez e evita fallback N+1', () => {
   assert.equal(sql.includes('commerce_image_years_compatible'), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
+
+
+test('imagem quebrada troca automaticamente para fallback GS', () => {
+  const view = read('src/commerce-management-view.jsx');
+  const sql = read('supabase/migrations/20260925204000_preview_image_render_fallback.sql');
+
+  assert.equal(view.includes('fallbackSrc = null'), true);
+  assert.equal(view.includes('onError={() =>'), true);
+  assert.equal(view.includes('setActiveSrc(fallbackSrc)'), true);
+  assert.equal(view.includes('cardImageFallback(card)'), true);
+  assert.equal(view.includes('fallbackSrc={item.fallback_image_url}'), true);
+  assert.equal(sql.includes("'fallback_image_url',ar.fallback_image_url"), true);
+  assert.equal(sql.includes('commerce_image_years_compatible'), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
