@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   preview:
-    if: github.head_ref == 'feat/catalogo-comercial-v1'
+    if: github.head_ref == 'feat/catalogo-comercial-v1' || github.head_ref == 'feat/commerce-management'
     name: Test, build and upload Worker preview
     runs-on: ubuntu-latest
     timeout-minutes: 15
