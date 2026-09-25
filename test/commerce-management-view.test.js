@@ -107,3 +107,20 @@ test('Gestão possui filtros completos por plataforma', () => {
   assert.equal(view.includes("setRelationStatus('NEEDS_REVIEW')"), true);
   assert.equal(view.includes('Limpar filtros'), true);
 });
+
+
+test('linhas da Gestão destacam atenção visualmente', () => {
+  const view = read('src/commerce-management-view.jsx');
+  const css = read('src/commerce-management.css');
+
+  assert.equal(view.includes('function rowVisualState(item)'), true);
+  assert.equal(view.includes("level: 'attention'"), true);
+  assert.equal(view.includes("level: 'review'"), true);
+  assert.equal(view.includes("level: 'ok'"), true);
+  assert.equal(view.includes('commerce-management-row-state'), true);
+  assert.equal(view.includes('commerce-management-product-cell'), true);
+  assert.equal(css.includes('.commerce-management-row.attention'), true);
+  assert.equal(css.includes('.commerce-management-row.review'), true);
+  assert.equal(css.includes('.commerce-management-row.ok'), true);
+  assert.equal(css.includes('position:sticky'), true);
+});
