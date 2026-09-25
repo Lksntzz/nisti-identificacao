@@ -145,6 +145,7 @@ export default function CommerceManagementView() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
   const [error, setError] = useState('');
   const [selection, setSelection] = useState(null);
 
@@ -172,10 +173,12 @@ export default function CommerceManagementView() {
 
   async function loadSummary() {
     setSummaryLoading(true);
+    setSummaryError('');
     try {
       setSummary(await commerceApi('/api/admin/commerce/management/product-summary'));
-    } catch {
+    } catch (err) {
       setSummary(null);
+      setSummaryError(err.message || 'Não foi possível carregar os indicadores.');
     } finally {
       setSummaryLoading(false);
     }
@@ -211,11 +214,17 @@ export default function CommerceManagementView() {
           {metrics.map(([code, label, value]) => (
             <button type="button" key={code} className={presence === code ? 'active' : ''} onClick={() => setPresence(code)}>
               <span>{label}</span>
-              <strong>{summaryLoading ? '…' : commerceFormatNumber(value)}</strong>
+              <strong>{summaryLoading ? '…' : summaryError ? '—' : commerceFormatNumber(value)}</strong>
               <small>{code === 'MULTI' ? '2 ou mais plataformas' : code === 'EXCLUSIVE' ? 'somente 1 plataforma' : code === 'UNLINKED' ? 'precisam de vínculo' : 'Produtos Mestre cruzados'}</small>
             </button>
           ))}
         </div>
+        {summaryError ? (
+          <div className="commerce-management-summary-warning">
+            Indicadores indisponíveis no momento.
+            <button type="button" onClick={loadSummary}>Tentar novamente</button>
+          </div>
+        ) : null}
       </section>
 
       <section className="commerce-panel commerce-management-catalog">
