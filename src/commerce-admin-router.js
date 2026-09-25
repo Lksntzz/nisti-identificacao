@@ -16,6 +16,8 @@ import {
   commerceManagementProducts,
   commerceManagementProductSummary,
   commerceManagementDetail,
+  commerceManagementLinkCandidates,
+  commerceResolveManagementLink,
   commerceManagementFilterOptions,
   commerceManagementSummary,
   commerceProducts,
@@ -66,6 +68,11 @@ function operatorName(request) {
 function positiveId(value) {
   const id = Number(value || 0);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function commercePreviewSandbox(env) {
+  return String(env?.APP_ENV || '').trim().toLowerCase() === 'preview'
+    && String(env?.COMMERCE_DATA_SCOPE || '').trim().toLowerCase() === 'preview';
 }
 
 function commerceCommitEnabled(env) {
@@ -143,6 +150,30 @@ export async function handleCommerceAdminRequest(request, env) {
 
     if (method === 'GET' && pathname === `${BASE_PATH}/management/product-summary`) {
       return json(await commerceManagementProductSummary(env));
+    }
+
+    const managementLinkReviewMatch = pathname.match(/^\/api\/admin\/commerce\/management\/link-review\/(\d+)$/);
+    if (method === 'GET' && managementLinkReviewMatch) {
+      const sourceRowId = positiveId(managementLinkReviewMatch[1]);
+      if (!sourceRowId) return json({ error: 'source_row_id inválido.' }, 400);
+      return json(await commerceManagementLinkCandidates(env, sourceRowId));
+    }
+
+    const managementLinkResolveMatch = pathname.match(/^\/api\/admin\/commerce\/management\/link-review\/(\d+)\/resolve$/);
+    if (method === 'POST' && managementLinkResolveMatch) {
+      if (!commercePreviewSandbox(env)) {
+        return json({
+          error: 'A decisão de vínculo está habilitada somente no preview de homologação.',
+          technical_error: 'commerce_preview_only',
+          retryable: false
+        }, 409);
+      }
+      const sourceRowId = positiveId(managementLinkResolveMatch[1]);
+      const body = await bodyJson(request);
+      const productId = positiveId(body?.product_id);
+      if (!sourceRowId) return json({ error: 'source_row_id inválido.' }, 400);
+      if (!productId) return json({ error: 'product_id é obrigatório.' }, 400);
+      return json(await commerceResolveManagementLink(env, sourceRowId, productId, operatorName(request)));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/management`) {
