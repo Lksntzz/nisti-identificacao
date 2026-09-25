@@ -73,6 +73,31 @@ export async function commerceListings(env, filters = {}) {
   };
 }
 
+export async function commerceManagement(env, filters = {}) {
+  const limit = cleanPageSize(filters.limit);
+  const offset = cleanOffset(filters.offset);
+  const year = Number(filters.year || 0);
+  const rows = await supabaseRpc(env, 'commerce_management_rows_v1', {
+    p_source_code: cleanText(filters.source) || 'AMAZON',
+    p_search: cleanText(filters.search),
+    p_category: cleanText(filters.category),
+    p_update_status: cleanText(filters.updateStatus),
+    p_video_status: cleanText(filters.videoStatus),
+    p_listing_status: cleanText(filters.listingStatus),
+    p_image_status: cleanText(filters.imageStatus),
+    p_relation_status: cleanText(filters.relationStatus),
+    p_year: Number.isInteger(year) && year > 0 ? year : null,
+    p_limit: limit,
+    p_offset: offset
+  });
+
+  return {
+    items: Array.isArray(rows) ? rows : [],
+    limit,
+    offset
+  };
+}
+
 export async function commerceImportBatches(env, filters = {}) {
   const limit = cleanPageSize(filters.limit, 30);
   const offset = cleanOffset(filters.offset);
