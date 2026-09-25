@@ -136,3 +136,18 @@ test('Gestão ordena itens por prioridade visual', () => {
   assert.equal(view.includes('{orderedItems.map(item => {'), true);
   assert.equal(view.includes('source_row_number || a.source_row_id'), true);
 });
+
+
+test('prioridade é aplicada antes da paginação da Gestão', () => {
+  const sql = read('supabase/migrations/20260925180500_commerce_management_priority_order.sql');
+
+  const orderIndex = sql.indexOf('order by');
+  const limitIndex = sql.indexOf('limit least');
+  assert.equal(orderIndex >= 0, true);
+  assert.equal(limitIndex > orderIndex, true);
+  assert.equal(sql.includes("r.resolved_image_url is null"), true);
+  assert.equal(sql.includes("r.normalized_relation_status='UNMATCHED'"), true);
+  assert.equal(sql.includes("r.normalized_update_status='NOT_UPDATED'"), true);
+  assert.equal(sql.includes("r.normalized_video_status in ('UNKNOWN','NO_DATA','DISABLED')"), true);
+  assert.equal(sql.includes('r.source_row_number'), true);
+});
