@@ -14,6 +14,7 @@ import {
   commerceListings,
   commerceManagement,
   commerceManagementDetail,
+  commerceManagementFilterOptions,
   commerceManagementSummary,
   commerceProducts,
   commerceProductDetail,
@@ -141,6 +142,10 @@ export async function handleCommerceAdminRequest(request, env) {
         offset: query(url, 'offset')
       });
       return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management/options`) {
+      return json(await commerceManagementFilterOptions(env, query(url, 'source') || 'AMAZON'));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/management/summary`) {
