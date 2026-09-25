@@ -227,3 +227,37 @@ test('fila Revisão GS prioriza referências GS e vínculos seguros', () => {
   assert.equal(sql.includes('>= 0.90'), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
+
+
+test('padrão de SKU preserva a capa específica e ignora ano/acabamento', () => {
+  const sql = read('supabase/migrations/20260925212000_commerce_preview_sku_cover_matching.sql');
+
+  assert.equal(sql.includes('commerce_sku_pattern_v1'), true);
+  assert.equal(sql.includes("'cover_base'"), true);
+  assert.equal(sql.includes("'cover_variant'"), true);
+  assert.equal(sql.includes("'signature'"), true);
+  assert.equal(sql.includes("'base_signature'"), true);
+  assert.equal(sql.includes('preview SKU exact-cover link: same family + exact cover, year/finish ignored'), true);
+  assert.equal(sql.includes("ps.sku)->>'signature'=u.signature"), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
+
+test('Revisão SKU mostra capa, variação e candidatos sem unir capas automaticamente', () => {
+  const view = read('src/commerce-management-view.jsx');
+  const css = read('src/commerce-management.css');
+  const sql = read('supabase/migrations/20260925212000_commerce_preview_sku_cover_matching.sql');
+
+  assert.equal(view.includes("SKU_REVIEW: 'Revisão SKU'"), true);
+  assert.equal(view.includes("setPresence('SKU_REVIEW')"), true);
+  assert.equal(view.includes('Padrão detectado do SKU'), true);
+  assert.equal(view.includes('Coleção/base'), true);
+  assert.equal(view.includes('A numeração da capa é preservada'), true);
+  assert.equal(view.includes('Revisar capa'), true);
+  assert.equal(view.includes('Capa exata no SKU Mestre'), true);
+  assert.equal(view.includes('Mesma coleção de capas'), true);
+  assert.equal(css.includes('.commerce-sku-pattern'), true);
+  assert.equal(css.includes('.commerce-sku-card-badge'), true);
+  assert.equal(sql.includes("'SKU_REVIEW'"), true);
+  assert.equal(sql.includes("'COVER_COLLECTION'"), true);
+  assert.equal(sql.includes('commerce_preview_management_resolve_link_v1'), true);
+});
