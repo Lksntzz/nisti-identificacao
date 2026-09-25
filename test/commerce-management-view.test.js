@@ -49,7 +49,7 @@ test('API expõe cards e resumo da Gestão simplificada', () => {
   assert.equal(router.includes('/management/products'), true);
   assert.equal(router.includes('/management/product-summary'), true);
   assert.equal(store.includes("'commerce_management_products_v2'"), true);
-  assert.equal(store.includes("'commerce_management_product_summary_v1'"), true);
+  assert.equal(store.includes("'commerce_management_product_summary_v2'"), true);
   assert.equal(store.includes("p_presence: cleanText(filters.presence) || 'LINKED'"), true);
 });
 
@@ -131,7 +131,7 @@ test('fila ambígua compara candidatos e resolve somente no preview', () => {
   assert.equal(router.includes('managementLinkResolveMatch'), true);
   assert.equal(router.includes('commercePreviewSandbox(env)'), true);
   assert.equal(router.includes('commerce_preview_only'), true);
-  assert.equal(store.includes("'commerce_management_link_candidates_v1'"), true);
+  assert.equal(store.includes("'commerce_management_link_candidates_v2'"), true);
   assert.equal(store.includes("'commerce_management_resolve_link_v1'"), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
   assert.equal(sql.includes('commerce_preview_management_resolve_link_v1'), true);
@@ -142,4 +142,25 @@ test('fila ambígua compara candidatos e resolve somente no preview', () => {
   assert.equal(view.includes('Homologação: a escolha abaixo altera somente o sandbox/preview.'), true);
   assert.equal(css.includes('.commerce-link-candidates'), true);
   assert.equal(css.includes('.commerce-link-candidate'), true);
+});
+
+
+test('referência GS aparece na investigação sem virar plataforma', () => {
+  const store = read('src/commerce-supabase-store.js');
+  const view = read('src/commerce-management-view.jsx');
+  const css = read('src/commerce-management.css');
+  const sql = read('supabase/migrations/20260925194500_commerce_management_gs_reference_v2.sql');
+
+  assert.equal(store.includes("'commerce_management_link_candidates_v2'"), true);
+  assert.equal(store.includes("'commerce_management_product_summary_v2'"), true);
+  assert.equal(view.includes('Referência oficial GS'), true);
+  assert.equal(view.includes('GTIN / EAN'), true);
+  assert.equal(view.includes('Investigar vínculo'), true);
+  assert.equal(view.includes('summary?.gs_reference_matches'), true);
+  assert.equal(css.includes('.commerce-gs-reference'), true);
+  assert.equal(sql.includes('GS_REFERENCIA'), true);
+  assert.equal(sql.includes("'gs_reference'"), true);
+  assert.equal(sql.includes("'gs_reference_matches'"), true);
+  assert.equal(sql.includes('commerce_preview_source_rows'), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
