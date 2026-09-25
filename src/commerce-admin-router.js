@@ -12,6 +12,7 @@ import {
   commerceImportBatches,
   commerceImportRows,
   commerceListings,
+  commerceManagement,
   commerceProducts,
   commerceProductDetail,
   commerceShopeeSnapshot,
@@ -121,6 +122,23 @@ export async function handleCommerceAdminRequest(request, env) {
         listings: Number(dashboard?.listings || 0),
         commit_enabled: commerceCommitEnabled(env)
       });
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management`) {
+      const result = await commerceManagement(env, {
+        source: query(url, 'source') || 'AMAZON',
+        search: query(url, 'search'),
+        category: query(url, 'category'),
+        updateStatus: query(url, 'update_status'),
+        videoStatus: query(url, 'video_status'),
+        listingStatus: query(url, 'listing_status'),
+        imageStatus: query(url, 'image_status'),
+        relationStatus: query(url, 'relation_status'),
+        year: query(url, 'year'),
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      });
+      return json(paginationPayload(result));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/products`) {
