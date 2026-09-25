@@ -126,3 +126,7 @@
 .commerce-gs-aliases code{background:#fff;border:1px solid #cbd5e1;border-radius:999px;padding:5px 7px;font-size:8px}
 .commerce-gs-reference-empty{margin:14px 22px 0;border:1px dashed #cbd5e1;border-radius:10px;padding:10px 12px;color:#64748b;font-size:9px;text-align:center}
 @media(max-width:640px){.commerce-gs-reference-body{grid-template-columns:90px minmax(0,1fr)}.commerce-gs-reference-body>div{grid-template-columns:1fr}}
+
+.commerce-gs-review-filter{border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;border-radius:999px;padding:6px 9px;font:inherit;font-size:8.5px;font-weight:900;cursor:pointer}
+.commerce-gs-review-filter:hover,.commerce-gs-review-filter.active{background:#3730a3;color:#fff;border-color:#3730a3}
+.commerce-gs-card-badge{position:absolute;right:8px;top:8px;display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:24px;border-radius:999px;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;font-size:8px;font-weight:950;letter-spacing:.03em}
