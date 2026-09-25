@@ -190,10 +190,14 @@ export default function CommerceManagementView() {
   const [source, setSource] = useState('AMAZON');
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
+  const [category, setCategory] = useState('');
+  const [year, setYear] = useState('');
+  const [listingStatus, setListingStatus] = useState('');
   const [updateStatus, setUpdateStatus] = useState('');
   const [videoStatus, setVideoStatus] = useState('');
   const [imageStatus, setImageStatus] = useState('');
   const [relationStatus, setRelationStatus] = useState('');
+  const [filterOptions, setFilterOptions] = useState({ categories: [], years: [], listing_statuses: [] });
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState({ items: [], pagination: { total: 0, limit: 50, offset: 0 } });
   const [loading, setLoading] = useState(true);
@@ -215,6 +219,9 @@ export default function CommerceManagementView() {
       offset: String(nextOffset)
     });
     if (submittedSearch) params.set('search', submittedSearch);
+    if (category) params.set('category', category);
+    if (year) params.set('year', year);
+    if (listingStatus) params.set('listing_status', listingStatus);
     if (updateStatus) params.set('update_status', updateStatus);
     if (videoStatus) params.set('video_status', videoStatus);
     if (imageStatus) params.set('image_status', imageStatus);
@@ -232,7 +239,20 @@ export default function CommerceManagementView() {
     }
   }
 
-  useEffect(() => { load(0); }, [source, updateStatus, videoStatus, imageStatus, relationStatus, submittedSearch]);
+  useEffect(() => { load(0); }, [source, category, year, listingStatus, updateStatus, videoStatus, imageStatus, relationStatus, submittedSearch]);
+
+  async function loadFilterOptions() {
+    try {
+      const result = await commerceApi(`/api/admin/commerce/management/options?source=${encodeURIComponent(source)}`);
+      setFilterOptions({
+        categories: Array.isArray(result?.categories) ? result.categories : [],
+        years: Array.isArray(result?.years) ? result.years : [],
+        listing_statuses: Array.isArray(result?.listing_statuses) ? result.listing_statuses : []
+      });
+    } catch {
+      setFilterOptions({ categories: [], years: [], listing_statuses: [] });
+    }
+  }
 
   async function loadSummary() {
     setSummaryLoading(true);
@@ -247,15 +267,30 @@ export default function CommerceManagementView() {
     }
   }
 
-  useEffect(() => { loadSummary(); }, [source]);
+  useEffect(() => {
+    loadSummary();
+    loadFilterOptions();
+  }, [source]);
 
-  function applyMetricFilter(kind) {
+  function clearFilters() {
     setSearch('');
     setSubmittedSearch('');
+    setCategory('');
+    setYear('');
+    setListingStatus('');
     setUpdateStatus('');
     setVideoStatus('');
     setImageStatus('');
     setRelationStatus('');
+  }
+
+  function changeSource(code) {
+    clearFilters();
+    setSource(code);
+  }
+
+  function applyMetricFilter(kind) {
+    clearFilters();
 
     if (kind === 'with_image') setImageStatus('WITH_IMAGE');
     if (kind === 'without_image') setImageStatus('WITHOUT_IMAGE');
@@ -263,6 +298,7 @@ export default function CommerceManagementView() {
     if (kind === 'not_updated') setUpdateStatus('NOT_UPDATED');
     if (kind === 'with_video') setVideoStatus('ACTIVE');
     if (kind === 'without_video') setVideoStatus('ABSENT');
+    if (kind === 'verify') setRelationStatus('NEEDS_REVIEW');
     if (kind === 'unmatched') setRelationStatus('UNMATCHED');
   }
 
@@ -306,7 +342,7 @@ export default function CommerceManagementView() {
 
           <div className="commerce-management-source-tabs">
             {SOURCES.map(([code, label]) => (
-              <button type="button" key={code} className={source === code ? 'active' : ''} onClick={() => setSource(code)}>
+              <button type="button" key={code} className={source === code ? 'active' : ''} onClick={() => changeSource(code)}>
                 {label}
               </button>
             ))}
@@ -329,9 +365,9 @@ export default function CommerceManagementView() {
           <button type="button" onClick={() => applyMetricFilter('not_updated')}>
             <span>Não atualizados</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.not_updated || 0)}</strong><small>precisam de atualização</small>
           </button>
-          <article>
+          <button type="button" onClick={() => applyMetricFilter('verify')}>
             <span>Verificar</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.verify || 0)}</strong><small>vínculo ou atualização</small>
-          </article>
+          </button>
           <button type="button" onClick={() => applyMetricFilter('with_video')}>
             <span>Com vídeo</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.with_video || 0)}</strong><small>{commerceFormatNumber(summary?.video_review || 0)} a verificar</small>
           </button>
@@ -353,6 +389,18 @@ export default function CommerceManagementView() {
           </form>
 
           <div className="commerce-management-filters">
+            <select value={category} onChange={event => setCategory(event.target.value)}>
+              <option value="">Categoria: todas</option>
+              {filterOptions.categories.map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+            <select value={year} onChange={event => setYear(event.target.value)}>
+              <option value="">Ano: todos</option>
+              {filterOptions.years.map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+            <select value={listingStatus} onChange={event => setListingStatus(event.target.value)}>
+              <option value="">Status: todos</option>
+              {filterOptions.listing_statuses.map(value => <option key={value} value={value}>{LISTING_LABELS[value] || value}</option>)}
+            </select>
             <select value={updateStatus} onChange={event => setUpdateStatus(event.target.value)}>
               <option value="">Atualização: todos</option>
               <option value="UPDATED">Atualizados</option>
@@ -382,7 +430,9 @@ export default function CommerceManagementView() {
               <option value="CONFIRMED">Confirmados</option>
               <option value="REVIEW">Verificar</option>
               <option value="UNMATCHED">Sem vínculo</option>
+              <option value="NEEDS_REVIEW">Verificar pendências</option>
             </select>
+            <button type="button" className="commerce-management-clear-filters" onClick={clearFilters}>Limpar filtros</button>
           </div>
         </div>
 
