@@ -98,6 +98,15 @@ export async function commerceManagement(env, filters = {}) {
   };
 }
 
+export async function commerceManagementDetail(env, sourceRowId) {
+  const id = cleanId(sourceRowId);
+  if (!id) throw new Error('source_row_id inválido.');
+  const result = await supabaseRpc(env, 'commerce_management_detail_v1', {
+    p_source_row_id: id
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
 export async function commerceImportBatches(env, filters = {}) {
   const limit = cleanPageSize(filters.limit, 30);
   const offset = cleanOffset(filters.offset);
