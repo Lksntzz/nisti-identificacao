@@ -164,3 +164,18 @@ test('referência GS aparece na investigação sem virar plataforma', () => {
   assert.equal(sql.includes('commerce_preview_source_rows'), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
+
+
+test('fallback de imagem GS só preenche faltas e preserva regra de ano', () => {
+  const view = read('src/commerce-management-view.jsx');
+  const sql = read('supabase/migrations/20260925201500_commerce_preview_gs_image_fallback.sql');
+
+  assert.equal(sql.includes('commerce_preview_management_rows_v2'), true);
+  assert.equal(sql.includes("when b.image_url is not null then b.image_source"), true);
+  assert.equal(sql.includes("'GS_REFERENCE'"), true);
+  assert.equal(sql.includes('commerce_image_years_compatible'), true);
+  assert.equal(sql.includes("source_code='GS_REFERENCIA'"), true);
+  assert.equal(sql.includes('commerce_preview_management_rows_v2('), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+  assert.equal(view.includes('GS · imagem de referência'), true);
+});
