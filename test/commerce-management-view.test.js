@@ -207,3 +207,23 @@ test('imagem quebrada troca automaticamente para fallback GS', () => {
   assert.equal(sql.includes('commerce_image_years_compatible'), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
+
+
+test('fila Revisão GS prioriza referências GS e vínculos seguros', () => {
+  const view = read('src/commerce-management-view.jsx');
+  const css = read('src/commerce-management.css');
+  const sql = read('supabase/migrations/20260925205500_commerce_preview_gs_review_queue.sql');
+
+  assert.equal(view.includes("GS_REVIEW: 'Revisão GS'"), true);
+  assert.equal(view.includes("setPresence('GS_REVIEW')"), true);
+  assert.equal(view.includes('commerce-gs-card-badge'), true);
+  assert.equal(view.includes('summary.gs_reference_matches'), true);
+  assert.equal(css.includes('.commerce-gs-review-filter'), true);
+  assert.equal(css.includes('.commerce-gs-card-badge'), true);
+  assert.equal(sql.includes("'GS_REVIEW'"), true);
+  assert.equal(sql.includes('gs_reference_available'), true);
+  assert.equal(sql.includes('preview GS safe link: unique legacy SKU + compatible name'), true);
+  assert.equal(sql.includes('shared>=4'), true);
+  assert.equal(sql.includes('>= 0.90'), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
