@@ -36,3 +36,14 @@ test('Gestão separa fontes operacionais e mostra origem da imagem', () => {
   assert.equal(view.includes('Produto Mestre'), true);
   assert.equal(view.includes('Abrir anúncio'), true);
 });
+
+
+test('Gestão prioriza fonte curada sem alterar a fonte comercial original', () => {
+  const sql = read('supabase/migrations/20260925170600_commerce_management_curated_sources_v2.sql');
+  assert.equal(sql.includes("|| '_GESTAO'"), true);
+  assert.equal(sql.includes("linked_image_url"), true);
+  assert.equal(sql.includes("linked_image_reference"), true);
+  assert.equal(sql.includes("like '%IN STOCK%'"), true);
+  assert.equal(sql.includes("then 'ACTIVE'"), true);
+  assert.equal(sql.includes("then 'OTHER_MARKETPLACE'"), true);
+});
