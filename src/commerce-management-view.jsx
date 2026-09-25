@@ -39,7 +39,8 @@ const PRESENCE_LABELS = Object.freeze({
   LINKED: 'Todos vinculados',
   MULTI: 'Multiplataforma',
   EXCLUSIVE: 'Exclusivos',
-  UNLINKED: 'Para vincular'
+  UNLINKED: 'Para vincular',
+  GS_REVIEW: 'Revisão GS'
 });
 
 function tone(value) {
@@ -82,6 +83,14 @@ function ProductImage({ src, fallbackSrc = null, alt, large = false }) {
       }}
     />
   );
+}
+
+function hasGsReference(card) {
+  const platforms = Array.isArray(card?.platforms) ? card.platforms : [];
+  return platforms.some(platform => (
+    Array.isArray(platform?.items)
+      && platform.items.some(item => Boolean(item?.gs_reference_available))
+  ));
 }
 
 function cardImageFallback(card) {
@@ -453,6 +462,13 @@ export default function CommerceManagementView() {
           <div className="commerce-management-view-caption">
             <strong>{PRESENCE_LABELS[presence]}</strong>
             <span>{commerceFormatNumber(total)} resultados</span>
+            {Number(summary?.gs_reference_matches || 0) > 0 ? (
+              presence === 'GS_REVIEW'
+                ? <button type="button" className="commerce-gs-review-filter active" onClick={() => setPresence('UNLINKED')}>Voltar para todos pendentes</button>
+                : ['UNLINKED', 'LINKED', 'MULTI', 'EXCLUSIVE'].includes(presence)
+                  ? <button type="button" className="commerce-gs-review-filter" onClick={() => setPresence('GS_REVIEW')}>Revisão GS · {commerceFormatNumber(summary.gs_reference_matches)}</button>
+                  : null
+            ) : null}
           </div>
         </div>
 
@@ -469,6 +485,7 @@ export default function CommerceManagementView() {
                     <span className={`commerce-presence-badge ${String(card.presence_type || '').toLowerCase()}`}>
                       {card.presence_type === 'MULTI' ? 'Multiplataforma' : card.presence_type === 'EXCLUSIVE' ? 'Exclusivo' : 'Para vincular'}
                     </span>
+                    {hasGsReference(card) ? <span className="commerce-gs-card-badge">GS</span> : null}
                   </div>
 
                   <div className="commerce-product-card-body">
