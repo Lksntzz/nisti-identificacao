@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { commerceApi } from './commerce-admin-api.js';
 import { CommerceLoadingBlock, commerceFormatNumber } from './commerce-admin-shared.jsx';
 import './commerce-management.css';
@@ -198,6 +198,9 @@ export default function CommerceManagementView() {
   const [data, setData] = useState({ items: [], pagination: { total: 0, limit: 50, offset: 0 } });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -231,6 +234,38 @@ export default function CommerceManagementView() {
 
   useEffect(() => { load(0); }, [source, updateStatus, videoStatus, imageStatus, relationStatus, submittedSearch]);
 
+  async function loadSummary() {
+    setSummaryLoading(true);
+    setSummaryError('');
+    try {
+      setSummary(await commerceApi(`/api/admin/commerce/management/summary?source=${encodeURIComponent(source)}`));
+    } catch (err) {
+      setSummary(null);
+      setSummaryError(err.message || 'Não foi possível carregar os indicadores.');
+    } finally {
+      setSummaryLoading(false);
+    }
+  }
+
+  useEffect(() => { loadSummary(); }, [source]);
+
+  function applyMetricFilter(kind) {
+    setSearch('');
+    setSubmittedSearch('');
+    setUpdateStatus('');
+    setVideoStatus('');
+    setImageStatus('');
+    setRelationStatus('');
+
+    if (kind === 'with_image') setImageStatus('WITH_IMAGE');
+    if (kind === 'without_image') setImageStatus('WITHOUT_IMAGE');
+    if (kind === 'updated') setUpdateStatus('UPDATED');
+    if (kind === 'not_updated') setUpdateStatus('NOT_UPDATED');
+    if (kind === 'with_video') setVideoStatus('ACTIVE');
+    if (kind === 'without_video') setVideoStatus('ABSENT');
+    if (kind === 'unmatched') setRelationStatus('UNMATCHED');
+  }
+
   async function loadDetail(sourceRowId) {
     if (!sourceRowId) return;
     setDetailLoading(true);
@@ -260,12 +295,6 @@ export default function CommerceManagementView() {
   const page = Math.floor(offset / limit) + 1;
   const pages = Math.max(1, Math.ceil(total / limit));
 
-  const pageStats = useMemo(() => ({
-    withImage: items.filter(item => item.image_url).length,
-    updated: items.filter(item => item.update_status === 'UPDATED').length,
-    review: items.filter(item => item.update_status === 'REVIEW' || item.relation_status !== 'CONFIRMED').length
-  }), [items]);
-
   return (
     <div className="commerce-management-page">
       <section className="commerce-panel commerce-management-hero">
@@ -285,11 +314,32 @@ export default function CommerceManagementView() {
         </div>
 
         <div className="commerce-management-metrics">
-          <article><span>Total</span><strong>{commerceFormatNumber(total)}</strong><small>na fonte selecionada</small></article>
-          <article><span>Com foto</span><strong>{commerceFormatNumber(pageStats.withImage)}</strong><small>nesta página</small></article>
-          <article><span>Atualizados</span><strong>{commerceFormatNumber(pageStats.updated)}</strong><small>nesta página</small></article>
-          <article><span>Verificar</span><strong>{commerceFormatNumber(pageStats.review)}</strong><small>nesta página</small></article>
+          <button type="button" onClick={() => applyMetricFilter('total')}>
+            <span>Total</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.total || 0)}</strong><small>produtos da plataforma</small>
+          </button>
+          <button type="button" onClick={() => applyMetricFilter('with_image')}>
+            <span>Com foto</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.with_image || 0)}</strong><small>imagem segura encontrada</small>
+          </button>
+          <button type="button" onClick={() => applyMetricFilter('without_image')}>
+            <span>Sem foto</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.without_image || 0)}</strong><small>precisam de imagem</small>
+          </button>
+          <button type="button" onClick={() => applyMetricFilter('updated')}>
+            <span>Atualizados</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.updated || 0)}</strong><small>marcados como atualizados</small>
+          </button>
+          <button type="button" onClick={() => applyMetricFilter('not_updated')}>
+            <span>Não atualizados</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.not_updated || 0)}</strong><small>precisam de atualização</small>
+          </button>
+          <article>
+            <span>Verificar</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.verify || 0)}</strong><small>vínculo ou atualização</small>
+          </article>
+          <button type="button" onClick={() => applyMetricFilter('with_video')}>
+            <span>Com vídeo</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.with_video || 0)}</strong><small>{commerceFormatNumber(summary?.video_review || 0)} a verificar</small>
+          </button>
+          <button type="button" onClick={() => applyMetricFilter('without_video')}>
+            <span>Sem vídeo</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.without_video || 0)}</strong><small>confirmados sem vídeo</small>
+          </button>
         </div>
+        {summaryError ? <div className="commerce-management-summary-error">{summaryError}</div> : null}
       </section>
 
       <section className="commerce-panel">
