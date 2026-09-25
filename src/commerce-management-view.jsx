@@ -59,6 +59,17 @@ function ProductImage({ src, alt, large = false }) {
   return <img className={`commerce-product-card-image ${large ? 'large' : ''}`} src={src} alt={alt || ''} loading="lazy" referrerPolicy="no-referrer" />;
 }
 
+function linkReviewText(card) {
+  if (card.presence_type !== 'UNLINKED') return null;
+  if (card.link_review_status === 'SAFE_CANDIDATE') {
+    return card.suggested_product_id ? `Sugestão segura · Produto Mestre #${card.suggested_product_id}` : 'Sugestão segura';
+  }
+  if (card.link_review_status === 'AMBIGUOUS') {
+    return `Ambíguo · ${card.candidate_count || 0} candidatos`;
+  }
+  return 'Sem candidato seguro';
+}
+
 function presenceText(card) {
   if (card.presence_type === 'MULTI') return `${card.platform_count} plataformas`;
   if (card.presence_type === 'EXCLUSIVE') {
@@ -215,7 +226,15 @@ export default function CommerceManagementView() {
             <button type="button" key={code} className={presence === code ? 'active' : ''} onClick={() => setPresence(code)}>
               <span>{label}</span>
               <strong>{summaryLoading ? '…' : summaryError ? '—' : commerceFormatNumber(value)}</strong>
-              <small>{code === 'MULTI' ? '2 ou mais plataformas' : code === 'EXCLUSIVE' ? 'somente 1 plataforma' : code === 'UNLINKED' ? 'precisam de vínculo' : 'Produtos Mestre cruzados'}</small>
+              <small>
+                {code === 'MULTI'
+                  ? '2 ou mais plataformas'
+                  : code === 'EXCLUSIVE'
+                    ? 'somente 1 plataforma'
+                    : code === 'UNLINKED'
+                      ? `${commerceFormatNumber(summary?.ambiguous_candidates || 0)} ambíguos · ${commerceFormatNumber(summary?.no_safe_candidate || 0)} sem candidato`
+                      : 'Produtos Mestre cruzados'}
+              </small>
             </button>
           ))}
         </div>
@@ -292,7 +311,9 @@ export default function CommerceManagementView() {
 
                     <div className="commerce-product-card-footer">
                       <strong>{presenceText(card)}</strong>
-                      {card.product_id ? <span>Produto Mestre #{card.product_id}</span> : <span>Vínculo pendente</span>}
+                      {card.product_id
+                        ? <span>Produto Mestre #{card.product_id}</span>
+                        : <span className={`commerce-link-review ${String(card.link_review_status || '').toLowerCase()}`}>{linkReviewText(card)}</span>}
                     </div>
                   </div>
                 </article>
