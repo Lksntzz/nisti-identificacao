@@ -124,3 +124,15 @@ test('linhas da Gestão destacam atenção visualmente', () => {
   assert.equal(css.includes('.commerce-management-row.ok'), true);
   assert.equal(css.includes('position:sticky'), true);
 });
+
+
+test('Gestão ordena itens por prioridade visual', () => {
+  const view = read('src/commerce-management-view.jsx');
+
+  assert.equal(view.includes('function rowPriority(item)'), true);
+  assert.equal(view.includes("state.level === 'attention'"), true);
+  assert.equal(view.includes("state.level === 'review'"), true);
+  assert.equal(view.includes('const orderedItems = [...items].sort'), true);
+  assert.equal(view.includes('{orderedItems.map(item => {'), true);
+  assert.equal(view.includes('source_row_number || a.source_row_id'), true);
+});
