@@ -118,3 +118,27 @@ test('Gestão separa ambíguos e itens sem candidato seguro', () => {
   assert.equal(css.includes('.commerce-link-review.ambiguous'), true);
   assert.equal(css.includes('.commerce-link-review.no_candidate'), true);
 });
+
+
+test('fila ambígua compara candidatos e resolve somente no preview', () => {
+  const router = read('src/commerce-admin-router.js');
+  const store = read('src/commerce-supabase-store.js');
+  const view = read('src/commerce-management-view.jsx');
+  const css = read('src/commerce-management.css');
+  const sql = read('supabase/migrations/20260925191500_commerce_management_link_review_v1.sql');
+
+  assert.equal(router.includes('/management/link-review/'), true);
+  assert.equal(router.includes('commercePreviewSandbox(env)'), true);
+  assert.equal(router.includes('commerce_preview_only'), true);
+  assert.equal(store.includes("'commerce_management_link_candidates_v1'"), true);
+  assert.equal(store.includes("'commerce_management_resolve_link_v1'"), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+  assert.equal(sql.includes('commerce_preview_management_resolve_link_v1'), true);
+  assert.equal(sql.includes('Produto candidato inválido para esta linha.'), true);
+  assert.equal(view.includes('Comparar'), true);
+  assert.equal(view.includes('Vincular a este no preview'), true);
+  assert.equal(view.includes('Revisão de vínculo'), true);
+  assert.equal(view.includes('Homologação: a escolha abaixo altera somente o sandbox/preview.'), true);
+  assert.equal(css.includes('.commerce-link-candidates'), true);
+  assert.equal(css.includes('.commerce-link-candidate'), true);
+});
