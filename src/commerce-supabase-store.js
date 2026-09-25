@@ -77,7 +77,7 @@ export async function commerceManagementProducts(env, filters = {}) {
   const limit = cleanPageSize(filters.limit, 24);
   const offset = cleanOffset(filters.offset);
   const year = Number(filters.year || 0);
-  const rows = await supabaseRpc(env, 'commerce_management_products_v1', {
+  const rows = await supabaseRpc(env, 'commerce_management_products_v2', {
     p_search: cleanText(filters.search),
     p_category: cleanText(filters.category),
     p_year: Number.isInteger(year) && year > 0 ? year : null,
