@@ -40,7 +40,8 @@ const PRESENCE_LABELS = Object.freeze({
   MULTI: 'Multiplataforma',
   EXCLUSIVE: 'Exclusivos',
   UNLINKED: 'Para vincular',
-  GS_REVIEW: 'Revisão GS'
+  GS_REVIEW: 'Revisão GS',
+  SKU_REVIEW: 'Revisão SKU'
 });
 
 function tone(value) {
@@ -83,6 +84,20 @@ function ProductImage({ src, fallbackSrc = null, alt, large = false }) {
       }}
     />
   );
+}
+
+function skuReviewMeta(card) {
+  const platforms = Array.isArray(card?.platforms) ? card.platforms : [];
+  for (const platform of platforms) {
+    const items = Array.isArray(platform?.items) ? platform.items : [];
+    const item = items.find(row => Boolean(row?.sku_review_available));
+    if (item) return item;
+  }
+  return null;
+}
+
+function hasSkuReview(card) {
+  return Boolean(skuReviewMeta(card));
 }
 
 function hasGsReference(card) {
@@ -200,7 +215,21 @@ function LinkReviewDrawer({ review, loading, error, saving, onClose, onResolve }
   if (!review) return null;
   const source = review.data?.source || null;
   const gsReference = review.data?.gs_reference || null;
-  const candidates = Array.isArray(review.data?.candidates) ? review.data.candidates : [];
+  const skuPattern = review.data?.sku_pattern || null;
+  const classicCandidates = Array.isArray(review.data?.candidates) ? review.data.candidates : [];
+  const skuCandidates = Array.isArray(review.data?.sku_candidates) ? review.data.sku_candidates : [];
+  const candidateMap = new Map();
+  [...classicCandidates, ...skuCandidates].forEach(candidate => {
+    const existing = candidateMap.get(candidate.product_id) || {};
+    candidateMap.set(candidate.product_id, {
+      ...candidate,
+      ...existing,
+      match_reason: candidate.match_reason || existing.match_reason || null,
+      image_url: existing.image_url || candidate.image_url || null,
+      platforms: (existing.platforms?.length ? existing.platforms : candidate.platforms) || []
+    });
+  });
+  const candidates = [...candidateMap.values()];
 
   return (
     <div className="commerce-management-backdrop" onClick={onClose}>
@@ -259,6 +288,24 @@ function LinkReviewDrawer({ review, loading, error, saving, onClose, onResolve }
           </div>
         )}
 
+        {skuPattern?.signature ? (
+          <section className="commerce-sku-pattern">
+            <div className="commerce-sku-pattern-head">
+              <span>Padrão detectado do SKU</span>
+              <code>{skuPattern.signature}</code>
+            </div>
+            <div className="commerce-sku-pattern-grid">
+              <div><span>Família</span><strong>{skuPattern.family || '—'}</strong></div>
+              <div><span>Capa</span><strong>{skuPattern.cover || '—'}</strong></div>
+              <div><span>Coleção/base</span><strong>{skuPattern.cover_base || '—'}</strong></div>
+              <div><span>Variação</span><strong>{skuPattern.cover_variant ?? '—'}</strong></div>
+              <div><span>Ano</span><strong>{skuPattern.year || '—'}</strong></div>
+              <div><span>Acabamento</span><strong>{skuPattern.finish || '—'}</strong></div>
+            </div>
+            <small>Ano e acabamento podem variar. A numeração da capa é preservada para o vínculo automático.</small>
+          </section>
+        ) : null}
+
         {loading ? <CommerceLoadingBlock label="Buscando Produtos Mestre candidatos…" /> : null}
         {error ? <div className="commerce-error commerce-management-error">{error}</div> : null}
 
@@ -271,6 +318,17 @@ function LinkReviewDrawer({ review, loading, error, saving, onClose, onResolve }
                 </div>
                 <div className="commerce-link-candidate-body">
                   <span>Produto Mestre #{candidate.product_id}</span>
+                  {candidate.match_reason ? (
+                    <em className={`commerce-sku-match-reason ${String(candidate.match_reason).toLowerCase()}`}>
+                      {candidate.match_reason === 'MASTER_SKU'
+                        ? 'Capa exata no SKU Mestre'
+                        : candidate.match_reason === 'LINKED_HISTORY'
+                          ? 'Capa exata no histórico'
+                          : candidate.match_reason === 'COVER_COLLECTION'
+                            ? 'Mesma coleção de capas'
+                            : 'Coleção encontrada no histórico'}
+                    </em>
+                  ) : null}
                   <h4>{candidate.product_name || 'Produto sem nome'}</h4>
                   <code>{candidate.master_sku || 'SKU não informado'}</code>
                   <div className="commerce-link-candidate-meta">
@@ -462,12 +520,18 @@ export default function CommerceManagementView() {
           <div className="commerce-management-view-caption">
             <strong>{PRESENCE_LABELS[presence]}</strong>
             <span>{commerceFormatNumber(total)} resultados</span>
-            {Number(summary?.gs_reference_matches || 0) > 0 ? (
-              presence === 'GS_REVIEW'
-                ? <button type="button" className="commerce-gs-review-filter active" onClick={() => setPresence('UNLINKED')}>Voltar para todos pendentes</button>
-                : ['UNLINKED', 'LINKED', 'MULTI', 'EXCLUSIVE'].includes(presence)
-                  ? <button type="button" className="commerce-gs-review-filter" onClick={() => setPresence('GS_REVIEW')}>Revisão GS · {commerceFormatNumber(summary.gs_reference_matches)}</button>
-                  : null
+            {presence === 'GS_REVIEW' || presence === 'SKU_REVIEW' ? (
+              <button type="button" className="commerce-review-filter active" onClick={() => setPresence('UNLINKED')}>Voltar para todos pendentes</button>
+            ) : null}
+            {Number(summary?.gs_reference_matches || 0) > 0 && !['GS_REVIEW', 'SKU_REVIEW'].includes(presence) ? (
+              <button type="button" className="commerce-review-filter gs" onClick={() => setPresence('GS_REVIEW')}>
+                Revisão GS · {commerceFormatNumber(summary.gs_reference_matches)}
+              </button>
+            ) : null}
+            {Number(summary?.sku_review_matches || 0) > 0 && !['GS_REVIEW', 'SKU_REVIEW'].includes(presence) ? (
+              <button type="button" className="commerce-review-filter sku" onClick={() => setPresence('SKU_REVIEW')}>
+                Revisão SKU · {commerceFormatNumber(summary.sku_review_matches)}
+              </button>
             ) : null}
           </div>
         </div>
@@ -485,7 +549,10 @@ export default function CommerceManagementView() {
                     <span className={`commerce-presence-badge ${String(card.presence_type || '').toLowerCase()}`}>
                       {card.presence_type === 'MULTI' ? 'Multiplataforma' : card.presence_type === 'EXCLUSIVE' ? 'Exclusivo' : 'Para vincular'}
                     </span>
-                    {hasGsReference(card) ? <span className="commerce-gs-card-badge">GS</span> : null}
+                    <div className="commerce-card-evidence-badges">
+                      {hasSkuReview(card) ? <span className="commerce-sku-card-badge">SKU</span> : null}
+                      {hasGsReference(card) ? <span className="commerce-gs-card-badge">GS</span> : null}
+                    </div>
                   </div>
 
                   <div className="commerce-product-card-body">
@@ -525,11 +592,13 @@ export default function CommerceManagementView() {
                             className={`commerce-link-review ${String(card.link_review_status || '').toLowerCase()}`}
                             onClick={() => openLinkReview(card)}
                           >
-                            {card.link_review_status === 'AMBIGUOUS'
-                              ? `Comparar ${card.candidate_count || 0} candidatos`
-                              : card.link_review_status === 'SAFE_CANDIDATE'
-                                ? linkReviewText(card)
-                                : 'Investigar vínculo'}
+                            {hasSkuReview(card)
+                              ? `Revisar capa · ${skuReviewMeta(card)?.sku_candidate_count || 0} candidatos`
+                              : card.link_review_status === 'AMBIGUOUS'
+                                ? `Comparar ${card.candidate_count || 0} candidatos`
+                                : card.link_review_status === 'SAFE_CANDIDATE'
+                                  ? linkReviewText(card)
+                                  : 'Investigar vínculo'}
                           </button>
                         )}
                     </div>
