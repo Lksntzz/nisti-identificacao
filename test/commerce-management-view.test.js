@@ -19,7 +19,7 @@ test('Gestão possui endpoint e RPC próprios somente de leitura', () => {
   const sql = read('supabase/migrations/20260925170004_commerce_management_rows_v1.sql');
   assert.equal(router.includes('/management'), true);
   assert.equal(store.includes("'commerce_management_rows_v1'"), true);
-  assert.equal(sql.toLowerCase().includes('security invoker'), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
   assert.equal(sql.includes('commerce_image_years_compatible'), true);
   assert.equal(sql.includes("source_code)='ML_NOVO'"), false);
   assert.equal(sql.replace(/\s+/g, ' ').includes("in ('ML_NOVO','ML_ANTIGO')"), true);
