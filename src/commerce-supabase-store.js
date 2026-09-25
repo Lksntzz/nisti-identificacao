@@ -98,6 +98,13 @@ export async function commerceManagement(env, filters = {}) {
   };
 }
 
+export async function commerceManagementFilterOptions(env, sourceCode = 'AMAZON') {
+  const result = await supabaseRpc(env, 'commerce_management_filter_options_v1', {
+    p_source_code: cleanText(sourceCode) || 'AMAZON'
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
 export async function commerceManagementSummary(env, sourceCode = 'AMAZON') {
   const result = await supabaseRpc(env, 'commerce_management_summary_v1', {
     p_source_code: cleanText(sourceCode) || 'AMAZON'
