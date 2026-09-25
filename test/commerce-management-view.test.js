@@ -85,3 +85,25 @@ test('indicadores usam totais da plataforma inteira', () => {
   assert.equal(view.includes('produtos da plataforma'), true);
   assert.equal(view.includes('nesta página'), false);
 });
+
+
+test('Gestão possui filtros completos por plataforma', () => {
+  const router = read('src/commerce-admin-router.js');
+  const store = read('src/commerce-supabase-store.js');
+  const view = read('src/commerce-management-view.jsx');
+  const sql = read('supabase/migrations/20260925174800_commerce_management_filters_v1.sql');
+
+  assert.equal(router.includes('/management/options'), true);
+  assert.equal(store.includes("'commerce_management_filter_options_v1'"), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+  assert.equal(sql.includes("'NEEDS_REVIEW'"), true);
+  assert.equal(view.includes('Categoria: todas'), true);
+  assert.equal(view.includes('Ano: todos'), true);
+  assert.equal(view.includes('Status: todos'), true);
+  assert.equal(view.includes('Verificar pendências'), true);
+  assert.equal(view.includes("params.set('category', category)"), true);
+  assert.equal(view.includes("params.set('year', year)"), true);
+  assert.equal(view.includes("params.set('listing_status', listingStatus)"), true);
+  assert.equal(view.includes("setRelationStatus('NEEDS_REVIEW')"), true);
+  assert.equal(view.includes('Limpar filtros'), true);
+});
