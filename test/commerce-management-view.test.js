@@ -261,3 +261,32 @@ test('Revisão SKU mostra capa, variação e candidatos sem unir capas automatic
   assert.equal(sql.includes("'COVER_COLLECTION'"), true);
   assert.equal(sql.includes('commerce_preview_management_resolve_link_v1'), true);
 });
+
+
+test('reconciliação GS cria mestres apenas para casos unívocos', () => {
+  const sql = read('supabase/migrations/20260925214500_commerce_preview_gs_master_reconciliation.sql');
+
+  assert.equal(sql.includes("count(distinct gs_row_id)::int n"), true);
+  assert.equal(sql.includes("c.n=1"), true);
+  assert.equal(sql.includes("m.gs->>'status'='Ativo'"), true);
+  assert.equal(sql.includes("m.gs->>'gtin'<>'305'"), true);
+  assert.equal(sql.includes('preview Product Master created from unique GS SKU/GTIN'), true);
+  assert.equal(sql.includes('preview GS catalog identity linked to Product Master'), true);
+});
+
+test('nome igual não vence uma capa SKU estruturada diferente', () => {
+  const sql = read('supabase/migrations/20260925214500_commerce_preview_gs_master_reconciliation.sql');
+
+  assert.equal(sql.includes("u.sku_pattern->>'signature'=l.sku_pattern->>'signature'"), true);
+  assert.equal(sql.includes("nullif(u.sku_pattern->>'signature','') is null"), true);
+  assert.equal(sql.includes("nullif(l.sku_pattern->>'signature','') is null"), true);
+});
+
+test('reconciliação mantém capa exata e coleção apenas como revisão', () => {
+  const sql = read('supabase/migrations/20260925214500_commerce_preview_gs_master_reconciliation.sql');
+
+  assert.equal(sql.includes("ps.sku)->>'signature'=u.signature"), true);
+  assert.equal(sql.includes('preview SKU exact-cover link after GS master creation'), true);
+  assert.equal(sql.includes('COVER_COLLECTION'), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
