@@ -65,3 +65,23 @@ test('painel de Gestão compara o mesmo produto entre plataformas', () => {
   assert.equal(view.includes('Sem foto segura'), true);
   assert.equal(view.includes('/management/${sourceRowId}/details'), true);
 });
+
+
+test('indicadores usam totais da plataforma inteira', () => {
+  const router = read('src/commerce-admin-router.js');
+  const store = read('src/commerce-supabase-store.js');
+  const view = read('src/commerce-management-view.jsx');
+  const sql = read('supabase/migrations/20260925173500_commerce_management_summary_v1.sql');
+
+  assert.equal(router.includes('/management/summary'), true);
+  assert.equal(store.includes("'commerce_management_summary_v1'"), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+  assert.equal(sql.includes("'with_image'"), true);
+  assert.equal(sql.includes("'without_image'"), true);
+  assert.equal(sql.includes("'with_video'"), true);
+  assert.equal(sql.includes("'verify'"), true);
+  assert.equal(view.includes('summary?.total'), true);
+  assert.equal(view.includes('summary?.without_image'), true);
+  assert.equal(view.includes('produtos da plataforma'), true);
+  assert.equal(view.includes('nesta página'), false);
+});
