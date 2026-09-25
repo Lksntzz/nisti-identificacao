@@ -36,7 +36,7 @@ test('Gestão simplificada cruza produtos por Produto Mestre', () => {
   assert.equal(sql.includes("'MULTI'"), true);
   assert.equal(sql.includes("'EXCLUSIVE'"), true);
   assert.equal(sql.includes("'UNLINKED'"), true);
-  assert.equal(sql.includes("'platforms',mp.platforms"), true);
+  assert.equal(sql.includes("'items',mp.items"), true);
   assert.equal(sql.includes('count(*)::integer as platform_count'), true);
   assert.equal(sql.includes('commerce_preview_management_products_v1'), true);
   assert.equal(sql.includes('commerce_preview_products'), true);
