@@ -73,6 +73,28 @@ function ImageCell({ item }) {
   );
 }
 
+function rowVisualState(item) {
+  if (!item) return { level: 'ok', label: 'OK' };
+
+  const critical =
+    !item.image_url ||
+    !item.listing_url ||
+    item.relation_status === 'UNMATCHED' ||
+    item.update_status === 'NOT_UPDATED' ||
+    ['NO_LISTING', 'REMOVED', 'INACTIVE'].includes(item.listing_status);
+
+  if (critical) return { level: 'attention', label: 'Atenção' };
+
+  const review =
+    item.relation_status === 'REVIEW' ||
+    ['REVIEW', 'NO_DATA'].includes(item.update_status) ||
+    ['UNKNOWN', 'NO_DATA', 'DISABLED'].includes(item.video_status) ||
+    item.listing_status === 'UNVERIFIED';
+
+  if (review) return { level: 'review', label: 'Verificar' };
+  return { level: 'ok', label: 'OK' };
+}
+
 function issueList(item) {
   if (!item) return [];
   const issues = [];
@@ -456,11 +478,25 @@ export default function CommerceManagementView() {
                 </tr>
               </thead>
               <tbody>
-                {items.map(item => (
-                  <tr key={item.source_row_id} onClick={() => setSelected(item)}>
+                {items.map(item => {
+                  const visual = rowVisualState(item);
+                  return (
+                  <tr
+                    key={item.source_row_id}
+                    className={`commerce-management-row ${visual.level}`}
+                    onClick={() => setSelected(item)}
+                  >
                     <td><ImageCell item={item} /></td>
-                    <td><code>{item.sku || '—'}</code></td>
-                    <td><strong>{item.product_name || 'Produto sem nome'}</strong><small>{item.product_id ? `Produto Mestre #${item.product_id}` : 'Sem Produto Mestre'}</small></td>
+                    <td><code className="commerce-management-sku">{item.sku || '—'}</code></td>
+                    <td>
+                      <div className="commerce-management-product-cell">
+                        <div>
+                          <strong>{item.product_name || 'Produto sem nome'}</strong>
+                          <small>{item.product_id ? `Produto Mestre #${item.product_id}` : 'Sem Produto Mestre'}</small>
+                        </div>
+                        <span className={`commerce-management-row-state ${visual.level}`}>{visual.label}</span>
+                      </div>
+                    </td>
                     <td>{item.category_name || '—'}</td>
                     <td><ManagementPill value={item.update_status} labels={UPDATE_LABELS} /></td>
                     <td><ManagementPill value={item.video_status} labels={VIDEO_LABELS} /></td>
@@ -471,7 +507,8 @@ export default function CommerceManagementView() {
                       {item.listing_url ? <a href={item.listing_url} target="_blank" rel="noreferrer">Abrir anúncio</a> : <span className="commerce-management-no-link">—</span>}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
