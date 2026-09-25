@@ -333,3 +333,13 @@ test('resumo preview usa o estado real dos cards não vinculados', () => {
   assert.equal(sql.includes("'no_safe_candidate'"), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
+
+
+test('resumo preview materializa os cards apenas uma vez', () => {
+  const sql = read('supabase/migrations/20260925221500_commerce_preview_remaining_catalog_reconciliation.sql');
+
+  assert.equal(sql.includes('actual_unlinked as materialized'), true);
+  assert.equal(sql.includes("from public.commerce_preview_management_products_v2(null,null,null,'UNLINKED',1000,0)"), true);
+  assert.equal(sql.includes("from public.commerce_preview_management_products_v2(null,null,null,'SKU_REVIEW',1,0)"), false);
+  assert.equal(sql.includes("item->>'sku_review_available'"), true);
+});
