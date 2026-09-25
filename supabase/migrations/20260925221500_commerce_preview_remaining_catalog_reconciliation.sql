@@ -865,7 +865,7 @@ AS $function$
 with base as (
   select coalesce(public.commerce_preview_management_product_summary_v1(),'{}'::jsonb) as data
 ),
-actual_unlinked as (
+actual_unlinked as materialized (
   select *
   from public.commerce_preview_management_products_v2(null,null,null,'UNLINKED',1000,0)
 ),
@@ -902,19 +902,33 @@ gs_codes as (
   join public.commerce_preview_source_rows g
     on g.source_file_id=f.id and g.is_header=false
   cross join lateral jsonb_array_elements_text(coalesce(g.normalized_payload->'sku_norms','[]'::jsonb)) x(code)
+),
+counts as (
+  select
+    coalesce(max(total_count),0) as unlinked,
+    count(*) filter(where link_review_status='SAFE_CANDIDATE') as safe_candidates,
+    count(*) filter(where link_review_status='AMBIGUOUS') as ambiguous_candidates,
+    count(*) filter(where link_review_status='NO_CANDIDATE') as no_safe_candidate,
+    count(*) filter(
+      where exists (
+        select 1
+        from jsonb_array_elements(platforms) p
+        cross join lateral jsonb_array_elements(coalesce(p->'items','[]'::jsonb)) item
+        where coalesce((item->>'sku_review_available')::boolean,false)
+      )
+    ) as sku_review_matches
+  from actual_unlinked
 )
 select b.data || jsonb_build_object(
-  'unlinked',coalesce((select max(total_count) from actual_unlinked),0),
-  'safe_candidates',coalesce((select count(*) from actual_unlinked where link_review_status='SAFE_CANDIDATE'),0),
-  'ambiguous_candidates',coalesce((select count(*) from actual_unlinked where link_review_status='AMBIGUOUS'),0),
-  'no_safe_candidate',coalesce((select count(*) from actual_unlinked where link_review_status='NO_CANDIDATE'),0),
+  'unlinked',c.unlinked,
+  'safe_candidates',c.safe_candidates,
+  'ambiguous_candidates',c.ambiguous_candidates,
+  'no_safe_candidate',c.no_safe_candidate,
   'gs_reference_matches',(select count(*) from unlinked u join gs_codes g on g.code=u.sku_norm),
-  'sku_review_matches',coalesce((
-    select max(total_count)
-    from public.commerce_preview_management_products_v2(null,null,null,'SKU_REVIEW',1,0)
-  ),0)
+  'sku_review_matches',c.sku_review_matches
 )
-from base b;
+from base b
+cross join counts c;
 $function$;
 revoke execute on function public.commerce_preview_management_product_summary_v2() from public, anon, authenticated;
 grant execute on function public.commerce_preview_management_product_summary_v2() to service_role;
