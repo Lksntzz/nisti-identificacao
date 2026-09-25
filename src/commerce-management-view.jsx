@@ -73,6 +73,13 @@ function ImageCell({ item }) {
   );
 }
 
+function rowPriority(item) {
+  const state = rowVisualState(item);
+  if (state.level === 'attention') return 0;
+  if (state.level === 'review') return 1;
+  return 2;
+}
+
 function rowVisualState(item) {
   if (!item) return { level: 'ok', label: 'OK' };
 
@@ -348,6 +355,11 @@ export default function CommerceManagementView() {
   }, [selected?.source_row_id]);
 
   const items = Array.isArray(data?.items) ? data.items : [];
+  const orderedItems = [...items].sort((a, b) => {
+    const priority = rowPriority(a) - rowPriority(b);
+    if (priority !== 0) return priority;
+    return Number(a.source_row_number || a.source_row_id || 0) - Number(b.source_row_number || b.source_row_id || 0);
+  });
   const total = Number(data?.pagination?.total || 0);
   const limit = Number(data?.pagination?.limit || 50);
   const page = Math.floor(offset / limit) + 1;
@@ -478,7 +490,7 @@ export default function CommerceManagementView() {
                 </tr>
               </thead>
               <tbody>
-                {items.map(item => {
+                {orderedItems.map(item => {
                   const visual = rowVisualState(item);
                   return (
                   <tr
