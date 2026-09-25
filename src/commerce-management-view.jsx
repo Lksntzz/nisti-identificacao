@@ -54,9 +54,47 @@ function ManagementPill({ value, labels }) {
   return <span className={`commerce-management-pill ${tone(value)}`}>{labels[value] || value || '—'}</span>;
 }
 
-function ProductImage({ src, alt, large = false }) {
-  if (!src) return <div className={`commerce-product-card-image placeholder ${large ? 'large' : ''}`}>Sem foto</div>;
-  return <img className={`commerce-product-card-image ${large ? 'large' : ''}`} src={src} alt={alt || ''} loading="lazy" referrerPolicy="no-referrer" />;
+function ProductImage({ src, fallbackSrc = null, alt, large = false }) {
+  const primary = src || fallbackSrc || null;
+  const [activeSrc, setActiveSrc] = useState(primary);
+
+  useEffect(() => {
+    setActiveSrc(src || fallbackSrc || null);
+  }, [src, fallbackSrc]);
+
+  if (!activeSrc) {
+    return <div className={`commerce-product-card-image placeholder ${large ? 'large' : ''}`}>Sem foto</div>;
+  }
+
+  return (
+    <img
+      className={`commerce-product-card-image ${large ? 'large' : ''}`}
+      src={activeSrc}
+      alt={alt || ''}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => {
+        if (fallbackSrc && activeSrc !== fallbackSrc) {
+          setActiveSrc(fallbackSrc);
+          return;
+        }
+        setActiveSrc(null);
+      }}
+    />
+  );
+}
+
+function cardImageFallback(card) {
+  const primary = String(card?.image_url || '');
+  const platforms = Array.isArray(card?.platforms) ? card.platforms : [];
+  for (const platform of platforms) {
+    const items = Array.isArray(platform?.items) ? platform.items : [];
+    for (const item of items) {
+      const fallback = String(item?.fallback_image_url || '');
+      if (fallback && fallback !== primary) return fallback;
+    }
+  }
+  return null;
 }
 
 function linkReviewText(card) {
@@ -107,7 +145,7 @@ function PlatformDrawer({ selection, onClose }) {
           {items.map((item, index) => (
             <article className="commerce-platform-detail" key={item.source_row_id || index}>
               <div className="commerce-platform-detail-top">
-                <ProductImage src={item.image_url} alt={item.product_name || item.sku} large />
+                <ProductImage src={item.image_url} fallbackSrc={item.fallback_image_url} alt={item.product_name || item.sku} large />
                 <div>
                   <span>SKU nesta plataforma</span>
                   <code>{item.sku || '—'}</code>
@@ -168,7 +206,7 @@ function LinkReviewDrawer({ review, loading, error, saving, onClose, onResolve }
         </div>
 
         <div className="commerce-link-source">
-          <ProductImage src={source?.image_url || review.card?.image_url} alt={source?.product_name || review.card?.product_name} large />
+          <ProductImage src={source?.image_url || review.card?.image_url} fallbackSrc={gsReference?.image_url || cardImageFallback(review.card)} alt={source?.product_name || review.card?.product_name} large />
           <div>
             <span>Item da plataforma</span>
             <strong>{source?.platform || review.card?.platforms?.[0]?.label || '—'}</strong>
@@ -427,7 +465,7 @@ export default function CommerceManagementView() {
               return (
                 <article className="commerce-product-card" key={card.card_key}>
                   <div className="commerce-product-card-media">
-                    <ProductImage src={card.image_url} alt={card.product_name || card.master_sku} />
+                    <ProductImage src={card.image_url} fallbackSrc={cardImageFallback(card)} alt={card.product_name || card.master_sku} />
                     <span className={`commerce-presence-badge ${String(card.presence_type || '').toLowerCase()}`}>
                       {card.presence_type === 'MULTI' ? 'Multiplataforma' : card.presence_type === 'EXCLUSIVE' ? 'Exclusivo' : 'Para vincular'}
                     </span>
