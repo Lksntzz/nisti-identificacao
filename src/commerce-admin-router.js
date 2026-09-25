@@ -14,6 +14,7 @@ import {
   commerceListings,
   commerceManagement,
   commerceManagementDetail,
+  commerceManagementSummary,
   commerceProducts,
   commerceProductDetail,
   commerceShopeeSnapshot,
@@ -140,6 +141,10 @@ export async function handleCommerceAdminRequest(request, env) {
         offset: query(url, 'offset')
       });
       return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management/summary`) {
+      return json(await commerceManagementSummary(env, query(url, 'source') || 'AMAZON'));
     }
 
     const managementDetailMatch = pathname.match(/^\\/api\\/admin\\/commerce\\/management\\/(\\d+)\\/details$/);
