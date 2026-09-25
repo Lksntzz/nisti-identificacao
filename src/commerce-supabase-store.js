@@ -73,6 +73,31 @@ export async function commerceListings(env, filters = {}) {
   };
 }
 
+export async function commerceManagementProducts(env, filters = {}) {
+  const limit = cleanPageSize(filters.limit, 24);
+  const offset = cleanOffset(filters.offset);
+  const year = Number(filters.year || 0);
+  const rows = await supabaseRpc(env, 'commerce_management_products_v1', {
+    p_search: cleanText(filters.search),
+    p_category: cleanText(filters.category),
+    p_year: Number.isInteger(year) && year > 0 ? year : null,
+    p_presence: cleanText(filters.presence) || 'LINKED',
+    p_limit: limit,
+    p_offset: offset
+  });
+
+  return {
+    items: Array.isArray(rows) ? rows : [],
+    limit,
+    offset
+  };
+}
+
+export async function commerceManagementProductSummary(env) {
+  const result = await supabaseRpc(env, 'commerce_management_product_summary_v1');
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
 export async function commerceManagement(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);
