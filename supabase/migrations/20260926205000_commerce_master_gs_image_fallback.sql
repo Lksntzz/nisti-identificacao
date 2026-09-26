@@ -1,21 +1,166 @@
--- Recover a Product Master image from GS only when:
--- 1) the platform-derived card still has no image;
--- 2) GS has the same structured family + cover signature as the current Master SKU;
--- 3) artwork year is compatible;
--- 4) that signature resolves to exactly one distinct GS image.
+-- Product Master reference image fallback.
 --
--- This intentionally runs only at the Product Master card level. It must not
--- backfill marketplace rows from historical platform SKUs, which could mix
--- artwork years (for example 2024/2025 listings into a 2026 Product Master).
+-- Keep reference media on the Product Master instead of evaluating the GS
+-- catalog inside every card query. Platform images keep priority.
+--
+-- The initial audited recovery is Product Master #716 (CMB_AURORA_BBB):
+-- GS CMB_AURORA_BXB has the same family + cover, a compatible artwork year,
+-- and exactly one distinct image. Finish differences do not change cover art.
 
+alter table public.commerce_products
+  add column if not exists reference_image_url text,
+  add column if not exists reference_image_source text,
+  add column if not exists reference_image_sku text;
+
+alter table public.commerce_preview_products
+  add column if not exists reference_image_url text,
+  add column if not exists reference_image_source text,
+  add column if not exists reference_image_sku text;
+
+-- Resolve the live GS reference from the latest GS source file and refuse
+-- ambiguous image sets.
+with current_sku as (
+  select ps.sku
+  from public.commerce_product_skus ps
+  where ps.product_id=716
+  order by
+    case when ps.sku_type='CURRENT' and ps.is_active then 0
+         when ps.is_active then 1 else 2 end,
+    ps.id
+  limit 1
+),
+gs_file as (
+  select id
+  from public.commerce_source_files
+  where source_code='GS_REFERENCIA'
+  order by imported_at desc nulls last,id desc
+  limit 1
+),
+candidates as (
+  select
+    nullif(g.normalized_payload->>'image_url','') image_url,
+    nullif(g.normalized_payload->>'sku','') gs_sku
+  from gs_file f
+  join public.commerce_source_rows g
+    on g.source_file_id=f.id and g.is_header=false
+  cross join current_sku cs
+  where nullif(g.normalized_payload->>'image_url','') is not null
+    and nullif(public.commerce_sku_pattern_v1(cs.sku)->>'signature','') is not null
+    and public.commerce_sku_pattern_v1(g.normalized_payload->>'sku')->>'signature'
+        = public.commerce_sku_pattern_v1(cs.sku)->>'signature'
+    and public.commerce_image_years_compatible(
+      cs.sku,
+      g.normalized_payload->>'sku',
+      g.normalized_payload->>'product_name'
+    )
+),
+safe as (
+  select min(image_url) image_url,min(gs_sku) gs_sku
+  from candidates
+  having count(distinct image_url)=1
+)
+update public.commerce_products p
+set reference_image_url=s.image_url,
+    reference_image_source='GS_REFERENCE',
+    reference_image_sku=s.gs_sku,
+    updated_at=now()
+from safe s
+where p.id=716
+  and s.image_url is not null;
+
+-- Apply the same audited reference in preview using preview-scoped source data.
+with current_sku as (
+  select ps.sku
+  from public.commerce_preview_product_skus ps
+  where ps.product_id=716
+  order by
+    case when ps.sku_type='CURRENT' and ps.is_active then 0
+         when ps.is_active then 1 else 2 end,
+    ps.id
+  limit 1
+),
+gs_file as (
+  select id
+  from public.commerce_preview_source_files
+  where source_code='GS_REFERENCIA'
+  order by imported_at desc nulls last,id desc
+  limit 1
+),
+candidates as (
+  select
+    nullif(g.normalized_payload->>'image_url','') image_url,
+    nullif(g.normalized_payload->>'sku','') gs_sku
+  from gs_file f
+  join public.commerce_preview_source_rows g
+    on g.source_file_id=f.id and g.is_header=false
+  cross join current_sku cs
+  where nullif(g.normalized_payload->>'image_url','') is not null
+    and nullif(public.commerce_sku_pattern_v1(cs.sku)->>'signature','') is not null
+    and public.commerce_sku_pattern_v1(g.normalized_payload->>'sku')->>'signature'
+        = public.commerce_sku_pattern_v1(cs.sku)->>'signature'
+    and public.commerce_image_years_compatible(
+      cs.sku,
+      g.normalized_payload->>'sku',
+      g.normalized_payload->>'product_name'
+    )
+),
+safe as (
+  select min(image_url) image_url,min(gs_sku) gs_sku
+  from candidates
+  having count(distinct image_url)=1
+)
+update public.commerce_preview_products p
+set reference_image_url=s.image_url,
+    reference_image_source='GS_REFERENCE',
+    reference_image_sku=s.gs_sku,
+    updated_at=now()
+from safe s
+where p.id=716
+  and s.image_url is not null;
+
+do $assert$
+begin
+  if not exists (
+    select 1
+    from public.commerce_products
+    where id=716
+      and reference_image_url is not null
+      and reference_image_source='GS_REFERENCE'
+      and reference_image_sku is not null
+  ) then
+    raise exception 'Safe live GS reference image for Product Master #716 was not resolved';
+  end if;
+
+  if not exists (
+    select 1
+    from public.commerce_preview_products
+    where id=716
+      and reference_image_url is not null
+      and reference_image_source='GS_REFERENCE'
+      and reference_image_sku is not null
+  ) then
+    raise exception 'Safe preview GS reference image for Product Master #716 was not resolved';
+  end if;
+end
+$assert$;
+
+-- Patch the live and preview Product Master card RPCs. This adds only a
+-- direct column fallback, so query cost stays effectively unchanged.
 do $patch$
 declare
   fn_name text;
-  source_rows_table text;
   fn_oid oid;
   def text;
   patched text;
-  old_fragment text := $old$
+  old_base_select text :=
+    'mp.product_id,cp.name as product_name,cps.sku as master_sku,cc.name as category_name,cp.edition_year,';
+  new_base_select text :=
+    'mp.product_id,cp.name as product_name,cps.sku as master_sku,cc.name as category_name,cp.edition_year,cp.reference_image_url,';
+  old_group text :=
+    'group by mp.product_id,cp.name,cps.sku,cc.name,cp.edition_year';
+  new_group text :=
+    'group by mp.product_id,cp.name,cps.sku,cc.name,cp.edition_year,cp.reference_image_url';
+  old_image text := $old$
     (
       select item->>'image_url'
       from jsonb_array_elements(lb.platforms) p
@@ -26,7 +171,7 @@ declare
       limit 1
     ) as image_url,
 $old$;
-  new_fragment_template text := $new$
+  new_image text := $new$
     coalesce(
       (
         select item->>'image_url'
@@ -37,37 +182,15 @@ $old$;
                  case p->>'source_code' when 'SHOPEE' then 1 when 'ML_NOVO' then 2 when 'ML_ANTIGO' then 3 when 'AMAZON' then 4 when 'SHEIN' then 5 else 9 end
         limit 1
       ),
-      (
-        select min(nullif(g.normalized_payload->>'image_url',''))
-        from gs_file f
-        join public.__SOURCE_ROWS__ g
-          on g.source_file_id=f.id and g.is_header=false
-        where nullif(g.normalized_payload->>'image_url','') is not null
-          and nullif(public.commerce_sku_pattern_v1(lb.master_sku)->>'signature','') is not null
-          and public.commerce_sku_pattern_v1(g.normalized_payload->>'sku')->>'signature'
-              = public.commerce_sku_pattern_v1(lb.master_sku)->>'signature'
-          and public.commerce_image_years_compatible(
-            lb.master_sku,
-            g.normalized_payload->>'sku',
-            g.normalized_payload->>'product_name'
-          )
-        having count(distinct nullif(g.normalized_payload->>'image_url',''))=1
-      )
+      lb.reference_image_url
     ) as image_url,
 $new$;
-  new_marker text := 'having count(distinct nullif(g.normalized_payload->>''image_url'',''''))=1';
-  new_fragment text;
 begin
   foreach fn_name in array array[
     'commerce_management_products_v2',
     'commerce_preview_management_products_v2'
   ]
   loop
-    source_rows_table := case
-      when fn_name like 'commerce_preview_%' then 'commerce_preview_source_rows'
-      else 'commerce_source_rows'
-    end;
-
     select p.oid into fn_oid
     from pg_proc p
     where p.pronamespace='public'::regnamespace
@@ -80,21 +203,19 @@ begin
 
     def := pg_get_functiondef(fn_oid);
 
-    if position(new_marker in def)>0 then
+    if position('lb.reference_image_url' in def)>0 then
       continue;
     end if;
 
-    if position(old_fragment in def)=0 then
-      raise exception 'Expected linked-card image fragment not found in %',fn_name;
+    if position(old_base_select in def)=0
+       or position(old_group in def)=0
+       or position(old_image in def)=0 then
+      raise exception 'Expected Product Master card fragments not found in %',fn_name;
     end if;
 
-    new_fragment := replace(
-      new_fragment_template,
-      '__SOURCE_ROWS__',
-      source_rows_table
-    );
-
-    patched := replace(def,old_fragment,new_fragment);
+    patched := replace(def,old_base_select,new_base_select);
+    patched := replace(patched,old_group,new_group);
+    patched := replace(patched,old_image,new_image);
     execute patched;
   end loop;
 end
