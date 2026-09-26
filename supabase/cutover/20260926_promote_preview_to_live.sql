@@ -137,7 +137,7 @@ insert into public.commerce_reconciliation_candidates select * from public.comme
 insert into public.commerce_update_items select * from public.commerce_preview_update_items;
 insert into public.commerce_update_checks select * from public.commerce_preview_update_checks;
 
-do $
+do $$
 declare
   r record;
   promoted_definition text;
@@ -165,9 +165,9 @@ begin
     execute promoted_definition;
   end loop;
 end
-$;
+$$;
 
-do $
+do $$
 declare
   suffix text;
   live_table text;
