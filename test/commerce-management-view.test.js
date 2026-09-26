@@ -408,3 +408,25 @@ test('MPO mantém cor conflitante no nível da plataforma', () => {
   assert.equal(sql.includes('Amazon usa título Orange; Shopee usa White'), true);
   assert.equal(sql.includes("'PLAN26MPOPBP'"), true);
 });
+
+
+test('auditoria final elimina conflito de SKU exato e registra aliases', () => {
+  const sql = read('supabase/migrations/20260925223500_commerce_preview_catalog_audit_data.sql');
+
+  assert.equal(sql.includes('AGMT26_MAN02_PBB belongs to MAN02 master #550'), true);
+  assert.equal(sql.includes('CADCONTFIN01 confirmed as Minhas Contas capa 1 via NISTI ID'), true);
+  assert.equal(sql.includes('DIALE_FLINE_RSA_PXP overrides generic Floral Reads title'), true);
+  assert.equal(sql.includes('DIALE_FNTSM_AZUL_PXP overrides generic Floral Reads title'), true);
+  assert.equal(sql.includes("then 'HISTORICAL' else 'ALIAS'"), true);
+  assert.equal(sql.includes('Source alias set changed'), true);
+  assert.equal(sql.includes('expected 154'), true);
+  assert.equal(sql.includes('Exact source SKU conflicts remain'), true);
+});
+
+test('SKU pai de variação não aparece como Para vincular', () => {
+  const sql = read('supabase/migrations/20260925223600_commerce_preview_variation_parent_filter.sql');
+
+  assert.equal(sql.includes("sr.resolution_status='VARIATION'"), true);
+  assert.equal(sql.includes('where ar.product_id is null'), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
