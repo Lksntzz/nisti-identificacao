@@ -24,6 +24,9 @@ bucket_name = "nisti-identificacao-images"
 binding = "COVER_VECTORS"
 index_name = "nisti-cover-embeddings"
 
+[secrets]
+required = [ "SUPABASE_SERVICE_ROLE_KEY" ]
+
 [vars]
 APP_ENV = "preview"
 COMMERCE_DATA_SCOPE = "preview"
@@ -36,6 +39,6 @@ RETRIEVAL_FASTPATH_MIN_SCORE = "0.920"
 RETRIEVAL_FASTPATH_MIN_MARGIN = "0.008"
 SUPABASE_URL = "https://yioetdcbgorunwgwuawg.supabase.co"
 SUPABASE_READS_ENABLED = "0"
-SUPABASE_READ_TIMEOUT_MS = "2500"
+SUPABASE_READ_TIMEOUT_MS = "5000"
 SUPABASE_WRITE_MODE = "off"
 SUPABASE_CUTOVER_WRITE_FREEZE = "0"

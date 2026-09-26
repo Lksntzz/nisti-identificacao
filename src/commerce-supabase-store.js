@@ -73,6 +73,101 @@ export async function commerceListings(env, filters = {}) {
   };
 }
 
+export async function commerceManagementProducts(env, filters = {}) {
+  const limit = cleanPageSize(filters.limit, 24);
+  const offset = cleanOffset(filters.offset);
+  const year = Number(filters.year || 0);
+  const rows = await supabaseRpc(env, 'commerce_management_products_v2', {
+    p_search: cleanText(filters.search),
+    p_category: cleanText(filters.category),
+    p_year: Number.isInteger(year) && year > 0 ? year : null,
+    p_presence: cleanText(filters.presence) || 'LINKED',
+    p_limit: limit,
+    p_offset: offset
+  });
+
+  return {
+    items: Array.isArray(rows) ? rows : [],
+    limit,
+    offset
+  };
+}
+
+export async function commerceManagementLinkCandidates(env, sourceRowId) {
+  const id = cleanId(sourceRowId);
+  if (!id) throw new Error('source_row_id inválido.');
+  const result = await supabaseRpc(env, 'commerce_management_link_candidates_v2', {
+    p_source_row_id: id
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
+export async function commerceResolveManagementLink(env, sourceRowId, productId, operator = null) {
+  const rowId = cleanId(sourceRowId);
+  const linkedProductId = cleanId(productId);
+  if (!rowId) throw new Error('source_row_id inválido.');
+  if (!linkedProductId) throw new Error('product_id inválido.');
+  const result = await supabaseRpc(env, 'commerce_management_resolve_link_v1', {
+    p_source_row_id: rowId,
+    p_product_id: linkedProductId,
+    p_operator: cleanText(operator)
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
+export async function commerceManagementProductSummary(env) {
+  const result = await supabaseRpc(env, 'commerce_management_product_summary_v2');
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
+export async function commerceManagement(env, filters = {}) {
+  const limit = cleanPageSize(filters.limit);
+  const offset = cleanOffset(filters.offset);
+  const year = Number(filters.year || 0);
+  const rows = await supabaseRpc(env, 'commerce_management_rows_v1', {
+    p_source_code: cleanText(filters.source) || 'AMAZON',
+    p_search: cleanText(filters.search),
+    p_category: cleanText(filters.category),
+    p_update_status: cleanText(filters.updateStatus),
+    p_video_status: cleanText(filters.videoStatus),
+    p_listing_status: cleanText(filters.listingStatus),
+    p_image_status: cleanText(filters.imageStatus),
+    p_relation_status: cleanText(filters.relationStatus),
+    p_year: Number.isInteger(year) && year > 0 ? year : null,
+    p_limit: limit,
+    p_offset: offset
+  });
+
+  return {
+    items: Array.isArray(rows) ? rows : [],
+    limit,
+    offset
+  };
+}
+
+export async function commerceManagementFilterOptions(env, sourceCode = 'AMAZON') {
+  const result = await supabaseRpc(env, 'commerce_management_filter_options_v1', {
+    p_source_code: cleanText(sourceCode) || 'AMAZON'
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
+export async function commerceManagementSummary(env, sourceCode = 'AMAZON') {
+  const result = await supabaseRpc(env, 'commerce_management_summary_v1', {
+    p_source_code: cleanText(sourceCode) || 'AMAZON'
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
+export async function commerceManagementDetail(env, sourceRowId) {
+  const id = cleanId(sourceRowId);
+  if (!id) throw new Error('source_row_id inválido.');
+  const result = await supabaseRpc(env, 'commerce_management_detail_v1', {
+    p_source_row_id: id
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
 export async function commerceImportBatches(env, filters = {}) {
   const limit = cleanPageSize(filters.limit, 30);
   const offset = cleanOffset(filters.offset);

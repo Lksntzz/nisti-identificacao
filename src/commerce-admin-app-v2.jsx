@@ -5,6 +5,7 @@ import LOGO from './assets/logo.png';
 import { commerceApi } from './commerce-admin-api.js';
 import { CommerceLoadingBlock } from './commerce-admin-shared.jsx';
 import CommerceOverviewView from './commerce-overview-view.jsx';
+import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceListingsView from './commerce-listings-view.jsx';
 import CommerceImportView from './commerce-import-view.jsx';
@@ -13,6 +14,7 @@ import CommerceReconciliationView from './commerce-reconciliation-view.jsx';
 import CommerceShopeeSnapshotView from './commerce-shopee-snapshot-view.jsx';
 
 const NAV_ITEMS = Object.freeze([
+  { id: 'management', label: 'Gestão' },
   { id: 'overview', label: 'Visão Geral' },
   { id: 'products', label: 'Produtos Mestre' },
   { id: 'listings', label: 'Anúncios' },
@@ -59,7 +61,7 @@ function CommerceSidebar({ activeView, onViewChange }) {
 }
 
 export default function CommerceAdminAppV2() {
-  const [activeView, setActiveView] = useState('overview');
+  const [activeView, setActiveView] = useState('management');
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,6 +100,7 @@ export default function CommerceAdminAppV2() {
           {error && <div className="commerce-error">{error}</div>}
           {loading ? <CommerceLoadingBlock /> : (
             <>
+              {activeView === 'management' && <CommerceManagementView />}
               {activeView === 'overview' && <CommerceOverviewView dashboard={dashboard || {}} onNavigate={setActiveView} />}
               {activeView === 'products' && <CommerceProductsView />}
               {activeView === 'listings' && <CommerceListingsView />}

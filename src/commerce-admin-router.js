@@ -12,6 +12,14 @@ import {
   commerceImportBatches,
   commerceImportRows,
   commerceListings,
+  commerceManagement,
+  commerceManagementProducts,
+  commerceManagementProductSummary,
+  commerceManagementDetail,
+  commerceManagementLinkCandidates,
+  commerceResolveManagementLink,
+  commerceManagementFilterOptions,
+  commerceManagementSummary,
   commerceProducts,
   commerceProductDetail,
   commerceShopeeSnapshot,
@@ -60,6 +68,11 @@ function operatorName(request) {
 function positiveId(value) {
   const id = Number(value || 0);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function commercePreviewSandbox(env) {
+  return String(env?.APP_ENV || '').trim().toLowerCase() === 'preview'
+    && String(env?.COMMERCE_DATA_SCOPE || '').trim().toLowerCase() === 'preview';
 }
 
 function commerceCommitEnabled(env) {
@@ -121,6 +134,78 @@ export async function handleCommerceAdminRequest(request, env) {
         listings: Number(dashboard?.listings || 0),
         commit_enabled: commerceCommitEnabled(env)
       });
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management/products`) {
+      const result = await commerceManagementProducts(env, {
+        search: query(url, 'search'),
+        category: query(url, 'category'),
+        year: query(url, 'year'),
+        presence: query(url, 'presence') || 'LINKED',
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      });
+      return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management/product-summary`) {
+      return json(await commerceManagementProductSummary(env));
+    }
+
+    const managementLinkReviewMatch = pathname.match(/^\/api\/admin\/commerce\/management\/link-review\/(\d+)$/);
+    if (method === 'GET' && managementLinkReviewMatch) {
+      const sourceRowId = positiveId(managementLinkReviewMatch[1]);
+      if (!sourceRowId) return json({ error: 'source_row_id inválido.' }, 400);
+      return json(await commerceManagementLinkCandidates(env, sourceRowId));
+    }
+
+    const managementLinkResolveMatch = pathname.match(/^\/api\/admin\/commerce\/management\/link-review\/(\d+)\/resolve$/);
+    if (method === 'POST' && managementLinkResolveMatch) {
+      if (!commercePreviewSandbox(env)) {
+        return json({
+          error: 'A decisão de vínculo está habilitada somente no preview de homologação.',
+          technical_error: 'commerce_preview_only',
+          retryable: false
+        }, 409);
+      }
+      const sourceRowId = positiveId(managementLinkResolveMatch[1]);
+      const body = await bodyJson(request);
+      const productId = positiveId(body?.product_id);
+      if (!sourceRowId) return json({ error: 'source_row_id inválido.' }, 400);
+      if (!productId) return json({ error: 'product_id é obrigatório.' }, 400);
+      return json(await commerceResolveManagementLink(env, sourceRowId, productId, operatorName(request)));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management`) {
+      const result = await commerceManagement(env, {
+        source: query(url, 'source') || 'AMAZON',
+        search: query(url, 'search'),
+        category: query(url, 'category'),
+        updateStatus: query(url, 'update_status'),
+        videoStatus: query(url, 'video_status'),
+        listingStatus: query(url, 'listing_status'),
+        imageStatus: query(url, 'image_status'),
+        relationStatus: query(url, 'relation_status'),
+        year: query(url, 'year'),
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      });
+      return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management/options`) {
+      return json(await commerceManagementFilterOptions(env, query(url, 'source') || 'AMAZON'));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/management/summary`) {
+      return json(await commerceManagementSummary(env, query(url, 'source') || 'AMAZON'));
+    }
+
+    const managementDetailMatch = pathname.match(/^\/api\/admin\/commerce\/management\/(\d+)\/details$/);
+    if (method === 'GET' && managementDetailMatch) {
+      const sourceRowId = positiveId(managementDetailMatch[1]);
+      if (!sourceRowId) return json({ error: 'source_row_id inválido.' }, 400);
+      return json(await commerceManagementDetail(env, sourceRowId));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/products`) {
