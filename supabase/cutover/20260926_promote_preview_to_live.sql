@@ -76,6 +76,27 @@ create table commerce_cutover_backup_20260926.commerce_update_campaigns as table
 create table commerce_cutover_backup_20260926.commerce_update_items as table public.commerce_update_items;
 create table commerce_cutover_backup_20260926.commerce_update_checks as table public.commerce_update_checks;
 
+create table commerce_cutover_backup_20260926.function_defs (
+  proname text not null,
+  identity_args text not null,
+  definition text not null,
+  primary key (proname, identity_args)
+);
+
+insert into commerce_cutover_backup_20260926.function_defs(proname, identity_args, definition)
+select
+  p.proname,
+  pg_get_function_identity_arguments(p.oid),
+  pg_get_functiondef(p.oid)
+from pg_proc p
+where p.pronamespace='public'::regnamespace
+  and p.proname in (
+    'commerce_management_products_v2',
+    'commerce_management_product_summary_v2',
+    'commerce_management_link_candidates_v1',
+    'commerce_management_link_candidates_v2'
+  );
+
 truncate table
   public.commerce_update_checks,
   public.commerce_update_items,
@@ -116,7 +137,37 @@ insert into public.commerce_reconciliation_candidates select * from public.comme
 insert into public.commerce_update_items select * from public.commerce_preview_update_items;
 insert into public.commerce_update_checks select * from public.commerce_preview_update_checks;
 
-do $$
+do $
+declare
+  r record;
+  promoted_definition text;
+begin
+  for r in
+    select p.oid, p.proname
+    from pg_proc p
+    where p.pronamespace='public'::regnamespace
+      and p.proname in (
+        'commerce_preview_management_products_v2',
+        'commerce_preview_management_product_summary_v2',
+        'commerce_preview_management_link_candidates_v1',
+        'commerce_preview_management_link_candidates_v2'
+      )
+    order by
+      case p.proname
+        when 'commerce_preview_management_products_v2' then 1
+        when 'commerce_preview_management_product_summary_v2' then 2
+        when 'commerce_preview_management_link_candidates_v1' then 3
+        when 'commerce_preview_management_link_candidates_v2' then 4
+        else 9
+      end
+  loop
+    promoted_definition := replace(pg_get_functiondef(r.oid), 'commerce_preview_', 'commerce_');
+    execute promoted_definition;
+  end loop;
+end
+$;
+
+do $
 declare
   suffix text;
   live_table text;
