@@ -463,14 +463,15 @@ test('preview indexa as chaves de identidade do SKU', () => {
 });
 
 
-test('fallback GS do Produto Mestre exige capa única e ano compatível', () => {
+test('fallback GS do Produto Mestre usa referência curada sem custo por card', () => {
   const sql = read('supabase/migrations/20260926205000_commerce_master_gs_image_fallback.sql');
 
-  assert.equal(sql.includes('lb.master_sku'), true);
-  assert.equal(sql.includes("->>'signature'"), true);
+  assert.equal(sql.includes('reference_image_url'), true);
+  assert.equal(sql.includes('reference_image_source'), true);
+  assert.equal(sql.includes('reference_image_sku'), true);
   assert.equal(sql.includes('commerce_image_years_compatible'), true);
-  assert.equal(sql.includes("having count(distinct nullif(g.normalized_payload->>'image_url',''))=1"), true);
-  assert.equal(sql.includes('commerce_source_rows'), true);
-  assert.equal(sql.includes('commerce_preview_source_rows'), true);
-  assert.equal(sql.includes('historical platform SKUs'), true);
+  assert.equal(sql.includes("having count(distinct image_url)=1"), true);
+  assert.equal(sql.includes("where p.id=716"), true);
+  assert.equal(sql.includes('lb.reference_image_url'), true);
+  assert.equal(sql.includes('commerce_preview_products'), true);
 });
