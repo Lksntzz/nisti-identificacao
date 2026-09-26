@@ -384,3 +384,27 @@ test('anúncio-pai EPND não vira Produto Mestre', () => {
   assert.equal(sql.includes('PTD180_EPND1_BBB / EPND2 / EPND3'), true);
   assert.equal(productsSql.includes("sr.resolution_status='VARIATION'"), true);
 });
+
+
+test('anúncio pai EPND liga três Produtos Mestre sem criar quarto produto', () => {
+  const sql = read('supabase/migrations/20260925224500_commerce_preview_variation_listing_links.sql');
+
+  assert.equal(sql.includes("'PTD180_EPND_BBB'"), true);
+  assert.equal(sql.includes("'PTD180EPND1BBB','PTD180EPND2BBB','PTD180EPND3BBB'"), true);
+  assert.equal(sql.includes("resolution_status='VARIATION'"), true);
+  assert.equal(sql.includes('commerce_preview_listing_products'), true);
+  assert.equal(sql.includes('must resolve exactly 3 Product Master variations'), true);
+  assert.equal(sql.includes('variation_rows as ('), true);
+  assert.equal(sql.includes('resolved_rows as ('), true);
+  assert.equal(sql.includes('from resolved_rows ar'), true);
+  assert.equal(sql.includes("sr.resolution_status='VARIATION'"), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
+
+test('MPO mantém cor conflitante no nível da plataforma', () => {
+  const sql = read('supabase/migrations/20260925224500_commerce_preview_variation_listing_links.sql');
+
+  assert.equal(sql.includes("Planner Semanal e Mensal - My Planner - MPO"), true);
+  assert.equal(sql.includes('Amazon usa título Orange; Shopee usa White'), true);
+  assert.equal(sql.includes("'PLAN26MPOPBP'"), true);
+});
