@@ -374,3 +374,15 @@ test('Safari genérico e PLAN MPO usam a identidade do SKU sem reescrever dados 
   assert.equal(sql.includes('Shopee title says White/2025 but SKU identifies MPO/2026'), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
+
+
+test('anúncio-pai EPND não vira Produto Mestre', () => {
+  const sql = read('supabase/migrations/20260925223000_mark_epnd_parent_variation.sql');
+  const productsSql = read('supabase/migrations/20260925212000_commerce_preview_sku_cover_matching.sql')
+    + read('supabase/migrations/20260925214500_commerce_preview_gs_master_reconciliation.sql')
+    + read('supabase/migrations/20260925221500_commerce_preview_remaining_catalog_reconciliation.sql');
+
+  assert.equal(sql.includes("resolution_status='VARIATION'"), true);
+  assert.equal(sql.includes('PTD180_EPND1_BBB / EPND2 / EPND3'), true);
+  assert.equal(productsSql.includes("sr.resolution_status='VARIATION'"), true);
+});
