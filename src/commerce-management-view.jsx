@@ -169,7 +169,7 @@ function PlatformDrawer({ selection, onClose }) {
           {items.map((item, index) => (
             <article className="commerce-platform-detail" key={item.source_row_id || index}>
               <div className="commerce-platform-detail-top">
-                <ProductImage src={item.image_url} fallbackSrc={item.fallback_image_url} alt={item.product_name || item.sku} large />
+                <ProductImage src={item.image_url} fallbackSrc={item.fallback_image_url || card.image_url} alt={item.product_name || item.sku} large />
                 <div>
                   <span>SKU nesta plataforma</span>
                   <code>{item.sku || '—'}</code>
@@ -195,7 +195,9 @@ function PlatformDrawer({ selection, onClose }) {
                         ? 'NISTI ID'
                         : item.image_source === 'GS_REFERENCE'
                           ? 'GS · imagem de referência'
-                          : 'Sem foto'}
+                          : (!item.image_url && !item.fallback_image_url && card.image_url)
+                            ? 'Produto Mestre'
+                            : 'Sem foto'}
                 </strong>
                 {item.image_source_sku ? <code>{item.image_source_sku}</code> : null}
               </div>
