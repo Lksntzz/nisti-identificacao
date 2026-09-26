@@ -461,3 +461,16 @@ test('preview indexa as chaves de identidade do SKU', () => {
   assert.equal(sql.includes('commerce_preview_product_skus_base_signature_idx'), true);
   assert.equal(sql.includes('commerce_sku_pattern_v1'), true);
 });
+
+
+test('fallback GS do Produto Mestre exige capa única e ano compatível', () => {
+  const sql = read('supabase/migrations/20260926205000_commerce_master_gs_image_fallback.sql');
+
+  assert.equal(sql.includes('lb.master_sku'), true);
+  assert.equal(sql.includes("->>'signature'"), true);
+  assert.equal(sql.includes('commerce_image_years_compatible'), true);
+  assert.equal(sql.includes("having count(distinct nullif(g.normalized_payload->>'image_url',''))=1"), true);
+  assert.equal(sql.includes('commerce_source_rows'), true);
+  assert.equal(sql.includes('commerce_preview_source_rows'), true);
+  assert.equal(sql.includes('historical platform SKUs'), true);
+});
