@@ -75,7 +75,21 @@ insert into public.commerce_reconciliation_candidates select * from commerce_cut
 insert into public.commerce_update_items select * from commerce_cutover_backup_20260926.commerce_update_items;
 insert into public.commerce_update_checks select * from commerce_cutover_backup_20260926.commerce_update_checks;
 
-do $$
+do $
+declare
+  r record;
+begin
+  for r in
+    select definition
+    from commerce_cutover_backup_20260926.function_defs
+    order by proname, identity_args
+  loop
+    execute r.definition;
+  end loop;
+end
+$;
+
+do $
 declare
   suffix text;
   live_table text;
