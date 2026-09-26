@@ -430,3 +430,14 @@ test('SKU pai de variação não aparece como Para vincular', () => {
   assert.equal(sql.includes('where ar.product_id is null'), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
+
+
+test('resumo não reconstrói cards quando não há pendências', () => {
+  const sql = read('supabase/migrations/20260925223700_optimize_zero_unlinked_summary.sql');
+
+  assert.equal(sql.includes("coalesce(r.resolution_status,'')<>'VARIATION'"), true);
+  assert.equal(sql.includes('unlinked_count as ('), true);
+  assert.equal(sql.includes('where uc.total>0'), true);
+  assert.equal(sql.includes('actual_unlinked as materialized'), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
