@@ -268,6 +268,17 @@ resolved_rows as (
   union all
   select * from variation_rows
 ),
+review_rows as materialized (
+  select ar.*
+  from all_rows ar
+  where ar.product_id is null
+    and not exists (
+      select 1
+      from public.commerce_preview_source_rows sr
+      where sr.id=ar.source_row_id
+        and sr.resolution_status='VARIATION'
+    )
+),
 matched_platforms as (
   select
     ar.product_id,
@@ -335,7 +346,7 @@ unlinked_candidates as (
     u.source_row_id,
     count(distinct l.product_id)::integer as candidate_count,
     min(l.product_id)::bigint as suggested_product_id
-  from all_rows u
+  from review_rows u
   left join all_rows l
     on l.product_id is not null
    and lower(regexp_replace(btrim(coalesce(l.product_name,'')),'[^[:alnum:]]+','','g'))
@@ -359,14 +370,14 @@ master_sku_patterns as (
 ),
 sku_strict_ids as (
   select u.source_row_id,msp.product_id,'MASTER_SKU'::text as evidence
-  from all_rows u
+  from review_rows u
   join master_sku_patterns msp
     on msp.signature=u.sku_pattern->>'signature'
    and nullif(u.sku_pattern->>'signature','') is not null
   where u.product_id is null
   union
   select u.source_row_id,l.product_id,'LINKED_HISTORY'::text
-  from all_rows u
+  from review_rows u
   join all_rows l
     on l.product_id is not null
    and l.sku_pattern->>'signature'=u.sku_pattern->>'signature'
@@ -384,14 +395,14 @@ sku_strict_candidates as (
 ),
 sku_base_ids as (
   select u.source_row_id,msp.product_id,'MASTER_SKU'::text as evidence
-  from all_rows u
+  from review_rows u
   join master_sku_patterns msp
     on msp.base_signature=u.sku_pattern->>'base_signature'
    and nullif(u.sku_pattern->>'base_signature','') is not null
   where u.product_id is null
   union
   select u.source_row_id,l.product_id,'LINKED_HISTORY'::text
-  from all_rows u
+  from review_rows u
   join all_rows l
     on l.product_id is not null
    and l.sku_pattern->>'base_signature'=u.sku_pattern->>'base_signature'
@@ -428,7 +439,7 @@ sku_review_candidates as (
       when coalesce(bc.candidate_count,0)>0 then 'COVER_COLLECTION'
       else null
     end::text as sku_candidate_source
-  from all_rows u
+  from review_rows u
   left join sku_strict_candidates sc using(source_row_id)
   left join sku_base_candidates bc using(source_row_id)
   where u.product_id is null
@@ -460,16 +471,9 @@ unlinked_cards as (
     coalesce(ar.gs_reference_available,false) as gs_reference_available,
     coalesce(src.sku_review_available,false) as sku_review_available,
     concat_ws(' ',ar.product_name,ar.sku) as search_text
-  from all_rows ar
+  from review_rows ar
   left join unlinked_candidates uc on uc.source_row_id=ar.source_row_id
   left join sku_review_candidates src on src.source_row_id=ar.source_row_id
-  where ar.product_id is null
-    and not exists (
-      select 1
-      from public.commerce_preview_source_rows sr
-      where sr.id=ar.source_row_id
-        and sr.resolution_status='VARIATION'
-    )
 ),
 cards as (
   select * from linked_cards
