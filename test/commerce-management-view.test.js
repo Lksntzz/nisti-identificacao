@@ -441,3 +441,22 @@ test('resumo não reconstrói cards quando não há pendências', () => {
   assert.equal(sql.includes('actual_unlinked as materialized'), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
 });
+
+
+test('cards pulam revisão de SKU quando não há linha revisável', () => {
+  const sql = read('supabase/migrations/20260925223600_commerce_preview_variation_parent_filter.sql');
+
+  assert.equal(sql.includes('review_rows as materialized'), true);
+  assert.equal(sql.includes("sr.resolution_status='VARIATION'"), true);
+  assert.equal(sql.includes('from review_rows u'), true);
+  assert.equal(sql.includes('from review_rows ar'), true);
+});
+
+test('preview indexa as chaves de identidade do SKU', () => {
+  const sql = read('supabase/migrations/20260925223800_preview_product_sku_indexes.sql');
+
+  assert.equal(sql.includes('commerce_preview_product_skus_norm_idx'), true);
+  assert.equal(sql.includes('commerce_preview_product_skus_signature_idx'), true);
+  assert.equal(sql.includes('commerce_preview_product_skus_base_signature_idx'), true);
+  assert.equal(sql.includes('commerce_sku_pattern_v1'), true);
+});
