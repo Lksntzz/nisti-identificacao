@@ -343,3 +343,34 @@ test('resumo preview materializa os cards apenas uma vez', () => {
   assert.equal(sql.includes("from public.commerce_preview_management_products_v2(null,null,null,'SKU_REVIEW',1,0)"), false);
   assert.equal(sql.includes("item->>'sku_review_available'"), true);
 });
+
+
+test('revisão manual final preserva variações estruturais fora da fila de Produto Mestre', () => {
+  const sql = read('supabase/migrations/20260925224000_commerce_preview_close_manual_review.sql');
+
+  assert.equal(sql.includes("resolution_status='VARIATION'"), true);
+  assert.equal(sql.includes('PTD180_EPND_BBB aggregates EPND1/EPND2/EPND3'), true);
+  assert.equal(sql.includes("sr.resolution_status='VARIATION'"), true);
+  assert.equal(sql.includes('Final Product Master queue not empty'), true);
+});
+
+test('agenda escolar meninas mantém uma identidade por capa', () => {
+  const sql = read('supabase/migrations/20260925224000_commerce_preview_close_manual_review.sql');
+
+  assert.equal(sql.includes("'CAST','Cabelo Castanho',3638,4934"), true);
+  assert.equal(sql.includes("'LOI','Cabelo Loiro',3639,4936"), true);
+  assert.equal(sql.includes("'RUI','Cabelo Ruivo',3640,4937"), true);
+  assert.equal(sql.includes("'CACH','Cabelo Preto Cacheado',3641,4935"), true);
+  assert.equal(sql.includes("'CADMNA CAST BA','AGESCINMA_02'"), true);
+  assert.equal(sql.includes("'CADMNA CACH BA','AGESCINMA_05'"), true);
+});
+
+test('Safari genérico e PLAN MPO usam a identidade do SKU sem reescrever dados da plataforma', () => {
+  const sql = read('supabase/migrations/20260925224000_commerce_preview_close_manual_review.sql');
+
+  assert.equal(sql.includes('VACMNO SAF BVV -> VACMNO_SFR_BVV'), true);
+  assert.equal(sql.includes("'PLAN26 MPO PBP','CURRENT'"), true);
+  assert.equal(sql.includes("'PLAN24 MPO PBP','HISTORICAL'"), true);
+  assert.equal(sql.includes('Shopee title says White/2025 but SKU identifies MPO/2026'), true);
+  assert.equal(sql.toLowerCase().includes('security definer'), false);
+});
