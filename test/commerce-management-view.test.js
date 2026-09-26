@@ -202,7 +202,8 @@ test('imagem quebrada troca automaticamente para fallback GS', () => {
   assert.equal(view.includes('onError={() =>'), true);
   assert.equal(view.includes('setActiveSrc(fallbackSrc)'), true);
   assert.equal(view.includes('cardImageFallback(card)'), true);
-  assert.equal(view.includes('fallbackSrc={item.fallback_image_url}'), true);
+  assert.equal(view.includes('fallbackSrc={item.fallback_image_url || card.image_url}'), true);
+  assert.equal(view.includes("? 'Produto Mestre'"), true);
   assert.equal(sql.includes("'fallback_image_url',ar.fallback_image_url"), true);
   assert.equal(sql.includes('commerce_image_years_compatible'), true);
   assert.equal(sql.toLowerCase().includes('security definer'), false);
