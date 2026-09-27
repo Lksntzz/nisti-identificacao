@@ -475,3 +475,16 @@ test('fallback GS do Produto Mestre usa referência curada sem custo por card', 
   assert.equal(sql.includes('lb.reference_image_url'), true);
   assert.equal(sql.includes('commerce_preview_products'), true);
 });
+
+
+test('lote 2 de recuperação de imagens preserva vínculos auditados', () => {
+  const sql = read('supabase/migrations/20260927111500_recover_commerce_reference_images_batch_2.sql');
+
+  assert.equal(sql.includes("(402::bigint,150::bigint,'VACMNO_SFR_BVV'"), true);
+  assert.equal(sql.includes("(678::bigint,4::bigint,'VACMNO_URSAT_BBB'"), true);
+  assert.equal(sql.includes("'SHOPEE_EXACT_NAME'"), true);
+  assert.equal(sql.includes("'SHOPEE_SKU_ALIAS'"), true);
+  assert.equal(sql.includes("(370::bigint,'CADMNA PTO BA'"), true);
+  assert.equal(sql.includes("(371::bigint,'CADMNO CP1 B B'"), true);
+  assert.equal(sql.includes('Expected 24 live reference image recoveries'), true);
+});
