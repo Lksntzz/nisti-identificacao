@@ -6,7 +6,7 @@ test('Supabase cutover is configured but disabled by default', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_URL = "https:\/\/yioetdcbgorunwgwuawg\.supabase\.co"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED = "0"/);
-  assert.match(wrangler, /SUPABASE_READ_TIMEOUT_MS = "2500"/);
+  assert.match(wrangler, /SUPABASE_READ_TIMEOUT_MS = "5000"/);
   assert.doesNotMatch(wrangler, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(wrangler, /RETRIEVAL_FASTPATH_MIN_SCORE = "0\.920"/);
   assert.match(wrangler, /RETRIEVAL_FASTPATH_MIN_MARGIN = "0\.008"/);
