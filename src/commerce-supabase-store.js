@@ -22,6 +22,22 @@ function cleanOffset(value) {
   return Math.max(0, Math.trunc(number));
 }
 
+
+export async function commerceSalesDashboard(env, filters = {}) {
+  const limit = Math.max(1, Math.min(250, Number(filters.limit || 100) || 100));
+  const offset = cleanOffset(filters.offset);
+  const result = await supabaseRpc(env, 'commerce_sales_dashboard_v1', {
+    p_platform: cleanText(filters.platform) || 'TODAS',
+    p_period_start: cleanText(filters.periodStart),
+    p_period_end: cleanText(filters.periodEnd),
+    p_sku: cleanText(filters.sku),
+    p_status: cleanText(filters.status) || 'TODOS',
+    p_limit: limit,
+    p_offset: offset
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
 export async function commerceDashboard(env) {
   const result = await supabaseRpc(env, 'commerce_dashboard_v1');
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
