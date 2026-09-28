@@ -242,3 +242,20 @@ test('reconciliação histórica roda em segundo plano no cadastro e edição', 
   assert.equal(router.includes('scheduleCommerceReconcile(ctx, env, saved.id, saved.commerce_sync)'), true);
   assert.equal(router.includes('scheduleCommerceReconcile(ctx, env, id, commerceSync)'), true);
 });
+
+
+test('reconciliação histórica usa índices de SKU e família', () => {
+  const sourceSql = read('supabase/migrations/20260928194037_commerce_source_sku_indexes_and_fast_reconcile_v9.sql');
+  const linkSql = read('supabase/migrations/20260928194239_commerce_nisti_link_indexes_and_fast_reconcile_v10.sql');
+  const sync = read('src/nisti-commerce-sync.js');
+
+  assert.equal(sourceSql.includes('commerce_source_rows_nisti_sku_norm_idx'), true);
+  assert.equal(sourceSql.includes('commerce_source_rows_nisti_family_idx'), true);
+  assert.equal(sourceSql.includes('commerce_source_row_sku_norm_v1'), true);
+  assert.equal(sourceSql.includes('commerce_reconcile_nisti_product_v4'), true);
+
+  assert.equal(linkSql.includes('commerce_nisti_links_norm_product_idx'), true);
+  assert.equal(linkSql.includes('commerce_nisti_links_family_year_idx'), true);
+  assert.equal(linkSql.includes('commerce_reconcile_nisti_product_v5'), true);
+  assert.equal(sync.includes("'commerce_reconcile_nisti_product_v5'"), true);
+});
