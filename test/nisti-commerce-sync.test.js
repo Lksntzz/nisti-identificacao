@@ -108,3 +108,24 @@ test('Catálogo projeta SKU, ano e imagem atuais do Produto Mestre nas plataform
   assert.equal(sql.includes("ip.item_pat->>'signature'=m.pat->>'signature'"), true);
   assert.equal(sql.includes("coalesce(ip.item_pat->>'finish','')=coalesce(m.pat->>'finish','')"), true);
 });
+
+
+test('NISTI ID é autoritativo também para SKUs sem ano quando há um único vínculo', () => {
+  const sql = read('supabase/migrations/20260928173422_nisti_id_authoritative_all_skus_v4.sql');
+
+  assert.equal(sql.includes('v_link_count=1'), true);
+  assert.equal(sql.includes("sku_type='CURRENT'"), true);
+  assert.equal(sql.includes("sku_type=case when ps.sku_type='CURRENT' then 'HISTORICAL'"), true);
+  assert.equal(sql.includes("'nisti_links_on_product',v_link_count"), true);
+});
+
+test('variações múltiplas do mesmo Produto Mestre usam o SKU e a imagem corretos do NISTI ID por anúncio', () => {
+  const sql = read('supabase/migrations/20260928173422_nisti_id_authoritative_all_skus_v4.sql');
+
+  assert.equal(sql.includes('commerce_sync_management_platforms_to_nisti_v2'), true);
+  assert.equal(sql.includes("public.commerce_nisti_sku_norm_v1(l.source_sku)=d.item_norm"), true);
+  assert.equal(sql.includes("when lc.n=1 then 2"), true);
+  assert.equal(sql.includes("'sku',target.source_sku"), true);
+  assert.equal(sql.includes("'image_url',coalesce(nullif(target.source_image_url"), true);
+  assert.equal(sql.includes("'nisti_product_id',target.nisti_product_id"), true);
+});
