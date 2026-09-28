@@ -3668,3 +3668,101 @@ button.kpi-box {
   .table-search-input { min-width: 0; width: 100%; }
   .product-gtin-heading { align-items: flex-start; }
 }
+
+
+/* NISTI ID → Catálogo: estado visível da sincronização */
+.product-sync-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.commerce-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #dbe3ef;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.commerce-sync-badge.compact {
+  padding: 4px 8px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.commerce-sync-badge .commerce-sync-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.commerce-sync-badge small {
+  flex-basis: 100%;
+  margin-left: 12px;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 650;
+  opacity: .82;
+}
+
+.commerce-sync-badge.synced {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+.commerce-sync-badge.synced .commerce-sync-dot { background: #22c55e; }
+
+.commerce-sync-badge.pending {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+.commerce-sync-badge.pending .commerce-sync-dot { background: #f59e0b; }
+
+.commerce-sync-badge.conflict {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+.commerce-sync-badge.conflict .commerce-sync-dot { background: #f97316; }
+
+.commerce-sync-badge.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+.commerce-sync-badge.error .commerce-sync-dot { background: #ef4444; }
+
+.commerce-sync-badge.unknown {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+}
+.commerce-sync-badge.unknown .commerce-sync-dot { background: #94a3b8; }
+
+.registration-barcode-info .commerce-sync-badge {
+  width: fit-content;
+  margin-top: 6px;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.registration-barcode-info .commerce-sync-badge > span,
+.registration-barcode-info .commerce-sync-badge > small {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
