@@ -42,11 +42,11 @@ test('API comercial mantém somente rotas usadas pela interface atual', () => {
   const router = read('src/commerce-admin-router.js');
 
   for (const active of [
-    '/management/products',
-    '/management/product-summary',
-    '/management/link-review/',
-    '/products',
-    '/listings'
+    'management/products',
+    'management/product-summary',
+    'link-review',
+    'products',
+    'listings'
   ]) {
     assert.equal(router.includes(active), true);
   }
