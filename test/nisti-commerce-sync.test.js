@@ -180,3 +180,33 @@ test('Resumo do Catálogo não pagina o catálogo inteiro para calcular indicado
   assert.equal(sql.includes("'nisti_synced'"), true);
   assert.equal(sql.includes("'nisti_pending'"), true);
 });
+
+
+test('status da sincronização fica disponível por produto no NISTI ID', () => {
+  const sql = read('supabase/migrations/20260928185936_nisti_sync_visibility_v1.sql');
+  const helper = read('src/nisti-commerce-sync.js');
+  const router = read('src/core-router.js');
+
+  assert.equal(sql.includes('commerce_nisti_product_statuses_v1'), true);
+  assert.equal(sql.includes('commerce_product_id bigint'), true);
+  assert.equal(sql.includes('commerce_sku text'), true);
+  assert.equal(sql.includes('commerce_name text'), true);
+  assert.equal(helper.includes('nistiCommerceProductStatuses'), true);
+  assert.equal(helper.includes("'commerce_nisti_product_statuses_v1'"), true);
+  assert.equal(router.includes('/api/admin/commerce-sync/nisti-products/statuses'), true);
+});
+
+test('cadastro e edição exibem confirmação real da sincronização do Catálogo', () => {
+  const main = read('src/main.jsx');
+  const catalog = read('src/admin/CatalogView.jsx');
+  const badge = read('src/admin/CommerceSyncBadge.jsx');
+
+  assert.equal(main.includes('commerce_sync: commerceSync'), true);
+  assert.equal(main.includes('imageResult.commerce_sync || commerceSync'), true);
+  assert.equal(main.includes('/api/admin/commerce-sync/nisti-products/statuses'), true);
+  assert.equal(main.includes('<CommerceSyncBadge sync={item.commerce_sync} />'), true);
+  assert.equal(catalog.includes('<CommerceSyncBadge sync={product.commerce_sync} compact />'), true);
+  assert.equal(badge.includes('Criado no Catálogo'), true);
+  assert.equal(badge.includes('Erro de sincronização'), true);
+  assert.equal(badge.includes('Sem sincronização'), true);
+});

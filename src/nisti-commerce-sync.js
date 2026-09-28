@@ -142,3 +142,10 @@ export async function nistiCommerceSyncStatus(env) {
     preview: isPreview(env)
   };
 }
+
+
+export async function nistiCommerceProductStatuses(env) {
+  if (isPreview(env)) return [];
+  const rows = await supabaseRpc(env, 'commerce_nisti_product_statuses_v1', {});
+  return Array.isArray(rows) ? rows : [];
+}

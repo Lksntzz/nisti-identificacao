@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createCatalogXlsx } from './catalog-xlsx.js';
+import { CommerceSyncBadge } from './CommerceSyncBadge.jsx';
 
 const PAGE_SIZE = 10;
 
@@ -215,7 +216,7 @@ export function CatalogView({
               <th>PRODUTO</th>
               <th style={{ width: '160px' }}>PLATAFORMA</th>
               <th style={{ width: '150px' }}>CADASTRADO EM</th>
-              <th style={{ width: '110px' }}>STATUS</th>
+              <th style={{ width: '180px' }}>STATUS</th>
               <th style={{ width: '120px', textAlign: 'right' }}>AÇÕES</th>
             </tr>
           </thead>
@@ -270,7 +271,10 @@ export function CatalogView({
                     </td>
 
                     <td>
-                      <span className="status-pill active">• Ativo</span>
+                      <div className="product-sync-status-stack">
+                        <span className="status-pill active">• Ativo</span>
+                        <CommerceSyncBadge sync={product.commerce_sync} compact />
+                      </div>
                     </td>
 
                     <td>
