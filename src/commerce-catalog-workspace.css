@@ -20,7 +20,7 @@
 .commerce-bulk-toolbar>span{font-size:9px;color:#64748b;white-space:nowrap;margin-right:4px}
 .commerce-bulk-toolbar button{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:8px 11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font:inherit;font-size:9px;font-weight:900;cursor:pointer}
 .commerce-bulk-toolbar button:hover{border-color:#64748b}
-.commerce-bulk-toolbar button.primary{border-color:#0f172a;background:#0f172a;color:#fff}
+.commerce-bulk-toolbar button.primary{width:auto;min-height:0;margin-top:0;flex:0 0 auto;border-color:#0f172a;background:#0f172a;color:#fff;box-shadow:none}
 
 .commerce-catalog-notice{margin:12px 18px 0;padding:10px 12px;border:1px solid #bbf7d0;border-radius:10px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:800}
 .commerce-catalog-notice.error{border-color:#fecaca;background:#fef2f2;color:#991b1b}
