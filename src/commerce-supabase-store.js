@@ -351,3 +351,63 @@ export async function commerceShopeeSnapshot(env, filters = {}) {
     offset
   };
 }
+
+
+export async function commerceSalesImportBatches(env, filters = {}) {
+  const limit = cleanPageSize(filters.limit, 30);
+  const offset = cleanOffset(filters.offset);
+  const rows = await supabaseRpc(env, 'commerce_list_sales_imports_v1', {
+    p_limit: limit,
+    p_offset: offset
+  });
+  return {
+    items: Array.isArray(rows) ? rows : [],
+    limit,
+    offset
+  };
+}
+
+export async function commerceCreateSalesImport(env, input = {}) {
+  const batchId = await supabaseRpc(env, 'commerce_create_sales_import_v1', {
+    p_platform_code: cleanText(input.platform),
+    p_source_filename: cleanText(input.filename),
+    p_source_sha256: cleanText(input.sha256),
+    p_created_by: cleanText(input.createdBy)
+  });
+  const id = Number(batchId || 0);
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Supabase não retornou um batch_id de vendas válido.');
+  return id;
+}
+
+export async function commerceAppendSalesImportRows(env, batchId, rows = []) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id de vendas inválido.');
+  if (!Array.isArray(rows) || !rows.length || rows.length > 100) {
+    throw new Error('Cada lote de vendas deve conter entre 1 e 100 linhas.');
+  }
+  return Number(await supabaseRpc(env, 'commerce_append_sales_import_rows_v1', {
+    p_batch_id: id,
+    p_rows: rows
+  }, { timeoutMs: 8000 }) || 0);
+}
+
+export async function commerceAppendSalesImportSummary(env, batchId, rows = []) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id de vendas inválido.');
+  if (!Array.isArray(rows) || !rows.length || rows.length > 100) {
+    throw new Error('O resumo de vendas deve conter entre 1 e 100 períodos.');
+  }
+  return Number(await supabaseRpc(env, 'commerce_append_sales_import_summary_v1', {
+    p_batch_id: id,
+    p_rows: rows
+  }, { timeoutMs: 8000 }) || 0);
+}
+
+export async function commerceCommitSalesImport(env, batchId) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id de vendas inválido.');
+  const result = await supabaseRpc(env, 'commerce_commit_sales_import_v1', {
+    p_batch_id: id
+  }, { timeoutMs: 20000 });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}

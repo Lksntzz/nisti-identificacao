@@ -24,6 +24,11 @@ import {
   commerceProductDetail,
   commerceShopeeSnapshot,
   commerceSalesDashboard,
+  commerceSalesImportBatches,
+  commerceCreateSalesImport,
+  commerceAppendSalesImportRows,
+  commerceAppendSalesImportSummary,
+  commerceCommitSalesImport,
   commerceReconciliationQueue,
   commerceReconcileImportBatch,
   commerceResolveReconciliationListing
@@ -163,6 +168,66 @@ export async function handleCommerceAdminRequest(request, env) {
         limit: query(url, 'limit'),
         offset: query(url, 'offset')
       }));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/sales/imports`) {
+      const result = await commerceSalesImportBatches(env, {
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      });
+      return json(paginationPayload(result));
+    }
+
+    if (method === 'POST' && pathname === `${BASE_PATH}/sales/imports`) {
+      const body = await bodyJson(request);
+      const platform = String(body?.platform || '').trim().toUpperCase();
+      const filename = String(body?.filename || '').trim();
+      const sha256 = String(body?.sha256 || '').trim() || null;
+      if (!['SHOPEE','ML_NOVO','ML_ANTIGO'].includes(platform)) {
+        return json({ error: 'Plataforma de vendas inválida.' }, 400);
+      }
+      if (!filename) return json({ error: 'filename é obrigatório.' }, 400);
+      if (sha256 && !/^[0-9a-f]{64}$/i.test(sha256)) {
+        return json({ error: 'sha256 inválido.' }, 400);
+      }
+      const batchId = await commerceCreateSalesImport(env, {
+        platform,
+        filename,
+        sha256,
+        createdBy: operatorName(request)
+      });
+      return json({ batch_id: batchId }, 201);
+    }
+
+    const salesImportRowsMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/rows$/);
+    if (method === 'POST' && salesImportRowsMatch) {
+      const batchId = positiveId(salesImportRowsMatch[1]);
+      const body = await bodyJson(request);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      if (!Array.isArray(body?.rows) || body.rows.length < 1 || body.rows.length > 100) {
+        return json({ error: 'rows deve conter entre 1 e 100 linhas.' }, 400);
+      }
+      const accepted = await commerceAppendSalesImportRows(env, batchId, body.rows);
+      return json({ batch_id: batchId, accepted_rows: accepted });
+    }
+
+    const salesImportSummaryMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/summary$/);
+    if (method === 'POST' && salesImportSummaryMatch) {
+      const batchId = positiveId(salesImportSummaryMatch[1]);
+      const body = await bodyJson(request);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      if (!Array.isArray(body?.rows) || body.rows.length < 1 || body.rows.length > 100) {
+        return json({ error: 'rows deve conter entre 1 e 100 períodos.' }, 400);
+      }
+      const accepted = await commerceAppendSalesImportSummary(env, batchId, body.rows);
+      return json({ batch_id: batchId, accepted_summaries: accepted });
+    }
+
+    const salesImportCommitMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/commit$/);
+    if (method === 'POST' && salesImportCommitMatch) {
+      const batchId = positiveId(salesImportCommitMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      return json(await commerceCommitSalesImport(env, batchId));
     }
 
     const managementLinkReviewMatch = pathname.match(/^\/api\/admin\/commerce\/management\/link-review\/(\d+)$/);

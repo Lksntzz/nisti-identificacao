@@ -4,16 +4,19 @@ import './commerce-admin.css';
 import LOGO from './assets/logo.png';
 import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
+import CommerceUnifiedImportView from './commerce-unified-import-view.jsx';
 
 const NAV_ITEMS = Object.freeze([
   { id: 'catalog', label: 'Catálogo', icon: 'grid' },
   { id: 'sales', label: 'Vendas', icon: 'chart' },
+  { id: 'imports', label: 'Importar', icon: 'upload' },
   { id: 'pending', label: 'Pendências', icon: 'list' }
 ]);
 
 const VIEW_DESCRIPTIONS = Object.freeze({
   catalog: 'Produto Mestre, imagens e anúncios de todas as plataformas em uma única visão.',
   sales: 'Pedidos, unidades, faturamento e itens sem venda por plataforma, período e SKU.',
+  imports: 'Importe arquivos para alimentar o Catálogo Comercial e o Painel de Vendas.',
   pending: 'Somente produtos que precisam de vínculo, revisão ou correção.'
 });
 
@@ -45,6 +48,18 @@ function SidebarIcon({ name }) {
       <svg {...props}>
         <path d="M3 3v18h18" />
         <path d="m7 16 4-5 3 3 5-7" />
+      </svg>
+    );
+  }
+
+  if (name === 'upload') {
+    return (
+      <svg {...props}>
+        <path d="M12 3v12" />
+        <path d="m7 8 5-5 5 5" />
+        <path d="M5 21h14" />
+        <path d="M5 17v4" />
+        <path d="M19 17v4" />
       </svg>
     );
   }
@@ -204,6 +219,7 @@ export default function CommerceAdminAppV2() {
 
           {activeView === 'catalog' && <CommerceManagementView mode="catalog" />}
           {activeView === 'sales' && <CommerceSalesDashboard />}
+          {activeView === 'imports' && <CommerceUnifiedImportView />}
           {activeView === 'pending' && <CommerceManagementView mode="pending" />}
         </main>
 
