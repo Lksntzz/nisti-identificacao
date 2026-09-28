@@ -164,3 +164,67 @@ export async function commitCommerceImport(batchId) {
     return { recovered_after_timeout: true, batch: recovered };
   }
 }
+
+
+export async function listCommerceSalesImports({ limit = 30, offset = 0 } = {}) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  return requestJson(`${API_BASE}/sales/imports?${params}`);
+}
+
+export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = () => {}) {
+  const rows = Array.isArray(parsedWorkbook?.rows) ? parsedWorkbook.rows : [];
+  const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
+  if (!parsedWorkbook?.platform_code || !parsedWorkbook?.filename || !parsedWorkbook?.sha256 || !rows.length) {
+    throw new Error('Arquivo de vendas normalizado incompleto.');
+  }
+
+  onProgress({ phase: 'create', completed: 0, total: rows.length });
+  const created = await requestJson(`${API_BASE}/sales/imports`, {
+    method: 'POST',
+    body: JSON.stringify({
+      platform: parsedWorkbook.platform_code,
+      filename: parsedWorkbook.filename,
+      sha256: parsedWorkbook.sha256
+    })
+  });
+  const batchId = Number(created?.batch_id || 0);
+  if (!Number.isSafeInteger(batchId) || batchId <= 0) throw new Error('A API não retornou um batch_id de vendas válido.');
+
+  let completed = 0;
+  const rowChunks = chunks(rows);
+  for (let index = 0; index < rowChunks.length; index += 1) {
+    const chunk = rowChunks[index];
+    onProgress({
+      phase: 'upload',
+      completed,
+      total: rows.length,
+      chunk: index + 1,
+      chunks: rowChunks.length,
+      batchId
+    });
+    await requestJson(`${API_BASE}/sales/imports/${batchId}/rows`, {
+      method: 'POST',
+      body: JSON.stringify({ rows: chunk })
+    });
+    completed += chunk.length;
+  }
+
+  if (summaries.length) {
+    onProgress({ phase: 'summary', completed, total: rows.length, batchId });
+    for (const chunk of chunks(summaries)) {
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/summary`, {
+        method: 'POST',
+        body: JSON.stringify({ rows: chunk })
+      });
+    }
+  }
+
+  onProgress({ phase: 'commit', completed, total: rows.length, batchId });
+  const result = await requestJson(`${API_BASE}/sales/imports/${batchId}/commit`, {
+    method: 'POST',
+    body: '{}'
+  });
+
+  onProgress({ phase: 'done', completed, total: rows.length, batchId });
+  return { batchId, result };
+}
