@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { commerceApi } from './commerce-admin-api.js';
 import { CommerceLoadingBlock, commerceFormatNumber } from './commerce-admin-shared.jsx';
+import CommerceCatalogWorkspace from './commerce-catalog-workspace.jsx';
 import './commerce-management.css';
 
 const UPDATE_LABELS = Object.freeze({
@@ -480,6 +481,29 @@ export default function CommerceManagementView({ mode = 'catalog' }) {
         ['MULTI', 'Multiplataforma', summary?.multiplatform || 0],
         ['EXCLUSIVE', 'Uma plataforma', summary?.exclusive || 0]
       ];
+
+  if (mode === 'catalog') {
+    return (
+      <CommerceCatalogWorkspace
+        items={items}
+        summary={summary}
+        summaryLoading={summaryLoading}
+        summaryError={summaryError}
+        loading={loading}
+        error={error}
+        search={search}
+        setSearch={setSearch}
+        submittedSearch={submittedSearch}
+        setSubmittedSearch={setSubmittedSearch}
+        total={total}
+        page={page}
+        pages={pages}
+        offset={offset}
+        limit={limit}
+        load={load}
+      />
+    );
+  }
 
   return (
     <div className="commerce-management-page">
