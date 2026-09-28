@@ -1315,9 +1315,29 @@ function AdminApp() {
   };
 
   useEffect(() => {
-    refreshAll().finally(() => setLoading(false));
+    let cancelled = false;
+
+    refreshAll()
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      })
+      .then(async () => {
+        try {
+          const syncKey = 'nisti_commerce_initial_sync_v1';
+          if (window.sessionStorage.getItem(syncKey) === '1') return;
+          const result = await api('/api/admin/commerce-sync/nisti-products', { method: 'POST' });
+          window.sessionStorage.setItem(syncKey, '1');
+          console.info('[NISTI→Commerce] Reconciliação concluída', result);
+        } catch (error) {
+          console.warn('[NISTI→Commerce] Reconciliação inicial pendente', error);
+        }
+      });
+
     const interval = setInterval(refreshMetrics, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const handleDeleteProduct = async (id, sku) => {
