@@ -1,0 +1,8 @@
+{
+  "name": "NISTI ID · Identificação Visual",
+  "description": "NISTI ID - Sistema de Identificação Visual e Reconhecimento de Livros e Produtos",
+  "version": "0.5.0",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

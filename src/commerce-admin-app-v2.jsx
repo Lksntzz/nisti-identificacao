@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import './nisti-shell.css';
+import './app.css';
 import './commerce-admin.css';
 import LOGO from './assets/logo.png';
 import CommerceManagementView from './commerce-management-view.jsx';
@@ -71,12 +71,21 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-brand">
-            <img src={LOGO} alt="NISTI" className="sidebar-brand-logo" />
+            <img src={LOGO} alt="NISTI ID" className="sidebar-brand-logo" />
             <div className="sidebar-brand-text">
-              <span className="sidebar-brand-title">NISTI PRINT</span>
+              <span className="sidebar-brand-title">NISTI ID</span>
               <span className="sidebar-brand-subtitle">CATÁLOGO COMERCIAL</span>
             </div>
           </div>
+        </div>
+
+        <div className="sidebar-highlight-wrap">
+          <a href="/admin" className="sidebar-highlight-btn">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            <span>Voltar ao NISTI ID</span>
+          </a>
         </div>
 
         <nav className="sidebar-nav">
@@ -154,6 +163,9 @@ export default function CommerceAdminAppV2() {
           </div>
 
           <div className="topbar-right">
+            <a href="/admin" className="topbar-logout-btn">
+              <span>NISTI ID</span>
+            </a>
             <button
               type="button"
               className="topbar-logout-btn commerce-refresh-btn"
@@ -161,7 +173,9 @@ export default function CommerceAdminAppV2() {
             >
               Atualizar
             </button>
-            <a href="/admin-logout" className="topbar-logout-btn">Sair</a>
+            <a href="/admin-logout" className="topbar-logout-btn">
+              <span>Sair</span>
+            </a>
           </div>
         </header>
 
