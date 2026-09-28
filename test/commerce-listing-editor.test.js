@@ -99,3 +99,16 @@ test('botão Editar em massa não herda largura total da classe global primary',
 
   assert.equal(css.includes('.commerce-bulk-toolbar button.primary{width:auto;min-height:0;margin-top:0;flex:0 0 auto;'), true);
 });
+
+
+test('Catálogo usa tipografia mínima legível e suavização de fonte', () => {
+  const css = read('src/commerce-catalog-workspace.css');
+  const admin = read('src/commerce-admin.css');
+
+  assert.equal(css.includes('font-size:12px;line-height:1.45;vertical-align:middle'), true);
+  assert.equal(css.includes('.commerce-catalog-table th{'), true);
+  assert.equal(css.includes('font-size:11px;'), true);
+  assert.equal(css.includes('text-rendering:optimizeLegibility'), true);
+  assert.equal(admin.includes('-webkit-font-smoothing:antialiased'), true);
+  assert.equal(admin.includes('font-synthesis:none'), true);
+});

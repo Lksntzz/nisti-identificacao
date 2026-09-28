@@ -9,14 +9,20 @@
 
 
 /* NISTI ID aligned commercial shell */
-.commerce-admin-root{background:#f8fafc}
+.commerce-admin-root{
+  background:#f8fafc;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+  font-synthesis:none;
+}
 .commerce-admin-page-content{display:grid;gap:22px}
 .commerce-welcome-banner{margin-bottom:2px}
 .commerce-refresh-btn{font:inherit;cursor:pointer}
 .commerce-live-status{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 14px;box-shadow:0 2px 6px rgba(15,23,42,.02)}
 .commerce-live-status>div{display:flex;flex-direction:column;gap:1px}
 .commerce-live-status strong{font-size:12px;color:#0f172a}
-.commerce-live-status small{font-size:10px;color:#64748b}
+.commerce-live-status small{font-size:11px;line-height:1.35;color:#64748b}
 .commerce-live-dot{width:9px;height:9px;border-radius:999px;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.12)}
 .commerce-admin-page-content>.commerce-panel,
 .commerce-admin-page-content>.commerce-management-shell{margin:0}
