@@ -364,10 +364,10 @@ function LinkReviewDrawer({ review, loading, error, saving, onClose, onResolve }
   );
 }
 
-export default function CommerceManagementView() {
+export default function CommerceManagementView({ mode = 'catalog' }) {
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
-  const [presence, setPresence] = useState('LINKED');
+  const [presence, setPresence] = useState(mode === 'pending' ? 'UNLINKED' : 'LINKED');
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState({ items: [], pagination: { total: 0, limit: 24, offset: 0 } });
   const [summary, setSummary] = useState(null);
@@ -453,6 +453,13 @@ export default function CommerceManagementView() {
     }
   }
 
+  useEffect(() => {
+    setPresence(mode === 'pending' ? 'UNLINKED' : 'LINKED');
+    setOffset(0);
+    setSelection(null);
+    setLinkReview(null);
+  }, [mode]);
+
   useEffect(() => { load(0); }, [presence, submittedSearch]);
   useEffect(() => { loadSummary(); }, []);
 
@@ -462,20 +469,27 @@ export default function CommerceManagementView() {
   const page = Math.floor(offset / limit) + 1;
   const pages = Math.max(1, Math.ceil(total / limit));
 
-  const metrics = [
-    ['LINKED', 'Produtos vinculados', summary?.linked_products || 0],
-    ['MULTI', 'Multiplataforma', summary?.multiplatform || 0],
-    ['EXCLUSIVE', 'Exclusivos', summary?.exclusive || 0],
-    ['UNLINKED', 'Para vincular', summary?.unlinked || 0]
-  ];
+  const metrics = mode === 'pending'
+    ? [
+        ['UNLINKED', 'Para vincular', summary?.unlinked || 0],
+        ['GS_REVIEW', 'Revisão GS', summary?.gs_reference_matches || 0],
+        ['SKU_REVIEW', 'Revisão SKU', summary?.sku_review_matches || 0]
+      ]
+    : [
+        ['LINKED', 'Todos os produtos', summary?.linked_products || 0],
+        ['MULTI', 'Multiplataforma', summary?.multiplatform || 0],
+        ['EXCLUSIVE', 'Uma plataforma', summary?.exclusive || 0]
+      ];
 
   return (
     <div className="commerce-management-page">
       <section className="commerce-panel commerce-management-hero">
         <div className="commerce-panel-header commerce-panel-header-stack">
           <div>
-            <h2>Gestão de produtos</h2>
-            <p>Um card por Produto Mestre. As plataformas aparecem dentro do produto e cada uma abre somente os dados daquele cadastro.</p>
+            <h2>{mode === 'pending' ? 'Pendências' : 'Catálogo de produtos'}</h2>
+            <p>{mode === 'pending'
+              ? 'Aqui ficam somente os produtos que precisam de vínculo ou revisão.'
+              : 'Um Produto Mestre por card. Imagens, plataformas e anúncios ficam reunidos dentro do próprio produto.'}</p>
           </div>
         </div>
 
@@ -522,18 +536,8 @@ export default function CommerceManagementView() {
           <div className="commerce-management-view-caption">
             <strong>{PRESENCE_LABELS[presence]}</strong>
             <span>{commerceFormatNumber(total)} resultados</span>
-            {presence === 'GS_REVIEW' || presence === 'SKU_REVIEW' ? (
-              <button type="button" className="commerce-review-filter active" onClick={() => setPresence('UNLINKED')}>Voltar para todos pendentes</button>
-            ) : null}
-            {Number(summary?.gs_reference_matches || 0) > 0 && !['GS_REVIEW', 'SKU_REVIEW'].includes(presence) ? (
-              <button type="button" className="commerce-review-filter gs" onClick={() => setPresence('GS_REVIEW')}>
-                Revisão GS · {commerceFormatNumber(summary.gs_reference_matches)}
-              </button>
-            ) : null}
-            {Number(summary?.sku_review_matches || 0) > 0 && !['GS_REVIEW', 'SKU_REVIEW'].includes(presence) ? (
-              <button type="button" className="commerce-review-filter sku" onClick={() => setPresence('SKU_REVIEW')}>
-                Revisão SKU · {commerceFormatNumber(summary.sku_review_matches)}
-              </button>
+            {mode === 'pending' && (presence === 'GS_REVIEW' || presence === 'SKU_REVIEW') ? (
+              <button type="button" className="commerce-review-filter active" onClick={() => setPresence('UNLINKED')}>Voltar para todas as pendências</button>
             ) : null}
           </div>
         </div>
@@ -544,6 +548,11 @@ export default function CommerceManagementView() {
           <div className="commerce-product-card-grid">
             {items.map(card => {
               const platforms = Array.isArray(card.platforms) ? card.platforms : [];
+              const listingCount = platforms.reduce((sum, platform) => {
+                const itemCount = Number(platform?.item_count || 0);
+                if (itemCount > 0) return sum + itemCount;
+                return sum + (Array.isArray(platform?.items) ? platform.items.length : 0);
+              }, 0);
               return (
                 <article className="commerce-product-card" key={card.card_key}>
                   <div className="commerce-product-card-media">
@@ -566,10 +575,11 @@ export default function CommerceManagementView() {
                     <div className="commerce-product-card-meta">
                       <span>{card.category_name || 'Sem categoria'}</span>
                       <span>{card.edition_year || 'Ano não informado'}</span>
+                      <span>{commerceFormatNumber(listingCount)} anúncio(s)</span>
                     </div>
 
                     <div className="commerce-product-platforms">
-                      <span className="commerce-product-platforms-label">Cadastrado em</span>
+                      <span className="commerce-product-platforms-label">Plataformas e anúncios</span>
                       <div>
                         {platforms.map(platform => (
                           <button
