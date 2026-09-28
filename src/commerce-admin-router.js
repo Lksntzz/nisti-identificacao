@@ -23,6 +23,7 @@ import {
   commerceProducts,
   commerceProductDetail,
   commerceShopeeSnapshot,
+  commerceSalesDashboard,
   commerceReconciliationQueue,
   commerceReconcileImportBatch,
   commerceResolveReconciliationListing
@@ -150,6 +151,18 @@ export async function handleCommerceAdminRequest(request, env) {
 
     if (method === 'GET' && pathname === `${BASE_PATH}/management/product-summary`) {
       return json(await commerceManagementProductSummary(env));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/sales/dashboard`) {
+      return json(await commerceSalesDashboard(env, {
+        platform: query(url, 'platform') || 'TODAS',
+        periodStart: query(url, 'period_start'),
+        periodEnd: query(url, 'period_end'),
+        sku: query(url, 'sku'),
+        status: query(url, 'status') || 'TODOS',
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      }));
     }
 
     const managementLinkReviewMatch = pathname.match(/^\/api\/admin\/commerce\/management\/link-review\/(\d+)$/);
