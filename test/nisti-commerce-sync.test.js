@@ -83,3 +83,28 @@ test('Catálogo prioriza a imagem atual do NISTI ID no Produto Mestre', () => {
   assert.equal(sql.includes('commerce_image_years_compatible'), true);
   assert.equal(sql.includes('commerce_enrich_management_platforms_v1'), true);
 });
+
+
+test('NISTI ID promove o SKU anual sincronizado para CURRENT único', () => {
+  const sql = read('supabase/migrations/20260928171906_nisti_id_authoritative_current_sku_v3.sql');
+
+  assert.equal(sql.includes('commerce_apply_nisti_link_to_product_v1'), true);
+  assert.equal(sql.includes("sku_type=case when ps.sku_type='CURRENT' then 'HISTORICAL'"), true);
+  assert.equal(sql.includes("sku_type=case when v_year is not null then 'CURRENT'"), true);
+  assert.equal(sql.includes('trg_commerce_nisti_link_apply_v1'), true);
+  assert.equal(sql.includes("edition_year=coalesce(v_year,edition_year)"), true);
+});
+
+test('Catálogo projeta SKU, ano e imagem atuais do Produto Mestre nas plataformas compatíveis', () => {
+  const sql = read('supabase/migrations/20260928171906_nisti_id_authoritative_current_sku_v3.sql');
+
+  assert.equal(sql.includes('commerce_sync_management_platforms_to_master_v1'), true);
+  assert.equal(sql.includes("'source_sku',i.item->>'sku'"), true);
+  assert.equal(sql.includes("'sku',p_master_sku"), true);
+  assert.equal(sql.includes("'edition_year',p_master_year"), true);
+  assert.equal(sql.includes("'image_source','NISTI_ID'"), false);
+  assert.equal(sql.includes("then 'NISTI_ID'"), true);
+  assert.equal(sql.includes("'synced_from_master',true"), true);
+  assert.equal(sql.includes("ip.item_pat->>'signature'=m.pat->>'signature'"), true);
+  assert.equal(sql.includes("coalesce(ip.item_pat->>'finish','')=coalesce(m.pat->>'finish','')"), true);
+});
