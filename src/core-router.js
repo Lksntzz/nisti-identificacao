@@ -25,6 +25,7 @@ import {
 import {
   syncNistiProductsToCommerce,
   syncNistiProductToCommerceSafe,
+  reconcileNistiProductToCommerceSafe,
   nistiCommerceSyncStatus,
   nistiCommerceProductStatuses
 } from './nisti-commerce-sync.js';
@@ -34,6 +35,17 @@ const TOP_K_REFERENCES = 24;
 const BULK_IMPORT_LIMIT = 100;
 const EXTRA_REFERENCE_LIMIT = 6;
 const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
+  const id = Number(productId || 0);
+  const status = String(commerceSync?.status || '').toUpperCase();
+  if (!ctx?.waitUntil || !Number.isInteger(id) || id <= 0 || status !== 'SYNCED') return;
+
+  ctx.waitUntil(
+    reconcileNistiProductToCommerceSafe(env, id)
+      .catch(error => console.warn('[NISTI→Commerce] Reconciliação em segundo plano falhou', id, error))
+  );
+}
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -464,7 +476,7 @@ async function deleteExtraReference(env, referenceId) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     try {
       if (url.pathname === '/api/health') {
@@ -504,6 +516,7 @@ export default {
       if (url.pathname === '/api/products' && request.method === 'POST') {
         const body = await request.json();
         const saved = await upsertCatalogProduct(env, body);
+        scheduleCommerceReconcile(ctx, env, saved.id, saved.commerce_sync);
         return json({ ok: true, ...saved }, saved.created ? 201 : 200);
       }
 
@@ -625,6 +638,7 @@ export default {
         }
 
         const commerceSync = await syncNistiProductToCommerceSafe(env, id);
+        scheduleCommerceReconcile(ctx, env, id, commerceSync);
         return json({ ok: true, id, updated: true, commerce_sync: commerceSync });
       }
 
