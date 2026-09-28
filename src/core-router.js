@@ -22,6 +22,11 @@ import {
   platformNamespace,
   normalizePlatform
 } from './platform-scope.js';
+import {
+  syncNistiProductsToCommerce,
+  syncNistiProductToCommerceSafe,
+  nistiCommerceSyncStatus
+} from './nisti-commerce-sync.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_REFERENCES = 24;
@@ -240,7 +245,7 @@ async function saveProductImage(env, id, fileBytes, contentType) {
   };
 }
 
-async function upsertCatalogProduct(env, row) {
+async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
   const parsed = parseSku(row?.sku);
   const nome = clean(row?.nome);
   const variacao = clean(row?.variacao);
@@ -325,13 +330,18 @@ async function upsertCatalogProduct(env, row) {
     });
   }
 
+  const commerceSync = syncCommerce
+    ? await syncNistiProductToCommerceSafe(env, Number(product.id))
+    : null;
+
   return {
     id: product.id,
     sku: parsed.sku,
     capa_code: parsed.capaCode,
     gtin: gtin || null,
     created,
-    has_image: Boolean(product.image_key)
+    has_image: Boolean(product.image_key),
+    commerce_sync: commerceSync
   };
 }
 
@@ -496,6 +506,15 @@ export default {
         return json({ ok: true, ...saved }, saved.created ? 201 : 200);
       }
 
+      if (url.pathname === '/api/admin/commerce-sync/nisti-products' && request.method === 'GET') {
+        return json({ ok: true, ...(await nistiCommerceSyncStatus(env)) });
+      }
+
+      if (url.pathname === '/api/admin/commerce-sync/nisti-products' && request.method === 'POST') {
+        const synced = await syncNistiProductsToCommerce(env);
+        return json({ ok: true, ...synced });
+      }
+
       if (url.pathname === '/api/admin/bulk-products' && request.method === 'POST') {
         const body = await request.json();
         const rows = Array.isArray(body?.rows) ? body.rows : [];
@@ -507,18 +526,27 @@ export default {
         const errors = [];
         for (let i = 0; i < rows.length; i += 1) {
           try {
-            imported.push({ row: i + 1, ...await upsertCatalogProduct(env, rows[i]) });
+            imported.push({ row: i + 1, ...await upsertCatalogProduct(env, rows[i], { syncCommerce: false }) });
           } catch (error) {
             errors.push({ row: i + 1, sku: clean(rows[i]?.sku), error: error?.message || 'Falha ao importar' });
           }
         }
+        const syncedIds = imported.map(item => Number(item.id || 0)).filter(Boolean);
+        const commerceSync = syncedIds.length
+          ? await syncNistiProductsToCommerce(env, syncedIds).catch(error => ({
+              status: 'ERROR',
+              error: error?.message || 'commerce_bulk_sync_failed'
+            }))
+          : null;
+
         return json({
           ok: errors.length === 0,
           received: rows.length,
           created: imported.filter(item => item.created).length,
           updated: imported.filter(item => !item.created).length,
           imported,
-          errors
+          errors,
+          commerce_sync: commerceSync
         });
       }
 
@@ -590,7 +618,8 @@ export default {
           }
         }
 
-        return json({ ok: true, id, updated: true });
+        const commerceSync = await syncNistiProductToCommerceSafe(env, id);
+        return json({ ok: true, id, updated: true, commerce_sync: commerceSync });
       }
 
       const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
@@ -607,13 +636,15 @@ export default {
           await updateNotificationImage(env, id, prod.capa_code, prod.image_key).catch(() => {});
         }
 
+        const commerceSync = await syncNistiProductToCommerceSafe(env, id);
         return json({
           ok: true,
           image_url: `/api/images/${id}`,
           embedding_indexed: saved.indexed,
           embedding_error: saved.index_error,
           reference_id: saved.reference_id,
-          removed_reference_ids: saved.removed_reference_ids
+          removed_reference_ids: saved.removed_reference_ids,
+          commerce_sync: commerceSync
         });
       }
 
