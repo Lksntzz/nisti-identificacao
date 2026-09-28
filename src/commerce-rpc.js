@@ -32,6 +32,6 @@ export function commerceRpcName(env, rpcName) {
   return name;
 }
 
-export async function commerceRpc(env, rpcName, args) {
-  return await supabaseRpc(env, commerceRpcName(env, rpcName), args);
+export async function commerceRpc(env, rpcName, args, options = {}) {
+  return await supabaseRpc(env, commerceRpcName(env, rpcName), args, options);
 }
