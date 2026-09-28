@@ -1,6 +1,7 @@
 const DEFAULT_TIMEOUT_MS = 2500;
 const MIN_TIMEOUT_MS = 500;
 const MAX_TIMEOUT_MS = 5000;
+const MAX_CUSTOM_TIMEOUT_MS = 30000;
 
 export class SupabaseReadError extends Error {
   constructor(message, { status = 0, code = 'supabase_read_error', fallbackEligible = false } = {}) {
@@ -16,10 +17,14 @@ export function supabaseReadsRequested(env) {
   return String(env?.SUPABASE_READS_ENABLED || '').trim() === '1';
 }
 
-function timeoutMs(env) {
-  const raw = Number(env?.SUPABASE_READ_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
+function timeoutMs(env, overrideMs = null) {
+  const hasOverride = Number.isFinite(Number(overrideMs));
+  const raw = hasOverride
+    ? Number(overrideMs)
+    : Number(env?.SUPABASE_READ_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
   if (!Number.isFinite(raw)) return DEFAULT_TIMEOUT_MS;
-  return Math.max(MIN_TIMEOUT_MS, Math.min(MAX_TIMEOUT_MS, Math.round(raw)));
+  const max = hasOverride ? MAX_CUSTOM_TIMEOUT_MS : MAX_TIMEOUT_MS;
+  return Math.max(MIN_TIMEOUT_MS, Math.min(max, Math.round(raw)));
 }
 
 function config(env) {
@@ -46,10 +51,13 @@ function fallbackStatus(status) {
   return status === 408 || status === 429 || status >= 500;
 }
 
-export async function supabaseRpc(env, functionName, params = {}) {
+export async function supabaseRpc(env, functionName, params = {}, options = {}) {
   const { url, serviceRoleKey } = config(env);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort('supabase-read-timeout'), timeoutMs(env));
+  const timer = setTimeout(
+    () => controller.abort('supabase-read-timeout'),
+    timeoutMs(env, options?.timeoutMs)
+  );
 
   try {
     const response = await fetch(`${url}/rest/v1/rpc/${encodeURIComponent(functionName)}`, {
