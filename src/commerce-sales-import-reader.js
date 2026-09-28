@@ -135,8 +135,29 @@ function fallbackBounds(fallbackPeriod) {
 }
 
 function boundsForDate(date, fallbackPeriod) {
-  if (date) return monthBounds(date.getUTCFullYear(), date.getUTCMonth() + 1);
-  return fallbackBounds(fallbackPeriod);
+  if (date) {
+    const base = monthBounds(date.getUTCFullYear(), date.getUTCMonth() + 1);
+    return { ...base, sale_date: date.toISOString().slice(0, 10) };
+  }
+  const fallback = fallbackBounds(fallbackPeriod);
+  return fallback ? { ...fallback, sale_date: fallback.period_end } : null;
+}
+
+function periodBoundsForImport(monthKey, latestSaleDate) {
+  const match = String(monthKey || '').match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
+  if (!match) return null;
+  const full = monthBounds(Number(match[1]), Number(match[2]));
+  if (!latestSaleDate || !latestSaleDate.startsWith(monthKey)) return full;
+
+  const fullEndDay = Number(full.period_end.slice(-2));
+  const observedDay = Number(latestSaleDate.slice(-2));
+  if (!Number.isInteger(observedDay) || observedDay >= fullEndDay) return full;
+
+  return {
+    period_key: `${monthKey} (01-${String(observedDay).padStart(2, '0')})`,
+    period_start: full.period_start,
+    period_end: latestSaleDate
+  };
 }
 
 function normalizeSku(value) {
@@ -210,7 +231,8 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
       const units = header.columns.units >= 0 ? Math.max(1, integerValue(cell(row, header.columns.units), 1)) : 1;
       raw.push({
         source_row_number: rowIndex + 1,
-        ...bounds,
+        month_key: bounds.period_key,
+        sale_date: bounds.sale_date,
         sku_primary: skuPrimary,
         sku,
         sku_norm: normalizeSku(sku),
@@ -233,14 +255,23 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
 
   if (!raw.length) throw new Error('Nenhuma venda válida foi encontrada no arquivo.');
 
+  const latestSaleDate = maxDate(raw.map(item => item.sale_date));
+  const periodMap = new Map(
+    [...new Set(raw.map(item => item.month_key))].map(monthKey => [
+      monthKey,
+      periodBoundsForImport(monthKey, latestSaleDate)
+    ])
+  );
+
   const grouped = new Map();
   for (const item of raw) {
-    const key = [item.period_key, item.sku_primary, item.sku].join('|');
+    const period = periodMap.get(item.month_key);
+    const key = [period.period_key, item.sku_primary, item.sku].join('|');
     const group = grouped.get(key) || {
       source_row_number: grouped.size + 1,
-      period_key: item.period_key,
-      period_start: item.period_start,
-      period_end: item.period_end,
+      period_key: period.period_key,
+      period_start: period.period_start,
+      period_end: period.period_end,
       sku_primary: item.sku_primary,
       sku: item.sku,
       sku_norm: item.sku_norm,
@@ -275,10 +306,11 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
 
   const summaryMap = new Map();
   for (const item of raw) {
-    const summary = summaryMap.get(item.period_key) || {
-      period_key: item.period_key,
-      period_start: item.period_start,
-      period_end: item.period_end,
+    const period = periodMap.get(item.month_key);
+    const summary = summaryMap.get(period.period_key) || {
+      period_key: period.period_key,
+      period_start: period.period_start,
+      period_end: period.period_end,
       orders: new Set(),
       units: 0,
       product_revenue: 0,
@@ -290,7 +322,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     summary.product_revenue += item.product_revenue;
     summary.listings.add(item.sku_primary || item.sku);
     summary.skus.add(item.sku_norm);
-    summaryMap.set(item.period_key, summary);
+    summaryMap.set(period.period_key, summary);
   }
 
   const summaries = [...summaryMap.values()].map(summary => ({
