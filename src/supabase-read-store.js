@@ -18,7 +18,9 @@ export function supabaseReadsRequested(env) {
 }
 
 function timeoutMs(env, overrideMs = null) {
-  const hasOverride = Number.isFinite(Number(overrideMs));
+  const hasOverride = overrideMs !== null
+    && overrideMs !== undefined
+    && Number.isFinite(Number(overrideMs));
   const raw = hasOverride
     ? Number(overrideMs)
     : Number(env?.SUPABASE_READ_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
