@@ -92,3 +92,10 @@ test('atalhos em massa abrem diretamente no campo correto', () => {
   assert.equal(workspace.includes("setBulkOpen({ action: 'OBSERVED_YEAR', step: 2 })"), true);
   assert.equal(workspace.includes("setBulkOpen({ action: 'IMAGE_URL', step: 2 })"), true);
 });
+
+
+test('botão Editar em massa não herda largura total da classe global primary', () => {
+  const css = read('src/commerce-catalog-workspace.css');
+
+  assert.equal(css.includes('.commerce-bulk-toolbar button.primary{width:auto;min-height:0;margin-top:0;flex:0 0 auto;'), true);
+});
