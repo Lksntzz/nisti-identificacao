@@ -1,6 +1,7 @@
 import app from './vectorize-performance-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
+import { syncNistiProductsToCommerce } from './nisti-commerce-sync.js';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -59,6 +60,27 @@ function cutoverFreezeResponse(configError = null) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (request.method === 'GET' && url.pathname === '/__ops/backfill-nisti-commerce-270-8f3a1d7c2b4e') {
+      try {
+        const result = await syncNistiProductsToCommerce(env);
+        return json({
+          ok: true,
+          total: result.total,
+          created: result.created,
+          linked: result.linked,
+          updated: result.updated,
+          conflicts: result.conflicts,
+          errors: Array.isArray(result.results) ? result.results.filter(item => item?.action === 'ERROR').length : 0,
+          conflict_items: Array.isArray(result.results)
+            ? result.results.filter(item => ['CONFLICT','ERROR'].includes(item?.action)).slice(0, 50)
+            : []
+        });
+      } catch (error) {
+        console.error('[One-time NISTI commerce backfill] failed', error);
+        return json({ ok: false, error: error?.message || 'backfill_failed' }, 500);
+      }
+    }
 
     if (isMutatingApiRequest(url, request)) {
       try {
