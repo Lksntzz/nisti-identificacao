@@ -223,7 +223,7 @@ test('fila Revisão GS prioriza referências GS e vínculos seguros', () => {
   assert.equal(view.includes("GS_REVIEW: 'Revisão GS'"), true);
   assert.equal(view.includes("['GS_REVIEW', 'Revisão GS'"), true);
   assert.equal(view.includes('commerce-gs-card-badge'), true);
-  assert.equal(view.includes('summary.gs_reference_matches'), true);
+  assert.equal(view.includes('summary?.gs_reference_matches'), true);
   assert.equal(css.includes('.commerce-gs-review-filter'), true);
   assert.equal(css.includes('.commerce-gs-card-badge'), true);
   assert.equal(sql.includes("'GS_REVIEW'"), true);
