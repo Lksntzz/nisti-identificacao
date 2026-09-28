@@ -638,7 +638,7 @@ export default function CommerceCatalogWorkspace({
         <article><span>Total de produtos</span><strong>{summaryLoading ? '…' : summaryError ? '—' : commerceFormatNumber(summary?.linked_products || total)}</strong><small>Produtos vinculados</small></article>
         <article><span>Multiplataforma</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.multiplatform || 0)}</strong><small>2 ou mais plataformas</small></article>
         <article><span>Uma plataforma</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.exclusive || 0)}</strong><small>Produtos exclusivos</small></article>
-        <article><span>Pendências</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.unlinked || 0)}</strong><small>Precisam de revisão</small></article>
+        <article><span>Sem NISTI</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.nisti_pending || 0)}</strong><small>Aguardando correspondência</small></article>
       </section>
 
       <section className="commerce-catalog-panel">
@@ -711,6 +711,9 @@ export default function CommerceCatalogWorkspace({
               const listings = collectListings(card);
               const hasLocalChange = listings.some(row => ['LOCAL', 'PENDING'].includes(String(row.sync_status || '')));
               const hasEditable = listings.some(row => row.listing_id);
+              const nistiStatus = String(card.link_review_status || '');
+              const isNistiSynced = nistiStatus === 'NISTI_SYNCED';
+              const isNistiPending = nistiStatus === 'NISTI_PENDING';
               return (
                 <tr key={card.card_key} className={selectedKeys.has(card.card_key) ? 'selected' : ''} onClick={() => setActiveCard(card)}>
                   <td className="check" onClick={event => event.stopPropagation()}>
@@ -729,8 +732,8 @@ export default function CommerceCatalogWorkspace({
                     </div>
                   </td>
                   <td>
-                    <span className={'commerce-product-completeness ' + (hasEditable ? 'complete' : 'pending')}>
-                      {hasLocalChange ? 'Alterado' : hasEditable ? 'Completo' : 'Pendente'}
+                    <span className={'commerce-product-completeness ' + (isNistiSynced ? 'complete' : 'pending')}>
+                      {isNistiSynced ? 'Sincronizado' : isNistiPending ? 'Sem NISTI' : hasLocalChange ? 'Alterado' : hasEditable ? 'Completo' : 'Pendente'}
                     </span>
                   </td>
                   <td><button type="button" className="commerce-more-button" onClick={event => { event.stopPropagation(); setActiveCard(card); }}><Icon name="more" /></button></td>
