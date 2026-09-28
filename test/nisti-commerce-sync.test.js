@@ -60,3 +60,26 @@ test('preview não escreve no catálogo live', () => {
   assert.equal(helper.includes("preview_scope"), true);
   assert.equal(helper.includes("skipped: true"), true);
 });
+
+
+test('sincronização reconhece SKU normalizado e família anual sem misturar acabamento', () => {
+  const sql = read('supabase/migrations/20260928165350_nisti_id_commerce_family_sync_v2.sql');
+
+  assert.equal(sql.includes('commerce_nisti_sku_norm_v1'), true);
+  assert.equal(sql.includes("'LINKED_NORMALIZED'"), true);
+  assert.equal(sql.includes("'LINKED_FAMILY'"), true);
+  assert.equal(sql.includes("ps.sku_type='CURRENT'"), true);
+  assert.equal(sql.includes("->>'signature'"), true);
+  assert.equal(sql.includes("->>'finish'"), true);
+  assert.equal(sql.includes("sku_type='HISTORICAL',is_active=false"), true);
+  assert.equal(sql.includes("reference_image_source=case when v_image is not null then 'NISTI_ID'"), true);
+});
+
+test('Catálogo prioriza a imagem atual do NISTI ID no Produto Mestre', () => {
+  const sql = read('supabase/migrations/20260928165507_commerce_management_nisti_master_image_priority_v1.sql');
+
+  assert.equal(sql.includes("cp.reference_image_source='NISTI_ID'"), true);
+  assert.equal(sql.includes('cp.reference_image_url'), true);
+  assert.equal(sql.includes('commerce_image_years_compatible'), true);
+  assert.equal(sql.includes('commerce_enrich_management_platforms_v1'), true);
+});
