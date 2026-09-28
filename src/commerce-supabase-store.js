@@ -93,7 +93,7 @@ export async function commerceManagementProducts(env, filters = {}) {
         p_search: cleanText(filters.search),
         p_category: cleanText(filters.category),
         p_year: Number.isInteger(year) && year > 0 ? year : null,
-        p_presence: presence,
+        p_presence: cleanText(filters.presence) || 'LINKED',
         p_limit: limit,
         p_offset: offset
       };
