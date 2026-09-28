@@ -8,7 +8,7 @@ function read(path) {
 
 test('Gestão é a visão principal do Catálogo Comercial', () => {
   const shell = read('src/commerce-admin-app-v2.jsx');
-  assert.equal(shell.includes("{ id: 'management', label: 'Gestão' }"), true);
+  assert.equal(shell.includes("id: 'management', label: 'Gestão'"), true);
   assert.equal(shell.includes("useState('management')"), true);
   assert.equal(shell.includes('CommerceManagementView'), true);
 });

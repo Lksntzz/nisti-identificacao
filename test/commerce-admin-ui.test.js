@@ -34,15 +34,27 @@ test('rota do Catálogo Comercial reutiliza a sessão administrativa', () => {
   assert.equal(edge.includes("pathname.startsWith('/api/admin/')"), true);
 });
 
-test('UI comercial modular possui as visões essenciais', () => {
+test('UI comercial mantém só as visões de uso diário no menu', () => {
   const shell = read('src/commerce-admin-app-v2.jsx');
-  for (const label of ['Visão Geral', 'Produtos Mestre', 'Anúncios', 'Importações Excel', 'Revisão de vínculos', 'Atualização Anual']) {
+  for (const label of ['Gestão', 'Produtos Mestre', 'Anúncios']) {
     assert.equal(shell.includes(label), true, `${label} deve existir`);
   }
-  assert.equal(shell.includes('CommerceImportView'), true);
+  for (const label of ['Visão Geral', 'Shopee · Capas', 'Importações Excel', 'Revisão de vínculos', 'Atualização Anual']) {
+    assert.equal(shell.includes(`label: '${label}'`), false, `${label} não deve aparecer no menu`);
+  }
+
+  assert.equal(shell.includes('CommerceManagementView'), true);
   assert.equal(shell.includes('CommerceProductsView'), true);
   assert.equal(shell.includes('CommerceListingsView'), true);
-  assert.equal(shell.includes('CommerceReconciliationView'), true);
+  assert.equal(shell.includes('CommerceImportView'), false);
+  assert.equal(shell.includes('CommerceReconciliationView'), false);
+  assert.equal(shell.includes('CommerceShopeeSnapshotView'), false);
+  assert.equal(shell.includes('CommerceUpdateView'), false);
+
+  assert.equal(fs.existsSync('src/commerce-import-view.jsx'), true);
+  assert.equal(fs.existsSync('src/commerce-reconciliation-view.jsx'), true);
+  assert.equal(fs.existsSync('src/commerce-shopee-snapshot-view.jsx'), true);
+  assert.equal(fs.existsSync('src/commerce-update-view.jsx'), true);
 });
 
 test('importação XLSX é browser-side, versionada e usa staging antes do commit', () => {
