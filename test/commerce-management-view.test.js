@@ -76,7 +76,7 @@ test('preview da Gestão continua isolado da produção', () => {
   const seed = read('supabase/migrations/20260925181500_commerce_preview_management_v1.sql');
   const cards = read('supabase/migrations/20260925183000_commerce_management_product_cards_v1.sql');
 
-  assert.equal(workflow.includes('feat/commerce-management'), true);
+  assert.equal(workflow.includes('branches: [main]'), true);
   assert.equal(rpc.includes("return name.replace(/^commerce_/, 'commerce_preview_')"), true);
   assert.equal(seed.includes('commerce_preview_source_files'), true);
   assert.equal(seed.includes('preview_snapshot'), true);
@@ -127,8 +127,8 @@ test('fila ambígua compara candidatos e resolve somente no preview', () => {
   const css = read('src/commerce-management.css');
   const sql = read('supabase/migrations/20260925191500_commerce_management_link_review_v1.sql');
 
-  assert.equal(router.includes('managementLinkReviewMatch'), true);
-  assert.equal(router.includes('managementLinkResolveMatch'), true);
+  assert.equal(router.includes('linkReviewMatch'), true);
+  assert.equal(router.includes('linkResolveMatch'), true);
   assert.equal(router.includes('commercePreviewSandbox(env)'), true);
   assert.equal(router.includes('commerce_preview_only'), true);
   assert.equal(store.includes("'commerce_management_link_candidates_v2'"), true);
