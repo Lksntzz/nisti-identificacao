@@ -210,3 +210,35 @@ test('cadastro e edição exibem confirmação real da sincronização do Catál
   assert.equal(badge.includes('Erro de sincronização'), true);
   assert.equal(badge.includes('Sem sincronização'), true);
 });
+
+
+test('sincronização principal não executa reconciliação histórica dentro do trigger', () => {
+  const sql = read('supabase/migrations/20260928192559_nisti_sync_nonblocking_v8.sql');
+
+  assert.equal(sql.includes('commerce_reconcile_nisti_product_v3'), true);
+  assert.equal(sql.includes('perform public.commerce_apply_nisti_link_to_product_v1'), true);
+  assert.equal(sql.includes('perform public.commerce_reconcile_nisti_product_v3'), false);
+  assert.equal(sql.includes('trg_commerce_nisti_link_apply_v1'), true);
+});
+
+test('RPC de escrita pode usar timeout maior e a sincronização faz retry temporário', () => {
+  const readStore = read('src/supabase-read-store.js');
+  const sync = read('src/nisti-commerce-sync.js');
+
+  assert.equal(readStore.includes('MAX_CUSTOM_TIMEOUT_MS = 30000'), true);
+  assert.equal(readStore.includes('options?.timeoutMs'), true);
+  assert.equal(sync.includes('COMMERCE_SYNC_TIMEOUT_MS = 8000'), true);
+  assert.equal(sync.includes('COMMERCE_RECONCILE_TIMEOUT_MS = 15000'), true);
+  assert.equal(sync.includes('retryableSyncError'), true);
+  assert.equal(sync.includes('attempt <= 2'), true);
+});
+
+test('reconciliação histórica roda em segundo plano no cadastro e edição', () => {
+  const router = read('src/core-router.js');
+
+  assert.equal(router.includes('scheduleCommerceReconcile'), true);
+  assert.equal(router.includes('ctx.waitUntil'), true);
+  assert.equal(router.includes('reconcileNistiProductToCommerceSafe'), true);
+  assert.equal(router.includes('scheduleCommerceReconcile(ctx, env, saved.id, saved.commerce_sync)'), true);
+  assert.equal(router.includes('scheduleCommerceReconcile(ctx, env, id, commerceSync)'), true);
+});
