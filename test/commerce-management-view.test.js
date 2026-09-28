@@ -221,7 +221,7 @@ test('fila Revisão GS prioriza referências GS e vínculos seguros', () => {
   const sql = read('supabase/migrations/20260925205500_commerce_preview_gs_review_queue.sql');
 
   assert.equal(view.includes("GS_REVIEW: 'Revisão GS'"), true);
-  assert.equal(view.includes("setPresence('GS_REVIEW')"), true);
+  assert.equal(view.includes("['GS_REVIEW', 'Revisão GS'"), true);
   assert.equal(view.includes('commerce-gs-card-badge'), true);
   assert.equal(view.includes('summary.gs_reference_matches'), true);
   assert.equal(css.includes('.commerce-gs-review-filter'), true);
@@ -254,7 +254,7 @@ test('Revisão SKU mostra capa, variação e candidatos sem unir capas automatic
   const sql = read('supabase/migrations/20260925212000_commerce_preview_sku_cover_matching.sql');
 
   assert.equal(view.includes("SKU_REVIEW: 'Revisão SKU'"), true);
-  assert.equal(view.includes("setPresence('SKU_REVIEW')"), true);
+  assert.equal(view.includes("['SKU_REVIEW', 'Revisão SKU'"), true);
   assert.equal(view.includes('Padrão detectado do SKU'), true);
   assert.equal(view.includes('Coleção/base'), true);
   assert.equal(view.includes('A numeração da capa é preservada'), true);
