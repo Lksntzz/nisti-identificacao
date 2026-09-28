@@ -53,7 +53,7 @@ test('API expõe cards e resumo da Gestão simplificada', () => {
 
   assert.equal(router.includes('/management/products'), true);
   assert.equal(router.includes('/management/product-summary'), true);
-  assert.equal(store.includes("'commerce_management_products_v2'"), true);
+  assert.equal(store.includes("'commerce_management_products_v3'"), true);
   assert.equal(store.includes("'commerce_management_product_summary_v2'"), true);
   assert.equal(store.includes("p_presence: cleanText(filters.presence) || 'LINKED'"), true);
 });
@@ -110,7 +110,7 @@ test('Gestão separa ambíguos e itens sem candidato seguro', () => {
   const css = read('src/commerce-management.css');
   const sql = read('supabase/migrations/20260925190000_commerce_management_link_audit_v1.sql');
 
-  assert.equal(store.includes("'commerce_management_products_v2'"), true);
+  assert.equal(store.includes("'commerce_management_products_v3'"), true);
   assert.equal(sql.includes("'SAFE_CANDIDATE'"), true);
   assert.equal(sql.includes("'AMBIGUOUS'"), true);
   assert.equal(sql.includes("'NO_CANDIDATE'"), true);
