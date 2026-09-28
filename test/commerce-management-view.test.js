@@ -6,11 +6,16 @@ function read(path) {
   return fs.readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 }
 
-test('Gestão é a visão principal do Catálogo Comercial', () => {
+test('Catálogo é a visão principal e Pendências reutiliza a mesma gestão', () => {
   const shell = read('src/commerce-admin-app-v2.jsx');
-  assert.equal(shell.includes("id: 'management', label: 'Gestão'"), true);
-  assert.equal(shell.includes("useState('management')"), true);
-  assert.equal(shell.includes('CommerceManagementView'), true);
+  const view = read('src/commerce-management-view.jsx');
+
+  assert.equal(shell.includes("id: 'catalog', label: 'Catálogo'"), true);
+  assert.equal(shell.includes("id: 'pending', label: 'Pendências'"), true);
+  assert.equal(shell.includes("useState('catalog')"), true);
+  assert.equal(shell.includes('<CommerceManagementView mode="catalog" />'), true);
+  assert.equal(shell.includes('<CommerceManagementView mode="pending" />'), true);
+  assert.equal(view.includes("mode === 'pending' ? 'UNLINKED' : 'LINKED'"), true);
 });
 
 test('fonte operacional da Gestão preserva regra de imagem por ano', () => {
@@ -57,8 +62,8 @@ test('interface mostra um card por produto e plataformas clicáveis', () => {
   const view = read('src/commerce-management-view.jsx');
   const css = read('src/commerce-management.css');
 
-  assert.equal(view.includes('Um card por Produto Mestre'), true);
-  assert.equal(view.includes('Cadastrado em'), true);
+  assert.equal(view.includes('Um Produto Mestre por card'), true);
+  assert.equal(view.includes('Plataformas e anúncios'), true);
   assert.equal(view.includes('Multiplataforma'), true);
   assert.equal(view.includes('Exclusivo'), true);
   assert.equal(view.includes('Para vincular'), true);
@@ -216,9 +221,9 @@ test('fila Revisão GS prioriza referências GS e vínculos seguros', () => {
   const sql = read('supabase/migrations/20260925205500_commerce_preview_gs_review_queue.sql');
 
   assert.equal(view.includes("GS_REVIEW: 'Revisão GS'"), true);
-  assert.equal(view.includes("setPresence('GS_REVIEW')"), true);
+  assert.equal(view.includes("['GS_REVIEW', 'Revisão GS'"), true);
   assert.equal(view.includes('commerce-gs-card-badge'), true);
-  assert.equal(view.includes('summary.gs_reference_matches'), true);
+  assert.equal(view.includes('summary?.gs_reference_matches'), true);
   assert.equal(css.includes('.commerce-gs-review-filter'), true);
   assert.equal(css.includes('.commerce-gs-card-badge'), true);
   assert.equal(sql.includes("'GS_REVIEW'"), true);
@@ -249,7 +254,7 @@ test('Revisão SKU mostra capa, variação e candidatos sem unir capas automatic
   const sql = read('supabase/migrations/20260925212000_commerce_preview_sku_cover_matching.sql');
 
   assert.equal(view.includes("SKU_REVIEW: 'Revisão SKU'"), true);
-  assert.equal(view.includes("setPresence('SKU_REVIEW')"), true);
+  assert.equal(view.includes("['SKU_REVIEW', 'Revisão SKU'"), true);
   assert.equal(view.includes('Padrão detectado do SKU'), true);
   assert.equal(view.includes('Coleção/base'), true);
   assert.equal(view.includes('A numeração da capa é preservada'), true);

@@ -3,19 +3,15 @@ import './app.css';
 import './commerce-admin.css';
 import LOGO from './assets/logo.png';
 import CommerceManagementView from './commerce-management-view.jsx';
-import CommerceProductsView from './commerce-products-view.jsx';
-import CommerceListingsView from './commerce-listings-view.jsx';
 
 const NAV_ITEMS = Object.freeze([
-  { id: 'management', label: 'Gestão', icon: 'grid' },
-  { id: 'products', label: 'Produtos Mestre', icon: 'package' },
-  { id: 'listings', label: 'Anúncios', icon: 'list' }
+  { id: 'catalog', label: 'Catálogo', icon: 'grid' },
+  { id: 'pending', label: 'Pendências', icon: 'list' }
 ]);
 
 const VIEW_DESCRIPTIONS = Object.freeze({
-  management: 'Acompanhe produtos, plataformas, imagens e pendências em uma única visão.',
-  products: 'Consulte e organize o cadastro mestre usado como referência comercial.',
-  listings: 'Confira os anúncios vinculados aos produtos em cada plataforma.'
+  catalog: 'Produto Mestre, imagens e anúncios de todas as plataformas em uma única visão.',
+  pending: 'Somente produtos que precisam de vínculo, revisão ou correção.'
 });
 
 function SidebarIcon({ name }) {
@@ -127,7 +123,7 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
 }
 
 export default function CommerceAdminAppV2() {
-  const [activeView, setActiveView] = useState('management');
+  const [activeView, setActiveView] = useState('catalog');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const activeItem = useMemo(
@@ -194,9 +190,8 @@ export default function CommerceAdminAppV2() {
             </div>
           </div>
 
-          {activeView === 'management' && <CommerceManagementView />}
-          {activeView === 'products' && <CommerceProductsView />}
-          {activeView === 'listings' && <CommerceListingsView />}
+          {activeView === 'catalog' && <CommerceManagementView mode="catalog" />}
+          {activeView === 'pending' && <CommerceManagementView mode="pending" />}
         </main>
 
         <footer className="commerce-footer">
