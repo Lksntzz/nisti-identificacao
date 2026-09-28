@@ -19,3 +19,11 @@ test('cutover runbook keeps service role secret out of repository', () => {
   assert.match(source, /13 tabelas importadas/);
   assert.match(source, /Não alterar os thresholds/);
 });
+
+
+test('production commerce read timeout covers management card query budget', () => {
+  const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
+  const match = wrangler.match(/SUPABASE_READ_TIMEOUT_MS\s*=\s*"(\d+)"/);
+  assert.ok(match, 'SUPABASE_READ_TIMEOUT_MS must be configured in production');
+  assert.ok(Number(match[1]) >= 5000, 'production timeout must cover the ~3s management products RPC');
+});
