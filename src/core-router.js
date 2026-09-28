@@ -25,7 +25,8 @@ import {
 import {
   syncNistiProductsToCommerce,
   syncNistiProductToCommerceSafe,
-  nistiCommerceSyncStatus
+  nistiCommerceSyncStatus,
+  nistiCommerceProductStatuses
 } from './nisti-commerce-sync.js';
 
 const EMBEDDING_DIMENSIONS = 768;
@@ -513,6 +514,11 @@ export default {
       if (url.pathname === '/api/admin/commerce-sync/nisti-products' && request.method === 'POST') {
         const synced = await syncNistiProductsToCommerce(env);
         return json({ ok: true, ...synced });
+      }
+
+      if (url.pathname === '/api/admin/commerce-sync/nisti-products/statuses' && request.method === 'GET') {
+        const statuses = await nistiCommerceProductStatuses(env);
+        return json({ ok: true, statuses });
       }
 
       if (url.pathname === '/api/admin/bulk-products' && request.method === 'POST') {
