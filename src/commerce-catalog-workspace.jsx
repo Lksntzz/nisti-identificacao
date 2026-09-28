@@ -93,7 +93,9 @@ function collectListings(card) {
   for (const platform of Array.isArray(card?.platforms) ? card.platforms : []) {
     for (const item of Array.isArray(platform?.items) ? platform.items : []) {
       const listingId = Number(item?.listing_id || 0);
-      const key = listingId > 0 ? 'listing:' + listingId : 'row:' + String(item?.source_row_id || Math.random());
+      const key = listingId > 0
+        ? 'listing:' + listingId
+        : 'row:' + String(item?.source_row_id || [platform.source_code, item?.sku, item?.listing_url].filter(Boolean).join(':') || 'unknown');
       const existing = map.get(key);
       if (existing) {
         if (item?.sku && !existing.skus.includes(item.sku)) existing.skus.push(item.sku);
@@ -236,10 +238,10 @@ function ListingEditModal({ target, onClose, onSaved }) {
   );
 }
 
-function BulkEditModal({ cards, onClose, onSaved }) {
-  const [step, setStep] = useState(1);
-  const [action, setAction] = useState('LISTING_STATUS');
-  const [value, setValue] = useState('ACTIVE');
+function BulkEditModal({ cards, initialAction = 'LISTING_STATUS', initialStep = 1, onClose, onSaved }) {
+  const [step, setStep] = useState(initialStep);
+  const [action, setAction] = useState(initialAction);
+  const [value, setValue] = useState(initialAction === 'LISTING_STATUS' ? 'ACTIVE' : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -546,7 +548,7 @@ export default function CommerceCatalogWorkspace({
 }) {
   const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [activeCard, setActiveCard] = useState(null);
-  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [platformFilter, setPlatformFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -632,13 +634,6 @@ export default function CommerceCatalogWorkspace({
 
   return (
     <div className="commerce-catalog-workspace">
-      <section className="commerce-catalog-heading">
-        <div>
-          <h2>Catálogo Comercial</h2>
-          <p>Gerencie Produtos Mestre, imagens e anúncios em todas as plataformas.</p>
-        </div>
-      </section>
-
       <section className="commerce-catalog-metrics">
         <article><span>Total de produtos</span><strong>{summaryLoading ? '…' : summaryError ? '—' : commerceFormatNumber(summary?.linked_products || total)}</strong><small>Produtos vinculados</small></article>
         <article><span>Multiplataforma</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.multiplatform || 0)}</strong><small>2 ou mais plataformas</small></article>
@@ -646,56 +641,55 @@ export default function CommerceCatalogWorkspace({
         <article><span>Pendências</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.unlinked || 0)}</strong><small>Precisam de revisão</small></article>
       </section>
 
-      <section className="commerce-catalog-controls">
-        <form onSubmit={event => { event.preventDefault(); setSubmittedSearch(search.trim()); }}>
-          <Icon name="search" />
-          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar por SKU, nome ou produto..." />
-        </form>
-        <select value={platformFilter} onChange={event => setPlatformFilter(event.target.value)}>
-          <option value="">Plataforma</option>
-          {filterOptions.platforms.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
-        </select>
-        <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}>
-          <option value="">Categoria</option>
-          {filterOptions.categories.map(value => <option key={value}>{value}</option>)}
-        </select>
-        <select value={yearFilter} onChange={event => setYearFilter(event.target.value)}>
-          <option value="">Ano</option>
-          {filterOptions.years.map(value => <option key={value}>{value}</option>)}
-        </select>
-        <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
-          <option value="">Status</option>
-          {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        {(platformFilter || categoryFilter || yearFilter || statusFilter || submittedSearch) ? (
-          <button type="button" className="clear" onClick={() => {
-            setPlatformFilter('');
-            setCategoryFilter('');
-            setYearFilter('');
-            setStatusFilter('');
-            setSearch('');
-            setSubmittedSearch('');
-          }}>Limpar</button>
+      <section className="commerce-catalog-panel">
+        <div className="commerce-catalog-controls">
+          <form onSubmit={event => { event.preventDefault(); setSubmittedSearch(search.trim()); }}>
+            <Icon name="search" size={15} />
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar por SKU, nome ou produto..." />
+          </form>
+          <select value={platformFilter} onChange={event => setPlatformFilter(event.target.value)}>
+            <option value="">Plataforma</option>
+            {filterOptions.platforms.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+          </select>
+          <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}>
+            <option value="">Categoria</option>
+            {filterOptions.categories.map(value => <option key={value}>{value}</option>)}
+          </select>
+          <select value={yearFilter} onChange={event => setYearFilter(event.target.value)}>
+            <option value="">Ano</option>
+            {filterOptions.years.map(value => <option key={value}>{value}</option>)}
+          </select>
+          <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
+            <option value="">Status</option>
+            {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+          {(platformFilter || categoryFilter || yearFilter || statusFilter || submittedSearch) ? (
+            <button type="button" className="clear" onClick={() => {
+              setPlatformFilter('');
+              setCategoryFilter('');
+              setYearFilter('');
+              setStatusFilter('');
+              setSearch('');
+              setSubmittedSearch('');
+            }}>Limpar</button>
+          ) : null}
+        </div>
+
+        {selectedKeys.size ? (
+          <div className="commerce-bulk-toolbar">
+            <strong>{selectedKeys.size} selecionado(s)</strong>
+            <span>{selectedListingCount} anúncio(s)</span>
+            <button type="button" className="primary" onClick={() => setBulkOpen({ action: 'LISTING_STATUS', step: 1 })}><Icon name="edit" size={14} /> Editar em massa</button>
+            <button type="button" onClick={() => setBulkOpen({ action: 'LISTING_STATUS', step: 2 })}>Alterar status</button>
+            <button type="button" onClick={() => setBulkOpen({ action: 'OBSERVED_YEAR', step: 2 })}>Alterar ano</button>
+            <button type="button" onClick={() => setBulkOpen({ action: 'IMAGE_URL', step: 2 })}>Trocar imagem</button>
+          </div>
         ) : null}
-      </section>
 
-      {selectedKeys.size ? (
-        <section className="commerce-bulk-toolbar">
-          <strong>{selectedKeys.size} selecionado(s)</strong>
-          <span>{selectedListingCount} anúncio(s)</span>
-          <button type="button" className="primary" onClick={() => setBulkOpen(true)}><Icon name="edit" /> Editar em massa</button>
-          <button type="button" onClick={() => {
-            setBulkOpen(true);
-          }}>Alterar status</button>
-          <button type="button" onClick={() => setBulkOpen(true)}>Alterar ano</button>
-          <button type="button" onClick={() => setBulkOpen(true)}>Trocar imagem</button>
-        </section>
-      ) : null}
+        {notice ? <div className={'commerce-catalog-notice ' + (notice.isError ? 'error' : '')}>{notice.text}</div> : null}
+        {error ? <div className="commerce-catalog-notice error">{error}</div> : null}
 
-      {notice ? <div className={'commerce-catalog-notice ' + (notice.isError ? 'error' : '')}>{notice.text}</div> : null}
-      {error ? <div className="commerce-catalog-notice error">{error}</div> : null}
-
-      <section className="commerce-catalog-table-wrap">
+        <div className="commerce-catalog-table-wrap">
         <table className="commerce-catalog-table">
           <thead>
             <tr>
@@ -747,13 +741,14 @@ export default function CommerceCatalogWorkspace({
             )}
           </tbody>
         </table>
-      </section>
+        </div>
 
-      <section className="commerce-catalog-pagination">
-        <span>Página {page} de {pages} · {commerceFormatNumber(total)} produtos</span>
-        <div>
-          <button type="button" disabled={offset <= 0 || loading} onClick={() => load(Math.max(0, offset - limit))}>Anterior</button>
-          <button type="button" disabled={offset + limit >= total || loading} onClick={() => load(offset + limit)}>Próxima</button>
+        <div className="commerce-catalog-pagination">
+          <span>Página {page} de {pages} · {commerceFormatNumber(total)} produtos</span>
+          <div>
+            <button type="button" disabled={offset <= 0 || loading} onClick={() => load(Math.max(0, offset - limit))}>Anterior</button>
+            <button type="button" disabled={offset + limit >= total || loading} onClick={() => load(offset + limit)}>Próxima</button>
+          </div>
         </div>
       </section>
 
@@ -781,7 +776,9 @@ export default function CommerceCatalogWorkspace({
       {bulkOpen ? (
         <BulkEditModal
           cards={selectedCards}
-          onClose={() => setBulkOpen(false)}
+          initialAction={bulkOpen.action}
+          initialStep={bulkOpen.step}
+          onClose={() => setBulkOpen(null)}
           onSaved={async () => {
             message('Edição em massa concluída.');
             setSelectedKeys(new Set());

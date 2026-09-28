@@ -72,3 +72,23 @@ test('sincronização externa fica explicitamente como fila pendente', () => {
   assert.equal(migration.includes("'PENDING'"), true);
   assert.equal(migration.includes('commerce_queue_listing_sync_v1'), true);
 });
+
+
+test('editor visual segue o shell atual do Catálogo sem criar outra identidade', () => {
+  const workspace = read('src/commerce-catalog-workspace.jsx');
+  const css = read('src/commerce-catalog-workspace.css');
+
+  assert.equal(workspace.includes('<h2>Catálogo Comercial</h2>'), false);
+  assert.equal(workspace.includes('commerce-catalog-panel'), true);
+  assert.equal(css.includes('background:#0f172a'), true);
+  assert.equal(css.includes('.commerce-catalog-panel'), true);
+  assert.equal(css.includes('grid-template-columns:minmax(260px,1fr)'), true);
+});
+
+test('atalhos em massa abrem diretamente no campo correto', () => {
+  const workspace = read('src/commerce-catalog-workspace.jsx');
+
+  assert.equal(workspace.includes("setBulkOpen({ action: 'LISTING_STATUS', step: 2 })"), true);
+  assert.equal(workspace.includes("setBulkOpen({ action: 'OBSERVED_YEAR', step: 2 })"), true);
+  assert.equal(workspace.includes("setBulkOpen({ action: 'IMAGE_URL', step: 2 })"), true);
+});
