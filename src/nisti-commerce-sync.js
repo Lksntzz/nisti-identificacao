@@ -1,5 +1,8 @@
 import { supabaseRpc } from './supabase-read-store.js';
 
+const COMMERCE_SYNC_TIMEOUT_MS = 8000;
+const COMMERCE_RECONCILE_TIMEOUT_MS = 15000;
+
 function isPreview(env) {
   return String(env?.COMMERCE_DATA_SCOPE || '').trim().toLowerCase() === 'preview';
 }
@@ -74,7 +77,7 @@ async function syncBatch(env, products) {
 
   const result = await supabaseRpc(env, 'commerce_sync_nisti_products_v1', {
     p_products: products
-  });
+  }, { timeoutMs: COMMERCE_SYNC_TIMEOUT_MS });
 
   return result && typeof result === 'object'
     ? result
@@ -116,16 +119,60 @@ export async function syncNistiProductToCommerce(env, productId) {
   };
 }
 
+function retryableSyncError(error) {
+  const code = String(error?.code || '').toLowerCase();
+  const status = Number(error?.status || 0);
+  return Boolean(
+    error?.fallbackEligible
+    || status === 408
+    || status === 429
+    || status >= 500
+    || code.includes('timeout')
+    || code.includes('transport')
+  );
+}
+
 export async function syncNistiProductToCommerceSafe(env, productId) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return await syncNistiProductToCommerce(env, productId);
+    } catch (error) {
+      lastError = error;
+      if (attempt === 1 && retryableSyncError(error)) {
+        console.warn('[NISTI→Commerce] Tentando novamente após falha temporária', productId, error?.code || error?.message);
+        await new Promise(resolve => setTimeout(resolve, 150));
+        continue;
+      }
+      break;
+    }
+  }
+
+  console.error('[NISTI→Commerce] Falha ao sincronizar produto', productId, lastError);
+  return {
+    status: 'ERROR',
+    action: 'ERROR',
+    nisti_product_id: Number(productId || 0),
+    error: lastError?.message || 'commerce_sync_failed'
+  };
+}
+
+export async function reconcileNistiProductToCommerceSafe(env, productId) {
+  if (isPreview(env)) {
+    return { status: 'SKIPPED', reason: 'preview_scope', nisti_product_id: Number(productId || 0) };
+  }
+
   try {
-    return await syncNistiProductToCommerce(env, productId);
+    return await supabaseRpc(env, 'commerce_reconcile_nisti_product_v3', {
+      p_nisti_product_id: Number(productId || 0)
+    }, { timeoutMs: COMMERCE_RECONCILE_TIMEOUT_MS });
   } catch (error) {
-    console.error('[NISTI→Commerce] Falha ao sincronizar produto', productId, error);
+    console.warn('[NISTI→Commerce] Reconciliação histórica ficou pendente', productId, error);
     return {
       status: 'ERROR',
-      action: 'ERROR',
       nisti_product_id: Number(productId || 0),
-      error: error?.message || 'commerce_sync_failed'
+      error: error?.message || 'commerce_reconcile_failed'
     };
   }
 }
