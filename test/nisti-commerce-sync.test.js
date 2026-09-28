@@ -157,3 +157,26 @@ test('Catálogo expõe sincronizado versus sem NISTI', () => {
   assert.equal(ui.includes("Sincronizado"), true);
   assert.equal(ui.includes("Sem NISTI"), true);
 });
+
+
+test('Catálogo principal usa a leitura rápida em vez de reconstruir o catálogo inteiro', () => {
+  const store = read('src/commerce-supabase-store.js');
+  const sql = read('supabase/migrations/20260928183545_commerce_catalog_fast_read_v7.sql');
+
+  assert.equal(store.includes("'commerce_management_products_fast_v1'"), true);
+  assert.equal(store.includes("presence === 'LINKED'"), true);
+  assert.equal(sql.includes('commerce_management_products_fast_v1'), true);
+  assert.equal(sql.includes('selected_files as'), true);
+  assert.equal(sql.includes("cp.reference_image_source='NISTI_ID'"), true);
+  assert.equal(sql.includes('commerce_enrich_management_platforms_v1'), true);
+  assert.equal(sql.includes('commerce_sync_management_platforms_to_nisti_v2'), true);
+});
+
+test('Resumo do Catálogo não pagina o catálogo inteiro para calcular indicadores', () => {
+  const sql = read('supabase/migrations/20260928183545_commerce_catalog_fast_read_v7.sql');
+
+  assert.equal(sql.includes('create or replace function public.commerce_management_product_summary_v2()'), true);
+  assert.equal(sql.includes('generate_series(0,700,100)'), false);
+  assert.equal(sql.includes("'nisti_synced'"), true);
+  assert.equal(sql.includes("'nisti_pending'"), true);
+});
