@@ -6,7 +6,7 @@ test('Supabase cutover is configured but disabled by default', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_URL = "https:\/\/yioetdcbgorunwgwuawg\.supabase\.co"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED = "0"/);
-  assert.match(wrangler, /SUPABASE_READ_TIMEOUT_MS = "2500"/);
+  assert.match(wrangler, /SUPABASE_READ_TIMEOUT_MS = "5000"/);
   assert.doesNotMatch(wrangler, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(wrangler, /RETRIEVAL_FASTPATH_MIN_SCORE = "0\.920"/);
   assert.match(wrangler, /RETRIEVAL_FASTPATH_MIN_MARGIN = "0\.008"/);
@@ -18,4 +18,12 @@ test('cutover runbook keeps service role secret out of repository', () => {
   assert.match(source, /SUPABASE_READS_ENABLED=1/);
   assert.match(source, /13 tabelas importadas/);
   assert.match(source, /Não alterar os thresholds/);
+});
+
+
+test('production commerce read timeout covers management card query budget', () => {
+  const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
+  const match = wrangler.match(/SUPABASE_READ_TIMEOUT_MS\s*=\s*"(\d+)"/);
+  assert.ok(match, 'SUPABASE_READ_TIMEOUT_MS must be configured in production');
+  assert.ok(Number(match[1]) >= 5000, 'production timeout must cover the ~3s management products RPC');
 });
