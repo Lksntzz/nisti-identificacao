@@ -164,7 +164,7 @@ export async function reconcileNistiProductToCommerceSafe(env, productId) {
   }
 
   try {
-    return await supabaseRpc(env, 'commerce_reconcile_nisti_product_v3', {
+    return await supabaseRpc(env, 'commerce_reconcile_nisti_product_v5', {
       p_nisti_product_id: Number(productId || 0)
     }, { timeoutMs: COMMERCE_RECONCILE_TIMEOUT_MS });
   } catch (error) {
