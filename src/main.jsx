@@ -9,6 +9,7 @@ import GtinRegistryView from './admin/GtinRegistryView.jsx';
 import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
+import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
 import {
   createEan13Svg,
   downloadBarcodePng,
@@ -477,6 +478,7 @@ function RegistrationBarcodeResult({ items, errors = [], onReset, onClose, title
               <strong>{item.nome || item.sku}</strong>
               <span>{item.variacao || item.sku}</span>
               <code>{item.gtin}</code>
+              <CommerceSyncBadge sync={item.commerce_sync} />
             </div>
             <button type="button" onClick={() => downloadBarcodePng(item).catch(error => setDownloadError(error.message))}>Baixar PNG</button>
           </article>
@@ -591,28 +593,34 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
             throw new Error('O cadastro não retornou o ID do produto. Atualize a lista antes de tentar novamente.');
           }
 
-          registered.push({
+          let commerceSync = res.commerce_sync || null;
+          const registeredItem = {
             id: productId,
             sku: cleanSku,
             gtin: cleanGtin,
             nome: nome.trim(),
             variacao: v.variacao.trim() || cleanSku,
-            platform: platform.trim().toUpperCase()
-          });
+            platform: platform.trim().toUpperCase(),
+            commerce_sync: commerceSync
+          };
 
           if (v.file) {
             try {
               const compressed = await compressAdminImage(v.file);
               const fd = new FormData();
               fd.append('image', compressed || v.file);
-              await api(`/api/products/${productId}/image`, {
+              const imageResult = await api(`/api/products/${productId}/image`, {
                 method: 'POST',
                 body: fd
               });
+              commerceSync = imageResult.commerce_sync || commerceSync;
+              registeredItem.commerce_sync = commerceSync;
             } catch (imageError) {
               failures.push({ sku: cleanSku, error: `Produto cadastrado, mas a imagem não foi salva: ${imageError.message || 'falha no envio'}. Abra o produto para reenviar a imagem.` });
             }
           }
+
+          registered.push(registeredItem);
         } catch (err) {
           failures.push({ sku: cleanSku, error: err.message || 'Falha ao salvar produto.' });
         }
@@ -923,7 +931,7 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
     setError('');
 
     try {
-      await api(`/api/products/${product.id}`, {
+      const updateResult = await api(`/api/products/${product.id}`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -938,17 +946,27 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
         })
       });
 
+      let commerceSync = updateResult.commerce_sync || null;
+
       if (file) {
         const compressed = await compressAdminImage(file);
         const fd = new FormData();
         fd.append('image', compressed || file);
-        await api(`/api/products/${product.id}/image`, {
+        const imageResult = await api(`/api/products/${product.id}/image`, {
           method: 'POST',
           body: fd
         });
+        commerceSync = imageResult.commerce_sync || commerceSync;
       }
 
       await onUpdated();
+
+      if (commerceSync && String(commerceSync.status || '').toUpperCase() !== 'SYNCED') {
+        const syncMeta = commerceSyncMeta(commerceSync);
+        setError(`Produto salvo no NISTI ID. Catálogo: ${syncMeta.label}. ${syncMeta.detail}`);
+        return;
+      }
+
       onClose();
     } catch (err) {
       setError(err.message || 'Falha ao salvar produto.');
@@ -1112,6 +1130,7 @@ function ViewProductModal({ product, isOpen, onClose, onEdit }) {
               <span className="capa-code-pill-lg">{product.capa_code}</span>
               <PlatformTag platform={product.platform} />
               <span className="status-pill active">• Ativo</span>
+              <CommerceSyncBadge sync={product.commerce_sync} />
             </div>
 
             <h4 className="view-prod-title">{product.nome || 'Produto sem título'}</h4>
@@ -1203,9 +1222,23 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
         });
         created += data.created || 0;
         updated += data.updated || 0;
+        const syncByProductId = new Map(
+          (data.commerce_sync?.results || []).map(sync => [Number(sync.nisti_product_id), sync])
+        );
+        const bulkSyncFallback = data.commerce_sync?.status === 'ERROR'
+          ? { status: 'ERROR', error: data.commerce_sync.error || 'commerce_bulk_sync_failed' }
+          : null;
+
         for (const item of data.imported || []) {
           const source = rowsBySku.get(String(item.sku || '').trim().toUpperCase()) || {};
-          importedItems.push({ ...source, ...item, gtin: item.gtin || source.gtin, nome: source.nome, variacao: source.variacao });
+          importedItems.push({
+            ...source,
+            ...item,
+            gtin: item.gtin || source.gtin,
+            nome: source.nome,
+            variacao: source.variacao,
+            commerce_sync: syncByProductId.get(Number(item.id)) || bulkSyncFallback
+          });
         }
         importErrors.push(...(data.errors || []));
       }
@@ -1286,8 +1319,22 @@ function AdminApp() {
 
   const refreshProducts = async () => {
     try {
-      const p = await api('/api/products');
-      setProducts(p.products || []);
+      const [p, syncPayload] = await Promise.all([
+        api('/api/products'),
+        api('/api/admin/commerce-sync/nisti-products/statuses').catch(() => null)
+      ]);
+
+      const statuses = new Map(
+        (syncPayload?.statuses || []).map(item => [Number(item.nisti_product_id), item])
+      );
+      const syncAvailable = Boolean(syncPayload?.ok);
+
+      setProducts((p.products || []).map(product => ({
+        ...product,
+        commerce_sync: syncAvailable
+          ? (statuses.get(Number(product.id)) || { sync_status: 'NOT_LINKED', nisti_product_id: Number(product.id) })
+          : { sync_status: 'UNKNOWN', nisti_product_id: Number(product.id) }
+      })));
     } catch (err) {
       if (/não autorizado|401|403/i.test(err.message)) {
         window.location.href = '/admin-login';
