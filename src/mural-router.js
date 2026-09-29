@@ -278,6 +278,286 @@ async function collectionDetail(slug, env) {
   });
 }
 
+const ADMIN_KINDS = new Set(['product', 'collection', 'notice']);
+const ADMIN_STATUSES = new Set(['draft', 'published', 'archived']);
+const NOTICE_LEVELS = new Set(['important', 'attention', 'info']);
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MAX_EDITORIAL_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function nullableText(value, max) {
+  const text = String(value ?? '').trim();
+  return text ? text.slice(0, max) : null;
+}
+
+function requiredText(value, max, label) {
+  const text = nullableText(value, max);
+  if (!text) throw new Error(`${label} é obrigatório.`);
+  return text;
+}
+
+function integerOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function normalizeDate(value) {
+  const text = nullableText(value, 40);
+  if (!text) return null;
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) throw new Error('Data inválida.');
+  return date.toISOString();
+}
+
+async function readJson(request) {
+  const type = request.headers.get('content-type') || '';
+  if (!type.includes('application/json')) throw new Error('Content-Type deve ser application/json.');
+  return request.json();
+}
+
+function validatePostPayload(input, current = {}) {
+  const kind = String(input.kind ?? current.kind ?? '').trim();
+  if (!ADMIN_KINDS.has(kind)) throw new Error('Tipo de publicação inválido.');
+
+  const productId = kind === 'product' ? integerOrNull(input.product_id ?? current.product_id) : null;
+  const collectionId = kind === 'collection' ? integerOrNull(input.collection_id ?? current.collection_id) : null;
+  const noticeLevel = kind === 'notice' ? String(input.notice_level ?? current.notice_level ?? '').trim() : null;
+  if (kind === 'product' && !productId) throw new Error('Selecione um produto.');
+  if (kind === 'collection' && !collectionId) throw new Error('Selecione uma coleção.');
+  if (kind === 'notice' && !NOTICE_LEVELS.has(noticeLevel)) throw new Error('Prioridade visual do aviso inválida.');
+
+  const priority = Number(input.priority ?? current.priority ?? 0);
+  if (!Number.isInteger(priority) || priority < 0 || priority > 100) throw new Error('Prioridade deve estar entre 0 e 100.');
+
+  const publishedAt = normalizeDate(input.published_at ?? current.published_at);
+  const expiresAt = normalizeDate(input.expires_at ?? current.expires_at);
+  if (publishedAt && expiresAt && new Date(expiresAt) <= new Date(publishedAt)) {
+    throw new Error('Expiração deve ser posterior à publicação.');
+  }
+
+  return {
+    kind,
+    title: requiredText(input.title ?? current.title, 90, 'Título'),
+    subtitle: nullableText(input.subtitle ?? current.subtitle, 120),
+    body: nullableText(input.body ?? current.body, 700),
+    badge: nullableText(input.badge ?? current.badge, 40),
+    badge_tone: nullableText(input.badge_tone ?? current.badge_tone, 30),
+    product_id: productId,
+    collection_id: collectionId,
+    notice_level: noticeLevel,
+    featured: (input.featured ?? current.featured) ? 1 : 0,
+    priority,
+    published_at: publishedAt,
+    expires_at: expiresAt
+  };
+}
+
+async function adminListPosts(url, env) {
+  const status = String(url.searchParams.get('status') || '').trim();
+  const kind = String(url.searchParams.get('kind') || '').trim();
+  if (status && !ADMIN_STATUSES.has(status)) return json({ error: 'Status inválido.' }, 400);
+  if (kind && !ADMIN_KINDS.has(kind)) return json({ error: 'Tipo inválido.' }, 400);
+  const clauses = [];
+  const bindings = [];
+  if (status) { clauses.push('mp.status = ?'); bindings.push(status); }
+  if (kind) { clauses.push('mp.kind = ?'); bindings.push(kind); }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const { results } = await env.DB.prepare(`
+    SELECT mp.*,p.sku AS product_sku,p.nome AS product_name,
+      mc.name AS collection_name,mc.slug AS collection_slug
+    FROM mural_posts mp
+    LEFT JOIN products p ON p.id=mp.product_id
+    LEFT JOIN mural_collections mc ON mc.id=mp.collection_id
+    ${where}
+    ORDER BY CASE mp.status WHEN 'draft' THEN 0 WHEN 'published' THEN 1 ELSE 2 END,
+      COALESCE(mp.published_at,mp.created_at) DESC,mp.id DESC
+    LIMIT 200
+  `).bind(...bindings).all();
+  return json({ items: results || [] });
+}
+
+async function adminGetPost(id, env) {
+  const row = await env.DB.prepare('SELECT * FROM mural_posts WHERE id=?').bind(id).first();
+  return row ? json({ item: row }) : json({ error: 'Publicação não encontrada.' }, 404);
+}
+
+async function adminCreatePost(request, env) {
+  const payload = validatePostPayload(await readJson(request));
+  const result = await env.DB.prepare(`
+    INSERT INTO mural_posts
+      (kind,status,title,subtitle,body,badge,badge_tone,product_id,collection_id,notice_level,featured,priority,published_at,expires_at,created_by,updated_at)
+    VALUES (?,'draft',?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+  `).bind(
+    payload.kind,payload.title,payload.subtitle,payload.body,payload.badge,payload.badge_tone,
+    payload.product_id,payload.collection_id,payload.notice_level,payload.featured,payload.priority,
+    payload.published_at,payload.expires_at,'admin'
+  ).run();
+  return json({ id: Number(result.meta.last_row_id), status: 'draft' }, 201);
+}
+
+async function adminUpdatePost(id, request, env) {
+  const current = await env.DB.prepare('SELECT * FROM mural_posts WHERE id=?').bind(id).first();
+  if (!current) return json({ error: 'Publicação não encontrada.' }, 404);
+  const payload = validatePostPayload(await readJson(request), current);
+  await env.DB.prepare(`
+    UPDATE mural_posts SET kind=?,title=?,subtitle=?,body=?,badge=?,badge_tone=?,
+      product_id=?,collection_id=?,notice_level=?,featured=?,priority=?,published_at=?,expires_at=?,updated_at=CURRENT_TIMESTAMP
+    WHERE id=?
+  `).bind(
+    payload.kind,payload.title,payload.subtitle,payload.body,payload.badge,payload.badge_tone,
+    payload.product_id,payload.collection_id,payload.notice_level,payload.featured,payload.priority,
+    payload.published_at,payload.expires_at,id
+  ).run();
+  return json({ ok: true, id });
+}
+
+async function adminPublishPost(id, request, env) {
+  const current = await env.DB.prepare('SELECT * FROM mural_posts WHERE id=?').bind(id).first();
+  if (!current) return json({ error: 'Publicação não encontrada.' }, 404);
+  let requested = {};
+  if ((request.headers.get('content-type') || '').includes('application/json')) requested = await request.json();
+  const scheduled = normalizeDate(requested.published_at ?? current.published_at);
+  const publishedAt = scheduled || new Date().toISOString();
+  await env.DB.prepare("UPDATE mural_posts SET status='published',published_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+    .bind(publishedAt,id).run();
+  return json({ ok: true, id, status: 'published', published_at: publishedAt });
+}
+
+async function adminArchivePost(id, env) {
+  const result = await env.DB.prepare("UPDATE mural_posts SET status='archived',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(id).run();
+  return result.meta.changes ? json({ ok: true, id, status: 'archived' }) : json({ error: 'Publicação não encontrada.' }, 404);
+}
+
+async function adminDuplicatePost(id, env) {
+  const source = await env.DB.prepare('SELECT * FROM mural_posts WHERE id=?').bind(id).first();
+  if (!source) return json({ error: 'Publicação não encontrada.' }, 404);
+  const result = await env.DB.prepare(`
+    INSERT INTO mural_posts
+      (kind,status,title,subtitle,body,badge,badge_tone,image_key,product_id,collection_id,notice_level,featured,priority,published_at,expires_at,created_by,updated_at)
+    VALUES (?,'draft',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+  `).bind(
+    source.kind,`${source.title} (cópia)`.slice(0,90),source.subtitle,source.body,source.badge,source.badge_tone,
+    source.image_key,source.product_id,source.collection_id,source.notice_level,source.featured,source.priority,
+    null,source.expires_at,'admin'
+  ).run();
+  return json({ id: Number(result.meta.last_row_id), status: 'draft' }, 201);
+}
+
+function detectImageType(bytes) {
+  const b = new Uint8Array(bytes.slice(0, 12));
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+  if (String.fromCharCode(...b.slice(0,4)) === 'RIFF' && String.fromCharCode(...b.slice(8,12)) === 'WEBP') return 'image/webp';
+  return null;
+}
+
+async function uploadEditorialImage(request, env, owner, id) {
+  if (!env.PRODUCT_IMAGES) return json({ error: 'Armazenamento de imagens indisponível.' }, 503);
+  const form = await request.formData();
+  const file = form.get('image');
+  if (!(file instanceof File)) return json({ error: 'Envie o campo image.' }, 400);
+  if (file.size < 1 || file.size > MAX_EDITORIAL_IMAGE_BYTES) return json({ error: 'Imagem deve ter no máximo 5 MB.' }, 400);
+  if (!IMAGE_TYPES.has(file.type)) return json({ error: 'Formato permitido: JPEG, PNG ou WebP.' }, 400);
+  const bytes = await file.arrayBuffer();
+  const detected = detectImageType(bytes);
+  if (!detected || detected !== file.type) return json({ error: 'Conteúdo da imagem não corresponde ao formato informado.' }, 400);
+  const key = `mural/${owner}/${id}/${crypto.randomUUID()}`;
+  await env.PRODUCT_IMAGES.put(key, bytes, { httpMetadata: { contentType: detected } });
+  const table = owner === 'posts' ? 'mural_posts' : 'mural_collections';
+  const existing = await env.DB.prepare(`SELECT image_key FROM ${table} WHERE id=?`).bind(id).first();
+  if (!existing) { await env.PRODUCT_IMAGES.delete(key); return json({ error: 'Registro não encontrado.' }, 404); }
+  await env.DB.prepare(`UPDATE ${table} SET image_key=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(key,id).run();
+  if (existing.image_key && existing.image_key !== key) await env.PRODUCT_IMAGES.delete(existing.image_key);
+  return json({ ok: true, image_key: key });
+}
+
+async function serveEditorialImage(key, env) {
+  if (!key || !env.PRODUCT_IMAGES) return new Response(null, { status: 404 });
+  const object = await env.PRODUCT_IMAGES.get(key);
+  if (!object) return new Response(null, { status: 404 });
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('cache-control','public, max-age=3600');
+  headers.set('etag',object.httpEtag);
+  return new Response(object.body,{headers});
+}
+
+async function adminListCollections(env) {
+  const { results } = await env.DB.prepare(`
+    SELECT mc.*,COUNT(mcp.product_id) AS product_count
+    FROM mural_collections mc
+    LEFT JOIN mural_collection_products mcp ON mcp.collection_id=mc.id
+    GROUP BY mc.id
+    ORDER BY CASE mc.status WHEN 'active' THEN 0 ELSE 1 END,mc.year DESC,mc.name ASC
+  `).all();
+  return json({ items: results || [] });
+}
+
+function slugify(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80);
+}
+
+async function adminCreateCollection(request, env) {
+  const input = await readJson(request);
+  const name = requiredText(input.name,90,'Nome');
+  const slug = slugify(input.slug || name);
+  if (!slug) throw new Error('Slug inválido.');
+  const year = input.year ? Number(input.year) : null;
+  const description = nullableText(input.description,700);
+  try {
+    const result = await env.DB.prepare(`
+      INSERT INTO mural_collections (slug,name,year,description,status,updated_at)
+      VALUES (?,?,?,?, 'active',CURRENT_TIMESTAMP)
+    `).bind(slug,name,Number.isInteger(year) ? year : null,description).run();
+    return json({ id:Number(result.meta.last_row_id),slug },201);
+  } catch (error) {
+    if (String(error.message).includes('UNIQUE')) return json({ error:'Já existe uma coleção com esse slug.' },409);
+    throw error;
+  }
+}
+
+async function adminUpdateCollection(id, request, env) {
+  const current = await env.DB.prepare('SELECT * FROM mural_collections WHERE id=?').bind(id).first();
+  if (!current) return json({ error:'Coleção não encontrada.' },404);
+  const input = await readJson(request);
+  const name = requiredText(input.name ?? current.name,90,'Nome');
+  const slug = slugify(input.slug ?? current.slug);
+  const status = String(input.status ?? current.status);
+  if (!['active','archived'].includes(status)) throw new Error('Status de coleção inválido.');
+  const yearValue = input.year ?? current.year;
+  const year = yearValue ? Number(yearValue) : null;
+  await env.DB.prepare(`
+    UPDATE mural_collections SET slug=?,name=?,year=?,description=?,status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?
+  `).bind(slug,name,Number.isInteger(year)?year:null,nullableText(input.description ?? current.description,700),status,id).run();
+  return json({ok:true,id,slug});
+}
+
+async function adminSetCollectionProducts(id, request, env) {
+  const collection = await env.DB.prepare('SELECT id FROM mural_collections WHERE id=?').bind(id).first();
+  if (!collection) return json({error:'Coleção não encontrada.'},404);
+  const input = await readJson(request);
+  const productIds = Array.isArray(input.product_ids) ? [...new Set(input.product_ids.map(Number).filter(Number.isInteger))] : [];
+  const statements = [env.DB.prepare('DELETE FROM mural_collection_products WHERE collection_id=?').bind(id)];
+  productIds.forEach((productId,index) => statements.push(
+    env.DB.prepare('INSERT INTO mural_collection_products (collection_id,product_id,sort_order) VALUES (?,?,?)').bind(id,productId,index)
+  ));
+  await env.DB.batch(statements);
+  return json({ok:true,count:productIds.length});
+}
+
+async function adminProducts(url, env) {
+  const q = String(url.searchParams.get('q') || '').trim().slice(0,80);
+  const like = `%${q}%`;
+  const { results } = await env.DB.prepare(`
+    SELECT id,sku,nome,variacao,image_key,wireo_code,tassel_code,elastico_code,miolo_code
+    FROM products
+    WHERE (?='' OR sku LIKE ? OR nome LIKE ? OR variacao LIKE ?)
+    ORDER BY updated_at DESC,id DESC LIMIT 40
+  `).bind(q,like,like,like).all();
+  return json({items:(results||[]).map(row=>({...row,image_url:row.image_key?`/api/images/${row.id}`:null}))});
+}
+
 export async function handleMuralRequest(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -300,14 +580,52 @@ export async function handleMuralRequest(request, env) {
       return await markAllRead(cleanUserId(request), env);
     }
 
+    const postImage = path.match(/^\/api\/mural\/images\/(\d+)$/);
+    if (postImage && request.method === 'GET') {
+      const row = await env.DB.prepare('SELECT image_key FROM mural_posts WHERE id=?').bind(Number(postImage[1])).first();
+      return serveEditorialImage(row?.image_key, env);
+    }
+
+    const collectionImage = path.match(/^\/api\/mural\/collections\/([^/]+)\/image$/);
+    if (collectionImage && request.method === 'GET') {
+      const row = await env.DB.prepare('SELECT image_key FROM mural_collections WHERE slug=?').bind(decodeURIComponent(collectionImage[1])).first();
+      return serveEditorialImage(row?.image_key, env);
+    }
+
     const collection = path.match(/^\/api\/mural\/collections\/([^/]+)$/);
     if (collection && request.method === 'GET') {
       return await collectionDetail(decodeURIComponent(collection[1]), env);
     }
 
+    if (path === '/api/admin/mural/posts' && request.method === 'GET') return adminListPosts(url, env);
+    if (path === '/api/admin/mural/posts' && request.method === 'POST') return adminCreatePost(request, env);
+    if (path === '/api/admin/mural/products' && request.method === 'GET') return adminProducts(url, env);
+    if (path === '/api/admin/mural/collections' && request.method === 'GET') return adminListCollections(env);
+    if (path === '/api/admin/mural/collections' && request.method === 'POST') return adminCreateCollection(request, env);
+
+    const adminPost = path.match(/^\/api\/admin\/mural\/posts\/(\d+)$/);
+    if (adminPost && request.method === 'GET') return adminGetPost(Number(adminPost[1]), env);
+    if (adminPost && request.method === 'PUT') return adminUpdatePost(Number(adminPost[1]), request, env);
+
+    const publish = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/publish$/);
+    if (publish && request.method === 'POST') return adminPublishPost(Number(publish[1]), request, env);
+    const archive = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/archive$/);
+    if (archive && request.method === 'POST') return adminArchivePost(Number(archive[1]), env);
+    const duplicate = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/duplicate$/);
+    if (duplicate && request.method === 'POST') return adminDuplicatePost(Number(duplicate[1]), env);
+    const postUpload = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/image$/);
+    if (postUpload && request.method === 'POST') return uploadEditorialImage(request, env, 'posts', Number(postUpload[1]));
+
+    const adminCollection = path.match(/^\/api\/admin\/mural\/collections\/(\d+)$/);
+    if (adminCollection && request.method === 'PUT') return adminUpdateCollection(Number(adminCollection[1]), request, env);
+    const collectionProducts = path.match(/^\/api\/admin\/mural\/collections\/(\d+)\/products$/);
+    if (collectionProducts && request.method === 'PUT') return adminSetCollectionProducts(Number(collectionProducts[1]), request, env);
+    const collectionUpload = path.match(/^\/api\/admin\/mural\/collections\/(\d+)\/image$/);
+    if (collectionUpload && request.method === 'POST') return uploadEditorialImage(request, env, 'collections', Number(collectionUpload[1]));
+
     return null;
   } catch (error) {
     console.error('Falha no Mural NISTI.', error);
-    return json({ error: 'Falha ao carregar o Mural NISTI.' }, 500);
+    return json({ error: error?.message || 'Falha ao carregar o Mural NISTI.' }, 500);
   }
 }
