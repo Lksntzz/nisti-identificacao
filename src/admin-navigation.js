@@ -1,8 +1,8 @@
 export const ADMIN_MENU_SECTIONS = Object.freeze([
   {
-    title: 'CATÁLOGO',
+    title: 'CADASTRO',
     items: Object.freeze([
-      { id: 'catalogo', label: 'Catálogo de Produtos', icon: 'grid' },
+      { id: 'catalogo', label: 'Produtos NISTI', icon: 'grid' },
       { id: 'gerador-barras', label: 'Gerador de Barras', icon: 'barcode' }
     ])
   },
@@ -13,9 +13,9 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
     ])
   },
   {
-    title: 'OPERAÇÃO',
+    title: 'BIPAGENS',
     items: Object.freeze([
-      { id: 'historico-ean', label: 'Histórico de Leituras', icon: 'history' },
+      { id: 'historico-ean', label: 'Histórico de Bipagens', icon: 'history' },
       { id: 'ean-nao-cadastrados', label: 'EAN não Cadastrados', icon: 'alert' }
     ])
   },
