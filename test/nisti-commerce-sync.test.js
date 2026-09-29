@@ -259,3 +259,26 @@ test('reconciliação histórica usa índices de SKU e família', () => {
   assert.equal(linkSql.includes('commerce_reconcile_nisti_product_v5'), true);
   assert.equal(sync.includes("'commerce_reconcile_nisti_product_v5'"), true);
 });
+
+
+test('detalhe do produto permite corrigir a sincronização individual com o Catálogo', () => {
+  const router = read('src/core-router.js');
+  const main = read('src/main.jsx');
+  const css = read('src/app.css');
+
+  assert.equal(router.includes('/api/admin/commerce-sync/nisti-products\\/(\\d+)\\/repair'), true);
+  assert.equal(router.includes('syncNistiProductToCommerceSafe(env, productId)'), true);
+  assert.equal(router.includes('reconcileNistiProductToCommerceSafe(env, productId)'), true);
+  assert.equal(router.includes("reason: 'sync_not_confirmed'"), true);
+
+  assert.equal(main.includes('Corrigir sincronização'), true);
+  assert.equal(main.includes('Ressincronizar Catálogo'), true);
+  assert.equal(main.includes('view-sync-repair'), true);
+  assert.equal(main.includes('onSyncComplete'), true);
+  assert.equal(main.includes('Sincronização corrigida. Produto Mestre e vínculos do Catálogo foram reconciliados.'), true);
+
+  assert.equal(css.includes('.view-sync-repair'), true);
+  assert.equal(css.includes('.btn-sync-repair'), true);
+  assert.equal(css.includes('.admin-modal.view-modal > .admin-modal-foot.view-modal-foot'), true);
+  assert.equal(css.includes('padding:15px 24px 18px'), true);
+});
