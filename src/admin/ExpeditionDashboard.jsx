@@ -1,25 +1,8 @@
 import React, { useState } from 'react';
+import { formatSaoPauloDateTime } from '../date-time.js';
 
 function formatScanDate(value) {
-  if (!value) return { date: '—', time: '—' };
-  try {
-    const date = new Date(value);
-    return {
-      date: new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      }).format(date),
-      time: new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).format(date)
-    };
-  } catch {
-    return { date: '—', time: '—' };
-  }
+  return formatSaoPauloDateTime(value);
 }
 
 const SCAN_META = {
