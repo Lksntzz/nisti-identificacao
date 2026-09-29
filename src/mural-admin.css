@@ -9,3 +9,7 @@
 .mural-admin-selected-products>div>div{display:flex;gap:5px;flex:0 0 auto}
 .mural-admin-selected-products button{min-width:44px;min-height:44px;padding:0;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font:inherit;font-weight:900}
 .mural-admin-selected-products button:disabled{opacity:.4}
+
+.mural-admin-banner-preview{display:grid;gap:8px;padding:10px;border:1px solid #dbe3ef;border-radius:12px;background:#f8fafc}
+.mural-admin-banner-preview img{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:10px}
+.mural-admin-banner-preview button{min-height:44px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font:inherit;font-weight:800}
