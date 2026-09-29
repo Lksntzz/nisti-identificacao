@@ -48,10 +48,10 @@ test('Legacy visual recognition tools stay outside the EAN admin menu', () => {
 test('Admin navigation keeps catalog, barcode generator, commerce, operations and health capabilities', () => {
   const labels = new Set(flattenedItems().map(item => item.label));
   for (const expected of [
-    'Catálogo de Produtos',
+    'Produtos NISTI',
     'Gerador de Barras',
     'Catálogo Comercial',
-    'Histórico de Leituras',
+    'Histórico de Bipagens',
     'EAN não Cadastrados',
     'Saúde & Logs'
   ]) {
@@ -82,4 +82,12 @@ test('Admin source has no legacy duplicate navigation or dead PlatformsView', ()
   assert.equal(source.includes('Abrir NISTI ID'), false);
   assert.equal(source.includes('Voltar ao Scanner de Expedição'), false);
   assert.equal(source.includes('<span>Scanner</span>'), false);
+});
+
+
+test('Admin navigation groups tools into clear sections', () => {
+  assert.deepEqual(
+    ADMIN_MENU_SECTIONS.map(section => section.title),
+    ['CADASTRO', 'COMERCIAL', 'BIPAGENS', 'SISTEMA']
+  );
 });
