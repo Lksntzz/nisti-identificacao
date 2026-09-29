@@ -90,9 +90,10 @@ jobs:
           database_id = "10181c7e-ffdc-41d5-a40e-802173da9a02"
           EOF
 
-          npx wrangler deploy --config /tmp/wrangler-d1-verify.toml >/tmp/d1-verify-deploy.log
-          sleep 2
-          curl --fail --silent --show-error "${WORKER_URL}${VERIFY_PATH}" -o /tmp/mural-d1-proof.json
+          npx wrangler deploy --config /tmp/wrangler-d1-verify.toml | tee /tmp/d1-verify-deploy.log
+          DEPLOYED_URL="$(grep -Eo 'https://[^ ]+workers\.dev' /tmp/d1-verify-deploy.log | tail -1 || true)"
+          if [ -n "${DEPLOYED_URL}" ]; then WORKER_URL="${DEPLOYED_URL}"; fi
+          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 2 "${WORKER_URL}${VERIFY_PATH}" -o /tmp/mural-d1-proof.json
 
           node <<'NODE'
           const fs = require('fs');
