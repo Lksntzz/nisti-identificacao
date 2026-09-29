@@ -443,6 +443,141 @@ function ParticipationCard({ rows, loading, onSelect }) {
   );
 }
 
+function NoSalesInactivityChart({ insights }) {
+  const rows = Array.isArray(insights?.inactivity_buckets) ? insights.inactivity_buckets : [];
+  const total = Number(insights?.total || 0);
+  const max = Math.max(1, ...rows.map(item => Number(item.count || 0)));
+
+  if (!rows.length) {
+    return <div className="sales-chart-empty">Sem dados de inatividade para o filtro selecionado.</div>;
+  }
+
+  return (
+    <div className="sales-no-sales-bars">
+      {rows.map((item, index) => {
+        const count = Number(item.count || 0);
+        const share = total > 0 ? count / total * 100 : 0;
+        return (
+          <div className="sales-no-sales-bar-row" key={item.key} style={{ '--sales-delay': `${index * 75}ms` }}>
+            <div className="sales-no-sales-bar-label">
+              <strong>{item.label}</strong>
+              <span>{brNumber(count)} anúncios · {brPercent(share)}%</span>
+            </div>
+            <div className="sales-no-sales-bar-track">
+              <span style={{ width: `${Math.max(2, count / max * 100)}%` }} />
+            </div>
+          </div>
+        );
+      })}
+      <div className="sales-no-sales-explainer">
+        Quanto maior o tempo sem vender, maior a prioridade para revisar o anúncio antes de decidir pela desativação.
+      </div>
+    </div>
+  );
+}
+
+function NoSalesPlatformCard({ insights, onSelect }) {
+  const rows = Array.isArray(insights?.by_platform) ? insights.by_platform : [];
+  const max = Math.max(1, ...rows.map(item => Number(item.count || 0)));
+
+  return (
+    <section className="sales-side-card">
+      <div className="sales-side-head">
+        <div><span className="sales-side-icon">▦</span><strong>Sem vendas por plataforma</strong></div>
+      </div>
+      <div className="sales-no-sales-platforms">
+        {rows.map((item, index) => (
+          <button
+            type="button"
+            key={item.platform_code}
+            onClick={() => onSelect?.(item.platform_code)}
+            style={{ '--sales-delay': `${index * 70}ms` }}
+            title={`Filtrar anúncios sem venda por ${item.platform_label}`}
+          >
+            <div>
+              <span><i style={{ background: PLATFORM_COLORS[item.platform_code] || '#64748b' }} />{item.platform_label}</span>
+              <strong>{brNumber(item.count)}</strong>
+            </div>
+            <em><i style={{ width: `${Math.max(3, Number(item.count || 0) / max * 100)}%` }} /></em>
+          </button>
+        ))}
+        {!rows.length && <div className="sales-side-empty">Nenhuma plataforma sem venda neste filtro.</div>}
+      </div>
+    </section>
+  );
+}
+
+function NoSalesPriorityCard({ insights }) {
+  const rows = Array.isArray(insights?.priorities) ? insights.priorities : [];
+  const total = Number(insights?.total || 0);
+  const colorByPriority = { ALTA: '#e45757', MEDIA: '#e8a51d', BAIXA: '#4a8de6' };
+  let cursor = 0;
+  const segments = rows.map(item => {
+    const count = Number(item.count || 0);
+    const share = total > 0 ? count / total * 100 : 0;
+    const start = cursor;
+    cursor += share;
+    return { ...item, count, share, start, end: cursor, color: colorByPriority[item.priority] || '#64748b' };
+  });
+
+  return (
+    <section className="sales-side-card sales-no-sales-priority-card">
+      <div className="sales-side-head">
+        <div><span className="sales-side-icon">!</span><strong>Prioridade de revisão</strong></div>
+      </div>
+      <div className="sales-no-sales-priority-content">
+        <div className="sales-no-sales-donut-wrap">
+          <svg viewBox="0 0 120 120" role="img" aria-label="Prioridade de revisão dos anúncios sem venda">
+            <circle cx="60" cy="60" r="46" className="sales-donut-track" />
+            {segments.map((item, index) => (
+              <circle
+                key={item.priority}
+                cx="60"
+                cy="60"
+                r="46"
+                pathLength="100"
+                className="sales-donut-segment"
+                style={{
+                  stroke: item.color,
+                  strokeDasharray: `${item.share} ${100 - item.share}`,
+                  strokeDashoffset: -item.start,
+                  '--sales-delay': `${index * 90}ms`
+                }}
+              />
+            ))}
+          </svg>
+          <div>
+            <strong>{brNumber(insights?.review_first || 0)}</strong>
+            <span>revisar primeiro</span>
+          </div>
+        </div>
+
+        <div className="sales-no-sales-priority-list">
+          {segments.map(item => (
+            <div key={item.priority}>
+              <span><i style={{ background: item.color }} />{item.label}</span>
+              <strong>{brNumber(item.count)}</strong>
+              <small>{brPercent(item.share)}%</small>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="sales-no-sales-rule">
+        <strong>Regra usada</strong>
+        <span><b>Alta:</b> nunca vendeu na base disponível ou está há 4+ períodos sem venda.</span>
+        <span><b>Média:</b> 2–3 períodos sem venda.</span>
+        <span><b>Baixa:</b> 1 período sem venda.</span>
+      </div>
+    </section>
+  );
+}
+
+function priorityLabel(value) {
+  if (value === 'ALTA') return 'Revisar primeiro';
+  if (value === 'MEDIA') return 'Acompanhar';
+  return 'Recente';
+}
+
 function ProductAvatar({ item }) {
   const text = String(item.product_name || item.sku || '?').trim();
   return <span className={`sales-product-avatar ${String(item.platform_code || '').toLowerCase()}`}>{text.charAt(0).toUpperCase()}</span>;
@@ -494,6 +629,14 @@ export default function CommerceSalesDashboard() {
         periodEnd: current.periodEnd || normalizedFilters.periodEnd
       }));
 
+      const noSalesMode = ['SEM VENDA','SEM_VENDA'].includes(normalizedFilters.status);
+      if (noSalesMode) {
+        setPlatformSummary([]);
+        setPreviousMetrics(null);
+        setInsightsLoading(false);
+        return;
+      }
+
       const platformOptions = (payload.options?.platforms || []).filter(item =>
         item.value !== 'TODAS' && (normalizedFilters.platform === 'TODAS' || item.value === normalizedFilters.platform)
       );
@@ -525,6 +668,7 @@ export default function CommerceSalesDashboard() {
 
   const options = data?.options || {};
   const metrics = data?.metrics || {};
+  const noSalesInsights = data?.no_sales_insights || {};
   const items = Array.isArray(data?.items) ? data.items : [];
   const appliedFilters = data?.filters || {};
   const appliedStatus = appliedFilters.status || 'COM VENDA';
@@ -624,36 +768,47 @@ export default function CommerceSalesDashboard() {
   return (
     <div className="sales-dashboard">
       <section className="sales-kpi-grid">
-        <MetricCard
-          type="revenue"
-          label="Faturamento"
-          value={metrics.product_revenue}
-          currency
-          delta={isNoSales ? null : metricDelta(metrics.product_revenue, previousMetrics?.product_revenue)}
-          helper={isNoSales ? 'Sem vendas no intervalo' : 'No período filtrado'}
-        />
-        <MetricCard
-          type="orders"
-          label="Pedidos"
-          value={metrics.net_orders}
-          delta={isNoSales ? null : metricDelta(metrics.net_orders, previousMetrics?.net_orders)}
-          helper={isNoSales ? '0 pedidos' : 'Pedidos líquidos'}
-        />
-        <MetricCard
-          type="units"
-          label="Unidades"
-          value={metrics.units}
-          delta={isNoSales ? null : metricDelta(metrics.units, previousMetrics?.units)}
-          helper={isNoSales ? '0 unidades' : 'Unidades vendidas'}
-        />
-        <MetricCard
-          type="ticket"
-          label="Ticket médio"
-          value={ticketAverage}
-          currency
-          delta={isNoSales ? null : metricDelta(ticketAverage, previousTicket)}
-          helper={isNoSales ? 'Sem vendas no intervalo' : 'Faturamento ÷ pedidos'}
-        />
+        {isNoSales ? (
+          <>
+            <MetricCard type="revenue" label="Anúncios sem venda" value={noSalesInsights.total} helper="No período filtrado" />
+            <MetricCard type="orders" label="Revisar primeiro" value={noSalesInsights.review_first} helper="Nunca vendeu ou 4+ períodos sem venda" />
+            <MetricCard type="ticket" label="Nunca venderam na base" value={noSalesInsights.never_sold} helper="Sem venda registrada na base disponível" />
+            <MetricCard type="units" label="Já venderam antes" value={noSalesInsights.previously_sold} helper="Têm histórico anterior de venda" />
+          </>
+        ) : (
+          <>
+            <MetricCard
+              type="revenue"
+              label="Faturamento"
+              value={metrics.product_revenue}
+              currency
+              delta={metricDelta(metrics.product_revenue, previousMetrics?.product_revenue)}
+              helper="No período filtrado"
+            />
+            <MetricCard
+              type="orders"
+              label="Pedidos"
+              value={metrics.net_orders}
+              delta={metricDelta(metrics.net_orders, previousMetrics?.net_orders)}
+              helper="Pedidos líquidos"
+            />
+            <MetricCard
+              type="units"
+              label="Unidades"
+              value={metrics.units}
+              delta={metricDelta(metrics.units, previousMetrics?.units)}
+              helper="Unidades vendidas"
+            />
+            <MetricCard
+              type="ticket"
+              label="Ticket médio"
+              value={ticketAverage}
+              currency
+              delta={metricDelta(ticketAverage, previousTicket)}
+              helper="Faturamento ÷ pedidos"
+            />
+          </>
+        )}
       </section>
 
       <section className="sales-filter-panel">
@@ -702,37 +857,64 @@ export default function CommerceSalesDashboard() {
 
       {error && <div className="sales-error">{error}</div>}
 
-      <section className="sales-analytics-grid">
-        <div className="sales-panel sales-chart-panel">
-          <div className="sales-panel-head">
-            <div>
-              <h3>Evolução de vendas</h3>
-              <p>Faturamento e quantidade de pedidos no período selecionado.</p>
+      <section className={`sales-analytics-grid ${isNoSales ? 'no-sales-mode' : ''}`}>
+        {isNoSales ? (
+          <>
+            <div className="sales-panel sales-no-sales-chart-panel">
+              <div className="sales-panel-head">
+                <div>
+                  <h3>Tempo sem vender</h3>
+                  <p>Distribuição dos anúncios sem venda pelo tempo de inatividade.</p>
+                </div>
+                <div className="sales-no-sales-mode-badge">Análise para revisão</div>
+              </div>
+              <NoSalesInactivityChart insights={noSalesInsights} />
             </div>
-            <div className="sales-chart-legend"><b>Interativo</b></div>
-          </div>
-          <SalesChart history={history} />
-        </div>
 
-        <aside className="sales-insights-column">
-          <PlatformSummary
-            rows={platformSummary}
-            loading={insightsLoading}
-            onSelect={platform => applySelectFilter('platform', platform)}
-          />
-          <ParticipationCard
-            rows={platformSummary}
-            loading={insightsLoading}
-            onSelect={platform => applySelectFilter('platform', platform)}
-          />
-        </aside>
+            <aside className="sales-insights-column">
+              <NoSalesPlatformCard
+                insights={noSalesInsights}
+                onSelect={platform => applySelectFilter('platform', platform)}
+              />
+              <NoSalesPriorityCard insights={noSalesInsights} />
+            </aside>
+          </>
+        ) : (
+          <>
+            <div className="sales-panel sales-chart-panel">
+              <div className="sales-panel-head">
+                <div>
+                  <h3>Evolução de vendas</h3>
+                  <p>Faturamento e quantidade de pedidos no período selecionado.</p>
+                </div>
+                <div className="sales-chart-legend"><b>Interativo</b></div>
+              </div>
+              <SalesChart history={history} />
+            </div>
+
+            <aside className="sales-insights-column">
+              <PlatformSummary
+                rows={platformSummary}
+                loading={insightsLoading}
+                onSelect={platform => applySelectFilter('platform', platform)}
+              />
+              <ParticipationCard
+                rows={platformSummary}
+                loading={insightsLoading}
+                onSelect={platform => applySelectFilter('platform', platform)}
+              />
+            </aside>
+          </>
+        )}
       </section>
 
       <section className="sales-panel sales-products-panel">
         <div className="sales-panel-head sales-products-head">
           <div>
-            <h3>Vendas por produto</h3>
-            <p>{brNumber(pagination.total)} registros no filtro atual.</p>
+            <h3>{isNoSales ? 'Anúncios sem venda — fila de revisão' : 'Vendas por produto'}</h3>
+            <p>{isNoSales
+              ? `${brNumber(pagination.total)} anúncios ordenados pela prioridade de revisão. Revise antes de desativar.`
+              : `${brNumber(pagination.total)} registros no filtro atual.`}</p>
           </div>
           <button type="button" className="sales-export" onClick={exportFiltered} disabled={exporting || loading || !pagination.total}>
             {exporting ? 'Exportando…' : 'Exportar'}
@@ -742,37 +924,92 @@ export default function CommerceSalesDashboard() {
         <div className="sales-table-wrap">
           <table className="sales-table">
             <thead>
-              <tr>
-                <th>Produto</th>
-                <th>SKU</th>
-                <th>Plataforma</th>
-                <th className="num">Pedidos</th>
-                <th className="num">Unidades</th>
-                <th className="num">Faturamento</th>
-                <th>Status</th>
-                <th>Anúncio</th>
-              </tr>
+              {isNoSales ? (
+                <tr>
+                  <th>Produto</th>
+                  <th>SKU</th>
+                  <th>Plataforma</th>
+                  <th>Última venda</th>
+                  <th>Sem vender</th>
+                  <th>Histórico anterior</th>
+                  <th>Prioridade</th>
+                  <th>Anúncio</th>
+                </tr>
+              ) : (
+                <tr>
+                  <th>Produto</th>
+                  <th>SKU</th>
+                  <th>Plataforma</th>
+                  <th className="num">Pedidos</th>
+                  <th className="num">Unidades</th>
+                  <th className="num">Faturamento</th>
+                  <th>Status</th>
+                  <th>Anúncio</th>
+                </tr>
+              )}
             </thead>
             <tbody>
               {!loading && items.map((item, index) => (
-                <tr key={`${item.platform_code}-${item.sku}-${item.sku_primary || index}`} className={item.row_type === 'ZERO' ? 'no-sale' : ''}>
-                  <td className="product">
-                    <div className="sales-product-cell">
-                      <ProductAvatar item={item} />
-                      <div>
-                        <strong>{item.product_name || 'Produto sem nome'}</strong>
-                        <small>{item.sku_primary ? `SKU principal: ${item.sku_primary}` : 'Sem SKU principal vinculado'}</small>
+                isNoSales ? (
+                  <tr
+                    key={`${item.platform_code}-${item.sku}-${index}`}
+                    className={`no-sale priority-${String(item.review_priority || 'BAIXA').toLowerCase()}`}
+                  >
+                    <td className="product">
+                      <div className="sales-product-cell">
+                        <ProductAvatar item={item} />
+                        <div>
+                          <strong>{item.product_name || 'Produto sem nome'}</strong>
+                          <small>{item.last_sale_period ? 'Já teve venda anteriormente' : 'Sem venda registrada na base disponível'}</small>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td><code>{item.sku || '—'}</code></td>
-                  <td><span className={`platform-tag ${String(item.platform_code || '').toLowerCase()}`}>{item.platform_label}</span></td>
-                  <td className="num">{brNumber(item.orders_with_item)}</td>
-                  <td className="num">{brNumber(item.units)}</td>
-                  <td className="num strong">{brCurrency(item.product_revenue)}</td>
-                  <td><span className={`sales-row-status ${item.row_type === 'ZERO' ? 'zero' : 'ok'}`}>{item.row_type === 'ZERO' ? 'Sem venda' : 'Com venda'}</span></td>
-                  <td>{item.listing_url ? <a href={item.listing_url} target="_blank" rel="noreferrer">Abrir</a> : '—'}</td>
-                </tr>
+                    </td>
+                    <td><code>{item.sku || '—'}</code></td>
+                    <td><span className={`platform-tag ${String(item.platform_code || '').toLowerCase()}`}>{item.platform_label}</span></td>
+                    <td>
+                      <strong className="sales-last-sale">{item.last_sale_period ? monthLabel(item.last_sale_period) : 'Nunca na base'}</strong>
+                    </td>
+                    <td>
+                      <span className="sales-inactivity-period">
+                        {item.last_sale_period ? `${brNumber(item.periods_without_sale)} período(s)` : 'Todo o histórico'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="sales-history-before">
+                        <strong>{brNumber(item.historical_orders)} pedidos</strong>
+                        <small>{brCurrency(item.historical_revenue)}</small>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        className={`sales-review-priority ${String(item.review_priority || 'BAIXA').toLowerCase()}`}
+                        title={noSalesInsights.criteria?.[item.review_priority] || ''}
+                      >
+                        {priorityLabel(item.review_priority)}
+                      </span>
+                    </td>
+                    <td>{item.listing_url ? <a href={item.listing_url} target="_blank" rel="noreferrer">Abrir anúncio</a> : '—'}</td>
+                  </tr>
+                ) : (
+                  <tr key={`${item.platform_code}-${item.sku}-${item.sku_primary || index}`}>
+                    <td className="product">
+                      <div className="sales-product-cell">
+                        <ProductAvatar item={item} />
+                        <div>
+                          <strong>{item.product_name || 'Produto sem nome'}</strong>
+                          <small>{item.sku_primary ? `SKU principal: ${item.sku_primary}` : 'Sem SKU principal vinculado'}</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td><code>{item.sku || '—'}</code></td>
+                    <td><span className={`platform-tag ${String(item.platform_code || '').toLowerCase()}`}>{item.platform_label}</span></td>
+                    <td className="num">{brNumber(item.orders_with_item)}</td>
+                    <td className="num">{brNumber(item.units)}</td>
+                    <td className="num strong">{brCurrency(item.product_revenue)}</td>
+                    <td><span className="sales-row-status ok">Com venda</span></td>
+                    <td>{item.listing_url ? <a href={item.listing_url} target="_blank" rel="noreferrer">Abrir</a> : '—'}</td>
+                  </tr>
+                )
               ))}
               {!loading && !items.length && <tr><td colSpan="8" className="sales-empty-cell">Nenhum item encontrado.</td></tr>}
             </tbody>
