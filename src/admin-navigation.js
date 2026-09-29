@@ -3,6 +3,7 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
     title: 'CADASTRO',
     items: Object.freeze([
       { id: 'catalogo', label: 'Produtos NISTI', icon: 'grid' },
+      { id: 'mural-nisti', label: 'Mural NISTI', icon: 'mural' },
       { id: 'gerador-barras', label: 'Gerador de Barras', icon: 'barcode' }
     ])
   },
