@@ -67,3 +67,25 @@ test('EAN operations replace visual AI tools in the active AdminApp', () => {
   assert.equal(entry.includes("pathname === '/admin/shadow-observability'"), false);
   assert.equal(entry.includes("pathname.startsWith('/admin')"), true);
 });
+
+
+test('System health performs live checks and returns real operational issues', () => {
+  const source = read('src/system-metrics-clean-router.js');
+  assert.equal(source.includes("'/api/admin/system-health'"), true);
+  assert.equal(source.includes("runHealthCheck('d1'"), true);
+  assert.equal(source.includes("runHealthCheck('r2'"), true);
+  assert.equal(source.includes("runHealthCheck('supabase'"), true);
+  assert.equal(source.includes("WHERE e.status='system_error'"), true);
+  assert.equal(source.includes("commerce_nisti_product_statuses_v1"), true);
+  assert.equal(source.includes('recent_issues'), true);
+});
+
+test('Health UI derives service status from backend checks instead of hardcoded active pills', () => {
+  const source = read('src/system-health-view.jsx');
+  assert.equal(source.includes('health?.checks'), true);
+  assert.equal(source.includes('check.status'), true);
+  assert.equal(source.includes('Erros e ocorrências recentes'), true);
+  assert.equal(source.includes('Sincronização NISTI → Catálogo'), true);
+  assert.equal(source.includes('<strong>Scanner EAN</strong>'), false);
+  assert.equal(source.includes('status-pill active">• Ativo'), false);
+});
