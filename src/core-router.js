@@ -529,6 +529,32 @@ export default {
         return json({ ok: true, ...synced });
       }
 
+      const repairCommerceSync = url.pathname.match(/^\/api\/admin\/commerce-sync\/nisti-products\/(\d+)\/repair$/);
+      if (repairCommerceSync && request.method === 'POST') {
+        const productId = Number(repairCommerceSync[1]);
+        const product = await env.DB.prepare('SELECT id,sku FROM products WHERE id=? LIMIT 1')
+          .bind(productId).first();
+        if (!product) return json({ error: 'Produto não encontrado' }, 404);
+
+        const sync = await syncNistiProductToCommerceSafe(env, productId);
+        const syncStatus = String(sync?.status || sync?.sync_status || '').toUpperCase();
+        const reconcile = syncStatus === 'SYNCED'
+          ? await reconcileNistiProductToCommerceSafe(env, productId)
+          : {
+              status: 'SKIPPED',
+              reason: 'sync_not_confirmed',
+              nisti_product_id: productId
+            };
+
+        return json({
+          ok: syncStatus === 'SYNCED' && String(reconcile?.status || '').toUpperCase() !== 'ERROR',
+          product_id: productId,
+          sku: product.sku,
+          sync,
+          reconcile
+        });
+      }
+
       if (url.pathname === '/api/admin/commerce-sync/nisti-products/statuses' && request.method === 'GET') {
         const statuses = await nistiCommerceProductStatuses(env);
         return json({ ok: true, statuses });
