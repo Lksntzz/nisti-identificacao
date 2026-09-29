@@ -546,6 +546,19 @@ async function adminSetCollectionProducts(id, request, env) {
   return json({ok:true,count:productIds.length});
 }
 
+async function adminMetrics(env) {
+  const [publishedByMonth, readers, topReads] = await Promise.all([
+    env.DB.prepare(`SELECT substr(published_at,1,7) AS month,COUNT(*) AS total FROM mural_posts WHERE status='published' AND published_at IS NOT NULL GROUP BY substr(published_at,1,7) ORDER BY month DESC LIMIT 12`).all(),
+    env.DB.prepare(`SELECT COUNT(DISTINCT user_id) AS total FROM mural_post_reads`).first(),
+    env.DB.prepare(`SELECT mp.id,mp.title,COUNT(mr.user_id) AS reads FROM mural_posts mp JOIN mural_post_reads mr ON mr.post_id=mp.id GROUP BY mp.id,mp.title ORDER BY reads DESC,mp.id DESC LIMIT 10`).all()
+  ]);
+  return json({
+    published_by_month:(publishedByMonth.results||[]).map(row=>({month:row.month,total:Number(row.total||0)})),
+    readers:Number(readers?.total||0),
+    top_reads:(topReads.results||[]).map(row=>({id:Number(row.id),title:row.title,reads:Number(row.reads||0)}))
+  });
+}
+
 async function adminProducts(url, env) {
   const q = String(url.searchParams.get('q') || '').trim().slice(0,80);
   const like = `%${q}%`;
@@ -600,6 +613,7 @@ export async function handleMuralRequest(request, env) {
     if (path === '/api/admin/mural/posts' && request.method === 'GET') return adminListPosts(url, env);
     if (path === '/api/admin/mural/posts' && request.method === 'POST') return adminCreatePost(request, env);
     if (path === '/api/admin/mural/products' && request.method === 'GET') return adminProducts(url, env);
+    if (path === '/api/admin/mural/metrics' && request.method === 'GET') return adminMetrics(env);
     if (path === '/api/admin/mural/collections' && request.method === 'GET') return adminListCollections(env);
     if (path === '/api/admin/mural/collections' && request.method === 'POST') return adminCreateCollection(request, env);
 
@@ -625,7 +639,7 @@ export async function handleMuralRequest(request, env) {
 
     return null;
   } catch (error) {
-    console.error('Falha no Mural NISTI.', error);
+    console.error('Falha no Mural NISTI.', { method: request.method, path, message: error?.message || String(error) });
     return json({ error: error?.message || 'Falha ao carregar o Mural NISTI.' }, 500);
   }
 }
