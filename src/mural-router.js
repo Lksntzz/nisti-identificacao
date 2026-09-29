@@ -450,6 +450,9 @@ async function adminPublishPost(id, request, env) {
   if ((request.headers.get('content-type') || '').includes('application/json')) requested = await request.json();
   const scheduled = normalizeDate(requested.published_at ?? current.published_at);
   const publishedAt = scheduled || new Date().toISOString();
+  if (current.expires_at && new Date(current.expires_at) <= new Date(publishedAt)) {
+    return json({ error:'A expiração deve ser posterior à data de publicação.' },422);
+  }
   await env.DB.prepare("UPDATE mural_posts SET status='published',published_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
     .bind(publishedAt,id).run();
   return json({ ok: true, id, status: 'published', published_at: publishedAt });
@@ -470,7 +473,7 @@ async function adminDuplicatePost(id, env) {
   `).bind(
     source.kind,`${source.title} (cópia)`.slice(0,90),source.subtitle,source.body,source.badge,source.badge_tone,
     source.image_key,source.product_id,source.collection_id,source.notice_level,source.featured,source.priority,
-    null,source.expires_at,'admin'
+    null,null,'admin'
   ).run();
   return json({ id: Number(result.meta.last_row_id), status: 'draft' }, 201);
 }
