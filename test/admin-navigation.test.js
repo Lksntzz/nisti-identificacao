@@ -17,6 +17,7 @@ test('Admin navigation exposes only operationally useful tools', () => {
 
   assert.deepEqual(ids, [
     'catalogo',
+    'mural-nisti',
     'gerador-barras',
     'commerce',
     'historico-ean',
