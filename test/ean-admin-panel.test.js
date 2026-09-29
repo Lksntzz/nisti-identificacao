@@ -143,3 +143,15 @@ test('catálogo mostra plataformas sincronizadas em badges compactas', () => {
   assert.match(platformMigration, /LOJA_INTEGRADA/);
   assert.match(platformMigration, /matched_product_id/);
 });
+
+
+test('plataformas do NISTI exigem evidência real de anúncio e preferem a fonte Gestão', () => {
+  const migration = fs.readFileSync(new URL('../supabase/migrations/20260929180000_nisti_catalog_platforms_real_presence_v2.sql', import.meta.url), 'utf8');
+
+  assert.match(migration, /listing_url/);
+  assert.match(migration, /listing_ref/);
+  assert.match(migration, /external_listing_id/);
+  assert.match(migration, /source_priority/);
+  assert.match(migration, /%_GESTAO/);
+  assert.match(migration, /preferred_files/);
+});
