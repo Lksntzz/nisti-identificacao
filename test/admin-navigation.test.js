@@ -79,5 +79,7 @@ test('Admin source has no legacy duplicate navigation or dead PlatformsView', ()
   }
 
   assert.equal(source.includes("import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';"), true);
-  assert.equal(source.includes('Abrir NISTI ID'), true);
+  assert.equal(source.includes('Abrir NISTI ID'), false);
+  assert.equal(source.includes('Voltar ao Scanner de Expedição'), false);
+  assert.equal(source.includes('<span>Scanner</span>'), false);
 });
