@@ -162,7 +162,7 @@ test('histórico de bipagens usa paginação real no backend e na interface', ()
   assert.match(router, /SELECT COUNT\(\*\) AS total/);
   assert.match(router, /LIMIT \? OFFSET \?/);
   assert.match(router, /total: Number\(countRow\?\.total/);
-  assert.match(gtinEvents, /HISTORY_PAGE_SIZE = 25/);
+  assert.match(gtinEvents, /HISTORY_PAGE_SIZE = 10/);
   assert.match(gtinEvents, /admin-pagination/);
   assert.match(gtinEvents, /Mostrando \{firstItem\}–\{lastItem\}/);
   assert.match(gtinEvents, /Anterior/);
