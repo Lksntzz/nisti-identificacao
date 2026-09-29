@@ -1946,3 +1946,251 @@ body.gtin-history-modal-open {
     height: 13px;
   }
 }
+
+
+/* Scanner mobile fixo: sem scroll da tela e tudo dentro do viewport. */
+@media (max-width: 640px) {
+  .gtin-scanner-inline,
+  .gtin-scanner-panel.embedded {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden !important;
+    overscroll-behavior: none;
+  }
+
+  .gtin-scanner-panel.embedded {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .gtin-scanner-panel.embedded .gtin-camera-shell {
+    flex: 1 1 190px;
+    width: 100%;
+    height: auto;
+    min-height: 150px;
+    max-height: 32dvh;
+    margin: 0;
+    border-radius: 16px;
+  }
+
+  .gtin-camera-guide {
+    top: 44%;
+    height: 40%;
+  }
+
+  .gtin-camera-shell .gtin-scanner-instructions {
+    min-height: 38px;
+    padding: 6px 9px;
+  }
+
+  .gtin-camera-shell .gtin-scanner-instructions-icon {
+    width: 19px;
+    height: 19px;
+    font-size: 10px;
+  }
+
+  .gtin-camera-shell .gtin-scanner-instructions strong {
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .gtin-camera-shell .gtin-scanner-instructions > span:not(.gtin-scanner-instructions-icon) {
+    font-size: 8px;
+    line-height: 1.2;
+  }
+
+  .gtin-scanner-result.is-continuous {
+    flex: 0 0 auto;
+    margin: 0;
+    border-radius: 14px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-status {
+    min-height: 40px;
+    padding: 5px 9px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-check {
+    width: 27px;
+    height: 27px;
+    font-size: 15px;
+  }
+
+  .gtin-result-label {
+    font-size: 8.5px;
+  }
+
+  .gtin-result-status-ean {
+    max-width: 50%;
+    font-size: 9px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-content {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-image-frame {
+    padding: 6px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-image {
+    height: 124px;
+    border-radius: 9px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-copy {
+    padding: 7px;
+  }
+
+  .gtin-result-type-label {
+    font-size: 6px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-copy h3 {
+    font-size: 12px;
+  }
+
+  .gtin-result-sku {
+    margin-top: 3px;
+    font-size: 8px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-details {
+    gap: 3px;
+    margin-top: 5px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail {
+    padding: 4px;
+    border-radius: 7px;
+  }
+
+  .gtin-result-detail dt {
+    gap: 3px;
+    font-size: 5.7px;
+  }
+
+  .gtin-result-detail-icon {
+    width: 17px;
+    height: 17px;
+    border-radius: 5px;
+  }
+
+  .gtin-result-detail-icon svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail dd {
+    margin-top: 2px;
+    font-size: 7.8px;
+  }
+
+  .gtin-manual-form {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 7px;
+    border-radius: 11px;
+  }
+
+  .gtin-manual-form label {
+    margin-bottom: 4px;
+    font-size: 8.5px;
+  }
+
+  .gtin-manual-row {
+    grid-template-columns: minmax(0, 1fr) 88px;
+    gap: 5px;
+  }
+
+  .gtin-manual-row input {
+    height: 38px;
+    padding: 0 9px;
+    font-size: 16px;
+  }
+
+  .gtin-manual-row button {
+    min-height: 38px;
+    padding: 0 8px;
+    font-size: 9.5px;
+  }
+
+  .gtin-history {
+    flex: 0 0 auto;
+    margin: 0;
+    border-radius: 11px;
+  }
+
+  .gtin-history-trigger {
+    min-height: 44px;
+    padding: 6px 8px;
+  }
+
+  .gtin-history-icon {
+    width: 27px;
+    height: 27px;
+  }
+
+  .gtin-history-title strong {
+    font-size: 9.5px;
+  }
+
+  .gtin-history-title small {
+    font-size: 7px;
+  }
+
+  .gtin-history-trigger-arrow {
+    width: 27px;
+    height: 27px;
+  }
+
+  .gtin-scanner-alert {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 5px 7px;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 700px) {
+  .gtin-scanner-panel.embedded {
+    gap: 4px;
+  }
+
+  .gtin-scanner-panel.embedded .gtin-camera-shell {
+    min-height: 128px;
+    max-height: 27dvh;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-image {
+    height: 108px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-status {
+    min-height: 36px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail {
+    padding: 3px;
+  }
+
+  .gtin-manual-form {
+    padding: 5px 6px;
+  }
+
+  .gtin-manual-form label {
+    margin-bottom: 3px;
+  }
+
+  .gtin-manual-row input,
+  .gtin-manual-row button {
+    height: 35px;
+    min-height: 35px;
+  }
+
+  .gtin-history-trigger {
+    min-height: 40px;
+  }
+}
