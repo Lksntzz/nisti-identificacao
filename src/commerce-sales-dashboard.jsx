@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './commerce-sales-dashboard.css';
 
 const PAGE_SIZE = 100;
+const EXPORT_PAGE_SIZE = 500;
 
 function brNumber(value) {
   return new Intl.NumberFormat('pt-BR').format(Number(value || 0));
@@ -11,23 +12,33 @@ function brCurrency(value) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
 }
 
-function monthLabel(value) {
+function brPercent(value) {
+  return new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }).format(Number(value || 0));
+}
+
+function monthLabel(value, compact = false) {
   const text = String(value || '');
   const match = text.match(/^(\d{4})-(\d{2})(.*)$/);
   if (!match) return text || '—';
-  const names = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const names = compact
+    ? ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+    : ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   return `${names[Number(match[2])] || match[2]}${match[3] || ''}`;
 }
 
-async function loadSales(filters, offset = 0) {
+async function loadSales(filters, offset = 0, limit = PAGE_SIZE) {
   const params = new URLSearchParams();
   params.set('platform', filters.platform || 'TODAS');
   if (filters.periodStart) params.set('period_start', filters.periodStart);
   if (filters.periodEnd) params.set('period_end', filters.periodEnd);
-  if (filters.sku.trim()) params.set('sku', filters.sku.trim());
+  if (String(filters.sku || '').trim()) params.set('sku', String(filters.sku || '').trim());
   params.set('status', filters.status || 'COM VENDA');
-  params.set('limit', String(PAGE_SIZE));
+  params.set('limit', String(limit));
   params.set('offset', String(offset));
+
   const response = await fetch(`/api/admin/commerce/sales/dashboard?${params.toString()}`, {
     credentials: 'same-origin',
     cache: 'no-store'
@@ -37,43 +48,245 @@ async function loadSales(filters, offset = 0) {
   return data;
 }
 
-function Metric({ label, value, helper, currency = false }) {
+function MetricIcon({ type }) {
+  const props = {
+    viewBox: '0 0 24 24',
+    width: 24,
+    height: 24,
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round'
+  };
+
+  if (type === 'orders') {
+    return <svg {...props}><path d="M4 5h2l2 10h9l2-7H7" /><circle cx="10" cy="19" r="1.3" /><circle cx="17" cy="19" r="1.3" /></svg>;
+  }
+  if (type === 'units') {
+    return <svg {...props}><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path d="m4.5 7.8 7.5 4.3 7.5-4.3" /><path d="M12 12v9" /></svg>;
+  }
+  if (type === 'ticket') {
+    return <svg {...props}><path d="M20 13 11 4H5v6l9 9 6-6Z" /><circle cx="8" cy="7" r="1" /></svg>;
+  }
+  return <svg {...props}><path d="M5 20V10" /><path d="M10 20V4" /><path d="M15 20v-7" /><path d="M20 20V7" /></svg>;
+}
+
+function metricDelta(current, previous) {
+  const currentValue = Number(current || 0);
+  const previousValue = Number(previous || 0);
+  if (!Number.isFinite(currentValue) || !Number.isFinite(previousValue) || previousValue === 0) return null;
+  return ((currentValue - previousValue) / Math.abs(previousValue)) * 100;
+}
+
+function MetricCard({ type, label, value, currency = false, delta, helper }) {
+  const tone = type || 'revenue';
   return (
-    <article className="sales-metric">
-      <span>{label}</span>
-      <strong>{currency ? brCurrency(value) : brNumber(value)}</strong>
-      <small>{helper}</small>
+    <article className={`sales-kpi-card ${tone}`}>
+      <div className="sales-kpi-icon"><MetricIcon type={type} /></div>
+      <div className="sales-kpi-copy">
+        <span>{label}</span>
+        <strong>{currency ? brCurrency(value) : brNumber(value)}</strong>
+        <div className="sales-kpi-helper">
+          {delta == null ? (
+            <small>{helper}</small>
+          ) : (
+            <>
+              <em className={delta >= 0 ? 'positive' : 'negative'}>{delta >= 0 ? '↑' : '↓'} {brPercent(Math.abs(delta))}%</em>
+              <small>vs. período anterior</small>
+            </>
+          )}
+        </div>
+      </div>
     </article>
   );
 }
 
-function HistoryBars({ history }) {
-  const maxUnits = Math.max(1, ...history.map(item => Number(item.units || 0)));
-  const maxRevenue = Math.max(1, ...history.map(item => Number(item.product_revenue || 0)));
-  if (!history.length) return <div className="sales-empty">Sem histórico para o filtro selecionado.</div>;
+function resolvePreviousFilters(appliedFilters, periods) {
+  const values = (periods || []).map(item => item.value);
+  const startIndex = values.indexOf(appliedFilters?.period_start);
+  const endIndex = values.indexOf(appliedFilters?.period_end);
+  if (startIndex < 0 || endIndex < startIndex) return null;
+
+  const windowSize = endIndex - startIndex + 1;
+  const previousEnd = startIndex - 1;
+  const previousStart = previousEnd - windowSize + 1;
+  if (previousStart < 0 || previousEnd < 0) return null;
+
+  return {
+    platform: appliedFilters?.platform || 'TODAS',
+    periodStart: values[previousStart],
+    periodEnd: values[previousEnd],
+    sku: appliedFilters?.sku || '',
+    status: appliedFilters?.status || 'COM VENDA'
+  };
+}
+
+function SalesChart({ history }) {
+  const rows = Array.isArray(history) ? history : [];
+  if (!rows.length) {
+    return <div className="sales-chart-empty">Sem evolução de vendas para o filtro selecionado.</div>;
+  }
+
+  const width = 760;
+  const height = 270;
+  const left = 58;
+  const right = 42;
+  const top = 22;
+  const bottom = 42;
+  const innerWidth = width - left - right;
+  const innerHeight = height - top - bottom;
+  const maxRevenue = Math.max(1, ...rows.map(item => Number(item.product_revenue || 0)));
+  const maxOrders = Math.max(1, ...rows.map(item => Number(item.net_orders || 0)));
+  const slot = innerWidth / rows.length;
+  const barWidth = Math.max(16, Math.min(44, slot * 0.5));
+
+  const points = rows.map((item, index) => {
+    const x = left + (index * slot) + slot / 2;
+    const y = top + innerHeight - (Number(item.net_orders || 0) / maxOrders) * innerHeight;
+    return [x, y];
+  });
+  const line = points.map(([x, y]) => `${x},${y}`).join(' ');
+
   return (
-    <div className="sales-history-list">
-      {history.map(item => (
-        <div className="sales-history-row" key={item.period_key}>
-          <div className="sales-history-label">
-            <strong>{monthLabel(item.period_key)}</strong>
-            <small>{brNumber(item.net_orders)} pedidos</small>
-          </div>
-          <div className="sales-history-bars">
-            <div><span style={{ width: `${Math.max(2, Number(item.units || 0) / maxUnits * 100)}%` }} /><small>{brNumber(item.units)} un.</small></div>
-            <div className="revenue"><span style={{ width: `${Math.max(2, Number(item.product_revenue || 0) / maxRevenue * 100)}%` }} /><small>{brCurrency(item.product_revenue)}</small></div>
-          </div>
-        </div>
-      ))}
+    <div className="sales-chart-wrap">
+      <svg className="sales-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Evolução mensal de faturamento e pedidos">
+        {[0, .25, .5, .75, 1].map(level => {
+          const y = top + innerHeight - (innerHeight * level);
+          return (
+            <g key={level}>
+              <line x1={left} y1={y} x2={width - right} y2={y} className="sales-chart-grid" />
+              <text x={left - 10} y={y + 4} textAnchor="end" className="sales-chart-axis">{brCurrency(maxRevenue * level).replace(',00','')}</text>
+            </g>
+          );
+        })}
+
+        {rows.map((item, index) => {
+          const revenue = Number(item.product_revenue || 0);
+          const x = left + (index * slot) + (slot - barWidth) / 2;
+          const barHeight = (revenue / maxRevenue) * innerHeight;
+          const y = top + innerHeight - barHeight;
+          return (
+            <g key={item.period_key}>
+              <rect x={x} y={y} width={barWidth} height={barHeight} rx="4" className="sales-chart-bar" />
+              <text x={left + (index * slot) + slot / 2} y={height - 15} textAnchor="middle" className="sales-chart-label">
+                {monthLabel(item.period_key, true)}
+              </text>
+            </g>
+          );
+        })}
+
+        <polyline points={line} className="sales-chart-line" />
+        {points.map(([x, y], index) => (
+          <circle key={rows[index].period_key} cx={x} cy={y} r="4" className="sales-chart-point" />
+        ))}
+      </svg>
     </div>
   );
+}
+
+const PLATFORM_COLORS = {
+  SHOPEE: '#f25a3c',
+  ML_NOVO: '#f3b51b',
+  ML_ANTIGO: '#3478f6'
+};
+
+function PlatformSummary({ rows, loading }) {
+  const totalRevenue = rows.reduce((sum, row) => sum + Number(row.metrics?.product_revenue || 0), 0);
+
+  return (
+    <section className="sales-side-card">
+      <div className="sales-side-head">
+        <div><span className="sales-side-icon">▥</span><strong>Resumo por plataforma</strong></div>
+      </div>
+      {loading ? <div className="sales-side-empty">Calculando plataformas…</div> : (
+        <div className="sales-platform-summary">
+          <div className="sales-platform-summary-head"><span>Plataforma</span><span>Pedidos</span><span>Unidades</span><span>Faturamento</span><span>% do total</span></div>
+          {rows.map(row => {
+            const revenue = Number(row.metrics?.product_revenue || 0);
+            const share = totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0;
+            return (
+              <div className="sales-platform-summary-row" key={row.value}>
+                <span className="sales-platform-name"><i style={{ background: PLATFORM_COLORS[row.value] || '#64748b' }} />{row.label}</span>
+                <strong>{brNumber(row.metrics?.net_orders)}</strong>
+                <strong>{brNumber(row.metrics?.units)}</strong>
+                <strong>{brCurrency(revenue)}</strong>
+                <span className="sales-platform-share"><b>{brPercent(share)}%</b><em><i style={{ width: `${Math.max(0, Math.min(100, share))}%` }} /></em></span>
+              </div>
+            );
+          })}
+          {!rows.length && <div className="sales-side-empty">Sem dados para as plataformas selecionadas.</div>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ParticipationCard({ rows, loading }) {
+  const total = rows.reduce((sum, row) => sum + Number(row.metrics?.product_revenue || 0), 0);
+  let cursor = 0;
+  const segments = rows.map(row => {
+    const value = Number(row.metrics?.product_revenue || 0);
+    const share = total > 0 ? (value / total) * 100 : 0;
+    const start = cursor;
+    cursor += share;
+    return {
+      ...row,
+      revenue: value,
+      share,
+      start,
+      end: cursor,
+      color: PLATFORM_COLORS[row.value] || '#64748b'
+    };
+  });
+  const gradient = segments.length
+    ? `conic-gradient(${segments.map(item => `${item.color} ${item.start}% ${item.end}%`).join(',')})`
+    : 'conic-gradient(#e5e7eb 0 100%)';
+
+  return (
+    <section className="sales-side-card participation">
+      <div className="sales-side-head">
+        <div><span className="sales-side-icon">◔</span><strong>Participação de vendas</strong></div>
+      </div>
+      {loading ? <div className="sales-side-empty">Calculando participação…</div> : (
+        <div className="sales-participation-content">
+          <div className="sales-donut" style={{ background: gradient }}>
+            <div><strong>{brCurrency(total).replace(',00','')}</strong><span>Total</span></div>
+          </div>
+          <div className="sales-participation-legend">
+            {segments.map(item => (
+              <div key={item.value}>
+                <span><i style={{ background: item.color }} />{item.label}</span>
+                <strong>{brPercent(item.share)}%</strong>
+                <small>{brCurrency(item.revenue)}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ProductAvatar({ item }) {
+  const text = String(item.product_name || item.sku || '?').trim();
+  return <span className={`sales-product-avatar ${String(item.platform_code || '').toLowerCase()}`}>{text.charAt(0).toUpperCase()}</span>;
+}
+
+function csvCell(value) {
+  const text = String(value ?? '').replace(/"/g, '""');
+  return `"${text}"`;
 }
 
 export default function CommerceSalesDashboard() {
   const [filters, setFilters] = useState({ platform: 'TODAS', periodStart: '', periodEnd: '', sku: '', status: 'COM VENDA' });
   const [data, setData] = useState(null);
+  const [platformSummary, setPlatformSummary] = useState([]);
+  const [previousMetrics, setPreviousMetrics] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const requestIdRef = useRef(0);
 
@@ -81,23 +294,55 @@ export default function CommerceSalesDashboard() {
     const requestId = ++requestIdRef.current;
     const requestedFilters = nextFilters || filters;
     setLoading(true);
+    setInsightsLoading(true);
     setError('');
+    setPlatformSummary([]);
+    setPreviousMetrics(null);
+
     try {
       const payload = await loadSales(requestedFilters, nextOffset);
       if (requestId !== requestIdRef.current) return;
+
       setData(payload);
-      if (!requestedFilters.periodStart || !requestedFilters.periodEnd) {
-        setFilters(current => ({
-          ...current,
-          periodStart: current.periodStart || payload.filters?.period_start || '',
-          periodEnd: current.periodEnd || payload.filters?.period_end || ''
-        }));
-      }
+      const applied = payload.filters || {};
+      const normalizedFilters = {
+        platform: applied.platform || requestedFilters.platform || 'TODAS',
+        periodStart: applied.period_start || requestedFilters.periodStart || '',
+        periodEnd: applied.period_end || requestedFilters.periodEnd || '',
+        sku: applied.sku || requestedFilters.sku || '',
+        status: applied.status || requestedFilters.status || 'COM VENDA'
+      };
+
+      setFilters(current => ({
+        ...current,
+        periodStart: current.periodStart || normalizedFilters.periodStart,
+        periodEnd: current.periodEnd || normalizedFilters.periodEnd
+      }));
+
+      const platformOptions = (payload.options?.platforms || []).filter(item =>
+        item.value !== 'TODAS' && (normalizedFilters.platform === 'TODAS' || item.value === normalizedFilters.platform)
+      );
+
+      const previousFilters = resolvePreviousFilters(applied, payload.options?.periods || []);
+      const [breakdown, previous] = await Promise.all([
+        Promise.all(platformOptions.map(async item => {
+          const result = await loadSales({ ...normalizedFilters, platform: item.value }, 0, 1);
+          return { ...item, metrics: result.metrics || {} };
+        })),
+        previousFilters ? loadSales(previousFilters, 0, 1) : Promise.resolve(null)
+      ]);
+
+      if (requestId !== requestIdRef.current) return;
+      setPlatformSummary(breakdown);
+      setPreviousMetrics(previous?.metrics || null);
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
       setError(err.message || 'Falha ao carregar vendas.');
     } finally {
-      if (requestId === requestIdRef.current) setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setInsightsLoading(false);
+      }
     }
   }, [filters]);
 
@@ -108,13 +353,15 @@ export default function CommerceSalesDashboard() {
   const items = Array.isArray(data?.items) ? data.items : [];
   const appliedFilters = data?.filters || {};
   const appliedStatus = appliedFilters.status || 'COM VENDA';
-  const appliedPlatform = appliedFilters.platform || 'TODAS';
   const history = appliedStatus === 'SEM VENDA' ? [] : (Array.isArray(data?.history) ? data.history : []);
   const pagination = data?.pagination || {};
-  const showPlatform = appliedPlatform === 'TODAS';
   const isNoSales = appliedStatus === 'SEM VENDA';
   const totalPages = Math.max(1, Math.ceil(Number(pagination.total || 0) / PAGE_SIZE));
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+  const ticketAverage = Number(metrics.net_orders || 0) > 0 ? Number(metrics.product_revenue || 0) / Number(metrics.net_orders || 0) : 0;
+  const previousTicket = Number(previousMetrics?.net_orders || 0) > 0
+    ? Number(previousMetrics?.product_revenue || 0) / Number(previousMetrics?.net_orders || 0)
+    : 0;
 
   const periodOptions = useMemo(() => Array.isArray(options.periods) ? options.periods : [], [options.periods]);
 
@@ -153,89 +400,207 @@ export default function CommerceSalesDashboard() {
     refresh(nextOffset, filters);
   };
 
+  async function exportFiltered() {
+    if (!data) return;
+    setExporting(true);
+    setError('');
+    try {
+      const total = Number(pagination.total || 0);
+      const all = [];
+      for (let nextOffset = 0; nextOffset < total; nextOffset += EXPORT_PAGE_SIZE) {
+        const payload = await loadSales(filters, nextOffset, EXPORT_PAGE_SIZE);
+        all.push(...(Array.isArray(payload.items) ? payload.items : []));
+      }
+
+      const header = ['Plataforma','SKU','Produto','SKU Principal','Pedidos com item','Unidades','Faturamento','Status','Anúncio'];
+      const rows = all.map(item => [
+        item.platform_label,
+        item.sku,
+        item.product_name,
+        item.sku_primary,
+        item.orders_with_item,
+        item.units,
+        Number(item.product_revenue || 0).toFixed(2).replace('.', ','),
+        item.row_type === 'ZERO' ? 'Sem venda' : 'Com venda',
+        item.listing_url || ''
+      ]);
+      const csv = '\ufeff' + [header, ...rows].map(row => row.map(csvCell).join(';')).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'vendas_nisti_filtradas.csv';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message || 'Não foi possível exportar as vendas.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="sales-dashboard">
+      <section className="sales-kpi-grid">
+        <MetricCard
+          type="revenue"
+          label="Faturamento"
+          value={metrics.product_revenue}
+          currency
+          delta={isNoSales ? null : metricDelta(metrics.product_revenue, previousMetrics?.product_revenue)}
+          helper={isNoSales ? 'Sem vendas no intervalo' : 'No período filtrado'}
+        />
+        <MetricCard
+          type="orders"
+          label="Pedidos"
+          value={metrics.net_orders}
+          delta={isNoSales ? null : metricDelta(metrics.net_orders, previousMetrics?.net_orders)}
+          helper={isNoSales ? '0 pedidos' : 'Pedidos líquidos'}
+        />
+        <MetricCard
+          type="units"
+          label="Unidades"
+          value={metrics.units}
+          delta={isNoSales ? null : metricDelta(metrics.units, previousMetrics?.units)}
+          helper={isNoSales ? '0 unidades' : 'Unidades vendidas'}
+        />
+        <MetricCard
+          type="ticket"
+          label="Ticket médio"
+          value={ticketAverage}
+          currency
+          delta={isNoSales ? null : metricDelta(ticketAverage, previousTicket)}
+          helper={isNoSales ? 'Sem vendas no intervalo' : 'Faturamento ÷ pedidos'}
+        />
+      </section>
+
       <section className="sales-filter-panel">
         <div className="sales-filter-title">
-          <div><strong>Filtros de vendas</strong><span>Período contínuo, plataforma, SKU e situação de venda.</span></div>
+          <div className="sales-filter-title-icon">⌁</div>
+          <div>
+            <strong>Filtros de vendas</strong>
+            <span>Refine os dados para visualizar os resultados desejados.</span>
+          </div>
           {data?.snapshot && <small>Base até {new Date(`${data.snapshot.data_through}T12:00:00`).toLocaleDateString('pt-BR')}</small>}
         </div>
+
         <div className="sales-filter-grid">
           <label>Plataforma
             <select value={filters.platform} onChange={e => applySelectFilter('platform', e.target.value)} disabled={loading}>
-              {(options.platforms || [{value:'TODAS',label:'Todas'}]).map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+              {(options.platforms || [{ value: 'TODAS', label: 'Todas as plataformas' }]).map(item => <option key={item.value} value={item.value}>{item.value === 'TODAS' ? 'Todas as plataformas' : item.label}</option>)}
             </select>
           </label>
-          <label>Mês inicial
+          <label>Período inicial
             <select value={filters.periodStart} onChange={e => applySelectFilter('periodStart', e.target.value)} disabled={loading}>
               {periodOptions.map(item => <option key={item.value} value={item.value}>{monthLabel(item.label)}</option>)}
             </select>
           </label>
-          <label>Mês final
+          <label>Período final
             <select value={filters.periodEnd} onChange={e => applySelectFilter('periodEnd', e.target.value)} disabled={loading}>
               {periodOptions.map(item => <option key={item.value} value={item.value}>{monthLabel(item.label)}</option>)}
             </select>
           </label>
-          <label>Status de venda
+          <label>Status
             <select value={filters.status} onChange={e => applySelectFilter('status', e.target.value)} disabled={loading}>
               {(options.statuses || ['TODOS','COM VENDA','SEM VENDA']).map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
-          <label className="sales-sku-filter">SKU (opcional)
-            <input value={filters.sku} onChange={e => setFilters(v => ({ ...v, sku: e.target.value }))} placeholder="TODOS" onKeyDown={e => e.key === 'Enter' && apply()} />
+          <label className="sales-sku-filter">Buscar SKU ou produto
+            <input
+              value={filters.sku}
+              onChange={e => setFilters(v => ({ ...v, sku: e.target.value }))}
+              placeholder="Digite o SKU..."
+              onKeyDown={e => e.key === 'Enter' && apply()}
+            />
           </label>
           <button type="button" className="sales-apply" onClick={apply} disabled={loading}>{loading ? 'Carregando…' : 'Aplicar filtros'}</button>
+          <button type="button" className="sales-refresh" onClick={() => refresh(0, filters)} disabled={loading}>Atualizar</button>
         </div>
       </section>
 
       {error && <div className="sales-error">{error}</div>}
 
-      <section className="sales-metrics">
-        <Metric label="Pedidos líquidos" value={metrics.net_orders} helper={isNoSales ? 'Sem vendas no intervalo' : 'Pedidos válidos no período'} />
-        <Metric label="Unidades vendidas" value={metrics.units} helper={isNoSales ? '0 unidades' : 'Quantidade líquida vendida'} />
-        <Metric label="Faturamento produto" value={metrics.product_revenue} helper={isNoSales ? 'R$ 0,00' : 'Receita líquida dos produtos'} currency />
-        <Metric
-          label={isNoSales ? 'Itens sem venda' : 'Anúncios com venda'}
-          value={isNoSales ? metrics.items_without_sales : metrics.listings_with_sales}
-          helper={isNoSales ? 'Cadastrados na plataforma sem venda' : 'Anúncios distintos com venda'}
-        />
-      </section>
-
-      <section className="sales-content-grid">
-        <div className="sales-panel sales-items-panel">
-          <div className="sales-panel-head"><div><h3>Vendas por item</h3><p>{brNumber(pagination.total)} registros no filtro atual.</p></div></div>
-          <div className="sales-table-wrap">
-            <table className="sales-table">
-              <thead><tr>
-                {showPlatform && <th>Plataforma</th>}
-                <th>SKU</th><th>Produto</th><th>SKU Principal</th><th className="num">Unidades</th><th className="num">Pedidos c/ item</th><th className="num">Faturamento</th><th>Anúncio</th>
-              </tr></thead>
-              <tbody>
-                {!loading && items.map((item, index) => (
-                  <tr key={`${item.platform_code}-${item.sku}-${item.sku_primary || index}`} className={item.row_type === 'ZERO' ? 'no-sale' : ''}>
-                    {showPlatform && <td><span className={`platform-tag ${String(item.platform_code || '').toLowerCase()}`}>{item.platform_label}</span></td>}
-                    <td><code>{item.sku || '—'}</code></td>
-                    <td className="product">{item.product_name || '—'}</td>
-                    <td><code>{item.sku_primary || '—'}</code></td>
-                    <td className="num">{brNumber(item.units)}</td>
-                    <td className="num">{brNumber(item.orders_with_item)}</td>
-                    <td className="num">{brCurrency(item.product_revenue)}</td>
-                    <td>{item.listing_url ? <a href={item.listing_url} target="_blank" rel="noreferrer">Abrir anúncio</a> : '—'}</td>
-                  </tr>
-                ))}
-                {!loading && !items.length && <tr><td colSpan={showPlatform ? 8 : 7} className="sales-empty-cell">Nenhum item encontrado.</td></tr>}
-              </tbody>
-            </table>
+      <section className="sales-analytics-grid">
+        <div className="sales-panel sales-chart-panel">
+          <div className="sales-panel-head">
+            <div>
+              <h3>Evolução de vendas</h3>
+              <p>Faturamento e quantidade de pedidos no período selecionado.</p>
+            </div>
+            <div className="sales-chart-legend">
+              <span><i className="revenue" />Faturamento</span>
+              <span><i className="orders" />Pedidos</span>
+              <b>Por mês</b>
+            </div>
           </div>
-          <div className="sales-pagination">
-            <span>Página {currentPage} de {totalPages}</span>
-            <div><button disabled={loading || currentPage <= 1} onClick={() => movePage(currentPage - 1)}>Anterior</button><button disabled={loading || currentPage >= totalPages} onClick={() => movePage(currentPage + 1)}>Próxima</button></div>
-          </div>
+          <SalesChart history={history} />
         </div>
 
-        <div className="sales-panel sales-history-panel">
-          <div className="sales-panel-head"><div><h3>Histórico mensal</h3><p>Unidades e faturamento no intervalo.</p></div></div>
-          <HistoryBars history={history} />
+        <aside className="sales-insights-column">
+          <PlatformSummary rows={platformSummary} loading={insightsLoading} />
+          <ParticipationCard rows={platformSummary} loading={insightsLoading} />
+        </aside>
+      </section>
+
+      <section className="sales-panel sales-products-panel">
+        <div className="sales-panel-head sales-products-head">
+          <div>
+            <h3>Vendas por produto</h3>
+            <p>{brNumber(pagination.total)} registros no filtro atual.</p>
+          </div>
+          <button type="button" className="sales-export" onClick={exportFiltered} disabled={exporting || loading || !pagination.total}>
+            {exporting ? 'Exportando…' : 'Exportar'}
+          </button>
+        </div>
+
+        <div className="sales-table-wrap">
+          <table className="sales-table">
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>SKU</th>
+                <th>Plataforma</th>
+                <th className="num">Pedidos</th>
+                <th className="num">Unidades</th>
+                <th className="num">Faturamento</th>
+                <th>Status</th>
+                <th>Anúncio</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!loading && items.map((item, index) => (
+                <tr key={`${item.platform_code}-${item.sku}-${item.sku_primary || index}`} className={item.row_type === 'ZERO' ? 'no-sale' : ''}>
+                  <td className="product">
+                    <div className="sales-product-cell">
+                      <ProductAvatar item={item} />
+                      <div>
+                        <strong>{item.product_name || 'Produto sem nome'}</strong>
+                        <small>{item.sku_primary ? `SKU principal: ${item.sku_primary}` : 'Sem SKU principal vinculado'}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td><code>{item.sku || '—'}</code></td>
+                  <td><span className={`platform-tag ${String(item.platform_code || '').toLowerCase()}`}>{item.platform_label}</span></td>
+                  <td className="num">{brNumber(item.orders_with_item)}</td>
+                  <td className="num">{brNumber(item.units)}</td>
+                  <td className="num strong">{brCurrency(item.product_revenue)}</td>
+                  <td><span className={`sales-row-status ${item.row_type === 'ZERO' ? 'zero' : 'ok'}`}>{item.row_type === 'ZERO' ? 'Sem venda' : 'Com venda'}</span></td>
+                  <td>{item.listing_url ? <a href={item.listing_url} target="_blank" rel="noreferrer">Abrir</a> : '—'}</td>
+                </tr>
+              ))}
+              {!loading && !items.length && <tr><td colSpan="8" className="sales-empty-cell">Nenhum item encontrado.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="sales-pagination">
+          <span>Página {currentPage} de {totalPages}</span>
+          <div>
+            <button disabled={loading || currentPage <= 1} onClick={() => movePage(currentPage - 1)}>Anterior</button>
+            <button disabled={loading || currentPage >= totalPages} onClick={() => movePage(currentPage + 1)}>Próxima</button>
+          </div>
         </div>
       </section>
     </div>
