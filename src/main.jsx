@@ -1074,8 +1074,53 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
   );
 }
 
-function ViewProductModal({ product, isOpen, onClose, onEdit }) {
+function ViewProductModal({ product, isOpen, onClose, onEdit, onSyncComplete }) {
+  const [syncState, setSyncState] = useState(null);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [syncError, setSyncError] = useState('');
+
+  useEffect(() => {
+    setSyncState(product?.commerce_sync || null);
+    setSyncMessage('');
+    setSyncError('');
+  }, [product?.id, product?.commerce_sync]);
+
   if (!isOpen || !product) return null;
+
+  const syncMeta = commerceSyncMeta(syncState);
+
+  const repairCommerceSync = async () => {
+    if (syncBusy) return;
+    setSyncBusy(true);
+    setSyncMessage('');
+    setSyncError('');
+
+    try {
+      const result = await api(`/api/admin/commerce-sync/nisti-products/${product.id}/repair`, {
+        method: 'POST'
+      });
+      const nextSync = result?.sync || syncState;
+      setSyncState(nextSync);
+
+      if (String(nextSync?.status || nextSync?.sync_status || '').toUpperCase() === 'SYNCED') {
+        const reconcileStatus = String(result?.reconcile?.status || '').toUpperCase();
+        setSyncMessage(
+          reconcileStatus === 'ERROR'
+            ? 'Produto sincronizado. A reconciliação dos anúncios ficou pendente e pode ser tentada novamente.'
+            : 'Sincronização corrigida. Produto Mestre e vínculos do Catálogo foram reconciliados.'
+        );
+      } else {
+        setSyncError(nextSync?.error || nextSync?.last_error || 'O Catálogo ainda não confirmou a sincronização.');
+      }
+
+      await onSyncComplete?.(product.id, nextSync);
+    } catch (error) {
+      setSyncError(error?.message || 'Não foi possível corrigir a sincronização agora.');
+    } finally {
+      setSyncBusy(false);
+    }
+  };
 
   return (
     <div className="admin-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -1102,7 +1147,7 @@ function ViewProductModal({ product, isOpen, onClose, onEdit }) {
               <span className="capa-code-pill-lg">{product.capa_code}</span>
               <PlatformTag platform={product.platform} />
               <span className="status-pill active">• Ativo</span>
-              <CommerceSyncBadge sync={product.commerce_sync} />
+              <CommerceSyncBadge sync={syncState} />
             </div>
 
             <h4 className="view-prod-title">{product.nome || 'Produto sem título'}</h4>
@@ -1131,6 +1176,30 @@ function ViewProductModal({ product, isOpen, onClose, onEdit }) {
               </div>
             </div>
 
+            <div className={`view-sync-repair ${syncMeta.state}`}>
+              <div className="view-sync-repair-copy">
+                <strong>Sincronização com o Catálogo</strong>
+                <span>{syncMeta.detail}</span>
+              </div>
+              <button
+                type="button"
+                className="btn-sync-repair"
+                onClick={repairCommerceSync}
+                disabled={syncBusy}
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 7h-5V2" />
+                  <path d="M4 17h5v5" />
+                  <path d="M5.1 9A8 8 0 0 1 18 5l2 2" />
+                  <path d="M18.9 15A8 8 0 0 1 6 19l-2-2" />
+                </svg>
+                <span>{syncBusy ? 'Corrigindo…' : syncMeta.state === 'synced' ? 'Ressincronizar Catálogo' : 'Corrigir sincronização'}</span>
+              </button>
+            </div>
+
+            {syncMessage && <div className="view-sync-feedback success" aria-live="polite">{syncMessage}</div>}
+            {syncError && <div className="view-sync-feedback error" aria-live="polite">{syncError}</div>}
+
             {product.link && (
               <a href={product.link} target="_blank" rel="noopener noreferrer" className="view-link-btn">
                 Abrir Anúncio na Plataforma ↗
@@ -1139,7 +1208,7 @@ function ViewProductModal({ product, isOpen, onClose, onEdit }) {
           </div>
         </div>
 
-        <div className="admin-modal-foot">
+        <div className="admin-modal-foot view-modal-foot">
           <button type="button" className="btn-cancel" onClick={onClose}>Fechar</button>
           <button type="button" className="btn-edit-action" onClick={() => { onClose(); onEdit(product); }}>
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: '-2px', marginRight: '6px' }}>
@@ -1491,6 +1560,15 @@ function AdminApp() {
         isOpen={Boolean(viewProduct)}
         onClose={() => setViewProduct(null)}
         onEdit={p => setEditProduct(p)}
+        onSyncComplete={async (productId, sync) => {
+          setViewProduct(current => current && Number(current.id) === Number(productId)
+            ? { ...current, commerce_sync: sync }
+            : current);
+          setProducts(current => current.map(item => Number(item.id) === Number(productId)
+            ? { ...item, commerce_sync: sync }
+            : item));
+          await refreshProducts();
+        }}
       />
 
       <EditProductModal
