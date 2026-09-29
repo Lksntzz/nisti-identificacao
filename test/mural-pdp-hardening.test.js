@@ -113,3 +113,15 @@ test('collection editor previews and removes an existing banner through the prot
   assert.match(admin,/const removeBanner=async/);
   assert.match(admin,/Remover banner/);
 });
+
+test('publish rejects an expiration that would already precede publication',()=>{
+  assert.match(router,/A expiração deve ser posterior à data de publicação\./);
+  assert.match(router,/new Date\(current\.expires_at\) <= new Date\(publishedAt\)/);
+});
+
+test('duplicating a post creates an unscheduled draft',()=>{
+  const start=router.indexOf('async function adminDuplicatePost');
+  const end=router.indexOf('function detectImageType',start);
+  const source=router.slice(start,end);
+  assert.match(source,/null,null,'admin'/);
+});
