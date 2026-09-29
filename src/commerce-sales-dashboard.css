@@ -218,3 +218,23 @@
 @media(prefers-reduced-motion:reduce){
   .sales-no-sales-overview-card{animation:none!important}
 }
+
+
+/* Legibilidade reforçada do Painel de Vendas */
+.sales-dashboard{gap:16px}
+.sales-filter-panel{padding:17px 18px;border-radius:14px}
+.sales-filter-title{grid-template-columns:34px 1fr auto;gap:10px;margin-bottom:15px}
+.sales-filter-title-icon{width:32px;height:32px;font-size:17px}
+.sales-filter-title strong{font-size:14px}
+.sales-filter-title span,.sales-filter-title small{font-size:10.5px}
+.sales-filter-grid{gap:10px}
+.sales-filter-grid label{font-size:10px;gap:6px}
+.sales-filter-grid select,.sales-filter-grid input{height:42px;font-size:11.5px;padding:0 11px}
+.sales-apply,.sales-refresh{height:42px;font-size:11px;padding:0 15px}
+@media(max-width:1250px){
+  .sales-filter-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:900px){
+  .sales-filter-title strong{font-size:13.5px}
+  .sales-filter-grid select,.sales-filter-grid input{font-size:11px}
+}
