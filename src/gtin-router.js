@@ -137,6 +137,9 @@ async function adminGtinEvents(url, env) {
     bindings.push(status);
   }
   if (url.searchParams.get('pending') === '1') clauses.push('e.dismissed_at IS NULL');
+  if (url.searchParams.get('today') === '1') {
+    clauses.push("date(e.created_at,'-3 hours')=date('now','-3 hours')");
+  }
   if (query) {
     clauses.push('(e.gtin LIKE ? OR e.operator_name LIKE ? OR p.sku LIKE ? OR p.nome LIKE ?)');
     const pattern = `%${query}%`;
