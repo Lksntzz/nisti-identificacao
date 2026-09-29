@@ -407,9 +407,14 @@ export default function CommerceSalesDashboard() {
     try {
       const total = Number(pagination.total || 0);
       const all = [];
-      for (let nextOffset = 0; nextOffset < total; nextOffset += EXPORT_PAGE_SIZE) {
+      let nextOffset = 0;
+      while (nextOffset < total) {
         const payload = await loadSales(filters, nextOffset, EXPORT_PAGE_SIZE);
-        all.push(...(Array.isArray(payload.items) ? payload.items : []));
+        const pageItems = Array.isArray(payload.items) ? payload.items : [];
+        all.push(...pageItems);
+        const actualLimit = Number(payload.pagination?.limit || pageItems.length || 0);
+        if (actualLimit <= 0 || pageItems.length === 0) break;
+        nextOffset += actualLimit;
       }
 
       const header = ['Plataforma','SKU','Produto','SKU Principal','Pedidos com item','Unidades','Faturamento','Status','Anúncio'];
@@ -507,7 +512,7 @@ export default function CommerceSalesDashboard() {
               {(options.statuses || ['TODOS','COM VENDA','SEM VENDA']).map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
-          <label className="sales-sku-filter">Buscar SKU ou produto
+          <label className="sales-sku-filter">Buscar SKU
             <input
               value={filters.sku}
               onChange={e => setFilters(v => ({ ...v, sku: e.target.value }))}
