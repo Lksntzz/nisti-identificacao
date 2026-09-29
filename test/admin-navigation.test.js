@@ -17,7 +17,6 @@ test('Admin navigation exposes only operationally useful tools', () => {
 
   assert.deepEqual(ids, [
     'catalogo',
-    'gtins',
     'gerador-barras',
     'commerce',
     'historico-ean',
@@ -46,11 +45,10 @@ test('Legacy visual recognition tools stay outside the EAN admin menu', () => {
   }
 });
 
-test('Admin navigation keeps EAN catalog, commerce, registry, operations and health capabilities', () => {
+test('Admin navigation keeps catalog, barcode generator, commerce, operations and health capabilities', () => {
   const labels = new Set(flattenedItems().map(item => item.label));
   for (const expected of [
     'Catálogo de Produtos',
-    'Códigos EAN',
     'Gerador de Barras',
     'Catálogo Comercial',
     'Histórico de Leituras',
