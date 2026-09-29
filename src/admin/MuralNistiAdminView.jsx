@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import '../mural-admin.css';
+import { MuralCard } from '../mural-nisti.jsx';
+import { productTypeLabel } from '../product-display.js';
 
 const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',
@@ -61,23 +63,47 @@ function Status({ value }) {
 
 function MobilePreview({ form, product, collection, imageUrl }) {
   const title = form.title || 'Título da publicação';
-  const subtitle = form.subtitle || (form.kind === 'product' ? product?.sku : form.kind === 'collection' ? collection?.name : 'Orientação operacional');
+  const productPreview = form.kind === 'product' && product ? {
+    id: Number(product.id),
+    sku: product.sku || null,
+    type: product.type || productTypeLabel(product),
+    collection: product.collection_name || null,
+    wireo: product.wireo || null,
+    tassel: product.tassel || null,
+    elastico: product.elastico || null
+  } : null;
+  const collectionPreview = form.kind === 'collection' && collection ? {
+    id: Number(collection.id),
+    slug: collection.slug || '',
+    name: collection.name || '',
+    year: collection.year ? Number(collection.year) : null
+  } : null;
+  const collectionImage = collection?.image_key
+    ? `/api/admin/mural/collections/${collection.id}/image?v=${encodeURIComponent(collection.image_key)}`
+    : '';
+  const previewItem = {
+    id: 0,
+    kind: form.kind,
+    title,
+    subtitle: form.subtitle || null,
+    body: form.body || null,
+    badge: form.badge || null,
+    badge_tone: form.badge_tone || null,
+    featured: Boolean(form.featured),
+    published_at: form.published_at ? new Date(form.published_at).toISOString() : new Date().toISOString(),
+    is_read: false,
+    image_url: imageUrl || product?.image_url || collectionImage || null,
+    product: productPreview,
+    collection: collectionPreview,
+    notice_level: form.kind === 'notice' ? form.notice_level : null
+  };
+
   return (
     <div className="mural-admin-phone" aria-label="Pré-visualização mobile">
-      <div className="mural-admin-phone-head"><b>Mural NISTI</b><span>{form.kind === 'notice' ? 'Aviso' : form.kind === 'product' ? 'Produto' : 'Coleção'}</span></div>
-      <article className={`mural-admin-preview-card ${form.featured ? 'featured' : ''}`}>
-        {(imageUrl || (form.kind === 'product' && product?.image_url)) ? <img src={imageUrl || product.image_url} alt={form.kind === 'product' ? (product?.sku || title) : ''} /> : <div className="mural-admin-preview-placeholder">{form.kind === 'notice' ? '!' : 'NISTI'}</div>}
-        <div>
-          <div className="mural-admin-preview-badges">
-            {form.badge && <span>{form.badge}</span>}
-            {form.kind === 'notice' && <span>{form.notice_level}</span>}
-          </div>
-          <h4>{title}</h4>
-          {subtitle && <p className="mural-admin-preview-subtitle">{subtitle}</p>}
-          {form.body && <p>{form.body}</p>}
-          {form.kind === 'product' && product && <small>{product.sku} · {product.nome || 'Produto NISTI'}{product.wireo ? ` · Wire-o: ${product.wireo}` : ''}{product.tassel ? ` · Tassel: ${product.tassel}` : ''}{product.elastico ? ` · Elástico: ${product.elastico}` : ''}</small>}
-        </div>
-      </article>
+      <div className="mural-admin-phone-head"><b>Mural NISTI</b><span>Visual do operador</span></div>
+      <div className="mural-admin-shared-preview">
+        <MuralCard item={previewItem} onOpen={() => {}} eager />
+      </div>
     </div>
   );
 }
