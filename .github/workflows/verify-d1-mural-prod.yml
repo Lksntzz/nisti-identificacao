@@ -1,0 +1,111 @@
+name: Verify D1 Mural Production
+
+on:
+  push:
+    branches: [verify/d1-mural-prod]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify remote Mural schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Query remote D1 schema
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT type,name FROM sqlite_master WHERE name IN ('d1_migrations','mural_collections','mural_collection_products','mural_posts','mural_post_reads','idx_mural_posts_feed','idx_mural_posts_kind_date','idx_mural_posts_product_id','idx_mural_posts_collection_id','idx_mural_reads_user','idx_mural_collection_products_product_id','idx_mural_collection_products_order') ORDER BY type,name;" > /tmp/mural-schema.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT name FROM d1_migrations WHERE name='0019_mural_nisti.sql';" > /tmp/mural-migration.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "PRAGMA table_info(mural_posts);" > /tmp/mural-post-columns.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "PRAGMA foreign_key_list(mural_posts);" > /tmp/mural-post-fks.json
+
+      - name: Assert migration and schema
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          function rows(path) {
+            const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+            const out = [];
+            const visit = value => {
+              if (Array.isArray(value)) return value.forEach(visit);
+              if (!value || typeof value !== 'object') return;
+              if (Array.isArray(value.results)) out.push(...value.results);
+              for (const [key, child] of Object.entries(value)) {
+                if (key !== 'results') visit(child);
+              }
+            };
+            visit(data);
+            return out;
+          }
+
+          const schema = rows('/tmp/mural-schema.json');
+          const migration = rows('/tmp/mural-migration.json');
+          const columns = rows('/tmp/mural-post-columns.json');
+          const fks = rows('/tmp/mural-post-fks.json');
+
+          const names = new Set(schema.map(row => row.name));
+          const expectedTables = [
+            'd1_migrations',
+            'mural_collections',
+            'mural_collection_products',
+            'mural_posts',
+            'mural_post_reads'
+          ];
+          const expectedIndexes = [
+            'idx_mural_posts_feed',
+            'idx_mural_posts_kind_date',
+            'idx_mural_posts_product_id',
+            'idx_mural_posts_collection_id',
+            'idx_mural_reads_user',
+            'idx_mural_collection_products_product_id',
+            'idx_mural_collection_products_order'
+          ];
+          const expectedColumns = [
+            'id','kind','status','title','subtitle','body','badge','badge_tone',
+            'image_key','product_id','collection_id','notice_level','featured',
+            'priority','published_at','expires_at','created_by','created_at','updated_at'
+          ];
+
+          const missing = [...expectedTables, ...expectedIndexes].filter(name => !names.has(name));
+          const columnNames = new Set(columns.map(row => row.name));
+          const missingColumns = expectedColumns.filter(name => !columnNames.has(name));
+          const migrationApplied = migration.some(row => row.name === '0019_mural_nisti.sql');
+          const fkTargets = new Set(fks.map(row => row.table));
+
+          console.log('Remote D1 Mural validation summary');
+          console.log(JSON.stringify({
+            database: 'nisti-identificacao',
+            migration_0019_applied: migrationApplied,
+            tables_found: expectedTables.filter(name => names.has(name)),
+            indexes_found: expectedIndexes.filter(name => names.has(name)),
+            mural_posts_columns_found: expectedColumns.filter(name => columnNames.has(name)),
+            mural_posts_fk_targets: [...fkTargets].sort()
+          }, null, 2));
+
+          if (!migrationApplied) throw new Error('Migration 0019_mural_nisti.sql is not recorded in remote d1_migrations.');
+          if (missing.length) throw new Error('Missing remote schema objects: ' + missing.join(', '));
+          if (missingColumns.length) throw new Error('Missing mural_posts columns: ' + missingColumns.join(', '));
+          if (!fkTargets.has('products') || !fkTargets.has('mural_collections')) {
+            throw new Error('mural_posts foreign keys are incomplete.');
+          }
+          NODE
