@@ -84,7 +84,7 @@ test('Painel de Vendas possui camada de movimento e acessibilidade de interaçã
   }
 });
 
-test('Modo SEM VENDA usa arquitetura por Produto Mestre', () => {
+test('Modo SEM VENDA usa arquitetura profissional por Produto Mestre', () => {
   const dashboard = read('src/commerce-sales-dashboard.jsx');
   const performance = read('src/commerce-sales-product-performance.jsx');
   const css = read('src/commerce-sales-product-performance.css');
@@ -100,17 +100,20 @@ test('Modo SEM VENDA usa arquitetura por Produto Mestre', () => {
     'Produtos com venda',
     'Produtos sem venda',
     'Vendem em outra plataforma',
+    'Sem anúncio',
+    'Revisar para desativar',
+    'Tem oportunidade',
+    'Criar anúncio',
+    'Distribuição por situação',
+    'Comparação por plataforma',
+    'Tendência de sem venda',
+    'Insights automáticos',
     'Desempenho por Produto',
+    'Recomendação',
     'Shopee',
     'ML Novo',
     'ML Antigo',
     'Todas as situações',
-    'Vendeu',
-    'Não vendeu',
-    'Vende em outra plataforma',
-    'Sem anúncio',
-    'Resumo por situação',
-    'Entenda as situações',
     'Ver anúncios',
     'Exportar'
   ]) {
@@ -118,14 +121,20 @@ test('Modo SEM VENDA usa arquitetura por Produto Mestre', () => {
   }
 
   for (const token of [
-    '.spp-summary-grid',
-    '.spp-main-grid',
+    '.spp-kpi-grid',
+    '.spp-decision-grid',
+    '.spp-analytics-grid',
+    '.spp-chart-card',
+    '.spp-insights-card',
     '.spp-table',
     '.spp-status.sold',
     '.spp-status.no-sales',
     '.spp-status.elsewhere',
     '.spp-status.no-listing',
-    '.spp-donut'
+    '.spp-recommendation',
+    '@keyframes spp-rise',
+    '@keyframes spp-draw',
+    '@media(prefers-reduced-motion:reduce)'
   ]) {
     assert.equal(css.includes(token), true, token);
   }
