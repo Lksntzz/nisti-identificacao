@@ -4836,3 +4836,108 @@ button.kpi-box {
   .ean-viewport .operator-profile-pill { max-width:90px; }
   .ean-viewport .operator-name-label { max-width:44px; }
 }
+
+
+/* Public mobile header — applies to Scanner and Mural views.
+   Do not scope this to .ean-viewport: the Mural switches the same shell to .mural-viewport. */
+@media (max-width: 640px) {
+  .app.general .brand-topbar {
+    display:grid;
+    grid-template-columns:minmax(112px,1fr) auto;
+    column-gap:8px;
+    align-items:center;
+    width:100%;
+    min-width:0;
+  }
+  .app.general .brand-identity {
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+    gap:7px;
+  }
+  .app.general .brand-icon-mark {
+    width:34px;
+    height:34px;
+    flex:0 0 34px;
+  }
+  .app.general .brand-titles {
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+  }
+  .app.general .brand-main-title {
+    display:block;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:10.5px;
+    line-height:1.05;
+  }
+  .app.general .brand-subtext {
+    display:block;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:7px;
+    line-height:1.05;
+    letter-spacing:.035em;
+  }
+  .app.general .header-actions {
+    min-width:0;
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    justify-content:flex-end;
+    gap:4px;
+  }
+  .app.general .operator-profile-pill {
+    min-width:0;
+    max-width:96px;
+    min-height:36px;
+    padding:3px 6px 3px 4px;
+    flex:0 1 96px;
+  }
+  .app.general .operator-avatar-mini {
+    width:28px;
+    height:28px;
+    flex:0 0 28px;
+  }
+  .app.general .operator-name-label {
+    min-width:0;
+    max-width:50px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:11px;
+  }
+  .app.general .mural-nav-btn {
+    min-width:54px;
+    min-height:36px;
+    padding:0 7px;
+    font-size:10px;
+    flex:0 0 auto;
+  }
+  .app.general .bell-circle-btn {
+    width:36px;
+    height:36px;
+    flex:0 0 36px;
+  }
+}
+@media (max-width: 360px) {
+  .app.general .brand-topbar {
+    grid-template-columns:minmax(108px,1fr) auto;
+    column-gap:6px;
+  }
+  .app.general .operator-profile-pill {
+    width:36px;
+    max-width:36px;
+    flex-basis:36px;
+    padding:3px;
+    justify-content:center;
+  }
+  .app.general .operator-name-label { display:none; }
+  .app.general .mural-nav-btn { min-width:50px; padding-inline:6px; }
+  .app.general .brand-subtext { display:none; }
+}
