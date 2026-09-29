@@ -2402,3 +2402,173 @@ body.gtin-history-modal-open {
     height: 24px;
   }
 }
+
+
+/* Resultado reorganizado: acabamentos principais usam toda a largura do card */
+.gtin-scanner-result .gtin-result-content,
+.gtin-scanner-result.is-continuous .gtin-result-content {
+  display: block;
+}
+
+.gtin-result-product-main {
+  display: grid;
+  grid-template-columns: minmax(118px, 34%) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.gtin-result-product-main .gtin-result-image-frame {
+  border-right: 1px solid #eef2f7;
+}
+
+.gtin-result-secondary-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.gtin-result-secondary-details .gtin-result-detail {
+  min-width: 0;
+}
+
+.gtin-result-priority-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border-top: 1px solid #e5e7eb;
+  background: #fbfdff;
+}
+
+.gtin-result-priority-details .gtin-result-detail.is-priority {
+  grid-column: auto;
+  min-width: 0;
+  min-height: 82px;
+  padding: 12px 10px;
+}
+
+.gtin-result-priority-details .gtin-result-detail.is-priority dt,
+.gtin-result-priority-details .gtin-result-detail.is-priority dd {
+  min-width: 0;
+  overflow: visible;
+}
+
+.gtin-result-priority-details .gtin-result-detail.is-priority dt {
+  flex-wrap: nowrap;
+}
+
+.gtin-result-priority-details .gtin-result-detail.is-priority dt > span:last-child {
+  white-space: nowrap;
+}
+
+.gtin-result-priority-details .gtin-result-detail.is-priority dd {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+@media (max-width: 640px) {
+  .gtin-result-product-main {
+    grid-template-columns: 102px minmax(0, 1fr);
+  }
+
+  .gtin-result-product-main .gtin-result-image-frame {
+    padding: 6px;
+  }
+
+  .gtin-result-product-main .gtin-result-image {
+    height: 112px;
+  }
+
+  .gtin-result-product-main .gtin-result-copy {
+    padding: 7px 7px 6px;
+  }
+
+  .gtin-result-secondary-details {
+    gap: 4px;
+    margin-top: 5px;
+  }
+
+  .gtin-result-priority-details {
+    gap: 5px;
+    padding: 6px 7px 8px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-priority-details .gtin-result-detail.is-priority {
+    min-height: 66px;
+    padding: 7px 6px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-priority-details .gtin-result-detail.is-priority dt {
+    gap: 4px;
+    font-size: 8px;
+    line-height: 1;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-priority-details .gtin-result-detail.is-priority dd {
+    margin-top: 6px;
+    font-size: 15px;
+    line-height: 1.02;
+  }
+
+  .gtin-result-priority-details .gtin-result-detail.is-priority .gtin-result-detail-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .gtin-result-priority-details .gtin-result-detail.is-priority .gtin-result-detail-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-secondary-details .gtin-result-detail.is-secondary {
+    min-height: 32px;
+    padding: 3px 4px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-secondary-details .gtin-result-detail.is-secondary dt {
+    gap: 3px;
+    font-size: 5.5px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-secondary-details .gtin-result-detail.is-secondary dd {
+    margin-top: 2px;
+    font-size: 7px;
+  }
+}
+
+@media (max-width: 390px) {
+  .gtin-result-product-main {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .gtin-result-priority-details {
+    gap: 4px;
+    padding-inline: 6px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-priority-details .gtin-result-detail.is-priority dd {
+    font-size: 14px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-priority-details .gtin-result-detail.is-priority dt {
+    font-size: 7.5px;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 700px) {
+  .gtin-result-product-main .gtin-result-image {
+    height: 100px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-priority-details .gtin-result-detail.is-priority {
+    min-height: 60px;
+    padding: 6px 5px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-priority-details .gtin-result-detail.is-priority dd {
+    margin-top: 5px;
+    font-size: 14px;
+  }
+}
