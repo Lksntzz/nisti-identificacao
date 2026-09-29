@@ -659,8 +659,26 @@ function decisionSignalLabel(value) {
 }
 
 function ProductAvatar({ item }) {
+  const [failed, setFailed] = useState(false);
   const text = String(item.product_name || item.sku || '?').trim();
-  return <span className={`sales-product-avatar ${String(item.platform_code || '').toLowerCase()}`}>{text.charAt(0).toUpperCase()}</span>;
+
+  if (item.image_url && !failed) {
+    return (
+      <img
+        className="sales-product-image"
+        src={item.image_url}
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <span className={`sales-product-avatar ${String(item.platform_code || '').toLowerCase()}`}>
+      {text.charAt(0).toUpperCase()}
+    </span>
+  );
 }
 
 function csvCell(value) {
@@ -1017,10 +1035,10 @@ export default function CommerceSalesDashboard() {
       <section className="sales-panel sales-products-panel">
         <div className="sales-panel-head sales-products-head">
           <div>
-            <h3>{isNoSales ? 'Anúncios para revisar' : 'Vendas por produto'}</h3>
+            <h3>{isNoSales ? 'Anúncios para revisar' : 'Produtos vendidos'}</h3>
             <p>{isNoSales
               ? `${brNumber(pagination.total)} anúncios ordenados pelo sinal de decisão.`
-              : `${brNumber(pagination.total)} registros no filtro atual.`}</p>
+              : `${brNumber(pagination.total)} SKUs vendidos no filtro atual.`}</p>
           </div>
           <button type="button" className="sales-export" onClick={exportFiltered} disabled={exporting || loading || !pagination.total}>
             {exporting ? 'Exportando…' : 'Exportar'}
@@ -1033,7 +1051,7 @@ export default function CommerceSalesDashboard() {
               {isNoSales ? (
                 <tr>
                   <th>Produto</th>
-                  <th>SKU</th>
+                  <th>SKU vendido</th>
                   <th>Plataforma</th>
                   <th>Decisão</th>
                   <th>Evidência</th>
@@ -1106,7 +1124,7 @@ export default function CommerceSalesDashboard() {
                         <ProductAvatar item={item} />
                         <div>
                           <strong>{item.product_name || 'Produto sem nome'}</strong>
-                          <small>{item.sku_primary ? `SKU principal: ${item.sku_primary}` : 'Sem SKU principal vinculado'}</small>
+                          <small>SKU vendido: {item.sku || '—'}</small>
                         </div>
                       </div>
                     </td>
