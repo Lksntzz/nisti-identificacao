@@ -3,7 +3,6 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
     title: 'CATÁLOGO',
     items: Object.freeze([
       { id: 'catalogo', label: 'Catálogo de Produtos', icon: 'grid' },
-      { id: 'gtins', label: 'Códigos EAN', icon: 'barcode' },
       { id: 'gerador-barras', label: 'Gerador de Barras', icon: 'barcode' }
     ])
   },
@@ -39,5 +38,6 @@ export const REMOVED_ADMIN_NAV_IDS = Object.freeze([
   'historico',
   'nao-identificados',
   'shadow-observability',
-  'verificar'
+  'verificar',
+  'gtins'
 ]);
