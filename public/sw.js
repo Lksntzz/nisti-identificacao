@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-id-v31';
+const CACHE_NAME = 'nisti-id-v32';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -8,6 +8,8 @@ self.addEventListener('activate', event => {
     const names = await caches.keys();
     await Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name)));
     await self.clients.claim();
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    await Promise.all(windows.map(client => client.navigate(client.url).catch(() => null)));
   })());
 });
 
