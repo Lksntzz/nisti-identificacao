@@ -32,10 +32,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
         run: |
           set -euo pipefail
-          npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT type,name FROM sqlite_master WHERE name IN ('d1_migrations','mural_collections','mural_collection_products','mural_posts','mural_post_reads','idx_mural_posts_feed','idx_mural_posts_kind_date','idx_mural_posts_product_id','idx_mural_posts_collection_id','idx_mural_reads_user','idx_mural_collection_products_product_id','idx_mural_collection_products_order') ORDER BY type,name;" > /tmp/mural-schema.json
-          npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT name FROM d1_migrations WHERE name='0019_mural_nisti.sql';" > /tmp/mural-migration.json
-          npx wrangler d1 execute nisti-identificacao --remote --json --command "PRAGMA table_info(mural_posts);" > /tmp/mural-post-columns.json
-          npx wrangler d1 execute nisti-identificacao --remote --json --command "PRAGMA foreign_key_list(mural_posts);" > /tmp/mural-post-fks.json
+          npx wrangler d1 info nisti-identificacao --json | tee /tmp/d1-info.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT type,name FROM sqlite_master WHERE name IN ('d1_migrations','mural_collections','mural_collection_products','mural_posts','mural_post_reads','idx_mural_posts_feed','idx_mural_posts_kind_date','idx_mural_posts_product_id','idx_mural_posts_collection_id','idx_mural_reads_user','idx_mural_collection_products_product_id','idx_mural_collection_products_order') ORDER BY type,name;" | tee /tmp/mural-schema.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT name FROM d1_migrations WHERE name='0019_mural_nisti.sql';" | tee /tmp/mural-migration.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "PRAGMA table_info(mural_posts);" | tee /tmp/mural-post-columns.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "PRAGMA foreign_key_list(mural_posts);" | tee /tmp/mural-post-fks.json
 
       - name: Assert migration and schema
         shell: bash
