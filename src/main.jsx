@@ -1488,6 +1488,7 @@ function AdminApp() {
             productsCount={products.length}
             onNavigate={handleNavChange}
             onShowProductsWithoutGtin={showProductsWithoutGtin}
+            api={api}
           />
 
           {activeView === 'catalogo' && (
