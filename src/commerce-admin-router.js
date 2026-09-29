@@ -24,6 +24,7 @@ import {
   commerceProductDetail,
   commerceShopeeSnapshot,
   commerceSalesDashboard,
+  commerceSalesProductPerformance,
   commerceSalesImportBatches,
   commerceCreateSalesImport,
   commerceAppendSalesImportRows,
@@ -165,6 +166,18 @@ export async function handleCommerceAdminRequest(request, env) {
         periodEnd: query(url, 'period_end'),
         sku: query(url, 'sku'),
         status: query(url, 'status') || 'TODOS',
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      }));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/sales/product-performance`) {
+      return json(await commerceSalesProductPerformance(env, {
+        platform: query(url, 'platform') || 'TODAS',
+        periodStart: query(url, 'period_start'),
+        periodEnd: query(url, 'period_end'),
+        situation: query(url, 'situation') || 'TODOS',
+        search: query(url, 'search'),
         limit: query(url, 'limit'),
         offset: query(url, 'offset')
       }));
