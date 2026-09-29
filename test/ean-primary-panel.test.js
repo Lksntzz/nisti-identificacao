@@ -108,3 +108,13 @@ test('mobile fixed scanner keeps manual input readable without iOS focus zoom', 
   assert.match(scannerStyles, /\.gtin-manual-row input \{[\s\S]*?font-size: 16px;/);
   assert.match(scannerStyles, /@media \(max-width: 640px\) and \(max-height: 700px\)/);
 });
+
+
+test('scanner gives visual priority to wire-o, tassel and elastic', () => {
+  assert.match(scannerSource, /label: 'Wire-o'[\s\S]*priority: 'primary'/);
+  assert.match(scannerSource, /label: 'Tassel'[\s\S]*priority: 'primary'/);
+  assert.match(scannerSource, /label: 'Elástico'[\s\S]*priority: 'primary'/);
+  assert.match(scannerSource, /is-priority/);
+  assert.match(scannerStyles, /\.gtin-result-detail\.is-priority/);
+  assert.match(scannerStyles, /font-size: 11\.5px/);
+});
