@@ -1,0 +1,162 @@
+:root {
+  --mural-ink: #0b1329;
+  --mural-blue: #2f6bff;
+  --mural-cyan: #14c8d4;
+  --mural-pink: #f866a6;
+  --mural-yellow: #f7d64a;
+  --mural-bg: #f7faff;
+  --mural-card: #fff;
+  --mural-border: #e2e8f0;
+  --mural-muted: #64748b;
+  --mural-success: #22c55e;
+  --mural-attention: #f59e0b;
+  --mural-important: #f43f5e;
+  --mural-info: #3b82f6;
+  --mural-radius: 18px;
+}
+
+.mural-viewport {
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--mural-bg);
+}
+
+.mural-shell { min-height: 0; flex: 1 1 auto; overflow: hidden; position: relative; }
+.mural-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 12px calc(24px + env(safe-area-inset-bottom));
+}
+.mural-column { width: min(100%, 720px); margin: 0 auto; }
+.mural-title-block { padding: 6px 2px 14px; }
+.mural-title-block h1 { margin: 0; color: var(--mural-ink); font-size: clamp(32px, 8.7vw, 36px); line-height: 1.05; font-weight: 900; letter-spacing: -.04em; }
+.mural-title-block p { margin: 7px 0 0; color: var(--mural-muted); font-size: 14px; line-height: 1.35; font-weight: 600; }
+
+.mural-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin: 12px 0; }
+.mural-tabs button {
+  min-width: 0; min-height: 44px; padding: 0 7px; border: 1px solid var(--mural-border); border-radius: 999px;
+  background: #fff; color: #526078; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.mural-tabs button.active { color: #fff; border-color: var(--mural-blue); background: var(--mural-blue); box-shadow: 0 8px 20px rgba(47,107,255,.22); }
+.mural-tabs button:active { transform: scale(.98); }
+
+.mural-hero {
+  position: relative; display: block; width: 100%; height: clamp(220px, 61vw, 250px); overflow: hidden; padding: 0;
+  border: 0; border-radius: 20px; background: #dfe8f7; text-align: left; cursor: pointer; box-shadow: 0 8px 24px rgba(15,23,42,.08);
+}
+.mural-hero-image { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mural-hero .mural-image-placeholder { width: 100%; height: 100%; }
+.mural-hero-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,19,41,.03) 22%, rgba(11,19,41,.86) 100%); }
+.mural-hero-copy { position: absolute; inset: auto 18px 18px; display: grid; gap: 6px; color: #fff; }
+.mural-hero-copy strong { font-size: 24px; line-height: 1.05; font-weight: 900; letter-spacing: -.025em; }
+.mural-hero-copy > span:not(.mural-hero-badges):not(.mural-hero-cta) { font-size: 13px; font-weight: 650; }
+.mural-hero-badges, .mural-card-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mural-hero-cta { margin-top: 3px; font-size: 12px; font-weight: 850; }
+.mural-new-badge, .mural-editorial-badge, .mural-notice-label {
+  display: inline-flex; align-items: center; min-height: 22px; padding: 3px 8px; border-radius: 999px; font-size: 10px; line-height: 1; font-weight: 900; letter-spacing: .04em; text-transform: uppercase;
+}
+.mural-new-badge { color: #075b2b; background: #dcfce7; border: 1px solid #bbf7d0; }
+.mural-editorial-badge { color: #8a2152; background: #ffe6f2; border: 1px solid #ffc8df; }
+
+.mural-feed { display: grid; gap: 11px; }
+.mural-card {
+  width: 100%; min-width: 0; min-height: 150px; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px;
+  padding: 10px; border: 1px solid var(--mural-border); border-radius: var(--mural-radius); background: var(--mural-card);
+  box-shadow: 0 8px 24px rgba(15,23,42,.06); color: var(--mural-ink); text-align: left; font: inherit; cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.mural-card:active { transform: scale(.992); }
+.mural-card.unread { border-width: 1.5px; border-color: #cbd9ff; }
+.mural-card-image, .mural-image-placeholder { width: 112px; height: 100%; min-height: 130px; object-fit: cover; border-radius: 13px; background: #edf3fb; display: grid; place-items: center; overflow: hidden; }
+.mural-kind-icon { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 18px; background: #fff; color: var(--mural-blue); box-shadow: 0 4px 18px rgba(15,23,42,.08); font-size: 22px; font-weight: 900; }
+.mural-card-content { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 5px; }
+.mural-card-title-row { width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.mural-card-title-row strong { color: var(--mural-ink); font-size: 19px; line-height: 1.08; font-weight: 900; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.mural-card-title-row small { color: var(--mural-muted); font-size: 11px; font-weight: 750; }
+.mural-card-subtitle { color: #42516a; font-size: 12px; line-height: 1.3; font-weight: 700; }
+.mural-card-summary { display: -webkit-box; overflow: hidden; color: var(--mural-muted); font-size: 12px; line-height: 1.35; font-weight: 550; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.mural-product-meta { width: 100%; display: grid; gap: 5px; color: var(--mural-muted); font-size: 11px; font-weight: 650; }
+.mural-sku { color: #34435a; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; overflow-wrap: anywhere; }
+.mural-finishes { display: flex; gap: 5px; flex-wrap: wrap; }
+.mural-finishes span { display: inline-flex; gap: 4px; align-items: center; min-height: 24px; padding: 3px 7px; border-radius: 999px; background: #f4f7fb; color: #526078; font-size: 9.5px; }
+.mural-finishes strong { color: #334155; font-weight: 850; }
+.mural-card-cta { margin-top: 2px; color: var(--mural-blue); font-size: 11px; font-weight: 850; }
+.mural-card-date { color: #7c899b; font-size: 10.5px; font-weight: 650; }
+
+.mural-card-notice { min-height: 118px; grid-template-columns: 64px minmax(0,1fr); align-items: center; }
+.mural-notice-icon { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 18px; font-size: 28px; font-weight: 950; }
+.mural-notice-icon.important { color: #be123c; background: #fff1f2; }
+.mural-notice-icon.attention { color: #b45309; background: #fffbeb; }
+.mural-notice-icon.info { color: #1d4ed8; background: #eff6ff; }
+.mural-notice-label { gap: 4px; text-transform: none; letter-spacing: 0; }
+.mural-notice-label.important { color: #be123c; background: #fff1f2; border: 1px solid #fecdd3; }
+.mural-notice-label.attention { color: #a16207; background: #fffbeb; border: 1px solid #fde68a; }
+.mural-notice-label.info { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+
+.mural-error, .mural-empty { margin: 10px 0; border: 1px solid var(--mural-border); border-radius: 14px; background: #fff; color: var(--mural-muted); font-size: 13px; font-weight: 650; }
+.mural-error { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; }
+.mural-error button { min-height: 38px; border: 0; border-radius: 999px; padding: 0 13px; background: var(--mural-blue); color: #fff; font: inherit; font-size: 11px; font-weight: 850; }
+.mural-empty { padding: 28px 18px; text-align: center; }
+.mural-loading { display: grid; gap: 11px; }
+.mural-skeleton { border-radius: var(--mural-radius); background: linear-gradient(90deg,#edf2f7 20%,#f8fafc 45%,#edf2f7 70%); background-size: 240% 100%; animation: mural-shimmer 1.4s linear infinite; }
+.mural-skeleton-hero { height: 230px; border-radius: 20px; }
+.mural-skeleton-card { height: 150px; }
+@keyframes mural-shimmer { to { background-position: -240% 0; } }
+
+.mural-modal-backdrop { position: fixed; inset: 0; z-index: 180; display: grid; place-items: end center; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); background: rgba(11,19,41,.52); backdrop-filter: blur(4px); }
+.mural-detail { position: relative; width: min(100%, 620px); max-height: min(88dvh, 760px); overflow-y: auto; border-radius: 22px; background: #fff; box-shadow: 0 28px 80px rgba(11,19,41,.28); }
+.mural-detail-close { position: absolute; z-index: 2; top: 10px; right: 10px; width: 44px; height: 44px; border: 0; border-radius: 999px; background: rgba(11,19,41,.78); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; }
+.mural-detail-image { display: block; width: 100%; height: min(44dvh, 340px); object-fit: cover; background: #edf3fb; }
+.mural-detail > .mural-image-placeholder { width: 100%; height: min(44dvh, 340px); border-radius: 0; }
+.mural-detail-body { padding: 20px; }
+.mural-detail-body h2 { margin: 10px 0 0; color: var(--mural-ink); font-size: 26px; line-height: 1.08; font-weight: 900; letter-spacing: -.03em; }
+.mural-detail-subtitle { margin: 7px 0 0; color: #42516a; font-size: 14px; font-weight: 700; }
+.mural-detail-copy { margin: 14px 0; color: #475569; font-size: 14px; line-height: 1.55; font-weight: 550; white-space: pre-wrap; }
+.mural-detail-date, .mural-collection-count { color: #7c899b; font-size: 11px; font-weight: 650; }
+.mural-primary-action { width: 100%; min-height: 48px; margin-top: 12px; border: 0; border-radius: 14px; background: var(--mural-blue); color: #fff; font: inherit; font-size: 13px; font-weight: 850; cursor: pointer; }
+.mural-collection-loading, .mural-collection-error { min-height: 180px; display: grid; place-items: center; padding: 30px; color: var(--mural-muted); font-size: 13px; font-weight: 700; }
+.mural-collection-error { color: #b91c1c; }
+.mural-collection-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+.mural-collection-product { min-width: 0; overflow: hidden; border: 1px solid var(--mural-border); border-radius: 14px; background: #fff; }
+.mural-collection-product img, .mural-collection-product .mural-image-placeholder { width: 100%; height: 140px; min-height: 0; border-radius: 0; object-fit: cover; }
+.mural-collection-product > div:not(.mural-image-placeholder) { display: grid; gap: 3px; padding: 9px; }
+.mural-collection-product strong { color: var(--mural-ink); font-size: 12px; font-weight: 850; }
+.mural-collection-product span { overflow-wrap: anywhere; color: var(--mural-muted); font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: 9px; }
+.mural-empty-inline { padding: 18px; border-radius: 12px; background: #f8fafc; color: var(--mural-muted); font-size: 12px; text-align: center; }
+
+.mural-nav-btn {
+  position: relative; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 0 11px; border: 1px solid #dce5ef; border-radius: 999px; background: #fff; color: #334155; font: inherit; font-size: 11px; font-weight: 850; cursor: pointer;
+}
+.mural-nav-btn.active { color: #fff; border-color: var(--mural-blue); background: var(--mural-blue); }
+.mural-nav-count { min-width: 18px; height: 18px; display: inline-grid; place-items: center; padding: 0 4px; border-radius: 999px; background: var(--mural-pink); color: #fff; font-size: 9px; font-weight: 900; }
+.mural-viewport .brand-subtext { color: var(--mural-muted); }
+
+@media (max-width: 390px) {
+  .mural-scroll { padding-left: 10px; padding-right: 10px; }
+  .mural-tabs { gap: 5px; }
+  .mural-tabs button { padding: 0 5px; font-size: 11px; }
+  .mural-card { grid-template-columns: 102px minmax(0,1fr); gap: 10px; }
+  .mural-card-image, .mural-card > .mural-image-placeholder { width: 102px; }
+  .mural-card-notice { grid-template-columns: 58px minmax(0,1fr); }
+  .mural-notice-icon { width: 58px; height: 58px; }
+  .mural-card-title-row strong { font-size: 18px; }
+  .mural-nav-btn { padding: 0 9px; }
+}
+@media (max-width: 360px) {
+  .mural-title-block h1 { font-size: 32px; }
+  .mural-card { grid-template-columns: 96px minmax(0,1fr); }
+  .mural-card-image, .mural-card > .mural-image-placeholder { width: 96px; }
+  .mural-finishes span { padding-inline: 6px; }
+}
+@media (min-width: 431px) {
+  .mural-title-block, .mural-tabs, .mural-feed, .mural-error, .mural-empty, .mural-loading, .mural-hero { max-width: 720px; margin-left: auto; margin-right: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mural-tabs button, .mural-card { transition: none; }
+  .mural-skeleton { animation: none; }
+}
