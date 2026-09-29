@@ -454,6 +454,13 @@ export default function CommerceImportView({ onCatalogChanged }) {
             <select value={marketplace} onChange={handleMarketplaceChange} disabled={reading || staging}>
               <option value="SHOPEE">Shopee</option>
               <option value="MERCADO_LIVRE">Mercado Livre</option>
+              <option value="AMAZON">Amazon</option>
+              <option value="SHEIN">Shein</option>
+              <option value="LOJA_INTEGRADA">Loja Integrada</option>
+              <option value="KWAI">Kwai</option>
+              <option value="TIKTOK">TikTok</option>
+              <option value="ALIEXPRESS">AliExpress</option>
+              <option value="MAGALU">Magalu</option>
             </select>
           </label>
           <label className="commerce-import-file">
