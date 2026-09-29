@@ -489,6 +489,10 @@ function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpe
           alt="NISTI"
           onError={e => { e.currentTarget.style.opacity = '0.4'; }}
         />
+        <div className="brand-titles">
+          <strong className="brand-main-title">NISTI PRINT</strong>
+          <span className="brand-subtext">Scanner de EAN</span>
+        </div>
       </div>
       <div className="header-actions">
         <button
