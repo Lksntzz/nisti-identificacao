@@ -2292,3 +2292,113 @@ body.gtin-history-modal-open {
     font-size: 10.5px;
   }
 }
+
+
+/* Acabamentos principais — leitura grande e imediata */
+.gtin-result-detail.is-priority {
+  min-height: 78px;
+  padding: 14px 14px 12px;
+  border-width: 2px;
+  border-color: #a5b4fc;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%);
+  box-shadow: 0 8px 20px rgba(67, 56, 202, .10);
+}
+
+.gtin-result-detail.is-priority dt {
+  gap: 8px;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .04em;
+}
+
+.gtin-result-detail.is-priority dd {
+  margin-top: 8px;
+  color: #020617;
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+
+.gtin-result-detail.is-priority .gtin-result-detail-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.gtin-result-detail.is-priority .gtin-result-detail-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 640px) {
+  .gtin-scanner-result.is-continuous .gtin-result-details {
+    gap: 5px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail.is-priority {
+    min-height: 64px;
+    padding: 9px 7px 8px;
+    border-width: 1.5px;
+    border-radius: 10px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail.is-priority dt {
+    gap: 5px;
+    font-size: 8.5px;
+    line-height: 1;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail.is-priority dd {
+    margin-top: 6px;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .gtin-result-detail.is-priority .gtin-result-detail-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+  }
+
+  .gtin-result-detail.is-priority .gtin-result-detail-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail.is-secondary {
+    min-height: 34px;
+    padding: 3px 4px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail.is-secondary dt {
+    font-size: 5px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail.is-secondary dd {
+    font-size: 6.8px;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 700px) {
+  .gtin-scanner-result.is-continuous .gtin-result-detail.is-priority {
+    min-height: 58px;
+    padding: 7px 6px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail.is-priority dt {
+    font-size: 8px;
+  }
+
+  .gtin-scanner-result.is-continuous .gtin-result-detail.is-priority dd {
+    font-size: 14px;
+    margin-top: 5px;
+  }
+
+  .gtin-result-detail.is-priority .gtin-result-detail-icon {
+    width: 24px;
+    height: 24px;
+  }
+}
