@@ -4,16 +4,16 @@ import fs from 'node:fs';
 
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('Catálogo Comercial possui uma aba única de importação para Catálogo e Vendas', () => {
+test('Catálogo Comercial usa a nova Central de Importações para Catálogo e Vendas', () => {
   const app = read('src/commerce-admin-app-v2.jsx');
-  const unified = read('src/commerce-unified-import-view.jsx');
+  const center = read('src/commerce-import-center.jsx');
 
-  assert.equal(app.includes("{ id: 'imports', label: 'Importar', icon: 'upload' }"), true);
-  assert.equal(app.includes('<CommerceUnifiedImportView />'), true);
-  assert.equal(unified.includes('Catálogo'), true);
-  assert.equal(unified.includes('Vendas'), true);
-  assert.equal(unified.includes('<CommerceImportView />'), true);
-  assert.equal(unified.includes('<CommerceSalesImportPanel />'), true);
+  assert.equal(app.includes("{ id: 'import-center', label: 'Central de Importações', icon: 'upload' }"), true);
+  assert.equal(app.includes('<CommerceImportCenter'), true);
+  assert.equal(center.includes('Importar catálogo'), true);
+  assert.equal(center.includes('Importar vendas'), true);
+  assert.equal(center.includes('Últimas importações'), true);
+  assert.equal(center.includes('Revisão do lote'), true);
 });
 
 test('importador de vendas reconhece cabeçalhos, período parcial e agrega por SKU', () => {
