@@ -223,6 +223,7 @@ export default function MuralNistiAdminView() {
   const [collectionEditor,setCollectionEditor]=useState(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
+  const [metrics,setMetrics]=useState(null);
 
   const load=async()=>{
     setLoading(true);setError('');
@@ -236,6 +237,7 @@ export default function MuralNistiAdminView() {
     }catch(err){setError(err.message)}finally{setLoading(false)}
   };
   useEffect(()=>{load()},[status,kind]);
+  useEffect(()=>{request('/api/admin/mural/metrics').then(setMetrics).catch(()=>setMetrics(null))},[]);
 
   const action=async(id,name)=>{
     try{setError('');await request(`/api/admin/mural/posts/${id}/${name}`,{method:'POST'});await load()}catch(err){setError(err.message)}
@@ -244,11 +246,12 @@ export default function MuralNistiAdminView() {
 
   return <section className="mural-admin-view">
     <div className="mural-admin-heading"><div><span>MURAL NISTI</span><h2>Conteúdo para operadores</h2><p>Crie, pré-visualize, agende e publique sem alterar código.</p></div><button className="primary" onClick={()=>section==='posts'?setEditor({mode:'new'}):setCollectionEditor({mode:'new'})}>+ {section==='posts'?'Nova publicação':'Nova coleção'}</button></div>
-    <div className="mural-admin-section-tabs"><button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button><button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button></div>
+    <div className="mural-admin-section-tabs"><button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button><button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button><button className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>Métricas</button></div>
     {error&&<div className="mural-admin-error">{error}</div>}
     {section==='posts'&&<><div className="mural-admin-filters"><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">Todos os status</option><option value="draft">Rascunhos</option><option value="published">Publicados</option><option value="archived">Arquivados</option></select><select value={kind} onChange={e=>setKind(e.target.value)}><option value="">Todos os tipos</option><option value="product">Produto</option><option value="collection">Coleção</option><option value="notice">Aviso</option></select></div>
     <div className="mural-admin-table-wrap"><table><thead><tr><th>Título</th><th>Tipo</th><th>Selo</th><th>Status</th><th>Publicação</th><th>Expiração</th><th>Autor</th><th>Ações</th></tr></thead><tbody>{posts.map(row=><tr key={row.id}><td><b>{row.title}</b><small>{row.subtitle||''}</small></td><td>{row.kind}</td><td>{row.badge||'—'}</td><td><Status value={row.status}/></td><td>{dates(row)}</td><td>{row.expires_at?new Date(row.expires_at).toLocaleString('pt-BR'):'—'}</td><td>{row.created_by||'—'}</td><td><div className="mural-admin-row-actions"><button onClick={()=>setEditor(row)}>Editar</button><button onClick={()=>action(row.id,'duplicate')}>Duplicar</button>{row.status!=='published'&&<button onClick={()=>action(row.id,'publish')}>Publicar</button>}{row.status!=='archived'&&<button onClick={()=>action(row.id,'archive')}>Arquivar</button>}</div></td></tr>)}</tbody></table>{!loading&&!posts.length&&<div className="mural-admin-empty">Nenhuma publicação encontrada.</div>}</div></>}
     {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.year||'sem ano'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
+    {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
     {editor&&<PostEditor item={editor.mode==='new'?null:editor} collections={collections} onClose={()=>setEditor(null)} onSaved={load}/>}
     {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={load}/>}
   </section>;
