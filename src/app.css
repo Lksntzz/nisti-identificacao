@@ -4735,3 +4735,23 @@ button.kpi-box {
 
 /* Mural release gate: public operator view stays intentionally closed until explicit release. */
 .mural-coming-soon{min-height:calc(100dvh - 84px);display:grid;place-items:center;padding:24px 16px env(safe-area-inset-bottom)}.mural-coming-soon-card{width:min(100%,520px);padding:36px 24px;text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:24px;box-shadow:0 18px 50px rgba(15,23,42,.08)}.mural-coming-soon-kicker{display:block;font-size:11px;font-weight:900;letter-spacing:.14em;color:#64748b}.mural-coming-soon-card h2{margin:10px 0 8px;font-size:32px;color:#0f172a}.mural-coming-soon-card p{margin:0 0 22px;color:#64748b}.mural-coming-soon-card button{min-height:44px;padding:0 20px;border:0;border-radius:999px;background:#0f172a;color:#fff;font:inherit;font-weight:800;cursor:pointer}.mural-coming-soon-card button:focus-visible{outline:3px solid #38bdf8;outline-offset:3px}
+
+/* Operator mobile header: reserve independent columns so brand never sits under controls. */
+@media (max-width: 640px) {
+  .ean-viewport .brand-topbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; }
+  .ean-viewport .brand-identity { min-width:0; gap:7px; overflow:hidden; }
+  .ean-viewport .brand-icon-mark { width:34px; height:34px; }
+  .ean-viewport .brand-titles { min-width:0; overflow:hidden; }
+  .ean-viewport .brand-main-title { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+  .ean-viewport .brand-subtext { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:7.5px; letter-spacing:.04em; }
+  .ean-viewport .header-actions { min-width:0; gap:5px; justify-self:end; }
+  .ean-viewport .operator-profile-pill { max-width:126px; min-width:0; padding-right:7px; }
+  .ean-viewport .operator-name-label { max-width:78px; }
+  .ean-viewport .mural-nav-btn { min-width:58px; min-height:36px; padding:0 9px; font-size:10px; }
+  .ean-viewport .bell-circle-btn { width:36px; height:36px; flex:0 0 36px; }
+}
+@media (max-width: 390px) {
+  .ean-viewport .operator-profile-pill { max-width:108px; }
+  .ean-viewport .operator-name-label { max-width:60px; }
+  .ean-viewport .brand-main-title { font-size:11px; }
+}
