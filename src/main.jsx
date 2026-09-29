@@ -8,6 +8,7 @@ import CatalogView from './admin/CatalogView.jsx';
 import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
+import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
 import {
   createEan13Svg,
@@ -285,6 +286,8 @@ function SidebarIcon({ name }) {
       return <svg {...props}><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>;
     case 'barcode':
       return <svg {...props}><path d="M3 5v14M6 5v14M10 5v14M13 5v14M17 5v14M21 5v14" /><path d="M8 5v14M15 5v14M19 5v14" strokeWidth="1" /></svg>;
+    case 'mural':
+      return <svg {...props}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h7M7 16h5" /></svg>;
     default:
       return null;
   }
@@ -1452,16 +1455,21 @@ function AdminApp() {
         />
 
         <main className="admin-page-content">
-          <WelcomeDateBanner />
+          {activeView !== 'mural-nisti' && (
+            <>
+              <WelcomeDateBanner />
+              {/* Dashboard de Produtividade da Expedição & KPIs */}
+              <ExpeditionDashboard
+                gtinDashboard={gtinDashboard}
+                productsCount={products.length}
+                onNavigate={handleNavChange}
+                onShowProductsWithoutGtin={showProductsWithoutGtin}
+                api={api}
+              />
+            </>
+          )}
 
-          {/* Dashboard de Produtividade da Expedição & KPIs */}
-          <ExpeditionDashboard
-            gtinDashboard={gtinDashboard}
-            productsCount={products.length}
-            onNavigate={handleNavChange}
-            onShowProductsWithoutGtin={showProductsWithoutGtin}
-            api={api}
-          />
+          {activeView === 'mural-nisti' && <MuralNistiAdminView />}
 
           {activeView === 'catalogo' && (
             <CatalogView
