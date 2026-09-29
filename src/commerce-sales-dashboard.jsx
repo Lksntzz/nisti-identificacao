@@ -79,6 +79,37 @@ function metricDelta(current, previous) {
   return ((currentValue - previousValue) / Math.abs(previousValue)) * 100;
 }
 
+function AnimatedMetricValue({ value, currency = false }) {
+  const target = Number(value || 0);
+  const [display, setDisplay] = useState(0);
+  const previousRef = useRef(0);
+
+  useEffect(() => {
+    const from = previousRef.current;
+    const difference = target - from;
+    const duration = 520;
+    let frame = 0;
+    const startedAt = performance.now();
+
+    const step = now => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const next = from + difference * eased;
+      setDisplay(next);
+      if (progress < 1) {
+        frame = requestAnimationFrame(step);
+      } else {
+        previousRef.current = target;
+      }
+    };
+
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+
+  return <>{currency ? brCurrency(display) : brNumber(Math.round(display))}</>;
+}
+
 function MetricCard({ type, label, value, currency = false, delta, helper }) {
   const tone = type || 'revenue';
   return (
@@ -86,7 +117,7 @@ function MetricCard({ type, label, value, currency = false, delta, helper }) {
       <div className="sales-kpi-icon"><MetricIcon type={type} /></div>
       <div className="sales-kpi-copy">
         <span>{label}</span>
-        <strong>{currency ? brCurrency(value) : brNumber(value)}</strong>
+        <strong><AnimatedMetricValue value={value} currency={currency} /></strong>
         <div className="sales-kpi-helper">
           {delta == null ? (
             <small>{helper}</small>
@@ -124,6 +155,16 @@ function resolvePreviousFilters(appliedFilters, periods) {
 
 function SalesChart({ history }) {
   const rows = Array.isArray(history) ? history : [];
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [showRevenue, setShowRevenue] = useState(true);
+  const [showOrders, setShowOrders] = useState(true);
+
+  useEffect(() => {
+    setHoveredIndex(null);
+    setSelectedIndex(null);
+  }, [history]);
+
   if (!rows.length) {
     return <div className="sales-chart-empty">Sem evolução de vendas para o filtro selecionado.</div>;
   }
@@ -147,40 +188,116 @@ function SalesChart({ history }) {
     return [x, y];
   });
   const line = points.map(([x, y]) => `${x},${y}`).join(' ');
+  const activeIndex = hoveredIndex ?? selectedIndex;
+  const activeItem = activeIndex == null ? null : rows[activeIndex];
+
+  const selectPoint = index => {
+    setSelectedIndex(current => current === index ? null : index);
+  };
 
   return (
-    <div className="sales-chart-wrap">
-      <svg className="sales-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Evolução mensal de faturamento e pedidos">
-        {[0, .25, .5, .75, 1].map(level => {
-          const y = top + innerHeight - (innerHeight * level);
-          return (
-            <g key={level}>
-              <line x1={left} y1={y} x2={width - right} y2={y} className="sales-chart-grid" />
-              <text x={left - 10} y={y + 4} textAnchor="end" className="sales-chart-axis">{brCurrency(maxRevenue * level).replace(',00','')}</text>
-            </g>
-          );
-        })}
+    <div className="sales-chart-interactive">
+      <div className="sales-chart-controls" aria-label="Séries do gráfico">
+        <button type="button" className={showRevenue ? 'active revenue' : 'revenue'} onClick={() => setShowRevenue(value => !value)}>
+          <i /> Faturamento
+        </button>
+        <button type="button" className={showOrders ? 'active orders' : 'orders'} onClick={() => setShowOrders(value => !value)}>
+          <i /> Pedidos
+        </button>
+        <span>Clique em um mês para fixar o detalhe</span>
+      </div>
 
-        {rows.map((item, index) => {
-          const revenue = Number(item.product_revenue || 0);
-          const x = left + (index * slot) + (slot - barWidth) / 2;
-          const barHeight = (revenue / maxRevenue) * innerHeight;
-          const y = top + innerHeight - barHeight;
-          return (
-            <g key={item.period_key}>
-              <rect x={x} y={y} width={barWidth} height={barHeight} rx="4" className="sales-chart-bar" />
-              <text x={left + (index * slot) + slot / 2} y={height - 15} textAnchor="middle" className="sales-chart-label">
-                {monthLabel(item.period_key, true)}
-              </text>
-            </g>
-          );
-        })}
+      <div className="sales-chart-wrap">
+        {activeItem && (
+          <div
+            className="sales-chart-tooltip"
+            style={{ left: `${Math.max(9, Math.min(91, ((activeIndex + .5) / rows.length) * 100))}%` }}
+          >
+            <strong>{monthLabel(activeItem.period_key)}</strong>
+            <span>Faturamento <b>{brCurrency(activeItem.product_revenue)}</b></span>
+            <span>Pedidos <b>{brNumber(activeItem.net_orders)}</b></span>
+            <span>Unidades <b>{brNumber(activeItem.units)}</b></span>
+          </div>
+        )}
 
-        <polyline points={line} className="sales-chart-line" />
-        {points.map(([x, y], index) => (
-          <circle key={rows[index].period_key} cx={x} cy={y} r="4" className="sales-chart-point" />
-        ))}
-      </svg>
+        <svg className="sales-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Evolução mensal de faturamento e pedidos">
+          {[0, .25, .5, .75, 1].map(level => {
+            const y = top + innerHeight - (innerHeight * level);
+            return (
+              <g key={level}>
+                <line x1={left} y1={y} x2={width - right} y2={y} className="sales-chart-grid" />
+                <text x={left - 10} y={y + 4} textAnchor="end" className="sales-chart-axis">{brCurrency(maxRevenue * level).replace(',00','')}</text>
+              </g>
+            );
+          })}
+
+          {rows.map((item, index) => {
+            const revenue = Number(item.product_revenue || 0);
+            const x = left + (index * slot) + (slot - barWidth) / 2;
+            const barHeight = (revenue / maxRevenue) * innerHeight;
+            const y = top + innerHeight - barHeight;
+            const active = activeIndex === index;
+            return (
+              <g
+                key={item.period_key}
+                className={`sales-chart-hit ${active ? 'active' : ''}`}
+                tabIndex="0"
+                role="button"
+                aria-label={`${monthLabel(item.period_key)}: ${brCurrency(item.product_revenue)}, ${brNumber(item.net_orders)} pedidos`}
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                onFocus={() => setHoveredIndex(index)}
+                onBlur={() => setHoveredIndex(null)}
+                onClick={() => selectPoint(index)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    selectPoint(index);
+                  }
+                }}
+              >
+                <rect
+                  x={left + index * slot}
+                  y={top}
+                  width={slot}
+                  height={innerHeight}
+                  className="sales-chart-hover-zone"
+                />
+                {showRevenue && (
+                  <rect
+                    x={x}
+                    y={y}
+                    width={barWidth}
+                    height={barHeight}
+                    rx="4"
+                    className="sales-chart-bar"
+                    style={{ '--sales-delay': `${index * 45}ms` }}
+                  />
+                )}
+                <text x={left + (index * slot) + slot / 2} y={height - 15} textAnchor="middle" className="sales-chart-label">
+                  {monthLabel(item.period_key, true)}
+                </text>
+              </g>
+            );
+          })}
+
+          {showOrders && (
+            <>
+              <polyline points={line} className="sales-chart-line" pathLength="1" />
+              {points.map(([x, y], index) => (
+                <circle
+                  key={rows[index].period_key}
+                  cx={x}
+                  cy={y}
+                  r={activeIndex === index ? 6 : 4}
+                  className={`sales-chart-point ${activeIndex === index ? 'active' : ''}`}
+                  style={{ '--sales-delay': `${index * 45 + 160}ms` }}
+                />
+              ))}
+            </>
+          )}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -191,7 +308,7 @@ const PLATFORM_COLORS = {
   ML_ANTIGO: '#3478f6'
 };
 
-function PlatformSummary({ rows, loading }) {
+function PlatformSummary({ rows, loading, onSelect }) {
   const totalRevenue = rows.reduce((sum, row) => sum + Number(row.metrics?.product_revenue || 0), 0);
 
   return (
@@ -202,17 +319,24 @@ function PlatformSummary({ rows, loading }) {
       {loading ? <div className="sales-side-empty">Calculando plataformas…</div> : (
         <div className="sales-platform-summary">
           <div className="sales-platform-summary-head"><span>Plataforma</span><span>Pedidos</span><span>Unidades</span><span>Faturamento</span><span>% do total</span></div>
-          {rows.map(row => {
+          {rows.map((row, index) => {
             const revenue = Number(row.metrics?.product_revenue || 0);
             const share = totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0;
             return (
-              <div className="sales-platform-summary-row" key={row.value}>
+              <button
+                type="button"
+                className="sales-platform-summary-row"
+                key={row.value}
+                onClick={() => onSelect?.(row.value)}
+                title={`Filtrar painel por ${row.label}`}
+                style={{ '--sales-delay': `${index * 70}ms` }}
+              >
                 <span className="sales-platform-name"><i style={{ background: PLATFORM_COLORS[row.value] || '#64748b' }} />{row.label}</span>
                 <strong>{brNumber(row.metrics?.net_orders)}</strong>
                 <strong>{brNumber(row.metrics?.units)}</strong>
                 <strong>{brCurrency(revenue)}</strong>
                 <span className="sales-platform-share"><b>{brPercent(share)}%</b><em><i style={{ width: `${Math.max(0, Math.min(100, share))}%` }} /></em></span>
-              </div>
+              </button>
             );
           })}
           {!rows.length && <div className="sales-side-empty">Sem dados para as plataformas selecionadas.</div>}
@@ -222,7 +346,8 @@ function PlatformSummary({ rows, loading }) {
   );
 }
 
-function ParticipationCard({ rows, loading }) {
+function ParticipationCard({ rows, loading, onSelect }) {
+  const [activeValue, setActiveValue] = useState(null);
   const total = rows.reduce((sum, row) => sum + Number(row.metrics?.product_revenue || 0), 0);
   let cursor = 0;
   const segments = rows.map(row => {
@@ -239,9 +364,12 @@ function ParticipationCard({ rows, loading }) {
       color: PLATFORM_COLORS[row.value] || '#64748b'
     };
   });
-  const gradient = segments.length
-    ? `conic-gradient(${segments.map(item => `${item.color} ${item.start}% ${item.end}%`).join(',')})`
-    : 'conic-gradient(#e5e7eb 0 100%)';
+
+  useEffect(() => {
+    if (!segments.some(item => item.value === activeValue)) setActiveValue(null);
+  }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const active = segments.find(item => item.value === activeValue) || null;
 
   return (
     <section className="sales-side-card participation">
@@ -250,16 +378,63 @@ function ParticipationCard({ rows, loading }) {
       </div>
       {loading ? <div className="sales-side-empty">Calculando participação…</div> : (
         <div className="sales-participation-content">
-          <div className="sales-donut" style={{ background: gradient }}>
-            <div><strong>{brCurrency(total).replace(',00','')}</strong><span>Total</span></div>
+          <div className="sales-donut-wrap">
+            <svg className="sales-donut-svg" viewBox="0 0 120 120" role="img" aria-label="Participação de faturamento por plataforma">
+              <circle cx="60" cy="60" r="46" className="sales-donut-track" />
+              {segments.map((item, index) => (
+                <circle
+                  key={item.value}
+                  cx="60"
+                  cy="60"
+                  r="46"
+                  pathLength="100"
+                  className={`sales-donut-segment ${activeValue && activeValue !== item.value ? 'muted' : ''} ${activeValue === item.value ? 'active' : ''}`}
+                  style={{
+                    stroke: item.color,
+                    strokeDasharray: `${item.share} ${100 - item.share}`,
+                    strokeDashoffset: -item.start,
+                    '--sales-delay': `${index * 80}ms`
+                  }}
+                  tabIndex="0"
+                  role="button"
+                  aria-label={`${item.label}: ${brPercent(item.share)}%, ${brCurrency(item.revenue)}`}
+                  onMouseEnter={() => setActiveValue(item.value)}
+                  onMouseLeave={() => setActiveValue(null)}
+                  onFocus={() => setActiveValue(item.value)}
+                  onBlur={() => setActiveValue(null)}
+                  onClick={() => onSelect?.(item.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSelect?.(item.value);
+                    }
+                  }}
+                />
+              ))}
+            </svg>
+            <div className="sales-donut-center">
+              <strong>{active ? brPercent(active.share) + '%' : brCurrency(total).replace(',00','')}</strong>
+              <span>{active ? active.label : 'Total'}</span>
+            </div>
           </div>
+
           <div className="sales-participation-legend">
             {segments.map(item => (
-              <div key={item.value}>
+              <button
+                type="button"
+                key={item.value}
+                className={activeValue === item.value ? 'active' : ''}
+                onMouseEnter={() => setActiveValue(item.value)}
+                onMouseLeave={() => setActiveValue(null)}
+                onFocus={() => setActiveValue(item.value)}
+                onBlur={() => setActiveValue(null)}
+                onClick={() => onSelect?.(item.value)}
+                title={`Filtrar painel por ${item.label}`}
+              >
                 <span><i style={{ background: item.color }} />{item.label}</span>
                 <strong>{brPercent(item.share)}%</strong>
                 <small>{brCurrency(item.revenue)}</small>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -534,18 +709,22 @@ export default function CommerceSalesDashboard() {
               <h3>Evolução de vendas</h3>
               <p>Faturamento e quantidade de pedidos no período selecionado.</p>
             </div>
-            <div className="sales-chart-legend">
-              <span><i className="revenue" />Faturamento</span>
-              <span><i className="orders" />Pedidos</span>
-              <b>Por mês</b>
-            </div>
+            <div className="sales-chart-legend"><b>Interativo</b></div>
           </div>
           <SalesChart history={history} />
         </div>
 
         <aside className="sales-insights-column">
-          <PlatformSummary rows={platformSummary} loading={insightsLoading} />
-          <ParticipationCard rows={platformSummary} loading={insightsLoading} />
+          <PlatformSummary
+            rows={platformSummary}
+            loading={insightsLoading}
+            onSelect={platform => applySelectFilter('platform', platform)}
+          />
+          <ParticipationCard
+            rows={platformSummary}
+            loading={insightsLoading}
+            onSelect={platform => applySelectFilter('platform', platform)}
+          />
         </aside>
       </section>
 
