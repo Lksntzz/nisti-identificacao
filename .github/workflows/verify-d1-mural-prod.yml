@@ -8,10 +8,10 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Verify remote Mural schema through isolated Worker
+  migrate-and-verify:
+    name: Apply and verify remote Mural schema
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,81 +25,57 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Verify remote production D1 through ephemeral Worker binding
+      - name: Show pending remote migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+        run: npx wrangler d1 migrations list nisti-identificacao --remote
+
+      - name: Apply pending migrations to production D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+        run: npx wrangler d1 migrations apply nisti-identificacao --remote
+
+      - name: Verify remote Mural schema
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
         run: |
           set -euo pipefail
-          WORKER_NAME="nisti-d1-verify-${GITHUB_RUN_ID}"
-          VERIFY_PATH="/verify-$(openssl rand -hex 24)"
-          WORKER_URL="https://${WORKER_NAME}.lksntz1411.workers.dev"
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT type,name FROM sqlite_master WHERE name IN ('d1_migrations','mural_collections','mural_collection_products','mural_posts','mural_post_reads','idx_mural_posts_feed','idx_mural_posts_kind_date','idx_mural_posts_product_id','idx_mural_posts_collection_id','idx_mural_reads_user','idx_mural_collection_products_product_id','idx_mural_collection_products_order') ORDER BY type,name;" > /tmp/mural-schema.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT id,name,applied_at FROM d1_migrations ORDER BY id;" > /tmp/mural-migrations.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "PRAGMA table_info(mural_posts);" > /tmp/mural-post-columns.json
+          npx wrangler d1 execute nisti-identificacao --remote --json --command "PRAGMA foreign_key_list(mural_posts);" > /tmp/mural-post-fks.json
 
-          cleanup() {
-            printf 'y\n' | npx wrangler delete --name "${WORKER_NAME}" --config /tmp/wrangler-d1-verify.toml >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-
-          cat > /tmp/d1-verify-worker.mjs <<EOF
-          export default {
-            async fetch(request, env) {
-              const url = new URL(request.url);
-              if (url.pathname !== "${VERIFY_PATH}") return new Response(null, { status: 404 });
-
-              const schema = await env.DB.prepare(
-                "SELECT type,name FROM sqlite_master WHERE name IN ('d1_migrations','mural_collections','mural_collection_products','mural_posts','mural_post_reads','idx_mural_posts_feed','idx_mural_posts_kind_date','idx_mural_posts_product_id','idx_mural_posts_collection_id','idx_mural_reads_user','idx_mural_collection_products_product_id','idx_mural_collection_products_order') ORDER BY type,name"
-              ).all();
-
-              let migration = { results: [], error: null };
-              try {
-                migration = await env.DB.prepare(
-                  "SELECT name FROM d1_migrations WHERE name='0019_mural_nisti.sql'"
-                ).all();
-              } catch (error) {
-                migration = { results: [], error: String(error?.message || error) };
-              }
-
-              const columns = await env.DB.prepare("PRAGMA table_info(mural_posts)").all();
-              const fks = await env.DB.prepare("PRAGMA foreign_key_list(mural_posts)").all();
-              const migrationTableColumns = await env.DB.prepare("PRAGMA table_info(d1_migrations)").all();
-              const migrationHistory = await env.DB.prepare("SELECT * FROM d1_migrations ORDER BY id").all();
-
-              return Response.json({
-                schema: schema.results || [],
-                migration: migration.results || [],
-                migration_error: migration.error || null,
-                columns: columns.results || [],
-                foreign_keys: fks.results || [],
-                migration_table_columns: migrationTableColumns.results || [],
-                migration_history: migrationHistory.results || []
-              }, { headers: { 'cache-control': 'no-store' } });
-            }
-          };
-          EOF
-
-          cat > /tmp/wrangler-d1-verify.toml <<EOF
-          name = "${WORKER_NAME}"
-          main = "/tmp/d1-verify-worker.mjs"
-          compatibility_date = "2026-08-17"
-          workers_dev = true
-
-          [[d1_databases]]
-          binding = "DB"
-          database_name = "nisti-identificacao"
-          database_id = "10181c7e-ffdc-41d5-a40e-802173da9a02"
-          EOF
-
-          npx wrangler deploy --config /tmp/wrangler-d1-verify.toml | tee /tmp/d1-verify-deploy.log
-          DEPLOYED_URL="$(grep -Eo 'https://[^ ]+workers\.dev' /tmp/d1-verify-deploy.log | tail -1 || true)"
-          if [ -n "${DEPLOYED_URL}" ]; then WORKER_URL="${DEPLOYED_URL}"; fi
-          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 2 "${WORKER_URL}${VERIFY_PATH}" -o /tmp/mural-d1-proof.json
-
+      - name: Assert remote Mural migration
+        shell: bash
+        run: |
           node <<'NODE'
           const fs = require('fs');
-          const proof = JSON.parse(fs.readFileSync('/tmp/mural-d1-proof.json','utf8'));
 
-          const names = new Set((proof.schema || []).map(row => row.name));
+          function rows(path) {
+            const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+            const out = [];
+            const visit = value => {
+              if (Array.isArray(value)) return value.forEach(visit);
+              if (!value || typeof value !== 'object') return;
+              if (Array.isArray(value.results)) out.push(...value.results);
+              for (const [key, child] of Object.entries(value)) {
+                if (key !== 'results') visit(child);
+              }
+            };
+            visit(data);
+            return out;
+          }
+
+          const schema = rows('/tmp/mural-schema.json');
+          const migrations = rows('/tmp/mural-migrations.json');
+          const columns = rows('/tmp/mural-post-columns.json');
+          const fks = rows('/tmp/mural-post-fks.json');
+
+          const names = new Set(schema.map(row => row.name));
           const expectedTables = [
             'd1_migrations',
             'mural_collections',
@@ -122,33 +98,34 @@ jobs:
             'priority','published_at','expires_at','created_by','created_at','updated_at'
           ];
 
-          const columnNames = new Set((proof.columns || []).map(row => row.name));
-          const fkTargets = new Set((proof.foreign_keys || []).map(row => row.table));
-          const migrationApplied = (proof.migration || []).some(row => row.name === '0019_mural_nisti.sql');
+          const migrationNames = new Set(migrations.map(row => row.name));
+          const columnNames = new Set(columns.map(row => row.name));
+          const fkTargets = new Set(fks.map(row => row.table));
           const missingObjects = [...expectedTables, ...expectedIndexes].filter(name => !names.has(name));
           const missingColumns = expectedColumns.filter(name => !columnNames.has(name));
 
-          const summary = {
+          const requiredMigrations = [
+            '0016_pb27_madeira_product_gtins.sql',
+            '0017_gtin_scan_events.sql',
+            '0018_gtin_scan_event_dismissal.sql',
+            '0019_mural_nisti.sql'
+          ];
+          const missingMigrations = requiredMigrations.filter(name => !migrationNames.has(name));
+
+          console.log('Remote D1 validation summary');
+          console.log(JSON.stringify({
             database: 'nisti-identificacao',
-            migration_0019_applied: migrationApplied,
-            migration_error: proof.migration_error,
+            required_migrations_present: requiredMigrations.filter(name => migrationNames.has(name)),
             tables_found: expectedTables.filter(name => names.has(name)),
             indexes_found: expectedIndexes.filter(name => names.has(name)),
             mural_posts_columns_found: expectedColumns.filter(name => columnNames.has(name)),
-            mural_posts_fk_targets: [...fkTargets].sort(),
-            migration_table_columns: (proof.migration_table_columns || []).map(row => row.name),
-            migration_history: (proof.migration_history || []).map(row => ({ id: row.id, name: row.name, applied_at: row.applied_at }))
-          };
-          console.log('Remote D1 Mural validation summary');
-          console.log(JSON.stringify(summary,null,2));
+            mural_posts_fk_targets: [...fkTargets].sort()
+          }, null, 2));
 
-          if (!migrationApplied) console.error('Migration 0019_mural_nisti.sql is not recorded in remote d1_migrations.');
-          if (missingObjects.length) console.error('Missing remote schema objects: ' + missingObjects.join(', '));
-          if (missingColumns.length) console.error('Missing mural_posts columns: ' + missingColumns.join(', '));
+          if (missingMigrations.length) throw new Error('Missing applied migrations: ' + missingMigrations.join(', '));
+          if (missingObjects.length) throw new Error('Missing remote schema objects: ' + missingObjects.join(', '));
+          if (missingColumns.length) throw new Error('Missing mural_posts columns: ' + missingColumns.join(', '));
           if (!fkTargets.has('products') || !fkTargets.has('mural_collections')) {
-            console.error('mural_posts foreign keys are incomplete.');
-          }
-          if (!migrationApplied || missingObjects.length || missingColumns.length || !fkTargets.has('products') || !fkTargets.has('mural_collections')) {
-            process.exitCode = 2;
+            throw new Error('mural_posts foreign keys are incomplete.');
           }
           NODE
