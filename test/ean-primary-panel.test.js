@@ -61,13 +61,33 @@ test('continuous scanner can be paused without stopping the camera stream', () =
 });
 
 test('EAN result highlights product finishes without an animated camera overlay', () => {
-  assert.match(scannerSource, /\['Wire-o', product\.wireo/);
-  assert.match(scannerSource, /\['Tassel', product\.tassel/);
-  assert.match(scannerSource, /\['Elástico', product\.elastico/);
+  assert.match(scannerSource, /label: 'Wire-o', value: product\.wireo/);
+  assert.match(scannerSource, /label: 'Tassel', value: product\.tassel/);
+  assert.match(scannerSource, /label: 'Elástico', value: product\.elastico/);
   assert.doesNotMatch(scannerSource, /gtin-camera-scan-beam/);
   assert.doesNotMatch(scannerSource, /gtin-laser-dynamic/);
   assert.doesNotMatch(scannerStyles, /@keyframes gtin-scan-beam/);
   assert.doesNotMatch(scannerStyles, /@keyframes gtin-laser-traverse/);
   assert.match(scannerStyles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(scannerStyles, /\.gtin-scanner-result[\s\S]*?animation: gtin-result-in/);
+});
+
+
+test('scanner shows product type instead of the full product name', () => {
+  assert.match(scannerSource, /function productTypeLabel\(product\)/);
+  assert.match(scannerSource, /\[\/\\bplanner\\b\/, 'Planner'\]/);
+  assert.match(scannerSource, /\[\/\\bagenda\\b\/, 'Agenda'\]/);
+  assert.match(scannerSource, /\[\/\\bcaderno\\b\|\\bnotebook\\b\/, 'Caderno'\]/);
+  assert.match(scannerSource, /<h3>\{productType\}<\/h3>/);
+  assert.doesNotMatch(scannerSource, /<h3>\{product\.nome \|\| product\.sku\}<\/h3>/);
+});
+
+test('scanner result uses icons for cover, variation, wire-o, tassel and elastic', () => {
+  assert.match(scannerSource, /function ProductDetailIcon/);
+  assert.match(scannerSource, /icon: 'cover'/);
+  assert.match(scannerSource, /icon: 'variation'/);
+  assert.match(scannerSource, /icon: 'wireo'/);
+  assert.match(scannerSource, /icon: 'tassel'/);
+  assert.match(scannerSource, /icon: 'elastic'/);
+  assert.match(scannerSource, /gtin-result-detail-icon/);
 });
