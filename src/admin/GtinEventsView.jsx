@@ -1,24 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { formatSaoPauloDateTime } from '../date-time.js';
 
 function formatProductDate(dateVal) {
-  if (!dateVal) return { date: '—', time: '' };
-  try {
-    const d = new Date(dateVal);
-    const date = new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }).format(d);
-    const time = new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(d);
-    return { date, time };
-  } catch {
-    return { date: '—', time: '' };
-  }
+  return formatSaoPauloDateTime(dateVal, { emptyTime: '' });
 }
 
 function SidebarIcon({ name }) {
