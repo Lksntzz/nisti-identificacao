@@ -124,16 +124,93 @@ function formatHistoryTimestamp(value) {
   }).format(date);
 }
 
+function normalizeProductTypeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function productTypeLabel(product) {
+  const source = normalizeProductTypeText([
+    product?.nome,
+    product?.sku,
+    product?.miolo_code
+  ].filter(Boolean).join(' '));
+
+  const types = [
+    [/\bplanner\b/, 'Planner'],
+    [/\bagenda\b/, 'Agenda'],
+    [/\bcaderno\b|\bnotebook\b/, 'Caderno'],
+    [/\bcaderneta\b/, 'Caderneta'],
+    [/\bfichario\b/, 'Fichário'],
+    [/\bbloco\b/, 'Bloco'],
+    [/\bcalendario\b/, 'Calendário'],
+    [/\bdiario\b/, 'Diário'],
+    [/\bsketchbook\b/, 'Sketchbook'],
+    [/\bbullet\s*journal\b/, 'Bullet Journal'],
+    [/\balbum\b/, 'Álbum'],
+    [/\blivro\b/, 'Livro'],
+    [/\brefil\b/, 'Refil'],
+    [/\borganizador\b/, 'Organizador'],
+    [/\bpasta\b/, 'Pasta'],
+    [/\bkit\b/, 'Kit']
+  ];
+
+  const match = types.find(([pattern]) => pattern.test(source));
+  if (match) return match[1];
+
+  const fallback = String(product?.nome || '').trim()
+    .replace(/\b20\d{2}\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')[0];
+
+  return fallback
+    ? fallback.charAt(0).toUpperCase() + fallback.slice(1).toLowerCase()
+    : 'Produto';
+}
+
+function ProductDetailIcon({ type }) {
+  const props = {
+    viewBox: '0 0 24 24',
+    width: 16,
+    height: 16,
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.9,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    'aria-hidden': 'true'
+  };
+
+  if (type === 'cover') {
+    return <svg {...props}><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 3v18" /><path d="m11 15 2.2-2.4 2 1.8 1.8-2.1" /></svg>;
+  }
+  if (type === 'variation') {
+    return <svg {...props}><path d="M4 7h10" /><path d="M18 7h2" /><circle cx="16" cy="7" r="2" /><path d="M4 17h2" /><path d="M10 17h10" /><circle cx="8" cy="17" r="2" /></svg>;
+  }
+  if (type === 'wireo') {
+    return <svg {...props}><path d="M8 4c-2 0-2 3 0 3s2 3 0 3-2 3 0 3 2 3 0 3-2 3 0 4" /><path d="M11 4h8v16h-8" /><path d="M11 8h5M11 12h5M11 16h5" /></svg>;
+  }
+  if (type === 'tassel') {
+    return <svg {...props}><path d="M12 3v5" /><path d="M9 8h6l2 4H7l2-4Z" /><path d="M8 12v7M11 12v8M14 12v8M17 12v7" /></svg>;
+  }
+  return <svg {...props}><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M15 3v18" /><path d="M15 8h4" /></svg>;
+}
+
 function ProductSummary({ gtin, product, continuous = false }) {
   if (!product) return null;
 
   const details = [
-    ['Capa', product.capa_code],
-    ['Variação', product.variacao],
-    ['Wire-o', product.wireo || product.wireo_code],
-    ['Tassel', product.tassel || product.tassel_code],
-    ['Elástico', product.elastico || product.elastico_code]
-  ].filter(([, value]) => value);
+    { label: 'Capa', value: product.capa_code, icon: 'cover' },
+    { label: 'Variação', value: product.variacao, icon: 'variation' },
+    { label: 'Wire-o', value: product.wireo || product.wireo_code, icon: 'wireo' },
+    { label: 'Tassel', value: product.tassel || product.tassel_code, icon: 'tassel' },
+    { label: 'Elástico', value: product.elastico || product.elastico_code, icon: 'elastic' }
+  ].filter(item => item.value);
+
+  const productType = productTypeLabel(product);
 
   return (
     <article className={`gtin-scanner-result${continuous ? ' is-continuous' : ''}`} aria-live="polite">
@@ -155,15 +232,19 @@ function ProductSummary({ gtin, product, continuous = false }) {
 
         <div className="gtin-result-copy">
           <div className="gtin-result-heading">
-            <h3>{product.nome || product.sku}</h3>
-            {product.nome && <p className="gtin-result-sku">SKU {product.sku}</p>}
+            <span className="gtin-result-type-label">Tipo do produto</span>
+            <h3>{productType}</h3>
+            <p className="gtin-result-sku">SKU {product.sku || '—'}</p>
           </div>
 
           <dl className="gtin-result-details">
-            {details.map(([label, value]) => (
-              <div className="gtin-result-detail" key={label}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
+            {details.map(item => (
+              <div className="gtin-result-detail" key={item.label}>
+                <dt>
+                  <span className="gtin-result-detail-icon"><ProductDetailIcon type={item.icon} /></span>
+                  <span>{item.label}</span>
+                </dt>
+                <dd>{item.value}</dd>
               </div>
             ))}
           </dl>
