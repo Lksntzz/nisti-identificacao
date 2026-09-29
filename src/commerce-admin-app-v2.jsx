@@ -152,6 +152,7 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
 export default function CommerceAdminAppV2() {
   const [activeView, setActiveView] = useState('catalog');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [salesRevision, setSalesRevision] = useState(0);
 
   const activeItem = useMemo(
     () => NAV_ITEMS.find(item => item.id === activeView) || NAV_ITEMS[0],
@@ -218,8 +219,8 @@ export default function CommerceAdminAppV2() {
           </div>
 
           {activeView === 'catalog' && <CommerceManagementView mode="catalog" />}
-          {activeView === 'sales' && <CommerceSalesDashboard />}
-          {activeView === 'imports' && <CommerceUnifiedImportView />}
+          {activeView === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
+          {activeView === 'imports' && <CommerceUnifiedImportView onSalesChanged={() => setSalesRevision(value => value + 1)} />}
           {activeView === 'pending' && <CommerceManagementView mode="pending" />}
         </main>
 
