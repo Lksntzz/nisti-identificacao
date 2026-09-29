@@ -16,7 +16,12 @@ test('Painel de Vendas preserva filtros e indicadores da planilha', () => {
     assert.equal(ui.includes(text), true, text);
   }
   assert.equal(ui.includes('SEM VENDA'), true);
-  assert.equal(ui.includes("filters.status === 'SEM VENDA' ? []"), true);
+  assert.equal(ui.includes("appliedStatus === 'SEM VENDA' ? []"), true);
+  assert.equal(ui.includes("applySelectFilter('platform'"), true);
+  assert.equal(ui.includes("applySelectFilter('periodStart'"), true);
+  assert.equal(ui.includes("applySelectFilter('periodEnd'"), true);
+  assert.equal(ui.includes("applySelectFilter('status'"), true);
+  assert.equal(ui.includes('requestIdRef'), true);
   assert.equal(ui.includes('Abrir anúncio'), true);
 });
 
