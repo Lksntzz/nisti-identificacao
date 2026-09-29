@@ -6,6 +6,7 @@ const publicSource = fs.readFileSync(new URL('../src/public-main.jsx', import.me
 const entrySource = fs.readFileSync(new URL('../src/entry.jsx', import.meta.url), 'utf8');
 const scannerSource = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
 const scannerStyles = fs.readFileSync(new URL('../src/gtin-scanner.css', import.meta.url), 'utf8');
+const indexSource = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 test('public application uses the embedded EAN scanner as its primary panel', () => {
   const primaryApp = publicSource.slice(publicSource.indexOf('function PublicIdentificationApp()'));
@@ -90,4 +91,20 @@ test('scanner result uses icons for cover, variation, wire-o, tassel and elastic
   assert.match(scannerSource, /icon: 'tassel'/);
   assert.match(scannerSource, /icon: 'elastic'/);
   assert.match(scannerSource, /gtin-result-detail-icon/);
+});
+
+
+test('mobile scanner disables page zoom and keeps the scanner viewport fixed', () => {
+  assert.match(indexSource, /maximum-scale=1\.0,user-scalable=no/);
+  assert.match(scannerSource, /gtin-fixed-viewport/);
+  assert.match(scannerSource, /gesturestart/);
+  assert.match(scannerSource, /touches\.length > 1/);
+  assert.match(scannerStyles, /Scanner mobile fixo: sem scroll da tela/);
+  assert.match(scannerStyles, /overflow: hidden !important/);
+  assert.match(scannerStyles, /max-height: 32dvh/);
+});
+
+test('mobile fixed scanner keeps manual input readable without iOS focus zoom', () => {
+  assert.match(scannerStyles, /\.gtin-manual-row input \{[\s\S]*?font-size: 16px;/);
+  assert.match(scannerStyles, /@media \(max-width: 640px\) and \(max-height: 700px\)/);
 });
