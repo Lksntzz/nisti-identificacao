@@ -736,8 +736,22 @@ export default function CommerceSalesDashboard() {
         nextOffset += actualLimit;
       }
 
-      const header = ['Plataforma','SKU','Produto','SKU Principal','Pedidos com item','Unidades','Faturamento','Status','Anúncio'];
-      const rows = all.map(item => [
+      const exportingNoSales = ['SEM VENDA','SEM_VENDA'].includes(String(filters.status || '').toUpperCase());
+      const header = exportingNoSales
+        ? ['Plataforma','SKU','Produto','Última venda','Períodos sem venda','Pedidos históricos','Unidades históricas','Faturamento histórico','Prioridade','Anúncio']
+        : ['Plataforma','SKU','Produto','SKU Principal','Pedidos com item','Unidades','Faturamento','Status','Anúncio'];
+      const rows = all.map(item => exportingNoSales ? [
+        item.platform_label,
+        item.sku,
+        item.product_name,
+        item.last_sale_period || 'Nunca na base',
+        item.last_sale_period ? item.periods_without_sale : 'Todo o histórico',
+        item.historical_orders,
+        item.historical_units,
+        Number(item.historical_revenue || 0).toFixed(2).replace('.', ','),
+        priorityLabel(item.review_priority),
+        item.listing_url || ''
+      ] : [
         item.platform_label,
         item.sku,
         item.product_name,
@@ -753,7 +767,9 @@ export default function CommerceSalesDashboard() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = 'vendas_nisti_filtradas.csv';
+      anchor.download = ['SEM VENDA','SEM_VENDA'].includes(String(filters.status || '').toUpperCase())
+        ? 'anuncios_sem_venda_nisti.csv'
+        : 'vendas_nisti_filtradas.csv';
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
