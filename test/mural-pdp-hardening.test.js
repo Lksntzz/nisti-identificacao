@@ -103,3 +103,9 @@ test('admin collection list returns product ids in persisted sort_order',()=>{
   assert.match(router,/SELECT product_id[\s\S]*WHERE collection_id=mc\.id[\s\S]*ORDER BY sort_order ASC,product_id ASC/);
   assert.match(router,/GROUP_CONCAT\(ordered\.product_id\)/);
 });
+
+test('collection editor previews and removes an existing banner through the protected route',()=>{
+  assert.match(admin,/api\/admin\/mural\/collections\/\$\{item\.id\}\/image/);
+  assert.match(admin,/const removeBanner=async/);
+  assert.match(admin,/Remover banner/);
+});
