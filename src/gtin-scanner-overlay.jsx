@@ -138,11 +138,11 @@ function ProductSummary({ gtin, product, continuous = false }) {
   return (
     <article className={`gtin-scanner-result${continuous ? ' is-continuous' : ''}`} aria-live="polite">
       <div className="gtin-result-status">
-        <div className="gtin-result-check" aria-hidden="true">✓</div>
-        <div className="gtin-result-status-copy">
+        <div className="gtin-result-status-left">
+          <div className="gtin-result-check" aria-hidden="true">✓</div>
           <span className="gtin-result-label">Produto identificado</span>
-          <strong className="gtin-result-code">EAN {gtin}</strong>
         </div>
+        <strong className="gtin-result-status-ean">EAN: {gtin}</strong>
       </div>
 
       <div className="gtin-result-content">
@@ -700,12 +700,13 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
             )}
           </div>
         )}
-      </div>
 
-      <div className="gtin-scanner-instructions">
-        <strong>{product ? 'Produto identificado. Aponte para o próximo EAN.' : 'Centralize o código de barras dentro do quadro.'}</strong>
-        <span>{scannerPaused ? 'A leitura está pausada.' : 'A leitura é contínua e automática.'}</span>
-        {decoderMode && cameraActive && <small>Leitor: {decoderMode}</small>}
+        <div className="gtin-scanner-instructions">
+          <span className="gtin-scanner-instructions-icon" aria-hidden="true">i</span>
+          <strong>{product ? 'Produto identificado. Aponte para o próximo EAN.' : 'Centralize o código de barras dentro do quadro.'}</strong>
+          <span>{scannerPaused ? 'A leitura está pausada.' : 'A leitura é automática.'}</span>
+          {decoderMode && cameraActive && <small>Leitor: {decoderMode}</small>}
+        </div>
       </div>
 
       {cameraError && (
