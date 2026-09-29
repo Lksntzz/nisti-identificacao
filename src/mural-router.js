@@ -1,4 +1,5 @@
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
+import { productTypeLabel } from './product-display.js';
 
 const TAB_KIND = Object.freeze({
   all: null,
@@ -63,22 +64,6 @@ function finishLabels(row) {
   };
 }
 
-function productType(row) {
-  const source = [row?.product_name, row?.sku, row?.miolo_code]
-    .filter(Boolean)
-    .join(' ')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-  if (/\bplanner\b/.test(source)) return 'Planner';
-  if (/\bagenda\b/.test(source)) return 'Agenda';
-  if (/\bcaderno\b|\bnotebook\b/.test(source)) return 'Caderno';
-  if (/\bcaderneta\b/.test(source)) return 'Caderneta';
-  if (/\bfichario\b/.test(source)) return 'Fichário';
-  return 'Produto';
-}
-
 async function unreadCount(userId, env) {
   const row = await env.DB.prepare(`
     SELECT COUNT(*) AS total
@@ -125,7 +110,7 @@ function mapFeedRow(row) {
       ? {
           id: productId,
           sku: row.sku || null,
-          type: productType(row),
+          type: productTypeLabel(row),
           collection: row.collection_name || null,
           wireo: labels.wireo,
           tassel: labels.tassel,
@@ -279,7 +264,7 @@ async function collectionDetail(slug, env) {
         return {
           id: Number(row.id),
           sku: row.sku,
-          type: productType({ product_name: row.nome, ...row }),
+          type: productTypeLabel({ product_name: row.nome, ...row }),
           name: row.nome || null,
           variation: row.variacao || null,
           wireo: labels.wireo,
