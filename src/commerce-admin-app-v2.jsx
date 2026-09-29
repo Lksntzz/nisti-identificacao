@@ -4,19 +4,19 @@ import './commerce-admin.css';
 import LOGO from './assets/logo.png';
 import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
-import CommerceUnifiedImportView from './commerce-unified-import-view.jsx';
+import CommerceImportCenter from './commerce-import-center.jsx';
 
 const NAV_ITEMS = Object.freeze([
   { id: 'catalog', label: 'Catálogo', icon: 'grid' },
   { id: 'sales', label: 'Vendas', icon: 'chart' },
-  { id: 'imports', label: 'Importar', icon: 'upload' },
+  { id: 'import-center', label: 'Central de Importações', icon: 'upload' },
   { id: 'pending', label: 'Pendências', icon: 'list' }
 ]);
 
 const VIEW_DESCRIPTIONS = Object.freeze({
   catalog: 'Produto Mestre, imagens e anúncios de todas as plataformas em uma única visão.',
   sales: 'Pedidos, unidades, faturamento e itens sem venda por plataforma, período e SKU.',
-  imports: 'Importe arquivos para alimentar o Catálogo Comercial e o Painel de Vendas.',
+  'import-center': 'Nova área para importar catálogo e vendas com validação separada antes de gravar.',
   pending: 'Somente produtos que precisam de vínculo, revisão ou correção.'
 });
 
@@ -220,7 +220,7 @@ export default function CommerceAdminAppV2() {
 
           {activeView === 'catalog' && <CommerceManagementView mode="catalog" />}
           {activeView === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
-          {activeView === 'imports' && <CommerceUnifiedImportView onSalesChanged={() => setSalesRevision(value => value + 1)} />}
+          {activeView === 'import-center' && <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />}
           {activeView === 'pending' && <CommerceManagementView mode="pending" />}
         </main>
 
