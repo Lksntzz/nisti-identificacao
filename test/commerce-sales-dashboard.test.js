@@ -97,10 +97,8 @@ test('Filtro SEM VENDA cruza demanda entre plataformas para apoiar decisão', ()
     'Já venderam antes',
     'O que fazer com os anúncios sem venda',
     'Onde o mesmo SKU vende',
-    'Sinal para decisão',
-    'Anúncios sem venda — fila de revisão',
-    'Vende em outra plataforma',
-    'Evidência',
+            'Vendem em outra plataforma',
+    'Anúncios para revisar',
     'Abrir anúncio',
     'anuncios_sem_venda_nisti.csv'
   ]) {
@@ -128,5 +126,32 @@ test('Filtro SEM VENDA cruza demanda entre plataformas para apoiar decisão', ()
     'JA_VENDEU_ANTES'
   ]) {
     assert.equal(rpc.includes(token), true, token);
+  }
+});
+
+
+test('Modo SEM VENDA usa layout enxuto e orientado à decisão', () => {
+  const ui = read('src/commerce-sales-dashboard.jsx');
+  const css = read('src/commerce-sales-dashboard.css');
+
+  for (const text of [
+    'NoSalesDecisionOverview',
+    'Resumo objetivo para decidir o que revisar primeiro.',
+    'Distribuição das decisões',
+    'Como interpretar',
+    'Anúncios para revisar',
+    'Candidato forte',
+    'Melhorar anúncio'
+  ]) {
+    assert.equal(ui.includes(text), true, text);
+  }
+
+  for (const token of [
+    '.sales-no-sales-overview-grid',
+    '.sales-no-sales-overview-card',
+    '.sales-no-sales-coverage-body',
+    '.sales-evidence-compact'
+  ]) {
+    assert.equal(css.includes(token), true, token);
   }
 });
