@@ -5,12 +5,13 @@ import fs from 'node:fs';
 const scannerSource = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
 const scannerStyles = fs.readFileSync(new URL('../src/gtin-scanner.css', import.meta.url), 'utf8');
 
-test('EAN result uses compact product metadata instead of tall cards', () => {
+test('EAN result uses compact professional cards for product metadata', () => {
   assert.match(scannerSource, /gtin-result-details/);
   assert.match(scannerSource, /gtin-result-detail/);
   assert.match(scannerStyles, /\.gtin-result-detail \{/);
-  assert.match(scannerStyles, /border-bottom: 1px solid #eef2f7/);
-  assert.doesNotMatch(scannerStyles, /\.gtin-result-detail \{[^}]*border-radius:/s);
+  assert.match(scannerStyles, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
+  assert.match(scannerStyles, /border-radius: 11px/);
+  assert.match(scannerStyles, /background: #fbfdff/);
 });
 
 test('EAN scanner keeps a bounded recent result history on the device', () => {
@@ -52,4 +53,14 @@ test('history modal shows only image, SKU, tassel presence, elastic and wire-o d
   assert.doesNotMatch(modal, /EAN \{item\.gtin\}/);
   assert.doesNotMatch(modal, /formatHistoryTimestamp/);
   assert.doesNotMatch(modal, /item\.product\.nome/);
+});
+
+
+test('approved scanner layout keeps instructions inside the camera and result in a separate card', () => {
+  assert.match(scannerSource, /gtin-scanner-instructions-icon/);
+  assert.match(scannerSource, /gtin-result-status-left/);
+  assert.match(scannerSource, /gtin-result-status-ean/);
+  assert.match(scannerStyles, /\.gtin-camera-shell \.gtin-scanner-instructions/);
+  assert.match(scannerStyles, /position: absolute/);
+  assert.match(scannerStyles, /\.gtin-scanner-panel\.embedded > \.gtin-scanner-header/);
 });
