@@ -330,27 +330,6 @@ function AdminTopbar({ onToggleSidebar, unreadCount }) {
       </div>
 
       <div className="topbar-right">
-        <a
-          href="#scanner"
-          onClick={e => {
-            e.preventDefault();
-            window.location.hash = '';
-            window.location.pathname = '/';
-          }}
-          className="topbar-logout-btn"
-          style={{ background: '#f1f5f9', color: '#1e293b', border: '1px solid #cbd5e1' }}
-          title="Voltar ao Scanner de Expedição"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-            <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-            <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-            <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-            <line x1="7" y1="12" x2="17" y2="12" />
-          </svg>
-          <span>Scanner</span>
-        </a>
-
         <a href="/" className="topbar-bell-btn" title="Notificações">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
