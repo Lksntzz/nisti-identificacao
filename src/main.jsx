@@ -5,7 +5,6 @@ import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';
 import SystemHealthView from './system-health-view.jsx';
 import ExpeditionDashboard from './admin/ExpeditionDashboard.jsx';
 import CatalogView from './admin/CatalogView.jsx';
-import GtinRegistryView from './admin/GtinRegistryView.jsx';
 import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
@@ -502,8 +501,6 @@ function RegistrationBarcodeResult({ items, errors = [], onReset, onClose, title
 
 function CreateProductModal({ isOpen, onClose, onCreated }) {
   const [nome, setNome] = useState('');
-  const [platform, setPlatform] = useState('MERCADO LIVRE');
-  const [link, setLink] = useState('');
   const [variants, setVariants] = useState([
     { id: 1, sku: '', gtin: '', variacao: '', file: null, preview: '' }
   ]);
@@ -514,8 +511,6 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
 
   const resetForm = () => {
     setNome('');
-    setPlatform('MERCADO LIVRE');
-    setLink('');
     setVariants([{ id: Date.now(), sku: '', gtin: '', variacao: '', file: null, preview: '' }]);
     setProgressMsg('');
     setError('');
@@ -582,9 +577,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
               sku: cleanSku,
               gtin: cleanGtin,
               nome: nome.trim(),
-              variacao: v.variacao.trim() || cleanSku,
-              platform: platform.trim().toUpperCase(),
-              link: link.trim()
+              variacao: v.variacao.trim() || cleanSku
             })
           });
 
@@ -600,7 +593,6 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
             gtin: cleanGtin,
             nome: nome.trim(),
             variacao: v.variacao.trim() || cleanSku,
-            platform: platform.trim().toUpperCase(),
             commerce_sync: commerceSync
           };
 
@@ -661,36 +653,16 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
           />
         ) : (
           <form onSubmit={handleSubmit} className="admin-modal-form">
-            <div className="form-row-2">
-              <div className="form-group">
-                <label>Nome do Produto Pai *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Agenda 2026 Personalizada"
-                  value={nome}
-                  onChange={e => setNome(e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label>Plataforma Padrão</label>
-                <select value={platform} onChange={e => setPlatform(e.target.value)}>
-                  <option value="MERCADO LIVRE">Mercado Livre</option>
-                  <option value="SHOPEE">Shopee</option>
-                  <option value="AMAZON">Amazon</option>
-                  <option value="MAGALU">Magalu</option>
-                </select>
-              </div>
-            </div>
-
             <div className="form-group">
-              <label>Link do Anúncio (Opcional)</label>
+              <label>Nome do Produto Pai *</label>
               <input
-                type="url"
-                placeholder="https://produto.mercadolivre.com.br/..."
-                value={link}
-                onChange={e => setLink(e.target.value)}
+                type="text"
+                required
+                placeholder="Ex: Agenda 2026 Personalizada"
+                value={nome}
+                onChange={e => setNome(e.target.value)}
               />
+              <small>Plataformas e anúncios são vinculados automaticamente pelo Catálogo Comercial.</small>
             </div>
 
             <div className="variants-section-header">
@@ -1460,8 +1432,6 @@ function AdminApp() {
               onDeleteProduct={handleDeleteProduct}
             />
           )}
-
-          {activeView === 'gtins' && <GtinRegistryView />}
 
           {activeView === 'gerador-barras' && <BarcodeGeneratorView api={api} />}
 
