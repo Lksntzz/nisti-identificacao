@@ -106,7 +106,7 @@ function Hero({ item, onOpen }) {
   );
 }
 
-function MuralCard({ item, onOpen, eager = false }) {
+export function MuralCard({ item, onOpen, eager = false }) {
   const isNotice = item.kind === 'notice';
   return (
     <button
