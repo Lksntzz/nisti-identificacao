@@ -82,12 +82,13 @@ function MobilePreview({ form, product, collection, imageUrl }) {
 }
 
 function PostEditor({ item, collections, onClose, onSaved }) {
-  const [form, setForm] = useState(() => postForm(item));
+  const sourceItem = item && item.mode === 'new' ? null : item;
+  const [form, setForm] = useState(() => postForm(sourceItem));
   const [products, setProducts] = useState([]);
-  const [productQuery, setProductQuery] = useState(item?.product_sku || '');
-  const [selectedProduct, setSelectedProduct] = useState(item?.product_id ? { id:item.product_id, sku:item.product_sku, nome:item.product_name } : null);
+  const [productQuery, setProductQuery] = useState(sourceItem?.product_sku || '');
+  const [selectedProduct, setSelectedProduct] = useState(sourceItem?.product_id ? { id:sourceItem.product_id, sku:sourceItem.product_sku, nome:sourceItem.product_name } : null);
   const [image, setImage] = useState(null);
-  const [imageUrl, setImageUrl] = useState(item?.image_key ? `/api/mural/images/${item.id}?v=${encodeURIComponent(item.image_key)}` : '');
+  const [imageUrl, setImageUrl] = useState(sourceItem?.image_key ? `/api/mural/images/${sourceItem.id}?v=${encodeURIComponent(sourceItem.image_key)}` : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -132,7 +133,7 @@ function PostEditor({ item, collections, onClose, onSaved }) {
     setBusy(true); setError('');
     try {
       const body = JSON.stringify(payload());
-      let id = item?.id;
+      let id = sourceItem?.id;
       if (id) await request(`/api/admin/mural/posts/${id}`, { method:'PUT', headers:{'content-type':'application/json'}, body });
       else {
         const created = await request('/api/admin/mural/posts', { method:'POST', headers:{'content-type':'application/json'}, body });
@@ -156,7 +157,7 @@ function PostEditor({ item, collections, onClose, onSaved }) {
   return (
     <div className="mural-admin-modal" role="dialog" aria-modal="true" aria-label="Editor do Mural">
       <div className="mural-admin-editor">
-        <header><div><small>MURAL NISTI</small><h2>{item ? 'Editar publicação' : 'Nova publicação'}</h2></div><button type="button" onClick={onClose} aria-label="Fechar">×</button></header>
+        <header><div><small>MURAL NISTI</small><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2></div><button type="button" onClick={onClose} aria-label="Fechar">×</button></header>
         <div className="mural-admin-editor-grid">
           <form onSubmit={event => { event.preventDefault(); save(false); }}>
             <label>Tipo<select value={form.kind} onChange={e => { set('kind',e.target.value); set('product_id',''); set('collection_id',''); }}><option value="product">Produto</option><option value="collection">Coleção</option><option value="notice">Aviso</option></select></label>
@@ -256,7 +257,7 @@ export default function MuralNistiAdminView() {
     <div className="mural-admin-table-wrap"><table><thead><tr><th>Título</th><th>Tipo</th><th>Selo</th><th>Status</th><th>Publicação</th><th>Expiração</th><th>Autor</th><th>Ações</th></tr></thead><tbody>{posts.map(row=><tr key={row.id}><td><b>{row.title}</b><small>{row.subtitle||''}</small></td><td>{row.kind}</td><td>{row.badge||'—'}</td><td><Status value={row.status}/></td><td>{dates(row)}</td><td>{row.expires_at?new Date(row.expires_at).toLocaleString('pt-BR'):'—'}</td><td>{row.created_by||'—'}</td><td><div className="mural-admin-row-actions"><button onClick={()=>setEditor(row)}>Editar</button><button onClick={()=>action(row.id,'duplicate')}>Duplicar</button>{row.status!=='published'&&<button onClick={()=>action(row.id,'publish')}>Publicar</button>}{row.status!=='archived'&&<button onClick={()=>action(row.id,'archive')}>Arquivar</button>}{row.status==='published'&&((row.kind==='notice'&&row.notice_level==='important')||row.kind==='product')&&<button onClick={()=>sendPush(row)}>Enviar notificação</button>}</div></td></tr>)}</tbody></table>{!loading&&!posts.length&&<div className="mural-admin-empty">Nenhuma publicação encontrada.</div>}</div></>}
     {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.year||'sem ano'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
     {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
-    {editor&&<PostEditor item={editor.mode==='new'?null:editor} collections={collections} onClose={()=>setEditor(null)} onSaved={load}/>}
+    {editor&&<PostEditor item={editor} collections={collections} onClose={()=>setEditor(null)} onSaved={load}/>}
     {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={load}/>}
   </section>;
 }
