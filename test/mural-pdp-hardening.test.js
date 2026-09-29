@@ -104,8 +104,9 @@ test('editing an existing product post hydrates image type and finish preview fr
 });
 
 test('admin collection list returns product ids in persisted sort_order',()=>{
-  assert.match(router,/SELECT product_id[\s\S]*WHERE collection_id=mc\.id[\s\S]*ORDER BY sort_order ASC,product_id ASC/);
-  assert.match(router,/GROUP_CONCAT\(ordered\.product_id\)/);
+  assert.match(router,/SELECT collection_id,product_id,sort_order/);
+  assert.match(router,/ORDER BY collection_id ASC,sort_order ASC,product_id ASC/);
+  assert.match(router,/product_ids:productIds\.join\(','\)/);
 });
 
 test('collection editor previews and removes an existing banner through the protected route',()=>{
