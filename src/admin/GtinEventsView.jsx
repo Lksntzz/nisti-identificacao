@@ -27,10 +27,21 @@ function SidebarIcon({ name }) {
   }
 }
 
+const HISTORY_PAGE_SIZE = 25;
+
+function paginationPages(page, totalPages) {
+  const start = Math.max(1, Math.min(page - 2, Math.max(1, totalPages - 4)));
+  const end = Math.min(totalPages, start + 4);
+  return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
+}
+
 export function GtinEventsView({ initialStatus = '', api, products = [], onLinkSuccess }) {
   const [events, setEvents] = useState([]);
   const [status, setStatus] = useState(initialStatus);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [actionBusyId, setActionBusyId] = useState(null);
@@ -43,18 +54,25 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
   const [linkError, setLinkError] = useState('');
   const [linkSuccessMsg, setLinkSuccessMsg] = useState('');
 
-  useEffect(() => { setStatus(initialStatus); }, [initialStatus]);
+  useEffect(() => {
+    setStatus(initialStatus);
+    setPage(1);
+  }, [initialStatus]);
 
-  const load = async () => {
+  const load = async (targetPage = page, query = appliedSearch) => {
     setLoading(true);
     setLoadError('');
     try {
-      const params = new URLSearchParams({ limit: '250' });
+      const params = new URLSearchParams({
+        limit: String(HISTORY_PAGE_SIZE),
+        offset: String((Math.max(1, targetPage) - 1) * HISTORY_PAGE_SIZE)
+      });
       if (status) params.set('status', status);
       if (initialStatus === 'not_found') params.set('pending', '1');
-      if (search.trim()) params.set('q', search.trim());
+      if (query) params.set('q', query);
       const data = await api(`/api/admin/gtin-events?${params.toString()}`);
       setEvents(data.events || []);
+      setTotal(Number(data.total || 0));
     } catch (error) {
       setLoadError(error?.message || 'Não foi possível carregar o histórico de leituras.');
     } finally {
@@ -62,7 +80,19 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
     }
   };
 
-  useEffect(() => { load(); }, [status]);
+  useEffect(() => { load(page, appliedSearch); }, [status, page, appliedSearch, initialStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(total / HISTORY_PAGE_SIZE));
+  const pageItems = paginationPages(page, totalPages);
+  const firstItem = total > 0 ? ((page - 1) * HISTORY_PAGE_SIZE) + 1 : 0;
+  const lastItem = Math.min(total, page * HISTORY_PAGE_SIZE);
+
+  const applySearch = () => {
+    const next = search.trim();
+    if (page !== 1) setPage(1);
+    if (next !== appliedSearch) setAppliedSearch(next);
+    else load(1, next);
+  };
 
   const statusLabel = value => ({
     identified: 'Identificado',
@@ -124,7 +154,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
         </div>
         <div className="table-actions-toolbar">
           {!initialStatus && (
-            <select className="table-platform-select" value={status} onChange={event => setStatus(event.target.value)}>
+            <select className="table-platform-select" value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}>
               <option value="">Todos os resultados</option>
               <option value="identified">Identificados</option>
               <option value="not_found">Não cadastrados</option>
@@ -135,10 +165,10 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
             className="table-search-input"
             value={search}
             onChange={event => setSearch(event.target.value)}
-            onKeyDown={event => event.key === 'Enter' && load()}
+            onKeyDown={event => event.key === 'Enter' && applySearch()}
             placeholder="Buscar EAN, operador ou SKU"
           />
-          <button type="button" className="btn-toolbar-filter" onClick={load}>Buscar</button>
+          <button type="button" className="btn-toolbar-filter" onClick={applySearch}>Buscar</button>
         </div>
       </div>
       {actionError && <div className="form-error-banner" role="alert">{actionError}</div>}
@@ -194,6 +224,33 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
           </tbody>
         </table>
       </div>
+
+      {!loading && !loadError && total > 0 && (
+        <div className="admin-pagination">
+          <span className="admin-pagination-summary">
+            Mostrando {firstItem}–{lastItem} de {total.toLocaleString('pt-BR')} bipagens
+          </span>
+          <div className="admin-pagination-controls">
+            <button type="button" disabled={page <= 1} onClick={() => setPage(current => Math.max(1, current - 1))}>
+              Anterior
+            </button>
+            {pageItems.map(item => (
+              <button
+                type="button"
+                key={item}
+                className={item === page ? 'active' : ''}
+                onClick={() => setPage(item)}
+                aria-current={item === page ? 'page' : undefined}
+              >
+                {item}
+              </button>
+            ))}
+            <button type="button" disabled={page >= totalPages} onClick={() => setPage(current => Math.min(totalPages, current + 1))}>
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Associação Rápida de EAN */}
       {linkingEvent && (
