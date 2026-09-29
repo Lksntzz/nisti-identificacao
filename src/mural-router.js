@@ -105,7 +105,9 @@ function mapFeedRow(row) {
       ? `/api/mural/images/${Number(row.id)}?v=${encodeURIComponent(row.image_key)}`
       : productId && row.product_image_key
         ? `/api/images/${productId}?v=${encodeURIComponent(row.product_image_key)}`
-        : null,
+        : collectionId && row.collection_image_key
+          ? `/api/mural/collections/${encodeURIComponent(row.collection_slug)}/image?v=${encodeURIComponent(row.collection_image_key)}`
+          : null,
     product_available: productAvailable,
     product: row.kind === 'product'
       ? {
@@ -175,7 +177,7 @@ async function listMuralFeed(request, url, env) {
       mp.notice_level,
       p.id AS product_id,p.sku,p.miolo_code,p.nome AS product_name,
       p.wireo_code,p.tassel_code,p.elastico_code,p.image_key AS product_image_key,
-      mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,mc.year AS collection_year,
+      mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,mc.year AS collection_year,mc.image_key AS collection_image_key,
       CASE WHEN mr.post_id IS NULL THEN 0 ELSE 1 END AS is_read
     FROM mural_posts mp
     LEFT JOIN products p ON p.id = mp.product_id
@@ -609,7 +611,7 @@ async function adminProducts(url, env) {
     WHERE (?='' OR sku LIKE ? OR nome LIKE ? OR variacao LIKE ?)
     ORDER BY updated_at DESC,id DESC LIMIT 40
   `).bind(q,like,like,like).all();
-  return json({items:(results||[]).map(row=>{ const labels=finishLabels(row); return {...row,...labels,image_url:row.image_key?`/api/images/${row.id}`:null}; })});
+  return json({items:(results||[]).map(row=>{ const labels=finishLabels(row); return {...row,...labels,type:productTypeLabel(row),image_url:row.image_key?`/api/images/${row.id}?v=${encodeURIComponent(row.image_key)}`:null}; })});
 }
 
 export async function suggestMuralProductDraft(env, productId) {
