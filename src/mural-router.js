@@ -1,5 +1,6 @@
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 import { productTypeLabel } from './product-display.js';
+import { broadcastMuralPush } from './web-push.js';
 
 const TAB_KIND = Object.freeze({
   all: null,
@@ -546,6 +547,19 @@ async function adminSetCollectionProducts(id, request, env) {
   return json({ok:true,count:productIds.length});
 }
 
+async function adminMetrics(env) {
+  const [publishedByMonth, readers, topReads] = await Promise.all([
+    env.DB.prepare(`SELECT substr(published_at,1,7) AS month,COUNT(*) AS total FROM mural_posts WHERE status='published' AND published_at IS NOT NULL GROUP BY substr(published_at,1,7) ORDER BY month DESC LIMIT 12`).all(),
+    env.DB.prepare(`SELECT COUNT(DISTINCT user_id) AS total FROM mural_post_reads`).first(),
+    env.DB.prepare(`SELECT mp.id,mp.title,COUNT(mr.user_id) AS reads FROM mural_posts mp JOIN mural_post_reads mr ON mr.post_id=mp.id GROUP BY mp.id,mp.title ORDER BY reads DESC,mp.id DESC LIMIT 10`).all()
+  ]);
+  return json({
+    published_by_month:(publishedByMonth.results||[]).map(row=>({month:row.month,total:Number(row.total||0)})),
+    readers:Number(readers?.total||0),
+    top_reads:(topReads.results||[]).map(row=>({id:Number(row.id),title:row.title,reads:Number(row.reads||0)}))
+  });
+}
+
 async function adminProducts(url, env) {
   const q = String(url.searchParams.get('q') || '').trim().slice(0,80);
   const like = `%${q}%`;
@@ -556,6 +570,29 @@ async function adminProducts(url, env) {
     ORDER BY updated_at DESC,id DESC LIMIT 40
   `).bind(q,like,like,like).all();
   return json({items:(results||[]).map(row=>({...row,image_url:row.image_key?`/api/images/${row.id}`:null}))});
+}
+
+export async function suggestMuralProductDraft(env, productId) {
+  const id = Number(productId);
+  if (!env?.DB || !Number.isInteger(id) || id <= 0) return null;
+  const product = await env.DB.prepare('SELECT id,sku,nome,variacao FROM products WHERE id=?').bind(id).first();
+  if (!product) return null;
+  const existing = await env.DB.prepare("SELECT id FROM mural_posts WHERE kind='product' AND product_id=? AND status<>'archived' ORDER BY id DESC LIMIT 1").bind(id).first();
+  if (existing) return { id:Number(existing.id), created:false };
+  const title = String(product.nome || product.variacao || product.sku || 'Novo produto').trim().slice(0,90);
+  const subtitle = [product.sku,product.variacao].filter(Boolean).join(' · ').slice(0,120) || null;
+  const result = await env.DB.prepare(`INSERT INTO mural_posts (kind,status,title,subtitle,badge,badge_tone,product_id,featured,priority,created_by,updated_at) VALUES ('product','draft',?,?,'NOVO','success',?,0,0,'system:suggestion',CURRENT_TIMESTAMP)`).bind(title,subtitle,id).run();
+  return { id:Number(result.meta.last_row_id), created:true };
+}
+
+async function adminSendPush(id, env) {
+  const post = await env.DB.prepare(`SELECT mp.id,mp.kind,mp.status,mp.title,mp.subtitle,mp.notice_level,mp.product_id,p.sku FROM mural_posts mp LEFT JOIN products p ON p.id=mp.product_id WHERE mp.id=?`).bind(id).first();
+  if (!post) return json({error:'Publicação não encontrada.'},404);
+  if (post.status !== 'published') return json({error:'Publique o conteúdo antes de enviar a notificação.'},409);
+  const eligible = (post.kind === 'notice' && post.notice_level === 'important') || post.kind === 'product';
+  if (!eligible) return json({error:'Push permitido somente para Aviso Importante ou lançamento de produto selecionado.'},422);
+  const result = await broadcastMuralPush(env,{ postId:Number(post.id),title:post.title,body:post.subtitle || (post.kind==='notice'?'Aviso importante no Mural NISTI':post.sku || 'Novo produto no Mural NISTI') });
+  return json({ok:true,...result});
 }
 
 export async function handleMuralRequest(request, env) {
@@ -600,6 +637,7 @@ export async function handleMuralRequest(request, env) {
     if (path === '/api/admin/mural/posts' && request.method === 'GET') return adminListPosts(url, env);
     if (path === '/api/admin/mural/posts' && request.method === 'POST') return adminCreatePost(request, env);
     if (path === '/api/admin/mural/products' && request.method === 'GET') return adminProducts(url, env);
+    if (path === '/api/admin/mural/metrics' && request.method === 'GET') return adminMetrics(env);
     if (path === '/api/admin/mural/collections' && request.method === 'GET') return adminListCollections(env);
     if (path === '/api/admin/mural/collections' && request.method === 'POST') return adminCreateCollection(request, env);
 
@@ -613,6 +651,8 @@ export async function handleMuralRequest(request, env) {
     if (archive && request.method === 'POST') return adminArchivePost(Number(archive[1]), env);
     const duplicate = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/duplicate$/);
     if (duplicate && request.method === 'POST') return adminDuplicatePost(Number(duplicate[1]), env);
+    const postPush = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/push$/);
+    if (postPush && request.method === 'POST') return adminSendPush(Number(postPush[1]), env);
     const postUpload = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/image$/);
     if (postUpload && request.method === 'POST') return uploadEditorialImage(request, env, 'posts', Number(postUpload[1]));
 
@@ -625,7 +665,7 @@ export async function handleMuralRequest(request, env) {
 
     return null;
   } catch (error) {
-    console.error('Falha no Mural NISTI.', error);
+    console.error('Falha no Mural NISTI.', { method: request.method, path, message: error?.message || String(error) });
     return json({ error: error?.message || 'Falha ao carregar o Mural NISTI.' }, 500);
   }
 }
