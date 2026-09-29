@@ -26,7 +26,7 @@ test('Ferramentas visuais antigas não são renderizadas no AdminApp EAN', () =>
   const source = read('src/main.jsx');
   assert.equal(source.includes("activeView === 'shadow-observability'"), false);
   assert.equal(source.includes('<GeometricShadowObservability embedded />'), false);
-  assert.equal(source.includes('<GtinRegistryView />'), true);
+  assert.equal(source.includes('<GtinRegistryView />'), false);
   assert.equal(source.includes('<GtinEventsView'), true);
 });
 
