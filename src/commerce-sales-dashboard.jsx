@@ -443,95 +443,110 @@ function ParticipationCard({ rows, loading, onSelect }) {
   );
 }
 
-function NoSalesInactivityChart({ insights }) {
-  const rows = Array.isArray(insights?.inactivity_buckets) ? insights.inactivity_buckets : [];
+function NoSalesDecisionChart({ insights }) {
+  const rows = Array.isArray(insights?.action_groups) ? insights.action_groups : [];
   const total = Number(insights?.total || 0);
   const max = Math.max(1, ...rows.map(item => Number(item.count || 0)));
-
-  if (!rows.length) {
-    return <div className="sales-chart-empty">Sem dados de inatividade para o filtro selecionado.</div>;
-  }
+  const colors = {
+    REVISAR_DESATIVACAO: '#df4f4f',
+    OTIMIZAR_ANUNCIO: '#e5a21c',
+    JA_VENDEU_ANTES: '#4187df'
+  };
 
   return (
-    <div className="sales-no-sales-bars">
+    <div className="sales-no-sales-bars sales-decision-bars">
       {rows.map((item, index) => {
         const count = Number(item.count || 0);
         const share = total > 0 ? count / total * 100 : 0;
         return (
           <div className="sales-no-sales-bar-row" key={item.key} style={{ '--sales-delay': `${index * 75}ms` }}>
             <div className="sales-no-sales-bar-label">
-              <strong>{item.label}</strong>
+              <div>
+                <strong>{item.label}</strong>
+                <small>{item.description}</small>
+              </div>
               <span>{brNumber(count)} anúncios · {brPercent(share)}%</span>
             </div>
             <div className="sales-no-sales-bar-track">
-              <span style={{ width: `${Math.max(2, count / max * 100)}%` }} />
+              <span
+                style={{
+                  width: `${Math.max(count ? 3 : 0, count / max * 100)}%`,
+                  background: colors[item.key] || '#64748b'
+                }}
+              />
             </div>
           </div>
         );
       })}
+
       <div className="sales-no-sales-explainer">
-        Quanto maior o tempo sem vender, maior a prioridade para revisar o anúncio antes de decidir pela desativação.
+        <strong>Como ler:</strong> “Revisar para desativação” é o grupo com menos evidência de demanda. “Vende em outra plataforma” indica que o produto vende, mas este anúncio pode precisar de preço, título, imagem ou posicionamento melhores.
       </div>
     </div>
   );
 }
 
-function NoSalesPlatformCard({ insights, onSelect }) {
-  const rows = Array.isArray(insights?.by_platform) ? insights.by_platform : [];
-  const max = Math.max(1, ...rows.map(item => Number(item.count || 0)));
+function CrossPlatformEvidenceCard({ insights }) {
+  const rows = Array.isArray(insights?.cross_platform_destinations) ? insights.cross_platform_destinations : [];
+  const max = Math.max(1, ...rows.map(item => Number(item.items || 0)));
 
   return (
     <section className="sales-side-card">
       <div className="sales-side-head">
-        <div><span className="sales-side-icon">▦</span><strong>Sem vendas por plataforma</strong></div>
+        <div><span className="sales-side-icon">↗</span><strong>Onde o mesmo SKU vende</strong></div>
       </div>
-      <div className="sales-no-sales-platforms">
+      <div className="sales-no-sales-platforms evidence">
         {rows.map((item, index) => (
-          <button
-            type="button"
-            key={item.platform_code}
-            onClick={() => onSelect?.(item.platform_code)}
-            style={{ '--sales-delay': `${index * 70}ms` }}
-            title={`Filtrar anúncios sem venda por ${item.platform_label}`}
-          >
+          <div key={item.platform_code} className="sales-evidence-row" style={{ '--sales-delay': `${index * 70}ms` }}>
             <div>
               <span><i style={{ background: PLATFORM_COLORS[item.platform_code] || '#64748b' }} />{item.platform_label}</span>
-              <strong>{brNumber(item.count)}</strong>
+              <strong>{brNumber(item.items)} SKUs</strong>
             </div>
-            <em><i style={{ width: `${Math.max(3, Number(item.count || 0) / max * 100)}%` }} /></em>
-          </button>
+            <em><i style={{ width: `${Math.max(3, Number(item.items || 0) / max * 100)}%` }} /></em>
+            <small>{brNumber(item.orders)} pedidos · {brCurrency(item.revenue)}</small>
+          </div>
         ))}
-        {!rows.length && <div className="sales-side-empty">Nenhuma plataforma sem venda neste filtro.</div>}
+        {!rows.length && (
+          <div className="sales-side-empty">
+            Nenhum dos anúncios sem venda tem o mesmo SKU vendendo em outra plataforma no período.
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
-function NoSalesPriorityCard({ insights }) {
-  const rows = Array.isArray(insights?.priorities) ? insights.priorities : [];
+function NoSalesDecisionCard({ insights }) {
+  const rows = Array.isArray(insights?.action_groups) ? insights.action_groups : [];
   const total = Number(insights?.total || 0);
-  const colorByPriority = { ALTA: '#e45757', MEDIA: '#e8a51d', BAIXA: '#4a8de6' };
+  const colorByKey = {
+    REVISAR_DESATIVACAO: '#df4f4f',
+    OTIMIZAR_ANUNCIO: '#e5a21c',
+    JA_VENDEU_ANTES: '#4187df'
+  };
+
   let cursor = 0;
   const segments = rows.map(item => {
     const count = Number(item.count || 0);
     const share = total > 0 ? count / total * 100 : 0;
     const start = cursor;
     cursor += share;
-    return { ...item, count, share, start, end: cursor, color: colorByPriority[item.priority] || '#64748b' };
+    return { ...item, count, share, start, end: cursor, color: colorByKey[item.key] || '#64748b' };
   });
 
   return (
     <section className="sales-side-card sales-no-sales-priority-card">
       <div className="sales-side-head">
-        <div><span className="sales-side-icon">!</span><strong>Prioridade de revisão</strong></div>
+        <div><span className="sales-side-icon">◎</span><strong>Sinal para decisão</strong></div>
       </div>
+
       <div className="sales-no-sales-priority-content">
         <div className="sales-no-sales-donut-wrap">
-          <svg viewBox="0 0 120 120" role="img" aria-label="Prioridade de revisão dos anúncios sem venda">
+          <svg viewBox="0 0 120 120" role="img" aria-label="Sinal de decisão dos anúncios sem venda">
             <circle cx="60" cy="60" r="46" className="sales-donut-track" />
             {segments.map((item, index) => (
               <circle
-                key={item.priority}
+                key={item.key}
                 cx="60"
                 cy="60"
                 r="46"
@@ -547,14 +562,14 @@ function NoSalesPriorityCard({ insights }) {
             ))}
           </svg>
           <div>
-            <strong>{brNumber(insights?.review_first || 0)}</strong>
-            <span>revisar primeiro</span>
+            <strong>{brNumber(insights?.review_for_deactivation || 0)}</strong>
+            <span>candidatos fortes</span>
           </div>
         </div>
 
         <div className="sales-no-sales-priority-list">
           {segments.map(item => (
-            <div key={item.priority}>
+            <div key={item.key}>
               <span><i style={{ background: item.color }} />{item.label}</span>
               <strong>{brNumber(item.count)}</strong>
               <small>{brPercent(item.share)}%</small>
@@ -562,20 +577,25 @@ function NoSalesPriorityCard({ insights }) {
           ))}
         </div>
       </div>
-      <div className="sales-no-sales-rule">
-        <strong>Regra usada</strong>
-        <span><b>Alta:</b> nunca vendeu na base disponível ou está há 4+ períodos sem venda.</span>
-        <span><b>Média:</b> 2–3 períodos sem venda.</span>
-        <span><b>Baixa:</b> 1 período sem venda.</span>
+
+      <div className="sales-no-sales-rule decision">
+        <strong>Cobertura da análise</strong>
+        <span>
+          Janela filtrada: <b>{monthLabel(insights?.selected_start_period)} → {monthLabel(insights?.selected_end_period)}</b> ({brNumber(insights?.selected_window_periods)} período(s)).
+        </span>
+        <span>
+          Base de vendas disponível desde <b>{monthLabel(insights?.base_start_period)}</b>. “Sem histórico” significa sem venda encontrada dentro dessa base.
+        </span>
       </div>
     </section>
   );
 }
 
-function priorityLabel(value) {
-  if (value === 'ALTA') return 'Revisar primeiro';
-  if (value === 'MEDIA') return 'Acompanhar';
-  return 'Recente';
+function decisionSignalLabel(value) {
+  if (value === 'REVISAR_DESATIVACAO') return 'Candidato forte';
+  if (value === 'OTIMIZAR_ANUNCIO') return 'Melhorar anúncio';
+  if (value === 'JA_VENDEU_ANTES') return 'Já vendeu antes';
+  return 'Revisar';
 }
 
 function ProductAvatar({ item }) {
@@ -738,18 +758,19 @@ export default function CommerceSalesDashboard() {
 
       const exportingNoSales = ['SEM VENDA','SEM_VENDA'].includes(String(filters.status || '').toUpperCase());
       const header = exportingNoSales
-        ? ['Plataforma','SKU','Produto','Última venda','Períodos sem venda','Pedidos históricos','Unidades históricas','Faturamento histórico','Prioridade','Anúncio']
+        ? ['Plataforma','SKU','Produto','Sinal','Vende em outra plataforma','Pedidos em outras plataformas','Faturamento em outras plataformas','Última venda nesta plataforma','Pedidos históricos','Faturamento histórico','Anúncio']
         : ['Plataforma','SKU','Produto','SKU Principal','Pedidos com item','Unidades','Faturamento','Status','Anúncio'];
       const rows = all.map(item => exportingNoSales ? [
         item.platform_label,
         item.sku,
         item.product_name,
-        item.last_sale_period || 'Nunca na base',
-        item.last_sale_period ? item.periods_without_sale : 'Todo o histórico',
+        decisionSignalLabel(item.decision_signal),
+        item.other_platform_labels || '',
+        item.other_platform_orders,
+        Number(item.other_platform_revenue || 0).toFixed(2).replace('.', ','),
+        item.last_sale_period || 'Sem venda encontrada na base',
         item.historical_orders,
-        item.historical_units,
         Number(item.historical_revenue || 0).toFixed(2).replace('.', ','),
-        priorityLabel(item.review_priority),
         item.listing_url || ''
       ] : [
         item.platform_label,
@@ -786,10 +807,10 @@ export default function CommerceSalesDashboard() {
       <section className="sales-kpi-grid">
         {isNoSales ? (
           <>
-            <MetricCard type="revenue" label="Anúncios sem venda" value={noSalesInsights.total} helper="No período filtrado" />
-            <MetricCard type="orders" label="Revisar primeiro" value={noSalesInsights.review_first} helper="Nunca vendeu ou 4+ períodos sem venda" />
-            <MetricCard type="ticket" label="Nunca venderam na base" value={noSalesInsights.never_sold} helper="Sem venda registrada na base disponível" />
-            <MetricCard type="units" label="Já venderam antes" value={noSalesInsights.previously_sold} helper="Têm histórico anterior de venda" />
+            <MetricCard type="revenue" label="Anúncios sem venda" value={noSalesInsights.total} helper="Na plataforma e período filtrados" />
+            <MetricCard type="orders" label="Candidatos fortes" value={noSalesInsights.review_for_deactivation} helper="Sem sinal de venda nesta ou em outra plataforma" />
+            <MetricCard type="ticket" label="Vendem em outra plataforma" value={noSalesInsights.optimize_listing} helper="Produto tem demanda; revisar este anúncio" />
+            <MetricCard type="units" label="Já venderam antes" value={noSalesInsights.sold_before} helper="Têm histórico anterior nesta plataforma" />
           </>
         ) : (
           <>
@@ -879,20 +900,17 @@ export default function CommerceSalesDashboard() {
             <div className="sales-panel sales-no-sales-chart-panel">
               <div className="sales-panel-head">
                 <div>
-                  <h3>Tempo sem vender</h3>
-                  <p>Distribuição dos anúncios sem venda pelo tempo de inatividade.</p>
+                  <h3>O que fazer com os anúncios sem venda</h3>
+                  <p>O sistema cruza histórico nesta plataforma e venda do mesmo SKU nas outras plataformas.</p>
                 </div>
-                <div className="sales-no-sales-mode-badge">Análise para revisão</div>
+                <div className="sales-no-sales-mode-badge">Análise para decisão</div>
               </div>
-              <NoSalesInactivityChart insights={noSalesInsights} />
+              <NoSalesDecisionChart insights={noSalesInsights} />
             </div>
 
             <aside className="sales-insights-column">
-              <NoSalesPlatformCard
-                insights={noSalesInsights}
-                onSelect={platform => applySelectFilter('platform', platform)}
-              />
-              <NoSalesPriorityCard insights={noSalesInsights} />
+              <CrossPlatformEvidenceCard insights={noSalesInsights} />
+              <NoSalesDecisionCard insights={noSalesInsights} />
             </aside>
           </>
         ) : (
@@ -945,10 +963,10 @@ export default function CommerceSalesDashboard() {
                   <th>Produto</th>
                   <th>SKU</th>
                   <th>Plataforma</th>
-                  <th>Última venda</th>
-                  <th>Sem vender</th>
-                  <th>Histórico anterior</th>
-                  <th>Prioridade</th>
+                  <th>Sinal</th>
+                  <th>Vende em outra plataforma</th>
+                  <th>Histórico nesta plataforma</th>
+                  <th>Evidência</th>
                   <th>Anúncio</th>
                 </tr>
               ) : (
@@ -969,39 +987,54 @@ export default function CommerceSalesDashboard() {
                 isNoSales ? (
                   <tr
                     key={`${item.platform_code}-${item.sku}-${index}`}
-                    className={`no-sale priority-${String(item.review_priority || 'BAIXA').toLowerCase()}`}
+                    className={`no-sale decision-${String(item.decision_signal || 'REVISAR').toLowerCase()}`}
                   >
                     <td className="product">
                       <div className="sales-product-cell">
                         <ProductAvatar item={item} />
                         <div>
                           <strong>{item.product_name || 'Produto sem nome'}</strong>
-                          <small>{item.last_sale_period ? 'Já teve venda anteriormente' : 'Sem venda registrada na base disponível'}</small>
+                          <small>{item.decision_signal === 'OTIMIZAR_ANUNCIO'
+  ? 'O mesmo SKU vende em outra plataforma'
+  : item.last_sale_period
+    ? 'Já vendeu nesta plataforma antes do período'
+    : 'Sem venda encontrada nesta plataforma dentro da base disponível'}</small>
                         </div>
                       </div>
                     </td>
                     <td><code>{item.sku || '—'}</code></td>
                     <td><span className={`platform-tag ${String(item.platform_code || '').toLowerCase()}`}>{item.platform_label}</span></td>
                     <td>
-                      <strong className="sales-last-sale">{item.last_sale_period ? monthLabel(item.last_sale_period) : 'Nunca na base'}</strong>
-                    </td>
-                    <td>
-                      <span className="sales-inactivity-period">
-                        {item.last_sale_period ? `${brNumber(item.periods_without_sale)} período(s)` : 'Todo o histórico'}
+                      <span
+                        className={`sales-decision-signal ${String(item.decision_signal || 'REVISAR').toLowerCase()}`}
+                        title={noSalesInsights.criteria?.[item.decision_signal] || ''}
+                      >
+                        {decisionSignalLabel(item.decision_signal)}
                       </span>
                     </td>
                     <td>
+                      {Number(item.other_platform_orders || 0) > 0 ? (
+                        <div className="sales-cross-platform-cell">
+                          <strong>{item.other_platform_labels || 'Outra plataforma'}</strong>
+                          <small>{brNumber(item.other_platform_orders)} pedidos · {brCurrency(item.other_platform_revenue)}</small>
+                        </div>
+                      ) : (
+                        <span className="sales-muted-evidence">Sem venda do mesmo SKU</span>
+                      )}
+                    </td>
+                    <td>
                       <div className="sales-history-before">
-                        <strong>{brNumber(item.historical_orders)} pedidos</strong>
-                        <small>{brCurrency(item.historical_revenue)}</small>
+                        <strong>{item.last_sale_period ? monthLabel(item.last_sale_period) : 'Sem venda encontrada'}</strong>
+                        <small>{brNumber(item.historical_orders)} pedidos · {brCurrency(item.historical_revenue)}</small>
                       </div>
                     </td>
                     <td>
-                      <span
-                        className={`sales-review-priority ${String(item.review_priority || 'BAIXA').toLowerCase()}`}
-                        title={noSalesInsights.criteria?.[item.review_priority] || ''}
-                      >
-                        {priorityLabel(item.review_priority)}
+                      <span className="sales-evidence-summary">
+                        {item.decision_signal === 'REVISAR_DESATIVACAO'
+                          ? 'Sem evidência de demanda'
+                          : item.decision_signal === 'OTIMIZAR_ANUNCIO'
+                            ? 'Demanda existe em outra plataforma'
+                            : 'Histórico anterior de venda'}
                       </span>
                     </td>
                     <td>{item.listing_url ? <a href={item.listing_url} target="_blank" rel="noreferrer">Abrir anúncio</a> : '—'}</td>
