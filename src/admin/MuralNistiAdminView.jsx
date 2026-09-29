@@ -238,6 +238,8 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
   const [form,setForm]=useState({name:item?.name||'',slug:item?.slug||'',year:item?.year||'',description:item?.description||'',status:item?.status||'active'});
   const [selected,setSelected]=useState(()=>String(item?.product_ids||'').split(',').map(Number).filter(id=>Number.isInteger(id)&&id>0));
   const [image,setImage]=useState(null);
+  const [storedImageKey,setStoredImageKey]=useState(item?.image_key||'');
+  const [imageUrl,setImageUrl]=useState(item?.image_key ? `/api/admin/mural/collections/${item.id}/image?v=${encodeURIComponent(item.image_key)}` : '');
   const [query,setQuery]=useState('');
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
@@ -249,6 +251,29 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
     const next=[...current];[next[index],next[target]]=[next[target],next[index]];return next;
   });
   const selectedProducts=selected.map(id=>products.find(product=>product.id===id)).filter(Boolean);
+  useEffect(()=>()=>{if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl)},[imageUrl]);
+  const chooseBanner=async file=>{
+    setError('');
+    if(!file)return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){setError('Use JPEG, PNG ou WebP.');return}
+    try{
+      const prepared=await compressImage(file);
+      if(prepared.size>5*1024*1024)throw new Error('A imagem final excede 5 MB.');
+      if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
+      setImage(prepared);setImageUrl(URL.createObjectURL(prepared));
+    }catch(err){setError(err.message)}
+  };
+  const removeBanner=async()=>{
+    setError('');
+    if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
+    setImage(null);
+    if(!item?.id||!storedImageKey){setImageUrl('');return}
+    setBusy(true);
+    try{
+      await request(`/api/admin/mural/collections/${item.id}/image`,{method:'DELETE'});
+      setStoredImageKey('');setImageUrl('');
+    }catch(err){setError(err.message)}finally{setBusy(false)}
+  };
   const save=async()=>{
     setBusy(true);setError('');
     try{
@@ -256,14 +281,15 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
       const data=await request(item?`/api/admin/mural/collections/${item.id}`:'/api/admin/mural/collections',opts);
       const id=item?.id||data.id;
       await request(`/api/admin/mural/collections/${id}/products`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({product_ids:selected})});
-      if(image){const prepared=await compressImage(image);if(prepared.size>5*1024*1024)throw new Error('A imagem final excede 5 MB.');const fd=new FormData();fd.append('image',prepared);await request(`/api/admin/mural/collections/${id}/image`,{method:'POST',body:fd});}
+      if(image){const fd=new FormData();fd.append('image',image);await request(`/api/admin/mural/collections/${id}/image`,{method:'POST',body:fd});}
       await onSaved();onClose();
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
   return <div className="mural-admin-modal" role="dialog" aria-modal="true"><div className="mural-admin-editor compact"><header><h2>{item?'Editar coleção':'Nova coleção'}</h2><button onClick={onClose}>×</button></header><div className="mural-admin-collection-form">
     <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><div className="mural-admin-inline"><label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label><label>Ano<input type="number" value={form.year} onChange={e=>setForm({...form,year:e.target.value})}/></label></div>
     <label>Descrição<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
-    <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setImage(e.target.files?.[0]||null)}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
+    <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
+    {imageUrl&&<div className="mural-admin-banner-preview"><img src={imageUrl} alt={form.name||'Banner da coleção'}/><button type="button" disabled={busy} onClick={removeBanner}>Remover banner</button></div>}
     {item&&<label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
     <label>Produtos<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
     {selectedProducts.length>0&&<div className="mural-admin-selected-products" aria-label="Ordem editorial dos produtos"><strong>Ordem editorial</strong>{selectedProducts.map((p,index)=><div key={p.id}><span>{index+1}. {p.sku} · {p.nome||'Produto NISTI'}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}</div>}
