@@ -8,11 +8,27 @@ test('Painel de Vendas está disponível na navegação comercial', () => {
   const app = read('src/commerce-admin-app-v2.jsx');
   assert.equal(app.includes("{ id: 'sales', label: 'Vendas', icon: 'chart' }"), true);
   assert.equal(app.includes("<CommerceSalesDashboard key={salesRevision} />"), true);
+  assert.equal(app.includes("sales: 'Painel de Vendas'"), true);
 });
 
-test('Painel de Vendas preserva filtros e indicadores da planilha', () => {
+test('Painel de Vendas usa o layout comercial aprovado', () => {
   const ui = read('src/commerce-sales-dashboard.jsx');
-  for (const text of ['Plataforma','Mês inicial','Mês final','Status de venda','SKU (opcional)','Pedidos líquidos','Unidades vendidas','Faturamento produto','Anúncios com venda','Vendas por item','Histórico mensal']) {
+  for (const text of [
+    'Faturamento',
+    'Pedidos',
+    'Unidades',
+    'Ticket médio',
+    'Filtros de vendas',
+    'Plataforma',
+    'Período inicial',
+    'Período final',
+    'Buscar SKU ou produto',
+    'Evolução de vendas',
+    'Resumo por plataforma',
+    'Participação de vendas',
+    'Vendas por produto',
+    'Exportar'
+  ]) {
     assert.equal(ui.includes(text), true, text);
   }
   assert.equal(ui.includes('SEM VENDA'), true);
@@ -22,7 +38,10 @@ test('Painel de Vendas preserva filtros e indicadores da planilha', () => {
   assert.equal(ui.includes("applySelectFilter('periodEnd'"), true);
   assert.equal(ui.includes("applySelectFilter('status'"), true);
   assert.equal(ui.includes('requestIdRef'), true);
-  assert.equal(ui.includes('Abrir anúncio'), true);
+  assert.equal(ui.includes('exportFiltered'), true);
+  assert.equal(ui.includes('PlatformSummary'), true);
+  assert.equal(ui.includes('ParticipationCard'), true);
+  assert.equal(ui.includes('SalesChart'), true);
 });
 
 test('API e banco usam a base normalizada de vendas', () => {
