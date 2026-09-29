@@ -89,3 +89,17 @@ test('collection posts fall back to the active collection banner when no post im
 test('admin product search exposes the same derived type used by the operator card',()=>{
   assert.match(router,/type:productTypeLabel\(row\)/);
 });
+
+test('editing an existing product post hydrates image type and finish preview from current product data',()=>{
+  assert.match(router,/product_image_url:/);
+  assert.match(router,/product_wireo:labels\.wireo/);
+  assert.match(router,/product_tassel:labels\.tassel/);
+  assert.match(router,/product_elastico:labels\.elastico/);
+  assert.match(admin,/image_url:sourceItem\.product_image_url/);
+  assert.match(admin,/wireo:sourceItem\.product_wireo/);
+});
+
+test('admin collection list returns product ids in persisted sort_order',()=>{
+  assert.match(router,/SELECT product_id[\s\S]*WHERE collection_id=mc\.id[\s\S]*ORDER BY sort_order ASC,product_id ASC/);
+  assert.match(router,/GROUP_CONCAT\(ordered\.product_id\)/);
+});
