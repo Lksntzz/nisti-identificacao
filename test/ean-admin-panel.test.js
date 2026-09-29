@@ -155,3 +155,27 @@ test('plataformas do NISTI exigem evidência real de anúncio e preferem a fonte
   assert.match(migration, /%_GESTAO/);
   assert.match(migration, /preferred_files/);
 });
+
+
+test('histórico de bipagens usa paginação real no backend e na interface', () => {
+  assert.match(router, /const offset = Math\.max\(0/);
+  assert.match(router, /SELECT COUNT\(\*\) AS total/);
+  assert.match(router, /LIMIT \? OFFSET \?/);
+  assert.match(router, /total: Number\(countRow\?\.total/);
+  assert.match(gtinEvents, /HISTORY_PAGE_SIZE = 25/);
+  assert.match(gtinEvents, /admin-pagination/);
+  assert.match(gtinEvents, /Mostrando \{firstItem\}–\{lastItem\}/);
+  assert.match(gtinEvents, /Anterior/);
+  assert.match(gtinEvents, /Próxima/);
+});
+
+test('gerador de barras pagina produtos e coleções sem perder seleção', () => {
+  assert.match(barcodeGen, /BARCODE_PRODUCT_PAGE_SIZE = 20/);
+  assert.match(barcodeGen, /BARCODE_COLLECTION_PAGE_SIZE = 12/);
+  assert.match(barcodeGen, /pagedRows/);
+  assert.match(barcodeGen, /pagedCollections/);
+  assert.match(barcodeGen, /admin-pagination barcode-pagination/);
+  assert.match(barcodeGen, /Selecionar exibidos/);
+  assert.match(barcodeGen, /productTotalPages/);
+  assert.match(barcodeGen, /collectionTotalPages/);
+});
