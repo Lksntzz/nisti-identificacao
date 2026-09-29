@@ -23,14 +23,15 @@ function toLocalInput(value) {
   return local.toISOString().slice(0, 16);
 }
 
-function postForm(row = EMPTY_POST) {
+function postForm(row) {
+  const source = row ?? EMPTY_POST;
   return {
-    ...EMPTY_POST, ...row,
-    product_id: row.product_id || '',
-    collection_id: row.collection_id || '',
-    featured: Boolean(row.featured),
-    published_at: toLocalInput(row.published_at),
-    expires_at: toLocalInput(row.expires_at)
+    ...EMPTY_POST, ...source,
+    product_id: source.product_id || '',
+    collection_id: source.collection_id || '',
+    featured: Boolean(source.featured),
+    published_at: toLocalInput(source.published_at),
+    expires_at: toLocalInput(source.expires_at)
   };
 }
 
