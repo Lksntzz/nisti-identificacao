@@ -2,6 +2,7 @@ import app from './core-router.js';
 import { readRecognitionEvents, readRecognitionMetrics, readOperatorStats } from './recognition-metrics.js';
 import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
 import { supabaseRpc } from './supabase-read-store.js';
+import { explicitUtcTimestamp } from './date-time.js';
 
 const TIMEZONE = 'America/Sao_Paulo';
 const EMBEDDING_DIMENSIONS = 768;
@@ -338,7 +339,7 @@ async function handleSystemHealth(env, { force = false } = {}) {
           gtin: row.gtin || null,
           operator_name: row.operator_name || null,
           response_ms: Number(row.response_ms || 0),
-          created_at: row.created_at || null
+          created_at: explicitUtcTimestamp(row.created_at) || null
         }))
       };
     } catch (error) {
