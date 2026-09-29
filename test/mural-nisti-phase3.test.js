@@ -46,8 +46,9 @@ test('image upload is constrained and server generates the R2 key',()=>{
 
 test('collections preserve ordered product membership and are reachable from admin nav',()=>{
   assert.match(router,/sort_order/);
-  assert.match(router,/GROUP_CONCAT\(ordered\.product_id\)/);
-  assert.match(router,/ORDER BY sort_order ASC,product_id ASC/);
+  assert.match(router,/SELECT collection_id,product_id,sort_order/);
+  assert.match(router,/ORDER BY collection_id ASC,sort_order ASC,product_id ASC/);
+  assert.match(router,/product_ids:productIds\.join\(','\)/);
   assert.match(router,/env\.DB\.batch\(statements\)/);
   assert.ok(nav.includes("id: 'mural-nisti'"));
 });
