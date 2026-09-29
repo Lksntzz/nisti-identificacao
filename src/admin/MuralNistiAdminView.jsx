@@ -113,7 +113,17 @@ function PostEditor({ item, collections, onClose, onSaved }) {
   const [form, setForm] = useState(() => postForm(sourceItem));
   const [products, setProducts] = useState([]);
   const [productQuery, setProductQuery] = useState(sourceItem?.product_sku || '');
-  const [selectedProduct, setSelectedProduct] = useState(sourceItem?.product_id ? { id:sourceItem.product_id, sku:sourceItem.product_sku, nome:sourceItem.product_name } : null);
+  const [selectedProduct, setSelectedProduct] = useState(sourceItem?.product_id ? {
+    id:sourceItem.product_id,
+    sku:sourceItem.product_sku,
+    nome:sourceItem.product_name,
+    miolo_code:sourceItem.product_miolo_code,
+    type:sourceItem.product_type,
+    image_url:sourceItem.product_image_url,
+    wireo:sourceItem.product_wireo,
+    tassel:sourceItem.product_tassel,
+    elastico:sourceItem.product_elastico
+  } : null);
   const [image, setImage] = useState(null);
   const [imageUrl, setImageUrl] = useState(sourceItem?.image_key ? `/api/admin/mural/posts/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}` : '');
   const [busy, setBusy] = useState(false);
