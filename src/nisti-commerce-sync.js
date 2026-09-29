@@ -193,6 +193,21 @@ export async function nistiCommerceSyncStatus(env) {
 
 export async function nistiCommerceProductStatuses(env) {
   if (isPreview(env)) return [];
-  const rows = await supabaseRpc(env, 'commerce_nisti_product_statuses_v1', {});
-  return Array.isArray(rows) ? rows : [];
+
+  const [rows, platformRows] = await Promise.all([
+    supabaseRpc(env, 'commerce_nisti_product_statuses_v1', {}),
+    supabaseRpc(env, 'commerce_nisti_product_platforms_v1', {})
+  ]);
+
+  const platformsByProduct = new Map(
+    (Array.isArray(platformRows) ? platformRows : []).map(item => [
+      Number(item.nisti_product_id),
+      Array.isArray(item.platforms) ? item.platforms : []
+    ])
+  );
+
+  return (Array.isArray(rows) ? rows : []).map(row => ({
+    ...row,
+    platforms: platformsByProduct.get(Number(row.nisti_product_id)) || []
+  }));
 }
