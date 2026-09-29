@@ -208,23 +208,6 @@ function AdminSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar })
           </div>
         </div>
 
-        <div className="sidebar-highlight-wrap">
-          <a
-            href="/"
-            className="sidebar-highlight-btn"
-            target="_blank"
-            rel="noreferrer"
-            title="Abrir o painel operacional em uma nova aba"
-          >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 3h7v7" />
-              <path d="M10 14 21 3" />
-              <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
-            </svg>
-            <span>Abrir NISTI ID</span>
-          </a>
-        </div>
-
         <nav className="sidebar-nav">
           {ADMIN_MENU_SECTIONS.map(section => (
             <div key={section.title} className="sidebar-section">
