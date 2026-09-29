@@ -130,7 +130,8 @@ async function adminGtinEvents(url, env) {
   const requestedStatus = String(url.searchParams.get('status') || '').trim();
   const status = GTIN_EVENT_STATUSES.has(requestedStatus) ? requestedStatus : '';
   const query = String(url.searchParams.get('q') || '').trim().slice(0, 80);
-  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 150)));
+  const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') || 25)));
+  const offset = Math.max(0, Math.min(100000, Number(url.searchParams.get('offset') || 0)));
   const clauses = [];
   const bindings = [];
   if (status) {
@@ -146,7 +147,14 @@ async function adminGtinEvents(url, env) {
     const pattern = `%${query}%`;
     bindings.push(pattern, pattern, pattern, pattern);
   }
-  bindings.push(limit);
+
+  const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const countRow = await env.DB.prepare(`
+    SELECT COUNT(*) AS total
+    FROM gtin_scan_events e
+    LEFT JOIN products p ON p.id=e.product_id
+    ${whereSql}
+  `).bind(...bindings).first();
 
   const { results } = await env.DB.prepare(`
     SELECT
@@ -155,12 +163,15 @@ async function adminGtinEvents(url, env) {
       p.sku,p.nome,p.variacao,p.capa_code,p.image_key
     FROM gtin_scan_events e
     LEFT JOIN products p ON p.id=e.product_id
-    ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
+    ${whereSql}
     ORDER BY e.id DESC
-    LIMIT ?
-  `).bind(...bindings).all();
+    LIMIT ? OFFSET ?
+  `).bind(...bindings, limit, offset).all();
 
   return json({
+    total: Number(countRow?.total || 0),
+    limit,
+    offset,
     events: (results || []).map(row => ({
       ...row,
       id: Number(row.id),
