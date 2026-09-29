@@ -4,6 +4,7 @@ import { handleCommerceUpdateAdminRequest } from './commerce-update-admin-router
 import { handleCommerceListingStateRequest } from './commerce-listing-state-router.js';
 import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
 import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
+import { handleMuralRequest } from './mural-router.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
 const SESSION_SECONDS = 60 * 60 * 12;
@@ -139,6 +140,9 @@ export default {
     if (isProtectedApi(pathname) && !(await validSession(request, env))) {
       return json({ error: 'Acesso administrativo não autorizado.' }, 401);
     }
+
+    const muralResponse = await handleMuralRequest(request, env);
+    if (muralResponse) return muralResponse;
 
     const listingEditorResponse = await handleCommerceListingEditorRequest(request, env);
     if (listingEditorResponse) return listingEditorResponse;
