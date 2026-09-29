@@ -202,12 +202,15 @@ function ProductDetailIcon({ type }) {
 function ProductSummary({ gtin, product, continuous = false }) {
   if (!product) return null;
 
-  const details = [
-    { label: 'Wire-o', value: product.wireo || product.wireo_code, icon: 'wireo', priority: 'primary' },
-    { label: 'Tassel', value: product.tassel || product.tassel_code, icon: 'tassel', priority: 'primary' },
-    { label: 'Elástico', value: product.elastico || product.elastico_code, icon: 'elastic', priority: 'primary' },
-    { label: 'Capa', value: product.capa_code, icon: 'cover', priority: 'secondary' },
-    { label: 'Variação', value: product.variacao, icon: 'variation', priority: 'secondary' }
+  const primaryDetails = [
+    { label: 'Wire-o', value: product.wireo || product.wireo_code, icon: 'wireo' },
+    { label: 'Tassel', value: product.tassel || product.tassel_code, icon: 'tassel' },
+    { label: 'Elástico', value: product.elastico || product.elastico_code, icon: 'elastic' }
+  ].filter(item => item.value);
+
+  const secondaryDetails = [
+    { label: 'Capa', value: product.capa_code, icon: 'cover' },
+    { label: 'Variação', value: product.variacao, icon: 'variation' }
   ].filter(item => item.value);
 
   const productType = productTypeLabel(product);
@@ -223,32 +226,46 @@ function ProductSummary({ gtin, product, continuous = false }) {
       </div>
 
       <div className="gtin-result-content">
-        {product.image_url && (
-          <div className="gtin-result-image-frame">
-            <span className="gtin-result-image-label">Capa do produto</span>
-            <img className="gtin-result-image" src={product.image_url} alt={product.sku || gtin} />
-          </div>
-        )}
+        <div className="gtin-result-product-main">
+          {product.image_url && (
+            <div className="gtin-result-image-frame">
+              <span className="gtin-result-image-label">Capa do produto</span>
+              <img className="gtin-result-image" src={product.image_url} alt={product.sku || gtin} />
+            </div>
+          )}
 
-        <div className="gtin-result-copy">
-          <div className="gtin-result-heading">
-            <span className="gtin-result-type-label">Tipo do produto</span>
-            <h3>{productType}</h3>
-            <p className="gtin-result-sku">SKU {product.sku || '—'}</p>
-          </div>
+          <div className="gtin-result-copy">
+            <div className="gtin-result-heading">
+              <span className="gtin-result-type-label">Tipo do produto</span>
+              <h3>{productType}</h3>
+              <p className="gtin-result-sku">SKU {product.sku || '—'}</p>
+            </div>
 
-          <dl className="gtin-result-details">
-            {details.map(item => (
-              <div className={`gtin-result-detail ${item.priority === 'primary' ? 'is-priority' : 'is-secondary'}`} key={item.label}>
-                <dt>
-                  <span className="gtin-result-detail-icon"><ProductDetailIcon type={item.icon} /></span>
-                  <span>{item.label}</span>
-                </dt>
-                <dd>{item.value}</dd>
-              </div>
-            ))}
-          </dl>
+            <dl className="gtin-result-secondary-details">
+              {secondaryDetails.map(item => (
+                <div className="gtin-result-detail is-secondary" key={item.label}>
+                  <dt>
+                    <span className="gtin-result-detail-icon"><ProductDetailIcon type={item.icon} /></span>
+                    <span>{item.label}</span>
+                  </dt>
+                  <dd>{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </div>
+
+        <dl className="gtin-result-priority-details" aria-label="Acabamentos principais">
+          {primaryDetails.map(item => (
+            <div className="gtin-result-detail is-priority" key={item.label}>
+              <dt>
+                <span className="gtin-result-detail-icon"><ProductDetailIcon type={item.icon} /></span>
+                <span>{item.label}</span>
+              </dt>
+              <dd>{item.value}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </article>
   );
