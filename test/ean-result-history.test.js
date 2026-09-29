@@ -6,10 +6,11 @@ const scannerSource = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx',
 const scannerStyles = fs.readFileSync(new URL('../src/gtin-scanner.css', import.meta.url), 'utf8');
 
 test('EAN result uses compact professional cards for product metadata', () => {
-  assert.match(scannerSource, /gtin-result-details/);
+  assert.match(scannerSource, /gtin-result-priority-details/);
+  assert.match(scannerSource, /gtin-result-secondary-details/);
   assert.match(scannerSource, /gtin-result-detail/);
   assert.match(scannerStyles, /\.gtin-result-detail \{/);
-  assert.match(scannerStyles, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
+  assert.match(scannerStyles, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(scannerStyles, /border-radius: 11px/);
   assert.match(scannerStyles, /background: #fbfdff/);
 });
