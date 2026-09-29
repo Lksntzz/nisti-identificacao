@@ -484,7 +484,7 @@ async function serveEditorialImage(key, env) {
 
 async function adminListCollections(env) {
   const { results } = await env.DB.prepare(`
-    SELECT mc.*,COUNT(mcp.product_id) AS product_count
+    SELECT mc.*,COUNT(mcp.product_id) AS product_count,GROUP_CONCAT(mcp.product_id) AS product_ids
     FROM mural_collections mc
     LEFT JOIN mural_collection_products mcp ON mcp.collection_id=mc.id
     GROUP BY mc.id
