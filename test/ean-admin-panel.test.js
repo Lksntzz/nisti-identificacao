@@ -14,12 +14,14 @@ const expeditionDashboard = fs.readFileSync(new URL('../src/admin/ExpeditionDash
 const productsWithoutGtinView = fs.readFileSync(new URL('../src/admin/ProductsWithoutGtinView.jsx', import.meta.url), 'utf8');
 const catalogView = fs.readFileSync(new URL('../src/admin/CatalogView.jsx', import.meta.url), 'utf8');
 
-test('EAN admin exposes registry, history and uncatalogued-code operations', () => {
-  assert.match(gtinRegistry + main, /function GtinRegistryView/);
+test('EAN admin mantém gerador, histórico e operações sem a tela duplicada de Códigos EAN', () => {
   assert.match(gtinEvents + main, /function GtinEventsView/);
   assert.match(main, /ProductGtinManager/);
+  assert.match(main, /activeView === 'gerador-barras'/);
   assert.match(main, /activeView === 'historico-ean'/);
   assert.match(main, /activeView === 'ean-nao-cadastrados'/);
+  assert.doesNotMatch(main, /activeView === 'gtins'/);
+  assert.doesNotMatch(main, /GtinRegistryView/);
 });
 
 test('scanner records central EAN events for the admin history', () => {
@@ -94,4 +96,19 @@ test('catalog missing EAN filter uses the active GTIN relationship', () => {
   assert.match(catalogView, /!p\.has_active_gtin/);
   assert.doesNotMatch(catalogView, /!p\.capa_code && !p\.gtin/);
   assert.match(catalogView, /Apenas sem EAN/);
+});
+
+
+test('cadastro manual de produto não pede plataforma nem link de anúncio', () => {
+  const start = main.indexOf('function CreateProductModal');
+  const end = main.indexOf('function EditProductModal');
+  assert.ok(start >= 0 && end > start);
+  const createModal = main.slice(start, end);
+
+  assert.match(createModal, /Nome do Produto Pai/);
+  assert.match(createModal, /Plataformas e anúncios são vinculados automaticamente pelo Catálogo Comercial/);
+  assert.doesNotMatch(createModal, /Plataforma Padrão/);
+  assert.doesNotMatch(createModal, /Link do Anúncio/);
+  assert.doesNotMatch(createModal, /platform: platform/);
+  assert.doesNotMatch(createModal, /link: link/);
 });
