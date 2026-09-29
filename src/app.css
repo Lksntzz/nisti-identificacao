@@ -4755,3 +4755,84 @@ button.kpi-box {
   .ean-viewport .operator-name-label { max-width:60px; }
   .ean-viewport .brand-main-title { font-size:11px; }
 }
+
+
+/* iPhone operator header hotfix: keep brand and controls in isolated, non-overlapping columns. */
+@media (max-width: 640px) {
+  .ean-viewport .brand-topbar {
+    display:grid;
+    grid-template-columns:minmax(112px,1fr) auto;
+    column-gap:8px;
+    align-items:center;
+    width:100%;
+  }
+  .ean-viewport .brand-identity {
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+    gap:7px;
+  }
+  .ean-viewport .brand-icon-mark {
+    width:34px;
+    height:34px;
+    flex:0 0 34px;
+  }
+  .ean-viewport .brand-titles {
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+  }
+  .ean-viewport .brand-main-title {
+    display:block;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:10.5px;
+    line-height:1.05;
+  }
+  .ean-viewport .brand-subtext {
+    display:block;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:7px;
+    line-height:1.05;
+    letter-spacing:.035em;
+  }
+  .ean-viewport .header-actions {
+    min-width:0;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:4px;
+  }
+  .ean-viewport .operator-profile-pill {
+    min-width:0;
+    max-width:96px;
+    padding:3px 6px 3px 4px;
+  }
+  .ean-viewport .operator-name-label {
+    max-width:50px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .ean-viewport .mural-nav-btn {
+    min-width:54px;
+    min-height:36px;
+    padding:0 7px;
+    font-size:10px;
+  }
+  .ean-viewport .bell-circle-btn {
+    width:36px;
+    height:36px;
+    flex:0 0 36px;
+  }
+}
+@media (max-width: 370px) {
+  .ean-viewport .brand-subtext { display:none; }
+  .ean-viewport .operator-profile-pill { max-width:90px; }
+  .ean-viewport .operator-name-label { max-width:44px; }
+}
