@@ -7,7 +7,7 @@ const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'ut
 test('Painel de Vendas está disponível na navegação comercial', () => {
   const app = read('src/commerce-admin-app-v2.jsx');
   assert.equal(app.includes("{ id: 'sales', label: 'Vendas', icon: 'chart' }"), true);
-  assert.equal(app.includes("<CommerceSalesDashboard />"), true);
+  assert.equal(app.includes("<CommerceSalesDashboard key={salesRevision} />"), true);
 });
 
 test('Painel de Vendas preserva filtros e indicadores da planilha', () => {
