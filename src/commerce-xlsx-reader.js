@@ -5,10 +5,22 @@ import { extractCommerceXlsxHyperlinks, hyperlinksForRow } from './commerce-xlsx
 export const COMMERCE_XLSX_MAX_BYTES = 25 * 1024 * 1024;
 export const COMMERCE_XLSX_MAX_ROWS = 50000;
 
+const SUPPORTED_MARKETPLACES = new Set([
+  'SHOPEE',
+  'MERCADO_LIVRE',
+  'AMAZON',
+  'SHEIN',
+  'LOJA_INTEGRADA',
+  'KWAI',
+  'TIKTOK',
+  'ALIEXPRESS',
+  'MAGALU'
+]);
+
 function cleanMarketplace(value) {
   const token = String(value || '').trim().toUpperCase();
-  if (token === 'SHOPEE' || token === 'MERCADO_LIVRE') return token;
-  throw new Error('Selecione Shopee ou Mercado Livre antes de ler o arquivo.');
+  if (SUPPORTED_MARKETPLACES.has(token)) return token;
+  throw new Error('Selecione uma plataforma válida antes de ler o arquivo.');
 }
 
 function validateFile(file) {
