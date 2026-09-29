@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './commerce-sales-dashboard.css';
 
 const PAGE_SIZE = 100;
@@ -75,14 +75,18 @@ export default function CommerceSalesDashboard() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const requestIdRef = useRef(0);
 
-  const refresh = useCallback(async (nextOffset = offset, nextFilters = filters) => {
+  const refresh = useCallback(async (nextOffset = 0, nextFilters) => {
+    const requestId = ++requestIdRef.current;
+    const requestedFilters = nextFilters || filters;
     setLoading(true);
     setError('');
     try {
-      const payload = await loadSales(nextFilters, nextOffset);
+      const payload = await loadSales(requestedFilters, nextOffset);
+      if (requestId !== requestIdRef.current) return;
       setData(payload);
-      if (!nextFilters.periodStart || !nextFilters.periodEnd) {
+      if (!requestedFilters.periodStart || !requestedFilters.periodEnd) {
         setFilters(current => ({
           ...current,
           periodStart: current.periodStart || payload.filters?.period_start || '',
@@ -90,21 +94,25 @@ export default function CommerceSalesDashboard() {
         }));
       }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err.message || 'Falha ao carregar vendas.');
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, [filters, offset]);
+  }, [filters]);
 
   useEffect(() => { refresh(0, filters); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const options = data?.options || {};
   const metrics = data?.metrics || {};
   const items = Array.isArray(data?.items) ? data.items : [];
-  const history = filters.status === 'SEM VENDA' ? [] : (Array.isArray(data?.history) ? data.history : []);
+  const appliedFilters = data?.filters || {};
+  const appliedStatus = appliedFilters.status || 'COM VENDA';
+  const appliedPlatform = appliedFilters.platform || 'TODAS';
+  const history = appliedStatus === 'SEM VENDA' ? [] : (Array.isArray(data?.history) ? data.history : []);
   const pagination = data?.pagination || {};
-  const showPlatform = filters.platform === 'TODAS';
-  const isNoSales = filters.status === 'SEM VENDA';
+  const showPlatform = appliedPlatform === 'TODAS';
+  const isNoSales = appliedStatus === 'SEM VENDA';
   const totalPages = Math.max(1, Math.ceil(Number(pagination.total || 0) / PAGE_SIZE));
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
@@ -113,6 +121,30 @@ export default function CommerceSalesDashboard() {
   const apply = () => {
     setOffset(0);
     refresh(0, filters);
+  };
+
+  const applySelectFilter = (name, value) => {
+    let nextFilters = { ...filters, [name]: value };
+
+    if (name === 'periodStart' && nextFilters.periodEnd) {
+      const startIndex = periodOptions.findIndex(item => item.value === value);
+      const endIndex = periodOptions.findIndex(item => item.value === nextFilters.periodEnd);
+      if (startIndex >= 0 && endIndex >= 0 && startIndex > endIndex) {
+        nextFilters = { ...nextFilters, periodEnd: value };
+      }
+    }
+
+    if (name === 'periodEnd' && nextFilters.periodStart) {
+      const startIndex = periodOptions.findIndex(item => item.value === nextFilters.periodStart);
+      const endIndex = periodOptions.findIndex(item => item.value === value);
+      if (startIndex >= 0 && endIndex >= 0 && endIndex < startIndex) {
+        nextFilters = { ...nextFilters, periodStart: value };
+      }
+    }
+
+    setFilters(nextFilters);
+    setOffset(0);
+    refresh(0, nextFilters);
   };
 
   const movePage = nextPage => {
@@ -130,22 +162,22 @@ export default function CommerceSalesDashboard() {
         </div>
         <div className="sales-filter-grid">
           <label>Plataforma
-            <select value={filters.platform} onChange={e => setFilters(v => ({ ...v, platform: e.target.value }))}>
+            <select value={filters.platform} onChange={e => applySelectFilter('platform', e.target.value)} disabled={loading}>
               {(options.platforms || [{value:'TODAS',label:'Todas'}]).map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </label>
           <label>Mês inicial
-            <select value={filters.periodStart} onChange={e => setFilters(v => ({ ...v, periodStart: e.target.value }))}>
+            <select value={filters.periodStart} onChange={e => applySelectFilter('periodStart', e.target.value)} disabled={loading}>
               {periodOptions.map(item => <option key={item.value} value={item.value}>{monthLabel(item.label)}</option>)}
             </select>
           </label>
           <label>Mês final
-            <select value={filters.periodEnd} onChange={e => setFilters(v => ({ ...v, periodEnd: e.target.value }))}>
+            <select value={filters.periodEnd} onChange={e => applySelectFilter('periodEnd', e.target.value)} disabled={loading}>
               {periodOptions.map(item => <option key={item.value} value={item.value}>{monthLabel(item.label)}</option>)}
             </select>
           </label>
           <label>Status de venda
-            <select value={filters.status} onChange={e => setFilters(v => ({ ...v, status: e.target.value }))}>
+            <select value={filters.status} onChange={e => applySelectFilter('status', e.target.value)} disabled={loading}>
               {(options.statuses || ['TODOS','COM VENDA','SEM VENDA']).map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
