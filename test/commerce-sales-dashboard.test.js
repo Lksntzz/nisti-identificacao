@@ -84,74 +84,68 @@ test('Painel de Vendas possui camada de movimento e acessibilidade de interaçã
   }
 });
 
+test('Modo SEM VENDA usa arquitetura por Produto Mestre', () => {
+  const dashboard = read('src/commerce-sales-dashboard.jsx');
+  const performance = read('src/commerce-sales-product-performance.jsx');
+  const css = read('src/commerce-sales-product-performance.css');
+  const router = read('src/commerce-admin-router.js');
+  const store = read('src/commerce-supabase-store.js');
+  const rpc = read('supabase/migrations/20260929150500_commerce_sales_product_performance_v1.sql');
 
-test('Filtro SEM VENDA cruza demanda entre plataformas para apoiar decisão', () => {
-  const ui = read('src/commerce-sales-dashboard.jsx');
-  const css = read('src/commerce-sales-dashboard.css');
-  const rpc = read('supabase/migrations/20260929144515_refine_no_sales_decision_signals.sql');
+  assert.equal(dashboard.includes('CommerceSalesProductPerformance'), true);
+  assert.equal(dashboard.includes("Buscar SKU ou produto"), true);
 
   for (const text of [
-    'Anúncios sem venda',
-    'Candidatos fortes',
+    'Produtos analisados',
+    'Produtos com venda',
+    'Produtos sem venda',
     'Vendem em outra plataforma',
-    'Já venderam antes',
-    'O que fazer com os anúncios sem venda',
-    'Onde o mesmo SKU vende',
-            'Vendem em outra plataforma',
-    'Anúncios para revisar',
-    'Abrir anúncio',
-    'anuncios_sem_venda_nisti.csv'
+    'Desempenho por Produto',
+    'Shopee',
+    'ML Novo',
+    'ML Antigo',
+    'Todas as situações',
+    'Vendeu',
+    'Não vendeu',
+    'Vende em outra plataforma',
+    'Sem anúncio',
+    'Resumo por situação',
+    'Entenda as situações',
+    'Ver anúncios',
+    'Exportar'
   ]) {
-    assert.equal(ui.includes(text), true, text);
+    assert.equal(performance.includes(text), true, text);
   }
 
   for (const token of [
-    '.sales-decision-bars',
-    '.sales-evidence-row',
-    '.sales-decision-signal.revisar_desativacao',
-    '.sales-decision-signal.otimizar_anuncio',
-    '@keyframes sales-no-sales-width'
+    '.spp-summary-grid',
+    '.spp-main-grid',
+    '.spp-table',
+    '.spp-status.sold',
+    '.spp-status.no-sales',
+    '.spp-status.elsewhere',
+    '.spp-status.no-listing',
+    '.spp-donut'
   ]) {
     assert.equal(css.includes(token), true, token);
   }
 
+  assert.equal(router.includes('/sales/product-performance'), true);
+  assert.equal(router.includes('commerceSalesProductPerformance'), true);
+  assert.equal(store.includes('commerce_sales_product_performance_v1'), true);
+
   for (const token of [
-    'no_sales_insights',
-    'cross_platform_sales_by_item',
-    'other_platform_orders',
-    'other_platform_revenue',
-    'decision_signal',
-    'REVISAR_DESATIVACAO',
-    'OTIMIZAR_ANUNCIO',
-    'JA_VENDEU_ANTES'
+    'commerce_products',
+    'commerce_product_skus',
+    'commerce_sales_rows',
+    'SHOPEE_GESTAO',
+    'ML_NOVO_GESTAO',
+    'ML_ANTIGO_GESTAO',
+    'VENDEU',
+    'NAO_VENDEU',
+    'VENDE_OUTRA_PLATAFORMA',
+    'SEM_ANUNCIO'
   ]) {
     assert.equal(rpc.includes(token), true, token);
-  }
-});
-
-
-test('Modo SEM VENDA usa layout enxuto e orientado à decisão', () => {
-  const ui = read('src/commerce-sales-dashboard.jsx');
-  const css = read('src/commerce-sales-dashboard.css');
-
-  for (const text of [
-    'NoSalesDecisionOverview',
-    'Resumo objetivo para decidir o que revisar primeiro.',
-    'Distribuição das decisões',
-    'Como interpretar',
-    'Anúncios para revisar',
-    'Candidato forte',
-    'Melhorar anúncio'
-  ]) {
-    assert.equal(ui.includes(text), true, text);
-  }
-
-  for (const token of [
-    '.sales-no-sales-overview-grid',
-    '.sales-no-sales-overview-card',
-    '.sales-no-sales-coverage-body',
-    '.sales-evidence-compact'
-  ]) {
-    assert.equal(css.includes(token), true, token);
   }
 });
