@@ -72,3 +72,20 @@ test('post writes enforce current product and collection references before persi
 test('editorial badge follows the PDP 18 character maximum',()=>{
   assert.match(router,/badge: nullableText\(input\.badge \?\? current\.badge, 18\)/);
 });
+
+test('admin preview reuses the exact operator Mural card component',()=>{
+  const publicUi=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
+  assert.match(publicUi,/export function MuralCard/);
+  assert.match(admin,/import \{ MuralCard \} from '\.\.\/mural-nisti\.jsx'/);
+  assert.match(admin,/<MuralCard item=\{previewItem\}/);
+});
+
+test('collection posts fall back to the active collection banner when no post image exists',()=>{
+  assert.match(router,/mc\.image_key AS collection_image_key/);
+  assert.match(router,/collectionId && row\.collection_image_key/);
+  assert.match(router,/api\/mural\/collections\/\$\{encodeURIComponent\(row\.collection_slug\)\}\/image\?v=/);
+});
+
+test('admin product search exposes the same derived type used by the operator card',()=>{
+  assert.match(router,/type:productTypeLabel\(row\)/);
+});
