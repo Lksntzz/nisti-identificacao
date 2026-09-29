@@ -101,7 +101,7 @@ export default function CommerceSalesDashboard() {
   const options = data?.options || {};
   const metrics = data?.metrics || {};
   const items = Array.isArray(data?.items) ? data.items : [];
-  const history = Array.isArray(data?.history) ? data.history : [];
+  const history = filters.status === 'SEM VENDA' ? [] : (Array.isArray(data?.history) ? data.history : []);
   const pagination = data?.pagination || {};
   const showPlatform = filters.platform === 'TODAS';
   const isNoSales = filters.status === 'SEM VENDA';
