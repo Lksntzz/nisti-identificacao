@@ -111,10 +111,21 @@ test('mobile fixed scanner keeps manual input readable without iOS focus zoom', 
 
 
 test('scanner gives visual priority to wire-o, tassel and elastic', () => {
-  assert.match(scannerSource, /label: 'Wire-o'[\s\S]*priority: 'primary'/);
-  assert.match(scannerSource, /label: 'Tassel'[\s\S]*priority: 'primary'/);
-  assert.match(scannerSource, /label: 'Elástico'[\s\S]*priority: 'primary'/);
+  assert.match(scannerSource, /const primaryDetails = \[/);
+  assert.match(scannerSource, /label: 'Wire-o'/);
+  assert.match(scannerSource, /label: 'Tassel'/);
+  assert.match(scannerSource, /label: 'Elástico'/);
+  assert.match(scannerSource, /gtin-result-priority-details/);
   assert.match(scannerSource, /is-priority/);
-  assert.match(scannerStyles, /\.gtin-result-detail\.is-priority/);
-  assert.match(scannerStyles, /font-size: 11\.5px/);
+  assert.match(scannerStyles, /\.gtin-result-priority-details/);
+  assert.match(scannerStyles, /font-size: 15px/);
+});
+
+
+test('priority finish cards use the full result width and keep labels readable', () => {
+  assert.match(scannerSource, /gtin-result-product-main/);
+  assert.match(scannerSource, /gtin-result-secondary-details/);
+  assert.match(scannerStyles, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(scannerStyles, /white-space: nowrap/);
+  assert.match(scannerStyles, /word-break: normal/);
 });
