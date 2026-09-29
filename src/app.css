@@ -3766,3 +3766,94 @@ button.kpi-box {
   text-overflow: clip;
   white-space: normal;
 }
+
+
+/* Detalhe do produto: ações e reparo da sincronização com o Catálogo */
+.admin-modal.view-modal > .admin-modal-foot.view-modal-foot{
+  margin-top:0;
+  padding:15px 24px 18px;
+  border-top:1px solid #e8edf3;
+  background:#fbfcfe;
+  gap:12px;
+}
+.view-modal-foot .btn-cancel,
+.view-modal-foot .btn-edit-action{
+  min-height:40px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.view-modal-foot .btn-edit-action{
+  padding:10px 20px;
+  box-shadow:0 4px 10px rgba(79,70,229,.16);
+  transition:transform .15s ease,box-shadow .15s ease,background .15s ease;
+}
+.view-modal-foot .btn-edit-action:hover{
+  transform:translateY(-1px);
+  box-shadow:0 7px 16px rgba(79,70,229,.22);
+  background:#4338ca;
+}
+
+.view-sync-repair{
+  margin-top:8px;
+  padding:12px;
+  border:1px solid #dce4ee;
+  border-radius:12px;
+  background:#f8fafc;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+}
+.view-sync-repair.synced{border-color:#bbf7d0;background:#f4fcf7}
+.view-sync-repair.pending{border-color:#fde68a;background:#fffbeb}
+.view-sync-repair.conflict{border-color:#fed7aa;background:#fff7ed}
+.view-sync-repair.error{border-color:#fecaca;background:#fef2f2}
+.view-sync-repair-copy{display:grid;gap:3px;min-width:0}
+.view-sync-repair-copy strong{font-size:11px;color:#1f2937}
+.view-sync-repair-copy span{font-size:9.5px;line-height:1.35;color:#66758a}
+.btn-sync-repair{
+  min-height:36px;
+  padding:0 12px;
+  border:1px solid #b8c8dd;
+  border-radius:9px;
+  background:#fff;
+  color:#334155;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  font-size:9.5px;
+  font-weight:800;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease,color .15s ease;
+}
+.btn-sync-repair:hover:not(:disabled){
+  transform:translateY(-1px);
+  border-color:#4f7ee8;
+  color:#245fc9;
+  box-shadow:0 5px 12px rgba(37,99,235,.10);
+}
+.btn-sync-repair:disabled{opacity:.6;cursor:wait}
+.btn-sync-repair:disabled svg{animation:view-sync-spin .8s linear infinite}
+.view-sync-feedback{
+  padding:8px 10px;
+  border-radius:8px;
+  font-size:9.5px;
+  font-weight:700;
+  line-height:1.35;
+}
+.view-sync-feedback.success{background:#ecfdf3;border:1px solid #bbf7d0;color:#166534}
+.view-sync-feedback.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+@keyframes view-sync-spin{to{transform:rotate(360deg)}}
+@media(max-width:720px){
+  .view-sync-repair{grid-template-columns:1fr}
+  .btn-sync-repair{width:100%}
+  .admin-modal.view-modal > .admin-modal-foot.view-modal-foot{padding:14px 18px 16px}
+}
+@media(prefers-reduced-motion:reduce){
+  .view-modal-foot .btn-edit-action,
+  .btn-sync-repair{transition:none!important}
+  .btn-sync-repair:disabled svg{animation:none!important}
+}
