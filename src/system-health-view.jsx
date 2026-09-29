@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { formatSaoPauloTimestamp } from './date-time.js';
 
 function formatBytes(bytes) {
   const value = Number(bytes || 0);
@@ -13,19 +14,7 @@ function formatNumber(value) {
 }
 
 function formatDate(value) {
-  if (!value) return '—';
-  try {
-    return new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(value));
-  } catch {
-    return String(value);
-  }
+  return formatSaoPauloTimestamp(value);
 }
 
 function overallMeta(status) {
