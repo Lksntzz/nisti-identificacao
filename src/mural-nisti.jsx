@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './mural-nisti.css';
 
+const muralSessionCache = new Map();
+
 const TABS = [
   ['all', 'Tudo'],
   ['products', 'Produtos'],
@@ -233,7 +235,7 @@ export default function MuralNisti({ onUnreadChange }) {
   const [collectionSlug, setCollectionSlug] = useState('');
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const sessionCache = useRef(new Map());
+  const sessionCache = useRef(muralSessionCache);
 
   const load = async currentTab => {
     setLoading(true);
