@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import '../mural-admin.css';
+import { MuralCard } from '../mural-nisti.jsx';
+import { productTypeLabel } from '../product-display.js';
 
 const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',
@@ -61,23 +63,47 @@ function Status({ value }) {
 
 function MobilePreview({ form, product, collection, imageUrl }) {
   const title = form.title || 'Título da publicação';
-  const subtitle = form.subtitle || (form.kind === 'product' ? product?.sku : form.kind === 'collection' ? collection?.name : 'Orientação operacional');
+  const productPreview = form.kind === 'product' && product ? {
+    id: Number(product.id),
+    sku: product.sku || null,
+    type: product.type || productTypeLabel(product),
+    collection: product.collection_name || null,
+    wireo: product.wireo || null,
+    tassel: product.tassel || null,
+    elastico: product.elastico || null
+  } : null;
+  const collectionPreview = form.kind === 'collection' && collection ? {
+    id: Number(collection.id),
+    slug: collection.slug || '',
+    name: collection.name || '',
+    year: collection.year ? Number(collection.year) : null
+  } : null;
+  const collectionImage = collection?.image_key
+    ? `/api/admin/mural/collections/${collection.id}/image?v=${encodeURIComponent(collection.image_key)}`
+    : '';
+  const previewItem = {
+    id: 0,
+    kind: form.kind,
+    title,
+    subtitle: form.subtitle || null,
+    body: form.body || null,
+    badge: form.badge || null,
+    badge_tone: form.badge_tone || null,
+    featured: Boolean(form.featured),
+    published_at: form.published_at ? new Date(form.published_at).toISOString() : new Date().toISOString(),
+    is_read: false,
+    image_url: imageUrl || product?.image_url || collectionImage || null,
+    product: productPreview,
+    collection: collectionPreview,
+    notice_level: form.kind === 'notice' ? form.notice_level : null
+  };
+
   return (
     <div className="mural-admin-phone" aria-label="Pré-visualização mobile">
-      <div className="mural-admin-phone-head"><b>Mural NISTI</b><span>{form.kind === 'notice' ? 'Aviso' : form.kind === 'product' ? 'Produto' : 'Coleção'}</span></div>
-      <article className={`mural-admin-preview-card ${form.featured ? 'featured' : ''}`}>
-        {imageUrl ? <img src={imageUrl} alt="" /> : <div className="mural-admin-preview-placeholder">{form.kind === 'notice' ? '!' : 'NISTI'}</div>}
-        <div>
-          <div className="mural-admin-preview-badges">
-            {form.badge && <span>{form.badge}</span>}
-            {form.kind === 'notice' && <span>{form.notice_level}</span>}
-          </div>
-          <h4>{title}</h4>
-          {subtitle && <p className="mural-admin-preview-subtitle">{subtitle}</p>}
-          {form.body && <p>{form.body}</p>}
-          {form.kind === 'product' && product && <small>{product.sku} · {product.nome || 'Produto NISTI'}</small>}
-        </div>
-      </article>
+      <div className="mural-admin-phone-head"><b>Mural NISTI</b><span>Visual do operador</span></div>
+      <div className="mural-admin-shared-preview">
+        <MuralCard item={previewItem} onOpen={() => {}} eager />
+      </div>
     </div>
   );
 }
@@ -87,9 +113,19 @@ function PostEditor({ item, collections, onClose, onSaved }) {
   const [form, setForm] = useState(() => postForm(sourceItem));
   const [products, setProducts] = useState([]);
   const [productQuery, setProductQuery] = useState(sourceItem?.product_sku || '');
-  const [selectedProduct, setSelectedProduct] = useState(sourceItem?.product_id ? { id:sourceItem.product_id, sku:sourceItem.product_sku, nome:sourceItem.product_name } : null);
+  const [selectedProduct, setSelectedProduct] = useState(sourceItem?.product_id ? {
+    id:sourceItem.product_id,
+    sku:sourceItem.product_sku,
+    nome:sourceItem.product_name,
+    miolo_code:sourceItem.product_miolo_code,
+    type:sourceItem.product_type,
+    image_url:sourceItem.product_image_url,
+    wireo:sourceItem.product_wireo,
+    tassel:sourceItem.product_tassel,
+    elastico:sourceItem.product_elastico
+  } : null);
   const [image, setImage] = useState(null);
-  const [imageUrl, setImageUrl] = useState(sourceItem?.image_key ? `/api/mural/images/${sourceItem.id}?v=${encodeURIComponent(sourceItem.image_key)}` : '');
+  const [imageUrl, setImageUrl] = useState(sourceItem?.image_key ? `/api/admin/mural/posts/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}` : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -118,6 +154,19 @@ function PostEditor({ item, collections, onClose, onSaved }) {
       setImage(prepared);
       setImageUrl(URL.createObjectURL(prepared));
     } catch (err) { setError(err.message); }
+  };
+
+  const removeImage = async () => {
+    setError('');
+    if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
+    setImage(null);
+    if (!sourceItem?.id || !sourceItem?.image_key) { setImageUrl(''); return; }
+    setBusy(true);
+    try {
+      await request(`/api/admin/mural/posts/${sourceItem.id}/image`, { method:'DELETE' });
+      setImageUrl('');
+      sourceItem.image_key = null;
+    } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
 
   const payload = () => ({
@@ -174,6 +223,7 @@ function PostEditor({ item, collections, onClose, onSaved }) {
             <label className="mural-admin-check"><input type="checkbox" checked={form.featured} onChange={e=>set('featured',e.target.checked)} /> Destaque no topo</label>
             <div className="mural-admin-inline"><label>Publicar em<input type="datetime-local" value={form.published_at} onChange={e=>set('published_at',e.target.value)} /></label><label>Expira em<input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)} /></label></div>
             <label>Imagem editorial<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseImage(e.target.files?.[0])} /><small>JPEG, PNG ou WebP. Compressão no cliente até 1600 px; máximo 5 MB.</small></label>
+            {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem editorial</button>}
             {error && <div className="mural-admin-error">{error}</div>}
             <div className="mural-admin-actions"><button type="button" onClick={onClose}>Cancelar</button><button type="submit" disabled={busy}>Salvar rascunho</button><button type="button" className="primary" disabled={busy} onClick={()=>save(true)}>{form.published_at && new Date(form.published_at)>new Date()?'Agendar':'Publicar agora'}</button></div>
           </form>
@@ -186,13 +236,44 @@ function PostEditor({ item, collections, onClose, onSaved }) {
 
 function CollectionEditor({ item, products, onClose, onSaved }) {
   const [form,setForm]=useState({name:item?.name||'',slug:item?.slug||'',year:item?.year||'',description:item?.description||'',status:item?.status||'active'});
-  const [selected,setSelected]=useState(()=>String(item?.product_ids||'').split(',').map(Number).filter(Number.isInteger));
+  const [selected,setSelected]=useState(()=>String(item?.product_ids||'').split(',').map(Number).filter(id=>Number.isInteger(id)&&id>0));
   const [image,setImage]=useState(null);
+  const [storedImageKey,setStoredImageKey]=useState(item?.image_key||'');
+  const [imageUrl,setImageUrl]=useState(item?.image_key ? `/api/admin/mural/collections/${item.id}/image?v=${encodeURIComponent(item.image_key)}` : '');
   const [query,setQuery]=useState('');
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const filtered=products.filter(p=>!query||`${p.sku} ${p.nome||''}`.toLowerCase().includes(query.toLowerCase())).slice(0,30);
   const toggle=id=>setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id]);
+  const move=(id,direction)=>setSelected(current=>{
+    const index=current.indexOf(id);const target=index+direction;
+    if(index<0||target<0||target>=current.length)return current;
+    const next=[...current];[next[index],next[target]]=[next[target],next[index]];return next;
+  });
+  const selectedProducts=selected.map(id=>products.find(product=>product.id===id)).filter(Boolean);
+  useEffect(()=>()=>{if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl)},[imageUrl]);
+  const chooseBanner=async file=>{
+    setError('');
+    if(!file)return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){setError('Use JPEG, PNG ou WebP.');return}
+    try{
+      const prepared=await compressImage(file);
+      if(prepared.size>5*1024*1024)throw new Error('A imagem final excede 5 MB.');
+      if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
+      setImage(prepared);setImageUrl(URL.createObjectURL(prepared));
+    }catch(err){setError(err.message)}
+  };
+  const removeBanner=async()=>{
+    setError('');
+    if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
+    setImage(null);
+    if(!item?.id||!storedImageKey){setImageUrl('');return}
+    setBusy(true);
+    try{
+      await request(`/api/admin/mural/collections/${item.id}/image`,{method:'DELETE'});
+      setStoredImageKey('');setImageUrl('');
+    }catch(err){setError(err.message)}finally{setBusy(false)}
+  };
   const save=async()=>{
     setBusy(true);setError('');
     try{
@@ -200,16 +281,19 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
       const data=await request(item?`/api/admin/mural/collections/${item.id}`:'/api/admin/mural/collections',opts);
       const id=item?.id||data.id;
       await request(`/api/admin/mural/collections/${id}/products`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({product_ids:selected})});
-      if(image){const prepared=await compressImage(image);if(prepared.size>5*1024*1024)throw new Error('A imagem final excede 5 MB.');const fd=new FormData();fd.append('image',prepared);await request(`/api/admin/mural/collections/${id}/image`,{method:'POST',body:fd});}
+      if(image){const fd=new FormData();fd.append('image',image);await request(`/api/admin/mural/collections/${id}/image`,{method:'POST',body:fd});}
       await onSaved();onClose();
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
   return <div className="mural-admin-modal" role="dialog" aria-modal="true"><div className="mural-admin-editor compact"><header><h2>{item?'Editar coleção':'Nova coleção'}</h2><button onClick={onClose}>×</button></header><div className="mural-admin-collection-form">
     <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><div className="mural-admin-inline"><label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label><label>Ano<input type="number" value={form.year} onChange={e=>setForm({...form,year:e.target.value})}/></label></div>
     <label>Descrição<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
-    <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setImage(e.target.files?.[0]||null)}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
+    <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
+    {imageUrl&&<div className="mural-admin-banner-preview"><img src={imageUrl} alt={form.name||'Banner da coleção'}/><button type="button" disabled={busy} onClick={removeBanner}>Remover banner</button></div>}
     {item&&<label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
-    <label>Produtos<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label><div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
+    <label>Produtos<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
+    {selectedProducts.length>0&&<div className="mural-admin-selected-products" aria-label="Ordem editorial dos produtos"><strong>Ordem editorial</strong>{selectedProducts.map((p,index)=><div key={p.id}><span>{index+1}. {p.sku} · {p.nome||'Produto NISTI'}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}</div>}
+    <div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
     {error&&<div className="mural-admin-error">{error}</div>}<div className="mural-admin-actions"><button onClick={onClose}>Cancelar</button><button className="primary" disabled={busy||!form.name} onClick={save}>Salvar coleção</button></div>
   </div></div></div>;
 }
@@ -255,9 +339,9 @@ export default function MuralNistiAdminView() {
     <div className="mural-admin-section-tabs"><button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button><button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button><button className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>Métricas</button></div>
     {error&&<div className="mural-admin-error">{error}</div>}
     {section==='posts'&&<><div className="mural-admin-filters"><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">Todos os status</option><option value="draft">Rascunhos</option><option value="published">Publicados</option><option value="archived">Arquivados</option></select><select value={kind} onChange={e=>setKind(e.target.value)}><option value="">Todos os tipos</option><option value="product">Produto</option><option value="collection">Coleção</option><option value="notice">Aviso</option></select></div>
-    <div className="mural-admin-table-wrap"><table><thead><tr><th>Título</th><th>Tipo</th><th>Selo</th><th>Status</th><th>Publicação</th><th>Expiração</th><th>Autor</th><th>Ações</th></tr></thead><tbody>{posts.map(row=><tr key={row.id}><td><b>{row.title}</b><small>{row.subtitle||''}</small></td><td>{row.kind}</td><td>{row.badge||'—'}</td><td><Status value={row.status}/></td><td>{dates(row)}</td><td>{row.expires_at?new Date(row.expires_at).toLocaleString('pt-BR'):'—'}</td><td>{row.created_by||'—'}</td><td><div className="mural-admin-row-actions"><button onClick={()=>setEditor(row)}>Editar</button><button onClick={()=>action(row.id,'duplicate')}>Duplicar</button>{row.status!=='published'&&<button onClick={()=>action(row.id,'publish')}>Publicar</button>}{row.status!=='archived'&&<button onClick={()=>action(row.id,'archive')}>Arquivar</button>}{row.status==='published'&&((row.kind==='notice'&&row.notice_level==='important')||row.kind==='product')&&<button onClick={()=>sendPush(row)}>Enviar notificação</button>}</div></td></tr>)}</tbody></table>{!loading&&!posts.length&&<div className="mural-admin-empty">Nenhuma publicação encontrada.</div>}</div></>}
+    <div className="mural-admin-table-wrap"><table><thead><tr><th>Título</th><th>Tipo</th><th>Selo</th><th>Status</th><th>Publicação</th><th>Expiração</th><th>Autor</th><th>Ações</th></tr></thead><tbody>{posts.map(row=><tr key={row.id}><td><b>{row.title}</b><small>{row.subtitle||''}</small></td><td>{row.kind}</td><td>{row.badge||'—'}</td><td><Status value={row.status}/></td><td>{dates(row)}</td><td>{row.expires_at?new Date(row.expires_at).toLocaleString('pt-BR'):'—'}</td><td>{row.created_by||'—'}</td><td><div className="mural-admin-row-actions"><button onClick={()=>setEditor(row)}>Editar</button><button onClick={()=>setEditor(row)}>Pré-visualizar</button><button onClick={()=>action(row.id,'duplicate')}>Duplicar</button>{row.status!=='published'&&<button onClick={()=>action(row.id,'publish')}>Publicar</button>}{row.status!=='archived'&&<button onClick={()=>action(row.id,'archive')}>Arquivar</button>}{row.status==='published'&&((row.kind==='notice'&&row.notice_level==='important')||row.kind==='product')&&<button onClick={()=>sendPush(row)}>Enviar notificação</button>}</div></td></tr>)}</tbody></table>{!loading&&!posts.length&&<div className="mural-admin-empty">Nenhuma publicação encontrada.</div>}</div></>}
     {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.year||'sem ano'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
-    {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
+    {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>IMAGEM EDITORIAL MÉDIA</small><strong>{metrics?.editorial_images?.average_bytes ? `${Math.round(metrics.editorial_images.average_bytes/1024)} KB` : '0 KB'}</strong><span>{metrics?.editorial_images?.count ?? 0} imagens</span></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
     {editor&&<PostEditor item={editor} collections={collections} onClose={()=>setEditor(null)} onSaved={load}/>}
     {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={load}/>}
   </section>;

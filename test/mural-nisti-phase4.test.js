@@ -15,7 +15,8 @@ test('phase 4 uses cursor pagination without replacing existing feed',()=>{
 });
 
 test('phase 4 keeps last session response visible on refresh failure',()=>{
-  assert.ok(ui.includes('sessionCache = useRef(new Map())'));
+  assert.ok(ui.includes('const muralSessionCache = new Map()'))
+  assert.ok(ui.includes('sessionCache = useRef(muralSessionCache)'));
   assert.ok(ui.includes('sessionCache.current.get(tab)'));
   assert.ok(ui.includes('Não foi possível atualizar o Mural.'));
   assert.ok(ui.includes('Tentar novamente'));
