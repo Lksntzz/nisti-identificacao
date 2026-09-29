@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import './app.css';
 import LOGO from './assets/logo.png';
 import GtinScannerOverlay from './gtin-scanner-overlay.jsx';
-import MuralNisti from './mural-nisti.jsx';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -1552,25 +1551,17 @@ function PublicIdentificationApp() {
   const [operatorName, setOperatorNameState] = useState(() => getOperatorName());
   const [operatorModalOpen, setOperatorModalOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [muralUnread, setMuralUnread] = useState(0);
+  const muralUnread = 0;
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [publicView, setPublicView] = useState('scanner');
 
   useEffect(() => {
     let active = true;
     const fetchUnread = () => {
-      Promise.allSettled([
-        api('/api/notifications/unread-count'),
-        api('/api/mural/unread-count')
-      ]).then(([notifications, mural]) => {
+      api('/api/notifications/unread-count').then(notifications => {
         if (!active) return;
-        if (notifications.status === 'fulfilled' && typeof notifications.value?.unread_count === 'number') {
-          setUnreadCount(notifications.value.unread_count);
-        }
-        if (mural.status === 'fulfilled' && typeof mural.value?.unread_count === 'number') {
-          setMuralUnread(mural.value.unread_count);
-        }
-      });
+        if (typeof notifications?.unread_count === 'number') setUnreadCount(notifications.unread_count);
+      }).catch(() => {});
     };
 
     fetchUnread();
@@ -1603,7 +1594,14 @@ function PublicIdentificationApp() {
           </div>
         </div>
       ) : (
-        <MuralNisti onUnreadChange={setMuralUnread} />
+        <section className="mural-coming-soon" role="status" aria-live="polite">
+          <div className="mural-coming-soon-card">
+            <span className="mural-coming-soon-kicker">MURAL NISTI</span>
+            <h2>Em breve</h2>
+            <p>Estamos preparando este espaço para você.</p>
+            <button type="button" onClick={() => setPublicView('scanner')}>Voltar ao Scanner</button>
+          </div>
+        </section>
       )}
 
       <NotificationsModal
