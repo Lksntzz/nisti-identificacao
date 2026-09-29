@@ -31,9 +31,13 @@ test('PDP observability includes average editorial image size',()=>{
 test('admin product preview uses current image and resolved finishes',()=>{
   assert.match(router,/const labels=finishLabels\(row\)/);
   assert.match(admin,/product\?\.image_url/);
-  assert.match(admin,/Wire-o:/);
-  assert.match(admin,/Tassel:/);
-  assert.match(admin,/Elástico:/);
+  const publicUi=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
+  assert.match(admin,/wireo: product\.wireo/);
+  assert.match(admin,/tassel: product\.tassel/);
+  assert.match(admin,/elastico: product\.elastico/);
+  assert.match(publicUi,/Wire-o/);
+  assert.match(publicUi,/Tassel/);
+  assert.match(publicUi,/Elástico/);
   assert.match(admin,/Pré-visualizar/);
 });
 
