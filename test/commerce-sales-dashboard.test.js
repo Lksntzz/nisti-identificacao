@@ -22,7 +22,7 @@ test('Painel de Vendas usa o layout comercial aprovado', () => {
     'Plataforma',
     'Período inicial',
     'Período final',
-    'Buscar SKU ou produto',
+    'Buscar SKU',
     'Evolução de vendas',
     'Resumo por plataforma',
     'Participação de vendas',
