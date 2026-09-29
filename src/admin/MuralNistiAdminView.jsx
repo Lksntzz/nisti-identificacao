@@ -198,6 +198,7 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
       const data=await request(item?`/api/admin/mural/collections/${item.id}`:'/api/admin/mural/collections',opts);
       const id=item?.id||data.id;
       await request(`/api/admin/mural/collections/${id}/products`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({product_ids:selected})});
+      if(image){const prepared=await compressImage(image);if(prepared.size>5*1024*1024)throw new Error('A imagem final excede 5 MB.');const fd=new FormData();fd.append('image',prepared);await request(`/api/admin/mural/collections/${id}/image`,{method:'POST',body:fd});}
       await onSaved();onClose();
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
