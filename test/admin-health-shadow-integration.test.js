@@ -14,10 +14,12 @@ test('Saúde & Logs não usa mais o painel legado com quotas inventadas', () => 
   assert.equal(source.includes('100% Gratuito'), false);
 });
 
-test('Painel de saúde descreve somente a infraestrutura do fluxo EAN', () => {
+test('Painel de saúde mostra diagnóstico e logs operacionais reais', () => {
   const source = read('src/system-health-view.jsx');
-  assert.equal(source.includes('Saúde do Sistema EAN'), true);
-  assert.equal(source.includes('Fluxo principal sem dependência de IA'), true);
+  assert.equal(source.includes('Saúde & Logs'), true);
+  assert.equal(source.includes('Diagnóstico real da API, bancos, imagens, sincronização e bipagens'), true);
+  assert.equal(source.includes('Erros e ocorrências recentes'), true);
+  assert.equal(source.includes('Verificar agora'), true);
   assert.equal(source.includes('Reindexar Vectorize'), false);
   assert.equal(source.includes('Atividade de IA hoje'), false);
 });
