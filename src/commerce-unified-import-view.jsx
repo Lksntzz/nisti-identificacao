@@ -3,7 +3,7 @@ import CommerceImportView from './commerce-import-view.jsx';
 import CommerceSalesImportPanel from './commerce-sales-import-panel.jsx';
 import './commerce-import.css';
 
-export default function CommerceUnifiedImportView() {
+export default function CommerceUnifiedImportView({ onSalesChanged }) {
   const [mode, setMode] = useState('catalog');
 
   return (
@@ -29,7 +29,7 @@ export default function CommerceUnifiedImportView() {
 
       {mode === 'catalog'
         ? <CommerceImportView />
-        : <CommerceSalesImportPanel />}
+        : <CommerceSalesImportPanel onSalesChanged={onSalesChanged} />}
     </div>
   );
 }
