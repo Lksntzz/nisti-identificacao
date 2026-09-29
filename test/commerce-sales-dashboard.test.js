@@ -83,3 +83,48 @@ test('Painel de Vendas possui camada de movimento e acessibilidade de interaçã
     assert.equal(css.includes(token), true, token);
   }
 });
+
+
+test('Filtro SEM VENDA usa análise específica para decidir revisão dos anúncios', () => {
+  const ui = read('src/commerce-sales-dashboard.jsx');
+  const css = read('src/commerce-sales-dashboard.css');
+  const rpc = read('supabase/migrations/20260929143041_add_no_sales_insights_to_sales_dashboard.sql');
+
+  for (const text of [
+    'Anúncios sem venda',
+    'Revisar primeiro',
+    'Nunca venderam na base',
+    'Já venderam antes',
+    'Tempo sem vender',
+    'Sem vendas por plataforma',
+    'Prioridade de revisão',
+    'Anúncios sem venda — fila de revisão',
+    'Última venda',
+    'Histórico anterior',
+    'Abrir anúncio',
+    'anuncios_sem_venda_nisti.csv'
+  ]) {
+    assert.equal(ui.includes(text), true, text);
+  }
+
+  for (const token of [
+    '.sales-no-sales-bars',
+    '.sales-no-sales-platforms',
+    '.sales-no-sales-priority-card',
+    '.sales-review-priority.alta',
+    '@keyframes sales-no-sales-width'
+  ]) {
+    assert.equal(css.includes(token), true, token);
+  }
+
+  for (const token of [
+    'no_sales_insights',
+    'last_sale_period',
+    'periods_without_sale',
+    'historical_revenue',
+    'review_priority',
+    'inactivity_bucket'
+  ]) {
+    assert.equal(rpc.includes(token), true, token);
+  }
+});
