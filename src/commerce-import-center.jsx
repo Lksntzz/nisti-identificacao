@@ -91,12 +91,35 @@ function StatusPill({ value }) {
   return <span className={`import-center-status ${tone}`}>{STATUS_LABELS[status] || status}</span>;
 }
 
-function Step({ number, title, children, complete = false }) {
+function ModeIcon({ type }) {
+  if (type === 'sales') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 19V5" />
+        <path d="M4 19h16" />
+        <path d="m7 15 4-5 3 3 5-7" />
+      </svg>
+    );
+  }
+
   return (
-    <section className={`import-center-step ${complete ? 'complete' : ''}`}>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 7h14v13H5z" />
+      <path d="M8 7V5a4 4 0 0 1 8 0v2" />
+      <path d="M9 11h6" />
+    </svg>
+  );
+}
+
+function Step({ number, title, subtitle, children, complete = false, className = '' }) {
+  return (
+    <section className={`import-center-step ${complete ? 'complete' : ''} ${className}`.trim()}>
       <div className="import-center-step-index">{complete ? '✓' : number}</div>
       <div className="import-center-step-body">
-        <h3>{title}</h3>
+        <div className="import-center-step-heading">
+          <h3>{title}</h3>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
         {children}
       </div>
     </section>
@@ -107,171 +130,280 @@ function FileDrop({ file, accept, disabled, onChange, hint }) {
   return (
     <label className={`import-center-file ${disabled ? 'disabled' : ''}`}>
       <input type="file" accept={accept} disabled={disabled} onChange={onChange} />
-      <span className="import-center-file-icon">↑</span>
-      <strong>{file ? file.name : 'Selecionar arquivo'}</strong>
-      <small>{file ? 'Clique para trocar o arquivo.' : hint}</small>
+      <span className="import-center-file-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 16V4" />
+          <path d="m7 9 5-5 5 5" />
+          <path d="M5 20h14" />
+        </svg>
+      </span>
+      <strong>{file ? file.name : 'Clique para selecionar o arquivo'}</strong>
+      <small>{file ? 'Clique novamente para trocar o arquivo.' : hint}</small>
     </label>
   );
 }
 
-function CatalogPreview({ parsed }) {
-  if (!parsed) return <div className="import-center-placeholder">Selecione uma planilha para validar antes de enviar.</div>;
-  const s = parsed.summary || {};
+function StatCard({ label, value, tone = 'blue' }) {
   return (
-    <div className="import-center-preview">
+    <div className={`import-center-stat ${tone}`}>
+      <span className="import-center-stat-dot" />
       <div>
-        <span>Linhas reconhecidas</span>
-        <strong>{brNumber(s.accepted_rows)}</strong>
+        <strong>{value}</strong>
+        <span>{label}</span>
       </div>
-      <div>
-        <span>Prontas</span>
-        <strong>{brNumber(s.ready_rows)}</strong>
-      </div>
-      <div>
-        <span>Revisar</span>
-        <strong>{brNumber(s.review_rows)}</strong>
-      </div>
-      <div>
-        <span>Inválidas</span>
-        <strong>{brNumber(s.invalid_rows)}</strong>
-      </div>
+    </div>
+  );
+}
+
+function CatalogPreview({ parsed }) {
+  const s = parsed?.summary || {};
+  return (
+    <div className={`import-center-preview ${parsed ? '' : 'empty'}`}>
+      <StatCard label="Linhas reconhecidas" value={parsed ? brNumber(s.accepted_rows) : '—'} tone="blue" />
+      <StatCard label="Prontas" value={parsed ? brNumber(s.ready_rows) : '—'} tone="green" />
+      <StatCard label="Revisar" value={parsed ? brNumber(s.review_rows) : '—'} tone="amber" />
+      <StatCard label="Inválidas" value={parsed ? brNumber(s.invalid_rows) : '—'} tone="red" />
     </div>
   );
 }
 
 function SalesPreview({ parsed }) {
-  if (!parsed) return <div className="import-center-placeholder">Selecione um relatório de vendas para conferir os totais.</div>;
-  const s = parsed.summary || {};
+  const s = parsed?.summary || {};
   return (
-    <div className="import-center-preview">
-      <div>
-        <span>Pedidos líquidos</span>
-        <strong>{brNumber(s.net_orders)}</strong>
+    <div className={`import-center-preview ${parsed ? '' : 'empty'}`}>
+      <StatCard label="Pedidos líquidos" value={parsed ? brNumber(s.net_orders) : '—'} tone="blue" />
+      <StatCard label="Unidades" value={parsed ? brNumber(s.units) : '—'} tone="green" />
+      <StatCard label="Faturamento" value={parsed ? brCurrency(s.product_revenue) : '—'} tone="amber" />
+      <StatCard label="Períodos" value={parsed ? brNumber(s.period_count) : '—'} tone="purple" />
+    </div>
+  );
+}
+
+function ProgressBlock({ progress, text, disabledText = 'Aguardando arquivo…' }) {
+  const total = Number(progress?.total || 0);
+  const completed = Number(progress?.completed || 0);
+  let percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  if (progress?.phase === 'done') percent = 100;
+  if (progress?.phase === 'reconcile' || progress?.phase === 'commit') percent = Math.max(percent, 90);
+  if (progress?.phase === 'finalize' || progress?.phase === 'summary') percent = Math.max(percent, 75);
+
+  return (
+    <div className="import-center-progress-block">
+      <div className="import-center-progress-top">
+        <strong>{percent}%</strong>
+        <span>{text || disabledText}</span>
       </div>
-      <div>
-        <span>Unidades</span>
-        <strong>{brNumber(s.units)}</strong>
-      </div>
-      <div>
-        <span>Faturamento</span>
-        <strong>{brCurrency(s.product_revenue)}</strong>
-      </div>
-      <div>
-        <span>Períodos</span>
-        <strong>{brNumber(s.period_count)}</strong>
+      <div className="import-center-progress-track">
+        <span style={{ width: `${percent}%` }} />
       </div>
     </div>
   );
 }
 
-function ImportHistory({ mode, items, loading, onOpen }) {
+function ImportHistory({ mode, items, loading, onOpen, onRefresh }) {
   return (
-    <section className="import-center-history">
-      <div className="import-center-section-head">
+    <section className="import-center-side-card import-center-history">
+      <div className="import-center-side-head">
         <div>
+          <span className="import-center-side-icon">◷</span>
           <strong>Últimas importações</strong>
-          <span>{mode === 'catalog' ? 'Catálogo' : 'Vendas'}</span>
         </div>
+        <button type="button" onClick={onRefresh} disabled={loading}>Atualizar</button>
       </div>
 
-      {loading ? <div className="import-center-placeholder">Carregando histórico…</div> : (
+      {loading ? <div className="import-center-side-empty">Carregando histórico…</div> : (
         <div className="import-center-history-list">
-          {items.slice(0, 10).map(item => (
-            <button
-              type="button"
-              key={item.id}
-              className="import-center-history-row"
-              onClick={() => onOpen?.(item)}
-            >
-              <div>
-                <strong>#{item.id} · {mode === 'sales' ? platformLabel(item.platform_code, true) : item.marketplace_name}</strong>
-                <span>{item.source_filename}</span>
-              </div>
-              <div>
+          {items.slice(0, 10).map(item => {
+            const content = (
+              <>
+                <span className="import-center-history-file">▤</span>
+                <div className="import-center-history-copy">
+                  <strong>#{item.id} · {mode === 'sales' ? platformLabel(item.platform_code, true) : item.marketplace_name}</strong>
+                  <span>{item.source_filename || 'Arquivo sem nome'}</span>
+                </div>
                 <StatusPill value={item.status} />
                 <small>{brDate(item.created_at)}</small>
+              </>
+            );
+
+            return mode === 'catalog' ? (
+              <button
+                type="button"
+                key={item.id}
+                className="import-center-history-row"
+                onClick={() => onOpen?.(item)}
+              >
+                {content}
+              </button>
+            ) : (
+              <div key={item.id} className="import-center-history-row static">
+                {content}
               </div>
-            </button>
-          ))}
-          {!items.length && <div className="import-center-placeholder">Nenhuma importação registrada.</div>}
+            );
+          })}
+          {!items.length && <div className="import-center-side-empty">Nenhuma importação registrada.</div>}
         </div>
       )}
     </section>
   );
 }
 
-function CatalogBatchReview({ batch, rows, busy, onDecision, onApproveProbable, onApproveNew, onCommit }) {
-  if (!batch) return null;
-  const unresolved = Number(batch.unresolved_count || 0);
+function ImportSummary({ mode, history, batch }) {
+  const latest = history?.[0] || null;
+  const platform = mode === 'sales'
+    ? platformLabel(latest?.platform_code, true)
+    : (latest?.marketplace_name || '—');
+  const pending = mode === 'catalog'
+    ? Number(batch?.unresolved_count ?? latest?.unresolved_count ?? 0)
+    : 0;
 
   return (
-    <section className="import-center-batch">
-      <div className="import-center-section-head">
+    <section className="import-center-side-card import-center-summary">
+      <div className="import-center-side-head">
         <div>
-          <strong>Lote #{batch.id}</strong>
-          <span>{batch.marketplace_name} · {batch.source_filename}</span>
+          <span className="import-center-side-icon">▥</span>
+          <strong>Resumo</strong>
         </div>
-        <StatusPill value={batch.status} />
       </div>
 
-      <div className="import-center-preview compact">
-        <div><span>Total</span><strong>{brNumber(batch.row_count)}</strong></div>
-        <div><span>Vinculados</span><strong>{brNumber(batch.matched_count)}</strong></div>
-        <div><span>Prováveis</span><strong>{brNumber(batch.probable_count)}</strong></div>
-        <div><span>Pendentes</span><strong>{brNumber(unresolved)}</strong></div>
+      <dl>
+        <div>
+          <dt>Última importação</dt>
+          <dd>{latest ? `#${latest.id} · ${platform}` : 'Nenhuma'}</dd>
+        </div>
+        <div>
+          <dt>Última atualização</dt>
+          <dd>{latest ? brDate(latest.completed_at || latest.imported_at || latest.created_at) : '—'}</dd>
+        </div>
+        <div>
+          <dt>Status atual</dt>
+          <dd>{latest ? <StatusPill value={latest.status} /> : '—'}</dd>
+        </div>
+        <div>
+          <dt>Pendências abertas</dt>
+          <dd className={pending > 0 ? 'pending' : ''}>{mode === 'catalog' ? `${brNumber(pending)} itens` : '—'}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function CatalogBatchReview({ batch, rows, busy, onDecision, onApproveProbable, onApproveNew, onCommit }) {
+  const unresolved = Number(batch?.unresolved_count || 0);
+  const rowCount = Number(batch?.row_count || 0);
+  const matched = Number(batch?.matched_count || 0);
+  const probable = Number(batch?.probable_count || 0);
+  const invalid = Number(batch?.invalid_count || 0);
+
+  return (
+    <section className={`import-center-review-card ${batch ? '' : 'empty'}`}>
+      <div className="import-center-review-header">
+        <div className="import-center-review-title">
+          <span className="import-center-step-index">{batch ? '5' : '5'}</span>
+          <div>
+            <h3>Revisão do lote</h3>
+            <p>{batch ? `Lote #${batch.id} · ${batch.marketplace_name} · ${batch.source_filename}` : 'Confira os itens que precisam de atenção antes de gravar no catálogo.'}</p>
+          </div>
+        </div>
+        {batch && (
+          <div className="import-center-review-totals">
+            <span>{brNumber(rowCount)} itens</span>
+            <small className="green">Prontas: {brNumber(matched)}</small>
+            <small className="amber">Revisar: {brNumber(probable + unresolved)}</small>
+            <small className="red">Inválidas: {brNumber(invalid)}</small>
+          </div>
+        )}
       </div>
 
-      {unresolved > 0 && (
-        <div className="import-center-review-list">
-          {rows.slice(0, 20).map(row => {
-            const payload = row.normalized_payload || {};
-            const candidates = Array.isArray(row.candidates) ? row.candidates : [];
-            return (
-              <article key={row.id} className="import-center-review-row">
-                <div className="import-center-review-copy">
-                  <div><StatusPill value={row.status} /><small>{row.sheet_name} · linha {row.row_number}</small></div>
-                  <strong>{payload.product_name || 'Produto sem nome'}</strong>
-                  <code>{payload.sku_primary || payload.sku_secondary || 'Sem SKU'}</code>
-                </div>
-                <div className="import-center-review-actions">
-                  {['PROBABLE', 'CONFLICT'].includes(row.status) && candidates.slice(0, 3).map(candidate => (
-                    <button
-                      type="button"
-                      key={candidate.product_id}
-                      disabled={busy}
-                      onClick={() => onDecision(row.id, 'CONFIRM_PRODUCT', candidate.product_id)}
-                    >
-                      Vincular #{candidate.product_id}
-                    </button>
-                  ))}
-                  {['NEW_PRODUCT', 'PROBABLE'].includes(row.status) && (
-                    <button type="button" disabled={busy} onClick={() => onDecision(row.id, 'CREATE_NEW')}>Criar novo</button>
-                  )}
-                  {!['MATCHED', 'COMMITTED', 'IGNORED'].includes(row.status) && (
-                    <button type="button" className="ghost danger" disabled={busy} onClick={() => onDecision(row.id, 'IGNORE')}>Ignorar</button>
-                  )}
-                </div>
-              </article>
-            );
-          })}
+      {!batch ? (
+        <div className="import-center-review-empty">
+          Prepare uma planilha para gerar o lote de revisão.
         </div>
+      ) : (
+        <>
+          <div className="import-center-review-table-wrap">
+            <table className="import-center-review-table">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>SKU</th>
+                  <th>Situação</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, 20).map(row => {
+                  const payload = row.normalized_payload || {};
+                  const candidates = Array.isArray(row.candidates) ? row.candidates : [];
+                  return (
+                    <tr key={row.id}>
+                      <td>
+                        <strong>{payload.product_name || 'Produto sem nome'}</strong>
+                        <small>{row.sheet_name} · linha {row.row_number}</small>
+                      </td>
+                      <td><code>{payload.sku_primary || payload.sku_secondary || '—'}</code></td>
+                      <td><StatusPill value={row.status} /></td>
+                      <td>
+                        <div className="import-center-row-actions">
+                          {['PROBABLE', 'CONFLICT'].includes(row.status) && candidates.slice(0, 1).map(candidate => (
+                            <button
+                              type="button"
+                              className="primary"
+                              key={candidate.product_id}
+                              disabled={busy}
+                              title={candidate.product_name || ''}
+                              onClick={() => onDecision(row.id, 'CONFIRM_PRODUCT', candidate.product_id)}
+                            >
+                              Vincular
+                            </button>
+                          ))}
+                          {['NEW_PRODUCT', 'PROBABLE'].includes(row.status) && (
+                            <button type="button" disabled={busy} onClick={() => onDecision(row.id, 'CREATE_NEW')}>Criar novo</button>
+                          )}
+                          {!['MATCHED', 'COMMITTED', 'IGNORED'].includes(row.status) && (
+                            <button type="button" className="danger" disabled={busy} onClick={() => onDecision(row.id, 'IGNORE')}>Ignorar</button>
+                          )}
+                          {['MATCHED', 'COMMITTED'].includes(row.status) && <span className="import-center-row-done">—</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!rows.length && (
+                  <tr>
+                    <td colSpan="4" className="import-center-review-empty-cell">
+                      Nenhuma linha pendente neste lote.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="import-center-review-footer">
+            <div>
+              {Number(batch.approvable_probable_count || 0) > 0 && (
+                <button type="button" disabled={busy} onClick={onApproveProbable}>
+                  Aprovar prováveis ({brNumber(batch.approvable_probable_count)})
+                </button>
+              )}
+              {Number(batch.unapproved_new_count || 0) > 0 && (
+                <button type="button" disabled={busy} onClick={onApproveNew}>
+                  Aprovar novos ({brNumber(batch.unapproved_new_count)})
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              className="import-center-primary compact"
+              disabled={busy || !batch.can_commit || batch.status === 'COMMITTED'}
+              onClick={onCommit}
+            >
+              {batch.status === 'COMMITTED' ? 'Importação concluída' : 'Confirmar no catálogo'}
+            </button>
+          </div>
+        </>
       )}
-
-      <div className="import-center-batch-actions">
-        {Number(batch.approvable_probable_count || 0) > 0 && (
-          <button type="button" className="secondary" disabled={busy} onClick={onApproveProbable}>
-            Aprovar prováveis seguros ({brNumber(batch.approvable_probable_count)})
-          </button>
-        )}
-        {Number(batch.unapproved_new_count || 0) > 0 && (
-          <button type="button" className="secondary" disabled={busy} onClick={onApproveNew}>
-            Aprovar novos ({brNumber(batch.unapproved_new_count)})
-          </button>
-        )}
-        <button type="button" className="primary" disabled={busy || !batch.can_commit || batch.status === 'COMMITTED'} onClick={onCommit}>
-          {batch.status === 'COMMITTED' ? 'Importação concluída' : 'Confirmar no catálogo'}
-        </button>
-      </div>
     </section>
   );
 }
@@ -356,6 +488,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     setCatalogParsed(null);
     setCatalogBatch(null);
     setCatalogRows([]);
+    setCatalogProgress(null);
     setError('');
     setMessage('');
     if (!file) return;
@@ -445,6 +578,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     const file = event.target.files?.[0] || null;
     setSalesFile(file);
     setSalesParsed(null);
+    setSalesProgress(null);
     setError('');
     setMessage('');
     if (!file) return;
@@ -503,172 +637,180 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     return labels[salesProgress.phase] || 'Processando';
   }, [salesProgress]);
 
+  const history = mode === 'catalog' ? catalogHistory : salesHistory;
+  const historyLoading = mode === 'catalog' ? catalogHistoryLoading : salesHistoryLoading;
+
   return (
     <div className="import-center">
-      <section className="import-center-hero">
-        <div>
-          <span className="import-center-eyebrow">NOVA ÁREA</span>
-          <h2>Central de Importações</h2>
-          <p>Um fluxo separado para atualizar catálogo e vendas sem misturar com a tela antiga.</p>
-        </div>
-        <div className="import-center-hero-note">
-          <strong>Validação antes de gravar</strong>
-          <span>O arquivo é conferido primeiro. Catálogo exige confirmação final.</span>
-        </div>
-      </section>
-
       <div className="import-center-mode-grid">
         <button type="button" className={mode === 'catalog' ? 'active' : ''} onClick={() => setMode('catalog')}>
-          <span className="import-center-mode-icon">▦</span>
+          <span className="import-center-mode-icon"><ModeIcon type="catalog" /></span>
           <strong>Importar catálogo</strong>
-          <small>Produtos, SKUs, anúncios e vínculos.</small>
+          <small>Produtos, SKUs, anúncios e vínculos</small>
         </button>
         <button type="button" className={mode === 'sales' ? 'active' : ''} onClick={() => setMode('sales')}>
-          <span className="import-center-mode-icon">↗</span>
+          <span className="import-center-mode-icon"><ModeIcon type="sales" /></span>
           <strong>Importar vendas</strong>
-          <small>Pedidos, unidades e faturamento.</small>
+          <small>Pedidos, unidades e faturamento</small>
         </button>
       </div>
 
       {error && <div className="import-center-alert error">{error}</div>}
       {message && <div className="import-center-alert success">{message}</div>}
 
-      {mode === 'catalog' ? (
-        <div className="import-center-layout">
-          <div className="import-center-flow">
-            <Step number="1" title="Escolha a plataforma" complete={Boolean(catalogPlatform)}>
-              <select
-                className="import-center-select"
-                value={catalogPlatform}
-                disabled={catalogReading || catalogImporting}
-                onChange={event => {
-                  setCatalogPlatform(event.target.value);
-                  setCatalogFile(null);
-                  setCatalogParsed(null);
-                  setCatalogBatch(null);
-                }}
+      <div className="import-center-layout">
+        <div className="import-center-flow">
+          {mode === 'catalog' ? (
+            <>
+              <Step number="1" title="Escolha a plataforma" complete={Boolean(catalogPlatform)}>
+                <select
+                  className="import-center-select"
+                  value={catalogPlatform}
+                  disabled={catalogReading || catalogImporting}
+                  onChange={event => {
+                    setCatalogPlatform(event.target.value);
+                    setCatalogFile(null);
+                    setCatalogParsed(null);
+                    setCatalogBatch(null);
+                    setCatalogRows([]);
+                    setCatalogProgress(null);
+                  }}
+                >
+                  {CATALOG_PLATFORMS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </Step>
+
+              <Step number="2" title="Selecione a planilha" complete={Boolean(catalogFile)}>
+                <FileDrop
+                  file={catalogFile}
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  disabled={catalogReading || catalogImporting}
+                  onChange={handleCatalogFile}
+                  hint="Aceita planilhas .xlsx exportadas da plataforma"
+                />
+                {catalogReading && <div className="import-center-loading">Lendo e validando a planilha…</div>}
+              </Step>
+
+              <Step number="3" title="Conferência antes de enviar" complete={Boolean(catalogParsed)}>
+                <CatalogPreview parsed={catalogParsed} />
+              </Step>
+
+              <Step
+                number="4"
+                title="Importação"
+                subtitle="O arquivo será validado antes de alterar os dados."
               >
-                {CATALOG_PLATFORMS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </Step>
-
-            <Step number="2" title="Selecione a planilha" complete={Boolean(catalogFile)}>
-              <FileDrop
-                file={catalogFile}
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                disabled={catalogReading || catalogImporting}
-                onChange={handleCatalogFile}
-                hint="Arquivo .xlsx exportado da plataforma."
-              />
-              {catalogReading && <div className="import-center-loading">Lendo e validando a planilha…</div>}
-            </Step>
-
-            <Step number="3" title="Confira antes de enviar" complete={Boolean(catalogParsed)}>
-              <CatalogPreview parsed={catalogParsed} />
-            </Step>
-
-            <Step number="4" title="Preparar a importação">
-              <button
-                type="button"
-                className="import-center-primary"
-                disabled={!catalogParsed || catalogReading || catalogImporting}
-                onClick={handleCatalogImport}
-              >
-                {catalogImporting ? 'Preparando…' : 'Preparar e comparar com o catálogo'}
-              </button>
-              {catalogProgressText && <div className="import-center-progress">{catalogProgressText}</div>}
-            </Step>
-
-            <CatalogBatchReview
-              batch={catalogBatch}
-              rows={catalogRows}
-              busy={catalogBusy}
-              onDecision={handleCatalogDecision}
-              onApproveProbable={handleApproveProbable}
-              onApproveNew={handleApproveNew}
-              onCommit={handleCatalogCommit}
-            />
-          </div>
-
-          <ImportHistory
-            mode="catalog"
-            items={catalogHistory}
-            loading={catalogHistoryLoading}
-            onOpen={item => openCatalogBatch(item.id)}
-          />
-        </div>
-      ) : (
-        <div className="import-center-layout">
-          <div className="import-center-flow">
-            <Step number="1" title="Escolha a origem" complete={Boolean(salesPlatform)}>
-              <div className="import-center-inline-fields">
-                <label>
-                  <span>Plataforma</span>
-                  <select
-                    className="import-center-select"
-                    value={salesPlatform}
-                    disabled={salesReading || salesImporting}
-                    onChange={event => {
-                      setSalesPlatform(event.target.value);
-                      setSalesFile(null);
-                      setSalesParsed(null);
-                    }}
+                <div className="import-center-action-line">
+                  <button
+                    type="button"
+                    className="import-center-primary"
+                    disabled={!catalogParsed || catalogReading || catalogImporting}
+                    onClick={handleCatalogImport}
                   >
-                    {SALES_PLATFORMS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                </label>
-                <label>
-                  <span>Mês de referência, se necessário</span>
-                  <input
-                    className="import-center-input"
-                    type="month"
-                    value={salesMonth}
-                    disabled={salesReading || salesImporting}
-                    onChange={event => {
-                      setSalesMonth(event.target.value);
-                      setSalesParsed(null);
-                    }}
-                  />
-                </label>
-              </div>
-            </Step>
+                    {catalogImporting ? 'Preparando…' : 'Preparar e comparar com o catálogo'}
+                  </button>
+                  <ProgressBlock progress={catalogProgress} text={catalogProgressText} />
+                </div>
+              </Step>
 
-            <Step number="2" title="Selecione o relatório" complete={Boolean(salesFile)}>
-              <FileDrop
-                file={salesFile}
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                disabled={salesReading || salesImporting}
-                onChange={handleSalesFile}
-                hint="Relatório .xlsx exportado da plataforma."
+              <CatalogBatchReview
+                batch={catalogBatch}
+                rows={catalogRows}
+                busy={catalogBusy}
+                onDecision={handleCatalogDecision}
+                onApproveProbable={handleApproveProbable}
+                onApproveNew={handleApproveNew}
+                onCommit={handleCatalogCommit}
               />
-              {salesReading && <div className="import-center-loading">Lendo vendas e identificando colunas…</div>}
-            </Step>
+            </>
+          ) : (
+            <>
+              <Step number="1" title="Escolha a origem" complete={Boolean(salesPlatform)}>
+                <div className="import-center-inline-fields">
+                  <label>
+                    <span>Plataforma</span>
+                    <select
+                      className="import-center-select"
+                      value={salesPlatform}
+                      disabled={salesReading || salesImporting}
+                      onChange={event => {
+                        setSalesPlatform(event.target.value);
+                        setSalesFile(null);
+                        setSalesParsed(null);
+                        setSalesProgress(null);
+                      }}
+                    >
+                      {SALES_PLATFORMS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Mês de referência, se necessário</span>
+                    <input
+                      className="import-center-input"
+                      type="month"
+                      value={salesMonth}
+                      disabled={salesReading || salesImporting}
+                      onChange={event => {
+                        setSalesMonth(event.target.value);
+                        setSalesParsed(null);
+                        setSalesProgress(null);
+                      }}
+                    />
+                  </label>
+                </div>
+              </Step>
 
-            <Step number="3" title="Confira os números" complete={Boolean(salesParsed)}>
-              <SalesPreview parsed={salesParsed} />
-            </Step>
+              <Step number="2" title="Selecione o relatório" complete={Boolean(salesFile)}>
+                <FileDrop
+                  file={salesFile}
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  disabled={salesReading || salesImporting}
+                  onChange={handleSalesFile}
+                  hint="Aceita relatórios .xlsx exportados da plataforma"
+                />
+                {salesReading && <div className="import-center-loading">Lendo vendas e identificando colunas…</div>}
+              </Step>
 
-            <Step number="4" title="Atualizar o Painel de Vendas">
-              <button
-                type="button"
-                className="import-center-primary"
-                disabled={!salesParsed || salesReading || salesImporting}
-                onClick={handleSalesImport}
+              <Step number="3" title="Conferência antes de enviar" complete={Boolean(salesParsed)}>
+                <SalesPreview parsed={salesParsed} />
+              </Step>
+
+              <Step
+                number="4"
+                title="Importação"
+                subtitle="Os períodos do arquivo serão consolidados antes de atualizar o painel."
               >
-                {salesImporting ? 'Importando…' : 'Importar vendas'}
-              </button>
-              {salesProgressText && <div className="import-center-progress">{salesProgressText}</div>}
-            </Step>
-          </div>
-
-          <ImportHistory
-            mode="sales"
-            items={salesHistory}
-            loading={salesHistoryLoading}
-            onOpen={() => {}}
-          />
+                <div className="import-center-action-line">
+                  <button
+                    type="button"
+                    className="import-center-primary"
+                    disabled={!salesParsed || salesReading || salesImporting}
+                    onClick={handleSalesImport}
+                  >
+                    {salesImporting ? 'Importando…' : 'Importar vendas'}
+                  </button>
+                  <ProgressBlock progress={salesProgress} text={salesProgressText} />
+                </div>
+              </Step>
+            </>
+          )}
         </div>
-      )}
+
+        <aside className="import-center-sidebar">
+          <ImportHistory
+            mode={mode}
+            items={history}
+            loading={historyLoading}
+            onOpen={item => openCatalogBatch(item.id)}
+            onRefresh={mode === 'catalog' ? refreshCatalogHistory : refreshSalesHistory}
+          />
+          <ImportSummary
+            mode={mode}
+            history={history}
+            batch={mode === 'catalog' ? catalogBatch : null}
+          />
+        </aside>
+      </div>
     </div>
   );
 }
