@@ -238,3 +238,38 @@
   .sales-filter-title strong{font-size:13.5px}
   .sales-filter-grid select,.sales-filter-grid input{font-size:11px}
 }
+
+
+/* Imagem real + SKU visível nos produtos vendidos */
+.sales-product-image{
+  width:44px;
+  height:44px;
+  border-radius:9px;
+  object-fit:cover;
+  flex:0 0 auto;
+  border:1px solid #dfe6ef;
+  background:#f4f7fa;
+  box-shadow:0 2px 6px rgba(15,23,42,.06);
+  transition:transform .16s ease,box-shadow .16s ease;
+}
+.sales-table tbody tr:hover .sales-product-image{
+  transform:scale(1.04);
+  box-shadow:0 5px 12px rgba(15,23,42,.10);
+}
+.sales-products-panel:not(.no-sales) .sales-product-cell strong{
+  font-size:10.5px;
+}
+.sales-products-panel:not(.no-sales) .sales-product-cell small{
+  font-size:8.5px;
+  color:#66758a;
+  font-weight:700;
+}
+.sales-products-panel:not(.no-sales) .sales-table code{
+  font-size:9px;
+  font-weight:800;
+  color:#334155;
+  background:#f2f6fb;
+}
+@media(prefers-reduced-motion:reduce){
+  .sales-product-image{transition:none!important}
+}
