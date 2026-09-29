@@ -27,7 +27,7 @@ function SidebarIcon({ name }) {
   }
 }
 
-const HISTORY_PAGE_SIZE = 25;
+const HISTORY_PAGE_SIZE = 10;
 
 function paginationPages(page, totalPages) {
   const start = Math.max(1, Math.min(page - 2, Math.max(1, totalPages - 4)));
