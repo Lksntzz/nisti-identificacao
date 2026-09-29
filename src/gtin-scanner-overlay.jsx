@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { isValidGtin13 } from './gtin.js';
 import { decodeEan13LumaRow, imageDataToLumaRow } from './gtin-camera-decoder.js';
 import './gtin-scanner.css';
@@ -172,53 +173,134 @@ function ProductSummary({ gtin, product, continuous = false }) {
   );
 }
 
-function GtinHistory({ history, onSelect, onClear }) {
+function HistoryChevron({ up = false }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={up ? 'm18 15-6-6-6 6' : 'm6 9 6 6 6-6'} />
+    </svg>
+  );
+}
+
+function hasTasselLabel(product) {
+  const value = String(product?.tassel || product?.tassel_code || '').trim().toUpperCase();
+  return !value || value === 'X' || value.includes('SEM TASSEL') ? 'Não' : 'Sim';
+}
+
+function GtinHistory({ history, onOpen }) {
   return (
     <section className="gtin-history" aria-label="Histórico de resultados">
-      <div className="gtin-history-header">
-        <div className="gtin-history-title">
+      <button
+        type="button"
+        className="gtin-history-trigger"
+        onClick={onOpen}
+        aria-haspopup="dialog"
+        aria-label="Abrir histórico de resultados"
+      >
+        <span className="gtin-history-title">
           <span className="gtin-history-icon"><HistoryIcon /></span>
-          <div>
-            <h3>Histórico de resultados</h3>
-            <p>{history.length ? `${history.length} leitura${history.length === 1 ? '' : 's'} neste aparelho` : 'As leituras recentes aparecerão aqui.'}</p>
-          </div>
-        </div>
-        {history.length > 0 && (
-          <button type="button" className="gtin-history-clear" onClick={onClear}>Limpar</button>
-        )}
-      </div>
-
-      {history.length === 0 ? (
-        <div className="gtin-history-empty">
-          <BarcodeIcon size={20} />
-          <span>Nenhum EAN identificado ainda.</span>
-        </div>
-      ) : (
-        <div className="gtin-history-list">
-          {history.map(item => (
-            <button
-              type="button"
-              className="gtin-history-item"
-              key={item.id}
-              onClick={() => onSelect(item.gtin)}
-              aria-label={`Abrir novamente o EAN ${item.gtin}`}
-            >
-              <span className="gtin-history-thumb">
-                {item.product.image_url
-                  ? <img src={item.product.image_url} alt="" />
-                  : <BarcodeIcon size={20} />}
-              </span>
-              <span className="gtin-history-copy">
-                <strong>{item.product.nome || item.product.sku || `EAN ${item.gtin}`}</strong>
-                <span>{item.product.sku ? `SKU ${item.product.sku}` : 'Produto identificado'}</span>
-                <small>EAN {item.gtin}</small>
-              </span>
-              <span className="gtin-history-time">{formatHistoryTimestamp(item.scanned_at)}</span>
-            </button>
-          ))}
-        </div>
-      )}
+          <span>
+            <strong>Histórico de resultados</strong>
+            <small>
+              {history.length
+                ? `${history.length} leitura${history.length === 1 ? '' : 's'} neste aparelho`
+                : 'Nenhuma leitura neste aparelho'}
+            </small>
+          </span>
+        </span>
+        <span className="gtin-history-trigger-arrow"><HistoryChevron /></span>
+      </button>
     </section>
+  );
+}
+
+function GtinHistoryModal({ history, onClear, onClose }) {
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      className="gtin-history-modal-backdrop"
+      role="presentation"
+      onClick={event => event.target === event.currentTarget && onClose()}
+    >
+      <section
+        className="gtin-history-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gtin-history-modal-title"
+      >
+        <header className="gtin-history-modal-header">
+          <div className="gtin-history-modal-heading">
+            <span className="gtin-history-modal-icon"><HistoryIcon /></span>
+            <div>
+              <h3 id="gtin-history-modal-title">Histórico de resultados</h3>
+              <p>
+                {history.length
+                  ? `${history.length} leitura${history.length === 1 ? '' : 's'} neste aparelho`
+                  : 'Nenhuma leitura neste aparelho'}
+              </p>
+            </div>
+          </div>
+          <div className="gtin-history-modal-actions">
+            {history.length > 0 && (
+              <button type="button" className="gtin-history-modal-clear" onClick={onClear}>Limpar</button>
+            )}
+            <button type="button" className="gtin-history-modal-close" onClick={onClose} aria-label="Fechar histórico">
+              <CloseIcon />
+            </button>
+          </div>
+        </header>
+
+        {history.length === 0 ? (
+          <div className="gtin-history-modal-empty">
+            <BarcodeIcon size={24} />
+            <span>Nenhum produto identificado ainda.</span>
+          </div>
+        ) : (
+          <div className="gtin-history-modal-list">
+            {history.map(item => (
+              <article className="gtin-history-modal-item" key={item.id}>
+                <div className="gtin-history-modal-thumb">
+                  {item.product.image_url
+                    ? <img src={item.product.image_url} alt="" />
+                    : <BarcodeIcon size={22} />}
+                </div>
+
+                <div className="gtin-history-modal-product">
+                  <span className="gtin-history-modal-label">SKU</span>
+                  <strong>{item.product.sku || 'Sem SKU'}</strong>
+
+                  <div className="gtin-history-modal-attributes">
+                    <div>
+                      <span>Tassel</span>
+                      <strong>{hasTasselLabel(item.product)}</strong>
+                    </div>
+                    <div>
+                      <span>Elástico</span>
+                      <strong>{item.product.elastico || item.product.elastico_code || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>Wire-o</span>
+                      <strong>{item.product.wireo || item.product.wireo_code || '—'}</strong>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>,
+    document.body
   );
 }
 
@@ -235,6 +317,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   const [scannerPaused, setScannerPaused] = useState(false);
   const [captureFeedback, setCaptureFeedback] = useState('idle');
   const [history, setHistory] = useState(() => loadGtinHistory());
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -248,6 +331,7 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   const lastRejectedRef = useRef({ value: '', at: 0 });
   const acceptedGtinRef = useRef({ value: '', lastSeenAt: 0 });
   const autoStartAttemptedRef = useRef(false);
+  const historyAutoPausedRef = useRef(false);
 
   const triggerHaptic = useCallback((pattern = [40, 30, 80]) => {
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
@@ -511,6 +595,8 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   const closeScanner = useCallback(() => {
     stopCamera();
     setOpen(false);
+    setHistoryOpen(false);
+    historyAutoPausedRef.current = false;
     setCameraError('');
     setLookupError('');
     setProduct(null);
@@ -544,11 +630,33 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     setScannerPaused(true);
   };
 
-  const reopenHistoryItem = gtin => {
-    setProduct(null);
-    setLookupError('');
-    lookup(gtin, { recordHistory: false });
+  const openHistory = () => {
+    historyAutoPausedRef.current = Boolean(cameraActive && !scannerPaused);
+    if (historyAutoPausedRef.current) {
+      activeRef.current = false;
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      animationRef.current = 0;
+      setScannerPaused(true);
+    }
+    setHistoryOpen(true);
   };
+
+  const closeHistory = () => {
+    setHistoryOpen(false);
+    if (historyAutoPausedRef.current && cameraActive) {
+      activeRef.current = true;
+      lastFrameRef.current = 0;
+      animationRef.current = requestAnimationFrame(scanFrame);
+      setScannerPaused(false);
+    }
+    historyAutoPausedRef.current = false;
+  };
+
+  useEffect(() => {
+    if (!historyOpen || typeof document === 'undefined') return undefined;
+    document.body.classList.add('gtin-history-modal-open');
+    return () => document.body.classList.remove('gtin-history-modal-open');
+  }, [historyOpen]);
 
   const scannerPanel = (
     <div className={`gtin-scanner-panel${embedded ? ' embedded' : ''}`}>
@@ -646,7 +754,8 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
         </div>
       </form>
 
-      <GtinHistory history={history} onSelect={reopenHistoryItem} onClear={clearHistory} />
+      <GtinHistory history={history} onOpen={openHistory} />
+      {historyOpen && <GtinHistoryModal history={history} onClear={clearHistory} onClose={closeHistory} />}
     </div>
   );
 
