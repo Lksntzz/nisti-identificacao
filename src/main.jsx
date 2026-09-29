@@ -1505,7 +1505,6 @@ function AdminApp() {
 
 export {
   CatalogView,
-  GtinRegistryView,
   BarcodeGeneratorView,
   GtinEventsView,
   ProductGtinManager,
