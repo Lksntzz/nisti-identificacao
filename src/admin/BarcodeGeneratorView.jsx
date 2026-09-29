@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createEan13Svg, downloadBarcodePng, downloadBarcodeZip } from '../ean-barcode.js';
 import { buildEanCollections, collectionZipFilename } from '../ean-collections.js';
 
-const BARCODE_PRODUCT_PAGE_SIZE = 20;
+const BARCODE_PRODUCT_PAGE_SIZE = 10;
 const BARCODE_COLLECTION_PAGE_SIZE = 12;
 
 function paginationPages(page, totalPages) {
