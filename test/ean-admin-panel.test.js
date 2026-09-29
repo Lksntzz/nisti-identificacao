@@ -112,3 +112,34 @@ test('cadastro manual de produto não pede plataforma nem link de anúncio', () 
   assert.doesNotMatch(createModal, /platform: platform/);
   assert.doesNotMatch(createModal, /link: link/);
 });
+
+
+test('taxa de sucesso abre as bipagens reais de hoje por resultado', () => {
+  assert.match(expeditionDashboard, /openScanDetails/);
+  assert.match(expeditionDashboard, /status: 'identified'/);
+  assert.match(expeditionDashboard, /today: '1'/);
+  assert.match(expeditionDashboard, /Ver bipagens/);
+  assert.match(expeditionDashboard, /Ver quais foram/);
+  assert.match(expeditionDashboard, /Ver erros/);
+  assert.match(expeditionDashboard, /scan-details-modal/);
+  assert.match(expeditionDashboard, /operator_name/);
+  assert.match(expeditionDashboard, /event\.gtin/);
+  assert.match(router, /date\(e\.created_at,'-3 hours'\)=date\('now','-3 hours'\)/);
+  assert.match(main, /api=\{api\}/);
+});
+
+test('catálogo mostra plataformas sincronizadas em badges compactas', () => {
+  const sync = fs.readFileSync(new URL('../src/nisti-commerce-sync.js', import.meta.url), 'utf8');
+  const platformMigration = fs.readFileSync(new URL('../supabase/migrations/20260929174500_nisti_catalog_platforms_v1.sql', import.meta.url), 'utf8');
+
+  assert.match(sync, /commerce_nisti_product_platforms_v1/);
+  assert.match(sync, /platformsByProduct/);
+  assert.match(catalogView, /CatalogPlatformTags/);
+  assert.match(catalogView, /catalogPlatforms\(product\)/);
+  assert.match(catalogView, /catalog-platform-more/);
+  assert.match(catalogView, /Sem anúncio no catálogo/);
+  assert.match(platformMigration, /ML_NOVO/);
+  assert.match(platformMigration, /ML_ANTIGO/);
+  assert.match(platformMigration, /LOJA_INTEGRADA/);
+  assert.match(platformMigration, /matched_product_id/);
+});
