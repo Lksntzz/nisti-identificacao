@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import CommerceSalesProductPerformance from './commerce-sales-product-performance.jsx';
 import './commerce-sales-dashboard.css';
 
 const PAGE_SIZE = 100;
@@ -924,16 +925,16 @@ export default function CommerceSalesDashboard() {
               {periodOptions.map(item => <option key={item.value} value={item.value}>{monthLabel(item.label)}</option>)}
             </select>
           </label>
-          <label>Status
+          <label>{isNoSales ? 'Visão' : 'Status'}
             <select value={filters.status} onChange={e => applySelectFilter('status', e.target.value)} disabled={loading}>
               {(options.statuses || ['TODOS','COM VENDA','SEM VENDA']).map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
-          <label className="sales-sku-filter">Buscar SKU
+          <label className="sales-sku-filter">{isNoSales ? 'Buscar SKU ou produto' : 'Buscar SKU'}
             <input
               value={filters.sku}
               onChange={e => setFilters(v => ({ ...v, sku: e.target.value }))}
-              placeholder="Digite o SKU..."
+              placeholder={isNoSales ? 'Digite o SKU ou nome do produto...' : 'Digite o SKU...'}
               onKeyDown={e => e.key === 'Enter' && apply()}
             />
           </label>
@@ -944,8 +945,18 @@ export default function CommerceSalesDashboard() {
 
       {error && <div className="sales-error">{error}</div>}
 
-      {isNoSales && <NoSalesDecisionOverview insights={noSalesInsights} />}
+      {isNoSales && (
+        <CommerceSalesProductPerformance
+          context={{
+            platform: appliedFilters.platform || filters.platform,
+            periodStart: appliedFilters.period_start || filters.periodStart,
+            periodEnd: appliedFilters.period_end || filters.periodEnd,
+            search: appliedFilters.sku || filters.sku
+          }}
+        />
+      )}
 
+      {!isNoSales && (<>
       <section className={`sales-analytics-grid ${isNoSales ? 'no-sales-mode' : ''}`}>
         {isNoSales ? (
           <>
@@ -1122,6 +1133,7 @@ export default function CommerceSalesDashboard() {
           </div>
         </div>
       </section>
+      </>)}
     </div>
   );
 }
