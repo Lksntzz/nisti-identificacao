@@ -529,22 +529,35 @@ async function removeEditorialImage(env, owner, id) {
 }
 
 async function adminListCollections(env) {
-  const { results } = await env.DB.prepare(`
-    SELECT mc.*,
-      (SELECT COUNT(*) FROM mural_collection_products mcp WHERE mcp.collection_id=mc.id) AS product_count,
-      (
-        SELECT GROUP_CONCAT(ordered.product_id)
-        FROM (
-          SELECT product_id
-          FROM mural_collection_products
-          WHERE collection_id=mc.id
-          ORDER BY sort_order ASC,product_id ASC
-        ) ordered
-      ) AS product_ids
-    FROM mural_collections mc
-    ORDER BY CASE mc.status WHEN 'active' THEN 0 ELSE 1 END,mc.year DESC,mc.name ASC
-  `).all();
-  return json({ items: results || [] });
+  const [collectionsResult, membershipResult] = await Promise.all([
+    env.DB.prepare(`
+      SELECT mc.*
+      FROM mural_collections mc
+      ORDER BY CASE mc.status WHEN 'active' THEN 0 ELSE 1 END,mc.year DESC,mc.name ASC
+    `).all(),
+    env.DB.prepare(`
+      SELECT collection_id,product_id,sort_order
+      FROM mural_collection_products
+      ORDER BY collection_id ASC,sort_order ASC,product_id ASC
+    `).all()
+  ]);
+  const membershipByCollection = new Map();
+  for (const row of membershipResult.results || []) {
+    const key = Number(row.collection_id);
+    const list = membershipByCollection.get(key) || [];
+    list.push(Number(row.product_id));
+    membershipByCollection.set(key,list);
+  }
+  return json({
+    items:(collectionsResult.results || []).map(row=>{
+      const productIds = membershipByCollection.get(Number(row.id)) || [];
+      return {
+        ...row,
+        product_count:productIds.length,
+        product_ids:productIds.join(',')
+      };
+    })
+  });
 }
 
 function slugify(value) {
