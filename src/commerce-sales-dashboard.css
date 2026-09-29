@@ -161,3 +161,60 @@
 @media(max-width:900px){.sales-decision-bars .sales-no-sales-bar-label>div{max-width:68%}}
 @media(max-width:620px){.sales-decision-bars .sales-no-sales-bar-label{align-items:flex-start}.sales-decision-bars .sales-no-sales-bar-label>div{max-width:none}}
 @media(prefers-reduced-motion:reduce){.sales-evidence-row,.sales-evidence-row>em i{animation:none!important}}
+
+
+/* Simplified SEM VENDA layout */
+.sales-no-sales-overview{display:grid;gap:10px}
+.sales-no-sales-overview-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.sales-no-sales-overview-head>div{display:grid;gap:2px}
+.sales-no-sales-overview-head strong{font-size:13px;color:#172033}
+.sales-no-sales-overview-head span,.sales-no-sales-overview-head small{font-size:9px;color:#7c8798}
+.sales-no-sales-overview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sales-no-sales-overview-card{border:1px solid #e3e8ef;border-radius:12px;background:#fff;padding:13px 14px;display:grid;gap:5px;min-height:102px;box-shadow:0 1px 2px rgba(15,23,42,.02);animation:sales-card-in .32s ease-out both}
+.sales-no-sales-overview-card.danger{border-left:4px solid #df4f4f}
+.sales-no-sales-overview-card.warning{border-left:4px solid #e5a21c}
+.sales-no-sales-overview-card.info{border-left:4px solid #4187df}
+.sales-no-sales-overview-number{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sales-no-sales-overview-number strong{font-size:20px;color:#172033}
+.sales-no-sales-overview-number span{font-size:9px;font-weight:850;color:#64748b}
+.sales-no-sales-overview-card h3{margin:0;font-size:10.5px;color:#263447}
+.sales-no-sales-overview-card p{margin:0;font-size:8.5px;line-height:1.4;color:#7b8798}
+.sales-analytics-grid.no-sales-mode{grid-template-columns:minmax(0,1.7fr) minmax(300px,.8fr);align-items:start}
+.sales-no-sales-side{display:grid;grid-template-columns:1fr;grid-template-rows:auto auto;gap:10px}
+.sales-no-sales-chart-panel{min-height:0!important}
+.sales-decision-bars{padding:14px 16px 15px;gap:13px}
+.sales-decision-bars .sales-no-sales-bar-label{align-items:center}
+.sales-decision-bars .sales-no-sales-bar-label>div{max-width:72%;gap:2px}
+.sales-decision-bars .sales-no-sales-bar-label strong{font-size:10px}
+.sales-decision-bars .sales-no-sales-bar-label small{font-size:7.8px;line-height:1.3}
+.sales-decision-bars .sales-no-sales-bar-track{height:16px}
+.sales-no-sales-explainer{margin-top:0;padding:8px 10px;font-size:8.5px}
+.sales-no-sales-coverage-body{display:grid;gap:8px;padding:11px 12px}
+.sales-no-sales-coverage-body p{margin:0;font-size:8.5px;line-height:1.42;color:#5f6d80}
+.sales-no-sales-coverage-body p b{color:#334155}
+.sales-no-sales-coverage-body small{padding-top:6px;border-top:1px solid #eef2f6;font-size:8px;color:#8a96a7}
+.sales-no-sales-platforms.evidence{padding:5px 10px 8px}
+.sales-evidence-row{padding:8px 2px;gap:5px}
+.sales-evidence-row>small{font-size:7.5px}
+.sales-evidence-compact{display:grid;gap:2px;min-width:0}
+.sales-evidence-compact strong{font-size:8.5px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sales-evidence-compact small{font-size:7.6px;color:#7f8b9d}
+.sales-table tr[class*="decision-"] td{padding-top:9px;padding-bottom:9px}
+.sales-table tr[class*="decision-"] .product{min-width:310px}
+.sales-products-panel .sales-table th:nth-child(4){min-width:120px}
+.sales-products-panel .sales-table th:nth-child(5){min-width:220px}
+.sales-products-panel .sales-table th:nth-child(6){width:80px}
+@media(max-width:1150px){
+  .sales-analytics-grid.no-sales-mode{grid-template-columns:1fr}
+  .sales-no-sales-side{grid-template-columns:1fr 1fr}
+}
+@media(max-width:780px){
+  .sales-no-sales-overview-grid{grid-template-columns:1fr}
+  .sales-no-sales-side{grid-template-columns:1fr}
+  .sales-no-sales-overview-head{align-items:flex-start;flex-direction:column}
+  .sales-decision-bars .sales-no-sales-bar-label{align-items:flex-start}
+  .sales-decision-bars .sales-no-sales-bar-label>div{max-width:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .sales-no-sales-overview-card{animation:none!important}
+}
