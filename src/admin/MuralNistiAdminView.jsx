@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import './mural-admin.css';
+import '../mural-admin.css';
 
 const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',
