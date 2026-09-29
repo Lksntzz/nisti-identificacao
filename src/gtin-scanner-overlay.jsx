@@ -734,6 +734,31 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
   };
 
   useEffect(() => {
+    if (!embedded || typeof document === 'undefined') return undefined;
+
+    const preventPinch = event => {
+      if (event.touches && event.touches.length > 1) event.preventDefault();
+    };
+    const preventGesture = event => event.preventDefault();
+
+    document.documentElement.classList.add('gtin-fixed-viewport');
+    document.body.classList.add('gtin-fixed-viewport');
+    document.addEventListener('touchmove', preventPinch, { passive: false });
+    document.addEventListener('gesturestart', preventGesture, { passive: false });
+    document.addEventListener('gesturechange', preventGesture, { passive: false });
+    document.addEventListener('gestureend', preventGesture, { passive: false });
+
+    return () => {
+      document.documentElement.classList.remove('gtin-fixed-viewport');
+      document.body.classList.remove('gtin-fixed-viewport');
+      document.removeEventListener('touchmove', preventPinch);
+      document.removeEventListener('gesturestart', preventGesture);
+      document.removeEventListener('gesturechange', preventGesture);
+      document.removeEventListener('gestureend', preventGesture);
+    };
+  }, [embedded]);
+
+  useEffect(() => {
     if (!historyOpen || typeof document === 'undefined') return undefined;
     document.body.classList.add('gtin-history-modal-open');
     return () => document.body.classList.remove('gtin-history-modal-open');
