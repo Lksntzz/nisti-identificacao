@@ -170,7 +170,7 @@ test('histórico de bipagens usa paginação real no backend e na interface', ()
 });
 
 test('gerador de barras pagina produtos e coleções sem perder seleção', () => {
-  assert.match(barcodeGen, /BARCODE_PRODUCT_PAGE_SIZE = 20/);
+  assert.match(barcodeGen, /BARCODE_PRODUCT_PAGE_SIZE = 10/);
   assert.match(barcodeGen, /BARCODE_COLLECTION_PAGE_SIZE = 12/);
   assert.match(barcodeGen, /pagedRows/);
   assert.match(barcodeGen, /pagedCollections/);
