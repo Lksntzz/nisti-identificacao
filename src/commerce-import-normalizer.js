@@ -29,10 +29,25 @@ function isUrl(value) {
   return /^https?:\/\//i.test(text(value));
 }
 
+const SUPPORTED_MARKETPLACES = new Set([
+  'SHOPEE',
+  'MERCADO_LIVRE',
+  'AMAZON',
+  'SHEIN',
+  'LOJA_INTEGRADA',
+  'KWAI',
+  'TIKTOK',
+  'ALIEXPRESS',
+  'MAGALU'
+]);
+
 function normalizeMarketplace(value) {
   const token = compactToken(value).replace(/ /g, '_').toUpperCase();
-  if (token === 'MERCADO_LIVRE' || token === 'MERCADOLIVRE' || token === 'ML') return 'MERCADO_LIVRE';
-  if (token === 'SHOPEE') return 'SHOPEE';
+  if (token === 'MERCADOLIVRE' || token === 'ML') return 'MERCADO_LIVRE';
+  if (token === 'TIK_TOK') return 'TIKTOK';
+  if (token === 'ALI_EXPRESS') return 'ALIEXPRESS';
+  if (token === 'KAWAI') return 'KWAI';
+  if (SUPPORTED_MARKETPLACES.has(token)) return token;
   throw new Error(`Marketplace não suportado: ${value}`);
 }
 
@@ -139,9 +154,11 @@ function normalizedSheetKey(sheetName) {
 }
 
 function profileFor(marketplace, sheetName) {
-  if (marketplace === 'SHOPEE') return SHOPEE_PROFILE;
-  if (marketplace !== 'MERCADO_LIVRE') return null;
-  return ML_PROFILES[normalizedSheetKey(sheetName)] || null;
+  if (marketplace === 'MERCADO_LIVRE') {
+    return ML_PROFILES[normalizedSheetKey(sheetName)] || null;
+  }
+  if (SUPPORTED_MARKETPLACES.has(marketplace)) return SHOPEE_PROFILE;
+  return null;
 }
 
 function looksLikeHeader(row) {
