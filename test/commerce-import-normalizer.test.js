@@ -148,6 +148,30 @@ test('status ambíguos das planilhas são normalizados sem perder sinal de revis
   assert.equal(normalizeUpdateHint('n cadastrado'), 'NOT_LISTED');
 });
 
+test('marketplaces comerciais usam o layout padrão de catálogo', () => {
+  for (const marketplace of ['AMAZON','SHEIN','LOJA_INTEGRADA','KWAI','TIKTOK','ALIEXPRESS','MAGALU']) {
+    const result = normalizeCommerceImportRow({
+      marketplace,
+      sheetName: 'Caderno',
+      rowNumber: 2,
+      row: [
+        'PTD180_COFFE_PXP',
+        '',
+        'Caderno De Anotações Capa Dura',
+        'Caderno',
+        'sim',
+        'não',
+        'https://example.com/produto'
+      ]
+    });
+
+    assert.equal(result.status, 'READY', marketplace);
+    assert.equal(result.normalized.marketplace, marketplace);
+    assert.equal(result.normalized.sku_primary, 'PTD180_COFFE_PXP');
+    assert.equal(result.normalized.listing_presence_hint, 'LISTED');
+  }
+});
+
 test('extrator de ID não confunde catálogo MLBU nem /p/MLB com item vendedor', () => {
   assert.equal(
     extractExternalListingId('MERCADO_LIVRE', 'https://www.mercadolivre.com.br/x/up/MLBU1234567890'),
