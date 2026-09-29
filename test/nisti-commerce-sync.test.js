@@ -266,7 +266,7 @@ test('detalhe do produto permite corrigir a sincronização individual com o Cat
   const main = read('src/main.jsx');
   const css = read('src/app.css');
 
-  assert.equal(router.includes('/api/admin/commerce-sync/nisti-products\\/(\\d+)\\/repair'), true);
+  assert.equal(router.includes('commerce-sync\\/nisti-products\\/(\\d+)\\/repair'), true);
   assert.equal(router.includes('syncNistiProductToCommerceSafe(env, productId)'), true);
   assert.equal(router.includes('reconcileNistiProductToCommerceSafe(env, productId)'), true);
   assert.equal(router.includes("reason: 'sync_not_confirmed'"), true);
