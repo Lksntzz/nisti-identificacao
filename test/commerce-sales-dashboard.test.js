@@ -26,7 +26,7 @@ test('Painel de Vendas usa o layout comercial aprovado', () => {
     'Evolução de vendas',
     'Resumo por plataforma',
     'Participação de vendas',
-    'Vendas por produto',
+    'Produtos vendidos',
     'Exportar'
   ]) {
     assert.equal(ui.includes(text), true, text);
@@ -154,6 +154,32 @@ test('Modo SEM VENDA usa arquitetura profissional por Produto Mestre', () => {
     'NAO_VENDEU',
     'VENDE_OUTRA_PLATAFORMA',
     'SEM_ANUNCIO'
+  ]) {
+    assert.equal(rpc.includes(token), true, token);
+  }
+});
+
+
+test('Produtos vendidos exibem imagem real e SKU da venda', () => {
+  const ui = read('src/commerce-sales-dashboard.jsx');
+  const css = read('src/commerce-sales-dashboard.css');
+  const rpc = read('supabase/migrations/20260929171000_sales_dashboard_product_images.sql');
+
+  assert.equal(ui.includes('sales-product-image'), true);
+  assert.equal(ui.includes('SKU vendido'), true);
+  assert.equal(ui.includes("src={item.image_url}"), true);
+  assert.equal(ui.includes("SKU vendido: {item.sku || '—'}"), true);
+
+  assert.equal(css.includes('.sales-product-image'), true);
+  assert.equal(css.includes('object-fit:cover'), true);
+
+  for (const token of [
+    'sales_product_images',
+    "'image_url',pi.image_url",
+    'commerce_product_id',
+    'shopee_snapshot',
+    'cover_image_url',
+    'commerce_image_years_compatible'
   ]) {
     assert.equal(rpc.includes(token), true, token);
   }
