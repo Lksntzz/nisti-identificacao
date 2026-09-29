@@ -368,7 +368,8 @@ async function adminListPosts(url, env) {
   if (kind) { clauses.push('mp.kind = ?'); bindings.push(kind); }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const { results } = await env.DB.prepare(`
-    SELECT mp.*,p.sku AS product_sku,p.nome AS product_name,
+    SELECT mp.*,p.sku AS product_sku,p.nome AS product_name,p.miolo_code AS product_miolo_code,
+      p.image_key AS product_image_key,p.wireo_code,p.tassel_code,p.elastico_code,
       mc.name AS collection_name,mc.slug AS collection_slug
     FROM mural_posts mp
     LEFT JOIN products p ON p.id=mp.product_id
@@ -378,7 +379,17 @@ async function adminListPosts(url, env) {
       COALESCE(mp.published_at,mp.created_at) DESC,mp.id DESC
     LIMIT 200
   `).bind(...bindings).all();
-  return json({ items: results || [] });
+  return json({ items:(results || []).map(row=>{
+    const labels=finishLabels(row);
+    return {
+      ...row,
+      product_type:row.product_id ? productTypeLabel({ sku:row.product_sku, product_name:row.product_name, miolo_code:row.product_miolo_code }) : null,
+      product_image_url:row.product_id && row.product_image_key ? `/api/images/${Number(row.product_id)}?v=${encodeURIComponent(row.product_image_key)}` : null,
+      product_wireo:labels.wireo,
+      product_tassel:labels.tassel,
+      product_elastico:labels.elastico
+    };
+  }) });
 }
 
 async function adminGetPost(id, env) {
@@ -516,10 +527,18 @@ async function removeEditorialImage(env, owner, id) {
 
 async function adminListCollections(env) {
   const { results } = await env.DB.prepare(`
-    SELECT mc.*,COUNT(mcp.product_id) AS product_count,GROUP_CONCAT(mcp.product_id) AS product_ids
+    SELECT mc.*,
+      (SELECT COUNT(*) FROM mural_collection_products mcp WHERE mcp.collection_id=mc.id) AS product_count,
+      (
+        SELECT GROUP_CONCAT(ordered.product_id)
+        FROM (
+          SELECT product_id
+          FROM mural_collection_products
+          WHERE collection_id=mc.id
+          ORDER BY sort_order ASC,product_id ASC
+        ) ordered
+      ) AS product_ids
     FROM mural_collections mc
-    LEFT JOIN mural_collection_products mcp ON mcp.collection_id=mc.id
-    GROUP BY mc.id
     ORDER BY CASE mc.status WHEN 'active' THEN 0 ELSE 1 END,mc.year DESC,mc.name ASC
   `).all();
   return json({ items: results || [] });
