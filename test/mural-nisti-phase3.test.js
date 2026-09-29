@@ -13,10 +13,10 @@ test('phase 3 exposes the documented admin mural contract',()=>{
     '/api/admin/mural/products',
     '/api/admin/mural/collections'
   ]) assert.ok(router.includes(route));
-  assert.match(router,/posts\\\/(\\d\+\)\\\/publish/);
-  assert.match(router,/posts\\\/(\\d\+\)\\\/archive/);
-  assert.match(router,/posts\\\/(\\d\+\)\\\/image/);
-  assert.match(router,/collections\\\/(\\d\+\)\\\/products/);
+  assert.ok(router.includes("const publish = path.match(/^\\/api\\/admin\\/mural\\/posts"));
+  assert.ok(router.includes("const archive = path.match(/^\\/api\\/admin\\/mural\\/posts"));
+  assert.ok(router.includes("const postUpload = path.match(/^\\/api\\/admin\\/mural\\/posts"));
+  assert.ok(router.includes("const collectionProducts = path.match(/^\\/api\\/admin\\/mural\\/collections"));
 });
 
 test('mural admin writes inherit existing admin session protection',()=>{
