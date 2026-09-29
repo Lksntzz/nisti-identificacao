@@ -13,7 +13,7 @@ test('mural router exposes phase 1 public endpoints', () => {
     "/api/mural/mark-all-read",
     "/api/mural/collections/"
   ]) assert.match(source, new RegExp(route.replace(/[.*+?^$\{\}()|[\]\\]/g, '\\$&')));
-  assert.match(source, /api\\\/mural\\\/(\\d\+)\\\/read/);
+  assert.ok(source.includes("path.match(/^\\/api\\/mural\\/(\\d+)\\/read$/)"));
 });
 
 test('mural feed excludes unpublished, future and expired content', () => {
