@@ -39,3 +39,11 @@ test('phase 5 reuses existing VAPID subscriptions and cleans dead endpoints',()=
   assert.ok(push.includes('res.status===404||res.status===410'));
   assert.ok(push.includes('removePushSubscription(env,endpoint)'));
 });
+
+test('publishing the feed never dispatches mural push automatically',()=>{
+  const publishStart=mural.indexOf('async function adminPublishPost');
+  const pushStart=mural.indexOf('async function adminSendPush');
+  assert.ok(publishStart>=0);
+  const publishSource=mural.slice(publishStart,pushStart>publishStart?pushStart:publishStart+4000);
+  assert.equal(publishSource.includes('broadcastMuralPush'),false);
+});
