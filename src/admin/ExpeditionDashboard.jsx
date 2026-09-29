@@ -1,6 +1,139 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, onShowProductsWithoutGtin }) {
+function formatScanDate(value) {
+  if (!value) return { date: '—', time: '—' };
+  try {
+    const date = new Date(value);
+    return {
+      date: new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).format(date),
+      time: new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date)
+    };
+  } catch {
+    return { date: '—', time: '—' };
+  }
+}
+
+const SCAN_META = {
+  identified: {
+    title: 'Bipagens identificadas hoje',
+    label: 'Identificado',
+    className: 'identified',
+    empty: 'Nenhuma bipagem identificada hoje.'
+  },
+  not_found: {
+    title: 'EANs não cadastrados hoje',
+    label: 'Não cadastrado',
+    className: 'not-found',
+    empty: 'Nenhum EAN não cadastrado hoje.'
+  },
+  system_error: {
+    title: 'Erros técnicos de hoje',
+    label: 'Erro técnico',
+    className: 'system-error',
+    empty: 'Nenhum erro técnico hoje.'
+  }
+};
+
+function ScanDetailsModal({ status, events, loading, error, onClose, onNavigate }) {
+  if (!status) return null;
+  const meta = SCAN_META[status];
+
+  return (
+    <div className="scan-details-backdrop" onClick={event => event.target === event.currentTarget && onClose()}>
+      <div className="scan-details-modal">
+        <div className="scan-details-head">
+          <div>
+            <span className={`scan-details-status-dot ${meta.className}`} />
+            <div>
+              <h3>{meta.title}</h3>
+              <small>{events.length} leitura{events.length === 1 ? '' : 's'} encontrada{events.length === 1 ? '' : 's'}</small>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar">✕</button>
+        </div>
+
+        <div className="scan-details-body">
+          {loading ? (
+            <div className="scan-details-empty">Carregando bipagens…</div>
+          ) : error ? (
+            <div className="scan-details-error">{error}</div>
+          ) : events.length === 0 ? (
+            <div className="scan-details-empty">{meta.empty}</div>
+          ) : (
+            <div className="scan-details-list">
+              {events.map(event => {
+                const when = formatScanDate(event.created_at);
+                return (
+                  <div className="scan-detail-row" key={event.id}>
+                    <div className="scan-detail-product">
+                      {event.image_url ? (
+                        <img src={event.image_url} alt="" loading="lazy" />
+                      ) : (
+                        <span className={`scan-detail-placeholder ${meta.className}`}>▥</span>
+                      )}
+                      <div>
+                        <strong>
+                          {event.nome || event.sku || (status === 'not_found' ? 'EAN não cadastrado' : 'Leitura sem produto')}
+                        </strong>
+                        <small>
+                          {event.sku ? `SKU: ${event.sku}` : event.error_code ? `Motivo: ${event.error_code}` : meta.label}
+                        </small>
+                      </div>
+                    </div>
+
+                    <div className="scan-detail-ean">
+                      <span>EAN</span>
+                      <strong>{event.gtin}</strong>
+                    </div>
+
+                    <div className="scan-detail-meta">
+                      <span>{when.date} · {when.time}</span>
+                      <small>{event.operator_name || 'Operador não identificado'}</small>
+                    </div>
+
+                    <div className="scan-detail-time">
+                      {event.response_ms ? `${event.response_ms} ms` : '—'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="scan-details-foot">
+          <button
+            type="button"
+            className="btn-cancel"
+            onClick={() => {
+              onClose();
+              onNavigate(status === 'not_found' ? 'ean-nao-cadastrados' : 'historico-ean');
+            }}
+          >
+            Ver histórico completo
+          </button>
+          <button type="button" className="btn-edit-action" onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, onShowProductsWithoutGtin, api }) {
+  const [detailStatus, setDetailStatus] = useState('');
+  const [detailEvents, setDetailEvents] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+
   const activeGtins = Number(gtinDashboard?.active_gtins || 0);
   const productsWithGtin = Number(gtinDashboard?.products_with_gtin || 0);
   const todayTotal = Number(gtinDashboard?.today?.total || 0);
@@ -12,9 +145,37 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
   const coverageRate = productsCount > 0 ? Math.round((productsWithGtin / productsCount) * 100) : 0;
   const productsWithoutGtin = Number(gtinDashboard?.products_without_gtin_count ?? Math.max(0, productsCount - productsWithGtin));
 
+  const openScanDetails = async status => {
+    const counts = {
+      identified: todayIdentified,
+      not_found: todayNotFound,
+      system_error: todayErrors
+    };
+    if (!counts[status] || !api) return;
+
+    setDetailStatus(status);
+    setDetailEvents([]);
+    setDetailError('');
+    setDetailLoading(true);
+
+    try {
+      const params = new URLSearchParams({
+        status,
+        today: '1',
+        limit: '100'
+      });
+      if (status === 'not_found') params.set('pending', '1');
+      const result = await api(`/api/admin/gtin-events?${params.toString()}`);
+      setDetailEvents(Array.isArray(result?.events) ? result.events : []);
+    } catch (error) {
+      setDetailError(error?.message || 'Não foi possível carregar os detalhes das bipagens.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   return (
     <div className="expedition-dashboard-container" style={{ marginBottom: '24px' }}>
-      {/* 4 KPIs Principais */}
       <div className="kpis-row">
         <div className="kpi-box kpi-blue">
           <div className="kpi-icon-circle blue">
@@ -64,8 +225,8 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
           <button
             type="button"
             className="kpi-box kpi-purple kpi-action"
-            onClick={() => onNavigate?.('ean-nao-cadastrados')}
-            title="Ver os EANs não cadastrados"
+            onClick={() => openScanDetails('not_found')}
+            title="Ver os EANs não cadastrados de hoje"
           >
             <div className="kpi-icon-circle purple">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#9333ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -77,15 +238,13 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
             <div className="kpi-body">
               <span className="kpi-title">EAN não Cadastrados</span>
               <strong className="kpi-num">{todayNotFound.toLocaleString('pt-BR')}</strong>
-              <span className="kpi-tag orange">Aguardando vínculo</span>
+              <span className="kpi-tag orange">Clique para ver as bipagens</span>
             </div>
           </button>
         )}
       </div>
 
-      {/* Painel de Produtividade da Expedição & Cobertura */}
       <div className="expedition-panels-grid">
-        {/* Card 1: Eficiência Operacional Hoje */}
         <div className="expedition-card">
           <div className="expedition-card-head">
             <div className="expedition-card-title">
@@ -98,7 +257,6 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Barra de Progresso de Acerto */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                 <span style={{ color: '#475569', fontWeight: 600 }}>Taxa de Sucesso na Bipagem</span>
@@ -115,25 +273,41 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
               </div>
             </div>
 
-            {/* Sub-métricas em 3 colunas */}
             <div className="expedition-metrics-subgrid">
-              <div>
-                <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block', fontWeight: 600 }}>Identificados</span>
-                <strong style={{ fontSize: '16px', color: '#16a34a', fontWeight: 800 }}>{todayIdentified}</strong>
-              </div>
-              <div>
-                <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block', fontWeight: 600 }}>Não Cadastrados</span>
-                <strong style={{ fontSize: '16px', color: todayNotFound > 0 ? '#d97706' : '#64748b', fontWeight: 800 }}>{todayNotFound}</strong>
-              </div>
-              <div>
-                <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block', fontWeight: 600 }}>Erros Técnicos</span>
-                <strong style={{ fontSize: '16px', color: todayErrors > 0 ? '#dc2626' : '#64748b', fontWeight: 800 }}>{todayErrors}</strong>
-              </div>
+              <button
+                type="button"
+                className="expedition-metric-detail identified"
+                disabled={todayIdentified === 0}
+                onClick={() => openScanDetails('identified')}
+              >
+                <span>Identificados</span>
+                <strong>{todayIdentified}</strong>
+                <small>{todayIdentified > 0 ? 'Ver bipagens ›' : 'Sem leituras'}</small>
+              </button>
+              <button
+                type="button"
+                className="expedition-metric-detail not-found"
+                disabled={todayNotFound === 0}
+                onClick={() => openScanDetails('not_found')}
+              >
+                <span>Não Cadastrados</span>
+                <strong>{todayNotFound}</strong>
+                <small>{todayNotFound > 0 ? 'Ver quais foram ›' : 'Nenhum'}</small>
+              </button>
+              <button
+                type="button"
+                className="expedition-metric-detail system-error"
+                disabled={todayErrors === 0}
+                onClick={() => openScanDetails('system_error')}
+              >
+                <span>Erros Técnicos</span>
+                <strong>{todayErrors}</strong>
+                <small>{todayErrors > 0 ? 'Ver erros ›' : 'Nenhum'}</small>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Card 2: Cobertura do Catálogo EAN */}
         <div className="expedition-card">
           <div className="expedition-card-head">
             <div className="expedition-card-title">
@@ -146,7 +320,6 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Barra de Progresso de Cobertura */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                 <span style={{ color: '#475569', fontWeight: 600 }}>Produtos com Código de Barras</span>
@@ -163,13 +336,8 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
               </div>
             </div>
 
-            {/* Alerta de Produtos sem EAN ou Ação Rápida */}
             {productsWithoutGtin > 0 && (
-              <button
-                type="button"
-                className="missing-gtin-alert"
-                onClick={onShowProductsWithoutGtin}
-              >
+              <button type="button" className="missing-gtin-alert" onClick={onShowProductsWithoutGtin}>
                 <span>⚠️ <strong>{productsWithoutGtin}</strong> produto{productsWithoutGtin === 1 ? '' : 's'} sem EAN vinculado</span>
                 <span>Ver produtos →</span>
               </button>
@@ -177,6 +345,15 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
           </div>
         </div>
       </div>
+
+      <ScanDetailsModal
+        status={detailStatus}
+        events={detailEvents}
+        loading={detailLoading}
+        error={detailError}
+        onClose={() => setDetailStatus('')}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }
