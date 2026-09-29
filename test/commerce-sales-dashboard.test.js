@@ -42,6 +42,13 @@ test('Painel de Vendas usa o layout comercial aprovado', () => {
   assert.equal(ui.includes('PlatformSummary'), true);
   assert.equal(ui.includes('ParticipationCard'), true);
   assert.equal(ui.includes('SalesChart'), true);
+  assert.equal(ui.includes('AnimatedMetricValue'), true);
+  assert.equal(ui.includes('sales-chart-tooltip'), true);
+  assert.equal(ui.includes('setHoveredIndex'), true);
+  assert.equal(ui.includes('showRevenue'), true);
+  assert.equal(ui.includes('showOrders'), true);
+  assert.equal(ui.includes("onSelect={platform => applySelectFilter('platform', platform)}"), true);
+  assert.equal(ui.includes('sales-donut-segment'), true);
 });
 
 test('API e banco usam a base normalizada de vendas', () => {
@@ -58,4 +65,21 @@ test('API e banco usam a base normalizada de vendas', () => {
   assert.equal(rpc.includes('listings_with_sales'), true);
   assert.equal(rpc.includes('ML_NOVO_GESTAO'), true);
   assert.equal(rpc.includes('ML_ANTIGO_GESTAO'), true);
+});
+
+
+test('Painel de Vendas possui camada de movimento e acessibilidade de interação', () => {
+  const css = read('src/commerce-sales-dashboard.css');
+  for (const token of [
+    '@keyframes sales-card-in',
+    '@keyframes sales-bar-grow',
+    '@keyframes sales-line-draw',
+    '.sales-chart-tooltip',
+    '.sales-chart-hit',
+    '.sales-donut-segment',
+    '.sales-platform-summary-row:hover',
+    '@media(prefers-reduced-motion:reduce)'
+  ]) {
+    assert.equal(css.includes(token), true, token);
+  }
 });
