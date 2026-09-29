@@ -1,5 +1,12 @@
 const SQL_UTC_TIMESTAMP = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
 
+export function explicitUtcTimestamp(value) {
+  if (!value) return value;
+  const raw = String(value).trim();
+  if (!raw) return raw;
+  return SQL_UTC_TIMESTAMP.test(raw) ? `${raw.replace(' ', 'T')}Z` : raw;
+}
+
 export function parseNistiTimestamp(value) {
   if (!value) return null;
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
@@ -9,9 +16,7 @@ export function parseNistiTimestamp(value) {
 
   // SQLite/D1 CURRENT_TIMESTAMP returns UTC without a timezone suffix.
   // Mark it explicitly as UTC before JavaScript parses it.
-  const normalized = SQL_UTC_TIMESTAMP.test(raw)
-    ? `${raw.replace(' ', 'T')}Z`
-    : raw;
+  const normalized = explicitUtcTimestamp(raw);
 
   const date = new Date(normalized);
   return Number.isNaN(date.getTime()) ? null : date;
