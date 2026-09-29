@@ -1,6 +1,7 @@
 import app from './product-finish-router.js';
 import { normalizeGtin, requireValidGtin13 } from './gtin.js';
 import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
+import { explicitUtcTimestamp } from './date-time.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -165,6 +166,8 @@ async function adminGtinEvents(url, env) {
       id: Number(row.id),
       product_id: row.product_id ? Number(row.product_id) : null,
       response_ms: Number(row.response_ms || 0),
+      created_at: explicitUtcTimestamp(row.created_at),
+      dismissed_at: explicitUtcTimestamp(row.dismissed_at),
       image_url: row.image_key && row.product_id ? `/api/images/${Number(row.product_id)}` : null
     }))
   });
