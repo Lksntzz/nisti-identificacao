@@ -160,3 +160,5 @@
   .mural-tabs button, .mural-card { transition: none; }
   .mural-skeleton { animation: none; }
 }
+
+.mural-load-more{display:block;min-width:160px;min-height:44px;margin:14px auto 0;padding:0 18px;border:1px solid var(--mural-border);border-radius:999px;background:#fff;color:var(--mural-blue);font:inherit;font-size:12px;font-weight:850;cursor:pointer}.mural-load-more:disabled{opacity:.6;cursor:wait}.mural-card:focus-visible,.mural-hero:focus-visible,.mural-tabs button:focus-visible,.mural-load-more:focus-visible,.mural-detail-close:focus-visible,.mural-primary-action:focus-visible{outline:3px solid #0B1329;outline-offset:3px}@media(min-width:431px){.mural-load-more{max-width:720px}}
