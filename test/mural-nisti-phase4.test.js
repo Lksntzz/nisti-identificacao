@@ -5,6 +5,7 @@ import test from 'node:test';
 const ui=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../src/mural-nisti.css',import.meta.url),'utf8');
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
+const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
 
 test('phase 4 uses cursor pagination without replacing existing feed',()=>{
   assert.ok(router.includes('next_cursor'));
@@ -42,4 +43,19 @@ test('phase 4 retains mobile width contracts and safe areas',()=>{
   assert.ok(css.includes('@media (max-width: 390px)'));
   assert.ok(css.includes('@media (min-width: 431px)'));
   assert.ok(css.includes('env(safe-area-inset-bottom)'));
+});
+
+test('phase 4 exposes only lightweight operational metrics in protected admin namespace',()=>{
+  assert.ok(router.includes("'/api/admin/mural/metrics'"));
+  assert.ok(router.includes('COUNT(DISTINCT user_id)'));
+  assert.ok(router.includes('published_by_month'));
+  assert.ok(router.includes('top_reads'));
+  assert.ok(admin.includes("request('/api/admin/mural/metrics')"));
+  assert.ok(admin.includes('Posts com mais leituras'));
+});
+
+test('phase 4 logs mural API failures with request context',()=>{
+  assert.ok(router.includes("console.error('Falha no Mural NISTI.'"));
+  assert.ok(router.includes('method: request.method'));
+  assert.ok(router.includes('path'));
 });
