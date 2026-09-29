@@ -13,6 +13,13 @@ const NAV_ITEMS = Object.freeze([
   { id: 'pending', label: 'Pendências', icon: 'list' }
 ]);
 
+const VIEW_TITLES = Object.freeze({
+  catalog: 'Catálogo',
+  sales: 'Painel de Vendas',
+  'import-center': 'Central de Importações',
+  pending: 'Pendências'
+});
+
 const VIEW_DESCRIPTIONS = Object.freeze({
   catalog: 'Produto Mestre, imagens e anúncios de todas as plataformas em uma única visão.',
   sales: 'Pedidos, unidades, faturamento e itens sem venda por plataforma, período e SKU.',
@@ -206,7 +213,7 @@ export default function CommerceAdminAppV2() {
         <main className="admin-page-content commerce-admin-page-content">
           <div className="welcome-banner commerce-welcome-banner">
             <div className="welcome-copy">
-              <h2>{activeItem.label}</h2>
+              <h2>{VIEW_TITLES[activeItem.id] || activeItem.label}</h2>
               <p>{VIEW_DESCRIPTIONS[activeItem.id]}</p>
             </div>
             <div className="commerce-live-status">
