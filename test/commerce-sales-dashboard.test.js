@@ -16,6 +16,7 @@ test('Painel de Vendas preserva filtros e indicadores da planilha', () => {
     assert.equal(ui.includes(text), true, text);
   }
   assert.equal(ui.includes('SEM VENDA'), true);
+  assert.equal(ui.includes("filters.status === 'SEM VENDA' ? []"), true);
   assert.equal(ui.includes('Abrir anúncio'), true);
 });
 
