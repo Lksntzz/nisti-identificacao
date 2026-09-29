@@ -231,13 +231,19 @@ export default function MuralNisti({ onUnreadChange }) {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
   const [collectionSlug, setCollectionSlug] = useState('');
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sessionCache = useRef(new Map());
 
   const load = async currentTab => {
     setLoading(true);
     setError('');
     try {
       const data = await muralApi(`/api/mural?tab=${encodeURIComponent(currentTab)}&limit=20`);
-      setItems(Array.isArray(data.items) ? data.items : []);
+      const fresh = Array.isArray(data.items) ? data.items : [];
+      setItems(fresh);
+      setNextCursor(data.next_cursor || null);
+      sessionCache.current.set(currentTab, { items: fresh, nextCursor: data.next_cursor || null });
       onUnreadChange?.(Number(data.unread_count || 0));
     } catch (loadError) {
       setError(loadError.message);
@@ -248,18 +254,46 @@ export default function MuralNisti({ onUnreadChange }) {
 
   useEffect(() => {
     let active = true;
+    const cached = sessionCache.current.get(tab);
+    if (cached) { setItems(cached.items); setNextCursor(cached.nextCursor); }
+    else { setItems([]); setNextCursor(null); }
     setLoading(true);
     setError('');
     muralApi(`/api/mural?tab=${encodeURIComponent(tab)}&limit=20`)
       .then(data => {
         if (!active) return;
-        setItems(Array.isArray(data.items) ? data.items : []);
+        const fresh = Array.isArray(data.items) ? data.items : [];
+        setItems(fresh);
+        setNextCursor(data.next_cursor || null);
+        sessionCache.current.set(tab, { items: fresh, nextCursor: data.next_cursor || null });
         onUnreadChange?.(Number(data.unread_count || 0));
       })
       .catch(loadError => active && setError(loadError.message))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [tab, onUnreadChange]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    setError('');
+    try {
+      const data = await muralApi(`/api/mural?tab=${encodeURIComponent(tab)}&limit=20&cursor=${encodeURIComponent(nextCursor)}`);
+      const extra = Array.isArray(data.items) ? data.items : [];
+      setItems(previous => {
+        const known = new Set(previous.map(item => item.id));
+        const merged = [...previous, ...extra.filter(item => !known.has(item.id))];
+        sessionCache.current.set(tab, { items: merged, nextCursor: data.next_cursor || null });
+        return merged;
+      });
+      setNextCursor(data.next_cursor || null);
+      onUnreadChange?.(Number(data.unread_count || 0));
+    } catch (loadError) {
+      setError(loadError.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const openItem = async item => {
     setSelected(item);
@@ -315,9 +349,12 @@ export default function MuralNisti({ onUnreadChange }) {
               {[0, 1, 2].map(index => <div className="mural-skeleton mural-skeleton-card" key={index} />)}
             </div>
           ) : feed.length ? (
-            <div className="mural-feed">
-              {feed.map((item, index) => <MuralCard key={item.id} item={item} onOpen={openItem} eager={index < 2} />)}
-            </div>
+            <>
+              <div className="mural-feed">
+                {feed.map((item, index) => <MuralCard key={item.id} item={item} onOpen={openItem} eager={index < 2} />)}
+              </div>
+              {nextCursor && <button type="button" className="mural-load-more" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Carregando…' : 'Carregar mais'}</button>}
+            </>
           ) : !loading && (
             <div className="mural-empty">Nenhuma novidade por aqui agora.</div>
           )}
