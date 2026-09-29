@@ -35,6 +35,14 @@ async function loadPerformance(context, situation = 'TODOS', offset = 0, limit =
   return payload;
 }
 
+const SITUATION_OPTIONS = [
+  { value: 'TODOS', label: 'Todas as situações' },
+  { value: 'VENDEU', label: 'Vendeu' },
+  { value: 'NAO_VENDEU', label: 'Não vendeu' },
+  { value: 'VENDE_OUTRA_PLATAFORMA', label: 'Vende em outra plataforma' },
+  { value: 'SEM_ANUNCIO', label: 'Sem anúncio' }
+];
+
 const STATUS = {
   VENDEU: { label: 'Vendeu', className: 'sold' },
   NAO_VENDEU: { label: 'Não vendeu', className: 'no-sales' },
@@ -288,7 +296,7 @@ export default function CommerceSalesProductPerformance({ context }) {
             <div className="spp-table-actions">
               <label>Situação
                 <select value={situation} onChange={event => setSituationAndReset(event.target.value)} disabled={loading}>
-                  {(data?.options?.situations || []).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  {(data?.options?.situations?.length ? data.options.situations : SITUATION_OPTIONS).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </label>
               <button type="button" onClick={exportRows} disabled={loading || exporting || !pagination.total}>{exporting ? 'Exportando…' : 'Exportar'}</button>
