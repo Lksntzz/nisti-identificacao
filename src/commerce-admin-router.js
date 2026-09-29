@@ -90,13 +90,16 @@ function errorResponse(error) {
   if (error instanceof SupabaseReadError) {
     console.error(`[Commerce] Supabase RPC failed: ${error.code}`, error.message);
     const clientError = error.status >= 400 && error.status < 500 && !error.fallbackEligible;
+    const periodRegression = String(error.message || '').includes('sales_import_period_regression');
     return json({
-      error: clientError
-        ? 'Dados inválidos para a operação do Catálogo Comercial.'
-        : 'Não foi possível acessar o Catálogo Comercial.',
-      technical_error: error.code,
+      error: periodRegression
+        ? 'Esse arquivo termina antes do período de vendas que já está salvo para esse mês. Para substituir um mês parcial, importe o arquivo mais completo do mesmo mês.'
+        : clientError
+          ? 'Dados inválidos para a operação do Catálogo Comercial.'
+          : 'Não foi possível acessar o Catálogo Comercial.',
+      technical_error: periodRegression ? 'sales_import_period_regression' : error.code,
       retryable: Boolean(error.fallbackEligible)
-    }, clientError ? 400 : (error.status >= 400 && error.status < 600 ? error.status : 502));
+    }, periodRegression ? 409 : (clientError ? 400 : (error.status >= 400 && error.status < 600 ? error.status : 502)));
   }
 
   console.error('[Commerce] unexpected error', error);
