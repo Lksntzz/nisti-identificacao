@@ -1311,6 +1311,8 @@ function AdminApp() {
   const [products, setProducts] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [storage, setStorage] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [healthError, setHealthError] = useState('');
   const [gtinDashboard, setGtinDashboard] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -1345,19 +1347,27 @@ function AdminApp() {
     }
   };
 
-  const refreshMetrics = async () => {
+  const refreshMetrics = async (fresh = false) => {
+    const suffix = fresh ? '?fresh=1' : '';
     try {
-      const [m, s, unread, gtin] = await Promise.all([
-        api('/api/admin/system-metrics').catch(() => null),
-        api('/api/admin/storage-metrics').catch(() => null),
+      const [m, s, healthResult, unread, gtin] = await Promise.all([
+        api(`/api/admin/system-metrics${suffix}`).catch(() => null),
+        api(`/api/admin/storage-metrics${suffix}`).catch(() => null),
+        api(`/api/admin/system-health${suffix}`)
+          .then(data => ({ data, error: '' }))
+          .catch(error => ({ data: null, error: error?.message || 'Falha ao verificar saúde do sistema' })),
         api('/api/notifications/unread-count').catch(() => ({ unread_count: 0 })),
         api('/api/admin/gtin-dashboard').catch(() => null)
       ]);
       if (m) setMetrics(m);
       if (s) setStorage(s);
+      if (healthResult?.data) setHealth(healthResult.data);
+      setHealthError(healthResult?.error || '');
       if (gtin) setGtinDashboard(gtin);
       if (unread?.unread_count !== undefined) setUnreadCount(unread.unread_count);
-    } catch {}
+    } catch (error) {
+      setHealthError(error?.message || 'Falha ao atualizar medições');
+    }
   };
 
   const refreshAll = async () => {
@@ -1496,7 +1506,9 @@ function AdminApp() {
             <SystemHealthView
               metrics={metrics}
               storage={storage}
-              onRefresh={refreshAll}
+              health={health}
+              healthError={healthError}
+              onRefresh={() => refreshMetrics(true)}
             />
           )}
         </main>
