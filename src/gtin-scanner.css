@@ -1880,3 +1880,69 @@ body.gtin-history-modal-open {
     font-size: 8.5px;
   }
 }
+
+
+/* Tipo do produto + ícones de acabamento */
+.gtin-result-type-label {
+  display: block;
+  margin-bottom: 3px;
+  color: #94a3b8;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.gtin-result-detail dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gtin-result-detail-icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: #eef4ff;
+  color: #4f46e5;
+}
+
+.gtin-result-detail:nth-child(3) .gtin-result-detail-icon {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.gtin-result-detail:nth-child(4) .gtin-result-detail-icon {
+  background: #fdf2f8;
+  color: #be185d;
+}
+
+.gtin-result-detail:nth-child(5) .gtin-result-detail-icon {
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+@media (max-width: 640px) {
+  .gtin-result-type-label {
+    margin-bottom: 2px;
+    font-size: 6.5px;
+  }
+
+  .gtin-result-detail dt {
+    gap: 4px;
+  }
+
+  .gtin-result-detail-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+  }
+
+  .gtin-result-detail-icon svg {
+    width: 13px;
+    height: 13px;
+  }
+}
