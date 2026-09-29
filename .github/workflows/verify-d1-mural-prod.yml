@@ -62,13 +62,17 @@ jobs:
 
               const columns = await env.DB.prepare("PRAGMA table_info(mural_posts)").all();
               const fks = await env.DB.prepare("PRAGMA foreign_key_list(mural_posts)").all();
+              const migrationTableColumns = await env.DB.prepare("PRAGMA table_info(d1_migrations)").all();
+              const migrationHistory = await env.DB.prepare("SELECT * FROM d1_migrations ORDER BY id").all();
 
               return Response.json({
                 schema: schema.results || [],
                 migration: migration.results || [],
                 migration_error: migration.error || null,
                 columns: columns.results || [],
-                foreign_keys: fks.results || []
+                foreign_keys: fks.results || [],
+                migration_table_columns: migrationTableColumns.results || [],
+                migration_history: migrationHistory.results || []
               }, { headers: { 'cache-control': 'no-store' } });
             }
           };
@@ -130,15 +134,20 @@ jobs:
             tables_found: expectedTables.filter(name => names.has(name)),
             indexes_found: expectedIndexes.filter(name => names.has(name)),
             mural_posts_columns_found: expectedColumns.filter(name => columnNames.has(name)),
-            mural_posts_fk_targets: [...fkTargets].sort()
+            mural_posts_fk_targets: [...fkTargets].sort(),
+            migration_table_columns: (proof.migration_table_columns || []).map(row => row.name),
+            migration_history: (proof.migration_history || []).map(row => ({ id: row.id, name: row.name, applied_at: row.applied_at }))
           };
           console.log('Remote D1 Mural validation summary');
           console.log(JSON.stringify(summary,null,2));
 
-          if (!migrationApplied) throw new Error('Migration 0019_mural_nisti.sql is not recorded in remote d1_migrations.');
-          if (missingObjects.length) throw new Error('Missing remote schema objects: ' + missingObjects.join(', '));
-          if (missingColumns.length) throw new Error('Missing mural_posts columns: ' + missingColumns.join(', '));
+          if (!migrationApplied) console.error('Migration 0019_mural_nisti.sql is not recorded in remote d1_migrations.');
+          if (missingObjects.length) console.error('Missing remote schema objects: ' + missingObjects.join(', '));
+          if (missingColumns.length) console.error('Missing mural_posts columns: ' + missingColumns.join(', '));
           if (!fkTargets.has('products') || !fkTargets.has('mural_collections')) {
-            throw new Error('mural_posts foreign keys are incomplete.');
+            console.error('mural_posts foreign keys are incomplete.');
+          }
+          if (!migrationApplied || missingObjects.length || missingColumns.length || !fkTargets.has('products') || !fkTargets.has('mural_collections')) {
+            process.exitCode = 2;
           }
           NODE
