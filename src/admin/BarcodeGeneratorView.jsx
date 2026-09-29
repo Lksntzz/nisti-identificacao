@@ -2,6 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createEan13Svg, downloadBarcodePng, downloadBarcodeZip } from '../ean-barcode.js';
 import { buildEanCollections, collectionZipFilename } from '../ean-collections.js';
 
+const BARCODE_PRODUCT_PAGE_SIZE = 20;
+const BARCODE_COLLECTION_PAGE_SIZE = 12;
+
+function paginationPages(page, totalPages) {
+  const start = Math.max(1, Math.min(page - 2, Math.max(1, totalPages - 4)));
+  const end = Math.min(totalPages, start + 4);
+  return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
+}
+
 function SidebarIcon({ name }) {
   const props = {
     width: 18,
@@ -33,6 +42,8 @@ export function BarcodeGeneratorView({ api }) {
   const [generating, setGenerating] = useState(false);
   const [generatingCollection, setGeneratingCollection] = useState('');
   const [viewMode, setViewMode] = useState('products');
+  const [productPage, setProductPage] = useState(1);
+  const [collectionPage, setCollectionPage] = useState(1);
 
   const load = async () => {
     setLoading(true);
@@ -70,12 +81,31 @@ export function BarcodeGeneratorView({ api }) {
     });
   }, [activeRows, platform, search]);
 
+  const productTotalPages = Math.max(1, Math.ceil(rows.length / BARCODE_PRODUCT_PAGE_SIZE));
+  const collectionTotalPages = Math.max(1, Math.ceil(collections.length / BARCODE_COLLECTION_PAGE_SIZE));
+  const pagedRows = useMemo(
+    () => rows.slice((productPage - 1) * BARCODE_PRODUCT_PAGE_SIZE, productPage * BARCODE_PRODUCT_PAGE_SIZE),
+    [rows, productPage]
+  );
+  const pagedCollections = useMemo(
+    () => collections.slice((collectionPage - 1) * BARCODE_COLLECTION_PAGE_SIZE, collectionPage * BARCODE_COLLECTION_PAGE_SIZE),
+    [collections, collectionPage]
+  );
+
+  useEffect(() => {
+    setProductPage(current => Math.min(current, productTotalPages));
+  }, [productTotalPages]);
+
+  useEffect(() => {
+    setCollectionPage(current => Math.min(current, collectionTotalPages));
+  }, [collectionTotalPages]);
+
   const selectedRows = useMemo(() => activeRows.filter(item => selected.includes(item.id)), [activeRows, selected]);
-  const preview = activeRows.find(item => item.id === previewId) || selectedRows[0] || rows[0] || null;
-  const allVisibleSelected = rows.length > 0 && rows.every(item => selected.includes(item.id));
+  const preview = activeRows.find(item => item.id === previewId) || selectedRows[0] || pagedRows[0] || null;
+  const allVisibleSelected = pagedRows.length > 0 && pagedRows.every(item => selected.includes(item.id));
 
   const toggleAllVisible = () => {
-    const visibleIds = rows.map(item => item.id);
+    const visibleIds = pagedRows.map(item => item.id);
     setSelected(current => allVisibleSelected
       ? current.filter(id => !visibleIds.includes(id))
       : Array.from(new Set([...current, ...visibleIds])));
@@ -137,15 +167,15 @@ export function BarcodeGeneratorView({ api }) {
           <div className="barcode-mode-filter">
             <span>Modo de download</span>
             <div className="barcode-mode-switch" role="group" aria-label="Modo de download">
-              <button type="button" className={viewMode === 'products' ? 'active' : ''} onClick={() => setViewMode('products')}>Produtos individuais</button>
-              <button type="button" className={viewMode === 'collections' ? 'active' : ''} onClick={() => setViewMode('collections')}>Download por coleção</button>
+              <button type="button" className={viewMode === 'products' ? 'active' : ''} onClick={() => { setViewMode('products'); setProductPage(1); }}>Produtos individuais</button>
+              <button type="button" className={viewMode === 'collections' ? 'active' : ''} onClick={() => { setViewMode('collections'); setCollectionPage(1); }}>Download por coleção</button>
             </div>
           </div>
-          <label><span>Plataforma</span><select value={platform} onChange={event => { setPlatform(event.target.value); setSelected([]); }}>
+          <label><span>Plataforma</span><select value={platform} onChange={event => { setPlatform(event.target.value); setSelected([]); setProductPage(1); setCollectionPage(1); }}>
             <option value="all">Todas as plataformas</option>
             {platforms.map(item => <option value={item} key={item}>{item}</option>)}
           </select></label>
-          <label><span>{viewMode === 'collections' ? 'Buscar coleção' : 'Buscar produto'}</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder={viewMode === 'collections' ? 'Nome, família ou código da capa' : 'EAN, SKU, nome ou capa'} /></label>
+          <label><span>{viewMode === 'collections' ? 'Buscar coleção' : 'Buscar produto'}</span><input value={search} onChange={event => { setSearch(event.target.value); setProductPage(1); setCollectionPage(1); }} placeholder={viewMode === 'collections' ? 'Nome, família ou código da capa' : 'EAN, SKU, nome ou capa'} /></label>
           {viewMode === 'products' ? <>
             <div className="barcode-selection-summary"><strong>{selectedRows.length}</strong><span>etiqueta{selectedRows.length === 1 ? '' : 's'} pronta{selectedRows.length === 1 ? '' : 's'} para baixar</span></div>
             <button type="button" className="barcode-download-mass" disabled={!selectedRows.length || generating} onClick={downloadMass}>{generating ? 'Gerando PNGs…' : 'Baixar PNGs em massa (.ZIP)'}</button>
@@ -165,7 +195,7 @@ export function BarcodeGeneratorView({ api }) {
         </div>
         {collections.length > 0 ? (
           <div className="barcode-collection-grid">
-            {collections.map(collection => (
+            {pagedCollections.map(collection => (
               <article className="barcode-collection-card" key={collection.id}>
                 <div className="barcode-collection-cover-stack" aria-hidden="true">
                   {collection.items.slice(0, 4).map((item, index) => item.image_url ? (
@@ -200,6 +230,21 @@ export function BarcodeGeneratorView({ api }) {
         ) : (
           <div className="barcode-collections-empty">Nenhuma coleção com duas ou mais capas foi encontrada neste filtro.</div>
         )}
+
+        {collections.length > 0 && (
+          <div className="admin-pagination barcode-pagination">
+            <span className="admin-pagination-summary">
+              Mostrando {((collectionPage - 1) * BARCODE_COLLECTION_PAGE_SIZE) + 1}–{Math.min(collections.length, collectionPage * BARCODE_COLLECTION_PAGE_SIZE)} de {collections.length.toLocaleString('pt-BR')} coleções
+            </span>
+            <div className="admin-pagination-controls">
+              <button type="button" disabled={collectionPage <= 1} onClick={() => setCollectionPage(current => Math.max(1, current - 1))}>Anterior</button>
+              {paginationPages(collectionPage, collectionTotalPages).map(item => (
+                <button type="button" key={item} className={item === collectionPage ? 'active' : ''} onClick={() => setCollectionPage(item)} aria-current={item === collectionPage ? 'page' : undefined}>{item}</button>
+              ))}
+              <button type="button" disabled={collectionPage >= collectionTotalPages} onClick={() => setCollectionPage(current => Math.min(collectionTotalPages, current + 1))}>Próxima</button>
+            </div>
+          </div>
+        )}
       </section>}
 
       {viewMode === 'products' && <section className="admin-table-card barcode-generator-table">
@@ -211,7 +256,7 @@ export function BarcodeGeneratorView({ api }) {
           <table className="admin-data-table">
             <thead><tr><th className="barcode-check-column">✓</th><th>EAN</th><th>PRODUTO</th><th>PLATAFORMA</th><th>ARQUIVOS</th></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan="5" className="table-empty-row">Carregando códigos…</td></tr> : rows.length === 0 ? <tr><td colSpan="5" className="table-empty-row">Nenhum EAN encontrado.</td></tr> : rows.map(item => (
+              {loading ? <tr><td colSpan="5" className="table-empty-row">Carregando códigos…</td></tr> : rows.length === 0 ? <tr><td colSpan="5" className="table-empty-row">Nenhum EAN encontrado.</td></tr> : pagedRows.map(item => (
                 <tr key={item.id} className={preview?.id === item.id ? 'barcode-row-previewing' : ''}>
                   <td><input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggleOne(item.id)} aria-label={`Selecionar ${item.gtin}`} /></td>
                   <td><button type="button" className="barcode-preview-link" onClick={() => setPreviewId(item.id)}>{item.gtin}</button></td>
@@ -223,6 +268,20 @@ export function BarcodeGeneratorView({ api }) {
             </tbody>
           </table>
         </div>
+        {!loading && rows.length > 0 && (
+          <div className="admin-pagination barcode-pagination">
+            <span className="admin-pagination-summary">
+              Mostrando {((productPage - 1) * BARCODE_PRODUCT_PAGE_SIZE) + 1}–{Math.min(rows.length, productPage * BARCODE_PRODUCT_PAGE_SIZE)} de {rows.length.toLocaleString('pt-BR')} produtos
+            </span>
+            <div className="admin-pagination-controls">
+              <button type="button" disabled={productPage <= 1} onClick={() => setProductPage(current => Math.max(1, current - 1))}>Anterior</button>
+              {paginationPages(productPage, productTotalPages).map(item => (
+                <button type="button" key={item} className={item === productPage ? 'active' : ''} onClick={() => setProductPage(item)} aria-current={item === productPage ? 'page' : undefined}>{item}</button>
+              ))}
+              <button type="button" disabled={productPage >= productTotalPages} onClick={() => setProductPage(current => Math.min(productTotalPages, current + 1))}>Próxima</button>
+            </div>
+          </div>
+        )}
       </section>}
     </div>
   );
