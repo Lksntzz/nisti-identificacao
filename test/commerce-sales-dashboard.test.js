@@ -85,22 +85,22 @@ test('Painel de Vendas possui camada de movimento e acessibilidade de interaçã
 });
 
 
-test('Filtro SEM VENDA usa análise específica para decidir revisão dos anúncios', () => {
+test('Filtro SEM VENDA cruza demanda entre plataformas para apoiar decisão', () => {
   const ui = read('src/commerce-sales-dashboard.jsx');
   const css = read('src/commerce-sales-dashboard.css');
-  const rpc = read('supabase/migrations/20260929143041_add_no_sales_insights_to_sales_dashboard.sql');
+  const rpc = read('supabase/migrations/20260929144515_refine_no_sales_decision_signals.sql');
 
   for (const text of [
     'Anúncios sem venda',
-    'Revisar primeiro',
-    'Nunca venderam na base',
+    'Candidatos fortes',
+    'Vendem em outra plataforma',
     'Já venderam antes',
-    'Tempo sem vender',
-    'Sem vendas por plataforma',
-    'Prioridade de revisão',
+    'O que fazer com os anúncios sem venda',
+    'Onde o mesmo SKU vende',
+    'Sinal para decisão',
     'Anúncios sem venda — fila de revisão',
-    'Última venda',
-    'Histórico anterior',
+    'Vende em outra plataforma',
+    'Evidência',
     'Abrir anúncio',
     'anuncios_sem_venda_nisti.csv'
   ]) {
@@ -108,10 +108,10 @@ test('Filtro SEM VENDA usa análise específica para decidir revisão dos anúnc
   }
 
   for (const token of [
-    '.sales-no-sales-bars',
-    '.sales-no-sales-platforms',
-    '.sales-no-sales-priority-card',
-    '.sales-review-priority.alta',
+    '.sales-decision-bars',
+    '.sales-evidence-row',
+    '.sales-decision-signal.revisar_desativacao',
+    '.sales-decision-signal.otimizar_anuncio',
     '@keyframes sales-no-sales-width'
   ]) {
     assert.equal(css.includes(token), true, token);
@@ -119,11 +119,13 @@ test('Filtro SEM VENDA usa análise específica para decidir revisão dos anúnc
 
   for (const token of [
     'no_sales_insights',
-    'last_sale_period',
-    'periods_without_sale',
-    'historical_revenue',
-    'review_priority',
-    'inactivity_bucket'
+    'cross_platform_sales_by_item',
+    'other_platform_orders',
+    'other_platform_revenue',
+    'decision_signal',
+    'REVISAR_DESATIVACAO',
+    'OTIMIZAR_ANUNCIO',
+    'JA_VENDEU_ANTES'
   ]) {
     assert.equal(rpc.includes(token), true, token);
   }
