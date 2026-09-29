@@ -116,7 +116,7 @@ test('cadastro manual de produto não pede plataforma nem link de anúncio', () 
 
 test('taxa de sucesso abre as bipagens reais de hoje por resultado', () => {
   assert.match(expeditionDashboard, /openScanDetails/);
-  assert.match(expeditionDashboard, /status: 'identified'/);
+  assert.match(expeditionDashboard, /openScanDetails\('identified'\)/);
   assert.match(expeditionDashboard, /today: '1'/);
   assert.match(expeditionDashboard, /Ver bipagens/);
   assert.match(expeditionDashboard, /Ver quais foram/);
