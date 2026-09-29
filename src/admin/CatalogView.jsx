@@ -44,26 +44,69 @@ function pageItems(page, pages) {
   return result;
 }
 
-function PlatformTag({ platform }) {
-  const p = String(platform || '').toUpperCase();
-  let className = 'platform-pill-default';
-  let label = platform || 'Geral';
+function platformClass(code) {
+  const value = String(code || '').toUpperCase();
+  if (value === 'SHOPEE') return 'catalog-platform-shopee';
+  if (value === 'ML_NOVO') return 'catalog-platform-ml-novo';
+  if (value === 'ML_ANTIGO') return 'catalog-platform-ml-antigo';
+  if (value === 'AMAZON') return 'catalog-platform-amazon';
+  if (value === 'MAGALU') return 'catalog-platform-magalu';
+  if (value === 'LOJA_INTEGRADA') return 'catalog-platform-site';
+  if (value === 'SHEIN') return 'catalog-platform-shein';
+  if (value === 'TIKTOK') return 'catalog-platform-tiktok';
+  if (value === 'KWAI') return 'catalog-platform-kwai';
+  if (value === 'ALIEXPRESS') return 'catalog-platform-aliexpress';
+  return 'catalog-platform-default';
+}
 
-  if (p.includes('MERCADO') || p.includes('ML')) {
-    className = 'platform-pill-ml';
-    label = 'Mercado Livre';
-  } else if (p.includes('SHOPEE')) {
-    className = 'platform-pill-shopee';
-    label = 'Shopee';
-  } else if (p.includes('AMAZON')) {
-    className = 'platform-pill-amazon';
-    label = 'Amazon';
-  } else if (p.includes('MAGALU')) {
-    className = 'platform-pill-magalu';
-    label = 'Magalu';
+function catalogPlatforms(product) {
+  return Array.isArray(product?.commerce_sync?.platforms)
+    ? product.commerce_sync.platforms.filter(item => item?.code || item?.label)
+    : [];
+}
+
+function CatalogPlatformTags({ product }) {
+  const platforms = catalogPlatforms(product);
+  const visible = platforms.slice(0, 2);
+  const hidden = platforms.slice(2);
+  const syncStatus = String(product?.commerce_sync?.sync_status || '').toUpperCase();
+
+  if (!platforms.length) {
+    return (
+      <span className="catalog-platform-empty">
+        {syncStatus === 'SYNCED' ? 'Sem anúncio no catálogo' : 'Sem vínculo'}
+      </span>
+    );
   }
 
-  return <span className={`platform-pill ${className}`}>{label}</span>;
+  return (
+    <div className="catalog-platform-stack">
+      {visible.map(platform => (
+        <span
+          key={platform.code || platform.label}
+          className={`catalog-platform-pill ${platformClass(platform.code)}`}
+        >
+          {platform.label || platform.code}
+        </span>
+      ))}
+      {hidden.length > 0 && (
+        <span className="catalog-platform-more-wrap">
+          <button type="button" className="catalog-platform-more" aria-label={`Ver mais ${hidden.length} plataformas`}>
+            +{hidden.length}
+          </button>
+          <span className="catalog-platform-popover">
+            <strong>Plataformas cadastradas</strong>
+            {platforms.map(platform => (
+              <span key={`all-${platform.code || platform.label}`} className="catalog-platform-popover-row">
+                <i className={platformClass(platform.code)} />
+                {platform.label || platform.code}
+              </span>
+            ))}
+          </span>
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function CatalogView({
@@ -82,15 +125,25 @@ export function CatalogView({
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
 
   const platforms = useMemo(() => {
-    return [...new Set(products.map(p => p.platform).filter(Boolean))].sort();
+    const map = new Map();
+    products.forEach(product => {
+      catalogPlatforms(product).forEach(platform => {
+        if (platform?.code) map.set(platform.code, platform.label || platform.code);
+      });
+    });
+    return [...map.entries()]
+      .map(([code, label]) => ({ code, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   }, [products]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter(p => {
-      const matchPlatform = !platformFilter || p.platform === platformFilter;
+      const catalogPlatformList = catalogPlatforms(p);
+      const matchPlatform = !platformFilter || catalogPlatformList.some(platform => platform.code === platformFilter);
       const matchEanFilter = !onlyWithoutEan || !p.has_active_gtin;
-      const matchQuery = !q || [p.sku, p.nome, p.variacao, p.capa_code, p.platform, p.gtin].some(
+      const platformSearch = catalogPlatformList.map(platform => platform.label || platform.code).join(' ');
+      const matchQuery = !q || [p.sku, p.nome, p.variacao, p.capa_code, platformSearch, p.gtin].some(
         val => String(val || '').toLowerCase().includes(q)
       );
       return matchPlatform && matchEanFilter && matchQuery;
@@ -160,7 +213,7 @@ export function CatalogView({
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
               </svg>
-              <span>{onlyWithoutEan ? 'Sem EAN' : (platformFilter || 'Filtros')}</span>
+              <span>{onlyWithoutEan ? 'Sem EAN' : (platforms.find(item => item.code === platformFilter)?.label || 'Filtros')}</span>
             </button>
 
             {filterMenuOpen && (
@@ -181,13 +234,13 @@ export function CatalogView({
                   Apenas sem EAN
                 </button>
                 <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0' }} />
-                {platforms.map(p => (
+                {platforms.map(platform => (
                   <button
-                    key={p}
-                    className={platformFilter === p ? 'selected' : ''}
-                    onClick={() => { setPlatformFilter(p); setOnlyWithoutEan(false); setFilterMenuOpen(false); }}
+                    key={platform.code}
+                    className={platformFilter === platform.code ? 'selected' : ''}
+                    onClick={() => { setPlatformFilter(platform.code); setOnlyWithoutEan(false); setFilterMenuOpen(false); }}
                   >
-                    {p}
+                    {platform.label}
                   </button>
                 ))}
               </div>
@@ -260,7 +313,7 @@ export function CatalogView({
                     </td>
 
                     <td>
-                      <PlatformTag platform={product.platform} />
+                      <CatalogPlatformTags product={product} />
                     </td>
 
                     <td>
