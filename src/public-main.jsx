@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './app.css';
 import LOGO from './assets/logo.png';
 import GtinScannerOverlay from './gtin-scanner-overlay.jsx';
+import MuralNisti from './mural-nisti.jsx';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -475,7 +476,7 @@ function OperatorProfileModal({ isOpen, onClose, currentName, onSave }) {
   );
 }
 
-function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpenOperatorModal, showInstall = false }) {
+function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpenOperatorModal, showInstall = false, muralUnread = 0, activeView = 'scanner', onOpenScanner, onOpenMural }) {
   const initials = operatorName
     ? operatorName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase()
     : 'OP';
@@ -505,6 +506,17 @@ function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpe
           <span className="operator-name-label">{operatorName || 'Operador'}</span>
         </button>
         {showInstall && <InstallApp compact />}
+        {onOpenMural && onOpenScanner && (
+          <button
+            type="button"
+            className={`mural-nav-btn ${activeView === 'mural' ? 'active' : ''}`}
+            onClick={activeView === 'mural' ? onOpenScanner : onOpenMural}
+            aria-label={activeView === 'mural' ? 'Voltar ao Scanner' : `Abrir Mural NISTI (${muralUnread} não lidos)`}
+          >
+            <span>{activeView === 'mural' ? 'Scanner' : 'Mural'}</span>
+            {activeView !== 'mural' && muralUnread > 0 && <span className="mural-nav-count">{muralUnread > 9 ? '9+' : muralUnread}</span>}
+          </button>
+        )}
         <BellIcon unreadCount={unreadCount} onClick={onOpenNotifications} />
       </div>
     </header>
@@ -1540,20 +1552,29 @@ function PublicIdentificationApp() {
   const [operatorName, setOperatorNameState] = useState(() => getOperatorName());
   const [operatorModalOpen, setOperatorModalOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [muralUnread, setMuralUnread] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [publicView, setPublicView] = useState('scanner');
 
   useEffect(() => {
     let active = true;
     const fetchUnread = () => {
-      api('/api/notifications/unread-count')
-        .then(data => {
-          if (active && typeof data?.unread_count === 'number') setUnreadCount(data.unread_count);
-        })
-        .catch(() => {});
+      Promise.allSettled([
+        api('/api/notifications/unread-count'),
+        api('/api/mural/unread-count')
+      ]).then(([notifications, mural]) => {
+        if (!active) return;
+        if (notifications.status === 'fulfilled' && typeof notifications.value?.unread_count === 'number') {
+          setUnreadCount(notifications.value.unread_count);
+        }
+        if (mural.status === 'fulfilled' && typeof mural.value?.unread_count === 'number') {
+          setMuralUnread(mural.value.unread_count);
+        }
+      });
     };
 
     fetchUnread();
-    const interval = setInterval(fetchUnread, 30000);
+    const interval = setInterval(fetchUnread, 60000);
     return () => {
       active = false;
       clearInterval(interval);
@@ -1561,21 +1582,29 @@ function PublicIdentificationApp() {
   }, []);
 
   return (
-    <main className="app general ean-viewport">
+    <main className={`app general ${publicView === 'scanner' ? 'ean-viewport' : 'mural-viewport'}`}>
       <BrandHeader
         unreadCount={unreadCount}
         onOpenNotifications={() => setNotificationsOpen(true)}
         operatorName={operatorName}
         onOpenOperatorModal={() => setOperatorModalOpen(true)}
         showInstall
+        muralUnread={muralUnread}
+        activeView={publicView}
+        onOpenScanner={() => setPublicView('scanner')}
+        onOpenMural={() => setPublicView('mural')}
       />
 
-      <div className="main-card ean-primary-card">
-        <div className="card-top-gradient" />
-        <div className="card-inner-body ean-primary-body">
-          <GtinScannerOverlay embedded />
+      {publicView === 'scanner' ? (
+        <div className="main-card ean-primary-card">
+          <div className="card-top-gradient" />
+          <div className="card-inner-body ean-primary-body">
+            <GtinScannerOverlay embedded />
+          </div>
         </div>
-      </div>
+      ) : (
+        <MuralNisti onUnreadChange={setMuralUnread} />
+      )}
 
       <NotificationsModal
         isOpen={notificationsOpen}
