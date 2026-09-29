@@ -112,8 +112,11 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     setMessage('');
     try {
       const result = await stageCommerceSalesWorkbook(parsed, setProgress);
+      const replacedMonths = Array.isArray(result?.result?.replaced_months)
+        ? result.result.replaced_months
+        : [];
       setMessage(
-        `Vendas importadas com sucesso. Snapshot #${result?.result?.snapshot_id || '—'} · ${brNumber(result?.result?.rows || 0)} linhas na base atual.`
+        `Vendas importadas com sucesso. Snapshot #${result?.result?.snapshot_id || '—'} · ${brNumber(result?.result?.rows || 0)} linhas na base atual.${replacedMonths.length ? ` Mês(es) substituído(s): ${replacedMonths.join(', ')}.` : ''}`
       );
       setFile(null);
       setParsed(null);
@@ -152,7 +155,7 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
         <div className="commerce-panel-header">
           <div>
             <h2>Importar arquivo de vendas</h2>
-            <p>O arquivo substitui somente os meses da plataforma presentes nele. Outros meses e outras plataformas são preservados.</p>
+            <p>Ao importar um mês completo, ele substitui automaticamente qualquer versão parcial do mesmo mês e plataforma. Outros meses e outras plataformas são preservados.</p>
           </div>
         </div>
 
@@ -187,7 +190,7 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
               onChange={handleFile}
               disabled={reading || importing}
             />
-            <small>{file ? file.name : 'Selecione o relatório exportado da plataforma.'}</small>
+            <small>{file ? file.name : 'Selecione o relatório exportado da plataforma. Para completar um mês parcial, envie o arquivo do mês inteiro.'}</small>
           </label>
 
           <button
