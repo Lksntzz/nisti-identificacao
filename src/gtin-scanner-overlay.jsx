@@ -203,11 +203,11 @@ function ProductSummary({ gtin, product, continuous = false }) {
   if (!product) return null;
 
   const details = [
-    { label: 'Capa', value: product.capa_code, icon: 'cover' },
-    { label: 'Variação', value: product.variacao, icon: 'variation' },
-    { label: 'Wire-o', value: product.wireo || product.wireo_code, icon: 'wireo' },
-    { label: 'Tassel', value: product.tassel || product.tassel_code, icon: 'tassel' },
-    { label: 'Elástico', value: product.elastico || product.elastico_code, icon: 'elastic' }
+    { label: 'Wire-o', value: product.wireo || product.wireo_code, icon: 'wireo', priority: 'primary' },
+    { label: 'Tassel', value: product.tassel || product.tassel_code, icon: 'tassel', priority: 'primary' },
+    { label: 'Elástico', value: product.elastico || product.elastico_code, icon: 'elastic', priority: 'primary' },
+    { label: 'Capa', value: product.capa_code, icon: 'cover', priority: 'secondary' },
+    { label: 'Variação', value: product.variacao, icon: 'variation', priority: 'secondary' }
   ].filter(item => item.value);
 
   const productType = productTypeLabel(product);
@@ -239,7 +239,7 @@ function ProductSummary({ gtin, product, continuous = false }) {
 
           <dl className="gtin-result-details">
             {details.map(item => (
-              <div className="gtin-result-detail" key={item.label}>
+              <div className={`gtin-result-detail ${item.priority === 'primary' ? 'is-priority' : 'is-secondary'}`} key={item.label}>
                 <dt>
                   <span className="gtin-result-detail-icon"><ProductDetailIcon type={item.icon} /></span>
                   <span>{item.label}</span>
