@@ -5086,3 +5086,607 @@ button.kpi-box {
   }
 }
 
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 1
+   ========================================================================= */
+:root {
+  --nisti-motion-micro: 140ms;
+  --nisti-motion-ui: 190ms;
+  --nisti-motion-content: 280ms;
+  --nisti-motion-data: 520ms;
+  --nisti-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes nisti-view-enter {
+  from {
+    opacity: 0;
+    transform: translateX(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes nisti-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nisti-soft-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.admin-view-transition {
+  animation: nisti-view-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+  will-change: opacity, transform;
+}
+
+.admin-view-transition .welcome-banner {
+  animation: nisti-rise-in var(--nisti-motion-content) var(--nisti-motion-ease) both;
+}
+
+.admin-view-transition .kpis-row .kpi-box {
+  animation: nisti-rise-in var(--nisti-motion-content) var(--nisti-motion-ease) both;
+  will-change: transform, opacity;
+}
+
+.admin-view-transition .kpis-row .kpi-box:nth-child(1) { animation-delay: 35ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(2) { animation-delay: 75ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(3) { animation-delay: 115ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(4) { animation-delay: 155ms; }
+
+.admin-view-transition .expedition-card {
+  animation: nisti-soft-pop 320ms var(--nisti-motion-ease) both;
+}
+
+.admin-view-transition .expedition-panels-grid .expedition-card:nth-child(1) { animation-delay: 120ms; }
+.admin-view-transition .expedition-panels-grid .expedition-card:nth-child(2) { animation-delay: 165ms; }
+
+.kpi-box {
+  will-change: transform;
+}
+
+.kpi-box:hover {
+  transform: translateY(-3px) scale(1.004);
+}
+
+.kpi-box:active,
+button.kpi-box:active {
+  transform: translateY(-1px) scale(0.992);
+}
+
+.kpi-icon-circle {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    box-shadow var(--nisti-motion-micro) ease;
+}
+
+.kpi-box:hover .kpi-icon-circle {
+  transform: translateY(-1px) scale(1.055);
+}
+
+.sidebar-nav-item {
+  position: relative;
+  overflow: hidden;
+  transition:
+    background-color var(--nisti-motion-ui) ease,
+    color var(--nisti-motion-ui) ease,
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.sidebar-nav-item:hover {
+  transform: translateX(2px);
+}
+
+.sidebar-nav-item:active {
+  transform: translateX(1px) scale(0.985);
+}
+
+.sidebar-nav-item svg {
+  transition: transform var(--nisti-motion-micro) var(--nisti-motion-ease);
+}
+
+.sidebar-nav-item:hover svg {
+  transform: scale(1.07);
+}
+
+.sidebar-nav-item.active::before {
+  content: "";
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 3px;
+  border-radius: 999px;
+  background: #38bdf8;
+  animation: nisti-soft-pop var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+}
+
+.topbar-bell-btn,
+.topbar-logout-btn,
+.hamburger-btn,
+.btn-edit-action,
+.btn-cancel {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    box-shadow var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease,
+    border-color var(--nisti-motion-ui) ease,
+    color var(--nisti-motion-ui) ease;
+}
+
+.topbar-bell-btn:active,
+.topbar-logout-btn:active,
+.hamburger-btn:active,
+.btn-edit-action:active,
+.btn-cancel:active {
+  transform: scale(0.97);
+}
+
+.admin-loading-screen {
+  animation: nisti-soft-pop var(--nisti-motion-content) var(--nisti-motion-ease) both;
+}
+
+.admin-loading-spinner {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-view-transition,
+  .admin-view-transition .welcome-banner,
+  .admin-view-transition .kpis-row .kpi-box,
+  .admin-view-transition .expedition-card,
+  .sidebar-nav-item.active::before,
+  .admin-loading-screen {
+    animation: none !important;
+  }
+
+  .kpi-box,
+  .kpi-icon-circle,
+  .sidebar-nav-item,
+  .sidebar-nav-item svg,
+  .topbar-bell-btn,
+  .topbar-logout-btn,
+  .hamburger-btn,
+  .btn-edit-action,
+  .btn-cancel {
+    transition-duration: 0.01ms !important;
+  }
+
+  .kpi-box:hover,
+  .kpi-box:active,
+  button.kpi-box:active,
+  .kpi-box:hover .kpi-icon-circle,
+  .sidebar-nav-item:hover,
+  .sidebar-nav-item:active,
+  .sidebar-nav-item:hover svg {
+    transform: none !important;
+  }
+}
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 2
+   Data motion: counters, progress and operational metrics
+   ========================================================================= */
+@keyframes nisti-progress-reveal {
+  from {
+    transform: scaleX(0);
+    opacity: 0.55;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.nisti-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transform-origin: left center;
+  animation: nisti-progress-reveal var(--nisti-motion-data) var(--nisti-motion-ease) both;
+  will-change: transform, opacity;
+}
+
+.kpi-num,
+.expedition-metric-detail strong,
+.status-pill {
+  font-variant-numeric: tabular-nums;
+}
+
+.expedition-metric-detail {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    box-shadow var(--nisti-motion-ui) ease,
+    border-color var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease;
+}
+
+.expedition-metric-detail:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+}
+
+.expedition-metric-detail:not(:disabled):active {
+  transform: translateY(0) scale(0.985);
+}
+
+.missing-gtin-alert {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    background-color var(--nisti-motion-ui) ease,
+    border-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.missing-gtin-alert:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 16px rgba(146, 64, 14, 0.08);
+}
+
+.missing-gtin-alert:active {
+  transform: scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nisti-progress-fill {
+    animation: none !important;
+  }
+
+  .expedition-metric-detail,
+  .missing-gtin-alert {
+    transition-duration: 0.01ms !important;
+  }
+
+  .expedition-metric-detail:not(:disabled):hover,
+  .expedition-metric-detail:not(:disabled):active,
+  .missing-gtin-alert:hover,
+  .missing-gtin-alert:active {
+    transform: none !important;
+  }
+}
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 3
+   Operational feedback: async actions, sync, modal and result states
+   ========================================================================= */
+@keyframes nisti-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes nisti-feedback-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nisti-modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes nisti-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nisti-status-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 0.75; }
+  50% { box-shadow: 0 0 0 4px transparent; opacity: 1; }
+}
+
+.admin-modal-backdrop,
+.scan-details-backdrop {
+  animation: nisti-modal-backdrop-in var(--nisti-motion-ui) ease both;
+}
+
+.admin-modal,
+.scan-details-modal {
+  animation: nisti-modal-in var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+  transform-origin: center;
+}
+
+.nisti-feedback-enter,
+.view-sync-feedback,
+.form-success-banner,
+.form-error-banner {
+  animation: nisti-feedback-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+}
+
+.nisti-action-busy {
+  cursor: progress !important;
+}
+
+.nisti-action-busy > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nisti-action-busy > span::before,
+.btn-toolbar-filter.nisti-action-busy::before {
+  content: "";
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: nisti-spin 0.75s linear infinite;
+  opacity: 0.9;
+}
+
+.btn-sync-repair.nisti-action-busy svg {
+  animation: nisti-spin 0.85s linear infinite;
+}
+
+.btn-sync-repair.nisti-action-busy > span::before {
+  display: none;
+}
+
+.btn-toolbar-filter.nisti-action-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nisti-import-busy {
+  position: relative;
+  cursor: progress;
+}
+
+.nisti-import-busy > svg {
+  animation: nisti-soft-pop 0.8s var(--nisti-motion-ease) infinite alternate;
+}
+
+.commerce-sync-badge {
+  transition:
+    background-color var(--nisti-motion-ui) ease,
+    border-color var(--nisti-motion-ui) ease,
+    color var(--nisti-motion-ui) ease,
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease);
+}
+
+.commerce-sync-badge.synced {
+  animation: nisti-feedback-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+}
+
+.commerce-sync-badge.pending .commerce-sync-dot,
+.commerce-sync-badge.unknown .commerce-sync-dot {
+  animation: nisti-status-pulse 1.4s ease-in-out infinite;
+}
+
+.view-sync-repair {
+  transition:
+    border-color var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.view-sync-repair.synced {
+  box-shadow: inset 3px 0 0 rgba(34, 197, 94, 0.7);
+}
+
+.view-sync-repair.error,
+.view-sync-repair.conflict {
+  box-shadow: inset 3px 0 0 rgba(239, 68, 68, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-modal-backdrop,
+  .scan-details-backdrop,
+  .admin-modal,
+  .scan-details-modal,
+  .nisti-feedback-enter,
+  .view-sync-feedback,
+  .form-success-banner,
+  .form-error-banner,
+  .commerce-sync-badge.synced,
+  .commerce-sync-badge.pending .commerce-sync-dot,
+  .commerce-sync-badge.unknown .commerce-sync-dot,
+  .nisti-action-busy > span::before,
+  .btn-toolbar-filter.nisti-action-busy::before,
+  .btn-sync-repair.nisti-action-busy svg,
+  .nisti-import-busy > svg {
+    animation: none !important;
+  }
+}
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 4
+   Tables, filters, skeletons and row state changes
+   ========================================================================= */
+@keyframes nisti-row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nisti-skeleton-shimmer {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(110%); }
+}
+
+@keyframes nisti-row-update {
+  0% { background-color: rgba(59, 130, 246, 0.12); }
+  100% { background-color: transparent; }
+}
+
+.nisti-filter-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 18px;
+  border-top: 1px solid #eef2f7;
+  border-bottom: 1px solid #eef2f7;
+  background: #fbfdff;
+  animation: nisti-feedback-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+}
+
+.nisti-filter-summary {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  margin-right: 2px;
+}
+
+.nisti-filter-chip,
+.nisti-filter-clear {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    border-color var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease,
+    color var(--nisti-motion-ui) ease;
+}
+
+.nisti-filter-chip:hover,
+.nisti-filter-clear:hover {
+  transform: translateY(-1px);
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.nisti-filter-chip.warning {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.nisti-filter-chip:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.nisti-filter-clear {
+  border-color: transparent;
+  background: transparent;
+  color: #64748b;
+}
+
+.admin-data-table tbody .nisti-table-row {
+  animation: nisti-row-enter 220ms var(--nisti-motion-ease) both;
+  transition:
+    background-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.admin-data-table tbody .nisti-table-row:nth-child(2) { animation-delay: 18ms; }
+.admin-data-table tbody .nisti-table-row:nth-child(3) { animation-delay: 36ms; }
+.admin-data-table tbody .nisti-table-row:nth-child(4) { animation-delay: 54ms; }
+.admin-data-table tbody .nisti-table-row:nth-child(5) { animation-delay: 72ms; }
+.admin-data-table tbody .nisti-table-row:nth-child(n+6) { animation-delay: 90ms; }
+
+.admin-data-table tbody .nisti-table-row:hover {
+  background-color: #f8fbff;
+}
+
+.admin-data-table tbody .nisti-table-row.is-updating {
+  animation: nisti-row-update 700ms ease-in-out infinite alternate;
+}
+
+.nisti-skeleton-row td {
+  pointer-events: none;
+}
+
+.nisti-skeleton-block {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 16px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #eef2f7;
+}
+
+.nisti-skeleton-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-110%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
+  animation: nisti-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+.nisti-skeleton-block.cell-1 { width: 82px; }
+.nisti-skeleton-block.cell-2 { width: 96px; }
+.nisti-skeleton-block.cell-3 { width: 110px; }
+.nisti-skeleton-block.cell-4 { width: 112px; }
+.nisti-skeleton-block.cell-5 { width: min(190px, 100%); }
+.nisti-skeleton-block.cell-6 { width: 64px; }
+.nisti-skeleton-block.cell-7 { width: 90px; margin-left: auto; }
+
+.search-pill-box:focus-within,
+.table-search-input:focus,
+.table-platform-select:focus {
+  border-color: #93c5fd !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-dropdown-menu {
+  animation: nisti-feedback-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+  transform-origin: top right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nisti-filter-chips,
+  .admin-data-table tbody .nisti-table-row,
+  .admin-data-table tbody .nisti-table-row.is-updating,
+  .nisti-skeleton-block::after,
+  .filter-dropdown-menu {
+    animation: none !important;
+  }
+
+  .nisti-filter-chip,
+  .nisti-filter-clear {
+    transition-duration: 0.01ms !important;
+  }
+
+  .nisti-filter-chip:hover,
+  .nisti-filter-clear:hover {
+    transform: none !important;
+  }
+}
