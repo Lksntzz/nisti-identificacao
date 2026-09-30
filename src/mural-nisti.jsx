@@ -26,12 +26,23 @@ function userId() {
   }
 }
 
+function muralQaHeader() {
+  try {
+    return new URLSearchParams(window.location.search).get('mural') === 'qa'
+      ? { 'x-mural-qa': '1' }
+      : {};
+  } catch {
+    return {};
+  }
+}
+
 async function muralApi(path, options = {}) {
   const response = await fetch(path, {
     credentials: 'same-origin',
     ...options,
     headers: {
       'x-user-id': userId(),
+      ...muralQaHeader(),
       ...(options.headers || {})
     }
   });
