@@ -1200,3 +1200,97 @@
   .mural-hero-cta > span{transition:none}
   .mural-collection-detail>.mural-detail-image{transform:none}
 }
+
+/* Motion Part 3: premium feed cards, one-shot badges and progressive media reveal. */
+.mural-image-media{
+  opacity:0;
+  filter:saturate(.92) blur(1.5px);
+  transition:opacity 320ms ease,filter 420ms ease;
+}
+.mural-image-media.is-loaded{
+  opacity:1;
+  filter:none;
+}
+.mural-hero-image.mural-image-media{
+  transition:transform .12s linear,opacity 320ms ease,filter 420ms ease;
+}
+.mural-card .mural-card-image.mural-image-media{
+  transition:transform .35s var(--mural-ease-standard),opacity 320ms ease,filter 420ms ease;
+}
+.mural-card-collection .mural-collection-card-image.mural-image-media{
+  transition:transform .55s var(--mural-ease-standard),opacity 320ms ease,filter 420ms ease;
+}
+.mural-card-content,
+.mural-collection-card-copy{
+  transition:transform 280ms var(--mural-ease-out);
+}
+.mural-reveal .mural-badge-motion{
+  opacity:0;
+  transform:translateY(4px) scale(.94);
+}
+.mural-reveal.is-visible .mural-new-badge{
+  animation:mural-new-badge-pop 520ms var(--mural-ease-out) both;
+  animation-delay:calc(var(--mural-card-delay, 0ms) + 90ms);
+}
+.mural-reveal.is-visible .mural-editorial-badge,
+.mural-reveal.is-visible .mural-notice-label{
+  animation:mural-badge-settle 380ms var(--mural-ease-out) both;
+  animation-delay:calc(var(--mural-card-delay, 0ms) + 130ms);
+}
+@keyframes mural-new-badge-pop{
+  0%{opacity:0;transform:translateY(5px) scale(.78)}
+  58%{opacity:1;transform:translateY(-1px) scale(1.08)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes mural-badge-settle{
+  0%{opacity:0;transform:translateY(4px) scale(.94)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+.mural-card.unread::before{
+  content:"";
+  position:absolute;
+  z-index:4;
+  inset:1px;
+  border:1px solid rgba(47,107,255,.55);
+  border-radius:inherit;
+  opacity:0;
+  pointer-events:none;
+}
+.mural-card.unread.is-visible::before{
+  animation:mural-unread-accent 720ms ease-out both;
+  animation-delay:calc(var(--mural-card-delay, 0ms) + 30ms);
+}
+@keyframes mural-unread-accent{
+  0%{opacity:0;box-shadow:inset 0 0 0 0 rgba(47,107,255,0)}
+  34%{opacity:.9;box-shadow:inset 0 0 0 2px rgba(47,107,255,.12)}
+  100%{opacity:0;box-shadow:inset 0 0 0 5px rgba(47,107,255,0)}
+}
+@media (hover:hover) and (pointer:fine){
+  .mural-card:hover .mural-card-content{transform:translateX(2px)}
+  .mural-card-collection:hover .mural-collection-card-copy{transform:translateX(3px)}
+  .mural-card-collection:hover .mural-collection-card-cta b{transform:translateX(3px)}
+}
+@media (prefers-reduced-motion:reduce){
+  .mural-image-media,
+  .mural-image-media.is-loaded{
+    opacity:1!important;
+    filter:none!important;
+    transition:none!important;
+  }
+  .mural-reveal .mural-badge-motion,
+  .mural-reveal.is-visible .mural-badge-motion{
+    opacity:1!important;
+    transform:none!important;
+    animation:none!important;
+  }
+  .mural-card.unread.is-visible::before{
+    opacity:0!important;
+    animation:none!important;
+  }
+  .mural-card-content,
+  .mural-collection-card-copy{
+    transform:none!important;
+    transition:none!important;
+  }
+}
+
