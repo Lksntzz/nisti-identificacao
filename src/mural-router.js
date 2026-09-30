@@ -770,6 +770,11 @@ async function adminPublishCollection(id, env) {
   if (existingId) {
     await env.DB.prepare(`
       UPDATE mural_posts
+      SET status='archived',featured=0,updated_at=CURRENT_TIMESTAMP
+      WHERE kind='collection' AND collection_id=? AND id<>?
+    `).bind(id,existingId).run();
+    await env.DB.prepare(`
+      UPDATE mural_posts
       SET status='published',
           title=?,
           subtitle=?,
