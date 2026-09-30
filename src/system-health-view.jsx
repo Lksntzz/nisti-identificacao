@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { formatSaoPauloTimestamp } from './date-time.js';
+import { AdminState } from './admin/AdminState.jsx';
 
 function formatBytes(bytes) {
   const value = Number(bytes || 0);
@@ -121,10 +122,14 @@ export default function SystemHealthView({
 
       <div className="system-health-content">
         {healthError ? (
-          <div className="system-health-load-error">
-            <strong>Não foi possível concluir o diagnóstico.</strong>
-            <span>{healthError}</span>
-          </div>
+          <AdminState
+            tone="error"
+            title="Não foi possível concluir o diagnóstico"
+            description={healthError}
+            actionLabel={refreshing ? '' : 'Verificar novamente'}
+            onAction={refreshing ? undefined : refresh}
+            className="system-health-load-error"
+          />
         ) : (
           <div className={`system-health-overall ${meta.className}`}>
             <div className="system-health-overall-icon">
@@ -140,7 +145,15 @@ export default function SystemHealthView({
 
         <div className="system-health-check-grid">
           {checks.length === 0 ? (
-            <div className="system-health-empty-checks">Aguardando primeira verificação dos serviços…</div>
+            <AdminState
+              tone={refreshing ? 'loading' : 'info'}
+              compact
+              title={refreshing ? 'Verificando serviços' : 'Aguardando verificação'}
+              description={refreshing
+                ? 'Consultando API, banco, armazenamento e integrações.'
+                : 'Execute uma verificação para obter o estado atual dos serviços.'}
+              className="system-health-empty-checks"
+            />
           ) : checks.map(check => {
             const state = checkMeta(check.status);
             return (
@@ -207,10 +220,13 @@ export default function SystemHealthView({
 
           <div className="system-health-log-wrap">
             {issues.length === 0 ? (
-              <div className="system-health-no-issues">
-                <strong>Nenhum erro recente registrado.</strong>
-                <span>Quando houver falha técnica de bipagem ou sincronização, ela aparecerá aqui.</span>
-              </div>
+              <AdminState
+                tone="success"
+                compact
+                title="Nenhum erro recente registrado"
+                description="Bipagem e sincronização não possuem ocorrências técnicas recentes neste diagnóstico."
+                className="system-health-no-issues"
+              />
             ) : (
               <table className="admin-data-table system-health-log-table">
                 <thead>
