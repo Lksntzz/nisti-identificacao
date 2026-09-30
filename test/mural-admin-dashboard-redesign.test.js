@@ -31,6 +31,9 @@ test('dashboard table includes thumbnails badges status author and action menu',
   assert.ok(dashboard.includes('mural-admin-action-menu'));
   assert.ok(dashboard.includes('Editar publicação'));
   assert.ok(dashboard.includes('Duplicar'));
+  assert.ok(dashboard.includes('Apagar publicação'));
+  assert.ok(dashboard.includes('onDelete(row)'));
+  assert.ok(css.includes('.mural-admin-action-menu button.danger'));
 });
 
 test('dashboard paginates publications and allows page-size selection', () => {

@@ -697,6 +697,19 @@ export default function MuralNistiAdminView() {
     try{setError('');const result=await request(`/api/admin/mural/posts/${row.id}/push`,{method:'POST'});window.alert(`Notificação processada: ${result.sent||0} enviada(s), ${result.failed||0} falha(s).`)}catch(err){setError(err.message)}
   };
 
+  const deletePost=async row=>{
+    const confirmed=window.confirm(`Apagar esta publicação permanentemente?\n\n${row.title}\n\nEssa ação não pode ser desfeita.`);
+    if(!confirmed)return;
+    try{
+      setError('');
+      await request(`/api/admin/mural/posts/${row.id}`,{method:'DELETE'});
+      await load();
+      await refreshReadiness();
+    }catch(err){
+      setError(err.message);
+    }
+  };
+
   if (editor) {
     return <PostEditor
       item={editor}
@@ -736,6 +749,7 @@ export default function MuralNistiAdminView() {
       onEdit={setEditor}
       onAction={action}
       onPush={sendPush}
+      onDelete={deletePost}
     />}
     {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.year||'sem ano'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
     {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>IMAGEM EDITORIAL MÉDIA</small><strong>{metrics?.editorial_images?.average_bytes ? `${Math.round(metrics.editorial_images.average_bytes/1024)} KB` : '0 KB'}</strong><span>{metrics?.editorial_images?.count ?? 0} imagens</span></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
