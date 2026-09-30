@@ -30,6 +30,7 @@ Regra de release: o operador continua vendo apenas **“Em breve”** até autor
 | Erros internos não são expostos ao operador | Concluído | mensagem pública genérica + log estruturado |
 | Acessibilidade estrutural | Concluído em código | 44 px, dialog/aria, foco, ESC, reduced-motion, safe-area |
 | Release gate | Concluído | operador continua em “Em breve” |
+| QA readiness automatizado | Concluído | Admin valida estrutura D1, mínimo de conteúdo e orçamento de imagens da primeira dobra no ambiente atual |
 
 ## Pendências que exigem validação real
 
@@ -39,9 +40,9 @@ Regra de release: o operador continua vendo apenas **“Em breve”** até autor
 | Validação visual 360/390/430 px no Mural real | Pendente | CSS/testes existem, mas o Mural público continua gated |
 | Safe-area real em iPhone com o Mural completo | Pendente | precisa do fluxo real habilitado para teste |
 | Tempo de abertura < 1 s | Pendente | requer medição em rede/aparelho real |
-| Hero <= 250 KB, produto <= 120 KB, coleção <= 180 KB e primeira dobra <= 1,5 MB | Pendente | metas precisam ser medidas com imagens reais publicadas |
-| 3–5 conteúdos editoriais de teste | Pendente | depende de conteúdo real aprovado para validação |
-| Aplicação remota da migration D1 em produção | Não comprovada por este workflow | o Production Gate valida migrations localmente; não deve ser tratado como prova de aplicação remota |
+| Hero <= 250 KB, produto <= 120 KB, coleção <= 180 KB e primeira dobra <= 1,5 MB | Instrumentado | aba **QA de liberação** mede os objetos R2 reais do hero/primeiros cards; falta confirmar resultado verde com conteúdo real |
+| 3–5 conteúdos editoriais de teste | Instrumentado | aba **QA de liberação** conta publicações válidas no ambiente atual; falta cadastrar/aprovar o conteúdo real |
+| Aplicação remota da migration D1 em produção | Instrumentado | endpoint Admin consulta `sqlite_master` no ambiente em execução; falta registrar evidência verde no ambiente alvo |
 
 ## Dependência de domínio não implementada
 
