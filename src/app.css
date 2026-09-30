@@ -3701,14 +3701,6 @@ button.kpi-box {
   white-space: nowrap;
 }
 
-.commerce-sync-badge .commerce-sync-dot {
-  flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #94a3b8;
-}
-
 .commerce-sync-badge small {
   flex-basis: 100%;
   margin-left: 12px;
@@ -3723,35 +3715,36 @@ button.kpi-box {
   background: #f0fdf4;
   color: #166534;
 }
-.commerce-sync-badge.synced .commerce-sync-dot { background: #22c55e; }
 
 .commerce-sync-badge.pending {
   border-color: #fde68a;
   background: #fffbeb;
   color: #92400e;
 }
-.commerce-sync-badge.pending .commerce-sync-dot { background: #f59e0b; }
+
+.commerce-sync-badge.not-linked {
+  border-color: #dbe3ef;
+  background: #f8fafc;
+  color: #64748b;
+}
 
 .commerce-sync-badge.conflict {
   border-color: #fed7aa;
   background: #fff7ed;
   color: #9a3412;
 }
-.commerce-sync-badge.conflict .commerce-sync-dot { background: #f97316; }
 
 .commerce-sync-badge.error {
   border-color: #fecaca;
   background: #fef2f2;
   color: #991b1b;
 }
-.commerce-sync-badge.error .commerce-sync-dot { background: #ef4444; }
 
 .commerce-sync-badge.unknown {
   border-color: #e2e8f0;
   background: #f8fafc;
   color: #64748b;
 }
-.commerce-sync-badge.unknown .commerce-sync-dot { background: #94a3b8; }
 
 .registration-barcode-info .commerce-sync-badge {
   width: fit-content;
@@ -3807,6 +3800,7 @@ button.kpi-box {
 }
 .view-sync-repair.synced{border-color:#bbf7d0;background:#f4fcf7}
 .view-sync-repair.pending{border-color:#fde68a;background:#fffbeb}
+.view-sync-repair.not-linked{border-color:#dce4ee;background:#f8fafc}
 .view-sync-repair.conflict{border-color:#fed7aa;background:#fff7ed}
 .view-sync-repair.error{border-color:#fecaca;background:#fef2f2}
 .view-sync-repair-copy{display:grid;gap:3px;min-width:0}
@@ -5478,8 +5472,7 @@ button.kpi-box:active {
   animation: nisti-feedback-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
 }
 
-.commerce-sync-badge.pending .commerce-sync-dot,
-.commerce-sync-badge.unknown .commerce-sync-dot {
+.commerce-sync-badge.pending .commerce-sync-icon {
   animation: nisti-status-pulse 1.4s ease-in-out infinite;
 }
 
@@ -5509,8 +5502,7 @@ button.kpi-box:active {
   .form-success-banner,
   .form-error-banner,
   .commerce-sync-badge.synced,
-  .commerce-sync-badge.pending .commerce-sync-dot,
-  .commerce-sync-badge.unknown .commerce-sync-dot,
+  .commerce-sync-badge.pending .commerce-sync-icon,
   .nisti-action-busy > span::before,
   .btn-toolbar-filter.nisti-action-busy::before,
   .btn-sync-repair.nisti-action-busy svg,
@@ -6589,7 +6581,6 @@ button.kpi-box:active {
   background: #166534;
 }
 
-.registration-result-wrap,
 .registration-result {
   animation: nisti-operation-toast-in 360ms var(--nisti-motion-ease) both;
 }
@@ -6616,7 +6607,6 @@ button.kpi-box:active {
   .nisti-recent-badge,
   .view-sync-feedback.success::before,
   .barcode-generator-table tbody tr.barcode-row-downloaded > td,
-  .registration-result-wrap,
   .registration-result {
     animation: none !important;
   }
@@ -6796,6 +6786,21 @@ button.kpi-box:active {
   transform: translateY(-1px) scale(1.055);
 }
 
+.commerce-sync-badge.pending {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(110deg, #fffbeb 0%, #fef3c7 42%, #fffbeb 84%);
+  background-size: 220% 100%;
+  animation:
+    nisti-sync-verifying 1.45s linear infinite,
+    nisti-feedback-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+}
+
+.commerce-sync-badge.pending .commerce-sync-icon {
+  animation: nisti-status-pulse 1.25s ease-in-out infinite;
+}
+
 .commerce-sync-badge.unknown {
   position: relative;
   overflow: hidden;
@@ -6815,6 +6820,14 @@ button.kpi-box:active {
   animation:
     nisti-state-icon-pop 280ms var(--nisti-motion-ease) both,
     nisti-sync-check-glow 620ms ease-out 1;
+}
+
+.view-sync-repair.pending {
+  background:
+    linear-gradient(110deg, #fffbeb 0%, #fff7d6 42%, #fffbeb 84%);
+  background-size: 220% 100%;
+  animation: nisti-sync-verifying 1.8s linear infinite;
+  box-shadow: inset 3px 0 0 rgba(245, 158, 11, .58);
 }
 
 .btn-sync-repair.nisti-action-busy {
@@ -6839,9 +6852,12 @@ button.kpi-box:active {
   .nisti-table-swap.forward .nisti-table-row,
   .nisti-table-swap.backward .nisti-table-row,
   .nisti-progress-track .nisti-progress-fill::after,
+  .commerce-sync-badge.pending,
+  .commerce-sync-badge.pending .commerce-sync-icon,
   .commerce-sync-badge.unknown,
   .commerce-sync-badge.unknown .commerce-sync-icon,
   .commerce-sync-badge.synced .commerce-sync-icon,
+  .view-sync-repair.pending,
   .btn-sync-repair.nisti-action-busy {
     animation: none !important;
   }
@@ -6859,5 +6875,44 @@ button.kpi-box:active {
 
   .nisti-progress-track::after {
     transition: none !important;
+  }
+}
+
+
+/* =========================================================================
+   NISTI MOTION VISIBILITY FIX — EFFECT AUDIT
+   Corrige seletores órfãos e garante feedback nos estados realmente usados.
+   ========================================================================= */
+@keyframes nisti-touch-ready {
+  from { opacity: .86; transform: scale(.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.commerce-sync-badge.not-linked .commerce-sync-icon {
+  color: #64748b;
+}
+
+.nisti-progress-track {
+  animation: nisti-touch-ready 320ms var(--nisti-motion-ease) both;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .table-thumb-img,
+  .product-sync-status-stack,
+  .expedition-metric-detail strong {
+    animation: nisti-touch-ready 300ms var(--nisti-motion-ease) both;
+  }
+
+  .pag-num.active {
+    box-shadow: 0 5px 12px rgba(79, 70, 229, .12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nisti-progress-track,
+  .table-thumb-img,
+  .product-sync-status-stack,
+  .expedition-metric-detail strong {
+    animation: none !important;
   }
 }
