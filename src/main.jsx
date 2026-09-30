@@ -722,8 +722,8 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
 
             <div className="admin-modal-foot" style={{ marginTop: '20px' }}>
               <button type="button" className="btn-cancel" onClick={onClose} disabled={busy}>Cancelar</button>
-              <button type="submit" className="btn-submit-rainbow" disabled={busy} style={{ minWidth: '180px' }}>
-                {busy ? (progressMsg || 'Cadastrando variações…') : `Salvar ${variants.length} produto(s)`}
+              <button type="submit" className={`btn-submit-rainbow ${busy ? 'nisti-action-busy' : ''}`} disabled={busy} style={{ minWidth: '180px' }}>
+                <span>{busy ? (progressMsg || 'Cadastrando variações…') : `Salvar ${variants.length} produto(s)`}</span>
               </button>
             </div>
           </form>
@@ -1029,8 +1029,8 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
 
           <div className="admin-modal-foot">
             <button type="button" className="btn-cancel" onClick={onClose} disabled={busy}>Cancelar</button>
-            <button type="submit" className="btn-submit-rainbow" disabled={busy}>
-              {busy ? 'Salvando…' : 'Salvar Alterações'}
+            <button type="submit" className={`btn-submit-rainbow ${busy ? 'nisti-action-busy' : ''}`} disabled={busy}>
+              <span>{busy ? 'Salvando…' : 'Salvar Alterações'}</span>
             </button>
           </div>
         </form>
@@ -1148,7 +1148,7 @@ function ViewProductModal({ product, isOpen, onClose, onEdit, onSyncComplete }) 
               </div>
               <button
                 type="button"
-                className="btn-sync-repair"
+                className={`btn-sync-repair ${syncBusy ? 'nisti-action-busy' : ''}`}
                 onClick={repairCommerceSync}
                 disabled={syncBusy}
               >
@@ -1282,7 +1282,7 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
           onReset={() => { setResult(null); setMessage(''); setError(''); }}
           onClose={onClose}
         /> : <div className="admin-modal-form">
-          <label className="photo-empty-drop" style={{ minHeight: '180px' }}>
+          <label className={`photo-empty-drop ${busy ? 'nisti-import-busy' : ''}`} style={{ minHeight: '180px' }}>
             <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
               <path d="M12 12v9" />
@@ -1293,8 +1293,8 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
             <input type="file" accept=".csv,text/csv" disabled={busy} onChange={e => handleUpload(e.target.files?.[0])} />
           </label>
 
-          {message && <div className="form-success-banner">{message}</div>}
-          {error && <div className="form-error-banner">{error}</div>}
+          {message && <div className="form-success-banner nisti-feedback-enter" role="status">{message}</div>}
+          {error && <div className="form-error-banner nisti-feedback-enter" role="alert">{error}</div>}
 
           <div className="admin-modal-foot">
             <button type="button" className="btn-cancel" onClick={onClose}>Fechar</button>
