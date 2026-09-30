@@ -106,7 +106,7 @@ function NoticeLabel({ level }) {
 function Hero({ item, onOpen }) {
   if (!item) return null;
   return (
-    <button type="button" className="mural-hero" onClick={() => onOpen(item)}>
+    <button type="button" className="mural-hero mural-hero-enter" onClick={() => onOpen(item)}>
       <MuralImage item={item} eager className="mural-hero-image" />
       <span className="mural-hero-shade" aria-hidden="true" />
       <span className="mural-hero-accent" aria-hidden="true"><i /><i /><i /></span>
@@ -329,6 +329,31 @@ export default function MuralNisti({ onUnreadChange }) {
   const scrollFrame = useRef(0);
   const shellRef = useRef(null);
   const feedRef = useRef(null);
+  const reducedMotionRef = useRef(false);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return undefined;
+
+    const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    reducedMotionRef.current = reduced;
+    shell.classList.add('motion-ready');
+
+    if (reduced) {
+      shell.classList.add('motion-entered');
+      return undefined;
+    }
+
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => shell.classList.add('motion-entered'));
+    });
+
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, []);
 
   const load = async currentTab => {
     setLoading(true);
@@ -404,10 +429,11 @@ export default function MuralNisti({ onUnreadChange }) {
   };
 
   const handleScroll = event => {
+    if (reducedMotionRef.current) return;
     const node = event.currentTarget;
     if (scrollFrame.current) return;
     scrollFrame.current = requestAnimationFrame(() => {
-      const shift = Math.max(-24, Math.min(0, node.scrollTop * -0.08));
+      const shift = Math.max(-18, Math.min(0, node.scrollTop * -0.055));
       node.style.setProperty('--mural-parallax', `${shift}px`);
       scrollFrame.current = 0;
     });
@@ -415,11 +441,13 @@ export default function MuralNisti({ onUnreadChange }) {
 
   useEffect(() => () => cancelAnimationFrame(scrollFrame.current), []);
 
+  const featured = tab === 'all' ? items.find(item => item.featured) : null;
+  const feed = featured ? items.filter(item => item.id !== featured.id) : items;
+
   useEffect(() => {
     const shell = shellRef.current;
     const feedNode = feedRef.current;
     if (!shell || !feedNode) return undefined;
-    shell.classList.add('motion-ready');
     const nodes = [...feedNode.querySelectorAll('[data-mural-reveal]')];
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduced || typeof IntersectionObserver === 'undefined') {
@@ -439,21 +467,18 @@ export default function MuralNisti({ onUnreadChange }) {
     return () => observer.disconnect();
   }, [tab, feed.length, loading]);
 
-  const featured = tab === 'all' ? items.find(item => item.featured) : null;
-  const feed = featured ? items.filter(item => item.id !== featured.id) : items;
-
   return (
     <section ref={shellRef} className="mural-shell">
       <div className="mural-scroll" onScroll={handleScroll}>
         <div className="mural-column">
-          <header className="mural-title-block">
+          <header className="mural-title-block mural-intro mural-intro-title">
             <h1>Mural NISTI</h1>
             <p>Novidades, coleções e avisos para operadores</p>
           </header>
 
           {featured && <Hero item={featured} onOpen={openItem} />}
 
-          <nav className="mural-tabs" aria-label="Filtros do Mural">
+          <nav className="mural-tabs mural-intro mural-intro-tabs" aria-label="Filtros do Mural">
             {TABS.map(([value, label]) => (
               <button
                 key={value}
