@@ -6916,3 +6916,55 @@ button.kpi-box:active {
     animation: none !important;
   }
 }
+
+
+/* =========================================================================
+   NISTI MOTION — TAXA DE SUCESSO / LOADING REVEAL
+   ========================================================================= */
+@keyframes nisti-success-rate-ready {
+  0% {
+    box-shadow:
+      inset 0 1px 2px rgba(15, 23, 42, .06),
+      0 0 0 0 rgba(34, 197, 94, 0);
+  }
+  68% {
+    box-shadow:
+      inset 0 1px 2px rgba(15, 23, 42, .06),
+      0 0 0 4px rgba(34, 197, 94, .08);
+  }
+  100% {
+    box-shadow:
+      inset 0 1px 2px rgba(15, 23, 42, .06),
+      0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.nisti-progress-track.is-success-rate {
+  animation:
+    nisti-touch-ready 320ms var(--nisti-motion-ease) both,
+    nisti-success-rate-ready 1.45s ease-out 1;
+}
+
+.nisti-progress-track.is-success-rate .nisti-progress-fill {
+  animation-duration: 1.25s !important;
+  animation-timing-function: cubic-bezier(.16, .84, .28, 1) !important;
+}
+
+.nisti-progress-track.is-success-rate .nisti-progress-fill::after {
+  width: 28%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.82),
+    transparent
+  );
+  animation: nisti-progress-sweep 820ms var(--nisti-motion-ease) 180ms 2 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nisti-progress-track.is-success-rate,
+  .nisti-progress-track.is-success-rate .nisti-progress-fill,
+  .nisti-progress-track.is-success-rate .nisti-progress-fill::after {
+    animation: none !important;
+  }
+}
