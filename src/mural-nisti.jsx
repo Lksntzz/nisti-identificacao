@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './mural-nisti.css';
+import MuralProductExperience from './mural-product-experience.jsx';
 
 const muralSessionCache = new Map();
 
@@ -9,6 +10,13 @@ const TABS = [
   ['collections', 'Coleções'],
   ['notices', 'Avisos']
 ];
+
+function TabIcon({ value }) {
+  if (value === 'products') return <span aria-hidden="true">◇</span>;
+  if (value === 'collections') return <span aria-hidden="true">≋</span>;
+  if (value === 'notices') return <span aria-hidden="true">◁</span>;
+  return <span aria-hidden="true">✦</span>;
+}
 
 function userId() {
   try {
@@ -114,13 +122,14 @@ function Hero({ item, onOpen }) {
   );
 }
 
-export function MuralCard({ item, onOpen, eager = false }) {
+export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
   const isNotice = item.kind === 'notice';
   const isProduct = item.kind === 'product';
   return (
     <button
       type="button"
       className={`mural-card mural-card-${item.kind}${!item.is_read ? ' unread' : ''}`}
+      style={{ '--mural-card-delay': `${Math.min(index, 8) * 45}ms` }}
       onClick={() => onOpen(item)}
     >
       {!isNotice && <MuralImage item={item} eager={eager} className="mural-card-image" />}
@@ -141,6 +150,7 @@ export function MuralCard({ item, onOpen, eager = false }) {
         {item.kind === 'collection' && <span className="mural-card-cta">Ver coleção →</span>}
         {isNotice && <span className="mural-card-date">{formatDate(item.published_at)}</span>}
       </span>
+      <span className="mural-card-arrow" aria-hidden="true">›</span>
     </button>
   );
 }
@@ -158,12 +168,16 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const immersiveProduct = item.kind === 'product';
+
   return (
     <div className="mural-modal-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}>
-      <section className={`mural-detail${hasMedia ? '' : ' no-media'}`} role="dialog" aria-modal="true" aria-labelledby="mural-detail-title">
+      <section className={`mural-detail${immersiveProduct ? ' mural-detail-immersive' : hasMedia ? '' : ' no-media'}`} role="dialog" aria-modal="true" aria-labelledby="mural-detail-title">
         <button ref={closeRef} type="button" className="mural-detail-close" onClick={onClose} aria-label="Fechar detalhe"><span aria-hidden="true">×</span></button>
-        {hasMedia && <MuralImage item={item} eager className={`mural-detail-image mural-detail-image-${item.kind}`} />}
-        <div className={`mural-detail-body${hasMedia ? '' : ' no-media'}`}>
+        {immersiveProduct ? <MuralProductExperience item={item} /> : (
+          <>
+            {hasMedia && <MuralImage item={item} eager className={`mural-detail-image mural-detail-image-${item.kind}`} />}
+            <div className={`mural-detail-body${hasMedia ? '' : ' no-media'}`}>
           <div className="mural-card-badges">
             <ReadBadge item={item} />
             {item.kind === 'notice' ? <NoticeLabel level={item.notice_level} /> : item.badge && <span className="mural-editorial-badge">{item.badge}</span>}
@@ -179,7 +193,9 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
               Ver produtos da coleção
             </button>
           )}
-        </div>
+            </div>
+          </>
+        )}
       </section>
     </div>
   );
@@ -247,6 +263,7 @@ export default function MuralNisti({ onUnreadChange }) {
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const sessionCache = useRef(muralSessionCache);
+  const scrollFrame = useRef(0);
 
   const load = async currentTab => {
     setLoading(true);
@@ -321,12 +338,24 @@ export default function MuralNisti({ onUnreadChange }) {
     }
   };
 
+  const handleScroll = event => {
+    const node = event.currentTarget;
+    if (scrollFrame.current) return;
+    scrollFrame.current = requestAnimationFrame(() => {
+      const shift = Math.max(-24, Math.min(0, node.scrollTop * -0.08));
+      node.style.setProperty('--mural-parallax', `${shift}px`);
+      scrollFrame.current = 0;
+    });
+  };
+
+  useEffect(() => () => cancelAnimationFrame(scrollFrame.current), []);
+
   const featured = tab === 'all' ? items.find(item => item.featured) : null;
   const feed = featured ? items.filter(item => item.id !== featured.id) : items;
 
   return (
     <section className="mural-shell">
-      <div className="mural-scroll">
+      <div className="mural-scroll" onScroll={handleScroll}>
         <div className="mural-column">
           <header className="mural-title-block">
             <h1>Mural NISTI</h1>
@@ -344,7 +373,8 @@ export default function MuralNisti({ onUnreadChange }) {
                 aria-current={tab === value ? 'page' : undefined}
                 onClick={() => setTab(value)}
               >
-                {label}
+                <TabIcon value={value} />
+                <span>{label}</span>
               </button>
             ))}
           </nav>
@@ -364,7 +394,7 @@ export default function MuralNisti({ onUnreadChange }) {
           ) : feed.length ? (
             <>
               <div className="mural-feed">
-                {feed.map((item, index) => <MuralCard key={item.id} item={item} onOpen={openItem} eager={index < 2} />)}
+                {feed.map((item, index) => <MuralCard key={item.id} item={item} onOpen={openItem} eager={index < 2} index={index} />)}
               </div>
               {nextCursor && <button type="button" className="mural-load-more" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Carregando…' : 'Carregar mais'}</button>}
             </>

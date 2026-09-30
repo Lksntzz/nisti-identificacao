@@ -17,7 +17,7 @@ test('product cards avoid duplicate subtitle metadata and clamp dense content',(
 test('detail dialog does not reserve media space when an item has no image',()=>{
   assert.match(mural,/const hasMedia = Boolean\(item\?\.image_url\)/);
   assert.match(mural,/\{hasMedia && <MuralImage/);
-  assert.match(mural,/mural-detail\$\{hasMedia \? '' : ' no-media'\}/);
+  assert.match(mural,/immersiveProduct \? ' mural-detail-immersive' : hasMedia \? '' : ' no-media'/);
   assert.match(css,/\.mural-detail-body\.no-media/);
 });
 
