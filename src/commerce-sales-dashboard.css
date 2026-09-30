@@ -273,3 +273,59 @@
 @media(prefers-reduced-motion:reduce){
   .sales-product-image{transition:none!important}
 }
+
+
+/* =========================================================================
+   NISTI SALES MOTION — GROWTH REPLAY
+   Reinicia o crescimento quando a série real muda após filtros/atualização.
+   ========================================================================= */
+@keyframes sales-chart-stage-in {
+  from { opacity: .72; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sales-share-grow {
+  from { transform: scaleX(0); opacity: .4; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+.sales-chart-growing {
+  transform-origin: center bottom;
+  animation: sales-chart-stage-in .34s cubic-bezier(.22,.8,.32,1) both;
+}
+
+.sales-chart-growing .sales-chart-bar {
+  animation-duration: .82s;
+  animation-timing-function: cubic-bezier(.16,.84,.28,1);
+}
+
+.sales-chart-growing .sales-chart-line {
+  animation-duration: 1.15s;
+  animation-delay: .26s;
+}
+
+.sales-chart-growing .sales-chart-point {
+  animation-duration: .42s;
+}
+
+.sales-donut-growing .sales-donut-segment {
+  animation-duration: .72s;
+  animation-timing-function: cubic-bezier(.16,.84,.28,1);
+}
+
+.sales-platform-share em i {
+  transform-origin: left center;
+  animation: sales-share-grow .68s cubic-bezier(.16,.84,.28,1) both;
+  animation-delay: var(--sales-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-chart-growing,
+  .sales-chart-growing .sales-chart-bar,
+  .sales-chart-growing .sales-chart-line,
+  .sales-chart-growing .sales-chart-point,
+  .sales-donut-growing .sales-donut-segment,
+  .sales-platform-share em i {
+    animation: none !important;
+  }
+}
