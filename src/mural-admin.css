@@ -2246,3 +2246,241 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
   background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
   pointer-events: none;
 }
+
+
+/* Gemini Pro fallback — prompt + referências reais, sem consumo da API de imagem */
+.mural-gemini-pro-divider{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:14px 0 12px;
+  color:#94a3b8;
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.mural-gemini-pro-divider::before,
+.mural-gemini-pro-divider::after{
+  content:"";
+  flex:1;
+  height:1px;
+  background:#e2e8f0;
+}
+.mural-publisher-gemini-pro{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  min-height:44px;
+  border:1px solid #c4b5fd;
+  border-radius:12px;
+  background:linear-gradient(135deg,#f5f3ff 0%,#faf5ff 55%,#eff6ff 100%);
+  color:#5b21b6;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.mural-publisher-gemini-pro:hover:not(:disabled){
+  transform:translateY(-1px);
+  border-color:#8b5cf6;
+  box-shadow:0 8px 24px rgba(91,33,182,.12);
+}
+.mural-publisher-gemini-pro:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.mural-gemini-pro-kit{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #ddd6fe;
+  border-radius:14px;
+  background:linear-gradient(180deg,#ffffff 0%,#fafaff 100%);
+  box-shadow:0 10px 28px rgba(76,29,149,.07);
+}
+.mural-gemini-pro-kit>header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.mural-gemini-pro-kit>header span:first-child{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.mural-gemini-pro-kit>header b{
+  color:#1e293b;
+  font-size:13px;
+}
+.mural-gemini-pro-kit>header small{
+  color:#64748b;
+  font-size:11px;
+}
+.mural-gemini-pro-ready{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  flex:0 0 auto;
+  padding:5px 8px;
+  border-radius:999px;
+  background:#ecfdf5;
+  color:#047857;
+  font-size:10px;
+  font-weight:800;
+}
+.mural-gemini-pro-steps{
+  display:grid;
+  gap:7px;
+  padding:10px;
+  border-radius:10px;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+}
+.mural-gemini-pro-steps span{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  color:#475569;
+  font-size:11px;
+  line-height:1.4;
+}
+.mural-gemini-pro-steps b{
+  width:19px;
+  height:19px;
+  display:grid;
+  place-items:center;
+  flex:0 0 19px;
+  border-radius:50%;
+  background:#ede9fe;
+  color:#6d28d9;
+  font-size:10px;
+}
+.mural-gemini-pro-actions{
+  display:grid;
+  grid-template-columns:1fr 1.35fr;
+  gap:8px;
+  margin-top:10px;
+}
+.mural-gemini-pro-actions button,
+.mural-gemini-pro-actions a{
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border-radius:10px;
+  font-size:11px;
+  font-weight:800;
+  text-decoration:none;
+}
+.mural-gemini-pro-actions button{
+  border:1px solid #cbd5e1;
+  background:#fff;
+  color:#334155;
+  cursor:pointer;
+}
+.mural-gemini-pro-actions a.primary{
+  border:1px solid #6d28d9;
+  background:#6d28d9;
+  color:#fff;
+}
+.mural-gemini-pro-references{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+.mural-gemini-pro-references figure{
+  margin:0;
+  overflow:hidden;
+  border:1px solid #e2e8f0;
+  border-radius:10px;
+  background:#fff;
+}
+.mural-gemini-pro-references figure>img{
+  width:100%;
+  aspect-ratio:4/3;
+  object-fit:contain;
+  display:block;
+  background:#f8fafc;
+}
+.mural-gemini-pro-references figcaption{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:8px;
+}
+.mural-gemini-pro-references figcaption>span{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.mural-gemini-pro-references figcaption b{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#1e293b;
+  font-size:10px;
+}
+.mural-gemini-pro-references figcaption small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#64748b;
+  font-size:9px;
+}
+.mural-gemini-pro-references figcaption a{
+  flex:0 0 auto;
+  color:#6d28d9;
+  font-size:10px;
+  font-weight:800;
+  text-decoration:none;
+}
+.mural-gemini-pro-return{
+  margin-top:10px;
+  padding:10px 12px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  border:1px dashed #a78bfa;
+  border-radius:10px;
+  background:#faf5ff;
+  color:#5b21b6;
+  cursor:pointer;
+}
+.mural-gemini-pro-return>span{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.mural-gemini-pro-return b{
+  font-size:11px;
+}
+.mural-gemini-pro-return small{
+  color:#7c3aed;
+  font-size:10px;
+}
+.mural-gemini-pro-return input{
+  display:none;
+}
+@media(max-width:640px){
+  .mural-gemini-pro-actions{
+    grid-template-columns:1fr;
+  }
+  .mural-gemini-pro-references{
+    grid-template-columns:1fr;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .mural-publisher-gemini-pro{
+    transition:none;
+  }
+  .mural-publisher-gemini-pro:hover:not(:disabled){
+    transform:none;
+  }
+}
