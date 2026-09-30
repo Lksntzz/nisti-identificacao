@@ -2031,3 +2031,126 @@
   }
 }
 
+/* Collection feed previews: make products visible directly in the Coleções tab. */
+.mural-collection-card-products{
+  position:absolute;
+  z-index:3;
+  top:50%;
+  right:14px;
+  width:34%;
+  min-width:122px;
+  height:154px;
+  translate:0 -50%;
+  display:block;
+  pointer-events:none;
+}
+.mural-collection-card-product-stack{
+  position:absolute;
+  inset:0 0 26px;
+  display:block;
+}
+.mural-collection-card-product-preview{
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:78px;
+  height:106px;
+  overflow:hidden;
+  border:5px solid rgba(255,255,255,.94);
+  border-radius:16px;
+  background:#fff;
+  box-shadow:0 12px 26px rgba(15,23,42,.14);
+  transform-origin:50% 100%;
+  transition:transform 320ms var(--mural-ease-out),box-shadow var(--mural-motion-ui) ease;
+}
+.mural-collection-card-product-preview.preview-1{
+  z-index:3;
+  transform:translate(-50%,-50%) rotate(-2deg);
+}
+.mural-collection-card-product-preview.preview-2{
+  z-index:2;
+  transform:translate(-15%,-48%) rotate(7deg) scale(.94);
+}
+.mural-collection-card-product-preview.preview-3{
+  z-index:1;
+  transform:translate(-84%,-46%) rotate(-9deg) scale(.91);
+}
+.mural-collection-card-product-preview>img,
+.mural-collection-card-product-preview>.mural-image-placeholder{
+  width:100%;
+  height:100%;
+  min-height:0;
+  object-fit:contain;
+  border-radius:10px;
+  background:#f8fafc;
+}
+.mural-collection-card-product-count{
+  position:absolute;
+  right:2px;
+  bottom:0;
+  min-width:68px;
+  min-height:31px;
+  padding:4px 9px;
+  display:flex;
+  align-items:baseline;
+  justify-content:center;
+  gap:4px;
+  border:1px solid rgba(226,232,240,.94);
+  border-radius:999px;
+  background:rgba(255,255,255,.94);
+  color:#526078;
+  box-shadow:0 6px 16px rgba(15,23,42,.08);
+  backdrop-filter:blur(10px);
+}
+.mural-collection-card-product-count strong{
+  color:var(--mural-blue);
+  font-size:14px;
+  font-weight:950;
+}
+.mural-collection-card-product-count small{
+  font-size:9px;
+  font-weight:800;
+}
+.mural-card-collection:has(.mural-collection-card-products) .mural-collection-card-copy{
+  width:min(59%,330px);
+}
+@media (hover:hover) and (pointer:fine){
+  .mural-card-collection:hover .mural-collection-card-product-preview.preview-1{
+    transform:translate(-50%,-53%) rotate(0deg) scale(1.02);
+    box-shadow:0 16px 30px rgba(15,23,42,.17);
+  }
+  .mural-card-collection:hover .mural-collection-card-product-preview.preview-2{
+    transform:translate(-8%,-49%) rotate(9deg) scale(.96);
+  }
+  .mural-card-collection:hover .mural-collection-card-product-preview.preview-3{
+    transform:translate(-90%,-47%) rotate(-11deg) scale(.93);
+  }
+}
+@media (max-width:390px){
+  .mural-collection-card-products{
+    right:8px;
+    width:34%;
+    min-width:112px;
+    height:142px;
+  }
+  .mural-collection-card-product-preview{
+    width:70px;
+    height:96px;
+    border-width:4px;
+  }
+  .mural-card-collection:has(.mural-collection-card-products) .mural-collection-card-copy{
+    width:61%;
+    padding-right:8px;
+  }
+  .mural-collection-card-product-count{
+    min-width:62px;
+    min-height:29px;
+    padding-inline:7px;
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  .mural-collection-card-product-preview{
+    transition:none!important;
+  }
+}
+
