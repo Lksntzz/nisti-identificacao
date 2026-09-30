@@ -38,3 +38,20 @@ test('motion-heavy effects respect reduced-motion preferences',()=>{
   assert.match(experience,/prefersReducedMotion/);
   assert.match(css,/@media \(prefers-reduced-motion:reduce\)/);
 });
+
+
+test('immersive effects are applied beyond the product detail',()=>{
+  assert.match(mural,/mural-hero-accent/);
+  assert.match(mural,/data-mural-reveal/);
+  assert.match(mural,/data-collection-reveal/);
+  assert.match(mural,/handleCollectionScroll/);
+  assert.match(css,/\.mural-card-collection/);
+  assert.match(css,/\.mural-card-notice/);
+  assert.match(css,/\.mural-collection-detail>\.mural-detail-image/);
+});
+
+test('product story copy stays behind the pinned stage instead of overlapping it',()=>{
+  assert.match(css,/\.mural-product-stage\{[\s\S]*z-index:6/);
+  assert.match(css,/\.mural-product-story-copy\{[\s\S]*z-index:1/);
+  assert.match(css,/\.mural-product-stage\{[\s\S]*background:/);
+});
