@@ -299,6 +299,19 @@ const NOTICE_LEVELS = new Set(['important', 'attention', 'info']);
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_EDITORIAL_IMAGE_BYTES = 5 * 1024 * 1024;
 
+const MURAL_IMAGE_BUDGETS = Object.freeze({
+  hero: 250 * 1024,
+  product: 120 * 1024,
+  collection: 180 * 1024,
+  first_fold: Math.round(1.5 * 1024 * 1024)
+});
+const MURAL_REQUIRED_TABLES = Object.freeze([
+  'mural_collections',
+  'mural_collection_products',
+  'mural_posts',
+  'mural_post_reads'
+]);
+
 function nullableText(value, max) {
   const text = String(value ?? '').trim();
   return text ? text.slice(0, max) : null;
@@ -655,6 +668,125 @@ async function adminMetrics(env) {
   });
 }
 
+
+async function adminReadiness(env) {
+  const placeholders = MURAL_REQUIRED_TABLES.map(() => '?').join(',');
+  const tableResult = await env.DB.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
+  ).bind(...MURAL_REQUIRED_TABLES).all();
+  const presentTables = new Set((tableResult.results || []).map(row => String(row.name)));
+  const missingTables = MURAL_REQUIRED_TABLES.filter(name => !presentTables.has(name));
+
+  if (missingTables.length) {
+    return json({
+      migration: { ok:false, present_tables:[...presentTables], missing_tables:missingTables },
+      content: { ok:false, published_now:0, by_kind:{ product:0, collection:0, notice:0 } },
+      images: {
+        ok:false,
+        available:Boolean(env.PRODUCT_IMAGES),
+        first_fold_bytes:0,
+        first_fold_budget_bytes:MURAL_IMAGE_BUDGETS.first_fold,
+        items:[]
+      },
+      automated_ready:false
+    });
+  }
+
+  const [contentRow, foldResult] = await Promise.all([
+    env.DB.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN kind='product' THEN 1 ELSE 0 END) AS products,
+        SUM(CASE WHEN kind='collection' THEN 1 ELSE 0 END) AS collections,
+        SUM(CASE WHEN kind='notice' THEN 1 ELSE 0 END) AS notices
+      FROM mural_posts
+      WHERE status='published'
+        AND published_at IS NOT NULL
+        AND datetime(published_at) <= CURRENT_TIMESTAMP
+        AND (expires_at IS NULL OR datetime(expires_at) > CURRENT_TIMESTAMP)
+    `).first(),
+    env.DB.prepare(`
+      SELECT
+        mp.id,mp.kind,mp.title,mp.featured,mp.priority,mp.published_at,
+        mp.image_key,
+        p.image_key AS product_image_key,
+        mc.image_key AS collection_image_key
+      FROM mural_posts mp
+      LEFT JOIN products p ON p.id=mp.product_id
+      LEFT JOIN mural_collections mc ON mc.id=mp.collection_id
+      WHERE mp.status='published'
+        AND mp.published_at IS NOT NULL
+        AND datetime(mp.published_at) <= CURRENT_TIMESTAMP
+        AND (mp.expires_at IS NULL OR datetime(mp.expires_at) > CURRENT_TIMESTAMP)
+      ORDER BY mp.featured DESC,mp.priority DESC,mp.published_at DESC,mp.id DESC
+      LIMIT 3
+    `).all()
+  ]);
+
+  const foldRows = foldResult.results || [];
+  const imageItems = await Promise.all(foldRows.map(async (row, index) => {
+    const key = row.image_key
+      || (row.kind === 'product' ? row.product_image_key : null)
+      || (row.kind === 'collection' ? row.collection_image_key : null)
+      || null;
+    let bytes = null;
+    if (key && env.PRODUCT_IMAGES?.head) {
+      const object = await env.PRODUCT_IMAGES.head(key).catch(() => null);
+      bytes = object ? Number(object.size || 0) : null;
+    }
+    const role = index === 0 && Number(row.featured || 0) === 1 ? 'hero' : row.kind;
+    const budgetBytes = role === 'hero'
+      ? MURAL_IMAGE_BUDGETS.hero
+      : MURAL_IMAGE_BUDGETS[role] || null;
+    return {
+      id:Number(row.id),
+      title:row.title,
+      kind:row.kind,
+      role,
+      image_key:key,
+      bytes,
+      budget_bytes:budgetBytes,
+      within_budget:bytes === null || budgetBytes === null ? null : bytes <= budgetBytes
+    };
+  }));
+
+  const knownImageBytes = imageItems.reduce((sum, item) => sum + (Number.isFinite(item.bytes) ? item.bytes : 0), 0);
+  const allResolvable = imageItems.every(item => !item.image_key || Number.isFinite(item.bytes));
+  const itemBudgetsOk = imageItems.every(item => item.within_budget !== false);
+  const firstFoldOk = allResolvable && knownImageBytes <= MURAL_IMAGE_BUDGETS.first_fold;
+  const publishedNow = Number(contentRow?.total || 0);
+  const contentOk = publishedNow >= 3;
+  const migrationOk = missingTables.length === 0;
+  const imagesOk = Boolean(env.PRODUCT_IMAGES) && firstFoldOk && itemBudgetsOk;
+
+  return json({
+    migration: {
+      ok:migrationOk,
+      present_tables:MURAL_REQUIRED_TABLES.filter(name => presentTables.has(name)),
+      missing_tables:missingTables
+    },
+    content: {
+      ok:contentOk,
+      published_now:publishedNow,
+      minimum_for_qa:3,
+      by_kind: {
+        product:Number(contentRow?.products || 0),
+        collection:Number(contentRow?.collections || 0),
+        notice:Number(contentRow?.notices || 0)
+      }
+    },
+    images: {
+      ok:imagesOk,
+      available:Boolean(env.PRODUCT_IMAGES),
+      first_fold_bytes:knownImageBytes,
+      first_fold_budget_bytes:MURAL_IMAGE_BUDGETS.first_fold,
+      all_resolvable:allResolvable,
+      items:imageItems
+    },
+    automated_ready:migrationOk && contentOk && imagesOk
+  });
+}
+
 async function adminProducts(url, env) {
   const q = String(url.searchParams.get('q') || '').trim().slice(0,80);
   const like = `%${q}%`;
@@ -749,6 +881,7 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     if (path === '/api/admin/mural/posts' && request.method === 'POST') return adminCreatePost(request, env);
     if (path === '/api/admin/mural/products' && request.method === 'GET') return adminProducts(url, env);
     if (path === '/api/admin/mural/metrics' && request.method === 'GET') return adminMetrics(env);
+    if (path === '/api/admin/mural/readiness' && request.method === 'GET') return adminReadiness(env);
     if (path === '/api/admin/mural/collections' && request.method === 'GET') return adminListCollections(env);
     if (path === '/api/admin/mural/collections' && request.method === 'POST') return adminCreateCollection(request, env);
 
