@@ -126,3 +126,10 @@ test('duplicating a post creates an unscheduled draft',()=>{
   const source=router.slice(start,end);
   assert.match(source,/null,null,'admin'/);
 });
+
+test('product cards derive collection from active Mural collection membership',()=>{
+  assert.match(router,/mcp2\.product_id=p\.id AND mc2\.status='active'/);
+  assert.match(router,/AS product_collection_name/);
+  assert.match(router,/collection: row\.product_collection_name \|\| null/);
+  assert.match(admin,/collection_name:sourceItem\.product_collection_name/);
+});
