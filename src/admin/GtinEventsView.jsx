@@ -171,7 +171,42 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
           <button type="button" className="btn-toolbar-filter" onClick={applySearch}>Buscar</button>
         </div>
       </div>
-      {actionError && <div className="form-error-banner" role="alert">{actionError}</div>}
+
+      {(status || appliedSearch) && (
+        <div className="nisti-filter-chips" aria-label="Filtros ativos">
+          <span className="nisti-filter-summary">{total.toLocaleString('pt-BR')} resultado{total === 1 ? '' : 's'}</span>
+          {status && (
+            <button
+              type="button"
+              className="nisti-filter-chip"
+              onClick={() => { setStatus(''); setPage(1); }}
+              disabled={Boolean(initialStatus)}
+            >
+              Status: {statusLabel(status)} {!initialStatus && <span aria-hidden="true">×</span>}
+            </button>
+          )}
+          {appliedSearch && (
+            <button
+              type="button"
+              className="nisti-filter-chip"
+              onClick={() => { setSearch(''); setAppliedSearch(''); setPage(1); }}
+            >
+              Busca: “{appliedSearch}” <span aria-hidden="true">×</span>
+            </button>
+          )}
+          {!initialStatus && (
+            <button
+              type="button"
+              className="nisti-filter-clear"
+              onClick={() => { setStatus(''); setSearch(''); setAppliedSearch(''); setPage(1); }}
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+      )}
+
+      {actionError && <div className="form-error-banner nisti-feedback-enter" role="alert">{actionError}</div>}
       <div className="table-responsive-container">
         <table className="admin-data-table">
           <thead>
@@ -186,12 +221,20 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
             </tr>
           </thead>
           <tbody>
-            {loading ? <tr><td colSpan={7} className="table-empty-row">Carregando leituras…</td></tr> : loadError ? (
+            {loading ? (
+              Array.from({ length: 5 }, (_, index) => (
+                <tr className="nisti-skeleton-row" key={`skeleton-${index}`} aria-hidden="true">
+                  {Array.from({ length: 7 }, (_, cell) => (
+                    <td key={cell}><span className={`nisti-skeleton-block cell-${cell + 1}`} /></td>
+                  ))}
+                </tr>
+              ))
+            ) : loadError ? (
               <tr><td colSpan={7} className="table-empty-row"><span>{loadError}</span> <button type="button" className="btn-toolbar-filter" onClick={load}>Tentar novamente</button></td></tr>
             ) : events.length === 0 ? (
               <tr><td colSpan={7} className="table-empty-row">Nenhuma leitura registrada neste filtro.</td></tr>
             ) : events.map(event => (
-              <tr key={event.id}>
+              <tr key={event.id} className={`nisti-table-row ${actionBusyId === event.id ? 'is-updating' : ''}`}>
                 <td><span className={`status-pill ${event.dismissed_at ? '' : event.status === 'identified' ? 'active' : event.status === 'not_found' ? 'orange' : 'danger'}`}>• {event.dismissed_at ? 'Descartado' : statusLabel(event.status)}</span></td>
                 <td><div className="datetime-cell"><span>{formatProductDate(event.created_at).date}</span><small>{formatProductDate(event.created_at).time}</small></div></td>
                 <td><strong>{event.operator_name || 'Não identificado'}</strong></td>
@@ -200,7 +243,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
                 <td>{event.response_ms ? `${event.response_ms} ms` : '—'}</td>
                 <td style={{ textAlign: 'right' }}>
                   {event.status === 'not_found' && (event.dismissed_at ? (
-                    <button type="button" className="btn-toolbar-filter" disabled={actionBusyId === event.id} onClick={() => changeDismissal(event, false)}>Restaurar</button>
+                    <button type="button" className={`btn-toolbar-filter ${actionBusyId === event.id ? 'nisti-action-busy' : ''}`} disabled={actionBusyId === event.id} onClick={() => changeDismissal(event, false)}>Restaurar</button>
                   ) : <>
                     <button
                       type="button"
@@ -216,7 +259,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
                       + Associar
                     </button>
                     {' '}
-                    <button type="button" className="btn-toolbar-filter" disabled={actionBusyId === event.id} onClick={() => changeDismissal(event, true)}>Descartar</button>
+                    <button type="button" className={`btn-toolbar-filter ${actionBusyId === event.id ? 'nisti-action-busy' : ''}`} disabled={actionBusyId === event.id} onClick={() => changeDismissal(event, true)}>Descartar</button>
                   </>)}
                 </td>
               </tr>
@@ -287,13 +330,13 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
                 </select>
               </div>
 
-              {linkError && <div className="form-error-banner">{linkError}</div>}
-              {linkSuccessMsg && <div className="form-success-banner">{linkSuccessMsg}</div>}
+              {linkError && <div className="form-error-banner nisti-feedback-enter" role="alert">{linkError}</div>}
+              {linkSuccessMsg && <div className="form-success-banner nisti-feedback-enter" role="status">{linkSuccessMsg}</div>}
 
               <div className="admin-modal-foot" style={{ marginTop: '16px' }}>
                 <button type="button" className="btn-cancel" onClick={() => setLinkingEvent(null)} disabled={linkBusy}>Cancelar</button>
-                <button type="submit" className="btn-submit-rainbow" disabled={linkBusy || !selectedProductId}>
-                  {linkBusy ? 'Vinculando…' : 'Salvar e Ativar EAN'}
+                <button type="submit" className={`btn-submit-rainbow ${linkBusy ? 'nisti-action-busy' : ''}`} disabled={linkBusy || !selectedProductId}>
+                  <span>{linkBusy ? 'Vinculando…' : 'Salvar e Ativar EAN'}</span>
                 </button>
               </div>
             </form>

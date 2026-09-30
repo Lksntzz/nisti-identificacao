@@ -722,8 +722,8 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
 
             <div className="admin-modal-foot" style={{ marginTop: '20px' }}>
               <button type="button" className="btn-cancel" onClick={onClose} disabled={busy}>Cancelar</button>
-              <button type="submit" className="btn-submit-rainbow" disabled={busy} style={{ minWidth: '180px' }}>
-                {busy ? (progressMsg || 'Cadastrando variações…') : `Salvar ${variants.length} produto(s)`}
+              <button type="submit" className={`btn-submit-rainbow ${busy ? 'nisti-action-busy' : ''}`} disabled={busy} style={{ minWidth: '180px' }}>
+                <span>{busy ? (progressMsg || 'Cadastrando variações…') : `Salvar ${variants.length} produto(s)`}</span>
               </button>
             </div>
           </form>
@@ -1029,8 +1029,8 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
 
           <div className="admin-modal-foot">
             <button type="button" className="btn-cancel" onClick={onClose} disabled={busy}>Cancelar</button>
-            <button type="submit" className="btn-submit-rainbow" disabled={busy}>
-              {busy ? 'Salvando…' : 'Salvar Alterações'}
+            <button type="submit" className={`btn-submit-rainbow ${busy ? 'nisti-action-busy' : ''}`} disabled={busy}>
+              <span>{busy ? 'Salvando…' : 'Salvar Alterações'}</span>
             </button>
           </div>
         </form>
@@ -1148,7 +1148,7 @@ function ViewProductModal({ product, isOpen, onClose, onEdit, onSyncComplete }) 
               </div>
               <button
                 type="button"
-                className="btn-sync-repair"
+                className={`btn-sync-repair ${syncBusy ? 'nisti-action-busy' : ''}`}
                 onClick={repairCommerceSync}
                 disabled={syncBusy}
               >
@@ -1282,7 +1282,7 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
           onReset={() => { setResult(null); setMessage(''); setError(''); }}
           onClose={onClose}
         /> : <div className="admin-modal-form">
-          <label className="photo-empty-drop" style={{ minHeight: '180px' }}>
+          <label className={`photo-empty-drop ${busy ? 'nisti-import-busy' : ''}`} style={{ minHeight: '180px' }}>
             <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
               <path d="M12 12v9" />
@@ -1293,8 +1293,8 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
             <input type="file" accept=".csv,text/csv" disabled={busy} onChange={e => handleUpload(e.target.files?.[0])} />
           </label>
 
-          {message && <div className="form-success-banner">{message}</div>}
-          {error && <div className="form-error-banner">{error}</div>}
+          {message && <div className="form-success-banner nisti-feedback-enter" role="status">{message}</div>}
+          {error && <div className="form-error-banner nisti-feedback-enter" role="alert">{error}</div>}
 
           <div className="admin-modal-foot">
             <button type="button" className="btn-cancel" onClick={onClose}>Fechar</button>
@@ -1455,70 +1455,72 @@ function AdminApp() {
         />
 
         <main className="admin-page-content">
-          {activeView !== 'mural-nisti' && (
-            <>
-              <WelcomeDateBanner />
-              {/* Dashboard de Produtividade da Expedição & KPIs */}
-              <ExpeditionDashboard
-                gtinDashboard={gtinDashboard}
-                productsCount={products.length}
-                onNavigate={handleNavChange}
-                onShowProductsWithoutGtin={showProductsWithoutGtin}
-                api={api}
+          <div key={activeView} className="admin-view-transition">
+            {activeView !== 'mural-nisti' && (
+              <>
+                <WelcomeDateBanner />
+                {/* Dashboard de Produtividade da Expedição & KPIs */}
+                <ExpeditionDashboard
+                  gtinDashboard={gtinDashboard}
+                  productsCount={products.length}
+                  onNavigate={handleNavChange}
+                  onShowProductsWithoutGtin={showProductsWithoutGtin}
+                  api={api}
+                />
+              </>
+            )}
+
+            {activeView === 'mural-nisti' && <MuralNistiAdminView />}
+
+            {activeView === 'catalogo' && (
+              <CatalogView
+                products={products}
+                onRefresh={refreshAll}
+                onOpenCreate={() => setCreateModalOpen(true)}
+                onOpenImport={() => setImportModalOpen(true)}
+                onViewProduct={p => setViewProduct(p)}
+                onEditProduct={p => setEditProduct(p)}
+                onDeleteProduct={handleDeleteProduct}
               />
-            </>
-          )}
+            )}
 
-          {activeView === 'mural-nisti' && <MuralNistiAdminView />}
+            {activeView === 'gerador-barras' && <BarcodeGeneratorView api={api} />}
 
-          {activeView === 'catalogo' && (
-            <CatalogView
-              products={products}
-              onRefresh={refreshAll}
-              onOpenCreate={() => setCreateModalOpen(true)}
-              onOpenImport={() => setImportModalOpen(true)}
-              onViewProduct={p => setViewProduct(p)}
-              onEditProduct={p => setEditProduct(p)}
-              onDeleteProduct={handleDeleteProduct}
-            />
-          )}
+            {activeView === 'historico-ean' && (
+              <GtinEventsView
+                api={api}
+                products={products}
+                onLinkSuccess={refreshAll}
+              />
+            )}
 
-          {activeView === 'gerador-barras' && <BarcodeGeneratorView api={api} />}
+            {activeView === 'ean-nao-cadastrados' && (
+              <GtinEventsView
+                initialStatus="not_found"
+                api={api}
+                products={products}
+                onLinkSuccess={refreshAll}
+              />
+            )}
 
-          {activeView === 'historico-ean' && (
-            <GtinEventsView
-              api={api}
-              products={products}
-              onLinkSuccess={refreshAll}
-            />
-          )}
+            {activeView === 'produtos-sem-ean' && (
+              <ProductsWithoutGtinView
+                products={productsWithoutGtin}
+                onSelect={product => setViewProduct(product)}
+                onBack={() => setActiveView('catalogo')}
+              />
+            )}
 
-          {activeView === 'ean-nao-cadastrados' && (
-            <GtinEventsView
-              initialStatus="not_found"
-              api={api}
-              products={products}
-              onLinkSuccess={refreshAll}
-            />
-          )}
-
-          {activeView === 'produtos-sem-ean' && (
-            <ProductsWithoutGtinView
-              products={productsWithoutGtin}
-              onSelect={product => setViewProduct(product)}
-              onBack={() => setActiveView('catalogo')}
-            />
-          )}
-
-          {activeView === 'logs' && (
-            <SystemHealthView
-              metrics={metrics}
-              storage={storage}
-              health={health}
-              healthError={healthError}
-              onRefresh={() => refreshMetrics(true)}
-            />
-          )}
+            {activeView === 'logs' && (
+              <SystemHealthView
+                metrics={metrics}
+                storage={storage}
+                health={health}
+                healthError={healthError}
+                onRefresh={() => refreshMetrics(true)}
+              />
+            )}
+          </div>
         </main>
 
         <footer className="admin-global-footer">

@@ -172,6 +172,7 @@ export function CatalogView({
   }, [page, pages]);
 
   const slice = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const selectedPlatformLabel = platforms.find(item => item.code === platformFilter)?.label || platformFilter;
 
   return (
     <div className="admin-table-card">
@@ -261,6 +262,34 @@ export function CatalogView({
         </div>
       </div>
 
+      {(search.trim() || platformFilter || onlyWithoutEan) && (
+        <div className="nisti-filter-chips" aria-label="Filtros ativos">
+          <span className="nisti-filter-summary">{filtered.length.toLocaleString('pt-BR')} resultado{filtered.length === 1 ? '' : 's'}</span>
+          {search.trim() && (
+            <button type="button" className="nisti-filter-chip" onClick={() => setSearch('')}>
+              Busca: “{search.trim()}” <span aria-hidden="true">×</span>
+            </button>
+          )}
+          {platformFilter && (
+            <button type="button" className="nisti-filter-chip" onClick={() => setPlatformFilter('')}>
+              {selectedPlatformLabel} <span aria-hidden="true">×</span>
+            </button>
+          )}
+          {onlyWithoutEan && (
+            <button type="button" className="nisti-filter-chip warning" onClick={() => setOnlyWithoutEan(false)}>
+              Sem EAN <span aria-hidden="true">×</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="nisti-filter-clear"
+            onClick={() => { setSearch(''); setPlatformFilter(''); setOnlyWithoutEan(false); }}
+          >
+            Limpar filtros
+          </button>
+        </div>
+      )}
+
       <div className="table-responsive-container">
         <table className="admin-data-table">
           <thead>
@@ -284,7 +313,7 @@ export function CatalogView({
               slice.map(product => {
                 const dateInfo = formatProductDate(product.created_at);
                 return (
-                  <tr key={product.id}>
+                  <tr key={product.id} className="nisti-table-row">
                     <td>
                       <div className="capa-cell-wrap">
                         {product.image_url ? (
