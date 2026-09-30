@@ -480,21 +480,32 @@ function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpe
   const initials = operatorName
     ? operatorName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase()
     : 'OP';
+  const inMural = activeView === 'mural';
+
+  const identity = (
+    <>
+      <img
+        className="brand-icon-mark"
+        src={LOGO}
+        alt="NISTI"
+        onError={e => { e.currentTarget.style.opacity = '0.4'; }}
+      />
+      <div className="brand-titles">
+        <strong className="brand-main-title">NISTI PRINT</strong>
+        <span className="brand-subtext">{inMural ? 'Mural NISTI' : 'Scanner de EAN'}</span>
+      </div>
+    </>
+  );
 
   return (
     <header className="brand-topbar">
-      <div className="brand-identity">
-        <img
-          className="brand-icon-mark"
-          src={LOGO}
-          alt="NISTI"
-          onError={e => { e.currentTarget.style.opacity = '0.4'; }}
-        />
-        <div className="brand-titles">
-          <strong className="brand-main-title">NISTI PRINT</strong>
-          <span className="brand-subtext">Scanner de EAN</span>
-        </div>
-      </div>
+      {inMural && onOpenScanner ? (
+        <button type="button" className="brand-identity brand-identity-button" onClick={onOpenScanner} aria-label="Voltar ao Scanner">
+          {identity}
+        </button>
+      ) : (
+        <div className="brand-identity">{identity}</div>
+      )}
       <div className="header-actions">
         <button
           type="button"
@@ -506,15 +517,15 @@ function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpe
           <span className="operator-name-label">{operatorName || 'Operador'}</span>
         </button>
         {showInstall && <InstallApp compact />}
-        {onOpenMural && onOpenScanner && (
+        {!inMural && onOpenMural && onOpenScanner && (
           <button
             type="button"
-            className={`mural-nav-btn ${activeView === 'mural' ? 'active' : ''}`}
-            onClick={activeView === 'mural' ? onOpenScanner : onOpenMural}
-            aria-label={activeView === 'mural' ? 'Voltar ao Scanner' : `Abrir Mural NISTI (${muralUnread} não lidos)`}
+            className="mural-nav-btn"
+            onClick={onOpenMural}
+            aria-label={`Abrir Mural NISTI (${muralUnread} não lidos)`}
           >
-            <span>{activeView === 'mural' ? 'Scanner' : 'Mural'}</span>
-            {activeView !== 'mural' && muralUnread > 0 && <span className="mural-nav-count">{muralUnread > 9 ? '9+' : muralUnread}</span>}
+            <span>Mural</span>
+            {muralUnread > 0 && <span className="mural-nav-count">{muralUnread > 9 ? '9+' : muralUnread}</span>}
           </button>
         )}
         <BellIcon unreadCount={unreadCount} onClick={onOpenNotifications} />
