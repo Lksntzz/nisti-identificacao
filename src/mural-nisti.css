@@ -2111,7 +2111,7 @@
   font-size:9px;
   font-weight:800;
 }
-.mural-card-collection:has(.mural-collection-card-products) .mural-collection-card-copy{
+.mural-card-collection.has-products .mural-collection-card-copy{
   width:min(59%,330px);
 }
 @media (hover:hover) and (pointer:fine){
@@ -2138,7 +2138,7 @@
     height:96px;
     border-width:4px;
   }
-  .mural-card-collection:has(.mural-collection-card-products) .mural-collection-card-copy{
+  .mural-card-collection.has-products .mural-collection-card-copy{
     width:61%;
     padding-right:8px;
   }
