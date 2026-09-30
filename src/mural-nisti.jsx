@@ -844,16 +844,15 @@ export default function MuralNisti({ onUnreadChange }) {
               <i className="star-1">✦</i>
               <i className="star-2">✦</i>
               <i className="star-3">✦</i>
-              <i className="star-4">✦</i>
-              <i className="star-5">✦</i>
-              <i className="star-6">✦</i>
             </span>
             <span className="mural-title-copy">
               <h1>Mural NISTI</h1>
               <p>Novidades, coleções e avisos para operadores</p>
             </span>
             <span className="mural-title-accent" aria-hidden="true">
-              <img className="mural-title-brand-mark" src={LOGO} alt="" />
+              <span className="mural-logo-drop drop-cyan"><img src={LOGO} alt="" /></span>
+              <span className="mural-logo-drop drop-pink"><img src={LOGO} alt="" /></span>
+              <span className="mural-logo-drop drop-yellow"><img src={LOGO} alt="" /></span>
             </span>
           </header>
 
