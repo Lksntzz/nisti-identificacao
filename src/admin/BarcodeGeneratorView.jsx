@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createEan13Svg, downloadBarcodePng, downloadBarcodeZip } from '../ean-barcode.js';
 import { buildEanCollections, collectionZipFilename } from '../ean-collections.js';
+import { AdminState } from './AdminState.jsx';
 
 const BARCODE_PRODUCT_PAGE_SIZE = 10;
 const BARCODE_COLLECTION_PAGE_SIZE = 12;
@@ -113,6 +114,12 @@ export function BarcodeGeneratorView({ api }) {
 
   const toggleOne = id => setSelected(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
   const selectedPlatform = platform === 'all' ? '' : platform;
+  const clearGeneratorFilters = () => {
+    setSearch('');
+    setPlatform('all');
+    setProductPage(1);
+    setCollectionPage(1);
+  };
 
   const downloadMass = async () => {
     setGenerating(true);
@@ -148,7 +155,17 @@ export function BarcodeGeneratorView({ api }) {
         </div>
       </section>
 
-      {error && <div className="barcode-generator-error">{error} <button type="button" onClick={load}>Tentar novamente</button></div>}
+      {error && (
+        <AdminState
+          tone="error"
+          compact
+          className="barcode-generator-state"
+          title="A operação não foi concluída"
+          description={error}
+          actionLabel="Dispensar"
+          onAction={() => setError('')}
+        />
+      )}
 
       <section className={`barcode-generator-workspace ${viewMode === 'collections' ? 'collection-mode' : ''}`}>
         {viewMode === 'products' && <div className="barcode-generator-preview">
@@ -228,7 +245,16 @@ export function BarcodeGeneratorView({ api }) {
             ))}
           </div>
         ) : (
-          <div className="barcode-collections-empty">Nenhuma coleção com duas ou mais capas foi encontrada neste filtro.</div>
+          <AdminState
+            tone="empty"
+            title={activeRows.length === 0 ? 'Nenhuma coleção disponível' : 'Nenhuma coleção neste filtro'}
+            description={activeRows.length === 0
+              ? 'As coleções aparecerão quando houver EANs ativos vinculados a produtos com múltiplas capas.'
+              : 'A busca ou a plataforma selecionada não retornou coleções com duas ou mais capas.'}
+            actionLabel={(search.trim() || platform !== 'all') ? 'Limpar filtros' : ''}
+            onAction={(search.trim() || platform !== 'all') ? clearGeneratorFilters : undefined}
+            className="barcode-collections-empty"
+          />
         )}
 
         {collections.length > 0 && (
@@ -256,7 +282,22 @@ export function BarcodeGeneratorView({ api }) {
           <table className="admin-data-table">
             <thead><tr><th className="barcode-check-column">✓</th><th>EAN</th><th>PRODUTO</th><th>PLATAFORMA</th><th>ARQUIVOS</th></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan="5" className="table-empty-row">Carregando códigos…</td></tr> : rows.length === 0 ? <tr><td colSpan="5" className="table-empty-row">Nenhum EAN encontrado.</td></tr> : pagedRows.map(item => (
+              {loading ? (
+                <tr><td colSpan="5" className="table-empty-row nisti-state-cell"><AdminState tone="loading" compact title="Carregando códigos EAN" description="Consultando os códigos ativos do catálogo." /></td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan="5" className="table-empty-row nisti-state-cell">
+                  <AdminState
+                    tone="empty"
+                    compact
+                    title={activeRows.length === 0 ? 'Nenhum EAN ativo disponível' : 'Nenhum EAN neste filtro'}
+                    description={activeRows.length === 0
+                      ? 'Vincule um EAN ativo a um produto para gerar etiquetas.'
+                      : 'A busca ou plataforma selecionada não retornou códigos.'}
+                    actionLabel={(search.trim() || platform !== 'all') ? 'Limpar filtros' : ''}
+                    onAction={(search.trim() || platform !== 'all') ? clearGeneratorFilters : undefined}
+                  />
+                </td></tr>
+              ) : pagedRows.map(item => (
                 <tr key={item.id} className={preview?.id === item.id ? 'barcode-row-previewing' : ''}>
                   <td><input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggleOne(item.id)} aria-label={`Selecionar ${item.gtin}`} /></td>
                   <td><button type="button" className="barcode-preview-link" onClick={() => setPreviewId(item.id)}>{item.gtin}</button></td>

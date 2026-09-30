@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatSaoPauloDateTime } from '../date-time.js';
+import { AdminState } from './AdminState.jsx';
 
 function formatProductDate(dateVal) {
   return formatSaoPauloDateTime(dateVal, { emptyTime: '' });
@@ -230,9 +231,35 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
                 </tr>
               ))
             ) : loadError ? (
-              <tr><td colSpan={7} className="table-empty-row"><span>{loadError}</span> <button type="button" className="btn-toolbar-filter" onClick={load}>Tentar novamente</button></td></tr>
+              <tr>
+                <td colSpan={7} className="table-empty-row nisti-state-cell">
+                  <AdminState
+                    tone="error"
+                    compact
+                    title="Não foi possível carregar o histórico"
+                    description={loadError}
+                    actionLabel="Tentar novamente"
+                    onAction={() => load()}
+                  />
+                </td>
+              </tr>
             ) : events.length === 0 ? (
-              <tr><td colSpan={7} className="table-empty-row">Nenhuma leitura registrada neste filtro.</td></tr>
+              <tr>
+                <td colSpan={7} className="table-empty-row nisti-state-cell">
+                  <AdminState
+                    tone={initialStatus === 'not_found' && !appliedSearch ? 'success' : 'empty'}
+                    compact
+                    title={initialStatus === 'not_found' && !appliedSearch ? 'Nenhum EAN pendente' : 'Nenhuma leitura encontrada'}
+                    description={initialStatus === 'not_found' && !appliedSearch
+                      ? 'Não há EAN não cadastrado aguardando tratamento neste momento.'
+                      : 'Não encontramos leituras com os filtros atuais.'}
+                    actionLabel={!initialStatus && (status || appliedSearch) ? 'Limpar filtros' : ''}
+                    onAction={!initialStatus && (status || appliedSearch)
+                      ? () => { setStatus(''); setSearch(''); setAppliedSearch(''); setPage(1); }
+                      : undefined}
+                  />
+                </td>
+              </tr>
             ) : events.map(event => (
               <tr key={event.id} className={`nisti-table-row ${actionBusyId === event.id ? 'is-updating' : ''}`}>
                 <td><span className={`status-pill ${event.dismissed_at ? '' : event.status === 'identified' ? 'active' : event.status === 'not_found' ? 'orange' : 'danger'}`}>• {event.dismissed_at ? 'Descartado' : statusLabel(event.status)}</span></td>

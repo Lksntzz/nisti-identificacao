@@ -5690,3 +5690,306 @@ button.kpi-box:active {
     transform: none !important;
   }
 }
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 5
+   Semantic states: empty, success, warning, error, loading and sync
+   ========================================================================= */
+@keyframes nisti-state-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nisti-state-icon-pop {
+  0% { transform: scale(0.72); opacity: 0; }
+  70% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes nisti-attention-nudge {
+  0%, 100% { transform: rotate(0); }
+  35% { transform: rotate(-5deg); }
+  70% { transform: rotate(4deg); }
+}
+
+.nisti-admin-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #475569;
+  text-align: left;
+  animation: nisti-state-enter var(--nisti-motion-content) var(--nisti-motion-ease) both;
+}
+
+.nisti-admin-state.compact {
+  min-height: 76px;
+  padding: 13px 15px;
+  border-radius: 11px;
+}
+
+.nisti-admin-state-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.05);
+  animation: nisti-state-icon-pop 320ms var(--nisti-motion-ease) both;
+}
+
+.nisti-admin-state.compact .nisti-admin-state-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.nisti-admin-state-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.nisti-admin-state-copy strong {
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.nisti-admin-state-copy span {
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.nisti-admin-state-action {
+  min-height: 32px;
+  padding: 7px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 9.5px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    border-color var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.nisti-admin-state-action:hover {
+  transform: translateY(-1px);
+  border-color: #93c5fd;
+  background: #f8fbff;
+  box-shadow: 0 5px 12px rgba(30, 64, 175, 0.08);
+}
+
+.nisti-admin-state-action:active {
+  transform: scale(0.98);
+}
+
+.nisti-admin-state.success {
+  border-color: #bbf7d0;
+  background: #f4fbf6;
+}
+.nisti-admin-state.success .nisti-admin-state-icon {
+  border-color: #bbf7d0;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.nisti-admin-state.error {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+.nisti-admin-state.error .nisti-admin-state-icon {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.nisti-admin-state.warning {
+  border-color: #fde68a;
+  background: #fffdf5;
+}
+.nisti-admin-state.warning .nisti-admin-state-icon {
+  border-color: #fde68a;
+  color: #b45309;
+  background: #fffbeb;
+}
+
+.nisti-admin-state.info,
+.nisti-admin-state.loading {
+  border-color: #bfdbfe;
+  background: #f8fbff;
+}
+.nisti-admin-state.info .nisti-admin-state-icon,
+.nisti-admin-state.loading .nisti-admin-state-icon {
+  border-color: #bfdbfe;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.nisti-state-spinner {
+  animation: nisti-spin 0.85s linear infinite;
+}
+
+.nisti-state-cell {
+  padding: 16px !important;
+  background: #fff !important;
+}
+
+.nisti-state-cell .nisti-admin-state {
+  margin: 0 auto;
+  max-width: 760px;
+}
+
+.barcode-generator-state {
+  margin: 0 0 16px;
+}
+
+.barcode-collections-empty.nisti-admin-state {
+  min-height: 140px;
+}
+
+.commerce-sync-icon {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  flex: 0 0 16px;
+  border-radius: 50%;
+}
+
+.commerce-sync-badge.synced .commerce-sync-icon {
+  color: #15803d;
+  animation: nisti-state-icon-pop 280ms var(--nisti-motion-ease) both;
+}
+
+.commerce-sync-badge.pending .commerce-sync-icon {
+  color: #b45309;
+  animation: nisti-status-pulse 1.6s ease-in-out infinite;
+}
+
+.commerce-sync-badge.conflict .commerce-sync-icon {
+  color: #c2410c;
+  animation: nisti-attention-nudge 360ms ease-out 1;
+}
+
+.commerce-sync-badge.error .commerce-sync-icon {
+  color: #b91c1c;
+}
+
+.commerce-sync-badge.unknown .commerce-sync-icon {
+  color: #64748b;
+}
+
+.commerce-sync-badge.unknown .commerce-sync-icon svg {
+  animation: nisti-spin 1.25s linear infinite;
+}
+
+.system-health-overall {
+  transition:
+    border-color var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.system-health-overall.healthy .system-health-overall-icon {
+  animation: nisti-state-icon-pop 320ms var(--nisti-motion-ease) both;
+}
+
+.system-health-overall.attention .system-health-overall-icon {
+  animation: nisti-attention-nudge 380ms ease-out 1;
+}
+
+.system-health-overall.degraded {
+  box-shadow: inset 3px 0 0 rgba(185, 28, 28, 0.65);
+}
+
+.system-health-status {
+  gap: 4px;
+}
+
+.system-health-status::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.75;
+}
+
+.nisti-admin-state.system-health-load-error {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.system-health-empty-checks.nisti-admin-state {
+  grid-column: 1 / -1;
+  text-align: left;
+}
+
+.system-health-no-issues.nisti-admin-state {
+  min-height: 110px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .nisti-admin-state,
+  .nisti-admin-state.system-health-load-error {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .nisti-admin-state-action {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nisti-admin-state,
+  .nisti-admin-state-icon,
+  .commerce-sync-badge.synced .commerce-sync-icon,
+  .commerce-sync-badge.pending .commerce-sync-icon,
+  .commerce-sync-badge.conflict .commerce-sync-icon,
+  .commerce-sync-badge.unknown .commerce-sync-icon svg,
+  .system-health-overall.healthy .system-health-overall-icon,
+  .system-health-overall.attention .system-health-overall-icon,
+  .nisti-state-spinner {
+    animation: none !important;
+  }
+
+  .nisti-admin-state-action {
+    transition-duration: 0.01ms !important;
+  }
+
+  .nisti-admin-state-action:hover,
+  .nisti-admin-state-action:active {
+    transform: none !important;
+  }
+}
