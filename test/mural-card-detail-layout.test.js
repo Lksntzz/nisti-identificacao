@@ -46,14 +46,10 @@ test('collection product cards use contained imagery and compact mobile sizing',
 });
 
 
-test('Mural title accent uses three SVG teardrops instead of thin sticks',()=>{
-  assert.match(mural,/className="mural-title-accent"/);
-  assert.match(mural,/className=\{\`mural-title-drop drop-\$\{index \+ 1\}\`\}/);
-  assert.match(mural,/viewBox="0 0 36 56"/);
-  assert.match(mural,/M18 2C13\.5 9\.5/);
-  assert.match(css,/\.mural-title-drop path\{fill:currentColor\}/);
-  assert.match(css,/\.mural-title-drop\.drop-1/);
-  assert.match(css,/\.mural-title-drop\.drop-2/);
-  assert.match(css,/\.mural-title-drop\.drop-3/);
-  assert.doesNotMatch(css,/\.mural-title-accent i\{/);
+test('Mural title accent reuses the exact official brand symbol from the header',()=>{
+  assert.match(mural,/import LOGO from '\.\/assets\/logo\.png'/);
+  assert.match(mural,/className="mural-title-brand-mark" src=\{LOGO\}/);
+  assert.match(css,/\.mural-title-brand-mark\{[\s\S]*object-fit:contain/);
+  assert.doesNotMatch(mural,/mural-title-drop/);
+  assert.doesNotMatch(css,/\.mural-title-drop/);
 });
