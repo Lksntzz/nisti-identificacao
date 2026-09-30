@@ -339,7 +339,7 @@ function PlatformSummary({ rows, loading, onSelect }) {
                 <strong>{brNumber(row.metrics?.net_orders)}</strong>
                 <strong>{brNumber(row.metrics?.units)}</strong>
                 <strong>{brCurrency(revenue)}</strong>
-                <span className="sales-platform-share"><b>{brPercent(share)}%</b><em><i style={{ width: `${Math.max(0, Math.min(100, share))}%` }} /></em></span>
+                <span className="sales-platform-share"><b>{brPercent(share)}%</b><em><i key={`${row.value}-${share.toFixed(4)}`} style={{ width: `${Math.max(0, Math.min(100, share))}%` }} /></em></span>
               </button>
             );
           })}
