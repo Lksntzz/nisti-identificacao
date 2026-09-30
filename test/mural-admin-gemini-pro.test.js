@@ -163,6 +163,8 @@ test('collection QA uses the approved launch-card visual and refreshes automatic
   assert.ok(muralView.includes('NOVA COLEÇÃO'));
   assert.ok(muralView.includes('CollectionFinishChips'));
   assert.ok(muralView.includes('isQa ? 5000 : 30000'));
+  assert.ok(muralView.includes("const featured = items.find(item => item.featured) || null;"));
+  assert.ok(muralView.indexOf('className="mural-tabs mural-intro mural-intro-tabs"') < muralView.indexOf('{featured && <Hero item={featured} onOpen={openItem} />}'));
   assert.ok(muralCss.includes('.mural-launch-hero'));
   assert.ok(muralCss.includes('aspect-ratio:2 / 1'));
   assert.ok(muralCss.includes('.mural-collection-launch-card'));
