@@ -951,6 +951,20 @@
   }
 }
 
+/* Product cutouts stay visually flat: no artificial shadow in cards or reveal. */
+.mural-product-transparent,
+.mural-product-webgl canvas,
+.mural-product-stage-fallback,
+.mural-product-focus-image,
+.mural-scene-product,
+.mural-scene-single-product,
+.mural-launch-product>img,
+.mural-collection-launch-product>img,
+.mural-collection-reveal-product>img{
+  filter:none!important;
+  box-shadow:none!important;
+}
+
 
 /* Whole-Mural immersive pass: feed, collections, notices and product story. */
 .mural-shell.motion-ready .mural-reveal{
