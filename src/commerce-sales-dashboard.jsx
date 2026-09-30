@@ -189,6 +189,9 @@ function SalesChart({ history }) {
     return [x, y];
   });
   const line = points.map(([x, y]) => `${x},${y}`).join(' ');
+  const chartMotionKey = rows
+    .map(item => [item.period_key, Number(item.product_revenue || 0), Number(item.net_orders || 0), Number(item.units || 0)].join(':'))
+    .join('|');
   const activeIndex = hoveredIndex ?? selectedIndex;
   const activeItem = activeIndex == null ? null : rows[activeIndex];
 
@@ -221,7 +224,7 @@ function SalesChart({ history }) {
           </div>
         )}
 
-        <svg className="sales-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Evolução mensal de faturamento e pedidos">
+        <svg key={chartMotionKey} className="sales-chart sales-chart-growing" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Evolução mensal de faturamento e pedidos">
           {[0, .25, .5, .75, 1].map(level => {
             const y = top + innerHeight - (innerHeight * level);
             return (
@@ -371,6 +374,9 @@ function ParticipationCard({ rows, loading, onSelect }) {
   }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const active = segments.find(item => item.value === activeValue) || null;
+  const donutMotionKey = segments
+    .map(item => [item.value, Number(item.revenue || 0), Number(item.share || 0).toFixed(4)].join(':'))
+    .join('|');
 
   return (
     <section className="sales-side-card participation">
@@ -380,7 +386,7 @@ function ParticipationCard({ rows, loading, onSelect }) {
       {loading ? <div className="sales-side-empty">Calculando participação…</div> : (
         <div className="sales-participation-content">
           <div className="sales-donut-wrap">
-            <svg className="sales-donut-svg" viewBox="0 0 120 120" role="img" aria-label="Participação de faturamento por plataforma">
+            <svg key={donutMotionKey} className="sales-donut-svg sales-donut-growing" viewBox="0 0 120 120" role="img" aria-label="Participação de faturamento por plataforma">
               <circle cx="60" cy="60" r="46" className="sales-donut-track" />
               {segments.map((item, index) => (
                 <circle
