@@ -460,7 +460,7 @@ function PublicIdentificationApp() {
   const [muralUnread, setMuralUnread] = useState(0);
   const [muralAccess, setMuralAccess] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [publicView, setPublicView] = useState('mural');
+  const [publicView, setPublicView] = useState('scanner');
 
   useEffect(() => {
     const handleHash = () => {
