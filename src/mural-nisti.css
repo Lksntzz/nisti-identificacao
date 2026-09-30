@@ -395,3 +395,381 @@
     min-height:124px;
   }
 }
+
+
+/* Immersive Mural interactions: scrollytelling, parallax, WebGL product stage and microinteractions. */
+.mural-tabs button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+.mural-tabs button>span:first-child{
+  display:grid;
+  place-items:center;
+  width:18px;
+  height:18px;
+  font-size:14px;
+  line-height:1;
+  transform:translateY(-.5px);
+}
+.mural-hero{
+  isolation:isolate;
+}
+.mural-hero-image{
+  transform:translate3d(0,var(--mural-parallax,0),0) scale(1.07);
+  will-change:transform;
+  transition:transform .12s linear;
+}
+.mural-hero-copy{
+  transform:translate3d(0,calc(var(--mural-parallax,0) * -.18),0);
+  will-change:transform;
+}
+.mural-card{
+  position:relative;
+  overflow:hidden;
+  padding-right:46px;
+  animation:mural-card-reveal .5s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay:var(--mural-card-delay,0ms);
+  will-change:transform;
+}
+.mural-card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(115deg,transparent 25%,rgba(255,255,255,.55) 46%,transparent 67%);
+  transform:translateX(-120%);
+  transition:transform .65s ease;
+}
+.mural-card-arrow{
+  position:absolute;
+  right:12px;
+  top:50%;
+  width:32px;
+  height:32px;
+  margin-top:-16px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:#f3f6fb;
+  color:var(--mural-ink);
+  font-size:28px;
+  line-height:1;
+  font-weight:500;
+  box-shadow:0 4px 12px rgba(15,23,42,.06);
+  transition:transform .18s ease,background .18s ease,color .18s ease,box-shadow .18s ease;
+}
+.mural-card .mural-card-image{
+  transition:transform .35s cubic-bezier(.2,.8,.2,1),filter .35s ease;
+}
+.mural-card:active{
+  transform:scale(.985);
+}
+.mural-card:active .mural-card-arrow{
+  transform:translateX(3px) scale(.96);
+}
+@media (hover:hover) and (pointer:fine){
+  .mural-card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 14px 34px rgba(15,23,42,.11);
+  }
+  .mural-card:hover::after{transform:translateX(120%)}
+  .mural-card:hover .mural-card-image{transform:scale(1.035)}
+  .mural-card:hover .mural-card-arrow{
+    transform:translateX(4px);
+    color:#fff;
+    background:var(--mural-blue);
+    box-shadow:0 8px 18px rgba(47,107,255,.22);
+  }
+}
+@keyframes mural-card-reveal{
+  from{opacity:0;transform:translate3d(0,14px,0) scale(.988)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+
+.mural-detail-immersive{
+  width:min(100%,680px);
+  max-height:min(92dvh,860px);
+  overflow-y:auto;
+  background:#f8fbff;
+  scroll-behavior:smooth;
+}
+.mural-detail-immersive .mural-detail-close{
+  position:sticky;
+  top:14px;
+  float:right;
+  margin:0 14px -52px 0;
+  z-index:12;
+  background:rgba(11,19,41,.9);
+  backdrop-filter:blur(10px);
+}
+.mural-product-story{
+  --story-progress:0;
+  --story-parallax:0px;
+  position:relative;
+  min-height:210dvh;
+  padding-bottom:24px;
+  background:
+    radial-gradient(circle at 14% 12%,rgba(248,102,166,.14),transparent 32%),
+    radial-gradient(circle at 84% 20%,rgba(20,200,212,.15),transparent 30%),
+    linear-gradient(180deg,#f9fbff 0%,#fff 48%,#f8fbff 100%);
+}
+.mural-product-stage{
+  position:sticky;
+  top:0;
+  z-index:2;
+  height:min(58dvh,470px);
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(145deg,rgba(255,255,255,.88),rgba(239,246,255,.9));
+  border-bottom:1px solid rgba(226,232,240,.8);
+  will-change:transform;
+}
+.mural-product-stage::before{
+  content:"";
+  position:absolute;
+  inset:-12% -22%;
+  background:
+    linear-gradient(120deg,transparent 18%,rgba(248,102,166,.11) 40%,rgba(20,200,212,.10) 62%,transparent 82%);
+  transform:translate3d(0,var(--story-parallax),0) rotate(-6deg);
+  pointer-events:none;
+  will-change:transform;
+}
+.mural-product-orb{
+  position:absolute;
+  width:170px;
+  height:170px;
+  border-radius:999px;
+  filter:blur(1px);
+  opacity:.38;
+  pointer-events:none;
+  will-change:transform;
+}
+.mural-product-orb-a{
+  left:-52px;
+  top:48px;
+  background:radial-gradient(circle,#ffd4e8 0%,rgba(248,102,166,.06) 72%);
+  transform:translate3d(0,calc(var(--story-parallax) * -.55),0);
+}
+.mural-product-orb-b{
+  right:-58px;
+  bottom:28px;
+  background:radial-gradient(circle,#bdf6f7 0%,rgba(20,200,212,.04) 72%);
+  transform:translate3d(0,calc(var(--story-parallax) * .7),0);
+}
+.mural-product-webgl{
+  position:relative;
+  z-index:2;
+  width:min(92%,500px);
+  height:100%;
+  display:grid;
+  place-items:center;
+}
+.mural-product-webgl canvas{
+  width:100%;
+  height:100%;
+  display:block;
+  touch-action:none;
+  cursor:grab;
+  filter:drop-shadow(0 22px 30px rgba(15,23,42,.16));
+}
+.mural-product-webgl canvas:active{cursor:grabbing}
+.mural-product-stage-fallback{
+  position:relative;
+  z-index:2;
+  width:min(68%,320px);
+  max-height:82%;
+  object-fit:contain;
+  filter:drop-shadow(0 22px 30px rgba(15,23,42,.16));
+}
+.mural-product-webgl-hint{
+  position:absolute;
+  left:50%;
+  bottom:14px;
+  transform:translateX(-50%);
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.78);
+  color:#64748b;
+  font-size:10px;
+  font-weight:750;
+  backdrop-filter:blur(10px);
+  white-space:nowrap;
+  pointer-events:none;
+}
+.mural-product-webgl-controls{
+  position:absolute;
+  right:10px;
+  bottom:12px;
+  display:flex;
+  gap:6px;
+}
+.mural-product-webgl-controls button{
+  width:36px;
+  height:36px;
+  border:1px solid rgba(203,213,225,.8);
+  border-radius:999px;
+  background:rgba(255,255,255,.9);
+  color:#0b1329;
+  font:inherit;
+  font-size:20px;
+  line-height:1;
+  font-weight:800;
+  box-shadow:0 6px 18px rgba(15,23,42,.08);
+}
+.mural-product-stage-caption{
+  position:absolute;
+  left:18px;
+  bottom:16px;
+  z-index:3;
+  display:grid;
+  gap:2px;
+  pointer-events:none;
+}
+.mural-product-stage-caption span{
+  justify-self:start;
+  padding:4px 8px;
+  border-radius:999px;
+  background:#ffe6f2;
+  color:#8a2152;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.mural-product-stage-caption strong{
+  max-width:180px;
+  color:#0b1329;
+  font-size:18px;
+  line-height:1.05;
+  font-weight:900;
+  text-shadow:0 1px 0 rgba(255,255,255,.7);
+}
+.mural-product-story-copy{
+  position:relative;
+  z-index:3;
+  padding:0 18px 28px;
+}
+.mural-product-story-step{
+  min-height:48dvh;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:8px;
+  padding:24px 4px;
+  opacity:.34;
+  transform:translate3d(0,18px,0) scale(.985);
+  transition:opacity .35s ease,transform .45s cubic-bezier(.2,.8,.2,1);
+}
+.mural-product-story-step.active{
+  opacity:1;
+  transform:translate3d(0,0,0) scale(1);
+}
+.mural-product-story-step>span{
+  align-self:flex-start;
+  padding:5px 9px;
+  border-radius:999px;
+  background:#eef4ff;
+  color:var(--mural-blue);
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.mural-product-story-step h3{
+  margin:0;
+  max-width:92%;
+  color:var(--mural-ink);
+  font-size:clamp(26px,7vw,36px);
+  line-height:1.02;
+  font-weight:950;
+  letter-spacing:-.04em;
+}
+.mural-product-story-step p{
+  margin:0;
+  max-width:92%;
+  color:#526078;
+  font-size:15px;
+  line-height:1.5;
+  font-weight:600;
+}
+.mural-product-facts{
+  margin:8px 0 20px;
+  padding:16px;
+  display:grid;
+  gap:0;
+  border:1px solid #e2e8f0;
+  border-radius:20px;
+  background:rgba(255,255,255,.88);
+  box-shadow:0 12px 32px rgba(15,23,42,.06);
+  backdrop-filter:blur(10px);
+}
+.mural-product-facts-title{
+  margin-bottom:7px;
+  color:#0b1329;
+  font-size:13px;
+  font-weight:900;
+}
+.mural-product-facts>div{
+  display:grid;
+  grid-template-columns:92px minmax(0,1fr);
+  gap:12px;
+  padding:9px 0;
+  border-top:1px solid #eef2f7;
+}
+.mural-product-facts>div>span{
+  color:#7c899b;
+  font-size:11px;
+  font-weight:700;
+}
+.mural-product-facts>div>strong{
+  min-width:0;
+  color:#27364e;
+  font-size:12px;
+  font-weight:850;
+  overflow-wrap:anywhere;
+}
+
+@media (max-width:390px){
+  .mural-card{padding-right:42px}
+  .mural-card-arrow{
+    right:9px;
+    width:30px;
+    height:30px;
+    margin-top:-15px;
+    font-size:26px;
+  }
+  .mural-tabs button{gap:4px}
+  .mural-tabs button>span:first-child{width:15px;height:15px;font-size:12px}
+  .mural-product-stage{height:min(54dvh,420px)}
+  .mural-product-story-copy{padding-inline:15px}
+  .mural-product-story-step{min-height:44dvh}
+  .mural-product-stage-caption{left:15px}
+  .mural-product-webgl-controls{right:8px}
+}
+@media (prefers-reduced-motion:reduce){
+  .mural-hero-image,
+  .mural-hero-copy,
+  .mural-card,
+  .mural-card .mural-card-image,
+  .mural-card-arrow,
+  .mural-product-stage::before,
+  .mural-product-orb,
+  .mural-product-story-step{
+    animation:none!important;
+    transition:none!important;
+    transform:none!important;
+  }
+  .mural-product-story{min-height:0}
+  .mural-product-stage{
+    position:relative;
+    height:min(46dvh,360px);
+  }
+  .mural-product-story-step{
+    min-height:0;
+    padding:18px 4px;
+    opacity:1;
+  }
+}
