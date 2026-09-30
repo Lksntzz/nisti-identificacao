@@ -738,15 +738,19 @@ async function adminReadiness(env) {
     const budgetBytes = role === 'hero'
       ? MURAL_IMAGE_BUDGETS.hero
       : MURAL_IMAGE_BUDGETS[role] || null;
+    const imageRequired = role === 'hero' || row.kind === 'product' || row.kind === 'collection';
+    const missingRequiredImage = imageRequired && !key;
     return {
       id:Number(row.id),
       title:row.title,
       kind:row.kind,
       role,
       image_key:key,
+      image_required:imageRequired,
+      missing_required_image:missingRequiredImage,
       bytes,
       budget_bytes:budgetBytes,
-      within_budget:bytes === null || budgetBytes === null ? null : bytes <= budgetBytes
+      within_budget:missingRequiredImage ? false : bytes === null || budgetBytes === null ? null : bytes <= budgetBytes
     };
   }));
 
