@@ -1452,3 +1452,115 @@
   }
 }
 
+/* Motion Part 6: collection-specific motion and resilient cover handling. */
+.mural-collection-detail{
+  --collection-progress:0;
+  overflow-x:hidden;
+}
+.mural-collection-progress{
+  position:sticky;
+  top:0;
+  z-index:14;
+  display:block;
+  width:100%;
+  height:3px;
+  margin-bottom:-3px;
+  background:linear-gradient(90deg,var(--mural-pink),var(--mural-blue),var(--mural-cyan));
+  transform:scaleX(var(--collection-progress));
+  transform-origin:left center;
+  pointer-events:none;
+}
+.mural-collection-cover{
+  opacity:0;
+  transform:translate3d(0,var(--collection-parallax),0) scale(1.025);
+  transform-origin:center center;
+  transition:opacity 320ms ease,transform .12s linear;
+}
+.mural-collection-cover.is-loaded{
+  opacity:1;
+}
+.mural-collection-detail.no-cover{
+  background:
+    radial-gradient(circle at 12% 0%,rgba(248,102,166,.11),transparent 28%),
+    radial-gradient(circle at 88% 5%,rgba(20,200,212,.12),transparent 30%),
+    #fff;
+}
+.mural-collection-detail.no-cover .mural-collection-body{
+  padding-top:76px;
+}
+.mural-collection-intro{
+  position:relative;
+  padding-bottom:4px;
+  animation:mural-collection-intro-in 420ms var(--mural-ease-out) 80ms both;
+}
+.mural-collection-intro::after{
+  content:"";
+  display:block;
+  width:54px;
+  height:3px;
+  margin-top:14px;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--mural-pink),var(--mural-cyan));
+  transform-origin:left center;
+  animation:mural-collection-rule-in 460ms var(--mural-ease-out) 160ms both;
+}
+@keyframes mural-collection-intro-in{
+  from{opacity:0;transform:translate3d(0,8px,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@keyframes mural-collection-rule-in{
+  from{opacity:0;transform:scaleX(.25)}
+  to{opacity:1;transform:scaleX(1)}
+}
+.mural-collection-product[data-collection-reveal]{
+  opacity:0;
+  translate:var(--collection-item-shift,0) 14px;
+  transition:
+    opacity 380ms ease var(--collection-item-delay,0ms),
+    translate 460ms var(--mural-ease-out) var(--collection-item-delay,0ms),
+    box-shadow var(--mural-motion-ui) ease,
+    transform var(--mural-motion-ui) var(--mural-ease-out);
+}
+.mural-collection-product[data-collection-reveal].is-visible{
+  opacity:1;
+  translate:0 0;
+}
+.mural-collection-product img{
+  transform:scale(.985);
+  transition:transform 420ms var(--mural-ease-out);
+}
+.mural-collection-product[data-collection-reveal].is-visible img{
+  transform:scale(1);
+}
+@media (hover:hover) and (pointer:fine){
+  .mural-collection-product:hover img{transform:scale(1.025)}
+}
+@media (max-width:390px){
+  .mural-collection-detail.no-cover .mural-collection-body{padding-top:72px}
+}
+@media (prefers-reduced-motion:reduce){
+  .mural-collection-progress{
+    transform:none!important;
+    opacity:0!important;
+  }
+  .mural-collection-cover,
+  .mural-collection-cover.is-loaded,
+  .mural-collection-intro,
+  .mural-collection-intro::after,
+  .mural-collection-product[data-collection-reveal],
+  .mural-collection-product[data-collection-reveal].is-visible,
+  .mural-collection-product img,
+  .mural-collection-product[data-collection-reveal].is-visible img{
+    animation:none!important;
+    transition:none!important;
+    transform:none!important;
+    translate:0 0!important;
+  }
+  .mural-collection-cover,
+  .mural-collection-cover.is-loaded,
+  .mural-collection-product[data-collection-reveal],
+  .mural-collection-product[data-collection-reveal].is-visible{
+    opacity:1!important;
+  }
+}
+

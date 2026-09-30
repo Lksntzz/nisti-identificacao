@@ -273,10 +273,14 @@ function CollectionDialog({ slug, onClose }) {
   const closeRef = useRef(null);
   const detailRef = useRef(null);
   const scrollFrame = useRef(0);
+  const [coverFailed, setCoverFailed] = useState(false);
+  const [coverLoaded, setCoverLoaded] = useState(false);
   const { closing, requestClose } = useAnimatedDialogClose(onClose);
 
   useEffect(() => {
     let active = true;
+    setCoverFailed(false);
+    setCoverLoaded(false);
     muralApi(`/api/mural/collections/${encodeURIComponent(slug)}`)
       .then(data => active && setState({ loading: false, data: data.collection, error: '' }))
       .catch(error => active && setState({ loading: false, data: null, error: error.message }));
@@ -312,11 +316,15 @@ function CollectionDialog({ slug, onClose }) {
   }, [state.data]);
 
   const handleCollectionScroll = event => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     const node = event.currentTarget;
     if (scrollFrame.current) return;
     scrollFrame.current = requestAnimationFrame(() => {
-      const offset = Math.max(-22, node.scrollTop * -0.055);
+      const offset = Math.max(-18, node.scrollTop * -0.045);
+      const max = Math.max(1, node.scrollHeight - node.clientHeight);
+      const progress = Math.max(0, Math.min(1, node.scrollTop / max));
       node.style.setProperty('--collection-parallax', `${offset}px`);
+      node.style.setProperty('--collection-progress', String(progress));
       scrollFrame.current = 0;
     });
   };
@@ -324,25 +332,56 @@ function CollectionDialog({ slug, onClose }) {
   useEffect(() => () => cancelAnimationFrame(scrollFrame.current), []);
 
   const collection = state.data;
+  const hasCover = Boolean(collection?.image_url && !coverFailed);
   return (
     <div className={`mural-modal-backdrop${closing ? ' is-closing' : ''}`} onMouseDown={event => event.target === event.currentTarget && requestClose()}>
-      <section ref={detailRef} onScroll={handleCollectionScroll} className="mural-detail mural-collection-detail" role="dialog" aria-modal="true" aria-labelledby="mural-collection-title">
+      <section
+        ref={detailRef}
+        onScroll={handleCollectionScroll}
+        className={`mural-detail mural-collection-detail ${hasCover ? 'has-cover' : 'no-cover'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mural-collection-title"
+      >
+        <span className="mural-collection-progress" aria-hidden="true" />
         <button ref={closeRef} type="button" className="mural-detail-close" onClick={requestClose} disabled={closing} aria-label="Fechar coleção"><span aria-hidden="true">×</span></button>
         {state.loading && <div className="mural-collection-loading">Carregando coleção…</div>}
         {state.error && <div className="mural-collection-error">{state.error}</div>}
         {collection && (
           <>
-            {collection.image_url && <img className="mural-detail-image" src={collection.image_url} alt={collection.name} />}
-            <div className="mural-detail-body">
-              <span className="mural-editorial-badge mural-badge-motion">Coleção</span>
-              <h2 id="mural-collection-title">{formatCollectionTitle(collection)}</h2>
-              {collection.description && <p className="mural-detail-copy">{collection.description}</p>}
-              <p className="mural-collection-count">{collection.products?.length || 0} produto{collection.products?.length === 1 ? '' : 's'}</p>
+            {hasCover && (
+              <img
+                className={`mural-detail-image mural-collection-cover${coverLoaded ? ' is-loaded' : ''}`}
+                src={collection.image_url}
+                alt=""
+                aria-hidden="true"
+                onLoad={() => setCoverLoaded(true)}
+                onError={() => {
+                  setCoverLoaded(false);
+                  setCoverFailed(true);
+                }}
+              />
+            )}
+            <div className="mural-detail-body mural-collection-body">
+              <div className="mural-collection-intro">
+                <span className="mural-editorial-badge mural-badge-motion">Coleção</span>
+                <h2 id="mural-collection-title">{formatCollectionTitle(collection)}</h2>
+                {collection.description && <p className="mural-detail-copy">{collection.description}</p>}
+                <p className="mural-collection-count">{collection.products?.length || 0} produto{collection.products?.length === 1 ? '' : 's'}</p>
+              </div>
               {collection.products?.length ? (
                 <div className="mural-collection-grid">
-                  {collection.products.map(product => (
-                    <article key={product.id} className="mural-collection-product" data-collection-reveal>
-                      {product.image_url ? <img src={product.image_url} alt={`${product.type} ${product.sku}`} loading="lazy" /> : <div className="mural-image-placeholder"><KindIcon kind="product" /></div>}
+                  {collection.products.map((product, index) => (
+                    <article
+                      key={product.id}
+                      className="mural-collection-product"
+                      data-collection-reveal
+                      style={{
+                        '--collection-item-delay': `${Math.min(index, 8) * 45}ms`,
+                        '--collection-item-shift': index % 2 === 0 ? '-8px' : '8px'
+                      }}
+                    >
+                      {product.image_url ? <img src={product.image_url} alt={`${product.type} ${product.sku}`} loading="lazy" decoding="async" /> : <div className="mural-image-placeholder"><KindIcon kind="product" /></div>}
                       <div><strong>{product.type}</strong><span>{product.sku}</span></div>
                     </article>
                   ))}
