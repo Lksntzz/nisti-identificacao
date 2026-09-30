@@ -559,6 +559,31 @@ async function adminDuplicatePost(id, env) {
   return json({ id: Number(result.meta.last_row_id), status: 'draft' }, 201);
 }
 
+async function adminDeletePost(id, env) {
+  const current = await env.DB.prepare('SELECT id,image_key FROM mural_posts WHERE id=?').bind(id).first();
+  if (!current) return json({ error:'Publicação não encontrada.' },404);
+
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM mural_post_reads WHERE post_id=?').bind(id),
+    env.DB.prepare('DELETE FROM mural_posts WHERE id=?').bind(id)
+  ]);
+
+  if (current.image_key && env.PRODUCT_IMAGES) {
+    const references = await env.DB.prepare(`
+      SELECT (
+        (SELECT COUNT(*) FROM mural_posts WHERE image_key = ?)
+        + (SELECT COUNT(*) FROM mural_collections WHERE image_key = ?)
+      ) AS total
+    `).bind(current.image_key,current.image_key).first();
+
+    if (Number(references?.total || 0) === 0) {
+      await env.PRODUCT_IMAGES.delete(current.image_key);
+    }
+  }
+
+  return json({ ok:true, id });
+}
+
 function detectImageType(bytes) {
   const b = new Uint8Array(bytes.slice(0, 12));
   if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
@@ -1162,6 +1187,7 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     const adminPost = path.match(/^\/api\/admin\/mural\/posts\/(\d+)$/);
     if (adminPost && request.method === 'GET') return adminGetPost(Number(adminPost[1]), env);
     if (adminPost && request.method === 'PUT') return adminUpdatePost(Number(adminPost[1]), request, env);
+    if (adminPost && request.method === 'DELETE') return adminDeletePost(Number(adminPost[1]), env);
 
     const removePostImage = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/image$/);
     if (removePostImage && request.method === 'DELETE') return removeEditorialImage(env,'posts',Number(removePostImage[1]));
