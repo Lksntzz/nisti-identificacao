@@ -15,22 +15,25 @@ test('collection feed loads product previews in one batched query', () => {
   assert.ok(router.includes('product_count: Number(collectionPreview?.count || 0)'));
 });
 
-test('collection cards render curated product thumbnails in the compact feed layout', () => {
-  assert.ok(mural.includes('function CollectionCardMedia'));
-  assert.ok(mural.includes('mural-card-media-collection'));
-  assert.ok(mural.includes('mural-card-collection-mini'));
-  assert.ok(mural.includes('collectionProductCount'));
-  assert.ok(css.includes('.mural-card-media-collection'));
-  assert.ok(css.includes('.mural-card-collection-mini'));
+test('collection cards render curated product thumbnails in the approved launch-card layout', () => {
+  assert.ok(mural.includes('function CollectionLaunchCard'));
+  assert.ok(mural.includes('mural-collection-launch-products'));
+  assert.ok(mural.includes('mural-collection-launch-product product-'));
+  assert.ok(mural.includes('previews.slice(0, 3)'));
+  assert.ok(mural.includes('NOVA COLEÇÃO'));
+  assert.ok(css.includes('.mural-collection-launch-card'));
+  assert.ok(css.includes('.mural-collection-launch-product'));
 });
 
-test('featured collection hero renders products inside the editorial scene', () => {
-  assert.ok(mural.includes('function HeroScene'));
-  assert.ok(mural.includes('mural-scene-products'));
-  assert.ok(mural.includes('mural-scene-product product-'));
-  assert.ok(mural.includes("{isCollection ? 'Ver coleção' : 'Ver detalhe'}"));
-  assert.ok(css.includes('.mural-hero-scene-composed'));
-  assert.ok(css.includes('.mural-scene-products'));
+test('featured collection hero renders the 2:1 launch card from banner or real product previews', () => {
+  assert.ok(mural.includes('function CollectionLaunchHero'));
+  assert.ok(mural.includes('mural-launch-hero'));
+  assert.ok(mural.includes('previews.slice(0, 4)'));
+  assert.ok(mural.includes('mural-launch-product product-'));
+  assert.ok(mural.includes('mural-launch-hero-banner'));
+  assert.ok(css.includes('.mural-launch-hero'));
+  assert.ok(css.includes('aspect-ratio:2 / 1'));
+  assert.ok(css.includes('.mural-launch-products'));
 });
 
 test('feed exposes image source so a true editorial post image can become the hero scene', () => {
