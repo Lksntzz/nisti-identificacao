@@ -538,7 +538,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                 <div className="mural-publisher-reference">
                   <span>Referência</span>
                   <div>
-                    {referenceDisplayImage ? <img src={referenceDisplayImage} alt="Referência visual transparente"/> : <span className="placeholder"><AdminMuralIcon name={form.kind==='collection'?'collection':'product'} size={24}/></span>}
+                    {referenceDisplayImage ? <img className="mural-product-transparent" src={referenceDisplayImage} alt="Referência visual transparente"/> : <span className="placeholder"><AdminMuralIcon name={form.kind==='collection'?'collection':'product'} size={24}/></span>}
                     <b>{form.kind==='product' ? (selectedProduct?.sku || 'Selecione um produto') : (selectedCollection?.name || 'Selecione uma coleção')}</b>
                   </div>
                 </div>
