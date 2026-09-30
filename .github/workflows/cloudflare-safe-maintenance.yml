@@ -1,0 +1,58 @@
+name: Cloudflare Safe Maintenance
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/cloudflare-safe-maintenance.yml"
+      - "scripts/cloudflare-safe-maintenance.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  maintenance:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'ops/cloudflare-safe-cleanup-2026-09-30'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+      WORKER_NAME: nisti-identificacao
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit Cloudflare resources
+        shell: bash
+        run: |
+          set +e
+          echo "=== Worker versions ==="
+          npx wrangler versions list --name "$WORKER_NAME" --json
+          echo
+          echo "=== Worker deployments ==="
+          npx wrangler deployments list --name "$WORKER_NAME" --json
+          echo
+          echo "=== D1 databases (audit only) ==="
+          npx wrangler d1 list --json
+          echo
+          echo "=== R2 buckets (audit only) ==="
+          npx wrangler r2 bucket list
+          echo
+          echo "=== Vectorize indexes (audit only) ==="
+          npx wrangler vectorize list
+          exit 0
+
+      - name: Safe cleanup
+        run: node scripts/cloudflare-safe-maintenance.mjs
