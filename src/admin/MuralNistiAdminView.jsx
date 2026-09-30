@@ -9,6 +9,33 @@ const EMPTY_POST = {
   published_at: '', expires_at: ''
 };
 
+
+const AI_STYLES = Object.freeze([
+  { value:'editorial', label:'Editorial premium' },
+  { value:'cozy', label:'Mesa criativa' },
+  { value:'minimal', label:'Estúdio minimalista' },
+  { value:'floral', label:'Floral sofisticado' },
+  { value:'colorful', label:'Colorido criativo' }
+]);
+
+function AdminMuralIcon({ name, size = 22 }) {
+  const common = {
+    width:size, height:size, viewBox:'0 0 24 24', fill:'none',
+    stroke:'currentColor', strokeWidth:1.9, strokeLinecap:'round', strokeLinejoin:'round',
+    'aria-hidden':true
+  };
+  if (name === 'product') return <svg {...common}><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.4 7.7 7.6 4.2 7.6-4.2M12 12v9"/></svg>;
+  if (name === 'collection') return <svg {...common}><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg>;
+  if (name === 'notice') return <svg {...common}><path d="M4 13V9l12-5v14L4 13Z"/><path d="M16 8h2.5A2.5 2.5 0 0 1 21 10.5v1A2.5 2.5 0 0 1 18.5 14H16M6 13l1.5 6h4L10 14"/></svg>;
+  if (name === 'sparkles') return <svg {...common}><path d="m12 3 1.35 4.15L17.5 8.5l-4.15 1.35L12 14l-1.35-4.15L6.5 8.5l4.15-1.35L12 3Z"/><path d="m18.5 14 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/></svg>;
+  if (name === 'refresh') return <svg {...common}><path d="M20 11a8 8 0 1 0-2.34 5.66"/><path d="M20 4v7h-7"/></svg>;
+  if (name === 'check') return <svg {...common}><path d="m5 12 4 4L19 6"/></svg>;
+  if (name === 'trash') return <svg {...common}><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>;
+  if (name === 'image') return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg>;
+  if (name === 'back') return <svg {...common}><path d="m15 18-6-6 6-6"/></svg>;
+  return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>;
+}
+
 async function request(path, options = {}) {
   const response = await fetch(path, { credentials: 'same-origin', ...options });
   const type = response.headers.get('content-type') || '';
@@ -149,7 +176,7 @@ function MobilePreview({ form, product, collection, imageUrl }) {
   );
 }
 
-function PostEditor({ item, collections, onClose, onSaved }) {
+function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved }) {
   const sourceItem = item && item.mode === 'new' ? null : item;
   const [form, setForm] = useState(() => postForm(sourceItem));
   const [products, setProducts] = useState([]);
@@ -175,6 +202,7 @@ function PostEditor({ item, collections, onClose, onSaved }) {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiStyle, setAiStyle] = useState('editorial');
   const [aiResult, setAiResult] = useState(null);
+  const [artTab, setArtTab] = useState(() => sourceItem?.kind === 'notice' ? 'preview' : 'ai');
 
   useEffect(() => {
     if (form.kind !== 'product') return;
@@ -189,7 +217,26 @@ function PostEditor({ item, collections, onClose, onSaved }) {
   useEffect(() => () => { if (aiResult?.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url); }, [aiResult]);
 
   const selectedCollection = collections.find(row => Number(row.id) === Number(form.collection_id));
+  const selectedCollectionProducts = String(selectedCollection?.product_ids || '')
+    .split(',')
+    .map(Number)
+    .filter(id => Number.isInteger(id) && id > 0)
+    .map(id => catalogProducts.find(product => Number(product.id) === id))
+    .filter(Boolean);
+  const referenceImage = form.kind === 'product'
+    ? selectedProduct?.image_url
+    : selectedCollectionProducts.find(product => product.image_url)?.image_url || '';
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
+
+  const changeKind = nextKind => {
+    setForm(current => ({ ...current, kind:nextKind, product_id:'', collection_id:'' }));
+    setSelectedProduct(null);
+    setProductQuery('');
+    setAiError('');
+    if (aiResult?.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url);
+    setAiResult(null);
+    setArtTab(nextKind === 'notice' ? 'preview' : 'ai');
+  };
 
   const chooseImage = async file => {
     setError('');
@@ -273,6 +320,7 @@ function PostEditor({ item, collections, onClose, onSaved }) {
     setImageUrl(URL.createObjectURL(aiResult.file));
     if (aiResult.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url);
     setAiResult(null);
+    setArtTab('preview');
   };
 
   const discardAiResult = () => {
@@ -328,106 +376,197 @@ function PostEditor({ item, collections, onClose, onSaved }) {
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
 
-  return (
-    <div className="mural-admin-modal" role="dialog" aria-modal="true" aria-label="Editor do Mural">
-      <div className="mural-admin-editor">
-        <header><div><small>MURAL NISTI</small><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2></div><button type="button" onClick={onClose} aria-label="Fechar">×</button></header>
-        <div className="mural-admin-editor-grid">
-          <form onSubmit={event => { event.preventDefault(); save(false); }}>
-            <label>Tipo<select value={form.kind} onChange={e => { set('kind',e.target.value); set('product_id',''); set('collection_id',''); }}><option value="product">Produto</option><option value="collection">Coleção</option><option value="notice">Aviso</option></select></label>
-            {form.kind === 'product' && <label>Produto<input value={productQuery} onChange={e=>setProductQuery(e.target.value)} placeholder="Buscar SKU ou nome" />
-              <div className="mural-admin-picker">{products.map(product => <button type="button" className={Number(form.product_id)===Number(product.id)?'selected':''} key={product.id} onClick={()=>{set('product_id',product.id);setSelectedProduct(product);setProductQuery(product.sku);}}><b>{product.sku}</b><span>{product.nome || product.variacao || ''}</span></button>)}</div>
-            </label>}
-            {form.kind === 'collection' && <label>Coleção<select value={form.collection_id} onChange={e=>set('collection_id',e.target.value)}><option value="">Selecione</option>{collections.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
-            {form.kind === 'notice' && <label>Prioridade visual<select value={form.notice_level} onChange={e=>set('notice_level',e.target.value)}><option value="important">Importante</option><option value="attention">Atenção</option><option value="info">Informação</option></select></label>}
-            <label>Título<input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} /></label>
-            <label>Subtítulo<input maxLength="120" value={form.subtitle || ''} onChange={e=>set('subtitle',e.target.value)} /></label>
-            <label>Texto<textarea maxLength="700" rows="5" value={form.body || ''} onChange={e=>set('body',e.target.value)} /></label>
-            <div className="mural-admin-inline"><label>Selo<input maxLength="40" value={form.badge || ''} onChange={e=>set('badge',e.target.value)} /></label><label>Prioridade<input type="number" min="0" max="100" value={form.priority} onChange={e=>set('priority',e.target.value)} /></label></div>
-            <label className="mural-admin-check"><input type="checkbox" checked={form.featured} onChange={e=>set('featured',e.target.checked)} /> Destaque no topo</label>
-            <div className="mural-admin-inline"><label>Publicar em<input type="datetime-local" value={form.published_at} onChange={e=>set('published_at',e.target.value)} /></label><label>Expira em<input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)} /></label></div>
-            <label>Imagem editorial<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseImage(e.target.files?.[0])} /><small>JPEG, PNG ou WebP. Compressão no cliente até 1600 px; máximo 5 MB.</small></label>
-            {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem editorial</button>}
+  const canUseAi = form.kind === 'product' || form.kind === 'collection';
+  const publishLabel = form.published_at && new Date(form.published_at) > new Date() ? 'Agendar' : 'Publicar';
 
-            {(form.kind === 'product' || form.kind === 'collection') && (
-            <section className="mural-admin-ai-studio" aria-label="Estúdio de IA do Mural">
-              <header>
-                <div><small>IA DE IMAGEM · ESCOPO RESTRITO</small><strong>Nano Banana</strong></div>
-                <span>Gemini API</span>
-              </header>
-              <p>Este recurso faz somente duas coisas: criar cenário criativo usando produtos reais como referência e, para Produto, remover o fundo branco. Não gera texto, vídeo, áudio nem conteúdo fora do Mural.</p>
-              <div className="mural-admin-ai-capabilities" aria-label="Funções permitidas">
-                <span>Cenário criativo</span>
-                {form.kind === 'product' && <span>Remover fundo branco</span>}
-              </div>
-              <div className="mural-admin-ai-source">
-                <b>Fonte</b>
-                <span>
-                  {form.kind === 'product'
-                    ? selectedProduct ? `${selectedProduct.sku} · ${selectedProduct.nome || selectedProduct.type || 'Produto'}` : 'Selecione um produto'
-                    : selectedCollection ? selectedCollection.name : 'Selecione uma coleção'}
-                </span>
-              </div>
-              <label>Direção visual
-                <select value={aiStyle} onChange={e=>setAiStyle(e.target.value)}>
-                  <option value="editorial">Editorial premium</option>
-                  <option value="cozy">Mesa criativa / aconchegante</option>
-                  <option value="minimal">Estúdio minimalista</option>
-                  <option value="floral">Floral sofisticado</option>
-                  <option value="colorful">Colorido criativo</option>
-                </select>
-              </label>
-              <label>Briefing criativo
-                <textarea
-                  rows="3"
-                  maxLength="900"
-                  value={aiPrompt}
-                  onChange={e=>setAiPrompt(e.target.value)}
-                  placeholder="Ex.: mesa rosé, flores discretas, caneta dourada, luz natural lateral e espaço limpo à esquerda para o título."
-                />
-              </label>
-              <div className="mural-admin-ai-actions">
-                <button
-                  type="button"
-                  className="primary"
-                  disabled={aiBusy || (form.kind === 'product' && !form.product_id) || (form.kind === 'collection' && !form.collection_id)}
-                  onClick={()=>generateAiArt('creative_scene')}
-                >
-                  {aiBusy ? 'Gerando…' : 'Criar arte com cenário'}
+  return (
+    <section className="mural-publisher-workspace" aria-label="Editor de publicação do Mural">
+      <nav className="mural-publisher-breadcrumb" aria-label="Navegação">
+        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><button type="button" onClick={onClose}>Publicações</button><span>›</span><strong>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</strong>
+      </nav>
+
+      <header className="mural-publisher-header">
+        <div className="mural-publisher-title">
+          <span className="mural-publisher-title-icon"><AdminMuralIcon name="sparkles" size={23}/></span>
+          <span><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2><p>Crie uma novidade, coleção ou aviso para os operadores.</p></span>
+        </div>
+        <div className="mural-publisher-header-actions">
+          <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
+          <button type="submit" form="mural-publication-form" disabled={busy}>Salvar rascunho</button>
+          <button type="button" className="primary" disabled={busy} onClick={()=>save(true)}><AdminMuralIcon name="sparkles" size={16}/> {publishLabel}</button>
+        </div>
+      </header>
+
+      <div className="mural-publisher-layout">
+        <form id="mural-publication-form" className="mural-publisher-form" onSubmit={event => { event.preventDefault(); save(false); }}>
+          <section className="mural-publisher-block">
+            <div className="mural-publisher-block-title"><strong>Tipo de publicação</strong><span>Escolha como o conteúdo será apresentado no Mural.</span></div>
+            <div className="mural-publisher-type-grid">
+              {[
+                ['product','product','Produto','Destaque um produto específico.'],
+                ['collection','collection','Coleção','Destaque uma coleção de produtos.'],
+                ['notice','notice','Aviso','Comunicado para operadores.']
+              ].map(([value,icon,label,description])=>(
+                <button type="button" key={value} className={form.kind===value?'active':''} onClick={()=>changeKind(value)}>
+                  <span><AdminMuralIcon name={icon} size={25}/></span>
+                  <b>{label}</b>
+                  <small>{description}</small>
                 </button>
-                {form.kind === 'product' && (
-                  <button
-                    type="button"
-                    disabled={aiBusy || !form.product_id}
-                    onClick={()=>generateAiArt('remove_background')}
-                  >
-                    Remover fundo branco
+              ))}
+            </div>
+          </section>
+
+          <section className="mural-publisher-block">
+            <label className="mural-publisher-field">Título <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Nova Coleção 2027"/></label>
+            <label className="mural-publisher-field">Subtítulo<input maxLength="120" value={form.subtitle || ''} onChange={e=>set('subtitle',e.target.value)} placeholder="Uma frase curta para o card e o destaque."/></label>
+            <label className="mural-publisher-field">Descrição<textarea maxLength="700" rows="5" value={form.body || ''} onChange={e=>set('body',e.target.value)} placeholder="Conte o que os operadores precisam saber."/><small>{String(form.body || '').length}/700</small></label>
+          </section>
+
+          {form.kind === 'product' && (
+            <section className="mural-publisher-block">
+              <div className="mural-publisher-block-title"><strong>Produto</strong><span>Selecione a referência real do catálogo.</span></div>
+              <label className="mural-publisher-field">Buscar produto<input value={productQuery} onChange={e=>setProductQuery(e.target.value)} placeholder="Buscar por SKU ou nome"/></label>
+              <div className="mural-publisher-product-search">
+                {products.map(product=>(
+                  <button type="button" className={Number(form.product_id)===Number(product.id)?'selected':''} key={product.id} onClick={()=>{set('product_id',product.id);setSelectedProduct(product);setProductQuery(product.sku);}}>
+                    {product.image_url ? <img src={product.image_url} alt="" aria-hidden="true"/> : <span className="placeholder"><AdminMuralIcon name="product" size={22}/></span>}
+                    <span><b>{product.sku}</b><small>{product.nome || product.variacao || product.type || 'Produto NISTI'}</small></span>
+                    {Number(form.product_id)===Number(product.id)&&<i><AdminMuralIcon name="check" size={14}/></i>}
                   </button>
-                )}
+                ))}
               </div>
-              <small className="mural-admin-ai-note">A chave da Gemini API fica somente no servidor. A geração não publica automaticamente: revise e clique em “Usar esta arte”.</small>
-              {aiError && <div className="mural-admin-ai-error">{aiError}</div>}
-              {aiResult && (
-                <div className="mural-admin-ai-result">
-                  <img src={aiResult.url} alt="Arte gerada por IA para revisão" />
+            </section>
+          )}
+
+          {form.kind === 'collection' && (
+            <section className="mural-publisher-block">
+              <label className="mural-publisher-field">Coleção <em>*</em><select value={form.collection_id} onChange={e=>set('collection_id',e.target.value)}><option value="">Selecione</option>{collections.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+              {selectedCollection && (
+                <div className="mural-publisher-collection-products">
+                  <header><span><b>Produtos da coleção</b><small>{selectedCollectionProducts.length || selectedCollection.product_count || 0} produtos vinculados</small></span><em>Ordem definida na coleção</em></header>
                   <div>
-                    <span><b>{aiResult.mode === 'remove_background' ? 'Produto isolado' : 'Cenário editorial'}</b><small>{aiResult.model} · {formatBytes(aiResult.file.size)}</small></span>
-                    <div>
-                      <button type="button" onClick={discardAiResult}>Descartar</button>
-                      <button type="button" className="primary" onClick={applyAiResult}>Usar esta arte</button>
-                    </div>
+                    {selectedCollectionProducts.length ? selectedCollectionProducts.map((product,index)=>(
+                      <figure key={product.id}>
+                        {product.image_url ? <img src={product.image_url} alt={product.nome || product.sku}/> : <span><AdminMuralIcon name="product" size={24}/></span>}
+                        <figcaption><b>{product.sku}</b><small>{index+1}</small></figcaption>
+                      </figure>
+                    )) : <p>Esta coleção ainda não possui produtos carregados na visão atual.</p>}
                   </div>
                 </div>
               )}
             </section>
-            )}
-            {error && <div className="mural-admin-error">{error}</div>}
-            <div className="mural-admin-actions"><button type="button" onClick={onClose}>Cancelar</button><button type="submit" disabled={busy}>Salvar rascunho</button><button type="button" className="primary" disabled={busy} onClick={()=>save(true)}>{form.published_at && new Date(form.published_at)>new Date()?'Agendar':'Publicar agora'}</button></div>
-          </form>
-          <aside><h3>Preview mobile</h3><MobilePreview form={form} product={selectedProduct} collection={selectedCollection} imageUrl={imageUrl} /></aside>
-        </div>
+          )}
+
+          {form.kind === 'notice' && (
+            <section className="mural-publisher-block">
+              <label className="mural-publisher-field">Prioridade visual<select value={form.notice_level} onChange={e=>set('notice_level',e.target.value)}><option value="important">Importante</option><option value="attention">Atenção</option><option value="info">Informação</option></select></label>
+            </section>
+          )}
+
+          <section className="mural-publisher-block">
+            <div className="mural-publisher-block-title"><strong>Exibição</strong><span>Controle selos, destaque e ordem editorial.</span></div>
+            <div className="mural-publisher-display-grid">
+              <label className="mural-publisher-field">Selo direito<input maxLength="40" value={form.badge || ''} onChange={e=>set('badge',e.target.value)} placeholder="NOVO"/></label>
+              <label className="mural-publisher-field">Prioridade<input type="number" min="0" max="100" value={form.priority} onChange={e=>set('priority',e.target.value)}/></label>
+              <label className="mural-publisher-featured"><input type="checkbox" checked={form.featured} onChange={e=>set('featured',e.target.checked)}/><span><b>Destaque no topo</b><small>Mostra a publicação no hero principal.</small></span></label>
+            </div>
+          </section>
+
+          <section className="mural-publisher-block mural-publisher-schedule">
+            <div className="mural-publisher-block-title"><strong>Publicação e expiração</strong><span>Opcional. Sem data, o botão Publicar entra imediatamente.</span></div>
+            <div className="mural-admin-inline">
+              <label className="mural-publisher-field">Publicar em<input type="datetime-local" value={form.published_at} onChange={e=>set('published_at',e.target.value)}/></label>
+              <label className="mural-publisher-field">Expira em<input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)}/></label>
+            </div>
+          </section>
+
+          <section className="mural-publisher-block">
+            <div className="mural-publisher-block-title"><strong>Imagem editorial manual</strong><span>Use somente quando não quiser gerar a arte pelo Nano Banana.</span></div>
+            <label className="mural-publisher-upload">
+              <AdminMuralIcon name="image" size={24}/>
+              <span><b>Selecionar imagem</b><small>JPEG, PNG ou WebP · até 5 MB após compressão</small></span>
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseImage(e.target.files?.[0])}/>
+            </label>
+            {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem editorial</button>}
+          </section>
+
+          {error && <div className="mural-admin-error">{error}</div>}
+        </form>
+
+        <aside className="mural-publisher-art-panel">
+          <header><span><h3>Arte da publicação</h3><p>Revise o visual antes de salvar ou publicar.</p></span><span className="mural-publisher-art-help">?</span></header>
+          <div className="mural-publisher-art-tabs">
+            <button type="button" className={artTab==='preview'?'active':''} onClick={()=>setArtTab('preview')}>Editor</button>
+            {canUseAi && <button type="button" className={artTab==='ai'?'active':''} onClick={()=>setArtTab('ai')}><AdminMuralIcon name="sparkles" size={15}/> IA · Nano Banana</button>}
+          </div>
+
+          {artTab === 'preview' ? (
+            <div className="mural-publisher-preview-pane">
+              <MobilePreview form={form} product={selectedProduct} collection={selectedCollection} imageUrl={imageUrl}/>
+              {imageUrl && <div className="mural-publisher-current-art"><span>Imagem editorial aplicada</span><img src={imageUrl} alt="Imagem editorial atual"/></div>}
+            </div>
+          ) : (
+            <div className="mural-publisher-ai-pane">
+              <section className="mural-publisher-ai-card">
+                <div className="mural-publisher-ai-heading"><span><AdminMuralIcon name="sparkles" size={20}/></span><div><strong>Criar arte com IA</strong><p>Gere um cenário profissional usando os produtos reais como referência.</p></div></div>
+
+                <div className="mural-publisher-reference">
+                  <span>Referência</span>
+                  <div>
+                    {referenceImage ? <img src={referenceImage} alt="Referência visual"/> : <span className="placeholder"><AdminMuralIcon name={form.kind==='collection'?'collection':'product'} size={24}/></span>}
+                    <b>{form.kind==='product' ? (selectedProduct?.sku || 'Selecione um produto') : (selectedCollection?.name || 'Selecione uma coleção')}</b>
+                  </div>
+                </div>
+
+                <div className="mural-publisher-ai-style-label">Direção visual</div>
+                <div className="mural-publisher-ai-style-grid">
+                  {AI_STYLES.map(style=>(
+                    <button type="button" key={style.value} className={aiStyle===style.value?'active':''} onClick={()=>setAiStyle(style.value)}>
+                      <span className={`mural-ai-style-thumb ${style.value}`}>
+                        {referenceImage && <img src={referenceImage} alt="" aria-hidden="true"/>}
+                        <i/><i/>
+                      </span>
+                      <small>{style.label}</small>
+                    </button>
+                  ))}
+                </div>
+
+                <label className="mural-publisher-field">Briefing criativo <span>(opcional)</span>
+                  <textarea rows="4" maxLength="900" value={aiPrompt} onChange={e=>setAiPrompt(e.target.value)} placeholder="Ex.: mesa rosé, flores discretas, caneta dourada, iluminação natural lateral e espaço limpo à esquerda para o título."/>
+                  <small>{aiPrompt.length}/900</small>
+                </label>
+
+                <button type="button" className="mural-publisher-generate" disabled={aiBusy || (form.kind==='product'&&!form.product_id) || (form.kind==='collection'&&!form.collection_id)} onClick={()=>generateAiArt('creative_scene')}>
+                  <AdminMuralIcon name="sparkles" size={18}/>{aiBusy?'Gerando arte…':'Gerar arte com IA'}
+                </button>
+                {form.kind === 'product' && <button type="button" className="mural-publisher-remove-bg" disabled={aiBusy || !form.product_id} onClick={()=>generateAiArt('remove_background')}>Remover fundo branco do produto</button>}
+                <small className="mural-admin-ai-note">Somente geração de cenário e remoção de fundo. A chave Gemini permanece no servidor.</small>
+                {aiError && <div className="mural-admin-ai-error">{aiError}</div>}
+              </section>
+
+              <section className="mural-publisher-art-result">
+                <header><strong>{aiResult ? 'Prévia da arte gerada' : imageUrl ? 'Arte atual' : 'Prévia da arte'}</strong>{aiResult&&<span>{aiResult.model}</span>}</header>
+                <div className={`mural-publisher-art-canvas${aiResult?.mode==='remove_background'?' transparent':''}`}>
+                  {aiResult ? <img src={aiResult.url} alt="Arte gerada por IA para revisão"/> : imageUrl ? <img src={imageUrl} alt="Imagem editorial atual"/> : <div className="mural-publisher-art-empty"><AdminMuralIcon name="image" size={34}/><b>A arte aparecerá aqui</b><span>Escolha a referência e gere uma composição.</span></div>}
+                </div>
+                {aiResult && (
+                  <div className="mural-publisher-art-result-actions">
+                    <button type="button" onClick={()=>generateAiArt(aiResult.mode)} disabled={aiBusy}><AdminMuralIcon name="refresh" size={16}/> Gerar outra</button>
+                    <button type="button" className="primary" onClick={applyAiResult}><AdminMuralIcon name="check" size={16}/> Usar esta arte</button>
+                    <button type="button" className="danger" onClick={discardAiResult}><AdminMuralIcon name="trash" size={16}/> Descartar</button>
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
+        </aside>
       </div>
-    </div>
+
+      <footer className="mural-publisher-mobile-actions">
+        <button type="submit" form="mural-publication-form" disabled={busy}>Salvar rascunho</button>
+        <button type="button" className="primary" disabled={busy} onClick={()=>save(true)}>{publishLabel}</button>
+      </footer>
+    </section>
   );
 }
 
@@ -536,6 +675,16 @@ export default function MuralNistiAdminView() {
   };
   const dates=row=>row.published_at?new Date(row.published_at).toLocaleString('pt-BR'):'—';
 
+  if (editor) {
+    return <PostEditor
+      item={editor}
+      collections={collections}
+      catalogProducts={products}
+      onClose={()=>setEditor(null)}
+      onSaved={async()=>{await load();await refreshReadiness()}}
+    />;
+  }
+
   return <section className="mural-admin-view">
     <div className="mural-admin-heading"><div><span>MURAL NISTI</span><h2>Conteúdo para operadores</h2><p>Crie, pré-visualize, agende e publique sem alterar código.</p></div><div className="mural-admin-heading-actions"><button type="button" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>{section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}{section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}</div></div>
     <div className="mural-admin-qa-note" role="note"><strong>QA privado</strong><span>O Mural completo só abre em dispositivos com sessão administrativa válida. Operadores continuam vendo “Em breve”.</span></div>
@@ -562,7 +711,6 @@ export default function MuralNistiAdminView() {
       <div className="mural-admin-readiness-manual"><strong>Ainda exige validação real</strong><p>Scanner → Mural → Scanner com reinício da câmera, breakpoints 360/390/430 px, safe-area no iPhone e abertura abaixo de 1 s continuam sendo smoke tests em aparelho real.</p></div>
     </div>}
 
-    {editor&&<PostEditor item={editor} collections={collections} onClose={()=>setEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
     {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
   </section>;
 }
