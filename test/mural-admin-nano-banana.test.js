@@ -70,3 +70,10 @@ test('Aviso posts cannot call image generation', () => {
 test('mural public release gate remains untouched for QA testing', () => {
   assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
 });
+
+test('Gemini image request uses the MIME accepted by the production Interactions endpoint', () => {
+  assert.ok(router.includes("mime_type:'image/jpeg'"));
+  assert.equal(router.includes("mime_type:'image/png',\n          aspect_ratio:'16:9'"), false);
+  assert.ok(admin.includes("outputMime === 'image/png' ? 'mural-arte-ia.png' : 'mural-arte-ia.jpg'"));
+});
+
