@@ -716,7 +716,7 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
       setStoredImageKey('');setImageUrl('');
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
-  const save=async()=>{
+  const save=async(publish=false)=>{
     setBusy(true);setError('');
     try{
       const opts={method:item?'PUT':'POST',headers:{'content-type':'application/json'},body:JSON.stringify(form)};
@@ -724,11 +724,14 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
       const id=item?.id||data.id;
       await request(`/api/admin/mural/collections/${id}/products`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({product_ids:selected})});
       if(image){const fd=new FormData();fd.append('image',image);await request(`/api/admin/mural/collections/${id}/image`,{method:'POST',body:fd});}
+      if(publish){
+        await request(`/api/admin/mural/collections/${id}/publish`,{method:'POST'});
+      }
       await onSaved();onClose();
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
   return <div className="mural-admin-modal" role="dialog" aria-modal="true"><div className="mural-admin-editor compact"><header><h2>{item?'Editar coleção':'Nova coleção'}</h2><button onClick={onClose}>×</button></header><div className="mural-admin-collection-form">
-    <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL</span><strong>Collection Launch Hero Card</strong><small>Banner horizontal 2:1 · nome + ano + frase curta + CTA · showcase com até 5 produtos reais da coleção.</small></div>
+    <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL DO MURAL</span><strong>Collection Launch Hero Card</strong><small>Mesmo visual do mockup: banner horizontal 2:1, selo NOVA COLEÇÃO automático, nome + ano + frase curta e capas reais da coleção. O Mural público continua bloqueado; a publicação é visível somente no QA.</small></div>
     <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><div className="mural-admin-inline"><label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label><label>Ano<input type="number" value={form.year} onChange={e=>setForm({...form,year:e.target.value})}/></label></div>
     <label>Frase / descrição da coleção<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Quando houver texto, o início desta descrição será usado como frase curta no Hero Card da coleção.</small></label>
     <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
@@ -737,7 +740,7 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
     <label>Produtos<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
     {selectedProducts.length>0&&<div className="mural-admin-selected-products" aria-label="Ordem editorial dos produtos"><strong>Ordem editorial</strong>{selectedProducts.map((p,index)=><div key={p.id}><span>{index+1}. {p.sku} · {p.nome||'Produto NISTI'}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}</div>}
     <div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
-    {error&&<div className="mural-admin-error">{error}</div>}<div className="mural-admin-actions"><button onClick={onClose}>Cancelar</button><button className="primary" disabled={busy||!form.name} onClick={save}>Salvar coleção</button></div>
+    {error&&<div className="mural-admin-error">{error}</div>}<div className="mural-admin-actions"><button type="button" onClick={onClose}>Cancelar</button><button type="button" disabled={busy||!form.name} onClick={()=>save(false)}>Salvar coleção</button><button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}>{busy?'Processando…':'Salvar e publicar no Mural QA'}</button></div>
   </div></div></div>;
 }
 
