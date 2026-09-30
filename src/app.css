@@ -5278,3 +5278,85 @@ button.kpi-box:active {
     transform: none !important;
   }
 }
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 2
+   Data motion: counters, progress and operational metrics
+   ========================================================================= */
+@keyframes nisti-progress-reveal {
+  from {
+    transform: scaleX(0);
+    opacity: 0.55;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.nisti-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transform-origin: left center;
+  animation: nisti-progress-reveal var(--nisti-motion-data) var(--nisti-motion-ease) both;
+  will-change: transform, opacity;
+}
+
+.kpi-num,
+.expedition-metric-detail strong,
+.status-pill {
+  font-variant-numeric: tabular-nums;
+}
+
+.expedition-metric-detail {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    box-shadow var(--nisti-motion-ui) ease,
+    border-color var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease;
+}
+
+.expedition-metric-detail:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+}
+
+.expedition-metric-detail:not(:disabled):active {
+  transform: translateY(0) scale(0.985);
+}
+
+.missing-gtin-alert {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    background-color var(--nisti-motion-ui) ease,
+    border-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.missing-gtin-alert:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 16px rgba(146, 64, 14, 0.08);
+}
+
+.missing-gtin-alert:active {
+  transform: scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nisti-progress-fill {
+    animation: none !important;
+  }
+
+  .expedition-metric-detail,
+  .missing-gtin-alert {
+    transition-duration: 0.01ms !important;
+  }
+
+  .expedition-metric-detail:not(:disabled):hover,
+  .expedition-metric-detail:not(:disabled):active,
+  .missing-gtin-alert:hover,
+  .missing-gtin-alert:active {
+    transform: none !important;
+  }
+}
