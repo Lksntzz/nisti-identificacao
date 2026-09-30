@@ -26,7 +26,10 @@ test('operator sees only Em breve while QA requires explicit mode plus admin ses
   assert.ok(mural.includes("'x-mural-qa': '1'"));
 });
 
-test('admin session by itself does not authorize the Mural interface',()=>{
+test('admin session alone does not authorize the Mural interface but can load QA image assets',()=>{
   assert.equal(edge.includes("pathname.startsWith('/api/mural') ? await validSession(request, env) : false"),false);
-  assert.ok(edge.includes("const muralQaSession = pathname.startsWith('/api/mural') && muralQaRequested"));
+  assert.ok(edge.includes("const muralQaAsset = request.method === 'GET'"));
+  assert.ok(edge.includes("/^\\/api\\/mural\\/images\\/\\d+$/"));
+  assert.ok(edge.includes("/^\\/api\\/mural\\/collections\\/[^/]+\\/image$/"));
+  assert.ok(edge.includes("pathname.startsWith('/api/mural') && (muralQaRequested || muralQaAsset)"));
 });
