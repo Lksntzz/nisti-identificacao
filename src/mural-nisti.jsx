@@ -123,7 +123,7 @@ function MuralImage({ item, eager = false, className = '' }) {
   }
   return (
     <img
-      className={`${className} mural-image-media${loaded ? ' is-loaded' : ''}`.trim()}
+      className={`${className} mural-image-media${shouldRemoveBackground ? ' mural-product-transparent' : ''}${loaded ? ' is-loaded' : ''}`.trim()}
       src={displaySrc}
       alt={item.kind === 'product' ? `${item.product?.type || item.title} ${item.product?.sku || ''}`.trim() : item.title}
       loading={eager ? 'eager' : 'lazy'}
