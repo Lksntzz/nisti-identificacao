@@ -12,10 +12,8 @@ const TABS = [
 ];
 
 function TabIcon({ value }) {
-  if (value === 'products') return <span aria-hidden="true">◇</span>;
-  if (value === 'collections') return <span aria-hidden="true">≋</span>;
-  if (value === 'notices') return <span aria-hidden="true">◁</span>;
-  return <span aria-hidden="true">✦</span>;
+  const icon = value === 'products' ? '◇' : value === 'collections' ? '≋' : value === 'notices' ? '◁' : '✦';
+  return <span className={`mural-tab-icon mural-tab-icon-${value}`} aria-hidden="true">{icon}</span>;
 }
 
 function userId() {
@@ -454,6 +452,7 @@ export default function MuralNisti({ onUnreadChange }) {
 
   const featured = tab === 'all' ? items.find(item => item.featured) : null;
   const feed = featured ? items.filter(item => item.id !== featured.id) : items;
+  const activeTabIndex = Math.max(0, TABS.findIndex(([value]) => value === tab));
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -489,7 +488,12 @@ export default function MuralNisti({ onUnreadChange }) {
 
           {featured && <Hero item={featured} onOpen={openItem} />}
 
-          <nav className="mural-tabs mural-intro mural-intro-tabs" aria-label="Filtros do Mural">
+          <nav
+            className="mural-tabs mural-intro mural-intro-tabs"
+            aria-label="Filtros do Mural"
+            style={{ '--mural-tab-index': activeTabIndex }}
+          >
+            <span className="mural-tabs-indicator" aria-hidden="true" />
             {TABS.map(([value, label]) => (
               <button
                 key={value}
