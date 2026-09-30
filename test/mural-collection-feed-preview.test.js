@@ -44,7 +44,7 @@ test('feed exposes image source so a true editorial post image can become the he
 });
 
 
-test('collection product cutouts render a dedicated solid silhouette outline layer', () => {
+test('collection product cutouts render only the validated external product outline layer', () => {
   assert.ok(mural.includes('useTransparentProductOutline'));
   assert.ok(mural.includes('mural-product-outline'));
   assert.ok(mural.includes('outlineSrc'));
