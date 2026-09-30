@@ -89,7 +89,7 @@ test('automatic Gemini image API generation was removed from the Mural', () => {
 });
 
 test('Mural keeps only the Gemini Pro prompt, reference and return workflow', () => {
-  assert.ok(admin.includes('Preparar para o Gemini Pro'));
+  assert.ok(admin.includes('Preparar 3 versões de prompt'));
   assert.ok(admin.includes('/api/admin/mural/gemini-pro-package'));
   assert.ok(admin.includes('Copiar e abrir Gemini Pro'));
   assert.ok(admin.includes('Baixar'));
