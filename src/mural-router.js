@@ -1008,6 +1008,8 @@ LEFT SIDE
 - Typography must remain highly legible on mobile and marketplace thumbnails.
 
 RIGHT SIDE — PRODUCT SHOWCASE
+- Display 3 to 5 products when at least 3 real references are provided.
+- If fewer than 3 real products are provided, display exactly the available products; never invent or duplicate products to reach a number.
 - Display only products from the selected collection.
 - Use the transparent PNG product references supplied by the Mural.
 - Preserve the exact artwork, colors, printed typography, spiral binding, elastic bands, accessories and proportions of the real products.
