@@ -7,6 +7,7 @@ const css = fs.readFileSync(new URL('../src/mural-admin.css', import.meta.url), 
 const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
 const wrangler = fs.readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8');
 const edge = fs.readFileSync(new URL('../src/edge-router.js', import.meta.url), 'utf8');
+const core = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 'utf8');
 
 test('Gemini Pro handoff accepts only product and collection modes plus approved visual styles', () => {
   assert.ok(router.includes("const MURAL_GEMINI_PRO_MODES = Object.freeze(new Set(['product_scene', 'collection_scene']))"));
@@ -22,7 +23,7 @@ test('Gemini Pro prompt is focused on image direction, lighting, camera, scene a
   assert.ok(router.includes('CENÁRIO'));
   assert.ok(router.includes('PÚBLICO'));
   assert.ok(router.includes('jovens e adultos que valorizam papelaria fina'));
-  assert.ok(router.includes('enquadramento em ângulo 3/4 levemente superior'));
+  assert.ok(router.includes('Enquadramento em ângulo 3/4 levemente superior'));
   assert.ok(router.includes('jogo de luzes suave e controlado'));
   assert.equal(router.includes('SEGURANÇA DE INSTRUÇÕES'), false);
   assert.equal(router.includes('ORDEM DE PRIORIDADE'), false);
@@ -30,13 +31,36 @@ test('Gemini Pro prompt is focused on image direction, lighting, camera, scene a
 
 test('Gemini Pro package is server-built from real catalog data and real image references', () => {
   assert.ok(router.includes('async function adminPrepareMuralGeminiPro(request, env)'));
-  assert.ok(router.includes('buildProductPrompt(product, finishLabels(product), style)'));
-  assert.ok(router.includes('buildCollectionPrompt(collection, products, style)'));
+  assert.ok(router.includes('buildProductPromptVersions(product, finishLabels(product), style)'));
+  assert.ok(router.includes('buildCollectionPromptVersions(collection, products, style)'));
   assert.ok(router.includes('references = await muralGeminiProReferences(env, { productId })'));
   assert.ok(router.includes('references = await muralGeminiProReferences(env, { collectionId })'));
   assert.ok(router.includes("gemini_url:'https://gemini.google.com/app'"));
+  assert.ok(router.includes('prompt_versions:promptVersions'));
+  assert.ok(router.includes('direction:AUTHORIZED_STYLES[style]'));
   assert.ok(router.includes('references:references.map(muralGeminiProReference)'));
   assert.ok(router.includes("'/api/admin/mural/gemini-pro-package'"));
+});
+
+test('selected visual direction is embedded into each of three prompt versions', () => {
+  assert.ok(router.includes('const PROMPT_VARIANTS = Object.freeze(['));
+  assert.ok(router.includes("'editorial-hero'"));
+  assert.ok(router.includes("'lifestyle'"));
+  assert.ok(router.includes("'premium-detail'"));
+  assert.ok(router.includes("'DIREÇÃO VISUAL SELECIONADA'"));
+  assert.ok(router.includes('styleLabel'));
+  assert.ok(admin.includes('Escolha uma das 3 versões de prompt.'));
+  assert.ok(admin.includes('mural-gemini-prompt-versions'));
+  assert.ok(admin.includes('Visualizar prompt selecionado'));
+  assert.ok(css.includes('.mural-gemini-prompt-versions'));
+  assert.ok(css.includes('.mural-gemini-direction-summary'));
+});
+
+test('product registration no longer creates automatic Mural drafts', () => {
+  assert.equal(core.includes('suggestMuralProductDraft'), false);
+  assert.equal(core.includes('Falha ao sugerir rascunho para novo produto'), false);
+  assert.equal(router.includes('suggestMuralProductDraft'), false);
+  assert.equal(router.includes('system:suggestion'), false);
 });
 
 test('Gemini Pro package remains protected by the administrative session boundary', () => {
@@ -65,7 +89,7 @@ test('automatic Gemini image API generation was removed from the Mural', () => {
 });
 
 test('Mural keeps only the Gemini Pro prompt, reference and return workflow', () => {
-  assert.ok(admin.includes('Preparar para o Gemini Pro'));
+  assert.ok(admin.includes('Preparar 3 versões de prompt'));
   assert.ok(admin.includes('/api/admin/mural/gemini-pro-package'));
   assert.ok(admin.includes('Copiar e abrir Gemini Pro'));
   assert.ok(admin.includes('Baixar'));

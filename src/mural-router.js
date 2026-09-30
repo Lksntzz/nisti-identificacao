@@ -932,75 +932,96 @@ const AUTHORIZED_STYLES = Object.freeze({
   colorful: 'Composição vibrante e contemporânea, cores equilibradas, cenário criativo e visual comercial premium.'
 });
 
+const PROMPT_VARIANTS = Object.freeze([
+  {
+    id:'editorial-hero',
+    label:'Versão 1 · Editorial principal',
+    summary:'Produto protagonista em composição premium, equilibrada e comercial.',
+    camera:'Enquadramento em ângulo 3/4 levemente superior, lente equivalente a 50 mm, perspectiva natural, produto ocupando a área principal do quadro e profundidade de campo suave.',
+    composition:'Composição de campanha editorial com o produto como protagonista, poucos objetos de apoio, espaço negativo bem distribuído e leitura imediata da capa.'
+  },
+  {
+    id:'lifestyle',
+    label:'Versão 2 · Lifestyle',
+    summary:'Cena mais contextual, natural e aspiracional sem perder o foco no produto.',
+    camera:'Enquadramento 3/4 em altura de mesa, lente equivalente a 35–50 mm, sensação natural de fotografia lifestyle, foco nítido no produto e fundo suavemente desfocado.',
+    composition:'Integre o produto a um ambiente de uso elegante e realista, com objetos de apoio discretos e contexto visual suficiente para transmitir estilo de vida.'
+  },
+  {
+    id:'premium-detail',
+    label:'Versão 3 · Detalhe premium',
+    summary:'Composição mais fechada, valorizando materiais, acabamento e textura.',
+    camera:'Enquadramento mais próximo em 3/4, lente equivalente a 70–85 mm, foco preciso na capa e nos acabamentos, profundidade de campo curta e perspectiva sem distorção.',
+    composition:'Use uma composição mais fechada e sofisticada, valorizando textura, bordas, wire-o, elástico e acabamento visual, com cenário secundário minimalista.'
+  }
+]);
+
 const MURAL_GEMINI_PRO_BASE_PROMPT = `Crie uma imagem fotográfica editorial premium usando as imagens anexadas como referência visual do produto.
 
-DIREÇÃO VISUAL
-Produza uma fotografia de produto elegante, realista e sofisticada, com composição limpa e aparência de campanha editorial premium. O produto deve ser o elemento principal da cena e continuar imediatamente reconhecível.
-
 ILUMINAÇÃO
-Use um jogo de luzes suave e controlado:
-- luz principal difusa valorizando a capa e os acabamentos;
-- preenchimento leve para suavizar sombras;
-- sombras naturais e fisicamente coerentes;
-- brilho de recorte discreto para criar profundidade;
-- contraste equilibrado, sem estourar brancos ou perder detalhes.
-
-CÂMERA
-Use linguagem de fotografia profissional de produto:
-- enquadramento em ângulo 3/4 levemente superior;
-- perspectiva natural;
-- foco principal no produto;
-- profundidade de campo suave;
-- aparência de lente profissional de produto/lifestyle;
-- composição equilibrada e pronta para uso editorial.
+Use jogo de luzes suave e controlado, com luz principal difusa, preenchimento leve, sombras naturais, brilho de recorte discreto e contraste equilibrado.
 
 CENÁRIO
-Crie um cenário coerente com a identidade visual do produto e com o estilo solicitado. Use superfície, fundo e poucos objetos decorativos que complementem a cena sem competir com o produto.
+Crie um cenário coerente com a direção visual selecionada. Use superfície, fundo e poucos elementos decorativos que complementem a cena sem competir com o produto.
 
 PÚBLICO
 Direcione a imagem para jovens e adultos que valorizam papelaria fina, planners, organização, estética delicada, design e estilo de vida criativo.
 
-FORMATO
-Entregue uma imagem editorial realista, sem interface de aplicativo, sem preço e sem texto promocional sobreposto.`;
+QUALIDADE VISUAL
+Resultado fotográfico realista, sofisticado, com materiais plausíveis, perspectiva consistente e aparência de fotografia profissional de produto.`;
 
-function buildProductPrompt(product, finishes, style) {
+function buildPromptVersions(contextLines, style) {
   const direction = AUTHORIZED_STYLES[style] || AUTHORIZED_STYLES.editorial;
-  return [
-    MURAL_GEMINI_PRO_BASE_PROMPT,
-    '',
+  const styleLabel = String(style || 'editorial').toUpperCase();
+  return PROMPT_VARIANTS.map((variant,index)=>({
+    id:variant.id,
+    label:variant.label,
+    summary:variant.summary,
+    prompt:[
+      MURAL_GEMINI_PRO_BASE_PROMPT,
+      '',
+      ...contextLines,
+      '',
+      'DIREÇÃO VISUAL SELECIONADA',
+      `${styleLabel}: ${direction}`,
+      '',
+      'CÂMERA',
+      variant.camera,
+      '',
+      'COMPOSIÇÃO',
+      variant.composition,
+      '',
+      `VERSÃO ${index + 1} DE 3`,
+      'Gere somente a imagem final, sem interface, preço ou texto promocional sobreposto.'
+    ].filter(Boolean).join('\n')
+  }));
+}
+
+function buildProductPromptVersions(product, finishes, style) {
+  return buildPromptVersions([
     'PRODUTO DE REFERÊNCIA',
     `Nome: ${String(product.nome || '').trim()}`,
     `Variação: ${String(product.variacao || '').trim()}`,
     `Wire-o: ${finishes.wireo || 'Não especificado'}`,
     `Tassel: ${finishes.tassel || 'Sem tassel'}`,
-    `Elástico: ${finishes.elastico || 'Não especificado'}`,
-    '',
-    'DIREÇÃO DO CENÁRIO',
-    direction
-  ].join('\n');
+    `Elástico: ${finishes.elastico || 'Não especificado'}`
+  ], style);
 }
 
-function buildCollectionPrompt(collection, products, style) {
-  const direction = AUTHORIZED_STYLES[style] || AUTHORIZED_STYLES.editorial;
-  const productLines = products.slice(0, 4).map((product, index) => {
-    const finishes = finishLabels(product);
+function buildCollectionPromptVersions(collection, products, style) {
+  const productLines = products.slice(0,4).map((product,index)=>{
+    const finishes=finishLabels(product);
     return `${index + 1}. ${product.nome || product.sku || 'Produto NISTI'} · ${product.variacao || 'sem variação'} · wire-o ${finishes.wireo || 'não especificado'} · tassel ${finishes.tassel || 'não especificado'} · elástico ${finishes.elastico || 'não especificado'}`;
   });
-
-  return [
-    MURAL_GEMINI_PRO_BASE_PROMPT,
-    '',
+  return buildPromptVersions([
     'COLEÇÃO DE REFERÊNCIA',
     `Coleção: ${String(collection.name || '').trim()}`,
     collection.year ? `Ano: ${collection.year}` : null,
     collection.description ? `Contexto: ${String(collection.description).trim()}` : null,
     '',
     'PRODUTOS NAS IMAGENS ANEXADAS',
-    ...productLines,
-    '',
-    'DIREÇÃO DO CENÁRIO',
-    direction
-  ].filter(Boolean).join('\n');
+    ...productLines
+  ].filter(Boolean),style);
 }
 
 function muralGeminiProReference(product, index) {
@@ -1039,7 +1060,7 @@ async function adminPrepareMuralGeminiPro(request, env) {
   }
 
   try {
-    let prompt = '';
+    let promptVersions = [];
     let references = [];
 
     if (mode === 'product_scene') {
@@ -1053,7 +1074,7 @@ async function adminPrepareMuralGeminiPro(request, env) {
       `).bind(productId).first();
       if (!product) return json({ error:'O produto selecionado não existe no banco atual.' },422);
 
-      prompt = buildProductPrompt(product, finishLabels(product), style);
+      promptVersions = buildProductPromptVersions(product, finishLabels(product), style);
       references = await muralGeminiProReferences(env, { productId });
     } else {
       if (!Number.isInteger(collectionId) || collectionId <= 0) {
@@ -1076,7 +1097,7 @@ async function adminPrepareMuralGeminiPro(request, env) {
       const products = productsResult.results || [];
       if (!products.length) return json({ error:'A coleção selecionada não possui produtos cadastrados.' },422);
 
-      prompt = buildCollectionPrompt(collection, products, style);
+      promptVersions = buildCollectionPromptVersions(collection, products, style);
       references = await muralGeminiProReferences(env, { collectionId });
     }
 
@@ -1084,7 +1105,9 @@ async function adminPrepareMuralGeminiPro(request, env) {
       ok:true,
       mode,
       style,
-      prompt,
+      direction:AUTHORIZED_STYLES[style],
+      prompt:promptVersions[0]?.prompt || '',
+      prompt_versions:promptVersions,
       gemini_url:'https://gemini.google.com/app',
       reference_count:references.length,
       references:references.map(muralGeminiProReference)
@@ -1092,19 +1115,6 @@ async function adminPrepareMuralGeminiPro(request, env) {
   } catch (err) {
     return json({ error:err.message || 'Não foi possível preparar o material para o Gemini Pro.' },422);
   }
-}
-
-export async function suggestMuralProductDraft(env, productId) {
-  const id = Number(productId);
-  if (!env?.DB || !Number.isInteger(id) || id <= 0) return null;
-  const product = await env.DB.prepare('SELECT id,sku,nome,variacao FROM products WHERE id=?').bind(id).first();
-  if (!product) return null;
-  const existing = await env.DB.prepare("SELECT id FROM mural_posts WHERE kind='product' AND product_id=? AND status<>'archived' ORDER BY id DESC LIMIT 1").bind(id).first();
-  if (existing) return { id:Number(existing.id), created:false };
-  const title = String(product.nome || product.variacao || product.sku || 'Novo produto').trim().slice(0,90);
-  const subtitle = [product.sku,product.variacao].filter(Boolean).join(' · ').slice(0,120) || null;
-  const result = await env.DB.prepare(`INSERT INTO mural_posts (kind,status,title,subtitle,badge,badge_tone,product_id,featured,priority,created_by,updated_at) VALUES ('product','draft',?,?,'NOVO','success',?,0,0,'system:suggestion',CURRENT_TIMESTAMP)`).bind(title,subtitle,id).run();
-  return { id:Number(result.meta.last_row_id), created:true };
 }
 
 async function adminSendPush(id, env) {
