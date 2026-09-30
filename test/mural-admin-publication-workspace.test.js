@@ -28,16 +28,17 @@ test('collection publication shows real collection products in the editor', () =
   assert.ok(css.includes('.mural-publisher-collection-products'));
 });
 
-test('Nano Banana art studio matches the approved side-panel workflow', () => {
+test('Gemini Pro handoff is the only assisted image workflow in the publication side panel', () => {
   assert.ok(admin.includes('Arte da publicação'));
-  assert.ok(admin.includes('IA · Nano Banana'));
+  assert.ok(admin.includes('Gemini Pro'));
   assert.ok(admin.includes('mural-publisher-ai-style-grid'));
-  assert.ok(admin.includes('Gerar arte com IA'));
-  assert.ok(admin.includes('Usar esta arte'));
-  assert.ok(admin.includes('Gerar outra'));
-  assert.ok(admin.includes('Descartar'));
+  assert.ok(admin.includes('Preparar para o Gemini Pro'));
+  assert.ok(admin.includes('Copiar e abrir Gemini Pro'));
+  assert.ok(admin.includes('Trazer imagem gerada para o Mural'));
+  assert.equal(admin.includes('Gerar arte com IA'), false);
+  assert.equal(admin.includes('IA · Nano Banana'), false);
   assert.ok(css.includes('.mural-publisher-art-panel'));
-  assert.ok(css.includes('.mural-publisher-art-canvas'));
+  assert.ok(css.includes('.mural-gemini-pro-kit'));
 });
 
 test('workspace remains responsive on tablet and mobile', () => {
