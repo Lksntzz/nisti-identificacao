@@ -1,6 +1,7 @@
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 import { productTypeLabel } from './product-display.js';
 import { broadcastMuralPush } from './web-push.js';
+import { reserveGeminiBudget } from './gemini-budget.js';
 
 const MURAL_PUBLIC_RELEASED = false;
 
@@ -857,6 +858,223 @@ async function adminProducts(url, env) {
   return json({items:(results||[]).map(row=>{ const labels=finishLabels(row); return {...row,...labels,type:productTypeLabel(row),image_url:row.image_key?`/api/images/${row.id}?v=${encodeURIComponent(row.image_key)}`:null}; })});
 }
 
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  const chunk = 0x8000;
+  const source = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  for (let index = 0; index < source.length; index += chunk) {
+    binary += String.fromCharCode(...source.subarray(index, index + chunk));
+  }
+  return btoa(binary);
+}
+
+async function muralAiSourceFromKey(env, key, label = 'Produto') {
+  if (!key || !env.PRODUCT_IMAGES) return null;
+  const object = await env.PRODUCT_IMAGES.get(key);
+  if (!object) return null;
+  const bytes = new Uint8Array(await object.arrayBuffer());
+  if (!bytes.length) return null;
+  if (bytes.length > 10 * 1024 * 1024) throw new Error(`Imagem de referência muito grande para IA: ${label}.`);
+  return {
+    label,
+    mime_type: object.httpMetadata?.contentType || 'image/jpeg',
+    data: bytesToBase64(bytes)
+  };
+}
+
+async function muralAiReferenceImages(env, { productId = null, collectionId = null } = {}) {
+  if (Number.isInteger(productId) && productId > 0) {
+    const product = await env.DB.prepare(`
+      SELECT id,sku,nome,variacao,image_key
+      FROM products
+      WHERE id=?
+    `).bind(productId).first();
+    if (!product) throw new Error('Produto selecionado não encontrado.');
+    const source = await muralAiSourceFromKey(env, product.image_key, product.sku || product.nome || 'Produto');
+    if (!source) throw new Error('O produto selecionado ainda não possui imagem de referência.');
+    return [{ ...source, product }];
+  }
+
+  if (Number.isInteger(collectionId) && collectionId > 0) {
+    const collection = await env.DB.prepare(`
+      SELECT id,name,year
+      FROM mural_collections
+      WHERE id=?
+    `).bind(collectionId).first();
+    if (!collection) throw new Error('Coleção selecionada não encontrada.');
+    const result = await env.DB.prepare(`
+      SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,mcp.sort_order
+      FROM mural_collection_products mcp
+      INNER JOIN products p ON p.id=mcp.product_id
+      WHERE mcp.collection_id=? AND p.image_key IS NOT NULL
+      ORDER BY mcp.sort_order ASC,p.id ASC
+      LIMIT 4
+    `).bind(collectionId).all();
+
+    const sources = [];
+    for (const product of result.results || []) {
+      const source = await muralAiSourceFromKey(env, product.image_key, product.sku || product.nome || 'Produto');
+      if (source) sources.push({ ...source, product, collection });
+    }
+    if (!sources.length) throw new Error('A coleção selecionada não possui produtos com imagem de referência.');
+    return sources;
+  }
+
+  return [];
+}
+
+function muralAiPrompt({ mode, kind, title, subtitle, style, prompt, sources }) {
+  const cleanPrompt = String(prompt || '').trim().slice(0, 900);
+  const cleanTitle = String(title || '').trim().slice(0, 120);
+  const cleanSubtitle = String(subtitle || '').trim().slice(0, 180);
+  const styleText = {
+    editorial: 'editorial premium de papelaria, iluminação natural suave, fotografia de campanha elegante',
+    cozy: 'ambiente aconchegante de mesa criativa, luz natural, objetos delicados de papelaria e decoração',
+    minimal: 'estúdio minimalista contemporâneo, composição limpa, luz difusa e sombras suaves',
+    floral: 'cenário floral sofisticado, cores suaves, flores e folhagens discretas, aparência de campanha premium',
+    colorful: 'cenário criativo com cores vibrantes porém equilibradas, objetos de papelaria e composição comercial premium'
+  }[style] || 'editorial premium de papelaria, iluminação natural suave e composição comercial';
+
+  if (mode === 'remove_background') {
+    return [
+      'Edite a imagem de referência do produto.',
+      'Remova apenas o fundo branco ou neutro ao redor do produto e isole o produto com recorte preciso.',
+      'Preserve exatamente o produto real: capa, estampas, textos, logotipos, cores, wire-o, elástico, tassel, bordas e proporções.',
+      'Não redesenhe, não substitua e não invente detalhes do produto.',
+      'Mantenha sombras de contato somente se fizerem parte natural do produto.',
+      'Entregue o produto isolado em fundo transparente (canal alpha) em PNG.',
+      cleanPrompt ? `Instrução adicional: ${cleanPrompt}` : ''
+    ].filter(Boolean).join(' ');
+  }
+
+  const sourceCount = sources.length;
+  return [
+    `Crie uma arte editorial horizontal 16:9 para o Mural NISTI usando ${sourceCount ? 'as imagens de referência dos produtos fornecidas' : 'o briefing abaixo'}.`,
+    `Direção visual: ${styleText}.`,
+    sourceCount
+      ? 'Os produtos devem permanecer visualmente fiéis às referências. Não altere estampas, textos, logotipos, cores, formato, acessórios ou acabamento.'
+      : '',
+    'Remova visualmente o fundo branco original das referências e integre os produtos ao cenário com recorte natural, iluminação coerente e sombras realistas.',
+    'Crie profundidade com objetos de apoio discretos como livros, canetas, plantas, flores, fitas ou materiais de papelaria, sem encobrir os produtos.',
+    'Reserve área limpa no lado esquerdo para título e CTA da interface. Não escreva textos promocionais na própria imagem e não crie logos novos.',
+    cleanTitle ? `Contexto da publicação: ${cleanTitle}.` : '',
+    cleanSubtitle ? `Subtítulo: ${cleanSubtitle}.` : '',
+    cleanPrompt ? `Briefing criativo adicional: ${cleanPrompt}` : '',
+    kind === 'collection'
+      ? 'Mostre a coleção como uma seleção coerente, com um produto principal e os demais como apoio.'
+      : kind === 'product'
+        ? 'Dê protagonismo ao produto principal.'
+        : 'Crie uma composição editorial sem produto inventado.'
+  ].filter(Boolean).join(' ');
+}
+
+function muralAiOutputImage(payload) {
+  const blocks = [];
+  for (const step of payload?.steps || []) {
+    for (const content of step?.content || []) blocks.push(content);
+  }
+  for (const output of payload?.outputs || []) blocks.push(output);
+  if (payload?.output_image) blocks.push({ type:'image', ...payload.output_image });
+  if (payload?.outputImage) blocks.push({ type:'image', ...payload.outputImage });
+
+  const image = blocks.find(block =>
+    block
+    && (block.type === 'image' || block.mime_type?.startsWith?.('image/'))
+    && typeof block.data === 'string'
+    && block.data.length > 100
+  );
+  if (!image) return null;
+  return {
+    data:image.data,
+    mime_type:image.mime_type || image.mimeType || 'image/png'
+  };
+}
+
+async function adminGenerateMuralAiArt(request, env) {
+  if (!env.GEMINI_API_KEY) return json({ error:'GEMINI_API_KEY não configurada no Worker.' },503);
+
+  const allowed = await reserveGeminiBudget(env,'mural-ai-art',6);
+  if (!allowed) return json({ error:'Limite temporário de geração por IA atingido. Aguarde um minuto e tente novamente.' },429);
+
+  const body = await request.json().catch(() => ({}));
+  const mode = body.mode === 'remove_background' ? 'remove_background' : 'creative_scene';
+  const kind = ['product','collection','notice'].includes(body.kind) ? body.kind : 'product';
+  const productId = Number(body.product_id || 0);
+  const collectionId = Number(body.collection_id || 0);
+
+  if (mode === 'remove_background' && (!Number.isInteger(productId) || productId <= 0)) {
+    return json({ error:'Selecione um produto antes de remover o fundo.' },422);
+  }
+
+  const sources = await muralAiReferenceImages(env,{
+    productId:kind === 'product' && productId > 0 ? productId : null,
+    collectionId:kind === 'collection' && collectionId > 0 ? collectionId : null
+  });
+
+  const input = [
+    {
+      type:'text',
+      text:muralAiPrompt({
+        mode,
+        kind,
+        title:body.title,
+        subtitle:body.subtitle,
+        style:String(body.style || 'editorial'),
+        prompt:body.prompt,
+        sources
+      })
+    },
+    ...sources.map(source => ({
+      type:'image',
+      mime_type:source.mime_type,
+      data:source.data
+    }))
+  ];
+
+  const model = String(env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image').trim();
+  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-goog-api-key':env.GEMINI_API_KEY
+    },
+    body:JSON.stringify({
+      model,
+      input,
+      response_format:{
+        type:'image',
+        mime_type:'image/png',
+        aspect_ratio:mode === 'remove_background' ? '1:1' : '16:9',
+        image_size:'1K'
+      }
+    })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = payload?.error?.message || payload?.message || `HTTP ${response.status}`;
+    console.error('[Mural IA] Gemini image generation failed', { status:response.status, model, detail });
+    return json({ error:'A IA não conseguiu gerar a arte agora.', technical_error:detail },502);
+  }
+
+  const image = muralAiOutputImage(payload);
+  if (!image) {
+    console.error('[Mural IA] Gemini response without image', { model, status:payload?.status || null });
+    return json({ error:'A IA respondeu sem uma imagem utilizável.' },502);
+  }
+
+  return json({
+    ok:true,
+    model,
+    mode,
+    mime_type:image.mime_type,
+    image_base64:image.data,
+    source_count:sources.length,
+    synthid:true
+  });
+}
+
 export async function suggestMuralProductDraft(env, productId) {
   const id = Number(productId);
   if (!env?.DB || !Number.isInteger(id) || id <= 0) return null;
@@ -932,6 +1150,7 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     if (path === '/api/admin/mural/products' && request.method === 'GET') return adminProducts(url, env);
     if (path === '/api/admin/mural/metrics' && request.method === 'GET') return adminMetrics(env);
     if (path === '/api/admin/mural/readiness' && request.method === 'GET') return adminReadiness(env);
+    if (path === '/api/admin/mural/ai-art' && request.method === 'POST') return adminGenerateMuralAiArt(request, env);
     if (path === '/api/admin/mural/collections' && request.method === 'GET') return adminListCollections(env);
     if (path === '/api/admin/mural/collections' && request.method === 'POST') return adminCreateCollection(request, env);
 
