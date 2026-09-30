@@ -162,3 +162,126 @@
 }
 
 .mural-load-more{display:block;min-width:160px;min-height:44px;margin:14px auto 0;padding:0 18px;border:1px solid var(--mural-border);border-radius:999px;background:#fff;color:var(--mural-blue);font:inherit;font-size:12px;font-weight:850;cursor:pointer}.mural-load-more:disabled{opacity:.6;cursor:wait}.mural-card:focus-visible,.mural-hero:focus-visible,.mural-tabs button:focus-visible,.mural-load-more:focus-visible,.mural-detail-close:focus-visible,.mural-primary-action:focus-visible{outline:3px solid #0B1329;outline-offset:3px}@media(min-width:431px){.mural-load-more{max-width:720px}}
+
+
+/* Mobile card/detail refinement: compact scan-friendly cards and no empty media area. */
+.mural-card-product{
+  min-height:0;
+  grid-template-columns:112px minmax(0,1fr);
+  align-items:start;
+  gap:12px;
+  padding:12px;
+}
+.mural-card-product .mural-card-image,
+.mural-card-product > .mural-image-placeholder{
+  width:112px;
+  height:154px;
+  min-height:154px;
+  align-self:start;
+  object-fit:contain;
+  background:#f8fafc;
+}
+.mural-card-product .mural-card-content{
+  justify-content:flex-start;
+  gap:5px;
+  padding-top:1px;
+}
+.mural-card-product .mural-card-badges{margin-bottom:1px}
+.mural-card-product .mural-card-title-row strong{
+  font-size:17px;
+  line-height:1.05;
+}
+.mural-card-product-name{
+  display:-webkit-box;
+  width:100%;
+  overflow:hidden;
+  color:#34435a;
+  font-size:13px;
+  line-height:1.28;
+  font-weight:760;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
+.mural-card-product .mural-card-summary{
+  font-size:11px;
+  line-height:1.35;
+  -webkit-line-clamp:2;
+}
+.mural-card-product .mural-product-meta{
+  gap:4px;
+  margin-top:1px;
+}
+.mural-card-product .mural-sku{
+  display:-webkit-box;
+  overflow:hidden;
+  line-height:1.25;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
+.mural-product-collection{
+  display:-webkit-box;
+  width:100%;
+  overflow:hidden;
+  color:#64748b;
+  line-height:1.25;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:1;
+}
+.mural-card-product .mural-finishes{gap:4px}
+.mural-card-product .mural-finishes span{
+  min-height:22px;
+  padding:3px 7px;
+  font-size:9px;
+}
+.mural-detail.no-media{
+  min-height:0;
+}
+.mural-detail-body.no-media{
+  padding:68px 22px 24px;
+}
+.mural-detail.no-media .mural-detail-close{
+  top:14px;
+  right:14px;
+  background:#30384f;
+}
+.mural-detail-kicker{
+  margin:10px 0 0;
+  color:var(--mural-blue);
+  font-size:12px;
+  line-height:1.2;
+  font-weight:850;
+  letter-spacing:.02em;
+}
+.mural-detail-image-product{
+  object-fit:contain;
+  background:#f8fafc;
+}
+.mural-detail-body .mural-product-meta{
+  margin-top:16px;
+  gap:8px;
+  font-size:12px;
+}
+.mural-detail-body .mural-finishes span{
+  min-height:28px;
+  padding:5px 9px;
+  font-size:10px;
+}
+
+@media (max-width:390px){
+  .mural-card-product{
+    grid-template-columns:100px minmax(0,1fr);
+    gap:10px;
+    padding:10px;
+  }
+  .mural-card-product .mural-card-image,
+  .mural-card-product > .mural-image-placeholder{
+    width:100px;
+    height:142px;
+    min-height:142px;
+  }
+  .mural-card-product .mural-card-title-row strong{font-size:16px}
+  .mural-card-product-name{font-size:12.5px}
+  .mural-detail-body{padding:18px}
+  .mural-detail-body.no-media{padding:66px 18px 22px}
+  .mural-detail-body h2{font-size:24px}
+}
