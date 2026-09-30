@@ -726,6 +726,88 @@ async function adminSetCollectionProducts(id, request, env) {
   return json({ok:true,count:productIds.length});
 }
 
+async function adminPublishCollection(id, env) {
+  const collection = await env.DB.prepare(`
+    SELECT id,slug,name,year,description,image_key,status
+    FROM mural_collections
+    WHERE id=?
+    LIMIT 1
+  `).bind(id).first();
+  if (!collection) return json({ error:'Coleção não encontrada.' },404);
+  if (collection.status !== 'active') return json({ error:'Ative a coleção antes de publicar no Mural.' },422);
+
+  const countRow = await env.DB.prepare(
+    'SELECT COUNT(*) AS total FROM mural_collection_products WHERE collection_id=?'
+  ).bind(id).first();
+  const productCount = Number(countRow?.total || 0);
+  if (productCount < 1) {
+    return json({ error:'Adicione pelo menos um produto à coleção antes de publicar.' },422);
+  }
+
+  const name = String(collection.name || '').trim();
+  const year = collection.year ? String(collection.year) : '';
+  const title = year && !name.endsWith(year) ? `${name} ${year}` : name;
+  const supporting = String(collection.description || '').trim()
+    || `Conheça a nova coleção ${title}.`;
+  const publishedAt = new Date().toISOString();
+
+  const existing = await env.DB.prepare(`
+    SELECT id
+    FROM mural_posts
+    WHERE kind='collection' AND collection_id=?
+    ORDER BY id DESC
+    LIMIT 1
+  `).bind(id).first();
+
+  const existingId = Number(existing?.id || 0);
+  await env.DB.prepare(`
+    UPDATE mural_posts
+    SET featured=0,updated_at=CURRENT_TIMESTAMP
+    WHERE featured=1 AND status='published' AND id<>?
+  `).bind(existingId).run();
+
+  let postId = existingId;
+  if (existingId) {
+    await env.DB.prepare(`
+      UPDATE mural_posts
+      SET status='published',
+          title=?,
+          subtitle=?,
+          body=NULL,
+          badge='NOVA COLEÇÃO',
+          badge_tone='launch',
+          product_id=NULL,
+          collection_id=?,
+          notice_level=NULL,
+          featured=1,
+          priority=100,
+          published_at=?,
+          expires_at=NULL,
+          updated_at=CURRENT_TIMESTAMP
+      WHERE id=?
+    `).bind(title,supporting,id,publishedAt,existingId).run();
+  } else {
+    const result = await env.DB.prepare(`
+      INSERT INTO mural_posts
+        (kind,status,title,subtitle,body,badge,badge_tone,image_key,product_id,collection_id,notice_level,featured,priority,published_at,expires_at,created_by,updated_at)
+      VALUES
+        ('collection','published',?,?,NULL,'NOVA COLEÇÃO','launch',NULL,NULL,?,NULL,1,100,?,NULL,'admin',CURRENT_TIMESTAMP)
+    `).bind(title,supporting,id,publishedAt).run();
+    postId = Number(result.meta.last_row_id);
+  }
+
+  return json({
+    ok:true,
+    id:postId,
+    collection_id:Number(id),
+    status:'published',
+    featured:true,
+    badge:'NOVA COLEÇÃO',
+    published_at:publishedAt,
+    product_count:productCount
+  });
+}
+
 async function adminMetrics(env) {
   const [publishedByMonth, readers, topReads, imageStats] = await Promise.all([
     env.DB.prepare(`SELECT substr(published_at,1,7) AS month,COUNT(*) AS total FROM mural_posts WHERE status='published' AND published_at IS NOT NULL GROUP BY substr(published_at,1,7) ORDER BY month DESC LIMIT 12`).all(),
@@ -1419,6 +1501,8 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     if (adminCollection && request.method === 'PUT') return adminUpdateCollection(Number(adminCollection[1]), request, env);
     const collectionProducts = path.match(/^\/api\/admin\/mural\/collections\/(\d+)\/products$/);
     if (collectionProducts && request.method === 'PUT') return adminSetCollectionProducts(Number(collectionProducts[1]), request, env);
+    const publishCollection = path.match(/^\/api\/admin\/mural\/collections\/(\d+)\/publish$/);
+    if (publishCollection && request.method === 'POST') return adminPublishCollection(Number(publishCollection[1]), env);
     const collectionUpload = path.match(/^\/api\/admin\/mural\/collections\/(\d+)\/image$/);
     if (collectionUpload && request.method === 'POST') return uploadEditorialImage(request, env, 'collections', Number(collectionUpload[1]));
 
