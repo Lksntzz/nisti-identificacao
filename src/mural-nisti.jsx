@@ -441,6 +441,9 @@ export default function MuralNisti({ onUnreadChange }) {
 
   useEffect(() => () => cancelAnimationFrame(scrollFrame.current), []);
 
+  const featured = tab === 'all' ? items.find(item => item.featured) : null;
+  const feed = featured ? items.filter(item => item.id !== featured.id) : items;
+
   useEffect(() => {
     const shell = shellRef.current;
     const feedNode = feedRef.current;
@@ -463,9 +466,6 @@ export default function MuralNisti({ onUnreadChange }) {
     nodes.forEach(node => observer.observe(node));
     return () => observer.disconnect();
   }, [tab, feed.length, loading]);
-
-  const featured = tab === 'all' ? items.find(item => item.featured) : null;
-  const feed = featured ? items.filter(item => item.id !== featured.id) : items;
 
   return (
     <section ref={shellRef} className="mural-shell">
