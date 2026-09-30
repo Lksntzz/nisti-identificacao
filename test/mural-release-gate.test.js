@@ -4,17 +4,18 @@ import test from 'node:test';
 
 const source=fs.readFileSync(new URL('../src/public-main.jsx',import.meta.url),'utf8');
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
-const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const edge=fs.readFileSync(new URL('../src/edge-router.js',import.meta.url),'utf8');
 
-test('Mural remains fully disabled for operators and private QA',()=>{
+test('operator mural remains gated while authenticated admin sessions can run private QA',()=>{
+  assert.ok(source.includes("import MuralNisti from './mural-nisti.jsx'"));
   assert.ok(source.includes("api('/api/mural/access')"));
-  assert.ok(source.includes("onOpenMural={muralAccess ? () => setPublicView('mural') : undefined}"));
+  assert.ok(source.includes('muralAccess ? ('));
+  assert.ok(source.includes('<MuralNisti onUnreadChange={setMuralUnread} />'));
+  assert.ok(source.includes('mural-coming-soon'));
+  assert.ok(source.includes('<h2>Em breve</h2>'));
+  assert.ok(source.includes('Voltar ao Scanner'));
   assert.match(router,/const MURAL_PUBLIC_RELEASED = false/);
-  assert.match(router,/const MURAL_PRIVATE_QA_ENABLED = false/);
-  assert.match(router,/const qaAllowed = Boolean\(MURAL_PRIVATE_QA_ENABLED && qaAuthorized\)/);
   assert.match(router,/path === '\/api\/mural\/access'/);
-  assert.match(router,/!MURAL_PUBLIC_RELEASED && !qaAllowed/);
-  assert.ok(admin.includes('<strong>Mural desativado</strong>'));
-  assert.equal(admin.includes('Abrir Mural QA'),false);
-  assert.equal(admin.includes("window.location.assign('/?mural=qa')"),false);
+  assert.match(router,/path\.startsWith\('\/api\/mural'\) && !MURAL_PUBLIC_RELEASED && !qaAuthorized/);
+  assert.match(edge,/muralQaSession = pathname\.startsWith\('\/api\/mural'\) \? await validSession/);
 });

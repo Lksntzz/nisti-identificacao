@@ -3,7 +3,6 @@ import { productTypeLabel } from './product-display.js';
 import { broadcastMuralPush } from './web-push.js';
 
 const MURAL_PUBLIC_RELEASED = false;
-const MURAL_PRIVATE_QA_ENABLED = false;
 
 const TAB_KIND = Object.freeze({
   all: null,
@@ -840,14 +839,12 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
   const path = url.pathname;
 
   try {
-    const qaAllowed = Boolean(MURAL_PRIVATE_QA_ENABLED && qaAuthorized);
-
     if (path === '/api/mural/access' && request.method === 'GET') {
-      return json({ released: MURAL_PUBLIC_RELEASED, qa: qaAllowed });
+      return json({ released: MURAL_PUBLIC_RELEASED, qa: Boolean(qaAuthorized) });
     }
 
-    if (path.startsWith('/api/mural') && !MURAL_PUBLIC_RELEASED && !qaAllowed) {
-      return json({ error: 'Mural NISTI desativado temporariamente.' }, 403);
+    if (path.startsWith('/api/mural') && !MURAL_PUBLIC_RELEASED && !qaAuthorized) {
+      return json({ error: 'Mural NISTI em breve.' }, 403);
     }
 
     if (path === '/api/mural' && request.method === 'GET') {
