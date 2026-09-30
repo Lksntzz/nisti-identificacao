@@ -305,21 +305,6 @@ function Hero({ item, onOpen }) {
   );
 }
 
-function CollectionCardMedia({ item, previews, eager }) {
-  if (previews.length) {
-    return (
-      <span className="mural-card-media mural-card-media-collection" aria-hidden="true">
-        {previews.slice(0, 3).map((product, index) => (
-          <span className={`mural-card-collection-mini mini-${index + 1}`} key={product.id}>
-            <CollectionProductImage product={product} eager={eager && index === 0} />
-          </span>
-        ))}
-      </span>
-    );
-  }
-  return <span className="mural-card-media"><MuralImage item={item} eager={eager} className="mural-card-image" /></span>;
-}
-
 function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 }) {
   const previews = item.collection?.preview_products || [];
   const title = formatCollectionTitle(item.collection) || item.title;
@@ -371,9 +356,7 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
       data-mural-reveal
       onClick={() => onOpen(item)}
     >
-      {isCollection ? (
-        <CollectionCardMedia item={item} previews={collectionPreviews} eager={eager} />
-      ) : isNotice ? (
+      {isNotice ? (
         <span className={`mural-card-media mural-notice-visual ${item.notice_level || 'info'}`}><MuralIcon name="megaphone" size={40} /></span>
       ) : (
         <span className="mural-card-media"><MuralImage item={item} eager={eager} className="mural-card-image" /></span>
@@ -389,11 +372,11 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
         </span>
 
         <span className="mural-card-title-row">
-          <strong>{isProduct ? item.product?.type || item.title : isCollection ? formatCollectionTitle(item.collection) || item.title : item.title}</strong>
+          <strong>{isProduct ? item.product?.type || item.title : item.title}</strong>
         </span>
 
         {isProduct && item.title !== item.product?.type && <span className="mural-card-product-name">{item.title}</span>}
-        {!isProduct && item.subtitle && <span className="mural-card-subtitle">{item.subtitle}</span>}
+        {isNotice && item.subtitle && <span className="mural-card-subtitle">{item.subtitle}</span>}
         {isNotice && item.body && <span className="mural-card-summary">{item.body}</span>}
 
         {isProduct && (
@@ -404,13 +387,6 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
           </span>
         )}
 
-        {isCollection && (
-          <span className="mural-card-reference-meta">
-            <MuralIcon name="layers" size={14} />
-            <span>{collectionProductCount || '—'} produto{collectionProductCount === 1 ? '' : 's'}</span>
-            {item.body && <><i>•</i><span className="mural-card-meta-clamp">{item.body}</span></>}
-          </span>
-        )}
       </span>
 
       <span className="mural-card-arrow" aria-hidden="true"><MuralIcon name="chevron" size={21} /></span>
