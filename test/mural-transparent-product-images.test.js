@@ -13,7 +13,8 @@ const core = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 
 
 test('Mural creates transparent PNG cutouts by removing only border-connected near-white pixels', () => {
   assert.ok(utility.includes('isBorderBackgroundCandidate'));
-  assert.ok(utility.includes('connectedBackgroundAlpha'));
+  assert.ok(utility.includes('buildSubjectProtection'));
+  assert.ok(utility.includes('convexHull'));
   assert.ok(utility.includes('const visited = new Uint8Array(total)'));
   assert.ok(utility.includes('const queue = new Int32Array(total)'));
   assert.ok(utility.includes("canvas.toBlob"));
@@ -36,6 +37,13 @@ test('Mural collection products and admin product references use transparent cut
   assert.ok(admin.includes('mural-product-transparent'));
   assert.ok(publicCss.includes('.mural-product-transparent'));
   assert.ok(adminCss.includes('.mural-gemini-pro-references figure>img.mural-product-transparent'));
+});
+
+test('Mural product cutouts and collection animation do not add artificial shadows', () => {
+  assert.ok(publicCss.includes('.mural-collection-reveal-product>img'));
+  assert.ok(publicCss.includes('.mural-product-transparent,'));
+  assert.ok(publicCss.includes('filter:none!important'));
+  assert.ok(publicCss.includes('box-shadow:none!important'));
 });
 
 test('Gemini Pro references are named as PNG and prompt explains transparent references', () => {
