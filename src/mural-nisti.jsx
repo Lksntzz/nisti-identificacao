@@ -39,6 +39,14 @@ function formatDate(value) {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function formatCollectionTitle(collection) {
+  if (!collection) return '';
+  const name = String(collection.name || '').trim();
+  const year = String(collection.year || '').trim();
+  if (!year || name.endsWith(year)) return name;
+  return `${name} ${year}`.trim();
+}
+
 function KindIcon({ kind }) {
   const label = kind === 'product' ? 'P' : kind === 'collection' ? 'C' : '!';
   return <span className="mural-kind-icon" aria-hidden="true">{label}</span>;
