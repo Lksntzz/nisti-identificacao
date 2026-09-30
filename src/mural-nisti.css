@@ -2154,3 +2154,132 @@
   }
 }
 
+/* Featured collection preview: the highlighted collection must show its selected products too. */
+.mural-hero-collection.has-products{
+  background:
+    radial-gradient(circle at 82% 18%,rgba(20,200,212,.22),transparent 34%),
+    radial-gradient(circle at 72% 86%,rgba(248,102,166,.18),transparent 34%),
+    linear-gradient(135deg,#18233d 0%,#33425e 48%,#dfe8f3 100%);
+}
+.mural-hero-collection.has-products .mural-hero-shade{
+  z-index:2;
+  background:
+    linear-gradient(90deg,rgba(11,19,41,.92) 0%,rgba(11,19,41,.80) 44%,rgba(11,19,41,.28) 67%,rgba(11,19,41,.06) 100%),
+    linear-gradient(180deg,rgba(11,19,41,.02) 18%,rgba(11,19,41,.58) 100%);
+}
+.mural-hero-collection.has-products .mural-hero-copy{
+  z-index:4;
+  width:min(56%,360px);
+  inset:auto auto 18px 18px;
+}
+.mural-hero-collection-products{
+  position:absolute;
+  z-index:1;
+  top:50%;
+  right:16px;
+  width:46%;
+  height:82%;
+  translate:0 -50%;
+  pointer-events:none;
+}
+.mural-hero-collection-product{
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:min(42%,116px);
+  aspect-ratio:3/4;
+  overflow:hidden;
+  border:6px solid rgba(255,255,255,.94);
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 20px 34px rgba(11,19,41,.20);
+  transform-origin:50% 100%;
+}
+.mural-hero-collection-product.product-1{
+  z-index:3;
+  transform:translate(-55%,-52%) rotate(-2deg);
+}
+.mural-hero-collection-product.product-2{
+  z-index:2;
+  transform:translate(-5%,-48%) rotate(7deg) scale(.93);
+}
+.mural-hero-collection-product.product-3{
+  z-index:1;
+  transform:translate(-98%,-44%) rotate(-9deg) scale(.88);
+}
+.mural-hero-collection-product>img,
+.mural-hero-collection-product>.mural-image-placeholder{
+  width:100%;
+  height:100%;
+  min-height:0;
+  object-fit:contain;
+  border-radius:12px;
+  background:#f8fafc;
+}
+.mural-hero-collection-count{
+  position:absolute;
+  z-index:5;
+  right:2px;
+  bottom:2px;
+  min-width:72px;
+  min-height:36px;
+  display:flex;
+  align-items:baseline;
+  justify-content:center;
+  gap:5px;
+  padding:5px 10px;
+  border:1px solid rgba(255,255,255,.82);
+  border-radius:999px;
+  background:rgba(255,255,255,.94);
+  color:#526078;
+  box-shadow:0 9px 22px rgba(11,19,41,.12);
+  backdrop-filter:blur(10px);
+}
+.mural-hero-collection-count strong{
+  color:var(--mural-blue);
+  font-size:16px;
+  font-weight:950;
+}
+.mural-hero-collection-count small{
+  font-size:9px;
+  font-weight:850;
+}
+@media (hover:hover) and (pointer:fine){
+  .mural-hero-collection.has-products:hover .product-1{
+    transform:translate(-55%,-55%) rotate(0deg) scale(1.025);
+  }
+  .mural-hero-collection.has-products:hover .product-2{
+    transform:translate(0,-49%) rotate(9deg) scale(.95);
+  }
+  .mural-hero-collection.has-products:hover .product-3{
+    transform:translate(-104%,-45%) rotate(-11deg) scale(.90);
+  }
+}
+@media (max-width:390px){
+  .mural-hero-collection.has-products .mural-hero-copy{
+    width:58%;
+    inset:auto auto 14px 14px;
+  }
+  .mural-hero-collection-products{
+    right:8px;
+    width:43%;
+    height:78%;
+  }
+  .mural-hero-collection-product{
+    width:min(46%,88px);
+    border-width:4px;
+    border-radius:15px;
+  }
+  .mural-hero-collection-count{
+    min-width:62px;
+    min-height:31px;
+    padding:4px 8px;
+  }
+  .mural-hero-collection-count strong{font-size:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  .mural-hero-collection-product{
+    transition:none!important;
+  }
+}
+
