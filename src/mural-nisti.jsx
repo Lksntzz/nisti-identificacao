@@ -807,7 +807,7 @@ export default function MuralNisti({ onUnreadChange }) {
 
   useEffect(() => () => cancelAnimationFrame(scrollFrame.current), []);
 
-  const featured = tab === 'all' ? items.find(item => item.featured) : null;
+  const featured = items.find(item => item.featured) || null;
   const feed = featured ? items.filter(item => item.id !== featured.id) : items;
   const activeTabIndex = Math.max(0, TABS.findIndex(([value]) => value === tab));
 
@@ -846,8 +846,6 @@ export default function MuralNisti({ onUnreadChange }) {
             <span className="mural-title-accent" aria-hidden="true"><i /><i /><i /></span>
           </header>
 
-          {featured && <Hero item={featured} onOpen={openItem} />}
-
           <nav
             className="mural-tabs mural-intro mural-intro-tabs"
             aria-label="Filtros do Mural"
@@ -867,6 +865,8 @@ export default function MuralNisti({ onUnreadChange }) {
               </button>
             ))}
           </nav>
+
+          {featured && <Hero item={featured} onOpen={openItem} />}
 
           {error && (
             <div className="mural-error" role="status">
