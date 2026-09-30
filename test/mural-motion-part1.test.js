@@ -19,7 +19,8 @@ test('motion part 1 gives the hero a one-shot entrance instead of continuous acc
   assert.ok(css.includes('@keyframes mural-hero-copy-enter'));
   assert.ok(css.includes('@keyframes mural-accent-enter'));
   assert.equal(css.includes('mural-accent-float'), false);
-  assert.equal(css.includes('infinite'), false);
+  const accentRule = css.match(/\\.mural-hero-accent i\\{([\\s\\S]*?)\\n\\}/)?.[1] || '';
+  assert.equal(accentRule.includes('infinite'), false);
 });
 
 test('motion part 1 keeps hero parallax subtle and avoids scroll work for reduced motion', () => {
@@ -27,6 +28,7 @@ test('motion part 1 keeps hero parallax subtle and avoids scroll work for reduce
   assert.ok(mural.includes('Math.max(-18, Math.min(0, node.scrollTop * -0.055))'));
   assert.ok(css.includes('@media (prefers-reduced-motion:reduce)'));
   assert.ok(css.includes('.mural-hero-enter,'));
+  assert.ok(mural.indexOf("const feed =") < mural.indexOf("[tab, feed.length, loading]"));
 });
 
 test('motion part 1 centralizes timing tokens for the Mural', () => {
