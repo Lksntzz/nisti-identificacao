@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatSaoPauloDateTime } from '../date-time.js';
 import { AdminState } from './AdminState.jsx';
 
@@ -42,6 +42,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
+  const previousPageRef = useRef(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -94,6 +95,12 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
   const pageItems = paginationPages(page, totalPages);
   const firstItem = total > 0 ? ((page - 1) * HISTORY_PAGE_SIZE) + 1 : 0;
   const lastItem = Math.min(total, page * HISTORY_PAGE_SIZE);
+  const pageDirection = page >= previousPageRef.current ? 'forward' : 'backward';
+  const tableMotionKey = `${status}|${appliedSearch}|${page}|${loading ? 'loading' : 'ready'}`;
+
+  useEffect(() => {
+    previousPageRef.current = page;
+  }, [page]);
 
   const applySearch = () => {
     const next = search.trim();
@@ -245,7 +252,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
               <th style={{ textAlign: 'right', width: '190px' }}>AÇÃO</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody key={tableMotionKey} className={`nisti-table-swap ${pageDirection}`}>
             {loading ? (
               Array.from({ length: 5 }, (_, index) => (
                 <tr className="nisti-skeleton-row" key={`skeleton-${index}`} aria-hidden="true">
