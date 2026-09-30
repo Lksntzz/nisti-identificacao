@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import '../mural-admin.css';
 import { MuralCard } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
+import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx';
 
 const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',
@@ -33,6 +34,13 @@ function AdminMuralIcon({ name, size = 22 }) {
   if (name === 'trash') return <svg {...common}><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>;
   if (name === 'image') return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg>;
   if (name === 'back') return <svg {...common}><path d="m15 18-6-6 6-6"/></svg>;
+  if (name === 'document') return <svg {...common}><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 12h6M9 16h6"/></svg>;
+  if (name === 'search') return <svg {...common}><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>;
+  if (name === 'sliders') return <svg {...common}><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M8 15v4"/></svg>;
+  if (name === 'more') return <svg {...common}><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>;
+  if (name === 'calendar') return <svg {...common}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>;
+  if (name === 'user') return <svg {...common}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>;
+  if (name === 'chevron') return <svg {...common}><path d="m9 18 6-6-6-6"/></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>;
 }
 
@@ -126,7 +134,29 @@ async function prepareAiImage(file, mode) {
 
 function Status({ value }) {
   const labels = { draft: 'Rascunho', published: 'Publicado', archived: 'Arquivado' };
-  return <span className={`mural-admin-status ${value}`}>{labels[value] || value}</span>;
+  return <span className={`mural-admin-status ${value}`}><i aria-hidden="true" />{labels[value] || value}</span>;
+}
+
+function formatAdminDateParts(value) {
+  if (!value) return { date:'—', time:'' };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { date:'—', time:'' };
+  return {
+    date:date.toLocaleDateString('pt-BR'),
+    time:date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+  };
+}
+
+function adminAuthorLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 'Admin';
+  if (raw.startsWith('system:')) return 'Sistema';
+  if (raw === 'admin') return 'Admin';
+  return raw;
+}
+
+function initials(value) {
+  return String(value || 'AD').split(/\s+/).map(part=>part[0]).filter(Boolean).join('').slice(0,2).toUpperCase() || 'AD';
 }
 
 function MobilePreview({ form, product, collection, imageUrl }) {
@@ -639,8 +669,6 @@ export default function MuralNistiAdminView() {
   const [posts,setPosts]=useState([]);
   const [collections,setCollections]=useState([]);
   const [products,setProducts]=useState([]);
-  const [status,setStatus]=useState('');
-  const [kind,setKind]=useState('');
   const [editor,setEditor]=useState(null);
   const [collectionEditor,setCollectionEditor]=useState(null);
   const [error,setError]=useState('');
@@ -652,7 +680,7 @@ export default function MuralNistiAdminView() {
     setLoading(true);setError('');
     try{
       const [p,c,prod]=await Promise.all([
-        request(`/api/admin/mural/posts?status=${encodeURIComponent(status)}&kind=${encodeURIComponent(kind)}`),
+        request('/api/admin/mural/posts'),
         request('/api/admin/mural/collections'),
         request('/api/admin/mural/products')
       ]);
@@ -662,7 +690,7 @@ export default function MuralNistiAdminView() {
   const refreshReadiness=async()=>{
     try{setReadiness(await request('/api/admin/mural/readiness'))}catch{setReadiness(null)}
   };
-  useEffect(()=>{load()},[status,kind]);
+  useEffect(()=>{load()},[]);
   useEffect(()=>{request('/api/admin/mural/metrics').then(setMetrics).catch(()=>setMetrics(null))},[]);
   useEffect(()=>{refreshReadiness()},[]);
 
@@ -673,7 +701,6 @@ export default function MuralNistiAdminView() {
     if(!window.confirm(`Enviar notificação deste conteúdo para os dispositivos inscritos?\n\n${row.title}`))return;
     try{setError('');const result=await request(`/api/admin/mural/posts/${row.id}/push`,{method:'POST'});window.alert(`Notificação processada: ${result.sent||0} enviada(s), ${result.failed||0} falha(s).`)}catch(err){setError(err.message)}
   };
-  const dates=row=>row.published_at?new Date(row.published_at).toLocaleString('pt-BR'):'—';
 
   if (editor) {
     return <PostEditor
@@ -685,13 +712,36 @@ export default function MuralNistiAdminView() {
     />;
   }
 
-  return <section className="mural-admin-view">
-    <div className="mural-admin-heading"><div><span>MURAL NISTI</span><h2>Conteúdo para operadores</h2><p>Crie, pré-visualize, agende e publique sem alterar código.</p></div><div className="mural-admin-heading-actions"><button type="button" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>{section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}{section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}</div></div>
-    <div className="mural-admin-qa-note" role="note"><strong>QA privado</strong><span>O Mural completo só abre em dispositivos com sessão administrativa válida. Operadores continuam vendo “Em breve”.</span></div>
-    <div className="mural-admin-section-tabs"><button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button><button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button><button className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>Métricas</button><button className={section==='qa'?'active':''} onClick={()=>setSection('qa')}>QA de liberação</button></div>
+  return <section className="mural-admin-view mural-admin-dashboard">
+    <header className="mural-admin-dashboard-header">
+      <div className="mural-admin-dashboard-title">
+        <span className="icon"><AdminMuralIcon name="user" size={22}/></span>
+        <span><h2>Conteúdo para operadores</h2><p>Crie, gerencie e publique produtos, coleções e avisos que serão exibidos no Mural.</p></span>
+      </div>
+      <div className="mural-admin-dashboard-actions">
+        <button type="button" className="qa" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>
+        {section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
+        {section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}
+      </div>
+    </header>
+    <div className="mural-admin-manager-nav">
+      <div>
+        <button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button>
+        <button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button>
+        <button className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>Métricas</button>
+        <button className={section==='qa'?'active':''} onClick={()=>setSection('qa')}>QA de liberação</button>
+      </div>
+      <span className="mural-admin-private-badge">QA privado · público em “Em breve”</span>
+    </div>
     {error&&<div className="mural-admin-error">{error}</div>}
-    {section==='posts'&&<><div className="mural-admin-filters"><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">Todos os status</option><option value="draft">Rascunhos</option><option value="published">Publicados</option><option value="archived">Arquivados</option></select><select value={kind} onChange={e=>setKind(e.target.value)}><option value="">Todos os tipos</option><option value="product">Produto</option><option value="collection">Coleção</option><option value="notice">Aviso</option></select></div>
-    <div className="mural-admin-table-wrap"><table><thead><tr><th>Título</th><th>Tipo</th><th>Selo</th><th>Status</th><th>Publicação</th><th>Expiração</th><th>Autor</th><th>Ações</th></tr></thead><tbody>{posts.map(row=><tr key={row.id}><td><b>{row.title}</b><small>{row.subtitle||''}</small></td><td>{row.kind}</td><td>{row.badge||'—'}</td><td><Status value={row.status}/></td><td>{dates(row)}</td><td>{row.expires_at?new Date(row.expires_at).toLocaleString('pt-BR'):'—'}</td><td>{row.created_by||'—'}</td><td><div className="mural-admin-row-actions"><button onClick={()=>setEditor(row)}>Editar</button><button onClick={()=>setEditor(row)}>Pré-visualizar</button><button onClick={()=>action(row.id,'duplicate')}>Duplicar</button>{row.status!=='published'&&<button onClick={()=>action(row.id,'publish')}>Publicar</button>}{row.status!=='archived'&&<button onClick={()=>action(row.id,'archive')}>Arquivar</button>}{row.status==='published'&&((row.kind==='notice'&&row.notice_level==='important')||row.kind==='product')&&<button onClick={()=>sendPush(row)}>Enviar notificação</button>}</div></td></tr>)}</tbody></table>{!loading&&!posts.length&&<div className="mural-admin-empty">Nenhuma publicação encontrada.</div>}</div></>}
+    {section==='posts'&&<MuralPublicationsDashboard
+      posts={posts}
+      collections={collections}
+      loading={loading}
+      onEdit={setEditor}
+      onAction={action}
+      onPush={sendPush}
+    />}
     {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.year||'sem ano'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
     {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>IMAGEM EDITORIAL MÉDIA</small><strong>{metrics?.editorial_images?.average_bytes ? `${Math.round(metrics.editorial_images.average_bytes/1024)} KB` : '0 KB'}</strong><span>{metrics?.editorial_images?.count ?? 0} imagens</span></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
     {section==='qa'&&<div className="mural-admin-readiness">

@@ -1159,3 +1159,547 @@
     display:none!important;
   }
 }
+
+/* Mural Admin dashboard redesign — approved reference. */
+.mural-admin-dashboard{
+  gap:18px;
+}
+.mural-admin-dashboard-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  padding:6px 0 0;
+}
+.mural-admin-dashboard-title{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  min-width:0;
+}
+.mural-admin-dashboard-title>.icon{
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  background:linear-gradient(145deg,#eef2ff,#eff6ff);
+  color:#315efb;
+  box-shadow:inset 0 0 0 1px #dbeafe;
+}
+.mural-admin-dashboard-title h2{
+  margin:0;
+  color:#0b1329;
+  font-size:29px;
+  line-height:1.02;
+  font-weight:950;
+  letter-spacing:-.035em;
+}
+.mural-admin-dashboard-title p{
+  margin:5px 0 0;
+  color:#68778f;
+  font-size:12px;
+  line-height:1.35;
+}
+.mural-admin-dashboard-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.mural-admin-dashboard-actions button{
+  min-height:42px;
+  padding:0 15px;
+  border:1px solid #dbe3ef;
+  border-radius:11px;
+  background:#fff;
+  color:#334155;
+  font:inherit;
+  font-size:11px;
+  font-weight:850;
+  box-shadow:0 4px 12px rgba(15,23,42,.035);
+}
+.mural-admin-dashboard-actions button.primary{
+  min-width:188px;
+  border-color:#5a43f0;
+  background:linear-gradient(135deg,#5b55f7,#6b36f2);
+  color:#fff;
+  box-shadow:0 10px 24px rgba(91,67,240,.20);
+}
+.mural-admin-dashboard-actions button.qa:hover{border-color:#a5b4fc;color:#4338ca}
+
+.mural-admin-manager-nav{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  min-height:42px;
+}
+.mural-admin-manager-nav>div{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.mural-admin-manager-nav button{
+  min-height:36px;
+  padding:0 11px;
+  border:1px solid transparent;
+  border-radius:9px;
+  background:transparent;
+  color:#64748b;
+  font:inherit;
+  font-size:10px;
+  font-weight:850;
+}
+.mural-admin-manager-nav button.active{
+  border-color:#c7d2fe;
+  background:#eef2ff;
+  color:#4338ca;
+}
+.mural-admin-private-badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:29px;
+  padding:0 10px;
+  border:1px solid #e2e8f0;
+  border-radius:999px;
+  background:#f8fafc;
+  color:#64748b;
+  font-size:9px;
+  font-weight:800;
+}
+
+.mural-admin-summary-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.mural-admin-summary-grid article{
+  min-height:104px;
+  padding:15px 16px;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  border:1px solid #e4eaf2;
+  border-radius:16px;
+  background:#fff;
+  box-shadow:0 8px 22px rgba(15,23,42,.04);
+}
+.mural-admin-summary-grid .metric-icon{
+  width:48px;
+  height:48px;
+  flex:0 0 48px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+}
+.mural-admin-summary-grid .metric-icon.blue{background:#eef5ff;color:#2563eb}
+.mural-admin-summary-grid .metric-icon.indigo{background:#eef2ff;color:#3949c6}
+.mural-admin-summary-grid .metric-icon.cyan{background:#ecfeff;color:#0891b2}
+.mural-admin-summary-grid .metric-icon.pink{background:#fff0f6;color:#e83e8c}
+.mural-admin-summary-grid article>div{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.mural-admin-summary-grid strong{
+  color:#0b1329;
+  font-size:23px;
+  line-height:1;
+  font-weight:950;
+}
+.mural-admin-summary-grid b{
+  color:#43516b;
+  font-size:10.5px;
+}
+.mural-admin-summary-grid small{
+  color:#16a34a;
+  font-size:8.5px;
+  font-weight:750;
+}
+
+.mural-admin-publications-card{
+  position:relative;
+  overflow:visible;
+  border:1px solid #e2e8f0;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 10px 30px rgba(15,23,42,.045);
+}
+.mural-admin-publication-tabs{
+  display:grid;
+  grid-template-columns:auto auto auto auto minmax(230px,1fr) 42px;
+  gap:7px;
+  align-items:center;
+  padding:14px 14px 9px;
+}
+.mural-admin-publication-tabs>button:not(.mural-admin-filter-icon){
+  min-height:38px;
+  padding:0 12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  border:1px solid #dfe6ef;
+  border-radius:10px;
+  background:#fff;
+  color:#536176;
+  font:inherit;
+  font-size:10px;
+  font-weight:850;
+}
+.mural-admin-publication-tabs>button:not(.mural-admin-filter-icon) b{
+  color:#94a3b8;
+  font-size:8.5px;
+}
+.mural-admin-publication-tabs>button.active{
+  border-color:#4f46e5!important;
+  background:#f5f7ff!important;
+  color:#4338ca!important;
+  box-shadow:0 0 0 2px rgba(79,70,229,.07);
+}
+.mural-admin-searchbox{
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:0 11px;
+  border:1px solid #dfe6ef;
+  border-radius:10px;
+  background:#fff;
+  color:#94a3b8;
+}
+.mural-admin-searchbox input{
+  width:100%;
+  min-width:0;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:#334155;
+  font:inherit;
+  font-size:10px;
+}
+.mural-admin-filter-icon{
+  width:42px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border:1px solid #dfe6ef;
+  border-radius:10px;
+  background:#fff;
+  color:#64748b;
+}
+.mural-admin-filterbar{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+  padding:0 14px 12px;
+}
+.mural-admin-filterbar select{
+  min-width:0;
+  min-height:38px;
+  padding:0 10px;
+  border:1px solid #dfe6ef;
+  border-radius:9px;
+  background:#fff;
+  color:#536176;
+  font:inherit;
+  font-size:9.5px;
+  font-weight:700;
+}
+
+.mural-admin-modern-table-wrap{
+  overflow-x:auto;
+  overflow-y:visible;
+  border-top:1px solid #e8edf3;
+}
+.mural-admin-modern-table{
+  width:100%;
+  min-width:1050px;
+  border-collapse:collapse;
+}
+.mural-admin-modern-table th{
+  height:38px;
+  padding:0 13px;
+  border-bottom:1px solid #e8edf3;
+  background:#f8fafc;
+  color:#64748b;
+  text-align:left;
+  font-size:8.5px;
+  font-weight:850;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+.mural-admin-modern-table th:first-child{width:35%}
+.mural-admin-modern-table th:last-child{width:62px;text-align:center}
+.mural-admin-modern-table td{
+  position:relative;
+  height:74px;
+  padding:8px 13px;
+  border-bottom:1px solid #edf2f7;
+  color:#334155;
+  vertical-align:middle;
+  font-size:10px;
+}
+.mural-admin-modern-table tbody tr:last-child td{border-bottom:0}
+.mural-admin-modern-table tbody tr:hover{background:#fbfdff}
+.mural-admin-publication-cell{
+  min-width:0;
+  display:grid;
+  grid-template-columns:54px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+}
+.mural-admin-publication-cell .thumb{
+  width:54px;
+  height:54px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border:1px solid #e3e8f0;
+  border-radius:10px;
+  background:#f8fafc;
+  color:#64748b;
+}
+.mural-admin-publication-cell .thumb.notice{
+  background:linear-gradient(145deg,#fff8dc,#ffefb8);
+  color:#1e3a8a;
+}
+.mural-admin-publication-cell .thumb img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+.mural-admin-publication-cell .copy{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.mural-admin-publication-cell .copy b{
+  overflow:hidden;
+  color:#172033;
+  font-size:10.5px;
+  font-weight:900;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mural-admin-publication-cell .copy small,
+.mural-admin-publication-cell .copy em{
+  overflow:hidden;
+  color:#64748b;
+  font-size:8.6px;
+  font-style:normal;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mural-admin-publication-cell .copy em{
+  color:#8290a3;
+  font-size:8px;
+}
+.mural-admin-kind{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  color:#475569;
+  font-size:9px;
+  font-weight:750;
+  white-space:nowrap;
+}
+.mural-admin-kind svg{
+  width:27px;
+  height:27px;
+  padding:6px;
+  border-radius:50%;
+  background:#eef2ff;
+  color:#315efb;
+}
+.mural-admin-kind.notice svg{
+  background:#fff1f7;
+  color:#e83e8c;
+}
+.mural-admin-badges{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  align-items:center;
+}
+.mural-admin-badges span{
+  min-height:22px;
+  padding:0 7px;
+  display:inline-flex;
+  align-items:center;
+  border-radius:999px;
+  font-size:7.5px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.mural-admin-badges .featured{background:#ff4fa1;color:#fff}
+.mural-admin-badges .badge{background:#d9fbe8;color:#047857}
+.mural-admin-badges .important{background:#fff2cc;color:#b45309}
+.mural-admin-badges .muted{background:#f1f5f9;color:#94a3b8}
+.mural-admin-status{
+  align-items:center;
+  gap:5px;
+  min-height:23px;
+  padding:0 8px;
+}
+.mural-admin-status i{
+  width:6px;
+  height:6px;
+  flex:0 0 6px;
+  border-radius:50%;
+  background:currentColor;
+}
+.mural-admin-period{
+  display:grid;
+  gap:1px;
+  color:#536176;
+  font-size:8.5px;
+}
+.mural-admin-period b{font-size:9px}
+.mural-admin-period small,
+.mural-admin-period em{
+  color:#8290a3;
+  font-size:7.8px;
+  font-style:normal;
+}
+.mural-admin-author{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+.mural-admin-author>i{
+  width:30px;
+  height:30px;
+  flex:0 0 30px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:linear-gradient(145deg,#2366ef,#0ea5e9);
+  color:#fff;
+  font-size:8px;
+  font-style:normal;
+  font-weight:900;
+}
+.mural-admin-author>span{
+  min-width:0;
+  display:grid;
+  gap:1px;
+}
+.mural-admin-author b{color:#334155;font-size:8.8px;white-space:nowrap}
+.mural-admin-author small{color:#94a3b8;font-size:7.7px;white-space:nowrap}
+.mural-admin-actions-cell{
+  position:relative!important;
+  text-align:center;
+}
+.mural-admin-kebab{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  margin:auto;
+  border:1px solid #dce4ee;
+  border-radius:9px;
+  background:#fff;
+  color:#536176;
+}
+.mural-admin-kebab:hover{border-color:#a5b4fc;color:#4338ca}
+.mural-admin-action-menu{
+  position:absolute;
+  z-index:40;
+  top:48px;
+  right:10px;
+  width:176px;
+  padding:5px;
+  display:grid;
+  gap:2px;
+  border:1px solid #e2e8f0;
+  border-radius:11px;
+  background:#fff;
+  box-shadow:0 16px 36px rgba(15,23,42,.16);
+  text-align:left;
+}
+.mural-admin-action-menu button{
+  min-height:32px;
+  padding:0 9px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:#334155;
+  font:inherit;
+  font-size:9px;
+  font-weight:750;
+  text-align:left;
+}
+.mural-admin-action-menu button:hover{background:#f1f5f9;color:#172033}
+.mural-admin-table-footer{
+  min-height:56px;
+  padding:10px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-top:1px solid #e8edf3;
+  color:#64748b;
+  font-size:8.5px;
+}
+.mural-admin-pagination{
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.mural-admin-pagination button{
+  min-width:31px;
+  height:31px;
+  padding:0 7px;
+  border:1px solid #dce4ee;
+  border-radius:8px;
+  background:#fff;
+  color:#536176;
+  font:inherit;
+  font-size:9px;
+  font-weight:800;
+}
+.mural-admin-pagination button.active{
+  border-color:#c7d2fe;
+  background:#eef2ff;
+  color:#4338ca;
+}
+.mural-admin-pagination button:disabled{opacity:.4}
+.mural-admin-pagination select{
+  height:31px;
+  margin-left:5px;
+  padding:0 8px;
+  border:1px solid #dce4ee;
+  border-radius:8px;
+  background:#fff;
+  color:#536176;
+  font:inherit;
+  font-size:8.5px;
+  font-weight:700;
+}
+
+@media(max-width:1180px){
+  .mural-admin-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mural-admin-publication-tabs{grid-template-columns:repeat(4,auto) minmax(180px,1fr) 42px}
+}
+@media(max-width:900px){
+  .mural-admin-dashboard-header{align-items:flex-start;flex-direction:column}
+  .mural-admin-dashboard-actions{width:100%}
+  .mural-admin-manager-nav{align-items:flex-start;flex-direction:column}
+  .mural-admin-publication-tabs{display:flex;flex-wrap:wrap}
+  .mural-admin-searchbox{order:10;flex:1 1 calc(100% - 50px)}
+  .mural-admin-filter-icon{order:11}
+}
+@media(max-width:640px){
+  .mural-admin-dashboard-title h2{font-size:24px}
+  .mural-admin-dashboard-actions{display:grid;grid-template-columns:1fr 1fr}
+  .mural-admin-dashboard-actions button.primary{min-width:0}
+  .mural-admin-manager-nav>div{max-width:100%;overflow:auto}
+  .mural-admin-private-badge{align-self:flex-start}
+  .mural-admin-summary-grid{grid-template-columns:1fr}
+  .mural-admin-summary-grid article{min-height:88px}
+  .mural-admin-filterbar{grid-template-columns:1fr}
+  .mural-admin-table-footer{align-items:flex-start;flex-direction:column}
+  .mural-admin-pagination{width:100%;overflow:auto}
+}

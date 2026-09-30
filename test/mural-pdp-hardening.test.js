@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
 const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
 
 test('public editorial images follow post and collection visibility',()=>{
   assert.match(router,/status='published'.*published_at IS NOT NULL.*datetime\(published_at\)<=CURRENT_TIMESTAMP.*expires_at/s);
@@ -38,7 +39,7 @@ test('admin product preview uses current image and resolved finishes',()=>{
   assert.match(publicUi,/Wire-o/);
   assert.match(publicUi,/Tassel/);
   assert.match(publicUi,/Elástico/);
-  assert.match(admin,/Pré-visualizar/);
+  assert.match(dashboard,/Pré-visualizar/);
 });
 
 test('feed rejects malformed cursor instead of silently restarting pagination',()=>{

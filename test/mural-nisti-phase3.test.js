@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
 const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
 const nav=fs.readFileSync(new URL('../src/admin-navigation.js',import.meta.url),'utf8');
 const edge=fs.readFileSync(new URL('../src/edge-router.js',import.meta.url),'utf8');
 
@@ -31,8 +32,8 @@ test('editor supports product collection notice preview scheduling and archive',
   assert.ok(admin.includes('function MobilePreview'));
   assert.ok(admin.includes('mural-publisher-preview-pane'));
   assert.ok(admin.includes('datetime-local'));
-  assert.ok(admin.includes("action(row.id,'archive')"));
-  assert.ok(admin.includes("action(row.id,'duplicate')"));
+  assert.ok(dashboard.includes("onAction(row.id,'archive')"));
+  assert.ok(dashboard.includes("onAction(row.id,'duplicate')"));
 });
 
 test('image upload is constrained and server generates the R2 key',()=>{
