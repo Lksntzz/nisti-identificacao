@@ -1455,70 +1455,72 @@ function AdminApp() {
         />
 
         <main className="admin-page-content">
-          {activeView !== 'mural-nisti' && (
-            <>
-              <WelcomeDateBanner />
-              {/* Dashboard de Produtividade da Expedição & KPIs */}
-              <ExpeditionDashboard
-                gtinDashboard={gtinDashboard}
-                productsCount={products.length}
-                onNavigate={handleNavChange}
-                onShowProductsWithoutGtin={showProductsWithoutGtin}
-                api={api}
+          <div key={activeView} className="admin-view-transition">
+            {activeView !== 'mural-nisti' && (
+              <>
+                <WelcomeDateBanner />
+                {/* Dashboard de Produtividade da Expedição & KPIs */}
+                <ExpeditionDashboard
+                  gtinDashboard={gtinDashboard}
+                  productsCount={products.length}
+                  onNavigate={handleNavChange}
+                  onShowProductsWithoutGtin={showProductsWithoutGtin}
+                  api={api}
+                />
+              </>
+            )}
+
+            {activeView === 'mural-nisti' && <MuralNistiAdminView />}
+
+            {activeView === 'catalogo' && (
+              <CatalogView
+                products={products}
+                onRefresh={refreshAll}
+                onOpenCreate={() => setCreateModalOpen(true)}
+                onOpenImport={() => setImportModalOpen(true)}
+                onViewProduct={p => setViewProduct(p)}
+                onEditProduct={p => setEditProduct(p)}
+                onDeleteProduct={handleDeleteProduct}
               />
-            </>
-          )}
+            )}
 
-          {activeView === 'mural-nisti' && <MuralNistiAdminView />}
+            {activeView === 'gerador-barras' && <BarcodeGeneratorView api={api} />}
 
-          {activeView === 'catalogo' && (
-            <CatalogView
-              products={products}
-              onRefresh={refreshAll}
-              onOpenCreate={() => setCreateModalOpen(true)}
-              onOpenImport={() => setImportModalOpen(true)}
-              onViewProduct={p => setViewProduct(p)}
-              onEditProduct={p => setEditProduct(p)}
-              onDeleteProduct={handleDeleteProduct}
-            />
-          )}
+            {activeView === 'historico-ean' && (
+              <GtinEventsView
+                api={api}
+                products={products}
+                onLinkSuccess={refreshAll}
+              />
+            )}
 
-          {activeView === 'gerador-barras' && <BarcodeGeneratorView api={api} />}
+            {activeView === 'ean-nao-cadastrados' && (
+              <GtinEventsView
+                initialStatus="not_found"
+                api={api}
+                products={products}
+                onLinkSuccess={refreshAll}
+              />
+            )}
 
-          {activeView === 'historico-ean' && (
-            <GtinEventsView
-              api={api}
-              products={products}
-              onLinkSuccess={refreshAll}
-            />
-          )}
+            {activeView === 'produtos-sem-ean' && (
+              <ProductsWithoutGtinView
+                products={productsWithoutGtin}
+                onSelect={product => setViewProduct(product)}
+                onBack={() => setActiveView('catalogo')}
+              />
+            )}
 
-          {activeView === 'ean-nao-cadastrados' && (
-            <GtinEventsView
-              initialStatus="not_found"
-              api={api}
-              products={products}
-              onLinkSuccess={refreshAll}
-            />
-          )}
-
-          {activeView === 'produtos-sem-ean' && (
-            <ProductsWithoutGtinView
-              products={productsWithoutGtin}
-              onSelect={product => setViewProduct(product)}
-              onBack={() => setActiveView('catalogo')}
-            />
-          )}
-
-          {activeView === 'logs' && (
-            <SystemHealthView
-              metrics={metrics}
-              storage={storage}
-              health={health}
-              healthError={healthError}
-              onRefresh={() => refreshMetrics(true)}
-            />
-          )}
+            {activeView === 'logs' && (
+              <SystemHealthView
+                metrics={metrics}
+                storage={storage}
+                health={health}
+                healthError={healthError}
+                onRefresh={() => refreshMetrics(true)}
+              />
+            )}
+          </div>
         </main>
 
         <footer className="admin-global-footer">
