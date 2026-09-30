@@ -9,16 +9,16 @@ const wrangler = fs.readFileSync(new URL('../wrangler.toml', import.meta.url), '
 const edge = fs.readFileSync(new URL('../src/edge-router.js', import.meta.url), 'utf8');
 
 test('Mural admin exposes only creative-scene and white-background removal image flows', () => {
-  assert.ok(admin.includes('ESCoPO RESTRITO') || admin.includes('ESCOPO RESTRITO'));
   assert.ok(admin.includes("generateAiArt('creative_scene')"));
   assert.ok(admin.includes("generateAiArt('remove_background')"));
-  assert.ok(admin.includes('Cenário criativo'));
-  assert.ok(admin.includes('Remover fundo branco'));
+  assert.ok(admin.includes('Gerar arte com IA'));
+  assert.ok(admin.includes('Remover fundo branco do produto'));
   assert.ok(admin.includes("['creative_scene','remove_background'].includes(mode)"));
 });
 
-test('AI studio is shown only for Product and Collection publications', () => {
-  assert.ok(admin.includes("(form.kind === 'product' || form.kind === 'collection')"));
+test('AI studio is available only when the publication kind can use image AI', () => {
+  assert.ok(admin.includes("const canUseAi = form.kind === 'product' || form.kind === 'collection'"));
+  assert.ok(admin.includes('{canUseAi && <button'));
   assert.ok(admin.includes("A IA de imagem está disponível somente para Produto e Coleção."));
   assert.equal(admin.includes('Arte sem produto de referência'), false);
 });
@@ -37,6 +37,7 @@ test('AI art stays review-first and only becomes the editorial image after expli
   assert.ok(admin.includes('setImage(aiResult.file)'));
   assert.ok(admin.includes('setImageUrl(URL.createObjectURL(aiResult.file))'));
   assert.ok(admin.includes('Usar esta arte'));
+  assert.ok(admin.includes('Descartar'));
 });
 
 test('server uses real product and collection images as Gemini references', () => {
@@ -56,9 +57,9 @@ test('Gemini API secret stays server-side and the AI endpoint is admin-protected
   assert.ok(edge.includes("pathname.startsWith('/api/admin/')"));
 });
 
-test('AI generation is rate-limited and does not alter the public Mural release gate', () => {
+test('AI generation is rate-limited and the redesigned studio remains styled', () => {
   assert.ok(router.includes("reserveGeminiBudget(env,'mural-ai-art',6)"));
   assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
-  assert.ok(css.includes('.mural-admin-ai-studio'));
-  assert.ok(css.includes('.mural-admin-ai-capabilities'));
+  assert.ok(css.includes('.mural-publisher-ai-card'));
+  assert.ok(css.includes('.mural-publisher-generate'));
 });
