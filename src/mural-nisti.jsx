@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './mural-nisti.css';
-import LOGO from './assets/logo.png';
 import MuralProductExperience from './mural-product-experience.jsx';
 import { useTransparentProductImage } from './mural-transparent-image.js';
 
@@ -850,9 +849,9 @@ export default function MuralNisti({ onUnreadChange }) {
               <p>Novidades, coleções e avisos para operadores</p>
             </span>
             <span className="mural-title-accent" aria-hidden="true">
-              <span className="mural-logo-drop drop-cyan"><img src={LOGO} alt="" /></span>
-              <span className="mural-logo-drop drop-pink"><img src={LOGO} alt="" /></span>
-              <span className="mural-logo-drop drop-yellow"><img src={LOGO} alt="" /></span>
+              <svg className="mural-reference-drop drop-cyan" viewBox="0 0 32 70" focusable="false"><path d="M16 1C25.4 1 30 9 27.5 20.5C24.8 33.7 18.4 50.1 14.9 67.8C14.5 69.7 12.1 69.7 11.7 67.8C8.3 50.3 1.9 34.1 2.2 20.8C2.5 9.1 7.1 1 16 1Z" /></svg>
+              <svg className="mural-reference-drop drop-pink" viewBox="0 0 32 70" focusable="false"><path d="M16 1C25.4 1 30 9 27.5 20.5C24.8 33.7 18.4 50.1 14.9 67.8C14.5 69.7 12.1 69.7 11.7 67.8C8.3 50.3 1.9 34.1 2.2 20.8C2.5 9.1 7.1 1 16 1Z" /></svg>
+              <svg className="mural-reference-drop drop-yellow" viewBox="0 0 32 70" focusable="false"><path d="M16 1C25.4 1 30 9 27.5 20.5C24.8 33.7 18.4 50.1 14.9 67.8C14.5 69.7 12.1 69.7 11.7 67.8C8.3 50.3 1.9 34.1 2.2 20.8C2.5 9.1 7.1 1 16 1Z" /></svg>
             </span>
           </header>
 
