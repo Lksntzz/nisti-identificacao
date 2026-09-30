@@ -26,6 +26,7 @@ function toLocalInput(value) {
 }
 
 function formatBytes(value) {
+  if (value === null || value === undefined || value === '') return '—';
   const bytes = Number(value);
   if (!Number.isFinite(bytes) || bytes < 0) return '—';
   if (bytes < 1024) return `${bytes} B`;
@@ -338,12 +339,15 @@ export default function MuralNistiAdminView() {
       setPosts(p.items||[]);setCollections(c.items||[]);setProducts(prod.items||[]);
     }catch(err){setError(err.message)}finally{setLoading(false)}
   };
+  const refreshReadiness=async()=>{
+    try{setReadiness(await request('/api/admin/mural/readiness'))}catch{setReadiness(null)}
+  };
   useEffect(()=>{load()},[status,kind]);
   useEffect(()=>{request('/api/admin/mural/metrics').then(setMetrics).catch(()=>setMetrics(null))},[]);
-  useEffect(()=>{request('/api/admin/mural/readiness').then(setReadiness).catch(()=>setReadiness(null))},[]);
+  useEffect(()=>{refreshReadiness()},[]);
 
   const action=async(id,name)=>{
-    try{setError('');await request(`/api/admin/mural/posts/${id}/${name}`,{method:'POST'});await load()}catch(err){setError(err.message)}
+    try{setError('');await request(`/api/admin/mural/posts/${id}/${name}`,{method:'POST'});await load();await refreshReadiness()}catch(err){setError(err.message)}
   };
   const sendPush=async row=>{
     if(!window.confirm(`Enviar notificação deste conteúdo para os dispositivos inscritos?\n\n${row.title}`))return;
@@ -352,7 +356,7 @@ export default function MuralNistiAdminView() {
   const dates=row=>row.published_at?new Date(row.published_at).toLocaleString('pt-BR'):'—';
 
   return <section className="mural-admin-view">
-    <div className="mural-admin-heading"><div><span>MURAL NISTI</span><h2>Conteúdo para operadores</h2><p>Crie, pré-visualize, agende e publique sem alterar código.</p></div><div className="mural-admin-heading-actions"><button type="button" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button><button className="primary" onClick={()=>section==='posts'?setEditor({mode:'new'}):setCollectionEditor({mode:'new'})}>+ {section==='posts'?'Nova publicação':'Nova coleção'}</button></div></div>
+    <div className="mural-admin-heading"><div><span>MURAL NISTI</span><h2>Conteúdo para operadores</h2><p>Crie, pré-visualize, agende e publique sem alterar código.</p></div><div className="mural-admin-heading-actions"><button type="button" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>{section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}{section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}</div></div>
     <div className="mural-admin-qa-note" role="note"><strong>QA privado</strong><span>O Mural completo só abre em dispositivos com sessão administrativa válida. Operadores continuam vendo “Em breve”.</span></div>
     <div className="mural-admin-section-tabs"><button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button><button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button><button className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>Métricas</button><button className={section==='qa'?'active':''} onClick={()=>setSection('qa')}>QA de liberação</button></div>
     {error&&<div className="mural-admin-error">{error}</div>}
@@ -363,7 +367,7 @@ export default function MuralNistiAdminView() {
     {section==='qa'&&<div className="mural-admin-readiness">
       <div className="mural-admin-readiness-summary">
         <div><small>READINESS AUTOMÁTICO</small><strong>{readiness?.automated_ready?'Pronto para smoke':'Pendências detectadas'}</strong><p>Valida o ambiente atual sem remover o gate público do Mural.</p></div>
-        <ReadinessBadge ok={Boolean(readiness?.automated_ready)} unknown={!readiness}/>
+        <div className="mural-admin-readiness-summary-actions"><ReadinessBadge ok={Boolean(readiness?.automated_ready)} unknown={!readiness}/><button type="button" onClick={refreshReadiness}>Atualizar diagnóstico</button></div>
       </div>
       <div className="mural-admin-readiness-grid">
         <article><div><small>MIGRATION D1</small><strong>{readiness?.migration?.ok?'Estrutura presente':'Estrutura incompleta'}</strong></div><ReadinessBadge ok={Boolean(readiness?.migration?.ok)} unknown={!readiness}/>{readiness?.migration?.missing_tables?.length>0&&<p>Faltando: {readiness.migration.missing_tables.join(', ')}</p>}</article>
@@ -377,7 +381,7 @@ export default function MuralNistiAdminView() {
       <div className="mural-admin-readiness-manual"><strong>Ainda exige validação real</strong><p>Scanner → Mural → Scanner com reinício da câmera, breakpoints 360/390/430 px, safe-area no iPhone e abertura abaixo de 1 s continuam sendo smoke tests em aparelho real.</p></div>
     </div>}
 
-    {editor&&<PostEditor item={editor} collections={collections} onClose={()=>setEditor(null)} onSaved={load}/>}
-    {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={load}/>}
+    {editor&&<PostEditor item={editor} collections={collections} onClose={()=>setEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
+    {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
   </section>;
 }
