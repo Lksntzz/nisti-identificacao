@@ -5360,3 +5360,161 @@ button.kpi-box:active {
     transform: none !important;
   }
 }
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 3
+   Operational feedback: async actions, sync, modal and result states
+   ========================================================================= */
+@keyframes nisti-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes nisti-feedback-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nisti-modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes nisti-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nisti-status-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 0.75; }
+  50% { box-shadow: 0 0 0 4px transparent; opacity: 1; }
+}
+
+.admin-modal-backdrop,
+.scan-details-backdrop {
+  animation: nisti-modal-backdrop-in var(--nisti-motion-ui) ease both;
+}
+
+.admin-modal,
+.scan-details-modal {
+  animation: nisti-modal-in var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+  transform-origin: center;
+}
+
+.nisti-feedback-enter,
+.view-sync-feedback,
+.form-success-banner,
+.form-error-banner {
+  animation: nisti-feedback-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+}
+
+.nisti-action-busy {
+  cursor: progress !important;
+}
+
+.nisti-action-busy > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nisti-action-busy > span::before,
+.btn-toolbar-filter.nisti-action-busy::before {
+  content: "";
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: nisti-spin 0.75s linear infinite;
+  opacity: 0.9;
+}
+
+.btn-sync-repair.nisti-action-busy svg {
+  animation: nisti-spin 0.85s linear infinite;
+}
+
+.btn-sync-repair.nisti-action-busy > span::before {
+  display: none;
+}
+
+.btn-toolbar-filter.nisti-action-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nisti-import-busy {
+  position: relative;
+  cursor: progress;
+}
+
+.nisti-import-busy > svg {
+  animation: nisti-soft-pop 0.8s var(--nisti-motion-ease) infinite alternate;
+}
+
+.commerce-sync-badge {
+  transition:
+    background-color var(--nisti-motion-ui) ease,
+    border-color var(--nisti-motion-ui) ease,
+    color var(--nisti-motion-ui) ease,
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease);
+}
+
+.commerce-sync-badge.synced {
+  animation: nisti-feedback-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+}
+
+.commerce-sync-badge.pending .commerce-sync-dot,
+.commerce-sync-badge.unknown .commerce-sync-dot {
+  animation: nisti-status-pulse 1.4s ease-in-out infinite;
+}
+
+.view-sync-repair {
+  transition:
+    border-color var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.view-sync-repair.synced {
+  box-shadow: inset 3px 0 0 rgba(34, 197, 94, 0.7);
+}
+
+.view-sync-repair.error,
+.view-sync-repair.conflict {
+  box-shadow: inset 3px 0 0 rgba(239, 68, 68, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-modal-backdrop,
+  .scan-details-backdrop,
+  .admin-modal,
+  .scan-details-modal,
+  .nisti-feedback-enter,
+  .view-sync-feedback,
+  .form-success-banner,
+  .form-error-banner,
+  .commerce-sync-badge.synced,
+  .commerce-sync-badge.pending .commerce-sync-dot,
+  .commerce-sync-badge.unknown .commerce-sync-dot,
+  .nisti-action-busy > span::before,
+  .btn-toolbar-filter.nisti-action-busy::before,
+  .btn-sync-repair.nisti-action-busy svg,
+  .nisti-import-busy > svg {
+    animation: none !important;
+  }
+}
