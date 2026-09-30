@@ -211,24 +211,26 @@ export default function CommerceAdminAppV2() {
         </header>
 
         <main className="admin-page-content commerce-admin-page-content">
-          <div className="welcome-banner commerce-welcome-banner">
-            <div className="welcome-copy">
-              <h2>{VIEW_TITLES[activeItem.id] || activeItem.label}</h2>
-              <p>{VIEW_DESCRIPTIONS[activeItem.id]}</p>
-            </div>
-            <div className="commerce-live-status">
-              <span className="commerce-live-dot" />
-              <div>
-                <strong>Dados conectados</strong>
-                <small>Supabase PostgreSQL</small>
+          <div key={activeView} className="commerce-admin-view-transition">
+            <div className="welcome-banner commerce-welcome-banner">
+              <div className="welcome-copy">
+                <h2>{VIEW_TITLES[activeItem.id] || activeItem.label}</h2>
+                <p>{VIEW_DESCRIPTIONS[activeItem.id]}</p>
+              </div>
+              <div className="commerce-live-status">
+                <span className="commerce-live-dot" />
+                <div>
+                  <strong>Dados conectados</strong>
+                  <small>Supabase PostgreSQL</small>
+                </div>
               </div>
             </div>
-          </div>
 
-          {activeView === 'catalog' && <CommerceManagementView mode="catalog" />}
-          {activeView === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
-          {activeView === 'import-center' && <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />}
-          {activeView === 'pending' && <CommerceManagementView mode="pending" />}
+            {activeView === 'catalog' && <CommerceManagementView mode="catalog" />}
+            {activeView === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
+            {activeView === 'import-center' && <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />}
+            {activeView === 'pending' && <CommerceManagementView mode="pending" />}
+          </div>
         </main>
 
         <footer className="commerce-footer">
