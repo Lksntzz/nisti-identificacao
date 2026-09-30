@@ -534,7 +534,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                   onClick={prepareGeminiPro}
                 >
                   <AdminMuralIcon name="sparkles" size={18}/>
-                  <span>{geminiProBusy ? 'Preparando prompt e referências…' : 'Preparar para o Gemini Pro'}</span>
+                  <span>{geminiProBusy ? 'Preparando 3 prompts e referências…' : 'Preparar 3 versões de prompt'}</span>
                 </button>
                 <small className="mural-admin-ai-note">O NISTI apenas prepara o prompt e as referências. A geração acontece na sua conta Gemini Pro, sem usar a API de imagem do sistema.</small>
 
