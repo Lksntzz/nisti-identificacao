@@ -13,6 +13,11 @@
   --mural-important: #f43f5e;
   --mural-info: #3b82f6;
   --mural-radius: 18px;
+  --mural-motion-fast: 160ms;
+  --mural-motion-ui: 220ms;
+  --mural-motion-enter: 520ms;
+  --mural-ease-standard: cubic-bezier(.2,.8,.2,1);
+  --mural-ease-out: cubic-bezier(.16,1,.3,1);
 }
 
 .mural-viewport {
@@ -32,6 +37,20 @@
 }
 .mural-column { width: min(100%, 720px); margin: 0 auto; }
 .mural-title-block { padding: 6px 2px 14px; }
+.mural-shell.motion-ready .mural-intro {
+  opacity: 0;
+  translate: 0 10px;
+}
+.mural-shell.motion-ready.motion-entered .mural-intro {
+  opacity: 1;
+  translate: 0 0;
+}
+.mural-shell.motion-ready .mural-intro-title {
+  transition: opacity 380ms ease, translate var(--mural-motion-enter) var(--mural-ease-out);
+}
+.mural-shell.motion-ready .mural-intro-tabs {
+  transition: opacity 360ms ease 90ms, translate var(--mural-motion-enter) var(--mural-ease-out) 90ms;
+}
 .mural-title-block h1 { margin: 0; color: var(--mural-ink); font-size: clamp(32px, 8.7vw, 36px); line-height: 1.05; font-weight: 900; letter-spacing: -.04em; }
 .mural-title-block p { margin: 7px 0 0; color: var(--mural-muted); font-size: 14px; line-height: 1.35; font-weight: 600; }
 
@@ -39,7 +58,7 @@
 .mural-tabs button {
   min-width: 0; min-height: 44px; padding: 0 7px; border: 1px solid var(--mural-border); border-radius: 999px;
   background: #fff; color: #526078; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
-  transition: background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  transition: background var(--mural-motion-ui) ease, color var(--mural-motion-ui) ease, border-color var(--mural-motion-ui) ease, box-shadow var(--mural-motion-ui) ease, transform var(--mural-motion-fast) ease;
 }
 .mural-tabs button.active { color: #fff; border-color: var(--mural-blue); background: var(--mural-blue); box-shadow: 0 8px 20px rgba(47,107,255,.22); }
 .mural-tabs button:active { transform: scale(.98); }
@@ -48,14 +67,26 @@
   position: relative; display: block; width: 100%; height: clamp(220px, 61vw, 250px); overflow: hidden; padding: 0;
   border: 0; border-radius: 20px; background: #dfe8f7; text-align: left; cursor: pointer; box-shadow: 0 8px 24px rgba(15,23,42,.08);
 }
+.mural-hero-enter {
+  animation: mural-hero-enter var(--mural-motion-enter) var(--mural-ease-out) both;
+}
+@keyframes mural-hero-enter {
+  from { opacity: 0; translate: 0 14px; scale: .992; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
 .mural-hero-image { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mural-hero .mural-image-placeholder { width: 100%; height: 100%; }
 .mural-hero-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,19,41,.03) 22%, rgba(11,19,41,.86) 100%); }
-.mural-hero-copy { position: absolute; inset: auto 18px 18px; display: grid; gap: 6px; color: #fff; }
+.mural-hero-copy { position: absolute; inset: auto 18px 18px; display: grid; gap: 6px; color: #fff; animation: mural-hero-copy-enter 460ms var(--mural-ease-out) 120ms both; }
+@keyframes mural-hero-copy-enter {
+  from { opacity: 0; translate: 0 10px; }
+  to { opacity: 1; translate: 0 0; }
+}
 .mural-hero-copy strong { font-size: 24px; line-height: 1.05; font-weight: 900; letter-spacing: -.025em; }
 .mural-hero-copy > span:not(.mural-hero-badges):not(.mural-hero-cta) { font-size: 13px; font-weight: 650; }
 .mural-hero-badges, .mural-card-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .mural-hero-cta { margin-top: 3px; font-size: 12px; font-weight: 850; }
+.mural-hero-cta > span { display: inline-block; transition: transform var(--mural-motion-ui) var(--mural-ease-out); }
 .mural-new-badge, .mural-editorial-badge, .mural-notice-label {
   display: inline-flex; align-items: center; min-height: 22px; padding: 3px 8px; border-radius: 999px; font-size: 10px; line-height: 1; font-weight: 900; letter-spacing: .04em; text-transform: uppercase;
 }
@@ -470,6 +501,7 @@
   transform:translateX(3px) scale(.96);
 }
 @media (hover:hover) and (pointer:fine){
+  .mural-hero:hover .mural-hero-cta > span{transform:translateX(4px)}
   .mural-card:hover{
     transform:translateY(-3px);
     box-shadow:0 14px 34px rgba(15,23,42,.11);
@@ -863,14 +895,17 @@
   height:28px;
   border-radius:999px;
   transform-origin:50% 100%;
-  animation:mural-accent-float 2.8s ease-in-out infinite;
+  opacity:0;
+  translate:0 8px;
+  scale:.82;
+  animation:mural-accent-enter 520ms var(--mural-ease-out) both;
 }
-.mural-hero-accent i:nth-child(1){background:var(--mural-cyan);transform:rotate(-22deg)}
-.mural-hero-accent i:nth-child(2){background:var(--mural-pink);animation-delay:.16s}
-.mural-hero-accent i:nth-child(3){background:var(--mural-yellow);transform:rotate(22deg);animation-delay:.32s}
-@keyframes mural-accent-float{
-  0%,100%{translate:0 0}
-  50%{translate:0 -4px}
+.mural-hero-accent i:nth-child(1){background:var(--mural-cyan);transform:rotate(-22deg);animation-delay:180ms}
+.mural-hero-accent i:nth-child(2){background:var(--mural-pink);animation-delay:240ms}
+.mural-hero-accent i:nth-child(3){background:var(--mural-yellow);transform:rotate(22deg);animation-delay:300ms}
+@keyframes mural-accent-enter{
+  from{opacity:0;translate:0 8px;scale:.82}
+  to{opacity:1;translate:0 0;scale:1}
 }
 
 /* Collection cards become editorial banners rather than generic rows. */
@@ -1084,6 +1119,20 @@
     filter:none;
     transition:none;
   }
-  .mural-hero-accent i{animation:none}
+  .mural-shell.motion-ready .mural-intro,
+  .mural-shell.motion-ready.motion-entered .mural-intro{
+    opacity:1;
+    translate:0 0;
+    transition:none;
+  }
+  .mural-hero-enter,
+  .mural-hero-copy,
+  .mural-hero-accent i{
+    animation:none;
+    opacity:1;
+    translate:0 0;
+    scale:1;
+  }
+  .mural-hero-cta > span{transition:none}
   .mural-collection-detail>.mural-detail-image{transform:none}
 }
