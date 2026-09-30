@@ -5,7 +5,6 @@ import { reserveGeminiBudget } from './gemini-budget.js';
 
 const MURAL_PUBLIC_RELEASED = false;
 const MURAL_AI_IMAGE_MODES = Object.freeze(new Set(['product_scene', 'collection_scene']));
-const MURAL_AI_IMAGE_KINDS = Object.freeze(new Set(['product', 'collection']));
 
 const TAB_KIND = Object.freeze({
   all: null,

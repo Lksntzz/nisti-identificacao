@@ -15,9 +15,6 @@ import {
   downloadBarcodePng,
   downloadBarcodeZip
 } from './ean-barcode.js';
-import { buildEanCollections, collectionZipFilename } from './ean-collections.js';
-
-const PAGE_SIZE = 10;
 
 const WIREO_OPTIONS = [
   ['P', 'Preto'],
@@ -69,27 +66,6 @@ function formatCurrentDateTime() {
 
   const capitalizedDay = dayWeek.charAt(0).toUpperCase() + dayWeek.slice(1);
   return { date: dateStr, weekdayTime: `${capitalizedDay}, ${timeStr}` };
-}
-
-function formatProductDate(dateVal) {
-  if (!dateVal) return { date: '—', time: '' };
-  try {
-    const d = new Date(dateVal);
-    const date = new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }).format(d);
-    const time = new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(d);
-    return { date, time };
-  } catch {
-    return { date: '—', time: '' };
-  }
 }
 
 async function compressAdminImage(file) {

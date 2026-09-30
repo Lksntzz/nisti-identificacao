@@ -9,7 +9,6 @@ const MAX_REFERENCE_EVIDENCE = VECTOR_TOP_K;
 const TICKET_TTL_SECONDS = 120;
 const MAX_EMBEDDING_MS = 5000;
 const MIN_PLATFORM_RETRIEVAL_SCORE = 0.45;
-const CROSS_PLATFORM_MATCH_SCORE = 0.58;
 
 class RetrievalError extends Error {
   constructor(message, status = 400, code = 'vector_retrieval_error', extra = {}) {

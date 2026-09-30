@@ -138,28 +138,6 @@ function Status({ value }) {
   return <span className={`mural-admin-status ${value}`}><i aria-hidden="true" />{labels[value] || value}</span>;
 }
 
-function formatAdminDateParts(value) {
-  if (!value) return { date:'—', time:'' };
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { date:'—', time:'' };
-  return {
-    date:date.toLocaleDateString('pt-BR'),
-    time:date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-  };
-}
-
-function adminAuthorLabel(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return 'Admin';
-  if (raw.startsWith('system:')) return 'Sistema';
-  if (raw === 'admin') return 'Admin';
-  return raw;
-}
-
-function initials(value) {
-  return String(value || 'AD').split(/\s+/).map(part=>part[0]).filter(Boolean).join('').slice(0,2).toUpperCase() || 'AD';
-}
-
 function MobilePreview({ form, product, collection, imageUrl }) {
   const title = form.title || 'Título da publicação';
   const productPreview = form.kind === 'product' && product ? {

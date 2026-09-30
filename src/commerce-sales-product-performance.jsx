@@ -28,10 +28,6 @@ function brNumber(value) {
   return new Intl.NumberFormat('pt-BR').format(Number(value || 0));
 }
 
-function brCurrency(value) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
-}
-
 function periodLabel(value, compact = false) {
   const text = String(value || '');
   const match = text.match(/^(\d{4})-(\d{2})(.*)$/);
