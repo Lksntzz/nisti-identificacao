@@ -46,19 +46,19 @@ test('collection product cards use contained imagery and compact mobile sizing',
 });
 
 
-test('Mural title spreads the three exact official colored drops like the reference',()=>{
-  assert.match(mural,/import LOGO from '\.\/assets\/logo\.png'/);
-  assert.match(mural,/mural-logo-drop drop-cyan/);
-  assert.match(mural,/mural-logo-drop drop-pink/);
-  assert.match(mural,/mural-logo-drop drop-yellow/);
-  assert.equal((mural.match(/<img src=\{LOGO\} alt="" \/>/g)||[]).length >= 3,true);
-  assert.match(css,/\.mural-title-accent\{[\s\S]*width:112px;[\s\S]*overflow:visible/);
-  assert.match(css,/\.mural-logo-drop\.drop-cyan[\s\S]*rotate\(54deg\)/);
-  assert.match(css,/\.mural-logo-drop\.drop-pink[\s\S]*rotate\(70deg\)/);
-  assert.match(css,/\.mural-logo-drop\.drop-yellow[\s\S]*rotate\(-52deg\)/);
+test('Mural title uses three clean spread drops and reference sparkles',()=>{
+  assert.doesNotMatch(mural,/import LOGO from '\.\/assets\/logo\.png'/);
+  assert.match(mural,/mural-reference-drop drop-cyan/);
+  assert.match(mural,/mural-reference-drop drop-pink/);
+  assert.match(mural,/mural-reference-drop drop-yellow/);
+  assert.equal((mural.match(/viewBox="0 0 32 70"/g)||[]).length,3);
+  assert.match(css,/\.mural-title-accent\{[\s\S]*width:114px;[\s\S]*overflow:visible/);
+  assert.match(css,/\.mural-reference-drop\.drop-cyan[\s\S]*rotate\(-29deg\)/);
+  assert.match(css,/\.mural-reference-drop\.drop-pink[\s\S]*rotate\(7deg\)/);
+  assert.match(css,/\.mural-reference-drop\.drop-yellow[\s\S]*rotate\(34deg\)/);
   assert.match(mural,/className="mural-title-sparkles"/);
   assert.match(mural,/className="star-3"/);
   assert.match(css,/\.mural-title-sparkles \.star-1/);
   assert.match(css,/@keyframes mural-title-sparkle/);
-  assert.doesNotMatch(mural,/mural-title-brand-mark/);
+  assert.doesNotMatch(mural,/mural-logo-drop/);
 });
