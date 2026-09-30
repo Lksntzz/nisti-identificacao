@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createCatalogXlsx } from './catalog-xlsx.js';
 import { CommerceSyncBadge } from './CommerceSyncBadge.jsx';
 import { AdminState } from './AdminState.jsx';
@@ -125,6 +125,7 @@ export function CatalogView({
   const [onlyWithoutEan, setOnlyWithoutEan] = useState(false);
   const [page, setPage] = useState(1);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const previousPageRef = useRef(1);
 
   const platforms = useMemo(() => {
     const map = new Map();
@@ -175,6 +176,12 @@ export function CatalogView({
 
   const slice = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selectedPlatformLabel = platforms.find(item => item.code === platformFilter)?.label || platformFilter;
+  const pageDirection = page >= previousPageRef.current ? 'forward' : 'backward';
+  const tableMotionKey = `${search.trim()}|${platformFilter}|${onlyWithoutEan ? '1' : '0'}|${page}`;
+
+  useEffect(() => {
+    previousPageRef.current = page;
+  }, [page]);
 
   return (
     <div className="admin-table-card">
@@ -304,7 +311,7 @@ export function CatalogView({
               <th style={{ width: '120px', textAlign: 'right' }}>AÇÕES</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody key={tableMotionKey} className={`nisti-table-swap ${pageDirection}`}>
             {slice.length === 0 ? (
               <tr>
                 <td colSpan="6" className="table-empty-row nisti-state-cell">
