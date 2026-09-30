@@ -7,20 +7,17 @@ const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf
 const push=fs.readFileSync(new URL('../src/web-push.js',import.meta.url),'utf8');
 const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
 
-test('phase 5 suggests a draft only when a new product is created',()=>{
+test('product creation no longer creates automatic Mural drafts',()=>{
   assert.ok(core.includes('if (created)'));
-  assert.ok(core.includes('suggestMuralProductDraft(env, product.id)'));
-  assert.ok(mural.includes("status<>'archived'"));
-  assert.ok(mural.includes("'product','draft'"));
-  assert.ok(mural.includes("'system:suggestion'"));
+  assert.equal(core.includes('suggestMuralProductDraft'),false);
+  assert.equal(mural.includes('suggestMuralProductDraft'),false);
+  assert.equal(mural.includes("'system:suggestion'"),false);
 });
 
-test('phase 5 never auto publishes suggested product content',()=>{
-  const start=mural.indexOf('export async function suggestMuralProductDraft');
-  const end=mural.indexOf('async function adminSendPush',start);
-  const source=mural.slice(start,end);
-  assert.ok(source.includes("'draft'"));
-  assert.equal(source.includes("'published'"),false);
+test('Mural drafts are created only through the explicit admin publication flow',()=>{
+  assert.ok(mural.includes('async function adminCreatePost'));
+  assert.ok(mural.includes("VALUES (?,'draft'"));
+  assert.ok(mural.includes("payload.published_at,payload.expires_at,'admin'"));
 });
 
 test('phase 5 push is explicit and restricted to important notices or selected products',()=>{
