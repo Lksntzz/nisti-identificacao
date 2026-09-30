@@ -142,7 +142,11 @@ export default {
     }
 
     const muralQaRequested = request.headers.get('x-mural-qa') === '1';
-    const muralQaSession = pathname.startsWith('/api/mural') && muralQaRequested
+    const muralQaAsset = request.method === 'GET' && (
+      /^\/api\/mural\/images\/\d+$/.test(pathname)
+      || /^\/api\/mural\/collections\/[^/]+\/image$/.test(pathname)
+    );
+    const muralQaSession = pathname.startsWith('/api/mural') && (muralQaRequested || muralQaAsset)
       ? await validSession(request, env)
       : false;
     const muralResponse = await handleMuralRequest(request, env, { qaAuthorized: muralQaSession });
