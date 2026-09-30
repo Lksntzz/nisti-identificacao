@@ -6168,3 +6168,205 @@ button.kpi-box:active {
     transform: none !important;
   }
 }
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 6
+   Interaction polish: topbar, notifications, primary actions and modal layers
+   ========================================================================= */
+@keyframes nisti-title-switch {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes nisti-bell-ring {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(10deg); }
+  40% { transform: rotate(-9deg); }
+  60% { transform: rotate(6deg); }
+  80% { transform: rotate(-4deg); }
+}
+
+@keyframes nisti-badge-pop {
+  0% { opacity: 0; transform: scale(0.55); }
+  68% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes nisti-layer-enter {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-topbar-header {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.025);
+}
+
+.admin-page-title {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-page-title-motion {
+  display: inline-block;
+  animation: nisti-title-switch 300ms var(--nisti-motion-ease) both;
+}
+
+.topbar-bell-btn {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    border-color var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.topbar-bell-btn:hover {
+  transform: translateY(-2px);
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.10);
+}
+
+.topbar-bell-btn.has-unread > svg {
+  transform-origin: 50% 8%;
+  animation: nisti-bell-ring 620ms ease-out 1;
+}
+
+.topbar-bell-badge {
+  animation: nisti-badge-pop 360ms var(--nisti-motion-ease) both;
+  box-shadow: 0 3px 10px rgba(244, 63, 94, 0.24);
+}
+
+.topbar-logout-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 16px rgba(15, 23, 42, 0.07);
+}
+
+.live-date-card {
+  transition:
+    transform var(--nisti-motion-ui) var(--nisti-motion-ease),
+    border-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.live-date-card:hover {
+  transform: translateY(-2px);
+  border-color: #bae6fd;
+  box-shadow: 0 10px 22px rgba(14, 165, 233, 0.08);
+}
+
+.sidebar-nav-item.active svg {
+  animation: nisti-state-icon-pop 300ms var(--nisti-motion-ease) both;
+}
+
+.btn-submit-rainbow,
+.btn-create-product-gradient {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.btn-submit-rainbow::after,
+.btn-create-product-gradient::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  bottom: -40%;
+  left: -45%;
+  width: 28%;
+  z-index: -1;
+  transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.32), transparent);
+  transition: left 420ms var(--nisti-motion-ease);
+}
+
+.btn-submit-rainbow:hover:not(:disabled)::after,
+.btn-create-product-gradient:hover:not(:disabled)::after {
+  left: 118%;
+}
+
+.btn-submit-rainbow:hover:not(:disabled),
+.btn-create-product-gradient:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.01);
+}
+
+.btn-toolbar-filter {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    border-color var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.btn-toolbar-filter:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+}
+
+.admin-modal .admin-modal-head {
+  animation: nisti-layer-enter 300ms var(--nisti-motion-ease) 60ms both;
+}
+
+.admin-modal .admin-modal-form,
+.admin-modal .view-modal-body {
+  animation: nisti-layer-enter 340ms var(--nisti-motion-ease) 120ms both;
+}
+
+.admin-modal-close {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    background-color var(--nisti-motion-ui) ease,
+    color var(--nisti-motion-ui) ease;
+}
+
+.admin-modal-close:hover {
+  transform: rotate(6deg) scale(1.06);
+}
+
+.admin-modal-close:active {
+  transform: rotate(0) scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-title-motion,
+  .topbar-bell-btn.has-unread > svg,
+  .topbar-bell-badge,
+  .sidebar-nav-item.active svg,
+  .admin-modal .admin-modal-head,
+  .admin-modal .admin-modal-form,
+  .admin-modal .view-modal-body {
+    animation: none !important;
+  }
+
+  .topbar-bell-btn:hover,
+  .topbar-logout-btn:hover,
+  .live-date-card:hover,
+  .btn-submit-rainbow:hover:not(:disabled),
+  .btn-create-product-gradient:hover:not(:disabled),
+  .btn-toolbar-filter:hover:not(:disabled),
+  .admin-modal-close:hover,
+  .admin-modal-close:active {
+    transform: none !important;
+  }
+
+  .btn-submit-rainbow::after,
+  .btn-create-product-gradient::after {
+    display: none !important;
+  }
+}
