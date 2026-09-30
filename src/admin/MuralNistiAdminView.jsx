@@ -365,9 +365,7 @@ function PostEditor({ item, collections, onClose, onSaved }) {
                 <span>
                   {form.kind === 'product'
                     ? selectedProduct ? `${selectedProduct.sku} · ${selectedProduct.nome || selectedProduct.type || 'Produto'}` : 'Selecione um produto'
-                    : form.kind === 'collection'
-                      ? selectedCollection ? selectedCollection.name : 'Selecione uma coleção'
-                      : 'Arte sem produto de referência'}
+                    : selectedCollection ? selectedCollection.name : 'Selecione uma coleção'}
                 </span>
               </div>
               <label>Direção visual
