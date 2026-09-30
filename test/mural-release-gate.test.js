@@ -21,7 +21,7 @@ test('operator sees only Em breve while QA requires explicit mode plus admin ses
   assert.match(router,/!MURAL_PUBLIC_RELEASED && !qaAuthorized/);
 
   assert.ok(edge.includes("const muralQaRequested = request.headers.get('x-mural-qa') === '1'"));
-  assert.ok(edge.includes("pathname.startsWith('/api/mural') && muralQaRequested"));
+  assert.ok(edge.includes("pathname.startsWith('/api/mural') && (muralQaRequested || muralQaAsset)"));
   assert.ok(mural.includes("new URLSearchParams(window.location.search).get('mural') === 'qa'"));
   assert.ok(mural.includes("'x-mural-qa': '1'"));
 });
