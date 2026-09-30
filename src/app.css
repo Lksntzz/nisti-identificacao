@@ -5086,3 +5086,195 @@ button.kpi-box {
   }
 }
 
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 1
+   ========================================================================= */
+:root {
+  --nisti-motion-micro: 140ms;
+  --nisti-motion-ui: 190ms;
+  --nisti-motion-content: 280ms;
+  --nisti-motion-data: 520ms;
+  --nisti-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes nisti-view-enter {
+  from {
+    opacity: 0;
+    transform: translateX(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes nisti-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nisti-soft-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.admin-view-transition {
+  animation: nisti-view-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+  will-change: opacity, transform;
+}
+
+.admin-view-transition .welcome-banner {
+  animation: nisti-rise-in var(--nisti-motion-content) var(--nisti-motion-ease) both;
+}
+
+.admin-view-transition .kpis-row .kpi-box {
+  animation: nisti-rise-in var(--nisti-motion-content) var(--nisti-motion-ease) both;
+  will-change: transform, opacity;
+}
+
+.admin-view-transition .kpis-row .kpi-box:nth-child(1) { animation-delay: 35ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(2) { animation-delay: 75ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(3) { animation-delay: 115ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(4) { animation-delay: 155ms; }
+
+.admin-view-transition .expedition-card {
+  animation: nisti-soft-pop 320ms var(--nisti-motion-ease) both;
+}
+
+.admin-view-transition .expedition-panels-grid .expedition-card:nth-child(1) { animation-delay: 120ms; }
+.admin-view-transition .expedition-panels-grid .expedition-card:nth-child(2) { animation-delay: 165ms; }
+
+.kpi-box {
+  will-change: transform;
+}
+
+.kpi-box:hover {
+  transform: translateY(-3px) scale(1.004);
+}
+
+.kpi-box:active,
+button.kpi-box:active {
+  transform: translateY(-1px) scale(0.992);
+}
+
+.kpi-icon-circle {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    box-shadow var(--nisti-motion-micro) ease;
+}
+
+.kpi-box:hover .kpi-icon-circle {
+  transform: translateY(-1px) scale(1.055);
+}
+
+.sidebar-nav-item {
+  position: relative;
+  overflow: hidden;
+  transition:
+    background-color var(--nisti-motion-ui) ease,
+    color var(--nisti-motion-ui) ease,
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.sidebar-nav-item:hover {
+  transform: translateX(2px);
+}
+
+.sidebar-nav-item:active {
+  transform: translateX(1px) scale(0.985);
+}
+
+.sidebar-nav-item svg {
+  transition: transform var(--nisti-motion-micro) var(--nisti-motion-ease);
+}
+
+.sidebar-nav-item:hover svg {
+  transform: scale(1.07);
+}
+
+.sidebar-nav-item.active::before {
+  content: "";
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 3px;
+  border-radius: 999px;
+  background: #38bdf8;
+  animation: nisti-soft-pop var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+}
+
+.topbar-bell-btn,
+.topbar-logout-btn,
+.hamburger-btn,
+.btn-edit-action,
+.btn-cancel {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    box-shadow var(--nisti-motion-ui) ease,
+    background-color var(--nisti-motion-ui) ease,
+    border-color var(--nisti-motion-ui) ease,
+    color var(--nisti-motion-ui) ease;
+}
+
+.topbar-bell-btn:active,
+.topbar-logout-btn:active,
+.hamburger-btn:active,
+.btn-edit-action:active,
+.btn-cancel:active {
+  transform: scale(0.97);
+}
+
+.admin-loading-screen {
+  animation: nisti-soft-pop var(--nisti-motion-content) var(--nisti-motion-ease) both;
+}
+
+.admin-loading-spinner {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-view-transition,
+  .admin-view-transition .welcome-banner,
+  .admin-view-transition .kpis-row .kpi-box,
+  .admin-view-transition .expedition-card,
+  .sidebar-nav-item.active::before,
+  .admin-loading-screen {
+    animation: none !important;
+  }
+
+  .kpi-box,
+  .kpi-icon-circle,
+  .sidebar-nav-item,
+  .sidebar-nav-item svg,
+  .topbar-bell-btn,
+  .topbar-logout-btn,
+  .hamburger-btn,
+  .btn-edit-action,
+  .btn-cancel {
+    transition-duration: 0.01ms !important;
+  }
+
+  .kpi-box:hover,
+  .kpi-box:active,
+  button.kpi-box:active,
+  .kpi-box:hover .kpi-icon-circle,
+  .sidebar-nav-item:hover,
+  .sidebar-nav-item:active,
+  .sidebar-nav-item:hover svg {
+    transform: none !important;
+  }
+}
