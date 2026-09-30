@@ -44,8 +44,11 @@ test('system prevents nonexistent product and collection requests and loads deta
   assert.ok(router.includes("A coleção selecionada não existe ou não está ativa no banco atual."));
 });
 
-test('Gemini API key is kept secret and never arrives at the frontend client', () => {
-  assert.ok(router.includes("'x-goog-api-key':env.GEMINI_API_KEY"));
+test('Gemini image API uses a dedicated server-side key and never exposes it to the frontend', () => {
+  assert.ok(router.includes("if (!env.GEMINI_IMAGE_API_KEY)"));
+  assert.ok(router.includes("'x-goog-api-key':env.GEMINI_IMAGE_API_KEY"));
+  assert.equal(router.includes("'x-goog-api-key':env.GEMINI_API_KEY"), false);
+  assert.equal(admin.includes('GEMINI_IMAGE_API_KEY'), false);
   assert.equal(admin.includes('GEMINI_API_KEY'), false);
 });
 
