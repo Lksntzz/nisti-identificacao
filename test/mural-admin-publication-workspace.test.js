@@ -32,7 +32,7 @@ test('Gemini Pro handoff is the only assisted image workflow in the publication 
   assert.ok(admin.includes('Arte da publicação'));
   assert.ok(admin.includes('Gemini Pro'));
   assert.ok(admin.includes('mural-publisher-ai-style-grid'));
-  assert.ok(admin.includes('Preparar para o Gemini Pro'));
+  assert.ok(admin.includes('Preparar 3 versões de prompt'));
   assert.ok(admin.includes('Copiar e abrir Gemini Pro'));
   assert.ok(admin.includes('Trazer imagem gerada para o Mural'));
   assert.equal(admin.includes('Gerar arte com IA'), false);
