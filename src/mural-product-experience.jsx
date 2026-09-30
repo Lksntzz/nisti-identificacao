@@ -1,15 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTransparentProductImage } from './mural-transparent-image.js';
 
-function ProductVisual({ src, alt, focusKey }) {
+function ProductVisual({ src, alt, focusKey, transparent = false }) {
+  const displaySrc = useTransparentProductImage(src, transparent);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setFailed(false);
     setLoaded(false);
-  }, [src]);
+  }, [displaySrc]);
 
-  if (!src || failed) {
+  if (!displaySrc || failed) {
     return (
       <div className="mural-product-focus-placeholder" role="img" aria-label="Imagem do produto indisponível">
         <span aria-hidden="true">NISTI</span>
@@ -20,7 +22,7 @@ function ProductVisual({ src, alt, focusKey }) {
   return (
     <img
       className={`mural-product-focus-image${loaded ? ' is-loaded' : ''}`}
-      src={src}
+      src={displaySrc}
       alt={alt}
       data-focus={focusKey}
       decoding="async"
@@ -89,6 +91,7 @@ export default function MuralProductExperience({ item }) {
           src={item?.image_url}
           alt={item?.title || product.type || 'Produto NISTI'}
           focusKey={focus.key}
+          transparent={item?.image_source === 'product'}
         />
         <div className="mural-product-focus-caption">
           <span>{item?.badge || 'NISTI'}</span>
