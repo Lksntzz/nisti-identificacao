@@ -405,6 +405,15 @@ export default function MuralProductExperience({ item }) {
             <p>{step.body}</p>
           </section>
         ))}
+
+        <section className="mural-product-facts" aria-label="Detalhes do produto">
+          <span className="mural-product-facts-title">Detalhes</span>
+          {item?.product?.sku && <div><span>SKU</span><strong>{item.product.sku}</strong></div>}
+          {item?.product?.collection && <div><span>Coleção</span><strong>{item.product.collection}</strong></div>}
+          {item?.product?.wireo && <div><span>Wire-o</span><strong>{item.product.wireo}</strong></div>}
+          {item?.product?.tassel && <div><span>Tassel</span><strong>{item.product.tassel}</strong></div>}
+          {item?.product?.elastico && <div><span>Elástico</span><strong>{item.product.elastico}</strong></div>}
+        </section>
       </div>
     </div>
   );
