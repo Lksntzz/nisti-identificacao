@@ -1003,3 +1003,159 @@
   }
 }
 
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — MURAL / PHASE 6
+   ========================================================================= */
+@keyframes mural-admin-enter {
+  from { opacity:0; transform:translateY(10px) scale(.992); }
+  to { opacity:1; transform:translateY(0) scale(1); }
+}
+@keyframes mural-admin-shine {
+  from { transform:translateX(-140%) skewX(-18deg); }
+  to { transform:translateX(420%) skewX(-18deg); }
+}
+
+.mural-admin-heading,
+.mural-publisher-form,
+.mural-publisher-art-panel {
+  animation:mural-admin-enter 360ms cubic-bezier(.22,1,.36,1) both;
+}
+.mural-publisher-art-panel { animation-delay:70ms; }
+
+.mural-admin-heading button,
+.mural-admin-section-tabs button,
+.mural-admin-row-actions button,
+.mural-admin-actions button,
+.mural-publisher-header-actions button,
+.mural-publisher-mobile-actions button {
+  transition:
+    transform 180ms cubic-bezier(.22,1,.36,1),
+    box-shadow 220ms ease,
+    border-color 220ms ease,
+    background-color 220ms ease;
+}
+
+.mural-admin-heading button:hover:not(:disabled),
+.mural-admin-section-tabs button:hover:not(:disabled),
+.mural-admin-row-actions button:hover:not(:disabled),
+.mural-admin-actions button:hover:not(:disabled),
+.mural-publisher-header-actions button:hover:not(:disabled),
+.mural-publisher-mobile-actions button:hover:not(:disabled) {
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(15,23,42,.08);
+}
+
+.mural-admin-section-tabs button.active {
+  transform:translateY(-1px);
+  box-shadow:0 6px 14px rgba(79,70,229,.10);
+}
+
+.mural-publisher-type-grid button:hover {
+  transform:translateY(-3px);
+  border-color:#a5b4fc;
+  box-shadow:0 10px 20px rgba(79,70,229,.09);
+}
+
+.mural-publisher-type-grid button.active {
+  transform:translateY(-2px);
+  box-shadow:0 9px 20px rgba(79,70,229,.12);
+}
+
+.mural-publisher-ai-card {
+  transition:
+    transform 220ms cubic-bezier(.22,1,.36,1),
+    box-shadow 220ms ease,
+    border-color 220ms ease;
+}
+
+.mural-publisher-ai-card:hover {
+  transform:translateY(-2px);
+  border-color:#c4b5fd;
+  box-shadow:0 12px 28px rgba(109,40,217,.10);
+}
+
+.mural-publisher-ai-heading>span {
+  transition:transform 200ms cubic-bezier(.22,1,.36,1);
+}
+
+.mural-publisher-ai-card:hover .mural-publisher-ai-heading>span {
+  transform:scale(1.08) rotate(-4deg);
+}
+
+.mural-admin-modal {
+  animation:mural-admin-enter 220ms ease both;
+}
+
+.mural-admin-editor {
+  animation:mural-admin-enter 320ms cubic-bezier(.22,1,.36,1) both;
+}
+
+.mural-admin-editor header>button {
+  transition:transform 180ms cubic-bezier(.22,1,.36,1),background-color 180ms ease;
+}
+
+.mural-admin-editor header>button:hover {
+  transform:rotate(7deg) scale(1.06);
+  background:#e2e8f0;
+}
+
+.mural-admin-view button.primary,
+.mural-admin-actions .primary,
+.mural-publisher-header-actions button.primary,
+.mural-publisher-mobile-actions button.primary {
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+}
+
+.mural-admin-view button.primary::after,
+.mural-admin-actions .primary::after,
+.mural-publisher-header-actions button.primary::after,
+.mural-publisher-mobile-actions button.primary::after {
+  content:"";
+  position:absolute;
+  inset:-40% auto -40% -35%;
+  width:22%;
+  z-index:-1;
+  transform:skewX(-18deg);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.30),transparent);
+  transition:left 430ms cubic-bezier(.22,1,.36,1);
+}
+
+.mural-admin-view button.primary:hover::after,
+.mural-admin-actions .primary:hover::after,
+.mural-publisher-header-actions button.primary:hover::after,
+.mural-publisher-mobile-actions button.primary:hover::after {
+  left:120%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mural-admin-heading,
+  .mural-publisher-form,
+  .mural-publisher-art-panel,
+  .mural-admin-modal,
+  .mural-admin-editor {
+    animation:none!important;
+  }
+  .mural-admin-heading button:hover,
+  .mural-admin-section-tabs button:hover,
+  .mural-admin-row-actions button:hover,
+  .mural-admin-actions button:hover,
+  .mural-publisher-header-actions button:hover,
+  .mural-publisher-mobile-actions button:hover,
+  .mural-publisher-type-grid button:hover,
+  .mural-publisher-type-grid button.active,
+  .mural-publisher-ai-card:hover,
+  .mural-publisher-ai-card:hover .mural-publisher-ai-heading>span,
+  .mural-admin-editor header>button:hover {
+    transform:none!important;
+  }
+  .mural-admin-view button.primary::after,
+  .mural-admin-actions .primary::after,
+  .mural-publisher-header-actions button.primary::after,
+  .mural-publisher-mobile-actions button.primary::after {
+    display:none!important;
+  }
+}
