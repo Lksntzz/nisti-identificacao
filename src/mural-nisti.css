@@ -1294,3 +1294,67 @@
   }
 }
 
+/* Motion Part 4: dialog entrance/exit choreography. */
+.mural-modal-backdrop{
+  opacity:1;
+  animation:mural-modal-backdrop-in 220ms ease-out both;
+}
+.mural-modal-backdrop .mural-detail{
+  transform-origin:50% 100%;
+  animation:mural-detail-sheet-in 300ms var(--mural-ease-out) both;
+}
+.mural-modal-backdrop.is-closing{
+  pointer-events:none;
+  animation:mural-modal-backdrop-out 180ms ease-in both;
+}
+.mural-modal-backdrop.is-closing .mural-detail{
+  animation:mural-detail-sheet-out 180ms cubic-bezier(.4,0,1,1) both;
+}
+.mural-modal-backdrop .mural-detail-body{
+  animation:mural-detail-content-in 360ms var(--mural-ease-out) 70ms both;
+}
+.mural-detail-close{
+  transition:transform var(--mural-motion-fast) var(--mural-ease-out),background var(--mural-motion-ui) ease,box-shadow var(--mural-motion-ui) ease;
+}
+.mural-detail-close:active{transform:scale(.94)}
+.mural-detail-close:disabled{cursor:default}
+@media (hover:hover) and (pointer:fine){
+  .mural-detail-close:hover{
+    transform:scale(1.04);
+    background:rgba(11,19,41,.96);
+    box-shadow:0 8px 22px rgba(11,19,41,.22);
+  }
+}
+@keyframes mural-modal-backdrop-in{
+  from{opacity:0}
+  to{opacity:1}
+}
+@keyframes mural-modal-backdrop-out{
+  from{opacity:1}
+  to{opacity:0}
+}
+@keyframes mural-detail-sheet-in{
+  from{opacity:0;transform:translate3d(0,24px,0) scale(.975)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+@keyframes mural-detail-sheet-out{
+  from{opacity:1;transform:translate3d(0,0,0) scale(1)}
+  to{opacity:0;transform:translate3d(0,18px,0) scale(.985)}
+}
+@keyframes mural-detail-content-in{
+  from{opacity:0;transform:translate3d(0,8px,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@media (prefers-reduced-motion:reduce){
+  .mural-modal-backdrop,
+  .mural-modal-backdrop.is-closing,
+  .mural-modal-backdrop .mural-detail,
+  .mural-modal-backdrop.is-closing .mural-detail,
+  .mural-modal-backdrop .mural-detail-body{
+    animation:none!important;
+    opacity:1!important;
+    transform:none!important;
+  }
+  .mural-detail-close{transition:none!important}
+}
+
