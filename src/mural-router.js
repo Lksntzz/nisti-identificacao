@@ -900,11 +900,11 @@ async function muralGeminiProReferences(env, { productId = null, collectionId = 
 }
 
 const AUTHORIZED_STYLES = Object.freeze({
-  editorial: 'Premium stationery editorial campaign, elegant natural lighting, clean layout, professional staging',
-  cozy: 'Warm, cozy workspace setup, creative desk, soft morning sunlight, delicate stationery accessories',
-  minimal: 'Contemporary minimalist studio setting, clean pastel background, soft diffuse lighting, gentle shadows',
-  floral: 'Sophisticated botanical background, delicate organic flowers and foliage, high-end look',
-  colorful: 'Vibrant and modern commercial composition, balanced bright tones, premium creative workspace'
+  editorial: 'Estúdio premium, composição refinada, fundo limpo e sofisticado, iluminação controlada e acabamento de campanha editorial.',
+  cozy: 'Ambiente acolhedor, mesa criativa, luz natural suave, sensação confortável e objetos de papelaria discretos.',
+  minimal: 'Estúdio contemporâneo minimalista, poucos elementos, fundo limpo, bastante espaço negativo e sombras suaves.',
+  floral: 'Cenário botânico sofisticado, flores e folhagens discretas, composição elegante e delicada.',
+  colorful: 'Composição vibrante e contemporânea, cores equilibradas, cenário criativo e visual comercial premium.'
 });
 
 const MURAL_GEMINI_PRO_BASE_PROMPT = `Crie uma imagem fotográfica editorial premium usando as imagens anexadas como referência visual do produto.
