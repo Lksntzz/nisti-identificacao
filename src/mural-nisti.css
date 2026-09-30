@@ -2924,3 +2924,15 @@
   }
 }
 
+
+
+/* Mural product assets are rendered as cutouts over the editorial scene. */
+.mural-product-transparent{
+  background:transparent!important;
+}
+.mural-card-product .mural-card-image.mural-product-transparent,
+.mural-card-collection-mini>img.mural-product-transparent,
+.mural-collection-card-product-preview>img.mural-product-transparent{
+  background:transparent!important;
+  box-shadow:none;
+}
