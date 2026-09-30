@@ -37,9 +37,10 @@ test('outline uses only the largest connected product and fills internal holes',
   assert.match(source, /if \(!mask\[index\] && !outside\[index\]\) solid\[index\] = 1/);
 });
 
-test('outline is a separately dilated solid white silhouette', () => {
+test('outline is only the external white ring, never a white fill below the agenda', () => {
   assert.match(source, /function dilateMask/);
-  assert.match(source, /const outlineMask = dilateMask\(solidMask, width, height, radius\)/);
+  assert.match(source, /const expandedMask = dilateMask\(solidMask, width, height, radius\)/);
+  assert.match(source, /if \(!expandedMask\[index\] \|\| solidMask\[index\]\) continue/);
   assert.match(source, /outlineData\.data\[offset\] = 255/);
   assert.match(source, /export function useTransparentProductOutline/);
 });
