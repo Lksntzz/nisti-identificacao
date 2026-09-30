@@ -18,3 +18,27 @@
 .mural-admin-heading-actions>button{min-height:44px}
 .mural-admin-qa-note{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:10px 12px;border:1px solid #dbe3ef;border-radius:12px;background:#f8fafc;color:#475569;font-size:12px}
 .mural-admin-qa-note strong{color:#0f172a}
+
+.mural-admin-readiness{display:grid;gap:14px}
+.mural-admin-readiness-summary,.mural-admin-readiness-grid article,.mural-admin-readiness-list,.mural-admin-readiness-manual{border:1px solid #e2e8f0;border-radius:16px;background:#fff;padding:18px}
+.mural-admin-readiness-summary{display:flex;align-items:center;justify-content:space-between;gap:18px}
+.mural-admin-readiness-summary small,.mural-admin-readiness-grid small{display:block;color:#64748b;font-size:10px;font-weight:850;letter-spacing:.06em}
+.mural-admin-readiness-summary strong{display:block;margin-top:5px;font-size:24px;color:#0f172a}
+.mural-admin-readiness-summary p,.mural-admin-readiness-grid p,.mural-admin-readiness-manual p{margin:6px 0 0;color:#64748b;font-size:12px;line-height:1.45}
+.mural-admin-readiness-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mural-admin-readiness-grid article{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:10px}
+.mural-admin-readiness-grid article>p{grid-column:1/-1}
+.mural-admin-readiness-grid strong{display:block;margin-top:5px;color:#0f172a;font-size:18px}
+.mural-admin-readiness-badge{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 9px;border-radius:999px;font-size:10px;font-weight:900;white-space:nowrap}
+.mural-admin-readiness-badge.ok{background:#dcfce7;color:#166534}
+.mural-admin-readiness-badge.pending{background:#fee2e2;color:#991b1b}
+.mural-admin-readiness-badge.unknown{background:#f1f5f9;color:#475569}
+.mural-admin-readiness-list{display:grid;gap:0}
+.mural-admin-readiness-list h3{margin:0 0 8px}
+.mural-admin-readiness-list>div{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #eef2f7;font-size:12px}
+.mural-admin-readiness-list>div>span:first-child{display:grid;gap:2px;min-width:0}
+.mural-admin-readiness-list small{color:#64748b}
+.mural-admin-readiness-manual{border-color:#fde68a;background:#fffbeb}
+.mural-admin-readiness-manual strong{color:#92400e}
+@media(max-width:900px){.mural-admin-readiness-grid{grid-template-columns:1fr}.mural-admin-readiness-list>div{grid-template-columns:1fr auto}.mural-admin-readiness-list>div>.mural-admin-readiness-badge{grid-column:1/-1;justify-self:start}}
+@media(max-width:600px){.mural-admin-readiness-summary{align-items:flex-start;flex-direction:column}.mural-admin-readiness-list>div{grid-template-columns:1fr}.mural-admin-readiness-list>div>.mural-admin-readiness-badge{grid-column:auto}}
