@@ -317,11 +317,14 @@ async function buildProductOutlineImage(src) {
 
   const solidMask = fillMaskInteriorHoles(mainMask, width, height);
   const radius = clamp(Math.round(Math.max(width, height) * .006), 2, 10);
-  const outlineMask = dilateMask(solidMask, width, height, radius);
+  const expandedMask = dilateMask(solidMask, width, height, radius);
 
   const outlineData = context.createImageData(width, height);
   for (let index = 0; index < total; index += 1) {
-    if (!outlineMask[index]) continue;
+    // The white layer is only the EXTERNAL RING. Never paint white beneath
+    // the body of the agenda. This prevents internal transparency, artwork
+    // gaps or a printed/logo mark from revealing white "cuts" inside it.
+    if (!expandedMask[index] || solidMask[index]) continue;
     const offset = index * 4;
     outlineData.data[offset] = 255;
     outlineData.data[offset + 1] = 255;
