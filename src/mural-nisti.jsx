@@ -462,6 +462,159 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
   );
 }
 
+function collectionArcDistance(index, activeIndex, total) {
+  let distance = index - activeIndex;
+  const half = Math.floor(total / 2);
+  if (distance > half) distance -= total;
+  if (distance < -half) distance += total;
+  return distance;
+}
+
+function collectionArcSlot(distance) {
+  if (distance < 0) return `slot-negative-${Math.abs(distance)}`;
+  if (distance > 0) return `slot-positive-${distance}`;
+  return 'slot-center';
+}
+
+function CollectionArcCarousel({ products, title, backgroundImage = '', onBackgroundLoad, onBackgroundError }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [ready, setReady] = useState(false);
+  const pointerStartRef = useRef(null);
+  const ignoreClickRef = useRef(false);
+  const ignoreClickTimerRef = useRef(0);
+  const total = products.length;
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [products]);
+
+  useEffect(() => {
+    const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    if (reduced) {
+      setReady(true);
+      return undefined;
+    }
+
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => setReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(ignoreClickTimerRef.current), []);
+
+  const move = direction => {
+    if (total < 2) return;
+    setActiveIndex(current => (current + direction + total) % total);
+  };
+
+  const handlePointerDown = event => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    pointerStartRef.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const handlePointerUp = event => {
+    const start = pointerStartRef.current;
+    pointerStartRef.current = null;
+    if (!start || start.id !== event.pointerId) return;
+    const horizontal = event.clientX - start.x;
+    const vertical = event.clientY - start.y;
+    if (Math.abs(horizontal) < 42 || Math.abs(horizontal) < Math.abs(vertical)) return;
+    ignoreClickRef.current = true;
+    move(horizontal < 0 ? 1 : -1);
+    window.clearTimeout(ignoreClickTimerRef.current);
+    ignoreClickTimerRef.current = window.setTimeout(() => { ignoreClickRef.current = false; }, 0);
+  };
+
+  const handleCardClick = index => {
+    if (ignoreClickRef.current) {
+      ignoreClickRef.current = false;
+      return;
+    }
+    setActiveIndex(index);
+  };
+
+  const visibleProducts = products
+    .map((product, index) => ({ product, index, distance: collectionArcDistance(index, activeIndex, total) }))
+    .filter(entry => Math.abs(entry.distance) <= 2)
+    .sort((left, right) => left.distance - right.distance);
+  const activeProduct = products[activeIndex] || products[0];
+
+  return (
+    <div
+      className={`mural-collection-arc${ready ? ' is-ready' : ''}`}
+      role="region"
+      aria-roledescription="carrossel"
+      aria-label={`Capas da coleção ${title}`}
+      tabIndex="0"
+      onKeyDown={event => {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          move(-1);
+        }
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          move(1);
+        }
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => { pointerStartRef.current = null; }}
+    >
+      {backgroundImage && (
+        <img
+          className="mural-collection-arc-backdrop"
+          src={backgroundImage}
+          alt=""
+          aria-hidden="true"
+          onLoad={onBackgroundLoad}
+          onError={onBackgroundError}
+        />
+      )}
+      <span className="mural-collection-arc-glow" aria-hidden="true" />
+
+      <div className="mural-collection-arc-viewport" aria-live="polite">
+        {visibleProducts.map(({ product, index, distance }, revealIndex) => (
+          <button
+            type="button"
+            key={product.id}
+            className={`mural-collection-arc-card ${collectionArcSlot(distance)}${distance === 0 ? ' is-active' : ''}`}
+            style={{ '--arc-reveal-delay': `${90 + revealIndex * 70}ms` }}
+            onClick={() => handleCardClick(index)}
+            aria-label={`${product.type || 'Produto'} ${product.name || product.sku || ''}`.trim()}
+            aria-current={distance === 0 ? 'true' : undefined}
+          >
+            <CollectionProductImage product={product} eager={Math.abs(distance) <= 1} />
+          </button>
+        ))}
+      </div>
+
+      {total > 1 && (
+        <>
+          <button type="button" className="mural-collection-arc-control previous" onClick={() => move(-1)} aria-label="Capa anterior">
+            <MuralIcon name="chevron" size={21} />
+          </button>
+          <button type="button" className="mural-collection-arc-control next" onClick={() => move(1)} aria-label="Próxima capa">
+            <MuralIcon name="chevron" size={21} />
+          </button>
+        </>
+      )}
+
+      <div className="mural-collection-arc-caption">
+        <span className="mural-collection-arc-counter">{activeIndex + 1} de {total}</span>
+        <strong>{activeProduct?.type || 'Produto da coleção'}</strong>
+        {activeProduct?.name && <small>{activeProduct.name}</small>}
+        <CollectionFinishChips product={activeProduct} />
+      </div>
+    </div>
+  );
+}
+
 function CollectionDialog({ slug, onClose }) {
   const [state, setState] = useState({ loading: true, data: null, error: '' });
   const closeRef = useRef(null);
@@ -549,8 +702,19 @@ function CollectionDialog({ slug, onClose }) {
         {collection && (
           <div className="mural-collection-editorial">
             <header className="mural-collection-editorial-hero">
-              <div className="mural-collection-editorial-media" aria-hidden="true">
-                {hasCover ? (
+              <div className={`mural-collection-editorial-media${products.length ? ' has-arc' : ''}`}>
+                {products.length ? (
+                  <CollectionArcCarousel
+                    products={products}
+                    title={formatCollectionTitle(collection)}
+                    backgroundImage={hasCover ? collection.image_url : ''}
+                    onBackgroundLoad={() => setCoverLoaded(true)}
+                    onBackgroundError={() => {
+                      setCoverLoaded(false);
+                      setCoverFailed(true);
+                    }}
+                  />
+                ) : hasCover ? (
                   <img
                     className={`mural-collection-cover${coverLoaded ? ' is-loaded' : ''}`}
                     src={collection.image_url}
