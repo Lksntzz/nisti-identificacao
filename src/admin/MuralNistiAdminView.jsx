@@ -309,10 +309,11 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
           style:aiStyle
         })
       });
+      const outputMime = data.mime_type || 'image/jpeg';
       const raw = base64ToFile(
         data.image_base64,
-        data.mime_type || 'image/png',
-        'mural-arte-ia.png'
+        outputMime,
+        outputMime === 'image/png' ? 'mural-arte-ia.png' : 'mural-arte-ia.jpg'
       );
       const prepared = await prepareAiImage(raw, mode);
       if (prepared.size > 5 * 1024 * 1024) throw new Error('A arte gerada excedeu 5 MB após otimização.');
