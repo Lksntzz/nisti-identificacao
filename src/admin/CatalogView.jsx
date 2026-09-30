@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createCatalogXlsx } from './catalog-xlsx.js';
 import { CommerceSyncBadge } from './CommerceSyncBadge.jsx';
+import { AdminState } from './AdminState.jsx';
 
 const PAGE_SIZE = 10;
 
@@ -305,8 +306,19 @@ export function CatalogView({
           <tbody>
             {slice.length === 0 ? (
               <tr>
-                <td colSpan="6" className="table-empty-row">
-                  Nenhum produto encontrado com os filtros atuais.
+                <td colSpan="6" className="table-empty-row nisti-state-cell">
+                  <AdminState
+                    tone="empty"
+                    compact
+                    title={products.length === 0 ? 'Catálogo vazio' : 'Nenhum produto encontrado'}
+                    description={products.length === 0
+                      ? 'Cadastre o primeiro produto para iniciar o catálogo NISTI.'
+                      : 'Os filtros atuais não retornaram produtos. Ajuste a busca ou limpe os filtros.'}
+                    actionLabel={products.length === 0 ? 'Cadastrar produto' : 'Limpar filtros'}
+                    onAction={products.length === 0
+                      ? onOpenCreate
+                      : () => { setSearch(''); setPlatformFilter(''); setOnlyWithoutEan(false); }}
+                  />
                 </td>
               </tr>
             ) : (
