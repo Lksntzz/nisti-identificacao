@@ -42,6 +42,9 @@ export function BarcodeGeneratorView({ api }) {
   const [previewId, setPreviewId] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [generatingCollection, setGeneratingCollection] = useState('');
+  const [downloadFeedback, setDownloadFeedback] = useState('');
+  const [downloadedRowId, setDownloadedRowId] = useState(null);
+  const [downloadedCollectionId, setDownloadedCollectionId] = useState('');
   const [viewMode, setViewMode] = useState('products');
   const [productPage, setProductPage] = useState(1);
   const [collectionPage, setCollectionPage] = useState(1);
@@ -59,6 +62,16 @@ export function BarcodeGeneratorView({ api }) {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!downloadFeedback && !downloadedRowId && !downloadedCollectionId) return undefined;
+    const timer = window.setTimeout(() => {
+      setDownloadFeedback('');
+      setDownloadedRowId(null);
+      setDownloadedCollectionId('');
+    }, 4500);
+    return () => window.clearTimeout(timer);
+  }, [downloadFeedback, downloadedRowId, downloadedCollectionId]);
 
   const activeRows = useMemo(() => (data.gtins || []).filter(item => item.active), [data.gtins]);
   const platforms = useMemo(() => Array.from(new Set(activeRows.flatMap(item => item.platforms || []))).sort(), [activeRows]);
@@ -121,12 +134,29 @@ export function BarcodeGeneratorView({ api }) {
     setCollectionPage(1);
   };
 
+  const downloadOne = async item => {
+    if (!item) return;
+    setError('');
+    try {
+      await downloadBarcodePng(item);
+      setDownloadedRowId(item.id);
+      setDownloadFeedback(`PNG do EAN ${item.gtin} gerado com sucesso.`);
+    } catch (downloadError) {
+      setError(downloadError?.message || 'Não foi possível gerar o PNG.');
+    }
+  };
+
   const downloadMass = async () => {
     setGenerating(true);
     setError('');
-    try { await downloadBarcodeZip(selectedRows, selectedPlatform); }
-    catch (downloadError) { setError(downloadError?.message || 'Não foi possível gerar o pacote.'); }
-    finally { setGenerating(false); }
+    try {
+      await downloadBarcodeZip(selectedRows, selectedPlatform);
+      setDownloadFeedback(`${selectedRows.length} etiqueta${selectedRows.length === 1 ? '' : 's'} gerada${selectedRows.length === 1 ? '' : 's'} em ZIP.`);
+    } catch (downloadError) {
+      setError(downloadError?.message || 'Não foi possível gerar o pacote.');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const downloadCollection = async collection => {
@@ -134,6 +164,8 @@ export function BarcodeGeneratorView({ api }) {
     setError('');
     try {
       await downloadBarcodeZip(collection.items, selectedPlatform, collectionZipFilename(collection));
+      setDownloadedCollectionId(collection.id);
+      setDownloadFeedback(`Coleção ${collection.name} gerada em ZIP com ${collection.items.length} etiqueta${collection.items.length === 1 ? '' : 's'}.`);
     } catch (downloadError) {
       setError(downloadError?.message || 'Não foi possível gerar as etiquetas da coleção.');
     } finally {
@@ -167,6 +199,13 @@ export function BarcodeGeneratorView({ api }) {
         />
       )}
 
+      {downloadFeedback && (
+        <div className="nisti-inline-operation-feedback success barcode-download-feedback" role="status" aria-live="polite">
+          <span aria-hidden="true">✓</span>
+          <strong>{downloadFeedback}</strong>
+        </div>
+      )}
+
       <section className={`barcode-generator-workspace ${viewMode === 'collections' ? 'collection-mode' : ''}`}>
         {viewMode === 'products' && <div className="barcode-generator-preview">
           <div className="barcode-preview-head"><span>Pré-visualização</span><small>{preview ? preview.gtin : 'Selecione um produto'}</small></div>
@@ -174,7 +213,7 @@ export function BarcodeGeneratorView({ api }) {
             <>
               <div className="barcode-preview-canvas" dangerouslySetInnerHTML={{ __html: createEan13Svg(preview) }} />
               <div className="barcode-preview-actions">
-                <button type="button" className="primary" onClick={() => downloadBarcodePng(preview).catch(err => setError(err.message))}>Baixar PNG oficial</button>
+                <button type="button" className="primary" onClick={() => downloadOne(preview)}>Baixar PNG oficial</button>
               </div>
             </>
           ) : <div className="barcode-preview-empty">Nenhum EAN disponível neste filtro.</div>}
@@ -213,7 +252,10 @@ export function BarcodeGeneratorView({ api }) {
         {collections.length > 0 ? (
           <div className="barcode-collection-grid">
             {pagedCollections.map(collection => (
-              <article className="barcode-collection-card" key={collection.id}>
+              <article
+                className={`barcode-collection-card ${generatingCollection === collection.id ? 'is-generating' : ''} ${downloadedCollectionId === collection.id ? 'is-downloaded' : ''}`}
+                key={collection.id}
+              >
                 <div className="barcode-collection-cover-stack" aria-hidden="true">
                   {collection.items.slice(0, 4).map((item, index) => item.image_url ? (
                     <img key={item.id} src={item.image_url} alt="" style={{ '--cover-index': index }} />
@@ -298,12 +340,19 @@ export function BarcodeGeneratorView({ api }) {
                   />
                 </td></tr>
               ) : pagedRows.map(item => (
-                <tr key={item.id} className={preview?.id === item.id ? 'barcode-row-previewing' : ''}>
+                <tr
+                  key={item.id}
+                  className={[
+                    preview?.id === item.id ? 'barcode-row-previewing' : '',
+                    selected.includes(item.id) ? 'barcode-row-selected' : '',
+                    downloadedRowId === item.id ? 'barcode-row-downloaded' : ''
+                  ].filter(Boolean).join(' ')}
+                >
                   <td><input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggleOne(item.id)} aria-label={`Selecionar ${item.gtin}`} /></td>
                   <td><button type="button" className="barcode-preview-link" onClick={() => setPreviewId(item.id)}>{item.gtin}</button></td>
                   <td><div className="product-info-cell"><strong>{item.nome || item.sku}</strong><small>{item.sku} · {item.variacao || 'Sem variação'}</small></div></td>
                   <td><div className="barcode-platform-pills">{(item.platforms || []).length ? item.platforms.map(value => <span key={value}>{value}</span>) : <span>Sem plataforma</span>}</div></td>
-                  <td><div className="barcode-row-actions"><button type="button" onClick={() => downloadBarcodePng(item).catch(err => setError(err.message))}>Baixar PNG</button></div></td>
+                  <td><div className="barcode-row-actions"><button type="button" onClick={() => downloadOne(item)}>Baixar PNG</button></div></td>
                 </tr>
               ))}
             </tbody>
