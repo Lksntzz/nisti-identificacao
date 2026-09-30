@@ -2396,3 +2396,28 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
 .mural-gemini-pro-references figure>img.mural-product-transparent{
   background:transparent!important;
 }
+
+
+.mural-collection-visual-standard{
+  display:grid;
+  gap:4px;
+  padding:12px 14px;
+  border:1px solid #dbeafe;
+  border-radius:13px;
+  background:linear-gradient(135deg,#eff6ff 0%,#f8fafc 100%);
+}
+.mural-collection-visual-standard>span{
+  color:#2563eb;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+.mural-collection-visual-standard>strong{
+  color:#172033;
+  font-size:13px;
+}
+.mural-collection-visual-standard>small{
+  color:#64748b;
+  font-size:10px;
+  line-height:1.45;
+}
