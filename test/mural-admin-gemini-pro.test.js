@@ -8,6 +8,8 @@ const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url
 const wrangler = fs.readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8');
 const edge = fs.readFileSync(new URL('../src/edge-router.js', import.meta.url), 'utf8');
 const core = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 'utf8');
+const muralView = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
+const muralCss = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
 
 test('Gemini Pro handoff accepts only product and collection modes plus approved visual styles', () => {
   assert.ok(router.includes("const MURAL_GEMINI_PRO_MODES = Object.freeze(new Set(['product_scene', 'collection_scene']))"));
@@ -86,7 +88,7 @@ test('collection registration uses the Collection Launch Hero Card standard by d
   assert.ok(admin.includes('PADRÃO VISUAL'));
   assert.ok(admin.includes('Collection Launch Hero Card'));
   assert.ok(admin.includes('Frase / descrição da coleção'));
-  assert.ok(admin.includes('banner 2:1, texto à esquerda e produtos reais da coleção à direita'));
+  assert.ok(admin.includes('Mesmo visual do mockup'));
   assert.ok(css.includes('.mural-collection-visual-standard'));
 });
 
@@ -142,6 +144,29 @@ test('Mural keeps only the Gemini Pro prompt, reference and return workflow', ()
   assert.ok(css.includes('.mural-gemini-pro-kit'));
   assert.ok(css.includes('.mural-gemini-pro-references'));
   assert.ok(css.includes('.mural-gemini-pro-return'));
+});
+
+test('collection editor can save and publish directly into the QA Mural', () => {
+  assert.ok(admin.includes('Salvar e publicar no Mural QA'));
+  assert.ok(admin.includes('/publish'));
+  assert.ok(router.includes('async function adminPublishCollection(id, env)'));
+  assert.ok(router.includes("badge='NOVA COLEÇÃO'"));
+  assert.ok(router.includes("status='published'"));
+  assert.ok(router.includes("featured=1"));
+  assert.ok(router.includes("priority=100"));
+  assert.ok(router.includes("const publishCollection = path.match"));
+});
+
+test('collection QA uses the approved launch-card visual and refreshes automatically', () => {
+  assert.ok(muralView.includes('function CollectionLaunchHero'));
+  assert.ok(muralView.includes('function CollectionLaunchCard'));
+  assert.ok(muralView.includes('NOVA COLEÇÃO'));
+  assert.ok(muralView.includes('CollectionFinishChips'));
+  assert.ok(muralView.includes('isQa ? 5000 : 30000'));
+  assert.ok(muralCss.includes('.mural-launch-hero'));
+  assert.ok(muralCss.includes('aspect-ratio:2 / 1'));
+  assert.ok(muralCss.includes('.mural-collection-launch-card'));
+  assert.ok(muralCss.includes('.mural-collection-finish-chips'));
 });
 
 test('mural public release gate remains untouched', () => {
