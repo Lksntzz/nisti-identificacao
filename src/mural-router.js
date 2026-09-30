@@ -1114,7 +1114,7 @@ function muralAiOutputImage(payload) {
   if (!image) return null;
   return {
     data:image.data,
-    mime_type:image.mime_type || image.mimeType || 'image/png'
+    mime_type:image.mime_type || image.mimeType || 'image/jpeg'
   };
 }
 
@@ -1220,7 +1220,7 @@ async function adminGenerateMuralAiArt(request, env) {
     }))
   ];
 
-  // Model selection (defaulting to gemini-3.1-flash-lite-image alias: Nano Banana)
+  // Model selection (production default is configured by GEMINI_IMAGE_MODEL)
   const model = String(env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-lite-image').trim();
 
   const startTime = performance.now();
@@ -1241,7 +1241,7 @@ async function adminGenerateMuralAiArt(request, env) {
         input,
         response_format:{
           type:'image',
-          mime_type:'image/png',
+          mime_type:'image/jpeg',
           aspect_ratio:'16:9',
           image_size:'1K'
         }
