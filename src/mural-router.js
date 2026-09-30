@@ -450,7 +450,7 @@ async function adminListPosts(url, env) {
         ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
         LIMIT 1
       ) AS product_collection_name,
-      mc.name AS collection_name,mc.slug AS collection_slug
+      mc.name AS collection_name,mc.slug AS collection_slug,mc.image_key AS collection_image_key
     FROM mural_posts mp
     LEFT JOIN products p ON p.id=mp.product_id
     LEFT JOIN mural_collections mc ON mc.id=mp.collection_id
@@ -465,6 +465,9 @@ async function adminListPosts(url, env) {
       ...row,
       product_type:row.product_id ? productTypeLabel({ sku:row.product_sku, product_name:row.product_name, miolo_code:row.product_miolo_code }) : null,
       product_image_url:row.product_id && row.product_image_key ? `/api/images/${Number(row.product_id)}?v=${encodeURIComponent(row.product_image_key)}` : null,
+      collection_image_url:row.collection_id && row.collection_image_key
+        ? `/api/admin/mural/collections/${Number(row.collection_id)}/image?v=${encodeURIComponent(row.collection_image_key)}`
+        : null,
       product_wireo:labels.wireo,
       product_tassel:labels.tassel,
       product_elastico:labels.elastico
