@@ -153,7 +153,7 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
   return (
     <div className="mural-modal-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}>
       <section className={`mural-detail${hasMedia ? '' : ' no-media'}`} role="dialog" aria-modal="true" aria-labelledby="mural-detail-title">
-        <button ref={closeRef} type="button" className="mural-detail-close" onClick={onClose} aria-label="Fechar detalhe">×</button>
+        <button ref={closeRef} type="button" className="mural-detail-close" onClick={onClose} aria-label="Fechar detalhe"><span aria-hidden="true">×</span></button>
         {hasMedia && <MuralImage item={item} eager className={`mural-detail-image mural-detail-image-${item.kind}`} />}
         <div className={`mural-detail-body${hasMedia ? '' : ' no-media'}`}>
           <div className="mural-card-badges">
@@ -200,7 +200,7 @@ function CollectionDialog({ slug, onClose }) {
   return (
     <div className="mural-modal-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}>
       <section className="mural-detail mural-collection-detail" role="dialog" aria-modal="true" aria-labelledby="mural-collection-title">
-        <button ref={closeRef} type="button" className="mural-detail-close" onClick={onClose} aria-label="Fechar coleção">×</button>
+        <button ref={closeRef} type="button" className="mural-detail-close" onClick={onClose} aria-label="Fechar coleção"><span aria-hidden="true">×</span></button>
         {state.loading && <div className="mural-collection-loading">Carregando coleção…</div>}
         {state.error && <div className="mural-collection-error">{state.error}</div>}
         {collection && (
@@ -208,7 +208,7 @@ function CollectionDialog({ slug, onClose }) {
             {collection.image_url && <img className="mural-detail-image" src={collection.image_url} alt={collection.name} />}
             <div className="mural-detail-body">
               <span className="mural-editorial-badge">Coleção</span>
-              <h2 id="mural-collection-title">{collection.name}{collection.year ? ` ${collection.year}` : ''}</h2>
+              <h2 id="mural-collection-title">{formatCollectionTitle(collection)}</h2>
               {collection.description && <p className="mural-detail-copy">{collection.description}</p>}
               <p className="mural-collection-count">{collection.products?.length || 0} produto{collection.products?.length === 1 ? '' : 's'}</p>
               {collection.products?.length ? (
