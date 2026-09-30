@@ -461,13 +461,28 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
   );
 }
 
-function collectionRevealSlot(index) {
-  return ['slot-center', 'slot-left-1', 'slot-right-1', 'slot-left-2', 'slot-right-2'][index] || 'slot-center';
+function collectionRevealPosition(index) {
+  const lane = Math.ceil(index / 2);
+  const side = index % 2 ? -1 : 1;
+  const spread = 58 + ((lane - 1) % 4) * 28;
+  const depth = Math.floor((lane - 1) / 4);
+  return {
+    side: side < 0 ? 'left' : 'right',
+    x: `${side * spread}px`,
+    y: `${Math.min(22, lane * 4 + depth * 3)}%`,
+    rotation: `${side * Math.min(22, 8 + lane * 3)}deg`,
+    scale: String(Math.max(.68, .96 - lane * .055))
+  };
 }
 
 function CollectionRevealIntro({ products, title, onComplete }) {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const secondaryCount = Math.max(0, products.length - 1);
+  const lastCoverFinish = secondaryCount
+    ? 700 + (secondaryCount - 1) * 720 + 1100
+    : 2100;
+  const mainFloatCycles = Math.max(1, Math.ceil((lastCoverFinish + 650 - 1020) / 1800));
 
   useEffect(() => {
     const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
@@ -480,8 +495,8 @@ function CollectionRevealIntro({ products, title, onComplete }) {
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => setReady(true));
     });
-    const leaveTimer = window.setTimeout(() => setLeaving(true), 1450);
-    const completeTimer = window.setTimeout(onComplete, 1770);
+    const leaveTimer = window.setTimeout(() => setLeaving(true), lastCoverFinish + 650);
+    const completeTimer = window.setTimeout(onComplete, lastCoverFinish + 990);
 
     return () => {
       cancelAnimationFrame(firstFrame);
@@ -489,9 +504,10 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       window.clearTimeout(leaveTimer);
       window.clearTimeout(completeTimer);
     };
-  }, [onComplete]);
+  }, [lastCoverFinish, onComplete]);
 
-  const revealProducts = products.slice(0, 5);
+  const mainProduct = products[0];
+  const secondaryProducts = products.slice(1);
 
   return (
     <div
@@ -502,15 +518,32 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       <span className="mural-collection-reveal-vignette" aria-hidden="true" />
       <span className="mural-collection-reveal-white-arc" aria-hidden="true" />
       <div className="mural-collection-reveal-fan" aria-hidden="true">
-        {revealProducts.map((product, index) => (
+        <span
+          className="mural-collection-reveal-product is-main"
+          style={{ '--main-float-cycles': String(mainFloatCycles) }}
+        >
+          <CollectionProductImage product={mainProduct} eager />
+        </span>
+        {secondaryProducts.map((product, secondaryIndex) => {
+          const index = secondaryIndex + 1;
+          const position = collectionRevealPosition(index);
+          return (
           <span
             key={product.id}
-            className={`mural-collection-reveal-product ${collectionRevealSlot(index)}`}
-            style={{ '--reveal-product-delay': `${120 + index * 85}ms` }}
+            className={`mural-collection-reveal-product is-secondary from-${position.side}`}
+            style={{
+              '--reveal-product-delay': `${700 + secondaryIndex * 720}ms`,
+              '--reveal-final-x': position.x,
+              '--reveal-final-y': position.y,
+              '--reveal-final-rotation': position.rotation,
+              '--reveal-final-scale': position.scale,
+              zIndex: 10 + index
+            }}
           >
             <CollectionProductImage product={product} eager />
           </span>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
