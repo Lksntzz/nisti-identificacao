@@ -16,22 +16,17 @@ test('Gemini Pro handoff accepts only product and collection modes plus approved
   assert.ok(router.includes("if (!(style in AUTHORIZED_STYLES))"));
 });
 
-test('Gemini Pro prompt is focused on image direction, lighting, camera, scene and audience', () => {
-  assert.ok(router.includes('DIREÇÃO VISUAL'));
-  assert.ok(router.includes('ILUMINAÇÃO'));
-  assert.ok(router.includes('CÂMERA'));
-  assert.ok(router.includes('CENÁRIO'));
-  assert.ok(router.includes('PÚBLICO'));
-  assert.ok(router.includes('jovens e adultos que valorizam papelaria fina'));
-  assert.ok(router.includes('Enquadramento em ângulo 3/4 levemente superior'));
-  assert.ok(router.includes('jogo de luzes suave e controlado'));
+test('Gemini Pro uses separate hero-card standards for product and collection art', () => {
+  assert.ok(router.includes('const PRODUCT_HERO_BASE_PROMPT ='));
+  assert.ok(router.includes('const COLLECTION_LAUNCH_BASE_PROMPT ='));
+  assert.ok(router.includes('SELECTED VISUAL DIRECTION'));
   assert.equal(router.includes('SEGURANÇA DE INSTRUÇÕES'), false);
   assert.equal(router.includes('ORDEM DE PRIORIDADE'), false);
 });
 
 test('Gemini Pro package is server-built from real catalog data and real image references', () => {
   assert.ok(router.includes('async function adminPrepareMuralGeminiPro(request, env)'));
-  assert.ok(router.includes('buildProductPromptVersions(product, finishLabels(product), style)'));
+  assert.ok(router.includes('buildProductPromptVersions(product, finishLabels(product), style, editorial)'));
   assert.ok(router.includes('buildCollectionPromptVersions(collection, products, style)'));
   assert.ok(router.includes('references = await muralGeminiProReferences(env, { productId })'));
   assert.ok(router.includes('references = await muralGeminiProReferences(env, { collectionId })'));
@@ -42,18 +37,40 @@ test('Gemini Pro package is server-built from real catalog data and real image r
   assert.ok(router.includes("'/api/admin/mural/gemini-pro-package'"));
 });
 
-test('selected visual direction is embedded into each of three prompt versions', () => {
-  assert.ok(router.includes('const PROMPT_VARIANTS = Object.freeze(['));
-  assert.ok(router.includes("'editorial-hero'"));
-  assert.ok(router.includes("'lifestyle'"));
-  assert.ok(router.includes("'premium-detail'"));
-  assert.ok(router.includes("'DIREÇÃO VISUAL SELECIONADA'"));
-  assert.ok(router.includes('styleLabel'));
+test('product art uses the Product Hero Card standard and three dedicated layouts', () => {
+  assert.ok(router.includes('const PRODUCT_HERO_VARIANTS = Object.freeze(['));
+  assert.ok(router.includes("'product-balanced'"));
+  assert.ok(router.includes("'product-forward'"));
+  assert.ok(router.includes("'product-name-forward'"));
+  assert.ok(router.includes('Product Hero Card'));
+  assert.ok(router.includes('approximately 2:1 aspect ratio'));
+  assert.ok(router.includes('Show EXACTLY ONE product'));
+  assert.ok(router.includes('No repeated product at different angles'));
+  assert.ok(router.includes('CTA: "VER PRODUTO"'));
+  assert.ok(router.includes('Left text zone: approximately'));
+  assert.ok(router.includes('Right hero-product zone: approximately'));
+  assert.ok(router.includes('editorial.subtitle'));
+  assert.ok(admin.includes('Padrão Product Hero Card: banner 2:1'));
+  assert.ok(admin.includes('PADRÃO VISUAL'));
+  assert.ok(admin.includes('Product Hero Card'));
+  assert.ok(admin.includes('exatamente 1 produto real à direita'));
+  assert.ok(admin.includes("Product Hero Card pronto"));
+  assert.ok(css.includes('.mural-product-visual-standard'));
   assert.ok(admin.includes('Escolha uma das 3 versões de prompt.'));
   assert.ok(admin.includes('mural-gemini-prompt-versions'));
   assert.ok(admin.includes('Visualizar prompt selecionado'));
   assert.ok(css.includes('.mural-gemini-prompt-versions'));
   assert.ok(css.includes('.mural-gemini-direction-summary'));
+});
+
+test('product hero prompt receives the current publication title, subtitle and badge', () => {
+  assert.ok(admin.includes("title:form.title || ''"));
+  assert.ok(admin.includes("subtitle:form.subtitle || ''"));
+  assert.ok(admin.includes("badge:form.badge || ''"));
+  assert.ok(router.includes("title:String(body.title || '').trim()"));
+  assert.ok(router.includes("subtitle:String(body.subtitle || '').trim()"));
+  assert.ok(router.includes("badge:String(body.badge || '').trim()"));
+  assert.ok(router.includes('TEXT TO USE'));
 });
 
 test('collection registration uses the Collection Launch Hero Card standard by default', () => {

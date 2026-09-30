@@ -325,7 +325,10 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
           mode,
           product_id:Number(form.product_id) || null,
           collection_id:Number(form.collection_id) || null,
-          style:geminiStyle
+          style:geminiStyle,
+          title:form.title || '',
+          subtitle:form.subtitle || '',
+          badge:form.badge || ''
         })
       });
       setGeminiProPackage(data);
@@ -460,6 +463,11 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                   </button>
                 ))}
               </div>
+              <div className="mural-product-visual-standard">
+                <span>PADRÃO VISUAL</span>
+                <strong>Product Hero Card</strong>
+                <small>Banner 2:1 · texto à esquerda · exatamente 1 produto real à direita · foco total no produto.</small>
+              </div>
             </section>
           )}
 
@@ -559,7 +567,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                 <div className="mural-publisher-ai-info" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px', color: '#64748b', lineHeight: '1.5', marginBottom: '16px' }}>
                   <p style={{ margin: 0 }}>
                     {form.kind === 'product'
-                      ? 'A direção visual escolhida entra no prompt junto com os dados reais do produto, cenário, iluminação, câmera e público.'
+                      ? 'Padrão Product Hero Card: banner 2:1, texto à esquerda e exatamente 1 produto real à direita. Título, subtítulo, selo e direção visual entram nas 3 versões.'
                       : 'Padrão Collection Launch Hero Card: banner 2:1, texto à esquerda e produtos reais da coleção à direita. A direção visual escolhida entra nas 3 versões.'}
                   </p>
                 </div>
@@ -578,7 +586,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                 {geminiProPackage && (
                   <div className="mural-gemini-pro-kit">
                     <header>
-                      <span><b>Pacote pronto para o Gemini Pro</b><small>3 prompts + {geminiProPackage.reference_count} referência(s) real(is)</small></span>
+                      <span><b>{form.kind==='product' ? 'Product Hero Card pronto' : 'Collection Launch Hero Card pronto'}</b><small>3 prompts + {geminiProPackage.reference_count} referência(s) real(is)</small></span>
                       <span className="mural-gemini-pro-ready"><AdminMuralIcon name="check" size={14}/> Pronto</span>
                     </header>
 

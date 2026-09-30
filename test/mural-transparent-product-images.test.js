@@ -40,5 +40,5 @@ test('Mural collection products and admin product references use transparent cut
 
 test('Gemini Pro references are named as PNG and prompt explains transparent references', () => {
   assert.ok(router.includes('filename: `${rawName}.png`'));
-  assert.ok(router.includes('PNG com fundo transparente'));
+  assert.ok(router.includes('transparent PNG product reference'));
 });
