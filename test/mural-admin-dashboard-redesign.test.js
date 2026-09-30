@@ -34,6 +34,11 @@ test('dashboard table includes thumbnails badges status author and action menu',
   assert.ok(dashboard.includes('Apagar publicação'));
   assert.ok(dashboard.includes('onDelete(row)'));
   assert.ok(css.includes('.mural-admin-action-menu button.danger'));
+  assert.ok(dashboard.includes("import { createPortal } from 'react-dom'"));
+  assert.ok(dashboard.includes("createPortal("));
+  assert.ok(dashboard.includes("document.body"));
+  assert.ok(css.includes('.mural-admin-action-menu.portal'));
+  assert.ok(css.includes('position:fixed'));
 });
 
 test('dashboard paginates publications and allows page-size selection', () => {
