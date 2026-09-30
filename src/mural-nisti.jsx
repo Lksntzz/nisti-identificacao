@@ -840,6 +840,14 @@ export default function MuralNisti({ onUnreadChange }) {
       <div className="mural-scroll" onScroll={handleScroll}>
         <div className="mural-column">
           <header className="mural-title-block mural-intro mural-intro-title">
+            <span className="mural-title-sparkles" aria-hidden="true">
+              <i className="star-1">✦</i>
+              <i className="star-2">✦</i>
+              <i className="star-3">✦</i>
+              <i className="star-4">✦</i>
+              <i className="star-5">✦</i>
+              <i className="star-6">✦</i>
+            </span>
             <span className="mural-title-copy">
               <h1>Mural NISTI</h1>
               <p>Novidades, coleções e avisos para operadores</p>

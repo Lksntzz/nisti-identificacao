@@ -46,10 +46,15 @@ test('collection product cards use contained imagery and compact mobile sizing',
 });
 
 
-test('Mural title accent reuses the exact official brand symbol from the header',()=>{
+test('Mural title accent shows only the three colored official drops plus scattered sparkles',()=>{
   assert.match(mural,/import LOGO from '\.\/assets\/logo\.png'/);
   assert.match(mural,/className="mural-title-brand-mark" src=\{LOGO\}/);
-  assert.match(css,/\.mural-title-brand-mark\{[\s\S]*object-fit:contain/);
+  assert.match(mural,/className="mural-title-sparkles"/);
+  assert.match(mural,/className="star-6"/);
+  assert.match(css,/\.mural-title-accent\{[\s\S]*width:51px;[\s\S]*overflow:hidden/);
+  assert.match(css,/\.mural-title-brand-mark\{[\s\S]*width:68px;[\s\S]*max-width:none/);
+  assert.match(css,/\.mural-title-sparkles \.star-1/);
+  assert.match(css,/@keyframes mural-title-sparkle/);
   assert.doesNotMatch(mural,/mural-title-drop/);
   assert.doesNotMatch(css,/\.mural-title-drop/);
 });
