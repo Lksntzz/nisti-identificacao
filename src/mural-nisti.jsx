@@ -101,8 +101,8 @@ function formatCollectionTitle(collection) {
 }
 
 function KindIcon({ kind }) {
-  const label = kind === 'product' ? 'P' : kind === 'collection' ? 'C' : '!';
-  return <span className="mural-kind-icon" aria-hidden="true">{label}</span>;
+  const name = kind === 'product' ? 'package' : kind === 'collection' ? 'layers' : 'megaphone';
+  return <span className="mural-kind-icon" aria-hidden="true"><MuralIcon name={name} size={24} /></span>;
 }
 
 function MuralImage({ item, eager = false, className = '' }) {
@@ -180,7 +180,7 @@ function ProductMeta({ product }) {
 
 function NoticeLabel({ level }) {
   const labels = { important: 'Importante', attention: 'Atenção', info: 'Informação' };
-  return <span className={`mural-notice-label mural-badge-motion ${level || 'info'}`}><span aria-hidden="true">!</span>{labels[level] || labels.info}</span>;
+  return <span className={`mural-notice-label mural-badge-motion ${level || 'info'}`}><MuralIcon name="megaphone" size={12} />{labels[level] || labels.info}</span>;
 }
 
 function HeroScene({ item, collectionPreviews }) {
