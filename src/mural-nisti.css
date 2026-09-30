@@ -3536,16 +3536,15 @@
 }
 
 
-/* Product cutout treatment — white contour follows the alpha silhouette of each agenda. */
+/* Product cutout treatment — crisp white contour, without the lower floating shadow. */
 .mural-launch-product>img.mural-product-transparent,
 .mural-collection-launch-product>img.mural-product-transparent,
 .mural-scene-product>img.mural-product-transparent,
 .mural-collection-reveal-product>img.mural-product-transparent{
   filter:
-    drop-shadow(0 0 1.2px rgba(255,255,255,1))
-    drop-shadow(0 0 2.4px rgba(255,255,255,1))
-    drop-shadow(0 0 3.2px rgba(255,255,255,.98))
-    drop-shadow(0 8px 11px rgba(31,41,55,.16)) !important;
+    drop-shadow(0 0 .8px rgba(255,255,255,1))
+    drop-shadow(0 0 1.6px rgba(255,255,255,1))
+    drop-shadow(0 0 2.2px rgba(255,255,255,.96)) !important;
   box-shadow:none!important;
 }
 @media (max-width:390px){
@@ -3554,9 +3553,8 @@
   .mural-scene-product>img.mural-product-transparent,
   .mural-collection-reveal-product>img.mural-product-transparent{
     filter:
-      drop-shadow(0 0 1px rgba(255,255,255,1))
-      drop-shadow(0 0 2px rgba(255,255,255,1))
-      drop-shadow(0 0 2.8px rgba(255,255,255,.98))
-      drop-shadow(0 7px 9px rgba(31,41,55,.14)) !important;
+      drop-shadow(0 0 .7px rgba(255,255,255,1))
+      drop-shadow(0 0 1.4px rgba(255,255,255,1))
+      drop-shadow(0 0 2px rgba(255,255,255,.95)) !important;
   }
 }
