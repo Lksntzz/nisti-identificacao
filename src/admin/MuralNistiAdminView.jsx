@@ -675,6 +675,16 @@ export default function MuralNistiAdminView() {
   };
   const dates=row=>row.published_at?new Date(row.published_at).toLocaleString('pt-BR'):'—';
 
+  if (editor) {
+    return <PostEditor
+      item={editor}
+      collections={collections}
+      catalogProducts={products}
+      onClose={()=>setEditor(null)}
+      onSaved={async()=>{await load();await refreshReadiness()}}
+    />;
+  }
+
   return <section className="mural-admin-view">
     <div className="mural-admin-heading"><div><span>MURAL NISTI</span><h2>Conteúdo para operadores</h2><p>Crie, pré-visualize, agende e publique sem alterar código.</p></div><div className="mural-admin-heading-actions"><button type="button" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>{section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}{section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}</div></div>
     <div className="mural-admin-qa-note" role="note"><strong>QA privado</strong><span>O Mural completo só abre em dispositivos com sessão administrativa válida. Operadores continuam vendo “Em breve”.</span></div>
@@ -701,7 +711,6 @@ export default function MuralNistiAdminView() {
       <div className="mural-admin-readiness-manual"><strong>Ainda exige validação real</strong><p>Scanner → Mural → Scanner com reinício da câmera, breakpoints 360/390/430 px, safe-area no iPhone e abertura abaixo de 1 s continuam sendo smoke tests em aparelho real.</p></div>
     </div>}
 
-    {editor&&<PostEditor item={editor} collections={collections} onClose={()=>setEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
     {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
   </section>;
 }
