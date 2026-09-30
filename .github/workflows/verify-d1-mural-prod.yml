@@ -1,4 +1,4 @@
-name: Inspect Mural QA Product Candidates
+name: Seed Mural QA Content
 
 on:
   push:
@@ -8,19 +8,111 @@ permissions:
   contents: read
 
 jobs:
-  inspect:
+  seed:
+    name: Seed private QA content in production D1
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm ci --no-audit --no-fund
-      - name: List QA product candidates
+
+      - name: Verify QA source products
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
         run: |
-          npx wrangler d1 execute nisti-identificacao --remote --command "SELECT id,sku,nome,variacao,CASE WHEN image_key IS NULL OR image_key='' THEN 0 ELSE 1 END AS has_image FROM products ORDER BY has_image DESC,id DESC LIMIT 12;"
-          npx wrangler d1 execute nisti-identificacao --remote --command "SELECT COUNT(*) AS mural_posts FROM mural_posts; SELECT COUNT(*) AS mural_collections FROM mural_collections;"
+          npx wrangler d1 execute nisti-identificacao --remote --command "SELECT id,sku,nome,variacao,CASE WHEN image_key IS NULL OR image_key='' THEN 0 ELSE 1 END AS has_image FROM products WHERE id IN (280,282,286) ORDER BY id;"
+
+      - name: Seed QA collection and posts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+        run: |
+          npx wrangler d1 execute nisti-identificacao --remote --command "
+            DELETE FROM mural_posts WHERE created_by='qa:seed';
+            DELETE FROM mural_collections WHERE slug='qa-planner-2027';
+
+            INSERT INTO mural_collections
+              (slug,name,year,description,image_key,status,created_at,updated_at)
+            VALUES
+              ('qa-planner-2027','QA · Seleção Planner 2027',2027,
+               'Coleção temporária para validação interna do Mural NISTI antes da liberação aos operadores.',
+               (SELECT image_key FROM products WHERE id=280),
+               'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP);
+
+            INSERT INTO mural_collection_products (collection_id,product_id,sort_order)
+            SELECT id,280,10 FROM mural_collections WHERE slug='qa-planner-2027';
+            INSERT INTO mural_collection_products (collection_id,product_id,sort_order)
+            SELECT id,282,20 FROM mural_collections WHERE slug='qa-planner-2027';
+            INSERT INTO mural_collection_products (collection_id,product_id,sort_order)
+            SELECT id,286,30 FROM mural_collections WHERE slug='qa-planner-2027';
+
+            INSERT INTO mural_posts
+              (kind,status,title,subtitle,body,badge,badge_tone,product_id,collection_id,notice_level,featured,priority,published_at,expires_at,created_by,created_at,updated_at)
+            SELECT
+              'product','published',substr(nome,1,90),
+              substr(sku || ' · ' || COALESCE(variacao,''),1,120),
+              'Produto real do catálogo usado exclusivamente no smoke test interno do Mural.',
+              'QA','info',id,NULL,NULL,0,70,CURRENT_TIMESTAMP,datetime('now','+7 days'),'qa:seed',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+            FROM products WHERE id=280;
+
+            INSERT INTO mural_posts
+              (kind,status,title,subtitle,body,badge,badge_tone,product_id,collection_id,notice_level,featured,priority,published_at,expires_at,created_by,created_at,updated_at)
+            SELECT
+              'product','published',substr(nome,1,90),
+              substr(sku || ' · ' || COALESCE(variacao,''),1,120),
+              'Segundo produto real para validar ordenação, leitura e acabamento no Mural.',
+              'QA','info',id,NULL,NULL,0,65,CURRENT_TIMESTAMP,datetime('now','+7 days'),'qa:seed',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+            FROM products WHERE id=282;
+
+            INSERT INTO mural_posts
+              (kind,status,title,subtitle,body,badge,badge_tone,product_id,collection_id,notice_level,featured,priority,published_at,expires_at,created_by,created_at,updated_at)
+            SELECT
+              'collection','published','QA · Seleção Planner 2027',
+              '3 produtos reais para validação interna',
+              'Abra a coleção e confirme imagem, ordem, detalhes e retorno ao feed.',
+              'QA','info',NULL,id,NULL,1,90,CURRENT_TIMESTAMP,datetime('now','+7 days'),'qa:seed',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+            FROM mural_collections WHERE slug='qa-planner-2027';
+
+            INSERT INTO mural_posts
+              (kind,status,title,subtitle,body,badge,badge_tone,product_id,collection_id,notice_level,featured,priority,published_at,expires_at,created_by,created_at,updated_at)
+            VALUES
+              ('notice','published','QA · Aviso de validação',
+               'Teste interno — não é comunicação operacional',
+               'Conteúdo temporário para validar Avisos, selo NOVO, leitura por operador e hierarquia visual.',
+               'QA','info',NULL,NULL,'info',0,50,CURRENT_TIMESTAMP,datetime('now','+7 days'),'qa:seed',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP);
+          "
+
+      - name: Verify QA seed
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+        run: |
+          npx wrangler d1 execute nisti-identificacao --remote --command "
+            SELECT kind,status,title,product_id,collection_id,featured,priority,expires_at
+            FROM mural_posts
+            WHERE created_by='qa:seed'
+            ORDER BY featured DESC,priority DESC,id DESC;
+
+            SELECT mc.slug,mc.name,mc.year,
+                   CASE WHEN mc.image_key IS NULL OR mc.image_key='' THEN 0 ELSE 1 END AS has_image,
+                   COUNT(mcp.product_id) AS product_count
+            FROM mural_collections mc
+            LEFT JOIN mural_collection_products mcp ON mcp.collection_id=mc.id
+            WHERE mc.slug='qa-planner-2027'
+            GROUP BY mc.id;
+          "
+
+      - name: Assert public release gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCESS="$(curl --fail --silent --show-error https://nisti-identificacao.lksntz1411.workers.dev/api/mural/access)"
+          echo "${ACCESS}"
+          node -e "const d=JSON.parse(process.argv[1]); if(d.released!==false||d.qa!==false) process.exit(1)" "${ACCESS}"
+          STATUS="$(curl --silent --output /tmp/feed-body --write-out '%{http_code}' https://nisti-identificacao.lksntz1411.workers.dev/api/mural)"
+          cat /tmp/feed-body
+          test "${STATUS}" = "403"
