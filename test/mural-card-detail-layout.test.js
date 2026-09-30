@@ -8,7 +8,8 @@ const css=fs.readFileSync(new URL('../src/mural-nisti.css',import.meta.url),'utf
 test('product cards avoid duplicate subtitle metadata and clamp dense content',()=>{
   assert.match(mural,/const isProduct = item\.kind === 'product'/);
   assert.match(mural,/mural-card-product-name/);
-  assert.match(mural,/!isProduct && item\.subtitle/);
+  assert.match(mural,/isNotice && item\.subtitle/);
+  assert.match(mural,/function CollectionLaunchCard/);
   assert.match(mural,/mural-product-collection/);
   assert.match(css,/\.mural-card-product-name[\s\S]*-webkit-line-clamp:2/);
   assert.match(css,/\.mural-card-product \.mural-card-summary[\s\S]*-webkit-line-clamp:2/);
