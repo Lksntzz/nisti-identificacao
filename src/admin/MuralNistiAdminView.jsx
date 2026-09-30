@@ -23,6 +23,7 @@ function AdminMuralIcon({ name, size = 22 }) {
   const common = {
     width:size, height:size, viewBox:'0 0 24 24', fill:'none',
     stroke:'currentColor', strokeWidth:1.9, strokeLinecap:'round', strokeLinejoin:'round',
+    className: `mural-admin-icon-svg mural-admin-icon-svg-${name}`,
     'aria-hidden':true
   };
   if (name === 'product') return <svg {...common}><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.4 7.7 7.6 4.2 7.6-4.2M12 12v9"/></svg>;
@@ -229,9 +230,9 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   const [error, setError] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState('');
-  const [aiPrompt, setAiPrompt] = useState('');
   const [aiStyle, setAiStyle] = useState('editorial');
   const [aiResult, setAiResult] = useState(null);
+  const [showSuccessCheck, setShowSuccessCheck] = useState(false);
   const [artTab, setArtTab] = useState(() => sourceItem?.kind === 'notice' ? 'preview' : 'ai');
 
   useEffect(() => {
@@ -281,20 +282,13 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
     } catch (err) { setError(err.message); }
   };
 
-  const generateAiArt = async mode => {
+  const generateAiArt = async () => {
     setAiError('');
-    if (!['creative_scene','remove_background'].includes(mode)) {
-      setAiError('Operação de IA não permitida neste editor.');
-      return;
-    }
     if (!['product','collection'].includes(form.kind)) {
       setAiError('A IA de imagem está disponível somente para Produto e Coleção.');
       return;
     }
-    if (mode === 'remove_background' && form.kind !== 'product') {
-      setAiError('A remoção de fundo está disponível somente para Produto.');
-      return;
-    }
+    const mode = form.kind === 'product' ? 'product_scene' : 'collection_scene';
     if (form.kind === 'product' && !Number(form.product_id)) {
       setAiError('Selecione o produto que será usado como referência visual.');
       return;
@@ -310,19 +304,15 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
         headers:{'content-type':'application/json'},
         body:JSON.stringify({
           mode,
-          kind:form.kind,
           product_id:Number(form.product_id) || null,
           collection_id:Number(form.collection_id) || null,
-          title:form.title,
-          subtitle:form.subtitle,
-          style:aiStyle,
-          prompt:aiPrompt
+          style:aiStyle
         })
       });
       const raw = base64ToFile(
         data.image_base64,
         data.mime_type || 'image/png',
-        mode === 'remove_background' ? 'produto-sem-fundo.png' : 'mural-arte-ia.png'
+        'mural-arte-ia.png'
       );
       const prepared = await prepareAiImage(raw, mode);
       if (prepared.size > 5 * 1024 * 1024) throw new Error('A arte gerada excedeu 5 MB após otimização.');
@@ -332,10 +322,12 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
         file:prepared,
         url,
         mode,
-        model:data.model || 'gemini-3.1-flash-image',
+        model:data.model || 'gemini-3.1-flash-lite-image',
         sourceCount:Number(data.source_count || 0),
         synthid:Boolean(data.synthid)
       });
+      setShowSuccessCheck(true);
+      setTimeout(() => setShowSuccessCheck(false), 2000);
     } catch (err) {
       setAiError(err.message || 'Não foi possível gerar a arte.');
     } finally {
@@ -561,27 +553,50 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                   ))}
                 </div>
 
-                <label className="mural-publisher-field">Briefing criativo <span>(opcional)</span>
-                  <textarea rows="4" maxLength="900" value={aiPrompt} onChange={e=>setAiPrompt(e.target.value)} placeholder="Ex.: mesa rosé, flores discretas, caneta dourada, iluminação natural lateral e espaço limpo à esquerda para o título."/>
-                  <small>{aiPrompt.length}/900</small>
-                </label>
+                <div className="mural-publisher-ai-info" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px', color: '#64748b', lineHeight: '1.5', marginBottom: '16px' }}>
+                  <p style={{ margin: 0 }}>
+                    {form.kind === 'product'
+                      ? 'A geração de cenário utiliza automaticamente os dados técnicos reais do produto cadastrado no catálogo (como SKU, capa, acabamento, cor de wire-o, elástico e tassel) para garantir fidelidade física absoluta.'
+                      : 'A geração de cenário utiliza automaticamente a lista de produtos reais associados à coleção para compor uma imagem coerente e profissional.'}
+                  </p>
+                </div>
 
-                <button type="button" className="mural-publisher-generate" disabled={aiBusy || (form.kind==='product'&&!form.product_id) || (form.kind==='collection'&&!form.collection_id)} onClick={()=>generateAiArt('creative_scene')}>
-                  <AdminMuralIcon name="sparkles" size={18}/>{aiBusy?'Gerando arte…':'Gerar arte com IA'}
+                <button type="button" className="mural-publisher-generate" disabled={aiBusy || (form.kind==='product'&&!form.product_id) || (form.kind==='collection'&&!form.collection_id)} onClick={generateAiArt}>
+                  {aiBusy ? (
+                    <span className="svg-loader-wrapper">
+                      <svg className="svg-loader-circle" viewBox="0 0 50 50">
+                        <circle className="path" cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle>
+                      </svg>
+                      <span>Gerando arte editorial…</span>
+                    </span>
+                  ) : (
+                    <>
+                      <AdminMuralIcon name="sparkles" size={18}/>
+                      <span>Gerar arte com IA</span>
+                    </>
+                  )}
                 </button>
-                {form.kind === 'product' && <button type="button" className="mural-publisher-remove-bg" disabled={aiBusy || !form.product_id} onClick={()=>generateAiArt('remove_background')}>Remover fundo branco do produto</button>}
-                <small className="mural-admin-ai-note">Somente geração de cenário e remoção de fundo. A chave Gemini permanece no servidor.</small>
+                <small className="mural-admin-ai-note">Somente geração controlada de cenário editorial baseada em dados reais do catálogo. A chave Gemini permanece no servidor.</small>
                 {aiError && <div className="mural-admin-ai-error">{aiError}</div>}
               </section>
 
               <section className="mural-publisher-art-result">
                 <header><strong>{aiResult ? 'Prévia da arte gerada' : imageUrl ? 'Arte atual' : 'Prévia da arte'}</strong>{aiResult&&<span>{aiResult.model}</span>}</header>
-                <div className={`mural-publisher-art-canvas${aiResult?.mode==='remove_background'?' transparent':''}`}>
+                <div className="mural-publisher-art-canvas">
                   {aiResult ? <img src={aiResult.url} alt="Arte gerada por IA para revisão"/> : imageUrl ? <img src={imageUrl} alt="Imagem editorial atual"/> : <div className="mural-publisher-art-empty"><AdminMuralIcon name="image" size={34}/><b>A arte aparecerá aqui</b><span>Escolha a referência e gere uma composição.</span></div>}
+                  {showSuccessCheck && (
+                    <div className="mural-publisher-ai-success-overlay">
+                      <svg className="svg-success-checkmark" viewBox="0 0 52 52">
+                        <circle className="checkmark-circle" cx="26" cy="26" r="25" fill="none" />
+                        <path className="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+                      </svg>
+                      <span className="success-label">Arte gerada com sucesso!</span>
+                    </div>
+                  )}
                 </div>
                 {aiResult && (
                   <div className="mural-publisher-art-result-actions">
-                    <button type="button" onClick={()=>generateAiArt(aiResult.mode)} disabled={aiBusy}><AdminMuralIcon name="refresh" size={16}/> Gerar outra</button>
+                    <button type="button" onClick={generateAiArt} disabled={aiBusy}><AdminMuralIcon name="refresh" size={16}/> Gerar outra</button>
                     <button type="button" className="primary" onClick={applyAiResult}><AdminMuralIcon name="check" size={16}/> Usar esta arte</button>
                     <button type="button" className="danger" onClick={discardAiResult}><AdminMuralIcon name="trash" size={16}/> Descartar</button>
                   </div>

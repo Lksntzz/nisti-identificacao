@@ -8,58 +8,65 @@ const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url
 const wrangler = fs.readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8');
 const edge = fs.readFileSync(new URL('../src/edge-router.js', import.meta.url), 'utf8');
 
-test('Mural admin exposes only creative-scene and white-background removal image flows', () => {
-  assert.ok(admin.includes("generateAiArt('creative_scene')"));
-  assert.ok(admin.includes("generateAiArt('remove_background')"));
-  assert.ok(admin.includes('Gerar arte com IA'));
-  assert.ok(admin.includes('Remover fundo branco do produto'));
-  assert.ok(admin.includes("['creative_scene','remove_background'].includes(mode)"));
+test('mural-router rejects invalid modes and styles outside of the allowlist', () => {
+  // Reject mode invalid
+  assert.ok(router.includes("const MURAL_AI_IMAGE_MODES = Object.freeze(new Set(['product_scene', 'collection_scene']))"));
+  assert.ok(router.includes("if (!MURAL_AI_IMAGE_MODES.has(mode))"));
+
+  // Reject style invalid
+  assert.ok(router.includes("const AUTHORIZED_STYLES = Object.freeze({"));
+  assert.ok(router.includes("if (!(style in AUTHORIZED_STYLES))"));
 });
 
-test('AI studio is available only when the publication kind can use image AI', () => {
-  assert.ok(admin.includes("const canUseAi = form.kind === 'product' || form.kind === 'collection'"));
-  assert.ok(admin.includes('{canUseAi && <button'));
-  assert.ok(admin.includes("A IA de imagem está disponível somente para Produto e Coleção."));
-  assert.equal(admin.includes('Arte sem produto de referência'), false);
+test('system prevents arbitrary prompt text from the client', () => {
+  // Client does not use aiPrompt state and doesn't render prompt textareas
+  assert.equal(admin.includes('aiPrompt'), false);
+  assert.equal(admin.includes('Briefing criativo'), false);
+  assert.equal(admin.includes('<textarea rows="4" maxLength="900"'), false);
+
+  // Server doesn't read any body.prompt parameter or inject user strings into prompts
+  assert.equal(router.includes('body.prompt'), false);
 });
 
-test('server rejects every AI operation outside the explicit image allowlist', () => {
-  assert.ok(router.includes("new Set(['creative_scene','remove_background'])"));
-  assert.ok(router.includes("new Set(['product','collection'])"));
-  assert.ok(router.includes('if (!MURAL_AI_IMAGE_MODES.has(mode))'));
-  assert.ok(router.includes('if (!MURAL_AI_IMAGE_KINDS.has(kind))'));
-  assert.ok(router.includes("mode === 'remove_background' && kind !== 'product'"));
-});
-
-test('AI art stays review-first and only becomes the editorial image after explicit apply', () => {
-  assert.ok(admin.includes('const [aiResult, setAiResult] = useState(null)'));
-  assert.ok(admin.includes('const applyAiResult = () =>'));
-  assert.ok(admin.includes('setImage(aiResult.file)'));
-  assert.ok(admin.includes('setImageUrl(URL.createObjectURL(aiResult.file))'));
-  assert.ok(admin.includes('Usar esta arte'));
-  assert.ok(admin.includes('Descartar'));
-});
-
-test('server uses real product and collection images as Gemini references', () => {
-  assert.ok(router.includes('async function muralAiReferenceImages'));
-  assert.ok(router.includes('mural_collection_products mcp'));
-  assert.ok(router.includes("type:'image'"));
-  assert.ok(router.includes('source_count:sources.length'));
-  assert.ok(router.includes('Preserve exatamente o produto real'));
-});
-
-test('Gemini API secret stays server-side and the AI endpoint is admin-protected', () => {
-  assert.ok(router.includes("https://generativelanguage.googleapis.com/v1beta/interactions"));
-  assert.ok(router.includes("'x-goog-api-key':env.GEMINI_API_KEY"));
-  assert.ok(router.includes("env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image'"));
-  assert.ok(wrangler.includes('GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image"'));
-  assert.equal(admin.includes('GEMINI_API_KEY'), false);
+test('calls to the AI generation endpoint require an administrative session', () => {
+  // Endpoint is prefix-matched in protected APIs which verify session
   assert.ok(edge.includes("pathname.startsWith('/api/admin/')"));
+  assert.ok(edge.includes("isProtectedApi(pathname) && !(await validSession(request, env))"));
 });
 
-test('AI generation is rate-limited and the redesigned studio remains styled', () => {
-  assert.ok(router.includes("reserveGeminiBudget(env,'mural-ai-art',6)"));
+test('system prevents nonexistent product and collection requests and loads details directly from database', () => {
+  // Server-side checks for product existence and database attributes query
+  assert.ok(router.includes("SELECT id, sku, miolo_code, capa_code, acabamento_code, wireo_code, tassel_code, elastico_code, nome, variacao, image_key"));
+  assert.ok(router.includes("O produto selecionado não existe no banco atual."));
+
+  // Server-side checks for collection existence and database query
+  assert.ok(router.includes("SELECT id, slug, name, year, description, image_key, status"));
+  assert.ok(router.includes("A coleção selecionada não existe ou não está ativa no banco atual."));
+});
+
+test('Gemini API key is kept secret and never arrives at the frontend client', () => {
+  assert.ok(router.includes("'x-goog-api-key':env.GEMINI_API_KEY"));
+  assert.equal(admin.includes('GEMINI_API_KEY'), false);
+});
+
+test('AI generated image does not publish automatically and is applied only after explicit administrator action', () => {
+  // Keeps generation review-first on the client
+  assert.ok(admin.includes("const [aiResult, setAiResult] = useState(null)"));
+  assert.ok(admin.includes("const applyAiResult = () =>"));
+  assert.ok(admin.includes("setImage(aiResult.file)"));
+  assert.ok(admin.includes("Usar esta arte"));
+  assert.ok(admin.includes("Descartar"));
+});
+
+test('Aviso posts cannot call image generation', () => {
+  // Notices cannot use AI button block
+  assert.ok(admin.includes("const canUseAi = form.kind === 'product' || form.kind === 'collection'"));
+  assert.ok(admin.includes("{canUseAi && <button"));
+
+  // Notice mode is absent from authorized AI image generation modes
+  assert.ok(router.includes("new Set(['product_scene', 'collection_scene'])"));
+});
+
+test('mural public release gate remains untouched for QA testing', () => {
   assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
-  assert.ok(css.includes('.mural-publisher-ai-card'));
-  assert.ok(css.includes('.mural-publisher-generate'));
 });

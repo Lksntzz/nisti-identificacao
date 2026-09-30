@@ -1703,3 +1703,214 @@
   .mural-admin-table-footer{align-items:flex-start;flex-direction:column}
   .mural-admin-pagination{width:100%;overflow:auto}
 }
+
+/* =========================================================================
+   MURAL ADMIN PREMIUM ANIMATIONS & SVG INTERACTIVE EFFECTS (SVGATOR SPEC)
+   ========================================================================= */
+
+/* Custom Icon Micro-interactions */
+.mural-admin-icon-svg {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+button:hover .mural-admin-icon-svg,
+.active .mural-admin-icon-svg,
+.selected .mural-admin-icon-svg {
+  transform: scale(1.14) rotate(4deg);
+}
+button:active .mural-admin-icon-svg {
+  transform: scale(0.92);
+}
+
+/* Sparkle Specific Path Pulsing */
+button:hover .mural-admin-icon-svg-sparkles path:nth-child(1),
+.active .mural-admin-icon-svg-sparkles path:nth-child(1) {
+  animation: sparkle-pulse-a 1.2s infinite alternate;
+}
+button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
+.active .mural-admin-icon-svg-sparkles path:nth-child(2) {
+  animation: sparkle-pulse-b 1.2s infinite alternate 0.2s;
+}
+
+@keyframes sparkle-pulse-a {
+  0% { transform: scale(1) translate(0, 0); opacity: 0.8; }
+  100% { transform: scale(1.15) translate(-1px, -1px); opacity: 1; }
+}
+@keyframes sparkle-pulse-b {
+  0% { transform: scale(1) translate(0, 0); opacity: 0.8; }
+  100% { transform: scale(1.2) translate(1px, 1px); opacity: 1; }
+}
+
+/* Beautiful active styling with a gradient outline animation for visual styles */
+.mural-publisher-ai-style-grid button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mural-publisher-ai-style-grid button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+.mural-publisher-ai-style-grid button.active::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid transparent;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #6366f1, #a855f7) border-box;
+  mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: destination-out;
+  animation: border-trace-pulse 1.6s infinite alternate;
+}
+
+@keyframes border-trace-pulse {
+  0% { opacity: 0.8; filter: saturate(0.9); }
+  100% { opacity: 1; filter: drop-shadow(0 0 3px rgba(99,102,241,0.6)) saturate(1.2); }
+}
+
+/* Circular SVG Loading Path Animation */
+.svg-loader-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.svg-loader-circle {
+  animation: rotate 1.8s linear infinite;
+  width: 20px;
+  height: 20px;
+}
+.svg-loader-circle .path {
+  stroke: currentColor;
+  stroke-linecap: round;
+  animation: dash 1.5s ease-in-out infinite;
+  stroke-dasharray: 1, 150;
+  stroke-dashoffset: 0;
+}
+
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
+}
+
+/* Success Checkmark Animation */
+.mural-publisher-ai-success-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  animation: fade-in-overlay 0.3s ease both;
+}
+.mural-publisher-ai-success-overlay .success-label {
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  animation: fade-in-up-text 0.4s ease 0.5s both;
+}
+
+.svg-success-checkmark {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 3;
+  stroke: #22c55e;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #22c55e;
+  animation: fill-checkmark .4s ease-in-out .4s forwards, scale-checkmark .3s ease-in-out .9s both;
+}
+.checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 3;
+  stroke-miterlimit: 10;
+  stroke: #22c55e;
+  fill: none;
+  animation: stroke-circle .6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+.checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke: #fff;
+  animation: stroke-check .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards;
+}
+
+@keyframes stroke-circle {
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes stroke-check {
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes fill-checkmark {
+  100% { box-shadow: inset 0px 0px 0px 30px #22c55e; }
+}
+@keyframes scale-checkmark {
+  0%, 100% { transform: none; }
+  50% { transform: scale3d(1.1, 1.1, 1); }
+}
+
+@keyframes fade-in-overlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fade-in-up-text {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Dashboard Summary Cards micro-animations */
+.mural-admin-summary-grid article {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.mural-admin-summary-grid article:hover {
+  transform: translateY(-3px);
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+.mural-admin-summary-grid article:hover .metric-icon {
+  animation: icon-float-bounce 1s ease infinite alternate;
+}
+
+@keyframes icon-float-bounce {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-3px); }
+}
+
+/* Beautiful Animated Grid background overlay for Admin Area */
+.mural-publisher-workspace::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 500px;
+  opacity: 0.45;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 90% 10%, rgba(6, 182, 212, 0.03) 0%, transparent 40%),
+    linear-gradient(rgba(241, 245, 249, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(241, 245, 249, 0.5) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
+  pointer-events: none;
+}
