@@ -13,3 +13,8 @@
 .mural-admin-banner-preview{display:grid;gap:8px;padding:10px;border:1px solid #dbe3ef;border-radius:12px;background:#f8fafc}
 .mural-admin-banner-preview img{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:10px}
 .mural-admin-banner-preview button{min-height:44px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font:inherit;font-weight:800}
+
+.mural-admin-heading-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.mural-admin-heading-actions>button{min-height:44px}
+.mural-admin-qa-note{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:10px 12px;border:1px solid #dbe3ef;border-radius:12px;background:#f8fafc;color:#475569;font-size:12px}
+.mural-admin-qa-note strong{color:#0f172a}

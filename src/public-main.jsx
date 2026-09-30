@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './app.css';
 import LOGO from './assets/logo.png';
 import GtinScannerOverlay from './gtin-scanner-overlay.jsx';
+import MuralNisti from './mural-nisti.jsx';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -1551,7 +1552,8 @@ function PublicIdentificationApp() {
   const [operatorName, setOperatorNameState] = useState(() => getOperatorName());
   const [operatorModalOpen, setOperatorModalOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const muralUnread = 0;
+  const [muralUnread, setMuralUnread] = useState(0);
+  const [muralAccess, setMuralAccess] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [publicView, setPublicView] = useState('scanner');
 
@@ -1571,6 +1573,40 @@ function PublicIdentificationApp() {
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    api('/api/mural/access')
+      .then(data => {
+        if (!active) return;
+        const allowed = Boolean(data?.released || data?.qa);
+        setMuralAccess(allowed);
+        if (allowed && new URLSearchParams(window.location.search).get('mural') === 'qa') {
+          setPublicView('mural');
+        }
+      })
+      .catch(() => active && setMuralAccess(false));
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!muralAccess) {
+      setMuralUnread(0);
+      return undefined;
+    }
+    let active = true;
+    const fetchMuralUnread = () => {
+      api('/api/mural/unread-count').then(data => {
+        if (active && typeof data?.unread_count === 'number') setMuralUnread(data.unread_count);
+      }).catch(() => {});
+    };
+    fetchMuralUnread();
+    const interval = setInterval(fetchMuralUnread, 60000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [muralAccess]);
 
   return (
     <main className={`app general ${publicView === 'scanner' ? 'ean-viewport' : 'mural-viewport'}`}>
@@ -1593,6 +1629,8 @@ function PublicIdentificationApp() {
             <GtinScannerOverlay embedded />
           </div>
         </div>
+      ) : muralAccess ? (
+        <MuralNisti onUnreadChange={setMuralUnread} />
       ) : (
         <section className="mural-coming-soon" role="status" aria-live="polite">
           <div className="mural-coming-soon-card">

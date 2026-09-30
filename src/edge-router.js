@@ -141,7 +141,8 @@ export default {
       return json({ error: 'Acesso administrativo não autorizado.' }, 401);
     }
 
-    const muralResponse = await handleMuralRequest(request, env);
+    const muralQaSession = pathname.startsWith('/api/mural') ? await validSession(request, env) : false;
+    const muralResponse = await handleMuralRequest(request, env, { qaAuthorized: muralQaSession });
     if (muralResponse) return muralResponse;
 
     const listingEditorResponse = await handleCommerceListingEditorRequest(request, env);

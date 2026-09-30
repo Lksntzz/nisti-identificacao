@@ -10,9 +10,10 @@ const display = fs.readFileSync(new URL('../src/product-display.js', import.meta
 test('phase 2 keeps scanner/mural navigation while public mural is release-gated', () => {
   assert.match(publicMain, /publicView === 'scanner' \? \(/);
   assert.match(publicMain, /<GtinScannerOverlay embedded \/>/);
+  assert.match(publicMain, /muralAccess \? \(/);
+  assert.match(publicMain, /<MuralNisti onUnreadChange=\{setMuralUnread\} \/>/);
   assert.match(publicMain, /className="mural-coming-soon"/);
   assert.match(publicMain, /<h2>Em breve<\/h2>/);
-  assert.doesNotMatch(publicMain, /<MuralNisti/);
   assert.match(publicMain, /onOpenScanner=\{\(\) => setPublicView\('scanner'\)\}/);
   assert.match(publicMain, /onOpenMural=\{\(\) => setPublicView\('mural'\)\}/);
 });

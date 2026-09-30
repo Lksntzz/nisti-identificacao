@@ -2,6 +2,8 @@ import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 import { productTypeLabel } from './product-display.js';
 import { broadcastMuralPush } from './web-push.js';
 
+const MURAL_PUBLIC_RELEASED = false;
+
 const TAB_KIND = Object.freeze({
   all: null,
   products: 'product',
@@ -672,11 +674,19 @@ async function adminSendPush(id, env) {
   return json({ok:true,...result});
 }
 
-export async function handleMuralRequest(request, env) {
+export async function handleMuralRequest(request, env, { qaAuthorized = false } = {}) {
   const url = new URL(request.url);
   const path = url.pathname;
 
   try {
+    if (path === '/api/mural/access' && request.method === 'GET') {
+      return json({ released: MURAL_PUBLIC_RELEASED, qa: Boolean(qaAuthorized) });
+    }
+
+    if (path.startsWith('/api/mural') && !MURAL_PUBLIC_RELEASED && !qaAuthorized) {
+      return json({ error: 'Mural NISTI em breve.' }, 403);
+    }
+
     if (path === '/api/mural' && request.method === 'GET') {
       return await listMuralFeed(request, url, env);
     }
