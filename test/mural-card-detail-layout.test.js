@@ -44,3 +44,10 @@ test('collection product cards use contained imagery and compact mobile sizing',
   assert.match(css,/\.mural-collection-product img,[\s\S]*object-fit:contain/);
   assert.match(css,/\.mural-collection-detail \.mural-detail-image\{[\s\S]*object-fit:contain/);
 });
+
+
+test('Mural title accent uses three drop shapes instead of thin sticks',()=>{
+  assert.match(mural,/className="mural-title-accent"/);
+  assert.match(css,/\.mural-title-accent i\{[\s\S]*width:20px;[\s\S]*height:44px;[\s\S]*border-radius:72% 58% 70% 18%/);
+  assert.doesNotMatch(css,/\.mural-title-accent i\{[\s\S]{0,160}width:9px/);
+});
