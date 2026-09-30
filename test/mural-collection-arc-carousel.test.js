@@ -5,25 +5,28 @@ import fs from 'node:fs';
 const mural = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
 
-test('published collections open with the reusable real-cover arc carousel', () => {
-  assert.ok(mural.includes('function CollectionArcCarousel'));
+test('published collections open with a product-only cinematic reveal before the card', () => {
+  assert.ok(mural.includes('function CollectionRevealIntro'));
   assert.ok(mural.includes('products={products}'));
-  assert.ok(mural.includes('mural-collection-arc-card'));
+  assert.ok(mural.includes('mural-collection-reveal-white-arc'));
+  assert.ok(mural.includes('mural-collection-reveal-product'));
   assert.ok(mural.includes('CollectionProductImage product={product}'));
-  assert.ok(mural.includes('CollectionFinishChips product={activeProduct}'));
+  assert.ok(mural.includes('const showIntro = Boolean(collection && products.length && !introComplete)'));
 });
 
-test('collection arc supports swipe, keyboard navigation and five visible cover slots', () => {
-  assert.ok(mural.includes('onPointerDown={handlePointerDown}'));
-  assert.ok(mural.includes("event.key === 'ArrowLeft'"));
-  assert.ok(mural.includes("event.key === 'ArrowRight'"));
-  assert.ok(mural.includes('Math.abs(entry.distance) <= 2'));
-  assert.ok(css.includes('.mural-collection-arc-card.slot-negative-2'));
-  assert.ok(css.includes('.mural-collection-arc-card.slot-positive-2'));
+test('intro shows only transparent product imagery over a white arc and dark screen', () => {
+  assert.ok(mural.includes('products.slice(0, 5)'));
+  assert.ok(css.includes('background:rgba(0,0,0,.94)'));
+  assert.ok(css.includes('.mural-collection-reveal-white-arc'));
+  assert.ok(css.includes('background:transparent'));
+  assert.equal(mural.includes('mural-collection-arc-caption'), false);
 });
 
-test('collection covers rise from the lower edge and reduced motion remains supported', () => {
-  assert.ok(css.includes('transform:translate3d(-50%,155px,0) rotate(0) scale(.54)'));
-  assert.ok(css.includes('.mural-collection-arc.is-ready .mural-collection-arc-card.slot-center'));
+test('products rise into a fan, then the normal collection card is mounted', () => {
+  assert.ok(css.includes('transform:translate3d(-50%,62vh,0) rotate(0) scale(.62)'));
+  assert.ok(css.includes('.mural-collection-reveal-product.slot-left-2'));
+  assert.ok(css.includes('.mural-collection-reveal-product.slot-right-2'));
+  assert.ok(mural.includes('window.setTimeout(onComplete, 1770)'));
+  assert.ok(mural.includes('{!showIntro && ('));
   assert.ok(css.includes('@media (prefers-reduced-motion:reduce)'));
 });
