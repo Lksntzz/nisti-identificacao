@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './mural-nisti.css';
+import LOGO from './assets/logo.png';
 import MuralProductExperience from './mural-product-experience.jsx';
 import { useTransparentProductImage } from './mural-transparent-image.js';
 
@@ -844,11 +845,7 @@ export default function MuralNisti({ onUnreadChange }) {
               <p>Novidades, coleções e avisos para operadores</p>
             </span>
             <span className="mural-title-accent" aria-hidden="true">
-              {[0,1,2].map(index => (
-                <svg key={index} className={`mural-title-drop drop-${index + 1}`} viewBox="0 0 36 56" focusable="false">
-                  <path d="M18 2C13.5 9.5 4.5 20.5 3.2 32.8C2 44.5 8.7 53.5 18.8 54C28.8 54.4 34.5 46.2 33 35C31.5 23.3 22.5 9.7 18 2Z" />
-                </svg>
-              ))}
+              <img className="mural-title-brand-mark" src={LOGO} alt="" />
             </span>
           </header>
 
