@@ -7,36 +7,34 @@ const css = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 
 const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
 const publicMain = fs.readFileSync(new URL('../src/public-main.jsx', import.meta.url), 'utf8');
 
-test('motion part 5 keeps one WebGL context while narrative steps change', () => {
-  assert.ok(experience.includes('const activeStepRef = useRef(activeStep)'));
-  assert.ok(experience.includes('activeStepRef.current = activeStep'));
-  assert.ok(experience.includes('const step = activeStepRef.current'));
-  assert.ok(experience.includes('}, [imageUrl]);'));
-  assert.equal(experience.includes('}, [imageUrl, activeStep]);'), false);
+test('part 7 supersedes the old single-image WebGL viewer', () => {
+  assert.equal(experience.includes("getContext('webgl'"), false);
+  assert.equal(experience.includes('activeStepRef'), false);
+  assert.ok(experience.includes('mural-product-focus-stage'));
+  assert.ok(experience.includes('mural-product-focus-panel'));
 });
 
-test('motion part 5 returns manual drag toward the story-driven orientation', () => {
-  assert.ok(experience.includes('if (!drag.active)'));
-  assert.ok(experience.includes('drag.rx *= 0.94'));
-  assert.ok(experience.includes('drag.ry *= 0.94'));
+test('product focus exposes four explicit editorial views', () => {
+  for (const label of ['Visão', 'Identificação', 'Acabamentos', 'Editorial']) {
+    assert.ok(experience.includes(label));
+  }
+  assert.ok(experience.includes('role="tab"'));
+  assert.ok(experience.includes('aria-selected={activeFocus === index}'));
 });
 
-test('motion part 5 adds visible and semantic story progression', () => {
-  assert.ok(experience.includes('mural-product-story-progress'));
-  assert.ok(experience.includes("className={index === activeStep ? 'active' : index < activeStep ? 'complete' : ''}"));
-  assert.ok(experience.includes("aria-current={activeStep === index ? 'step' : undefined}"));
-  assert.ok(css.includes('.mural-product-story-progress span.active'));
-  assert.ok(css.includes('.mural-product-story-step[aria-current="step"]>span'));
+test('product focus uses honest static media with resilient fallback', () => {
+  assert.ok(experience.includes('function ProductVisual'));
+  assert.ok(experience.includes('Imagem do produto indisponível'));
+  assert.ok(experience.includes('onError={() => setFailed(true)}'));
+  assert.ok(css.includes('.mural-product-focus-image'));
 });
 
-test('motion part 5 uses precise WebGL wording and respects reduced motion', () => {
-  assert.ok(experience.includes('Visualização interativa em perspectiva de'));
-  assert.equal(experience.includes('Visualização 3D interativa de'), false);
-  assert.ok(css.includes('.mural-product-story-progress span,'));
+test('product focus respects reduced motion', () => {
+  assert.ok(css.includes('.mural-product-focus-glow,'));
   assert.ok(css.includes('transition:none!important'));
 });
 
-test('motion part 5 preserves the public Em breve gate', () => {
+test('public Em breve gate remains closed', () => {
   assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
   assert.ok(publicMain.includes('<h2>Em breve</h2>'));
 });
