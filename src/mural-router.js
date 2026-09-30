@@ -1095,6 +1095,101 @@ function buildCollectionPrompt(collection, products, style) {
   ].join('\n');
 }
 
+function muralGeminiProReference(source, index) {
+  const product = source?.product || {};
+  const rawName = String(product.sku || product.nome || source?.label || `referencia-${index + 1}`)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || `referencia-${index + 1}`;
+  const mime = String(source?.mime_type || 'image/jpeg').toLowerCase();
+  const extension = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+  const imageKey = String(product.image_key || '');
+  return {
+    id: Number(product.id || 0) || null,
+    sku: product.sku || null,
+    name: product.nome || null,
+    variation: product.variacao || null,
+    label: source?.label || product.sku || product.nome || `Referência ${index + 1}`,
+    mime_type: source?.mime_type || 'image/jpeg',
+    filename: `${rawName}.${extension}`,
+    image_url: product.id
+      ? `/api/images/${Number(product.id)}?v=${encodeURIComponent(imageKey)}`
+      : null
+  };
+}
+
+async function adminPrepareMuralGeminiPro(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const mode = String(body.mode || '').trim();
+  const productId = Number(body.product_id || 0);
+  const collectionId = Number(body.collection_id || 0);
+  const style = String(body.style || '').trim();
+
+  if (!MURAL_AI_IMAGE_MODES.has(mode)) {
+    return json({ error:'Operação de imagem inválida. Use product_scene ou collection_scene.' },422);
+  }
+  if (!(style in AUTHORIZED_STYLES)) {
+    return json({ error:'Estilo visual não autorizado.' },422);
+  }
+
+  try {
+    let prompt = '';
+    let sources = [];
+
+    if (mode === 'product_scene') {
+      if (!Number.isInteger(productId) || productId <= 0) {
+        return json({ error:'Selecione o produto que será usado como referência visual.' },422);
+      }
+      const product = await env.DB.prepare(`
+        SELECT id, sku, miolo_code, capa_code, acabamento_code, wireo_code, tassel_code, elastico_code, nome, variacao, image_key
+        FROM products
+        WHERE id = ?
+      `).bind(productId).first();
+      if (!product) return json({ error:'O produto selecionado não existe no banco atual.' },422);
+
+      prompt = buildProductPrompt(product, finishLabels(product), style);
+      sources = await muralAiReferenceImages(env, { productId });
+    } else {
+      if (!Number.isInteger(collectionId) || collectionId <= 0) {
+        return json({ error:'Selecione a coleção que será usada como referência visual.' },422);
+      }
+      const collection = await env.DB.prepare(`
+        SELECT id, slug, name, year, description, image_key, status
+        FROM mural_collections
+        WHERE id = ? AND status = 'active'
+      `).bind(collectionId).first();
+      if (!collection) return json({ error:'A coleção selecionada não existe ou não está ativa no banco atual.' },422);
+
+      const productsResult = await env.DB.prepare(`
+        SELECT p.id, p.sku, p.nome, p.variacao, p.wireo_code, p.tassel_code, p.elastico_code, p.miolo_code, p.image_key
+        FROM mural_collection_products mcp
+        INNER JOIN products p ON p.id = mcp.product_id
+        WHERE mcp.collection_id = ?
+        ORDER BY mcp.sort_order ASC, p.id ASC
+      `).bind(collectionId).all();
+      const products = productsResult.results || [];
+      if (!products.length) return json({ error:'A coleção selecionada não possui produtos cadastrados.' },422);
+
+      prompt = buildCollectionPrompt(collection, products, style);
+      sources = await muralAiReferenceImages(env, { collectionId });
+    }
+
+    return json({
+      ok:true,
+      mode,
+      style,
+      prompt,
+      gemini_url:'https://gemini.google.com/app',
+      reference_count:sources.length,
+      references:sources.map(muralGeminiProReference)
+    });
+  } catch (err) {
+    return json({ error:err.message || 'Não foi possível preparar o pacote para o Gemini Pro.' },422);
+  }
+}
+
 function muralAiOutputImage(payload) {
   const blocks = [];
   for (const step of payload?.steps || []) {
@@ -1510,6 +1605,7 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     if (path === '/api/admin/mural/products' && request.method === 'GET') return adminProducts(url, env);
     if (path === '/api/admin/mural/metrics' && request.method === 'GET') return adminMetrics(env);
     if (path === '/api/admin/mural/readiness' && request.method === 'GET') return adminReadiness(env);
+    if (path === '/api/admin/mural/gemini-pro-package' && request.method === 'POST') return adminPrepareMuralGeminiPro(request, env);
     if (path === '/api/admin/mural/ai-art' && request.method === 'POST') return adminGenerateMuralAiArt(request, env);
     if (path === '/api/admin/mural/image-studio' && request.method === 'POST') return adminMuralImageStudio(request, env);
     if (path === '/api/admin/mural/collections' && request.method === 'GET') return adminListCollections(env);

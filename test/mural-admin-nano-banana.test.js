@@ -80,3 +80,29 @@ test('Gemini image request uses the MIME accepted by the production Interactions
   assert.ok(admin.includes("outputMime === 'image/png' ? 'mural-arte-ia.png' : 'mural-arte-ia.jpg'"));
 });
 
+
+
+test('Gemini Pro fallback prepares the same server-side prompt and real product references without exposing an API key', () => {
+  assert.ok(router.includes("async function adminPrepareMuralGeminiPro(request, env)"));
+  assert.ok(router.includes("buildProductPrompt(product, finishLabels(product), style)"));
+  assert.ok(router.includes("buildCollectionPrompt(collection, products, style)"));
+  assert.ok(router.includes("sources = await muralAiReferenceImages(env, { productId })"));
+  assert.ok(router.includes("sources = await muralAiReferenceImages(env, { collectionId })"));
+  assert.ok(router.includes("gemini_url:'https://gemini.google.com/app'"));
+  assert.ok(router.includes("reference_count:sources.length"));
+  assert.ok(router.includes("references:sources.map(muralGeminiProReference)"));
+  assert.ok(router.includes("'/api/admin/mural/gemini-pro-package'"));
+  assert.equal(admin.includes('GEMINI_IMAGE_API_KEY'), false);
+});
+
+test('Mural offers a zero-extra-API-cost Gemini Pro handoff and return flow', () => {
+  assert.ok(admin.includes('Usar minha conta Gemini Pro'));
+  assert.ok(admin.includes('/api/admin/mural/gemini-pro-package'));
+  assert.ok(admin.includes('Copiar e abrir Gemini Pro'));
+  assert.ok(admin.includes('Baixar'));
+  assert.ok(admin.includes('Trazer imagem gerada para o Mural'));
+  assert.ok(admin.includes('A cota gratuita da API de imagem foi atingida.'));
+  assert.ok(css.includes('.mural-gemini-pro-kit'));
+  assert.ok(css.includes('.mural-gemini-pro-references'));
+  assert.ok(css.includes('.mural-gemini-pro-return'));
+});
