@@ -101,10 +101,10 @@ function createProgram(gl) {
 
 function ProductWebGL({ imageUrl, title, activeStep }) {
   const canvasRef = useRef(null);
-  const runtimeRef = useRef(null);
   const [available, setAvailable] = useState(true);
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(1);
+  const activeStepRef = useRef(activeStep);
   const dragRef = useRef({ active:false, x:0, y:0, rx:0, ry:0 });
 
   useEffect(() => {
@@ -112,11 +112,16 @@ function ProductWebGL({ imageUrl, title, activeStep }) {
   }, [zoom]);
 
   useEffect(() => {
+    activeStepRef.current = activeStep;
+  }, [activeStep]);
+
+  useEffect(() => {
     if (!imageUrl || prefersReducedMotion()) {
       setAvailable(false);
       return undefined;
     }
 
+    setAvailable(true);
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
     const gl = canvas.getContext('webgl', { alpha:true, antialias:true, premultipliedAlpha:false });
@@ -206,8 +211,15 @@ function ProductWebGL({ imageUrl, title, activeStep }) {
         if (stopped) return;
         resize();
 
-        const target = stepRotations[Math.max(0, Math.min(stepRotations.length - 1, activeStep))] || stepRotations[0];
+        const step = activeStepRef.current;
+        const target = stepRotations[Math.max(0, Math.min(stepRotations.length - 1, step))] || stepRotations[0];
         const drag = dragRef.current;
+        if (!drag.active) {
+          drag.rx *= 0.94;
+          drag.ry *= 0.94;
+          if (Math.abs(drag.rx) < 0.001) drag.rx = 0;
+          if (Math.abs(drag.ry) < 0.001) drag.ry = 0;
+        }
         const targetRx = target.x + drag.rx;
         const targetRy = target.y + drag.ry;
         currentRx += (targetRx - currentRx) * 0.08;
@@ -244,7 +256,6 @@ function ProductWebGL({ imageUrl, title, activeStep }) {
         frame = requestAnimationFrame(render);
       };
       frame = requestAnimationFrame(render);
-      runtimeRef.current = { gl };
     } catch {
       setAvailable(false);
     }
@@ -259,9 +270,8 @@ function ProductWebGL({ imageUrl, title, activeStep }) {
         if (texture) gl.deleteTexture(texture);
         if (program) gl.deleteProgram(program);
       }
-      runtimeRef.current = null;
     };
-  }, [imageUrl, activeStep]);
+  }, [imageUrl]);
 
   const pointerDown = event => {
     if (!available) return;
@@ -296,13 +306,13 @@ function ProductWebGL({ imageUrl, title, activeStep }) {
       <canvas
         ref={canvasRef}
         role="img"
-        aria-label={`Visualização 3D interativa de ${title}`}
+        aria-label={`Visualização interativa em perspectiva de ${title}`}
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
         onPointerUp={pointerUp}
         onPointerCancel={pointerUp}
       />
-      <div className="mural-product-webgl-hint" aria-hidden="true">Arraste para girar</div>
+      <div className="mural-product-webgl-hint" aria-hidden="true">Arraste para explorar</div>
       <div className="mural-product-webgl-controls" aria-label="Controles de zoom">
         <button type="button" onClick={() => setZoom(value => Math.max(.82, +(value - .12).toFixed(2)))} aria-label="Diminuir zoom">−</button>
         <button type="button" onClick={() => setZoom(value => Math.min(1.42, +(value + .12).toFixed(2)))} aria-label="Aumentar zoom">+</button>
@@ -383,7 +393,15 @@ export default function MuralProductExperience({ item }) {
 
   return (
     <div className="mural-product-story" ref={storyRef}>
-      <div className="mural-product-stage">
+      <div className="mural-product-stage" data-story-active={activeStep}>
+        <div className="mural-product-story-progress" aria-hidden="true">
+          {steps.map((_, index) => (
+            <span
+              key={index}
+              className={index === activeStep ? 'active' : index < activeStep ? 'complete' : ''}
+            />
+          ))}
+        </div>
         <div className="mural-product-orb mural-product-orb-a" aria-hidden="true" />
         <div className="mural-product-orb mural-product-orb-b" aria-hidden="true" />
         <ProductWebGL imageUrl={item?.image_url} title={item?.title || 'Produto'} activeStep={activeStep} />
@@ -399,6 +417,7 @@ export default function MuralProductExperience({ item }) {
             key={`${step.eyebrow}-${index}`}
             data-story-step={index}
             className={`mural-product-story-step${activeStep === index ? ' active' : ''}`}
+            aria-current={activeStep === index ? 'step' : undefined}
           >
             <span>{step.eyebrow}</span>
             <h3>{step.title}</h3>

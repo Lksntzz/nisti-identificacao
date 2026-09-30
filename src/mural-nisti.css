@@ -1358,3 +1358,97 @@
   .mural-detail-close{transition:none!important}
 }
 
+/* Motion Part 5: product scrollytelling refinement and lower-cost stage transitions. */
+.mural-product-story-progress{
+  position:absolute;
+  z-index:8;
+  top:16px;
+  left:18px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  pointer-events:none;
+}
+.mural-product-story-progress span{
+  width:18px;
+  height:4px;
+  border-radius:999px;
+  background:rgba(100,116,139,.24);
+  transform-origin:left center;
+  transition:width 260ms var(--mural-ease-out),background 220ms ease,opacity 220ms ease;
+}
+.mural-product-story-progress span.complete{
+  background:rgba(47,107,255,.48);
+}
+.mural-product-story-progress span.active{
+  width:34px;
+  background:var(--mural-blue);
+}
+.mural-product-story-step{
+  opacity:.56;
+  transform:translate3d(0,12px,0) scale(.992);
+  transition:opacity 300ms ease,transform 420ms var(--mural-ease-out);
+}
+.mural-product-story-step.active{
+  opacity:1;
+  transform:translate3d(0,0,0) scale(1);
+}
+.mural-product-story-step[aria-current="step"]>span{
+  background:#e5edff;
+  box-shadow:0 6px 16px rgba(47,107,255,.08);
+}
+.mural-product-stage[data-story-active="1"]::before{
+  opacity:.9;
+}
+.mural-product-stage[data-story-active="2"]::before{
+  opacity:.72;
+}
+.mural-product-stage[data-story-active="3"]::before{
+  opacity:.56;
+}
+.mural-product-stage::before{
+  transition:opacity 360ms ease,transform .12s linear;
+}
+.mural-product-webgl-hint{
+  transition:opacity 220ms ease,transform 220ms var(--mural-ease-out);
+}
+.mural-product-webgl:active .mural-product-webgl-hint{
+  opacity:.45;
+  transform:translateX(-50%) translateY(2px);
+}
+.mural-product-webgl-controls button{
+  transition:transform var(--mural-motion-fast) var(--mural-ease-out),box-shadow var(--mural-motion-ui) ease,background var(--mural-motion-ui) ease;
+}
+.mural-product-webgl-controls button:active{
+  transform:scale(.92);
+}
+@media (hover:hover) and (pointer:fine){
+  .mural-product-webgl-controls button:hover{
+    transform:translateY(-1px);
+    box-shadow:0 9px 22px rgba(15,23,42,.11);
+  }
+}
+@media (max-width:390px){
+  .mural-product-story-progress{
+    top:14px;
+    left:15px;
+    gap:5px;
+  }
+  .mural-product-story-progress span{width:15px}
+  .mural-product-story-progress span.active{width:28px}
+}
+@media (prefers-reduced-motion:reduce){
+  .mural-product-story-progress span,
+  .mural-product-webgl-hint,
+  .mural-product-webgl-controls button,
+  .mural-product-stage::before{
+    transition:none!important;
+  }
+  .mural-product-story-progress span{
+    width:18px;
+  }
+  .mural-product-story-progress span.active{
+    width:26px;
+  }
+}
+
