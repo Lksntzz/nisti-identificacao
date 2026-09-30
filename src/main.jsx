@@ -296,7 +296,16 @@ function SidebarIcon({ name }) {
 /* =========================================================================
    TOPBAR COMPONENT
    ========================================================================= */
-function AdminTopbar({ onToggleSidebar, unreadCount }) {
+function AdminTopbar({ onToggleSidebar, unreadCount, activeView }) {
+  const pageTitle = activeView === 'catalogo' ? 'Produtos NISTI'
+    : activeView === 'mural-nisti' ? 'Mural NISTI'
+    : activeView === 'gerador-barras' ? 'Gerador de Barras'
+    : activeView === 'historico-ean' ? 'Histórico de Bipagens'
+    : activeView === 'ean-nao-cadastrados' ? 'EAN não Cadastrados'
+    : activeView === 'produtos-sem-ean' ? 'Produtos sem EAN'
+    : activeView === 'logs' ? 'Saúde & Logs'
+    : 'Painel Administrativo';
+
   return (
     <header className="admin-topbar-header">
       <div className="topbar-left">
@@ -312,16 +321,18 @@ function AdminTopbar({ onToggleSidebar, unreadCount }) {
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
-        <h1 className="admin-page-title">Painel Administrativo</h1>
+        <h1 className="admin-page-title">
+          <span key={activeView} className="admin-page-title-motion">{pageTitle}</span>
+        </h1>
       </div>
 
       <div className="topbar-right">
-        <a href="/" className="topbar-bell-btn" title="Notificações">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <a href="/" className={`topbar-bell-btn ${unreadCount > 0 ? 'has-unread' : ''}`} title="Notificações">
+          <svg key={unreadCount > 0 ? unreadCount : 'empty'} viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
-          {unreadCount > 0 && <span className="topbar-bell-badge">{unreadCount}</span>}
+          {unreadCount > 0 && <span key={unreadCount} className="topbar-bell-badge">{unreadCount}</span>}
         </a>
 
         <a
@@ -1452,6 +1463,7 @@ function AdminApp() {
         <AdminTopbar
           onToggleSidebar={() => setSidebarOpen(prev => !prev)}
           unreadCount={unreadCount}
+          activeView={activeView}
         />
 
         <main className="admin-page-content">
