@@ -172,18 +172,37 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
   const isProduct = item.kind === 'product';
   const isCollection = item.kind === 'collection';
   const revealStyle = { '--mural-card-delay': `${Math.min(index, 8) * 45}ms` };
+  const collectionPreviews = isCollection ? (item.collection?.preview_products || []) : [];
+  const collectionProductCount = isCollection
+    ? Number(item.collection?.product_count || collectionPreviews.length || 0)
+    : 0;
 
   if (isCollection) {
     return (
       <button
         type="button"
-        className={`mural-card mural-card-collection mural-reveal${!item.is_read ? ' unread' : ''}`}
+        className={`mural-card mural-card-collection mural-reveal${collectionPreviews.length ? ' has-products' : ''}${!item.is_read ? ' unread' : ''}`}
         style={revealStyle}
         data-mural-reveal
         onClick={() => onOpen(item)}
       >
         <MuralImage item={item} eager={eager} className="mural-collection-card-image" />
         <span className="mural-collection-card-shade" aria-hidden="true" />
+        {collectionPreviews.length ? (
+          <span className="mural-collection-card-products" aria-label={`${collectionProductCount} produtos na coleção`}>
+            <span className="mural-collection-card-product-stack" aria-hidden="true">
+              {collectionPreviews.map((product, productIndex) => (
+                <span className={`mural-collection-card-product-preview preview-${productIndex + 1}`} key={product.id}>
+                  <CollectionProductImage product={product} eager={eager && productIndex === 0} />
+                </span>
+              ))}
+            </span>
+            <span className="mural-collection-card-product-count">
+              <strong>{collectionProductCount}</strong>
+              <small>produto{collectionProductCount === 1 ? '' : 's'}</small>
+            </span>
+          </span>
+        ) : null}
         <span className="mural-collection-card-copy">
           <span className="mural-card-badges">
             <ReadBadge item={item} />

@@ -84,9 +84,10 @@ async function unreadCount(userId, env) {
   return Number(row?.total || 0);
 }
 
-function mapFeedRow(row) {
+function mapFeedRow(row, collectionPreviews = new Map()) {
   const productId = row.product_id ? Number(row.product_id) : null;
   const collectionId = row.collection_id ? Number(row.collection_id) : null;
+  const collectionPreview = collectionId ? collectionPreviews.get(collectionId) : null;
   const labels = finishLabels(row);
   const productAvailable = row.kind !== 'product' || Boolean(productId && row.sku);
 
@@ -127,7 +128,9 @@ function mapFeedRow(row) {
           id: collectionId,
           slug: row.collection_slug,
           name: row.collection_name,
-          year: row.collection_year ? Number(row.collection_year) : null
+          year: row.collection_year ? Number(row.collection_year) : null,
+          product_count: Number(collectionPreview?.count || 0),
+          preview_products: collectionPreview?.items || []
         }
       : null,
     notice_level: row.notice_level || null
@@ -202,8 +205,44 @@ async function listMuralFeed(request, url, env) {
   const hasMore = rows.length > limit;
   const page = rows.slice(0, limit);
 
+  const collectionIds = [...new Set(
+    page
+      .filter(row => row.kind === 'collection' && row.collection_id)
+      .map(row => Number(row.collection_id))
+  )];
+  const collectionPreviews = new Map();
+
+  if (collectionIds.length) {
+    const placeholders = collectionIds.map(() => '?').join(',');
+    const previewResult = await env.DB.prepare(`
+      SELECT
+        mcp.collection_id,mcp.sort_order,
+        p.id,p.sku,p.nome,p.variacao,p.miolo_code,p.image_key
+      FROM mural_collection_products mcp
+      INNER JOIN products p ON p.id=mcp.product_id
+      WHERE mcp.collection_id IN (${placeholders})
+      ORDER BY mcp.collection_id ASC,mcp.sort_order ASC,p.sku ASC,p.id ASC
+    `).bind(...collectionIds).all();
+
+    for (const row of previewResult.results || []) {
+      const collectionId = Number(row.collection_id);
+      const current = collectionPreviews.get(collectionId) || { count:0, items:[] };
+      current.count += 1;
+      if (current.items.length < 3) {
+        current.items.push({
+          id:Number(row.id),
+          sku:row.sku || null,
+          type:productTypeLabel({ product_name:row.nome, ...row }),
+          name:row.nome || null,
+          image_url:row.image_key ? `/api/images/${Number(row.id)}?v=${encodeURIComponent(row.image_key)}` : null
+        });
+      }
+      collectionPreviews.set(collectionId,current);
+    }
+  }
+
   return json({
-    items: page.map(mapFeedRow),
+    items: page.map(row => mapFeedRow(row, collectionPreviews)),
     next_cursor: hasMore ? encodeCursor(page[page.length - 1]) : null,
     unread_count: await unreadCount(userId, env)
   });
