@@ -4941,3 +4941,148 @@ button.kpi-box {
   .app.general .mural-nav-btn { min-width:50px; padding-inline:6px; }
   .app.general .brand-subtext { display:none; }
 }
+
+/* Part 8 — Mural header aligned with the approved mobile reference. */
+.brand-identity-button{
+  margin:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  text-align:left;
+}
+.mural-viewport{
+  background:
+    radial-gradient(circle at 10% 2%,rgba(248,102,166,.05),transparent 22%),
+    radial-gradient(circle at 92% 4%,rgba(20,200,212,.06),transparent 22%),
+    linear-gradient(180deg,#f9fbff 0%,#f4f7fc 100%);
+}
+.mural-viewport .brand-topbar{
+  padding:10px 4px 20px;
+}
+.mural-viewport .brand-identity{
+  gap:10px;
+}
+.mural-viewport .brand-identity-button{
+  cursor:pointer;
+}
+.mural-viewport .brand-icon-mark{
+  width:46px;
+  height:46px;
+}
+.mural-viewport .brand-main-title{
+  font-size:17px;
+  line-height:1.02;
+  letter-spacing:-.025em;
+}
+.mural-viewport .brand-subtext{
+  margin-top:3px;
+  color:#64748b;
+  font-size:10px;
+  line-height:1.05;
+  font-weight:700;
+  letter-spacing:.02em;
+  text-transform:none;
+}
+.mural-viewport .header-actions{
+  gap:8px;
+}
+.mural-viewport .operator-profile-pill{
+  min-height:44px;
+  padding:4px 13px 4px 5px;
+  border-color:#dce5ef;
+  box-shadow:0 4px 12px rgba(15,23,42,.06);
+}
+.mural-viewport .operator-avatar-mini{
+  width:34px;
+  height:34px;
+  font-size:12px;
+}
+.mural-viewport .operator-name-label{
+  max-width:126px;
+  color:#182238;
+  font-size:12px;
+  font-weight:800;
+}
+.mural-viewport .bell-circle-btn{
+  width:46px;
+  height:46px;
+  border-color:#dce5ef;
+  box-shadow:0 4px 12px rgba(15,23,42,.05);
+}
+.mural-viewport .brand-identity-button:focus-visible{
+  outline:3px solid #38bdf8;
+  outline-offset:4px;
+  border-radius:14px;
+}
+@media (max-width:640px){
+  .app.general.mural-viewport{
+    width:100%;
+    min-height:100dvh;
+    padding:max(8px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));
+  }
+  .app.general.mural-viewport .brand-topbar{
+    min-height:62px;
+    padding:4px 4px 14px;
+    grid-template-columns:minmax(126px,1fr) auto;
+    column-gap:8px;
+  }
+  .app.general.mural-viewport .brand-icon-mark{
+    width:39px;
+    height:39px;
+    flex:0 0 39px;
+  }
+  .app.general.mural-viewport .brand-main-title{
+    font-size:13.5px;
+  }
+  .app.general.mural-viewport .brand-subtext{
+    display:block;
+    font-size:9px;
+    line-height:1.1;
+    letter-spacing:.015em;
+  }
+  .app.general.mural-viewport .header-actions{
+    gap:6px;
+  }
+  .app.general.mural-viewport .operator-profile-pill{
+    max-width:136px;
+    min-height:42px;
+    flex:0 1 136px;
+    padding:4px 10px 4px 4px;
+  }
+  .app.general.mural-viewport .operator-avatar-mini{
+    width:32px;
+    height:32px;
+    flex:0 0 32px;
+  }
+  .app.general.mural-viewport .operator-name-label{
+    display:block;
+    max-width:88px;
+    font-size:11px;
+  }
+  .app.general.mural-viewport .bell-circle-btn{
+    width:42px;
+    height:42px;
+    flex:0 0 42px;
+  }
+}
+@media (max-width:360px){
+  .app.general.mural-viewport .brand-topbar{
+    grid-template-columns:minmax(112px,1fr) auto;
+  }
+  .app.general.mural-viewport .operator-profile-pill{
+    width:auto;
+    max-width:112px;
+    flex-basis:112px;
+    justify-content:flex-start;
+  }
+  .app.general.mural-viewport .operator-name-label{
+    display:block;
+    max-width:65px;
+  }
+  .app.general.mural-viewport .brand-subtext{
+    display:block;
+  }
+}
+
