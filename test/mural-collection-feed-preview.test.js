@@ -15,27 +15,27 @@ test('collection feed loads product previews in one batched query', () => {
   assert.ok(router.includes('product_count: Number(collectionPreview?.count || 0)'));
 });
 
-test('collection card renders product thumbnails and total in the Coleções tab', () => {
-  assert.ok(mural.includes("const collectionPreviews = isCollection ? (item.collection?.preview_products || []) : []"));
-  assert.ok(mural.includes('mural-collection-card-products'));
-  assert.ok(mural.includes('mural-collection-card-product-preview'));
-  assert.ok(mural.includes('mural-collection-card-product-count'));
-  assert.ok(mural.includes("collectionPreviews.length ? ' has-products' : ''"));
+test('collection cards render curated product thumbnails in the compact feed layout', () => {
+  assert.ok(mural.includes('function CollectionCardMedia'));
+  assert.ok(mural.includes('mural-card-media-collection'));
+  assert.ok(mural.includes('mural-card-collection-mini'));
+  assert.ok(mural.includes('collectionProductCount'));
+  assert.ok(css.includes('.mural-card-media-collection'));
+  assert.ok(css.includes('.mural-card-collection-mini'));
 });
 
-test('collection preview layout is mobile-aware and does not require relational selectors', () => {
-  assert.ok(css.includes('.mural-collection-card-products{'));
-  assert.ok(css.includes('.mural-card-collection.has-products .mural-collection-card-copy'));
-  assert.equal(css.includes(':has(.mural-collection-card-products)'), false);
-  assert.ok(css.includes('@media (max-width:390px)'));
-});
-
-test('featured collection hero also renders its product selection', () => {
-  assert.ok(mural.includes("const collectionPreviews = isCollection ? (item.collection?.preview_products || []) : []"));
-  assert.ok(mural.includes('mural-hero-collection-products'));
-  assert.ok(mural.includes('mural-hero-collection-product'));
-  assert.ok(mural.includes('mural-hero-collection-count'));
+test('featured collection hero renders products inside the editorial scene', () => {
+  assert.ok(mural.includes('function HeroScene'));
+  assert.ok(mural.includes('mural-scene-products'));
+  assert.ok(mural.includes('mural-scene-product product-'));
   assert.ok(mural.includes("{isCollection ? 'Ver coleção' : 'Ver detalhe'}"));
-  assert.ok(css.includes('.mural-hero-collection.has-products'));
-  assert.ok(css.includes('.mural-hero-collection-products'));
+  assert.ok(css.includes('.mural-hero-scene-composed'));
+  assert.ok(css.includes('.mural-scene-products'));
+});
+
+test('feed exposes image source so a true editorial post image can become the hero scene', () => {
+  assert.ok(router.includes("image_source: row.image_key"));
+  assert.ok(router.includes("? 'post'"));
+  assert.ok(mural.includes("item.image_source === 'post' && item.image_url"));
+  assert.ok(mural.includes('mural-hero-scene-photo'));
 });
