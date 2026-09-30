@@ -42,3 +42,13 @@ test('feed exposes image source so a true editorial post image can become the he
   assert.ok(mural.includes("item.image_source === 'post' && item.image_url"));
   assert.ok(mural.includes('mural-hero-scene-photo'));
 });
+
+
+test('collection product cutouts receive a white contour that follows the transparent silhouette', () => {
+  assert.ok(css.includes('.mural-launch-product>img.mural-product-transparent'));
+  assert.ok(css.includes('.mural-collection-launch-product>img.mural-product-transparent'));
+  assert.ok(css.includes('.mural-scene-product>img.mural-product-transparent'));
+  assert.ok(css.includes('.mural-collection-reveal-product>img.mural-product-transparent'));
+  assert.ok(css.includes('drop-shadow(0 0 2.4px rgba(255,255,255,1))'));
+  assert.ok(css.includes('drop-shadow(0 8px 11px rgba(31,41,55,.16))'));
+});
