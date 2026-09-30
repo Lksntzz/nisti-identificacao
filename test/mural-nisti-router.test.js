@@ -40,3 +40,14 @@ test('mural migration contains required entities and indexes', () => {
   assert.match(migration, /idx_mural_posts_feed/);
   assert.match(migration, /idx_mural_collection_products_product_id/);
 });
+
+
+test('admin can permanently delete a Mural publication and clean only unreferenced editorial image', () => {
+  assert.ok(source.includes('async function adminDeletePost(id, env)'));
+  assert.ok(source.includes("DELETE FROM mural_post_reads WHERE post_id=?"));
+  assert.ok(source.includes("DELETE FROM mural_posts WHERE id=?"));
+  assert.ok(source.includes("SELECT COUNT(*) FROM mural_posts WHERE image_key = ?"));
+  assert.ok(source.includes("SELECT COUNT(*) FROM mural_collections WHERE image_key = ?"));
+  assert.ok(source.includes("await env.PRODUCT_IMAGES.delete(current.image_key)"));
+  assert.ok(source.includes("request.method === 'DELETE') return adminDeletePost"));
+});
