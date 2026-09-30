@@ -1306,7 +1306,24 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
    MAIN ADMIN APP ROOT
    ========================================================================= */
 function AdminApp() {
-  const [activeView, setActiveView] = useState('catalogo');
+  const [activeView, setActiveView] = useState(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (hash === '#admin/mural-nisti' || hash === '#mural-nisti' || hash === '#mural-admin' || hash === '#admin-mural') {
+      return 'mural-nisti';
+    }
+    return 'catalogo';
+  });
+
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash === '#admin/mural-nisti' || hash === '#mural-nisti' || hash === '#mural-admin' || hash === '#admin-mural') {
+        setActiveView('mural-nisti');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [metrics, setMetrics] = useState(null);

@@ -460,7 +460,20 @@ function PublicIdentificationApp() {
   const [muralUnread, setMuralUnread] = useState(0);
   const [muralAccess, setMuralAccess] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [publicView, setPublicView] = useState('scanner');
+  const [publicView, setPublicView] = useState('mural');
+
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash === '#scanner' || hash.startsWith('#/scanner')) {
+        setPublicView('scanner');
+      } else if (hash === '#mural' || hash.startsWith('#/mural')) {
+        setPublicView('mural');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   useEffect(() => {
     let active = true;

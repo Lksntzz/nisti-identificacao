@@ -114,6 +114,19 @@ function base64ToFile(base64, mimeType = 'image/png', name = 'mural-ai.png') {
   return new File([bytes], name, { type:mimeType });
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(new Error('Falha ao ler arquivo de imagem.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 async function prepareAiImage(file, mode) {
   if (!file) return file;
   if (mode === 'remove_background') return compressImage(file);
@@ -202,8 +215,12 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
     elastico:sourceItem.product_elastico,
     collection_name:sourceItem.product_collection_name
   } : null);
-  const [image, setImage] = useState(null);
-  const [imageUrl, setImageUrl] = useState(sourceItem?.image_key ? `/api/admin/mural/posts/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}` : '');
+  const [image, setImage] = useState(() => sourceItem?.prefillImage || null);
+  const [imageUrl, setImageUrl] = useState(() => {
+    if (sourceItem?.prefillImage) return URL.createObjectURL(sourceItem.prefillImage);
+    if (sourceItem?.image_key) return `/api/admin/mural/posts/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}`;
+    return '';
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
@@ -211,7 +228,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   const [aiStyle, setAiStyle] = useState('editorial');
   const [aiResult, setAiResult] = useState(null);
   const [showSuccessCheck, setShowSuccessCheck] = useState(false);
-  const [artTab, setArtTab] = useState(() => sourceItem?.kind === 'notice' ? 'preview' : 'ai');
+  const [artTab, setArtTab] = useState(() => (sourceItem?.kind === 'notice' || sourceItem?.prefillImage) ? 'preview' : 'ai');
 
   useEffect(() => {
     if (form.kind !== 'product') return;

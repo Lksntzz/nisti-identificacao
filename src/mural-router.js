@@ -1104,6 +1104,15 @@ function muralAiOutputImage(payload) {
   if (payload?.output_image) blocks.push({ type:'image', ...payload.output_image });
   if (payload?.outputImage) blocks.push({ type:'image', ...payload.outputImage });
 
+  for (const candidate of payload?.candidates || []) {
+    for (const part of candidate?.content?.parts || []) {
+      const inline = part.inlineData || part.inline_data;
+      if (inline?.data) {
+        blocks.push({ type: 'image', data: inline.data, mime_type: inline.mimeType || inline.mime_type || 'image/jpeg' });
+      }
+    }
+  }
+
   const image = blocks.find(block =>
     block
     && (block.type === 'image' || block.mime_type?.startsWith?.('image/'))
@@ -1310,6 +1319,122 @@ async function adminGenerateMuralAiArt(request, env) {
   }
 }
 
+async function adminMuralImageStudio(request, env) {
+  if (!env.GEMINI_IMAGE_API_KEY) {
+    return json({ error: 'GEMINI_IMAGE_API_KEY não configurada no Worker.' }, 503);
+  }
+
+  const allowed = await reserveGeminiBudget(env, 'mural-ai-art', 6);
+  if (!allowed) {
+    return json({ error: 'Limite temporário de geração por IA atingido. Aguarde um minuto e tente novamente.' }, 429);
+  }
+
+  const payload = await request.json().catch(() => ({}));
+  const actionType = String(payload.action || 'create').trim();
+  const textPrompt = String(payload.text_prompt || '').trim();
+  const inputImageBase64 = payload.image_base64 ? String(payload.image_base64).trim() : null;
+  const inputMime = String(payload.mime_type || 'image/jpeg').trim();
+  const targetRatio = String(payload.aspect_ratio || '16:9').trim();
+
+  if (!textPrompt) {
+    return json({ error: 'Informe um prompt de texto para criar ou editar a imagem.' }, 422);
+  }
+
+  if (actionType === 'edit' && !inputImageBase64) {
+    return json({ error: 'Para editar uma imagem, forneça a imagem base em base64.' }, 422);
+  }
+
+  const validRatios = new Set(['16:9', '1:1', '4:3', '9:16', '3:4']);
+  const aspectRatio = validRatios.has(targetRatio) ? targetRatio : '16:9';
+
+  const input = [];
+  if (actionType === 'edit' && inputImageBase64) {
+    input.push({
+      type: 'image',
+      mime_type: inputMime,
+      data: inputImageBase64
+    });
+  }
+  input.push({
+    type: 'text',
+    text: textPrompt
+  });
+
+  const model = 'gemini-3.1-flash-image-preview';
+  const startTime = performance.now();
+  const adminUser = cleanUserId(request);
+  let status = 'success';
+  let finalImageSize = 0;
+  let errorDetail = null;
+
+  try {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-goog-api-key': env.GEMINI_IMAGE_API_KEY
+      },
+      body: JSON.stringify({
+        model,
+        input,
+        response_format: {
+          type: 'image',
+          mime_type: 'image/jpeg',
+          aspect_ratio: aspectRatio,
+          image_size: '1K'
+        }
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = data?.error?.message || data?.message || `HTTP ${response.status}`;
+      throw new Error(`Gemini Image Studio falhou: ${detail}`);
+    }
+
+    const image = muralAiOutputImage(data);
+    if (!image) {
+      throw new Error('A IA respondeu sem uma imagem utilizável ou retornou apenas texto.');
+    }
+
+    const imageBuffer = base64ToUint8Array(image.data);
+    const detectedMime = detectImageType(imageBuffer);
+    if (!detectedMime || !IMAGE_TYPES.has(detectedMime)) {
+      throw new Error(`Formato de imagem gerado (${detectedMime || 'desconhecido'}) não suportado.`);
+    }
+
+    finalImageSize = imageBuffer.byteLength;
+
+    return json({
+      ok: true,
+      image_base64: image.data,
+      mime_type: 'image/jpeg',
+      model,
+      action: actionType,
+      aspect_ratio: aspectRatio,
+      synthid: true
+    });
+  } catch (err) {
+    status = 'failed';
+    errorDetail = err.message || String(err);
+    console.error('[Mural Studio] Error:', errorDetail);
+    return json({ error: err.message || 'Falha ao processar imagem com gemini-3.1-flash-image-preview.' }, 502);
+  } finally {
+    const durationMs = Math.round(performance.now() - startTime);
+    console.log(JSON.stringify({
+      telemetry: 'mural_image_studio',
+      admin_user: adminUser,
+      action: actionType,
+      model,
+      timestamp: new Date().toISOString(),
+      duration_ms: durationMs,
+      status,
+      final_image_size_bytes: finalImageSize,
+      error_detail: errorDetail
+    }));
+  }
+}
+
 export async function suggestMuralProductDraft(env, productId) {
   const id = Number(productId);
   if (!env?.DB || !Number.isInteger(id) || id <= 0) return null;
@@ -1386,6 +1511,7 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     if (path === '/api/admin/mural/metrics' && request.method === 'GET') return adminMetrics(env);
     if (path === '/api/admin/mural/readiness' && request.method === 'GET') return adminReadiness(env);
     if (path === '/api/admin/mural/ai-art' && request.method === 'POST') return adminGenerateMuralAiArt(request, env);
+    if (path === '/api/admin/mural/image-studio' && request.method === 'POST') return adminMuralImageStudio(request, env);
     if (path === '/api/admin/mural/collections' && request.method === 'GET') return adminListCollections(env);
     if (path === '/api/admin/mural/collections' && request.method === 'POST') return adminCreateCollection(request, env);
 
