@@ -3536,25 +3536,38 @@
 }
 
 
-/* Product cutout treatment — crisp white contour, without the lower floating shadow. */
+/* Product cutout treatment — a real white silhouette layer sits behind the agenda.
+   The outline is generated from the largest external product silhouette, so internal
+   transparency, artwork and small detached logos never receive their own contour. */
+.mural-launch-product>img.mural-product-outline,
+.mural-launch-product>img.mural-product-transparent,
+.mural-collection-launch-product>img.mural-product-outline,
+.mural-collection-launch-product>img.mural-product-transparent,
+.mural-scene-product>img.mural-product-outline,
+.mural-scene-product>img.mural-product-transparent,
+.mural-collection-reveal-product>img.mural-product-outline,
+.mural-collection-reveal-product>img.mural-product-transparent{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  object-fit:contain!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+.mural-launch-product>img.mural-product-outline,
+.mural-collection-launch-product>img.mural-product-outline,
+.mural-scene-product>img.mural-product-outline,
+.mural-collection-reveal-product>img.mural-product-outline{
+  z-index:0;
+  pointer-events:none;
+}
 .mural-launch-product>img.mural-product-transparent,
 .mural-collection-launch-product>img.mural-product-transparent,
 .mural-scene-product>img.mural-product-transparent,
 .mural-collection-reveal-product>img.mural-product-transparent{
-  filter:
-    drop-shadow(0 0 .8px rgba(255,255,255,1))
-    drop-shadow(0 0 1.6px rgba(255,255,255,1))
-    drop-shadow(0 0 2.2px rgba(255,255,255,.96)) !important;
-  box-shadow:none!important;
-}
-@media (max-width:390px){
-  .mural-launch-product>img.mural-product-transparent,
-  .mural-collection-launch-product>img.mural-product-transparent,
-  .mural-scene-product>img.mural-product-transparent,
-  .mural-collection-reveal-product>img.mural-product-transparent{
-    filter:
-      drop-shadow(0 0 .7px rgba(255,255,255,1))
-      drop-shadow(0 0 1.4px rgba(255,255,255,1))
-      drop-shadow(0 0 2px rgba(255,255,255,.95)) !important;
-  }
+  z-index:1;
 }

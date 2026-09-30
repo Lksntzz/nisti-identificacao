@@ -44,12 +44,15 @@ test('feed exposes image source so a true editorial post image can become the he
 });
 
 
-test('collection product cutouts use a crisp white contour without a lower dark shadow', () => {
-  assert.ok(css.includes('.mural-launch-product>img.mural-product-transparent'));
-  assert.ok(css.includes('.mural-collection-launch-product>img.mural-product-transparent'));
-  assert.ok(css.includes('.mural-scene-product>img.mural-product-transparent'));
-  assert.ok(css.includes('.mural-collection-reveal-product>img.mural-product-transparent'));
-  assert.ok(css.includes('drop-shadow(0 0 1.6px rgba(255,255,255,1))'));
+test('collection product cutouts render a dedicated solid silhouette outline layer', () => {
+  assert.ok(mural.includes('useTransparentProductOutline'));
+  assert.ok(mural.includes('mural-product-outline'));
+  assert.ok(mural.includes('outlineSrc'));
+  assert.ok(mural.includes('outline />'));
+  assert.ok(css.includes('.mural-launch-product>img.mural-product-outline'));
+  assert.ok(css.includes('.mural-collection-launch-product>img.mural-product-outline'));
+  assert.ok(css.includes('.mural-scene-product>img.mural-product-outline'));
+  assert.ok(css.includes('.mural-collection-reveal-product>img.mural-product-outline'));
+  assert.ok(css.includes('filter:none!important'));
   assert.equal(css.includes('drop-shadow(0 8px 11px rgba(31,41,55,.16))'), false);
-  assert.equal(css.includes('drop-shadow(0 7px 9px rgba(31,41,55,.14))'), false);
 });

@@ -28,3 +28,18 @@ test('unsafe mostly-white products keep their original source instead of being d
   assert.match(source, /if \(hull\.length < 3\) return null/);
   assert.match(source, /if \(!isProtectedSubjectPixel\) return src/);
 });
+
+
+test('outline uses only the largest connected product and fills internal holes', () => {
+  assert.match(source, /function buildLargestConnectedSubjectMask/);
+  assert.match(source, /if \(count > largestSize\)/);
+  assert.match(source, /function fillMaskInteriorHoles/);
+  assert.match(source, /if \(!mask\[index\] && !outside\[index\]\) solid\[index\] = 1/);
+});
+
+test('outline is a separately dilated solid white silhouette', () => {
+  assert.match(source, /function dilateMask/);
+  assert.match(source, /const outlineMask = dilateMask\(solidMask, width, height, radius\)/);
+  assert.match(source, /outlineData\.data\[offset\] = 255/);
+  assert.match(source, /export function useTransparentProductOutline/);
+});

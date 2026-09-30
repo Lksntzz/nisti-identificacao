@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 const transparentImageCache = new Map();
 const transparentImageInflight = new Map();
+const transparentOutlineCache = new Map();
+const transparentOutlineInflight = new Map();
 const MAX_CACHE_ENTRIES = 80;
 const MAX_RENDER_DIMENSION = 1800;
 
@@ -141,6 +143,226 @@ function buildSubjectProtection(data, width, height) {
   }
 
   return (x, y) => protectedMax[y] >= 0 && x >= protectedMin[y] && x <= protectedMax[y];
+}
+
+function buildLargestConnectedSubjectMask(data, width, height) {
+  const total = width * height;
+  const visited = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let largestSeed = -1;
+  let largestSize = 0;
+
+  const isOpaque = index => data[index * 4 + 3] >= 32;
+
+  for (let start = 0; start < total; start += 1) {
+    if (visited[start] || !isOpaque(start)) continue;
+    let head = 0;
+    let tail = 0;
+    let count = 0;
+    visited[start] = 1;
+    queue[tail++] = start;
+
+    while (head < tail) {
+      const index = queue[head++];
+      count += 1;
+      const x = index % width;
+      const y = Math.floor(index / width);
+
+      const push = next => {
+        if (next < 0 || next >= total || visited[next] || !isOpaque(next)) return;
+        visited[next] = 1;
+        queue[tail++] = next;
+      };
+
+      if (x > 0) push(index - 1);
+      if (x + 1 < width) push(index + 1);
+      if (y > 0) push(index - width);
+      if (y + 1 < height) push(index + width);
+      if (x > 0 && y > 0) push(index - width - 1);
+      if (x + 1 < width && y > 0) push(index - width + 1);
+      if (x > 0 && y + 1 < height) push(index + width - 1);
+      if (x + 1 < width && y + 1 < height) push(index + width + 1);
+    }
+
+    if (count > largestSize) {
+      largestSize = count;
+      largestSeed = start;
+    }
+  }
+
+  if (largestSeed < 0 || largestSize < Math.max(20, Math.round(total * .002))) return null;
+
+  const mask = new Uint8Array(total);
+  let head = 0;
+  let tail = 0;
+  queue[tail++] = largestSeed;
+  mask[largestSeed] = 1;
+
+  while (head < tail) {
+    const index = queue[head++];
+    const x = index % width;
+    const y = Math.floor(index / width);
+    const push = next => {
+      if (next < 0 || next >= total || mask[next] || !isOpaque(next)) return;
+      mask[next] = 1;
+      queue[tail++] = next;
+    };
+    if (x > 0) push(index - 1);
+    if (x + 1 < width) push(index + 1);
+    if (y > 0) push(index - width);
+    if (y + 1 < height) push(index + width);
+    if (x > 0 && y > 0) push(index - width - 1);
+    if (x + 1 < width && y > 0) push(index - width + 1);
+    if (x > 0 && y + 1 < height) push(index + width - 1);
+    if (x + 1 < width && y + 1 < height) push(index + width + 1);
+  }
+
+  return mask;
+}
+
+function fillMaskInteriorHoles(mask, width, height) {
+  const total = width * height;
+  const outside = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let head = 0;
+  let tail = 0;
+
+  const enqueue = index => {
+    if (index < 0 || index >= total || outside[index] || mask[index]) return;
+    outside[index] = 1;
+    queue[tail++] = index;
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x);
+    enqueue((height - 1) * width + x);
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    enqueue(y * width);
+    enqueue(y * width + width - 1);
+  }
+
+  while (head < tail) {
+    const index = queue[head++];
+    const x = index % width;
+    const y = Math.floor(index / width);
+    if (x > 0) enqueue(index - 1);
+    if (x + 1 < width) enqueue(index + 1);
+    if (y > 0) enqueue(index - width);
+    if (y + 1 < height) enqueue(index + width);
+  }
+
+  const solid = mask.slice();
+  for (let index = 0; index < total; index += 1) {
+    if (!mask[index] && !outside[index]) solid[index] = 1;
+  }
+  return solid;
+}
+
+function dilateMask(mask, width, height, radius) {
+  let current = mask;
+  for (let pass = 0; pass < radius; pass += 1) {
+    const next = current.slice();
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = y * width + x;
+        if (current[index]) continue;
+        let found = false;
+        for (let yy = Math.max(0, y - 1); yy <= Math.min(height - 1, y + 1) && !found; yy += 1) {
+          for (let xx = Math.max(0, x - 1); xx <= Math.min(width - 1, x + 1); xx += 1) {
+            if (current[yy * width + xx]) {
+              found = true;
+              break;
+            }
+          }
+        }
+        if (found) next[index] = 1;
+      }
+    }
+    current = next;
+  }
+  return current;
+}
+
+async function buildProductOutlineImage(src) {
+  const cutoutSrc = await transparentProductImageUrl(src);
+  if (!cutoutSrc) return '';
+
+  const response = await fetch(cutoutSrc, { credentials:'same-origin' });
+  if (!response.ok) return '';
+  const blob = await response.blob();
+  const bitmap = await loadBitmap(blob);
+  const width = Number(bitmap.width || bitmap.naturalWidth || 0);
+  const height = Number(bitmap.height || bitmap.naturalHeight || 0);
+  if (!width || !height) return '';
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d', { willReadFrequently:true });
+  if (!context) return '';
+
+  context.clearRect(0, 0, width, height);
+  context.drawImage(bitmap, 0, 0, width, height);
+  if (typeof bitmap.close === 'function') bitmap.close();
+
+  const imageData = context.getImageData(0, 0, width, height);
+  const { data } = imageData;
+  const total = width * height;
+
+  if (!hasExistingTransparency(data, total)) return '';
+
+  const mainMask = buildLargestConnectedSubjectMask(data, width, height);
+  if (!mainMask) return '';
+
+  const solidMask = fillMaskInteriorHoles(mainMask, width, height);
+  const radius = clamp(Math.round(Math.max(width, height) * .006), 2, 10);
+  const outlineMask = dilateMask(solidMask, width, height, radius);
+
+  const outlineData = context.createImageData(width, height);
+  for (let index = 0; index < total; index += 1) {
+    if (!outlineMask[index]) continue;
+    const offset = index * 4;
+    outlineData.data[offset] = 255;
+    outlineData.data[offset + 1] = 255;
+    outlineData.data[offset + 2] = 255;
+    outlineData.data[offset + 3] = 255;
+  }
+
+  context.clearRect(0, 0, width, height);
+  context.putImageData(outlineData, 0, 0);
+  const outputBlob = await new Promise((resolve, reject) => {
+    canvas.toBlob(result => result ? resolve(result) : reject(new Error('Falha ao gerar o contorno do produto.')), 'image/png');
+  });
+  return URL.createObjectURL(outputBlob);
+}
+
+async function productOutlineUrl(src) {
+  const normalized = String(src || '').trim();
+  if (!normalized || typeof document === 'undefined') return '';
+  if (transparentOutlineCache.has(normalized)) return transparentOutlineCache.get(normalized);
+  if (transparentOutlineInflight.has(normalized)) return transparentOutlineInflight.get(normalized);
+
+  const promise = buildProductOutlineImage(normalized)
+    .then(url => {
+      transparentOutlineInflight.delete(normalized);
+      transparentOutlineCache.set(normalized, url);
+      while (transparentOutlineCache.size > MAX_CACHE_ENTRIES) {
+        const oldest = transparentOutlineCache.entries().next().value;
+        if (!oldest) break;
+        const [key, oldUrl] = oldest;
+        transparentOutlineCache.delete(key);
+        if (oldUrl?.startsWith('blob:')) URL.revokeObjectURL(oldUrl);
+      }
+      return url;
+    })
+    .catch(() => {
+      transparentOutlineInflight.delete(normalized);
+      return '';
+    });
+
+  transparentOutlineInflight.set(normalized, promise);
+  return promise;
 }
 
 function remember(src, url) {
@@ -308,4 +530,33 @@ export function useTransparentProductImage(src, enabled = true) {
   }, [normalized, enabled]);
 
   return resolvedSrc;
+}
+
+
+export function useTransparentProductOutline(src, enabled = true) {
+  const normalized = String(src || '').trim();
+  const cached = normalized && transparentOutlineCache.get(normalized);
+  const [outlineSrc, setOutlineSrc] = useState(() => cached || '');
+
+  useEffect(() => {
+    let active = true;
+    if (!enabled || !normalized) {
+      setOutlineSrc('');
+      return () => { active = false; };
+    }
+
+    const existing = transparentOutlineCache.get(normalized);
+    if (existing) {
+      setOutlineSrc(existing);
+      return () => { active = false; };
+    }
+
+    setOutlineSrc('');
+    productOutlineUrl(normalized).then(url => {
+      if (active) setOutlineSrc(url || '');
+    });
+    return () => { active = false; };
+  }, [normalized, enabled]);
+
+  return outlineSrc;
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './mural-nisti.css';
 import MuralProductExperience from './mural-product-experience.jsx';
-import { useTransparentProductImage } from './mural-transparent-image.js';
+import { useTransparentProductImage, useTransparentProductOutline } from './mural-transparent-image.js';
 
 const muralSessionCache = new Map();
 
@@ -136,9 +136,10 @@ function MuralImage({ item, eager = false, className = '' }) {
 }
 
 
-function CollectionProductImage({ product, className = '', eager = false }) {
+function CollectionProductImage({ product, className = '', eager = false, outline = false }) {
   const src = product?.image_url || '';
   const displaySrc = useTransparentProductImage(src, true);
+  const outlineSrc = useTransparentProductOutline(src, outline);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -150,15 +151,28 @@ function CollectionProductImage({ product, className = '', eager = false }) {
   }
 
   return (
-    <img
-      className={`${className} mural-product-transparent`.trim()}
-      src={displaySrc}
-      alt={`${product?.type || 'Produto'} ${product?.sku || ''}`.trim()}
-      loading={eager ? 'eager' : 'lazy'}
-      fetchPriority={eager ? 'high' : 'auto'}
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
+    <>
+      {outline && outlineSrc && (
+        <img
+          className={`${className} mural-product-outline`.trim()}
+          src={outlineSrc}
+          alt=""
+          aria-hidden="true"
+          loading={eager ? 'eager' : 'lazy'}
+          fetchPriority={eager ? 'high' : 'auto'}
+          decoding="async"
+        />
+      )}
+      <img
+        className={`${className} mural-product-transparent`.trim()}
+        src={displaySrc}
+        alt={`${product?.type || 'Produto'} ${product?.sku || ''}`.trim()}
+        loading={eager ? 'eager' : 'lazy'}
+        fetchPriority={eager ? 'high' : 'auto'}
+        decoding="async"
+        onError={() => setFailed(true)}
+      />
+    </>
   );
 }
 
@@ -224,7 +238,7 @@ function HeroScene({ item, collectionPreviews }) {
         <span className="mural-scene-products">
           {previewProducts.map((product, index) => (
             <span className={`mural-scene-product product-${index + 1}`} key={product.id}>
-              <CollectionProductImage product={product} eager={index === 0} />
+              <CollectionProductImage product={product} eager={index === 0} outline />
             </span>
           ))}
         </span>
@@ -268,7 +282,7 @@ function CollectionLaunchHero({ item, onOpen }) {
           <span className="mural-launch-products" aria-hidden="true">
             {previews.slice(0, 4).map((product, index) => (
               <span className={`mural-launch-product product-${index + 1}`} key={product.id}>
-                <CollectionProductImage product={product} eager={index < 2} />
+                <CollectionProductImage product={product} eager={index < 2} outline />
               </span>
             ))}
           </span>
@@ -329,7 +343,7 @@ function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 }) {
       <span className="mural-collection-launch-products" aria-hidden="true">
         {previews.length ? previews.slice(0, 3).map((product, productIndex) => (
           <span className={`mural-collection-launch-product product-${productIndex + 1}`} key={product.id}>
-            <CollectionProductImage product={product} eager={eager && productIndex === 0} />
+            <CollectionProductImage product={product} eager={eager && productIndex === 0} outline />
           </span>
         )) : (
           <MuralImage item={item} eager={eager} className="mural-collection-launch-fallback" />
@@ -522,7 +536,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
           className="mural-collection-reveal-product is-main"
           style={{ '--main-float-cycles': String(mainFloatCycles) }}
         >
-          <CollectionProductImage product={mainProduct} eager />
+          <CollectionProductImage product={mainProduct} eager outline />
         </span>
         {secondaryProducts.map((product, secondaryIndex) => {
           const index = secondaryIndex + 1;
@@ -540,7 +554,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
               '--reveal-final-layer': String(10 + index)
             }}
           >
-            <CollectionProductImage product={product} eager />
+            <CollectionProductImage product={product} eager outline />
           </span>
           );
         })}
