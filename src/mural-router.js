@@ -956,7 +956,7 @@ const PROMPT_VARIANTS = Object.freeze([
   }
 ]);
 
-const MURAL_GEMINI_PRO_BASE_PROMPT = `Crie uma imagem fotográfica editorial premium usando as imagens anexadas como referência visual do produto.
+const MURAL_GEMINI_PRO_BASE_PROMPT = `Crie uma imagem fotográfica editorial premium usando as imagens anexadas como referência visual do produto. As referências do produto são preparadas pelo Mural em PNG com fundo transparente para facilitar a composição do cenário.
 
 ILUMINAÇÃO
 Use jogo de luzes suave e controlado, com luz principal difusa, preenchimento leve, sombras naturais, brilho de recorte discreto e contraste equilibrado.
@@ -1038,7 +1038,7 @@ function muralGeminiProReference(product, index) {
     name: product?.nome || null,
     variation: product?.variacao || null,
     label: product?.sku || product?.nome || `Referência ${index + 1}`,
-    filename: `${rawName}.jpg`,
+    filename: `${rawName}.png`,
     image_url: product?.id
       ? `/api/images/${Number(product.id)}?v=${encodeURIComponent(imageKey)}`
       : null
