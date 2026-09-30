@@ -72,7 +72,7 @@ function ProductMeta({ product }) {
   return (
     <div className="mural-product-meta">
       {product.sku && <span className="mural-sku">{product.sku}</span>}
-      {product.collection && <span>{product.collection}</span>}
+      {product.collection && <span className="mural-product-collection">{product.collection}</span>}
       <div className="mural-finishes">
         {product.wireo && <span><strong>Wire-o</strong>{product.wireo}</span>}
         {product.tassel && <span><strong>Tassel</strong>{product.tassel}</span>}
@@ -108,6 +108,7 @@ function Hero({ item, onOpen }) {
 
 export function MuralCard({ item, onOpen, eager = false }) {
   const isNotice = item.kind === 'notice';
+  const isProduct = item.kind === 'product';
   return (
     <button
       type="button"
@@ -122,13 +123,13 @@ export function MuralCard({ item, onOpen, eager = false }) {
           {isNotice ? <NoticeLabel level={item.notice_level} /> : item.badge && <span className="mural-editorial-badge">{item.badge}</span>}
         </span>
         <span className="mural-card-title-row">
-          <strong>{item.kind === 'product' ? item.product?.type || item.title : item.title}</strong>
+          <strong>{isProduct ? item.product?.type || item.title : item.title}</strong>
           {item.kind === 'collection' && item.collection?.year && <small>{item.collection.year}</small>}
         </span>
-        {item.kind === 'product' && item.title !== item.product?.type && <span className="mural-card-subtitle">{item.title}</span>}
-        {item.subtitle && <span className="mural-card-subtitle">{item.subtitle}</span>}
+        {isProduct && item.title !== item.product?.type && <span className="mural-card-product-name">{item.title}</span>}
+        {!isProduct && item.subtitle && <span className="mural-card-subtitle">{item.subtitle}</span>}
         {item.body && <span className="mural-card-summary">{item.body}</span>}
-        {item.kind === 'product' && <ProductMeta product={item.product} />}
+        {isProduct && <ProductMeta product={item.product} />}
         {item.kind === 'collection' && <span className="mural-card-cta">Ver coleção →</span>}
         {isNotice && <span className="mural-card-date">{formatDate(item.published_at)}</span>}
       </span>
@@ -138,6 +139,7 @@ export function MuralCard({ item, onOpen, eager = false }) {
 
 function DetailDialog({ item, onClose, onOpenCollection }) {
   const closeRef = useRef(null);
+  const hasMedia = Boolean(item?.image_url);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -150,14 +152,15 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
 
   return (
     <div className="mural-modal-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}>
-      <section className="mural-detail" role="dialog" aria-modal="true" aria-labelledby="mural-detail-title">
+      <section className={`mural-detail${hasMedia ? '' : ' no-media'}`} role="dialog" aria-modal="true" aria-labelledby="mural-detail-title">
         <button ref={closeRef} type="button" className="mural-detail-close" onClick={onClose} aria-label="Fechar detalhe">×</button>
-        <MuralImage item={item} eager className="mural-detail-image" />
-        <div className="mural-detail-body">
+        {hasMedia && <MuralImage item={item} eager className={`mural-detail-image mural-detail-image-${item.kind}`} />}
+        <div className={`mural-detail-body${hasMedia ? '' : ' no-media'}`}>
           <div className="mural-card-badges">
             <ReadBadge item={item} />
             {item.kind === 'notice' ? <NoticeLabel level={item.notice_level} /> : item.badge && <span className="mural-editorial-badge">{item.badge}</span>}
           </div>
+          {item.kind === 'product' && item.product?.type && <p className="mural-detail-kicker">{item.product.type}</p>}
           <h2 id="mural-detail-title">{item.title}</h2>
           {item.subtitle && <p className="mural-detail-subtitle">{item.subtitle}</p>}
           {item.body && <p className="mural-detail-copy">{item.body}</p>}
