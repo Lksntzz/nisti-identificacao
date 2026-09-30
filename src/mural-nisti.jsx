@@ -461,36 +461,18 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
   );
 }
 
-function collectionArcDistance(index, activeIndex, total) {
-  let distance = index - activeIndex;
-  const half = Math.floor(total / 2);
-  if (distance > half) distance -= total;
-  if (distance < -half) distance += total;
-  return distance;
+function collectionRevealSlot(index) {
+  return ['slot-center', 'slot-left-1', 'slot-right-1', 'slot-left-2', 'slot-right-2'][index] || 'slot-center';
 }
 
-function collectionArcSlot(distance) {
-  if (distance < 0) return `slot-negative-${Math.abs(distance)}`;
-  if (distance > 0) return `slot-positive-${distance}`;
-  return 'slot-center';
-}
-
-function CollectionArcCarousel({ products, title, backgroundImage = '', onBackgroundLoad, onBackgroundError }) {
-  const [activeIndex, setActiveIndex] = useState(0);
+function CollectionRevealIntro({ products, title, onComplete }) {
   const [ready, setReady] = useState(false);
-  const pointerStartRef = useRef(null);
-  const ignoreClickRef = useRef(false);
-  const ignoreClickTimerRef = useRef(0);
-  const total = products.length;
-
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [products]);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     if (reduced) {
-      setReady(true);
+      onComplete();
       return undefined;
     }
 
@@ -498,117 +480,37 @@ function CollectionArcCarousel({ products, title, backgroundImage = '', onBackgr
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => setReady(true));
     });
+    const leaveTimer = window.setTimeout(() => setLeaving(true), 1450);
+    const completeTimer = window.setTimeout(onComplete, 1770);
+
     return () => {
       cancelAnimationFrame(firstFrame);
       cancelAnimationFrame(secondFrame);
+      window.clearTimeout(leaveTimer);
+      window.clearTimeout(completeTimer);
     };
-  }, []);
+  }, [onComplete]);
 
-  useEffect(() => () => window.clearTimeout(ignoreClickTimerRef.current), []);
-
-  const move = direction => {
-    if (total < 2) return;
-    setActiveIndex(current => (current + direction + total) % total);
-  };
-
-  const handlePointerDown = event => {
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    pointerStartRef.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-  };
-
-  const handlePointerUp = event => {
-    const start = pointerStartRef.current;
-    pointerStartRef.current = null;
-    if (!start || start.id !== event.pointerId) return;
-    const horizontal = event.clientX - start.x;
-    const vertical = event.clientY - start.y;
-    if (Math.abs(horizontal) < 42 || Math.abs(horizontal) < Math.abs(vertical)) return;
-    ignoreClickRef.current = true;
-    move(horizontal < 0 ? 1 : -1);
-    window.clearTimeout(ignoreClickTimerRef.current);
-    ignoreClickTimerRef.current = window.setTimeout(() => { ignoreClickRef.current = false; }, 0);
-  };
-
-  const handleCardClick = index => {
-    if (ignoreClickRef.current) {
-      ignoreClickRef.current = false;
-      return;
-    }
-    setActiveIndex(index);
-  };
-
-  const visibleProducts = products
-    .map((product, index) => ({ product, index, distance: collectionArcDistance(index, activeIndex, total) }))
-    .filter(entry => Math.abs(entry.distance) <= 2)
-    .sort((left, right) => left.distance - right.distance);
-  const activeProduct = products[activeIndex] || products[0];
+  const revealProducts = products.slice(0, 5);
 
   return (
     <div
-      className={`mural-collection-arc${ready ? ' is-ready' : ''}`}
-      role="region"
-      aria-roledescription="carrossel"
-      aria-label={`Capas da coleção ${title}`}
-      tabIndex="0"
-      onKeyDown={event => {
-        if (event.key === 'ArrowLeft') {
-          event.preventDefault();
-          move(-1);
-        }
-        if (event.key === 'ArrowRight') {
-          event.preventDefault();
-          move(1);
-        }
-      }}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={() => { pointerStartRef.current = null; }}
+      className={`mural-collection-reveal-intro${ready ? ' is-ready' : ''}${leaving ? ' is-leaving' : ''}`}
+      role="img"
+      aria-label={`Apresentação dos produtos da coleção ${title}`}
     >
-      {backgroundImage && (
-        <img
-          className="mural-collection-arc-backdrop"
-          src={backgroundImage}
-          alt=""
-          aria-hidden="true"
-          onLoad={onBackgroundLoad}
-          onError={onBackgroundError}
-        />
-      )}
-      <span className="mural-collection-arc-glow" aria-hidden="true" />
-
-      <div className="mural-collection-arc-viewport" aria-live="polite">
-        {visibleProducts.map(({ product, index, distance }, revealIndex) => (
-          <button
-            type="button"
+      <span className="mural-collection-reveal-vignette" aria-hidden="true" />
+      <span className="mural-collection-reveal-white-arc" aria-hidden="true" />
+      <div className="mural-collection-reveal-fan" aria-hidden="true">
+        {revealProducts.map((product, index) => (
+          <span
             key={product.id}
-            className={`mural-collection-arc-card ${collectionArcSlot(distance)}${distance === 0 ? ' is-active' : ''}`}
-            style={{ '--arc-reveal-delay': `${90 + revealIndex * 70}ms` }}
-            onClick={() => handleCardClick(index)}
-            aria-label={`${product.type || 'Produto'} ${product.name || product.sku || ''}`.trim()}
-            aria-current={distance === 0 ? 'true' : undefined}
+            className={`mural-collection-reveal-product ${collectionRevealSlot(index)}`}
+            style={{ '--reveal-product-delay': `${120 + index * 85}ms` }}
           >
-            <CollectionProductImage product={product} eager={Math.abs(distance) <= 1} />
-          </button>
+            <CollectionProductImage product={product} eager />
+          </span>
         ))}
-      </div>
-
-      {total > 1 && (
-        <>
-          <button type="button" className="mural-collection-arc-control previous" onClick={() => move(-1)} aria-label="Capa anterior">
-            <MuralIcon name="chevron" size={21} />
-          </button>
-          <button type="button" className="mural-collection-arc-control next" onClick={() => move(1)} aria-label="Próxima capa">
-            <MuralIcon name="chevron" size={21} />
-          </button>
-        </>
-      )}
-
-      <div className="mural-collection-arc-caption">
-        <span className="mural-collection-arc-counter">{activeIndex + 1} de {total}</span>
-        <strong>{activeProduct?.type || 'Produto da coleção'}</strong>
-        {activeProduct?.name && <small>{activeProduct.name}</small>}
-        <CollectionFinishChips product={activeProduct} />
       </div>
     </div>
   );
@@ -621,12 +523,14 @@ function CollectionDialog({ slug, onClose }) {
   const scrollFrame = useRef(0);
   const [coverFailed, setCoverFailed] = useState(false);
   const [coverLoaded, setCoverLoaded] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
   const { closing, requestClose } = useAnimatedDialogClose(onClose);
 
   useEffect(() => {
     let active = true;
     setCoverFailed(false);
     setCoverLoaded(false);
+    setIntroComplete(false);
     muralApi(`/api/mural/collections/${encodeURIComponent(slug)}`)
       .then(data => active && setState({ loading: false, data: data.collection, error: '' }))
       .catch(error => active && setState({ loading: false, data: null, error: error.message }));
@@ -634,11 +538,14 @@ function CollectionDialog({ slug, onClose }) {
   }, [slug]);
 
   useEffect(() => {
-    closeRef.current?.focus();
     const onKey = event => event.key === 'Escape' && requestClose();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [requestClose]);
+
+  useEffect(() => {
+    if (introComplete || (state.data && !state.data.products?.length)) closeRef.current?.focus();
+  }, [introComplete, state.data]);
 
   useEffect(() => {
     const root = detailRef.current;
@@ -681,9 +588,19 @@ function CollectionDialog({ slug, onClose }) {
   const remainingProducts = products.slice(1);
   const collageProducts = products.filter(product => product.image_url).slice(0, 3);
   const hasCover = Boolean(collection?.image_url && !coverFailed);
+  const showIntro = Boolean(collection && products.length && !introComplete);
 
   return (
-    <div className={`mural-modal-backdrop${closing ? ' is-closing' : ''}`} onMouseDown={event => event.target === event.currentTarget && requestClose()}>
+    <div className={`mural-modal-backdrop mural-collection-modal-backdrop${showIntro ? ' is-intro' : ''}${closing ? ' is-closing' : ''}`} onMouseDown={event => event.target === event.currentTarget && requestClose()}>
+      {showIntro && (
+        <CollectionRevealIntro
+          products={products}
+          title={formatCollectionTitle(collection)}
+          onComplete={() => setIntroComplete(true)}
+        />
+      )}
+
+      {!showIntro && (
       <section
         ref={detailRef}
         onScroll={handleCollectionScroll}
@@ -701,19 +618,8 @@ function CollectionDialog({ slug, onClose }) {
         {collection && (
           <div className="mural-collection-editorial">
             <header className="mural-collection-editorial-hero">
-              <div className={`mural-collection-editorial-media${products.length ? ' has-arc' : ''}`}>
-                {products.length ? (
-                  <CollectionArcCarousel
-                    products={products}
-                    title={formatCollectionTitle(collection)}
-                    backgroundImage={hasCover ? collection.image_url : ''}
-                    onBackgroundLoad={() => setCoverLoaded(true)}
-                    onBackgroundError={() => {
-                      setCoverLoaded(false);
-                      setCoverFailed(true);
-                    }}
-                  />
-                ) : hasCover ? (
+              <div className="mural-collection-editorial-media" aria-hidden="true">
+                {hasCover ? (
                   <img
                     className={`mural-collection-cover${coverLoaded ? ' is-loaded' : ''}`}
                     src={collection.image_url}
@@ -807,6 +713,7 @@ function CollectionDialog({ slug, onClose }) {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }
