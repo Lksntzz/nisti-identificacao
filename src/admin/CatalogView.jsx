@@ -112,6 +112,7 @@ function CatalogPlatformTags({ product }) {
 
 export function CatalogView({
   products,
+  highlightedProductIds = [],
   onRefresh,
   onOpenCreate,
   onOpenImport,
@@ -324,8 +325,9 @@ export function CatalogView({
             ) : (
               slice.map(product => {
                 const dateInfo = formatProductDate(product.created_at);
+                const isRecent = highlightedProductIds.includes(Number(product.id));
                 return (
-                  <tr key={product.id} className="nisti-table-row">
+                  <tr key={product.id} className={`nisti-table-row ${isRecent ? 'is-recent' : ''}`}>
                     <td>
                       <div className="capa-cell-wrap">
                         {product.image_url ? (
@@ -368,6 +370,7 @@ export function CatalogView({
                       <div className="product-sync-status-stack">
                         <span className="status-pill active">• Ativo</span>
                         <CommerceSyncBadge sync={product.commerce_sync} compact />
+                        {isRecent && <span className="nisti-recent-badge">Alterado agora</span>}
                       </div>
                     </td>
 

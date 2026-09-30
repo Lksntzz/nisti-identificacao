@@ -594,9 +594,13 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
         }
       }
 
-      await onCreated();
-
       if (registered.length > 0) {
+        await onCreated?.({
+          type: 'created',
+          productIds: registered.map(item => Number(item.id)).filter(Number.isSafeInteger),
+          skus: registered.map(item => item.sku).filter(Boolean),
+          count: registered.length
+        });
         setResult({ items: registered, errors: failures });
       } else if (failures.length > 0) {
         setError(`Falha ao cadastrar: ${failures.map(f => `${f.sku}: ${f.error}`).join('; ')}`);
@@ -907,9 +911,15 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
         commerceSync = imageResult.commerce_sync || commerceSync;
       }
 
-      await onUpdated();
+      const savedSyncStatus = String(commerceSync?.status || commerceSync?.sync_status || '').toUpperCase();
+      await onUpdated?.({
+        type: commerceSync && savedSyncStatus !== 'SYNCED' ? 'updated-sync-pending' : 'updated',
+        productIds: [Number(product.id)],
+        skus: [sku.trim().toUpperCase()],
+        count: 1
+      });
 
-      if (commerceSync && String(commerceSync.status || '').toUpperCase() !== 'SYNCED') {
+      if (commerceSync && savedSyncStatus !== 'SYNCED') {
         const syncMeta = commerceSyncMeta(commerceSync);
         setError(`Produto salvo no NISTI ID. Catálogo: ${syncMeta.label}. ${syncMeta.detail}`);
         return;
@@ -1335,6 +1345,17 @@ function AdminApp() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [viewProduct, setViewProduct] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
+  const [recentProductIds, setRecentProductIds] = useState([]);
+  const [operationFeedback, setOperationFeedback] = useState(null);
+
+  useEffect(() => {
+    if (!operationFeedback && recentProductIds.length === 0) return undefined;
+    const timer = window.setTimeout(() => {
+      setOperationFeedback(null);
+      setRecentProductIds([]);
+    }, 6000);
+    return () => window.clearTimeout(timer);
+  }, [operationFeedback, recentProductIds]);
 
   const refreshProducts = async () => {
     try {
@@ -1386,6 +1407,37 @@ function AdminApp() {
 
   const refreshAll = async () => {
     await Promise.all([refreshProducts(), refreshMetrics()]);
+  };
+
+  const reportProductChange = async (payload = {}) => {
+    await refreshAll();
+    const ids = (payload.productIds || []).map(Number).filter(Number.isSafeInteger);
+    const skus = (payload.skus || []).filter(Boolean);
+    if (ids.length) setRecentProductIds(ids);
+
+    const firstSku = skus[0] || 'Produto';
+    if (payload.type === 'created') {
+      setOperationFeedback({
+        tone: 'success',
+        message: payload.count > 1
+          ? `${payload.count} produtos cadastrados e catálogo atualizado.`
+          : `${firstSku} cadastrado e catálogo atualizado.`
+      });
+      return;
+    }
+
+    if (payload.type === 'updated-sync-pending') {
+      setOperationFeedback({
+        tone: 'warning',
+        message: `${firstSku} salvo no NISTI ID. A sincronização do Catálogo ainda está pendente.`
+      });
+      return;
+    }
+
+    setOperationFeedback({
+      tone: 'success',
+      message: `${firstSku} atualizado com sucesso.`
+    });
   };
 
   useEffect(() => {
@@ -1466,6 +1518,15 @@ function AdminApp() {
           activeView={activeView}
         />
 
+        {operationFeedback && (
+          <div className={`nisti-operation-toast ${operationFeedback.tone || 'success'}`} role="status" aria-live="polite">
+            <span className="nisti-operation-toast-icon" aria-hidden="true">
+              {operationFeedback.tone === 'warning' ? '!' : '✓'}
+            </span>
+            <span>{operationFeedback.message}</span>
+          </div>
+        )}
+
         <main className="admin-page-content">
           <div key={activeView} className="admin-view-transition">
             {activeView !== 'mural-nisti' && (
@@ -1487,6 +1548,7 @@ function AdminApp() {
             {activeView === 'catalogo' && (
               <CatalogView
                 products={products}
+                highlightedProductIds={recentProductIds}
                 onRefresh={refreshAll}
                 onOpenCreate={() => setCreateModalOpen(true)}
                 onOpenImport={() => setImportModalOpen(true)}
@@ -1543,7 +1605,7 @@ function AdminApp() {
       <CreateProductModal
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        onCreated={refreshAll}
+        onCreated={reportProductChange}
       />
 
       <ImportCsvModal
@@ -1565,6 +1627,17 @@ function AdminApp() {
             ? { ...item, commerce_sync: sync }
             : item));
           await refreshProducts();
+
+          const numericId = Number(productId);
+          if (Number.isSafeInteger(numericId)) setRecentProductIds([numericId]);
+          const syncStatus = String(sync?.status || sync?.sync_status || '').toUpperCase();
+          const syncedSku = viewProduct?.sku || 'Produto';
+          setOperationFeedback({
+            tone: syncStatus === 'SYNCED' ? 'success' : 'warning',
+            message: syncStatus === 'SYNCED'
+              ? `${syncedSku} sincronizado com o Catálogo.`
+              : `${syncedSku} atualizado, mas o Catálogo ainda não confirmou a sincronização.`
+          });
         }}
       />
 
@@ -1572,7 +1645,7 @@ function AdminApp() {
         product={editProduct}
         isOpen={Boolean(editProduct)}
         onClose={() => setEditProduct(null)}
-        onUpdated={refreshAll}
+        onUpdated={reportProductChange}
       />
     </div>
   );

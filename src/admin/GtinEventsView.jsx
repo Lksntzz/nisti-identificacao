@@ -47,6 +47,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
   const [loadError, setLoadError] = useState('');
   const [actionBusyId, setActionBusyId] = useState(null);
   const [actionError, setActionError] = useState('');
+  const [actionFeedback, setActionFeedback] = useState(null);
 
   // Estado para Associação Rápida de EAN não cadastrado
   const [linkingEvent, setLinkingEvent] = useState(null);
@@ -59,6 +60,12 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
     setStatus(initialStatus);
     setPage(1);
   }, [initialStatus]);
+
+  useEffect(() => {
+    if (!actionFeedback) return undefined;
+    const timer = window.setTimeout(() => setActionFeedback(null), 4500);
+    return () => window.clearTimeout(timer);
+  }, [actionFeedback]);
 
   const load = async (targetPage = page, query = appliedSearch) => {
     setLoading(true);
@@ -106,6 +113,12 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
     setActionError('');
     try {
       await api(`/api/admin/gtin-events/${event.id}/${dismiss ? 'dismiss' : 'restore'}`, { method: 'POST' });
+      setActionFeedback({
+        id: event.id,
+        message: dismiss
+          ? `Leitura ${event.gtin} descartada do tratamento pendente.`
+          : `Leitura ${event.gtin} restaurada para tratamento.`
+      });
       await load();
       if (onLinkSuccess) onLinkSuccess();
     } catch (error) {
@@ -129,6 +142,10 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
         body: JSON.stringify({ gtin: linkingEvent.gtin, source: 'NISTI' })
       });
       setLinkSuccessMsg(`EAN ${linkingEvent.gtin} vinculado ao produto com sucesso!`);
+      setActionFeedback({
+        id: linkingEvent.id,
+        message: `EAN ${linkingEvent.gtin} vinculado ao produto e ativado no catálogo.`
+      });
       setTimeout(() => {
         setLinkingEvent(null);
         setSelectedProductId('');
@@ -208,6 +225,13 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
       )}
 
       {actionError && <div className="form-error-banner nisti-feedback-enter" role="alert">{actionError}</div>}
+      {actionFeedback && (
+        <div className="nisti-inline-operation-feedback success" role="status" aria-live="polite">
+          <span aria-hidden="true">✓</span>
+          <strong>{actionFeedback.message}</strong>
+        </div>
+      )}
+
       <div className="table-responsive-container">
         <table className="admin-data-table">
           <thead>
@@ -261,7 +285,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
                 </td>
               </tr>
             ) : events.map(event => (
-              <tr key={event.id} className={`nisti-table-row ${actionBusyId === event.id ? 'is-updating' : ''}`}>
+              <tr key={event.id} className={`nisti-table-row ${actionBusyId === event.id ? 'is-updating' : ''} ${actionFeedback?.id === event.id ? 'is-recent' : ''}`}>
                 <td><span className={`status-pill ${event.dismissed_at ? '' : event.status === 'identified' ? 'active' : event.status === 'not_found' ? 'orange' : 'danger'}`}>• {event.dismissed_at ? 'Descartado' : statusLabel(event.status)}</span></td>
                 <td><div className="datetime-cell"><span>{formatProductDate(event.created_at).date}</span><small>{formatProductDate(event.created_at).time}</small></div></td>
                 <td><strong>{event.operator_name || 'Não identificado'}</strong></td>
