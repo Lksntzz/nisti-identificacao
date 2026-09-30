@@ -71,6 +71,32 @@ async function compressImage(file) {
   return new File([blob], file.name, { type });
 }
 
+function base64ToFile(base64, mimeType = 'image/png', name = 'mural-ai.png') {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new File([bytes], name, { type:mimeType });
+}
+
+async function prepareAiImage(file, mode) {
+  if (!file) return file;
+  if (mode === 'remove_background') return compressImage(file);
+  const bitmap = await createImageBitmap(file);
+  const maxWidth = 1280;
+  const scale = Math.min(1, maxWidth / bitmap.width);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext('2d', { alpha:false });
+  context.fillStyle = '#ffffff';
+  context.fillRect(0,0,canvas.width,canvas.height);
+  context.drawImage(bitmap,0,0,canvas.width,canvas.height);
+  bitmap.close();
+  const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/jpeg',.80));
+  if (!blob) throw new Error('Não foi possível otimizar a arte gerada.');
+  return new File([blob],'mural-ai-scene.jpg',{type:'image/jpeg'});
+}
+
 function Status({ value }) {
   const labels = { draft: 'Rascunho', published: 'Publicado', archived: 'Arquivado' };
   return <span className={`mural-admin-status ${value}`}>{labels[value] || value}</span>;
@@ -144,6 +170,11 @@ function PostEditor({ item, collections, onClose, onSaved }) {
   const [imageUrl, setImageUrl] = useState(sourceItem?.image_key ? `/api/admin/mural/posts/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}` : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiStyle, setAiStyle] = useState('editorial');
+  const [aiResult, setAiResult] = useState(null);
 
   useEffect(() => {
     if (form.kind !== 'product') return;
@@ -155,6 +186,7 @@ function PostEditor({ item, collections, onClose, onSaved }) {
   }, [productQuery, form.kind]);
 
   useEffect(() => () => { if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
+  useEffect(() => () => { if (aiResult?.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url); }, [aiResult]);
 
   const selectedCollection = collections.find(row => Number(row.id) === Number(form.collection_id));
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
@@ -170,6 +202,70 @@ function PostEditor({ item, collections, onClose, onSaved }) {
       setImage(prepared);
       setImageUrl(URL.createObjectURL(prepared));
     } catch (err) { setError(err.message); }
+  };
+
+  const generateAiArt = async mode => {
+    setAiError('');
+    if (form.kind === 'product' && !Number(form.product_id)) {
+      setAiError('Selecione o produto que será usado como referência visual.');
+      return;
+    }
+    if (form.kind === 'collection' && !Number(form.collection_id)) {
+      setAiError('Selecione a coleção que será usada como referência visual.');
+      return;
+    }
+    setAiBusy(true);
+    try {
+      const data = await request('/api/admin/mural/ai-art', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({
+          mode,
+          kind:form.kind,
+          product_id:Number(form.product_id) || null,
+          collection_id:Number(form.collection_id) || null,
+          title:form.title,
+          subtitle:form.subtitle,
+          style:aiStyle,
+          prompt:aiPrompt
+        })
+      });
+      const raw = base64ToFile(
+        data.image_base64,
+        data.mime_type || 'image/png',
+        mode === 'remove_background' ? 'produto-sem-fundo.png' : 'mural-arte-ia.png'
+      );
+      const prepared = await prepareAiImage(raw, mode);
+      if (prepared.size > 5 * 1024 * 1024) throw new Error('A arte gerada excedeu 5 MB após otimização.');
+      if (aiResult?.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url);
+      const url = URL.createObjectURL(prepared);
+      setAiResult({
+        file:prepared,
+        url,
+        mode,
+        model:data.model || 'gemini-3.1-flash-image',
+        sourceCount:Number(data.source_count || 0),
+        synthid:Boolean(data.synthid)
+      });
+    } catch (err) {
+      setAiError(err.message || 'Não foi possível gerar a arte.');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const applyAiResult = () => {
+    if (!aiResult?.file) return;
+    if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
+    setImage(aiResult.file);
+    setImageUrl(URL.createObjectURL(aiResult.file));
+    if (aiResult.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url);
+    setAiResult(null);
+  };
+
+  const discardAiResult = () => {
+    if (aiResult?.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url);
+    setAiResult(null);
   };
 
   const removeImage = async () => {
@@ -240,6 +336,75 @@ function PostEditor({ item, collections, onClose, onSaved }) {
             <div className="mural-admin-inline"><label>Publicar em<input type="datetime-local" value={form.published_at} onChange={e=>set('published_at',e.target.value)} /></label><label>Expira em<input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)} /></label></div>
             <label>Imagem editorial<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseImage(e.target.files?.[0])} /><small>JPEG, PNG ou WebP. Compressão no cliente até 1600 px; máximo 5 MB.</small></label>
             {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem editorial</button>}
+
+            <section className="mural-admin-ai-studio" aria-label="Estúdio de IA do Mural">
+              <header>
+                <div><small>IA DE IMAGEM</small><strong>Nano Banana</strong></div>
+                <span>Gemini</span>
+              </header>
+              <p>Crie a arte editorial usando os produtos reais como referência. A IA recebe as imagens do catálogo e deve preservar capa, estampa, textos, cores e acabamentos.</p>
+              <div className="mural-admin-ai-source">
+                <b>Fonte</b>
+                <span>
+                  {form.kind === 'product'
+                    ? selectedProduct ? `${selectedProduct.sku} · ${selectedProduct.nome || selectedProduct.type || 'Produto'}` : 'Selecione um produto'
+                    : form.kind === 'collection'
+                      ? selectedCollection ? selectedCollection.name : 'Selecione uma coleção'
+                      : 'Arte sem produto de referência'}
+                </span>
+              </div>
+              <label>Direção visual
+                <select value={aiStyle} onChange={e=>setAiStyle(e.target.value)}>
+                  <option value="editorial">Editorial premium</option>
+                  <option value="cozy">Mesa criativa / aconchegante</option>
+                  <option value="minimal">Estúdio minimalista</option>
+                  <option value="floral">Floral sofisticado</option>
+                  <option value="colorful">Colorido criativo</option>
+                </select>
+              </label>
+              <label>Briefing criativo
+                <textarea
+                  rows="3"
+                  maxLength="900"
+                  value={aiPrompt}
+                  onChange={e=>setAiPrompt(e.target.value)}
+                  placeholder="Ex.: mesa rosé, flores discretas, caneta dourada, luz natural lateral e espaço limpo à esquerda para o título."
+                />
+              </label>
+              <div className="mural-admin-ai-actions">
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={aiBusy || (form.kind === 'product' && !form.product_id) || (form.kind === 'collection' && !form.collection_id)}
+                  onClick={()=>generateAiArt('creative_scene')}
+                >
+                  {aiBusy ? 'Gerando…' : 'Criar arte com cenário'}
+                </button>
+                {form.kind === 'product' && (
+                  <button
+                    type="button"
+                    disabled={aiBusy || !form.product_id}
+                    onClick={()=>generateAiArt('remove_background')}
+                  >
+                    Remover fundo branco
+                  </button>
+                )}
+              </div>
+              <small className="mural-admin-ai-note">A geração usa Nano Banana e não publica automaticamente. Revise a arte antes de aplicar. Imagens geradas pelo Gemini incluem SynthID.</small>
+              {aiError && <div className="mural-admin-ai-error">{aiError}</div>}
+              {aiResult && (
+                <div className="mural-admin-ai-result">
+                  <img src={aiResult.url} alt="Arte gerada por IA para revisão" />
+                  <div>
+                    <span><b>{aiResult.mode === 'remove_background' ? 'Produto isolado' : 'Cenário editorial'}</b><small>{aiResult.model} · {formatBytes(aiResult.file.size)}</small></span>
+                    <div>
+                      <button type="button" onClick={discardAiResult}>Descartar</button>
+                      <button type="button" className="primary" onClick={applyAiResult}>Usar esta arte</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
             {error && <div className="mural-admin-error">{error}</div>}
             <div className="mural-admin-actions"><button type="button" onClick={onClose}>Cancelar</button><button type="submit" disabled={busy}>Salvar rascunho</button><button type="button" className="primary" disabled={busy} onClick={()=>save(true)}>{form.published_at && new Date(form.published_at)>new Date()?'Agendar':'Publicar agora'}</button></div>
           </form>
