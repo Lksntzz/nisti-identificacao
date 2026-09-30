@@ -51,7 +51,11 @@ test('product art uses the Product Hero Card standard and three dedicated layout
   assert.ok(router.includes('Right hero-product zone: approximately'));
   assert.ok(router.includes('editorial.subtitle'));
   assert.ok(admin.includes('Padrão Product Hero Card: banner 2:1'));
+  assert.ok(admin.includes('PADRÃO VISUAL'));
+  assert.ok(admin.includes('Product Hero Card'));
+  assert.ok(admin.includes('exatamente 1 produto real à direita'));
   assert.ok(admin.includes("Product Hero Card pronto"));
+  assert.ok(css.includes('.mural-product-visual-standard'));
   assert.ok(admin.includes('Escolha uma das 3 versões de prompt.'));
   assert.ok(admin.includes('mural-gemini-prompt-versions'));
   assert.ok(admin.includes('Visualizar prompt selecionado'));
