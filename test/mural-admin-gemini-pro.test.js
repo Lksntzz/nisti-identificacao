@@ -23,7 +23,7 @@ test('Gemini Pro prompt is focused on image direction, lighting, camera, scene a
   assert.ok(router.includes('CENÁRIO'));
   assert.ok(router.includes('PÚBLICO'));
   assert.ok(router.includes('jovens e adultos que valorizam papelaria fina'));
-  assert.ok(router.includes('enquadramento em ângulo 3/4 levemente superior'));
+  assert.ok(router.includes('Enquadramento em ângulo 3/4 levemente superior'));
   assert.ok(router.includes('jogo de luzes suave e controlado'));
   assert.equal(router.includes('SEGURANÇA DE INSTRUÇÕES'), false);
   assert.equal(router.includes('ORDEM DE PRIORIDADE'), false);
