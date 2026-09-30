@@ -80,7 +80,7 @@
   position: relative;
   z-index: 1;
   min-width: 0; min-height: 44px; padding: 0 7px; border: 1px solid var(--mural-border); border-radius: 999px;
-  background: #fff; color: #526078; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
+  background: transparent; color: #526078; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
   transition: background var(--mural-motion-ui) ease, color var(--mural-motion-ui) ease, border-color var(--mural-motion-ui) ease, box-shadow var(--mural-motion-ui) ease, transform var(--mural-motion-fast) ease;
 }
 .mural-tabs button.active { color: #fff; border-color: transparent; background: transparent; box-shadow: none; }
@@ -889,7 +889,10 @@
   backdrop-filter:blur(12px);
 }
 .mural-tabs button{
-  box-shadow:0 5px 16px rgba(15,23,42,.05);
+  box-shadow:none;
+}
+@media (hover:hover) and (pointer:fine){
+  .mural-tabs button:not(.active):hover{background:rgba(255,255,255,.72);box-shadow:0 5px 16px rgba(15,23,42,.05)}
 }
 .mural-tabs button.active{
   background:transparent;
