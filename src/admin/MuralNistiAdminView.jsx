@@ -207,6 +207,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   const [geminiStyle, setGeminiStyle] = useState('editorial');
   const [geminiProBusy, setGeminiProBusy] = useState(false);
   const [geminiProPackage, setGeminiProPackage] = useState(null);
+  const [geminiPromptId, setGeminiPromptId] = useState('');
   const [geminiProCopied, setGeminiProCopied] = useState(false);
   const [artTab, setArtTab] = useState(() => (sourceItem?.kind === 'notice' || sourceItem?.prefillImage) ? 'preview' : 'gemini');
 
@@ -222,6 +223,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   useEffect(() => () => { if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
   useEffect(() => {
     setGeminiProPackage(null);
+    setGeminiPromptId('');
     setGeminiProCopied(false);
   }, [form.kind, form.product_id, form.collection_id, geminiStyle]);
 
@@ -243,6 +245,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
     setProductQuery('');
     setGeminiError('');
     setGeminiProPackage(null);
+    setGeminiPromptId('');
     setGeminiProCopied(false);
     setArtTab(nextKind === 'notice' ? 'preview' : 'gemini');
   };
@@ -289,6 +292,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
         })
       });
       setGeminiProPackage(data);
+      setGeminiPromptId(data.prompt_versions?.[0]?.id || '');
       setGeminiProCopied(false);
     } catch (err) {
       setGeminiError(err.message || 'Não foi possível preparar o material para o Gemini Pro.');
@@ -297,10 +301,14 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
     }
   };
 
+  const selectedGeminiPrompt = geminiProPackage?.prompt_versions?.find(version => version.id === geminiPromptId)
+    || geminiProPackage?.prompt_versions?.[0]
+    || (geminiProPackage?.prompt ? { id:'default', label:'Prompt', prompt:geminiProPackage.prompt } : null);
+
   const copyGeminiProPrompt = async () => {
-    if (!geminiProPackage?.prompt) return;
+    if (!selectedGeminiPrompt?.prompt) return;
     try {
-      await copyTextToClipboard(geminiProPackage.prompt);
+      await copyTextToClipboard(selectedGeminiPrompt.prompt);
       setGeminiProCopied(true);
       setTimeout(() => setGeminiProCopied(false), 2600);
     } catch (err) {
@@ -514,8 +522,8 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                 <div className="mural-publisher-ai-info" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px', color: '#64748b', lineHeight: '1.5', marginBottom: '16px' }}>
                   <p style={{ margin: 0 }}>
                     {form.kind === 'product'
-                      ? 'O prompt usa os dados reais do produto e orienta cenário, iluminação, câmera e público para a composição editorial.'
-                      : 'O prompt usa os produtos reais da coleção e orienta cenário, iluminação, câmera e público para uma composição editorial coerente.'}
+                      ? 'A direção visual escolhida entra no prompt junto com os dados reais do produto, cenário, iluminação, câmera e público.'
+                      : 'A direção visual escolhida entra no prompt junto com os produtos reais da coleção, cenário, iluminação, câmera e público.'}
                   </p>
                 </div>
 
@@ -533,15 +541,45 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                 {geminiProPackage && (
                   <div className="mural-gemini-pro-kit">
                     <header>
-                      <span><b>Pacote pronto para o Gemini Pro</b><small>{geminiProPackage.reference_count} referência(s) real(is) preparada(s)</small></span>
+                      <span><b>Pacote pronto para o Gemini Pro</b><small>3 prompts + {geminiProPackage.reference_count} referência(s) real(is)</small></span>
                       <span className="mural-gemini-pro-ready"><AdminMuralIcon name="check" size={14}/> Pronto</span>
                     </header>
 
                     <div className="mural-gemini-pro-steps">
-                      <span><b>1</b> Abra o Gemini Pro e cole o prompt.</span>
-                      <span><b>2</b> Arraste ou baixe as referências abaixo e anexe.</span>
+                      <span><b>1</b> Escolha uma das 3 versões de prompt.</span>
+                      <span><b>2</b> Copie e abra o Gemini Pro; depois anexe as referências.</span>
                       <span><b>3</b> Gere a arte, salve e traga de volta ao Mural.</span>
                     </div>
+
+                    <div className="mural-gemini-direction-summary">
+                      <span>Direção visual escolhida</span>
+                      <strong>{AI_STYLES.find(style=>style.value===geminiProPackage.style)?.label || geminiProPackage.style}</strong>
+                      <small>{geminiProPackage.direction}</small>
+                    </div>
+
+                    <div className="mural-gemini-prompt-versions" role="radiogroup" aria-label="Escolha uma versão de prompt">
+                      {(geminiProPackage.prompt_versions || []).map((version,index)=>(
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={(geminiPromptId || geminiProPackage.prompt_versions?.[0]?.id) === version.id}
+                          className={(geminiPromptId || geminiProPackage.prompt_versions?.[0]?.id) === version.id ? 'active' : ''}
+                          key={version.id || index}
+                          onClick={()=>{setGeminiPromptId(version.id);setGeminiProCopied(false);}}
+                        >
+                          <span>{index+1}</span>
+                          <b>{version.label}</b>
+                          <small>{version.summary}</small>
+                        </button>
+                      ))}
+                    </div>
+
+                    {selectedGeminiPrompt?.prompt && (
+                      <details className="mural-gemini-prompt-preview">
+                        <summary>Visualizar prompt selecionado</summary>
+                        <pre>{selectedGeminiPrompt.prompt}</pre>
+                      </details>
+                    )}
 
                     <div className="mural-gemini-pro-actions">
                       <button type="button" onClick={copyGeminiProPrompt}>
