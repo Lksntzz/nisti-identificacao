@@ -3,6 +3,7 @@ import '../mural-admin.css';
 import { MuralCard } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
 import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx';
+import { useTransparentProductImage } from '../mural-transparent-image.js';
 
 const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',
@@ -93,6 +94,41 @@ function ReadinessBadge({ ok, unknown = false }) {
   const state = unknown ? 'unknown' : ok ? 'ok' : 'pending';
   const label = unknown ? 'Não medido' : ok ? 'OK' : 'Pendente';
   return <span className={`mural-admin-readiness-badge ${state}`}>{label}</span>;
+}
+
+function TransparentMuralProductImage({ src, alt = '', className = '', draggable = false, ariaHidden = false }) {
+  const displaySrc = useTransparentProductImage(src, Boolean(src));
+  if (!displaySrc) return null;
+  return (
+    <img
+      src={displaySrc}
+      alt={alt}
+      className={className}
+      draggable={draggable}
+      aria-hidden={ariaHidden ? 'true' : undefined}
+    />
+  );
+}
+
+function GeminiReferenceFigure({ reference, index }) {
+  const transparentSrc = useTransparentProductImage(reference?.image_url, Boolean(reference?.image_url));
+  const filename = String(reference?.filename || `referencia-${index + 1}.png`).replace(/\.(jpe?g|webp)$/i, '.png');
+  return (
+    <figure>
+      <TransparentMuralProductImage
+        src={reference?.image_url}
+        alt={reference?.label || reference?.sku || 'Referência do produto'}
+        draggable
+      />
+      <figcaption>
+        <span>
+          <b>{reference?.sku || reference?.label || `Referência ${index + 1}`}</b>
+          <small>{reference?.name || reference?.variation || 'Produto NISTI'}</small>
+        </span>
+        <a href={transparentSrc || reference?.image_url} download={filename}>Baixar PNG</a>
+      </figcaption>
+    </figure>
+  );
 }
 
 function postForm(row) {
@@ -237,6 +273,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   const referenceImage = form.kind === 'product'
     ? selectedProduct?.image_url
     : selectedCollectionProducts.find(product => product.image_url)?.image_url || '';
+  const referenceDisplayImage = useTransparentProductImage(referenceImage, Boolean(referenceImage));
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
 
   const changeKind = nextKind => {
@@ -417,7 +454,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
               <div className="mural-publisher-product-search">
                 {products.map(product=>(
                   <button type="button" className={Number(form.product_id)===Number(product.id)?'selected':''} key={product.id} onClick={()=>{set('product_id',product.id);setSelectedProduct(product);setProductQuery(product.sku);}}>
-                    {product.image_url ? <img src={product.image_url} alt="" aria-hidden="true"/> : <span className="placeholder"><AdminMuralIcon name="product" size={22}/></span>}
+                    {product.image_url ? <TransparentMuralProductImage src={product.image_url} alt="" ariaHidden/> : <span className="placeholder"><AdminMuralIcon name="product" size={22}/></span>}
                     <span><b>{product.sku}</b><small>{product.nome || product.variacao || product.type || 'Produto NISTI'}</small></span>
                     {Number(form.product_id)===Number(product.id)&&<i><AdminMuralIcon name="check" size={14}/></i>}
                   </button>
@@ -435,7 +472,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                   <div>
                     {selectedCollectionProducts.length ? selectedCollectionProducts.map((product,index)=>(
                       <figure key={product.id}>
-                        {product.image_url ? <img src={product.image_url} alt={product.nome || product.sku}/> : <span><AdminMuralIcon name="product" size={24}/></span>}
+                        {product.image_url ? <TransparentMuralProductImage src={product.image_url} alt={product.nome || product.sku}/> : <span><AdminMuralIcon name="product" size={24}/></span>}
                         <figcaption><b>{product.sku}</b><small>{index+1}</small></figcaption>
                       </figure>
                     )) : <p>Esta coleção ainda não possui produtos carregados na visão atual.</p>}
@@ -501,7 +538,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                 <div className="mural-publisher-reference">
                   <span>Referência</span>
                   <div>
-                    {referenceImage ? <img src={referenceImage} alt="Referência visual"/> : <span className="placeholder"><AdminMuralIcon name={form.kind==='collection'?'collection':'product'} size={24}/></span>}
+                    {referenceDisplayImage ? <img src={referenceDisplayImage} alt="Referência visual transparente"/> : <span className="placeholder"><AdminMuralIcon name={form.kind==='collection'?'collection':'product'} size={24}/></span>}
                     <b>{form.kind==='product' ? (selectedProduct?.sku || 'Selecione um produto') : (selectedCollection?.name || 'Selecione uma coleção')}</b>
                   </div>
                 </div>
@@ -511,7 +548,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                   {AI_STYLES.map(style=>(
                     <button type="button" key={style.value} className={geminiStyle===style.value?'active':''} onClick={()=>setGeminiStyle(style.value)}>
                       <span className={`mural-ai-style-thumb ${style.value}`}>
-                        {referenceImage && <img src={referenceImage} alt="" aria-hidden="true"/>}
+                        {referenceDisplayImage && <img src={referenceDisplayImage} alt="" aria-hidden="true"/>}
                         <i/><i/>
                       </span>
                       <small>{style.label}</small>
@@ -599,13 +636,11 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
 
                     <div className="mural-gemini-pro-references">
                       {(geminiProPackage.references || []).map((reference,index)=>(
-                        <figure key={reference.id || `${reference.sku || 'ref'}-${index}`}>
-                          <img src={reference.image_url} alt={reference.label || reference.sku || 'Referência do produto'} draggable="true"/>
-                          <figcaption>
-                            <span><b>{reference.sku || reference.label || `Referência ${index+1}`}</b><small>{reference.name || reference.variation || 'Produto NISTI'}</small></span>
-                            <a href={reference.image_url} download={reference.filename}>Baixar</a>
-                          </figcaption>
-                        </figure>
+                        <GeminiReferenceFigure
+                          key={reference.id || `${reference.sku || 'ref'}-${index}`}
+                          reference={reference}
+                          index={index}
+                        />
                       ))}
                     </div>
 
