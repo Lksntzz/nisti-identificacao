@@ -111,6 +111,13 @@ function mapFeedRow(row, collectionPreviews = new Map()) {
         : collectionId && row.collection_image_key
           ? `/api/mural/collections/${encodeURIComponent(row.collection_slug)}/image?v=${encodeURIComponent(row.collection_image_key)}`
           : null,
+    image_source: row.image_key
+      ? 'post'
+      : productId && row.product_image_key
+        ? 'product'
+        : collectionId && row.collection_image_key
+          ? 'collection'
+          : 'none',
     product_available: productAvailable,
     product: row.kind === 'product'
       ? {
