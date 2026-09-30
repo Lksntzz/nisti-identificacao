@@ -149,9 +149,30 @@ function NoticeLabel({ level }) {
 
 function Hero({ item, onOpen }) {
   if (!item) return null;
+  const isCollection = item.kind === 'collection';
+  const collectionPreviews = isCollection ? (item.collection?.preview_products || []) : [];
+  const collectionProductCount = isCollection
+    ? Number(item.collection?.product_count || collectionPreviews.length || 0)
+    : 0;
+
   return (
-    <button type="button" className="mural-hero mural-hero-enter" onClick={() => onOpen(item)}>
-      <MuralImage item={item} eager className="mural-hero-image" />
+    <button
+      type="button"
+      className={`mural-hero mural-hero-enter${isCollection ? ' mural-hero-collection' : ''}${collectionPreviews.length ? ' has-products' : ''}`}
+      onClick={() => onOpen(item)}
+    >
+      {isCollection && collectionPreviews.length ? (
+        <span className="mural-hero-collection-products" aria-label={`${collectionProductCount} produtos na coleção`}>
+          {collectionPreviews.map((product, index) => (
+            <span className={`mural-hero-collection-product product-${index + 1}`} key={product.id} aria-hidden="true">
+              <CollectionProductImage product={product} eager={index === 0} />
+            </span>
+          ))}
+          <span className="mural-hero-collection-count"><strong>{collectionProductCount}</strong><small>produtos</small></span>
+        </span>
+      ) : (
+        <MuralImage item={item} eager className="mural-hero-image" />
+      )}
       <span className="mural-hero-shade" aria-hidden="true" />
       <span className="mural-hero-accent" aria-hidden="true"><i /><i /><i /></span>
       <span className="mural-hero-copy">
@@ -161,7 +182,7 @@ function Hero({ item, onOpen }) {
         </span>
         <strong>{item.title}</strong>
         {item.subtitle && <span>{item.subtitle}</span>}
-        <span className="mural-hero-cta">Ver detalhe <span aria-hidden="true">→</span></span>
+        <span className="mural-hero-cta">{isCollection ? 'Ver coleção' : 'Ver detalhe'} <span aria-hidden="true">→</span></span>
       </span>
     </button>
   );

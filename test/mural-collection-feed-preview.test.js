@@ -29,3 +29,13 @@ test('collection preview layout is mobile-aware and does not require relational 
   assert.equal(css.includes(':has(.mural-collection-card-products)'), false);
   assert.ok(css.includes('@media (max-width:390px)'));
 });
+
+test('featured collection hero also renders its product selection', () => {
+  assert.ok(mural.includes("const collectionPreviews = isCollection ? (item.collection?.preview_products || []) : []"));
+  assert.ok(mural.includes('mural-hero-collection-products'));
+  assert.ok(mural.includes('mural-hero-collection-product'));
+  assert.ok(mural.includes('mural-hero-collection-count'));
+  assert.ok(mural.includes("{isCollection ? 'Ver coleção' : 'Ver detalhe'}"));
+  assert.ok(css.includes('.mural-hero-collection.has-products'));
+  assert.ok(css.includes('.mural-hero-collection-products'));
+});
