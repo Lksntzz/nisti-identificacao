@@ -594,14 +594,13 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
         }
       }
 
-      await onCreated?.({
-        type: 'created',
-        productIds: registered.map(item => Number(item.id)).filter(Number.isSafeInteger),
-        skus: registered.map(item => item.sku).filter(Boolean),
-        count: registered.length
-      });
-
       if (registered.length > 0) {
+        await onCreated?.({
+          type: 'created',
+          productIds: registered.map(item => Number(item.id)).filter(Number.isSafeInteger),
+          skus: registered.map(item => item.sku).filter(Boolean),
+          count: registered.length
+        });
         setResult({ items: registered, errors: failures });
       } else if (failures.length > 0) {
         setError(`Falha ao cadastrar: ${failures.map(f => `${f.sku}: ${f.error}`).join('; ')}`);
