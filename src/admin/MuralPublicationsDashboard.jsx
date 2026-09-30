@@ -46,7 +46,7 @@ function Status({ value }) {
   return <span className={'mural-admin-status '+value}><i aria-hidden="true"/>{statusLabel(value)}</span>;
 }
 
-export default function MuralPublicationsDashboard({ posts, collections, loading, onEdit, onAction, onPush }) {
+export default function MuralPublicationsDashboard({ posts, collections, loading, onEdit, onAction, onPush, onDelete }) {
   const [kind,setKind]=useState('');
   const [status,setStatus]=useState('');
   const [author,setAuthor]=useState('');
@@ -167,6 +167,8 @@ export default function MuralPublicationsDashboard({ posts, collections, loading
                     {row.status!=='published'&&<button onClick={()=>onAction(row.id,'publish')}>Publicar</button>}
                    {row.status!=='archived'&&<button onClick={()=>onAction(row.id,'archive')}>Arquivar</button>}
                     {row.status==='published'&&((row.kind==='notice'&&row.notice_level==='important')||row.kind==='product')&&<button onClick={()=>onPush(row)}>Enviar notificação</button>}
+                    <div className="mural-admin-action-menu-separator" aria-hidden="true"/>
+                    <button className="danger" onClick={()=>{setOpenMenu(null);onDelete(row)}}>Apagar publicação</button>
                   </div>}
                 </td>
               </tr>;
