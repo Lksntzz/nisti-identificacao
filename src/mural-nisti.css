@@ -2441,7 +2441,7 @@
   font-style:normal;
   line-height:1;
   text-shadow:0 3px 10px rgba(76,93,130,.08);
-  animation:mural-title-sparkle 2.8s ease-in-out infinite alternate;
+  animation:mural-title-sparkle 2.8s ease-in-out 2 alternate both;
 }
 .mural-title-sparkles .star-1{top:3px;left:43%;font-size:13px;color:#ff78b8;animation-delay:-.4s}
 .mural-title-sparkles .star-2{top:21px;right:63px;font-size:9px;color:#ffffff;animation-delay:-1.1s}
