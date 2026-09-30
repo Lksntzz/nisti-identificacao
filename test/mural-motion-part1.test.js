@@ -19,7 +19,10 @@ test('motion part 1 gives the hero a one-shot entrance instead of continuous acc
   assert.ok(css.includes('@keyframes mural-hero-copy-enter'));
   assert.ok(css.includes('@keyframes mural-accent-enter'));
   assert.equal(css.includes('mural-accent-float'), false);
-  const accentRule = css.match(/\\.mural-hero-accent i\\{([\\s\\S]*?)\\n\\}/)?.[1] || '';
+  const accentStart = css.indexOf('.mural-hero-accent i{');
+  const accentEnd = css.indexOf('\n}', accentStart);
+  assert.ok(accentStart >= 0 && accentEnd > accentStart);
+  const accentRule = css.slice(accentStart, accentEnd);
   assert.equal(accentRule.includes('infinite'), false);
 });
 
