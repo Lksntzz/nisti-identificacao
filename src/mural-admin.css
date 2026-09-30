@@ -44,3 +44,185 @@
 .mural-admin-readiness-manual strong{color:#92400e}
 @media(max-width:900px){.mural-admin-readiness-grid{grid-template-columns:1fr}.mural-admin-readiness-list>div{grid-template-columns:1fr auto}.mural-admin-readiness-list>div>.mural-admin-readiness-badge{grid-column:1/-1;justify-self:start}}
 @media(max-width:600px){.mural-admin-readiness-summary{align-items:flex-start;flex-direction:column}.mural-admin-readiness-list>div{grid-template-columns:1fr}.mural-admin-readiness-list>div>.mural-admin-readiness-badge{grid-column:auto}}
+
+/* Admin Mural — AI image studio (Gemini Nano Banana). */
+.mural-admin-ai-studio{
+  display:grid;
+  gap:12px;
+  padding:16px;
+  border:1px solid #dbeafe;
+  border-radius:16px;
+  background:
+    radial-gradient(circle at 100% 0%,rgba(6,182,212,.10),transparent 34%),
+    radial-gradient(circle at 0% 100%,rgba(99,102,241,.10),transparent 34%),
+    #f8fbff;
+}
+.mural-admin-ai-studio>header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.mural-admin-ai-studio>header>div{
+  display:grid;
+  gap:2px;
+}
+.mural-admin-ai-studio>header small{
+  color:#6366f1;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.10em;
+}
+.mural-admin-ai-studio>header strong{
+  color:#0f172a;
+  font-size:18px;
+  line-height:1.1;
+}
+.mural-admin-ai-studio>header>span{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:28px;
+  padding:0 9px;
+  border:1px solid #c7d2fe;
+  border-radius:999px;
+  background:#fff;
+  color:#4338ca;
+  font-size:10px;
+  font-weight:900;
+}
+.mural-admin-ai-studio>p{
+  margin:0;
+  color:#475569;
+  font-size:11.5px;
+  line-height:1.45;
+}
+.mural-admin-ai-source{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:8px;
+  padding:9px 10px;
+  border:1px solid #e2e8f0;
+  border-radius:11px;
+  background:rgba(255,255,255,.82);
+  font-size:11px;
+}
+.mural-admin-ai-source b{
+  color:#64748b;
+  font-size:9px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.mural-admin-ai-source span{
+  min-width:0;
+  overflow:hidden;
+  color:#0f172a;
+  font-weight:800;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mural-admin-ai-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.mural-admin-ai-actions button,
+.mural-admin-ai-result button{
+  min-height:40px;
+  padding:0 12px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  background:#fff;
+  color:#334155;
+  font:inherit;
+  font-size:11px;
+  font-weight:850;
+}
+.mural-admin-ai-actions button.primary,
+.mural-admin-ai-result button.primary{
+  border-color:#4f46e5;
+  background:linear-gradient(135deg,#4f46e5,#2563eb);
+  color:#fff;
+}
+.mural-admin-ai-actions button:disabled{
+  cursor:not-allowed;
+  opacity:.5;
+}
+.mural-admin-ai-note{
+  color:#64748b!important;
+  font-size:10px!important;
+  line-height:1.4;
+}
+.mural-admin-ai-error{
+  padding:9px 10px;
+  border:1px solid #fecaca;
+  border-radius:10px;
+  background:#fff1f2;
+  color:#b91c1c;
+  font-size:11px;
+  font-weight:700;
+}
+.mural-admin-ai-result{
+  display:grid;
+  gap:10px;
+  padding:10px;
+  border:1px solid #cbd5e1;
+  border-radius:13px;
+  background:#fff;
+}
+.mural-admin-ai-result>img{
+  display:block;
+  width:100%;
+  max-height:300px;
+  object-fit:contain;
+  border-radius:10px;
+  background:
+    linear-gradient(45deg,#f1f5f9 25%,transparent 25%) 0 0/16px 16px,
+    linear-gradient(-45deg,#f1f5f9 25%,transparent 25%) 0 8px/16px 16px,
+    linear-gradient(45deg,transparent 75%,#f1f5f9 75%) 8px -8px/16px 16px,
+    linear-gradient(-45deg,transparent 75%,#f1f5f9 75%) -8px 0/16px 16px,
+    #fff;
+}
+.mural-admin-ai-result>div{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.mural-admin-ai-result>div>span{
+  display:grid;
+  gap:2px;
+  min-width:0;
+}
+.mural-admin-ai-result>div>span b{
+  color:#0f172a;
+  font-size:11px;
+}
+.mural-admin-ai-result>div>span small{
+  color:#64748b;
+  font-size:9.5px;
+}
+.mural-admin-ai-result>div>div{
+  display:flex;
+  flex:0 0 auto;
+  gap:6px;
+}
+@media(max-width:600px){
+  .mural-admin-ai-actions{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+  .mural-admin-ai-actions button{
+    width:100%;
+  }
+  .mural-admin-ai-result>div{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .mural-admin-ai-result>div>div{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+}
+
