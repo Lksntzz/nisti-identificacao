@@ -182,6 +182,21 @@ function ProductMeta({ product }) {
   );
 }
 
+function CollectionFinishChips({ product }) {
+  if (!product) return null;
+  const chips = [
+    ['Wire-o', product.wireo],
+    ['Tassel', product.tassel],
+    ['Elástico', product.elastico]
+  ].filter(([, value]) => value);
+  if (!chips.length) return null;
+  return (
+    <span className="mural-collection-finish-chips">
+      {chips.map(([label, value]) => <span key={label}><b>{label}</b>{value}</span>)}
+    </span>
+  );
+}
+
 function NoticeLabel({ level }) {
   const labels = { important: 'Importante', attention: 'Atenção', info: 'Informação' };
   return <span className={`mural-notice-label mural-badge-motion ${level || 'info'}`}><MuralIcon name="megaphone" size={12} />{labels[level] || labels.info}</span>;
@@ -222,18 +237,57 @@ function HeroScene({ item, collectionPreviews }) {
   );
 }
 
-function Hero({ item, onOpen }) {
-  if (!item) return null;
-  const isCollection = item.kind === 'collection';
-  const collectionPreviews = isCollection ? (item.collection?.preview_products || []) : [];
-  const collectionProductCount = isCollection
-    ? Number(item.collection?.product_count || collectionPreviews.length || 0)
-    : 0;
+function CollectionLaunchHero({ item, onOpen }) {
+  const previews = item.collection?.preview_products || [];
+  const hasBanner = Boolean(item.image_url);
+  const title = formatCollectionTitle(item.collection) || item.title;
+  const supporting = item.subtitle || item.body || 'Uma nova coleção chegou ao Mural NISTI.';
 
   return (
     <button
       type="button"
-      className={`mural-hero mural-hero-enter mural-hero-editorial${isCollection ? ' mural-hero-collection' : ''}`}
+      className={`mural-launch-hero mural-hero-enter${hasBanner ? ' has-banner' : ' is-composed'}`}
+      onClick={() => onOpen(item)}
+      aria-label={`Abrir coleção ${title}`}
+    >
+      {hasBanner ? (
+        <>
+          <MuralImage item={item} eager className="mural-launch-hero-banner" />
+          <span className="mural-launch-banner-shade" aria-hidden="true" />
+          <span className="mural-launch-system-badge">NOVA COLEÇÃO</span>
+          <span className="mural-launch-banner-arrow" aria-hidden="true"><MuralIcon name="chevron" size={22} /></span>
+        </>
+      ) : (
+        <>
+          <span className="mural-launch-copy">
+            <span className="mural-launch-system-badge">NOVA COLEÇÃO</span>
+            <strong>{title}</strong>
+            <span>{supporting}</span>
+            <em>Lançamento <MuralIcon name="chevron" size={15} /></em>
+          </span>
+          <span className="mural-launch-products" aria-hidden="true">
+            {previews.slice(0, 4).map((product, index) => (
+              <span className={`mural-launch-product product-${index + 1}`} key={product.id}>
+                <CollectionProductImage product={product} eager={index < 2} />
+              </span>
+            ))}
+          </span>
+        </>
+      )}
+    </button>
+  );
+}
+
+function Hero({ item, onOpen }) {
+  if (!item) return null;
+  const isCollection = item.kind === 'collection';
+  if (isCollection) return <CollectionLaunchHero item={item} onOpen={onOpen} />;
+
+  const collectionPreviews = [];
+  return (
+    <button
+      type="button"
+      className="mural-hero mural-hero-enter mural-hero-editorial"
       onClick={() => onOpen(item)}
     >
       <HeroScene item={item} collectionPreviews={collectionPreviews} />
@@ -245,10 +299,7 @@ function Hero({ item, onOpen }) {
         <strong>{item.title}</strong>
         {item.subtitle && <span className="mural-hero-subtitle">{item.subtitle}</span>}
         {item.body && <span className="mural-hero-body">{item.body}</span>}
-        {isCollection && collectionProductCount > 0 && (
-          <span className="mural-hero-collection-meta"><MuralIcon name="layers" size={14} /> {collectionProductCount} produtos</span>
-        )}
-        <span className="mural-hero-cta">{isCollection ? 'Ver coleção' : 'Ver detalhe'} <MuralIcon name="chevron" size={15} /></span>
+        <span className="mural-hero-cta">Ver detalhe <MuralIcon name="chevron" size={15} /></span>
       </span>
     </button>
   );
@@ -269,15 +320,47 @@ function CollectionCardMedia({ item, previews, eager }) {
   return <span className="mural-card-media"><MuralImage item={item} eager={eager} className="mural-card-image" /></span>;
 }
 
+function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 }) {
+  const previews = item.collection?.preview_products || [];
+  const title = formatCollectionTitle(item.collection) || item.title;
+  const supporting = item.subtitle || item.body || 'Conheça os produtos desta nova coleção.';
+  const tone = Number(item.collection?.id || item.id || index) % 4;
+  const revealStyle = { '--mural-card-delay': `${Math.min(index, 8) * 45}ms` };
+
+  return (
+    <button
+      type="button"
+      className={`mural-collection-launch-card mural-collection-tone-${tone} mural-reveal`}
+      style={revealStyle}
+      data-mural-reveal
+      onClick={() => onOpen(item)}
+      aria-label={`Abrir coleção ${title}`}
+    >
+      <span className="mural-collection-launch-copy">
+        <strong>{title}</strong>
+        <span>{supporting}</span>
+        <em>NOVA COLEÇÃO</em>
+      </span>
+      <span className="mural-collection-launch-products" aria-hidden="true">
+        {previews.length ? previews.slice(0, 3).map((product, productIndex) => (
+          <span className={`mural-collection-launch-product product-${productIndex + 1}`} key={product.id}>
+            <CollectionProductImage product={product} eager={eager && productIndex === 0} />
+          </span>
+        )) : (
+          <MuralImage item={item} eager={eager} className="mural-collection-launch-fallback" />
+        )}
+      </span>
+      <span className="mural-collection-launch-arrow" aria-hidden="true"><MuralIcon name="chevron" size={22} /></span>
+    </button>
+  );
+}
+
 export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
   const isNotice = item.kind === 'notice';
   const isProduct = item.kind === 'product';
   const isCollection = item.kind === 'collection';
+  if (isCollection) return <CollectionLaunchCard item={item} onOpen={onOpen} eager={eager} index={index} />;
   const revealStyle = { '--mural-card-delay': `${Math.min(index, 8) * 45}ms` };
-  const collectionPreviews = isCollection ? (item.collection?.preview_products || []) : [];
-  const collectionProductCount = isCollection
-    ? Number(item.collection?.product_count || collectionPreviews.length || 0)
-    : 0;
   const relativeDate = formatRelativeDate(item.published_at);
 
   return (
@@ -521,7 +604,7 @@ function CollectionDialog({ slug, onClose }) {
               </div>
 
               <div className="mural-collection-editorial-copy">
-                <span className="mural-editorial-badge mural-badge-motion">Coleção</span>
+                <span className="mural-editorial-badge mural-badge-motion">NOVA COLEÇÃO</span>
                 <h2 id="mural-collection-title">{formatCollectionTitle(collection)}</h2>
                 {collection.description && <p>{collection.description}</p>}
                 <div className="mural-collection-editorial-meta">
@@ -570,8 +653,9 @@ function CollectionDialog({ slug, onClose }) {
                       <CollectionProductImage product={product} />
                       <div>
                         <strong>{product.type}</strong>
-                        {product.name && <small>{product.name}</small>}
+                        {product.name && <small className="mural-collection-cover-name">Capa · {product.name}</small>}
                         <span>{product.sku}</span>
+                        <CollectionFinishChips product={product} />
                       </div>
                     </article>
                   ))}
@@ -645,23 +729,52 @@ export default function MuralNisti({ onUnreadChange }) {
 
   useEffect(() => {
     let active = true;
+    let firstLoad = true;
     const cached = sessionCache.current.get(tab);
     if (cached) { setItems(cached.items); setNextCursor(cached.nextCursor); }
     else { setItems([]); setNextCursor(null); }
     setLoading(true);
     setError('');
-    muralApi(`/api/mural?tab=${encodeURIComponent(tab)}&limit=20`)
-      .then(data => {
+
+    const refresh = async ({ quiet = false } = {}) => {
+      try {
+        const data = await muralApi(`/api/mural?tab=${encodeURIComponent(tab)}&limit=20`);
         if (!active) return;
         const fresh = Array.isArray(data.items) ? data.items : [];
         setItems(fresh);
         setNextCursor(data.next_cursor || null);
         sessionCache.current.set(tab, { items: fresh, nextCursor: data.next_cursor || null });
         onUnreadChange?.(Number(data.unread_count || 0));
-      })
-      .catch(loadError => active && setError(loadError.message))
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
+        if (!quiet) setError('');
+      } catch (loadError) {
+        if (active && !quiet) setError(loadError.message);
+      } finally {
+        if (active && firstLoad) {
+          firstLoad = false;
+          setLoading(false);
+        }
+      }
+    };
+
+    refresh();
+    const isQa = (() => {
+      try { return new URLSearchParams(window.location.search).get('mural') === 'qa'; }
+      catch { return false; }
+    })();
+    const interval = window.setInterval(() => refresh({ quiet:true }), isQa ? 5000 : 30000);
+    const handleFocus = () => refresh({ quiet:true });
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refresh({ quiet:true });
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [tab, onUnreadChange]);
 
   const loadMore = async () => {
