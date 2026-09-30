@@ -932,29 +932,109 @@ const AUTHORIZED_STYLES = Object.freeze({
   colorful: 'Composição vibrante e contemporânea, cores equilibradas, cenário criativo e visual comercial premium.'
 });
 
-const PROMPT_VARIANTS = Object.freeze([
+const PRODUCT_HERO_VARIANTS = Object.freeze([
   {
-    id:'editorial-hero',
-    label:'Versão 1 · Editorial principal',
-    summary:'Produto protagonista em composição premium, equilibrada e comercial.',
-    camera:'Enquadramento em ângulo 3/4 levemente superior, lente equivalente a 50 mm, perspectiva natural, produto ocupando a área principal do quadro e profundidade de campo suave.',
-    composition:'Composição de campanha editorial com o produto como protagonista, poucos objetos de apoio, espaço negativo bem distribuído e leitura imediata da capa.'
+    id:'product-balanced',
+    label:'Versão 1 · Hero equilibrado',
+    summary:'Equilíbrio clássico entre informação e produto, com leitura imediata.',
+    left:'40%',
+    right:'60%',
+    productSize:'O produto deve ocupar aproximadamente 52–58% da altura total do card.',
+    productLayout:'Posicione o único produto grande e proeminente no lado direito, vertical ou levemente inclinado, com a capa totalmente legível.',
+    typography:'Nome do produto como elemento textual principal, seguido pela informação secundária, frase curta e CTA.'
   },
   {
-    id:'lifestyle',
-    label:'Versão 2 · Lifestyle',
-    summary:'Cena mais contextual, natural e aspiracional sem perder o foco no produto.',
-    camera:'Enquadramento 3/4 em altura de mesa, lente equivalente a 35–50 mm, sensação natural de fotografia lifestyle, foco nítido no produto e fundo suavemente desfocado.',
-    composition:'Integre o produto a um ambiente de uso elegante e realista, com objetos de apoio discretos e contexto visual suficiente para transmitir estilo de vida.'
+    id:'product-forward',
+    label:'Versão 2 · Produto em destaque',
+    summary:'Mais espaço e impacto para o produto individual.',
+    left:'34%',
+    right:'66%',
+    productSize:'O produto deve ocupar aproximadamente 58–64% da altura total do card.',
+    productLayout:'Dê maior escala ao único produto no lado direito, com leve perspectiva 3/4 quando apropriado e sombra de contato muito suave.',
+    typography:'Bloco textual mais compacto para preservar o máximo de área útil para o produto.'
   },
   {
-    id:'premium-detail',
-    label:'Versão 3 · Detalhe premium',
-    summary:'Composição mais fechada, valorizando materiais, acabamento e textura.',
-    camera:'Enquadramento mais próximo em 3/4, lente equivalente a 70–85 mm, foco preciso na capa e nos acabamentos, profundidade de campo curta e perspectiva sem distorção.',
-    composition:'Use uma composição mais fechada e sofisticada, valorizando textura, bordas, wire-o, elástico e acabamento visual, com cenário secundário minimalista.'
+    id:'product-name-forward',
+    label:'Versão 3 · Nome em destaque',
+    summary:'Headline mais marcante com produto limpo e sofisticado.',
+    left:'44%',
+    right:'56%',
+    productSize:'O produto deve ocupar aproximadamente 50–56% da altura total do card.',
+    productLayout:'Mantenha o único produto bem separado do fundo, sem acessórios concorrentes e com a capa claramente visível.',
+    typography:'Dê maior protagonismo ao nome do produto, mantendo badge, informação secundária, frase curta e CTA com hierarquia clara.'
   }
 ]);
+
+const PRODUCT_HERO_BASE_PROMPT = `Create a premium horizontal PRODUCT HERO CARD for the launch or presentation of one individual stationery product.
+
+OBJECTIVE
+Create a professional Product Hero Card for one real product only, using the provided transparent PNG product reference as the visual source of truth. The result must look like a premium commercial campaign asset for a stationery brand.
+
+FORMAT AND COMPOSITION
+- Horizontal banner, approximately 2:1 aspect ratio.
+- Clean rounded rectangular card.
+- Premium commercial advertising aesthetic.
+- Strong visual hierarchy.
+- Generous negative space.
+- Excellent readability at small size.
+- Designed to work inside an app, website, catalog, marketplace or social media campaign.
+
+LEFT SIDE — INFORMATION
+- Small rounded badge at the top.
+- Large product name as the strongest textual element.
+- Secondary information only when useful.
+- One short emotional or functional supporting phrase.
+- Small rounded call-to-action button.
+- Typography must remain highly legible on mobile and marketplace thumbnails.
+- Optional expressive handwritten accent only when it matches the product identity.
+
+RIGHT SIDE — HERO PRODUCT
+- Show EXACTLY ONE product.
+- The product must be the visual protagonist.
+- Keep the cover clearly visible and readable.
+- Preserve the exact original artwork, colors, printed typography, spiral binding, elastic band, tassel, proportions and product details from the provided reference.
+- Do not redesign, reinterpret, simplify or modify the original product.
+- Do not duplicate the product.
+- Do not add notebooks, planners or products that are not in the reference.
+
+PRODUCT PRESENTATION
+- The product may stand vertically or be slightly angled.
+- Use subtle professional depth.
+- Add only a very soft realistic contact shadow.
+- Keep the product visually separated from the background.
+- Use crisp edges and high-definition product detail.
+
+BACKGROUND
+- Derive the background from the product's own visual identity and the selected visual direction.
+- Prefer colors already present in the product artwork.
+- Use a soft gradient, subtle abstract shapes or delicate thematic elements.
+- Keep decorative elements low contrast and secondary to the product.
+- No full environment or room scene.
+
+VISUAL STYLE
+- Premium stationery advertising.
+- Modern, refined and commercially attractive, aligned with the product identity.
+- Clean e-commerce campaign aesthetic.
+- Professional catalog-quality presentation.
+- Soft controlled lighting.
+- Strong thumbnail impact.
+
+IMPORTANT
+- Exactly ONE product.
+- No product collection.
+- No multiple notebooks.
+- No repeated product at different angles.
+- No hands.
+- No people.
+- No excessive props.
+- No visual clutter.
+- No distracting environment.
+- Product identity must remain faithful to the reference.
+
+COMMERCIAL PRIORITY
+The viewer must understand what the product is in less than one second.
+The product must remain the strongest visual element.
+The design must remain attractive and premium as a small mobile or marketplace thumbnail.`;
 
 const COLLECTION_LAUNCH_VARIANTS = Object.freeze([
   {
@@ -1042,56 +1122,54 @@ RESTRICTIONS
 - No price.
 - No extra promotional text beyond the defined badge, collection name, year, supporting phrase and CTA.`;
 
-const MURAL_GEMINI_PRO_BASE_PROMPT = `Crie uma imagem fotográfica editorial premium usando as imagens anexadas como referência visual do produto. As referências do produto são preparadas pelo Mural em PNG com fundo transparente para facilitar a composição do cenário.
-
-ILUMINAÇÃO
-Use jogo de luzes suave e controlado, com luz principal difusa, preenchimento leve, sombras naturais, brilho de recorte discreto e contraste equilibrado.
-
-CENÁRIO
-Crie um cenário coerente com a direção visual selecionada. Use superfície, fundo e poucos elementos decorativos que complementem a cena sem competir com o produto.
-
-PÚBLICO
-Direcione a imagem para jovens e adultos que valorizam papelaria fina, planners, organização, estética delicada, design e estilo de vida criativo.
-
-QUALIDADE VISUAL
-Resultado fotográfico realista, sofisticado, com materiais plausíveis, perspectiva consistente e aparência de fotografia profissional de produto.`;
-
-function buildPromptVersions(contextLines, style) {
+function buildProductPromptVersions(product, finishes, style, editorial = {}) {
+  const productName = String(editorial.title || product.nome || '').trim() || 'Produto NISTI';
+  const productVariation = String(product.variacao || '').trim();
+  const category = productTypeLabel(product);
+  const badge = String(editorial.badge || 'NOVO').trim().slice(0,24) || 'NOVO';
+  const supportingPhrase = String(editorial.subtitle || '').trim().replace(/\s+/g,' ').slice(0,90)
+    || `Conheça ${productName}`;
   const direction = AUTHORIZED_STYLES[style] || AUTHORIZED_STYLES.editorial;
   const styleLabel = String(style || 'editorial').toUpperCase();
-  return PROMPT_VARIANTS.map((variant,index)=>({
+
+  return PRODUCT_HERO_VARIANTS.map((variant,index)=>({
     id:variant.id,
     label:variant.label,
     summary:variant.summary,
     prompt:[
-      MURAL_GEMINI_PRO_BASE_PROMPT,
+      PRODUCT_HERO_BASE_PROMPT,
       '',
-      ...contextLines,
+      'PRODUCT DATA',
+      `Product name: "${productName}"`,
+      productVariation ? `Variation: "${productVariation}"` : null,
+      category ? `Category: "${category}"` : null,
+      product.sku ? `SKU reference: "${product.sku}"` : null,
+      `Wire-o: "${finishes.wireo || 'Não especificado'}"`,
+      `Tassel: "${finishes.tassel || 'Sem tassel'}"`,
+      `Elastic band: "${finishes.elastico || 'Não especificado'}"`,
       '',
-      'DIREÇÃO VISUAL SELECIONADA',
+      'TEXT TO USE',
+      `Badge: "${badge}"`,
+      `Headline: "${productName}"`,
+      category || productVariation ? `Secondary information: "${[category,productVariation].filter(Boolean).join(' · ')}"` : null,
+      `Supporting phrase: "${supportingPhrase}"`,
+      'CTA: "VER PRODUTO"',
+      '',
+      'SELECTED VISUAL DIRECTION',
       `${styleLabel}: ${direction}`,
       '',
-      'CÂMERA',
-      variant.camera,
+      'LAYOUT FOR THIS VERSION',
+      `Left text zone: approximately ${variant.left}.`,
+      `Right hero-product zone: approximately ${variant.right}.`,
+      variant.typography,
+      variant.productSize,
+      variant.productLayout,
       '',
-      'COMPOSIÇÃO',
-      variant.composition,
-      '',
-      `VERSÃO ${index + 1} DE 3`,
-      'Gere somente a imagem final, sem interface, preço ou texto promocional sobreposto.'
+      'FINAL RESULT',
+      'A professional individual Product Hero Card, approximately 2:1, ready for use inside the NISTI Mural, website, catalog, marketplace or social media.',
+      `Version ${index + 1} of 3.`
     ].filter(Boolean).join('\n')
   }));
-}
-
-function buildProductPromptVersions(product, finishes, style) {
-  return buildPromptVersions([
-    'PRODUTO DE REFERÊNCIA',
-    `Nome: ${String(product.nome || '').trim()}`,
-    `Variação: ${String(product.variacao || '').trim()}`,
-    `Wire-o: ${finishes.wireo || 'Não especificado'}`,
-    `Tassel: ${finishes.tassel || 'Sem tassel'}`,
-    `Elástico: ${finishes.elastico || 'Não especificado'}`
-  ], style);
 }
 
 function buildCollectionPromptVersions(collection, products, style) {
@@ -1168,6 +1246,11 @@ async function adminPrepareMuralGeminiPro(request, env) {
   const productId = Number(body.product_id || 0);
   const collectionId = Number(body.collection_id || 0);
   const style = String(body.style || '').trim();
+  const editorial = {
+    title:String(body.title || '').trim(),
+    subtitle:String(body.subtitle || '').trim(),
+    badge:String(body.badge || '').trim()
+  };
 
   if (!MURAL_GEMINI_PRO_MODES.has(mode)) {
     return json({ error:'Operação de imagem inválida. Use product_scene ou collection_scene.' },422);
@@ -1191,7 +1274,7 @@ async function adminPrepareMuralGeminiPro(request, env) {
       `).bind(productId).first();
       if (!product) return json({ error:'O produto selecionado não existe no banco atual.' },422);
 
-      promptVersions = buildProductPromptVersions(product, finishLabels(product), style);
+      promptVersions = buildProductPromptVersions(product, finishLabels(product), style, editorial);
       references = await muralGeminiProReferences(env, { productId });
     } else {
       if (!Number.isInteger(collectionId) || collectionId <= 0) {
