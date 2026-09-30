@@ -226,3 +226,21 @@
   }
 }
 
+.mural-admin-ai-capabilities{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.mural-admin-ai-capabilities span{
+  display:inline-flex;
+  align-items:center;
+  min-height:26px;
+  padding:0 9px;
+  border:1px solid #bfdbfe;
+  border-radius:999px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  font-size:9.5px;
+  font-weight:900;
+}
+
