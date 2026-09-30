@@ -21,17 +21,36 @@ function pixelMetrics(r, g, b) {
 function isBorderBackgroundCandidate(r, g, b, a) {
   if (a < 8) return true;
   const { chroma, brightness } = pixelMetrics(r, g, b);
-  // Background removal must be deliberately conservative. The old threshold
-  // accepted light cover artwork as "white background" and could erase the
-  // cover together with the studio background.
-  return brightness >= 242 && chroma <= 18;
+  // The subject mask protects the complete product. This threshold can then
+  // remove the light studio background and its pale halo without cutting
+  // white paper or white cover artwork inside the product silhouette.
+  return brightness >= 222 && chroma <= 28;
 }
 
-function connectedBackgroundAlpha(r, g, b) {
-  const distance = Math.hypot(255 - r, 255 - g, 255 - b);
-  if (distance <= 8) return 0;
-  if (distance >= 38) return 255;
-  return Math.round(((distance - 8) / 30) * 255);
+function cross(origin, a, b) {
+  return (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+}
+
+function convexHull(points) {
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  if (sorted.length <= 2) return sorted;
+
+  const lower = [];
+  for (const point of sorted) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+    lower.push(point);
+  }
+
+  const upper = [];
+  for (let index = sorted.length - 1; index >= 0; index -= 1) {
+    const point = sorted[index];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+    upper.push(point);
+  }
+
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
 }
 
 function hasExistingTransparency(data, total) {
@@ -48,12 +67,8 @@ function hasExistingTransparency(data, total) {
 function buildSubjectProtection(data, width, height) {
   const rowMin = new Int32Array(height);
   const rowMax = new Int32Array(height);
-  const colMin = new Int32Array(width);
-  const colMax = new Int32Array(width);
   rowMin.fill(width);
   rowMax.fill(-1);
-  colMin.fill(height);
-  colMax.fill(-1);
 
   let strongPixels = 0;
   for (let y = 0; y < height; y += 1) {
@@ -67,55 +82,65 @@ function buildSubjectProtection(data, width, height) {
       strongPixels += 1;
       if (x < rowMin[y]) rowMin[y] = x;
       if (x > rowMax[y]) rowMax[y] = x;
-      if (y < colMin[x]) colMin[x] = y;
-      if (y > colMax[x]) colMax[x] = y;
     }
   }
 
   if (strongPixels < Math.max(12, Math.round(width * height * 0.0015))) {
-    return () => false;
+    return null;
   }
 
-  const padX = Math.max(2, Math.round(width * 0.018));
-  const padY = Math.max(2, Math.round(height * 0.018));
-  const expandedRowMin = new Int32Array(height);
-  const expandedRowMax = new Int32Array(height);
-  const expandedColMin = new Int32Array(width);
-  const expandedColMax = new Int32Array(width);
-  expandedRowMin.fill(width);
-  expandedRowMax.fill(-1);
-  expandedColMin.fill(height);
-  expandedColMax.fill(-1);
+  const boundaryPoints = [];
+  for (let y = 0; y < height; y += 1) {
+    if (rowMax[y] < 0) continue;
+    boundaryPoints.push({ x:rowMin[y], y });
+    if (rowMax[y] !== rowMin[y]) boundaryPoints.push({ x:rowMax[y], y });
+  }
+
+  const hull = convexHull(boundaryPoints);
+  if (hull.length < 3) return null;
+
+  const minX = Math.min(...hull.map(point => point.x));
+  const maxX = Math.max(...hull.map(point => point.x));
+  const minY = Math.min(...hull.map(point => point.y));
+  const maxY = Math.max(...hull.map(point => point.y));
+  // A tiny isolated mark is not enough evidence for a safe automatic cutout.
+  // Keeping the original is preferable to damaging a mostly white product.
+  if (maxX - minX < width * .28 || maxY - minY < height * .28) return null;
+
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  const padX = Math.max(2, Math.round(width * .018));
+  const padY = Math.max(2, Math.round(height * .018));
+  const scaleX = 1 + padX / Math.max(1, (maxX - minX) / 2);
+  const scaleY = 1 + padY / Math.max(1, (maxY - minY) / 2);
+  const expandedHull = hull.map(point => ({
+    x:clamp(centerX + (point.x - centerX) * scaleX, 0, width - 1),
+    y:clamp(centerY + (point.y - centerY) * scaleY, 0, height - 1)
+  }));
+
+  const protectedMin = new Int32Array(height);
+  const protectedMax = new Int32Array(height);
+  protectedMin.fill(width);
+  protectedMax.fill(-1);
 
   for (let y = 0; y < height; y += 1) {
-    const from = clamp(y - padY, 0, height - 1);
-    const to = clamp(y + padY, 0, height - 1);
-    for (let yy = from; yy <= to; yy += 1) {
-      if (rowMax[yy] < 0) continue;
-      expandedRowMin[y] = Math.min(expandedRowMin[y], rowMin[yy]);
-      expandedRowMax[y] = Math.max(expandedRowMax[y], rowMax[yy]);
+    const scanY = y + .5;
+    const intersections = [];
+    for (let index = 0; index < expandedHull.length; index += 1) {
+      const from = expandedHull[index];
+      const to = expandedHull[(index + 1) % expandedHull.length];
+      const lowY = Math.min(from.y, to.y);
+      const highY = Math.max(from.y, to.y);
+      if (from.y === to.y || scanY < lowY || scanY >= highY) continue;
+      const progress = (scanY - from.y) / (to.y - from.y);
+      intersections.push(from.x + (to.x - from.x) * progress);
     }
+    if (intersections.length < 2) continue;
+    protectedMin[y] = Math.max(0, Math.floor(Math.min(...intersections)));
+    protectedMax[y] = Math.min(width - 1, Math.ceil(Math.max(...intersections)));
   }
 
-  for (let x = 0; x < width; x += 1) {
-    const from = clamp(x - padX, 0, width - 1);
-    const to = clamp(x + padX, 0, width - 1);
-    for (let xx = from; xx <= to; xx += 1) {
-      if (colMax[xx] < 0) continue;
-      expandedColMin[x] = Math.min(expandedColMin[x], colMin[xx]);
-      expandedColMax[x] = Math.max(expandedColMax[x], colMax[xx]);
-    }
-  }
-
-  return (x, y) => {
-    const rowProtected = expandedRowMax[y] >= 0
-      && x >= expandedRowMin[y] - padX
-      && x <= expandedRowMax[y] + padX;
-    const colProtected = expandedColMax[x] >= 0
-      && y >= expandedColMin[x] - padY
-      && y <= expandedColMax[x] + padY;
-    return rowProtected && colProtected;
-  };
+  return (x, y) => protectedMax[y] >= 0 && x >= protectedMin[y] && x <= protectedMax[y];
 }
 
 function remember(src, url) {
@@ -183,6 +208,7 @@ async function buildTransparentProductImage(src) {
   if (hasExistingTransparency(data, total)) return src;
 
   const isProtectedSubjectPixel = buildSubjectProtection(data, width, height);
+  if (!isProtectedSubjectPixel) return src;
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
   let head = 0;
@@ -215,9 +241,9 @@ async function buildTransparentProductImage(src) {
     // silhouette. We still walk through it so the outer background remains
     // reachable, but we never make the cover itself transparent.
     if (!isProtectedSubjectPixel(x, y)) {
-      const originalAlpha = data[offset + 3];
-      const backgroundAlpha = connectedBackgroundAlpha(data[offset], data[offset + 1], data[offset + 2]);
-      data[offset + 3] = Math.min(originalAlpha, backgroundAlpha);
+      // A binary cut avoids the translucent white fringe produced by the old
+      // distance-based alpha and leaves a clean, linear product boundary.
+      data[offset + 3] = 0;
     }
 
     if (x > 0) enqueue(index - 1);
