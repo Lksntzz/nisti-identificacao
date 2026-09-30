@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 function Icon({ name, size = 18 }) {
   const common = {
@@ -55,8 +56,55 @@ export default function MuralPublicationsDashboard({ posts, collections, loading
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(10);
   const [openMenu,setOpenMenu]=useState(null);
+  const [menuPosition,setMenuPosition]=useState(null);
 
   useEffect(()=>{ setPage(1); },[kind,status,author,search,sort,pageSize]);
+
+  useEffect(()=>{
+    if(openMenu===null)return undefined;
+    const closeMenu=()=>{
+      setOpenMenu(null);
+      setMenuPosition(null);
+    };
+    const handlePointerDown=event=>{
+      const target=event.target;
+      if(target?.closest?.('.mural-admin-action-menu')||target?.closest?.('.mural-admin-kebab'))return;
+      closeMenu();
+    };
+    const handleScroll=event=>{
+      const target=event.target;
+      if(target?.closest?.('.mural-admin-action-menu'))return;
+      closeMenu();
+    };
+    document.addEventListener('pointerdown',handlePointerDown);
+    window.addEventListener('resize',closeMenu);
+    window.addEventListener('scroll',handleScroll,true);
+    return ()=>{
+      document.removeEventListener('pointerdown',handlePointerDown);
+      window.removeEventListener('resize',closeMenu);
+      window.removeEventListener('scroll',handleScroll,true);
+    };
+  },[openMenu]);
+
+  const toggleActionMenu=(event,rowId)=>{
+    if(openMenu===rowId){
+      setOpenMenu(null);
+      setMenuPosition(null);
+      return;
+    }
+    const rect=event.currentTarget.getBoundingClientRect();
+    const menuWidth=188;
+    const viewportMargin=8;
+    const maxLeft=Math.max(viewportMargin,window.innerWidth-menuWidth-viewportMargin);
+    const left=Math.max(viewportMargin,Math.min(rect.right-menuWidth,maxLeft));
+    const spaceBelow=window.innerHeight-rect.bottom;
+    const openUp=spaceBelow<250&&rect.top>spaceBelow;
+    setMenuPosition(openUp
+      ? { left, bottom:Math.max(viewportMargin,window.innerHeight-rect.top+6) }
+      : { left, top:Math.max(viewportMargin,rect.bottom+6) }
+    );
+    setOpenMenu(rowId);
+  };
 
   const counts=useMemo(()=>({
     all:posts.length,
@@ -159,17 +207,20 @@ export default function MuralPublicationsDashboard({ posts, collections, loading
                 <td><span className="mural-admin-period"><b>{period.date}</b>{period.time&&<small>{period.time}</small>}{row.expires_at?<em>até {expires.date}</em>:<em>Sem data de fim</em>}</span></td>
                 <td><span className="mural-admin-author"><i>{initials(author)}</i><span><b>{author}</b><small>{row.updated_at?dateParts(row.updated_at).date:'—'}</small></span></span></td>
                 <td className="mural-admin-actions-cell">
-                  <button type="button" className="mural-admin-kebab" aria-label={'Ações de '+row.title} aria-expanded={openMenu===row.id} onClick={()=>setOpenMenu(current=>current===row.id?null:row.id)}><Icon name="more" size={19}/></button>
-                  {openMenu===row.id&&<div className="mural-admin-action-menu">
-                    <button onClick={()=>{setOpenMenu(null);onEdit(row)}}>Editar publicação</button>
-                    <button onClick={()=>{setOpenMenu(null);onEdit(row)}}>Pré-visualizar</button>
-                    <button onClick={()=>onAction(row.id,'duplicate')}>Duplicar</button>
-                    {row.status!=='published'&&<button onClick={()=>onAction(row.id,'publish')}>Publicar</button>}
-                   {row.status!=='archived'&&<button onClick={()=>onAction(row.id,'archive')}>Arquivar</button>}
-                    {row.status==='published'&&((row.kind==='notice'&&row.notice_level==='important')||row.kind==='product')&&<button onClick={()=>onPush(row)}>Enviar notificação</button>}
-                    <div className="mural-admin-action-menu-separator" aria-hidden="true"/>
-                    <button className="danger" onClick={()=>{setOpenMenu(null);onDelete(row)}}>Apagar publicação</button>
-                  </div>}
+                  <button type="button" className="mural-admin-kebab" aria-label={'Ações de '+row.title} aria-expanded={openMenu===row.id} onClick={event=>toggleActionMenu(event,row.id)}><Icon name="more" size={19}/></button>
+                  {openMenu===row.id&&menuPosition&&typeof document!=='undefined'&&createPortal(
+                    <div className="mural-admin-action-menu portal" style={menuPosition}>
+                      <button onClick={()=>{setOpenMenu(null);setMenuPosition(null);onEdit(row)}}>Editar publicação</button>
+                      <button onClick={()=>{setOpenMenu(null);setMenuPosition(null);onEdit(row)}}>Pré-visualizar</button>
+                      <button onClick={()=>{setOpenMenu(null);setMenuPosition(null);onAction(row.id,'duplicate')}}>Duplicar</button>
+                      {row.status!=='published'&&<button onClick={()=>{setOpenMenu(null);setMenuPosition(null);onAction(row.id,'publish')}}>Publicar</button>}
+                      {row.status!=='archived'&&<button onClick={()=>{setOpenMenu(null);setMenuPosition(null);onAction(row.id,'archive')}}>Arquivar</button>}
+                      {row.status==='published'&&((row.kind==='notice'&&row.notice_level==='important')||row.kind==='product')&&<button onClick={()=>{setOpenMenu(null);setMenuPosition(null);onPush(row)}}>Enviar notificação</button>}
+                      <div className="mural-admin-action-menu-separator" aria-hidden="true"/>
+                      <button className="danger" onClick={()=>{setOpenMenu(null);setMenuPosition(null);onDelete(row)}}>Apagar publicação</button>
+                    </div>,
+                    document.body
+                  )}
                 </td>
               </tr>;
             })}

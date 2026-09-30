@@ -1882,6 +1882,16 @@
   background:#fef2f2;
   color:#b91c1c;
 }
+.mural-admin-action-menu.portal{
+  position:fixed;
+  z-index:1200;
+  top:auto;
+  right:auto;
+  width:min(188px,calc(100vw - 16px));
+  max-height:calc(100vh - 16px);
+  overflow-y:auto;
+  box-sizing:border-box;
+}
 .mural-admin-table-footer{
   min-height:56px;
   padding:10px 14px;
