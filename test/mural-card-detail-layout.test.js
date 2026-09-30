@@ -46,15 +46,19 @@ test('collection product cards use contained imagery and compact mobile sizing',
 });
 
 
-test('Mural title accent shows only the three colored official drops plus scattered sparkles',()=>{
+test('Mural title spreads the three exact official colored drops like the reference',()=>{
   assert.match(mural,/import LOGO from '\.\/assets\/logo\.png'/);
-  assert.match(mural,/className="mural-title-brand-mark" src=\{LOGO\}/);
+  assert.match(mural,/mural-logo-drop drop-cyan/);
+  assert.match(mural,/mural-logo-drop drop-pink/);
+  assert.match(mural,/mural-logo-drop drop-yellow/);
+  assert.equal((mural.match(/<img src=\{LOGO\} alt="" \/>/g)||[]).length >= 3,true);
+  assert.match(css,/\.mural-title-accent\{[\s\S]*width:112px;[\s\S]*overflow:visible/);
+  assert.match(css,/\.mural-logo-drop\.drop-cyan[\s\S]*rotate\(54deg\)/);
+  assert.match(css,/\.mural-logo-drop\.drop-pink[\s\S]*rotate\(70deg\)/);
+  assert.match(css,/\.mural-logo-drop\.drop-yellow[\s\S]*rotate\(-52deg\)/);
   assert.match(mural,/className="mural-title-sparkles"/);
-  assert.match(mural,/className="star-6"/);
-  assert.match(css,/\.mural-title-accent\{[\s\S]*width:51px;[\s\S]*overflow:hidden/);
-  assert.match(css,/\.mural-title-brand-mark\{[\s\S]*width:68px;[\s\S]*max-width:none/);
+  assert.match(mural,/className="star-3"/);
   assert.match(css,/\.mural-title-sparkles \.star-1/);
   assert.match(css,/@keyframes mural-title-sparkle/);
-  assert.doesNotMatch(mural,/mural-title-drop/);
-  assert.doesNotMatch(css,/\.mural-title-drop/);
+  assert.doesNotMatch(mural,/mural-title-brand-mark/);
 });
