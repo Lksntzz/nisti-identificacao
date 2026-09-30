@@ -2387,3 +2387,12 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
     transform:none;
   }
 }
+
+
+/* Product cutouts in the Mural editor and Gemini references. */
+.mural-publisher-product-search img.mural-product-transparent,
+.mural-publisher-collection-products img.mural-product-transparent,
+.mural-publisher-reference img.mural-product-transparent,
+.mural-gemini-pro-references figure>img.mural-product-transparent{
+  background:transparent!important;
+}

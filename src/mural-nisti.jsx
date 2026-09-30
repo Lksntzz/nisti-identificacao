@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './mural-nisti.css';
 import MuralProductExperience from './mural-product-experience.jsx';
+import { useTransparentProductImage } from './mural-transparent-image.js';
 
 const muralSessionCache = new Map();
 
@@ -107,21 +108,23 @@ function KindIcon({ kind }) {
 
 function MuralImage({ item, eager = false, className = '' }) {
   const src = item?.image_url || '';
+  const shouldRemoveBackground = item?.kind === 'product' && item?.image_source === 'product';
+  const displaySrc = useTransparentProductImage(src, shouldRemoveBackground);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setFailed(false);
     setLoaded(false);
-  }, [src]);
+  }, [displaySrc]);
 
-  if (!src || failed) {
+  if (!displaySrc || failed) {
     return <div className={`mural-image-placeholder ${className}`}><KindIcon kind={item?.kind} /></div>;
   }
   return (
     <img
-      className={`${className} mural-image-media${loaded ? ' is-loaded' : ''}`.trim()}
-      src={src}
+      className={`${className} mural-image-media${shouldRemoveBackground ? ' mural-product-transparent' : ''}${loaded ? ' is-loaded' : ''}`.trim()}
+      src={displaySrc}
       alt={item.kind === 'product' ? `${item.product?.type || item.title} ${item.product?.sku || ''}`.trim() : item.title}
       loading={eager ? 'eager' : 'lazy'}
       fetchPriority={eager ? 'high' : 'auto'}
@@ -135,20 +138,21 @@ function MuralImage({ item, eager = false, className = '' }) {
 
 function CollectionProductImage({ product, className = '', eager = false }) {
   const src = product?.image_url || '';
+  const displaySrc = useTransparentProductImage(src, true);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setFailed(false);
-  }, [src]);
+  }, [displaySrc]);
 
-  if (!src || failed) {
+  if (!displaySrc || failed) {
     return <div className={`mural-image-placeholder ${className}`.trim()}><KindIcon kind="product" /></div>;
   }
 
   return (
     <img
-      className={className}
-      src={src}
+      className={`${className} mural-product-transparent`.trim()}
+      src={displaySrc}
       alt={`${product?.type || 'Produto'} ${product?.sku || ''}`.trim()}
       loading={eager ? 'eager' : 'lazy'}
       fetchPriority={eager ? 'high' : 'auto'}
