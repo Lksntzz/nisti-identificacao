@@ -2936,3 +2936,374 @@
   background:transparent!important;
   box-shadow:none;
 }
+
+
+/* ==========================================================================
+   Mural NISTI — coleção no padrão do mockup aprovado
+   QA visual: hero 2:1 + cards editoriais de coleção
+   ========================================================================== */
+.mural-launch-hero{
+  position:relative;
+  width:100%;
+  aspect-ratio:2 / 1;
+  min-height:210px;
+  display:block;
+  overflow:hidden;
+  padding:0;
+  margin:8px 0 16px;
+  border:1px solid rgba(255,255,255,.88);
+  border-radius:26px;
+  background:
+    radial-gradient(circle at 10% 18%,rgba(255,255,255,.94),transparent 24%),
+    linear-gradient(135deg,#ffe9f5 0%,#f8dfff 42%,#dff3ff 100%);
+  box-shadow:0 16px 36px rgba(50,59,93,.14);
+  color:var(--mural-ink);
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+  isolation:isolate;
+}
+.mural-launch-hero.has-banner{
+  background:#f7f5fb;
+}
+.mural-launch-hero-banner,
+.mural-launch-hero .mural-image-media{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+  border-radius:0;
+  transform:none!important;
+}
+.mural-launch-banner-shade{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  background:linear-gradient(180deg,rgba(10,17,35,.03),rgba(10,17,35,.08));
+  pointer-events:none;
+}
+.mural-launch-system-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:28px;
+  padding:6px 12px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#ff5faa,#ff8bc5);
+  color:#fff;
+  box-shadow:0 8px 18px rgba(241,82,151,.24);
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.025em;
+  white-space:nowrap;
+}
+.mural-launch-hero.has-banner>.mural-launch-system-badge{
+  position:absolute;
+  z-index:3;
+  top:14px;
+  left:14px;
+}
+.mural-launch-banner-arrow{
+  position:absolute;
+  z-index:3;
+  right:14px;
+  bottom:14px;
+  width:40px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:rgba(255,255,255,.94);
+  color:#101a39;
+  box-shadow:0 8px 18px rgba(15,23,42,.14);
+}
+.mural-launch-hero.is-composed{
+  display:grid;
+  grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);
+  align-items:stretch;
+}
+.mural-launch-copy{
+  position:relative;
+  z-index:3;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:7px;
+  padding:20px 0 20px 22px;
+}
+.mural-launch-copy>strong{
+  max-width:100%;
+  color:#382060;
+  font-size:clamp(27px,7.4vw,42px);
+  line-height:.94;
+  font-weight:950;
+  letter-spacing:-.045em;
+  overflow-wrap:anywhere;
+}
+.mural-launch-copy>span:not(.mural-launch-system-badge){
+  max-width:230px;
+  color:#526078;
+  font-size:12px;
+  line-height:1.25;
+  font-weight:700;
+}
+.mural-launch-copy>em{
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+  min-height:30px;
+  padding:6px 12px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#ef69ad,#ff89c3);
+  color:#fff;
+  font-size:11px;
+  font-style:normal;
+  font-weight:900;
+  box-shadow:0 8px 18px rgba(239,105,173,.2);
+}
+.mural-launch-products{
+  position:relative;
+  min-width:0;
+  overflow:hidden;
+}
+.mural-launch-products::before,
+.mural-launch-products::after{
+  content:"";
+  position:absolute;
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+  filter:blur(.2px);
+}
+.mural-launch-products::before{width:170px;height:170px;right:-38px;top:-48px}
+.mural-launch-products::after{width:95px;height:95px;left:12%;bottom:-46px}
+.mural-launch-product{
+  position:absolute;
+  bottom:5%;
+  left:50%;
+  width:47%;
+  height:88%;
+  transform-origin:50% 100%;
+}
+.mural-launch-product>img,
+.mural-launch-product>.mural-image-placeholder{
+  width:100%;
+  height:100%;
+  min-height:0;
+  object-fit:contain;
+  border-radius:0;
+  background:transparent;
+  filter:drop-shadow(0 12px 14px rgba(54,43,91,.16));
+}
+.mural-launch-product.product-1{z-index:4;transform:translateX(-48%) scale(1.02)}
+.mural-launch-product.product-2{z-index:3;transform:translateX(5%) translateY(4%) rotate(3deg) scale(.83)}
+.mural-launch-product.product-3{z-index:2;transform:translateX(-98%) translateY(7%) rotate(-4deg) scale(.77)}
+.mural-launch-product.product-4{z-index:1;transform:translateX(48%) translateY(12%) rotate(6deg) scale(.66);opacity:.96}
+
+/* Coleções secundárias — mesmas proporções do mockup mobile. */
+.mural-collection-launch-card{
+  --collection-card-bg:linear-gradient(135deg,#fff0f6 0%,#ffe4ee 44%,#f6f1ff 100%);
+  position:relative;
+  width:100%;
+  min-height:148px;
+  display:grid;
+  grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);
+  overflow:hidden;
+  padding:0;
+  border:1px solid rgba(255,255,255,.9);
+  border-radius:23px;
+  background:var(--collection-card-bg);
+  box-shadow:0 10px 25px rgba(20,34,63,.08);
+  color:var(--mural-ink);
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+  animation:mural-card-reveal .5s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay:var(--mural-card-delay,0ms);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.mural-collection-tone-0{--collection-card-bg:linear-gradient(135deg,#fff4f8 0%,#ffe8ef 46%,#f6efff 100%)}
+.mural-collection-tone-1{--collection-card-bg:linear-gradient(135deg,#fff8e5 0%,#fff1df 45%,#f7f5ef 100%)}
+.mural-collection-tone-2{--collection-card-bg:linear-gradient(135deg,#effaf7 0%,#e9f7f0 46%,#f7f4e8 100%)}
+.mural-collection-tone-3{--collection-card-bg:linear-gradient(135deg,#eef6ff 0%,#e7f0ff 46%,#f5edff 100%)}
+.mural-collection-launch-card:active{transform:scale(.988)}
+@media (hover:hover) and (pointer:fine){
+  .mural-collection-launch-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 16px 32px rgba(20,34,63,.12);
+  }
+}
+.mural-collection-launch-copy{
+  position:relative;
+  z-index:3;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:5px;
+  padding:16px 2px 16px 18px;
+}
+.mural-collection-launch-copy>strong{
+  color:#101a39;
+  font-size:21px;
+  line-height:1.02;
+  font-weight:950;
+  letter-spacing:-.035em;
+}
+.mural-collection-launch-copy>span{
+  display:-webkit-box;
+  overflow:hidden;
+  max-width:190px;
+  color:#566782;
+  font-size:12px;
+  line-height:1.27;
+  font-weight:650;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
+.mural-collection-launch-copy>em{
+  display:inline-flex;
+  align-items:center;
+  margin-top:2px;
+  padding:5px 10px;
+  border-radius:999px;
+  background:#ffc9dc;
+  color:#f01867;
+  font-size:9.5px;
+  line-height:1;
+  font-style:normal;
+  font-weight:950;
+  letter-spacing:.01em;
+  text-transform:none;
+}
+.mural-collection-launch-products{
+  position:relative;
+  min-width:0;
+  overflow:hidden;
+}
+.mural-collection-launch-product{
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:58%;
+  height:89%;
+  transform-origin:50% 100%;
+}
+.mural-collection-launch-product>img,
+.mural-collection-launch-product>.mural-image-placeholder{
+  width:100%;
+  height:100%;
+  min-height:0;
+  object-fit:contain;
+  border-radius:0;
+  background:transparent;
+  filter:drop-shadow(0 9px 10px rgba(56,48,83,.14));
+}
+.mural-collection-launch-product.product-1{z-index:3;transform:translate(-48%,-50%) scale(1.02)}
+.mural-collection-launch-product.product-2{z-index:2;transform:translate(-5%,-46%) rotate(5deg) scale(.82)}
+.mural-collection-launch-product.product-3{z-index:1;transform:translate(-88%,-43%) rotate(-5deg) scale(.76);opacity:.94}
+.mural-collection-launch-fallback,
+.mural-collection-launch-products>.mural-image-placeholder{
+  position:absolute;
+  inset:8px 8px 8px 0;
+  width:calc(100% - 8px);
+  height:calc(100% - 16px);
+  min-height:0;
+  border-radius:16px;
+  object-fit:cover;
+}
+.mural-collection-launch-arrow{
+  position:absolute;
+  z-index:5;
+  top:50%;
+  right:12px;
+  width:38px;
+  height:38px;
+  margin-top:-19px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:rgba(255,255,255,.94);
+  color:#17213d;
+  box-shadow:0 7px 15px rgba(15,23,42,.12);
+}
+
+/* Detalhe da coleção: capa + cores/acabamentos reais do sistema. */
+.mural-collection-cover-name{
+  color:#566782;
+  font-size:10px;
+  line-height:1.25;
+  font-weight:750;
+}
+.mural-collection-finish-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  margin-top:3px;
+}
+.mural-collection-finish-chips>span{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  min-height:22px;
+  padding:4px 7px;
+  border:1px solid #e6e9f1;
+  border-radius:999px;
+  background:#f8fafc;
+  color:#536178;
+  font-family:inherit;
+  font-size:8.5px;
+  line-height:1;
+  font-weight:700;
+}
+.mural-collection-finish-chips b{
+  color:#17213d;
+  font-weight:900;
+}
+.mural-collection-product img,
+.mural-collection-product .mural-image-placeholder{
+  object-fit:contain;
+  background:linear-gradient(180deg,#fbfcff,#f5f7fb);
+}
+.mural-collection-product>div:not(.mural-image-placeholder){
+  gap:5px;
+}
+
+/* O feed segue o mockup: hero primeiro e coleções em cards largos. */
+.mural-feed{
+  gap:12px;
+}
+.mural-column{
+  width:min(100%,560px);
+}
+.mural-title-block{
+  padding-top:8px;
+}
+.mural-title-block h1{
+  font-size:clamp(32px,8.8vw,40px);
+}
+.mural-tabs{
+  margin:12px 0 14px;
+}
+
+@media (max-width:430px){
+  .mural-launch-hero{min-height:190px;border-radius:23px}
+  .mural-launch-copy{padding-left:16px}
+  .mural-launch-copy>strong{font-size:clamp(25px,8vw,34px)}
+  .mural-launch-copy>span:not(.mural-launch-system-badge){font-size:11px}
+  .mural-collection-launch-card{min-height:138px;border-radius:20px}
+  .mural-collection-launch-copy{padding-left:15px}
+  .mural-collection-launch-copy>strong{font-size:19px}
+  .mural-collection-launch-copy>span{font-size:11px}
+}
+@media (max-width:360px){
+  .mural-launch-hero{min-height:176px}
+  .mural-launch-system-badge{min-height:24px;padding:5px 9px;font-size:9px}
+  .mural-collection-launch-card{min-height:132px;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr)}
+  .mural-collection-launch-copy>strong{font-size:17px}
+  .mural-collection-launch-arrow{right:9px;width:34px;height:34px;margin-top:-17px}
+}
