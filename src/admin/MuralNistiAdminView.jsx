@@ -25,6 +25,20 @@ function toLocalInput(value) {
   return local.toISOString().slice(0, 16);
 }
 
+function formatBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function ReadinessBadge({ ok, unknown = false }) {
+  const state = unknown ? 'unknown' : ok ? 'ok' : 'pending';
+  const label = unknown ? 'Não medido' : ok ? 'OK' : 'Pendente';
+  return <span className={`mural-admin-readiness-badge ${state}`}>{label}</span>;
+}
+
 function postForm(row) {
   const source = row ?? EMPTY_POST;
   return {
@@ -311,6 +325,7 @@ export default function MuralNistiAdminView() {
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [metrics,setMetrics]=useState(null);
+  const [readiness,setReadiness]=useState(null);
 
   const load=async()=>{
     setLoading(true);setError('');
@@ -325,6 +340,7 @@ export default function MuralNistiAdminView() {
   };
   useEffect(()=>{load()},[status,kind]);
   useEffect(()=>{request('/api/admin/mural/metrics').then(setMetrics).catch(()=>setMetrics(null))},[]);
+  useEffect(()=>{request('/api/admin/mural/readiness').then(setReadiness).catch(()=>setReadiness(null))},[]);
 
   const action=async(id,name)=>{
     try{setError('');await request(`/api/admin/mural/posts/${id}/${name}`,{method:'POST'});await load()}catch(err){setError(err.message)}
@@ -338,12 +354,29 @@ export default function MuralNistiAdminView() {
   return <section className="mural-admin-view">
     <div className="mural-admin-heading"><div><span>MURAL NISTI</span><h2>Conteúdo para operadores</h2><p>Crie, pré-visualize, agende e publique sem alterar código.</p></div><div className="mural-admin-heading-actions"><button type="button" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button><button className="primary" onClick={()=>section==='posts'?setEditor({mode:'new'}):setCollectionEditor({mode:'new'})}>+ {section==='posts'?'Nova publicação':'Nova coleção'}</button></div></div>
     <div className="mural-admin-qa-note" role="note"><strong>QA privado</strong><span>O Mural completo só abre em dispositivos com sessão administrativa válida. Operadores continuam vendo “Em breve”.</span></div>
-    <div className="mural-admin-section-tabs"><button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button><button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button><button className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>Métricas</button></div>
+    <div className="mural-admin-section-tabs"><button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button><button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button><button className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>Métricas</button><button className={section==='qa'?'active':''} onClick={()=>setSection('qa')}>QA de liberação</button></div>
     {error&&<div className="mural-admin-error">{error}</div>}
     {section==='posts'&&<><div className="mural-admin-filters"><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">Todos os status</option><option value="draft">Rascunhos</option><option value="published">Publicados</option><option value="archived">Arquivados</option></select><select value={kind} onChange={e=>setKind(e.target.value)}><option value="">Todos os tipos</option><option value="product">Produto</option><option value="collection">Coleção</option><option value="notice">Aviso</option></select></div>
     <div className="mural-admin-table-wrap"><table><thead><tr><th>Título</th><th>Tipo</th><th>Selo</th><th>Status</th><th>Publicação</th><th>Expiração</th><th>Autor</th><th>Ações</th></tr></thead><tbody>{posts.map(row=><tr key={row.id}><td><b>{row.title}</b><small>{row.subtitle||''}</small></td><td>{row.kind}</td><td>{row.badge||'—'}</td><td><Status value={row.status}/></td><td>{dates(row)}</td><td>{row.expires_at?new Date(row.expires_at).toLocaleString('pt-BR'):'—'}</td><td>{row.created_by||'—'}</td><td><div className="mural-admin-row-actions"><button onClick={()=>setEditor(row)}>Editar</button><button onClick={()=>setEditor(row)}>Pré-visualizar</button><button onClick={()=>action(row.id,'duplicate')}>Duplicar</button>{row.status!=='published'&&<button onClick={()=>action(row.id,'publish')}>Publicar</button>}{row.status!=='archived'&&<button onClick={()=>action(row.id,'archive')}>Arquivar</button>}{row.status==='published'&&((row.kind==='notice'&&row.notice_level==='important')||row.kind==='product')&&<button onClick={()=>sendPush(row)}>Enviar notificação</button>}</div></td></tr>)}</tbody></table>{!loading&&!posts.length&&<div className="mural-admin-empty">Nenhuma publicação encontrada.</div>}</div></>}
     {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.year||'sem ano'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
     {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>IMAGEM EDITORIAL MÉDIA</small><strong>{metrics?.editorial_images?.average_bytes ? `${Math.round(metrics.editorial_images.average_bytes/1024)} KB` : '0 KB'}</strong><span>{metrics?.editorial_images?.count ?? 0} imagens</span></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
+    {section==='qa'&&<div className="mural-admin-readiness">
+      <div className="mural-admin-readiness-summary">
+        <div><small>READINESS AUTOMÁTICO</small><strong>{readiness?.automated_ready?'Pronto para smoke':'Pendências detectadas'}</strong><p>Valida o ambiente atual sem remover o gate público do Mural.</p></div>
+        <ReadinessBadge ok={Boolean(readiness?.automated_ready)} unknown={!readiness}/>
+      </div>
+      <div className="mural-admin-readiness-grid">
+        <article><div><small>MIGRATION D1</small><strong>{readiness?.migration?.ok?'Estrutura presente':'Estrutura incompleta'}</strong></div><ReadinessBadge ok={Boolean(readiness?.migration?.ok)} unknown={!readiness}/>{readiness?.migration?.missing_tables?.length>0&&<p>Faltando: {readiness.migration.missing_tables.join(', ')}</p>}</article>
+        <article><div><small>CONTEÚDO PARA QA</small><strong>{readiness?.content?.published_now ?? '—'} publicados agora</strong></div><ReadinessBadge ok={Boolean(readiness?.content?.ok)} unknown={!readiness}/><p>Meta mínima: {readiness?.content?.minimum_for_qa ?? 3}. Produto {readiness?.content?.by_kind?.product ?? 0} · Coleção {readiness?.content?.by_kind?.collection ?? 0} · Aviso {readiness?.content?.by_kind?.notice ?? 0}.</p></article>
+        <article><div><small>PRIMEIRA DOBRA</small><strong>{formatBytes(readiness?.images?.first_fold_bytes)} / {formatBytes(readiness?.images?.first_fold_budget_bytes)}</strong></div><ReadinessBadge ok={Boolean(readiness?.images?.ok)} unknown={!readiness || !readiness?.images?.available}/><p>Soma do hero + primeiros cards, usando os objetos reais do R2 quando disponíveis.</p></article>
+      </div>
+      <div className="mural-admin-readiness-list">
+        <h3>Imagens da primeira dobra</h3>
+        {readiness?.images?.items?.length?readiness.images.items.map(item=><div key={item.id}><span><b>{item.title}</b><small>{item.role} · {item.kind}</small></span><span>{formatBytes(item.bytes)} / {formatBytes(item.budget_bytes)}</span><ReadinessBadge ok={item.within_budget!==false} unknown={item.within_budget===null}/></div>):<p>Nenhuma imagem mensurável na primeira dobra.</p>}
+      </div>
+      <div className="mural-admin-readiness-manual"><strong>Ainda exige validação real</strong><p>Scanner → Mural → Scanner com reinício da câmera, breakpoints 360/390/430 px, safe-area no iPhone e abertura abaixo de 1 s continuam sendo smoke tests em aparelho real.</p></div>
+    </div>}
+
     {editor&&<PostEditor item={editor} collections={collections} onClose={()=>setEditor(null)} onSaved={load}/>}
     {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={load}/>}
   </section>;
