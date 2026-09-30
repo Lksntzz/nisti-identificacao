@@ -66,7 +66,12 @@ function SyncIcon({ state }) {
 export function CommerceSyncBadge({ sync, compact = false }) {
   const meta = commerceSyncMeta(sync);
   return (
-    <span className={`commerce-sync-badge ${meta.state}${compact ? ' compact' : ''}`} title={meta.detail} aria-live="polite">
+    <span
+      className={`commerce-sync-badge ${meta.state}${compact ? ' compact' : ''}`}
+      title={meta.detail}
+      aria-live="polite"
+      aria-busy={meta.state === 'unknown' ? 'true' : undefined}
+    >
       <span className="commerce-sync-icon"><SyncIcon state={meta.state} /></span>
       <span>{meta.label}</span>
       {!compact && meta.detail && <small>{meta.detail}</small>}
