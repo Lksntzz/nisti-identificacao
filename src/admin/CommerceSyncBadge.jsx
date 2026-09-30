@@ -28,9 +28,17 @@ export function commerceSyncMeta(sync) {
     };
   }
 
-  if (status === 'NOT_LINKED' || status === 'PENDING') {
+  if (status === 'PENDING') {
     return {
       state: 'pending',
+      label: 'Sincronização pendente',
+      detail: 'Aguardando confirmação do Catálogo'
+    };
+  }
+
+  if (status === 'NOT_LINKED') {
+    return {
+      state: 'not-linked',
       label: 'Sem sincronização',
       detail: 'Ainda não há vínculo confirmado com o Catálogo'
     };
@@ -60,6 +68,7 @@ function SyncIcon({ state }) {
   if (state === 'conflict') return <svg {...props}><path d="M10.3 3.7 2.4 17.4A2 2 0 0 0 4.1 20h15.8a2 2 0 0 0 1.7-2.6L13.7 3.7a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></svg>;
   if (state === 'error') return <svg {...props}><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" /></svg>;
   if (state === 'pending') return <svg {...props}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
+  if (state === 'not-linked') return <svg {...props}><path d="M8.5 8.5 6.8 6.8a4 4 0 0 0-5.6 5.6l2.4 2.4a4 4 0 0 0 5.6 0l1.3-1.3" /><path d="m15.5 15.5 1.7 1.7a4 4 0 0 0 5.6-5.6l-2.4-2.4a4 4 0 0 0-5.6 0l-1.3 1.3" /><path d="m9 15 6-6" /></svg>;
   return <svg {...props}><path d="M20 7h-5V2M4 17h5v5" /><path d="M5.1 9A8 8 0 0 1 18 5l2 2M18.9 15A8 8 0 0 1 6 19l-2-2" /></svg>;
 }
 
@@ -70,7 +79,7 @@ export function CommerceSyncBadge({ sync, compact = false }) {
       className={`commerce-sync-badge ${meta.state}${compact ? ' compact' : ''}`}
       title={meta.detail}
       aria-live="polite"
-      aria-busy={meta.state === 'unknown' ? 'true' : undefined}
+      aria-busy={meta.state === 'unknown' || meta.state === 'pending' ? 'true' : undefined}
     >
       <span className="commerce-sync-icon"><SyncIcon state={meta.state} /></span>
       <span>{meta.label}</span>
