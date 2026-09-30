@@ -4,6 +4,8 @@ import { broadcastMuralPush } from './web-push.js';
 import { reserveGeminiBudget } from './gemini-budget.js';
 
 const MURAL_PUBLIC_RELEASED = false;
+const MURAL_AI_IMAGE_MODES = Object.freeze(new Set(['creative_scene','remove_background']));
+const MURAL_AI_IMAGE_KINDS = Object.freeze(new Set(['product','collection']));
 
 const TAB_KIND = Object.freeze({
   all: null,
@@ -950,11 +952,9 @@ function muralAiPrompt({ mode, kind, title, subtitle, style, prompt, sources }) 
 
   const sourceCount = sources.length;
   return [
-    `Crie uma arte editorial horizontal 16:9 para o Mural NISTI usando ${sourceCount ? 'as imagens de referência dos produtos fornecidas' : 'o briefing abaixo'}.`,
+    `Crie uma arte editorial horizontal 16:9 para o Mural NISTI usando as imagens de referência dos produtos fornecidas.`,
     `Direção visual: ${styleText}.`,
-    sourceCount
-      ? 'Os produtos devem permanecer visualmente fiéis às referências. Não altere estampas, textos, logotipos, cores, formato, acessórios ou acabamento.'
-      : '',
+    'Os produtos devem permanecer visualmente fiéis às referências. Não altere estampas, textos, logotipos, cores, formato, acessórios ou acabamento.',
     'Remova visualmente o fundo branco original das referências e integre os produtos ao cenário com recorte natural, iluminação coerente e sombras realistas.',
     'Crie profundidade com objetos de apoio discretos como livros, canetas, plantas, flores, fitas ou materiais de papelaria, sem encobrir os produtos.',
     'Reserve área limpa no lado esquerdo para título e CTA da interface. Não escreva textos promocionais na própria imagem e não crie logos novos.',
@@ -963,9 +963,7 @@ function muralAiPrompt({ mode, kind, title, subtitle, style, prompt, sources }) 
     cleanPrompt ? `Briefing criativo adicional: ${cleanPrompt}` : '',
     kind === 'collection'
       ? 'Mostre a coleção como uma seleção coerente, com um produto principal e os demais como apoio.'
-      : kind === 'product'
-        ? 'Dê protagonismo ao produto principal.'
-        : 'Crie uma composição editorial sem produto inventado.'
+      : 'Dê protagonismo ao produto principal.'
   ].filter(Boolean).join(' ');
 }
 
@@ -998,18 +996,30 @@ async function adminGenerateMuralAiArt(request, env) {
   if (!allowed) return json({ error:'Limite temporário de geração por IA atingido. Aguarde um minuto e tente novamente.' },429);
 
   const body = await request.json().catch(() => ({}));
-  const mode = body.mode === 'remove_background' ? 'remove_background' : 'creative_scene';
-  const kind = ['product','collection','notice'].includes(body.kind) ? body.kind : 'product';
+  const mode = String(body.mode || '').trim();
+  const kind = String(body.kind || '').trim();
   const productId = Number(body.product_id || 0);
   const collectionId = Number(body.collection_id || 0);
 
-  if (mode === 'remove_background' && (!Number.isInteger(productId) || productId <= 0)) {
-    return json({ error:'Selecione um produto antes de remover o fundo.' },422);
+  if (!MURAL_AI_IMAGE_MODES.has(mode)) {
+    return json({ error:'Operação de IA não permitida. Use apenas cenário criativo ou remoção de fundo.' },422);
+  }
+  if (!MURAL_AI_IMAGE_KINDS.has(kind)) {
+    return json({ error:'A IA de imagem do Mural está disponível apenas para Produto e Coleção.' },422);
+  }
+  if (mode === 'remove_background' && kind !== 'product') {
+    return json({ error:'Remoção de fundo está disponível somente para Produto.' },422);
+  }
+  if (kind === 'product' && (!Number.isInteger(productId) || productId <= 0)) {
+    return json({ error:'Selecione um produto como referência visual.' },422);
+  }
+  if (kind === 'collection' && (!Number.isInteger(collectionId) || collectionId <= 0)) {
+    return json({ error:'Selecione uma coleção como referência visual.' },422);
   }
 
   const sources = await muralAiReferenceImages(env,{
-    productId:kind === 'product' && productId > 0 ? productId : null,
-    collectionId:kind === 'collection' && collectionId > 0 ? collectionId : null
+    productId:kind === 'product' ? productId : null,
+    collectionId:kind === 'collection' ? collectionId : null
   });
 
   const input = [
