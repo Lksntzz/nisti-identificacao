@@ -1576,14 +1576,15 @@ function PublicIdentificationApp() {
 
   useEffect(() => {
     let active = true;
-    api('/api/mural/access')
+    const qaRequested = new URLSearchParams(window.location.search).get('mural') === 'qa';
+    api('/api/mural/access', {
+      headers: qaRequested ? { 'x-mural-qa': '1' } : {}
+    })
       .then(data => {
         if (!active) return;
-        const allowed = Boolean(data?.released || data?.qa);
+        const allowed = Boolean(data?.released || (qaRequested && data?.qa));
         setMuralAccess(allowed);
-        if (allowed && new URLSearchParams(window.location.search).get('mural') === 'qa') {
-          setPublicView('mural');
-        }
+        if (allowed && qaRequested) setPublicView('mural');
       })
       .catch(() => active && setMuralAccess(false));
     return () => { active = false; };
