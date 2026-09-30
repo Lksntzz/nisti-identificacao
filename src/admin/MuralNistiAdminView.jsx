@@ -560,7 +560,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                   <p style={{ margin: 0 }}>
                     {form.kind === 'product'
                       ? 'A direção visual escolhida entra no prompt junto com os dados reais do produto, cenário, iluminação, câmera e público.'
-                      : 'A direção visual escolhida entra no prompt junto com os produtos reais da coleção, cenário, iluminação, câmera e público.'}
+                      : 'Padrão Collection Launch Hero Card: banner 2:1, texto à esquerda e produtos reais da coleção à direita. A direção visual escolhida entra nas 3 versões.'}
                   </p>
                 </div>
 
@@ -720,8 +720,9 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
   return <div className="mural-admin-modal" role="dialog" aria-modal="true"><div className="mural-admin-editor compact"><header><h2>{item?'Editar coleção':'Nova coleção'}</h2><button onClick={onClose}>×</button></header><div className="mural-admin-collection-form">
+    <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL</span><strong>Collection Launch Hero Card</strong><small>Banner horizontal 2:1 · nome + ano + frase curta + CTA · showcase com até 5 produtos reais da coleção.</small></div>
     <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><div className="mural-admin-inline"><label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label><label>Ano<input type="number" value={form.year} onChange={e=>setForm({...form,year:e.target.value})}/></label></div>
-    <label>Descrição<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
+    <label>Frase / descrição da coleção<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Quando houver texto, o início desta descrição será usado como frase curta no Hero Card da coleção.</small></label>
     <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
     {imageUrl&&<div className="mural-admin-banner-preview"><img src={imageUrl} alt={form.name||'Banner da coleção'}/><button type="button" disabled={busy} onClick={removeBanner}>Remover banner</button></div>}
     {item&&<label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}

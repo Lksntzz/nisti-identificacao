@@ -56,6 +56,33 @@ test('selected visual direction is embedded into each of three prompt versions',
   assert.ok(css.includes('.mural-gemini-direction-summary'));
 });
 
+test('collection registration uses the Collection Launch Hero Card standard by default', () => {
+  assert.ok(router.includes('const COLLECTION_LAUNCH_BASE_PROMPT ='));
+  assert.ok(router.includes('Collection Launch Hero Card'));
+  assert.ok(router.includes('approximately 2:1 aspect ratio'));
+  assert.ok(router.includes('Small rounded badge: "NOVO"'));
+  assert.ok(router.includes('CTA: "NOVA COLEÇÃO"'));
+  assert.ok(router.includes('products.slice(0,5)'));
+  assert.ok(router.includes('never invent or duplicate products'));
+  assert.ok(router.includes('Left typography zone: approximately'));
+  assert.ok(router.includes('Right product showcase zone: approximately'));
+  assert.ok(admin.includes('PADRÃO VISUAL'));
+  assert.ok(admin.includes('Collection Launch Hero Card'));
+  assert.ok(admin.includes('Frase / descrição da coleção'));
+  assert.ok(admin.includes('banner 2:1, texto à esquerda e produtos reais da coleção à direita'));
+  assert.ok(css.includes('.mural-collection-visual-standard'));
+});
+
+test('collection launch offers three campaign-specific layout variants', () => {
+  assert.ok(router.includes('const COLLECTION_LAUNCH_VARIANTS = Object.freeze(['));
+  assert.ok(router.includes("'collection-balanced'"));
+  assert.ok(router.includes("'collection-product-forward'"));
+  assert.ok(router.includes("'collection-type-forward'"));
+  assert.ok(router.includes('Versão 1 · Hero equilibrado'));
+  assert.ok(router.includes('Versão 2 · Produtos em destaque'));
+  assert.ok(router.includes('Versão 3 · Nome da coleção'));
+});
+
 test('product registration no longer creates automatic Mural drafts', () => {
   assert.equal(core.includes('suggestMuralProductDraft'), false);
   assert.equal(core.includes('Falha ao sugerir rascunho para novo produto'), false);

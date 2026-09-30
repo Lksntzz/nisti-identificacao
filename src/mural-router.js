@@ -913,7 +913,7 @@ async function muralGeminiProReferences(env, { productId = null, collectionId = 
       INNER JOIN products p ON p.id=mcp.product_id
       WHERE mcp.collection_id=? AND p.image_key IS NOT NULL
       ORDER BY mcp.sort_order ASC,p.id ASC
-      LIMIT 4
+      LIMIT 5
     `).bind(collectionId).all();
 
     const products = result.results || [];
@@ -955,6 +955,92 @@ const PROMPT_VARIANTS = Object.freeze([
     composition:'Use uma composição mais fechada e sofisticada, valorizando textura, bordas, wire-o, elástico e acabamento visual, com cenário secundário minimalista.'
   }
 ]);
+
+const COLLECTION_LAUNCH_VARIANTS = Object.freeze([
+  {
+    id:'collection-balanced',
+    label:'Versão 1 · Hero equilibrado',
+    summary:'Equilíbrio clássico entre mensagem de lançamento e vitrine dos produtos.',
+    left:'38%',
+    right:'62%',
+    productLayout:'Use 3 a 5 produtos da coleção. Coloque o produto principal levemente à frente e os demais atrás e nas laterais, com diferenças sutis de altura e sobreposição.',
+    typography:'Headline grande e dominante, ano integrado com elegância, frase curta logo abaixo e CTA discreto.'
+  },
+  {
+    id:'collection-product-forward',
+    label:'Versão 2 · Produtos em destaque',
+    summary:'Mais espaço para a coleção e maior impacto visual dos produtos.',
+    left:'34%',
+    right:'66%',
+    productLayout:'Use 4 a 5 produtos da coleção com composição mais ampla. O produto herói deve ficar centralizado na área direita, com os demais formando profundidade ao redor.',
+    typography:'Tipografia compacta e forte no lado esquerdo, preservando mais área útil para os produtos.'
+  },
+  {
+    id:'collection-type-forward',
+    label:'Versão 3 · Nome da coleção',
+    summary:'Nome da coleção mais marcante com showcase limpo e sofisticado.',
+    left:'42%',
+    right:'58%',
+    productLayout:'Use 3 a 4 produtos da coleção em grupo coeso, com pouca sobreposição e ótima leitura das capas.',
+    typography:'Dê maior protagonismo ao nome da coleção, mantendo ano, frase curta e CTA com hierarquia clara.'
+  }
+]);
+
+const COLLECTION_LAUNCH_BASE_PROMPT = `Create a premium horizontal HERO CARD for a new stationery collection launch.
+
+OBJECTIVE
+Create a professional "Collection Launch Hero Card" for one real collection only, using exclusively the provided product reference images from that collection. The result must look like a real premium campaign asset created for a stationery brand.
+
+FORMAT
+- Horizontal banner, approximately 2:1 aspect ratio.
+- Clean rounded rectangular card.
+- Strong visual hierarchy and instant readability at thumbnail size.
+- Balanced composition with generous negative space.
+- No clutter.
+- No full room or environment scene. The card itself is the visual.
+
+LEFT SIDE
+- Small rounded badge: "NOVO".
+- Large collection name as the main headline.
+- Collection year below or integrated into the title.
+- One short emotional supporting phrase.
+- Small rounded CTA: "NOVA COLEÇÃO".
+- Typography must remain highly legible on mobile and marketplace thumbnails.
+
+RIGHT SIDE — PRODUCT SHOWCASE
+- Display 3 to 5 products when at least 3 real references are provided.
+- If fewer than 3 real products are provided, display exactly the available products; never invent or duplicate products to reach a number.
+- Display only products from the selected collection.
+- Use the transparent PNG product references supplied by the Mural.
+- Preserve the exact artwork, colors, printed typography, spiral binding, elastic bands, accessories and proportions of the real products.
+- Do not redesign, simplify, reinterpret or replace the products.
+- Do not create extra products.
+- Do not mix collections.
+
+BACKGROUND
+- Use the selected visual direction and the collection color identity.
+- Prefer a soft gradient or very subtle illustrated pattern.
+- Decorative elements may be used only when they support the collection theme.
+- Keep background contrast low enough for the products and headline to remain dominant.
+
+STYLE
+- Premium stationery advertising.
+- Modern, delicate, polished and commercial.
+- High-end e-commerce campaign aesthetic.
+- Soft studio lighting.
+- Subtle realistic product shadows.
+- Crisp details.
+- Designed to immediately communicate a NEW COLLECTION.
+
+RESTRICTIONS
+- One collection only.
+- No unrelated products.
+- No visual pollution.
+- No excessive decorative objects.
+- No hands or people.
+- No application interface.
+- No price.
+- No extra promotional text beyond the defined badge, collection name, year, supporting phrase and CTA.`;
 
 const MURAL_GEMINI_PRO_BASE_PROMPT = `Crie uma imagem fotográfica editorial premium usando as imagens anexadas como referência visual do produto. As referências do produto são preparadas pelo Mural em PNG com fundo transparente para facilitar a composição do cenário.
 
@@ -1009,19 +1095,50 @@ function buildProductPromptVersions(product, finishes, style) {
 }
 
 function buildCollectionPromptVersions(collection, products, style) {
-  const productLines = products.slice(0,4).map((product,index)=>{
+  const collectionName = String(collection.name || '').trim() || 'Nova coleção';
+  const year = collection.year ? String(collection.year) : '';
+  const description = String(collection.description || '').trim();
+  const supportingPhrase = description
+    ? description.replace(/\s+/g,' ').slice(0,90)
+    : `Conheça a nova coleção ${collectionName}`;
+  const direction = AUTHORIZED_STYLES[style] || AUTHORIZED_STYLES.editorial;
+  const styleLabel = String(style || 'editorial').toUpperCase();
+
+  const productLines = products.slice(0,5).map((product,index)=>{
     const finishes=finishLabels(product);
     return `${index + 1}. ${product.nome || product.sku || 'Produto NISTI'} · ${product.variacao || 'sem variação'} · wire-o ${finishes.wireo || 'não especificado'} · tassel ${finishes.tassel || 'não especificado'} · elástico ${finishes.elastico || 'não especificado'}`;
   });
-  return buildPromptVersions([
-    'COLEÇÃO DE REFERÊNCIA',
-    `Coleção: ${String(collection.name || '').trim()}`,
-    collection.year ? `Ano: ${collection.year}` : null,
-    collection.description ? `Contexto: ${String(collection.description).trim()}` : null,
-    '',
-    'PRODUTOS NAS IMAGENS ANEXADAS',
-    ...productLines
-  ].filter(Boolean),style);
+
+  return COLLECTION_LAUNCH_VARIANTS.map((variant,index)=>({
+    id:variant.id,
+    label:variant.label,
+    summary:variant.summary,
+    prompt:[
+      COLLECTION_LAUNCH_BASE_PROMPT,
+      '',
+      'COLLECTION DATA',
+      `Collection name: "${collectionName}"`,
+      year ? `Year: "${year}"` : null,
+      `Supporting phrase: "${supportingPhrase}"`,
+      'CTA: "NOVA COLEÇÃO"',
+      '',
+      'SELECTED VISUAL DIRECTION',
+      `${styleLabel}: ${direction}`,
+      '',
+      'LAYOUT FOR THIS VERSION',
+      `Left typography zone: approximately ${variant.left}.`,
+      `Right product showcase zone: approximately ${variant.right}.`,
+      variant.typography,
+      variant.productLayout,
+      '',
+      'REAL PRODUCTS PROVIDED',
+      ...productLines,
+      '',
+      'FINAL RESULT',
+      'A premium horizontal Collection Launch Hero Card, approximately 2:1, ready for use inside the NISTI Mural, website, catalog, marketplace or social media.',
+      `Version ${index + 1} of 3.`
+    ].filter(Boolean).join('\n')
+  }));
 }
 
 function muralGeminiProReference(product, index) {
