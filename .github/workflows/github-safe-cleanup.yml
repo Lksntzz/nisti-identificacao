@@ -1,0 +1,35 @@
+name: GitHub Safe Cleanup
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/github-safe-cleanup.yml"
+      - "scripts/github-safe-cleanup.mjs"
+
+permissions:
+  contents: write
+  actions: write
+  pull-requests: write
+
+jobs:
+  cleanup:
+    if: github.head_ref == 'ops/github-safe-cleanup-2026-09-30'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CLEANUP_BRANCH: ${{ github.head_ref }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Safe GitHub cleanup
+        run: node scripts/github-safe-cleanup.mjs
