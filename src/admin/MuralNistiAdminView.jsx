@@ -206,6 +206,18 @@ function PostEditor({ item, collections, onClose, onSaved }) {
 
   const generateAiArt = async mode => {
     setAiError('');
+    if (!['creative_scene','remove_background'].includes(mode)) {
+      setAiError('Operação de IA não permitida neste editor.');
+      return;
+    }
+    if (!['product','collection'].includes(form.kind)) {
+      setAiError('A IA de imagem está disponível somente para Produto e Coleção.');
+      return;
+    }
+    if (mode === 'remove_background' && form.kind !== 'product') {
+      setAiError('A remoção de fundo está disponível somente para Produto.');
+      return;
+    }
     if (form.kind === 'product' && !Number(form.product_id)) {
       setAiError('Selecione o produto que será usado como referência visual.');
       return;
@@ -337,12 +349,17 @@ function PostEditor({ item, collections, onClose, onSaved }) {
             <label>Imagem editorial<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseImage(e.target.files?.[0])} /><small>JPEG, PNG ou WebP. Compressão no cliente até 1600 px; máximo 5 MB.</small></label>
             {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem editorial</button>}
 
+            {(form.kind === 'product' || form.kind === 'collection') && (
             <section className="mural-admin-ai-studio" aria-label="Estúdio de IA do Mural">
               <header>
-                <div><small>IA DE IMAGEM</small><strong>Nano Banana</strong></div>
-                <span>Gemini</span>
+                <div><small>IA DE IMAGEM · ESCOPO RESTRITO</small><strong>Nano Banana</strong></div>
+                <span>Gemini API</span>
               </header>
-              <p>Crie a arte editorial usando os produtos reais como referência. A IA recebe as imagens do catálogo e deve preservar capa, estampa, textos, cores e acabamentos.</p>
+              <p>Este recurso faz somente duas coisas: criar cenário criativo usando produtos reais como referência e, para Produto, remover o fundo branco. Não gera texto, vídeo, áudio nem conteúdo fora do Mural.</p>
+              <div className="mural-admin-ai-capabilities" aria-label="Funções permitidas">
+                <span>Cenário criativo</span>
+                {form.kind === 'product' && <span>Remover fundo branco</span>}
+              </div>
               <div className="mural-admin-ai-source">
                 <b>Fonte</b>
                 <span>
@@ -390,7 +407,7 @@ function PostEditor({ item, collections, onClose, onSaved }) {
                   </button>
                 )}
               </div>
-              <small className="mural-admin-ai-note">A geração usa Nano Banana e não publica automaticamente. Revise a arte antes de aplicar. Imagens geradas pelo Gemini incluem SynthID.</small>
+              <small className="mural-admin-ai-note">A chave da Gemini API fica somente no servidor. A geração não publica automaticamente: revise e clique em “Usar esta arte”.</small>
               {aiError && <div className="mural-admin-ai-error">{aiError}</div>}
               {aiResult && (
                 <div className="mural-admin-ai-result">
@@ -405,6 +422,7 @@ function PostEditor({ item, collections, onClose, onSaved }) {
                 </div>
               )}
             </section>
+            )}
             {error && <div className="mural-admin-error">{error}</div>}
             <div className="mural-admin-actions"><button type="button" onClick={onClose}>Cancelar</button><button type="submit" disabled={busy}>Salvar rascunho</button><button type="button" className="primary" disabled={busy} onClick={()=>save(true)}>{form.published_at && new Date(form.published_at)>new Date()?'Agendar':'Publicar agora'}</button></div>
           </form>
