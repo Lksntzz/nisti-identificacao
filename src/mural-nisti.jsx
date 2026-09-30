@@ -181,7 +181,7 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
     return (
       <button
         type="button"
-        className={`mural-card mural-card-collection mural-reveal${!item.is_read ? ' unread' : ''}`}
+        className={`mural-card mural-card-collection mural-reveal${collectionPreviews.length ? ' has-products' : ''}${!item.is_read ? ' unread' : ''}`}
         style={revealStyle}
         data-mural-reveal
         onClick={() => onOpen(item)}
