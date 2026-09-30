@@ -126,45 +126,6 @@ async function compressImage(file) {
   return new File([blob], file.name, { type });
 }
 
-function base64ToFile(base64, mimeType = 'image/png', name = 'mural-ai.png') {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return new File([bytes], name, { type:mimeType });
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      const comma = result.indexOf(',');
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.onerror = () => reject(new Error('Falha ao ler arquivo de imagem.'));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function prepareAiImage(file, mode) {
-  if (!file) return file;
-  if (mode === 'remove_background') return compressImage(file);
-  const bitmap = await createImageBitmap(file);
-  const maxWidth = 1280;
-  const scale = Math.min(1, maxWidth / bitmap.width);
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const context = canvas.getContext('2d', { alpha:false });
-  context.fillStyle = '#ffffff';
-  context.fillRect(0,0,canvas.width,canvas.height);
-  context.drawImage(bitmap,0,0,canvas.width,canvas.height);
-  bitmap.close();
-  const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/jpeg',.80));
-  if (!blob) throw new Error('Não foi possível otimizar a arte gerada.');
-  return new File([blob],'mural-ai-scene.jpg',{type:'image/jpeg'});
-}
-
 function Status({ value }) {
   const labels = { draft: 'Rascunho', published: 'Publicado', archived: 'Arquivado' };
   return <span className={`mural-admin-status ${value}`}><i aria-hidden="true" />{labels[value] || value}</span>;
@@ -242,15 +203,12 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiError, setAiError] = useState('');
-  const [aiStyle, setAiStyle] = useState('editorial');
-  const [aiResult, setAiResult] = useState(null);
+  const [geminiError, setGeminiError] = useState('');
+  const [geminiStyle, setGeminiStyle] = useState('editorial');
   const [geminiProBusy, setGeminiProBusy] = useState(false);
   const [geminiProPackage, setGeminiProPackage] = useState(null);
   const [geminiProCopied, setGeminiProCopied] = useState(false);
-  const [showSuccessCheck, setShowSuccessCheck] = useState(false);
-  const [artTab, setArtTab] = useState(() => (sourceItem?.kind === 'notice' || sourceItem?.prefillImage) ? 'preview' : 'ai');
+  const [artTab, setArtTab] = useState(() => (sourceItem?.kind === 'notice' || sourceItem?.prefillImage) ? 'preview' : 'gemini');
 
   useEffect(() => {
     if (form.kind !== 'product') return;
@@ -262,11 +220,10 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   }, [productQuery, form.kind]);
 
   useEffect(() => () => { if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
-  useEffect(() => () => { if (aiResult?.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url); }, [aiResult]);
   useEffect(() => {
     setGeminiProPackage(null);
     setGeminiProCopied(false);
-  }, [form.kind, form.product_id, form.collection_id, aiStyle]);
+  }, [form.kind, form.product_id, form.collection_id, geminiStyle]);
 
   const selectedCollection = collections.find(row => Number(row.id) === Number(form.collection_id));
   const selectedCollectionProducts = String(selectedCollection?.product_ids || '')
@@ -284,10 +241,10 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
     setForm(current => ({ ...current, kind:nextKind, product_id:'', collection_id:'' }));
     setSelectedProduct(null);
     setProductQuery('');
-    setAiError('');
-    if (aiResult?.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url);
-    setAiResult(null);
-    setArtTab(nextKind === 'notice' ? 'preview' : 'ai');
+    setGeminiError('');
+    setGeminiProPackage(null);
+    setGeminiProCopied(false);
+    setArtTab(nextKind === 'notice' ? 'preview' : 'gemini');
   };
 
   const chooseImage = async file => {
@@ -304,18 +261,18 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   };
 
   const prepareGeminiPro = async () => {
-    setAiError('');
+    setGeminiError('');
     if (!['product','collection'].includes(form.kind)) {
-      setAiError('O Gemini Pro está disponível somente para Produto e Coleção.');
+      setGeminiError('O Gemini Pro está disponível somente para Produto e Coleção.');
       return;
     }
     const mode = form.kind === 'product' ? 'product_scene' : 'collection_scene';
     if (form.kind === 'product' && !Number(form.product_id)) {
-      setAiError('Selecione o produto que será usado como referência visual.');
+      setGeminiError('Selecione o produto que será usado como referência visual.');
       return;
     }
     if (form.kind === 'collection' && !Number(form.collection_id)) {
-      setAiError('Selecione a coleção que será usada como referência visual.');
+      setGeminiError('Selecione a coleção que será usada como referência visual.');
       return;
     }
 
@@ -328,13 +285,13 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
           mode,
           product_id:Number(form.product_id) || null,
           collection_id:Number(form.collection_id) || null,
-          style:aiStyle
+          style:geminiStyle
         })
       });
       setGeminiProPackage(data);
       setGeminiProCopied(false);
     } catch (err) {
-      setAiError(err.message || 'Não foi possível preparar o material para o Gemini Pro.');
+      setGeminiError(err.message || 'Não foi possível preparar o material para o Gemini Pro.');
     } finally {
       setGeminiProBusy(false);
     }
@@ -347,82 +304,8 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
       setGeminiProCopied(true);
       setTimeout(() => setGeminiProCopied(false), 2600);
     } catch (err) {
-      setAiError(err.message || 'Não foi possível copiar o prompt.');
+      setGeminiError(err.message || 'Não foi possível copiar o prompt.');
     }
-  };
-
-  const generateAiArt = async () => {
-    setAiError('');
-    if (!['product','collection'].includes(form.kind)) {
-      setAiError('A IA de imagem está disponível somente para Produto e Coleção.');
-      return;
-    }
-    const mode = form.kind === 'product' ? 'product_scene' : 'collection_scene';
-    if (form.kind === 'product' && !Number(form.product_id)) {
-      setAiError('Selecione o produto que será usado como referência visual.');
-      return;
-    }
-    if (form.kind === 'collection' && !Number(form.collection_id)) {
-      setAiError('Selecione a coleção que será usada como referência visual.');
-      return;
-    }
-    setAiBusy(true);
-    try {
-      const data = await request('/api/admin/mural/ai-art', {
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body:JSON.stringify({
-          mode,
-          product_id:Number(form.product_id) || null,
-          collection_id:Number(form.collection_id) || null,
-          style:aiStyle
-        })
-      });
-      const outputMime = data.mime_type || 'image/jpeg';
-      const raw = base64ToFile(
-        data.image_base64,
-        outputMime,
-        outputMime === 'image/png' ? 'mural-arte-ia.png' : 'mural-arte-ia.jpg'
-      );
-      const prepared = await prepareAiImage(raw, mode);
-      if (prepared.size > 5 * 1024 * 1024) throw new Error('A arte gerada excedeu 5 MB após otimização.');
-      if (aiResult?.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url);
-      const url = URL.createObjectURL(prepared);
-      setAiResult({
-        file:prepared,
-        url,
-        mode,
-        model:data.model || 'gemini-3.1-flash-lite-image',
-        sourceCount:Number(data.source_count || 0),
-        synthid:Boolean(data.synthid)
-      });
-      setShowSuccessCheck(true);
-      setTimeout(() => setShowSuccessCheck(false), 2000);
-    } catch (err) {
-      const message = err.message || 'Não foi possível gerar a arte.';
-      if (/quota|rate limit|free tier|429|limit.*daily|daily.*limit|limite.*di[aá]rio/i.test(message)) {
-        setAiError('A cota gratuita da API de imagem foi atingida. Use sua conta Gemini Pro abaixo para continuar sem pagar outra API.');
-      } else {
-        setAiError(message);
-      }
-    } finally {
-      setAiBusy(false);
-    }
-  };
-
-  const applyAiResult = () => {
-    if (!aiResult?.file) return;
-    if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
-    setImage(aiResult.file);
-    setImageUrl(URL.createObjectURL(aiResult.file));
-    if (aiResult.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url);
-    setAiResult(null);
-    setArtTab('preview');
-  };
-
-  const discardAiResult = () => {
-    if (aiResult?.url?.startsWith('blob:')) URL.revokeObjectURL(aiResult.url);
-    setAiResult(null);
   };
 
   const removeImage = async () => {
@@ -473,7 +356,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
 
-  const canUseAi = form.kind === 'product' || form.kind === 'collection';
+  const canUseGemini = form.kind === 'product' || form.kind === 'collection';
   const publishLabel = form.published_at && new Date(form.published_at) > new Date() ? 'Agendar' : 'Publicar';
 
   return (
@@ -578,7 +461,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
           </section>
 
           <section className="mural-publisher-block">
-            <div className="mural-publisher-block-title"><strong>Imagem editorial manual</strong><span>Use somente quando não quiser gerar a arte pelo Nano Banana.</span></div>
+            <div className="mural-publisher-block-title"><strong>Imagem editorial manual</strong><span>Use para enviar uma arte pronta ou a imagem gerada no Gemini Pro.</span></div>
             <label className="mural-publisher-upload">
               <AdminMuralIcon name="image" size={24}/>
               <span><b>Selecionar imagem</b><small>JPEG, PNG ou WebP · até 5 MB após compressão</small></span>
@@ -594,7 +477,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
           <header><span><h3>Arte da publicação</h3><p>Revise o visual antes de salvar ou publicar.</p></span><span className="mural-publisher-art-help">?</span></header>
           <div className="mural-publisher-art-tabs">
             <button type="button" className={artTab==='preview'?'active':''} onClick={()=>setArtTab('preview')}>Editor</button>
-            {canUseAi && <button type="button" className={artTab==='ai'?'active':''} onClick={()=>setArtTab('ai')}><AdminMuralIcon name="sparkles" size={15}/> IA · Nano Banana</button>}
+            {canUseGemini && <button type="button" className={artTab==='gemini'?'active':''} onClick={()=>setArtTab('gemini')}><AdminMuralIcon name="sparkles" size={15}/> Gemini Pro</button>}
           </div>
 
           {artTab === 'preview' ? (
@@ -605,7 +488,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
           ) : (
             <div className="mural-publisher-ai-pane">
               <section className="mural-publisher-ai-card">
-                <div className="mural-publisher-ai-heading"><span><AdminMuralIcon name="sparkles" size={20}/></span><div><strong>Criar arte com IA</strong><p>Gere um cenário profissional usando os produtos reais como referência.</p></div></div>
+                <div className="mural-publisher-ai-heading"><span><AdminMuralIcon name="sparkles" size={20}/></span><div><strong>Criar arte no Gemini Pro</strong><p>O NISTI prepara o prompt e as imagens reais; você gera a arte usando sua conta Gemini Pro.</p></div></div>
 
                 <div className="mural-publisher-reference">
                   <span>Referência</span>
@@ -618,7 +501,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                 <div className="mural-publisher-ai-style-label">Direção visual</div>
                 <div className="mural-publisher-ai-style-grid">
                   {AI_STYLES.map(style=>(
-                    <button type="button" key={style.value} className={aiStyle===style.value?'active':''} onClick={()=>setAiStyle(style.value)}>
+                    <button type="button" key={style.value} className={geminiStyle===style.value?'active':''} onClick={()=>setGeminiStyle(style.value)}>
                       <span className={`mural-ai-style-thumb ${style.value}`}>
                         {referenceImage && <img src={referenceImage} alt="" aria-hidden="true"/>}
                         <i/><i/>
@@ -631,29 +514,11 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                 <div className="mural-publisher-ai-info" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px', color: '#64748b', lineHeight: '1.5', marginBottom: '16px' }}>
                   <p style={{ margin: 0 }}>
                     {form.kind === 'product'
-                      ? 'A geração de cenário utiliza automaticamente os dados técnicos reais do produto cadastrado no catálogo (como SKU, capa, acabamento, cor de wire-o, elástico e tassel) para garantir fidelidade física absoluta.'
-                      : 'A geração de cenário utiliza automaticamente a lista de produtos reais associados à coleção para compor uma imagem coerente e profissional.'}
+                      ? 'O prompt usa os dados reais do produto e orienta cenário, iluminação, câmera e público para a composição editorial.'
+                      : 'O prompt usa os produtos reais da coleção e orienta cenário, iluminação, câmera e público para uma composição editorial coerente.'}
                   </p>
                 </div>
 
-                <button type="button" className="mural-publisher-generate" disabled={aiBusy || (form.kind==='product'&&!form.product_id) || (form.kind==='collection'&&!form.collection_id)} onClick={generateAiArt}>
-                  {aiBusy ? (
-                    <span className="svg-loader-wrapper">
-                      <svg className="svg-loader-circle" viewBox="0 0 50 50">
-                        <circle className="path" cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle>
-                      </svg>
-                      <span>Gerando arte editorial…</span>
-                    </span>
-                  ) : (
-                    <>
-                      <AdminMuralIcon name="sparkles" size={18}/>
-                      <span>Gerar arte com IA</span>
-                    </>
-                  )}
-                </button>
-                <small className="mural-admin-ai-note">A geração automática usa a cota da Gemini API configurada no servidor.</small>
-
-                <div className="mural-gemini-pro-divider"><span>ou</span></div>
                 <button
                   type="button"
                   className="mural-publisher-gemini-pro"
@@ -661,9 +526,9 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                   onClick={prepareGeminiPro}
                 >
                   <AdminMuralIcon name="sparkles" size={18}/>
-                  <span>{geminiProBusy ? 'Preparando prompt e referências…' : 'Usar minha conta Gemini Pro'}</span>
+                  <span>{geminiProBusy ? 'Preparando prompt e referências…' : 'Preparar para o Gemini Pro'}</span>
                 </button>
-                <small className="mural-admin-ai-note">Este modo não usa a API paga: o NISTI prepara o prompt e as imagens reais para você usar no Gemini Pro.</small>
+                <small className="mural-admin-ai-note">O NISTI apenas prepara o prompt e as referências. A geração acontece na sua conta Gemini Pro, sem usar a API de imagem do sistema.</small>
 
                 {geminiProPackage && (
                   <div className="mural-gemini-pro-kit">
@@ -714,31 +579,9 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                   </div>
                 )}
 
-                {aiError && <div className="mural-admin-ai-error">{aiError}</div>}
+                {geminiError && <div className="mural-admin-ai-error">{geminiError}</div>}
               </section>
 
-              <section className="mural-publisher-art-result">
-                <header><strong>{aiResult ? 'Prévia da arte gerada' : imageUrl ? 'Arte atual' : 'Prévia da arte'}</strong>{aiResult&&<span>{aiResult.model}</span>}</header>
-                <div className="mural-publisher-art-canvas">
-                  {aiResult ? <img src={aiResult.url} alt="Arte gerada por IA para revisão"/> : imageUrl ? <img src={imageUrl} alt="Imagem editorial atual"/> : <div className="mural-publisher-art-empty"><AdminMuralIcon name="image" size={34}/><b>A arte aparecerá aqui</b><span>Escolha a referência e gere uma composição.</span></div>}
-                  {showSuccessCheck && (
-                    <div className="mural-publisher-ai-success-overlay">
-                      <svg className="svg-success-checkmark" viewBox="0 0 52 52">
-                        <circle className="checkmark-circle" cx="26" cy="26" r="25" fill="none" />
-                        <path className="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
-                      </svg>
-                      <span className="success-label">Arte gerada com sucesso!</span>
-                    </div>
-                  )}
-                </div>
-                {aiResult && (
-                  <div className="mural-publisher-art-result-actions">
-                    <button type="button" onClick={generateAiArt} disabled={aiBusy}><AdminMuralIcon name="refresh" size={16}/> Gerar outra</button>
-                    <button type="button" className="primary" onClick={applyAiResult}><AdminMuralIcon name="check" size={16}/> Usar esta arte</button>
-                    <button type="button" className="danger" onClick={discardAiResult}><AdminMuralIcon name="trash" size={16}/> Descartar</button>
-                  </div>
-                )}
-              </section>
             </div>
           )}
         </aside>
