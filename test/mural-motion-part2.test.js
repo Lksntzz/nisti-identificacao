@@ -14,8 +14,9 @@ test('motion part 2 slides one shared indicator across the four filters', () => 
 });
 
 test('motion part 2 adds one-shot microinteractions to filter icons', () => {
+  assert.ok(mural.includes('mural-tab-icon mural-tab-icon-${value}'));
   for (const value of ['all', 'products', 'collections', 'notices']) {
-    assert.ok(mural.includes(`mural-tab-icon-${value}`));
+    assert.ok(css.includes(`.mural-tab-icon-${value}`));
   }
   assert.ok(css.includes('@keyframes mural-tab-spark'));
   assert.ok(css.includes('@keyframes mural-tab-product'));
