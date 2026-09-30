@@ -1128,7 +1128,7 @@ function base64ToUint8Array(base64) {
 }
 
 async function adminGenerateMuralAiArt(request, env) {
-  if (!env.GEMINI_API_KEY) return json({ error:'GEMINI_API_KEY não configurada no Worker.' },503);
+  if (!env.GEMINI_IMAGE_API_KEY) return json({ error:'GEMINI_IMAGE_API_KEY não configurada no Worker.' },503);
 
   const allowed = await reserveGeminiBudget(env,'mural-ai-art',6);
   if (!allowed) return json({ error:'Limite temporário de geração por IA atingido. Aguarde um minuto e tente novamente.' },429);
@@ -1234,7 +1234,7 @@ async function adminGenerateMuralAiArt(request, env) {
       method:'POST',
       headers:{
         'content-type':'application/json',
-        'x-goog-api-key':env.GEMINI_API_KEY
+        'x-goog-api-key':env.GEMINI_IMAGE_API_KEY
       },
       body:JSON.stringify({
         model,
