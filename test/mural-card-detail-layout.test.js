@@ -25,3 +25,21 @@ test('product detail image is contained instead of aggressively cropped',()=>{
   assert.match(mural,/mural-detail-image-\$\{item\.kind\}/);
   assert.match(css,/\.mural-detail-image-product[\s\S]*object-fit:contain/);
 });
+
+
+test('collection detail avoids duplicated year in the title',()=>{
+  assert.match(mural,/function formatCollectionTitle\(collection\)/);
+  assert.match(mural,/name\.endsWith\(year\)/);
+  assert.match(mural,/\{formatCollectionTitle\(collection\)\}/);
+});
+
+test('detail close glyph is centered inside its circular touch target',()=>{
+  assert.match(mural,/className="mural-detail-close"[^>]*><span aria-hidden="true">×<\/span><\/button>/);
+  assert.match(css,/\.mural-detail-close\{[\s\S]*display:grid;[\s\S]*place-items:center/);
+  assert.match(css,/\.mural-detail-close>span\{[\s\S]*text-align:center/);
+});
+
+test('collection product cards use contained imagery and compact mobile sizing',()=>{
+  assert.match(css,/\.mural-collection-product img,[\s\S]*object-fit:contain/);
+  assert.match(css,/\.mural-collection-detail \.mural-detail-image\{[\s\S]*object-fit:contain/);
+});
