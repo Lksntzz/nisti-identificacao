@@ -5993,3 +5993,178 @@ button.kpi-box:active {
     transform: none !important;
   }
 }
+
+
+/* =========================================================================
+   NISTI MOTION VISIBILITY PASS
+   Torna o movimento perceptível sem alterar a estrutura visual do Admin.
+   ========================================================================= */
+:root {
+  --nisti-motion-micro: 180ms;
+  --nisti-motion-ui: 300ms;
+  --nisti-motion-content: 460ms;
+  --nisti-motion-data: 900ms;
+}
+
+@keyframes nisti-visible-view-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(12px, 4px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes nisti-visible-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.975);
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.004);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nisti-visible-icon-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.72) rotate(-6deg);
+  }
+  72% {
+    opacity: 1;
+    transform: scale(1.1) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes nisti-number-arrive {
+  from {
+    opacity: 0.35;
+    transform: translateY(5px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.admin-view-transition {
+  animation: nisti-visible-view-enter 360ms var(--nisti-motion-ease) both;
+}
+
+.admin-view-transition .welcome-banner {
+  animation: nisti-visible-card-enter 420ms var(--nisti-motion-ease) both;
+}
+
+.admin-view-transition .kpis-row .kpi-box {
+  animation: nisti-visible-card-enter 520ms var(--nisti-motion-ease) both;
+}
+
+.admin-view-transition .kpis-row .kpi-box:nth-child(1) { animation-delay: 70ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(2) { animation-delay: 145ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(3) { animation-delay: 220ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(4) { animation-delay: 295ms; }
+
+.admin-view-transition .kpi-icon-circle {
+  animation: nisti-visible-icon-pop 500ms var(--nisti-motion-ease) both;
+}
+
+.admin-view-transition .kpis-row .kpi-box:nth-child(1) .kpi-icon-circle { animation-delay: 150ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(2) .kpi-icon-circle { animation-delay: 225ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(3) .kpi-icon-circle { animation-delay: 300ms; }
+.admin-view-transition .kpis-row .kpi-box:nth-child(4) .kpi-icon-circle { animation-delay: 375ms; }
+
+.admin-view-transition .kpi-num {
+  animation: nisti-number-arrive 520ms var(--nisti-motion-ease) both;
+}
+
+.kpi-box {
+  transition:
+    transform 220ms var(--nisti-motion-ease),
+    box-shadow 220ms ease,
+    border-color 220ms ease !important;
+}
+
+.kpi-box:hover {
+  transform: translateY(-5px) scale(1.008) !important;
+  border-color: #bfdbfe !important;
+  box-shadow:
+    0 16px 34px rgba(15, 23, 42, 0.10),
+    0 4px 12px rgba(59, 130, 246, 0.07) !important;
+}
+
+.kpi-box:hover .kpi-icon-circle {
+  transform: translateY(-2px) scale(1.1) rotate(-2deg);
+}
+
+.expedition-card {
+  transition:
+    transform 240ms var(--nisti-motion-ease),
+    box-shadow 240ms ease,
+    border-color 240ms ease;
+}
+
+.expedition-card:hover {
+  transform: translateY(-3px);
+  border-color: #dbeafe;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.nisti-progress-fill {
+  animation-duration: 900ms !important;
+}
+
+.sidebar-nav-item:hover {
+  transform: translateX(4px) !important;
+}
+
+.sidebar-nav-item.active {
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.12);
+}
+
+.sidebar-nav-item.active svg {
+  transform: scale(1.08);
+}
+
+.sidebar-nav-item.active::before {
+  width: 4px;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.42);
+}
+
+.admin-data-table tbody .nisti-table-row {
+  animation-duration: 320ms !important;
+}
+
+.nisti-filter-chip:hover,
+.nisti-filter-clear:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-view-transition,
+  .admin-view-transition .welcome-banner,
+  .admin-view-transition .kpis-row .kpi-box,
+  .admin-view-transition .kpi-icon-circle,
+  .admin-view-transition .kpi-num {
+    animation: none !important;
+  }
+
+  .kpi-box:hover,
+  .kpi-box:hover .kpi-icon-circle,
+  .expedition-card:hover,
+  .sidebar-nav-item:hover,
+  .nisti-filter-chip:hover,
+  .nisti-filter-clear:hover {
+    transform: none !important;
+  }
+}
