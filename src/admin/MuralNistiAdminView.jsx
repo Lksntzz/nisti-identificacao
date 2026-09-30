@@ -463,6 +463,11 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                   </button>
                 ))}
               </div>
+              <div className="mural-product-visual-standard">
+                <span>PADRÃO VISUAL</span>
+                <strong>Product Hero Card</strong>
+                <small>Banner 2:1 · texto à esquerda · exatamente 1 produto real à direita · foco total no produto.</small>
+              </div>
             </section>
           )}
 
