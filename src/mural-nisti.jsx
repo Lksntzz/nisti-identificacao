@@ -109,6 +109,7 @@ function Hero({ item, onOpen }) {
     <button type="button" className="mural-hero" onClick={() => onOpen(item)}>
       <MuralImage item={item} eager className="mural-hero-image" />
       <span className="mural-hero-shade" aria-hidden="true" />
+      <span className="mural-hero-accent" aria-hidden="true"><i /><i /><i /></span>
       <span className="mural-hero-copy">
         <span className="mural-hero-badges">
           <ReadBadge item={item} />
@@ -125,11 +126,40 @@ function Hero({ item, onOpen }) {
 export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
   const isNotice = item.kind === 'notice';
   const isProduct = item.kind === 'product';
+  const isCollection = item.kind === 'collection';
+  const revealStyle = { '--mural-card-delay': `${Math.min(index, 8) * 45}ms` };
+
+  if (isCollection) {
+    return (
+      <button
+        type="button"
+        className={`mural-card mural-card-collection mural-reveal${!item.is_read ? ' unread' : ''}`}
+        style={revealStyle}
+        data-mural-reveal
+        onClick={() => onOpen(item)}
+      >
+        <MuralImage item={item} eager={eager} className="mural-collection-card-image" />
+        <span className="mural-collection-card-shade" aria-hidden="true" />
+        <span className="mural-collection-card-copy">
+          <span className="mural-card-badges">
+            <ReadBadge item={item} />
+            {item.badge && <span className="mural-editorial-badge">{item.badge}</span>}
+          </span>
+          <strong>{item.title}</strong>
+          {item.subtitle && <span>{item.subtitle}</span>}
+          {item.body && <small>{item.body}</small>}
+          <span className="mural-collection-card-cta">Ver coleção <b aria-hidden="true">›</b></span>
+        </span>
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
-      className={`mural-card mural-card-${item.kind}${!item.is_read ? ' unread' : ''}`}
-      style={{ '--mural-card-delay': `${Math.min(index, 8) * 45}ms` }}
+      className={`mural-card mural-card-${item.kind} mural-reveal${!item.is_read ? ' unread' : ''}`}
+      style={revealStyle}
+      data-mural-reveal
       onClick={() => onOpen(item)}
     >
       {!isNotice && <MuralImage item={item} eager={eager} className="mural-card-image" />}
@@ -141,13 +171,11 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
         </span>
         <span className="mural-card-title-row">
           <strong>{isProduct ? item.product?.type || item.title : item.title}</strong>
-          {item.kind === 'collection' && item.collection?.year && <small>{item.collection.year}</small>}
         </span>
         {isProduct && item.title !== item.product?.type && <span className="mural-card-product-name">{item.title}</span>}
         {!isProduct && item.subtitle && <span className="mural-card-subtitle">{item.subtitle}</span>}
         {item.body && <span className="mural-card-summary">{item.body}</span>}
         {isProduct && <ProductMeta product={item.product} />}
-        {item.kind === 'collection' && <span className="mural-card-cta">Ver coleção →</span>}
         {isNotice && <span className="mural-card-date">{formatDate(item.published_at)}</span>}
       </span>
       <span className="mural-card-arrow" aria-hidden="true">›</span>
@@ -204,6 +232,8 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
 function CollectionDialog({ slug, onClose }) {
   const [state, setState] = useState({ loading: true, data: null, error: '' });
   const closeRef = useRef(null);
+  const detailRef = useRef(null);
+  const scrollFrame = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -220,10 +250,43 @@ function CollectionDialog({ slug, onClose }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  useEffect(() => {
+    const root = detailRef.current;
+    if (!root || !state.data?.products?.length) return undefined;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const nodes = [...root.querySelectorAll('[data-collection-reveal]')];
+    if (reduced || typeof IntersectionObserver === 'undefined') {
+      nodes.forEach(node => node.classList.add('is-visible'));
+      return undefined;
+    }
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      }
+    }, { root, threshold: .18 });
+    nodes.forEach(node => observer.observe(node));
+    return () => observer.disconnect();
+  }, [state.data]);
+
+  const handleCollectionScroll = event => {
+    const node = event.currentTarget;
+    if (scrollFrame.current) return;
+    scrollFrame.current = requestAnimationFrame(() => {
+      const offset = Math.max(-22, node.scrollTop * -0.055);
+      node.style.setProperty('--collection-parallax', `${offset}px`);
+      scrollFrame.current = 0;
+    });
+  };
+
+  useEffect(() => () => cancelAnimationFrame(scrollFrame.current), []);
+
   const collection = state.data;
   return (
     <div className="mural-modal-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}>
-      <section className="mural-detail mural-collection-detail" role="dialog" aria-modal="true" aria-labelledby="mural-collection-title">
+      <section ref={detailRef} onScroll={handleCollectionScroll} className="mural-detail mural-collection-detail" role="dialog" aria-modal="true" aria-labelledby="mural-collection-title">
         <button ref={closeRef} type="button" className="mural-detail-close" onClick={onClose} aria-label="Fechar coleção"><span aria-hidden="true">×</span></button>
         {state.loading && <div className="mural-collection-loading">Carregando coleção…</div>}
         {state.error && <div className="mural-collection-error">{state.error}</div>}
@@ -238,7 +301,7 @@ function CollectionDialog({ slug, onClose }) {
               {collection.products?.length ? (
                 <div className="mural-collection-grid">
                   {collection.products.map(product => (
-                    <article key={product.id} className="mural-collection-product">
+                    <article key={product.id} className="mural-collection-product" data-collection-reveal>
                       {product.image_url ? <img src={product.image_url} alt={`${product.type} ${product.sku}`} loading="lazy" /> : <div className="mural-image-placeholder"><KindIcon kind="product" /></div>}
                       <div><strong>{product.type}</strong><span>{product.sku}</span></div>
                     </article>
@@ -264,6 +327,8 @@ export default function MuralNisti({ onUnreadChange }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const sessionCache = useRef(muralSessionCache);
   const scrollFrame = useRef(0);
+  const shellRef = useRef(null);
+  const feedRef = useRef(null);
 
   const load = async currentTab => {
     setLoading(true);
@@ -350,11 +415,35 @@ export default function MuralNisti({ onUnreadChange }) {
 
   useEffect(() => () => cancelAnimationFrame(scrollFrame.current), []);
 
+  useEffect(() => {
+    const shell = shellRef.current;
+    const feedNode = feedRef.current;
+    if (!shell || !feedNode) return undefined;
+    shell.classList.add('motion-ready');
+    const nodes = [...feedNode.querySelectorAll('[data-mural-reveal]')];
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || typeof IntersectionObserver === 'undefined') {
+      nodes.forEach(node => node.classList.add('is-visible'));
+      return undefined;
+    }
+    const root = shell.querySelector('.mural-scroll');
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      }
+    }, { root, threshold: .16, rootMargin:'0px 0px -4% 0px' });
+    nodes.forEach(node => observer.observe(node));
+    return () => observer.disconnect();
+  }, [tab, feed.length, loading]);
+
   const featured = tab === 'all' ? items.find(item => item.featured) : null;
   const feed = featured ? items.filter(item => item.id !== featured.id) : items;
 
   return (
-    <section className="mural-shell">
+    <section ref={shellRef} className="mural-shell">
       <div className="mural-scroll" onScroll={handleScroll}>
         <div className="mural-column">
           <header className="mural-title-block">
@@ -393,7 +482,7 @@ export default function MuralNisti({ onUnreadChange }) {
             </div>
           ) : feed.length ? (
             <>
-              <div className="mural-feed">
+              <div ref={feedRef} className="mural-feed">
                 {feed.map((item, index) => <MuralCard key={item.id} item={item} onOpen={openItem} eager={index < 2} index={index} />)}
               </div>
               {nextCursor && <button type="button" className="mural-load-more" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Carregando…' : 'Carregar mais'}</button>}
