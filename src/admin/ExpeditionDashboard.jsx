@@ -5,7 +5,7 @@ function formatScanDate(value) {
   return formatSaoPauloDateTime(value);
 }
 
-function AnimatedNumber({ value, suffix = '', duration = 520 }) {
+function AnimatedNumber({ value, suffix = '', duration = 900 }) {
   const numericValue = Number(value || 0);
   const [displayValue, setDisplayValue] = useState(0);
   const previousValue = useRef(0);
