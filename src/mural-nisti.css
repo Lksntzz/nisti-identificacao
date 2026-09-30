@@ -773,3 +773,317 @@
     opacity:1;
   }
 }
+
+
+/* Whole-Mural immersive pass: feed, collections, notices and product story. */
+.mural-shell.motion-ready .mural-reveal{
+  opacity:0;
+  translate:0 18px;
+  filter:saturate(.92);
+  transition:opacity .45s ease,translate .55s cubic-bezier(.2,.8,.2,1),filter .45s ease,box-shadow .18s ease,transform .18s ease;
+}
+.mural-shell.motion-ready .mural-reveal.is-visible{
+  opacity:1;
+  translate:0 0;
+  filter:none;
+}
+.mural-title-block{
+  position:relative;
+  z-index:2;
+}
+.mural-tabs{
+  position:sticky;
+  top:0;
+  z-index:20;
+  padding:7px 0;
+  background:linear-gradient(180deg,rgba(247,250,255,.97) 72%,rgba(247,250,255,0));
+  backdrop-filter:blur(12px);
+}
+.mural-tabs button{
+  box-shadow:0 5px 16px rgba(15,23,42,.05);
+}
+.mural-tabs button.active{
+  background:linear-gradient(135deg,#416fff 0%,#2f6bff 54%,#16b9ee 100%);
+  box-shadow:0 10px 24px rgba(47,107,255,.27);
+}
+.mural-tabs button:active>span:first-child{
+  transform:scale(.88);
+}
+.mural-hero{
+  height:clamp(230px,62vw,270px);
+  background:
+    radial-gradient(circle at 85% 15%,rgba(20,200,212,.25),transparent 30%),
+    radial-gradient(circle at 12% 90%,rgba(248,102,166,.22),transparent 34%),
+    #eaf1ff;
+  box-shadow:0 14px 36px rgba(15,23,42,.11);
+}
+.mural-hero-image{
+  object-fit:cover;
+  transform:translate3d(0,var(--mural-parallax,0),0) scale(1.09);
+}
+.mural-hero-shade{
+  background:linear-gradient(90deg,rgba(8,17,39,.88) 0%,rgba(8,17,39,.62) 48%,rgba(8,17,39,.08) 82%);
+}
+.mural-hero-copy{
+  inset:auto 18px 18px;
+  max-width:68%;
+}
+.mural-hero-copy strong{
+  font-size:clamp(22px,6vw,29px);
+}
+.mural-hero-cta{
+  display:inline-flex;
+  width:max-content;
+  align-items:center;
+  gap:8px;
+  min-height:36px;
+  margin-top:5px;
+  padding:0 13px;
+  border-radius:999px;
+  background:#fff;
+  color:#0b1329;
+  box-shadow:0 8px 18px rgba(0,0,0,.12);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.mural-hero:active .mural-hero-cta{
+  transform:translateX(3px) scale(.98);
+}
+.mural-hero-accent{
+  position:absolute;
+  right:15px;
+  top:14px;
+  z-index:3;
+  display:flex;
+  gap:5px;
+  transform:rotate(-18deg);
+}
+.mural-hero-accent i{
+  display:block;
+  width:7px;
+  height:28px;
+  border-radius:999px;
+  transform-origin:50% 100%;
+  animation:mural-accent-float 2.8s ease-in-out infinite;
+}
+.mural-hero-accent i:nth-child(1){background:var(--mural-cyan);transform:rotate(-22deg)}
+.mural-hero-accent i:nth-child(2){background:var(--mural-pink);animation-delay:.16s}
+.mural-hero-accent i:nth-child(3){background:var(--mural-yellow);transform:rotate(22deg);animation-delay:.32s}
+@keyframes mural-accent-float{
+  0%,100%{translate:0 0}
+  50%{translate:0 -4px}
+}
+
+/* Collection cards become editorial banners rather than generic rows. */
+.mural-card-collection{
+  min-height:190px;
+  grid-template-columns:1fr;
+  padding:0;
+  border:0;
+  border-radius:22px;
+  overflow:hidden;
+  background:#eef3fb;
+  isolation:isolate;
+  box-shadow:0 12px 28px rgba(15,23,42,.09);
+}
+.mural-card-collection .mural-collection-card-image{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  min-height:0;
+  border-radius:0;
+  object-fit:cover;
+  transform:scale(1.025);
+  transition:transform .55s cubic-bezier(.2,.8,.2,1),filter .35s ease;
+}
+.mural-collection-card-shade{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  background:
+    linear-gradient(90deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.92) 42%,rgba(255,255,255,.22) 72%,rgba(255,255,255,.04) 100%),
+    linear-gradient(180deg,rgba(248,102,166,.08),rgba(20,200,212,.05));
+}
+.mural-collection-card-copy{
+  position:relative;
+  z-index:2;
+  width:min(64%,360px);
+  min-height:190px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:7px;
+  padding:18px;
+  color:var(--mural-ink);
+}
+.mural-collection-card-copy>strong{
+  font-size:clamp(23px,6vw,29px);
+  line-height:1.02;
+  font-weight:950;
+  letter-spacing:-.035em;
+}
+.mural-collection-card-copy>span:not(.mural-card-badges):not(.mural-collection-card-cta){
+  color:#42516a;
+  font-size:13px;
+  line-height:1.3;
+  font-weight:700;
+}
+.mural-collection-card-copy>small{
+  display:-webkit-box;
+  overflow:hidden;
+  color:#64748b;
+  font-size:11px;
+  line-height:1.35;
+  font-weight:600;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+}
+.mural-collection-card-cta{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-height:34px;
+  margin-top:2px;
+  padding:0 12px;
+  border-radius:999px;
+  background:#0b1329;
+  color:#fff;
+  font-size:11px;
+  font-weight:850;
+  box-shadow:0 7px 16px rgba(11,19,41,.18);
+}
+.mural-collection-card-cta b{
+  font-size:22px;
+  line-height:1;
+  transition:transform .18s ease;
+}
+.mural-card-collection:active .mural-collection-card-cta b{transform:translateX(3px)}
+@media (hover:hover) and (pointer:fine){
+  .mural-card-collection:hover .mural-collection-card-image{transform:scale(1.075)}
+}
+
+/* Product and notice cards keep density but receive richer motion feedback. */
+.mural-card-product{
+  background:linear-gradient(145deg,#fff 0%,#fbfdff 100%);
+}
+.mural-card-product .mural-card-image{
+  box-shadow:0 6px 16px rgba(15,23,42,.07);
+}
+.mural-card-notice{
+  background:
+    radial-gradient(circle at 4% 50%,rgba(59,130,246,.08),transparent 36%),
+    #fff;
+}
+.mural-card-notice .mural-notice-icon{
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s ease;
+}
+.mural-card-notice:active .mural-notice-icon{
+  transform:rotate(-5deg) scale(.94);
+}
+@media (hover:hover) and (pointer:fine){
+  .mural-card-notice:hover .mural-notice-icon{
+    transform:rotate(-4deg) translateY(-2px);
+    box-shadow:0 8px 20px rgba(15,23,42,.1);
+  }
+}
+
+/* Fix the product scrollytelling overlap: story copy moves behind the pinned opaque stage. */
+.mural-detail-immersive{
+  overflow-x:hidden;
+}
+.mural-product-story{
+  min-height:185dvh;
+}
+.mural-product-stage{
+  z-index:6;
+  height:min(50dvh,420px);
+  background:
+    radial-gradient(circle at 15% 18%,#fff0f6 0%,transparent 35%),
+    radial-gradient(circle at 88% 70%,#e9fbfc 0%,transparent 35%),
+    #f7faff;
+  box-shadow:0 10px 26px rgba(15,23,42,.06);
+}
+.mural-product-stage::after{
+  content:"";
+  position:absolute;
+  inset:auto 0 0;
+  height:26px;
+  background:linear-gradient(180deg,rgba(247,250,255,0),#f7faff);
+  pointer-events:none;
+}
+.mural-product-story-copy{
+  z-index:1;
+  padding-top:18px;
+  background:#f7faff;
+}
+.mural-product-story-step{
+  min-height:34dvh;
+  padding:28px 4px;
+}
+.mural-product-story-step h3{
+  font-size:clamp(25px,6.6vw,34px);
+}
+.mural-product-stage-caption{
+  left:18px;
+  bottom:18px;
+  padding:7px 9px;
+  border-radius:14px;
+  background:rgba(255,255,255,.8);
+  box-shadow:0 7px 20px rgba(15,23,42,.06);
+  backdrop-filter:blur(10px);
+}
+.mural-product-webgl-hint{
+  bottom:18px;
+}
+.mural-product-webgl-controls{
+  bottom:16px;
+}
+
+/* Collection detail also gets parallax and scroll-triggered product reveals. */
+.mural-collection-detail{
+  --collection-parallax:0px;
+}
+.mural-collection-detail>.mural-detail-image{
+  transform:translate3d(0,var(--collection-parallax),0) scale(1.035);
+  transform-origin:center center;
+  will-change:transform;
+}
+.mural-collection-product[data-collection-reveal]{
+  opacity:0;
+  translate:0 14px;
+  transition:opacity .4s ease,translate .48s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease,transform .2s ease;
+}
+.mural-collection-product[data-collection-reveal].is-visible{
+  opacity:1;
+  translate:0 0;
+}
+@media (hover:hover) and (pointer:fine){
+  .mural-collection-product:hover{
+    transform:translateY(-3px);
+    box-shadow:0 10px 24px rgba(15,23,42,.1);
+  }
+}
+
+@media (max-width:390px){
+  .mural-hero-copy{max-width:72%;inset:auto 14px 14px}
+  .mural-hero-accent{right:12px;top:12px}
+  .mural-card-collection{min-height:176px}
+  .mural-collection-card-copy{width:67%;min-height:176px;padding:15px}
+  .mural-collection-card-copy>strong{font-size:22px}
+  .mural-product-stage{height:min(47dvh,390px)}
+  .mural-product-story-step{min-height:31dvh}
+}
+@media (prefers-reduced-motion:reduce){
+  .mural-shell.motion-ready .mural-reveal,
+  .mural-shell.motion-ready .mural-reveal.is-visible,
+  .mural-collection-product[data-collection-reveal],
+  .mural-collection-product[data-collection-reveal].is-visible{
+    opacity:1;
+    translate:0 0;
+    filter:none;
+    transition:none;
+  }
+  .mural-hero-accent i{animation:none}
+  .mural-collection-detail>.mural-detail-image{transform:none}
+}
