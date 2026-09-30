@@ -70,18 +70,27 @@ function KindIcon({ kind }) {
 }
 
 function MuralImage({ item, eager = false, className = '' }) {
+  const src = item?.image_url || '';
   const [failed, setFailed] = useState(false);
-  if (!item?.image_url || failed) {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+    setLoaded(false);
+  }, [src]);
+
+  if (!src || failed) {
     return <div className={`mural-image-placeholder ${className}`}><KindIcon kind={item?.kind} /></div>;
   }
   return (
     <img
-      className={className}
-      src={item.image_url}
+      className={`${className} mural-image-media${loaded ? ' is-loaded' : ''}`.trim()}
+      src={src}
       alt={item.kind === 'product' ? `${item.product?.type || item.title} ${item.product?.sku || ''}`.trim() : item.title}
       loading={eager ? 'eager' : 'lazy'}
       fetchPriority={eager ? 'high' : 'auto'}
       decoding="async"
+      onLoad={() => setLoaded(true)}
       onError={() => setFailed(true)}
     />
   );
@@ -89,7 +98,7 @@ function MuralImage({ item, eager = false, className = '' }) {
 
 function ReadBadge({ item }) {
   if (item.is_read) return null;
-  return <span className="mural-new-badge">NOVO</span>;
+  return <span className="mural-new-badge mural-badge-motion">NOVO</span>;
 }
 
 function ProductMeta({ product }) {
@@ -109,7 +118,7 @@ function ProductMeta({ product }) {
 
 function NoticeLabel({ level }) {
   const labels = { important: 'Importante', attention: 'Atenção', info: 'Informação' };
-  return <span className={`mural-notice-label ${level || 'info'}`}><span aria-hidden="true">!</span>{labels[level] || labels.info}</span>;
+  return <span className={`mural-notice-label mural-badge-motion ${level || 'info'}`}><span aria-hidden="true">!</span>{labels[level] || labels.info}</span>;
 }
 
 function Hero({ item, onOpen }) {
@@ -122,7 +131,7 @@ function Hero({ item, onOpen }) {
       <span className="mural-hero-copy">
         <span className="mural-hero-badges">
           <ReadBadge item={item} />
-          {item.badge && <span className="mural-editorial-badge">{item.badge}</span>}
+          {item.badge && <span className="mural-editorial-badge mural-badge-motion">{item.badge}</span>}
         </span>
         <strong>{item.title}</strong>
         {item.subtitle && <span>{item.subtitle}</span>}
@@ -152,7 +161,7 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
         <span className="mural-collection-card-copy">
           <span className="mural-card-badges">
             <ReadBadge item={item} />
-            {item.badge && <span className="mural-editorial-badge">{item.badge}</span>}
+            {item.badge && <span className="mural-editorial-badge mural-badge-motion">{item.badge}</span>}
           </span>
           <strong>{item.title}</strong>
           {item.subtitle && <span>{item.subtitle}</span>}
@@ -176,7 +185,7 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
       <span className="mural-card-content">
         <span className="mural-card-badges">
           <ReadBadge item={item} />
-          {isNotice ? <NoticeLabel level={item.notice_level} /> : item.badge && <span className="mural-editorial-badge">{item.badge}</span>}
+          {isNotice ? <NoticeLabel level={item.notice_level} /> : item.badge && <span className="mural-editorial-badge mural-badge-motion">{item.badge}</span>}
         </span>
         <span className="mural-card-title-row">
           <strong>{isProduct ? item.product?.type || item.title : item.title}</strong>
@@ -217,7 +226,7 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
             <div className={`mural-detail-body${hasMedia ? '' : ' no-media'}`}>
           <div className="mural-card-badges">
             <ReadBadge item={item} />
-            {item.kind === 'notice' ? <NoticeLabel level={item.notice_level} /> : item.badge && <span className="mural-editorial-badge">{item.badge}</span>}
+            {item.kind === 'notice' ? <NoticeLabel level={item.notice_level} /> : item.badge && <span className="mural-editorial-badge mural-badge-motion">{item.badge}</span>}
           </div>
           {item.kind === 'product' && item.product?.type && <p className="mural-detail-kicker">{item.product.type}</p>}
           <h2 id="mural-detail-title">{item.title}</h2>
@@ -303,7 +312,7 @@ function CollectionDialog({ slug, onClose }) {
           <>
             {collection.image_url && <img className="mural-detail-image" src={collection.image_url} alt={collection.name} />}
             <div className="mural-detail-body">
-              <span className="mural-editorial-badge">Coleção</span>
+              <span className="mural-editorial-badge mural-badge-motion">Coleção</span>
               <h2 id="mural-collection-title">{formatCollectionTitle(collection)}</h2>
               {collection.description && <p className="mural-detail-copy">{collection.description}</p>}
               <p className="mural-collection-count">{collection.products?.length || 0} produto{collection.products?.length === 1 ? '' : 's'}</p>
