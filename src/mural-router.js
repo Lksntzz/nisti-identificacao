@@ -137,6 +137,7 @@ function mapFeedRow(row, collectionPreviews = new Map()) {
           slug: row.collection_slug,
           name: row.collection_name,
           year: row.collection_year ? Number(row.collection_year) : null,
+          description: row.collection_description || null,
           product_count: Number(collectionPreview?.count || 0),
           preview_products: collectionPreview?.items || []
         }
@@ -198,7 +199,7 @@ async function listMuralFeed(request, url, env) {
         ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
         LIMIT 1
       ) AS product_collection_name,
-      mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,mc.year AS collection_year,mc.image_key AS collection_image_key,
+      mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,mc.year AS collection_year,mc.description AS collection_description,mc.image_key AS collection_image_key,
       CASE WHEN mr.post_id IS NULL THEN 0 ELSE 1 END AS is_read
     FROM mural_posts mp
     LEFT JOIN products p ON p.id = mp.product_id
