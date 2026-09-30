@@ -284,7 +284,11 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
                 <span style={{ color: '#475569', fontWeight: 600 }}>Taxa de Sucesso na Bipagem</span>
                 <strong style={{ color: successRate >= 95 ? '#16a34a' : '#d97706' }}><AnimatedNumber value={successRate} suffix="%" /></strong>
               </div>
-              <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
+              <div
+                className="nisti-progress-track"
+                data-label={`${successRate}% de sucesso na bipagem`}
+                aria-label={`Taxa de sucesso na bipagem: ${successRate}%`}
+              >
                 <div
                   key={`success-${successRate}-${todayTotal}`}
                   className="nisti-progress-fill"
@@ -348,7 +352,11 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
                 <span style={{ color: '#475569', fontWeight: 600 }}>Produtos com Código de Barras</span>
                 <strong style={{ color: '#2563eb' }}><AnimatedNumber value={productsWithGtin} /> de <AnimatedNumber value={productsCount} /></strong>
               </div>
-              <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
+              <div
+                className="nisti-progress-track"
+                data-label={`${coverageRate}% do catálogo com EAN`}
+                aria-label={`Cobertura EAN do catálogo: ${coverageRate}%`}
+              >
                 <div
                   key={`coverage-${coverageRate}-${productsCount}`}
                   className="nisti-progress-fill"
