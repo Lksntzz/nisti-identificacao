@@ -116,7 +116,7 @@ function mapFeedRow(row) {
           id: productId,
           sku: row.sku || null,
           type: productTypeLabel(row),
-          collection: row.collection_name || null,
+          collection: row.product_collection_name || null,
           wireo: labels.wireo,
           tassel: labels.tassel,
           elastico: labels.elastico
@@ -179,6 +179,14 @@ async function listMuralFeed(request, url, env) {
       mp.notice_level,
       p.id AS product_id,p.sku,p.miolo_code,p.nome AS product_name,
       p.wireo_code,p.tassel_code,p.elastico_code,p.image_key AS product_image_key,
+      (
+        SELECT mc2.name
+        FROM mural_collection_products mcp2
+        INNER JOIN mural_collections mc2 ON mc2.id=mcp2.collection_id
+        WHERE mcp2.product_id=p.id AND mc2.status='active'
+        ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
+        LIMIT 1
+      ) AS product_collection_name,
       mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,mc.year AS collection_year,mc.image_key AS collection_image_key,
       CASE WHEN mr.post_id IS NULL THEN 0 ELSE 1 END AS is_read
     FROM mural_posts mp
@@ -372,6 +380,14 @@ async function adminListPosts(url, env) {
   const { results } = await env.DB.prepare(`
     SELECT mp.*,p.sku AS product_sku,p.nome AS product_name,p.miolo_code AS product_miolo_code,
       p.image_key AS product_image_key,p.wireo_code,p.tassel_code,p.elastico_code,
+      (
+        SELECT mc2.name
+        FROM mural_collection_products mcp2
+        INNER JOIN mural_collections mc2 ON mc2.id=mcp2.collection_id
+        WHERE mcp2.product_id=p.id AND mc2.status='active'
+        ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
+        LIMIT 1
+      ) AS product_collection_name,
       mc.name AS collection_name,mc.slug AS collection_slug
     FROM mural_posts mp
     LEFT JOIN products p ON p.id=mp.product_id
@@ -643,8 +659,16 @@ async function adminProducts(url, env) {
   const q = String(url.searchParams.get('q') || '').trim().slice(0,80);
   const like = `%${q}%`;
   const { results } = await env.DB.prepare(`
-    SELECT id,sku,nome,variacao,image_key,wireo_code,tassel_code,elastico_code,miolo_code
-    FROM products
+    SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,p.wireo_code,p.tassel_code,p.elastico_code,p.miolo_code,
+      (
+        SELECT mc2.name
+        FROM mural_collection_products mcp2
+        INNER JOIN mural_collections mc2 ON mc2.id=mcp2.collection_id
+        WHERE mcp2.product_id=p.id AND mc2.status='active'
+        ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
+        LIMIT 1
+      ) AS collection_name
+    FROM products p
     WHERE (?='' OR sku LIKE ? OR nome LIKE ? OR variacao LIKE ?)
     ORDER BY updated_at DESC,id DESC LIMIT 40
   `).bind(q,like,like,like).all();
