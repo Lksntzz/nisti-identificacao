@@ -1,5 +1,4 @@
 import { parseSku } from './sku.js';
-import { suggestMuralProductDraft } from './mural-router.js';
 import { requireValidGtin13 } from './gtin.js';
 import {
   recordNewCoverNotification,
@@ -331,9 +330,6 @@ async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
   }
 
   if (created) {
-    await suggestMuralProductDraft(env, product.id).catch(err => {
-      console.error('[Mural] Falha ao sugerir rascunho para novo produto', { productId:Number(product.id), message:err?.message || String(err) });
-    });
     await recordNewCoverNotification(env, {
       capaCode: parsed.capaCode,
       productId: product.id,
