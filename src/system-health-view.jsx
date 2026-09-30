@@ -111,7 +111,7 @@ export default function SystemHealthView({
 
         <button
           type="button"
-          className="btn-toolbar-filter"
+          className={`btn-toolbar-filter ${refreshing ? 'nisti-action-busy' : ''}`}
           onClick={refresh}
           disabled={refreshing}
         >
