@@ -66,6 +66,55 @@ function hasExistingTransparency(data, total) {
   return sampled > 0 && transparent / sampled >= 0.003;
 }
 
+function hasUsableTransparentBorder(data, width, height) {
+  let sampled = 0;
+  let transparent = 0;
+
+  const sample = index => {
+    sampled += 1;
+    if (data[index * 4 + 3] < 245) transparent += 1;
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    sample(x);
+    if (height > 1) sample((height - 1) * width + x);
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    sample(y * width);
+    if (width > 1) sample(y * width + width - 1);
+  }
+
+  return sampled > 0 && transparent / sampled >= 0.18;
+}
+
+function maskStats(mask, width, height) {
+  let area = 0;
+  let minX = width;
+  let maxX = -1;
+  let minY = height;
+  let maxY = -1;
+  let touches = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (!mask[index]) continue;
+      area += 1;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  if (minX <= 0) touches += 1;
+  if (maxX >= width - 1) touches += 1;
+  if (minY <= 0) touches += 1;
+  if (maxY >= height - 1) touches += 1;
+
+  return { area, minX, maxX, minY, maxY, touches, ratio:area / Math.max(1, width * height) };
+}
+
 function buildSubjectProtection(data, width, height) {
   const rowMin = new Int32Array(height);
   const rowMax = new Int32Array(height);
@@ -315,8 +364,14 @@ async function buildProductOutlineImage(src) {
   const mainMask = buildLargestConnectedSubjectMask(data, width, height);
   if (!mainMask) return '';
 
+  // Safety guard: a mask that occupies nearly the entire canvas or touches
+  // three/four edges is the old image background, not the agenda itself.
+  // In that case we draw no outline instead of producing a white slab.
+  const stats = maskStats(mainMask, width, height);
+  if (stats.ratio > .82 || stats.touches >= 3) return '';
+
   const solidMask = fillMaskInteriorHoles(mainMask, width, height);
-  const radius = clamp(Math.round(Math.max(width, height) * .006), 2, 10);
+  const radius = clamp(Math.round(Math.max(width, height) * .003), 2, 6);
   const expandedMask = dilateMask(solidMask, width, height, radius);
 
   const outlineData = context.createImageData(width, height);
@@ -428,9 +483,10 @@ async function buildTransparentProductImage(src) {
   const { data } = imageData;
   const total = width * height;
 
-  // A PNG that already contains transparency is already a prepared cutout.
-  // Running the white-background flood fill again can damage pale cover art.
-  if (hasExistingTransparency(data, total)) return src;
+  // Only skip processing when transparency is actually present on the outer
+  // border. A tiny transparent logo/mark inside the image is not a prepared
+  // product cutout and must not disable background cleanup.
+  if (hasExistingTransparency(data, total) && hasUsableTransparentBorder(data, width, height)) return src;
 
   const isProtectedSubjectPixel = buildSubjectProtection(data, width, height);
   if (!isProtectedSubjectPixel) return src;
