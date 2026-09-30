@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 const worker = process.env.WORKER_NAME;
 const token = process.env.CLOUDFLARE_API_TOKEN;
@@ -49,7 +51,6 @@ function dateOf(item) {
   ).getTime() || 0;
 }
 
-const ageCutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
 const keepDeploymentCount = 10;
 const keepVersionCount = 20;
 
@@ -64,7 +65,7 @@ deployments.forEach((d, i) => {
 
 const deploymentDeleteCandidates = deployments
   .slice(keepDeploymentCount)
-  .filter(d => dateOf(d) > 0 && dateOf(d) < ageCutoff && d.id);
+  .filter(d => d.id);
 
 let deletedDeployments = 0;
 for (const deployment of deploymentDeleteCandidates) {
@@ -91,10 +92,12 @@ for (const deployment of deployments) {
   }
 }
 
-const versionsResponse = await cf(
-  `/workers/scripts/${encodeURIComponent(worker)}/versions?per_page=100`
+const versionsRaw = execFileSync(
+  'npx',
+  ['wrangler', 'versions', 'list', '--name', worker, '--json'],
+  { encoding: 'utf8', env: process.env, stdio: ['ignore', 'pipe', 'pipe'] }
 );
-const versions = asArray(versionsResponse.result).sort((a, b) => dateOf(b) - dateOf(a));
+const versions = JSON.parse(versionsRaw).sort((a, b) => dateOf(b) - dateOf(a));
 
 console.log(`Versions encontradas: ${versions.length}`);
 console.log(`Versions referenciadas por deployments: ${referencedVersions.size}`);
@@ -103,11 +106,10 @@ const versionDeleteCandidates = versions
   .slice(keepVersionCount)
   .filter(v => {
     const id = String(v.id || '');
-    return id &&
-      !referencedVersions.has(id) &&
-      dateOf(v) > 0 &&
-      dateOf(v) < ageCutoff;
+    return id && !referencedVersions.has(id);
   });
+
+console.log(`Versions candidatas à remoção: ${versionDeleteCandidates.length}`);
 
 let deletedVersions = 0;
 for (const version of versionDeleteCandidates) {
