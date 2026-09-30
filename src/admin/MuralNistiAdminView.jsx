@@ -122,7 +122,8 @@ function PostEditor({ item, collections, onClose, onSaved }) {
     image_url:sourceItem.product_image_url,
     wireo:sourceItem.product_wireo,
     tassel:sourceItem.product_tassel,
-    elastico:sourceItem.product_elastico
+    elastico:sourceItem.product_elastico,
+    collection_name:sourceItem.product_collection_name
   } : null);
   const [image, setImage] = useState(null);
   const [imageUrl, setImageUrl] = useState(sourceItem?.image_key ? `/api/admin/mural/posts/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}` : '');
