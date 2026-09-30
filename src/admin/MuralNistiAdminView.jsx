@@ -103,7 +103,7 @@ function TransparentMuralProductImage({ src, alt = '', className = '', draggable
     <img
       src={displaySrc}
       alt={alt}
-      className={className}
+      className={`${className} mural-product-transparent`.trim()}
       draggable={draggable}
       aria-hidden={ariaHidden ? 'true' : undefined}
     />
