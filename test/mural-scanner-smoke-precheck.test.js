@@ -28,12 +28,11 @@ test('returning to embedded Scanner attempts to start camera again after remount
   assert.match(scanner,/startCamera\(\)/);
 });
 
-test('Mural navigation stays hidden while operator and QA access are disabled',()=>{
+test('Mural has a direct path back to Scanner and QA access stays server-gated',()=>{
   assert.match(publicMain,/onOpenScanner=\{\(\) => setPublicView\('scanner'\)\}/);
-  assert.ok(publicMain.includes("onOpenMural={muralAccess ? () => setPublicView('mural') : undefined}"));
+  assert.match(publicMain,/onOpenMural=\{\(\) => setPublicView\('mural'\)\}/);
   assert.match(router,/const MURAL_PUBLIC_RELEASED = false/);
-  assert.match(router,/const MURAL_PRIVATE_QA_ENABLED = false/);
-  assert.match(router,/!MURAL_PUBLIC_RELEASED && !qaAllowed/);
+  assert.match(router,/!MURAL_PUBLIC_RELEASED && !qaAuthorized/);
 });
 
 test('Mural smoke content supports reading product collection and notice details',()=>{
