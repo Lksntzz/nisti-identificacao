@@ -7,7 +7,7 @@ const mural = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url)
 const css = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
 
 test('collection feed loads product previews in one batched query', () => {
-  assert.ok(router.includes("page.filter(row => row.kind === 'collection' && row.collection_id)"));
+  assert.ok(router.includes("filter(row => row.kind === 'collection' && row.collection_id)"));
   assert.ok(router.includes('FROM mural_collection_products mcp'));
   assert.ok(router.includes('WHERE mcp.collection_id IN (${placeholders})'));
   assert.ok(router.includes('current.items.length < 3'));
