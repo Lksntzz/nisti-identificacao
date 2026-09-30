@@ -285,3 +285,113 @@
   .mural-detail-body.no-media{padding:66px 18px 22px}
   .mural-detail-body h2{font-size:24px}
 }
+
+
+/* Collection-detail polish from physical iPhone QA. */
+.mural-detail-close{
+  z-index:3;
+  top:14px;
+  right:14px;
+  width:52px;
+  height:52px;
+  min-width:52px;
+  min-height:52px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:rgba(48,56,79,.96);
+  font-size:0;
+  line-height:1;
+  -webkit-appearance:none;
+  appearance:none;
+}
+.mural-detail-close>span{
+  display:block;
+  width:1em;
+  height:1em;
+  color:#fff;
+  font-size:34px;
+  font-weight:400;
+  line-height:.88;
+  text-align:center;
+  transform:translateY(-1px);
+}
+.mural-collection-detail .mural-detail-image{
+  height:min(36dvh,280px);
+  object-fit:contain;
+  background:#fff;
+}
+.mural-collection-detail .mural-detail-body{
+  padding:18px 20px 24px;
+}
+.mural-collection-detail .mural-detail-body h2{
+  margin-top:10px;
+  font-size:24px;
+  line-height:1.06;
+  overflow-wrap:anywhere;
+}
+.mural-collection-detail .mural-detail-copy{
+  margin:12px 0;
+}
+.mural-collection-grid{
+  gap:12px;
+  margin-top:12px;
+}
+.mural-collection-product{
+  border-radius:16px;
+  box-shadow:0 4px 14px rgba(15,23,42,.04);
+}
+.mural-collection-product img,
+.mural-collection-product .mural-image-placeholder{
+  height:136px;
+  min-height:136px;
+  object-fit:contain;
+  background:#f8fafc;
+}
+.mural-collection-product>div:not(.mural-image-placeholder){
+  gap:4px;
+  padding:9px 10px 10px;
+}
+.mural-collection-product strong{
+  display:-webkit-box;
+  overflow:hidden;
+  font-size:12px;
+  line-height:1.2;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:1;
+}
+.mural-collection-product span{
+  display:-webkit-box;
+  overflow:hidden;
+  font-size:9.5px;
+  line-height:1.25;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
+@media (max-width:390px){
+  .mural-detail-close{
+    top:12px;
+    right:12px;
+    width:50px;
+    height:50px;
+    min-width:50px;
+    min-height:50px;
+  }
+  .mural-detail-close>span{font-size:32px}
+  .mural-collection-detail .mural-detail-image{
+    height:min(34dvh,260px);
+  }
+  .mural-collection-detail .mural-detail-body{
+    padding:16px 18px 22px;
+  }
+  .mural-collection-detail .mural-detail-body h2{
+    font-size:22px;
+  }
+  .mural-collection-grid{gap:10px}
+  .mural-collection-product img,
+  .mural-collection-product .mural-image-placeholder{
+    height:124px;
+    min-height:124px;
+  }
+}
