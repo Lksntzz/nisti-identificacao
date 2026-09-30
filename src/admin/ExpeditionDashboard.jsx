@@ -1,8 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { formatSaoPauloDateTime } from '../date-time.js';
 
 function formatScanDate(value) {
   return formatSaoPauloDateTime(value);
+}
+
+function AnimatedNumber({ value, suffix = '', duration = 520 }) {
+  const numericValue = Number(value || 0);
+  const [displayValue, setDisplayValue] = useState(0);
+  const previousValue = useRef(0);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const startValue = previousValue.current;
+    const delta = numericValue - startValue;
+
+    if (reduceMotion || duration <= 0 || delta === 0) {
+      previousValue.current = numericValue;
+      setDisplayValue(numericValue);
+      return undefined;
+    }
+
+    let frameId = 0;
+    const startedAt = performance.now();
+
+    const tick = now => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const nextValue = Math.round(startValue + (delta * eased));
+      setDisplayValue(nextValue);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(tick);
+      } else {
+        previousValue.current = numericValue;
+      }
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+  }, [duration, numericValue]);
+
+  return <>{displayValue.toLocaleString('pt-BR')}{suffix}</>;
 }
 
 const SCAN_META = {
@@ -171,8 +210,8 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
           </div>
           <div className="kpi-body">
             <span className="kpi-title">Total de Produtos</span>
-            <strong className="kpi-num">{productsCount.toLocaleString('pt-BR')}</strong>
-            <span className="kpi-tag green">{coverageRate}% com EAN cadastrado</span>
+            <strong className="kpi-num"><AnimatedNumber value={productsCount} /></strong>
+            <span className="kpi-tag green"><AnimatedNumber value={coverageRate} suffix="%" /> com EAN cadastrado</span>
           </div>
         </div>
 
@@ -185,7 +224,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
           </div>
           <div className="kpi-body">
             <span className="kpi-title">EANs Ativos</span>
-            <strong className="kpi-num">{activeGtins.toLocaleString('pt-BR')}</strong>
+            <strong className="kpi-num"><AnimatedNumber value={activeGtins} /></strong>
             <span className="kpi-tag green">Vinculados ao catálogo</span>
           </div>
         </div>
@@ -199,8 +238,8 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
           </div>
           <div className="kpi-body">
             <span className="kpi-title">Leituras Hoje</span>
-            <strong className="kpi-num">{todayTotal.toLocaleString('pt-BR')}</strong>
-            <span className="kpi-tag green">{successRate}% de acerto</span>
+            <strong className="kpi-num"><AnimatedNumber value={todayTotal} /></strong>
+            <span className="kpi-tag green"><AnimatedNumber value={successRate} suffix="%" /> de acerto</span>
           </div>
         </div>
 
@@ -220,7 +259,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
             </div>
             <div className="kpi-body">
               <span className="kpi-title">EAN não Cadastrados</span>
-              <strong className="kpi-num">{todayNotFound.toLocaleString('pt-BR')}</strong>
+              <strong className="kpi-num"><AnimatedNumber value={todayNotFound} /></strong>
               <span className="kpi-tag orange">Clique para ver as bipagens</span>
             </div>
           </button>
@@ -235,7 +274,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
               <strong style={{ fontSize: '14px', color: '#0f172a', fontWeight: 800 }}>Produtividade da Expedição Hoje</strong>
             </div>
             <span className="status-pill active" style={{ fontSize: '11px', fontWeight: 800 }}>
-              {todayTotal} itens bipados
+              <AnimatedNumber value={todayTotal} /> itens bipados
             </span>
           </div>
 
@@ -243,16 +282,17 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                 <span style={{ color: '#475569', fontWeight: 600 }}>Taxa de Sucesso na Bipagem</span>
-                <strong style={{ color: successRate >= 95 ? '#16a34a' : '#d97706' }}>{successRate}%</strong>
+                <strong style={{ color: successRate >= 95 ? '#16a34a' : '#d97706' }}><AnimatedNumber value={successRate} suffix="%" /></strong>
               </div>
               <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
-                <div style={{
-                  width: `${todayTotal > 0 ? Math.min(100, Math.max(0, successRate)) : 100}%`,
-                  height: '100%',
-                  background: successRate >= 95 ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #f59e0b, #d97706)',
-                  borderRadius: '999px',
-                  transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
-                }} />
+                <div
+                  key={`success-${successRate}-${todayTotal}`}
+                  className="nisti-progress-fill"
+                  style={{
+                    width: `${todayTotal > 0 ? Math.min(100, Math.max(0, successRate)) : 100}%`,
+                    background: successRate >= 95 ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #f59e0b, #d97706)'
+                  }}
+                />
               </div>
             </div>
 
@@ -264,7 +304,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
                 onClick={() => openScanDetails('identified')}
               >
                 <span>Identificados</span>
-                <strong>{todayIdentified}</strong>
+                <strong><AnimatedNumber value={todayIdentified} /></strong>
                 <small>{todayIdentified > 0 ? 'Ver bipagens ›' : 'Sem leituras'}</small>
               </button>
               <button
@@ -274,7 +314,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
                 onClick={() => openScanDetails('not_found')}
               >
                 <span>Não Cadastrados</span>
-                <strong>{todayNotFound}</strong>
+                <strong><AnimatedNumber value={todayNotFound} /></strong>
                 <small>{todayNotFound > 0 ? 'Ver quais foram ›' : 'Nenhum'}</small>
               </button>
               <button
@@ -284,7 +324,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
                 onClick={() => openScanDetails('system_error')}
               >
                 <span>Erros Técnicos</span>
-                <strong>{todayErrors}</strong>
+                <strong><AnimatedNumber value={todayErrors} /></strong>
                 <small>{todayErrors > 0 ? 'Ver erros ›' : 'Nenhum'}</small>
               </button>
             </div>
@@ -298,7 +338,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
               <strong style={{ fontSize: '14px', color: '#0f172a', fontWeight: 800 }}>Cobertura EAN do Catálogo</strong>
             </div>
             <span className="status-pill" style={{ fontSize: '11px', fontWeight: 800, background: '#eff6ff', color: '#1d4ed8' }}>
-              {coverageRate}% coberto
+              <AnimatedNumber value={coverageRate} suffix="%" /> coberto
             </span>
           </div>
 
@@ -306,16 +346,17 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                 <span style={{ color: '#475569', fontWeight: 600 }}>Produtos com Código de Barras</span>
-                <strong style={{ color: '#2563eb' }}>{productsWithGtin} de {productsCount}</strong>
+                <strong style={{ color: '#2563eb' }}><AnimatedNumber value={productsWithGtin} /> de <AnimatedNumber value={productsCount} /></strong>
               </div>
               <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
-                <div style={{
-                  width: `${Math.min(100, Math.max(0, coverageRate))}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #3b82f6, #1d4ed8)',
-                  borderRadius: '999px',
-                  transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
-                }} />
+                <div
+                  key={`coverage-${coverageRate}-${productsCount}`}
+                  className="nisti-progress-fill"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, coverageRate))}%`,
+                    background: 'linear-gradient(90deg, #3b82f6, #1d4ed8)'
+                  }}
+                />
               </div>
             </div>
 
