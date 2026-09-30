@@ -241,7 +241,7 @@ function CollectionLaunchHero({ item, onOpen }) {
   const previews = item.collection?.preview_products || [];
   const hasBanner = Boolean(item.image_url);
   const title = formatCollectionTitle(item.collection) || item.title;
-  const supporting = item.subtitle || item.body || 'Uma nova coleção chegou ao Mural NISTI.';
+  const supporting = item.collection?.description || item.subtitle || item.body || 'Uma nova coleção chegou ao Mural NISTI.';
 
   return (
     <button
@@ -308,7 +308,7 @@ function Hero({ item, onOpen }) {
 function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 }) {
   const previews = item.collection?.preview_products || [];
   const title = formatCollectionTitle(item.collection) || item.title;
-  const supporting = item.subtitle || item.body || 'Conheça os produtos desta nova coleção.';
+  const supporting = item.collection?.description || item.subtitle || item.body || 'Conheça os produtos desta nova coleção.';
   const tone = Number(item.collection?.id || item.id || index) % 4;
   const revealStyle = { '--mural-card-delay': `${Math.min(index, 8) * 45}ms` };
 
