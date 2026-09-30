@@ -285,7 +285,7 @@ export function ExpeditionDashboard({ gtinDashboard, productsCount, onNavigate, 
                 <strong style={{ color: successRate >= 95 ? '#16a34a' : '#d97706' }}><AnimatedNumber value={successRate} suffix="%" /></strong>
               </div>
               <div
-                className="nisti-progress-track"
+                className="nisti-progress-track is-success-rate"
                 data-label={`${successRate}% de sucesso na bipagem`}
                 aria-label={`Taxa de sucesso na bipagem: ${successRate}%`}
               >
