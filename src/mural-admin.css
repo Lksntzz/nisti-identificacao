@@ -1870,6 +1870,18 @@
   text-align:left;
 }
 .mural-admin-action-menu button:hover{background:#f1f5f9;color:#172033}
+.mural-admin-action-menu-separator{
+  height:1px;
+  margin:4px 3px;
+  background:#e2e8f0;
+}
+.mural-admin-action-menu button.danger{
+  color:#dc2626;
+}
+.mural-admin-action-menu button.danger:hover{
+  background:#fef2f2;
+  color:#b91c1c;
+}
 .mural-admin-table-footer{
   min-height:56px;
   padding:10px 14px;
