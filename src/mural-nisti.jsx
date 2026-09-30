@@ -201,25 +201,46 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
   );
 }
 
+function useAnimatedDialogClose(onClose, duration = 180) {
+  const [closing, setClosing] = useState(false);
+  const timerRef = useRef(0);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const requestClose = () => {
+    if (closing) return;
+    const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    if (reduced) {
+      onClose();
+      return;
+    }
+    setClosing(true);
+    timerRef.current = window.setTimeout(onClose, duration);
+  };
+
+  return { closing, requestClose };
+}
+
 function DetailDialog({ item, onClose, onOpenCollection }) {
   const closeRef = useRef(null);
   const hasMedia = Boolean(item?.image_url);
+  const { closing, requestClose } = useAnimatedDialogClose(onClose);
 
   useEffect(() => {
     closeRef.current?.focus();
     const onKey = event => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') requestClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [requestClose]);
 
   const immersiveProduct = item.kind === 'product';
 
   return (
-    <div className="mural-modal-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}>
+    <div className={`mural-modal-backdrop${closing ? ' is-closing' : ''}`} onMouseDown={event => event.target === event.currentTarget && requestClose()}>
       <section className={`mural-detail${immersiveProduct ? ' mural-detail-immersive' : hasMedia ? '' : ' no-media'}`} role="dialog" aria-modal="true" aria-labelledby="mural-detail-title">
-        <button ref={closeRef} type="button" className="mural-detail-close" onClick={onClose} aria-label="Fechar detalhe"><span aria-hidden="true">×</span></button>
+        <button ref={closeRef} type="button" className="mural-detail-close" onClick={requestClose} disabled={closing} aria-label="Fechar detalhe"><span aria-hidden="true">×</span></button>
         {immersiveProduct ? <MuralProductExperience item={item} /> : (
           <>
             {hasMedia && <MuralImage item={item} eager className={`mural-detail-image mural-detail-image-${item.kind}`} />}
@@ -252,6 +273,7 @@ function CollectionDialog({ slug, onClose }) {
   const closeRef = useRef(null);
   const detailRef = useRef(null);
   const scrollFrame = useRef(0);
+  const { closing, requestClose } = useAnimatedDialogClose(onClose);
 
   useEffect(() => {
     let active = true;
@@ -263,10 +285,10 @@ function CollectionDialog({ slug, onClose }) {
 
   useEffect(() => {
     closeRef.current?.focus();
-    const onKey = event => event.key === 'Escape' && onClose();
+    const onKey = event => event.key === 'Escape' && requestClose();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [requestClose]);
 
   useEffect(() => {
     const root = detailRef.current;
@@ -303,9 +325,9 @@ function CollectionDialog({ slug, onClose }) {
 
   const collection = state.data;
   return (
-    <div className="mural-modal-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}>
+    <div className={`mural-modal-backdrop${closing ? ' is-closing' : ''}`} onMouseDown={event => event.target === event.currentTarget && requestClose()}>
       <section ref={detailRef} onScroll={handleCollectionScroll} className="mural-detail mural-collection-detail" role="dialog" aria-modal="true" aria-labelledby="mural-collection-title">
-        <button ref={closeRef} type="button" className="mural-detail-close" onClick={onClose} aria-label="Fechar coleção"><span aria-hidden="true">×</span></button>
+        <button ref={closeRef} type="button" className="mural-detail-close" onClick={requestClose} disabled={closing} aria-label="Fechar coleção"><span aria-hidden="true">×</span></button>
         {state.loading && <div className="mural-collection-loading">Carregando coleção…</div>}
         {state.error && <div className="mural-collection-error">{state.error}</div>}
         {collection && (
