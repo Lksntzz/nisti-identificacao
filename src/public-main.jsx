@@ -1619,7 +1619,7 @@ function PublicIdentificationApp() {
         muralUnread={muralUnread}
         activeView={publicView}
         onOpenScanner={() => setPublicView('scanner')}
-        onOpenMural={() => setPublicView('mural')}
+        onOpenMural={muralAccess ? () => setPublicView('mural') : undefined}
       />
 
       {publicView === 'scanner' ? (
