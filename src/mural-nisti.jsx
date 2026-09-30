@@ -480,9 +480,9 @@ function CollectionRevealIntro({ products, title, onComplete }) {
   const [leaving, setLeaving] = useState(false);
   const secondaryCount = Math.max(0, products.length - 1);
   const lastCoverFinish = secondaryCount
-    ? 700 + (secondaryCount - 1) * 720 + 1100
-    : 2100;
-  const mainFloatCycles = Math.max(1, Math.ceil((lastCoverFinish + 650 - 1020) / 1800));
+    ? 1600 + (secondaryCount - 1) * 1050 + 1500
+    : 2800;
+  const mainFloatCycles = Math.max(1, Math.ceil((lastCoverFinish + 1200 - 1250) / 2200));
 
   useEffect(() => {
     const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
@@ -495,8 +495,8 @@ function CollectionRevealIntro({ products, title, onComplete }) {
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => setReady(true));
     });
-    const leaveTimer = window.setTimeout(() => setLeaving(true), lastCoverFinish + 650);
-    const completeTimer = window.setTimeout(onComplete, lastCoverFinish + 990);
+    const leaveTimer = window.setTimeout(() => setLeaving(true), lastCoverFinish + 1200);
+    const completeTimer = window.setTimeout(onComplete, lastCoverFinish + 1620);
 
     return () => {
       cancelAnimationFrame(firstFrame);
@@ -532,12 +532,12 @@ function CollectionRevealIntro({ products, title, onComplete }) {
             key={product.id}
             className={`mural-collection-reveal-product is-secondary from-${position.side}`}
             style={{
-              '--reveal-product-delay': `${700 + secondaryIndex * 720}ms`,
+              '--reveal-product-delay': `${1600 + secondaryIndex * 1050}ms`,
               '--reveal-final-x': position.x,
               '--reveal-final-y': position.y,
               '--reveal-final-rotation': position.rotation,
               '--reveal-final-scale': position.scale,
-              zIndex: 10 + index
+              '--reveal-final-layer': String(10 + index)
             }}
           >
             <CollectionProductImage product={product} eager />

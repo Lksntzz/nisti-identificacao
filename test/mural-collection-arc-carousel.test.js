@@ -23,22 +23,26 @@ test('intro shows only transparent product imagery over a white arc and dark scr
   assert.equal(mural.includes('mural-collection-arc-caption'), false);
 });
 
-test('main cover floats while every other cover enters alternately and stays in front', () => {
+test('arc and main cover rise first while every other cover alternates from behind to front', () => {
   assert.ok(css.includes('transform:translate3d(-50%,62vh,0) rotate(0) scale(.62)'));
   assert.ok(css.includes('@keyframes mural-collection-main-float'));
   assert.ok(css.includes('@keyframes mural-collection-cover-arrive'));
   assert.ok(mural.includes('const mainFloatCycles = Math.max(1'));
   assert.ok(css.includes('animation-iteration-count:var(--main-float-cycles,1)'));
   assert.ok(mural.includes("side: side < 0 ? 'left' : 'right'"));
-  assert.ok(mural.includes("'--reveal-product-delay': `${700 + secondaryIndex * 720}ms`"));
-  assert.ok(mural.includes('zIndex: 10 + index'));
+  assert.ok(mural.includes("'--reveal-product-delay': `${1600 + secondaryIndex * 1050}ms`"));
+  assert.ok(mural.includes("'--reveal-final-layer': String(10 + index)"));
+  assert.ok(css.includes('z-index:3'));
+  assert.ok(css.includes('z-index:var(--reveal-final-layer)'));
+  assert.ok(css.includes('var(--reveal-peek-x)'));
   assert.equal(mural.includes('products.slice(0, 5)'), false);
 });
 
-test('intro duration follows the collection size and only then mounts the card', () => {
-  assert.ok(mural.includes('700 + (secondaryCount - 1) * 720 + 1100'));
-  assert.ok(mural.includes('lastCoverFinish + 650'));
-  assert.ok(mural.includes('lastCoverFinish + 990'));
+test('slower intro holds the complete fan before mounting the card', () => {
+  assert.ok(mural.includes('1600 + (secondaryCount - 1) * 1050 + 1500'));
+  assert.ok(mural.includes('lastCoverFinish + 1200'));
+  assert.ok(mural.includes('lastCoverFinish + 1620'));
+  assert.ok(css.includes('animation:mural-collection-cover-arrive 1500ms'));
   assert.ok(mural.includes('{!showIntro && ('));
   assert.ok(css.includes('@media (prefers-reduced-motion:reduce)'));
 });
