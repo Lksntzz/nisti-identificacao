@@ -2404,38 +2404,20 @@
 }
 .mural-title-accent{
   position:relative;
-  flex:0 0 82px;
+  flex:0 0 78px;
   height:62px;
   margin-bottom:2px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
-.mural-title-drop{
-  position:absolute;
-  bottom:3px;
-  overflow:visible;
-  filter:drop-shadow(0 5px 8px rgba(58,72,108,.08));
-  transform-origin:50% 88%;
-}
-.mural-title-drop path{fill:currentColor}
-.mural-title-drop.drop-1{
-  left:1px;
-  width:25px;
-  height:47px;
-  color:var(--mural-cyan);
-  transform:rotate(-34deg);
-}
-.mural-title-drop.drop-2{
-  left:28px;
-  width:24px;
-  height:55px;
-  color:var(--mural-pink);
-  transform:rotate(5deg);
-}
-.mural-title-drop.drop-3{
-  left:57px;
-  width:22px;
-  height:43px;
-  color:var(--mural-yellow);
-  transform:rotate(31deg);
+.mural-title-brand-mark{
+  display:block;
+  width:68px;
+  height:58px;
+  object-fit:contain;
+  object-position:center;
+  background:transparent;
 }
 
 .mural-hero-editorial{
@@ -2900,10 +2882,8 @@
   .mural-title-block{margin-inline:2px;gap:10px}
   .mural-title-block h1{font-size:38px}
   .mural-title-block p{font-size:13px}
-  .mural-title-accent{flex-basis:66px;height:52px}
-  .mural-title-drop.drop-1{left:1px;width:21px;height:39px}
-  .mural-title-drop.drop-2{left:23px;width:20px;height:46px}
-  .mural-title-drop.drop-3{left:47px;width:19px;height:36px}
+  .mural-title-accent{flex-basis:62px;height:52px}
+  .mural-title-brand-mark{width:55px;height:48px}
   .mural-hero-editorial{min-height:280px;border-radius:23px}
   .mural-hero-featured-badge{left:13px;top:13px}
   .mural-hero-new-badge{right:13px;top:13px}
