@@ -6625,3 +6625,239 @@ button.kpi-box:active {
     transform: none !important;
   }
 }
+
+
+/* =========================================================================
+   NISTI MOTION SYSTEM — ADMIN / PHASE 8
+   Data visualization, table navigation and live sync feedback
+   ========================================================================= */
+@keyframes nisti-table-forward {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes nisti-table-backward {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes nisti-progress-sweep {
+  0% { transform: translateX(-130%) skewX(-18deg); opacity: 0; }
+  24% { opacity: .8; }
+  100% { transform: translateX(420%) skewX(-18deg); opacity: 0; }
+}
+
+@keyframes nisti-sync-check-glow {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .28); }
+  70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+@keyframes nisti-sync-verifying {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 180% 50%; }
+}
+
+.nisti-table-swap {
+  animation: nisti-feedback-enter 180ms var(--nisti-motion-ease) both;
+}
+
+.nisti-table-swap.forward .nisti-table-row {
+  animation-name: nisti-table-forward !important;
+  animation-duration: 300ms !important;
+}
+
+.nisti-table-swap.backward .nisti-table-row {
+  animation-name: nisti-table-backward !important;
+  animation-duration: 300ms !important;
+}
+
+.nisti-table-swap .nisti-table-row:nth-child(1) { animation-delay: 0ms !important; }
+.nisti-table-swap .nisti-table-row:nth-child(2) { animation-delay: 22ms !important; }
+.nisti-table-swap .nisti-table-row:nth-child(3) { animation-delay: 44ms !important; }
+.nisti-table-swap .nisti-table-row:nth-child(4) { animation-delay: 66ms !important; }
+.nisti-table-swap .nisti-table-row:nth-child(5) { animation-delay: 88ms !important; }
+.nisti-table-swap .nisti-table-row:nth-child(n+6) { animation-delay: 105ms !important; }
+
+.table-thumb-img {
+  transition:
+    transform 240ms var(--nisti-motion-ease),
+    filter 240ms ease,
+    box-shadow 240ms ease;
+  transform-origin: center;
+}
+
+.nisti-table-row:hover .table-thumb-img {
+  transform: scale(1.09);
+  filter: saturate(1.04) contrast(1.02);
+  box-shadow: 0 7px 16px rgba(15, 23, 42, .12);
+}
+
+.pag-btn,
+.pag-num {
+  transition:
+    transform var(--nisti-motion-micro) var(--nisti-motion-ease),
+    background-color var(--nisti-motion-ui) ease,
+    border-color var(--nisti-motion-ui) ease,
+    color var(--nisti-motion-ui) ease,
+    box-shadow var(--nisti-motion-ui) ease;
+}
+
+.pag-btn:hover:not(:disabled),
+.pag-num:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.pag-btn:active:not(:disabled),
+.pag-num:active:not(:disabled) {
+  transform: scale(.94);
+}
+
+.pag-num.active {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(79, 70, 229, .14);
+}
+
+.nisti-progress-track {
+  position: relative;
+  height: 9px;
+  overflow: visible;
+  border-radius: 999px;
+  background: #f1f5f9;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .06);
+  cursor: help;
+}
+
+.nisti-progress-track .nisti-progress-fill {
+  position: relative;
+  overflow: hidden;
+  min-width: 2px;
+  height: 100%;
+}
+
+.nisti-progress-track .nisti-progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: -6px auto -6px -32%;
+  width: 22%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65), transparent);
+  animation: nisti-progress-sweep 1050ms var(--nisti-motion-ease) 260ms 1 both;
+  pointer-events: none;
+}
+
+.nisti-progress-track::after {
+  content: attr(data-label);
+  position: absolute;
+  z-index: 10;
+  left: 50%;
+  bottom: calc(100% + 9px);
+  padding: 6px 8px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, .95);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px) scale(.97);
+  transition:
+    opacity 150ms ease,
+    transform 180ms var(--nisti-motion-ease);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .18);
+}
+
+.nisti-progress-track:hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.expedition-metric-detail strong {
+  transition:
+    transform 180ms var(--nisti-motion-ease),
+    color 180ms ease;
+}
+
+.expedition-metric-detail:hover strong {
+  transform: translateY(-1px) scale(1.055);
+}
+
+.commerce-sync-badge.unknown {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(110deg, #f1f5f9 0%, #eff6ff 42%, #f1f5f9 84%);
+  background-size: 220% 100%;
+  animation:
+    nisti-sync-verifying 1.35s linear infinite,
+    nisti-feedback-enter var(--nisti-motion-ui) var(--nisti-motion-ease) both;
+}
+
+.commerce-sync-badge.unknown .commerce-sync-icon {
+  animation: nisti-spin 1s linear infinite;
+}
+
+.commerce-sync-badge.synced .commerce-sync-icon {
+  animation:
+    nisti-state-icon-pop 280ms var(--nisti-motion-ease) both,
+    nisti-sync-check-glow 620ms ease-out 1;
+}
+
+.btn-sync-repair.nisti-action-busy {
+  border-color: #93c5fd;
+  background:
+    linear-gradient(110deg, #fff 0%, #eff6ff 42%, #fff 84%);
+  background-size: 220% 100%;
+  animation: nisti-sync-verifying 1.15s linear infinite;
+  box-shadow: 0 7px 18px rgba(37, 99, 235, .10);
+}
+
+.product-sync-status-stack {
+  transition: transform 180ms var(--nisti-motion-ease);
+}
+
+.nisti-table-row:hover .product-sync-status-stack {
+  transform: translateX(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nisti-table-swap,
+  .nisti-table-swap.forward .nisti-table-row,
+  .nisti-table-swap.backward .nisti-table-row,
+  .nisti-progress-track .nisti-progress-fill::after,
+  .commerce-sync-badge.unknown,
+  .commerce-sync-badge.unknown .commerce-sync-icon,
+  .commerce-sync-badge.synced .commerce-sync-icon,
+  .btn-sync-repair.nisti-action-busy {
+    animation: none !important;
+  }
+
+  .nisti-table-row:hover .table-thumb-img,
+  .pag-btn:hover:not(:disabled),
+  .pag-num:hover:not(:disabled),
+  .pag-btn:active:not(:disabled),
+  .pag-num:active:not(:disabled),
+  .pag-num.active,
+  .expedition-metric-detail:hover strong,
+  .nisti-table-row:hover .product-sync-status-stack {
+    transform: none !important;
+  }
+
+  .nisti-progress-track::after {
+    transition: none !important;
+  }
+}
