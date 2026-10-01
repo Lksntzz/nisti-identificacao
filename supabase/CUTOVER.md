@@ -2,22 +2,22 @@
 
 ## Estado do candidato após o corte de dados
 
-O snapshot final de 22 tabelas foi reconciliado no Supabase. O candidato de aplicação mantém as escritas congeladas, ativa leituras Supabase e exige confirmação do Supabase para considerar uma mutação concluída:
+O snapshot final de 22 tabelas foi reconciliado no Supabase. A validação congelada foi concluída e o candidato de liberação usa Supabase como autoridade de leitura e escrita; o D1 permanece apenas como camada transitória de compatibilidade/emergência:
 
 ```text
 SUPABASE_URL=https://yioetdcbgorunwgwuawg.supabase.co
 SUPABASE_READS_ENABLED=1
 SUPABASE_READ_TIMEOUT_MS=5000
 SUPABASE_WRITE_MODE=primary
-SUPABASE_CUTOVER_WRITE_FREEZE=1
+SUPABASE_CUTOVER_WRITE_FREEZE=0
 ```
 
 `SUPABASE_SERVICE_ROLE_KEY` **não** pode ser versionada. Ela deve existir apenas como segredo server-side do Cloudflare Worker.
 
 ## Invariantes de segurança
 
-- Supabase é a autoridade de leitura do candidato e deve confirmar toda escrita em modo `primary`.
-- D1 ainda executa a mutação primeiro nesta fase transitória; por isso a trava só pode ser removida após smoke tests do candidato congelado.
+- Supabase é a autoridade de leitura e escrita do candidato em modo `primary`.
+- Os writers operacionais e administrativos ativos possuem caminho direto Supabase; SQL D1 remanescente é compatibilidade/fallback e não deve ser executado no caminho primário.
 - O navegador nunca recebe a service-role key nem acessa o PostgreSQL diretamente.
 - Não alterar os thresholds de reconhecimento durante o cutover.
 - Não importar `push_logs`; essa tabela permanece legado/diagnóstico fora da autoridade PostgreSQL.
@@ -37,7 +37,7 @@ Todos os itens abaixo são obrigatórios antes da janela final:
 6. `SUPABASE_SERVICE_ROLE_KEY` configurada no Worker;
 7. modo de escrita `primary` fail-closed concluído no código;
 8. ferramenta `scripts/build-supabase-final-replace.mjs` presente;
-9. `SUPABASE_CUTOVER_WRITE_FREEZE=1` durante toda a sincronização e validação final.
+9. `SUPABASE_CUTOVER_WRITE_FREEZE=1` durante toda a sincronização e validação final; somente o release validado altera a flag para `0`.
 
 ## Configurar a service-role key
 
@@ -178,17 +178,17 @@ Confirmar health checks e leituras do Scanner, cadastro, Catálogo e Mural. Toda
 
 ### 8. Liberar writes
 
-Somente após os smoke tests congelados, alterar apenas:
+Após os smoke tests congelados e o Production Gate verde, o release altera somente:
 
 ```toml
 SUPABASE_CUTOVER_WRITE_FREEZE = "0"
 ```
 
-Executar operações reais/controladas que cubram os writers relevantes e confirmar o estado correspondente no Supabase. O D1 permanece como camada transitória de compatibilidade até cada writer ser portado para escrita direta no Supabase.
+As operações reais passam a gravar diretamente no Supabase. Cadastro/edição de produto também dispara sincronização NISTI → Commerce, e exclusão remove o vínculo de sincronização correspondente. O D1 permanece conectado nesta versão apenas para compatibilidade e rollback.
 
-### 9. Escrita direta Supabase
+### 9. Estabilização após a escrita direta
 
-O modo `primary` desta etapa torna a confirmação Supabase obrigatória, mas ainda parte de uma mutação D1. A fase seguinte deve portar cada writer para RPCs Supabase transacionais e tornar qualquer atualização D1 um espelho opcional de rollback. Não remover o binding D1 antes dessa fase.
+Confirmar as primeiras operações reais no Supabase, acompanhar Saúde/Logs, sincronização do Catálogo e filas de imagem/referência. Não remover o binding D1 no mesmo deploy da liberação de escrita; a retirada física do D1 pertence a uma fase posterior, depois da janela de confiança.
 
 ## Semântica do fallback de leitura
 
