@@ -9,6 +9,22 @@ const treatedProductImageInflight = new Map();
 const MAX_CACHE_ENTRIES = 80;
 const MAX_RENDER_DIMENSION = 1800;
 
+// Structural mask normalized from the approved transparent planner outline
+// reference (1254×1254). The reference is used only as geometry: it protects
+// the physical body (cover + page block) independently of pixel color.
+const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
+  aspectMin: .42,
+  aspectMax: .95,
+  bodyPolygon: Object.freeze([
+    [.075, .058],
+    [.772, .017],
+    [.988, .028],
+    [.988, .977],
+    [.786, .985],
+    [.082, .953]
+  ])
+});
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -98,6 +114,66 @@ function isDeepProtectedSubjectPixel(isProtectedSubjectPixel, width, height, x, 
   return points.every(([px, py]) => (
     px >= 0 && px < width && py >= 0 && py < height && isProtectedSubjectPixel(px, py)
   ));
+}
+
+function subjectProtectionBounds(isProtectedSubjectPixel, width, height) {
+  let minX = width;
+  let maxX = -1;
+  let minY = height;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isProtectedSubjectPixel(x, y)) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return null;
+  const padX = Math.max(2, Math.round(width * .018));
+  const padY = Math.max(2, Math.round(height * .012));
+  return {
+    minX:clamp(minX - padX, 0, width - 1),
+    maxX:clamp(maxX + padX, 0, width - 1),
+    minY:clamp(minY - padY, 0, height - 1),
+    maxY:clamp(maxY + padY, 0, height - 1)
+  };
+}
+
+function pointInsidePolygon(x, y, polygon) {
+  let inside = false;
+  for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current++) {
+    const [cx, cy] = polygon[current];
+    const [px, py] = polygon[previous];
+    const intersects = ((cy > y) !== (py > y))
+      && (x < (px - cx) * (y - cy) / ((py - cy) || Number.EPSILON) + cx);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function buildPlannerStructureProtection(isProtectedSubjectPixel, width, height) {
+  const bounds = subjectProtectionBounds(isProtectedSubjectPixel, width, height);
+  if (!bounds) return null;
+
+  const boxWidth = bounds.maxX - bounds.minX + 1;
+  const boxHeight = bounds.maxY - bounds.minY + 1;
+  const aspect = boxWidth / Math.max(1, boxHeight);
+  if (aspect < PLANNER_STRUCTURE_REFERENCE.aspectMin || aspect > PLANNER_STRUCTURE_REFERENCE.aspectMax) {
+    return null;
+  }
+
+  const polygon = PLANNER_STRUCTURE_REFERENCE.bodyPolygon.map(([nx, ny]) => ([
+    bounds.minX + nx * boxWidth,
+    bounds.minY + ny * boxHeight
+  ]));
+
+  // The template protects only the physical body. Wire-o stays outside this
+  // polygon and is preserved by the local edge barrier/component mask.
+  return (x, y) => pointInsidePolygon(x + .5, y + .5, polygon);
 }
 
 function cross(origin, a, b) {
@@ -673,6 +749,7 @@ async function buildTransparentProductImage(src) {
   // product. The previous hull clipping was the source of the white slab.
   const subjectEvidence = buildSubjectProtection(data, width, height);
   if (!subjectEvidence) return src;
+  const plannerStructureProtection = buildPlannerStructureProtection(subjectEvidence, width, height);
 
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
@@ -688,6 +765,7 @@ async function buildTransparentProductImage(src) {
     // Never let a near-white background flood enter the geometric core of the
     // product. This is the decisive guard for white/off-white covers: color may
     // match the studio background, but the interior belongs to the product.
+    if (plannerStructureProtection?.(x, y)) return;
     if (isDeepProtectedSubjectPixel(subjectEvidence, width, height, x, y)) return;
     if (hasLocalProductEdge(data, width, height, index)) return;
     visited[index] = 1;
@@ -995,5 +1073,8 @@ export const __muralTransparentImageInternals = {
   hasLocalProductEdge,
   protectedSubjectCoverage,
   isDeepProtectedSubjectPixel,
+  subjectProtectionBounds,
+  buildPlannerStructureProtection,
+  pointInsidePolygon,
   buildTreatedProductImage
 };
