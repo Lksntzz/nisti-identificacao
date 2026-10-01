@@ -23,6 +23,7 @@ import {
   normalizePlatform
 } from './platform-scope.js';
 import {
+  d1EmergencyCircuitStatus,
   preferSupabaseRead,
   supabaseReserveProducts
 } from './supabase-read-store.js';
@@ -580,7 +581,19 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === '/api/health') {
-        return json({ ok: true, service: 'nisti-identificacao' });
+        const reserveCircuit = d1EmergencyCircuitStatus();
+        return json({
+          ok: true,
+          service: 'nisti-identificacao',
+          database: {
+            primary: 'd1',
+            reserve: 'supabase',
+            emergency_fallback_enabled: String(env?.SUPABASE_EMERGENCY_FALLBACK_ENABLED || '') === '1',
+            reserve_circuit_open: reserveCircuit.open,
+            reserve_circuit_open_until: reserveCircuit.open_until,
+            reserve_circuit_remaining_ms: reserveCircuit.remaining_ms
+          }
+        });
       }
 
       if (url.pathname === '/api/sku/parse' && request.method === 'POST') {
