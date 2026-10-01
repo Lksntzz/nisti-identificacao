@@ -178,10 +178,10 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
   }
 });
 
-test('production keeps Supabase reads enabled while write mirroring is active', () => {
+test('final snapshot keeps Supabase reads disabled while write mirroring is active', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
-  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
+  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
 });
 
 
