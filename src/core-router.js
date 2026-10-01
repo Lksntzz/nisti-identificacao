@@ -28,7 +28,10 @@ import {
   supabaseReserveProducts,
   supabaseProductImageContext,
   supabaseCoverReferences,
-  supabaseReferenceById
+  supabaseReferenceById,
+  supabaseReadsRequested,
+  supabaseProductTreatmentSummary,
+  supabaseProductTreatmentQueue
 } from './supabase-read-store.js';
 import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 import {
@@ -1066,16 +1069,56 @@ export default {
       }
 
       if (url.pathname === '/api/admin/product-image-treatment/summary' && request.method === 'GET') {
+        const useSupabase = supabaseReadsRequested(env);
+        const summary = useSupabase
+          ? await supabaseProductTreatmentSummary(env,PRODUCT_IMAGE_PROCESSOR_VERSION)
+          : await productTreatmentSummary(env);
         return json({
           ok:true,
+          read_source:useSupabase?'supabase':'d1',
           processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
-          summary:await productTreatmentSummary(env)
+          summary
         });
       }
 
       if (url.pathname === '/api/admin/product-image-treatment/pending' && request.method === 'GET') {
         const requestedLimit = Number(url.searchParams.get('limit') || 3);
-        const limit = Number.isInteger(requestedLimit) ? Math.max(1, Math.min(8, requestedLimit)) : 3;
+        const limit = Number.isInteger(requestedLimit) ? Math.max(1, Math.min(100, requestedLimit)) : 3;
+        const requestedOffset = Number(url.searchParams.get('offset') || 0);
+        const offset = Number.isInteger(requestedOffset) ? Math.max(0,requestedOffset) : 0;
+        const requestedStatus = String(url.searchParams.get('status') || 'work').trim().toLowerCase();
+        const status = ['work','pending','review','stale','failed'].includes(requestedStatus)
+          ? requestedStatus
+          : 'work';
+
+        if (supabaseReadsRequested(env)) {
+          const payload = await supabaseProductTreatmentQueue(
+            env,status,PRODUCT_IMAGE_PROCESSOR_VERSION,limit,offset
+          );
+          const items = Array.isArray(payload?.items) ? payload.items : [];
+          return json({
+            ok:true,
+            read_source:'supabase',
+            processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+            status:payload?.status || status,
+            total:Number(payload?.total || 0),
+            limit:Number(payload?.limit || limit),
+            offset:Number(payload?.offset || offset),
+            items:items.map(row=>({
+              id:Number(row.id),
+              sku:row.sku || null,
+              name:row.name || null,
+              tassel_code:row.tassel_code || 'X',
+              image_key:row.image_key,
+              status:row.status || row.queue_status || 'pending',
+              queue_status:row.queue_status || null,
+              force_outline:row.processor === 'system-precise-redo',
+              original_image_url:productOriginalImageUrl(row.id,row.image_key),
+              display_image_url:productDisplayImageUrl(row.id,row.image_key,row.processed_image_key)
+            }))
+          });
+        }
+
         const { results } = await env.DB.prepare(`
           SELECT
             p.id,p.sku,p.nome,p.image_key,p.tassel_code,
@@ -1106,7 +1149,12 @@ export default {
 
         return json({
           ok:true,
+          read_source:'d1',
           processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+          status:'work',
+          total:(results || []).length,
+          limit,
+          offset:0,
           items:(results || []).map(row=>({
             id:Number(row.id),
             sku:row.sku || null,
@@ -1114,6 +1162,7 @@ export default {
             tassel_code:row.tassel_code || 'X',
             image_key:row.image_key,
             status:row.status || 'pending',
+            queue_status:null,
             force_outline:row.processor === 'system-precise-redo',
             original_image_url:productOriginalImageUrl(row.id,row.image_key),
             display_image_url:productDisplayImageUrl(row.id,row.image_key,row.processed_image_key)
