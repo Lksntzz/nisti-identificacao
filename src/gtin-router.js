@@ -503,6 +503,22 @@ async function lookupProductByGtin(env, gtin) {
 }
 
 async function bindGtinToProduct(env, productId, gtin, source) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_bind_product_gtin_primary_v1', {
+      p_product_id: productId, p_gtin: gtin, p_source: source
+    }, 'vínculo de EAN');
+    const row = result.value || {};
+    if (row.status === 'product_not_found') {
+      const error = new Error('Produto não encontrado.');
+      error.code = 'product_not_found'; error.status = 404; throw error;
+    }
+    if (row.status === 'gtin_conflict') {
+      const error = new Error('Este GTIN já está vinculado a outro produto.');
+      error.code = 'gtin_conflict'; error.status = 409;
+      error.productId = Number(row.conflicting_product_id); throw error;
+    }
+    return row;
+  }
   const product = await productExists(env, productId);
   if (!product) {
     const error = new Error('Produto não encontrado.');
@@ -548,6 +564,12 @@ async function bindGtinToProduct(env, productId, gtin, source) {
 }
 
 async function deactivateProductGtin(env, productId, gtin) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_deactivate_product_gtin_primary_v1', {
+      p_product_id: productId, p_gtin: gtin
+    }, 'desativação de EAN');
+    return result.value === true;
+  }
   const existing = await env.DB.prepare(`
     SELECT id,product_id,active
     FROM product_gtins

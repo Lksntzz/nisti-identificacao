@@ -27,6 +27,7 @@ import {
   preferSupabaseRead,
   supabaseReserveProducts
 } from './supabase-read-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 import {
   syncNistiProductsToCommerce,
   syncNistiProductToCommerceSafe,
@@ -373,11 +374,29 @@ async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
   const link = clean(row?.link);
   const gtin = clean(row?.gtin);
 
+  const validGtin = gtin ? requireValidGtin13(gtin) : null;
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_upsert_product_primary_v1', {
+      p_row: {
+        sku: parsed.sku, miolo_code: parsed.mioloCode, capa_code: parsed.capaCode,
+        acabamento_code: parsed.acabamentoCode, wireo_code: parsed.wireoCode,
+        tassel_code: parsed.tasselCode, elastico_code: parsed.elasticoCode,
+        nome, variacao, platform, link, gtin: validGtin
+      }
+    }, 'cadastro de produto');
+    const saved = result.value || {};
+    if (saved.status === 'gtin_conflict') throw new Error(`EAN ${validGtin} já está vinculado a outro produto.`);
+    return {
+      id: Number(saved.id), sku: saved.sku, capa_code: saved.capa_code,
+      gtin: saved.gtin || null, created: saved.created === true,
+      has_image: saved.has_image === true,
+      commerce_sync: { status: 'SKIPPED', reason: 'supabase_primary_cutover' }
+    };
+  }
+
   let product = await env.DB.prepare(`SELECT id,image_key FROM products WHERE sku=?`)
     .bind(parsed.sku).first();
-  let validGtin = null;
-  if (gtin) {
-    validGtin = requireValidGtin13(gtin);
+  if (validGtin) {
     const conflict = await env.DB.prepare('SELECT product_id FROM product_gtins WHERE gtin=? AND active=1 LIMIT 1')
       .bind(validGtin).first();
     if (conflict && Number(conflict.product_id) !== Number(product?.id || 0)) {
@@ -752,7 +771,7 @@ export default {
           }
         }
         const syncedIds = imported.map(item => Number(item.id || 0)).filter(Boolean);
-        const commerceSync = syncedIds.length
+        const commerceSync = syncedIds.length && !supabasePrimaryWritesRequested(env)
           ? await syncNistiProductsToCommerce(env, syncedIds).catch(error => ({
               status: 'ERROR',
               error: error?.message || 'commerce_bulk_sync_failed'
@@ -773,6 +792,15 @@ export default {
       const productSingle = url.pathname.match(/^\/api\/products\/(\d+)$/);
       if (productSingle && request.method === 'DELETE') {
         const id = Number(productSingle[1]);
+        if (supabasePrimaryWritesRequested(env)) {
+          const result = await mirrorSupabaseRpc(env, 'nisti_delete_product_primary_v1', { p_id: id }, 'exclusão de produto');
+          const deleted = result.value || {};
+          if (deleted.status === 'not_found') return json({ error: 'Produto não encontrado' }, 404);
+          const keys = new Set([deleted.image_key, deleted.processed_image_key,
+            ...(Array.isArray(deleted.reference_image_keys) ? deleted.reference_image_keys : [])].filter(Boolean));
+          for (const key of keys) await env.PRODUCT_IMAGES.delete(key).catch(() => {});
+          return json({ ok: true, deleted_id: id });
+        }
         const product = await env.DB.prepare(`
           SELECT p.capa_code,p.image_key,mpi.processed_image_key
           FROM products p
@@ -806,6 +834,22 @@ export default {
       if (productSingle && (request.method === 'PUT' || request.method === 'PATCH')) {
         const id = Number(productSingle[1]);
         const body = await request.json();
+        if (supabasePrimaryWritesRequested(env)) {
+          const primaryRow = { ...body };
+          if (body.sku) {
+            const parsed = parseSku(body.sku);
+            Object.assign(primaryRow, {
+              sku: parsed.sku, miolo_code: parsed.mioloCode, capa_code: parsed.capaCode,
+              acabamento_code: parsed.acabamentoCode, wireo_code: parsed.wireoCode,
+              tassel_code: parsed.tasselCode, elastico_code: parsed.elasticoCode
+            });
+          }
+          const result = await mirrorSupabaseRpc(env, 'nisti_update_product_primary_v1', {
+            p_id: id, p_row: primaryRow
+          }, 'edição de produto');
+          if (result.value?.status === 'not_found') return json({ error: 'Produto não encontrado' }, 404);
+          return json({ ok: true, id, updated: true, commerce_sync: { status: 'SKIPPED', reason: 'supabase_primary_cutover' } });
+        }
         const existing = await env.DB.prepare('SELECT * FROM products WHERE id=?').bind(id).first();
         if (!existing) return json({ error: 'Produto não encontrado' }, 404);
 
