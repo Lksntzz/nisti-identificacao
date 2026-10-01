@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   SupabaseReadError,
+  d1EmergencyCircuitStatus,
   isD1DailyReadLimitError,
   preferSupabaseRead,
+  resetD1EmergencyCircuitForTests,
   supabaseRpc
 } from '../src/supabase-read-store.js';
 import {
@@ -181,6 +183,7 @@ test('critical fastpath and Vectorize authority are wired to preferred store', (
 
 
 test('emergency reserve fallback uses Supabase only for the D1 daily row-read limit', async () => {
+  resetD1EmergencyCircuitForTests();
   let supabaseCalls = 0;
   const env = {
     SUPABASE_READS_ENABLED: '0',
@@ -200,6 +203,7 @@ test('emergency reserve fallback uses Supabase only for the D1 daily row-read li
 });
 
 test('emergency reserve does not hide unrelated D1 failures', async () => {
+  resetD1EmergencyCircuitForTests();
   let supabaseCalls = 0;
   await assert.rejects(
     () => preferSupabaseRead(
@@ -217,6 +221,7 @@ test('emergency reserve does not hide unrelated D1 failures', async () => {
 });
 
 test('emergency reserve stays disabled unless explicitly enabled', async () => {
+  resetD1EmergencyCircuitForTests();
   let supabaseCalls = 0;
   await assert.rejects(
     () => preferSupabaseRead(
@@ -245,4 +250,63 @@ test('public product images use preferred store for treated and original keys', 
   const images = fs.readFileSync('src/public-image-router.js', 'utf8');
   assert.match(images, /imageKey\(env, 'mural-product'/);
   assert.match(images, /imageKey\(env, 'product'/);
+});
+
+
+test('D1 quota circuit breaker skips repeated D1 reads during cooldown', async () => {
+  resetD1EmergencyCircuitForTests();
+  let d1Calls = 0;
+  let supabaseCalls = 0;
+  const env = {
+    SUPABASE_READS_ENABLED: '0',
+    SUPABASE_EMERGENCY_FALLBACK_ENABLED: '1',
+    SUPABASE_EMERGENCY_CIRCUIT_MS: '60000'
+  };
+
+  const first = await preferSupabaseRead(
+    env,
+    async () => { supabaseCalls += 1; return 'reserve-1'; },
+    async () => {
+      d1Calls += 1;
+      throw new Error("D1 daily row read limit exceeded [code: 7500]");
+    },
+    'circuit:first'
+  );
+  const second = await preferSupabaseRead(
+    env,
+    async () => { supabaseCalls += 1; return 'reserve-2'; },
+    async () => { d1Calls += 1; return 'should-not-run'; },
+    'circuit:second'
+  );
+
+  assert.equal(first, 'reserve-1');
+  assert.equal(second, 'reserve-2');
+  assert.equal(d1Calls, 1);
+  assert.equal(supabaseCalls, 2);
+  assert.equal(d1EmergencyCircuitStatus().open, true);
+  resetD1EmergencyCircuitForTests();
+});
+
+test('critical reserve RPCs cover scanner, occurrence history and notifications', () => {
+  const migration = fs.readFileSync(
+    'supabase/migrations/20261001164500_supabase_emergency_critical_reads_v1.sql',
+    'utf8'
+  );
+  const gtinRouter = fs.readFileSync('src/gtin-router.js', 'utf8');
+  const occurrences = fs.readFileSync('src/occurrences-router.js', 'utf8');
+  const notifications = fs.readFileSync('src/cover-notifications.js', 'utf8');
+  const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
+
+  assert.match(migration, /nisti_reserve_gtin_lookup_v1/);
+  assert.match(migration, /nisti_reserve_occurrences_v1/);
+  assert.match(migration, /nisti_reserve_notifications_v1/);
+  assert.match(migration, /nisti_reserve_unread_notifications_v1/);
+  assert.doesNotMatch(migration, /SECURITY DEFINER/i);
+
+  assert.match(gtinRouter, /preferSupabaseRead/);
+  assert.match(gtinRouter, /supabaseReserveGtinLookup/);
+  assert.match(occurrences, /supabaseReserveOccurrences/);
+  assert.match(notifications, /supabaseReserveNotifications/);
+  assert.match(notifications, /supabaseReserveUnreadNotifications/);
+  assert.match(wrangler, /SUPABASE_EMERGENCY_CIRCUIT_MS = "900000"/);
 });
