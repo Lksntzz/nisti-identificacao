@@ -323,6 +323,8 @@ test('planner cutout uses the adaptive body template before any color flood-fill
   assert.ok(templateBranch >= 0);
   assert.ok(floodFill > templateBranch);
   assert.match(buildSource, /applyPlannerStructureMask\(data, width, height, plannerStructureProtection\)/);
-  assert.match(source, /outlinePolygon: Object\.freeze/);
-  assert.equal(source.includes('bodyPolygon: Object.freeze'), false);
+  assert.match(source, /bodyPolygon: Object\.freeze/);
+  assert.match(source, /buildPlannerReferenceBounds/);
+  assert.match(source, /buildPlannerDetailMask/);
+  assert.equal(source.includes('outlinePolygon: Object.freeze'), false);
 });
