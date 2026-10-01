@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { normalizePlatform } from './platform-scope.js';
 import { mirrorSupabaseRpc, supabasePrimaryWritesRequested, supabaseWriteMode } from './supabase-write-store.js';
+import { supabaseReadsRequested, supabaseRpc } from './supabase-read-store.js';
 
 const SHADOW_PURPOSE = 'geometric-shadow-evidence-v818';
 const SHADOW_VERSION = 'v8.18';
@@ -617,6 +618,14 @@ export function summarizeGeometricShadowEvidence(rows, counts = {}) {
 }
 
 async function summaryResponse(env) {
+  if (supabaseReadsRequested(env)) {
+    const payload=await supabaseRpc(env,'nisti_geometric_shadow_summary_rows_v1',{});
+    return summarizeGeometricShadowEvidence(
+      Array.isArray(payload?.confirmed) ? payload.confirmed : [],
+      payload?.counts || {}
+    );
+  }
+
   const [counts, confirmed] = await Promise.all([
     env.DB.prepare(`
       SELECT
@@ -644,7 +653,7 @@ export async function handleGeometricShadowEvidenceRequest(request, env) {
   const url = new URL(request.url);
 
   if (request.method === 'POST' && url.pathname === '/api/operator/geometric-shadow-evidence') {
-    if (!env?.DB) return json({ error: 'D1 não configurado.' }, 503);
+    if (!env?.DB && !supabasePrimaryWritesRequested(env)) return json({ error: 'Banco operacional não configurado.' }, 503);
     const body = await request.json().catch(() => null);
     const signed = await verifyShadowTicket(env, body?.shadow_ticket);
     if (!signed) return json({ error: 'Shadow evidence ticket inválido ou expirado.' }, 401);
@@ -676,8 +685,12 @@ export async function handleGeometricShadowEvidenceRequest(request, env) {
   }
 
   if (request.method === 'GET' && url.pathname === '/api/admin/geometric-shadow-evidence/summary') {
-    if (!env?.DB) return json({ error: 'D1 não configurado.' }, 503);
-    return json({ ok: true, summary: await summaryResponse(env) });
+    if (!env?.DB && !supabaseReadsRequested(env)) return json({ error: 'Banco operacional não configurado.' }, 503);
+    return json({
+      ok:true,
+      read_source:supabaseReadsRequested(env)?'supabase':'d1',
+      summary:await summaryResponse(env)
+    });
   }
 
   return null;
