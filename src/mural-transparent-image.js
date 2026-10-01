@@ -818,6 +818,21 @@ function dilateMask(mask, width, height, radius) {
   return current;
 }
 
+function buildExternalOutlineRing(mask, width, height, radius) {
+  const total = width * height;
+  const expandedMask = dilateMask(mask, width, height, radius);
+  const interiorFilledMask = fillMaskInteriorHoles(mask, width, height);
+  const outlineMask = new Uint8Array(total);
+
+  for (let index = 0; index < total; index += 1) {
+    // Only paint background that is reachable from outside the product.
+    // Closed gaps inside wire-o loops stay transparent instead of becoming
+    // the large white pills seen in the rejected treatments.
+    if (expandedMask[index] && !interiorFilledMask[index]) outlineMask[index] = 1;
+  }
+  return outlineMask;
+}
+
 async function buildProductOutlineImage(src) {
   const cutoutSrc = await transparentProductImageUrl(src);
   if (!cutoutSrc) return '';
@@ -855,16 +870,15 @@ async function buildProductOutlineImage(src) {
   const stats = maskStats(mainMask, width, height);
   if (stats.ratio > .82 || stats.touches >= 3) return '';
 
-  const solidMask = fillMaskInteriorHoles(mainMask, width, height);
   const radius = clamp(Math.round(Math.max(width, height) * .0028), 2, 5);
-  const expandedMask = dilateMask(solidMask, width, height, radius);
+  const outlineMask = buildExternalOutlineRing(mainMask, width, height, radius);
 
   const outlineData = context.createImageData(width, height);
   for (let index = 0; index < total; index += 1) {
     // The white layer is only the EXTERNAL RING. Never paint white beneath
     // the body of the agenda. This prevents internal transparency, artwork
     // gaps or a printed/logo mark from revealing white "cuts" inside it.
-    if (!expandedMask[index] || solidMask[index]) continue;
+    if (!outlineMask[index]) continue;
     const offset = index * 4;
     outlineData.data[offset] = 255;
     outlineData.data[offset + 1] = 255;
@@ -1245,12 +1259,11 @@ async function buildTreatedProductImage(src, options = {}) {
   }
   sourceContext.putImageData(imageData, 0, 0);
 
-  const solidMask = fillMaskInteriorHoles(productMask, width, height);
   // Normal and forced treatments now share the same clean 8 / 1024 ring. The
   // official mold limits the silhouette; it is not painted as a white plate.
   const outlineScale = 8 / 1024;
   const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 2, 16);
-  const expandedMask = dilateMask(solidMask, width, height, outlineRadius);
+  const outlineMask = buildExternalOutlineRing(productMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
 
   const outputCanvas = document.createElement('canvas');
@@ -1263,7 +1276,7 @@ async function buildTreatedProductImage(src, options = {}) {
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const sourceIndex = y * width + x;
-      if (!expandedMask[sourceIndex] || solidMask[sourceIndex]) continue;
+      if (!outlineMask[sourceIndex]) continue;
       const targetIndex = (y + padding) * outputCanvas.width + (x + padding);
       const offset = targetIndex * 4;
       outlineData.data[offset] = 255;
@@ -1466,6 +1479,7 @@ export const __muralTransparentImageInternals = {
   buildPlannerStructureProtection,
   buildPlannerDetailMask,
   applyPlannerStructureMask,
+  buildExternalOutlineRing,
   pointInsidePolygon,
   isPersistedProductImageUrl,
   persistedProductOriginalUrl,
