@@ -13,15 +13,63 @@ const MAX_RENDER_DIMENSION = 1800;
 // reference (1254×1254). The reference is used only as geometry: it protects
 // the physical body (cover + page block) independently of pixel color.
 const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
-  aspectMin: .42,
-  aspectMax: .95,
-  bodyPolygon: Object.freeze([
-    [.075, .058],
-    [.772, .017],
-    [.988, .028],
-    [.988, .977],
-    [.786, .985],
-    [.082, .953]
+  // The approved reference has a physical silhouette aspect of ~0.709.
+  // Keep the range deliberately tight so this exact mask is never applied to
+  // unrelated products.
+  aspectMin: .56,
+  aspectMax: .86,
+  outlinePolygon: Object.freeze([
+    [0.980392, 0.013889],
+    [0.800461, 0.000000],
+    [0.083045, 0.050654],
+    [0.064591, 0.058824],
+    [0.063437, 0.089869],
+    [0.002307, 0.099673],
+    [0.006920, 0.125000],
+    [0.063437, 0.129085],
+    [0.064591, 0.142974],
+    [0.006920, 0.150327],
+    [0.001153, 0.173203],
+    [0.063437, 0.181373],
+    [0.064591, 0.196078],
+    [0.006920, 0.203431],
+    [0.001153, 0.225490],
+    [0.065744, 0.236111],
+    [0.063437, 0.251634],
+    [0.013841, 0.254902],
+    [0.001153, 0.273693],
+    [0.017301, 0.286765],
+    [0.065744, 0.288399],
+    [0.064591, 0.303922],
+    [0.013841, 0.308007],
+    [0.002307, 0.325980],
+    [0.013841, 0.338235],
+    [0.065744, 0.341503],
+    [0.068051, 0.672386],
+    [0.010381, 0.679739],
+    [0.004614, 0.700980],
+    [0.068051, 0.712418],
+    [0.066897, 0.726307],
+    [0.011534, 0.732843],
+    [0.005767, 0.754085],
+    [0.068051, 0.764706],
+    [0.069204, 0.778595],
+    [0.012687, 0.785948],
+    [0.005767, 0.805556],
+    [0.069204, 0.819444],
+    [0.068051, 0.833333],
+    [0.016148, 0.838235],
+    [0.006920, 0.856209],
+    [0.019608, 0.868464],
+    [0.068051, 0.871732],
+    [0.069204, 0.886438],
+    [0.013841, 0.892974],
+    [0.008074, 0.915850],
+    [0.068051, 0.925654],
+    [0.076125, 0.959150],
+    [0.913495, 0.999183],
+    [0.937716, 0.983660],
+    [0.997693, 0.979575]
   ])
 });
 
@@ -166,14 +214,29 @@ function buildPlannerStructureProtection(isProtectedSubjectPixel, width, height)
     return null;
   }
 
-  const polygon = PLANNER_STRUCTURE_REFERENCE.bodyPolygon.map(([nx, ny]) => ([
+  const polygon = PLANNER_STRUCTURE_REFERENCE.outlinePolygon.map(([nx, ny]) => ([
     bounds.minX + nx * boxWidth,
     bounds.minY + ny * boxHeight
   ]));
 
-  // The template protects only the physical body. Wire-o stays outside this
-  // polygon and is preserved by the local edge barrier/component mask.
+  // This is the complete outer contour extracted from the approved reference,
+  // including the wire-o protrusions. It is intentionally a true silhouette,
+  // not a rectangular/core protection area.
   return (x, y) => pointInsidePolygon(x + .5, y + .5, polygon);
+}
+
+function applyPlannerStructureMask(data, width, height, isPlannerPixel) {
+  if (!isPlannerPixel) return 0;
+  let removed = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (isPlannerPixel(x, y)) continue;
+      const alphaOffset = (y * width + x) * 4 + 3;
+      if (data[alphaOffset] > 0) removed += 1;
+      data[alphaOffset] = 0;
+    }
+  }
+  return removed;
 }
 
 function cross(origin, a, b) {
@@ -751,6 +814,31 @@ async function buildTransparentProductImage(src) {
   if (!subjectEvidence) return src;
   const plannerStructureProtection = buildPlannerStructureProtection(subjectEvidence, width, height);
 
+  // For a planner matching the approved reference, do not guess by color at
+  // all. Preserve every pixel inside the exact physical silhouette and clear
+  // every pixel outside it. This keeps white covers intact and eliminates the
+  // white rectangular plate seen in the Mural.
+  if (plannerStructureProtection) {
+    applyPlannerStructureMask(data, width, height, plannerStructureProtection);
+    const plannerMask = buildProductComponentsMask(data, width, height);
+    if (!plannerMask) return src;
+    const plannerStats = maskStats(plannerMask, width, height);
+    if (
+      plannerStats.ratio < .12
+      || plannerStats.ratio > .78
+      || plannerStats.touches >= 3
+    ) return src;
+
+    context.putImageData(imageData, 0, 0);
+    const outputBlob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        result => result ? resolve(result) : reject(new Error('Falha ao converter planner para PNG transparente.')),
+        'image/png'
+      );
+    });
+    return URL.createObjectURL(outputBlob);
+  }
+
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
   let head = 0;
@@ -765,7 +853,6 @@ async function buildTransparentProductImage(src) {
     // Never let a near-white background flood enter the geometric core of the
     // product. This is the decisive guard for white/off-white covers: color may
     // match the studio background, but the interior belongs to the product.
-    if (plannerStructureProtection?.(x, y)) return;
     if (isDeepProtectedSubjectPixel(subjectEvidence, width, height, x, y)) return;
     if (hasLocalProductEdge(data, width, height, index)) return;
     visited[index] = 1;
@@ -1075,6 +1162,7 @@ export const __muralTransparentImageInternals = {
   isDeepProtectedSubjectPixel,
   subjectProtectionBounds,
   buildPlannerStructureProtection,
+  applyPlannerStructureMask,
   pointInsidePolygon,
   buildTreatedProductImage
 };
