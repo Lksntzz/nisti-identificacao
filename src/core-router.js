@@ -813,8 +813,9 @@ export default {
       const repairCommerceSync = url.pathname.match(/^\/api\/admin\/commerce-sync\/nisti-products\/(\d+)\/repair$/);
       if (repairCommerceSync && request.method === 'POST') {
         const productId = Number(repairCommerceSync[1]);
-        const product = await env.DB.prepare('SELECT id,sku FROM products WHERE id=? LIMIT 1')
-          .bind(productId).first();
+        const product = supabaseReadsRequested(env)
+          ? (await supabaseReserveProducts(env)).find(row=>Number(row.id)===productId)
+          : await env.DB.prepare('SELECT id,sku FROM products WHERE id=? LIMIT 1').bind(productId).first();
         if (!product) return json({ error: 'Produto não encontrado' }, 404);
 
         const sync = await syncNistiProductToCommerceSafe(env, productId);
@@ -991,7 +992,9 @@ export default {
         if (!file.type.startsWith('image/')) return json({ error: 'Arquivo deve ser uma imagem' }, 400);
         const saved = await saveProductImage(env, id, await file.arrayBuffer(), file.type);
 
-        const prod = await env.DB.prepare('SELECT capa_code, image_key FROM products WHERE id=?').bind(id).first();
+        const prod = supabaseReadsRequested(env)
+          ? await supabaseProductImageContext(env,id)
+          : await env.DB.prepare('SELECT capa_code, image_key FROM products WHERE id=?').bind(id).first();
         if (prod?.image_key) {
           await updateNotificationImage(env, id, prod.capa_code, prod.image_key).catch(() => {});
         }
