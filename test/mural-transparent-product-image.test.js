@@ -5,9 +5,12 @@ import { __muralTransparentImageInternals } from '../src/mural-transparent-image
 
 const source = fs.readFileSync(new URL('../src/mural-transparent-image.js', import.meta.url), 'utf8');
 
-test('background removal includes pale halo only outside the protected product', () => {
-  assert.match(source, /brightness >= 222 && chroma <= 28/);
+test('background removal is conservative enough to protect white and off-white covers', () => {
+  assert.match(source, /brightness >= 242 && chroma <= 18/);
   assert.match(source, /data\[offset \+ 3\] = 0/);
+  assert.match(source, /productStats\.ratio < \.055/);
+  assert.match(source, /productWidth < width \* \.25/);
+  assert.match(source, /productHeight < height \* \.25/);
 });
 
 test('only images with real transparent borders skip background cleanup', () => {
@@ -26,12 +29,12 @@ test('light cover artwork is protected by a solid linear convex silhouette', () 
   assert.match(source, /const expandedHull = hull\.map/);
   assert.match(source, /protectedMin\[y\]/);
   assert.match(source, /protectedMax\[y\]/);
-  assert.match(source, /if \(!isProtectedSubjectPixel\(x, y\)\)/);
+  assert.match(source, /const subjectEvidence = buildSubjectProtection/);
 });
 
 test('unsafe mostly-white products keep their original source instead of being damaged', () => {
   assert.match(source, /if \(hull\.length < 3\) return null/);
-  assert.match(source, /if \(!isProtectedSubjectPixel\) return src/);
+  assert.match(source, /if \(!subjectEvidence\) return src/);
 });
 
 test('white agenda body between wire-o and elastic stays protected', () => {
@@ -142,4 +145,22 @@ test('detached corner logo cannot stretch the dominant agenda silhouette', () =>
   __muralTransparentImageInternals.clearOutsideSubject(data, width, height, protect);
   assert.equal(data[(50 * width + 50) * 4 + 3], 255);
   assert.equal(data[(7 * width + 7) * 4 + 3], 0);
+});
+
+
+test('global treated product image bakes a clean 6–10px-equivalent white outline into transparent PNG', () => {
+  assert.match(source, /async function buildTreatedProductImage/);
+  assert.match(source, /8 \/ 1024/);
+  assert.match(source, /const padding = outlineRadius \+ 2/);
+  assert.match(source, /if \(!expandedMask\[sourceIndex\] \|\| solidMask\[sourceIndex\]\) continue/);
+  assert.match(source, /outputContext\.drawImage\(sourceCanvas, padding, padding\)/);
+  assert.match(source, /export function useTreatedProductImage/);
+});
+
+test('automatic cutout no longer hard-clips pixels to the convex hull plate', () => {
+  const buildStart = source.indexOf('async function buildTransparentProductImage');
+  const buildEnd = source.indexOf('export async function transparentProductImageUrl');
+  const buildSource = source.slice(buildStart, buildEnd);
+  assert.equal(buildSource.includes('clearOutsideSubject(data, width, height'), false);
+  assert.match(buildSource, /const keepMask = dilateMask\(productMask, width, height, 1\)/);
 });
