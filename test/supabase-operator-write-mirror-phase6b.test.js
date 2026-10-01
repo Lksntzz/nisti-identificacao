@@ -69,7 +69,7 @@ test('write mirror calls service-role RPC in mirror mode and does not throw on t
       'nisti_mirror_scan_occurrence',
       { p_row: { id: 274 } }
     );
-    assert.deepEqual(result, { attempted: true, ok: true });
+    assert.deepEqual(result, { attempted: true, ok: true, value: true });
     assert.match(seen.url, /\/rpc\/nisti_mirror_scan_occurrence$/);
     assert.equal(JSON.parse(seen.init.body).p_row.id, 274);
   } finally {
