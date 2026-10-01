@@ -112,9 +112,9 @@ test('Phase 6D covers finish edits, synthetic notifications, reindex maintenance
   assert.match(mutationMirror, /mirrorNotificationByCapaFromD1/);
   assert.match(reindex, /mirrorVisualReferencesBatchFromD1/);
   assert.match(reindex, /processedIds/);
-  assert.match(shadowConfirmation, /supabaseWriteMode\(env\) === 'mirror'/);
+  assert.match(shadowConfirmation, /supabaseWriteMode\(env\) !== 'off'/);
   assert.match(shadowConfirmation, /nisti_mirror_confirm_geometric_shadow/);
-  assert.match(systemMetrics, /supabaseWriteMode\(env\) === 'mirror'/);
+  assert.match(systemMetrics, /supabaseWriteMode\(env\) !== 'off'/);
   assert.match(systemMetrics, /nisti_mirror_operator_name/);
 });
 
@@ -178,10 +178,10 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
   }
 });
 
-test('final snapshot keeps Supabase reads disabled while write mirroring is active', () => {
+test('cutover candidate enables primary reads and primary write confirmation', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
-  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
-  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
+  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"primary"/);
+  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
 });
 
 

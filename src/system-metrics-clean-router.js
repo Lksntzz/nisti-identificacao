@@ -522,7 +522,7 @@ async function handleUpdateOperatorName(request, env) {
   operatorStatsCache = { operators: null, expires_at: 0 };
 
   const updated = Number(result?.meta?.changes || 0);
-  if (updated > 0 && supabaseWriteMode(env) === 'mirror') {
+  if (updated > 0 && supabaseWriteMode(env) !== 'off') {
     await mirrorSupabaseRpc(env, 'nisti_mirror_operator_name', {
       p_operator_id: String(userId),
       p_operator_name: newName

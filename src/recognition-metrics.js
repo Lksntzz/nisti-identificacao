@@ -141,7 +141,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
       operatorId
     ).run();
 
-    if (writeMode === 'mirror') {
+    if (writeMode !== 'off') {
       const eventId = Number(eventResult?.meta?.last_row_id || 0);
       if (eventId) {
         const eventRow = await env.DB.prepare(`

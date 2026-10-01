@@ -6,6 +6,7 @@ import {
   platformsForReference
 } from './platform-scope.js';
 import { mirrorVisualReferencesBatchFromD1 } from './supabase-secondary-write-store.js';
+import { SupabasePrimaryWriteError } from './supabase-write-store.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const MAX_REINDEX_LIMIT = 20;
@@ -197,6 +198,7 @@ async function reindexPending(request, env) {
   if (processedIds.length) {
     await mirrorVisualReferencesBatchFromD1(env, processedIds).catch(error => {
       console.error('[Supabase mirror] reindex reference embeddings falhou', error?.message || error);
+      if (error instanceof SupabasePrimaryWriteError) throw error;
     });
   }
 

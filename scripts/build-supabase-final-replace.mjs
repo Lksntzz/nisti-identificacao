@@ -12,13 +12,16 @@ const ALLOWED_TABLES = new Set(TABLE_ORDER);
 const IDENTITY_TABLES = Object.freeze([
   'products',
   'product_platforms',
+  'product_gtins',
   'recognition_events',
   'cover_visual_references',
   'notifications',
   'notification_reads',
   'push_subscriptions',
   'scan_occurrences',
-  'geometric_shadow_evidence'
+  'geometric_shadow_evidence',
+  'mural_collections',
+  'mural_posts'
 ]);
 
 function sha256(text) {
@@ -51,6 +54,21 @@ function normalizeControl(statement) {
 function sequenceSyncSql(table) {
   return `SELECT setval(\n  pg_get_serial_sequence('public.${table}', 'id'),\n  COALESCE((SELECT MAX(id) FROM public.${table}), 1),\n  EXISTS (SELECT 1 FROM public.${table})\n);`;
 }
+
+const PRODUCT_UPDATE_COLUMNS = Object.freeze([
+  'sku',
+  'miolo_code',
+  'capa_code',
+  'acabamento_code',
+  'wireo_code',
+  'tassel_code',
+  'elastico_code',
+  'nome',
+  'variacao',
+  'image_key',
+  'created_at',
+  'updated_at'
+]);
 
 export function buildFinalReplaceSql(source) {
   const grouped = new Map(TABLE_ORDER.map(table => [table, []]));
@@ -96,26 +114,58 @@ export function buildFinalReplaceSql(source) {
     TABLE_ORDER.map(table => [table, grouped.get(table).length])
   );
 
-  const quotedTables = TABLE_ORDER.map(table => `public."${table}"`).join(',\n  ');
+  const replaceTables = TABLE_ORDER.filter(table => table !== 'products');
+  const quotedTables = replaceTables.map(table => `public."${table}"`).join(',\n  ');
   const sections = [
     '-- NISTI ID — FINAL CUTOVER REPLACE',
-    '-- DESTRUTIVO: substitui atomicamente as 13 tabelas autoritativas do Supabase.',
+    `-- Reconcilia products e substitui atomicamente ${replaceTables.length} tabelas operacionais no Supabase.`,
     '-- Pré-condição obrigatória: SUPABASE_CUTOVER_WRITE_FREEZE=1 em produção e confirmado.',
+    '-- products não é truncada porque tabelas commerce_* preservadas possuem FKs para ela.',
     '-- Não executa CASCADE: qualquer dependência relacional inesperada aborta em vez de apagar dados silenciosamente.',
     'BEGIN;',
     "SET LOCAL statement_timeout = '5min';",
-    'SET LOCAL search_path = public, pg_catalog;',
-    '',
-    'TRUNCATE TABLE',
-    `  ${quotedTables}`,
-    'RESTART IDENTITY;',
+    'SET LOCAL search_path = pg_temp, public, pg_catalog;',
     ''
   ];
 
   for (const table of TABLE_ORDER) {
+    sections.push(`CREATE TEMP TABLE "${table}" (LIKE public."${table}" INCLUDING DEFAULTS INCLUDING GENERATED INCLUDING IDENTITY) ON COMMIT DROP;`);
+  }
+
+  sections.push('');
+  for (const table of TABLE_ORDER) {
     sections.push(`-- ${table}: ${grouped.get(table).length} statement(s)`);
     sections.push(...grouped.get(table));
     sections.push('');
+  }
+
+  sections.push(
+    '-- Falha fechado se o Supabase possuir produto que não existe no snapshot congelado.',
+    'DO $cutover$',
+    'BEGIN',
+    '  IF EXISTS (',
+    '    SELECT id FROM public.products',
+    '    EXCEPT',
+    '    SELECT id FROM pg_temp.products',
+    '  ) THEN',
+    "    RAISE EXCEPTION 'cutover_products_not_in_snapshot';",
+    '  END IF;',
+    'END',
+    '$cutover$;',
+    '',
+    'TRUNCATE TABLE',
+    `  ${quotedTables}`,
+    'RESTART IDENTITY;',
+    '',
+    'INSERT INTO public.products',
+    'SELECT * FROM pg_temp.products',
+    'ON CONFLICT (id) DO UPDATE SET',
+    PRODUCT_UPDATE_COLUMNS.map(column => `  "${column}" = EXCLUDED."${column}"`).join(',\n') + ';',
+    ''
+  );
+
+  for (const table of replaceTables) {
+    sections.push(`INSERT INTO public."${table}" SELECT * FROM pg_temp."${table}";`, '');
   }
 
   sections.push('-- Sincroniza as sequences das colunas IDENTITY com os IDs D1 preservados.');

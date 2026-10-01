@@ -1,22 +1,23 @@
 # NISTI ID — Cutover D1 → Supabase
 
-## Estado padrão
+## Estado do candidato após o corte de dados
 
-O repositório mantém o Supabase como banco reserva com espelhamento de novas escritas ativo, mas sem cutover de leitura:
+O snapshot final de 22 tabelas foi reconciliado no Supabase. O candidato de aplicação mantém as escritas congeladas, ativa leituras Supabase e exige confirmação do Supabase para considerar uma mutação concluída:
 
 ```text
 SUPABASE_URL=https://yioetdcbgorunwgwuawg.supabase.co
-SUPABASE_READS_ENABLED=0
-SUPABASE_READ_TIMEOUT_MS=2500
-SUPABASE_WRITE_MODE=mirror
-SUPABASE_CUTOVER_WRITE_FREEZE=0
+SUPABASE_READS_ENABLED=1
+SUPABASE_READ_TIMEOUT_MS=5000
+SUPABASE_WRITE_MODE=primary
+SUPABASE_CUTOVER_WRITE_FREEZE=1
 ```
 
 `SUPABASE_SERVICE_ROLE_KEY` **não** pode ser versionada. Ela deve existir apenas como segredo server-side do Cloudflare Worker.
 
 ## Invariantes de segurança
 
-- D1 continua sendo a autoridade até a conclusão explícita do cutover.
+- Supabase é a autoridade de leitura do candidato e deve confirmar toda escrita em modo `primary`.
+- D1 ainda executa a mutação primeiro nesta fase transitória; por isso a trava só pode ser removida após smoke tests do candidato congelado.
 - O navegador nunca recebe a service-role key nem acessa o PostgreSQL diretamente.
 - Não alterar os thresholds de reconhecimento durante o cutover.
 - Não importar `push_logs`; essa tabela permanece legado/diagnóstico fora da autoridade PostgreSQL.
@@ -31,12 +32,12 @@ Todos os itens abaixo são obrigatórios antes da janela final:
 1. schema e RPCs Supabase aplicados e auditados como `SECURITY INVOKER`;
 2. `PUBLIC`, `anon` e `authenticated` sem `EXECUTE` nas RPCs privilegiadas;
 3. `service_role` com `EXECUTE` nas RPCs necessárias;
-4. snapshot inicial com as 13 tabelas importadas e validado;
+4. snapshot final com as 22 tabelas importadas e validado;
 5. Production Gate verde na versão a ser implantada;
 6. `SUPABASE_SERVICE_ROLE_KEY` configurada no Worker;
-7. Phase 6 de write mirroring concluída no código;
+7. modo de escrita `primary` fail-closed concluído no código;
 8. ferramenta `scripts/build-supabase-final-replace.mjs` presente;
-9. `SUPABASE_READS_ENABLED=0` durante toda a sincronização final.
+9. `SUPABASE_CUTOVER_WRITE_FREEZE=1` durante toda a sincronização e validação final.
 
 ## Configurar a service-role key
 
@@ -114,7 +115,8 @@ final-replace-report.json
 O SQL gerado:
 
 - abre uma única transação;
-- faz `TRUNCATE` exatamente das 13 tabelas autoritativas;
+- faz `TRUNCATE` exatamente das 21 tabelas operacionais dependentes;
+- preserva `products` e o reconcilia por upsert para não quebrar FKs do Catálogo Comercial;
 - **não usa CASCADE**;
 - reinsere o snapshot preservando IDs;
 - sincroniza as sequences IDENTITY;
@@ -153,7 +155,7 @@ Sucesso exige `COMMIT` no fim. Qualquer erro antes do `COMMIT` aborta a janela; 
 
 Com a trava ainda em `1`:
 
-- comparar as 13 contagens com o snapshot recém-gerado;
+- comparar as 22 contagens com o snapshot recém-gerado;
 - executar `supabase/sql/validate_d1_import.sql`;
 - confirmar zero órfãos e zero violações de negócio;
 - confirmar IDs máximos e sequences;
@@ -162,31 +164,31 @@ Com a trava ainda em `1`:
 
 Não usar contagens históricas como critério; os valores autoritativos são os do snapshot desta janela.
 
-### 7. Deploy B: liberar writes com mirror ativo
+### 7. Deploy B: candidato primário ainda congelado
 
-Somente depois da validação completa, alterar:
-
-```toml
-SUPABASE_WRITE_MODE = "mirror"
-SUPABASE_CUTOVER_WRITE_FREEZE = "0"
-SUPABASE_READS_ENABLED = "0"
-```
-
-Neste ponto D1 continua autoridade, mas novas escritas passam a ser espelhadas no Supabase.
-
-### 8. Validar mirroring em produção
-
-Executar operações reais/controladas que cubram os writers relevantes e confirmar que o estado correspondente aparece no Supabase sem divergência. Falha de mirror não pode ser ignorada antes do read cutover.
-
-### 9. Read cutover — somente após paridade pós-freeze
-
-Apenas quando houver evidência de que as escritas posteriores ao Deploy B permanecem sincronizadas, criar deploy específico alterando somente:
+Depois da validação completa, implantar:
 
 ```toml
+SUPABASE_WRITE_MODE = "primary"
+SUPABASE_CUTOVER_WRITE_FREEZE = "1"
 SUPABASE_READS_ENABLED = "1"
 ```
 
-`SUPABASE_WRITE_MODE` deve continuar em `mirror` enquanto D1 ainda for mantido como rollback operacional.
+Confirmar health checks e leituras do Scanner, cadastro, Catálogo e Mural. Toda falha de RPC primária deve produzir `technical_error=supabase_primary_write_failed`; ela nunca pode virar sucesso silencioso.
+
+### 8. Liberar writes
+
+Somente após os smoke tests congelados, alterar apenas:
+
+```toml
+SUPABASE_CUTOVER_WRITE_FREEZE = "0"
+```
+
+Executar operações reais/controladas que cubram os writers relevantes e confirmar o estado correspondente no Supabase. O D1 permanece como camada transitória de compatibilidade até cada writer ser portado para escrita direta no Supabase.
+
+### 9. Escrita direta Supabase
+
+O modo `primary` desta etapa torna a confirmação Supabase obrigatória, mas ainda parte de uma mutação D1. A fase seguinte deve portar cada writer para RPCs Supabase transacionais e tornar qualquer atualização D1 um espelho opcional de rollback. Não remover o binding D1 antes dessa fase.
 
 ## Semântica do fallback de leitura
 

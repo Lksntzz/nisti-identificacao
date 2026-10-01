@@ -106,8 +106,10 @@ test('Phase 6C mutation middleware covers all catalog and supervised-training wr
 test('Phase 6C is wired after downstream success without cloning large image requests', () => {
   const source = fs.readFileSync('src/operator-audit-router.js', 'utf8');
   assert.match(source, /mirrorSuccessfulMutation/);
-  assert.match(source, /const response = await app\.fetch\(request, env, ctx\);/);
+  assert.match(source, /response = await app\.fetch\(request, env, ctx\);/);
   assert.match(source, /await mirrorSuccessfulMutation\(mirrorRequest, response, env\);/);
+  assert.match(source, /error instanceof SupabasePrimaryWriteError/);
+  assert.match(source, /primaryWriteFailureResponse/);
   assert.match(source, /url\.pathname === '\/api\/operator\/confirm-selection'[\s\S]*\? request\.clone\(\)/);
 });
 
@@ -136,8 +138,8 @@ test('Phase 6C SQL is invoker-only, service-role-only and preserves D1 IDs', () 
   assert.match(source, /INSERT INTO public\.cover_visual_references \(\s*id,/);
 });
 
-test('final snapshot keeps Supabase reads disabled while retaining write mirroring', () => {
+test('cutover candidate uses Supabase reads and primary write confirmation', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
-  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
-  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
+  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"primary"/);
+  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
 });

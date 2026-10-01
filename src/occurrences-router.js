@@ -6,7 +6,11 @@ import {
   normalizePlatform
 } from './platform-scope.js';
 import { confirmGeometricShadowEvidence } from './geometric-shadow-evidence-router.js';
-import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
+import {
+  mirrorSupabaseRpc,
+  SupabasePrimaryWriteError,
+  supabaseWriteMode
+} from './supabase-write-store.js';
 import {
   preferSupabaseRead,
   supabaseReserveOccurrences
@@ -134,7 +138,7 @@ export async function recordScanOccurrence(env, {
     ).run();
 
     const rowId = Number(res.meta?.last_row_id || 0) || null;
-    if (rowId && writeMode === 'mirror') {
+    if (rowId && writeMode !== 'off') {
       const row = await env.DB.prepare(`
         SELECT id, image_key, platform, suggested_capa_code, confidence, error_reason,
                operator_name, operator_id, status, trained_capa_code, trained_at, created_at
@@ -152,6 +156,7 @@ export async function recordScanOccurrence(env, {
 
     return rowId;
   } catch (err) {
+    if (err instanceof SupabasePrimaryWriteError) throw err;
     console.error('Falha ao registrar ocorrência:', err);
     return null;
   }

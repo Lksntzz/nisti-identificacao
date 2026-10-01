@@ -158,7 +158,7 @@ export async function handleGeometricShadowConfirmationRequest(request, env) {
       LIMIT 1
     `).bind(String(signedPayload.nonce)).first();
 
-    if (supabaseWriteMode(env) === 'mirror') {
+    if (supabaseWriteMode(env) !== 'off') {
       await mirrorSupabaseRpc(env, 'nisti_mirror_confirm_geometric_shadow', {
         p_occurrence_id: Number(confirmed?.occurrence_id || 0) || null,
         p_photo_sha256: String(confirmed?.photo_sha256 || '').trim().toLowerCase() || null,

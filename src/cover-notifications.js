@@ -10,6 +10,7 @@ import {
   supabaseReserveNotifications,
   supabaseReserveUnreadNotifications
 } from './supabase-read-store.js';
+import { SupabasePrimaryWriteError } from './supabase-write-store.js';
 
 function clean(value) {
   const text = String(value || '').trim();
@@ -18,6 +19,7 @@ function clean(value) {
 
 function logMirrorFailure(label, error) {
   console.error(`[Supabase mirror] ${label} falhou`, error?.message || error);
+  if (error instanceof SupabasePrimaryWriteError) throw error;
 }
 
 export async function recordNewCoverNotification(env, {

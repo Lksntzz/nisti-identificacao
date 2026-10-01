@@ -6,7 +6,8 @@ import {
   mirrorProductCatalogFromD1,
   mirrorTrainedOccurrenceArtifactsFromD1,
   mirrorVisualReferenceFromD1,
-  supabaseMirrorWritesRequested
+  supabaseMirrorWritesRequested,
+  supabasePrimaryWritesRequested
 } from './supabase-write-store.js';
 import {
   mirrorAllMuralPostsFromD1,
@@ -210,12 +211,14 @@ export async function mirrorSuccessfulMutation(request, response, env) {
       await mirrorTrainedOccurrenceArtifactsFromD1(env, body?.occurrence_id);
     }
   } catch (error) {
-    // D1 has already committed and remains authoritative in mirror mode.
-    // Do not manufacture distributed rollback semantics; surface divergence in logs.
-    console.error('[Supabase mirror] pós-mutation falhou', {
+    // D1 has already committed at this transitional boundary. Mirror mode logs
+    // divergence, while primary mode fails closed so callers never mistake a
+    // D1-only commit for an authoritative Supabase commit.
+    console.error('[Supabase write] pós-mutation falhou', {
       method,
       path: url.pathname,
       message: error?.message || String(error)
     });
+    if (supabasePrimaryWritesRequested(env)) throw error;
   }
 }

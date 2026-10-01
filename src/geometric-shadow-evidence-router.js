@@ -335,7 +335,7 @@ async function saveEvidence(env, evidence, operator) {
     evidence.evidence_json
   ).run();
 
-  if (writeMode === 'mirror') {
+  if (writeMode !== 'off') {
     const row = await env.DB.prepare(`
       SELECT *
       FROM geometric_shadow_evidence
@@ -371,7 +371,7 @@ export async function linkGeometricShadowEvidenceToOccurrence(env, evidenceToken
       LIMIT 1
     `).bind(token).first();
 
-    if (writeMode === 'mirror') {
+    if (writeMode !== 'off') {
       await mirrorSupabaseRpc(env, 'nisti_mirror_link_geometric_shadow', {
         p_evidence_token: token,
         p_occurrence_id: id,
@@ -413,7 +413,7 @@ export async function confirmGeometricShadowEvidence(env, {
   }
 
   const changed = Number(result?.meta?.changes || 0);
-  if (changed > 0 && writeMode === 'mirror') {
+  if (changed > 0 && writeMode !== 'off') {
     const confirmed = id
       ? await env.DB.prepare(`
           SELECT confirmed_at
