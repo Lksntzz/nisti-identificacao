@@ -193,3 +193,20 @@ export async function runReserveBackfill(env) {
     expected_streams:[...STREAMS]
   };
 }
+
+
+export async function reserveBackfillStatus(env) {
+  const states=[];
+  for (const stream of STREAMS) {
+    try {
+      states.push(await streamState(env,stream));
+    } catch (error) {
+      states.push({ stream, complete:false, error:error?.message || String(error) });
+    }
+  }
+  return {
+    ok:states.every(item => !item.error),
+    complete:states.every(item => item.complete === true),
+    streams:states
+  };
+}
