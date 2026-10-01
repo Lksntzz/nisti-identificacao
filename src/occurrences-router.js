@@ -195,6 +195,85 @@ export async function trainOccurrenceDirectly(env, occurrenceId, capaCode, opera
     throw new Error('ID da ocorrência e capa_code são obrigatórios.');
   }
 
+  if (supabasePrimaryWritesRequested(env)) {
+    const prepared=await mirrorSupabaseRpc(env,'nisti_prepare_occurrence_training_v1',{
+      p_occurrence_id:id,
+      p_capa_code:cleanCapaCode
+    },`prepare occurrence training ${id}`);
+    const prep=prepared?.value || {};
+    if(prep.status==='not_found') throw new Error('Ocorrência não encontrada.');
+    if(prep.status!=='ok') throw new Error('Não foi possível preparar o treinamento da ocorrência.');
+
+    const referenceId=Number(prep.reference_id || 0);
+    if(!referenceId) throw new Error('Supabase não retornou o ID da referência visual.');
+    const occurrence={id,image_key:prep.image_key,platform:prep.platform || null};
+
+    const imageObj=await env.PRODUCT_IMAGES.get(occurrence.image_key);
+    if(!imageObj) throw new Error('Foto não encontrada no R2.');
+    const photoBytes=new Uint8Array(await imageObj.arrayBuffer());
+    const vector=await embedImage(env,photoBytes,'image/jpeg');
+    const embeddingModel=env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
+
+    if(env.COVER_VECTORS?.upsert) {
+      const refObj={capa_code:cleanCapaCode,source_product_id:null};
+      let platforms=await platformsForReference(env,refObj);
+      if(!platforms.length && occurrence.platform) platforms=[occurrence.platform];
+      if(!platforms.length) platforms=supportedPlatforms();
+
+      const vectorInserts=[];
+      for(const plat of platforms) {
+        const normPlat=normalizePlatform(plat);
+        const namespace=platformNamespace(normPlat);
+        if(!namespace) continue;
+        const vectorId=platformVectorId(referenceId,normPlat) || `ref:${referenceId}:p:${namespace}`;
+        vectorInserts.push({
+          id:vectorId,
+          values:vector,
+          namespace,
+          metadata:{
+            reference_id:referenceId,
+            capa_code:cleanCapaCode,
+            reference_kind:'real_scan',
+            platform:normPlat,
+            platform_key:namespace,
+            image_key:String(occurrence.image_key || '')
+          }
+        });
+      }
+      if(vectorInserts.length) await env.COVER_VECTORS.upsert(vectorInserts);
+    }
+
+    const committed=await mirrorSupabaseRpc(env,'nisti_commit_occurrence_training_v1',{
+      p_occurrence_id:id,
+      p_reference_id:referenceId,
+      p_capa_code:cleanCapaCode,
+      p_embedding_model:embeddingModel,
+      p_dimensions:EMBEDDING_DIMENSIONS,
+      p_embedding_json:JSON.stringify(vector)
+    },`commit occurrence training ${id}`);
+    if(committed?.value?.status!=='ok') throw new Error('Supabase não concluiu o treinamento da ocorrência.');
+
+    try {
+      await mirrorSupabaseRpc(env,'nisti_mirror_confirm_geometric_shadow',{
+        p_occurrence_id:id,
+        p_photo_sha256:await sha256Hex(photoBytes),
+        p_capa_code:cleanCapaCode,
+        p_source:operatorName ? 'operator_confirmed_training' : 'admin_confirmed_training',
+        p_confirmed_at:new Date().toISOString()
+      },`confirm occurrence shadow ${id}`);
+    } catch(error) {
+      console.error('Falha ao confirmar evidência geométrica shadow:',error);
+    }
+
+    return {
+      ok:true,
+      trained:true,
+      capa_code:cleanCapaCode,
+      reference_id:referenceId,
+      message:`Sistema treinado com sucesso para a capa ${cleanCapaCode}!`
+    };
+  }
+
   const occurrence = await env.DB.prepare(
     'SELECT id, image_key, platform FROM scan_occurrences WHERE id=? LIMIT 1'
   ).bind(id).first();
