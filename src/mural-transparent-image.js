@@ -941,7 +941,13 @@ async function loadBitmap(blob) {
 }
 
 async function buildTransparentProductImage(src, options = {}) {
-  const response = await fetch(src, { credentials:'same-origin' });
+  const response = await fetch(src, {
+    credentials:'same-origin',
+    // A manual redo must always start from the current original. Reusing a
+    // browser-cached response made repeated corrections look identical even
+    // after the treatment mode changed.
+    cache:options.forceOutline ? 'no-store' : 'default'
+  });
   if (!response.ok) throw new Error(`Falha ao carregar imagem do produto (${response.status}).`);
 
   const blob = await response.blob();
@@ -1215,7 +1221,7 @@ async function buildTreatedProductImage(src, options = {}) {
   }
   sourceContext.putImageData(imageData, 0, 0);
 
-  if (requestedOfficialVariant) {
+  if (requestedOfficialVariant && !options.forceOutline) {
     // The official contour already reserves the approved white band around
     // the physical product. Adding a second synthetic dilation here would
     // make that border too thick and would no longer match the supplied mold.
@@ -1231,9 +1237,11 @@ async function buildTreatedProductImage(src, options = {}) {
   const solidMask = fillMaskInteriorHoles(productMask, width, height);
   // 8 px at 1024 px, proportional at other resolutions: within the requested
   // visual band of roughly 6–10 px per 1024 px.
-  // Standard output keeps 8 / 1024; a precise redo uses a tighter 6 / 1024
-  // ring after the official silhouette has already fixed the product shape.
-  const outlineScale = requestedOfficialVariant ? (6 / 1024) : (8 / 1024);
+  // Standard output keeps 8 / 1024. A precise redo deliberately reaches this
+  // branch after recalculating the cutout from the original and receives its
+  // own 8 / 1024 external ring; previously the early return above prevented
+  // the forced border from ever being drawn.
+  const outlineScale = 8 / 1024;
   const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 2, 16);
   const expandedMask = dilateMask(solidMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
