@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import '../mural-admin.css';
 import { MuralCard } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
@@ -123,6 +123,8 @@ function MuralProductImageManager({ products, onChanged }) {
   const [treatmentProgress,setTreatmentProgress]=useState({
     loading:true,phase:'loading',with_image:0,approved:0,review:0,pending:0,failed:0,current:null,error:''
   });
+  const onChangedRef=useRef(onChanged);
+  useEffect(()=>{onChangedRef.current=onChanged},[onChanged]);
   const filtered=useMemo(()=>{
     const term=query.trim().toLowerCase();
     const visible=showApproved
@@ -135,6 +137,7 @@ function MuralProductImageManager({ products, onChanged }) {
   useEffect(()=>{
     let active=true;
     let polling=false;
+    let refreshTimer=null;
 
     const mergeProgress=(detail={})=>{
       if(!active)return;
@@ -151,6 +154,12 @@ function MuralProductImageManager({ products, onChanged }) {
           error:detail.error||''
         };
       });
+      if(['processed','failed'].includes(detail.phase)){
+        if(refreshTimer)window.clearTimeout(refreshTimer);
+        refreshTimer=window.setTimeout(()=>{
+          if(active)Promise.resolve(onChangedRef.current?.()).catch(()=>{});
+        },180);
+      }
     };
 
     const refreshProgress=async()=>{
@@ -179,6 +188,7 @@ function MuralProductImageManager({ products, onChanged }) {
     const timer=window.setInterval(refreshProgress,1500);
     return()=>{
       active=false;
+      if(refreshTimer)window.clearTimeout(refreshTimer);
       window.clearInterval(timer);
       window.removeEventListener('nisti:product-image-treatment-progress',onProgress);
     };
