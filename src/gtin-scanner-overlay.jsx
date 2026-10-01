@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isValidGtin13 } from './gtin.js';
 import { decodeEan13LumaRow, imageDataToLumaRow } from './gtin-camera-decoder.js';
+import ProductCutoutImage from './product-cutout-image.jsx';
 import './gtin-scanner.css';
 
 const CAMERA_SCAN_INTERVAL_MS = 90;
@@ -219,7 +220,7 @@ function ProductSummary({ gtin, product, continuous = false }) {
           {product.image_url && (
             <div className="gtin-result-image-frame">
               <span className="gtin-result-image-label">Capa do produto</span>
-              <img className="gtin-result-image" src={product.image_url} alt={product.sku || gtin} />
+              <ProductCutoutImage className="gtin-result-image" src={product.image_url} alt={product.sku || gtin} />
             </div>
           )}
 
@@ -357,9 +358,11 @@ function GtinHistoryModal({ history, onClear, onClose }) {
             {history.map(item => (
               <article className="gtin-history-modal-item" key={item.id}>
                 <div className="gtin-history-modal-thumb">
-                  {item.product.image_url
-                    ? <img src={item.product.image_url} alt="" />
-                    : <BarcodeIcon size={22} />}
+                  <ProductCutoutImage
+                    src={item.product.image_url}
+                    alt=""
+                    fallback={<BarcodeIcon size={22} />}
+                  />
                 </div>
 
                 <div className="gtin-history-modal-product">
