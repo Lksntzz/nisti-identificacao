@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -40,7 +42,25 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Detect D1 migration changes
+        id: d1_changes
+        shell: bash
+        run: |
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            if git diff --name-only HEAD^ HEAD -- 'migrations/*.sql' | grep -q .; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              echo "D1 migrations changed in this deploy."
+            else
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              echo "No D1 migration changed; remote D1 migration step will be skipped."
+            fi
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Previous commit unavailable; fail safe by requiring D1 migration check."
+          fi
+
       - name: Apply D1 migrations to production
+        if: steps.d1_changes.outputs.changed == 'true'
         run: npx wrangler d1 migrations apply nisti-identificacao --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
