@@ -90,9 +90,10 @@ test('Phase 6D notification and push writers mirror only after committed D1 writ
   assert.match(notifications, /UPDATE notifications[\s\S]*mirrorNotificationsForProductOrCoverFromD1/);
   assert.match(notifications, /INSERT INTO notification_reads[\s\S]*mirrorNotificationReadFromD1/);
   assert.match(notifications, /markAllNotificationsRead[\s\S]*mirrorNotificationReadsForUserFromD1/);
-  assert.match(systemNotifications, /INSERT INTO notifications[\s\S]*mirrorNotificationByCapaFromD1/);
-  assert.match(systemNotifications, /INSERT INTO notification_reads[\s\S]*mirrorNotificationReadFromD1/);
-  assert.match(systemNotifications, /markAllAdminSystemNotificationsRead[\s\S]*mirrorNotificationReadsForUserFromD1/);
+  assert.match(notifications, /recordAdminSystemNotification[\s\S]*INSERT INTO notifications[\s\S]*mirrorNotificationByCapaFromD1/);
+  assert.match(notifications, /markAdminSystemNotificationRead[\s\S]*INSERT INTO notification_reads[\s\S]*mirrorNotificationReadFromD1/);
+  assert.match(notifications, /markAllAdminSystemNotificationsRead[\s\S]*mirrorNotificationReadsForUserFromD1/);
+  assert.doesNotMatch(systemNotifications, /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:notifications|notification_reads)\b/i);
 
   assert.match(push, /INSERT INTO push_subscriptions[\s\S]*mirrorPushSubscriptionByEndpointFromD1/);
   assert.match(push, /DELETE FROM push_subscriptions[\s\S]*mirrorDeletedPushSubscriptionToSupabase/);
