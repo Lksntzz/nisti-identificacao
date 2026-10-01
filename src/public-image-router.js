@@ -145,7 +145,7 @@ export async function handlePublicImageRequest(request, env) {
   const productDisplayMatch = url.pathname.match(/^\/api\/product-images\/(\d+)$/);
   if (productDisplayMatch) {
     const productId = Number(productDisplayMatch[1]);
-    const processedKey = await imageKeyFromD1(env, 'mural-product', productId);
+    const processedKey = await imageKey(env, 'mural-product', productId);
     if (processedKey) {
       const processed = await serveObject(request, env, processedKey, url, {
         'x-nisti-image-source':'treated'
@@ -172,7 +172,7 @@ export async function handlePublicImageRequest(request, env) {
 
   const muralProductMatch = url.pathname.match(/^\/api\/mural-product-images\/(\d+)$/);
   if (muralProductMatch) {
-    const objectKey = await imageKeyFromD1(env, 'mural-product', Number(muralProductMatch[1]));
+    const objectKey = await imageKey(env, 'mural-product', Number(muralProductMatch[1]));
     return serveObject(request, env, objectKey, url);
   }
 
