@@ -8,7 +8,7 @@ const TIMEZONE = 'America/Sao_Paulo';
 const EMBEDDING_DIMENSIONS = 768;
 const SYSTEM_METRICS_CACHE_TTL_MS = 5 * 60 * 1000;
 const OPERATOR_STATS_CACHE_TTL_MS = 5 * 60 * 1000;
-const SYSTEM_HEALTH_CACHE_TTL_MS = 60 * 1000;
+const SYSTEM_HEALTH_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let systemMetricsCache = { payload: null, expires_at: 0 };
 let operatorStatsCache = { operators: null, expires_at: 0 };
