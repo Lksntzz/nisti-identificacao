@@ -36,7 +36,7 @@ const BULK_IMPORT_LIMIT = 100;
 const EXTRA_REFERENCE_LIMIT = 6;
 const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '7';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '8';
 const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
@@ -122,10 +122,12 @@ async function productTreatmentSummary(env) {
           )
           AND mpi.processed_image_key IS NOT NULL
           AND mpi.source_image_key=p.image_key
+          AND COALESCE(mpi.processor_version,'')=?
           THEN 1 ELSE 0 END AS is_review,
         CASE WHEN p.image_key IS NOT NULL
           AND mpi.status='failed'
           AND mpi.source_image_key=p.image_key
+          AND COALESCE(mpi.processor_version,'')=?
           THEN 1 ELSE 0 END AS is_failed
       FROM products p
       LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
@@ -137,7 +139,7 @@ async function productTreatmentSummary(env) {
       SUM(is_failed) AS failed,
       SUM(CASE WHEN image_key IS NOT NULL AND is_approved=0 AND is_review=0 AND is_failed=0 THEN 1 ELSE 0 END) AS pending
     FROM treatment_state
-  `).first();
+  `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,PRODUCT_IMAGE_PROCESSOR_VERSION).first();
   return {
     with_image:Number(row?.with_image || 0),
     approved:Number(row?.approved || 0),
@@ -882,6 +884,10 @@ export default {
               mpi.product_id IS NULL
               OR mpi.source_image_key IS NOT p.image_key
               OR mpi.status IN ('pending','stale')
+              OR (
+                COALESCE(mpi.reviewed_by,'')<>'admin'
+                AND COALESCE(mpi.processor_version,'')<>?
+              )
             )
           ORDER BY
             CASE COALESCE(mpi.status,'pending')
@@ -892,7 +898,7 @@ export default {
             END,
             p.id ASC
           LIMIT ?
-        `).bind(limit).all();
+        `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,limit).all();
 
         return json({
           ok:true,
