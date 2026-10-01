@@ -36,7 +36,7 @@ const BULK_IMPORT_LIMIT = 100;
 const EXTRA_REFERENCE_LIMIT = 6;
 const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '6';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '7';
 const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
@@ -872,7 +872,6 @@ export default {
             AND (
               mpi.product_id IS NULL
               OR mpi.source_image_key IS NOT p.image_key
-              OR mpi.processed_image_key IS NULL
               OR mpi.status IN ('pending','review','stale')
               OR (
                 mpi.status='failed'
@@ -880,8 +879,13 @@ export default {
               )
               OR (
                 mpi.status='approved'
-                AND COALESCE(mpi.processor,'') <> 'admin-upload'
-                AND COALESCE(mpi.processor_version,'') <> ?
+                AND (
+                  mpi.processed_image_key IS NULL
+                  OR (
+                    COALESCE(mpi.processor,'') <> 'admin-upload'
+                    AND COALESCE(mpi.processor_version,'') <> ?
+                  )
+                )
               )
             )
           ORDER BY
