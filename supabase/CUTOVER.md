@@ -2,13 +2,13 @@
 
 ## Estado padrão
 
-O repositório mantém o Supabase preparado, mas sem cutover ativo:
+O repositório mantém o Supabase como banco reserva com espelhamento de novas escritas ativo, mas sem cutover de leitura:
 
 ```text
 SUPABASE_URL=https://yioetdcbgorunwgwuawg.supabase.co
 SUPABASE_READS_ENABLED=0
 SUPABASE_READ_TIMEOUT_MS=2500
-SUPABASE_WRITE_MODE=off
+SUPABASE_WRITE_MODE=mirror
 SUPABASE_CUTOVER_WRITE_FREEZE=0
 ```
 
