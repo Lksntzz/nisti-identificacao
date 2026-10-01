@@ -11,7 +11,9 @@ test('background removal protects white and off-white covers with a physical-edg
   assert.match(source, /if \(delta >= 14\) return true/);
   assert.match(source, /if \(hasLocalProductEdge\(data, width, height, index\)\) return/);
   assert.match(source, /function protectedSubjectCoverage/);
-  assert.match(source, /if \(subjectCoverage < \.72\) return src/);
+  assert.match(source, /function isDeepProtectedSubjectPixel/);
+  assert.match(source, /isDeepProtectedSubjectPixel\(subjectEvidence, width, height, x, y\)/);
+  assert.match(source, /if \(subjectCoverage < \.82\) return src/);
   assert.match(source, /productStats\.ratio < \.055/);
 });
 
@@ -205,4 +207,15 @@ test('coverage guard detects when a light product body was accidentally removed'
   }
 
   assert.ok(__muralTransparentImageInternals.protectedSubjectCoverage(data, width, height, protectedArea) < .72);
+});
+
+
+test('deep product core is protected even when its pixels are pure white', () => {
+  const width = 100;
+  const height = 100;
+  const subject = (x, y) => x >= 20 && x <= 80 && y >= 15 && y <= 85;
+
+  assert.equal(__muralTransparentImageInternals.isDeepProtectedSubjectPixel(subject, width, height, 50, 50), true);
+  assert.equal(__muralTransparentImageInternals.isDeepProtectedSubjectPixel(subject, width, height, 21, 50), false);
+  assert.equal(__muralTransparentImageInternals.isDeepProtectedSubjectPixel(subject, width, height, 50, 16), false);
 });

@@ -82,6 +82,24 @@ function protectedSubjectCoverage(data, width, height, isProtectedSubjectPixel) 
   return expected ? opaque / expected : 0;
 }
 
+function isDeepProtectedSubjectPixel(isProtectedSubjectPixel, width, height, x, y) {
+  if (!isProtectedSubjectPixel(x, y)) return false;
+  const margin = clamp(Math.round(Math.min(width, height) * .012), 3, 14);
+  const points = [
+    [x - margin, y],
+    [x + margin, y],
+    [x, y - margin],
+    [x, y + margin],
+    [x - margin, y - margin],
+    [x + margin, y - margin],
+    [x - margin, y + margin],
+    [x + margin, y + margin]
+  ];
+  return points.every(([px, py]) => (
+    px >= 0 && px < width && py >= 0 && py < height && isProtectedSubjectPixel(px, py)
+  ));
+}
+
 function cross(origin, a, b) {
   return (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
 }
@@ -665,6 +683,12 @@ async function buildTransparentProductImage(src) {
     if (index < 0 || index >= total || visited[index]) return;
     const offset = index * 4;
     if (!isBorderBackgroundCandidate(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) return;
+    const x = index % width;
+    const y = Math.floor(index / width);
+    // Never let a near-white background flood enter the geometric core of the
+    // product. This is the decisive guard for white/off-white covers: color may
+    // match the studio background, but the interior belongs to the product.
+    if (isDeepProtectedSubjectPixel(subjectEvidence, width, height, x, y)) return;
     if (hasLocalProductEdge(data, width, height, index)) return;
     visited[index] = 1;
     queue[tail++] = index;
@@ -700,7 +724,7 @@ async function buildTransparentProductImage(src) {
   // product evidence detected before removal. If a leak ever eats a light
   // cover, coverage collapses and we return the untouched original.
   const subjectCoverage = protectedSubjectCoverage(data, width, height, subjectEvidence);
-  if (subjectCoverage < .72) return src;
+  if (subjectCoverage < .82) return src;
 
   const productMask = buildProductComponentsMask(data, width, height);
   if (!productMask) return src;
@@ -970,5 +994,6 @@ export const __muralTransparentImageInternals = {
   hasUsableTransparentBorder,
   hasLocalProductEdge,
   protectedSubjectCoverage,
+  isDeepProtectedSubjectPixel,
   buildTreatedProductImage
 };
