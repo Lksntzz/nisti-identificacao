@@ -2,6 +2,11 @@ const DEFAULT_TIMEOUT_MS = 2500;
 const MIN_TIMEOUT_MS = 500;
 const MAX_TIMEOUT_MS = 5000;
 const MAX_CUSTOM_TIMEOUT_MS = 30000;
+const DEFAULT_EMERGENCY_CIRCUIT_MS = 15 * 60 * 1000;
+const MIN_EMERGENCY_CIRCUIT_MS = 60 * 1000;
+const MAX_EMERGENCY_CIRCUIT_MS = 60 * 60 * 1000;
+
+let d1EmergencyCircuitOpenUntil = 0;
 
 export class SupabaseReadError extends Error {
   constructor(message, { status = 0, code = 'supabase_read_error', fallbackEligible = false } = {}) {
@@ -28,6 +33,25 @@ export function isD1DailyReadLimitError(error) {
     || message.includes('daily row read limit')
     || message.includes("exceeded d1's free tier")
     || (message.includes('d1') && message.includes('row read') && message.includes('limit'));
+}
+
+function emergencyCircuitMs(env) {
+  const value = Number(env?.SUPABASE_EMERGENCY_CIRCUIT_MS || DEFAULT_EMERGENCY_CIRCUIT_MS);
+  if (!Number.isFinite(value)) return DEFAULT_EMERGENCY_CIRCUIT_MS;
+  return Math.max(MIN_EMERGENCY_CIRCUIT_MS, Math.min(MAX_EMERGENCY_CIRCUIT_MS, Math.round(value)));
+}
+
+export function d1EmergencyCircuitStatus() {
+  const now = Date.now();
+  return {
+    open:d1EmergencyCircuitOpenUntil > now,
+    open_until:d1EmergencyCircuitOpenUntil || null,
+    remaining_ms:Math.max(0, d1EmergencyCircuitOpenUntil - now)
+  };
+}
+
+export function resetD1EmergencyCircuitForTests() {
+  d1EmergencyCircuitOpenUntil = 0;
 }
 
 function timeoutMs(env, overrideMs = null) {
@@ -134,11 +158,24 @@ export async function preferSupabaseRead(env, supabaseLoader, d1Loader, label = 
     }
   }
 
+  const emergencyEnabled = supabaseEmergencyFallbackRequested(env);
+  if (emergencyEnabled && d1EmergencyCircuitOpenUntil > Date.now()) {
+    console.warn(`[Supabase reserve] Circuit breaker D1 ativo em ${label}; pulando tentativa D1.`);
+    return supabaseLoader();
+  }
+
   try {
-    return await d1Loader();
+    const result = await d1Loader();
+    if (d1EmergencyCircuitOpenUntil && d1EmergencyCircuitOpenUntil <= Date.now()) {
+      d1EmergencyCircuitOpenUntil = 0;
+    }
+    return result;
   } catch (error) {
-    if (supabaseEmergencyFallbackRequested(env) && isD1DailyReadLimitError(error)) {
-      console.warn(`[Supabase reserve] D1 sem cota de leitura em ${label}; usando banco reserva.`);
+    if (emergencyEnabled && isD1DailyReadLimitError(error)) {
+      d1EmergencyCircuitOpenUntil = Date.now() + emergencyCircuitMs(env);
+      console.warn(
+        `[Supabase reserve] D1 sem cota em ${label}; circuito aberto por ${emergencyCircuitMs(env)}ms.`
+      );
       return supabaseLoader();
     }
     throw error;
@@ -204,4 +241,39 @@ export async function supabaseImageKey(env, entity, id) {
 
 export async function supabaseReserveProducts(env) {
   return rows(await supabaseRpc(env, 'nisti_reserve_products_v1'));
+}
+
+
+export async function supabaseReserveGtinLookup(env, gtin) {
+  const result = rows(await supabaseRpc(env, 'nisti_reserve_gtin_lookup_v1', {
+    p_gtin:String(gtin || '').trim()
+  }));
+  return result[0] || null;
+}
+
+export async function supabaseReserveProductGtins(env, productId) {
+  return rows(await supabaseRpc(env, 'nisti_reserve_product_gtins_v1', {
+    p_product_id:Number(productId || 0)
+  }));
+}
+
+export async function supabaseReserveOccurrences(env) {
+  const value = await supabaseRpc(env, 'nisti_reserve_occurrences_v1');
+  return value && typeof value === 'object'
+    ? value
+    : { stats:{ pending:0, trained:0, dismissed:0 }, occurrences:[] };
+}
+
+export async function supabaseReserveNotifications(env, userId, limit = 50) {
+  return rows(await supabaseRpc(env, 'nisti_reserve_notifications_v1', {
+    p_user_id:String(userId || 'anonymous').trim().slice(0,100),
+    p_limit:Math.max(1,Math.min(100,Number(limit) || 50))
+  }));
+}
+
+export async function supabaseReserveUnreadNotifications(env, userId) {
+  const value = await supabaseRpc(env, 'nisti_reserve_unread_notifications_v1', {
+    p_user_id:String(userId || 'anonymous').trim().slice(0,100)
+  });
+  return Number(value || 0);
 }
