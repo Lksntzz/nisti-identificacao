@@ -65,11 +65,7 @@ async function imageKeyFromD1(env, entity, id) {
     if (!row?.image_key) return null;
     const processedReady = row.status === 'approved'
       && row.processed_image_key
-      && row.source_image_key === row.image_key
-      && (
-        row.processor === 'admin-upload'
-        || row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION
-      );
+      && row.source_image_key === row.image_key;
     return processedReady ? row.processed_image_key : row.image_key;
   }
   if (entity === 'reference') {
@@ -96,12 +92,8 @@ async function imageKeyFromD1(env, entity, id) {
         AND mpi.status='approved'
         AND mpi.processed_image_key IS NOT NULL
         AND mpi.source_image_key=p.image_key
-        AND (
-          mpi.processor='admin-upload'
-          OR mpi.processor_version=?
-        )
       LIMIT 1
-    `).bind(id,PRODUCT_IMAGE_PROCESSOR_VERSION).first();
+    `).bind(id).first();
     return row?.processed_image_key || null;
   }
   return null;
