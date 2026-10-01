@@ -1015,7 +1015,7 @@ export default {
 
       const imageGet = url.pathname.match(/^\/api\/images\/(\d+)$/);
       if (imageGet && request.method === 'GET') {
-        const product = supabasePrimaryWritesRequested(env)
+        const product = supabaseReadsRequested(env)
           ? await supabaseProductImageContext(env,Number(imageGet[1]))
           : await env.DB.prepare(`SELECT image_key FROM products WHERE id=?`).bind(Number(imageGet[1])).first();
         if (!product?.image_key) return new Response('Not found', { status: 404 });
@@ -1033,7 +1033,7 @@ export default {
       const displayImageGet = url.pathname.match(/^\/api\/product-images\/(\d+)$/);
       if (displayImageGet && request.method === 'GET') {
         const productId = Number(displayImageGet[1]);
-        const row = supabasePrimaryWritesRequested(env)
+        const row = supabaseReadsRequested(env)
           ? await supabaseProductImageContext(env,productId)
           : await env.DB.prepare(`
           SELECT
@@ -1048,7 +1048,7 @@ export default {
           LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
           WHERE p.id=?
         `).bind(productId).first();
-        if (supabasePrimaryWritesRequested(env) && row?.status === 'ok') {
+        if (supabaseReadsRequested(env) && row?.status === 'ok') {
           row.status = row.treatment_status;
         }
         if (!row?.image_key) return new Response('Not found', { status: 404 });
@@ -1254,7 +1254,7 @@ export default {
 
       const treatmentPreview = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/preview$/);
       if (treatmentPreview && request.method === 'GET') {
-        const row = supabasePrimaryWritesRequested(env) ? await supabaseProductImageContext(env,Number(treatmentPreview[1])) : await env.DB.prepare(`
+        const row = supabaseReadsRequested(env) ? await supabaseProductImageContext(env,Number(treatmentPreview[1])) : await env.DB.prepare(`
           SELECT p.image_key,mpi.source_image_key,mpi.processed_image_key
           FROM products p
           LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
@@ -1360,7 +1360,7 @@ export default {
 
       const referenceImageGet = url.pathname.match(/^\/api\/reference-images\/(\d+)$/);
       if (referenceImageGet && request.method === 'GET') {
-        const reference = supabasePrimaryWritesRequested(env) ? await supabaseReferenceById(env,Number(referenceImageGet[1])) : await env.DB.prepare(`
+        const reference = supabaseReadsRequested(env) ? await supabaseReferenceById(env,Number(referenceImageGet[1])) : await env.DB.prepare(`
           SELECT image_key FROM cover_visual_references WHERE id=? AND active=1
         `).bind(Number(referenceImageGet[1])).first();
         if (!reference?.image_key) return new Response('Not found', { status: 404 });
@@ -1552,12 +1552,17 @@ export default {
           url: '/'
         };
         
-        const { results } = await env.DB.prepare(`
-          SELECT id, endpoint, p256dh, auth
-          FROM push_subscriptions
-        `).all();
-        
-        const subscriptions = results || [];
+        let subscriptions;
+        if (supabaseReadsRequested(env)) {
+          const rows=await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
+          subscriptions=Array.isArray(rows)?rows:[];
+        } else {
+          const { results } = await env.DB.prepare(`
+            SELECT id, endpoint, p256dh, auth
+            FROM push_subscriptions
+          `).all();
+          subscriptions=results || [];
+        }
         const sendResults = [];
         
         await Promise.all(subscriptions.map(async sub => {
@@ -1577,12 +1582,17 @@ export default {
         const apiKey = env.GEMINI_API_KEY ? 'presente' : 'ausente';
         const publicKey = env.VAPID_PUBLIC_KEY ? 'presente' : 'usando default';
 
-        const { results } = await env.DB.prepare(`
-          SELECT id, user_id, endpoint, p256dh, auth
-          FROM push_subscriptions
-        `).all();
-
-        const subscriptions = results || [];
+        let subscriptions;
+        if (supabaseReadsRequested(env)) {
+          const rows=await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
+          subscriptions=Array.isArray(rows)?rows:[];
+        } else {
+          const { results } = await env.DB.prepare(`
+            SELECT id, user_id, endpoint, p256dh, auth
+            FROM push_subscriptions
+          `).all();
+          subscriptions=results || [];
+        }
 
         const testPayload = {
           title: 'Teste de Sinal · NISTI PRINT',
@@ -1624,26 +1634,21 @@ export default {
       if (url.pathname === '/api/admin/notifications/test' && request.method === 'POST') {
         const randomId = Math.floor(100 + Math.random() * 900);
         const capaCode = `TEST${randomId}`;
-
-        await env.DB.prepare(`
-          INSERT INTO notifications (
-            type, capa_code, product_id, sku, product_name, variacao, platform, image_key, created_at
-          ) VALUES ('new_cover', ?, null, 'TEST_SKU', 'Capa de Teste do Sistema', 'Variação Teste', 'SHOPEE', null, CURRENT_TIMESTAMP)
-        `).bind(capaCode).run();
-
-        try {
-          await broadcastNewCoverPush(env, {
-            capaCode,
-            productName: 'Capa de Teste do Sistema',
-            variacao: 'Variação Teste',
-            platform: 'SHOPEE',
-            imageUrl: null
-          });
-        } catch (err) {
-          console.error('Push test broadcast failed:', err);
-        }
-
-        return json({ ok: true, capa_code: capaCode });
+        const saved=await recordNewCoverNotification(env,{
+          capaCode,
+          productId:null,
+          sku:'TEST_SKU',
+          productName:'Capa de Teste do Sistema',
+          variacao:'Variação Teste',
+          platform:'SHOPEE',
+          imageKey:null
+        });
+        return json({
+          ok:Boolean(saved),
+          capa_code:capaCode,
+          created:Boolean(saved?.created),
+          authority:supabasePrimaryWritesRequested(env)?'supabase':'d1'
+        });
       }
 
       if (url.pathname === '/api/push/public-key' && request.method === 'GET') {
