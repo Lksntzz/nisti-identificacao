@@ -106,36 +106,35 @@ function inspectTransparentPng(bytes) {
 
 async function productTreatmentSummary(env) {
   const row = await env.DB.prepare(`
+    WITH treatment_state AS (
+      SELECT
+        p.image_key,
+        CASE WHEN p.image_key IS NOT NULL
+          AND mpi.status='approved'
+          AND mpi.processed_image_key IS NOT NULL
+          AND mpi.source_image_key=p.image_key
+          AND (mpi.processor='admin-upload' OR mpi.processor_version=?)
+          THEN 1 ELSE 0 END AS is_approved,
+        CASE WHEN p.image_key IS NOT NULL
+          AND mpi.status='failed'
+          AND mpi.source_image_key=p.image_key
+          AND mpi.processor_version=?
+          THEN 1 ELSE 0 END AS is_failed
+      FROM products p
+      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+    )
     SELECT
-      SUM(CASE WHEN p.image_key IS NOT NULL THEN 1 ELSE 0 END) AS with_image,
-      SUM(CASE WHEN p.image_key IS NOT NULL
-        AND mpi.status='approved'
-        AND mpi.processed_image_key IS NOT NULL
-        AND mpi.source_image_key=p.image_key
-        AND (
-          mpi.processor='admin-upload'
-          OR mpi.processor_version=?
-        )
-        THEN 1 ELSE 0 END) AS approved,
-      SUM(CASE WHEN p.image_key IS NOT NULL
-        AND (
-          mpi.product_id IS NULL
-          OR COALESCE(mpi.status,'') <> 'approved'
-          OR mpi.processed_image_key IS NULL
-          OR mpi.source_image_key IS NOT p.image_key
-          OR (
-            COALESCE(mpi.processor,'') <> 'admin-upload'
-            AND COALESCE(mpi.processor_version,'') <> ?
-          )
-        )
-        THEN 1 ELSE 0 END) AS pending
-    FROM products p
-    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+      SUM(CASE WHEN image_key IS NOT NULL THEN 1 ELSE 0 END) AS with_image,
+      SUM(is_approved) AS approved,
+      SUM(is_failed) AS failed,
+      SUM(CASE WHEN image_key IS NOT NULL AND is_approved=0 AND is_failed=0 THEN 1 ELSE 0 END) AS pending
+    FROM treatment_state
   `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,PRODUCT_IMAGE_PROCESSOR_VERSION).first();
   return {
     with_image:Number(row?.with_image || 0),
     approved:Number(row?.approved || 0),
-    pending:Number(row?.pending || 0)
+    pending:Number(row?.pending || 0),
+    failed:Number(row?.failed || 0)
   };
 }
 

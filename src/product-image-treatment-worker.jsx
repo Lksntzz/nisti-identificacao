@@ -9,6 +9,13 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function emitTreatmentProgress(detail) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('nisti:product-image-treatment-progress', {
+    detail:{ timestamp:Date.now(), ...detail }
+  }));
+}
+
 function readLock() {
   try {
     const raw = localStorage.getItem(LOCK_KEY);
@@ -123,6 +130,10 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
           }
 
           const items = Array.isArray(payload?.items) ? payload.items : [];
+          emitTreatmentProgress({
+            phase:items.length ? 'queue' : 'idle',
+            summary:payload?.summary || null
+          });
           if (!items.length) {
             emptyPasses += 1;
             if (emptyPasses < 2) await sleep(1200);
@@ -135,8 +146,19 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
           for (const item of items) {
             if (cancelled) break;
             writeLock(owner);
+            emitTreatmentProgress({
+              phase:'processing',
+              product:{ id:item.id, sku:item.sku || null, name:item.name || null },
+              summary:payload?.summary || null
+            });
             try {
-              changed.push(await processItem(item));
+              const result = await processItem(item);
+              changed.push(result);
+              emitTreatmentProgress({
+                phase:'processed',
+                product:{ id:item.id, sku:item.sku || null, name:item.name || null },
+                result
+              });
             } catch (error) {
               console.warn('[NISTI imagens] Tratamento pendente', item?.id, error);
               // Falhas transitórias de rede não viram erro definitivo no banco.
@@ -144,6 +166,11 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
                 await markFailed(item.id, error.message);
                 changed.push({ id:item.id, status:'failed' });
               }
+              emitTreatmentProgress({
+                phase:'failed',
+                product:{ id:item.id, sku:item.sku || null, name:item.name || null },
+                error:String(error?.message || 'Falha no tratamento.')
+              });
             }
             await sleep(120);
           }
@@ -156,6 +183,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
         }
       } catch (error) {
         console.warn('[NISTI imagens] Fila automática interrompida temporariamente', error);
+        emitTreatmentProgress({ phase:'error', error:String(error?.message || error) });
       } finally {
         running = false;
         releaseLock(owner);

@@ -114,11 +114,81 @@ function MuralProductImageManager({ products, onChanged }) {
   const [query,setQuery]=useState('');
   const [busyId,setBusyId]=useState(null);
   const [error,setError]=useState('');
+  const [treatmentProgress,setTreatmentProgress]=useState({
+    loading:true,phase:'loading',with_image:0,approved:0,pending:0,failed:0,current:null,error:''
+  });
   const filtered=useMemo(()=>{
     const term=query.trim().toLowerCase();
     if(!term)return products;
     return products.filter(item=>`${item.sku||''} ${item.nome||''} ${item.variacao||''}`.toLowerCase().includes(term));
   },[products,query]);
+
+  useEffect(()=>{
+    let active=true;
+    let polling=false;
+
+    const mergeProgress=(detail={})=>{
+      if(!active)return;
+      setTreatmentProgress(current=>{
+        const summary=detail.summary&&typeof detail.summary==='object'?detail.summary:{};
+        const phase=detail.phase||current.phase;
+        const finished=['processed','failed'].includes(phase);
+        return {
+          ...current,
+          ...summary,
+          loading:false,
+          phase,
+          current:phase==='processing'?(detail.product||null):finished?null:current.current,
+          error:detail.error||''
+        };
+      });
+    };
+
+    const refreshProgress=async()=>{
+      if(polling)return;
+      polling=true;
+      try{
+        const payload=await request('/api/admin/product-image-treatment/pending?limit=1');
+        if(!active)return;
+        const summary=payload?.summary||{};
+        setTreatmentProgress(current=>({
+          ...current,
+          ...summary,
+          loading:false,
+          phase:Number(summary.pending||0)>0?(current.current?'processing':'queue'):'complete',
+          current:Number(summary.pending||0)>0?current.current:null,
+          error:''
+        }));
+      }catch(err){
+        if(active)setTreatmentProgress(current=>({...current,loading:false,phase:'error',error:err.message}));
+      }finally{polling=false}
+    };
+
+    const onProgress=event=>mergeProgress(event.detail);
+    window.addEventListener('nisti:product-image-treatment-progress',onProgress);
+    refreshProgress();
+    const timer=window.setInterval(refreshProgress,1500);
+    return()=>{
+      active=false;
+      window.clearInterval(timer);
+      window.removeEventListener('nisti:product-image-treatment-progress',onProgress);
+    };
+  },[]);
+
+  const treatmentTotal=Number(treatmentProgress.with_image||0);
+  const treatmentApproved=Number(treatmentProgress.approved||0);
+  const treatmentPending=Number(treatmentProgress.pending||0);
+  const treatmentFailed=Number(treatmentProgress.failed||0);
+  const treatmentPercent=treatmentTotal?Math.min(100,Math.round(treatmentApproved*100/treatmentTotal)):0;
+  const treatmentStatus=treatmentProgress.loading
+    ?'Verificando a fila…'
+    :treatmentProgress.current?.sku
+      ?`Tratando agora: ${treatmentProgress.current.sku}`
+      :treatmentPending>0
+        ?'Preparando a próxima imagem…'
+        :treatmentFailed>0
+          ?`Processamento encerrado com ${treatmentFailed} falha${treatmentFailed===1?'':'s'}`
+          :'Todas as imagens foram tratadas';
 
   const upload=async(product,file)=>{
     if(!file)return;
@@ -138,6 +208,26 @@ function MuralProductImageManager({ products, onChanged }) {
 
   return <div className="mural-product-image-manager">
     <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. O Mural usa apenas o PNG transparente aprovado.</p></div><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></header>
+    <section className={`mural-product-treatment-progress ${treatmentProgress.phase}`} aria-live="polite">
+      <div className="mural-product-treatment-progress-copy">
+        <span>Tratamento automático</span>
+        <strong>{treatmentProgress.loading?'Carregando…':`${treatmentApproved} de ${treatmentTotal} imagens tratadas`}</strong>
+        <small>{treatmentStatus}</small>
+      </div>
+      <div className="mural-product-treatment-progress-numbers">
+        <span><b>{treatmentApproved}</b> concluídas</span>
+        <span><b>{treatmentPending}</b> na fila</span>
+        {treatmentFailed>0&&<span className="failed"><b>{treatmentFailed}</b> falhas</span>}
+      </div>
+      <div
+        className="mural-product-treatment-progress-track"
+        role="progressbar"
+        aria-label="Progresso do tratamento das imagens"
+        aria-valuemin="0"
+        aria-valuemax={treatmentTotal||1}
+        aria-valuenow={treatmentApproved}
+      ><i style={{width:`${treatmentPercent}%`}}/></div>
+    </section>
     {error&&<div className="mural-admin-error">{error}</div>}
     <div className="mural-product-image-manager-grid">
       {filtered.map(product=><article key={product.id}>

@@ -92,6 +92,22 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(worker.includes('/failed'));
 });
 
+test('Mural admin shows live treatment totals and the current SKU', () => {
+  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const worker = read('src/product-image-treatment-worker.jsx');
+  const css = read('src/mural-admin.css');
+  const core = read('src/core-router.js');
+
+  assert.ok(admin.includes("nisti:product-image-treatment-progress"));
+  assert.ok(admin.includes("/api/admin/product-image-treatment/pending?limit=1"));
+  assert.ok(admin.includes('role="progressbar"'));
+  assert.ok(admin.includes('Tratando agora:'));
+  assert.ok(worker.includes("new CustomEvent('nisti:product-image-treatment-progress'"));
+  assert.ok(worker.includes("phase:'processing'"));
+  assert.ok(css.includes('.mural-product-treatment-progress-track'));
+  assert.ok(core.includes('failed:Number(row?.failed || 0)'));
+});
+
 
 test('display endpoint marks treated versus original fallback and client reprocesses only original fallback', () => {
   const publicImages = read('src/public-image-router.js');
