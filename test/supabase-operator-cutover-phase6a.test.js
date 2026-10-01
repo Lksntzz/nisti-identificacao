@@ -129,8 +129,8 @@ test('structural fallback reads use preferred Supabase store and legacy self-tra
   assert.doesNotMatch(resolveSection, /env\.DB\.prepare/);
 });
 
-test('production cutover candidate enables Supabase reads while writes remain frozen', () => {
+test('production cutover candidate enables Supabase reads while writes are released', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
-  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE\s*=\s*"1"/);
+  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE\s*=\s*"0"/);
 });
