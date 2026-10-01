@@ -9,6 +9,7 @@ import {
   commerceFormatNumber,
   commerceStatusLabel
 } from './commerce-admin-shared.jsx';
+import ProductCutoutImage from './product-cutout-image.jsx';
 import './commerce-listing-state.css';
 
 const MARKETPLACE_LABELS = Object.freeze({
@@ -55,16 +56,12 @@ function formatDate(value) {
 }
 
 function ProductImage({ product, className }) {
-  if (!product?.thumbnail_url) {
-    return <div className={`${className} commerce-image-placeholder`}>Sem foto</div>;
-  }
   return (
-    <img
+    <ProductCutoutImage
       className={className}
-      src={product.thumbnail_url}
-      alt={product.name || `Produto #${product.product_id}`}
-      loading="lazy"
-      referrerPolicy="no-referrer"
+      src={product?.thumbnail_url}
+      alt={product?.name || `Produto #${product?.product_id || ''}`}
+      fallback={<div className={`${className} commerce-image-placeholder`}>Sem foto</div>}
     />
   );
 }
@@ -140,16 +137,11 @@ function ListingPlatformCard({ listing }) {
   return (
     <article className="commerce-platform-listing-card">
       <div className="commerce-platform-listing-media">
-        {listing.image_url ? (
-          <img
-            src={listing.image_url}
-            alt={listing.title || `Anúncio #${listing.listing_id}`}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="commerce-image-placeholder">Sem foto</div>
-        )}
+        <ProductCutoutImage
+          src={listing.image_url}
+          alt={listing.title || `Anúncio #${listing.listing_id}`}
+          fallback={<div className="commerce-image-placeholder">Sem foto</div>}
+        />
         {listing.image_source === 'OTHER_MARKETPLACE' ? (
           <small>Mesma foto do produto · {listing.image_source_marketplace_name || marketplaceLabel(listing.image_source_marketplace_code)}</small>
         ) : null}
