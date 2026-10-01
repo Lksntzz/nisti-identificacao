@@ -113,6 +113,7 @@ function TransparentMuralProductImage({ src, alt = '', className = '', draggable
 
 function MuralProductImageManager({ products, onChanged }) {
   const [query,setQuery]=useState('');
+  const [showApproved,setShowApproved]=useState(false);
   const [busyId,setBusyId]=useState(null);
   const [error,setError]=useState('');
   const [paused,setPaused]=useState(()=>{
@@ -123,9 +124,10 @@ function MuralProductImageManager({ products, onChanged }) {
   });
   const filtered=useMemo(()=>{
     const term=query.trim().toLowerCase();
-    if(!term)return products;
-    return products.filter(item=>`${item.sku||''} ${item.nome||''} ${item.variacao||''}`.toLowerCase().includes(term));
-  },[products,query]);
+    const visible=showApproved?products:products.filter(item=>!item.mural_image_ready);
+    if(!term)return visible;
+    return visible.filter(item=>`${item.sku||''} ${item.nome||''} ${item.variacao||''}`.toLowerCase().includes(term));
+  },[products,query,showApproved]);
 
   useEffect(()=>{
     let active=true;
@@ -237,7 +239,7 @@ function MuralProductImageManager({ products, onChanged }) {
   };
 
   return <div className="mural-product-image-manager">
-    <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. O Mural usa apenas o PNG transparente aprovado.</p></div><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></header>
+    <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. Só desaparece da revisão depois da sua aprovação.</p></div><div className="mural-product-image-manager-tools"><button type="button" onClick={()=>setShowApproved(value=>!value)}>{showApproved?'Ocultar aprovadas':'Ver aprovadas'}</button><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></div></header>
     <section className={`mural-product-treatment-progress ${treatmentProgress.phase}`} aria-live="polite">
       <div className="mural-product-treatment-progress-copy">
         <span>Tratamento automático</span>
@@ -262,7 +264,7 @@ function MuralProductImageManager({ products, onChanged }) {
     </section>
     {error&&<div className="mural-admin-error">{error}</div>}
     <div className="mural-product-image-manager-grid">
-      {filtered.map(product=>{const previewSrc=product.mural_image_ready?product.image_url:product.mural_image_reviewable?product.review_image_url:null;const state=product.mural_image_ready?'approved':product.mural_image_reviewable?'review':product.mural_image_status==='failed'?'failed':product.mural_image_processor==='system-precise-redo'?'redo':'pending';const label={approved:'Aprovada e bloqueada',review:'Aguardando aprovação',failed:'Falhou',redo:'Refazendo com borda',pending:'Pendente'}[state];return <article key={product.id}>
+      {filtered.map(product=>{const previewSrc=product.mural_image_ready?product.image_url:product.mural_image_reviewable?product.review_image_url:null;const state=product.mural_image_ready?'approved':product.mural_image_reviewable?'review':product.mural_image_status==='failed'?'failed':product.mural_image_processor==='system-precise-redo'?'redo':'pending';const label={approved:'Aprovada e salva',review:'Aguardando aprovação',failed:'Falhou',redo:'Refazendo com borda',pending:'Pendente'}[state];return <article key={product.id}>
         <div className="mural-product-image-pair">
           <figure><span>Original</span>{product.original_image_url?<img src={product.original_image_url} alt=""/>:<i>Sem imagem</i>}</figure>
           <figure className="processed"><span>PNG tratado</span>{previewSrc?<img src={previewSrc} alt=""/>:<i>{state==='redo'?'Refazendo…':'Pendente'}</i>}</figure>
@@ -276,6 +278,7 @@ function MuralProductImageManager({ products, onChanged }) {
           {(product.mural_image_ready||product.mural_image_reviewable)&&<button type="button" disabled={busyId!==null} onClick={()=>remove(product)}>Remover</button>}
         </footer>
       </article>})}
+      {!filtered.length&&<div className="mural-product-image-manager-empty">Nenhuma imagem nesta fila.</div>}
     </div>
   </div>;
 }
