@@ -1,63 +1,14 @@
-const ADMIN_ID = 'admin';
+const ADMIN_ID = '__admin_system__';
+const SYSTEM_CODE_PREFIX = '__SYS__';
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-
-let schemaReady = false;
-let schemaPromise = null;
 
 function clean(value, maxLength = 500) {
   const text = String(value ?? '').trim();
   return text ? text.slice(0, maxLength) : null;
 }
 
-async function ensureAdminNotificationSchema(env) {
-  if (schemaReady || !env?.DB) return;
-  if (!schemaPromise) {
-    schemaPromise = env.DB.batch([
-      env.DB.prepare(`
-        CREATE TABLE IF NOT EXISTS admin_system_notifications (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          event_type TEXT NOT NULL,
-          title TEXT NOT NULL,
-          message TEXT NOT NULL,
-          severity TEXT NOT NULL DEFAULT 'info',
-          source TEXT NOT NULL DEFAULT 'system',
-          actor_name TEXT,
-          entity_type TEXT,
-          entity_id TEXT,
-          request_path TEXT,
-          request_method TEXT,
-          http_status INTEGER,
-          metadata_json TEXT,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-      `),
-      env.DB.prepare(`
-        CREATE TABLE IF NOT EXISTS admin_system_notification_reads (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          notification_id INTEGER NOT NULL,
-          admin_id TEXT NOT NULL DEFAULT 'admin',
-          read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(notification_id, admin_id),
-          FOREIGN KEY (notification_id) REFERENCES admin_system_notifications(id) ON DELETE CASCADE
-        )
-      `),
-      env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_admin_system_notifications_created ON admin_system_notifications(id DESC)'),
-      env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_admin_system_notification_reads_admin ON admin_system_notification_reads(admin_id, notification_id)')
-    ]);
-  }
-
-  try {
-    await schemaPromise;
-    schemaReady = true;
-  } catch (error) {
-    schemaPromise = null;
-    throw error;
-  }
-}
-
 export async function recordAdminSystemNotification(env, event = {}) {
   if (!env?.DB) return null;
-  await ensureAdminNotificationSchema(env);
 
   const eventType = clean(event.event_type, 80) || 'system_activity';
   const title = clean(event.title, 160) || 'Atividade no sistema';
@@ -65,28 +16,28 @@ export async function recordAdminSystemNotification(env, event = {}) {
   const severity = ['info', 'success', 'warning', 'error'].includes(event.severity)
     ? event.severity
     : 'info';
-  const metadata = event.metadata && typeof event.metadata === 'object'
-    ? JSON.stringify(event.metadata).slice(0, 4000)
-    : null;
+  const marker = `${SYSTEM_CODE_PREFIX}${Date.now()}_${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
+  const envelope = JSON.stringify({
+    source: clean(event.source, 80) || 'system',
+    severity,
+    actor_name: clean(event.actor_name, 100),
+    entity_type: clean(event.entity_type, 80),
+    request_method: clean(event.request_method, 12),
+    http_status: Number.isInteger(Number(event.http_status)) ? Number(event.http_status) : null
+  }).slice(0, 1000);
 
   const result = await env.DB.prepare(`
-    INSERT INTO admin_system_notifications (
-      event_type,title,message,severity,source,actor_name,entity_type,entity_id,
-      request_path,request_method,http_status,metadata_json,created_at
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+    INSERT INTO notifications (
+      type,capa_code,product_id,sku,product_name,variacao,platform,image_key,created_at
+    ) VALUES (?,?,NULL,?,?,?,?,?,CURRENT_TIMESTAMP)
   `).bind(
     eventType,
+    marker,
+    clean(event.entity_id, 120),
     title,
     message,
-    severity,
-    clean(event.source, 80) || 'system',
-    clean(event.actor_name, 100),
-    clean(event.entity_type, 80),
-    clean(event.entity_id, 120),
-    clean(event.request_path, 300),
-    clean(event.request_method, 12),
-    Number.isInteger(Number(event.http_status)) ? Number(event.http_status) : null,
-    metadata
+    envelope,
+    clean(event.request_path, 300)
   ).run();
 
   return Number(result?.meta?.last_row_id || 0) || null;
@@ -94,78 +45,87 @@ export async function recordAdminSystemNotification(env, event = {}) {
 
 export async function listAdminSystemNotifications(env, limit = 80) {
   if (!env?.DB) return [];
-  await ensureAdminNotificationSchema(env);
   const safeLimit = Math.max(1, Math.min(200, Number(limit) || 80));
   const { results } = await env.DB.prepare(`
     SELECT
-      n.id,n.event_type,n.title,n.message,n.severity,n.source,n.actor_name,
-      n.entity_type,n.entity_id,n.request_path,n.request_method,n.http_status,
-      n.metadata_json,n.created_at,
+      n.id,n.type,n.sku,n.product_name,n.variacao,n.platform,n.image_key,n.created_at,
       r.read_at IS NOT NULL AS is_read,r.read_at
-    FROM admin_system_notifications n
-    LEFT JOIN admin_system_notification_reads r
-      ON r.notification_id=n.id AND r.admin_id=?
+    FROM notifications n
+    LEFT JOIN notification_reads r
+      ON r.notification_id=n.id AND r.user_id=?
+    WHERE n.type<>'new_cover' AND n.capa_code LIKE ?
     ORDER BY n.id DESC
     LIMIT ?
-  `).bind(ADMIN_ID, safeLimit).all();
+  `).bind(ADMIN_ID, `${SYSTEM_CODE_PREFIX}%`, safeLimit).all();
 
-  return (results || []).map(row => ({
-    ...row,
-    id: Number(row.id),
-    http_status: row.http_status == null ? null : Number(row.http_status),
-    is_read: row.is_read === true || Number(row.is_read) === 1,
-    metadata: (() => {
-      try { return row.metadata_json ? JSON.parse(row.metadata_json) : null; }
-      catch { return null; }
-    })()
-  }));
+  return (results || []).map(row => {
+    let envelope = {};
+    try { envelope = row.platform ? JSON.parse(row.platform) : {}; }
+    catch { envelope = {}; }
+    return {
+      id: Number(row.id),
+      event_type: row.type || 'system_activity',
+      title: row.product_name || 'Atividade no sistema',
+      message: row.variacao || row.product_name || 'Atividade no sistema',
+      severity: envelope.severity || 'info',
+      source: envelope.source || 'system',
+      actor_name: envelope.actor_name || null,
+      entity_type: envelope.entity_type || null,
+      entity_id: row.sku || null,
+      request_path: row.image_key || null,
+      request_method: envelope.request_method || null,
+      http_status: envelope.http_status == null ? null : Number(envelope.http_status),
+      metadata: null,
+      is_read: row.is_read === true || Number(row.is_read) === 1,
+      read_at: row.read_at || null,
+      created_at: row.created_at
+    };
+  });
 }
 
 export async function getAdminSystemUnreadCount(env) {
   if (!env?.DB) return 0;
-  await ensureAdminNotificationSchema(env);
   const row = await env.DB.prepare(`
     SELECT COUNT(*) AS total
-    FROM admin_system_notifications n
-    LEFT JOIN admin_system_notification_reads r
-      ON r.notification_id=n.id AND r.admin_id=?
-    WHERE r.id IS NULL
-  `).bind(ADMIN_ID).first();
+    FROM notifications n
+    LEFT JOIN notification_reads r
+      ON r.notification_id=n.id AND r.user_id=?
+    WHERE n.type<>'new_cover' AND n.capa_code LIKE ? AND r.id IS NULL
+  `).bind(ADMIN_ID, `${SYSTEM_CODE_PREFIX}%`).first();
   return Number(row?.total || 0);
 }
 
 export async function markAdminSystemNotificationRead(env, notificationId) {
   if (!env?.DB) return false;
-  await ensureAdminNotificationSchema(env);
   const id = Number(notificationId);
   if (!Number.isInteger(id) || id <= 0) return false;
   const result = await env.DB.prepare(`
-    INSERT INTO admin_system_notification_reads (notification_id,admin_id,read_at)
+    INSERT INTO notification_reads (notification_id,user_id,read_at)
     SELECT id,?,CURRENT_TIMESTAMP
-    FROM admin_system_notifications
-    WHERE id=?
-    ON CONFLICT(notification_id,admin_id) DO NOTHING
-  `).bind(ADMIN_ID, id).run();
+    FROM notifications
+    WHERE id=? AND type<>'new_cover' AND capa_code LIKE ?
+    ON CONFLICT(notification_id,user_id) DO NOTHING
+  `).bind(ADMIN_ID, id, `${SYSTEM_CODE_PREFIX}%`).run();
   if (Number(result?.meta?.changes || 0) > 0) return true;
   const existing = await env.DB.prepare(`
-    SELECT id FROM admin_system_notification_reads
-    WHERE notification_id=? AND admin_id=?
+    SELECT id FROM notification_reads
+    WHERE notification_id=? AND user_id=?
   `).bind(id, ADMIN_ID).first();
   return Boolean(existing);
 }
 
 export async function markAllAdminSystemNotificationsRead(env) {
   if (!env?.DB) return 0;
-  await ensureAdminNotificationSchema(env);
   const result = await env.DB.prepare(`
-    INSERT INTO admin_system_notification_reads (notification_id,admin_id,read_at)
+    INSERT INTO notification_reads (notification_id,user_id,read_at)
     SELECT n.id,?,CURRENT_TIMESTAMP
-    FROM admin_system_notifications n
-    WHERE NOT EXISTS (
-      SELECT 1 FROM admin_system_notification_reads r
-      WHERE r.notification_id=n.id AND r.admin_id=?
-    )
-  `).bind(ADMIN_ID, ADMIN_ID).run();
+    FROM notifications n
+    WHERE n.type<>'new_cover' AND n.capa_code LIKE ?
+      AND NOT EXISTS (
+        SELECT 1 FROM notification_reads r
+        WHERE r.notification_id=n.id AND r.user_id=?
+      )
+  `).bind(ADMIN_ID, `${SYSTEM_CODE_PREFIX}%`, ADMIN_ID).run();
   return Number(result?.meta?.changes || 0);
 }
 
