@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createEan13Svg, downloadBarcodePng, downloadBarcodeZip } from '../ean-barcode.js';
 import { buildEanCollections, collectionZipFilename } from '../ean-collections.js';
 import { AdminState } from './AdminState.jsx';
+import ProductCutoutImage from '../product-cutout-image.jsx';
 
 const BARCODE_PRODUCT_PAGE_SIZE = 10;
 const BARCODE_COLLECTION_PAGE_SIZE = 12;
@@ -258,7 +259,7 @@ export function BarcodeGeneratorView({ api }) {
               >
                 <div className="barcode-collection-cover-stack" aria-hidden="true">
                   {collection.items.slice(0, 4).map((item, index) => item.image_url ? (
-                    <img key={item.id} src={item.image_url} alt="" style={{ '--cover-index': index }} />
+                    <ProductCutoutImage key={item.id} src={item.image_url} alt="" style={{ '--cover-index': index }} />
                   ) : <span key={item.id} style={{ '--cover-index': index }}>▥</span>)}
                 </div>
                 <div className="barcode-collection-copy">
