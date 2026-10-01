@@ -69,7 +69,7 @@ function finishLabels(row) {
 }
 
 function approvedMuralProductKey(row) {
-  if (row?.mural_image_status !== 'approved') return null;
+  if (row?.mural_image_status !== 'approved' || row?.mural_image_reviewed_by !== 'admin') return null;
   if (!row?.mural_processed_image_key || row?.mural_source_image_key !== row?.image_key) return null;
   return row.mural_processed_image_key;
 }
@@ -125,6 +125,7 @@ function mapFeedRow(row, collectionPreviews = new Map()) {
             id:productId,
             image_key:row.product_image_key,
             mural_image_status:row.mural_image_status,
+            mural_image_reviewed_by:row.mural_image_reviewed_by,
             mural_source_image_key:row.mural_source_image_key,
             mural_processed_image_key:row.mural_processed_image_key
           })
@@ -137,6 +138,7 @@ function mapFeedRow(row, collectionPreviews = new Map()) {
         ? approvedMuralProductKey({
             image_key:row.product_image_key,
             mural_image_status:row.mural_image_status,
+            mural_image_reviewed_by:row.mural_image_reviewed_by,
             mural_source_image_key:row.mural_source_image_key,
             mural_processed_image_key:row.mural_processed_image_key
           }) ? 'product-processed' : 'product'
@@ -215,7 +217,7 @@ async function listMuralFeed(request, url, env) {
       mp.notice_level,
       p.id AS product_id,p.sku,p.miolo_code,p.nome AS product_name,
       p.wireo_code,p.tassel_code,p.elastico_code,p.image_key AS product_image_key,
-      mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+      mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
       mpi.processed_image_key AS mural_processed_image_key,
       (
         SELECT mc2.name
@@ -254,7 +256,7 @@ async function listMuralFeed(request, url, env) {
       SELECT
         mcp.collection_id,mcp.sort_order,
         p.id,p.sku,p.nome,p.variacao,p.miolo_code,p.image_key,
-        mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+        mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
         mpi.processed_image_key AS mural_processed_image_key
       FROM mural_collection_products mcp
       INNER JOIN products p ON p.id=mcp.product_id
@@ -338,7 +340,7 @@ async function collectionDetail(slug, env) {
   const { results } = await env.DB.prepare(`
     SELECT
       p.id,p.sku,p.miolo_code,p.nome,p.variacao,p.wireo_code,p.tassel_code,p.elastico_code,p.image_key,
-      mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+      mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
       mpi.processed_image_key AS mural_processed_image_key,
       mcp.sort_order
     FROM mural_collection_products mcp
@@ -998,7 +1000,7 @@ async function adminProducts(url, env) {
   const like = `%${q}%`;
   const { results } = await env.DB.prepare(`
     SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,p.wireo_code,p.tassel_code,p.elastico_code,p.miolo_code,
-      mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+      mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
       mpi.processed_image_key AS mural_processed_image_key,mpi.processor AS mural_image_processor,
       mpi.reviewed_at AS mural_image_reviewed_at,mpi.error_message AS mural_image_error,
       (
@@ -1016,7 +1018,10 @@ async function adminProducts(url, env) {
   `).bind(q,like,like,like,productLimit).all();
   return json({items:(results||[]).map(row=>{
     const labels=finishLabels(row);
-    const reviewable = row.mural_image_status === 'review'
+    const reviewable = (
+      row.mural_image_status === 'review'
+      || (row.mural_image_status === 'approved' && row.mural_image_reviewed_by !== 'admin')
+    )
       && row.mural_processed_image_key
       && row.mural_source_image_key === row.image_key;
     return {
@@ -1125,7 +1130,7 @@ async function muralGeminiProReferences(env, { productId = null, collectionId = 
   if (Number.isInteger(productId) && productId > 0) {
     const product = await env.DB.prepare(`
       SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,
-        mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+        mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
         mpi.processed_image_key AS mural_processed_image_key
       FROM products p
       LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
@@ -1146,7 +1151,7 @@ async function muralGeminiProReferences(env, { productId = null, collectionId = 
 
     const result = await env.DB.prepare(`
       SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,mcp.sort_order,
-        mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+        mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
         mpi.processed_image_key AS mural_processed_image_key
       FROM mural_collection_products mcp
       INNER JOIN products p ON p.id=mcp.product_id
