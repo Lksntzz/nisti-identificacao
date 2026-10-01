@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-test('Supabase cutover candidate uses primary reads and strict primary writes', () => {
+test('Supabase cutover release uses primary reads, primary writes and releases the maintenance freeze', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_URL = "https:\/\/yioetdcbgorunwgwuawg\.supabase\.co"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED = "1"/);
