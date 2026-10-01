@@ -4,6 +4,8 @@ const transparentImageCache = new Map();
 const transparentImageInflight = new Map();
 const transparentOutlineCache = new Map();
 const transparentOutlineInflight = new Map();
+const treatedProductImageCache = new Map();
+const treatedProductImageInflight = new Map();
 const MAX_CACHE_ENTRIES = 80;
 const MAX_RENDER_DIMENSION = 1800;
 
@@ -34,7 +36,7 @@ function isBorderBackgroundCandidate(r, g, b, a) {
   // The subject mask protects the complete product. This threshold can then
   // remove the light studio background and its pale halo without cutting
   // white paper or white cover artwork inside the product silhouette.
-  return brightness >= 222 && chroma <= 28;
+  return brightness >= 242 && chroma <= 18;
 }
 
 function cross(origin, a, b) {
@@ -605,8 +607,12 @@ async function buildTransparentProductImage(src) {
   // product cutout and must not disable background cleanup.
   if (hasExistingTransparency(data, total) && hasUsableTransparentBorder(data, width, height)) return src;
 
-  const isProtectedSubjectPixel = buildSubjectProtection(data, width, height);
-  if (!isProtectedSubjectPixel) return src;
+  // We still require strong product evidence before attempting any automatic
+  // cutout, but we no longer keep an opaque convex-hull "plate" behind the
+  // product. The previous hull clipping was the source of the white slab.
+  const subjectEvidence = buildSubjectProtection(data, width, height);
+  if (!subjectEvidence) return src;
+
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
   let head = 0;
@@ -635,14 +641,10 @@ async function buildTransparentProductImage(src) {
     const x = index % width;
     const y = Math.floor(index / width);
 
-    // Preserve light/white artwork that sits inside the detected product
-    // silhouette. We still walk through it so the outer background remains
-    // reachable, but we never make the cover itself transparent.
-    if (!isProtectedSubjectPixel(x, y)) {
-      // A binary cut avoids the translucent white fringe produced by the old
-      // distance-based alpha and leaves a clean, linear product boundary.
-      data[offset + 3] = 0;
-    }
+    // Remove only near-white pixels that are connected to the outer canvas.
+    // A white/off-white cover remains intact because the physical product edge
+    // blocks this conservative flood before it reaches the cover interior.
+    data[offset + 3] = 0;
 
     if (x > 0) enqueue(index - 1);
     if (x + 1 < width) enqueue(index + 1);
@@ -650,10 +652,31 @@ async function buildTransparentProductImage(src) {
     if (y + 1 < height) enqueue(index + width);
   }
 
-  // Hard-clip everything outside the dominant agenda body. This is what
-  // removes a printed/export logo sitting alone in a corner instead of
-  // allowing it to stretch the white outline toward itself.
-  clearOutsideSubject(data, width, height, isProtectedSubjectPixel);
+  const productMask = buildProductComponentsMask(data, width, height);
+  if (!productMask) return src;
+  const productStats = maskStats(productMask, width, height);
+  const productWidth = productStats.maxX - productStats.minX + 1;
+  const productHeight = productStats.maxY - productStats.minY + 1;
+
+  // Never publish an aggressive/corrupted cutout. In particular, if a white
+  // cover were accidentally eaten by the flood, the remaining artwork would
+  // be too small and this safety gate returns the untouched original image.
+  if (
+    productStats.ratio < .055
+    || productStats.ratio > .82
+    || productWidth < width * .25
+    || productHeight < height * .25
+    || productStats.touches >= 3
+  ) return src;
+
+  // Remove only detached material (for example an export logo in a corner).
+  // Nearby wire-o rings and other physical product parts are retained by
+  // buildProductComponentsMask().
+  const keepMask = dilateMask(productMask, width, height, 1);
+  for (let index = 0; index < total; index += 1) {
+    if (keepMask[index]) continue;
+    data[index * 4 + 3] = 0;
+  }
 
   context.putImageData(imageData, 0, 0);
 
@@ -662,6 +685,126 @@ async function buildTransparentProductImage(src) {
   });
 
   return URL.createObjectURL(outputBlob);
+}
+
+async function buildTreatedProductImage(src) {
+  const cutoutSrc = await transparentProductImageUrl(src);
+  if (!cutoutSrc) return src;
+
+  const response = await fetch(cutoutSrc, { credentials:'same-origin' });
+  if (!response.ok) return cutoutSrc;
+  const blob = await response.blob();
+  const bitmap = await loadBitmap(blob);
+  const width = Number(bitmap.width || bitmap.naturalWidth || 0);
+  const height = Number(bitmap.height || bitmap.naturalHeight || 0);
+  if (!width || !height) return cutoutSrc;
+
+  const sourceCanvas = document.createElement('canvas');
+  sourceCanvas.width = width;
+  sourceCanvas.height = height;
+  const sourceContext = sourceCanvas.getContext('2d', { willReadFrequently:true });
+  if (!sourceContext) return cutoutSrc;
+  sourceContext.clearRect(0, 0, width, height);
+  sourceContext.drawImage(bitmap, 0, 0, width, height);
+  if (typeof bitmap.close === 'function') bitmap.close();
+
+  const imageData = sourceContext.getImageData(0, 0, width, height);
+  const { data } = imageData;
+  const total = width * height;
+
+  // If the source could not be safely separated from its background, leave it
+  // untouched. This is intentionally safer than cutting a white cover.
+  if (!hasExistingTransparency(data, total) || !hasUsableTransparentBorder(data, width, height)) {
+    return cutoutSrc;
+  }
+
+  const productMask = buildProductComponentsMask(data, width, height);
+  if (!productMask) return cutoutSrc;
+  const stats = maskStats(productMask, width, height);
+  const productWidth = stats.maxX - stats.minX + 1;
+  const productHeight = stats.maxY - stats.minY + 1;
+  if (
+    stats.ratio < .055
+    || stats.ratio > .82
+    || productWidth < width * .25
+    || productHeight < height * .25
+    || stats.touches >= 3
+  ) return cutoutSrc;
+
+  // Remove disconnected logos/watermarks from the final visible product while
+  // keeping nearby detached physical pieces such as wire-o loops.
+  const keepMask = dilateMask(productMask, width, height, 1);
+  for (let index = 0; index < total; index += 1) {
+    if (keepMask[index]) continue;
+    data[index * 4 + 3] = 0;
+  }
+  sourceContext.putImageData(imageData, 0, 0);
+
+  const solidMask = fillMaskInteriorHoles(productMask, width, height);
+  // 8 px at 1024 px, proportional at other resolutions: within the requested
+  // visual band of roughly 6–10 px per 1024 px.
+  const outlineRadius = clamp(Math.round(Math.max(width, height) * (8 / 1024)), 2, 16);
+  const expandedMask = dilateMask(solidMask, width, height, outlineRadius);
+  const padding = outlineRadius + 2;
+
+  const outputCanvas = document.createElement('canvas');
+  outputCanvas.width = width + padding * 2;
+  outputCanvas.height = height + padding * 2;
+  const outputContext = outputCanvas.getContext('2d', { willReadFrequently:true });
+  if (!outputContext) return cutoutSrc;
+
+  const outlineData = outputContext.createImageData(outputCanvas.width, outputCanvas.height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const sourceIndex = y * width + x;
+      if (!expandedMask[sourceIndex] || solidMask[sourceIndex]) continue;
+      const targetIndex = (y + padding) * outputCanvas.width + (x + padding);
+      const offset = targetIndex * 4;
+      outlineData.data[offset] = 255;
+      outlineData.data[offset + 1] = 255;
+      outlineData.data[offset + 2] = 255;
+      outlineData.data[offset + 3] = 255;
+    }
+  }
+
+  outputContext.putImageData(outlineData, 0, 0);
+  outputContext.drawImage(sourceCanvas, padding, padding);
+
+  const outputBlob = await new Promise((resolve, reject) => {
+    outputCanvas.toBlob(
+      result => result ? resolve(result) : reject(new Error('Falha ao gerar imagem tratada do produto.')),
+      'image/png'
+    );
+  });
+  return URL.createObjectURL(outputBlob);
+}
+
+export async function treatedProductImageUrl(src) {
+  const normalized = String(src || '').trim();
+  if (!normalized || typeof document === 'undefined') return normalized;
+  if (treatedProductImageCache.has(normalized)) return treatedProductImageCache.get(normalized);
+  if (treatedProductImageInflight.has(normalized)) return treatedProductImageInflight.get(normalized);
+
+  const promise = buildTreatedProductImage(normalized)
+    .then(url => {
+      treatedProductImageInflight.delete(normalized);
+      treatedProductImageCache.set(normalized, url || normalized);
+      while (treatedProductImageCache.size > MAX_CACHE_ENTRIES) {
+        const oldest = treatedProductImageCache.entries().next().value;
+        if (!oldest) break;
+        const [key, oldUrl] = oldest;
+        treatedProductImageCache.delete(key);
+        if (oldUrl?.startsWith('blob:')) URL.revokeObjectURL(oldUrl);
+      }
+      return url || normalized;
+    })
+    .catch(() => {
+      treatedProductImageInflight.delete(normalized);
+      return normalized;
+    });
+
+  treatedProductImageInflight.set(normalized, promise);
+  return promise;
 }
 
 export async function transparentProductImageUrl(src) {
@@ -742,8 +885,38 @@ export function useTransparentProductOutline(src, enabled = true) {
   return outlineSrc;
 }
 
+export function useTreatedProductImage(src, enabled = true) {
+  const normalized = String(src || '').trim();
+  const cached = normalized && treatedProductImageCache.get(normalized);
+  const [resolvedSrc, setResolvedSrc] = useState(() => cached || normalized);
+
+  useEffect(() => {
+    let active = true;
+    if (!enabled || !normalized) {
+      setResolvedSrc(normalized);
+      return () => { active = false; };
+    }
+
+    const existing = treatedProductImageCache.get(normalized);
+    if (existing) {
+      setResolvedSrc(existing);
+      return () => { active = false; };
+    }
+
+    setResolvedSrc(normalized);
+    treatedProductImageUrl(normalized).then(url => {
+      if (active) setResolvedSrc(url || normalized);
+    });
+    return () => { active = false; };
+  }, [normalized, enabled]);
+
+  return resolvedSrc;
+}
+
 export const __muralTransparentImageInternals = {
   buildSubjectProtection,
   clearOutsideSubject,
-  buildProductComponentsMask
+  buildProductComponentsMask,
+  hasUsableTransparentBorder,
+  buildTreatedProductImage
 };
