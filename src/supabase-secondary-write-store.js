@@ -252,3 +252,136 @@ export async function mirrorProductImageDerivativeFromD1(env, productId) {
     `product image derivative ${id}`
   );
 }
+
+
+export async function mirrorMuralPostFromD1(env, postId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted:false,ok:true };
+  const id=Number(postId || 0);
+  if (!id) return { attempted:false,ok:true };
+
+  const row=await env.DB.prepare(`
+    SELECT
+      id,kind,status,title,subtitle,body,badge,badge_tone,image_key,product_id,
+      collection_id,notice_level,featured,priority,published_at,expires_at,created_by,
+      created_at,updated_at
+    FROM mural_posts
+    WHERE id=?
+    LIMIT 1
+  `).bind(id).first();
+
+  if (!row) {
+    return mirrorSupabaseRpc(
+      env,
+      'nisti_delete_mural_post_v1',
+      { p_id:id },
+      `delete mural post ${id}`
+    );
+  }
+
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_mirror_mural_posts_batch_v1',
+    { p_rows:[row] },
+    `mural post ${id}`
+  );
+}
+
+export async function mirrorAllMuralPostsFromD1(env) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted:false,ok:true };
+  const { results }=await env.DB.prepare(`
+    SELECT
+      id,kind,status,title,subtitle,body,badge,badge_tone,image_key,product_id,
+      collection_id,notice_level,featured,priority,published_at,expires_at,created_by,
+      created_at,updated_at
+    FROM mural_posts
+    ORDER BY id ASC
+    LIMIT 2000
+  `).all();
+
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_mirror_mural_posts_batch_v1',
+    { p_rows:results || [] },
+    'all mural posts'
+  );
+}
+
+export async function mirrorMuralCollectionFromD1(env, collectionId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted:false,ok:true };
+  const id=Number(collectionId || 0);
+  if (!id) return { attempted:false,ok:true };
+
+  const row=await env.DB.prepare(`
+    SELECT id,slug,name,year,description,image_key,status,created_at,updated_at
+    FROM mural_collections
+    WHERE id=?
+    LIMIT 1
+  `).bind(id).first();
+
+  if (!row) return { attempted:false,ok:true };
+
+  await mirrorSupabaseRpc(
+    env,
+    'nisti_mirror_mural_collections_batch_v1',
+    { p_rows:[row] },
+    `mural collection ${id}`
+  );
+
+  const { results }=await env.DB.prepare(`
+    SELECT product_id,sort_order
+    FROM mural_collection_products
+    WHERE collection_id=?
+    ORDER BY sort_order ASC,product_id ASC
+  `).bind(id).all();
+
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_replace_mural_collection_products_v1',
+    { p_collection_id:id,p_rows:results || [] },
+    `mural collection products ${id}`
+  );
+}
+
+export async function mirrorMuralPostReadFromD1(env, postId, userId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted:false,ok:true };
+  const id=Number(postId || 0);
+  const user=cleanText(userId || 'anonymous',100);
+  if (!id || !user) return { attempted:false,ok:true };
+
+  const row=await env.DB.prepare(`
+    SELECT post_id,user_id,read_at
+    FROM mural_post_reads
+    WHERE post_id=? AND user_id=?
+    LIMIT 1
+  `).bind(id,user).first();
+
+  if (!row) return { attempted:false,ok:true };
+
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_mirror_mural_post_reads_batch_v1',
+    { p_rows:[row] },
+    `mural read ${id}/${user}`
+  );
+}
+
+export async function mirrorMuralReadsForUserFromD1(env, userId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted:false,ok:true };
+  const user=cleanText(userId || 'anonymous',100);
+  if (!user) return { attempted:false,ok:true };
+
+  const { results }=await env.DB.prepare(`
+    SELECT post_id,user_id,read_at
+    FROM mural_post_reads
+    WHERE user_id=?
+    ORDER BY post_id ASC
+    LIMIT 2000
+  `).bind(user).all();
+
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_mirror_mural_post_reads_batch_v1',
+    { p_rows:results || [] },
+    `mural reads for ${user}`
+  );
+}

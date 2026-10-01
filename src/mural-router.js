@@ -1,6 +1,14 @@
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 import { productTypeLabel } from './product-display.js';
 import { broadcastMuralPush } from './web-push.js';
+import {
+  preferSupabaseRead,
+  supabaseReserveMuralCollection,
+  supabaseReserveMuralCollectionImage,
+  supabaseReserveMuralFeed,
+  supabaseReserveMuralPostImage,
+  supabaseReserveMuralUnread
+} from './supabase-read-store.js';
 
 const MURAL_PUBLIC_RELEASED = false;
 const MURAL_GEMINI_PRO_MODES = Object.freeze(new Set(['product_scene', 'collection_scene']));
@@ -82,20 +90,26 @@ function muralProductImageUrl(row) {
 }
 
 async function unreadCount(userId, env) {
-  const row = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM mural_posts mp
-    LEFT JOIN mural_post_reads mr
-      ON mr.post_id = mp.id
-     AND mr.user_id = ?
-    WHERE mp.status = 'published'
-      AND mp.published_at IS NOT NULL
-      AND datetime(mp.published_at) <= CURRENT_TIMESTAMP
-      AND (mp.expires_at IS NULL OR datetime(mp.expires_at) > CURRENT_TIMESTAMP)
-      AND mr.post_id IS NULL
-  `).bind(userId).first();
-
-  return Number(row?.total || 0);
+  return preferSupabaseRead(
+    env,
+    () => supabaseReserveMuralUnread(env,userId),
+    async () => {
+      const row = await env.DB.prepare(`
+        SELECT COUNT(*) AS total
+        FROM mural_posts mp
+        LEFT JOIN mural_post_reads mr
+          ON mr.post_id = mp.id
+         AND mr.user_id = ?
+        WHERE mp.status = 'published'
+          AND mp.published_at IS NOT NULL
+          AND datetime(mp.published_at) <= CURRENT_TIMESTAMP
+          AND (mp.expires_at IS NULL OR datetime(mp.expires_at) > CURRENT_TIMESTAMP)
+          AND mr.post_id IS NULL
+      `).bind(userId).first();
+      return Number(row?.total || 0);
+    },
+    'mural:unread'
+  );
 }
 
 function mapFeedRow(row, collectionPreviews = new Map()) {
@@ -181,112 +195,141 @@ async function listMuralFeed(request, url, env) {
   const cursor = decodeCursor(cursorValue);
   if (cursorValue && !cursor) return json({ error: 'Cursor do Mural inválido.' }, 400);
   const userId = cleanUserId(request);
-  const clauses = [
-    "mp.status = 'published'",
-    'mp.published_at IS NOT NULL',
-    'datetime(mp.published_at) <= CURRENT_TIMESTAMP',
-    '(mp.expires_at IS NULL OR datetime(mp.expires_at) > CURRENT_TIMESTAMP)'
-  ];
-  const bindings = [userId];
-
   const kind = TAB_KIND[tab];
-  if (kind) {
-    clauses.push('mp.kind = ?');
-    bindings.push(kind);
-  }
 
-  if (cursor) {
-    clauses.push(`(
-      mp.featured < ?
-      OR (mp.featured = ? AND mp.priority < ?)
-      OR (mp.featured = ? AND mp.priority = ? AND mp.published_at < ?)
-      OR (mp.featured = ? AND mp.priority = ? AND mp.published_at = ? AND mp.id < ?)
-    )`);
-    bindings.push(
-      cursor.featured,
-      cursor.featured, cursor.priority,
-      cursor.featured, cursor.priority, cursor.published_at,
-      cursor.featured, cursor.priority, cursor.published_at, cursor.id
-    );
-  }
+  const payload = await preferSupabaseRead(
+    env,
+    () => supabaseReserveMuralFeed(env,{ userId,kind,limit,cursor }),
+    async () => {
+      const clauses = [
+        "mp.status = 'published'",
+        'mp.published_at IS NOT NULL',
+        'datetime(mp.published_at) <= CURRENT_TIMESTAMP',
+        '(mp.expires_at IS NULL OR datetime(mp.expires_at) > CURRENT_TIMESTAMP)'
+      ];
+      const bindings = [userId];
 
-  const { results } = await env.DB.prepare(`
-    SELECT
-      mp.id,mp.kind,mp.title,mp.subtitle,mp.body,mp.badge,mp.badge_tone,
-      mp.featured,mp.priority,mp.published_at,mp.expires_at,mp.image_key,
-      mp.notice_level,
-      p.id AS product_id,p.sku,p.miolo_code,p.nome AS product_name,
-      p.wireo_code,p.tassel_code,p.elastico_code,p.image_key AS product_image_key,
-      mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
-      mpi.processed_image_key AS mural_processed_image_key,
-      (
-        SELECT mc2.name
-        FROM mural_collection_products mcp2
-        INNER JOIN mural_collections mc2 ON mc2.id=mcp2.collection_id
-        WHERE mcp2.product_id=p.id AND mc2.status='active'
-        ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
-        LIMIT 1
-      ) AS product_collection_name,
-      mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,mc.year AS collection_year,mc.description AS collection_description,mc.image_key AS collection_image_key,
-      CASE WHEN mr.post_id IS NULL THEN 0 ELSE 1 END AS is_read
-    FROM mural_posts mp
-    LEFT JOIN products p ON p.id = mp.product_id
-    LEFT JOIN mural_product_images mpi ON mpi.product_id = p.id
-    LEFT JOIN mural_collections mc ON mc.id = mp.collection_id
-    LEFT JOIN mural_post_reads mr ON mr.post_id = mp.id AND mr.user_id = ?
-    WHERE ${clauses.join('\n      AND ')}
-    ORDER BY mp.featured DESC,mp.priority DESC,mp.published_at DESC,mp.id DESC
-    LIMIT ?
-  `).bind(...bindings, limit + 1).all();
-
-  const rows = results || [];
-  const hasMore = rows.length > limit;
-  const page = rows.slice(0, limit);
-
-  const collectionIds = [...new Set(
-    page
-      .filter(row => row.kind === 'collection' && row.collection_id)
-      .map(row => Number(row.collection_id))
-  )];
-  const collectionPreviews = new Map();
-
-  if (collectionIds.length) {
-    const placeholders = collectionIds.map(() => '?').join(',');
-    const previewResult = await env.DB.prepare(`
-      SELECT
-        mcp.collection_id,mcp.sort_order,
-        p.id,p.sku,p.nome,p.variacao,p.miolo_code,p.image_key,
-        mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
-        mpi.processed_image_key AS mural_processed_image_key
-      FROM mural_collection_products mcp
-      INNER JOIN products p ON p.id=mcp.product_id
-      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
-      WHERE mcp.collection_id IN (${placeholders})
-      ORDER BY mcp.collection_id ASC,mcp.sort_order ASC,p.sku ASC,p.id ASC
-    `).bind(...collectionIds).all();
-
-    for (const row of previewResult.results || []) {
-      const collectionId = Number(row.collection_id);
-      const current = collectionPreviews.get(collectionId) || { count:0, items:[] };
-      current.count += 1;
-      if (current.items.length < 3) {
-        current.items.push({
-          id:Number(row.id),
-          sku:row.sku || null,
-          type:productTypeLabel({ product_name:row.nome, ...row }),
-          name:row.nome || null,
-          image_url:muralProductImageUrl(row),
-          image_source:approvedMuralProductKey(row) ? 'product-processed' : 'product'
-        });
+      if (kind) {
+        clauses.push('mp.kind = ?');
+        bindings.push(kind);
       }
-      collectionPreviews.set(collectionId,current);
+
+      if (cursor) {
+        clauses.push(`(
+          mp.featured < ?
+          OR (mp.featured = ? AND mp.priority < ?)
+          OR (mp.featured = ? AND mp.priority = ? AND mp.published_at < ?)
+          OR (mp.featured = ? AND mp.priority = ? AND mp.published_at = ? AND mp.id < ?)
+        )`);
+        bindings.push(
+          cursor.featured,
+          cursor.featured,cursor.priority,
+          cursor.featured,cursor.priority,cursor.published_at,
+          cursor.featured,cursor.priority,cursor.published_at,cursor.id
+        );
+      }
+
+      const { results } = await env.DB.prepare(`
+        SELECT
+          mp.id,mp.kind,mp.title,mp.subtitle,mp.body,mp.badge,mp.badge_tone,
+          mp.featured,mp.priority,mp.published_at,mp.expires_at,mp.image_key,
+          mp.notice_level,
+          p.id AS product_id,p.sku,p.miolo_code,p.nome AS product_name,
+          p.wireo_code,p.tassel_code,p.elastico_code,p.image_key AS product_image_key,
+          mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
+          mpi.processed_image_key AS mural_processed_image_key,
+          (
+            SELECT mc2.name
+            FROM mural_collection_products mcp2
+            INNER JOIN mural_collections mc2 ON mc2.id=mcp2.collection_id
+            WHERE mcp2.product_id=p.id AND mc2.status='active'
+            ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
+            LIMIT 1
+          ) AS product_collection_name,
+          mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,mc.year AS collection_year,mc.description AS collection_description,mc.image_key AS collection_image_key,
+          CASE WHEN mr.post_id IS NULL THEN 0 ELSE 1 END AS is_read
+        FROM mural_posts mp
+        LEFT JOIN products p ON p.id = mp.product_id
+        LEFT JOIN mural_product_images mpi ON mpi.product_id = p.id
+        LEFT JOIN mural_collections mc ON mc.id = mp.collection_id
+        LEFT JOIN mural_post_reads mr ON mr.post_id = mp.id AND mr.user_id = ?
+        WHERE ${clauses.join('\n      AND ')}
+        ORDER BY mp.featured DESC,mp.priority DESC,mp.published_at DESC,mp.id DESC
+        LIMIT ?
+      `).bind(...bindings,limit+1).all();
+
+      const allRows=results || [];
+      const page=allRows.slice(0,limit);
+      const collectionIds=[...new Set(
+        page.filter(row => row.kind === 'collection' && row.collection_id)
+          .map(row => Number(row.collection_id))
+      )];
+      let previewRows=[];
+
+      if (collectionIds.length) {
+        const placeholders=collectionIds.map(() => '?').join(',');
+        const preview=await env.DB.prepare(`
+          SELECT
+            mcp.collection_id,mcp.sort_order,
+            p.id,p.sku,p.nome,p.variacao,p.miolo_code,p.image_key,
+            mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
+            mpi.processed_image_key AS mural_processed_image_key
+          FROM mural_collection_products mcp
+          INNER JOIN products p ON p.id=mcp.product_id
+          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+          WHERE mcp.collection_id IN (${placeholders})
+          ORDER BY mcp.collection_id ASC,mcp.sort_order ASC,p.sku ASC,p.id ASC
+        `).bind(...collectionIds).all();
+        previewRows=preview.results || [];
+      }
+
+      const unreadRow=await env.DB.prepare(`
+        SELECT COUNT(*) AS total
+        FROM mural_posts mp
+        LEFT JOIN mural_post_reads mr
+          ON mr.post_id=mp.id AND mr.user_id=?
+        WHERE mp.status='published'
+          AND mp.published_at IS NOT NULL
+          AND datetime(mp.published_at)<=CURRENT_TIMESTAMP
+          AND (mp.expires_at IS NULL OR datetime(mp.expires_at)>CURRENT_TIMESTAMP)
+          AND mr.post_id IS NULL
+      `).bind(userId).first();
+
+      return {
+        rows:allRows,
+        preview_rows:previewRows,
+        unread_count:Number(unreadRow?.total || 0)
+      };
+    },
+    'mural:feed'
+  );
+
+  const rows=Array.isArray(payload?.rows) ? payload.rows : [];
+  const hasMore=rows.length > limit;
+  const page=rows.slice(0,limit);
+  const collectionPreviews=new Map();
+
+  for (const row of Array.isArray(payload?.preview_rows) ? payload.preview_rows : []) {
+    const collectionId=Number(row.collection_id);
+    const current=collectionPreviews.get(collectionId) || { count:0,items:[] };
+    current.count += 1;
+    if (current.items.length < 3) {
+      current.items.push({
+        id:Number(row.id),
+        sku:row.sku || null,
+        type:productTypeLabel({ product_name:row.nome, ...row }),
+        name:row.nome || null,
+        image_url:muralProductImageUrl(row),
+        image_source:approvedMuralProductKey(row) ? 'product-processed' : 'product'
+      });
     }
+    collectionPreviews.set(collectionId,current);
   }
 
   return json({
-    items: page.map(row => mapFeedRow(row, collectionPreviews)),
-    next_cursor: hasMore ? encodeCursor(page[page.length - 1]) : null,
-    unread_count: await unreadCount(userId, env)
+    items:page.map(row => mapFeedRow(row,collectionPreviews)),
+    next_cursor:hasMore ? encodeCursor(page[page.length-1]) : null,
+    unread_count:Number(payload?.unread_count || 0)
   });
 }
 
@@ -328,50 +371,62 @@ async function markAllRead(userId, env) {
 }
 
 async function collectionDetail(slug, env) {
-  const collection = await env.DB.prepare(`
-    SELECT id,slug,name,year,description,image_key,status
-    FROM mural_collections
-    WHERE slug = ? AND status = 'active'
-    LIMIT 1
-  `).bind(slug).first();
+  const payload = await preferSupabaseRead(
+    env,
+    () => supabaseReserveMuralCollection(env,slug),
+    async () => {
+      const collection = await env.DB.prepare(`
+        SELECT id,slug,name,year,description,image_key,status
+        FROM mural_collections
+        WHERE slug = ? AND status = 'active'
+        LIMIT 1
+      `).bind(slug).first();
+      if (!collection) return null;
 
-  if (!collection) return json({ error: 'Coleção não encontrada.' }, 404);
+      const { results } = await env.DB.prepare(`
+        SELECT
+          p.id,p.sku,p.miolo_code,p.nome,p.variacao,p.wireo_code,p.tassel_code,p.elastico_code,p.image_key,
+          mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
+          mpi.processed_image_key AS mural_processed_image_key,
+          mcp.sort_order
+        FROM mural_collection_products mcp
+        INNER JOIN products p ON p.id = mcp.product_id
+        LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+        WHERE mcp.collection_id = ?
+        ORDER BY mcp.sort_order ASC,p.sku ASC,p.id ASC
+      `).bind(collection.id).all();
 
-  const { results } = await env.DB.prepare(`
-    SELECT
-      p.id,p.sku,p.miolo_code,p.nome,p.variacao,p.wireo_code,p.tassel_code,p.elastico_code,p.image_key,
-      mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
-      mpi.processed_image_key AS mural_processed_image_key,
-      mcp.sort_order
-    FROM mural_collection_products mcp
-    INNER JOIN products p ON p.id = mcp.product_id
-    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
-    WHERE mcp.collection_id = ?
-    ORDER BY mcp.sort_order ASC,p.sku ASC,p.id ASC
-  `).bind(collection.id).all();
+      return { collection,products:results || [] };
+    },
+    'mural:collection'
+  );
+
+  if (!payload?.collection) return json({ error:'Coleção não encontrada.' },404);
+  const collection=payload.collection;
+  const products=Array.isArray(payload.products) ? payload.products : [];
 
   return json({
-    collection: {
-      id: Number(collection.id),
-      slug: collection.slug,
-      name: collection.name,
-      year: collection.year ? Number(collection.year) : null,
-      description: collection.description || null,
-      image_url: collection.image_key ? `/api/mural/collections/${encodeURIComponent(collection.slug)}/image?v=${encodeURIComponent(collection.image_key)}` : null,
-      products: (results || []).map(row => {
-        const labels = finishLabels(row);
+    collection:{
+      id:Number(collection.id),
+      slug:collection.slug,
+      name:collection.name,
+      year:collection.year ? Number(collection.year) : null,
+      description:collection.description || null,
+      image_url:collection.image_key ? `/api/mural/collections/${encodeURIComponent(collection.slug)}/image?v=${encodeURIComponent(collection.image_key)}` : null,
+      products:products.map(row => {
+        const labels=finishLabels(row);
         return {
-          id: Number(row.id),
-          sku: row.sku,
-          type: productTypeLabel({ product_name: row.nome, ...row }),
-          name: row.nome || null,
-          variation: row.variacao || null,
-          wireo: labels.wireo,
-          tassel: labels.tassel,
-          elastico: labels.elastico,
-          image_url: muralProductImageUrl(row),
-          image_source: approvedMuralProductKey(row) ? 'product-processed' : 'product',
-          sort_order: Number(row.sort_order || 0)
+          id:Number(row.id),
+          sku:row.sku,
+          type:productTypeLabel({ product_name:row.nome, ...row }),
+          name:row.nome || null,
+          variation:row.variacao || null,
+          wireo:labels.wireo,
+          tassel:labels.tassel,
+          elastico:labels.elastico,
+          image_url:muralProductImageUrl(row),
+          image_source:approvedMuralProductKey(row) ? 'product-processed' : 'product',
+          sort_order:Number(row.sort_order || 0)
         };
       })
     }
@@ -1602,14 +1657,32 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
 
     const postImage = path.match(/^\/api\/mural\/images\/(\d+)$/);
     if (postImage && request.method === 'GET') {
-      const row = await env.DB.prepare(`SELECT image_key FROM mural_posts WHERE id=? AND status='published' AND published_at IS NOT NULL AND datetime(published_at)<=CURRENT_TIMESTAMP AND (expires_at IS NULL OR datetime(expires_at)>CURRENT_TIMESTAMP)`).bind(Number(postImage[1])).first();
-      return serveEditorialImage(row?.image_key, env);
+      const id=Number(postImage[1]);
+      const imageKey=await preferSupabaseRead(
+        env,
+        () => supabaseReserveMuralPostImage(env,id),
+        async () => {
+          const row=await env.DB.prepare(`SELECT image_key FROM mural_posts WHERE id=? AND status='published' AND published_at IS NOT NULL AND datetime(published_at)<=CURRENT_TIMESTAMP AND (expires_at IS NULL OR datetime(expires_at)>CURRENT_TIMESTAMP)`).bind(id).first();
+          return row?.image_key || null;
+        },
+        'mural:post-image'
+      );
+      return serveEditorialImage(imageKey,env);
     }
 
     const collectionImage = path.match(/^\/api\/mural\/collections\/([^/]+)\/image$/);
     if (collectionImage && request.method === 'GET') {
-      const row = await env.DB.prepare("SELECT image_key FROM mural_collections WHERE slug=? AND status='active'").bind(decodeURIComponent(collectionImage[1])).first();
-      return serveEditorialImage(row?.image_key, env);
+      const slug=decodeURIComponent(collectionImage[1]);
+      const imageKey=await preferSupabaseRead(
+        env,
+        () => supabaseReserveMuralCollectionImage(env,slug),
+        async () => {
+          const row=await env.DB.prepare("SELECT image_key FROM mural_collections WHERE slug=? AND status='active'").bind(slug).first();
+          return row?.image_key || null;
+        },
+        'mural:collection-image'
+      );
+      return serveEditorialImage(imageKey,env);
     }
 
     const collection = path.match(/^\/api\/mural\/collections\/([^/]+)$/);
