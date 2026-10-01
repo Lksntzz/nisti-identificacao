@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ProductCutoutImage from './product-cutout-image.jsx';
 import './commerce-sales-product-performance.css';
 
 const PAGE_SIZE = 50;
@@ -155,10 +156,15 @@ function recommendationFor(item) {
 }
 
 function ProductThumb({ item }) {
-  const [failed, setFailed] = useState(false);
   const letter = String(item.product_name || item.master_sku || '?').trim().charAt(0).toUpperCase();
-  if (!item.image_url || failed) return <span className="spp-thumb fallback">{letter}</span>;
-  return <img className="spp-thumb" src={item.image_url} alt="" onError={() => setFailed(true)} />;
+  return (
+    <ProductCutoutImage
+      className="spp-thumb"
+      src={item.image_url}
+      alt=""
+      fallback={<span className="spp-thumb fallback">{letter}</span>}
+    />
+  );
 }
 
 function PlatformCell({ data }) {

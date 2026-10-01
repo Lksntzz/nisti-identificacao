@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { commerceApi } from './commerce-admin-api.js';
 import { commerceFormatNumber } from './commerce-admin-shared.jsx';
+import ProductCutoutImage from './product-cutout-image.jsx';
 import './commerce-catalog-workspace.css';
 
 const STATUS_OPTIONS = [
@@ -73,17 +74,12 @@ function MarketplaceMark({ code, label }) {
 }
 
 function ProductImage({ src, alt, className = '' }) {
-  const [active, setActive] = useState(src || null);
-  useEffect(() => setActive(src || null), [src]);
-  if (!active) return <div className={'commerce-catalog-image placeholder ' + className}>Sem foto</div>;
   return (
-    <img
-      className={'commerce-catalog-image ' + className}
-      src={active}
+    <ProductCutoutImage
+      src={src}
       alt={alt || ''}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={() => setActive(null)}
+      className={'commerce-catalog-image ' + className}
+      fallback={<div className={'commerce-catalog-image placeholder ' + className}>Sem foto</div>}
     />
   );
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { formatSaoPauloDateTime } from '../date-time.js';
+import ProductCutoutImage from '../product-cutout-image.jsx';
 
 function formatScanDate(value) {
   return formatSaoPauloDateTime(value);
@@ -98,7 +99,7 @@ function ScanDetailsModal({ status, events, loading, error, onClose, onNavigate 
                   <div className="scan-detail-row" key={event.id}>
                     <div className="scan-detail-product">
                       {event.image_url ? (
-                        <img src={event.image_url} alt="" loading="lazy" />
+                        <ProductCutoutImage src={event.image_url} alt="" />
                       ) : (
                         <span className={`scan-detail-placeholder ${meta.className}`}>▥</span>
                       )}

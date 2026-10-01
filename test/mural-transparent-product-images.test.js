@@ -10,6 +10,11 @@ const publicCss = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.
 const adminCss = fs.readFileSync(new URL('../src/mural-admin.css', import.meta.url), 'utf8');
 const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
 const core = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 'utf8');
+const globalImage = fs.readFileSync(new URL('../src/product-cutout-image.jsx', import.meta.url), 'utf8');
+const main = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const catalog = fs.readFileSync(new URL('../src/admin/CatalogView.jsx', import.meta.url), 'utf8');
+const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
+const commerceCatalog = fs.readFileSync(new URL('../src/commerce-catalog-workspace.jsx', import.meta.url), 'utf8');
 
 test('Mural creates transparent PNG cutouts by removing only border-connected near-white pixels', () => {
   assert.ok(utility.includes('isBorderBackgroundCandidate'));
@@ -22,19 +27,23 @@ test('Mural creates transparent PNG cutouts by removing only border-connected ne
   assert.ok(utility.includes('MAX_RENDER_DIMENSION = 1800'));
 });
 
-test('transparent processing is isolated to the Mural and does not alter catalog source images', () => {
-  assert.ok(mural.includes("useTransparentProductImage(src, shouldRemoveBackground)"));
-  assert.ok(mural.includes("item?.image_source === 'product'"));
-  assert.ok(experience.includes("transparent={item?.image_source === 'product'}"));
+test('treated product rendering is shared across NISTI ID, Catalog, Scanner, Commerce and Mural without mutating source files', () => {
+  assert.ok(globalImage.includes('useTreatedProductImage'));
+  assert.ok(main.includes('ProductCutoutImage'));
+  assert.ok(catalog.includes('ProductCutoutImage'));
+  assert.ok(scanner.includes('ProductCutoutImage'));
+  assert.ok(commerceCatalog.includes('ProductCutoutImage'));
+  assert.ok(mural.includes('useTreatedProductImage'));
+  assert.ok(experience.includes('useTreatedProductImage'));
   assert.equal(core.includes('mural-transparent-image'), false);
 });
 
-test('Mural collection products and admin product references use transparent cutouts', () => {
-  assert.ok(mural.includes('useTransparentProductImage(src, true)'));
-  assert.ok(admin.includes('TransparentMuralProductImage'));
+test('Mural collection products and admin references use the final treated transparent image', () => {
+  assert.ok(mural.includes('useTreatedProductImage(src, true)'));
+  assert.ok(admin.includes('useTreatedProductImage'));
   assert.ok(admin.includes('GeminiReferenceFigure'));
   assert.ok(admin.includes('Baixar PNG'));
-  assert.ok(admin.includes('mural-product-transparent'));
+  assert.ok(mural.includes('mural-product-transparent'));
   assert.ok(publicCss.includes('.mural-product-transparent'));
   assert.ok(adminCss.includes('.mural-gemini-pro-references figure>img.mural-product-transparent'));
 });

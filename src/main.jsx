@@ -9,6 +9,7 @@ import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
+import ProductCutoutImage from './product-cutout-image.jsx';
 import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
 import {
   createEan13Svg,
@@ -686,7 +687,7 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
                     <div className="photo-upload-dropzone" style={{ height: '110px', padding: '10px' }}>
                       {v.preview ? (
                         <div className="photo-upload-preview" style={{ height: '90px' }}>
-                          <img src={v.preview} alt="Prévia" style={{ height: '80px', width: '80px' }} />
+                          <ProductCutoutImage src={v.preview} alt="Prévia" style={{ height: '80px', width: '80px' }} />
                           <label className="photo-change-btn" style={{ fontSize: '11px', padding: '4px 8px' }}>
                             Trocar foto
                             <input type="file" accept="image/*" onChange={e => updateVariant(v.id, 'file', e.target.files?.[0])} />
@@ -1002,7 +1003,7 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
             <div className="photo-upload-dropzone">
               {preview || product.image_url ? (
                 <div className="photo-upload-preview">
-                  <img src={preview || productImage(product)} alt="Prévia" />
+                  <ProductCutoutImage src={preview || productImage(product)} alt="Prévia" />
                   <label className="photo-change-btn">
                     Trocar foto
                     <input type="file" accept="image/*" onChange={e => handleFile(e.target.files?.[0])} />
@@ -1098,7 +1099,7 @@ function ViewProductModal({ product, isOpen, onClose, onEdit, onSyncComplete }) 
         <div className="view-modal-body">
           <div className="view-modal-image-col">
             {product.image_url ? (
-              <img src={productImage(product)} alt={product.sku} className="view-large-thumb" />
+              <ProductCutoutImage src={productImage(product)} alt={product.sku} className="view-large-thumb" />
             ) : (
               <div className="view-placeholder-box">Sem mockup cadastrado</div>
             )}

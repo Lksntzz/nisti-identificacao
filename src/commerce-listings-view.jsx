@@ -9,6 +9,7 @@ import {
   commerceFormatNumber,
   commerceStatusLabel
 } from './commerce-admin-shared.jsx';
+import ProductCutoutImage from './product-cutout-image.jsx';
 import './commerce-listing-state.css';
 
 function formatDate(value) {
@@ -214,15 +215,12 @@ export default function CommerceListingsView() {
                   <tr key={listingId}>
                     <td>
                       <div className="commerce-listing-cover-cell">
-                        {listing.cover_image_url ? (
-                          <img
-                            className="commerce-listing-thumbnail"
-                            src={listing.cover_image_url}
-                            alt={listing.title || `Anúncio #${listingId}`}
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : <div className="commerce-listing-thumbnail commerce-image-placeholder">Sem foto</div>}
+                        <ProductCutoutImage
+                          className="commerce-listing-thumbnail"
+                          src={listing.cover_image_url}
+                          alt={listing.title || `Anúncio #${listingId}`}
+                          fallback={<div className="commerce-listing-thumbnail commerce-image-placeholder">Sem foto</div>}
+                        />
                         {listing.cover_image_source === 'OTHER_MARKETPLACE' ? (
                           <small className="commerce-media-source">Mesma foto · {listing.inherited_source_marketplace_name || listing.inherited_source_marketplace_code || 'outra plataforma'}</small>
                         ) : null}
@@ -238,14 +236,11 @@ export default function CommerceListingsView() {
                         <div className="commerce-listing-variation-strip">
                           {variations.slice(0, 6).map((variation, index) => (
                             <figure key={`${listingId}-${variation.position || index}`}>
-                              {variation.image_url ? (
-                                <img
-                                  src={variation.image_url}
-                                  alt={variation.name || `Opção ${index + 1}`}
-                                  loading="lazy"
-                                  referrerPolicy="no-referrer"
-                                />
-                              ) : <div className="commerce-image-placeholder">—</div>}
+                              <ProductCutoutImage
+                                src={variation.image_url}
+                                alt={variation.name || `Opção ${index + 1}`}
+                                fallback={<div className="commerce-image-placeholder">—</div>}
+                              />
                               <figcaption>{variation.name || `Opção ${index + 1}`}</figcaption>
                             </figure>
                           ))}
@@ -258,11 +253,10 @@ export default function CommerceListingsView() {
                           <div>
                             {inheritedImages.slice(0, 6).map((image, index) => (
                               <figure key={`${listingId}-inherited-${image.product_id || index}`}>
-                                <img
+                                <ProductCutoutImage
                                   src={image.image_url}
                                   alt={image.variation_name || image.sku || `Produto ${index + 1}`}
-                                  loading="lazy"
-                                  referrerPolicy="no-referrer"
+                                  fallback={<div className="commerce-image-placeholder">—</div>}
                                 />
                                 <figcaption>{image.variation_name || image.sku || image.source_marketplace_name || `SKU ${index + 1}`}</figcaption>
                               </figure>
@@ -277,11 +271,10 @@ export default function CommerceListingsView() {
                           <div>
                             {fallbackImages.slice(0, 6).map((image, index) => (
                               <figure key={`${listingId}-nisti-${image.product_id || index}`}>
-                                <img
+                                <ProductCutoutImage
                                   src={image.image_url}
                                   alt={image.variation_name || image.sku || `Produto ${index + 1}`}
-                                  loading="lazy"
-                                  referrerPolicy="no-referrer"
+                                  fallback={<div className="commerce-image-placeholder">—</div>}
                                 />
                                 <figcaption>{image.variation_name || image.sku || `SKU ${index + 1}`}</figcaption>
                               </figure>

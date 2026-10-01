@@ -44,15 +44,12 @@ test('feed exposes image source so a true editorial post image can become the he
 });
 
 
-test('collection product cutouts render only the validated external product outline layer', () => {
-  assert.ok(mural.includes('useTransparentProductOutline'));
-  assert.ok(mural.includes('mural-product-outline'));
-  assert.ok(mural.includes('outlineSrc'));
-  assert.ok(mural.includes('outline />'));
-  assert.ok(css.includes('.mural-launch-product>img.mural-product-outline'));
-  assert.ok(css.includes('.mural-collection-launch-product>img.mural-product-outline'));
-  assert.ok(css.includes('.mural-scene-product>img.mural-product-outline'));
-  assert.ok(css.includes('.mural-collection-reveal-product>img.mural-product-outline'));
+test('collection product cutouts use one final PNG with transparent background and baked external outline', () => {
+  assert.ok(mural.includes('useTreatedProductImage'));
+  assert.equal(mural.includes('useTransparentProductOutline'), false);
+  assert.equal(mural.includes('mural-product-outline'), false);
+  assert.equal(mural.includes('outlineSrc'), false);
+  assert.ok(mural.includes('mural-product-transparent'));
   assert.ok(css.includes('filter:none!important'));
   assert.equal(css.includes('drop-shadow(0 8px 11px rgba(31,41,55,.16))'), false);
 });

@@ -51,7 +51,9 @@ test('galeria Shopee continua disponível no código sem ocupar o menu comercial
   assert.equal(app.includes('CommerceShopeeSnapshotView'), false);
   assert.equal(view.includes('Shopee · Capas e variações'), true);
   assert.equal(view.includes('variation_options'), true);
-  assert.equal(products.includes('product.thumbnail_url'), true);
+  assert.equal(products.includes('thumbnail_url'), true);
+  assert.equal(products.includes('ProductCutoutImage'), true);
   assert.equal(listings.includes('listing.cover_image_url'), true);
+  assert.equal(listings.includes('ProductCutoutImage'), true);
   assert.equal(listings.includes('listing.variation_options'), true);
 });

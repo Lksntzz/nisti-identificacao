@@ -3,7 +3,7 @@ import '../mural-admin.css';
 import { MuralCard } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
 import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx';
-import { useTransparentProductImage } from '../mural-transparent-image.js';
+import { useTreatedProductImage } from '../mural-transparent-image.js';
 
 const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',
@@ -273,7 +273,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   const referenceImage = form.kind === 'product'
     ? selectedProduct?.image_url
     : selectedCollectionProducts.find(product => product.image_url)?.image_url || '';
-  const referenceDisplayImage = useTransparentProductImage(referenceImage, Boolean(referenceImage));
+  const referenceDisplayImage = useTreatedProductImage(referenceImage, Boolean(referenceImage));
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
 
   const changeKind = nextKind => {
