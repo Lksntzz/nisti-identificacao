@@ -128,6 +128,8 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '7'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
+  assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
+  assert.ok(core.includes("product.treated_image_reviewed_by === 'admin'"));
 });
 
 test('treatment queue cannot be blocked forever by one failed or oversized image', () => {
@@ -153,6 +155,8 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(worker.includes('forceOutline:Boolean(item.force_outline)'));
   assert.ok(admin.includes("paused?'Iniciar tratamento':'Pausar tratamento'"));
   assert.ok(admin.includes('Aguardando aprovação'));
+  assert.ok(admin.includes("showApproved?'Ocultar aprovadas':'Ver aprovadas'"));
+  assert.ok(admin.includes('Aprovada e salva'));
   assert.ok(admin.includes('/approve'));
   assert.ok(admin.includes('/redo'));
   assert.ok(core.includes("status='review'"));
