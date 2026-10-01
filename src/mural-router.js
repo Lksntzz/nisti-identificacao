@@ -3,6 +3,7 @@ import { productTypeLabel } from './product-display.js';
 import { broadcastMuralPush } from './web-push.js';
 import {
   preferSupabaseRead,
+  supabaseRpc,
   supabaseReserveMuralCollection,
   supabaseReserveMuralCollectionImage,
   supabaseReserveMuralFeed,
@@ -550,6 +551,19 @@ async function adminListPosts(url, env) {
   const kind = String(url.searchParams.get('kind') || '').trim();
   if (status && !ADMIN_STATUSES.has(status)) return json({ error: 'Status inválido.' }, 400);
   if (kind && !ADMIN_KINDS.has(kind)) return json({ error: 'Tipo inválido.' }, 400);
+  if (supabasePrimaryWritesRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_admin_mural_posts_v1',{p_status:status||null,p_kind:kind||null});
+    return json({items:(Array.isArray(rows)?rows:[]).map(row=>{
+      const labels=finishLabels(row);
+      return {
+        ...row,
+        product_type:row.product_id ? productTypeLabel({sku:row.product_sku,product_name:row.product_name,miolo_code:row.product_miolo_code}) : null,
+        product_image_url:row.product_id && row.product_image_key ? `/api/images/${Number(row.product_id)}?v=${encodeURIComponent(row.product_image_key)}` : null,
+        collection_image_url:row.collection_id && row.collection_image_key ? `/api/admin/mural/collections/${Number(row.collection_id)}/image?v=${encodeURIComponent(row.collection_image_key)}` : null,
+        product_wireo:labels.wireo,product_tassel:labels.tassel,product_elastico:labels.elastico
+      };
+    })});
+  }
   const clauses = [];
   const bindings = [];
   if (status) { clauses.push('mp.status = ?'); bindings.push(status); }
@@ -592,6 +606,10 @@ async function adminListPosts(url, env) {
 }
 
 async function adminGetPost(id, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const row=await supabaseRpc(env,'nisti_admin_mural_post_v1',{p_id:id});
+    return row ? json({item:row}) : json({error:'Publicação não encontrada.'},404);
+  }
   const row = await env.DB.prepare('SELECT * FROM mural_posts WHERE id=?').bind(id).first();
   return row ? json({ item: row }) : json({ error: 'Publicação não encontrada.' }, 404);
 }
