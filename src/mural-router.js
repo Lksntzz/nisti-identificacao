@@ -76,14 +76,9 @@ function approvedMuralProductKey(row) {
 
 function muralProductImageUrl(row) {
   const productId = Number(row?.id || row?.product_id || 0);
-  if (!productId) return null;
+  if (!productId || !row?.image_key) return null;
   const processedKey = approvedMuralProductKey(row);
-  if (processedKey) {
-    return `/api/mural-product-images/${productId}?v=${encodeURIComponent(processedKey)}`;
-  }
-  return row?.image_key
-    ? `/api/images/${productId}?v=${encodeURIComponent(row.image_key)}`
-    : null;
+  return `/api/product-images/${productId}?v=${encodeURIComponent(processedKey || row.image_key)}`;
 }
 
 async function unreadCount(userId, env) {
@@ -1088,7 +1083,7 @@ async function uploadMuralProductImage(productId, request, env) {
     ok:true,
     product_id:productId,
     status:'approved',
-    image_url:`/api/mural-product-images/${productId}?v=${encodeURIComponent(key)}`,
+    image_url:`/api/product-images/${productId}?v=${encodeURIComponent(key)}`,
     width:png.width,
     height:png.height
   });
