@@ -268,6 +268,14 @@ async function adminGtinEvents(url, env) {
 }
 
 async function adminSetGtinEventDismissal(id, env, dismiss) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_set_gtin_event_dismissal_primary_v1',{
+      p_id:id,p_dismiss:Boolean(dismiss)
+    },`gtin dismissal ${id}`);
+    if(result?.value !== true) return json({error:'Leitura não encontrada ou já alterada.'},404);
+    return json({ok:true,dismissed:Boolean(dismiss)});
+  }
+
   await ensureGtinScanEventsTable(env);
   const result = await env.DB.prepare(dismiss ? `
     UPDATE gtin_scan_events
