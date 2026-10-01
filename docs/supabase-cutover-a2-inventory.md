@@ -36,6 +36,7 @@ freeze remains enabled until the final frozen smoke-test gate is complete.
 | `src/system-metrics-clean-router.js` | legacy D1 metrics/health path | Supabase-read mode uses Supabase-only database probes |
 | `src/web-push.js` | compatibility subscriptions and D1-only debug logs | subscriptions are Supabase-primary; D1 logs are skipped in primary |
 | `src/geometric-shadow-evidence-router.js` | legacy evidence/read SQL | active create/link/confirm/summary paths are Supabase |
+| `src/gtin-router.js` | GTIN event/link/admin compatibility SQL | scanner events, GTIN link/unlink and admin dismissal are Supabase-primary |
 | `src/geometric-shadow-confirmation-router.js` | legacy confirmation SQL | primary confirmation reads/writes are Supabase |
 | `src/reference-reindex-router.js` | compatibility embedding SQL | primary pending-reference reads and embedding writes are Supabase |
 | `src/product-finish-router.js` | compatibility product update | direct Supabase-primary branch executes before D1 |
