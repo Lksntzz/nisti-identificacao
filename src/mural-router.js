@@ -684,6 +684,24 @@ async function adminUpdatePost(id, request, env) {
 }
 
 async function adminPublishPost(id, request, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const current=await supabaseRpc(env,'nisti_admin_mural_post_v1',{p_id:id});
+    if(!current) return json({error:'Publicação não encontrada.'},404);
+    let requested={};
+    if((request.headers.get('content-type')||'').includes('application/json')) requested=await request.json();
+    const scheduled=normalizeDate(requested.published_at ?? current.published_at);
+    const publishedAt=scheduled || new Date().toISOString();
+    if(current.expires_at && new Date(current.expires_at)<=new Date(publishedAt)) {
+      return json({error:'A expiração deve ser posterior à data de publicação.'},422);
+    }
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_post_write_v1',{
+      p_action:'publish',p_id:id,p_payload:{published_at:publishedAt}
+    },`publish mural post ${id}`);
+    const value=result?.value || {};
+    if(value.status==='not_found') return json({error:'Publicação não encontrada.'},404);
+    if(value.status==='invalid_expiration') return json({error:'A expiração deve ser posterior à data de publicação.'},422);
+    return json({ok:true,id,status:'published',published_at:value.published_at || publishedAt});
+  }
   const current = await env.DB.prepare('SELECT * FROM mural_posts WHERE id=?').bind(id).first();
   if (!current) return json({ error: 'Publicação não encontrada.' }, 404);
   let requested = {};
@@ -699,11 +717,26 @@ async function adminPublishPost(id, request, env) {
 }
 
 async function adminArchivePost(id, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_post_write_v1',{
+      p_action:'archive',p_id:id,p_payload:{}
+    },`archive mural post ${id}`);
+    if(result?.value?.status==='not_found') return json({error:'Publicação não encontrada.'},404);
+    return json({ok:true,id,status:'archived'});
+  }
   const result = await env.DB.prepare("UPDATE mural_posts SET status='archived',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(id).run();
   return result.meta.changes ? json({ ok: true, id, status: 'archived' }) : json({ error: 'Publicação não encontrada.' }, 404);
 }
 
 async function adminDuplicatePost(id, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_post_write_v1',{
+      p_action:'duplicate',p_id:id,p_payload:{}
+    },`duplicate mural post ${id}`);
+    const value=result?.value || {};
+    if(value.status==='not_found') return json({error:'Publicação não encontrada.'},404);
+    return json({id:Number(value.id),status:'draft'},201);
+  }
   const source = await env.DB.prepare('SELECT * FROM mural_posts WHERE id=?').bind(id).first();
   if (!source) return json({ error: 'Publicação não encontrada.' }, 404);
   const result = await env.DB.prepare(`
