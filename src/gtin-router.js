@@ -4,8 +4,13 @@ import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
 import { explicitUtcTimestamp } from './date-time.js';
 import {
   preferSupabaseRead,
+  supabaseReserveGtinEvents,
   supabaseReserveGtinLookup
 } from './supabase-read-store.js';
+import {
+  mirrorSupabaseRpc,
+  supabaseMirrorWritesRequested
+} from './supabase-write-store.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -100,10 +105,12 @@ async function insertGtinScanEvent(request, env, event) {
   const responseMs = Math.max(0, Math.min(120000, Math.round(Number(event?.response_ms || 0))));
   const { operatorName, operatorId } = eventOperator(request, event);
 
-  await env.DB.prepare(`
+  const createdAt = new Date().toISOString();
+  const errorCode = cleanEventText(event?.error_code, 100);
+  const result = await env.DB.prepare(`
     INSERT INTO gtin_scan_events (
-      gtin,status,product_id,operator_name,operator_id,response_ms,error_code
-    ) VALUES (?,?,?,?,?,?,?)
+      gtin,status,product_id,operator_name,operator_id,response_ms,error_code,created_at
+    ) VALUES (?,?,?,?,?,?,?,?)
   `).bind(
     gtin,
     status,
@@ -111,8 +118,33 @@ async function insertGtinScanEvent(request, env, event) {
     operatorName,
     operatorId,
     responseMs,
-    cleanEventText(event?.error_code, 100)
+    errorCode,
+    createdAt
   ).run();
+
+  const id = Number(result?.meta?.last_row_id || 0);
+  if (id && supabaseMirrorWritesRequested(env)) {
+    await mirrorSupabaseRpc(
+      env,
+      'nisti_mirror_gtin_scan_events_batch_v1',
+      {
+        p_rows:[{
+          id,
+          gtin,
+          status,
+          product_id:productId,
+          operator_name:operatorName,
+          operator_id:operatorId,
+          response_ms:responseMs,
+          error_code:errorCode,
+          created_at:createdAt,
+          dismissed_at:null,
+          dismissed_by:null
+        }]
+      },
+      `gtin scan event ${id}`
+    );
+  }
 }
 
 async function recordGtinScanEvent(request, env) {
@@ -130,60 +162,91 @@ function scheduleGtinScanEvent(ctx, request, env, event) {
 }
 
 async function adminGtinEvents(url, env) {
-  await ensureGtinScanEventsTable(env);
   const requestedStatus = String(url.searchParams.get('status') || '').trim();
   const status = GTIN_EVENT_STATUSES.has(requestedStatus) ? requestedStatus : '';
   const query = String(url.searchParams.get('q') || '').trim().slice(0, 80);
   const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') || 25)));
   const offset = Math.max(0, Math.min(100000, Number(url.searchParams.get('offset') || 0)));
-  const clauses = [];
-  const bindings = [];
-  if (status) {
-    clauses.push('e.status=?');
-    bindings.push(status);
-  }
-  if (url.searchParams.get('pending') === '1') clauses.push('e.dismissed_at IS NULL');
-  if (url.searchParams.get('today') === '1') {
-    clauses.push("date(e.created_at,'-3 hours')=date('now','-3 hours')");
-  }
-  if (query) {
-    clauses.push('(e.gtin LIKE ? OR e.operator_name LIKE ? OR p.sku LIKE ? OR p.nome LIKE ?)');
-    const pattern = `%${query}%`;
-    bindings.push(pattern, pattern, pattern, pattern);
-  }
+  const pending = url.searchParams.get('pending') === '1';
+  const todayOnly = url.searchParams.get('today') === '1';
 
-  const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-  const countRow = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM gtin_scan_events e
-    LEFT JOIN products p ON p.id=e.product_id
-    ${whereSql}
-  `).bind(...bindings).first();
+  const payload = await preferSupabaseRead(
+    env,
+    async () => {
+      const items = await supabaseReserveGtinEvents(env, {
+        status,
+        pending,
+        today:todayOnly,
+        query,
+        limit,
+        offset
+      });
+      const total = items.length ? Number(items[0]?.total_count || 0) : 0;
+      return {
+        total,
+        limit,
+        offset,
+        rows:items.map(({ total_count:_totalCount, ...row }) => row)
+      };
+    },
+    async () => {
+      await ensureGtinScanEventsTable(env);
+      const clauses = [];
+      const bindings = [];
+      if (status) {
+        clauses.push('e.status=?');
+        bindings.push(status);
+      }
+      if (pending) clauses.push('e.dismissed_at IS NULL');
+      if (todayOnly) clauses.push("date(e.created_at,'-3 hours')=date('now','-3 hours')");
+      if (query) {
+        clauses.push('(e.gtin LIKE ? OR e.operator_name LIKE ? OR p.sku LIKE ? OR p.nome LIKE ?)');
+        const pattern = `%${query}%`;
+        bindings.push(pattern,pattern,pattern,pattern);
+      }
 
-  const { results } = await env.DB.prepare(`
-    SELECT
-      e.id,e.gtin,e.status,e.product_id,e.operator_name,e.operator_id,
-      e.response_ms,e.error_code,e.created_at,e.dismissed_at,e.dismissed_by,
-      p.sku,p.nome,p.variacao,p.capa_code,p.image_key
-    FROM gtin_scan_events e
-    LEFT JOIN products p ON p.id=e.product_id
-    ${whereSql}
-    ORDER BY e.id DESC
-    LIMIT ? OFFSET ?
-  `).bind(...bindings, limit, offset).all();
+      const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+      const countRow = await env.DB.prepare(`
+        SELECT COUNT(*) AS total
+        FROM gtin_scan_events e
+        LEFT JOIN products p ON p.id=e.product_id
+        ${whereSql}
+      `).bind(...bindings).first();
+
+      const { results } = await env.DB.prepare(`
+        SELECT
+          e.id,e.gtin,e.status,e.product_id,e.operator_name,e.operator_id,
+          e.response_ms,e.error_code,e.created_at,e.dismissed_at,e.dismissed_by,
+          p.sku,p.nome,p.variacao,p.capa_code,p.image_key
+        FROM gtin_scan_events e
+        LEFT JOIN products p ON p.id=e.product_id
+        ${whereSql}
+        ORDER BY e.id DESC
+        LIMIT ? OFFSET ?
+      `).bind(...bindings,limit,offset).all();
+
+      return {
+        total:Number(countRow?.total || 0),
+        limit,
+        offset,
+        rows:results || []
+      };
+    },
+    'gtin-events:list'
+  );
 
   return json({
-    total: Number(countRow?.total || 0),
-    limit,
-    offset,
-    events: (results || []).map(row => ({
+    total:Number(payload?.total || 0),
+    limit:Number(payload?.limit || limit),
+    offset:Number(payload?.offset || offset),
+    events:(payload?.rows || []).map(row => ({
       ...row,
-      id: Number(row.id),
-      product_id: row.product_id ? Number(row.product_id) : null,
-      response_ms: Number(row.response_ms || 0),
-      created_at: explicitUtcTimestamp(row.created_at),
-      dismissed_at: explicitUtcTimestamp(row.dismissed_at),
-      image_url: row.image_key && row.product_id ? `/api/images/${Number(row.product_id)}` : null
+      id:Number(row.id),
+      product_id:row.product_id ? Number(row.product_id) : null,
+      response_ms:Number(row.response_ms || 0),
+      created_at:explicitUtcTimestamp(row.created_at),
+      dismissed_at:explicitUtcTimestamp(row.dismissed_at),
+      image_url:row.image_key && row.product_id ? `/api/images/${Number(row.product_id)}` : null
     }))
   });
 }
@@ -200,6 +263,20 @@ async function adminSetGtinEventDismissal(id, env, dismiss) {
     WHERE id=? AND status='not_found' AND dismissed_at IS NOT NULL
   `).bind(id).run();
   if (!result.meta?.changes) return json({ error: 'Leitura não encontrada ou já alterada.' }, 404);
+
+  if (supabaseMirrorWritesRequested(env)) {
+    await mirrorSupabaseRpc(
+      env,
+      'nisti_update_gtin_scan_event_dismissal_v1',
+      {
+        p_id:id,
+        p_dismissed_at:dismiss ? new Date().toISOString() : null,
+        p_dismissed_by:dismiss ? 'admin' : null
+      },
+      `gtin dismissal ${id}`
+    );
+  }
+
   return json({ ok: true, dismissed: dismiss });
 }
 
