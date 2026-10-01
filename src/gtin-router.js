@@ -4,9 +4,13 @@ import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
 import { explicitUtcTimestamp } from './date-time.js';
 import {
   preferSupabaseRead,
+  supabaseReadsRequested,
+  supabaseRpc,
+  supabaseProductImageContext,
   supabaseReserveGtinDashboard,
   supabaseReserveGtinEvents,
-  supabaseReserveGtinLookup
+  supabaseReserveGtinLookup,
+  supabaseReserveProductGtins
 } from './supabase-read-store.js';
 import {
   mirrorSupabaseRpc,
@@ -305,6 +309,29 @@ async function adminSetGtinEventDismissal(id, env, dismiss) {
 }
 
 async function adminGtinRegistry(env) {
+  if (supabaseReadsRequested(env)) {
+    const payload=await supabaseRpc(env,'nisti_gtin_registry_v1',{});
+    const gtins=(Array.isArray(payload?.gtins)?payload.gtins:[]).map(row=>({
+      ...row,
+      id:Number(row.id),
+      product_id:Number(row.product_id),
+      active:row.active === true || Number(row.active) === 1,
+      platforms:Array.isArray(row.platforms)?row.platforms.filter(Boolean):[],
+      image_url:row.image_key?`/api/images/${Number(row.product_id)}`:null
+    }));
+    const stats=payload?.stats || {};
+    return json({
+      read_source:'supabase',
+      gtins,
+      stats:{
+        active_gtins:Number(stats.active_gtins || 0),
+        products_total:Number(stats.products_total || 0),
+        products_with_gtin:Number(stats.products_with_gtin || 0),
+        products_without_gtin:Number(stats.products_without_gtin || 0)
+      }
+    });
+  }
+
   const [{ results }, totals, covered] = await Promise.all([
     env.DB.prepare(`
       SELECT
@@ -331,6 +358,7 @@ async function adminGtinRegistry(env) {
     image_url: row.image_key ? `/api/images/${Number(row.product_id)}` : null
   }));
   return json({
+    read_source:'d1',
     gtins,
     stats: {
       active_gtins: gtins.filter(item => item.active).length,
@@ -415,24 +443,33 @@ function productFinishLabels(row) {
 }
 
 async function productExists(env, productId) {
+  if (supabaseReadsRequested(env)) {
+    const row=await supabaseProductImageContext(env,productId);
+    return row?.status === 'not_found' ? null : row;
+  }
   return env.DB.prepare('SELECT id FROM products WHERE id=? LIMIT 1')
     .bind(productId)
     .first();
 }
 
 async function listProductGtins(env, productId) {
-  const { results } = await env.DB.prepare(`
-    SELECT id,product_id,gtin,gtin_type,source,active,created_at,updated_at
-    FROM product_gtins
-    WHERE product_id=?
-    ORDER BY active DESC,id ASC
-  `).bind(productId).all();
+  let results;
+  if (supabaseReadsRequested(env)) {
+    results=await supabaseReserveProductGtins(env,productId);
+  } else {
+    ({ results } = await env.DB.prepare(`
+      SELECT id,product_id,gtin,gtin_type,source,active,created_at,updated_at
+      FROM product_gtins
+      WHERE product_id=?
+      ORDER BY active DESC,id ASC
+    `).bind(productId).all());
+  }
 
   return (results || []).map(row => ({
     ...row,
     id: Number(row.id),
     product_id: Number(row.product_id),
-    active: Number(row.active) === 1
+    active: row.active === true || Number(row.active) === 1
   }));
 }
 
