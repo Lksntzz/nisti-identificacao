@@ -188,3 +188,67 @@ export async function mirrorDeletedPushSubscriptionToSupabase(env, endpoint) {
     'delete push subscription'
   );
 }
+
+
+export async function mirrorProductImageDerivativeFromD1(env, productId) {
+  if (!supabaseMirrorWritesRequested(env)) return { attempted: false, ok: true };
+  const id = Number(productId || 0);
+  if (!Number.isInteger(id) || id <= 0) return { attempted: false, ok: true };
+
+  const row = await env.DB.prepare(`
+    SELECT
+      p.id AS product_id,
+      p.image_key AS product_image_key,
+      mpi.source_image_key,
+      mpi.processed_image_key,
+      mpi.status,
+      mpi.processor,
+      mpi.processor_version,
+      mpi.reviewed_by,
+      mpi.reviewed_at,
+      mpi.error_message,
+      mpi.created_at,
+      mpi.updated_at
+    FROM products p
+    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+    WHERE p.id=?
+    LIMIT 1
+  `).bind(id).first();
+
+  if (!row?.product_image_key) return { attempted: false, ok: true };
+
+  const payload = row.source_image_key
+    ? {
+        product_id:id,
+        source_image_key:row.source_image_key,
+        processed_image_key:row.processed_image_key || null,
+        status:row.status || 'pending',
+        processor:row.processor || null,
+        processor_version:row.processor_version || null,
+        reviewed_by:row.reviewed_by || null,
+        reviewed_at:row.reviewed_at || null,
+        error_message:row.error_message || null,
+        created_at:row.created_at || null,
+        updated_at:row.updated_at || null
+      }
+    : {
+        product_id:id,
+        source_image_key:row.product_image_key,
+        processed_image_key:null,
+        status:'pending',
+        processor:null,
+        processor_version:null,
+        reviewed_by:null,
+        reviewed_at:null,
+        error_message:null,
+        created_at:null,
+        updated_at:null
+      };
+
+  return mirrorSupabaseRpc(
+    env,
+    'nisti_mirror_product_image',
+    { p_row: payload },
+    `product image derivative ${id}`
+  );
+}

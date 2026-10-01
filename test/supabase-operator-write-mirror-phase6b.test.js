@@ -128,8 +128,8 @@ test('operator D1 writes are mirrored only after authoritative D1 rows exist', (
   assert.match(shadow, /nisti_mirror_confirm_geometric_shadow/);
 });
 
-test('production write and read cutover switches remain off by default', () => {
+test('reserve phase mirrors writes while read cutover remains off', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
-  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"off"/);
+  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
 });
