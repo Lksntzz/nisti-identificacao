@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { treatedProductImageBlob } from './mural-transparent-image.js';
 
-const LOCK_KEY = 'nisti_product_image_treatment_lock_v6';
+const LOCK_KEY = 'nisti_product_image_treatment_lock_v8';
 export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
 const LOCK_TTL_MS = 90 * 1000;
@@ -66,7 +66,7 @@ function releaseLock(owner) {
 }
 
 async function requestJson(path, options = {}) {
-  const response = await fetch(path, { credentials:'same-origin', ...options });
+  const response = await fetch(path, { credentials:'same-origin', cache:'no-store', ...options });
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : null;
   if (!response.ok) {
