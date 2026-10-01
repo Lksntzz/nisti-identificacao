@@ -1,6 +1,10 @@
 import app from './vectorize-performance-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
+import {
+  reserveBackfillStatus,
+  runReserveBackfill
+} from './supabase-reserve-backfill.js';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -60,6 +64,14 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    if (request.method === 'GET' && url.pathname === '/api/admin/reserve-sync/status') {
+      return json(await reserveBackfillStatus(env));
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/admin/reserve-sync/run') {
+      return json(await runReserveBackfill(env));
+    }
+
     if (isMutatingApiRequest(url, request)) {
       try {
         if (cutoverWriteFreezeEnabled(env)) return cutoverFreezeResponse();
@@ -97,5 +109,13 @@ export default {
     const response = await app.fetch(request, env, ctx);
     await mirrorSuccessfulMutation(mirrorRequest, response, env);
     return response;
+  },
+
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(
+      runReserveBackfill(env).catch(error => {
+        console.warn('[Supabase reserve backfill] execução agendada falhou', error?.message || error);
+      })
+    );
   }
 };
