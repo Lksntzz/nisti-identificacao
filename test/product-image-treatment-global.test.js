@@ -122,7 +122,7 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
   assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '7'"));
-  assert.ok(core.includes("OR mpi.status IN ('pending','stale','redo')"));
+  assert.ok(core.includes("OR mpi.status IN ('pending','stale')"));
   assert.equal(core.includes("mpi.status IN ('pending','review','stale')"), false);
   assert.ok(core.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
   assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '7'"));
@@ -157,7 +157,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(admin.includes('/redo'));
   assert.ok(core.includes("status='review'"));
   assert.ok(core.includes("status='approved',reviewed_by='admin'"));
-  assert.ok(core.includes("status='redo'"));
-  assert.ok(core.includes("force_outline:row.status === 'redo'"));
+  assert.ok(core.includes("processor='system-precise-redo'"));
+  assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes('requestedOfficialVariant && !options.forceOutline'));
 });
