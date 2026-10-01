@@ -827,6 +827,10 @@ async function removeEditorialImage(env, owner, id) {
 }
 
 async function adminListCollections(env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_admin_mural_collections_v1',{});
+    return json({items:Array.isArray(rows)?rows:[]});
+  }
   const [collectionsResult, membershipResult] = await Promise.all([
     env.DB.prepare(`
       SELECT mc.*
@@ -870,6 +874,17 @@ async function adminCreateCollection(request, env) {
   if (!slug) throw new Error('Slug inválido.');
   const year = input.year ? Number(input.year) : null;
   const description = nullableText(input.description,700);
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_collection_write_v1',{
+      p_action:'create',p_id:null,p_payload:{
+        slug,name,year:Number.isInteger(year)?year:null,description
+      }
+    },'create mural collection primary');
+    const value=result?.value || {};
+    if(value.status==='slug_conflict') return json({error:'Já existe uma coleção com esse slug.'},409);
+    if(value.status!=='ok') return json({error:'Não foi possível criar a coleção.'},422);
+    return json({id:Number(value.id),slug:value.slug || slug},201);
+  }
   try {
     const result = await env.DB.prepare(`
       INSERT INTO mural_collections (slug,name,year,description,status,updated_at)
