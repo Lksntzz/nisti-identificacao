@@ -197,7 +197,13 @@ export async function getUnreadNotificationsCount(env, userId) {
 
   return preferSupabaseRead(
     env,
-    () => supabaseReserveUnreadNotifications(env, safeUserId),
+    async () => {
+      const rows = await supabaseReserveNotifications(env, safeUserId, 100);
+      return (rows || []).filter(row =>
+        (row.type || 'new_cover') === 'new_cover'
+        && !(row.is_read === true || Number(row.is_read) === 1)
+      ).length;
+    },
     async () => {
       if (!env.DB) return 0;
       const row = await env.DB.prepare(`
@@ -301,25 +307,40 @@ export async function recordAdminSystemNotification(env, event = {}) {
     cleanAdminValue(event.request_path, 300)
   ).run();
 
-  return Number(result?.meta?.last_row_id || 0) || null;
+  const id = Number(result?.meta?.last_row_id || 0) || null;
+  await mirrorNotificationByCapaFromD1(env, marker)
+    .catch(error => logMirrorFailure(`admin system notification ${marker}`, error));
+  return id;
 }
 
 export async function listAdminSystemNotifications(env, limit = 80) {
-  if (!env?.DB) return [];
+  if (!env) return [];
   const safeLimit = Math.max(1, Math.min(200, Number(limit) || 80));
-  const { results } = await env.DB.prepare(`
-    SELECT
-      n.id,n.type,n.sku,n.product_name,n.variacao,n.platform,n.image_key,n.created_at,
-      r.read_at IS NOT NULL AS is_read,r.read_at
-    FROM notifications n
-    LEFT JOIN notification_reads r
-      ON r.notification_id=n.id AND r.user_id=?
-    WHERE n.type<>'new_cover' AND n.capa_code LIKE ?
-    ORDER BY n.id DESC
-    LIMIT ?
-  `).bind(ADMIN_SYSTEM_USER_ID, `${ADMIN_SYSTEM_CODE_PREFIX}%`, safeLimit).all();
+  const rows = await preferSupabaseRead(
+    env,
+    () => supabaseReserveNotifications(env, ADMIN_SYSTEM_USER_ID, safeLimit),
+    async () => {
+      if (!env.DB) return [];
+      const { results } = await env.DB.prepare(`
+        SELECT
+          n.id,n.type,n.capa_code,n.sku,n.product_name,n.variacao,n.platform,n.image_key,n.created_at,
+          r.read_at IS NOT NULL AS is_read,r.read_at
+        FROM notifications n
+        LEFT JOIN notification_reads r
+          ON r.notification_id=n.id AND r.user_id=?
+        WHERE n.type<>'new_cover' AND n.capa_code LIKE ?
+        ORDER BY n.id DESC
+        LIMIT ?
+      `).bind(ADMIN_SYSTEM_USER_ID, `${ADMIN_SYSTEM_CODE_PREFIX}%`, safeLimit).all();
+      return results || [];
+    },
+    'admin-notifications:list'
+  );
 
-  return (results || []).map(row => {
+  return (rows || []).filter(row =>
+    row.type !== 'new_cover'
+    && String(row.capa_code || '').startsWith(ADMIN_SYSTEM_CODE_PREFIX)
+  ).map(row => {
     let envelope = {};
     try { envelope = row.platform ? JSON.parse(row.platform) : {}; }
     catch { envelope = {}; }
@@ -345,15 +366,30 @@ export async function listAdminSystemNotifications(env, limit = 80) {
 }
 
 export async function getAdminSystemUnreadCount(env) {
-  if (!env?.DB) return 0;
-  const row = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM notifications n
-    LEFT JOIN notification_reads r
-      ON r.notification_id=n.id AND r.user_id=?
-    WHERE n.type<>'new_cover' AND n.capa_code LIKE ? AND r.id IS NULL
-  `).bind(ADMIN_SYSTEM_USER_ID, `${ADMIN_SYSTEM_CODE_PREFIX}%`).first();
-  return Number(row?.total || 0);
+  if (!env) return 0;
+  return preferSupabaseRead(
+    env,
+    async () => {
+      const rows = await supabaseReserveNotifications(env, ADMIN_SYSTEM_USER_ID, 100);
+      return (rows || []).filter(row =>
+        row.type !== 'new_cover'
+        && String(row.capa_code || '').startsWith(ADMIN_SYSTEM_CODE_PREFIX)
+        && !(row.is_read === true || Number(row.is_read) === 1)
+      ).length;
+    },
+    async () => {
+      if (!env.DB) return 0;
+      const row = await env.DB.prepare(`
+        SELECT COUNT(*) AS total
+        FROM notifications n
+        LEFT JOIN notification_reads r
+          ON r.notification_id=n.id AND r.user_id=?
+        WHERE n.type<>'new_cover' AND n.capa_code LIKE ? AND r.id IS NULL
+      `).bind(ADMIN_SYSTEM_USER_ID, `${ADMIN_SYSTEM_CODE_PREFIX}%`).first();
+      return Number(row?.total || 0);
+    },
+    'admin-notifications:unread'
+  );
 }
 
 export async function markAdminSystemNotificationRead(env, notificationId) {
@@ -367,12 +403,17 @@ export async function markAdminSystemNotificationRead(env, notificationId) {
     WHERE id=? AND type<>'new_cover' AND capa_code LIKE ?
     ON CONFLICT(notification_id,user_id) DO NOTHING
   `).bind(ADMIN_SYSTEM_USER_ID, id, `${ADMIN_SYSTEM_CODE_PREFIX}%`).run();
-  if (Number(result?.meta?.changes || 0) > 0) return true;
+  if (Number(result?.meta?.changes || 0) > 0) {
+    await mirrorNotificationReadFromD1(env, id, ADMIN_SYSTEM_USER_ID)
+      .catch(error => logMirrorFailure(`admin system notification read ${id}`, error));
+    return true;
+  }
   const existing = await env.DB.prepare(`
     SELECT id FROM notification_reads
     WHERE notification_id=? AND user_id=?
   `).bind(id, ADMIN_SYSTEM_USER_ID).first();
-  return Boolean(existing);
+  if (existing) return true;
+  return false;
 }
 
 export async function markAllAdminSystemNotificationsRead(env) {
@@ -387,5 +428,10 @@ export async function markAllAdminSystemNotificationsRead(env) {
         WHERE r.notification_id=n.id AND r.user_id=?
       )
   `).bind(ADMIN_SYSTEM_USER_ID, `${ADMIN_SYSTEM_CODE_PREFIX}%`, ADMIN_SYSTEM_USER_ID).run();
-  return Number(result?.meta?.changes || 0);
+  const changed = Number(result?.meta?.changes || 0);
+  if (changed > 0) {
+    await mirrorNotificationReadsForUserFromD1(env, ADMIN_SYSTEM_USER_ID)
+      .catch(error => logMirrorFailure('admin system notification reads', error));
+  }
+  return changed;
 }
