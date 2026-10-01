@@ -191,7 +191,7 @@ test('reserve phase mirrors product image derivative mutations', () => {
   assert.match(secondary, /mirrorProductImageDerivativeFromD1/);
   assert.match(secondary, /nisti_mirror_product_image/);
   assert.match(mutationMirror, /product-image-treatment/);
-  assert.match(mutationMirror, /admin\/mural\/products/);
+  assert.ok(mutationMirror.includes('const muralProductImage = url.pathname.match'));
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.mural_product_images/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.nisti_mirror_product_image/);
   assert.match(migration, /WHEN 'product-display'/);
