@@ -10,7 +10,7 @@ import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
-import ProductImageTreatmentWorker from './product-image-treatment-worker.jsx';
+import ProductImageTreatmentWorker, { TREATMENT_WAKE_EVENT } from './product-image-treatment-worker.jsx';
 import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
 import {
   createEan13Svg,
@@ -1566,6 +1566,7 @@ function AdminApp() {
 
   const reportProductChange = async (payload = {}) => {
     await refreshAll();
+    window.dispatchEvent(new CustomEvent(TREATMENT_WAKE_EVENT));
     const ids = (payload.productIds || []).map(Number).filter(Number.isSafeInteger);
     const skus = (payload.skus || []).filter(Boolean);
     if (ids.length) setRecentProductIds(ids);
@@ -1614,7 +1615,10 @@ function AdminApp() {
         }
       });
 
-    const interval = setInterval(refreshMetrics, 30000);
+    const refreshMetricsIfVisible = () => {
+      if (document.visibilityState === 'visible') refreshMetrics();
+    };
+    const interval = setInterval(refreshMetricsIfVisible, 5 * 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(interval);
