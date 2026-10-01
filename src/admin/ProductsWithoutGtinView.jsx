@@ -1,4 +1,5 @@
 import React from 'react';
+import ProductCutoutImage from '../product-cutout-image.jsx';
 
 function productImage(product) {
   if (!product?.image_url) return '';
@@ -30,7 +31,7 @@ export default function ProductsWithoutGtinView({ products = [], onSelect, onBac
           >
             <span className="missing-gtin-thumb">
               {product.image_url
-                ? <img src={productImage(product)} alt="" loading="lazy" />
+                ? <ProductCutoutImage src={productImage(product)} alt="" />
                 : <span aria-hidden="true">EAN</span>}
             </span>
             <span className="missing-gtin-copy">
