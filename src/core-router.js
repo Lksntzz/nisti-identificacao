@@ -34,6 +34,12 @@ import {
   nistiCommerceSyncStatus,
   nistiCommerceProductStatuses
 } from './nisti-commerce-sync.js';
+import {
+  listAdminSystemNotifications,
+  getAdminSystemUnreadCount,
+  markAdminSystemNotificationRead,
+  markAllAdminSystemNotificationsRead
+} from './system-notifications.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_REFERENCES = 24;
@@ -1213,6 +1219,33 @@ export default {
         });
       }
 
+      if (url.pathname === '/api/admin/system-notifications' && request.method === 'GET') {
+        const limit = Number(url.searchParams.get('limit')) || 80;
+        const [notifications, unreadCount] = await Promise.all([
+          listAdminSystemNotifications(env, limit),
+          getAdminSystemUnreadCount(env)
+        ]);
+        return json({ ok: true, notifications, unread_count: unreadCount }, 200, { 'cache-control': 'no-store' });
+      }
+
+      if (url.pathname === '/api/admin/system-notifications/unread-count' && request.method === 'GET') {
+        const count = await getAdminSystemUnreadCount(env);
+        return json({ ok: true, unread_count: count }, 200, { 'cache-control': 'no-store' });
+      }
+
+      const readAdminNotification = url.pathname.match(/^\/api\/admin\/system-notifications\/(\d+)\/read$/);
+      if (readAdminNotification && request.method === 'POST') {
+        const notificationId = Number(readAdminNotification[1]);
+        const success = await markAdminSystemNotificationRead(env, notificationId);
+        const unreadCount = await getAdminSystemUnreadCount(env);
+        return json({ ok: success, unread_count: unreadCount }, success ? 200 : 404, { 'cache-control': 'no-store' });
+      }
+
+      if (url.pathname === '/api/admin/system-notifications/mark-all-read' && request.method === 'POST') {
+        const updated = await markAllAdminSystemNotificationsRead(env);
+        return json({ ok: true, marked_count: updated, unread_count: 0 }, 200, { 'cache-control': 'no-store' });
+      }
+
       if (url.pathname === '/api/notifications' && request.method === 'GET') {
         const userId = request.headers.get('x-user-id') || url.searchParams.get('user_id') || 'anonymous';
         const limit = Number(url.searchParams.get('limit')) || 50;
@@ -1375,3 +1408,4 @@ export default {
     }
   }
 };
+
