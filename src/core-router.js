@@ -113,12 +113,15 @@ async function productTreatmentSummary(env) {
           AND mpi.status='approved'
           AND mpi.processed_image_key IS NOT NULL
           AND mpi.source_image_key=p.image_key
-          AND (mpi.processor='admin-upload' OR mpi.processor_version=?)
           THEN 1 ELSE 0 END AS is_approved,
+        CASE WHEN p.image_key IS NOT NULL
+          AND mpi.status='review'
+          AND mpi.processed_image_key IS NOT NULL
+          AND mpi.source_image_key=p.image_key
+          THEN 1 ELSE 0 END AS is_review,
         CASE WHEN p.image_key IS NOT NULL
           AND mpi.status='failed'
           AND mpi.source_image_key=p.image_key
-          AND mpi.processor_version=?
           THEN 1 ELSE 0 END AS is_failed
       FROM products p
       LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
@@ -126,13 +129,15 @@ async function productTreatmentSummary(env) {
     SELECT
       SUM(CASE WHEN image_key IS NOT NULL THEN 1 ELSE 0 END) AS with_image,
       SUM(is_approved) AS approved,
+      SUM(is_review) AS review,
       SUM(is_failed) AS failed,
-      SUM(CASE WHEN image_key IS NOT NULL AND is_approved=0 AND is_failed=0 THEN 1 ELSE 0 END) AS pending
+      SUM(CASE WHEN image_key IS NOT NULL AND is_approved=0 AND is_review=0 AND is_failed=0 THEN 1 ELSE 0 END) AS pending
     FROM treatment_state
-  `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,PRODUCT_IMAGE_PROCESSOR_VERSION).first();
+  `).first();
   return {
     with_image:Number(row?.with_image || 0),
     approved:Number(row?.approved || 0),
+    review:Number(row?.review || 0),
     pending:Number(row?.pending || 0),
     failed:Number(row?.failed || 0)
   };
@@ -838,11 +843,7 @@ export default {
 
         const processedReady = row.status === 'approved'
           && row.processed_image_key
-          && row.source_image_key === row.image_key
-          && (
-            row.processor === 'admin-upload'
-            || row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION
-          );
+          && row.source_image_key === row.image_key;
         let object = processedReady ? await env.PRODUCT_IMAGES.get(row.processed_image_key) : null;
         let servedKey = processedReady && object ? row.processed_image_key : row.image_key;
         if (!object) object = await env.PRODUCT_IMAGES.get(row.image_key);
@@ -872,21 +873,7 @@ export default {
             AND (
               mpi.product_id IS NULL
               OR mpi.source_image_key IS NOT p.image_key
-              OR mpi.status IN ('pending','review','stale')
-              OR (
-                mpi.status='failed'
-                AND COALESCE(mpi.processor_version,'') <> ?
-              )
-              OR (
-                mpi.status='approved'
-                AND (
-                  mpi.processed_image_key IS NULL
-                  OR (
-                    COALESCE(mpi.processor,'') <> 'admin-upload'
-                    AND COALESCE(mpi.processor_version,'') <> ?
-                  )
-                )
-              )
+              OR mpi.status IN ('pending','stale','redo')
             )
           ORDER BY
             CASE COALESCE(mpi.status,'pending')
@@ -897,7 +884,7 @@ export default {
             END,
             p.id ASC
           LIMIT ?
-        `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,PRODUCT_IMAGE_PROCESSOR_VERSION,limit).all();
+        `).bind(limit).all();
 
         return json({
           ok:true,
@@ -910,6 +897,7 @@ export default {
             tassel_code:row.tassel_code || 'X',
             image_key:row.image_key,
             status:row.status || 'pending',
+            force_outline:row.status === 'redo',
             original_image_url:productOriginalImageUrl(row.id,row.image_key),
             display_image_url:productDisplayImageUrl(row.id,row.image_key,row.processed_image_key)
           }))
@@ -956,15 +944,15 @@ export default {
           INSERT INTO mural_product_images (
             product_id,source_image_key,processed_image_key,status,processor,
             processor_version,reviewed_by,reviewed_at,error_message,updated_at
-          ) VALUES (?, ?, ?, 'approved', ?, ?, 'system', CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP)
+          ) VALUES (?, ?, ?, 'review', ?, ?, NULL, NULL, NULL, CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
             source_image_key=excluded.source_image_key,
             processed_image_key=excluded.processed_image_key,
-            status='approved',
+            status='review',
             processor=excluded.processor,
             processor_version=excluded.processor_version,
-            reviewed_by='system',
-            reviewed_at=CURRENT_TIMESTAMP,
+            reviewed_by=NULL,
+            reviewed_at=NULL,
             error_message=NULL,
             updated_at=CURRENT_TIMESTAMP
         `).bind(productId,product.image_key,key,PRODUCT_IMAGE_PROCESSOR,PRODUCT_IMAGE_PROCESSOR_VERSION).run();
@@ -976,7 +964,7 @@ export default {
         return json({
           ok:true,
           product_id:productId,
-          status:'approved',
+          status:'review',
           processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
           original_image_url:productOriginalImageUrl(productId,product.image_key),
           image_url:productDisplayImageUrl(productId,product.image_key,key),
@@ -984,6 +972,63 @@ export default {
           height:png.height,
           summary:await productTreatmentSummary(env)
         });
+      }
+
+      const treatmentPreview = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/preview$/);
+      if (treatmentPreview && request.method === 'GET') {
+        const row = await env.DB.prepare(`
+          SELECT p.image_key,mpi.source_image_key,mpi.processed_image_key
+          FROM products p
+          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+          WHERE p.id=?
+        `).bind(Number(treatmentPreview[1])).first();
+        if (!row?.processed_image_key || row.source_image_key !== row.image_key) {
+          return new Response('Not found',{ status:404 });
+        }
+        const object = await env.PRODUCT_IMAGES.get(row.processed_image_key);
+        if (!object) return new Response('Not found',{ status:404 });
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set('cache-control','private, no-store');
+        headers.set('x-content-type-options','nosniff');
+        return new Response(object.body,{ headers });
+      }
+
+      const treatmentApprove = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/approve$/);
+      if (treatmentApprove && request.method === 'POST') {
+        const productId = Number(treatmentApprove[1]);
+        const row = await env.DB.prepare(`
+          SELECT p.image_key,mpi.source_image_key,mpi.processed_image_key,mpi.status
+          FROM products p
+          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+          WHERE p.id=?
+        `).bind(productId).first();
+        if (!row?.image_key) return json({ error:'Produto sem imagem original.' },404);
+        if (!row.processed_image_key || row.source_image_key !== row.image_key) {
+          return json({ error:'Este produto ainda não possui uma imagem tratada válida para aprovação.' },422);
+        }
+        await env.DB.prepare(`
+          UPDATE mural_product_images
+          SET status='approved',reviewed_by='admin',reviewed_at=CURRENT_TIMESTAMP,
+              error_message=NULL,updated_at=CURRENT_TIMESTAMP
+          WHERE product_id=?
+        `).bind(productId).run();
+        return json({ ok:true,product_id:productId,status:'approved',summary:await productTreatmentSummary(env) });
+      }
+
+      const treatmentRedo = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/redo$/);
+      if (treatmentRedo && request.method === 'POST') {
+        const productId = Number(treatmentRedo[1]);
+        const row = await env.DB.prepare('SELECT id,image_key FROM products WHERE id=?').bind(productId).first();
+        if (!row?.image_key) return json({ error:'Produto sem imagem original.' },404);
+        await env.DB.prepare(`
+          INSERT INTO mural_product_images (product_id,source_image_key,status,reviewed_by,reviewed_at,error_message,updated_at)
+          VALUES (?,?,'redo',NULL,NULL,NULL,CURRENT_TIMESTAMP)
+          ON CONFLICT(product_id) DO UPDATE SET
+            source_image_key=excluded.source_image_key,status='redo',reviewed_by=NULL,
+            reviewed_at=NULL,error_message=NULL,updated_at=CURRENT_TIMESTAMP
+        `).bind(productId,row.image_key).run();
+        return json({ ok:true,product_id:productId,status:'redo',summary:await productTreatmentSummary(env) });
       }
 
       const treatmentFailed = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/failed$/);
