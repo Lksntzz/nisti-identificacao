@@ -9,7 +9,7 @@ test('Supabase cutover release uses primary reads, primary writes and releases t
   assert.match(wrangler, /SUPABASE_EMERGENCY_FALLBACK_ENABLED = "1"/);
   assert.match(wrangler, /SUPABASE_EMERGENCY_CIRCUIT_MS = "900000"/);
   assert.match(wrangler, /SUPABASE_WRITE_MODE = "primary"/);
-  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE = "1"/);
+  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE = "0"/);
   assert.match(wrangler, /SUPABASE_READ_TIMEOUT_MS = "5000"/);
   assert.doesNotMatch(wrangler, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(wrangler, /RETRIEVAL_FASTPATH_MIN_SCORE = "0\.920"/);
