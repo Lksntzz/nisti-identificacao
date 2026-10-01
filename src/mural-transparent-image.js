@@ -1156,16 +1156,19 @@ async function buildTreatedProductImage(src, options = {}) {
     : await transparentProductImageUrl(src);
   if (!cutoutSrc) return src;
 
-  const response = await fetch(cutoutSrc, { credentials:'same-origin' });
-  if (!response.ok) {
-    if (cutoutSrc.startsWith('blob:')) URL.revokeObjectURL(cutoutSrc);
-    return src;
+  let blob;
+  try {
+    const response = await fetch(cutoutSrc, { credentials:'same-origin' });
+    if (!response.ok) return src;
+    blob = await response.blob();
+  } finally {
+    // The official-mask path creates a one-use object URL for every product.
+    // Revoke it after reading (including fetch failures); generic cutouts are
+    // cached elsewhere and must remain valid until that cache evicts them.
+    if (requestedOfficialVariant && cutoutSrc.startsWith('blob:')) {
+      URL.revokeObjectURL(cutoutSrc);
+    }
   }
-  const blob = await response.blob();
-  // The official-mask path creates a temporary object URL for every product.
-  // Revoke it immediately after reading the Blob; otherwise hundreds of large
-  // canvases stay alive and the browser eventually stops the treatment loop.
-  if (cutoutSrc.startsWith('blob:')) URL.revokeObjectURL(cutoutSrc);
   const bitmap = await loadBitmap(blob);
   const width = Number(bitmap.width || bitmap.naturalWidth || 0);
   const height = Number(bitmap.height || bitmap.naturalHeight || 0);
