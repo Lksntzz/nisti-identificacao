@@ -64,7 +64,7 @@ function BellIcon({ unreadCount, onClick }) {
       type="button"
       className="bell-circle-btn"
       onClick={onClick}
-      aria-label={`Notificações de novas capas (${unreadCount} não lidas)`}
+      aria-label={`Notificações de novos itens (${unreadCount} não lidas)`}
     >
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -201,7 +201,7 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
       <div className="notifications-modal">
         <div className="notifications-header">
           <div>
-            <h3>Novas Capas e Variações</h3>
+            <h3>Novos Itens Cadastrados</h3>
             <small>{unreadCount} não lida{unreadCount === 1 ? '' : 's'}</small>
           </div>
           <div className="notifications-actions">
@@ -229,7 +229,7 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
                 ? 'Permissão bloqueada no navegador.'
                 : pushStatus === 'unsupported'
                 ? 'Push indisponível neste navegador.'
-                : 'Receba avisos instantâneos ao cadastrar novas capas.'}
+                : 'Receba avisos instantâneos quando novos itens forem cadastrados.'}
             </span>
           </div>
           {pushStatus === 'supported' && (
@@ -251,7 +251,7 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
           {loading && <div className="notifications-loading">Carregando novidades…</div>}
           {!loading && notifications.length === 0 && (
             <div className="notifications-empty">
-              <p>Nenhuma nova capa cadastrada recentemente.</p>
+              <p>Nenhum item novo cadastrado recentemente.</p>
             </div>
           )}
           {!loading && notifications.map(item => (
