@@ -4,12 +4,18 @@ import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
 import { explicitUtcTimestamp } from './date-time.js';
 import {
   preferSupabaseRead,
+  supabaseReadsRequested,
+  supabaseRpc,
+  supabaseProductImageContext,
+  supabaseReserveGtinDashboard,
   supabaseReserveGtinEvents,
-  supabaseReserveGtinLookup
+  supabaseReserveGtinLookup,
+  supabaseReserveProductGtins
 } from './supabase-read-store.js';
 import {
   mirrorSupabaseRpc,
-  supabaseMirrorWritesRequested
+  supabaseMirrorWritesRequested,
+  supabasePrimaryWritesRequested
 } from './supabase-write-store.js';
 
 function json(data, status = 200) {
@@ -100,13 +106,27 @@ async function insertGtinScanEvent(request, env, event) {
     throw error;
   }
 
-  await ensureGtinScanEventsTable(env);
   const productId = Number(event?.product_id || 0) || null;
   const responseMs = Math.max(0, Math.min(120000, Math.round(Number(event?.response_ms || 0))));
   const { operatorName, operatorId } = eventOperator(request, event);
 
   const createdAt = new Date().toISOString();
   const errorCode = cleanEventText(event?.error_code, 100);
+  if (supabasePrimaryWritesRequested(env)) {
+    await mirrorSupabaseRpc(env, 'nisti_record_gtin_scan_event_v1', {
+      p_gtin:gtin,
+      p_status:status,
+      p_product_id:productId,
+      p_operator_name:operatorName,
+      p_operator_id:operatorId,
+      p_response_ms:responseMs,
+      p_error_code:errorCode,
+      p_created_at:createdAt
+    }, 'direct GTIN scan event');
+    return;
+  }
+
+  await ensureGtinScanEventsTable(env);
   const result = await env.DB.prepare(`
     INSERT INTO gtin_scan_events (
       gtin,status,product_id,operator_name,operator_id,response_ms,error_code,created_at
@@ -252,6 +272,14 @@ async function adminGtinEvents(url, env) {
 }
 
 async function adminSetGtinEventDismissal(id, env, dismiss) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_set_gtin_event_dismissal_primary_v1',{
+      p_id:id,p_dismiss:Boolean(dismiss)
+    },`gtin dismissal ${id}`);
+    if(result?.value !== true) return json({error:'Leitura não encontrada ou já alterada.'},404);
+    return json({ok:true,dismissed:Boolean(dismiss)});
+  }
+
   await ensureGtinScanEventsTable(env);
   const result = await env.DB.prepare(dismiss ? `
     UPDATE gtin_scan_events
@@ -281,6 +309,29 @@ async function adminSetGtinEventDismissal(id, env, dismiss) {
 }
 
 async function adminGtinRegistry(env) {
+  if (supabaseReadsRequested(env)) {
+    const payload=await supabaseRpc(env,'nisti_gtin_registry_v1',{});
+    const gtins=(Array.isArray(payload?.gtins)?payload.gtins:[]).map(row=>({
+      ...row,
+      id:Number(row.id),
+      product_id:Number(row.product_id),
+      active:row.active === true || Number(row.active) === 1,
+      platforms:Array.isArray(row.platforms)?row.platforms.filter(Boolean):[],
+      image_url:row.image_key?`/api/images/${Number(row.product_id)}`:null
+    }));
+    const stats=payload?.stats || {};
+    return json({
+      read_source:'supabase',
+      gtins,
+      stats:{
+        active_gtins:Number(stats.active_gtins || 0),
+        products_total:Number(stats.products_total || 0),
+        products_with_gtin:Number(stats.products_with_gtin || 0),
+        products_without_gtin:Number(stats.products_without_gtin || 0)
+      }
+    });
+  }
+
   const [{ results }, totals, covered] = await Promise.all([
     env.DB.prepare(`
       SELECT
@@ -307,6 +358,7 @@ async function adminGtinRegistry(env) {
     image_url: row.image_key ? `/api/images/${Number(row.product_id)}` : null
   }));
   return json({
+    read_source:'d1',
     gtins,
     stats: {
       active_gtins: gtins.filter(item => item.active).length,
@@ -317,7 +369,7 @@ async function adminGtinRegistry(env) {
   });
 }
 
-async function adminGtinDashboard(env) {
+async function adminGtinDashboardD1(env) {
   await ensureGtinScanEventsTable(env);
   const [active, covered, today, missingCount, missingProducts] = await Promise.all([
     env.DB.prepare('SELECT COUNT(*) AS total FROM product_gtins WHERE active=1').first(),
@@ -352,7 +404,7 @@ async function adminGtinDashboard(env) {
       LIMIT 1000
     `).all()
   ]);
-  return json({
+  return {
     active_gtins: Number(active?.total || 0),
     products_with_gtin: Number(covered?.total || 0),
     products_without_gtin_count: Number(missingCount?.total || 0),
@@ -367,7 +419,17 @@ async function adminGtinDashboard(env) {
       not_found: Number(today?.not_found || 0),
       system_errors: Number(today?.system_errors || 0)
     }
-  });
+  };
+}
+
+async function adminGtinDashboard(env) {
+  const data = await preferSupabaseRead(
+    env,
+    () => supabaseReserveGtinDashboard(env),
+    () => adminGtinDashboardD1(env),
+    'gtin:dashboard'
+  );
+  return json(data);
 }
 
 function productFinishLabels(row) {
@@ -381,24 +443,33 @@ function productFinishLabels(row) {
 }
 
 async function productExists(env, productId) {
+  if (supabaseReadsRequested(env)) {
+    const row=await supabaseProductImageContext(env,productId);
+    return row?.status === 'not_found' ? null : row;
+  }
   return env.DB.prepare('SELECT id FROM products WHERE id=? LIMIT 1')
     .bind(productId)
     .first();
 }
 
 async function listProductGtins(env, productId) {
-  const { results } = await env.DB.prepare(`
-    SELECT id,product_id,gtin,gtin_type,source,active,created_at,updated_at
-    FROM product_gtins
-    WHERE product_id=?
-    ORDER BY active DESC,id ASC
-  `).bind(productId).all();
+  let results;
+  if (supabaseReadsRequested(env)) {
+    results=await supabaseReserveProductGtins(env,productId);
+  } else {
+    ({ results } = await env.DB.prepare(`
+      SELECT id,product_id,gtin,gtin_type,source,active,created_at,updated_at
+      FROM product_gtins
+      WHERE product_id=?
+      ORDER BY active DESC,id ASC
+    `).bind(productId).all());
+  }
 
   return (results || []).map(row => ({
     ...row,
     id: Number(row.id),
     product_id: Number(row.product_id),
-    active: Number(row.active) === 1
+    active: row.active === true || Number(row.active) === 1
   }));
 }
 
@@ -477,6 +548,22 @@ async function lookupProductByGtin(env, gtin) {
 }
 
 async function bindGtinToProduct(env, productId, gtin, source) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_bind_product_gtin_primary_v1', {
+      p_product_id: productId, p_gtin: gtin, p_source: source
+    }, 'vínculo de EAN');
+    const row = result.value || {};
+    if (row.status === 'product_not_found') {
+      const error = new Error('Produto não encontrado.');
+      error.code = 'product_not_found'; error.status = 404; throw error;
+    }
+    if (row.status === 'gtin_conflict') {
+      const error = new Error('Este GTIN já está vinculado a outro produto.');
+      error.code = 'gtin_conflict'; error.status = 409;
+      error.productId = Number(row.conflicting_product_id); throw error;
+    }
+    return row;
+  }
   const product = await productExists(env, productId);
   if (!product) {
     const error = new Error('Produto não encontrado.');
@@ -522,6 +609,12 @@ async function bindGtinToProduct(env, productId, gtin, source) {
 }
 
 async function deactivateProductGtin(env, productId, gtin) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_deactivate_product_gtin_primary_v1', {
+      p_product_id: productId, p_gtin: gtin
+    }, 'desativação de EAN');
+    return result.value === true;
+  }
   const existing = await env.DB.prepare(`
     SELECT id,product_id,active
     FROM product_gtins

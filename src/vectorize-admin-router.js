@@ -1,4 +1,5 @@
 import app from './storage-metrics-router.js';
+import { supabaseReadsRequested, supabaseRpc } from './supabase-read-store.js';
 import {
   normalizePlatform,
   platformNamespace,
@@ -74,6 +75,11 @@ async function readJson(response) {
 }
 
 async function referenceRow(env, referenceId) {
+  if (supabaseReadsRequested(env)) {
+    return supabaseRpc(env,'nisti_vectorize_reference_v1',{
+      p_reference_id:Number(referenceId || 0)
+    });
+  }
   return env.DB.prepare(`
     SELECT
       r.id AS reference_id,r.capa_code,r.image_key,r.source_product_id,r.reference_kind,
@@ -167,16 +173,24 @@ async function syncVectors(env, body = {}) {
 
   const limit = Math.max(1, Math.min(MAX_LIMIT, Number(body.limit) || DEFAULT_LIMIT));
   const offset = Math.max(0, Number(body.offset) || 0);
-  const { results } = await env.DB.prepare(`
-    SELECT
-      r.id AS reference_id,r.capa_code,r.image_key,r.source_product_id,r.reference_kind,
-      e.embedding_model,e.dimensions,e.embedding_json,e.updated_at
-    FROM cover_visual_references r
-    JOIN cover_reference_embeddings e ON e.reference_id=r.id
-    WHERE r.active=1
-    ORDER BY r.id ASC
-    LIMIT ? OFFSET ?
-  `).bind(limit, offset).all();
+  let results;
+  if (supabaseReadsRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_vectorize_reference_rows_v1',{
+      p_limit:limit,p_offset:offset
+    });
+    results=Array.isArray(rows)?rows:[];
+  } else {
+    ({ results } = await env.DB.prepare(`
+      SELECT
+        r.id AS reference_id,r.capa_code,r.image_key,r.source_product_id,r.reference_kind,
+        e.embedding_model,e.dimensions,e.embedding_json,e.updated_at
+      FROM cover_visual_references r
+      JOIN cover_reference_embeddings e ON e.reference_id=r.id
+      WHERE r.active=1
+      ORDER BY r.id ASC
+      LIMIT ? OFFSET ?
+    `).bind(limit, offset).all());
+  }
 
   const vectors = [];
   const invalid = [];
@@ -211,12 +225,17 @@ async function syncVectors(env, body = {}) {
   }
   if (legacyIds.length) await deleteVectorIds(env, legacyIds).catch(() => {});
 
-  const total = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM cover_visual_references r
-    JOIN cover_reference_embeddings e ON e.reference_id=r.id
-    WHERE r.active=1
-  `).first();
+  const status=supabaseReadsRequested(env)
+    ? await supabaseRpc(env,'nisti_vectorize_status_v1',{})
+    : await env.DB.prepare(`
+        SELECT COUNT(*) AS total
+        FROM cover_visual_references r
+        JOIN cover_reference_embeddings e ON e.reference_id=r.id
+        WHERE r.active=1
+      `).first();
+  const totalEmbeddings=Number(
+    supabaseReadsRequested(env) ? status?.embeddings : status?.total
+  ) || 0;
   const nextOffset = offset + (results || []).length;
 
   return json({
@@ -227,8 +246,8 @@ async function syncVectors(env, body = {}) {
     mutation_id: mutationId,
     offset,
     next_offset: nextOffset,
-    total_embeddings: Number(total?.total || 0),
-    has_more: nextOffset < Number(total?.total || 0),
+    total_embeddings: totalEmbeddings,
+    has_more: nextOffset < totalEmbeddings,
     vector_id_format: 'ref:<REFERENCE_ID>:p:<PLATFORM_KEY>',
     namespace: 'platform_key',
     note: 'Cada referência é indexada uma vez por plataforma; Vectorize aplica os upserts de forma assíncrona.'
@@ -249,56 +268,76 @@ export default {
     }
 
     if (url.pathname === '/api/admin/vectorize-status' && request.method === 'GET') {
-      const [references, embeddings, covers, platforms] = await Promise.all([
-        env.DB.prepare(`SELECT COUNT(*) AS total FROM cover_visual_references WHERE active=1`)
-          .first().catch(() => ({ total: 0 })),
-        env.DB.prepare(`
-          SELECT COUNT(*) AS total
-          FROM cover_visual_references r
-          JOIN cover_reference_embeddings e ON e.reference_id=r.id
-          WHERE r.active=1
-        `).first().catch(() => ({ total: 0 })),
-        env.DB.prepare(`
-          SELECT COUNT(DISTINCT r.capa_code) AS total
-          FROM cover_visual_references r
-          JOIN cover_reference_embeddings e ON e.reference_id=r.id
-          WHERE r.active=1
-        `).first().catch(() => ({ total: 0 })),
-        env.DB.prepare(`
-          SELECT COUNT(DISTINCT UPPER(TRIM(platform))) AS total
-          FROM product_platforms
-          WHERE TRIM(COALESCE(platform,''))<>''
-        `).first().catch(() => ({ total: 0 }))
-      ]);
+      let references; let embeddings; let covers; let platforms;
+      if (supabaseReadsRequested(env)) {
+        const status=await supabaseRpc(env,'nisti_vectorize_status_v1',{});
+        references=Number(status?.references || 0);
+        embeddings=Number(status?.embeddings || 0);
+        covers=Number(status?.covers || 0);
+        platforms=Number(status?.platforms || 0);
+      } else {
+        const rows=await Promise.all([
+          env.DB.prepare(`SELECT COUNT(*) AS total FROM cover_visual_references WHERE active=1`)
+            .first().catch(() => ({ total: 0 })),
+          env.DB.prepare(`
+            SELECT COUNT(*) AS total
+            FROM cover_visual_references r
+            JOIN cover_reference_embeddings e ON e.reference_id=r.id
+            WHERE r.active=1
+          `).first().catch(() => ({ total: 0 })),
+          env.DB.prepare(`
+            SELECT COUNT(DISTINCT r.capa_code) AS total
+            FROM cover_visual_references r
+            JOIN cover_reference_embeddings e ON e.reference_id=r.id
+            WHERE r.active=1
+          `).first().catch(() => ({ total: 0 })),
+          env.DB.prepare(`
+            SELECT COUNT(DISTINCT UPPER(TRIM(platform))) AS total
+            FROM product_platforms
+            WHERE TRIM(COALESCE(platform,''))<>''
+          `).first().catch(() => ({ total: 0 }))
+        ]);
+        references=Number(rows[0]?.total || 0);
+        embeddings=Number(rows[1]?.total || 0);
+        covers=Number(rows[2]?.total || 0);
+        platforms=Number(rows[3]?.total || 0);
+      }
 
       return json({
         ok: true,
+        read_source:supabaseReadsRequested(env)?'supabase':'d1',
         binding_configured: Boolean(env.COVER_VECTORS?.query),
         expected_index: 'nisti-cover-embeddings',
         dimensions: EMBEDDING_DIMENSIONS,
         metric: 'cosine',
-        d1_references: Number(references?.total || 0),
-        d1_embeddings: Number(embeddings?.total || 0),
-        indexed_covers: Number(covers?.total || 0),
-        platform_count: Number(platforms?.total || 0),
-        pending_references: Math.max(
-          0,
-          Number(references?.total || 0) - Number(embeddings?.total || 0)
-        ),
-        vector_id_format: 'ref:<REFERENCE_ID>:p:<PLATFORM_KEY>',
-        vector_namespace: 'platform_key'
+        references,
+        embeddings,
+        indexed_covers:covers,
+        platform_count:platforms,
+        pending_references:Math.max(0,references-embeddings),
+        vector_id_format:'ref:<REFERENCE_ID>:p:<PLATFORM_KEY>',
+        vector_namespace:'platform_key'
       });
     }
 
     const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
     if (imageUpload && request.method === 'POST') {
       const productId = Number(imageUpload[1]);
-      const before = await env.DB.prepare(`
-        SELECT id FROM cover_visual_references
-        WHERE source_product_id=? AND active=1
-      `).bind(productId).all().catch(() => ({ results: [] }));
+      let beforeResults=[];
+      if (supabaseReadsRequested(env)) {
+        const ids=await supabaseRpc(env,'nisti_active_reference_ids_for_product_v1',{
+          p_product_id:productId
+        });
+        beforeResults=(Array.isArray(ids)?ids:[]).map(id=>({id:Number(id)}));
+      } else {
+        const before=await env.DB.prepare(`
+          SELECT id FROM cover_visual_references
+          WHERE source_product_id=? AND active=1
+        `).bind(productId).all().catch(() => ({results:[]}));
+        beforeResults=before.results || [];
+      }
       const oldVectorIds = new Map();
-      for (const row of before.results || []) {
+      for (const row of beforeResults) {
         oldVectorIds.set(Number(row.id), await vectorIdsForReference(env, Number(row.id)));
       }
 

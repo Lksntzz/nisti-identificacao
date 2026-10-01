@@ -1,4 +1,5 @@
 import { summarizeGeometricShadowEvidence } from './geometric-shadow-evidence-router.js';
+import { supabaseReadsRequested, supabaseRpc } from './supabase-read-store.js';
 
 const DEFAULT_LIMIT = 300;
 const MAX_LIMIT = 1000;
@@ -227,13 +228,24 @@ async function loadRecentRows(env, limit) {
 }
 
 export async function buildGeometricShadowObservability(env, { limit = DEFAULT_LIMIT } = {}) {
-  if (!env?.DB) throw new Error('D1 não configurado.');
   const safeLimit = clampLimit(limit);
-  const [counts, confirmed, recent] = await Promise.all([
-    loadCounts(env),
-    loadConfirmedRows(env),
-    loadRecentRows(env, safeLimit)
-  ]);
+  let counts; let confirmed; let recent;
+
+  if (supabaseReadsRequested(env)) {
+    const payload=await supabaseRpc(env,'nisti_geometric_shadow_observability_v1',{
+      p_limit:safeLimit
+    });
+    counts=payload?.counts || {};
+    confirmed=Array.isArray(payload?.confirmed)?payload.confirmed:[];
+    recent=Array.isArray(payload?.recent)?payload.recent:[];
+  } else {
+    if (!env?.DB) throw new Error('Banco operacional não configurado.');
+    [counts, confirmed, recent] = await Promise.all([
+      loadCounts(env),
+      loadConfirmedRows(env),
+      loadRecentRows(env, safeLimit)
+    ]);
+  }
 
   const summary = summarizeGeometricShadowEvidence(confirmed, counts || {});
   const rows = recent.map(normalizeObservabilityRow);
@@ -292,7 +304,9 @@ export async function handleGeometricShadowObservabilityRequest(request, env) {
   if (request.method !== 'GET' || url.pathname !== '/api/admin/geometric-shadow-evidence/observability') {
     return null;
   }
-  if (!env?.DB) return json({ error: 'D1 não configurado.' }, 503);
+  if (!env?.DB && !supabaseReadsRequested(env)) {
+    return json({ error:'Banco operacional não configurado.' },503);
+  }
 
   try {
     const forceFresh = url.searchParams.get('fresh') === '1';
@@ -300,7 +314,11 @@ export async function handleGeometricShadowObservabilityRequest(request, env) {
       limit: url.searchParams.get('limit'),
       forceFresh
     });
-    return json({ ok: true, report });
+    return json({
+      ok:true,
+      read_source:supabaseReadsRequested(env)?'supabase':'d1',
+      report
+    });
   } catch (error) {
     return json({
       ok: false,

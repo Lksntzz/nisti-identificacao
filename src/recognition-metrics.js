@@ -1,4 +1,5 @@
-import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested, supabaseWriteMode } from './supabase-write-store.js';
+import { supabaseReadsRequested, supabaseRpc } from './supabase-read-store.js';
 
 const TIMEZONE = 'America/Sao_Paulo';
 let tableReady = false;
@@ -38,7 +39,6 @@ function textOrNull(value, limit = 500) {
 
 export async function recordRecognitionAttempt(env, responseStatus, data, options = {}) {
   try {
-    await ensureRecognitionMetrics(env);
     const writeMode = supabaseWriteMode(env);
     const kind = classify(responseStatus, data);
     if (kind === 'invalid') return;
@@ -57,6 +57,53 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
     const errorMessage = kind === 'success' ? null : textOrNull(data?.error || `Erro HTTP ${responseStatus}`, 500);
     const capaCode = textOrNull(data?.capa_code || product?.capa_code, 80)?.toUpperCase() || null;
     const sku = textOrNull(product?.sku, 120)?.toUpperCase() || null;
+    const operatorName = textOrNull(options?.operatorName || data?.operator_name || performance?.operator_name, 120);
+    const operatorId = textOrNull(options?.operatorId || data?.operator_id || performance?.operator_id, 120);
+
+    if (supabasePrimaryWritesRequested(env)) {
+      await mirrorSupabaseRpc(env, 'nisti_record_recognition_event_v1', {
+        p_row: {
+          day,
+          kind,
+          http_status:Number(responseStatus || 0),
+          product_id:product?.id || null,
+          capa_code:capaCode,
+          sku,
+          confidence:numberOrNull(data?.confidence ?? performance.gemini_confidence),
+          retrieval_score:numberOrNull(data?.retrieval_score),
+          identified_by:textOrNull(data?.identified_by,160),
+          error_message:errorMessage,
+          total_ms:totalMs,
+          embedding_ms:embeddingMs,
+          vectorize_ms:numberOrNull(performance.vectorize_ms),
+          local_cv_ms:numberOrNull(performance.local_cv_ms),
+          reference_load_ms:numberOrNull(performance.reference_load_ms),
+          gemini_ms:numberOrNull(performance.gemini_ms),
+          retrieval_top1:numberOrNull(performance.retrieval_top1),
+          retrieval_top1_code:textOrNull(performance.retrieval_top1_code,80),
+          retrieval_top2:numberOrNull(performance.retrieval_top2),
+          retrieval_top2_code:textOrNull(performance.retrieval_top2_code,80),
+          retrieval_margin:numberOrNull(performance.retrieval_margin),
+          candidate_count:numberOrNull(performance.candidate_count ?? performance.cover_candidate_count),
+          verification_mode:textOrNull(performance.verification_mode,160),
+          accepted_by:textOrNull(performance.accepted_by,240),
+          model:textOrNull(performance.model,120),
+          retrieval_source:textOrNull(performance.retrieval_source,160),
+          reused_candidates:performance.reused_candidates === true ? 1 : performance.reused_candidates === false ? 0 : null,
+          pipeline_version:textOrNull(performance.pipeline_version,160),
+          reference_candidate_count:numberOrNull(performance.reference_candidate_count),
+          vector_top_k:numberOrNull(performance.vector_top_k),
+          verifier_reason_code:textOrNull(performance.verifier_reason_code,100),
+          verifier_evidence:textOrNull(performance.verifier_evidence,500),
+          operator_name:operatorName,
+          operator_id:operatorId,
+          created_at:now
+        }
+      }, 'recognition telemetry primary');
+      return;
+    }
+
+    await ensureRecognitionMetrics(env);
 
     await env.DB.prepare(`
       INSERT INTO recognition_daily (
@@ -90,9 +137,6 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
       systemError ? now : null,
       systemError ? errorMessage : null
     ).run();
-
-    const operatorName = textOrNull(options?.operatorName || data?.operator_name || performance?.operator_name, 120);
-    const operatorId = textOrNull(options?.operatorId || data?.operator_id || performance?.operator_id, 120);
 
     const eventResult = await env.DB.prepare(`
       INSERT INTO recognition_events (
@@ -141,7 +185,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
       operatorId
     ).run();
 
-    if (writeMode === 'mirror') {
+    if (writeMode !== 'off') {
       const eventId = Number(eventResult?.meta?.last_row_id || 0);
       if (eventId) {
         const eventRow = await env.DB.prepare(`
@@ -225,12 +269,22 @@ function normalizeEvent(row) {
 }
 
 export async function readRecognitionEvents(env, options = {}) {
-  await ensureRecognitionMetrics(env);
   const limit = Math.max(1, Math.min(200, Number(options.limit) || 100));
   const kind = String(options.kind || '').trim();
   const issuesOnly = Boolean(options.issuesOnly);
   const operatorName = String(options.operator_name || options.operator || '').trim();
-  
+
+  if (supabaseReadsRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_recognition_events_v1',{
+      p_limit:limit,
+      p_kind:kind || null,
+      p_issues_only:issuesOnly,
+      p_operator_name:operatorName || null
+    });
+    return (Array.isArray(rows)?rows:[]).map(normalizeEvent);
+  }
+
+  await ensureRecognitionMetrics(env);
   const conditions = [];
   const binds = [];
 
@@ -261,6 +315,20 @@ export async function readRecognitionEvents(env, options = {}) {
 }
 
 export async function readOperatorStats(env) {
+  if (supabaseReadsRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_operator_stats_v1',{});
+    return (Array.isArray(rows)?rows:[]).map(r=>({
+      operator_name:r.operator_name || 'Operador Geral',
+      operator_id:r.operator_id || null,
+      total_attempts:Number(r.total_attempts || 0),
+      successes:Number(r.successes || 0),
+      unmatched:Number(r.unmatched || 0),
+      system_errors:Number(r.system_errors || 0),
+      success_rate:Number(r.success_rate || 0),
+      last_seen_at:r.last_seen_at || null
+    }));
+  }
+
   await ensureRecognitionMetrics(env);
   const rows = await env.DB.prepare(`
     SELECT
@@ -291,8 +359,25 @@ export async function readOperatorStats(env) {
 }
 
 export async function readRecognitionMetrics(env) {
-  await ensureRecognitionMetrics(env);
   const today = saoPauloDay();
+
+  if (supabaseReadsRequested(env)) {
+    const payload=await supabaseRpc(env,'nisti_recognition_metrics_v1',{p_day:today});
+    const todayRow=normalize(payload?.today || {});
+    const totalRow=normalize(payload?.since_monitoring || {});
+    return {
+      timezone:TIMEZONE,
+      monitoring_started_on:payload?.monitoring_started_on || today,
+      today:todayRow,
+      since_monitoring:totalRow,
+      average_ms_today:Number(payload?.average_ms_today || 0),
+      latest_success_at:payload?.latest_success_at || null,
+      latest_error_at:payload?.latest_error_at || null,
+      latest_error_message:payload?.latest_error_message || null
+    };
+  }
+
+  await ensureRecognitionMetrics(env);
   const todayRow = normalize(await env.DB.prepare(`SELECT * FROM recognition_daily WHERE day=?`).bind(today).first());
   const totalRow = normalize(await env.DB.prepare(`
     SELECT

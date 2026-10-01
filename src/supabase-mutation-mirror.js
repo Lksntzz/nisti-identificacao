@@ -6,7 +6,8 @@ import {
   mirrorProductCatalogFromD1,
   mirrorTrainedOccurrenceArtifactsFromD1,
   mirrorVisualReferenceFromD1,
-  supabaseMirrorWritesRequested
+  supabaseMirrorWritesRequested,
+  supabasePrimaryWritesRequested
 } from './supabase-write-store.js';
 import {
   mirrorAllMuralPostsFromD1,
@@ -38,11 +39,39 @@ async function requestJson(request) {
   }
 }
 
+function isDirectSupabasePrimaryMutation(url, method) {
+  if (method === 'POST' && (url.pathname === '/api/products' || url.pathname === '/api/admin/bulk-products')) return true;
+  if (method === 'POST' && url.pathname === '/api/admin/notifications/test') return true;
+  if (method === 'POST' && /^\/api\/mural\/\d+\/read$/.test(url.pathname)) return true;
+  if (method === 'POST' && url.pathname === '/api/mural/mark-all-read') return true;
+  if (method === 'POST' && url.pathname === '/api/admin/mural/posts') return true;
+  if (method === 'POST' && url.pathname === '/api/admin/mural/collections') return true;
+  if (/^\/api\/admin\/mural\/collections\/\d+$/.test(url.pathname) && method === 'PUT') return true;
+  if (/^\/api\/admin\/mural\/collections\/\d+\/products$/.test(url.pathname) && method === 'PUT') return true;
+  if (/^\/api\/admin\/mural\/collections\/\d+\/publish$/.test(url.pathname) && method === 'POST') return true;
+  if (/^\/api\/admin\/mural\/posts\/\d+$/.test(url.pathname) && ['PUT','DELETE'].includes(method)) return true;
+  if (/^\/api\/admin\/mural\/posts\/\d+\/(?:publish|archive|duplicate)$/.test(url.pathname) && method === 'POST') return true;
+  if (/^\/api\/admin\/mural\/posts\/\d+\/image$/.test(url.pathname) && ['POST','DELETE'].includes(method)) return true;
+  if (/^\/api\/admin\/mural\/collections\/\d+\/image$/.test(url.pathname) && ['POST','DELETE'].includes(method)) return true;
+  if (/^\/api\/admin\/mural\/products\/\d+\/image$/.test(url.pathname) && ['POST','DELETE'].includes(method)) return true;
+  if (/^\/api\/products\/\d+$/.test(url.pathname) && ['PUT', 'PATCH', 'DELETE'].includes(method)) return true;
+  if (/^\/api\/products\/\d+\/image$/.test(url.pathname) && method === 'POST') return true;
+  if (/^\/api\/admin\/product-image-treatment\/\d+(?:\/(?:approve|redo|failed))?$/.test(url.pathname) && method === 'POST') return true;
+  if (/^\/api\/admin\/covers\/[^/]+\/references$/.test(url.pathname) && method === 'POST') return true;
+  if (/^\/api\/admin\/cover-references\/\d+$/.test(url.pathname) && method === 'DELETE') return true;
+  if (/^\/api\/admin\/occurrences\/\d+\/(?:train|dismiss)$/.test(url.pathname) && method === 'POST') return true;
+  if (url.pathname === '/api/operator/confirm-selection' && method === 'POST') return true;
+  if (/^\/api\/products\/\d+\/finish$/.test(url.pathname) && method === 'PATCH') return true;
+  if (/^\/api\/products\/\d+\/gtins$/.test(url.pathname) && method === 'POST') return true;
+  return /^\/api\/products\/\d+\/gtins\/[^/]+$/.test(url.pathname) && method === 'DELETE';
+}
+
 export async function mirrorSuccessfulMutation(request, response, env) {
   if (!successful(response) || !supabaseMirrorWritesRequested(env)) return;
 
   const url = new URL(request.url);
   const method = String(request.method || 'GET').toUpperCase();
+  if (supabasePrimaryWritesRequested(env) && isDirectSupabasePrimaryMutation(url, method)) return;
 
   try {
     if (method === 'POST' && url.pathname === '/api/products') {
@@ -210,12 +239,14 @@ export async function mirrorSuccessfulMutation(request, response, env) {
       await mirrorTrainedOccurrenceArtifactsFromD1(env, body?.occurrence_id);
     }
   } catch (error) {
-    // D1 has already committed and remains authoritative in mirror mode.
-    // Do not manufacture distributed rollback semantics; surface divergence in logs.
-    console.error('[Supabase mirror] pós-mutation falhou', {
+    // D1 has already committed at this transitional boundary. Mirror mode logs
+    // divergence, while primary mode fails closed so callers never mistake a
+    // D1-only commit for an authoritative Supabase commit.
+    console.error('[Supabase write] pós-mutation falhou', {
       method,
       path: url.pathname,
       message: error?.message || String(error)
     });
+    if (supabasePrimaryWritesRequested(env)) throw error;
   }
 }

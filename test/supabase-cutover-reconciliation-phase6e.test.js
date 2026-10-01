@@ -14,7 +14,7 @@ function sampleConvertedSql(extra = '') {
   ].filter(Boolean).join('\n');
 }
 
-test('Phase 6E final replace is one transaction, exact-table and non-cascading', () => {
+test('Phase 6E final replace is one transaction, stages the snapshot and preserves commerce product FKs', () => {
   const { sql, statementCounts } = buildFinalReplaceSql(sampleConvertedSql());
 
   assert.equal(statementCounts.products, 1);
@@ -22,10 +22,15 @@ test('Phase 6E final replace is one transaction, exact-table and non-cascading',
   assert.match(sql, /^-- NISTI ID — FINAL CUTOVER REPLACE/m);
   assert.equal((sql.match(/\bBEGIN;/g) || []).length, 1);
   assert.equal((sql.match(/\bCOMMIT;/g) || []).length, 1);
-  assert.match(sql, /TRUNCATE TABLE[\s\S]*public\."products"[\s\S]*public\."geometric_shadow_evidence"[\s\S]*RESTART IDENTITY;/);
+  assert.match(sql, /CREATE TEMP TABLE "products" \(LIKE public\."products"/);
+  assert.match(sql, /cutover_products_not_in_snapshot/);
+  assert.match(sql, /TRUNCATE TABLE[\s\S]*public\."product_platforms"[\s\S]*public\."mural_post_reads"[\s\S]*RESTART IDENTITY;/);
+  assert.doesNotMatch(sql, /TRUNCATE TABLE[\s\S]*public\."products"/);
   assert.doesNotMatch(sql, /\bCASCADE\b(?=\s*;)/i);
-  assert.ok(sql.indexOf('TRUNCATE TABLE') < sql.indexOf('INSERT INTO "products"'));
+  assert.ok(sql.indexOf('INSERT INTO "products"') < sql.indexOf('TRUNCATE TABLE'));
+  assert.match(sql, /INSERT INTO public\.products[\s\S]*ON CONFLICT \(id\) DO UPDATE SET/);
   assert.match(sql, /pg_get_serial_sequence\('public\.scan_occurrences', 'id'\)/);
+  assert.match(sql, /pg_get_serial_sequence\('public\.product_gtins', 'id'\)/);
 });
 
 test('Phase 6E final replace rejects non-snapshot SQL instead of executing it', () => {
@@ -43,7 +48,7 @@ test('Phase 6E cutover freeze blocks mutating API requests before routers execut
   const source = fs.readFileSync('src/operator-audit-router.js', 'utf8');
   const freezeGuard = source.indexOf('if (isMutatingApiRequest(url, request))');
   const shadowRouter = source.indexOf('handleGeometricShadowConfirmationRequest(request, env)');
-  const downstream = source.indexOf('const response = await app.fetch(request, env, ctx)');
+  const downstream = source.indexOf('response = await app.fetch(request, env, ctx)');
 
   assert.ok(freezeGuard >= 0);
   assert.ok(shadowRouter > freezeGuard);
@@ -53,9 +58,9 @@ test('Phase 6E cutover freeze blocks mutating API requests before routers execut
   assert.match(source, /retry-after/);
 });
 
-test('read cutover is inactive while write freeze is active for final snapshot', () => {
+test('read and strict write cutover are prepared while the write freeze has been released', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
-  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
-  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
-  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE\s*=\s*"1"/);
+  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"primary"/);
+  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
+  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE\s*=\s*"0"/);
 });

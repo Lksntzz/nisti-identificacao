@@ -1,5 +1,6 @@
 import { normalizePlatform, platformNamespace } from './platform-scope.js';
 import { canonicalizeActiveVectorMatches } from './vector-match-authority.js';
+import { supabaseReadsRequested, supabaseRpc } from './supabase-read-store.js';
 
 const VECTOR_TOP_K = 50;
 const CANDIDATE_COVER_LIMIT = 10;
@@ -102,6 +103,14 @@ export function buildGeometricCandidateRanking(matches, sample, limit = CANDIDAT
 }
 
 async function readSamples(env, limit, offset) {
+  if (supabaseReadsRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_benchmark_samples_v1',{
+      p_limit:limit,
+      p_offset:offset
+    });
+    return Array.isArray(rows)?rows:[];
+  }
+
   const { results } = await env.DB.prepare(`
     SELECT
       o.id AS occurrence_id,
@@ -127,7 +136,6 @@ async function readSamples(env, limit, offset) {
   `).bind(limit, offset).all();
   return results || [];
 }
-
 async function buildSampleManifest(env, sample) {
   const platform = normalizePlatform(sample.platform);
   const vector = parseEmbedding(sample.embedding_json);
@@ -172,8 +180,8 @@ async function buildSampleManifest(env, sample) {
 export async function handleGeometricShadowManifestRequest(request, env) {
   const url = new URL(request.url);
   if (request.method !== 'POST' || url.pathname !== '/api/admin/geometric-shadow-manifest') return null;
-  if (!env?.DB || !env?.COVER_VECTORS?.query) {
-    return json({ error: 'D1/Vectorize não configurado para geometric shadow benchmark.' }, 503);
+  if ((!env?.DB && !supabaseReadsRequested(env)) || !env?.COVER_VECTORS?.query) {
+    return json({ error: 'Banco primário/Vectorize não configurado para geometric shadow benchmark.' }, 503);
   }
 
   const body = await request.json().catch(() => ({}));

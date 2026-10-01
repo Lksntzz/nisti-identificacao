@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 export const TABLE_ORDER = Object.freeze([
   'products',
   'product_platforms',
+  'product_gtins',
   'cover_embeddings',
   'recognition_daily',
   'recognition_events',
@@ -16,7 +17,15 @@ export const TABLE_ORDER = Object.freeze([
   'notification_reads',
   'push_subscriptions',
   'scan_occurrences',
-  'geometric_shadow_evidence'
+  'scan_occurrence_candidates',
+  'scan_occurrence_review_sessions',
+  'geometric_shadow_evidence',
+  'gtin_scan_events',
+  'mural_product_images',
+  'mural_collections',
+  'mural_collection_products',
+  'mural_posts',
+  'mural_post_reads'
 ]);
 
 const ALLOWED_TABLES = new Set(TABLE_ORDER);
@@ -29,10 +38,16 @@ const ALLOWED_TABLES = new Set(TABLE_ORDER);
 // without any current application consumer.
 const IGNORED_NON_AUTHORITATIVE_TABLES = new Set([
   'sqlite_sequence',
+  'sqlite_stat1',
   'd1_migrations',
   'gemini_call_budget',
   'push_logs'
 ]);
+
+const POSTGRES_BOOLEAN_COLUMNS = Object.freeze({
+  product_gtins: new Set(['active']),
+  mural_posts: new Set(['featured'])
+});
 
 function sha256(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
@@ -144,6 +159,82 @@ export function insertTableName(statement) {
   return String(match[1] || match[2] || '').replace(/""/g, '"').toLowerCase();
 }
 
+function splitSqlList(source) {
+  const parts = [];
+  let start = 0;
+  let single = false;
+  let double = false;
+  let depth = 0;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (single) {
+      if (ch === "'" && next === "'") {
+        i += 1;
+      } else if (ch === "'") {
+        single = false;
+      }
+      continue;
+    }
+    if (double) {
+      if (ch === '"' && next === '"') {
+        i += 1;
+      } else if (ch === '"') {
+        double = false;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      single = true;
+      continue;
+    }
+    if (ch === '"') {
+      double = true;
+      continue;
+    }
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth -= 1;
+    if (ch === ',' && depth === 0) {
+      parts.push(source.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  parts.push(source.slice(start).trim());
+  return parts;
+}
+
+function normalizePostgresBooleanLiterals(statement, table) {
+  const booleanColumns = POSTGRES_BOOLEAN_COLUMNS[table];
+  if (!booleanColumns) return statement;
+
+  const match = statement.match(
+    /^(INSERT\s+INTO\s+(?:"(?:[^"]|"")+"|[A-Za-z_][A-Za-z0-9_]*)\s*)\(([^)]*)\)\s*VALUES\s*\(([\s\S]*)\)\s*;?$/i
+  );
+  if (!match) {
+    throw new Error(`INSERT de ${table} precisa declarar colunas para converter booleanos com segurança.`);
+  }
+
+  const columns = splitSqlList(match[2]).map(column =>
+    column.trim().replace(/^"|"$/g, '').replace(/""/g, '"').toLowerCase()
+  );
+  const values = splitSqlList(match[3]);
+  if (columns.length !== values.length) {
+    throw new Error(`INSERT de ${table} tem ${columns.length} coluna(s) e ${values.length} valor(es).`);
+  }
+
+  for (let i = 0; i < columns.length; i += 1) {
+    if (!booleanColumns.has(columns[i])) continue;
+    if (values[i] === '1') values[i] = 'TRUE';
+    else if (values[i] === '0') values[i] = 'FALSE';
+    else if (!/^NULL$/i.test(values[i]) && !/^(?:TRUE|FALSE)$/i.test(values[i])) {
+      throw new Error(`Booleano SQLite inesperado em ${table}.${columns[i]}.`);
+    }
+  }
+
+  return `${match[1]}(${match[2]}) VALUES(${values.join(',')});`;
+}
+
 function classifyNonInsert(statement) {
   const value = stripLeadingComments(statement).replace(/;\s*$/, '').trim();
   if (!value) return 'empty';
@@ -178,7 +269,8 @@ export function convertD1DataSql(source) {
           reject(`SQLite blob literal em ${table}`);
           continue;
         }
-        grouped.get(table).push(value.endsWith(';') ? value : `${value};`);
+        const normalized = normalizePostgresBooleanLiterals(value, table);
+        grouped.get(table).push(normalized.endsWith(';') ? normalized : `${normalized};`);
         continue;
       }
       if (IGNORED_NON_AUTHORITATIVE_TABLES.has(table) || table.startsWith('_cf_')) {

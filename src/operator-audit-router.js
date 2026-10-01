@@ -1,6 +1,7 @@
 import app from './vectorize-performance-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
+import { SupabasePrimaryWriteError } from './supabase-write-store.js';
 import { runReserveBackfill } from './supabase-reserve-backfill.js';
 import { recordAdminActivityFromResponse } from './system-notifications.js';
 
@@ -58,6 +59,21 @@ function cutoverFreezeResponse(configError = null) {
   });
 }
 
+function primaryWriteFailureResponse(error) {
+  console.error(JSON.stringify({
+    message: 'Supabase primary write failed',
+    code: error?.code || 'supabase_primary_write_failed',
+    status: Number(error?.status || 0) || null
+  }));
+  return json({
+    error: 'A alteração não foi confirmada no banco principal. A produção permanece protegida.',
+    technical_error: 'supabase_primary_write_failed',
+    retryable: false
+  }, 503, {
+    'x-nisti-write-authority': 'supabase'
+  });
+}
+
 function scheduleAdminActivity(ctx, request, response, env) {
   const task = recordAdminActivityFromResponse(request, response, env)
     .catch(error => console.error('[Admin notifications] Falha ao registrar atividade', error?.message || error));
@@ -81,7 +97,13 @@ export default {
       }
     }
 
-    const shadowConfirmationResponse = await handleGeometricShadowConfirmationRequest(request, env);
+    let shadowConfirmationResponse;
+    try {
+      shadowConfirmationResponse = await handleGeometricShadowConfirmationRequest(request, env);
+    } catch (error) {
+      if (error instanceof SupabasePrimaryWriteError) return primaryWriteFailureResponse(error);
+      throw error;
+    }
     if (shadowConfirmationResponse) {
       const activity = scheduleAdminActivity(ctx, request, shadowConfirmationResponse, env);
       if (activity) await activity;
@@ -112,8 +134,18 @@ export default {
       ? request.clone()
       : request;
 
-    const response = await app.fetch(request, env, ctx);
-    await mirrorSuccessfulMutation(mirrorRequest, response, env);
+    let response;
+    try {
+      response = await app.fetch(request, env, ctx);
+    } catch (error) {
+      if (error instanceof SupabasePrimaryWriteError) return primaryWriteFailureResponse(error);
+      throw error;
+    }
+    try {
+      await mirrorSuccessfulMutation(mirrorRequest, response, env);
+    } catch (error) {
+      return primaryWriteFailureResponse(error);
+    }
     const activity = scheduleAdminActivity(ctx, mirrorRequest, response, env);
     if (activity) await activity;
     return response;

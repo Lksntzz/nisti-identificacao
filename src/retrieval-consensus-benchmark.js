@@ -1,6 +1,7 @@
 import { normalizePlatform, platformNamespace } from './platform-scope.js';
 import { evaluateRetrievalFastPath } from './retrieval-fastpath.js';
 import { canonicalizeActiveVectorMatches } from './vector-match-authority.js';
+import { supabaseReadsRequested, supabaseRpc } from './supabase-read-store.js';
 
 const VECTOR_TOP_K = 50;
 const DEFAULT_LIMIT = 20;
@@ -260,6 +261,14 @@ export function summarizeMultiReferenceShadow(results) {
 }
 
 async function readBenchmarkSamples(env, limit, offset) {
+  if (supabaseReadsRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_benchmark_samples_v1',{
+      p_limit:limit,
+      p_offset:offset
+    });
+    return Array.isArray(rows)?rows:[];
+  }
+
   const { results } = await env.DB.prepare(`
     SELECT
       o.id AS occurrence_id,
@@ -283,10 +292,8 @@ async function readBenchmarkSamples(env, limit, offset) {
     ORDER BY o.id DESC
     LIMIT ? OFFSET ?
   `).bind(limit, offset).all();
-
   return results || [];
 }
-
 async function querySample(env, sample) {
   const platform = normalizePlatform(sample.platform);
   const vector = parseEmbedding(sample.embedding_json);
@@ -325,8 +332,8 @@ export async function handleRetrievalConsensusBenchmarkRequest(request, env) {
     return null;
   }
 
-  if (!env?.DB || !env?.COVER_VECTORS?.query) {
-    return json({ error: 'D1/Vectorize não configurado para benchmark.' }, 503);
+  if ((!env?.DB && !supabaseReadsRequested(env)) || !env?.COVER_VECTORS?.query) {
+    return json({ error: 'Banco primário/Vectorize não configurado para benchmark.' }, 503);
   }
 
   const body = await request.json().catch(() => ({}));

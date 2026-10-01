@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { normalizePlatform } from './platform-scope.js';
-import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
+import { supabaseRpc } from './supabase-read-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested, supabaseWriteMode } from './supabase-write-store.js';
 
 const SHADOW_PURPOSE = 'geometric-shadow-evidence-v818';
 const CONFIRMATION_VERSION = 'v8.19';
@@ -117,7 +118,8 @@ export async function handleGeometricShadowConfirmationRequest(request, env) {
   if (request.method !== 'POST' || url.pathname !== '/api/operator/geometric-shadow-evidence/confirm') {
     return null;
   }
-  if (!env?.DB) return json({ error: 'D1 não configurado.' }, 503);
+  const primary=supabasePrimaryWritesRequested(env);
+  if (!primary && !env?.DB) return json({ error: 'Banco operacional não configurado.' }, 503);
 
   const body = await request.json().catch(() => null);
   const signedPayload = await verifyShadowTicket(env, body?.shadow_ticket);
@@ -125,13 +127,17 @@ export async function handleGeometricShadowConfirmationRequest(request, env) {
     return json({ error: 'Shadow evidence ticket inválido ou expirado.' }, 401);
   }
 
-  const evidenceRow = await env.DB.prepare(`
-    SELECT evidence_token, platform, evidence_json, confirmed_capa_code,
-           occurrence_id, photo_sha256, confirmed_at
-    FROM geometric_shadow_evidence
-    WHERE evidence_token=?
-    LIMIT 1
-  `).bind(String(signedPayload.nonce)).first();
+  const evidenceRow = primary
+    ? await supabaseRpc(env,'nisti_geometric_shadow_by_token_v1',{
+        p_evidence_token:String(signedPayload.nonce)
+      })
+    : await env.DB.prepare(`
+        SELECT evidence_token, platform, evidence_json, confirmed_capa_code,
+               occurrence_id, photo_sha256, confirmed_at
+        FROM geometric_shadow_evidence
+        WHERE evidence_token=?
+        LIMIT 1
+      `).bind(String(signedPayload.nonce)).first();
 
   const validation = validateOperatorCorrectConfirmation({
     signedPayload,
@@ -141,7 +147,17 @@ export async function handleGeometricShadowConfirmationRequest(request, env) {
   if (!validation.ok) return json({ ok: false, error: validation.error }, validation.status);
 
   let confirmed = evidenceRow;
-  if (!validation.already_confirmed) {
+  if (!validation.already_confirmed && primary) {
+    const confirmedAt=new Date().toISOString();
+    await mirrorSupabaseRpc(env,'nisti_mirror_confirm_geometric_shadow',{
+      p_occurrence_id:Number(evidenceRow?.occurrence_id || 0) || null,
+      p_photo_sha256:String(evidenceRow?.photo_sha256 || '').trim().toLowerCase() || null,
+      p_capa_code:validation.requested_code,
+      p_source:'operator_confirmed_production_result',
+      p_confirmed_at:confirmedAt
+    },'operator geometric shadow confirmation primary');
+    confirmed={...evidenceRow,confirmed_at:confirmedAt,confirmed_capa_code:validation.requested_code};
+  } else if (!validation.already_confirmed) {
     await env.DB.prepare(`
       UPDATE geometric_shadow_evidence
       SET confirmed_capa_code=?,
@@ -158,7 +174,7 @@ export async function handleGeometricShadowConfirmationRequest(request, env) {
       LIMIT 1
     `).bind(String(signedPayload.nonce)).first();
 
-    if (supabaseWriteMode(env) === 'mirror') {
+    if (supabaseWriteMode(env) !== 'off') {
       await mirrorSupabaseRpc(env, 'nisti_mirror_confirm_geometric_shadow', {
         p_occurrence_id: Number(confirmed?.occurrence_id || 0) || null,
         p_photo_sha256: String(confirmed?.photo_sha256 || '').trim().toLowerCase() || null,

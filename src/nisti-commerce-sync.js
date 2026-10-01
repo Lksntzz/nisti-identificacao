@@ -1,4 +1,4 @@
-import { supabaseRpc } from './supabase-read-store.js';
+import { supabaseReadsRequested, supabaseReserveProducts, supabaseRpc } from './supabase-read-store.js';
 
 const COMMERCE_SYNC_TIMEOUT_MS = 8000;
 const COMMERCE_RECONCILE_TIMEOUT_MS = 15000;
@@ -38,6 +38,15 @@ async function loadNistiProducts(env, ids = null) {
   const idList = Array.isArray(ids)
     ? [...new Set(ids.map(value => Number(value || 0)).filter(value => Number.isInteger(value) && value > 0))]
     : [];
+
+  if (supabaseReadsRequested(env)) {
+    const rows=await supabaseReserveProducts(env);
+    const wanted=idList.length ? new Set(idList) : null;
+    return (rows || [])
+      .filter(row=>!wanted || wanted.has(Number(row.id)))
+      .map(normalizeRow)
+      .sort((a,b)=>a.id-b.id);
+  }
 
   let sql = `
     SELECT
@@ -178,13 +187,15 @@ export async function reconcileNistiProductToCommerceSafe(env, productId) {
 }
 
 export async function nistiCommerceSyncStatus(env) {
-  const totalRow = await env.DB.prepare('SELECT COUNT(*) AS total FROM products').first();
+  const total = supabaseReadsRequested(env)
+    ? (await supabaseReserveProducts(env)).length
+    : Number((await env.DB.prepare('SELECT COUNT(*) AS total FROM products').first())?.total || 0);
   let commerce = null;
   if (!isPreview(env)) {
     commerce = await supabaseRpc(env, 'commerce_nisti_sync_status_v1', {});
   }
   return {
-    nisti_products: Number(totalRow?.total || 0),
+    nisti_products: Number(total || 0),
     commerce: commerce || { linked_total: 0, conflicts: 0, errors: 0, last_synced_at: null },
     preview: isPreview(env)
   };

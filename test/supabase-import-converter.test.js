@@ -34,8 +34,22 @@ COMMIT;
   assert.equal(converted.ignored.gemini_call_budget, 1);
   assert.match(converted.sql, /VALUES\(10,'M_CAPA_WTE'/);
   assert.ok(converted.sql.indexOf('-- products: 1 statement') < converted.sql.indexOf('-- product_platforms: 1 statement'));
-  assert.equal(Object.keys(converted.statementCounts).length, 13);
+  assert.equal(Object.keys(converted.statementCounts).length, 22);
   assert.deepEqual(Object.keys(converted.statementCounts), [...TABLE_ORDER]);
+});
+
+test('converter includes current operational tables and maps SQLite booleans to PostgreSQL', () => {
+  const converted = convertD1DataSql(`
+INSERT INTO "product_gtins" ("id","product_id","gtin","active") VALUES(1,1,'7898764982617',1);
+INSERT INTO "mural_posts" ("id","featured","title") VALUES(1,0,'Valor, com vírgula');
+INSERT INTO "sqlite_stat1" VALUES('products',NULL,'294');
+`);
+
+  assert.equal(converted.statementCounts.product_gtins, 1);
+  assert.equal(converted.statementCounts.mural_posts, 1);
+  assert.equal(converted.ignored.sqlite_stat1, 1);
+  assert.match(converted.sql, /'7898764982617',TRUE\)/);
+  assert.match(converted.sql, /VALUES\(1,FALSE,'Valor, com vírgula'\)/);
 });
 
 test('converter preserves legacy push_logs only in raw snapshot and excludes them from PostgreSQL authority', () => {

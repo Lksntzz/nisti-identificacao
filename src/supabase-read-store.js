@@ -238,6 +238,46 @@ export async function supabaseImageKey(env, entity, id) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+export async function supabaseProductImageContext(env, productId) {
+  return await supabaseRpc(env, 'nisti_product_image_context_v1', {
+    p_product_id:Number(productId || 0)
+  });
+}
+
+export async function supabaseCoverReferences(env, capaCode) {
+  return rows(await supabaseRpc(env,'nisti_list_cover_references_v1',{
+    p_capa_code:String(capaCode || '').trim().toUpperCase()
+  }));
+}
+
+
+
+export async function supabaseProductTreatmentSummary(env, processorVersion = '8') {
+  const value = await supabaseRpc(env, 'nisti_product_treatment_summary_v1', {
+    p_processor_version:String(processorVersion || '8').trim() || '8'
+  });
+  return value && typeof value === 'object'
+    ? value
+    : { with_image:0, approved:0, review:0, pending:0, failed:0 };
+}
+
+export async function supabaseProductTreatmentQueue(
+  env,
+  status = 'work',
+  processorVersion = '8',
+  limit = 20,
+  offset = 0
+) {
+  const value = await supabaseRpc(env, 'nisti_product_treatment_queue_v1', {
+    p_status:String(status || 'work').trim().toLowerCase() || 'work',
+    p_processor_version:String(processorVersion || '8').trim() || '8',
+    p_limit:Number(limit || 20),
+    p_offset:Number(offset || 0)
+  });
+  return value && typeof value === 'object'
+    ? value
+    : { status:'work', total:0, limit:Number(limit || 20), offset:Number(offset || 0), items:[] };
+}
 
 export async function supabaseReserveProducts(env) {
   return rows(await supabaseRpc(env, 'nisti_reserve_products_v1'));
@@ -295,6 +335,11 @@ export async function supabaseReserveGtinEvents(env, {
     p_limit:Math.max(1,Math.min(100,Number(limit) || 25)),
     p_offset:Math.max(0,Number(offset) || 0)
   }));
+}
+
+export async function supabaseReserveGtinDashboard(env) {
+  const value = await supabaseRpc(env, 'nisti_reserve_gtin_dashboard_v1');
+  return value && typeof value === 'object' ? value : {};
 }
 
 export async function supabaseReserveMuralFeed(env, {

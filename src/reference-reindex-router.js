@@ -6,6 +6,8 @@ import {
   platformsForReference
 } from './platform-scope.js';
 import { mirrorVisualReferencesBatchFromD1 } from './supabase-secondary-write-store.js';
+import { supabaseRpc } from './supabase-read-store.js';
+import { mirrorSupabaseRpc, SupabasePrimaryWriteError, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const MAX_REINDEX_LIMIT = 20;
@@ -95,6 +97,14 @@ async function vectorsFromReference(env, reference, model, values) {
 }
 
 async function pendingReferences(env, model, limit) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_pending_visual_references_v1',{
+      p_embedding_model:model,
+      p_dimensions:EMBEDDING_DIMENSIONS,
+      p_limit:limit
+    });
+    return Array.isArray(rows) ? rows : [];
+  }
   const { results } = await env.DB.prepare(`
     SELECT
       r.id,r.capa_code,r.image_key,r.source_product_id,r.reference_kind
@@ -109,6 +119,12 @@ async function pendingReferences(env, model, limit) {
 }
 
 async function countPending(env, model) {
+  if (supabasePrimaryWritesRequested(env)) {
+    return Number(await supabaseRpc(env,'nisti_count_pending_visual_references_v1',{
+      p_embedding_model:model,
+      p_dimensions:EMBEDDING_DIMENSIONS
+    }) || 0);
+  }
   const row = await env.DB.prepare(`
     SELECT COUNT(*) AS total
     FROM cover_visual_references r
@@ -141,7 +157,16 @@ async function reindexPending(request, env) {
         object.httpMetadata?.contentType || 'image/jpeg'
       );
 
-      await env.DB.prepare(`
+      if (supabasePrimaryWritesRequested(env)) {
+        const saved=await mirrorSupabaseRpc(env,'nisti_upsert_reference_embedding_v1',{
+          p_reference_id:Number(reference.id),
+          p_embedding_model:embeddingModel,
+          p_dimensions:values.length,
+          p_embedding_json:JSON.stringify(values)
+        },`reindex reference ${Number(reference.id)}`);
+        if(saved?.value !== true) throw new Error('Referência visual não encontrada no Supabase.');
+      } else {
+        await env.DB.prepare(`
         INSERT INTO cover_reference_embeddings (
           reference_id,embedding_model,dimensions,embedding_json,updated_at
         ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
@@ -156,6 +181,7 @@ async function reindexPending(request, env) {
         values.length,
         JSON.stringify(values)
       ).run();
+      }
 
       const scopedVectors = await vectorsFromReference(
         env,
@@ -194,9 +220,10 @@ async function reindexPending(request, env) {
   }
 
   const processedIds = processed.map(item => Number(item.reference_id)).filter(Boolean);
-  if (processedIds.length) {
+  if (processedIds.length && !supabasePrimaryWritesRequested(env)) {
     await mirrorVisualReferencesBatchFromD1(env, processedIds).catch(error => {
       console.error('[Supabase mirror] reindex reference embeddings falhou', error?.message || error);
+      if (error instanceof SupabasePrimaryWriteError) throw error;
     });
   }
 
