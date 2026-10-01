@@ -30,6 +30,7 @@ import {
   supabaseCoverReferences,
   supabaseReferenceById,
   supabaseReadsRequested,
+  supabaseRpc,
   supabaseProductTreatmentSummary,
   supabaseProductTreatmentQueue
 } from './supabase-read-store.js';
@@ -1403,19 +1404,25 @@ export default {
       }
 
       if (url.pathname === '/api/admin/trained-references' && request.method === 'GET') {
-        const { results } = await env.DB.prepare(`
-          SELECT r.id, r.capa_code, r.image_key, r.reference_kind, r.created_at,
-                 (SELECT COUNT(*) FROM cover_reference_embeddings e WHERE e.reference_id=r.id) AS is_indexed
-          FROM cover_visual_references r
-          WHERE r.active=1 AND r.reference_kind='real_scan'
-          ORDER BY r.created_at DESC
-          LIMIT 200
-        `).all();
+        let results;
+        if (supabaseReadsRequested(env)) {
+          const rows=await supabaseRpc(env,'nisti_trained_references_v1',{p_limit:200});
+          results=Array.isArray(rows)?rows:[];
+        } else {
+          ({ results } = await env.DB.prepare(`
+            SELECT r.id, r.capa_code, r.image_key, r.reference_kind, r.created_at,
+                   (SELECT COUNT(*) FROM cover_reference_embeddings e WHERE e.reference_id=r.id) AS is_indexed
+            FROM cover_visual_references r
+            WHERE r.active=1 AND r.reference_kind='real_scan'
+            ORDER BY r.created_at DESC
+            LIMIT 200
+          `).all());
+        }
 
         const references = (results || []).map(row => ({
           ...row,
           image_url: referenceImageUrl(row),
-          is_indexed: Number(row.is_indexed) > 0
+          is_indexed: row.is_indexed === true || Number(row.is_indexed) > 0
         }));
 
         return json({
@@ -1425,6 +1432,25 @@ export default {
       }
 
       if (url.pathname === '/api/admin/cover-index' && request.method === 'GET') {
+        const model=env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
+        if (supabaseReadsRequested(env)) {
+          const stats=await supabaseRpc(env,'nisti_cover_index_v1',{
+            p_embedding_model:model,
+            p_dimensions:EMBEDDING_DIMENSIONS
+          });
+          return json({
+            reference_covers:Number(stats?.reference_covers || 0),
+            reference_images:Number(stats?.reference_images || 0),
+            indexed_references:Number(stats?.indexed_references || 0),
+            indexed_covers:Number(stats?.indexed_covers || 0),
+            pending_references:Number(stats?.pending_references || 0),
+            pending_covers:Number(stats?.pending_covers || 0),
+            embedding_model:model,
+            embedding_dimensions:EMBEDDING_DIMENSIONS,
+            top_k:TOP_K_REFERENCES
+          });
+        }
+
         const referenceCovers = await env.DB.prepare(`
           SELECT COUNT(DISTINCT capa_code) AS total FROM products WHERE image_key IS NOT NULL
         `).first();
@@ -1436,27 +1462,27 @@ export default {
           FROM cover_visual_references r
           JOIN cover_reference_embeddings e ON e.reference_id=r.id
           WHERE r.active=1 AND e.dimensions=? AND e.embedding_model=?
-        `).bind(EMBEDDING_DIMENSIONS, env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2').first();
+        `).bind(EMBEDDING_DIMENSIONS,model).first();
         const indexedCovers = await env.DB.prepare(`
           SELECT COUNT(DISTINCT r.capa_code) AS total
           FROM cover_visual_references r
           JOIN cover_reference_embeddings e ON e.reference_id=r.id
           WHERE r.active=1 AND e.dimensions=? AND e.embedding_model=?
-        `).bind(EMBEDDING_DIMENSIONS, env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2').first();
+        `).bind(EMBEDDING_DIMENSIONS,model).first();
         const pendingReferences = Math.max(
           0,
           Number(referenceImages?.total || 0) - Number(indexedReferences?.total || 0)
         );
         return json({
-          reference_covers: Number(referenceCovers?.total || 0),
-          reference_images: Number(referenceImages?.total || 0),
-          indexed_references: Number(indexedReferences?.total || 0),
-          indexed_covers: Number(indexedCovers?.total || 0),
-          pending_references: pendingReferences,
-          pending_covers: pendingReferences,
-          embedding_model: env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2',
-          embedding_dimensions: EMBEDDING_DIMENSIONS,
-          top_k: TOP_K_REFERENCES
+          reference_covers:Number(referenceCovers?.total || 0),
+          reference_images:Number(referenceImages?.total || 0),
+          indexed_references:Number(indexedReferences?.total || 0),
+          indexed_covers:Number(indexedCovers?.total || 0),
+          pending_references:pendingReferences,
+          pending_covers:pendingReferences,
+          embedding_model:model,
+          embedding_dimensions:EMBEDDING_DIMENSIONS,
+          top_k:TOP_K_REFERENCES
         });
       }
 
