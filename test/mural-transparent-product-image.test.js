@@ -221,39 +221,7 @@ test('deep product core is protected even when its pixels are pure white', () =>
 });
 
 
-test('approved planner reference maps the exact outer silhouette, including wire-o protrusions', () => {
-  const width = 160;
-  const height = 220;
-  const subject = (x, y) => x >= 18 && x <= 142 && y >= 8 && y <= 212;
-  const template = __muralTransparentImageInternals.buildPlannerStructureProtection(subject, width, height);
-
-  assert.ok(template);
-  assert.equal(template(80, 110), true, 'center of a white cover must stay protected');
-  assert.equal(template(125, 110), true, 'page block must stay protected');
-  assert.equal(template(18, 30), true, 'wire-o protrusion from the approved outline must be preserved');
-  assert.equal(template(3, 110), false, 'outside background must remain removable');
-});
-
-test('planner structural reference is normalized and does not apply to unrelated wide products', () => {
-  const width = 220;
-  const height = 100;
-  const subject = (x, y) => x >= 5 && x <= 214 && y >= 5 && y <= 94;
-  assert.equal(
-    __muralTransparentImageInternals.buildPlannerStructureProtection(subject, width, height),
-    null
-  );
-});
-
-// planner-template-ci
-
-
-test('exact planner silhouette clears the white canvas outside without erasing the white cover', () => {
-  const width = 160;
-  const height = 220;
-  const subject = (x, y) => x >= 18 && x <= 142 && y >= 8 && y <= 212;
-  const template = __muralTransparentImageInternals.buildPlannerStructureProtection(subject, width, height);
-  assert.ok(template);
-
+function plannerFixture(width = 160, height = 220) {
   const data = new Uint8ClampedArray(width * height * 4);
   for (let index = 0; index < width * height; index += 1) {
     data[index * 4] = 255;
@@ -261,14 +229,92 @@ test('exact planner silhouette clears the white canvas outside without erasing t
     data[index * 4 + 2] = 255;
     data[index * 4 + 3] = 255;
   }
+  const paint = (fromX, toX, fromY, toY, color) => {
+    for (let y = fromY; y <= toY; y += 1) {
+      for (let x = fromX; x <= toX; x += 1) {
+        const offset = (y * width + x) * 4;
+        data[offset] = color[0];
+        data[offset + 1] = color[1];
+        data[offset + 2] = color[2];
+      }
+    }
+  };
 
-  const removed = __muralTransparentImageInternals.applyPlannerStructureMask(data, width, height, template);
-  assert.ok(removed > 0);
-  assert.equal(data[(110 * width + 80) * 4 + 3], 255, 'white cover center stays opaque');
-  assert.equal(data[(110 * width + 3) * 4 + 3], 0, 'external white background becomes transparent');
+  paint(19, 25, 40, 180, [25, 25, 25]); // real wire-o/details on the left
+  paint(48, 112, 45, 175, [220, 92, 120]); // cover artwork
+  paint(126, 132, 25, 198, [70, 170, 185]); // elastic/page edge anchor
+  return { data, width, height };
+}
+
+test('approved planner reference aligns from real image anchors instead of a convex-hull rectangle', () => {
+  const fixture = plannerFixture();
+  const bounds = __muralTransparentImageInternals.buildPlannerReferenceBounds(
+    fixture.data,
+    fixture.width,
+    fixture.height
+  );
+  const template = __muralTransparentImageInternals.buildPlannerStructureProtection(
+    fixture.data,
+    fixture.width,
+    fixture.height
+  );
+
+  assert.ok(bounds);
+  assert.ok(template);
+  assert.equal(template(82, 110), true, 'white cover body must stay protected');
+  assert.equal(template(124, 110), true, 'page block must stay protected');
+  assert.equal(template(3, 110), false, 'outside background must remain removable');
 });
 
-test('planner cutout uses the exact template before any color flood-fill', () => {
+test('planner template is not applied to unrelated wide products', () => {
+  const width = 220;
+  const height = 100;
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let index = 0; index < width * height; index += 1) {
+    data[index * 4] = 255;
+    data[index * 4 + 1] = 255;
+    data[index * 4 + 2] = 255;
+    data[index * 4 + 3] = 255;
+  }
+  for (let y = 35; y <= 65; y += 1) {
+    for (let x = 10; x <= 210; x += 1) {
+      const offset = (y * width + x) * 4;
+      data[offset] = 20;
+      data[offset + 1] = 20;
+      data[offset + 2] = 20;
+    }
+  }
+
+  assert.equal(
+    __muralTransparentImageInternals.buildPlannerStructureProtection(data, width, height),
+    null
+  );
+});
+
+test('adaptive planner mask removes white canvas, keeps white cover and preserves actual wire-o', () => {
+  const fixture = plannerFixture();
+  const template = __muralTransparentImageInternals.buildPlannerStructureProtection(
+    fixture.data,
+    fixture.width,
+    fixture.height
+  );
+  assert.ok(template);
+
+  const removed = __muralTransparentImageInternals.applyPlannerStructureMask(
+    fixture.data,
+    fixture.width,
+    fixture.height,
+    template
+  );
+
+  assert.ok(removed > 0);
+  assert.equal(fixture.data[(110 * fixture.width + 82) * 4 + 3], 255, 'white cover center stays opaque');
+  assert.equal(fixture.data[(110 * fixture.width + 3) * 4 + 3], 0, 'external white background becomes transparent');
+  assert.equal(fixture.data[(100 * fixture.width + 22) * 4 + 3], 255, 'real wire-o/detail remains from source evidence');
+});
+
+
+test('planner cutout uses the adaptive body template before any color flood-fill', () => {
   const buildStart = source.indexOf('async function buildTransparentProductImage');
   const buildEnd = source.indexOf('async function buildTreatedProductImage');
   const buildSource = source.slice(buildStart, buildEnd);
