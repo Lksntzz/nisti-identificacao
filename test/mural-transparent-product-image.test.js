@@ -230,7 +230,7 @@ test('approved planner reference maps the exact outer silhouette, including wire
   assert.ok(template);
   assert.equal(template(80, 110), true, 'center of a white cover must stay protected');
   assert.equal(template(125, 110), true, 'page block must stay protected');
-  assert.equal(template(20, 34), true, 'wire-o protrusion from the approved outline must be preserved');
+  assert.equal(template(18, 30), true, 'wire-o protrusion from the approved outline must be preserved');
   assert.equal(template(3, 110), false, 'outside background must remain removable');
 });
 
