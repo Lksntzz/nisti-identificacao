@@ -8,7 +8,10 @@ import {
   mirrorVisualReferenceFromD1,
   supabaseMirrorWritesRequested
 } from './supabase-write-store.js';
-import { mirrorNotificationByCapaFromD1 } from './supabase-secondary-write-store.js';
+import {
+  mirrorNotificationByCapaFromD1,
+  mirrorProductImageDerivativeFromD1
+} from './supabase-secondary-write-store.js';
 
 function successful(response) {
   return Number(response?.status || 0) >= 200 && Number(response?.status || 0) < 300;
@@ -71,6 +74,7 @@ export async function mirrorSuccessfulMutation(request, response, env) {
       const productId = Number(imageUpload[1]);
       const data = await responseJson(response);
       await mirrorProductCatalogFromD1(env, productId);
+      await mirrorProductImageDerivativeFromD1(env, productId);
       if (data?.reference_id) {
         await mirrorVisualReferenceFromD1(env, data.reference_id);
       }
@@ -102,6 +106,18 @@ export async function mirrorSuccessfulMutation(request, response, env) {
     const dismissOccurrence = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/dismiss$/);
     if (dismissOccurrence && method === 'POST') {
       await mirrorOccurrenceStateFromD1(env, Number(dismissOccurrence[1]));
+      return;
+    }
+
+    const automaticProductImage = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)(?:\/failed)?$/);
+    if (automaticProductImage && method === 'POST') {
+      await mirrorProductImageDerivativeFromD1(env, Number(automaticProductImage[1]));
+      return;
+    }
+
+    const muralProductImage = url.pathname.match(/^\/api\/admin\/mural\/products\/(\d+)\/image$/);
+    if (muralProductImage && (method === 'POST' || method === 'DELETE')) {
+      await mirrorProductImageDerivativeFromD1(env, Number(muralProductImage[1]));
       return;
     }
 
