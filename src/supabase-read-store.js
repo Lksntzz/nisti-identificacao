@@ -244,6 +244,12 @@ export async function supabaseProductImageContext(env, productId) {
   });
 }
 
+export async function supabaseCoverReferences(env, capaCode) {
+  return rows(await supabaseRpc(env,'nisti_list_cover_references_v1',{
+    p_capa_code:String(capaCode || '').trim().toUpperCase()
+  }));
+}
+
 
 export async function supabaseReserveProducts(env) {
   return rows(await supabaseRpc(env, 'nisti_reserve_products_v1'));

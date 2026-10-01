@@ -26,7 +26,9 @@ import {
   d1EmergencyCircuitStatus,
   preferSupabaseRead,
   supabaseReserveProducts,
-  supabaseProductImageContext
+  supabaseProductImageContext,
+  supabaseCoverReferences,
+  supabaseReferenceById
 } from './supabase-read-store.js';
 import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 import {
@@ -524,6 +526,12 @@ async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
 }
 
 async function listCoverReferences(env, capaCode) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const results=await supabaseCoverReferences(env,normalizeCapaCode(capaCode));
+    return results.map(reference=>({...reference,id:Number(reference.id),
+      source_product_id:reference.source_product_id?Number(reference.source_product_id):null,
+      indexed:Number(reference.dimensions||0)===EMBEDDING_DIMENSIONS,image_url:referenceImageUrl(reference)}));
+  }
   const { results } = await env.DB.prepare(`
     SELECT
       r.id,r.capa_code,r.image_key,r.source_product_id,r.reference_kind,r.active,
@@ -546,6 +554,31 @@ async function listCoverReferences(env, capaCode) {
 
 async function addCoverReference(env, capaCode, file, kind) {
   const code = normalizeCapaCode(capaCode);
+  if (supabasePrimaryWritesRequested(env)) {
+    if (!(file instanceof File)) throw new Error('Imagem de referência obrigatória');
+    if (!String(file.type||'').startsWith('image/')) throw new Error('Arquivo deve ser uma imagem');
+    if (Number(file.size||0)>MAX_REFERENCE_UPLOAD_BYTES) throw new Error('Imagem de referência excede 10 MB');
+    const referenceKind=['real','perspective','personalized','difficult'].includes(String(kind||'').trim().toLowerCase())
+      ? String(kind).trim().toLowerCase():'real';
+    const key=`cover-references/${encodeURIComponent(code)}/${crypto.randomUUID()}`;
+    const bytes=await file.arrayBuffer();
+    await env.PRODUCT_IMAGES.put(key,bytes,{httpMetadata:{contentType:file.type||'image/jpeg'}});
+    let prepared;
+    try { prepared=await mirrorSupabaseRpc(env,'nisti_prepare_extra_reference_v1',{
+      p_capa_code:code,p_image_key:key,p_reference_kind:referenceKind
+    },'referência visual extra'); }
+    catch(error){await env.PRODUCT_IMAGES.delete(key).catch(()=>{});throw error;}
+    if(prepared.value?.status!=='ok') {
+      await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+      if(prepared.value?.status==='cover_not_found') throw new Error('CAPA_CODE não encontrado no catálogo');
+      if(prepared.value?.status==='limit_reached') throw new Error(`Máximo de ${EXTRA_REFERENCE_LIMIT} referências adicionais por capa`);
+      throw new Error('Falha ao criar referência visual');
+    }
+    const reference=prepared.value.reference; let indexed=false,indexError=null;
+    try { await storeReferenceEmbedding(env,reference,new Uint8Array(bytes),file.type||'image/jpeg'); indexed=true; }
+    catch(error){indexError=error?.message||'Falha ao indexar referência';}
+    return {...reference,id:Number(reference.id),indexed,embedding_error:indexError,image_url:referenceImageUrl(reference)};
+  }
   const exists = await env.DB.prepare(`SELECT id FROM products WHERE capa_code=? LIMIT 1`)
     .bind(code).first();
   if (!exists) throw new Error('CAPA_CODE não encontrado no catálogo');
@@ -600,6 +633,18 @@ async function addCoverReference(env, capaCode, file, kind) {
 }
 
 async function deleteExtraReference(env, referenceId) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_delete_extra_reference_v1',{p_reference_id:referenceId},'exclusão de referência visual');
+    if(result.value?.status==='not_found') throw new Error('Referência visual não encontrada');
+    if(result.value?.status==='protected') throw new Error('A referência principal do produto deve ser alterada pelo mockup do produto');
+    const reference=result.value?.reference;
+    if(env.COVER_VECTORS?.deleteByIds) {
+      const vectorIds=supportedPlatforms().map(p=>platformVectorId(referenceId,p)).filter(Boolean);
+      if(vectorIds.length) await env.COVER_VECTORS.deleteByIds(vectorIds).catch(()=>{});
+    }
+    if(reference?.image_key) await env.PRODUCT_IMAGES.delete(reference.image_key).catch(()=>{});
+    return {id:Number(reference.id),capa_code:normalizeCapaCode(reference.capa_code),vector_id:`ref:${Number(reference.id)}`};
+  }
   const reference = await env.DB.prepare(`
     SELECT id,capa_code,image_key,source_product_id,reference_kind
     FROM cover_visual_references
@@ -1081,7 +1126,7 @@ export default {
         const productId = Number(treatmentUpload[1]);
         if (!env.PRODUCT_IMAGES) return json({ error:'Armazenamento de imagens indisponível.' },503);
 
-        const product = await env.DB.prepare(`
+        const product = supabasePrimaryWritesRequested(env) ? await supabaseProductImageContext(env,productId) : await env.DB.prepare(`
           SELECT p.id,p.image_key,mpi.processed_image_key
           FROM products p
           LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
@@ -1112,7 +1157,16 @@ export default {
           }
         });
 
-        await env.DB.prepare(`
+        if (supabasePrimaryWritesRequested(env)) {
+          let saved;
+          try { saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v1',{
+            p_product_id:productId,p_action:'review',p_processed_image_key:key,
+            p_processor:PRODUCT_IMAGE_PROCESSOR,p_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,p_error_message:null
+          },'imagem tratada'); }
+          catch(error){await env.PRODUCT_IMAGES.delete(key).catch(()=>{});throw error;}
+          if(saved.value?.status!=='ok'){await env.PRODUCT_IMAGES.delete(key).catch(()=>{});return json({error:'Produto não encontrado.'},404);}
+          if(saved.value.old_processed_image_key && saved.value.old_processed_image_key!==key) await env.PRODUCT_IMAGES.delete(saved.value.old_processed_image_key).catch(()=>{});
+        } else await env.DB.prepare(`
           INSERT INTO mural_product_images (
             product_id,source_image_key,processed_image_key,status,processor,
             processor_version,reviewed_by,reviewed_at,error_message,updated_at
@@ -1147,7 +1201,7 @@ export default {
 
       const treatmentPreview = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/preview$/);
       if (treatmentPreview && request.method === 'GET') {
-        const row = await env.DB.prepare(`
+        const row = supabasePrimaryWritesRequested(env) ? await supabaseProductImageContext(env,Number(treatmentPreview[1])) : await env.DB.prepare(`
           SELECT p.image_key,mpi.source_image_key,mpi.processed_image_key
           FROM products p
           LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
@@ -1168,6 +1222,13 @@ export default {
       const treatmentApprove = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/approve$/);
       if (treatmentApprove && request.method === 'POST') {
         const productId = Number(treatmentApprove[1]);
+        if (supabasePrimaryWritesRequested(env)) {
+          const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v1',{p_product_id:productId,p_action:'approve',
+            p_processed_image_key:null,p_processor:null,p_processor_version:null,p_error_message:null},'aprovação de imagem tratada');
+          if(saved.value?.status==='not_found') return json({error:'Produto sem imagem original.'},404);
+          if(saved.value?.status==='invalid_derivative') return json({error:'Este produto ainda não possui uma imagem tratada válida para aprovação.'},422);
+          return json({ok:true,product_id:productId,status:'approved'});
+        }
         const row = await env.DB.prepare(`
           SELECT p.image_key,mpi.source_image_key,mpi.processed_image_key,mpi.status
           FROM products p
@@ -1190,6 +1251,12 @@ export default {
       const treatmentRedo = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/redo$/);
       if (treatmentRedo && request.method === 'POST') {
         const productId = Number(treatmentRedo[1]);
+        if (supabasePrimaryWritesRequested(env)) {
+          const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v1',{p_product_id:productId,p_action:'redo',
+            p_processed_image_key:null,p_processor:null,p_processor_version:null,p_error_message:null},'refazer imagem tratada');
+          if(saved.value?.status==='not_found') return json({error:'Produto sem imagem original.'},404);
+          return json({ok:true,product_id:productId,status:'pending',precise_redo:true});
+        }
         const row = await env.DB.prepare('SELECT id,image_key FROM products WHERE id=?').bind(productId).first();
         if (!row?.image_key) return json({ error:'Produto sem imagem original.' },404);
         await env.DB.prepare(`
@@ -1207,6 +1274,13 @@ export default {
         const productId = Number(treatmentFailed[1]);
         const body = await request.json().catch(()=>({}));
         const reason = String(body?.error || 'Tratamento automático sem confiança suficiente.').slice(0,500);
+        if (supabasePrimaryWritesRequested(env)) {
+          const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v1',{p_product_id:productId,p_action:'failed',
+            p_processed_image_key:null,p_processor:PRODUCT_IMAGE_PROCESSOR,p_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+            p_error_message:reason},'falha de imagem tratada');
+          if(saved.value?.status==='not_found') return json({error:'Produto sem imagem original.'},404);
+          return json({ok:true,product_id:productId,status:'failed'});
+        }
         const product = await env.DB.prepare('SELECT id,image_key FROM products WHERE id=?').bind(productId).first();
         if (!product?.image_key) return json({ error:'Produto sem imagem original.' },404);
 
@@ -1233,7 +1307,7 @@ export default {
 
       const referenceImageGet = url.pathname.match(/^\/api\/reference-images\/(\d+)$/);
       if (referenceImageGet && request.method === 'GET') {
-        const reference = await env.DB.prepare(`
+        const reference = supabasePrimaryWritesRequested(env) ? await supabaseReferenceById(env,Number(referenceImageGet[1])) : await env.DB.prepare(`
           SELECT image_key FROM cover_visual_references WHERE id=? AND active=1
         `).bind(Number(referenceImageGet[1])).first();
         if (!reference?.image_key) return new Response('Not found', { status: 404 });
