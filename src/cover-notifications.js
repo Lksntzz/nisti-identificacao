@@ -5,6 +5,11 @@ import {
   mirrorNotificationReadsForUserFromD1,
   mirrorNotificationsForProductOrCoverFromD1
 } from './supabase-secondary-write-store.js';
+import {
+  preferSupabaseRead,
+  supabaseReserveNotifications,
+  supabaseReserveUnreadNotifications
+} from './supabase-read-store.js';
 
 function clean(value) {
   const text = String(value || '').trim();
@@ -129,31 +134,40 @@ export async function updateNotificationImage(env, productId, capaCode, imageKey
 }
 
 export async function listUserNotifications(env, userId, limit = 50) {
-  if (!env?.DB) return [];
+  if (!env) return [];
   const safeUserId = String(userId || 'anonymous').trim().slice(0, 100);
   const safeLimit = Math.max(1, Math.min(100, Number(limit) || 50));
 
-  const { results } = await env.DB.prepare(`
-    SELECT
-      n.id,
-      n.type,
-      n.capa_code,
-      n.product_id,
-      n.sku,
-      n.product_name,
-      n.variacao,
-      n.platform,
-      n.image_key,
-      n.created_at,
-      r.read_at IS NOT NULL AS is_read,
-      r.read_at
-    FROM notifications n
-    LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
-    ORDER BY n.id DESC
-    LIMIT ?
-  `).bind(safeUserId, safeLimit).all();
+  const rows = await preferSupabaseRead(
+    env,
+    () => supabaseReserveNotifications(env, safeUserId, safeLimit),
+    async () => {
+      if (!env.DB) return [];
+      const { results } = await env.DB.prepare(`
+        SELECT
+          n.id,
+          n.type,
+          n.capa_code,
+          n.product_id,
+          n.sku,
+          n.product_name,
+          n.variacao,
+          n.platform,
+          n.image_key,
+          n.created_at,
+          r.read_at IS NOT NULL AS is_read,
+          r.read_at
+        FROM notifications n
+        LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
+        ORDER BY n.id DESC
+        LIMIT ?
+      `).bind(safeUserId, safeLimit).all();
+      return results || [];
+    },
+    'notifications:list'
+  );
 
-  return (results || []).map(row => {
+  return (rows || []).map(row => {
     const version = row.image_key ? String(row.image_key).split('/').pop() : '';
     const imageUrl = row.product_id && row.image_key
       ? `/api/images/${row.product_id}${version ? `?v=${encodeURIComponent(version)}` : ''}`
@@ -169,7 +183,7 @@ export async function listUserNotifications(env, userId, limit = 50) {
       variacao: row.variacao || null,
       platform: row.platform || null,
       image_url: imageUrl,
-      is_read: Boolean(row.is_read),
+      is_read: row.is_read === true || Number(row.is_read) === 1,
       read_at: row.read_at || null,
       created_at: row.created_at
     };
@@ -177,17 +191,24 @@ export async function listUserNotifications(env, userId, limit = 50) {
 }
 
 export async function getUnreadNotificationsCount(env, userId) {
-  if (!env?.DB) return 0;
+  if (!env) return 0;
   const safeUserId = String(userId || 'anonymous').trim().slice(0, 100);
 
-  const row = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM notifications n
-    LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
-    WHERE r.id IS NULL
-  `).bind(safeUserId).first();
-
-  return Number(row?.total || 0);
+  return preferSupabaseRead(
+    env,
+    () => supabaseReserveUnreadNotifications(env, safeUserId),
+    async () => {
+      if (!env.DB) return 0;
+      const row = await env.DB.prepare(`
+        SELECT COUNT(*) AS total
+        FROM notifications n
+        LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
+        WHERE r.id IS NULL
+      `).bind(safeUserId).first();
+      return Number(row?.total || 0);
+    },
+    'notifications:unread'
+  );
 }
 
 export async function markNotificationRead(env, notificationId, userId) {

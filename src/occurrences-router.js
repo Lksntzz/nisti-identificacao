@@ -7,6 +7,10 @@ import {
 } from './platform-scope.js';
 import { confirmGeometricShadowEvidence } from './geometric-shadow-evidence-router.js';
 import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
+import {
+  preferSupabaseRead,
+  supabaseReserveOccurrences
+} from './supabase-read-store.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 
@@ -283,28 +287,48 @@ export async function handleOccurrencesAdminRequest(request, env) {
 
   // GET /api/admin/occurrences
   if (request.method === 'GET' && url.pathname === '/api/admin/occurrences') {
-    const pendingList = await env.DB.prepare(`
-      SELECT id, image_key, platform, suggested_capa_code, confidence, error_reason, operator_name, operator_id, status, created_at
-      FROM scan_occurrences
-      WHERE status = 'pending'
-      ORDER BY created_at DESC
-      LIMIT 60
-    `).all();
+    let source = 'd1';
+    const payload = await preferSupabaseRead(
+      env,
+      async () => {
+        source = 'supabase-reserve';
+        return supabaseReserveOccurrences(env);
+      },
+      async () => {
+        const pendingList = await env.DB.prepare(`
+          SELECT id, image_key, platform, suggested_capa_code, confidence, error_reason, operator_name, operator_id, status, created_at
+          FROM scan_occurrences
+          WHERE status = 'pending'
+          ORDER BY created_at DESC
+          LIMIT 60
+        `).all();
 
-    const counts = await env.DB.prepare(`
-      SELECT 
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) AS pending_count,
-        COUNT(CASE WHEN status = 'trained' THEN 1 END) AS trained_count,
-        COUNT(CASE WHEN status = 'dismissed' THEN 1 END) AS dismissed_count
-      FROM scan_occurrences
-    `).first();
+        const counts = await env.DB.prepare(`
+          SELECT 
+            COUNT(CASE WHEN status = 'pending' THEN 1 END) AS pending_count,
+            COUNT(CASE WHEN status = 'trained' THEN 1 END) AS trained_count,
+            COUNT(CASE WHEN status = 'dismissed' THEN 1 END) AS dismissed_count
+          FROM scan_occurrences
+        `).first();
 
-    const occurrences = (pendingList.results || []).map(row => ({
-      id: row.id,
-      image_url: `/api/occurrence-images/${row.id}`,
+        return {
+          stats:{
+            pending:Number(counts?.pending_count || 0),
+            trained:Number(counts?.trained_count || 0),
+            dismissed:Number(counts?.dismissed_count || 0)
+          },
+          occurrences:pendingList.results || []
+        };
+      },
+      'occurrences:list'
+    );
+
+    const occurrences = (payload?.occurrences || []).map(row => ({
+      id: Number(row.id),
+      image_url: `/api/occurrence-images/${Number(row.id)}`,
       platform: row.platform,
       suggested_capa_code: row.suggested_capa_code,
-      confidence: row.confidence,
+      confidence: Number(row.confidence || 0),
       error_reason: row.error_reason,
       operator_name: row.operator_name || 'Operador Geral',
       operator_id: row.operator_id,
@@ -314,10 +338,12 @@ export async function handleOccurrencesAdminRequest(request, env) {
 
     return json({
       ok: true,
+      reserve_mode: source === 'supabase-reserve',
+      read_source: source,
       stats: {
-        pending: counts?.pending_count || 0,
-        trained: counts?.trained_count || 0,
-        dismissed: counts?.dismissed_count || 0
+        pending: Number(payload?.stats?.pending || 0),
+        trained: Number(payload?.stats?.trained || 0),
+        dismissed: Number(payload?.stats?.dismissed || 0)
       },
       occurrences
     });
