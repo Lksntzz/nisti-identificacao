@@ -9,6 +9,11 @@ import {
   supabaseMirrorWritesRequested
 } from './supabase-write-store.js';
 import {
+  mirrorAllMuralPostsFromD1,
+  mirrorMuralCollectionFromD1,
+  mirrorMuralPostFromD1,
+  mirrorMuralPostReadFromD1,
+  mirrorMuralReadsForUserFromD1,
   mirrorNotificationByCapaFromD1,
   mirrorProductImageDerivativeFromD1
 } from './supabase-secondary-write-store.js';
@@ -106,6 +111,79 @@ export async function mirrorSuccessfulMutation(request, response, env) {
     const dismissOccurrence = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/dismiss$/);
     if (dismissOccurrence && method === 'POST') {
       await mirrorOccurrenceStateFromD1(env, Number(dismissOccurrence[1]));
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/admin/mural/posts') {
+      const data=await responseJson(response);
+      await mirrorMuralPostFromD1(env,data?.id);
+      return;
+    }
+
+    const muralAdminPost=url.pathname.match(/^\/api\/admin\/mural\/posts\/(\d+)$/);
+    if (muralAdminPost && (method === 'PUT' || method === 'DELETE')) {
+      await mirrorMuralPostFromD1(env,Number(muralAdminPost[1]));
+      return;
+    }
+
+    const muralPostAction=url.pathname.match(/^\/api\/admin\/mural\/posts\/(\d+)\/(publish|archive|duplicate)$/);
+    if (muralPostAction && method === 'POST') {
+      const data=await responseJson(response);
+      if (muralPostAction[2] === 'duplicate') {
+        await mirrorMuralPostFromD1(env,data?.id);
+      } else {
+        await mirrorMuralPostFromD1(env,Number(muralPostAction[1]));
+      }
+      return;
+    }
+
+    const muralPostImage=url.pathname.match(/^\/api\/admin\/mural\/posts\/(\d+)\/image$/);
+    if (muralPostImage && (method === 'POST' || method === 'DELETE')) {
+      await mirrorMuralPostFromD1(env,Number(muralPostImage[1]));
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/admin/mural/collections') {
+      const data=await responseJson(response);
+      await mirrorMuralCollectionFromD1(env,data?.id);
+      return;
+    }
+
+    const muralCollection=url.pathname.match(/^\/api\/admin\/mural\/collections\/(\d+)$/);
+    if (muralCollection && method === 'PUT') {
+      await mirrorMuralCollectionFromD1(env,Number(muralCollection[1]));
+      return;
+    }
+
+    const muralCollectionProducts=url.pathname.match(/^\/api\/admin\/mural\/collections\/(\d+)\/products$/);
+    if (muralCollectionProducts && method === 'PUT') {
+      await mirrorMuralCollectionFromD1(env,Number(muralCollectionProducts[1]));
+      return;
+    }
+
+    const muralCollectionImage=url.pathname.match(/^\/api\/admin\/mural\/collections\/(\d+)\/image$/);
+    if (muralCollectionImage && (method === 'POST' || method === 'DELETE')) {
+      await mirrorMuralCollectionFromD1(env,Number(muralCollectionImage[1]));
+      return;
+    }
+
+    const muralCollectionPublish=url.pathname.match(/^\/api\/admin\/mural\/collections\/(\d+)\/publish$/);
+    if (muralCollectionPublish && method === 'POST') {
+      await mirrorMuralCollectionFromD1(env,Number(muralCollectionPublish[1]));
+      await mirrorAllMuralPostsFromD1(env);
+      return;
+    }
+
+    const muralRead=url.pathname.match(/^\/api\/mural\/(\d+)\/read$/);
+    if (muralRead && method === 'POST') {
+      const user=String(request.headers.get('x-user-id') || 'anonymous').trim().slice(0,100) || 'anonymous';
+      await mirrorMuralPostReadFromD1(env,Number(muralRead[1]),user);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mural/mark-all-read') {
+      const user=String(request.headers.get('x-user-id') || 'anonymous').trim().slice(0,100) || 'anonymous';
+      await mirrorMuralReadsForUserFromD1(env,user);
       return;
     }
 
