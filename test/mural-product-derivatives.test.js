@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const migration=fs.readFileSync(new URL('../migrations/0020_mural_product_images.sql',import.meta.url),'utf8');
+const reprocessMigration=fs.readFileSync(new URL('../migrations/0021_mural_product_images_reprocess.sql',import.meta.url),'utf8');
 const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
 const publicImages=fs.readFileSync(new URL('../src/public-image-router.js',import.meta.url),'utf8');
@@ -46,4 +47,16 @@ test('production applies D1 migrations before deploying the new Worker',()=>{
   const publish=deploy.indexOf('npx wrangler deploy');
   assert.ok(migrate>0);
   assert.ok(publish>migrate);
+});
+
+
+test('global reprocess migration covers every database product while preserving approved manual PNGs',()=>{
+  assert.match(reprocessMigration,/FROM products p/);
+  assert.match(reprocessMigration,/WHERE p\.image_key IS NOT NULL/);
+  assert.match(reprocessMigration,/ON CONFLICT\(product_id\) DO UPDATE SET/);
+  assert.match(reprocessMigration,/mural_product_images\.processor = 'admin-upload'/);
+  assert.match(reprocessMigration,/THEN 'approved'/);
+  assert.match(reprocessMigration,/ELSE 'pending'/);
+  assert.match(reprocessMigration,/SELECT id FROM products WHERE image_key IS NULL/);
+  assert.match(reprocessMigration,/status = 'stale'/);
 });

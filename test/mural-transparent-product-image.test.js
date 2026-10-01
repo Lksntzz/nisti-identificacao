@@ -5,12 +5,14 @@ import { __muralTransparentImageInternals } from '../src/mural-transparent-image
 
 const source = fs.readFileSync(new URL('../src/mural-transparent-image.js', import.meta.url), 'utf8');
 
-test('background removal is conservative enough to protect white and off-white covers', () => {
+test('background removal protects white and off-white covers with a physical-edge barrier', () => {
   assert.match(source, /brightness >= 242 && chroma <= 18/);
-  assert.match(source, /data\[offset \+ 3\] = 0/);
+  assert.match(source, /function hasLocalProductEdge/);
+  assert.match(source, /if \(delta >= 14\) return true/);
+  assert.match(source, /if \(hasLocalProductEdge\(data, width, height, index\)\) return/);
+  assert.match(source, /function protectedSubjectCoverage/);
+  assert.match(source, /if \(subjectCoverage < \.72\) return src/);
   assert.match(source, /productStats\.ratio < \.055/);
-  assert.match(source, /productWidth < width \* \.25/);
-  assert.match(source, /productHeight < height \* \.25/);
 });
 
 test('only images with real transparent borders skip background cleanup', () => {
@@ -163,4 +165,44 @@ test('automatic cutout no longer hard-clips pixels to the convex hull plate', ()
   const buildSource = source.slice(buildStart, buildEnd);
   assert.equal(buildSource.includes('clearOutsideSubject(data, width, height'), false);
   assert.match(buildSource, /const keepMask = dilateMask\(productMask, width, height, 1\)/);
+});
+
+
+test('local edge barrier blocks a near-white background flood at a white product edge', () => {
+  const width = 9;
+  const height = 9;
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let index = 0; index < width * height; index += 1) {
+    data[index * 4] = 255;
+    data[index * 4 + 1] = 255;
+    data[index * 4 + 2] = 255;
+    data[index * 4 + 3] = 255;
+  }
+
+  // Simulate the subtle physical edge of a white agenda.
+  for (let y = 1; y < 8; y += 1) {
+    const offset = (y * width + 3) * 4;
+    data[offset] = 232;
+    data[offset + 1] = 232;
+    data[offset + 2] = 232;
+  }
+
+  assert.equal(__muralTransparentImageInternals.hasLocalProductEdge(data, width, height, 2 * width + 2), true);
+  assert.equal(__muralTransparentImageInternals.hasLocalProductEdge(data, width, height, 0), false);
+});
+
+test('coverage guard detects when a light product body was accidentally removed', () => {
+  const width = 10;
+  const height = 10;
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let index = 0; index < width * height; index += 1) data[index * 4 + 3] = 255;
+  const protectedArea = (x, y) => x >= 2 && x <= 7 && y >= 2 && y <= 7;
+
+  assert.equal(__muralTransparentImageInternals.protectedSubjectCoverage(data, width, height, protectedArea), 1);
+
+  for (let y = 2; y <= 7; y += 1) {
+    for (let x = 2; x <= 6; x += 1) data[(y * width + x) * 4 + 3] = 0;
+  }
+
+  assert.ok(__muralTransparentImageInternals.protectedSubjectCoverage(data, width, height, protectedArea) < .72);
 });
