@@ -299,21 +299,28 @@ function clearOutsideSubject(data, width, height, isProtectedSubjectPixel) {
   return removed;
 }
 
-function buildLargestConnectedSubjectMask(data, width, height) {
+function buildProductComponentsMask(data, width, height) {
   const total = width * height;
-  const visited = new Uint8Array(total);
+  const labels = new Int32Array(total);
+  labels.fill(-1);
   const queue = new Int32Array(total);
-  let largestSeed = -1;
+  const components = [];
   let largestSize = 0;
+  let largestLabel = -1;
 
   const isOpaque = index => data[index * 4 + 3] >= 32;
 
   for (let start = 0; start < total; start += 1) {
-    if (visited[start] || !isOpaque(start)) continue;
+    if (labels[start] >= 0 || !isOpaque(start)) continue;
     let head = 0;
     let tail = 0;
     let count = 0;
-    visited[start] = 1;
+    let minX = width;
+    let maxX = -1;
+    let minY = height;
+    let maxY = -1;
+    const label = components.length;
+    labels[start] = label;
     queue[tail++] = start;
 
     while (head < tail) {
@@ -321,10 +328,14 @@ function buildLargestConnectedSubjectMask(data, width, height) {
       count += 1;
       const x = index % width;
       const y = Math.floor(index / width);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
 
       const push = next => {
-        if (next < 0 || next >= total || visited[next] || !isOpaque(next)) return;
-        visited[next] = 1;
+        if (next < 0 || next >= total || labels[next] >= 0 || !isOpaque(next)) return;
+        labels[next] = label;
         queue[tail++] = next;
       };
 
@@ -338,37 +349,38 @@ function buildLargestConnectedSubjectMask(data, width, height) {
       if (x + 1 < width && y + 1 < height) push(index + width + 1);
     }
 
+    components.push({ count, minX, maxX, minY, maxY });
     if (count > largestSize) {
       largestSize = count;
-      largestSeed = start;
+      largestLabel = label;
     }
   }
 
-  if (largestSeed < 0 || largestSize < Math.max(20, Math.round(total * .002))) return null;
+  if (largestLabel < 0 || largestSize < Math.max(20, Math.round(total * .002))) return null;
 
+  const main = components[largestLabel];
+  const maximumGapX = Math.max(2, Math.round(width * .035));
+  const maximumGapY = Math.max(2, Math.round(height * .035));
+  const minimumDetailSize = Math.max(6, Math.round(total * .000003));
+  const included = new Uint8Array(components.length);
+  included[largestLabel] = 1;
+
+  for (let label = 0; label < components.length; label += 1) {
+    if (label === largestLabel) continue;
+    const component = components[label];
+    if (component.count < minimumDetailSize) continue;
+    const gapX = Math.max(0, main.minX - component.maxX - 1, component.minX - main.maxX - 1);
+    const gapY = Math.max(0, main.minY - component.maxY - 1, component.minY - main.maxY - 1);
+    const closeToMainProduct = gapX <= maximumGapX && gapY <= maximumGapY;
+    const anotherLargeProduct = component.count >= largestSize * .12;
+    if (closeToMainProduct || anotherLargeProduct) included[label] = 1;
+  }
+
+  // Keep the agenda body, nearby detached wire-o rings and any other large
+  // product in a collection composition. A small corner logo remains out.
   const mask = new Uint8Array(total);
-  let head = 0;
-  let tail = 0;
-  queue[tail++] = largestSeed;
-  mask[largestSeed] = 1;
-
-  while (head < tail) {
-    const index = queue[head++];
-    const x = index % width;
-    const y = Math.floor(index / width);
-    const push = next => {
-      if (next < 0 || next >= total || mask[next] || !isOpaque(next)) return;
-      mask[next] = 1;
-      queue[tail++] = next;
-    };
-    if (x > 0) push(index - 1);
-    if (x + 1 < width) push(index + 1);
-    if (y > 0) push(index - width);
-    if (y + 1 < height) push(index + width);
-    if (x > 0 && y > 0) push(index - width - 1);
-    if (x + 1 < width && y > 0) push(index - width + 1);
-    if (x > 0 && y + 1 < height) push(index + width - 1);
-    if (x + 1 < width && y + 1 < height) push(index + width + 1);
+  for (let index = 0; index < total; index += 1) {
+    if (labels[index] >= 0 && included[labels[index]]) mask[index] = 1;
   }
 
   return mask;
@@ -466,7 +478,7 @@ async function buildProductOutlineImage(src) {
 
   if (!hasExistingTransparency(data, total)) return '';
 
-  const mainMask = buildLargestConnectedSubjectMask(data, width, height);
+  const mainMask = buildProductComponentsMask(data, width, height);
   if (!mainMask) return '';
 
   // Safety guard: a mask that occupies nearly the entire canvas or touches
@@ -476,7 +488,7 @@ async function buildProductOutlineImage(src) {
   if (stats.ratio > .82 || stats.touches >= 3) return '';
 
   const solidMask = fillMaskInteriorHoles(mainMask, width, height);
-  const radius = clamp(Math.round(Math.max(width, height) * .0018), 1, 3);
+  const radius = clamp(Math.round(Math.max(width, height) * .0028), 2, 5);
   const expandedMask = dilateMask(solidMask, width, height, radius);
 
   const outlineData = context.createImageData(width, height);
@@ -732,5 +744,6 @@ export function useTransparentProductOutline(src, enabled = true) {
 
 export const __muralTransparentImageInternals = {
   buildSubjectProtection,
-  clearOutsideSubject
+  clearOutsideSubject,
+  buildProductComponentsMask
 };
