@@ -53,9 +53,9 @@ test('Phase 6E cutover freeze blocks mutating API requests before routers execut
   assert.match(source, /retry-after/);
 });
 
-test('Phase 6E remains completely inactive by default', () => {
+test('read cutover and write freeze remain inactive while reserve mirroring is enabled', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
-  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"off"/);
+  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
   assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE\s*=\s*"0"/);
 });
