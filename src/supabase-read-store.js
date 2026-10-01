@@ -17,6 +17,19 @@ export function supabaseReadsRequested(env) {
   return String(env?.SUPABASE_READS_ENABLED || '').trim() === '1';
 }
 
+export function supabaseEmergencyFallbackRequested(env) {
+  return String(env?.SUPABASE_EMERGENCY_FALLBACK_ENABLED || '').trim() === '1';
+}
+
+export function isD1DailyReadLimitError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  const code = Number(error?.code || error?.cause?.code || 0);
+  return code === 7500
+    || message.includes('daily row read limit')
+    || message.includes("exceeded d1's free tier")
+    || (message.includes('d1') && message.includes('row read') && message.includes('limit'));
+}
+
 function timeoutMs(env, overrideMs = null) {
   const hasOverride = overrideMs !== null
     && overrideMs !== undefined
@@ -109,14 +122,24 @@ export async function supabaseRpc(env, functionName, params = {}, options = {}) 
 }
 
 export async function preferSupabaseRead(env, supabaseLoader, d1Loader, label = 'read') {
-  if (!supabaseReadsRequested(env)) return d1Loader();
+  if (supabaseReadsRequested(env)) {
+    try {
+      return await supabaseLoader();
+    } catch (error) {
+      if (error instanceof SupabaseReadError && error.fallbackEligible) {
+        console.warn(`[Supabase] ${label} indisponível; usando fallback D1 temporário: ${error.code}`);
+        return d1Loader();
+      }
+      throw error;
+    }
+  }
 
   try {
-    return await supabaseLoader();
+    return await d1Loader();
   } catch (error) {
-    if (error instanceof SupabaseReadError && error.fallbackEligible) {
-      console.warn(`[Supabase] ${label} indisponível; usando fallback D1 temporário: ${error.code}`);
-      return d1Loader();
+    if (supabaseEmergencyFallbackRequested(env) && isD1DailyReadLimitError(error)) {
+      console.warn(`[Supabase reserve] D1 sem cota de leitura em ${label}; usando banco reserva.`);
+      return supabaseLoader();
     }
     throw error;
   }
@@ -176,4 +199,9 @@ export async function supabaseImageKey(env, entity, id) {
     p_id: Number(id || 0)
   });
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+
+export async function supabaseReserveProducts(env) {
+  return rows(await supabaseRpc(env, 'nisti_reserve_products_v1'));
 }
