@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useTransparentProductImage } from './mural-transparent-image.js';
+import { useTreatedProductImage } from './mural-transparent-image.js';
 
-function ProductVisual({ src, alt, focusKey, transparent = false }) {
-  const displaySrc = useTransparentProductImage(src, transparent);
+function ProductVisual({ src, alt, focusKey }) {
+  const displaySrc = useTreatedProductImage(src, true);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
