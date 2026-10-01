@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const migration=fs.readFileSync(new URL('../migrations/0020_mural_product_images.sql',import.meta.url),'utf8');
 const reprocessMigration=fs.readFileSync(new URL('../migrations/0021_mural_product_images_reprocess.sql',import.meta.url),'utf8');
+const globalDisplayMigration=fs.readFileSync(new URL('../migrations/0022_product_display_images.sql',import.meta.url),'utf8');
 const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
 const publicImages=fs.readFileSync(new URL('../src/public-image-router.js',import.meta.url),'utf8');
@@ -25,12 +26,14 @@ test('changing a catalog image invalidates its Mural derivative',()=>{
   assert.match(core,/PRODUCT_IMAGES\.delete\(product\.mural_processed_image_key\)/);
 });
 
-test('public Mural serves only approved derivatives matching the current source image',()=>{
+test('public product display serves approved derivatives matching the current source image and keeps legacy Mural route',()=>{
   assert.match(publicImages,/mpi\.status='approved'/);
   assert.match(publicImages,/mpi\.source_image_key=p\.image_key/);
+  assert.match(publicImages,/api\\\/product-images/);
   assert.match(publicImages,/api\\\/mural-product-images/);
   assert.match(router,/mural_image_status !== 'approved'/);
   assert.match(router,/mural_source_image_key !== row\?\.image_key/);
+  assert.match(router,/api\/product-images/);
 });
 
 test('admin accepts transparent PNG derivatives and preserves the original image',()=>{
@@ -59,4 +62,14 @@ test('global reprocess migration covers every database product while preserving 
   assert.match(reprocessMigration,/ELSE 'pending'/);
   assert.match(reprocessMigration,/SELECT id FROM products WHERE image_key IS NULL/);
   assert.match(reprocessMigration,/status = 'stale'/);
+});
+
+
+test('global display-image migration preserves originals and queues automatic reprocessing',()=>{
+  assert.match(globalDisplayMigration,/FROM products p/);
+  assert.match(globalDisplayMigration,/mural_product_images\.processor = 'admin-upload'/);
+  assert.match(globalDisplayMigration,/ELSE 'pending'/);
+  assert.match(globalDisplayMigration,/CREATE TRIGGER IF NOT EXISTS trg_products_image_insert_derivative/);
+  assert.match(globalDisplayMigration,/CREATE TRIGGER IF NOT EXISTS trg_products_image_update_derivative/);
+  assert.doesNotMatch(globalDisplayMigration,/UPDATE products SET image_key/);
 });

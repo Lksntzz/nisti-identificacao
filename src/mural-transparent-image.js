@@ -967,23 +967,27 @@ async function buildTransparentProductImage(src) {
   return URL.createObjectURL(outputBlob);
 }
 
+function isPersistedProductImageUrl(src) {
+  return /\/api\/product-images\/\d+(?:\?|$)/.test(String(src || ''));
+}
+
 async function buildTreatedProductImage(src) {
   const cutoutSrc = await transparentProductImageUrl(src);
   if (!cutoutSrc) return src;
 
   const response = await fetch(cutoutSrc, { credentials:'same-origin' });
-  if (!response.ok) return cutoutSrc;
+  if (!response.ok) return src;
   const blob = await response.blob();
   const bitmap = await loadBitmap(blob);
   const width = Number(bitmap.width || bitmap.naturalWidth || 0);
   const height = Number(bitmap.height || bitmap.naturalHeight || 0);
-  if (!width || !height) return cutoutSrc;
+  if (!width || !height) return src;
 
   const sourceCanvas = document.createElement('canvas');
   sourceCanvas.width = width;
   sourceCanvas.height = height;
   const sourceContext = sourceCanvas.getContext('2d', { willReadFrequently:true });
-  if (!sourceContext) return cutoutSrc;
+  if (!sourceContext) return src;
   sourceContext.clearRect(0, 0, width, height);
   sourceContext.drawImage(bitmap, 0, 0, width, height);
   if (typeof bitmap.close === 'function') bitmap.close();
@@ -995,11 +999,11 @@ async function buildTreatedProductImage(src) {
   // If the source could not be safely separated from its background, leave it
   // untouched. This is intentionally safer than cutting a white cover.
   if (!hasExistingTransparency(data, total) || !hasUsableTransparentBorder(data, width, height)) {
-    return cutoutSrc;
+    return src;
   }
 
   const productMask = buildProductComponentsMask(data, width, height);
-  if (!productMask) return cutoutSrc;
+  if (!productMask) return src;
   const stats = maskStats(productMask, width, height);
   const productWidth = stats.maxX - stats.minX + 1;
   const productHeight = stats.maxY - stats.minY + 1;
@@ -1009,7 +1013,7 @@ async function buildTreatedProductImage(src) {
     || productWidth < width * .25
     || productHeight < height * .25
     || stats.touches >= 3
-  ) return cutoutSrc;
+  ) return src;
 
   // Remove disconnected logos/watermarks from the final visible product while
   // keeping nearby detached physical pieces such as wire-o loops.
@@ -1031,7 +1035,7 @@ async function buildTreatedProductImage(src) {
   outputCanvas.width = width + padding * 2;
   outputCanvas.height = height + padding * 2;
   const outputContext = outputCanvas.getContext('2d', { willReadFrequently:true });
-  if (!outputContext) return cutoutSrc;
+  if (!outputContext) return src;
 
   const outlineData = outputContext.createImageData(outputCanvas.width, outputCanvas.height);
   for (let y = 0; y < height; y += 1) {
@@ -1062,6 +1066,7 @@ async function buildTreatedProductImage(src) {
 export async function treatedProductImageUrl(src) {
   const normalized = String(src || '').trim();
   if (!normalized || typeof document === 'undefined') return normalized;
+  if (isPersistedProductImageUrl(normalized)) return normalized;
   if (treatedProductImageCache.has(normalized)) return treatedProductImageCache.get(normalized);
   if (treatedProductImageInflight.has(normalized)) return treatedProductImageInflight.get(normalized);
 
@@ -1085,6 +1090,23 @@ export async function treatedProductImageUrl(src) {
 
   treatedProductImageInflight.set(normalized, promise);
   return promise;
+}
+
+export async function treatedProductImageBlob(src) {
+  const normalized = String(src || '').trim();
+  if (!normalized || typeof document === 'undefined' || isPersistedProductImageUrl(normalized)) return null;
+
+  const url = await buildTreatedProductImage(normalized);
+  if (!url || !url.startsWith('blob:')) return null;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return blob.type === 'image/png' && blob.size > 0 ? blob : null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 export async function transparentProductImageUrl(src) {
@@ -1207,5 +1229,6 @@ export const __muralTransparentImageInternals = {
   buildPlannerDetailMask,
   applyPlannerStructureMask,
   pointInsidePolygon,
+  isPersistedProductImageUrl,
   buildTreatedProductImage
 };
