@@ -46,6 +46,24 @@ async function imageKeyFromD1(env, entity, id) {
     ).bind(id).first();
     return row?.image_key || null;
   }
+  if (entity === 'product-display') {
+    const row = await env.DB.prepare(`
+      SELECT
+        p.image_key,
+        mpi.source_image_key,
+        mpi.processed_image_key,
+        mpi.status
+      FROM products p
+      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+      WHERE p.id=?
+      LIMIT 1
+    `).bind(id).first();
+    if (!row?.image_key) return null;
+    const processedReady = row.status === 'approved'
+      && row.processed_image_key
+      && row.source_image_key === row.image_key;
+    return processedReady ? row.processed_image_key : row.image_key;
+  }
   if (entity === 'reference') {
     const row = await env.DB.prepare(`
       SELECT image_key
@@ -109,6 +127,12 @@ export async function handlePublicImageRequest(request, env) {
   const productMatch = url.pathname.match(/^\/api\/images\/(\d+)$/);
   if (productMatch) {
     const objectKey = await imageKey(env, 'product', Number(productMatch[1]));
+    return serveObject(request, env, objectKey, url);
+  }
+
+  const productDisplayMatch = url.pathname.match(/^\/api\/product-images\/(\d+)$/);
+  if (productDisplayMatch) {
+    const objectKey = await imageKeyFromD1(env, 'product-display', Number(productDisplayMatch[1]));
     return serveObject(request, env, objectKey, url);
   }
 
