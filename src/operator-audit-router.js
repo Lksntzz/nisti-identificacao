@@ -2,6 +2,7 @@ import app from './vectorize-performance-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
 import { runReserveBackfill } from './supabase-reserve-backfill.js';
+import { recordAdminActivityFromResponse } from './system-notifications.js';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -57,7 +58,16 @@ function cutoverFreezeResponse(configError = null) {
   });
 }
 
+function scheduleAdminActivity(ctx, request, response, env) {
+  const task = recordAdminActivityFromResponse(request, response, env)
+    .catch(error => console.error('[Admin notifications] Falha ao registrar atividade', error?.message || error));
+  if (ctx?.waitUntil) ctx.waitUntil(task);
+  else return task;
+  return null;
+}
+
 export default {
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
@@ -72,7 +82,11 @@ export default {
     }
 
     const shadowConfirmationResponse = await handleGeometricShadowConfirmationRequest(request, env);
-    if (shadowConfirmationResponse) return shadowConfirmationResponse;
+    if (shadowConfirmationResponse) {
+      const activity = scheduleAdminActivity(ctx, request, shadowConfirmationResponse, env);
+      if (activity) await activity;
+      return shadowConfirmationResponse;
+    }
 
     // Public operator app always sends x-user-id. If it does, require a
     // non-empty operator name before any recognition work starts. This
@@ -81,10 +95,13 @@ export default {
     if (isRecognitionRequest(url, request)) {
       const operatorId = String(request.headers.get('x-user-id') || '').trim();
       if (operatorId && !operatorNameFromRequest(request)) {
-        return json({
+        const response = json({
           error: 'Identifique o operador antes de iniciar o reconhecimento.',
           technical_error: 'operator_required'
         }, 428);
+        const activity = scheduleAdminActivity(ctx, request, response, env);
+        if (activity) await activity;
+        return response;
       }
     }
 
@@ -97,6 +114,8 @@ export default {
 
     const response = await app.fetch(request, env, ctx);
     await mirrorSuccessfulMutation(mirrorRequest, response, env);
+    const activity = scheduleAdminActivity(ctx, mirrorRequest, response, env);
+    if (activity) await activity;
     return response;
   },
 
@@ -108,3 +127,4 @@ export default {
     );
   }
 };
+
