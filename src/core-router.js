@@ -36,7 +36,7 @@ const BULK_IMPORT_LIMIT = 100;
 const EXTRA_REFERENCE_LIMIT = 6;
 const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '4';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '5';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
   const id = Number(productId || 0);
