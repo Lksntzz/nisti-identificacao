@@ -56,7 +56,8 @@ async function imageKeyFromD1(env, entity, id) {
         mpi.processed_image_key,
         mpi.status,
         mpi.processor,
-        mpi.processor_version
+        mpi.processor_version,
+        mpi.reviewed_by
       FROM products p
       LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
       WHERE p.id=?
@@ -65,7 +66,8 @@ async function imageKeyFromD1(env, entity, id) {
     if (!row?.image_key) return null;
     const processedReady = row.status === 'approved'
       && row.processed_image_key
-      && row.source_image_key === row.image_key;
+      && row.source_image_key === row.image_key
+      && row.reviewed_by === 'admin';
     return processedReady ? row.processed_image_key : row.image_key;
   }
   if (entity === 'reference') {
@@ -92,6 +94,7 @@ async function imageKeyFromD1(env, entity, id) {
         AND mpi.status='approved'
         AND mpi.processed_image_key IS NOT NULL
         AND mpi.source_image_key=p.image_key
+        AND mpi.reviewed_by='admin'
       LIMIT 1
     `).bind(id).first();
     return row?.processed_image_key || null;
