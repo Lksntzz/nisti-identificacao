@@ -238,6 +238,12 @@ export async function supabaseImageKey(env, entity, id) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+export async function supabaseProductImageContext(env, productId) {
+  return await supabaseRpc(env, 'nisti_product_image_context_v1', {
+    p_product_id:Number(productId || 0)
+  });
+}
+
 
 export async function supabaseReserveProducts(env) {
   return rows(await supabaseRpc(env, 'nisti_reserve_products_v1'));

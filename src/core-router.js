@@ -25,7 +25,8 @@ import {
 import {
   d1EmergencyCircuitStatus,
   preferSupabaseRead,
-  supabaseReserveProducts
+  supabaseReserveProducts,
+  supabaseProductImageContext
 } from './supabase-read-store.js';
 import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 import {
@@ -222,11 +223,19 @@ async function ensureVisualReference(env, {
   `).bind(code, imageKey).first();
 }
 
-async function storeReferenceEmbedding(env, reference, bytes, mimeType) {
+async function storeReferenceEmbedding(env, reference, bytes, mimeType, cleanupProductId = null) {
   if (!reference?.id) throw new Error('Referência visual não encontrada');
   const { model, values } = await embedImage(env, bytes, mimeType);
 
-  await env.DB.prepare(`
+  let removedReferences = [];
+  if (supabasePrimaryWritesRequested(env)) {
+    const stored = await mirrorSupabaseRpc(env, 'nisti_store_reference_embedding_v1', {
+      p_reference_id:Number(reference.id),p_embedding_model:model,p_dimensions:values.length,
+      p_embedding_json:JSON.stringify(values),p_cleanup_product_id:cleanupProductId,
+      p_keep_image_key:cleanupProductId ? reference.image_key : null
+    }, 'embedding de referência visual');
+    removedReferences = stored.value?.removed_references || [];
+  } else await env.DB.prepare(`
     INSERT INTO cover_reference_embeddings (
       reference_id,embedding_model,dimensions,embedding_json,updated_at
     ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
@@ -275,7 +284,7 @@ async function storeReferenceEmbedding(env, reference, bytes, mimeType) {
     }
   }
 
-  return { model, values };
+  return { model, values, removedReferences };
 }
 
 async function cleanupStaleProductReferences(env, productId, keepImageKey) {
@@ -297,6 +306,36 @@ async function cleanupStaleProductReferences(env, productId, keepImageKey) {
 }
 
 async function saveProductImage(env, id, fileBytes, contentType) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const key = `products/${id}/${crypto.randomUUID()}`;
+    await env.PRODUCT_IMAGES.put(key,fileBytes,{ httpMetadata:{ contentType } });
+    let prepared;
+    try {
+      prepared = await mirrorSupabaseRpc(env,'nisti_prepare_product_image_v1',{
+        p_product_id:id,p_image_key:key
+      },'imagem original de produto');
+    } catch (error) {
+      await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+      throw error;
+    }
+    const value=prepared.value || {};
+    if(value.status==='not_found') {
+      await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+      throw new Error('Produto não encontrado');
+    }
+    if(value.old_processed_image_key) await env.PRODUCT_IMAGES.delete(value.old_processed_image_key).catch(()=>{});
+    const reference=value.reference;
+    let indexed=false,indexError=null,removedReferences=[];
+    try {
+      const stored=await storeReferenceEmbedding(env,reference,new Uint8Array(fileBytes),contentType,id);
+      indexed=true; removedReferences=stored.removedReferences || [];
+      for(const stale of removedReferences) if(stale.image_key && stale.image_key!==key) {
+        await env.PRODUCT_IMAGES.delete(stale.image_key).catch(()=>{});
+      }
+    } catch(error) { indexError=error?.message || 'Falha ao indexar capa'; }
+    return { indexed,index_error:indexError,reference_id:Number(reference?.id||0),
+      removed_reference_ids:removedReferences.map(item=>Number(item.id)) };
+  }
   const product = await env.DB.prepare(`
     SELECT p.id,p.capa_code,p.image_key,mpi.processed_image_key AS mural_processed_image_key
     FROM products p
@@ -924,8 +963,9 @@ export default {
 
       const imageGet = url.pathname.match(/^\/api\/images\/(\d+)$/);
       if (imageGet && request.method === 'GET') {
-        const product = await env.DB.prepare(`SELECT image_key FROM products WHERE id=?`)
-          .bind(Number(imageGet[1])).first();
+        const product = supabasePrimaryWritesRequested(env)
+          ? await supabaseProductImageContext(env,Number(imageGet[1]))
+          : await env.DB.prepare(`SELECT image_key FROM products WHERE id=?`).bind(Number(imageGet[1])).first();
         if (!product?.image_key) return new Response('Not found', { status: 404 });
         const object = await env.PRODUCT_IMAGES.get(product.image_key);
         if (!object) return new Response('Not found', { status: 404 });
@@ -941,7 +981,9 @@ export default {
       const displayImageGet = url.pathname.match(/^\/api\/product-images\/(\d+)$/);
       if (displayImageGet && request.method === 'GET') {
         const productId = Number(displayImageGet[1]);
-        const row = await env.DB.prepare(`
+        const row = supabasePrimaryWritesRequested(env)
+          ? await supabaseProductImageContext(env,productId)
+          : await env.DB.prepare(`
           SELECT
             p.image_key,
             mpi.source_image_key,
@@ -954,6 +996,9 @@ export default {
           LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
           WHERE p.id=?
         `).bind(productId).first();
+        if (supabasePrimaryWritesRequested(env) && row?.status === 'ok') {
+          row.status = row.treatment_status;
+        }
         if (!row?.image_key) return new Response('Not found', { status: 404 });
 
         const processedReady = row.status === 'approved'

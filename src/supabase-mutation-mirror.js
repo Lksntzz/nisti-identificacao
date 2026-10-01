@@ -42,6 +42,7 @@ async function requestJson(request) {
 function isDirectSupabasePrimaryMutation(url, method) {
   if (method === 'POST' && (url.pathname === '/api/products' || url.pathname === '/api/admin/bulk-products')) return true;
   if (/^\/api\/products\/\d+$/.test(url.pathname) && ['PUT', 'PATCH', 'DELETE'].includes(method)) return true;
+  if (/^\/api\/products\/\d+\/image$/.test(url.pathname) && method === 'POST') return true;
   if (/^\/api\/products\/\d+\/finish$/.test(url.pathname) && method === 'PATCH') return true;
   if (/^\/api\/products\/\d+\/gtins$/.test(url.pathname) && method === 'POST') return true;
   return /^\/api\/products\/\d+\/gtins\/[^/]+$/.test(url.pathname) && method === 'DELETE';
