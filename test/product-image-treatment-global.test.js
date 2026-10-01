@@ -88,6 +88,8 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
   assert.ok(worker.includes('treatedProductImageBlob'));
   assert.ok(worker.includes('tasselCode:item.tassel_code'));
+  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v8'"));
+  assert.ok(worker.includes("cache:'no-store'"));
   assert.ok(worker.includes("form.append('image'"));
   assert.ok(worker.includes('/failed'));
 });
@@ -102,6 +104,9 @@ test('Mural admin shows live treatment totals and the current SKU', () => {
   assert.ok(admin.includes("/api/admin/product-image-treatment/pending?limit=1"));
   assert.ok(admin.includes('role="progressbar"'));
   assert.ok(admin.includes('Tratando agora:'));
+  assert.ok(admin.includes('const onChangedRef=useRef(onChanged)'));
+  assert.ok(admin.includes("if(['processed','failed'].includes(detail.phase))"));
+  assert.ok(admin.includes('Promise.resolve(onChangedRef.current?.())'));
   assert.ok(worker.includes("new CustomEvent('nisti:product-image-treatment-progress'"));
   assert.ok(worker.includes("phase:'processing'"));
   assert.ok(css.includes('.mural-product-treatment-progress-track'));
@@ -121,11 +126,12 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'treated') return normalized"));
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
-  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '7'"));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '8'"));
   assert.ok(core.includes("OR mpi.status IN ('pending','stale')"));
+  assert.ok(core.includes("COALESCE(mpi.processor_version,'')<>?"));
   assert.equal(core.includes("mpi.status IN ('pending','review','stale')"), false);
   assert.ok(core.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
-  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '7'"));
+  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '8'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
@@ -172,7 +178,8 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(utility.includes('if (requestedOfficialVariant) {\n    const official = await buildOfficialProductMask'));
   assert.ok(utility.includes('const photoStructure = buildPlannerStructureProtection(data, width, height)'));
   assert.ok(utility.includes('if (photoStructure) applyPlannerStructureMask'));
-  assert.ok(utility.includes('if (invalidPreciseCut && photoStructure)'));
+  assert.ok(utility.includes('const minimumRatio = photoStructure ? .12 : .45'));
+  assert.ok(utility.includes('if (validOfficialCut)'));
   assert.ok(utility.includes('data.set(originalPixels)'));
   assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 0);
 });
