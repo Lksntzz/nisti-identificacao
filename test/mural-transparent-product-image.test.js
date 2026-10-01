@@ -17,16 +17,52 @@ test('only images with real transparent borders skip background cleanup', () => 
   assert.match(source, /hasExistingTransparency\(data, total\) && hasUsableTransparentBorder\(data, width, height\)/);
 });
 
-test('light cover artwork is protected by a solid linear convex silhouette', () => {
+test('light cover artwork is protected by a tight scanline silhouette with a safe hull fallback', () => {
   assert.match(source, /function buildSubjectProtection/);
   assert.match(source, /function buildDominantForegroundGrid/);
   assert.match(source, /function convexHull/);
   assert.match(source, /return brightness < 218 \|\| chroma > 30/);
   assert.match(source, /dominant\.labels/);
+  assert.match(source, /const reliableRows = \[\]/);
+  assert.match(source, /const interpolatedMin = new Float32Array/);
+  assert.match(source, /const horizontalPad = Math\.max\(2, Math\.round\(width \* \.012\)\)/);
   assert.match(source, /const expandedHull = hull\.map/);
   assert.match(source, /protectedMin\[y\]/);
   assert.match(source, /protectedMax\[y\]/);
   assert.match(source, /if \(!isProtectedSubjectPixel\(x, y\)\)/);
+});
+
+test('scanline protection does not turn a concave white gap into a filled plate', () => {
+  const width = 120;
+  const height = 120;
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let index = 0; index < width * height; index += 1) {
+    data[index * 4] = 255;
+    data[index * 4 + 1] = 255;
+    data[index * 4 + 2] = 255;
+    data[index * 4 + 3] = 255;
+  }
+  const paint = (fromX, toX, fromY, toY) => {
+    for (let y = fromY; y <= toY; y += 1) {
+      for (let x = fromX; x <= toX; x += 1) {
+        const offset = (y * width + x) * 4;
+        data[offset] = 30;
+        data[offset + 1] = 40;
+        data[offset + 2] = 50;
+      }
+    }
+  };
+
+  // Wide top and bottom, narrow middle: a convex hull would wrongly keep the
+  // white side gap in the middle as part of the product.
+  paint(20, 100, 12, 31);
+  paint(47, 73, 32, 87);
+  paint(20, 100, 88, 107);
+
+  const protect = __muralTransparentImageInternals.buildSubjectProtection(data, width, height);
+  assert.ok(protect);
+  assert.equal(protect(60, 60), true);
+  assert.equal(protect(24, 60), false);
 });
 
 test('unsafe mostly-white products keep their original source instead of being damaged', () => {

@@ -232,6 +232,68 @@ function buildSubjectProtection(data, width, height) {
     return null;
   }
 
+  // Prefer a scanline silhouette over one large convex hull. A convex hull is
+  // safe for a single dark object, but on mostly-white planners it can bridge
+  // distant printed details and preserve a large triangular patch of the
+  // original white background. Row interpolation follows the real outer
+  // edges (wire-o, cover and elastic) without filling those diagonal gaps.
+  const minimumReliableSpan = Math.max(4, Math.round(width * .06));
+  const reliableRows = [];
+  for (let y = 0; y < height; y += 1) {
+    if (rowMax[y] - rowMin[y] >= minimumReliableSpan) reliableRows.push(y);
+  }
+
+  if (reliableRows.length >= Math.max(4, Math.round(height * .16))) {
+    const interpolatedMin = new Float32Array(height);
+    const interpolatedMax = new Float32Array(height);
+    interpolatedMin.fill(Number.NaN);
+    interpolatedMax.fill(Number.NaN);
+
+    for (let index = 0; index < reliableRows.length - 1; index += 1) {
+      const fromY = reliableRows[index];
+      const toY = reliableRows[index + 1];
+      const distance = Math.max(1, toY - fromY);
+      for (let y = fromY; y <= toY; y += 1) {
+        const progress = (y - fromY) / distance;
+        interpolatedMin[y] = rowMin[fromY] + (rowMin[toY] - rowMin[fromY]) * progress;
+        interpolatedMax[y] = rowMax[fromY] + (rowMax[toY] - rowMax[fromY]) * progress;
+      }
+    }
+
+    const firstY = reliableRows[0];
+    const lastY = reliableRows[reliableRows.length - 1];
+    interpolatedMin[firstY] = rowMin[firstY];
+    interpolatedMax[firstY] = rowMax[firstY];
+    interpolatedMin[lastY] = rowMin[lastY];
+    interpolatedMax[lastY] = rowMax[lastY];
+
+    const verticalPad = Math.max(2, Math.round(height * .022));
+    const horizontalPad = Math.max(2, Math.round(width * .012));
+    const smoothingWindow = Math.max(1, Math.round(height * .008));
+    const protectedMin = new Int32Array(height);
+    const protectedMax = new Int32Array(height);
+    protectedMin.fill(width);
+    protectedMax.fill(-1);
+
+    for (let y = Math.max(0, firstY - verticalPad); y <= Math.min(height - 1, lastY + verticalPad); y += 1) {
+      const sourceY = clamp(y, firstY, lastY);
+      let minX = width;
+      let maxX = -1;
+      for (let sampleY = Math.max(firstY, sourceY - smoothingWindow); sampleY <= Math.min(lastY, sourceY + smoothingWindow); sampleY += 1) {
+        if (Number.isNaN(interpolatedMin[sampleY])) continue;
+        minX = Math.min(minX, interpolatedMin[sampleY]);
+        maxX = Math.max(maxX, interpolatedMax[sampleY]);
+      }
+      if (maxX < 0) continue;
+      protectedMin[y] = Math.max(0, Math.floor(minX - horizontalPad));
+      protectedMax[y] = Math.min(width - 1, Math.ceil(maxX + horizontalPad));
+    }
+
+    return (x, y) => protectedMax[y] >= 0 && x >= protectedMin[y] && x <= protectedMax[y];
+  }
+
+  // Sparse artwork does not provide enough scanlines. Keep the conservative
+  // hull fallback so an almost-white cover is never erased completely.
   const boundaryPoints = [];
   for (let y = 0; y < height; y += 1) {
     if (rowMax[y] < 0) continue;
