@@ -297,6 +297,11 @@ export async function supabaseReserveGtinEvents(env, {
   }));
 }
 
+export async function supabaseReserveGtinDashboard(env) {
+  const value = await supabaseRpc(env, 'nisti_reserve_gtin_dashboard_v1');
+  return value && typeof value === 'object' ? value : {};
+}
+
 export async function supabaseReserveMuralFeed(env, {
   userId = 'anonymous',
   kind = null,

@@ -310,3 +310,20 @@ test('critical reserve RPCs cover scanner, occurrence history and notifications'
   assert.match(notifications, /supabaseReserveUnreadNotifications/);
   assert.match(wrangler, /SUPABASE_EMERGENCY_CIRCUIT_MS = "900000"/);
 });
+
+test('GTIN dashboard uses the Supabase reserve without touching D1 when reads are enabled', () => {
+  const migration = fs.readFileSync(
+    'supabase/migrations/20261001192000_gtin_dashboard_read_v1.sql',
+    'utf8'
+  );
+  const router = fs.readFileSync('src/gtin-router.js', 'utf8');
+  const store = fs.readFileSync('src/supabase-read-store.js', 'utf8');
+
+  assert.match(migration, /nisti_reserve_gtin_dashboard_v1/);
+  assert.match(migration, /SECURITY INVOKER/i);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.nisti_reserve_gtin_dashboard_v1\(\) FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.nisti_reserve_gtin_dashboard_v1\(\) TO service_role/);
+  assert.doesNotMatch(migration, /SECURITY DEFINER/i);
+  assert.match(store, /supabaseReserveGtinDashboard/);
+  assert.match(router, /preferSupabaseRead[\s\S]*supabaseReserveGtinDashboard/);
+});

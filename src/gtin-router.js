@@ -4,6 +4,7 @@ import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
 import { explicitUtcTimestamp } from './date-time.js';
 import {
   preferSupabaseRead,
+  supabaseReserveGtinDashboard,
   supabaseReserveGtinEvents,
   supabaseReserveGtinLookup
 } from './supabase-read-store.js';
@@ -317,7 +318,7 @@ async function adminGtinRegistry(env) {
   });
 }
 
-async function adminGtinDashboard(env) {
+async function adminGtinDashboardD1(env) {
   await ensureGtinScanEventsTable(env);
   const [active, covered, today, missingCount, missingProducts] = await Promise.all([
     env.DB.prepare('SELECT COUNT(*) AS total FROM product_gtins WHERE active=1').first(),
@@ -352,7 +353,7 @@ async function adminGtinDashboard(env) {
       LIMIT 1000
     `).all()
   ]);
-  return json({
+  return {
     active_gtins: Number(active?.total || 0),
     products_with_gtin: Number(covered?.total || 0),
     products_without_gtin_count: Number(missingCount?.total || 0),
@@ -367,7 +368,17 @@ async function adminGtinDashboard(env) {
       not_found: Number(today?.not_found || 0),
       system_errors: Number(today?.system_errors || 0)
     }
-  });
+  };
+}
+
+async function adminGtinDashboard(env) {
+  const data = await preferSupabaseRead(
+    env,
+    () => supabaseReserveGtinDashboard(env),
+    () => adminGtinDashboardD1(env),
+    'gtin:dashboard'
+  );
+  return json(data);
 }
 
 function productFinishLabels(row) {
