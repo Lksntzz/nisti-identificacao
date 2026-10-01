@@ -172,5 +172,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(utility.includes('if (requestedOfficialVariant) {\n    const official = await buildOfficialProductMask'));
   assert.ok(utility.includes('const photoStructure = buildPlannerStructureProtection(data, width, height)'));
   assert.ok(utility.includes('if (photoStructure) applyPlannerStructureMask'));
+  assert.ok(utility.includes('if (invalidPreciseCut && photoStructure)'));
+  assert.ok(utility.includes('data.set(originalPixels)'));
   assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 0);
 });
