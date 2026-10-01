@@ -10,7 +10,7 @@ import {
   supabaseReserveNotifications,
   supabaseReserveUnreadNotifications
 } from './supabase-read-store.js';
-import { SupabasePrimaryWriteError } from './supabase-write-store.js';
+import { mirrorSupabaseRpc, SupabasePrimaryWriteError, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 
 function clean(value) {
   const text = String(value || '').trim();
@@ -32,7 +32,23 @@ export async function recordNewCoverNotification(env, {
   imageKey = null
 }) {
   const code = clean(capaCode)?.toUpperCase();
-  if (!code || !env?.DB) return null;
+  if (!code) return null;
+
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_record_new_cover_notification_v1', { p_row: {
+      capa_code: code, product_id: Number(productId) || null, sku: clean(sku),
+      product_name: clean(productName), variacao: clean(variacao),
+      platform: clean(platform)?.toUpperCase(), image_key: clean(imageKey)
+    }}, 'notificação de nova capa');
+    const saved = result.value || {};
+    if (saved.created) await broadcastNewCoverPush(env, {
+      capaCode: code, productName: clean(productName), variacao: clean(variacao),
+      platform: clean(platform)?.toUpperCase(),
+      imageUrl: Number(productId)>0 && imageKey ? `/api/images/${Number(productId)}` : null
+    }).catch(err => console.error('[Error] Falha no broadcastNewCoverPush:', err));
+    return { capa_code: code, created: saved.created === true };
+  }
+  if (!env?.DB) return null;
 
   const targetProductId = Number(productId) || 0;
 
@@ -107,9 +123,17 @@ export async function recordNewCoverNotification(env, {
 }
 
 export async function updateNotificationImage(env, productId, capaCode, imageKey) {
-  if (!env?.DB || !imageKey) return;
+  if (!imageKey) return;
   const targetId = Number(productId) || 0;
   const code = clean(capaCode)?.toUpperCase();
+
+  if (supabasePrimaryWritesRequested(env)) {
+    await mirrorSupabaseRpc(env, 'nisti_update_notification_image_v1', {
+      p_product_id: targetId, p_capa_code: code, p_image_key: imageKey
+    }, 'imagem de notificação');
+    return;
+  }
+  if (!env?.DB) return;
 
   if (targetId > 0 && code) {
     await env.DB.prepare(`
@@ -221,10 +245,17 @@ export async function getUnreadNotificationsCount(env, userId) {
 }
 
 export async function markNotificationRead(env, notificationId, userId) {
-  if (!env?.DB) return false;
   const id = Number(notificationId);
   const safeUserId = String(userId || 'anonymous').trim().slice(0, 100);
   if (!id || id <= 0) return false;
+
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_mark_notification_read_v1', {
+      p_notification_id:id,p_user_id:safeUserId,p_admin_only:false
+    }, 'leitura de notificação');
+    return result.value === true;
+  }
+  if (!env?.DB) return false;
 
   const result = await env.DB.prepare(`
     INSERT INTO notification_reads (notification_id, user_id, read_at)
@@ -251,8 +282,15 @@ export async function markNotificationRead(env, notificationId, userId) {
 }
 
 export async function markAllNotificationsRead(env, userId) {
-  if (!env?.DB) return 0;
   const safeUserId = String(userId || 'anonymous').trim().slice(0, 100);
+
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_mark_all_notifications_read_v1', {
+      p_user_id:safeUserId,p_admin_only:false
+    }, 'leitura de todas as notificações');
+    return Number(result.value || 0);
+  }
+  if (!env?.DB) return 0;
 
   const result = await env.DB.prepare(`
     INSERT INTO notification_reads (notification_id, user_id, read_at)
@@ -278,7 +316,6 @@ function cleanAdminValue(value, maxLength = 500) {
 }
 
 export async function recordAdminSystemNotification(env, event = {}) {
-  if (!env?.DB) return null;
   const eventType = cleanAdminValue(event.event_type, 80) || 'system_activity';
   const title = cleanAdminValue(event.title, 160) || 'Atividade no sistema';
   const message = cleanAdminValue(event.message, 800) || title;
@@ -294,6 +331,15 @@ export async function recordAdminSystemNotification(env, event = {}) {
     request_method: cleanAdminValue(event.request_method, 12),
     http_status: Number.isInteger(Number(event.http_status)) ? Number(event.http_status) : null
   }).slice(0, 1000);
+
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_record_admin_system_notification_v1', { p_row: {
+      event_type:eventType,title,message,entity_id:cleanAdminValue(event.entity_id,120),
+      envelope,request_path:cleanAdminValue(event.request_path,300)
+    }}, 'notificação administrativa');
+    return Number(result.value || 0) || null;
+  }
+  if (!env?.DB) return null;
 
   const result = await env.DB.prepare(`
     INSERT INTO notifications (
@@ -395,9 +441,15 @@ export async function getAdminSystemUnreadCount(env) {
 }
 
 export async function markAdminSystemNotificationRead(env, notificationId) {
-  if (!env?.DB) return false;
   const id = Number(notificationId);
   if (!Number.isInteger(id) || id <= 0) return false;
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_mark_notification_read_v1', {
+      p_notification_id:id,p_user_id:ADMIN_SYSTEM_USER_ID,p_admin_only:true
+    }, 'leitura de notificação administrativa');
+    return result.value === true;
+  }
+  if (!env?.DB) return false;
   const result = await env.DB.prepare(`
     INSERT INTO notification_reads (notification_id,user_id,read_at)
     SELECT id,?,CURRENT_TIMESTAMP
@@ -419,6 +471,12 @@ export async function markAdminSystemNotificationRead(env, notificationId) {
 }
 
 export async function markAllAdminSystemNotificationsRead(env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_mark_all_notifications_read_v1', {
+      p_user_id:ADMIN_SYSTEM_USER_ID,p_admin_only:true
+    }, 'leitura de todas as notificações administrativas');
+    return Number(result.value || 0);
+  }
   if (!env?.DB) return 0;
   const result = await env.DB.prepare(`
     INSERT INTO notification_reads (notification_id,user_id,read_at)
