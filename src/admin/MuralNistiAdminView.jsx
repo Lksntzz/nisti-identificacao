@@ -4,6 +4,7 @@ import { MuralCard } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
 import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx';
 import { useTreatedProductImage } from '../mural-transparent-image.js';
+import { TREATMENT_CONTROL_EVENT, TREATMENT_PAUSE_KEY } from '../product-image-treatment-worker.jsx';
 
 const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',
@@ -114,8 +115,11 @@ function MuralProductImageManager({ products, onChanged }) {
   const [query,setQuery]=useState('');
   const [busyId,setBusyId]=useState(null);
   const [error,setError]=useState('');
+  const [paused,setPaused]=useState(()=>{
+    try{return localStorage.getItem(TREATMENT_PAUSE_KEY)==='1'}catch{return false}
+  });
   const [treatmentProgress,setTreatmentProgress]=useState({
-    loading:true,phase:'loading',with_image:0,approved:0,pending:0,failed:0,current:null,error:''
+    loading:true,phase:'loading',with_image:0,approved:0,review:0,pending:0,failed:0,current:null,error:''
   });
   const filtered=useMemo(()=>{
     const term=query.trim().toLowerCase();
@@ -155,7 +159,7 @@ function MuralProductImageManager({ products, onChanged }) {
           ...current,
           ...summary,
           loading:false,
-          phase:Number(summary.pending||0)>0?(current.current?'processing':'queue'):'complete',
+          phase:paused?'paused':Number(summary.pending||0)>0?(current.current?'processing':'queue'):'complete',
           current:Number(summary.pending||0)>0?current.current:null,
           error:''
         }));
@@ -173,22 +177,34 @@ function MuralProductImageManager({ products, onChanged }) {
       window.clearInterval(timer);
       window.removeEventListener('nisti:product-image-treatment-progress',onProgress);
     };
-  },[]);
+  },[paused]);
 
   const treatmentTotal=Number(treatmentProgress.with_image||0);
   const treatmentApproved=Number(treatmentProgress.approved||0);
+  const treatmentReview=Number(treatmentProgress.review||0);
   const treatmentPending=Number(treatmentProgress.pending||0);
   const treatmentFailed=Number(treatmentProgress.failed||0);
   const treatmentPercent=treatmentTotal?Math.min(100,Math.round(treatmentApproved*100/treatmentTotal)):0;
   const treatmentStatus=treatmentProgress.loading
     ?'Verificando a fila…'
+    :paused
+      ?'Tratamento pausado por você'
     :treatmentProgress.current?.sku
       ?`Tratando agora: ${treatmentProgress.current.sku}`
       :treatmentPending>0
         ?'Preparando a próxima imagem…'
         :treatmentFailed>0
           ?`Processamento encerrado com ${treatmentFailed} falha${treatmentFailed===1?'':'s'}`
-          :'Todas as imagens foram tratadas';
+          :treatmentReview>0
+            ?`${treatmentReview} imagem${treatmentReview===1?'':'ns'} aguardando aprovação`
+            :'Todas as imagens foram revisadas';
+
+  const togglePaused=()=>{
+    const next=!paused;
+    setPaused(next);
+    try{localStorage.setItem(TREATMENT_PAUSE_KEY,next?'1':'0')}catch{}
+    window.dispatchEvent(new CustomEvent(TREATMENT_CONTROL_EVENT,{detail:{paused:next}}));
+  };
 
   const upload=async(product,file)=>{
     if(!file)return;
@@ -205,19 +221,35 @@ function MuralProductImageManager({ products, onChanged }) {
     try{await request(`/api/admin/mural/products/${product.id}/image`,{method:'DELETE'});await onChanged()}
     catch(err){setError(err.message)}finally{setBusyId(null)}
   };
+  const approve=async product=>{
+    setBusyId(product.id);setError('');
+    try{await request(`/api/admin/product-image-treatment/${product.id}/approve`,{method:'POST'});await onChanged()}
+    catch(err){setError(err.message)}finally{setBusyId(null)}
+  };
+  const redo=async product=>{
+    if(product.mural_image_ready&&!window.confirm(`Refazer o tratamento de ${product.sku}? A imagem aprovada deixará de ser usada até você aprovar a nova versão.`))return;
+    setBusyId(product.id);setError('');
+    try{
+      await request(`/api/admin/product-image-treatment/${product.id}/redo`,{method:'POST'});
+      await onChanged();
+      window.dispatchEvent(new CustomEvent(TREATMENT_CONTROL_EVENT,{detail:{paused:false}}));
+    }catch(err){setError(err.message)}finally{setBusyId(null)}
+  };
 
   return <div className="mural-product-image-manager">
     <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. O Mural usa apenas o PNG transparente aprovado.</p></div><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></header>
     <section className={`mural-product-treatment-progress ${treatmentProgress.phase}`} aria-live="polite">
       <div className="mural-product-treatment-progress-copy">
         <span>Tratamento automático</span>
-        <strong>{treatmentProgress.loading?'Carregando…':`${treatmentApproved} de ${treatmentTotal} imagens tratadas`}</strong>
+        <strong>{treatmentProgress.loading?'Carregando…':`${treatmentApproved} de ${treatmentTotal} imagens aprovadas`}</strong>
         <small>{treatmentStatus}</small>
       </div>
       <div className="mural-product-treatment-progress-numbers">
-        <span><b>{treatmentApproved}</b> concluídas</span>
+        <span><b>{treatmentApproved}</b> aprovadas</span>
+        <span><b>{treatmentReview}</b> para revisar</span>
         <span><b>{treatmentPending}</b> na fila</span>
         {treatmentFailed>0&&<span className="failed"><b>{treatmentFailed}</b> falhas</span>}
+        <button type="button" className="mural-product-treatment-toggle" onClick={togglePaused}>{paused?'Iniciar tratamento':'Pausar tratamento'}</button>
       </div>
       <div
         className="mural-product-treatment-progress-track"
@@ -230,18 +262,20 @@ function MuralProductImageManager({ products, onChanged }) {
     </section>
     {error&&<div className="mural-admin-error">{error}</div>}
     <div className="mural-product-image-manager-grid">
-      {filtered.map(product=><article key={product.id}>
+      {filtered.map(product=>{const previewSrc=product.mural_image_ready?product.image_url:product.mural_image_reviewable?product.review_image_url:null;const state=product.mural_image_ready?'approved':product.mural_image_reviewable?'review':product.mural_image_status==='failed'?'failed':product.mural_image_status==='redo'?'redo':'pending';const label={approved:'Aprovada e bloqueada',review:'Aguardando aprovação',failed:'Falhou',redo:'Refazendo com borda',pending:'Pendente'}[state];return <article key={product.id}>
         <div className="mural-product-image-pair">
           <figure><span>Original</span>{product.original_image_url?<img src={product.original_image_url} alt=""/>:<i>Sem imagem</i>}</figure>
-          <figure className="processed"><span>PNG do Mural</span>{product.mural_image_ready?<img src={product.image_url} alt=""/>:<i>Pendente</i>}</figure>
+          <figure className="processed"><span>PNG tratado</span>{previewSrc?<img src={previewSrc} alt=""/>:<i>{state==='redo'?'Refazendo…':'Pendente'}</i>}</figure>
         </div>
         <div><b>{product.sku}</b><small>{product.nome||product.type||'Produto NISTI'}</small></div>
         <footer>
-          <span className={`mural-product-image-state ${product.mural_image_ready?'approved':'pending'}`}>{product.mural_image_ready?'Aprovada':'Pendente'}</span>
-          <label className="mural-product-image-upload">{busyId===product.id?'Enviando…':product.mural_image_ready?'Substituir PNG':'Enviar PNG tratado'}<input type="file" accept="image/png" disabled={busyId!==null} onChange={event=>upload(product,event.target.files?.[0])}/></label>
-          {product.mural_image_ready&&<button type="button" disabled={busyId!==null} onClick={()=>remove(product)}>Remover</button>}
+          <span className={`mural-product-image-state ${state}`}>{label}</span>
+          {product.mural_image_reviewable&&<button type="button" className="approve" disabled={busyId!==null} onClick={()=>approve(product)}>Aprovar</button>}
+          {['approved','review','failed'].includes(state)&&<button type="button" disabled={busyId!==null} onClick={()=>redo(product)}>Refazer</button>}
+          <label className="mural-product-image-upload">{busyId===product.id?'Enviando…':'Enviar PNG'}<input type="file" accept="image/png" disabled={busyId!==null} onChange={event=>upload(product,event.target.files?.[0])}/></label>
+          {(product.mural_image_ready||product.mural_image_reviewable)&&<button type="button" disabled={busyId!==null} onClick={()=>remove(product)}>Remover</button>}
         </footer>
-      </article>)}
+      </article>})}
     </div>
   </div>;
 }
