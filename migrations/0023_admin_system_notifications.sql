@@ -29,3 +29,5 @@ CREATE INDEX IF NOT EXISTS idx_admin_system_notifications_created
 
 CREATE INDEX IF NOT EXISTS idx_admin_system_notification_reads_admin
   ON admin_system_notification_reads(admin_id, notification_id);
+
+-- Fila exclusiva do painel administrativo; notificações de operadores permanecem em notifications.
