@@ -21,10 +21,11 @@ unreachable when `SUPABASE_WRITE_MODE=primary`.
 | --- | --- | --- | --- |
 | `src/mural-router.js` | mural_posts, mural_post_reads, mural_collections, mural_collection_products, mural_product_images | operational/admin | migrate admin Mural reads + writes before unfreezing |
 | `src/occurrences-router.js` | scan_occurrences, cover_visual_references, cover_reference_embeddings | operational/admin | make occurrence create/train/dismiss Supabase-primary |
-| `src/recognition-metrics.js` | recognition_daily, recognition_events | operational telemetry | record telemetry directly in Supabase primary mode |
-| `src/system-metrics-clean-router.js` | recognition_events | admin | rename operator directly in Supabase primary mode |
-| `src/web-push.js` | push_subscriptions, push_logs | operational/telemetry | move subscription state to Supabase; make push logs non-D1 |
+| `src/recognition-metrics.js` | recognition_daily, recognition_events | operational telemetry | **migrated:** primary mode records telemetry directly in Supabase |
+| `src/system-metrics-clean-router.js` | recognition_events | admin | **migrated:** primary operator rename writes directly to Supabase |
+| `src/web-push.js` | push_subscriptions, push_logs | operational/telemetry | **migrated for primary mode:** subscription state is Supabase; D1 push logs are skipped |
 | `src/geometric-shadow-evidence-router.js` | geometric_shadow_evidence | operational telemetry | direct Supabase evidence/link/confirm path |
+| `src/gtin-router.js` | gtin_scan_events, product_gtins | operational/admin | event writes, GTIN link/unlink and admin dismissal are Supabase-primary; D1 SQL remains compatibility-only |
 | `src/geometric-shadow-confirmation-router.js` | geometric_shadow_evidence | operational telemetry | direct Supabase confirmation path |
 | `src/reference-reindex-router.js` | cover_reference_embeddings | maintenance | read pending references and persist embeddings in Supabase |
 | `src/core-router.js` | products, product_platforms, product_gtins, cover_visual_references, cover_reference_embeddings, mural_product_images, notifications | mixed | direct-primary routes already bypass most blocks; residual notification/test and legacy branches must be reviewed |
