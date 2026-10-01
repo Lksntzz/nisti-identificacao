@@ -156,6 +156,10 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(admin.includes("paused?'Iniciar tratamento':'Pausar tratamento'"));
   assert.ok(admin.includes('Aguardando aprovação'));
   assert.ok(admin.includes("showApproved?'Ocultar aprovadas':'Ver aprovadas'"));
+  assert.ok(admin.includes('?products.filter(item=>item.mural_image_ready)'));
+  assert.ok(admin.includes('!justApprovedIds.has(Number(item.id))'));
+  assert.ok(admin.includes('setJustApprovedIds(current=>new Set(current).add(Number(product.id)))'));
+  assert.ok(admin.includes("cache: 'no-store'"));
   assert.ok(admin.includes('Aprovada e salva'));
   assert.ok(admin.includes('/approve'));
   assert.ok(admin.includes('/redo'));
