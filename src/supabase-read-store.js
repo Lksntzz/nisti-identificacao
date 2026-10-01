@@ -251,6 +251,34 @@ export async function supabaseCoverReferences(env, capaCode) {
 }
 
 
+
+export async function supabaseProductTreatmentSummary(env, processorVersion = '8') {
+  const value = await supabaseRpc(env, 'nisti_product_treatment_summary_v1', {
+    p_processor_version:String(processorVersion || '8').trim() || '8'
+  });
+  return value && typeof value === 'object'
+    ? value
+    : { with_image:0, approved:0, review:0, pending:0, failed:0 };
+}
+
+export async function supabaseProductTreatmentQueue(
+  env,
+  status = 'work',
+  processorVersion = '8',
+  limit = 20,
+  offset = 0
+) {
+  const value = await supabaseRpc(env, 'nisti_product_treatment_queue_v1', {
+    p_status:String(status || 'work').trim().toLowerCase() || 'work',
+    p_processor_version:String(processorVersion || '8').trim() || '8',
+    p_limit:Number(limit || 20),
+    p_offset:Number(offset || 0)
+  });
+  return value && typeof value === 'object'
+    ? value
+    : { status:'work', total:0, limit:Number(limit || 20), offset:Number(offset || 0), items:[] };
+}
+
 export async function supabaseReserveProducts(env) {
   return rows(await supabaseRpc(env, 'nisti_reserve_products_v1'));
 }
