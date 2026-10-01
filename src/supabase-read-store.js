@@ -322,3 +322,25 @@ export async function supabaseReserveMuralCollection(env, slug) {
     p_slug:String(slug || '').trim()
   });
 }
+
+
+export async function supabaseReserveMuralUnread(env, userId) {
+  const value = await supabaseRpc(env, 'nisti_reserve_mural_unread_v1', {
+    p_user_id:String(userId || 'anonymous').trim().slice(0,100)
+  });
+  return Number(value || 0);
+}
+
+export async function supabaseReserveMuralPostImage(env, postId) {
+  const value = await supabaseRpc(env, 'nisti_reserve_mural_post_image_v1', {
+    p_id:Number(postId || 0)
+  });
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+export async function supabaseReserveMuralCollectionImage(env, slug) {
+  const value = await supabaseRpc(env, 'nisti_reserve_mural_collection_image_v1', {
+    p_slug:String(slug || '').trim()
+  });
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
