@@ -68,6 +68,24 @@ function finishLabels(row) {
   };
 }
 
+function approvedMuralProductKey(row) {
+  if (row?.mural_image_status !== 'approved') return null;
+  if (!row?.mural_processed_image_key || row?.mural_source_image_key !== row?.image_key) return null;
+  return row.mural_processed_image_key;
+}
+
+function muralProductImageUrl(row) {
+  const productId = Number(row?.id || row?.product_id || 0);
+  if (!productId) return null;
+  const processedKey = approvedMuralProductKey(row);
+  if (processedKey) {
+    return `/api/mural-product-images/${productId}?v=${encodeURIComponent(processedKey)}`;
+  }
+  return row?.image_key
+    ? `/api/images/${productId}?v=${encodeURIComponent(row.image_key)}`
+    : null;
+}
+
 async function unreadCount(userId, env) {
   const row = await env.DB.prepare(`
     SELECT COUNT(*) AS total
@@ -108,14 +126,25 @@ function mapFeedRow(row, collectionPreviews = new Map()) {
     image_url: row.image_key
       ? `/api/mural/images/${Number(row.id)}?v=${encodeURIComponent(row.image_key)}`
       : productId && row.product_image_key
-        ? `/api/images/${productId}?v=${encodeURIComponent(row.product_image_key)}`
+        ? muralProductImageUrl({
+            id:productId,
+            image_key:row.product_image_key,
+            mural_image_status:row.mural_image_status,
+            mural_source_image_key:row.mural_source_image_key,
+            mural_processed_image_key:row.mural_processed_image_key
+          })
         : collectionId && row.collection_image_key
           ? `/api/mural/collections/${encodeURIComponent(row.collection_slug)}/image?v=${encodeURIComponent(row.collection_image_key)}`
           : null,
     image_source: row.image_key
       ? 'post'
       : productId && row.product_image_key
-        ? 'product'
+        ? approvedMuralProductKey({
+            image_key:row.product_image_key,
+            mural_image_status:row.mural_image_status,
+            mural_source_image_key:row.mural_source_image_key,
+            mural_processed_image_key:row.mural_processed_image_key
+          }) ? 'product-processed' : 'product'
         : collectionId && row.collection_image_key
           ? 'collection'
           : 'none',
@@ -191,6 +220,8 @@ async function listMuralFeed(request, url, env) {
       mp.notice_level,
       p.id AS product_id,p.sku,p.miolo_code,p.nome AS product_name,
       p.wireo_code,p.tassel_code,p.elastico_code,p.image_key AS product_image_key,
+      mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+      mpi.processed_image_key AS mural_processed_image_key,
       (
         SELECT mc2.name
         FROM mural_collection_products mcp2
@@ -203,6 +234,7 @@ async function listMuralFeed(request, url, env) {
       CASE WHEN mr.post_id IS NULL THEN 0 ELSE 1 END AS is_read
     FROM mural_posts mp
     LEFT JOIN products p ON p.id = mp.product_id
+    LEFT JOIN mural_product_images mpi ON mpi.product_id = p.id
     LEFT JOIN mural_collections mc ON mc.id = mp.collection_id
     LEFT JOIN mural_post_reads mr ON mr.post_id = mp.id AND mr.user_id = ?
     WHERE ${clauses.join('\n      AND ')}
@@ -226,9 +258,12 @@ async function listMuralFeed(request, url, env) {
     const previewResult = await env.DB.prepare(`
       SELECT
         mcp.collection_id,mcp.sort_order,
-        p.id,p.sku,p.nome,p.variacao,p.miolo_code,p.image_key
+        p.id,p.sku,p.nome,p.variacao,p.miolo_code,p.image_key,
+        mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+        mpi.processed_image_key AS mural_processed_image_key
       FROM mural_collection_products mcp
       INNER JOIN products p ON p.id=mcp.product_id
+      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
       WHERE mcp.collection_id IN (${placeholders})
       ORDER BY mcp.collection_id ASC,mcp.sort_order ASC,p.sku ASC,p.id ASC
     `).bind(...collectionIds).all();
@@ -243,7 +278,8 @@ async function listMuralFeed(request, url, env) {
           sku:row.sku || null,
           type:productTypeLabel({ product_name:row.nome, ...row }),
           name:row.nome || null,
-          image_url:row.image_key ? `/api/images/${Number(row.id)}?v=${encodeURIComponent(row.image_key)}` : null
+          image_url:muralProductImageUrl(row),
+          image_source:approvedMuralProductKey(row) ? 'product-processed' : 'product'
         });
       }
       collectionPreviews.set(collectionId,current);
@@ -307,9 +343,12 @@ async function collectionDetail(slug, env) {
   const { results } = await env.DB.prepare(`
     SELECT
       p.id,p.sku,p.miolo_code,p.nome,p.variacao,p.wireo_code,p.tassel_code,p.elastico_code,p.image_key,
+      mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+      mpi.processed_image_key AS mural_processed_image_key,
       mcp.sort_order
     FROM mural_collection_products mcp
     INNER JOIN products p ON p.id = mcp.product_id
+    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
     WHERE mcp.collection_id = ?
     ORDER BY mcp.sort_order ASC,p.sku ASC,p.id ASC
   `).bind(collection.id).all();
@@ -333,7 +372,8 @@ async function collectionDetail(slug, env) {
           wireo: labels.wireo,
           tassel: labels.tassel,
           elastico: labels.elastico,
-          image_url: row.image_key ? `/api/images/${Number(row.id)}?v=${encodeURIComponent(row.image_key)}` : null,
+          image_url: muralProductImageUrl(row),
+          image_source: approvedMuralProductKey(row) ? 'product-processed' : 'product',
           sort_order: Number(row.sort_order || 0)
         };
       })
@@ -346,6 +386,7 @@ const ADMIN_STATUSES = new Set(['draft', 'published', 'archived']);
 const NOTICE_LEVELS = new Set(['important', 'attention', 'info']);
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_EDITORIAL_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_MURAL_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
 
 const MURAL_IMAGE_BUDGETS = Object.freeze({
   hero: 250 * 1024,
@@ -357,7 +398,8 @@ const MURAL_REQUIRED_TABLES = Object.freeze([
   'mural_collections',
   'mural_collection_products',
   'mural_posts',
-  'mural_post_reads'
+  'mural_post_reads',
+  'mural_product_images'
 ]);
 
 function nullableText(value, max) {
@@ -956,9 +998,14 @@ async function adminReadiness(env) {
 
 async function adminProducts(url, env) {
   const q = String(url.searchParams.get('q') || '').trim().slice(0,80);
+  const requestedLimit = Number(url.searchParams.get('limit') || 80);
+  const productLimit = Number.isInteger(requestedLimit) ? Math.max(1,Math.min(500,requestedLimit)) : 80;
   const like = `%${q}%`;
   const { results } = await env.DB.prepare(`
     SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,p.wireo_code,p.tassel_code,p.elastico_code,p.miolo_code,
+      mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+      mpi.processed_image_key AS mural_processed_image_key,mpi.processor AS mural_image_processor,
+      mpi.reviewed_at AS mural_image_reviewed_at,mpi.error_message AS mural_image_error,
       (
         SELECT mc2.name
         FROM mural_collection_products mcp2
@@ -968,19 +1015,116 @@ async function adminProducts(url, env) {
         LIMIT 1
       ) AS collection_name
     FROM products p
+    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
     WHERE (?='' OR sku LIKE ? OR nome LIKE ? OR variacao LIKE ?)
-    ORDER BY updated_at DESC,id DESC LIMIT 40
-  `).bind(q,like,like,like).all();
-  return json({items:(results||[]).map(row=>{ const labels=finishLabels(row); return {...row,...labels,type:productTypeLabel(row),image_url:row.image_key?`/api/images/${row.id}?v=${encodeURIComponent(row.image_key)}`:null}; })});
+    ORDER BY p.updated_at DESC,p.id DESC LIMIT ?
+  `).bind(q,like,like,like,productLimit).all();
+  return json({items:(results||[]).map(row=>{ const labels=finishLabels(row); return {
+    ...row,
+    ...labels,
+    type:productTypeLabel(row),
+    original_image_url:row.image_key?`/api/images/${row.id}?v=${encodeURIComponent(row.image_key)}`:null,
+    image_url:muralProductImageUrl(row),
+    mural_image_ready:Boolean(approvedMuralProductKey(row))
+  }; })});
+}
+
+function inspectTransparentPng(bytes) {
+  const view = new Uint8Array(bytes);
+  const signature = [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a];
+  if (view.length < 33 || signature.some((value,index)=>view[index]!==value)) return null;
+  const dataView = new DataView(bytes);
+  const width = dataView.getUint32(16);
+  const height = dataView.getUint32(20);
+  const colorType = view[25];
+  if (![4,6].includes(colorType) || width < 1 || height < 1 || width > 6000 || height > 6000) return null;
+  return { width, height };
+}
+
+async function uploadMuralProductImage(productId, request, env) {
+  if (!env.PRODUCT_IMAGES) return json({ error:'Armazenamento de imagens indisponível.' },503);
+  const product = await env.DB.prepare('SELECT id,image_key FROM products WHERE id=?').bind(productId).first();
+  if (!product) return json({ error:'Produto não encontrado.' },404);
+  if (!product.image_key) return json({ error:'O produto ainda não possui imagem original.' },422);
+
+  const form = await request.formData();
+  const file = form.get('image');
+  if (!(file instanceof File)) return json({ error:'Envie o PNG tratado no campo image.' },400);
+  if (file.size < 1 || file.size > MAX_MURAL_PRODUCT_IMAGE_BYTES) {
+    return json({ error:'O PNG tratado deve ter no máximo 8 MB.' },400);
+  }
+  const bytes = await file.arrayBuffer();
+  const png = inspectTransparentPng(bytes);
+  if (!png) return json({ error:'Envie um PNG com canal de transparência e até 6000 × 6000 px.' },400);
+
+  const current = await env.DB.prepare(`
+    SELECT processed_image_key FROM mural_product_images WHERE product_id=?
+  `).bind(productId).first();
+  const key = `mural/products/${productId}/${crypto.randomUUID()}.png`;
+  await env.PRODUCT_IMAGES.put(key, bytes, {
+    httpMetadata:{ contentType:'image/png' },
+    customMetadata:{ sourceImageKey:String(product.image_key), width:String(png.width), height:String(png.height) }
+  });
+  await env.DB.prepare(`
+    INSERT INTO mural_product_images (
+      product_id,source_image_key,processed_image_key,status,processor,
+      processor_version,reviewed_by,reviewed_at,error_message,updated_at
+    ) VALUES (?,?,?,'approved','admin-upload','1','admin',CURRENT_TIMESTAMP,NULL,CURRENT_TIMESTAMP)
+    ON CONFLICT(product_id) DO UPDATE SET
+      source_image_key=excluded.source_image_key,
+      processed_image_key=excluded.processed_image_key,
+      status='approved',
+      processor='admin-upload',
+      processor_version='1',
+      reviewed_by='admin',
+      reviewed_at=CURRENT_TIMESTAMP,
+      error_message=NULL,
+      updated_at=CURRENT_TIMESTAMP
+  `).bind(productId,product.image_key,key).run();
+  if (current?.processed_image_key && current.processed_image_key !== key) {
+    await env.PRODUCT_IMAGES.delete(current.processed_image_key).catch(()=>{});
+  }
+  return json({
+    ok:true,
+    product_id:productId,
+    status:'approved',
+    image_url:`/api/mural-product-images/${productId}?v=${encodeURIComponent(key)}`,
+    width:png.width,
+    height:png.height
+  });
+}
+
+async function removeMuralProductImage(productId, env) {
+  const row = await env.DB.prepare(`
+    SELECT p.image_key,mpi.processed_image_key
+    FROM products p
+    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+    WHERE p.id=?
+  `).bind(productId).first();
+  if (!row) return json({ error:'Produto não encontrado.' },404);
+  await env.DB.prepare(`
+    INSERT INTO mural_product_images (product_id,source_image_key,status,updated_at)
+    VALUES (?,?,'pending',CURRENT_TIMESTAMP)
+    ON CONFLICT(product_id) DO UPDATE SET
+      source_image_key=excluded.source_image_key,
+      processed_image_key=NULL,
+      status='pending',processor=NULL,processor_version=NULL,
+      reviewed_by=NULL,reviewed_at=NULL,error_message=NULL,updated_at=CURRENT_TIMESTAMP
+  `).bind(productId,row.image_key).run();
+  if (row.processed_image_key) await env.PRODUCT_IMAGES.delete(row.processed_image_key).catch(()=>{});
+  return json({ ok:true, product_id:productId, status:'pending' });
 }
 
 
 async function muralGeminiProReferences(env, { productId = null, collectionId = null } = {}) {
   if (Number.isInteger(productId) && productId > 0) {
     const product = await env.DB.prepare(`
-      SELECT id,sku,nome,variacao,image_key
-      FROM products
-      WHERE id=?
+      SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,
+        mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+        mpi.processed_image_key AS mural_processed_image_key
+      FROM products p
+      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+      WHERE p.id=?
     `).bind(productId).first();
     if (!product) throw new Error('Produto selecionado não encontrado.');
     if (!product.image_key) throw new Error('O produto selecionado ainda não possui imagem de referência.');
@@ -996,9 +1140,12 @@ async function muralGeminiProReferences(env, { productId = null, collectionId = 
     if (!collection) throw new Error('Coleção selecionada não encontrada.');
 
     const result = await env.DB.prepare(`
-      SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,mcp.sort_order
+      SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,mcp.sort_order,
+        mpi.status AS mural_image_status,mpi.source_image_key AS mural_source_image_key,
+        mpi.processed_image_key AS mural_processed_image_key
       FROM mural_collection_products mcp
       INNER JOIN products p ON p.id=mcp.product_id
+      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
       WHERE mcp.collection_id=? AND p.image_key IS NOT NULL
       ORDER BY mcp.sort_order ASC,p.id ASC
       LIMIT 5
@@ -1314,7 +1461,7 @@ function muralGeminiProReference(product, index) {
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80) || `referencia-${index + 1}`;
-  const imageKey = String(product?.image_key || '');
+  const imageKey = String(approvedMuralProductKey(product) || product?.image_key || '');
   return {
     id: Number(product?.id || 0) || null,
     sku: product?.sku || null,
@@ -1322,9 +1469,7 @@ function muralGeminiProReference(product, index) {
     variation: product?.variacao || null,
     label: product?.sku || product?.nome || `Referência ${index + 1}`,
     filename: `${rawName}.png`,
-    image_url: product?.id
-      ? `/api/images/${Number(product.id)}?v=${encodeURIComponent(imageKey)}`
-      : null
+    image_url: product?.id ? muralProductImageUrl(product) : null
   };
 }
 
@@ -1470,6 +1615,14 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     if (path === '/api/admin/mural/gemini-pro-package' && request.method === 'POST') return adminPrepareMuralGeminiPro(request, env);
     if (path === '/api/admin/mural/collections' && request.method === 'GET') return adminListCollections(env);
     if (path === '/api/admin/mural/collections' && request.method === 'POST') return adminCreateCollection(request, env);
+
+    const adminMuralProductImage = path.match(/^\/api\/admin\/mural\/products\/(\d+)\/image$/);
+    if (adminMuralProductImage && request.method === 'POST') {
+      return uploadMuralProductImage(Number(adminMuralProductImage[1]),request,env);
+    }
+    if (adminMuralProductImage && request.method === 'DELETE') {
+      return removeMuralProductImage(Number(adminMuralProductImage[1]),env);
+    }
 
     const adminPostImageView = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/image$/);
     if (adminPostImageView && request.method === 'GET') {

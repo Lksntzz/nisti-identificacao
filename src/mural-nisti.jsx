@@ -108,6 +108,7 @@ function KindIcon({ kind }) {
 
 function MuralImage({ item, eager = false, className = '' }) {
   const src = item?.image_url || '';
+  const isProductAsset = item?.kind === 'product' && String(item?.image_source || '').startsWith('product');
   const shouldRemoveBackground = item?.kind === 'product' && item?.image_source === 'product';
   const displaySrc = useTreatedProductImage(src, shouldRemoveBackground);
   const [failed, setFailed] = useState(false);
@@ -123,7 +124,7 @@ function MuralImage({ item, eager = false, className = '' }) {
   }
   return (
     <img
-      className={`${className} mural-image-media${shouldRemoveBackground ? ' mural-product-transparent' : ''}${loaded ? ' is-loaded' : ''}`.trim()}
+      className={`${className} mural-image-media${isProductAsset ? ' mural-product-transparent' : ''}${loaded ? ' is-loaded' : ''}`.trim()}
       src={displaySrc}
       alt={item.kind === 'product' ? `${item.product?.type || item.title} ${item.product?.sku || ''}`.trim() : item.title}
       loading={eager ? 'eager' : 'lazy'}
@@ -138,7 +139,8 @@ function MuralImage({ item, eager = false, className = '' }) {
 
 function CollectionProductImage({ product, className = '', eager = false }) {
   const src = product?.image_url || '';
-  const displaySrc = useTreatedProductImage(src, true);
+  const needsTreatment = product?.image_source !== 'product-processed';
+  const displaySrc = useTreatedProductImage(src, Boolean(src) && needsTreatment);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {

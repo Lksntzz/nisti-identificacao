@@ -97,7 +97,7 @@ function ReadinessBadge({ ok, unknown = false }) {
 }
 
 function TransparentMuralProductImage({ src, alt = '', className = '', draggable = false, ariaHidden = false }) {
-  const displaySrc = useTransparentProductImage(src, Boolean(src));
+  const displaySrc = useTreatedProductImage(src, Boolean(src));
   if (!displaySrc) return null;
   return (
     <img
@@ -110,8 +110,54 @@ function TransparentMuralProductImage({ src, alt = '', className = '', draggable
   );
 }
 
+function MuralProductImageManager({ products, onChanged }) {
+  const [query,setQuery]=useState('');
+  const [busyId,setBusyId]=useState(null);
+  const [error,setError]=useState('');
+  const filtered=useMemo(()=>{
+    const term=query.trim().toLowerCase();
+    if(!term)return products;
+    return products.filter(item=>`${item.sku||''} ${item.nome||''} ${item.variacao||''}`.toLowerCase().includes(term));
+  },[products,query]);
+
+  const upload=async(product,file)=>{
+    if(!file)return;
+    setBusyId(product.id);setError('');
+    try{
+      const form=new FormData();form.append('image',file);
+      await request(`/api/admin/mural/products/${product.id}/image`,{method:'POST',body:form});
+      await onChanged();
+    }catch(err){setError(err.message)}finally{setBusyId(null)}
+  };
+  const remove=async product=>{
+    if(!window.confirm(`Remover a imagem tratada de ${product.sku}? A original será preservada.`))return;
+    setBusyId(product.id);setError('');
+    try{await request(`/api/admin/mural/products/${product.id}/image`,{method:'DELETE'});await onChanged()}
+    catch(err){setError(err.message)}finally{setBusyId(null)}
+  };
+
+  return <div className="mural-product-image-manager">
+    <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. O Mural usa apenas o PNG transparente aprovado.</p></div><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></header>
+    {error&&<div className="mural-admin-error">{error}</div>}
+    <div className="mural-product-image-manager-grid">
+      {filtered.map(product=><article key={product.id}>
+        <div className="mural-product-image-pair">
+          <figure><span>Original</span>{product.original_image_url?<img src={product.original_image_url} alt=""/>:<i>Sem imagem</i>}</figure>
+          <figure className="processed"><span>PNG do Mural</span>{product.mural_image_ready?<img src={product.image_url} alt=""/>:<i>Pendente</i>}</figure>
+        </div>
+        <div><b>{product.sku}</b><small>{product.nome||product.type||'Produto NISTI'}</small></div>
+        <footer>
+          <span className={`mural-product-image-state ${product.mural_image_ready?'approved':'pending'}`}>{product.mural_image_ready?'Aprovada':'Pendente'}</span>
+          <label className="mural-product-image-upload">{busyId===product.id?'Enviando…':product.mural_image_ready?'Substituir PNG':'Enviar PNG tratado'}<input type="file" accept="image/png" disabled={busyId!==null} onChange={event=>upload(product,event.target.files?.[0])}/></label>
+          {product.mural_image_ready&&<button type="button" disabled={busyId!==null} onClick={()=>remove(product)}>Remover</button>}
+        </footer>
+      </article>)}
+    </div>
+  </div>;
+}
+
 function GeminiReferenceFigure({ reference, index }) {
-  const transparentSrc = useTransparentProductImage(reference?.image_url, Boolean(reference?.image_url));
+  const transparentSrc = useTreatedProductImage(reference?.image_url, Boolean(reference?.image_url));
   const filename = String(reference?.filename || `referencia-${index + 1}.png`).replace(/\.(jpe?g|webp)$/i, '.png');
   return (
     <figure>
@@ -762,7 +808,7 @@ export default function MuralNistiAdminView() {
       const [p,c,prod]=await Promise.all([
         request('/api/admin/mural/posts'),
         request('/api/admin/mural/collections'),
-        request('/api/admin/mural/products')
+        request('/api/admin/mural/products?limit=500')
       ]);
       setPosts(p.items||[]);setCollections(c.items||[]);setProducts(prod.items||[]);
     }catch(err){setError(err.message)}finally{setLoading(false)}
@@ -821,6 +867,7 @@ export default function MuralNistiAdminView() {
       <div>
         <button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button>
         <button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button>
+        <button className={section==='images'?'active':''} onClick={()=>setSection('images')}>Imagens dos produtos</button>
         <button className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>Métricas</button>
         <button className={section==='qa'?'active':''} onClick={()=>setSection('qa')}>QA de liberação</button>
       </div>
@@ -837,6 +884,7 @@ export default function MuralNistiAdminView() {
       onDelete={deletePost}
     />}
     {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.year||'sem ano'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
+    {section==='images'&&<MuralProductImageManager products={products} onChanged={load}/>}
     {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>IMAGEM EDITORIAL MÉDIA</small><strong>{metrics?.editorial_images?.average_bytes ? `${Math.round(metrics.editorial_images.average_bytes/1024)} KB` : '0 KB'}</strong><span>{metrics?.editorial_images?.count ?? 0} imagens</span></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
     {section==='qa'&&<div className="mural-admin-readiness">
       <div className="mural-admin-readiness-summary">

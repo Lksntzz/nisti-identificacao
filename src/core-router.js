@@ -215,7 +215,10 @@ async function cleanupStaleProductReferences(env, productId, keepImageKey) {
 
 async function saveProductImage(env, id, fileBytes, contentType) {
   const product = await env.DB.prepare(`
-    SELECT id,capa_code,image_key FROM products WHERE id=?
+    SELECT p.id,p.capa_code,p.image_key,mpi.processed_image_key AS mural_processed_image_key
+    FROM products p
+    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+    WHERE p.id=?
   `).bind(id).first();
   if (!product) throw new Error('Produto não encontrado');
 
@@ -224,6 +227,28 @@ async function saveProductImage(env, id, fileBytes, contentType) {
   await env.DB.prepare(`
     UPDATE products SET image_key=?,updated_at=CURRENT_TIMESTAMP WHERE id=?
   `).bind(key, id).run();
+
+  // A imagem do catálogo é a fonte original. O Mural usa uma derivada PNG
+  // própria e precisa refazê-la sempre que essa fonte muda.
+  await env.DB.prepare(`
+    INSERT INTO mural_product_images (
+      product_id,source_image_key,processed_image_key,status,processor,
+      processor_version,reviewed_by,reviewed_at,error_message,updated_at
+    ) VALUES (?,?,NULL,'pending',NULL,NULL,NULL,NULL,NULL,CURRENT_TIMESTAMP)
+    ON CONFLICT(product_id) DO UPDATE SET
+      source_image_key=excluded.source_image_key,
+      processed_image_key=NULL,
+      status='pending',
+      processor=NULL,
+      processor_version=NULL,
+      reviewed_by=NULL,
+      reviewed_at=NULL,
+      error_message=NULL,
+      updated_at=CURRENT_TIMESTAMP
+  `).bind(id, key).run();
+  if (product.mural_processed_image_key) {
+    await env.PRODUCT_IMAGES.delete(product.mural_processed_image_key).catch(()=>{});
+  }
 
   const reference = await ensureVisualReference(env, {
     capaCode: product.capa_code,
