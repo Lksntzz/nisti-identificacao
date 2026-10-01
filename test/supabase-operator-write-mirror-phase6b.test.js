@@ -154,5 +154,5 @@ test('cutover release enables Supabase reads and strict primary writes with writ
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
   assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"primary"/);
-  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE\s*=\s*"1"/);
+  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE\s*=\s*"0"/);
 });
