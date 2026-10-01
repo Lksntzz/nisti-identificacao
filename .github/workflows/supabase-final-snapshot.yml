@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   snapshot:
-    name: Export frozen D1 audit snapshot
+    name: Export frozen D1 snapshot
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -49,67 +49,20 @@ jobs:
         run: |
           set -euo pipefail
           OUT="migration-export/final"
-          mkdir -p "$OUT/streams"
+          mkdir -p "$OUT"
 
           npx wrangler d1 export nisti-identificacao --remote --no-data --output "$OUT/d1-schema.sql"
           npx wrangler d1 export nisti-identificacao --remote --no-schema --output "$OUT/d1-data.sql"
 
-          tables=(
-            products
-            product_platforms
-            cover_embeddings
-            recognition_daily
-            recognition_events
-            cover_visual_references
-            cover_reference_embeddings
-            cover_visual_signatures
-            notifications
-            notification_reads
-            push_subscriptions
-            scan_occurrences
-            geometric_shadow_evidence
-            product_gtins
-            gtin_scan_events
-            mural_collections
-            mural_collection_products
-            mural_posts
-            mural_post_reads
-            mural_product_images
-          )
+          test -s "$OUT/d1-schema.sql"
+          test -s "$OUT/d1-data.sql"
+          sha256sum "$OUT/d1-data.sql" "$OUT/d1-schema.sql" > "$OUT/sha256.txt"
 
-          printf '{"results":[' > "$OUT/d1-counts.json"
-          first=1
-          for table in "${tables[@]}"; do
-            raw="$(npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT COUNT(*) AS row_count FROM \"$table\";")"
-            count="$(printf '%s' "$raw" | jq -r '.[0].results[0].row_count')"
-            if [ "$first" -eq 0 ]; then printf ',' >> "$OUT/d1-counts.json"; fi
-            printf '{"table_name":"%s","row_count":%s}' "$table" "$count" >> "$OUT/d1-counts.json"
-            first=0
-          done
-          printf '],"success":true,"query_count":20}\n' >> "$OUT/d1-counts.json"
-
-          npx wrangler d1 execute nisti-identificacao --remote --json --command             "SELECT * FROM product_gtins ORDER BY id ASC;" > "$OUT/streams/product_gtins.json"
-          npx wrangler d1 execute nisti-identificacao --remote --json --command             "SELECT * FROM gtin_scan_events ORDER BY id ASC;" > "$OUT/streams/gtin_scan_events.json"
-          npx wrangler d1 execute nisti-identificacao --remote --json --command             "SELECT * FROM mural_collections ORDER BY id ASC;" > "$OUT/streams/mural_collections.json"
-          npx wrangler d1 execute nisti-identificacao --remote --json --command             "SELECT * FROM mural_collection_products ORDER BY collection_id ASC, product_id ASC;" > "$OUT/streams/mural_collection_products.json"
-          npx wrangler d1 execute nisti-identificacao --remote --json --command             "SELECT * FROM mural_posts ORDER BY id ASC;" > "$OUT/streams/mural_posts.json"
-          npx wrangler d1 execute nisti-identificacao --remote --json --command             "SELECT * FROM mural_post_reads ORDER BY post_id ASC, user_id ASC;" > "$OUT/streams/mural_post_reads.json"
-          npx wrangler d1 execute nisti-identificacao --remote --json --command             "SELECT * FROM mural_product_images ORDER BY product_id ASC;" > "$OUT/streams/mural_product_images.json"
-
-          jq -e '.[0].success == true' "$OUT/streams/product_gtins.json" >/dev/null
-          jq -e '.[0].success == true' "$OUT/streams/gtin_scan_events.json" >/dev/null
-          jq -e '.[0].success == true' "$OUT/streams/mural_collections.json" >/dev/null
-          jq -e '.[0].success == true' "$OUT/streams/mural_collection_products.json" >/dev/null
-          jq -e '.[0].success == true' "$OUT/streams/mural_posts.json" >/dev/null
-          jq -e '.[0].success == true' "$OUT/streams/mural_post_reads.json" >/dev/null
-          jq -e '.[0].success == true' "$OUT/streams/mural_product_images.json" >/dev/null
-
-          sha256sum "$OUT/d1-data.sql" "$OUT/d1-schema.sql" "$OUT/d1-counts.json" "$OUT"/streams/*.json > "$OUT/sha256.txt"
-
-      - name: Upload frozen audit artifact
+      - name: Upload frozen snapshot artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nisti-supabase-final-snapshot
+          name: nisti-d1-frozen-snapshot
           path: migration-export/final/
           if-no-files-found: error
           retention-days: 7

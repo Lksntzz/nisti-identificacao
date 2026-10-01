@@ -1,1 +1,1 @@
-Frozen D1 audit snapshot requested after production cutover freeze.\nDate: 2026-10-01\n
+Frozen D1 snapshot requested after production cutover freeze.\nDate: 2026-10-01\nAttempt: 2 - export only, no D1 execute queries\n
