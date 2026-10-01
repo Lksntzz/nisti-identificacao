@@ -4,6 +4,7 @@ import LOGO from './assets/logo.png';
 import GtinScannerOverlay from './gtin-scanner-overlay.jsx';
 import MuralNisti from './mural-nisti.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
+import { directOperatorRead, supportsDirectOperatorRead } from './operator-direct-read.js';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -48,10 +49,24 @@ async function api(path, options = {}) {
     ...(operatorName ? { 'x-operator-name': encodeURIComponent(operatorName) } : {}),
     ...(options.headers || {})
   };
-  const response = await fetch(path, { credentials: 'same-origin', ...options, headers });
+  let response;
+  try {
+    response = await fetch(path, { credentials: 'same-origin', ...options, headers });
+  } catch (error) {
+    if (supportsDirectOperatorRead(path, options)) {
+      return directOperatorRead(path, { headers });
+    }
+    throw error;
+  }
+
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : null;
   if (!response.ok) {
+    if ([500, 502, 503, 504].includes(response.status) && supportsDirectOperatorRead(path, options)) {
+      try {
+        return await directOperatorRead(path, { headers });
+      } catch {}
+    }
     throw new ApiError(data?.error || `Erro ${response.status}`, response.status, data);
   }
   return data;
