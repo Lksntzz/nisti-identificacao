@@ -100,6 +100,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
     const owner = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     let cancelled = false;
     let running = false;
+    let wakeTimer = null;
 
     const run = async () => {
       if (running || cancelled || !acquireLock(owner)) return;
@@ -156,6 +157,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
       } finally {
         running = false;
         releaseLock(owner);
+        if (!cancelled) wakeTimer = window.setTimeout(run, 30000);
       }
     };
 
@@ -163,6 +165,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      if (wakeTimer) window.clearTimeout(wakeTimer);
       releaseLock(owner);
     };
   }, [enabled]);
