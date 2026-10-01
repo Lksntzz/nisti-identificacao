@@ -873,7 +873,7 @@ export default {
             AND (
               mpi.product_id IS NULL
               OR mpi.source_image_key IS NOT p.image_key
-              OR mpi.status IN ('pending','stale','redo')
+              OR mpi.status IN ('pending','stale')
             )
           ORDER BY
             CASE COALESCE(mpi.status,'pending')
@@ -897,7 +897,7 @@ export default {
             tassel_code:row.tassel_code || 'X',
             image_key:row.image_key,
             status:row.status || 'pending',
-            force_outline:row.status === 'redo',
+            force_outline:row.processor === 'system-precise-redo',
             original_image_url:productOriginalImageUrl(row.id,row.image_key),
             display_image_url:productDisplayImageUrl(row.id,row.image_key,row.processed_image_key)
           }))
@@ -1022,13 +1022,13 @@ export default {
         const row = await env.DB.prepare('SELECT id,image_key FROM products WHERE id=?').bind(productId).first();
         if (!row?.image_key) return json({ error:'Produto sem imagem original.' },404);
         await env.DB.prepare(`
-          INSERT INTO mural_product_images (product_id,source_image_key,status,reviewed_by,reviewed_at,error_message,updated_at)
-          VALUES (?,?,'redo',NULL,NULL,NULL,CURRENT_TIMESTAMP)
+          INSERT INTO mural_product_images (product_id,source_image_key,status,processor,reviewed_by,reviewed_at,error_message,updated_at)
+          VALUES (?,?,'pending','system-precise-redo',NULL,NULL,NULL,CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
-            source_image_key=excluded.source_image_key,status='redo',reviewed_by=NULL,
+            source_image_key=excluded.source_image_key,status='pending',processor='system-precise-redo',reviewed_by=NULL,
             reviewed_at=NULL,error_message=NULL,updated_at=CURRENT_TIMESTAMP
         `).bind(productId,row.image_key).run();
-        return json({ ok:true,product_id:productId,status:'redo',summary:await productTreatmentSummary(env) });
+        return json({ ok:true,product_id:productId,status:'pending',precise_redo:true,summary:await productTreatmentSummary(env) });
       }
 
       const treatmentFailed = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/failed$/);
