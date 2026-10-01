@@ -1779,7 +1779,10 @@ async function adminPrepareMuralGeminiPro(request, env) {
 }
 
 async function adminSendPush(id, env) {
-  const post = await env.DB.prepare(`SELECT mp.id,mp.kind,mp.status,mp.title,mp.subtitle,mp.notice_level,mp.product_id,p.sku FROM mural_posts mp LEFT JOIN products p ON p.id=mp.product_id WHERE mp.id=?`).bind(id).first();
+  const post = supabasePrimaryWritesRequested(env)
+    ? await supabaseRpc(env,'nisti_admin_mural_post_v1',{p_id:id})
+    : await env.DB.prepare(`SELECT mp.id,mp.kind,mp.status,mp.title,mp.subtitle,mp.notice_level,mp.product_id,p.sku FROM mural_posts mp LEFT JOIN products p ON p.id=mp.product_id WHERE mp.id=?`).bind(id).first();
+  if (post?.product_sku && !post.sku) post.sku=post.product_sku;
   if (!post) return json({error:'Publicação não encontrada.'},404);
   if (post.status !== 'published') return json({error:'Publique o conteúdo antes de enviar a notificação.'},409);
   const eligible = (post.kind === 'notice' && post.notice_level === 'important') || post.kind === 'product';
@@ -1872,13 +1875,19 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
 
     const adminPostImageView = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/image$/);
     if (adminPostImageView && request.method === 'GET') {
-      const row = await env.DB.prepare('SELECT image_key FROM mural_posts WHERE id=?').bind(Number(adminPostImageView[1])).first();
-      return serveEditorialImage(row?.image_key, env, { isPublic:false });
+      const id=Number(adminPostImageView[1]);
+      const imageKey=supabasePrimaryWritesRequested(env)
+        ? await supabaseRpc(env,'nisti_admin_mural_image_key_v1',{p_owner:'posts',p_id:id})
+        : (await env.DB.prepare('SELECT image_key FROM mural_posts WHERE id=?').bind(id).first())?.image_key;
+      return serveEditorialImage(imageKey, env, { isPublic:false });
     }
     const adminCollectionImageView = path.match(/^\/api\/admin\/mural\/collections\/(\d+)\/image$/);
     if (adminCollectionImageView && request.method === 'GET') {
-      const row = await env.DB.prepare('SELECT image_key FROM mural_collections WHERE id=?').bind(Number(adminCollectionImageView[1])).first();
-      return serveEditorialImage(row?.image_key, env, { isPublic:false });
+      const id=Number(adminCollectionImageView[1]);
+      const imageKey=supabasePrimaryWritesRequested(env)
+        ? await supabaseRpc(env,'nisti_admin_mural_image_key_v1',{p_owner:'collections',p_id:id})
+        : (await env.DB.prepare('SELECT image_key FROM mural_collections WHERE id=?').bind(id).first())?.image_key;
+      return serveEditorialImage(imageKey, env, { isPublic:false });
     }
 
     const adminPost = path.match(/^\/api\/admin\/mural\/posts\/(\d+)$/);
