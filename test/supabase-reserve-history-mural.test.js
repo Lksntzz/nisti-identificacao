@@ -66,5 +66,5 @@ test('Mural mutations keep the reserve copy current after initial backfill', () 
   assert.match(secondary,/mirrorMuralPostReadFromD1/);
   assert.match(mirror,/admin\\\/mural\\\/posts/);
   assert.match(mirror,/admin\\\/mural\\\/collections/);
-  assert.match(mirror,/mural\\\/(\\d\+\\)\\\/read/);
+  assert.ok(mirror.includes("const muralRead=url.pathname.match(/^\\/api\\/mural\\/(\\d+)\\/read$/)"));
 });
