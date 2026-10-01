@@ -121,9 +121,21 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'treated') return normalized"));
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
-  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '6'"));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '7'"));
   assert.ok(core.includes("COALESCE(mpi.processor,'') <> 'admin-upload'"));
   assert.ok(core.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
-  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '6'"));
+  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '7'"));
   assert.ok(publicImages.includes("row.processor === 'admin-upload'"));
+});
+
+test('treatment queue cannot be blocked forever by one failed or oversized image', () => {
+  const worker = read('src/product-image-treatment-worker.jsx');
+  const utility = read('src/mural-transparent-image.js');
+  const core = read('src/core-router.js');
+
+  assert.ok(utility.includes('const MAX_RENDER_DIMENSION = 1280'));
+  assert.ok(utility.includes("URL.revokeObjectURL(cutoutSrc)"));
+  assert.ok(worker.includes('MAX_TRANSIENT_ATTEMPTS = 3'));
+  assert.ok(worker.includes('attempts >= MAX_TRANSIENT_ATTEMPTS'));
+  assert.equal(core.includes('OR mpi.processed_image_key IS NULL\n              OR mpi.status'), false);
 });
