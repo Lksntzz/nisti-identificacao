@@ -15,13 +15,15 @@ AS $$
     FROM public.recognition_events e
     LEFT JOIN public.products p ON p.id=e.product_id
     WHERE (
-      COALESCE(p_issues_only,false)
-      AND e.kind IN ('unmatched','system_error')
-    ) OR (
-      NOT COALESCE(p_issues_only,false)
-      AND (
-        NULLIF(BTRIM(COALESCE(p_kind,'')),'') IS NULL
-        OR e.kind=BTRIM(p_kind)
+      (
+        COALESCE(p_issues_only,false)
+        AND e.kind IN ('unmatched','system_error')
+      ) OR (
+        NOT COALESCE(p_issues_only,false)
+        AND (
+          NULLIF(BTRIM(COALESCE(p_kind,'')),'') IS NULL
+          OR e.kind=BTRIM(p_kind)
+        )
       )
     )
     AND (
