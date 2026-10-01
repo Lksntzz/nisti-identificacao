@@ -58,9 +58,9 @@ test('Phase 6E cutover freeze blocks mutating API requests before routers execut
   assert.match(source, /retry-after/);
 });
 
-test('read and strict write cutover are prepared while the write freeze remains active', () => {
+test('read and strict write cutover are prepared while the write freeze has been released', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"primary"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
-  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE\s*=\s*"1"/);
+  assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE\s*=\s*"0"/);
 });
