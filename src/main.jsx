@@ -274,7 +274,160 @@ function SidebarIcon({ name }) {
 /* =========================================================================
    TOPBAR COMPONENT
    ========================================================================= */
-function AdminTopbar({ onToggleSidebar, unreadCount, activeView }) {
+function adminNotificationSourceLabel(source) {
+  return ({
+    scanner: 'SCANNER',
+    catalog: 'CATÁLOGO',
+    images: 'IMAGENS',
+    mural: 'MURAL',
+    commerce: 'COMÉRCIO',
+    operators: 'OPERADORES',
+    security: 'SEGURANÇA',
+    admin: 'ADMIN'
+  })[source] || 'SISTEMA';
+}
+
+function adminNotificationIcon(source, severity) {
+  if (severity === 'error') return '!';
+  if (severity === 'warning') return '⚠';
+  return ({
+    scanner: '⌁',
+    catalog: '▦',
+    images: '◫',
+    mural: '▤',
+    commerce: '↻',
+    operators: '◉',
+    security: '◆'
+  })[source] || '•';
+}
+
+function formatAdminNotificationDate(value) {
+  if (!value) return '';
+  const raw = String(value).trim();
+  const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)
+    ? raw
+    : `${raw.replace(' ', 'T')}Z`;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function AdminNotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await api('/api/admin/system-notifications?limit=100');
+      setNotifications(data.notifications || []);
+      if (typeof data.unread_count === 'number') setUnreadCount(data.unread_count);
+    } catch (error) {
+      console.error('Falha ao carregar atividades do sistema', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    load();
+    const onKeyDown = event => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]);
+
+  const markOne = async id => {
+    try {
+      const data = await api(`/api/admin/system-notifications/${id}/read`, { method: 'POST' });
+      setNotifications(previous => previous.map(item => item.id === id ? { ...item, is_read: true } : item));
+      if (typeof data.unread_count === 'number') setUnreadCount(data.unread_count);
+    } catch (error) {
+      console.error('Falha ao marcar atividade como lida', error);
+    }
+  };
+
+  const markAll = async () => {
+    setMarkingAll(true);
+    try {
+      await api('/api/admin/system-notifications/mark-all-read', { method: 'POST' });
+      setNotifications(previous => previous.map(item => ({ ...item, is_read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Falha ao marcar atividades como lidas', error);
+    } finally {
+      setMarkingAll(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={event => event.target === event.currentTarget && onClose()}>
+      <div className="notifications-modal" role="dialog" aria-modal="true" aria-labelledby="admin-notifications-title">
+        <div className="notifications-header">
+          <div>
+            <h3 id="admin-notifications-title">Atividades do Sistema</h3>
+            <small>{unreadCount} não lida{unreadCount === 1 ? '' : 's'} · ações, scanners e alertas</small>
+          </div>
+          <div className="notifications-actions">
+            {unreadCount > 0 && (
+              <button type="button" className="mark-all-btn" disabled={markingAll} onClick={markAll}>
+                {markingAll ? 'Marcando…' : 'Marcar todas como lidas'}
+              </button>
+            )}
+            <button type="button" className="close-btn" onClick={onClose} aria-label="Fechar notificações">✕</button>
+          </div>
+        </div>
+
+        <div className="notifications-body">
+          {loading && <div className="notifications-loading">Carregando atividades…</div>}
+          {!loading && notifications.length === 0 && (
+            <div className="notifications-empty">
+              <p>Nenhuma atividade registrada ainda.</p>
+            </div>
+          )}
+          {!loading && notifications.map(item => (
+            <article
+              key={item.id}
+              className={`notification-card ${item.is_read ? 'read' : 'unread'}`}
+              onClick={() => !item.is_read && markOne(item.id)}
+            >
+              <div className="notification-thumb" aria-hidden="true">
+                <span style={{ fontSize: '28px', fontWeight: 900, color: item.severity === 'error' ? '#dc2626' : item.severity === 'warning' ? '#d97706' : '#4f46e5' }}>
+                  {adminNotificationIcon(item.source, item.severity)}
+                </span>
+              </div>
+              <div className="notification-info">
+                <div className="notification-top-row">
+                  <span className="notif-capa-badge">{adminNotificationSourceLabel(item.source)}</span>
+                  {item.http_status && <span className="notif-platform-tag">HTTP {item.http_status}</span>}
+                  {!item.is_read && <span className="unread-dot" title="Não lida" />}
+                </div>
+                <h4>{item.title || 'Atividade no sistema'}</h4>
+                <p className="notif-variacao">{item.message}</p>
+                {item.actor_name && <p className="notif-variacao"><strong>Responsável:</strong> {item.actor_name}</p>}
+                <small className="notif-date">{formatAdminNotificationDate(item.created_at)}</small>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminTopbar({ onToggleSidebar, unreadCount, activeView, onOpenNotifications }) {
   const pageTitle = activeView === 'catalogo' ? 'Produtos NISTI'
     : activeView === 'mural-nisti' ? 'Mural NISTI'
     : activeView === 'gerador-barras' ? 'Gerador de Barras'
@@ -305,13 +458,19 @@ function AdminTopbar({ onToggleSidebar, unreadCount, activeView }) {
       </div>
 
       <div className="topbar-right">
-        <a href="/" className={`topbar-bell-btn ${unreadCount > 0 ? 'has-unread' : ''}`} title="Notificações">
+        <button
+          type="button"
+          className={`topbar-bell-btn ${unreadCount > 0 ? 'has-unread' : ''}`}
+          title="Atividades do sistema"
+          aria-label={`Atividades do sistema (${unreadCount} não lidas)`}
+          onClick={onOpenNotifications}
+        >
           <svg key={unreadCount > 0 ? unreadCount : 'empty'} viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
           {unreadCount > 0 && <span key={unreadCount} className="topbar-bell-badge">{unreadCount}</span>}
-        </a>
+        </button>
 
         <a
           href="/admin-logout"
@@ -1334,6 +1493,7 @@ function AdminApp() {
   const [healthError, setHealthError] = useState('');
   const [gtinDashboard, setGtinDashboard] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -1386,7 +1546,7 @@ function AdminApp() {
         api(`/api/admin/system-health${suffix}`)
           .then(data => ({ data, error: '' }))
           .catch(error => ({ data: null, error: error?.message || 'Falha ao verificar saúde do sistema' })),
-        api('/api/notifications/unread-count').catch(() => ({ unread_count: 0 })),
+        api('/api/admin/system-notifications/unread-count').catch(() => ({ unread_count: 0 })),
         api('/api/admin/gtin-dashboard').catch(() => null)
       ]);
       if (m) setMetrics(m);
@@ -1517,6 +1677,14 @@ function AdminApp() {
           onToggleSidebar={() => setSidebarOpen(prev => !prev)}
           unreadCount={unreadCount}
           activeView={activeView}
+          onOpenNotifications={() => setNotificationsOpen(true)}
+        />
+
+        <AdminNotificationsModal
+          isOpen={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+          unreadCount={unreadCount}
+          setUnreadCount={setUnreadCount}
         />
 
         {operationFeedback && (
