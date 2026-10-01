@@ -1,6 +1,6 @@
 import app from './core-router.js';
 import { readRecognitionEvents, readRecognitionMetrics, readOperatorStats } from './recognition-metrics.js';
-import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested, supabaseWriteMode } from './supabase-write-store.js';
 import { supabaseRpc } from './supabase-read-store.js';
 import { explicitUtcTimestamp } from './date-time.js';
 
@@ -507,6 +507,15 @@ async function handleUpdateOperatorName(request, env) {
   const newName = String(body?.operator_name || '').trim().slice(0, 120);
   if (!userId || !newName) {
     return json({ ok: false, error: 'operator_id e operator_name são obrigatórios' }, 400);
+  }
+
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(env, 'nisti_mirror_operator_name', {
+      p_operator_id:String(userId),
+      p_operator_name:newName
+    }, `operator name ${String(userId)}`);
+    operatorStatsCache = { operators:null, expires_at:0 };
+    return json({ ok:true, updated:Number(result?.value || 0) });
   }
 
   const result = await env.DB.prepare(`
