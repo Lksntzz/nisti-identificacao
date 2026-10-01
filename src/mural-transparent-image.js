@@ -849,11 +849,9 @@ async function buildTransparentProductImage(src) {
   // product cutout and must not disable background cleanup.
   if (hasExistingTransparency(data, total) && hasUsableTransparentBorder(data, width, height)) return src;
 
-  // We still require strong product evidence before attempting any automatic
-  // cutout, but we no longer keep an opaque convex-hull "plate" behind the
-  // product. The previous hull clipping was the source of the white slab.
-  const subjectEvidence = buildSubjectProtection(data, width, height);
-  if (!subjectEvidence) return src;
+  // First try the approved planner geometry. A mostly white planner can have
+  // too little color contrast for the generic foreground detector, but its
+  // physical proportions are still sufficient to protect the real cover.
   const plannerStructureProtection = buildPlannerStructureProtection(data, width, height);
 
   // For a planner matching the approved reference, keep the stable body by
@@ -879,6 +877,12 @@ async function buildTransparentProductImage(src) {
     });
     return URL.createObjectURL(outputBlob);
   }
+
+  // Non-planner products still require strong generic foreground evidence.
+  // This guard remains conservative so unrelated white objects are never cut
+  // aggressively just because their background is light.
+  const subjectEvidence = buildSubjectProtection(data, width, height);
+  if (!subjectEvidence) return src;
 
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
