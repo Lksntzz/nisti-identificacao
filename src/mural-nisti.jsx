@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './mural-nisti.css';
 import MuralProductExperience from './mural-product-experience.jsx';
-import { useTransparentProductImage, useTreatedProductImage } from './mural-transparent-image.js';
+import { useTreatedProductImage } from './mural-transparent-image.js';
 
 const muralSessionCache = new Map();
 
@@ -109,7 +109,7 @@ function KindIcon({ kind }) {
 function MuralImage({ item, eager = false, className = '' }) {
   const src = item?.image_url || '';
   const shouldRemoveBackground = item?.kind === 'product' && item?.image_source === 'product';
-  const displaySrc = useTransparentProductImage(src, shouldRemoveBackground);
+  const displaySrc = useTreatedProductImage(src, shouldRemoveBackground);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
