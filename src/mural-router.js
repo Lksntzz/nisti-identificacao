@@ -283,10 +283,22 @@ async function listMuralFeed(request, url, env) {
         previewRows=preview.results || [];
       }
 
+      const unreadRow=await env.DB.prepare(`
+        SELECT COUNT(*) AS total
+        FROM mural_posts mp
+        LEFT JOIN mural_post_reads mr
+          ON mr.post_id=mp.id AND mr.user_id=?
+        WHERE mp.status='published'
+          AND mp.published_at IS NOT NULL
+          AND datetime(mp.published_at)<=CURRENT_TIMESTAMP
+          AND (mp.expires_at IS NULL OR datetime(mp.expires_at)>CURRENT_TIMESTAMP)
+          AND mr.post_id IS NULL
+      `).bind(userId).first();
+
       return {
         rows:allRows,
         preview_rows:previewRows,
-        unread_count:await unreadCount(userId,env)
+        unread_count:Number(unreadRow?.total || 0)
       };
     },
     'mural:feed'
