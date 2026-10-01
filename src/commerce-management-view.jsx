@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { commerceApi } from './commerce-admin-api.js';
 import { CommerceLoadingBlock, commerceFormatNumber } from './commerce-admin-shared.jsx';
 import CommerceCatalogWorkspace from './commerce-catalog-workspace.jsx';
+import ProductCutoutImage from './product-cutout-image.jsx';
 import './commerce-management.css';
 
 const UPDATE_LABELS = Object.freeze({
@@ -65,17 +66,13 @@ function ProductImage({ src, fallbackSrc = null, alt, large = false }) {
     setActiveSrc(src || fallbackSrc || null);
   }, [src, fallbackSrc]);
 
-  if (!activeSrc) {
-    return <div className={`commerce-product-card-image placeholder ${large ? 'large' : ''}`}>Sem foto</div>;
-  }
-
+  const className = `commerce-product-card-image ${large ? 'large' : ''}`;
   return (
-    <img
-      className={`commerce-product-card-image ${large ? 'large' : ''}`}
+    <ProductCutoutImage
+      className={className}
       src={activeSrc}
       alt={alt || ''}
-      loading="lazy"
-      referrerPolicy="no-referrer"
+      fallback={<div className={`${className} placeholder`}>Sem foto</div>}
       onError={() => {
         if (fallbackSrc && activeSrc !== fallbackSrc) {
           setActiveSrc(fallbackSrc);
