@@ -38,8 +38,11 @@ test('treated product rendering is shared across NISTI ID, Catalog, Scanner, Com
   assert.equal(core.includes('mural-transparent-image'), false);
 });
 
-test('Mural collection products and admin references use the final treated transparent image', () => {
-  assert.ok(mural.includes('useTreatedProductImage(src, true)'));
+test('Mural collection products prefer approved PNG derivatives and only fall back to legacy cutouts', () => {
+  assert.ok(mural.includes("product?.image_source !== 'product-processed'"));
+  assert.ok(mural.includes('Boolean(src) && needsTreatment'));
+  assert.ok(mural.includes('useTreatedProductImage'));
+  assert.ok(admin.includes('TransparentMuralProductImage'));
   assert.ok(admin.includes('useTreatedProductImage'));
   assert.ok(admin.includes('GeminiReferenceFigure'));
   assert.ok(admin.includes('Baixar PNG'));

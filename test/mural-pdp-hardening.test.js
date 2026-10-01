@@ -59,7 +59,8 @@ test('last successful feed survives Mural component remounts during the browser 
 test('public image URLs are versioned when their backing image key changes',()=>{
   assert.match(router,/api\/mural\/images\/\$\{Number\(row\.id\)\}\?v=\$\{encodeURIComponent\(row\.image_key\)\}/);
   assert.match(router,/api\/mural\/collections\/\$\{encodeURIComponent\(collection\.slug\)\}\/image\?v=\$\{encodeURIComponent\(collection\.image_key\)\}/);
-  assert.match(router,/api\/images\/\$\{productId\}\?v=\$\{encodeURIComponent\(row\.product_image_key\)\}/);
+  assert.match(router,/api\/mural-product-images\/\$\{productId\}\?v=\$\{encodeURIComponent\(processedKey\)\}/);
+  assert.match(router,/api\/images\/\$\{productId\}\?v=\$\{encodeURIComponent\(row\.image_key\)\}/);
 });
 
 test('collection editor preserves explicit editorial order and never creates product id zero',()=>{

@@ -2457,3 +2457,22 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
   font-size:10px;
   line-height:1.45;
 }
+/* Product PNG derivatives used directly by the Mural. */
+.mural-product-image-manager{display:grid;gap:18px}
+.mural-product-image-manager>header{display:flex;align-items:end;justify-content:space-between;gap:18px;padding:22px;border:1px solid #dce4f0;border-radius:20px;background:#fff}
+.mural-product-image-manager>header h3{margin:0 0 5px;color:#14213d}
+.mural-product-image-manager>header p{margin:0;color:#63708a}
+.mural-product-image-manager>header input{width:min(320px,100%);padding:11px 14px;border:1px solid #cfd8e8;border-radius:12px}
+.mural-product-image-manager-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+.mural-product-image-manager-grid>article{display:grid;gap:12px;padding:14px;border:1px solid #dce4f0;border-radius:18px;background:#fff}
+.mural-product-image-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mural-product-image-pair figure{position:relative;display:grid;place-items:center;min-height:170px;margin:0;overflow:hidden;border-radius:13px;background:#f5f7fb}
+.mural-product-image-pair figure.processed{background:linear-gradient(45deg,#edf1f6 25%,transparent 25%),linear-gradient(-45deg,#edf1f6 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#edf1f6 75%),linear-gradient(-45deg,transparent 75%,#edf1f6 75%);background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0}
+.mural-product-image-pair figure>span{position:absolute;top:8px;left:8px;z-index:1;padding:4px 7px;border-radius:7px;background:#fff;color:#44506a;font-size:10px;font-weight:800}
+.mural-product-image-pair img{width:100%;height:170px;object-fit:contain;filter:none!important;box-shadow:none!important}
+.mural-product-image-pair i{font-style:normal;color:#8792a8;font-size:12px}
+.mural-product-image-manager-grid>article>div:nth-child(2){display:grid;gap:2px}.mural-product-image-manager-grid small{color:#68758e}
+.mural-product-image-manager-grid footer{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.mural-product-image-state{margin-right:auto;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800}.mural-product-image-state.approved{background:#dff7e9;color:#12643a}.mural-product-image-state.pending{background:#fff0d8;color:#855109}
+.mural-product-image-upload,.mural-product-image-manager-grid footer button{cursor:pointer;padding:8px 10px;border:1px solid #cdd7e7;border-radius:10px;background:#fff;color:#24334f;font:inherit;font-size:12px;font-weight:750}.mural-product-image-upload input{display:none}
+@media(max-width:680px){.mural-product-image-manager>header{align-items:stretch;flex-direction:column}.mural-product-image-manager>header input{width:100%}}
