@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { normalizePlatform } from './platform-scope.js';
-import { mirrorSupabaseRpc, supabaseWriteMode } from './supabase-write-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested, supabaseWriteMode } from './supabase-write-store.js';
 
 const SHADOW_PURPOSE = 'geometric-shadow-evidence-v818';
 const SHADOW_VERSION = 'v8.18';
@@ -292,6 +292,32 @@ async function reconcileTrainedOccurrence(env, evidence) {
 
 async function saveEvidence(env, evidence, operator) {
   const writeMode = supabaseWriteMode(env);
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_record_geometric_shadow_evidence_v1',{
+      p_row:{
+        evidence_token:evidence.evidence_token,
+        photo_sha256:evidence.photo_sha256,
+        platform:evidence.platform,
+        operator_id:operator.operator_id,
+        operator_name:operator.operator_name,
+        occurrence_id:evidence.occurrence_id,
+        shadow_version:SHADOW_VERSION,
+        gate_version:GATE_VERSION,
+        retrieval_fastpath_eligible:evidence.retrieval.eligible ? 1 : 0,
+        retrieval_capa_code:evidence.retrieval.capa_code,
+        geometric_evaluated:evidence.geometric.evaluated ? 1 : 0,
+        geometric_eligible:evidence.geometric.eligible ? 1 : 0,
+        geometric_capa_code:evidence.geometric.capa_code,
+        content_independent:evidence.content_independent ? 1 : 0,
+        same_content_reference_count:evidence.same_content_reference_count,
+        evidence_json:evidence.evidence_json,
+        updated_at:new Date().toISOString()
+      }
+    },'geometric shadow evidence primary');
+    if(result?.value?.status!=='ok') throw new Error('Supabase rejeitou a evidência geométrica.');
+    return;
+  }
+
   await env.DB.prepare(`
     INSERT INTO geometric_shadow_evidence (
       evidence_token,photo_sha256,platform,operator_id,operator_name,occurrence_id,
@@ -355,8 +381,25 @@ async function saveEvidence(env, evidence, operator) {
 export async function linkGeometricShadowEvidenceToOccurrence(env, evidenceToken, occurrenceId) {
   const token = String(evidenceToken || '').trim();
   const id = Number(occurrenceId || 0);
-  if (!token || !id || !env?.DB) return false;
+  if (!token || !id) return false;
   const writeMode = supabaseWriteMode(env);
+
+  if (supabasePrimaryWritesRequested(env)) {
+    const linked=await mirrorSupabaseRpc(env,'nisti_mirror_link_geometric_shadow',{
+      p_evidence_token:token,
+      p_occurrence_id:id,
+      p_updated_at:new Date().toISOString()
+    },'geometric shadow occurrence link primary');
+    const changed=Number(linked?.value || 0);
+    if(changed>0) {
+      await mirrorSupabaseRpc(env,'nisti_reconcile_trained_shadow_v1',{
+        p_occurrence_id:id
+      },'reconcile trained geometric shadow primary');
+    }
+    return changed>0;
+  }
+
+  if (!env?.DB) return false;
   const result = await env.DB.prepare(`
     UPDATE geometric_shadow_evidence
     SET occurrence_id=?, updated_at=CURRENT_TIMESTAMP
@@ -390,13 +433,24 @@ export async function confirmGeometricShadowEvidence(env, {
   capaCode,
   source = 'human_confirmed'
 } = {}) {
-  if (!env?.DB) return 0;
   const writeMode = supabaseWriteMode(env);
   const id = Number(occurrenceId || 0) || null;
   const hash = normalizeHash(photoSha256);
   const code = normalizeCode(capaCode);
   if (!code || (!id && !hash)) return 0;
 
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_mirror_confirm_geometric_shadow',{
+      p_occurrence_id:id,
+      p_photo_sha256:hash,
+      p_capa_code:code,
+      p_source:source,
+      p_confirmed_at:new Date().toISOString()
+    },'geometric shadow confirmation primary');
+    return Number(result?.value || 0);
+  }
+
+  if (!env?.DB) return 0;
   let result;
   if (id) {
     result = await env.DB.prepare(`
