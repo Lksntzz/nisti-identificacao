@@ -132,8 +132,14 @@ export async function handlePublicImageRequest(request, env) {
 
   const productDisplayMatch = url.pathname.match(/^\/api\/product-images\/(\d+)$/);
   if (productDisplayMatch) {
-    const objectKey = await imageKeyFromD1(env, 'product-display', Number(productDisplayMatch[1]));
-    return serveObject(request, env, objectKey, url);
+    const productId = Number(productDisplayMatch[1]);
+    const processedKey = await imageKeyFromD1(env, 'mural-product', productId);
+    if (processedKey) {
+      const processed = await serveObject(request, env, processedKey, url);
+      if (processed.status !== 404) return processed;
+    }
+    const originalKey = await imageKey(env, 'product', productId);
+    return serveObject(request, env, originalKey, url);
   }
 
   const referenceMatch = url.pathname.match(/^\/api\/reference-images\/(\d+)$/);
