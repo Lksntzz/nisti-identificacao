@@ -431,11 +431,14 @@ async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
     }, 'cadastro de produto');
     const saved = result.value || {};
     if (saved.status === 'gtin_conflict') throw new Error(`EAN ${validGtin} já está vinculado a outro produto.`);
+    const commerceSync = syncCommerce
+      ? await syncNistiProductToCommerceSafe(env, Number(saved.id))
+      : null;
     return {
       id: Number(saved.id), sku: saved.sku, capa_code: saved.capa_code,
       gtin: saved.gtin || null, created: saved.created === true,
       has_image: saved.has_image === true,
-      commerce_sync: { status: 'SKIPPED', reason: 'supabase_primary_cutover' }
+      commerce_sync: commerceSync
     };
   }
 
@@ -530,7 +533,7 @@ async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
 }
 
 async function listCoverReferences(env, capaCode) {
-  if (supabasePrimaryWritesRequested(env)) {
+  if (supabaseReadsRequested(env)) {
     const results=await supabaseCoverReferences(env,normalizeCapaCode(capaCode));
     return results.map(reference=>({...reference,id:Number(reference.id),
       source_product_id:reference.source_product_id?Number(reference.source_product_id):null,
@@ -695,16 +698,19 @@ export default {
     try {
       if (url.pathname === '/api/health') {
         const reserveCircuit = d1EmergencyCircuitStatus();
+        const supabaseReads = supabaseReadsRequested(env);
+        const supabaseWrites = supabasePrimaryWritesRequested(env);
         return json({
           ok: true,
           service: 'nisti-identificacao',
           database: {
-            primary: 'd1',
-            reserve: 'supabase',
+            primary: supabaseReads ? 'supabase' : 'd1',
+            write_authority: supabaseWrites ? 'supabase' : 'd1',
+            compatibility_store: supabaseReads ? 'd1' : 'supabase',
             emergency_fallback_enabled: String(env?.SUPABASE_EMERGENCY_FALLBACK_ENABLED || '') === '1',
-            reserve_circuit_open: reserveCircuit.open,
-            reserve_circuit_open_until: reserveCircuit.open_until,
-            reserve_circuit_remaining_ms: reserveCircuit.remaining_ms
+            d1_reserve_circuit_open: reserveCircuit.open,
+            d1_reserve_circuit_open_until: reserveCircuit.open_until,
+            d1_reserve_circuit_remaining_ms: reserveCircuit.remaining_ms
           }
         });
       }
@@ -860,7 +866,7 @@ export default {
           }
         }
         const syncedIds = imported.map(item => Number(item.id || 0)).filter(Boolean);
-        const commerceSync = syncedIds.length && !supabasePrimaryWritesRequested(env)
+        const commerceSync = syncedIds.length
           ? await syncNistiProductsToCommerce(env, syncedIds).catch(error => ({
               status: 'ERROR',
               error: error?.message || 'commerce_bulk_sync_failed'
@@ -937,7 +943,9 @@ export default {
             p_id: id, p_row: primaryRow
           }, 'edição de produto');
           if (result.value?.status === 'not_found') return json({ error: 'Produto não encontrado' }, 404);
-          return json({ ok: true, id, updated: true, commerce_sync: { status: 'SKIPPED', reason: 'supabase_primary_cutover' } });
+          const commerceSync = await syncNistiProductToCommerceSafe(env, id);
+          scheduleCommerceReconcile(ctx, env, id, commerceSync);
+          return json({ ok: true, id, updated: true, commerce_sync: commerceSync });
         }
         const existing = await env.DB.prepare('SELECT * FROM products WHERE id=?').bind(id).first();
         if (!existing) return json({ error: 'Produto não encontrado' }, 404);
