@@ -978,7 +978,7 @@ async function buildTransparentProductImage(src, options = {}) {
   // queued database derivative: a mismatched/missing mask must fail safely so
   // the original remains visible and untouched.
   const requestedOfficialVariant = officialProductMaskVariant(options.tasselCode);
-  if (requestedOfficialVariant) {
+  if (requestedOfficialVariant && !options.forceOutline) {
     const official = await buildOfficialProductMask(width, height, options.tasselCode);
     if (!official) return src;
     applyOfficialProductMask(data, official.mask);
@@ -1231,7 +1231,10 @@ async function buildTreatedProductImage(src, options = {}) {
   const solidMask = fillMaskInteriorHoles(productMask, width, height);
   // 8 px at 1024 px, proportional at other resolutions: within the requested
   // visual band of roughly 6–10 px per 1024 px.
-  const outlineRadius = clamp(Math.round(Math.max(width, height) * (8 / 1024)), 2, 16);
+  // Standard output keeps 8 / 1024; a precise redo uses a tighter 6 / 1024
+  // ring after the official silhouette has already fixed the product shape.
+  const outlineScale = requestedOfficialVariant ? (6 / 1024) : (8 / 1024);
+  const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 2, 16);
   const expandedMask = dilateMask(solidMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
 
