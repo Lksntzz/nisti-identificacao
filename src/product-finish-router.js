@@ -1,6 +1,7 @@
 import app from './geometric-shadow-evidence-admin-router.js';
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
+import { syncNistiProductToCommerceSafe, reconcileNistiProductToCommerceSafe } from './nisti-commerce-sync.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -46,13 +47,20 @@ export default {
           const product = result.value || {};
           if (product.status === 'not_found') return json({ error: 'Produto não encontrado.' }, 404);
           if (product.status === 'sku_conflict') return json({ error: `Já existe outro produto com o SKU ${product.sku}.` }, 409);
+          const commerceSync = await syncNistiProductToCommerceSafe(env,id);
+          if (ctx?.waitUntil && String(commerceSync?.status || '').toUpperCase() === 'SYNCED') {
+            ctx.waitUntil(
+              reconcileNistiProductToCommerceSafe(env,id)
+                .catch(error=>console.warn('[NISTI→Commerce] Reconciliação após acabamento falhou',id,error))
+            );
+          }
           return json({ ok: true, product: {
             id, old_sku: product.old_sku, sku: product.sku, acabamento_code: product.acabamento_code,
             wireo_code: wireoCode, tassel_code: tasselCode, elastico_code: elasticoCode,
             wireo: WIREO_COLORS[wireoCode],
             tassel: tasselCode === 'X' ? 'Sem tassel' : ACCESSORY_COLORS[tasselCode],
             elastico: ACCESSORY_COLORS[elasticoCode]
-          }});
+          }, commerce_sync:commerceSync });
         }
 
         const product = await env.DB.prepare(`
@@ -91,6 +99,13 @@ export default {
           id
         ).run();
 
+        const commerceSync = await syncNistiProductToCommerceSafe(env,id);
+        if (ctx?.waitUntil && String(commerceSync?.status || '').toUpperCase() === 'SYNCED') {
+          ctx.waitUntil(
+            reconcileNistiProductToCommerceSafe(env,id)
+              .catch(error=>console.warn('[NISTI→Commerce] Reconciliação após acabamento falhou',id,error))
+          );
+        }
         return json({
           ok: true,
           product: {
@@ -104,7 +119,8 @@ export default {
             wireo: WIREO_COLORS[wireoCode],
             tassel: tasselCode === 'X' ? 'Sem tassel' : ACCESSORY_COLORS[tasselCode],
             elastico: ACCESSORY_COLORS[elasticoCode]
-          }
+          },
+          commerce_sync:commerceSync
         });
       } catch (error) {
         const message = error?.message || 'Falha ao salvar acabamento.';
