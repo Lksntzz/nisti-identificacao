@@ -993,57 +993,44 @@ async function buildTransparentProductImage(src, options = {}) {
   // product cutout and must not disable background cleanup.
   if (hasExistingTransparency(data, total) && hasUsableTransparentBorder(data, width, height)) return src;
 
-  // When the product metadata identifies the tassel variant, the official
-  // contour is authoritative. Never fall back to guessing white pixels for a
-  // queued database derivative: a mismatched/missing mask must fail safely so
-  // the original remains visible and untouched.
+  // Prefer the official variant selected from product metadata. If a photo
+  // cannot be aligned safely with that asset, continue through the adaptive
+  // planner path below instead of failing the treatment queue.
   const requestedOfficialVariant = officialProductMaskVariant(options.tasselCode);
   if (requestedOfficialVariant) {
     const official = await buildOfficialProductMask(width, height, options.tasselCode);
-    if (!official) return src;
-
-    // The photos are not always positioned exactly like the supplied mold.
-    // Follow the real cover, wire-o and tassel anchors first, then intersect
-    // that cut with the correct official variant. This removes the large
-    // white steps beside the rings and the oversized white floor caused by
-    // applying a full-canvas contour verbatim.
-    const originalPixels = data.slice();
-    const photoStructure = buildPlannerStructureProtection(data, width, height);
-    if (photoStructure) applyPlannerStructureMask(data, width, height, photoStructure);
-    applyOfficialProductMask(data, official.mask);
-
-    let officialProductMask = buildProductComponentsMask(data, width, height);
-    let officialStats = officialProductMask ? maskStats(officialProductMask, width, height) : null;
-    const invalidPreciseCut = !officialStats
-      || officialStats.ratio < .45
-      || officialStats.ratio > .80
-      || officialStats.touches >= 3;
-
-    // A detached tassel can pull the photo-derived anchors away from the
-    // agenda body. Never fail the whole redo for that: restore the untouched
-    // original pixels and fall back to the correct official tassel variant.
-    if (invalidPreciseCut && photoStructure) {
-      data.set(originalPixels);
+    if (official) {
+      // The photos are not always positioned exactly like the supplied mold.
+      // Follow the real cover, wire-o and tassel anchors first, then intersect
+      // that cut with the correct official variant.
+      const originalPixels = data.slice();
+      const photoStructure = buildPlannerStructureProtection(data, width, height);
+      if (photoStructure) applyPlannerStructureMask(data, width, height, photoStructure);
       applyOfficialProductMask(data, official.mask);
-      officialProductMask = buildProductComponentsMask(data, width, height);
-      officialStats = officialProductMask ? maskStats(officialProductMask, width, height) : null;
+
+      const officialProductMask = buildProductComponentsMask(data, width, height);
+      const officialStats = officialProductMask ? maskStats(officialProductMask, width, height) : null;
+      const minimumRatio = photoStructure ? .12 : .45;
+      const validOfficialCut = officialStats
+        && officialStats.ratio >= minimumRatio
+        && officialStats.ratio <= .80
+        && officialStats.touches < 3;
+
+      if (validOfficialCut) {
+        context.putImageData(imageData, 0, 0);
+        const outputBlob = await new Promise((resolve, reject) => {
+          canvas.toBlob(
+            result => result ? resolve(result) : reject(new Error('Falha ao aplicar o molde oficial do produto.')),
+            'image/png'
+          );
+        });
+        return URL.createObjectURL(outputBlob);
+      }
+
+      // Restore the original before the adaptive fallback below. A tassel or
+      // unusual photo placement must never turn into a permanent queue error.
+      data.set(originalPixels);
     }
-
-    if (
-      !officialStats
-      || officialStats.ratio < .45
-      || officialStats.ratio > .80
-      || officialStats.touches >= 3
-    ) return src;
-
-    context.putImageData(imageData, 0, 0);
-    const outputBlob = await new Promise((resolve, reject) => {
-      canvas.toBlob(
-        result => result ? resolve(result) : reject(new Error('Falha ao aplicar o molde oficial do produto.')),
-        'image/png'
-      );
-    });
-    return URL.createObjectURL(outputBlob);
   }
 
   // First try the approved planner geometry. A mostly white planner can have
