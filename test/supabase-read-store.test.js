@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   SupabaseReadError,
+  isD1DailyReadLimitError,
   preferSupabaseRead,
   supabaseRpc
 } from '../src/supabase-read-store.js';
@@ -176,4 +177,72 @@ test('critical fastpath and Vectorize authority are wired to preferred store', (
   assert.match(fastpath, /preferSupabaseRead/);
   assert.match(authority, /supabaseActiveReferences/);
   assert.match(images, /supabaseImageKey/);
+});
+
+
+test('emergency reserve fallback uses Supabase only for the D1 daily row-read limit', async () => {
+  let supabaseCalls = 0;
+  const env = {
+    SUPABASE_READS_ENABLED: '0',
+    SUPABASE_EMERGENCY_FALLBACK_ENABLED: '1'
+  };
+
+  const value = await preferSupabaseRead(
+    env,
+    async () => { supabaseCalls += 1; return 'supabase-reserve'; },
+    async () => { throw new Error("Your account has exceeded D1's free tier daily row read limit. [code: 7500]"); },
+    'quota-test'
+  );
+
+  assert.equal(value, 'supabase-reserve');
+  assert.equal(supabaseCalls, 1);
+  assert.equal(isD1DailyReadLimitError(new Error('daily row read limit exceeded')), true);
+});
+
+test('emergency reserve does not hide unrelated D1 failures', async () => {
+  let supabaseCalls = 0;
+  await assert.rejects(
+    () => preferSupabaseRead(
+      {
+        SUPABASE_READS_ENABLED: '0',
+        SUPABASE_EMERGENCY_FALLBACK_ENABLED: '1'
+      },
+      async () => { supabaseCalls += 1; return 'supabase'; },
+      async () => { throw new Error('D1 schema mismatch'); },
+      'schema-test'
+    ),
+    /schema mismatch/
+  );
+  assert.equal(supabaseCalls, 0);
+});
+
+test('emergency reserve stays disabled unless explicitly enabled', async () => {
+  let supabaseCalls = 0;
+  await assert.rejects(
+    () => preferSupabaseRead(
+      { SUPABASE_READS_ENABLED: '0' },
+      async () => { supabaseCalls += 1; return 'supabase'; },
+      async () => { throw new Error("exceeded D1's free tier daily row read limit"); },
+      'disabled-emergency'
+    ),
+    /row read limit/
+  );
+  assert.equal(supabaseCalls, 0);
+});
+
+test('reserve catalog RPC is service-role only', () => {
+  const migration = fs.readFileSync(
+    'supabase/migrations/20261001162000_supabase_emergency_read_fallback_v1.sql',
+    'utf8'
+  );
+  assert.match(migration, /FUNCTION public\.nisti_reserve_products_v1/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.nisti_reserve_products_v1\(\) FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.nisti_reserve_products_v1\(\) TO service_role/);
+  assert.doesNotMatch(migration, /SECURITY DEFINER/i);
+});
+
+test('public product images use preferred store for treated and original keys', () => {
+  const images = fs.readFileSync('src/public-image-router.js', 'utf8');
+  assert.match(images, /imageKey\(env, 'mural-product'/);
+  assert.match(images, /imageKey\(env, 'product'/);
 });

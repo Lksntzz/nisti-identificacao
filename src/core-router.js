@@ -23,6 +23,10 @@ import {
   normalizePlatform
 } from './platform-scope.js';
 import {
+  preferSupabaseRead,
+  supabaseReserveProducts
+} from './supabase-read-store.js';
+import {
   syncNistiProductsToCommerce,
   syncNistiProductToCommerceSafe,
   reconcileNistiProductToCommerceSafe,
@@ -585,28 +589,43 @@ export default {
       }
 
       if (url.pathname === '/api/products' && request.method === 'GET') {
-        const { results } = await env.DB.prepare(`
-          SELECT
-            p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,p.wireo_code,
-            p.tassel_code,p.elastico_code,p.nome,p.variacao,p.image_key,p.created_at,
-            mpi.source_image_key AS treated_source_image_key,
-            mpi.processed_image_key AS treated_image_key,
-            mpi.status AS treated_image_status,
-            mpi.processor AS treated_image_processor,
-            mpi.processor_version AS treated_image_version,
-            mpi.reviewed_by AS treated_image_reviewed_by,
-            (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
-            (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link,
-            (SELECT pg.gtin FROM product_gtins pg WHERE pg.product_id=p.id AND pg.active=1 ORDER BY pg.id ASC LIMIT 1) AS gtin,
-            EXISTS(
-              SELECT 1 FROM product_gtins pg
-              WHERE pg.product_id=p.id AND pg.active=1
-            ) AS has_active_gtin
-          FROM products p
-          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
-          ORDER BY p.id DESC
-          LIMIT 1000
-        `).all();
+        let source = 'd1';
+        const d1Loader = async () => {
+          const { results } = await env.DB.prepare(`
+            SELECT
+              p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,p.wireo_code,
+              p.tassel_code,p.elastico_code,p.nome,p.variacao,p.image_key,p.created_at,
+              mpi.source_image_key AS treated_source_image_key,
+              mpi.processed_image_key AS treated_image_key,
+              mpi.status AS treated_image_status,
+              mpi.processor AS treated_image_processor,
+              mpi.processor_version AS treated_image_version,
+              mpi.reviewed_by AS treated_image_reviewed_by,
+              (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
+              (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link,
+              (SELECT pg.gtin FROM product_gtins pg WHERE pg.product_id=p.id AND pg.active=1 ORDER BY pg.id ASC LIMIT 1) AS gtin,
+              EXISTS(
+                SELECT 1 FROM product_gtins pg
+                WHERE pg.product_id=p.id AND pg.active=1
+              ) AS has_active_gtin
+            FROM products p
+            LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+            ORDER BY p.id DESC
+            LIMIT 1000
+          `).all();
+          return results || [];
+        };
+        const supabaseLoader = async () => {
+          source = 'supabase-reserve';
+          return supabaseReserveProducts(env);
+        };
+        const results = await preferSupabaseRead(
+          env,
+          supabaseLoader,
+          d1Loader,
+          'products:list'
+        );
+
         return json({
           products: (results || []).map(product => {
             const treatedReady = product.treated_image_status === 'approved'
@@ -615,14 +634,18 @@ export default {
               && product.treated_image_reviewed_by === 'admin';
             return {
               ...product,
-              has_active_gtin: Number(product.has_active_gtin) === 1,
+              has_active_gtin: product.has_active_gtin === true || Number(product.has_active_gtin) === 1,
               original_image_url: productOriginalImageUrl(product.id, product.image_key),
               image_url: product.image_key
                 ? productDisplayImageUrl(product.id, product.image_key, treatedReady ? product.treated_image_key : null)
                 : null,
               treated_image_ready:Boolean(treatedReady)
             };
-          })
+          }),
+          reserve_mode: source === 'supabase-reserve',
+          read_source: source
+        }, 200, {
+          'x-nisti-db-source':source
         });
       }
 
