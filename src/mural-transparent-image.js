@@ -33,10 +33,53 @@ function isStrongForegroundPixel(r, g, b, a) {
 function isBorderBackgroundCandidate(r, g, b, a) {
   if (a < 8) return true;
   const { chroma, brightness } = pixelMetrics(r, g, b);
-  // The subject mask protects the complete product. This threshold can then
-  // remove the light studio background and its pale halo without cutting
-  // white paper or white cover artwork inside the product silhouette.
+  // Conservative studio-background candidate. White/off-white product parts
+  // are protected separately by the local edge barrier below.
   return brightness >= 242 && chroma <= 18;
+}
+
+function hasLocalProductEdge(data, width, height, index) {
+  const x = index % width;
+  const y = Math.floor(index / width);
+  const offset = index * 4;
+  const r = data[offset];
+  const g = data[offset + 1];
+  const b = data[offset + 2];
+
+  // A white agenda can have virtually the same RGB as the studio background.
+  // The reliable signal is the physical edge: cover, pages, elastic and
+  // wire-o create a local contrast transition even when the body itself is
+  // white. Do not allow the outside flood-fill to cross that transition.
+  for (let dy = -2; dy <= 2; dy += 1) {
+    for (let dx = -2; dx <= 2; dx += 1) {
+      if (!dx && !dy) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+      const neighborOffset = (ny * width + nx) * 4;
+      if (data[neighborOffset + 3] < 8) continue;
+      const delta = Math.max(
+        Math.abs(r - data[neighborOffset]),
+        Math.abs(g - data[neighborOffset + 1]),
+        Math.abs(b - data[neighborOffset + 2])
+      );
+      if (delta >= 14) return true;
+    }
+  }
+  return false;
+}
+
+function protectedSubjectCoverage(data, width, height, isProtectedSubjectPixel) {
+  let expected = 0;
+  let opaque = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isProtectedSubjectPixel(x, y)) continue;
+      expected += 1;
+      if (data[(y * width + x) * 4 + 3] >= 32) opaque += 1;
+    }
+  }
+  return expected ? opaque / expected : 0;
 }
 
 function cross(origin, a, b) {
@@ -622,6 +665,7 @@ async function buildTransparentProductImage(src) {
     if (index < 0 || index >= total || visited[index]) return;
     const offset = index * 4;
     if (!isBorderBackgroundCandidate(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) return;
+    if (hasLocalProductEdge(data, width, height, index)) return;
     visited[index] = 1;
     queue[tail++] = index;
   };
@@ -641,9 +685,9 @@ async function buildTransparentProductImage(src) {
     const x = index % width;
     const y = Math.floor(index / width);
 
-    // Remove only near-white pixels that are connected to the outer canvas.
-    // A white/off-white cover remains intact because the physical product edge
-    // blocks this conservative flood before it reaches the cover interior.
+    // Remove only smooth near-white pixels connected to the outer canvas.
+    // Local physical edges are barriers, so a white/off-white cover is never
+    // traversed merely because its color resembles the background.
     data[offset + 3] = 0;
 
     if (x > 0) enqueue(index - 1);
@@ -651,6 +695,12 @@ async function buildTransparentProductImage(src) {
     if (y > 0) enqueue(index - width);
     if (y + 1 < height) enqueue(index + width);
   }
+
+  // Second safety gate: compare the surviving opaque body with the geometric
+  // product evidence detected before removal. If a leak ever eats a light
+  // cover, coverage collapses and we return the untouched original.
+  const subjectCoverage = protectedSubjectCoverage(data, width, height, subjectEvidence);
+  if (subjectCoverage < .72) return src;
 
   const productMask = buildProductComponentsMask(data, width, height);
   if (!productMask) return src;
@@ -918,5 +968,7 @@ export const __muralTransparentImageInternals = {
   clearOutsideSubject,
   buildProductComponentsMask,
   hasUsableTransparentBorder,
+  hasLocalProductEdge,
+  protectedSubjectCoverage,
   buildTreatedProductImage
 };
