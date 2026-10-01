@@ -37,36 +37,42 @@ ON CONFLICT(product_id) DO UPDATE SET
   source_image_key = excluded.source_image_key,
   processed_image_key = CASE
     WHEN mural_product_images.status = 'approved'
+      AND mural_product_images.processor = 'admin-upload'
       AND mural_product_images.source_image_key = excluded.source_image_key
     THEN mural_product_images.processed_image_key
     ELSE NULL
   END,
   status = CASE
     WHEN mural_product_images.status = 'approved'
+      AND mural_product_images.processor = 'admin-upload'
       AND mural_product_images.source_image_key = excluded.source_image_key
     THEN 'approved'
     ELSE 'pending'
   END,
   processor = CASE
     WHEN mural_product_images.status = 'approved'
+      AND mural_product_images.processor = 'admin-upload'
       AND mural_product_images.source_image_key = excluded.source_image_key
     THEN mural_product_images.processor
     ELSE NULL
   END,
   processor_version = CASE
     WHEN mural_product_images.status = 'approved'
+      AND mural_product_images.processor = 'admin-upload'
       AND mural_product_images.source_image_key = excluded.source_image_key
     THEN mural_product_images.processor_version
     ELSE NULL
   END,
   reviewed_by = CASE
     WHEN mural_product_images.status = 'approved'
+      AND mural_product_images.processor = 'admin-upload'
       AND mural_product_images.source_image_key = excluded.source_image_key
     THEN mural_product_images.reviewed_by
     ELSE NULL
   END,
   reviewed_at = CASE
     WHEN mural_product_images.status = 'approved'
+      AND mural_product_images.processor = 'admin-upload'
       AND mural_product_images.source_image_key = excluded.source_image_key
     THEN mural_product_images.reviewed_at
     ELSE NULL
