@@ -65,7 +65,7 @@ test('database keeps original image and exposes persisted treated derivative as 
   assert.ok(core.includes('/api/admin/product-image-treatment/pending'));
   assert.ok(core.includes('/api/admin/product-image-treatment/'));
   assert.ok(core.includes('processed/products/'));
-  assert.ok(core.includes("processor='system-browser-cutout'"));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR = 'system-official-mask'"));
   assert.ok(core.includes('original_image_url'));
   assert.ok(core.includes('/api/product-images/'));
 
@@ -87,6 +87,7 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(main.includes('ProductImageTreatmentWorker'));
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
   assert.ok(worker.includes('treatedProductImageBlob'));
+  assert.ok(worker.includes('tasselCode:item.tassel_code'));
   assert.ok(worker.includes("form.append('image'"));
   assert.ok(worker.includes('/failed'));
 });
@@ -104,5 +105,7 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'treated') return normalized"));
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
-  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '5'"));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '6'"));
+  assert.ok(core.includes("COALESCE(mpi.processor,'') <> 'admin-upload'"));
+  assert.ok(core.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
 });

@@ -8,6 +8,16 @@ const treatedProductImageCache = new Map();
 const treatedProductImageInflight = new Map();
 const MAX_CACHE_ENTRIES = 80;
 const MAX_RENDER_DIMENSION = 1800;
+const officialProductMaskCache = new Map();
+
+// Official outer contours supplied by NISTI. They are deliberately kept as
+// assets instead of being approximated from white pixels in the product
+// image: a white cover and a white studio background can be identical in RGB.
+const OFFICIAL_PRODUCT_MASKS = Object.freeze({
+  withTassel:'/product-masks/agenda-with-tassel.png',
+  withoutTassel:'/product-masks/agenda-without-tassel.png'
+});
+const OFFICIAL_MASK_ASPECT_TOLERANCE = .045;
 
 // Structural mask normalized from the approved transparent planner outline
 // reference (1254×1254). The reference is used only as geometry: it protects
@@ -35,6 +45,117 @@ const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function officialProductMaskVariant(tasselCode) {
+  const normalized = String(tasselCode || '').trim().toUpperCase();
+  if (!normalized) return null;
+  return normalized === 'X' ? 'withoutTassel' : 'withTassel';
+}
+
+async function loadOfficialProductMask(variant) {
+  if (!OFFICIAL_PRODUCT_MASKS[variant]) return null;
+  if (officialProductMaskCache.has(variant)) return officialProductMaskCache.get(variant);
+
+  const promise = (async () => {
+    const response = await fetch(OFFICIAL_PRODUCT_MASKS[variant], {
+      credentials:'same-origin',
+      cache:'force-cache'
+    });
+    if (!response.ok) throw new Error(`Molde oficial indisponível (${response.status}).`);
+    const bitmap = await loadBitmap(await response.blob());
+    const width = Number(bitmap.width || bitmap.naturalWidth || 0);
+    const height = Number(bitmap.height || bitmap.naturalHeight || 0);
+    if (!width || !height) throw new Error('Molde oficial sem dimensões válidas.');
+    return { bitmap, width, height };
+  })().catch(error => {
+    officialProductMaskCache.delete(variant);
+    throw error;
+  });
+
+  officialProductMaskCache.set(variant, promise);
+  return promise;
+}
+
+function fillOfficialOutline(outline, width, height) {
+  const total = width * height;
+  const barrier = new Uint8Array(total);
+  for (let index = 0; index < total; index += 1) {
+    if (outline[index * 4 + 3] >= 24) barrier[index] = 1;
+  }
+
+  // The supplied files are closed external contours. Flooding only the area
+  // reachable from the canvas border converts that contour into a solid
+  // silhouette while preserving the entire white/off-white cover inside it.
+  const outside = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let head = 0;
+  let tail = 0;
+  const enqueue = index => {
+    if (index < 0 || index >= total || outside[index] || barrier[index]) return;
+    outside[index] = 1;
+    queue[tail++] = index;
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x);
+    enqueue((height - 1) * width + x);
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    enqueue(y * width);
+    enqueue(y * width + width - 1);
+  }
+  while (head < tail) {
+    const index = queue[head++];
+    const x = index % width;
+    const y = Math.floor(index / width);
+    if (x > 0) enqueue(index - 1);
+    if (x + 1 < width) enqueue(index + 1);
+    if (y > 0) enqueue(index - width);
+    if (y + 1 < height) enqueue(index + width);
+  }
+
+  const silhouette = new Uint8Array(total);
+  for (let index = 0; index < total; index += 1) {
+    if (!outside[index]) silhouette[index] = 1;
+  }
+  return silhouette;
+}
+
+async function buildOfficialProductMask(width, height, tasselCode) {
+  const variant = officialProductMaskVariant(tasselCode);
+  if (!variant || typeof document === 'undefined') return null;
+  const reference = await loadOfficialProductMask(variant);
+  if (!reference) return null;
+
+  const sourceAspect = width / Math.max(1, height);
+  const maskAspect = reference.width / Math.max(1, reference.height);
+  const aspectDifference = Math.abs(sourceAspect - maskAspect) / Math.max(.0001, maskAspect);
+  if (aspectDifference > OFFICIAL_MASK_ASPECT_TOLERANCE) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d', { willReadFrequently:true });
+  if (!context) return null;
+  context.clearRect(0, 0, width, height);
+  context.drawImage(reference.bitmap, 0, 0, width, height);
+  const outline = context.getImageData(0, 0, width, height).data;
+  const mask = fillOfficialOutline(outline, width, height);
+  const stats = maskStats(mask, width, height);
+  if (stats.ratio < .45 || stats.ratio > .80 || stats.touches >= 3) return null;
+  return { mask, variant, stats };
+}
+
+function applyOfficialProductMask(data, mask) {
+  let removed = 0;
+  for (let index = 0; index < mask.length; index += 1) {
+    if (mask[index]) continue;
+    const alphaOffset = index * 4 + 3;
+    if (data[alphaOffset] > 0) removed += 1;
+    data[alphaOffset] = 0;
+  }
+  return removed;
 }
 
 function pixelMetrics(r, g, b) {
@@ -816,7 +937,7 @@ async function loadBitmap(blob) {
   }
 }
 
-async function buildTransparentProductImage(src) {
+async function buildTransparentProductImage(src, options = {}) {
   const response = await fetch(src, { credentials:'same-origin' });
   if (!response.ok) throw new Error(`Falha ao carregar imagem do produto (${response.status}).`);
 
@@ -848,6 +969,35 @@ async function buildTransparentProductImage(src) {
   // border. A tiny transparent logo/mark inside the image is not a prepared
   // product cutout and must not disable background cleanup.
   if (hasExistingTransparency(data, total) && hasUsableTransparentBorder(data, width, height)) return src;
+
+  // When the product metadata identifies the tassel variant, the official
+  // contour is authoritative. Never fall back to guessing white pixels for a
+  // queued database derivative: a mismatched/missing mask must fail safely so
+  // the original remains visible and untouched.
+  const requestedOfficialVariant = officialProductMaskVariant(options.tasselCode);
+  if (requestedOfficialVariant) {
+    const official = await buildOfficialProductMask(width, height, options.tasselCode);
+    if (!official) return src;
+    applyOfficialProductMask(data, official.mask);
+
+    const officialProductMask = buildProductComponentsMask(data, width, height);
+    if (!officialProductMask) return src;
+    const officialStats = maskStats(officialProductMask, width, height);
+    if (
+      officialStats.ratio < .45
+      || officialStats.ratio > .80
+      || officialStats.touches >= 3
+    ) return src;
+
+    context.putImageData(imageData, 0, 0);
+    const outputBlob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        result => result ? resolve(result) : reject(new Error('Falha ao aplicar o molde oficial do produto.')),
+        'image/png'
+      );
+    });
+    return URL.createObjectURL(outputBlob);
+  }
 
   // First try the approved planner geometry. A mostly white planner can have
   // too little color contrast for the generic foreground detector, but its
@@ -996,8 +1146,11 @@ async function persistedProductImageSource(src) {
   }
 }
 
-async function buildTreatedProductImage(src) {
-  const cutoutSrc = await transparentProductImageUrl(src);
+async function buildTreatedProductImage(src, options = {}) {
+  const requestedOfficialVariant = officialProductMaskVariant(options.tasselCode);
+  const cutoutSrc = requestedOfficialVariant
+    ? await buildTransparentProductImage(src, options)
+    : await transparentProductImageUrl(src);
   if (!cutoutSrc) return src;
 
   const response = await fetch(cutoutSrc, { credentials:'same-origin' });
@@ -1048,6 +1201,19 @@ async function buildTreatedProductImage(src) {
     data[index * 4 + 3] = 0;
   }
   sourceContext.putImageData(imageData, 0, 0);
+
+  if (requestedOfficialVariant) {
+    // The official contour already reserves the approved white band around
+    // the physical product. Adding a second synthetic dilation here would
+    // make that border too thick and would no longer match the supplied mold.
+    const outputBlob = await new Promise((resolve, reject) => {
+      sourceCanvas.toBlob(
+        result => result ? resolve(result) : reject(new Error('Falha ao gerar PNG pelo molde oficial.')),
+        'image/png'
+      );
+    });
+    return URL.createObjectURL(outputBlob);
+  }
 
   const solidMask = fillMaskInteriorHoles(productMask, width, height);
   // 8 px at 1024 px, proportional at other resolutions: within the requested
@@ -1129,11 +1295,11 @@ export async function treatedProductImageUrl(src) {
   return promise;
 }
 
-export async function treatedProductImageBlob(src) {
+export async function treatedProductImageBlob(src, options = {}) {
   const normalized = String(src || '').trim();
   if (!normalized || typeof document === 'undefined' || isPersistedProductImageUrl(normalized)) return null;
 
-  const url = await buildTreatedProductImage(normalized);
+  const url = await buildTreatedProductImage(normalized, options);
   if (!url || !url.startsWith('blob:')) return null;
 
   try {
@@ -1253,6 +1419,10 @@ export function useTreatedProductImage(src, enabled = true) {
 }
 
 export const __muralTransparentImageInternals = {
+  officialProductMaskVariant,
+  fillOfficialOutline,
+  buildOfficialProductMask,
+  applyOfficialProductMask,
   buildSubjectProtection,
   clearOutsideSubject,
   buildProductComponentsMask,

@@ -5,6 +5,33 @@ import { __muralTransparentImageInternals } from '../src/mural-transparent-image
 
 const source = fs.readFileSync(new URL('../src/mural-transparent-image.js', import.meta.url), 'utf8');
 
+test('official NISTI contours select the tassel variant from product metadata', () => {
+  assert.equal(__muralTransparentImageInternals.officialProductMaskVariant('X'), 'withoutTassel');
+  assert.equal(__muralTransparentImageInternals.officialProductMaskVariant('B'), 'withTassel');
+  assert.equal(__muralTransparentImageInternals.officialProductMaskVariant(''), null);
+  assert.ok(fs.existsSync(new URL('../public/product-masks/agenda-with-tassel.png', import.meta.url)));
+  assert.ok(fs.existsSync(new URL('../public/product-masks/agenda-without-tassel.png', import.meta.url)));
+  assert.match(source, /OFFICIAL_MASK_ASPECT_TOLERANCE = \.045/);
+});
+
+test('official closed outline becomes a solid silhouette without relying on RGB color', () => {
+  const width = 9;
+  const height = 9;
+  const outline = new Uint8ClampedArray(width * height * 4);
+  for (let x = 2; x <= 6; x += 1) {
+    outline[(2 * width + x) * 4 + 3] = 255;
+    outline[(6 * width + x) * 4 + 3] = 255;
+  }
+  for (let y = 2; y <= 6; y += 1) {
+    outline[(y * width + 2) * 4 + 3] = 255;
+    outline[(y * width + 6) * 4 + 3] = 255;
+  }
+
+  const mask = __muralTransparentImageInternals.fillOfficialOutline(outline, width, height);
+  assert.equal(mask[4 * width + 4], 1, 'white cover interior is protected');
+  assert.equal(mask[0], 0, 'external background is removable');
+});
+
 test('background removal protects white and off-white covers with a physical-edge barrier', () => {
   assert.match(source, /brightness >= 242 && chroma <= 18/);
   assert.match(source, /function hasLocalProductEdge/);

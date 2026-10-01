@@ -36,7 +36,8 @@ const BULK_IMPORT_LIMIT = 100;
 const EXTRA_REFERENCE_LIMIT = 6;
 const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '5';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '6';
+const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
   const id = Number(productId || 0);
@@ -849,7 +850,7 @@ export default {
         const limit = Number.isInteger(requestedLimit) ? Math.max(1, Math.min(8, requestedLimit)) : 3;
         const { results } = await env.DB.prepare(`
           SELECT
-            p.id,p.sku,p.nome,p.image_key,
+            p.id,p.sku,p.nome,p.image_key,p.tassel_code,
             mpi.source_image_key,mpi.processed_image_key,mpi.status,
             mpi.processor,mpi.processor_version,mpi.error_message
           FROM products p
@@ -864,6 +865,11 @@ export default {
                 mpi.status='failed'
                 AND COALESCE(mpi.processor_version,'') <> ?
               )
+              OR (
+                mpi.status='approved'
+                AND COALESCE(mpi.processor,'') <> 'admin-upload'
+                AND COALESCE(mpi.processor_version,'') <> ?
+              )
             )
           ORDER BY
             CASE COALESCE(mpi.status,'pending')
@@ -874,7 +880,7 @@ export default {
             END,
             p.id ASC
           LIMIT ?
-        `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,limit).all();
+        `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,PRODUCT_IMAGE_PROCESSOR_VERSION,limit).all();
 
         return json({
           ok:true,
@@ -884,6 +890,7 @@ export default {
             id:Number(row.id),
             sku:row.sku || null,
             name:row.nome || null,
+            tassel_code:row.tassel_code || 'X',
             image_key:row.image_key,
             status:row.status || 'pending',
             original_image_url:productOriginalImageUrl(row.id,row.image_key),
@@ -921,7 +928,7 @@ export default {
           httpMetadata:{ contentType:'image/png' },
           customMetadata:{
             sourceImageKey:String(product.image_key),
-            processor:'system-browser-cutout',
+            processor:PRODUCT_IMAGE_PROCESSOR,
             processorVersion:PRODUCT_IMAGE_PROCESSOR_VERSION,
             width:String(png.width),
             height:String(png.height)
@@ -932,18 +939,18 @@ export default {
           INSERT INTO mural_product_images (
             product_id,source_image_key,processed_image_key,status,processor,
             processor_version,reviewed_by,reviewed_at,error_message,updated_at
-          ) VALUES (?, ?, ?, 'approved', 'system-browser-cutout', ?, 'system', CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP)
+          ) VALUES (?, ?, ?, 'approved', ?, ?, 'system', CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
             source_image_key=excluded.source_image_key,
             processed_image_key=excluded.processed_image_key,
             status='approved',
-            processor='system-browser-cutout',
+            processor=excluded.processor,
             processor_version=excluded.processor_version,
             reviewed_by='system',
             reviewed_at=CURRENT_TIMESTAMP,
             error_message=NULL,
             updated_at=CURRENT_TIMESTAMP
-        `).bind(productId,product.image_key,key,PRODUCT_IMAGE_PROCESSOR_VERSION).run();
+        `).bind(productId,product.image_key,key,PRODUCT_IMAGE_PROCESSOR,PRODUCT_IMAGE_PROCESSOR_VERSION).run();
 
         if (product.processed_image_key && product.processed_image_key !== key) {
           await env.PRODUCT_IMAGES.delete(product.processed_image_key).catch(()=>{});
@@ -974,18 +981,18 @@ export default {
           INSERT INTO mural_product_images (
             product_id,source_image_key,processed_image_key,status,processor,
             processor_version,reviewed_by,reviewed_at,error_message,updated_at
-          ) VALUES (?, ?, NULL, 'failed', 'system-browser-cutout', ?, NULL, NULL, ?, CURRENT_TIMESTAMP)
+          ) VALUES (?, ?, NULL, 'failed', ?, ?, NULL, NULL, ?, CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
             source_image_key=excluded.source_image_key,
             processed_image_key=NULL,
             status='failed',
-            processor='system-browser-cutout',
+            processor=excluded.processor,
             processor_version=excluded.processor_version,
             reviewed_by=NULL,
             reviewed_at=NULL,
             error_message=excluded.error_message,
             updated_at=CURRENT_TIMESTAMP
-        `).bind(productId,product.image_key,PRODUCT_IMAGE_PROCESSOR_VERSION,reason).run();
+        `).bind(productId,product.image_key,PRODUCT_IMAGE_PROCESSOR,PRODUCT_IMAGE_PROCESSOR_VERSION,reason).run();
 
         return json({ ok:true, product_id:productId, status:'failed', summary:await productTreatmentSummary(env) });
       }

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { treatedProductImageBlob } from './mural-transparent-image.js';
 
-const LOCK_KEY = 'nisti_product_image_treatment_lock_v4';
+const LOCK_KEY = 'nisti_product_image_treatment_lock_v6';
 const LOCK_TTL_MS = 90 * 1000;
 const BATCH_SIZE = 3;
 
@@ -70,7 +70,9 @@ async function markFailed(productId, message) {
 }
 
 async function processItem(item) {
-  const blob = await treatedProductImageBlob(item.original_image_url);
+  const blob = await treatedProductImageBlob(item.original_image_url, {
+    tasselCode:item.tassel_code
+  });
   if (!blob) {
     await markFailed(item.id, 'A imagem original não gerou um recorte transparente seguro com o limite atual.');
     return { id:item.id, status:'failed' };
