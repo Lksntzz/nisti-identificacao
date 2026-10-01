@@ -46,8 +46,11 @@ function isDirectSupabasePrimaryMutation(url, method) {
   if (/^\/api\/admin\/mural\/collections\/\d+$/.test(url.pathname) && method === 'PUT') return true;
   if (/^\/api\/admin\/mural\/collections\/\d+\/products$/.test(url.pathname) && method === 'PUT') return true;
   if (/^\/api\/admin\/mural\/collections\/\d+\/publish$/.test(url.pathname) && method === 'POST') return true;
-  if (/^\/api\/admin\/mural\/posts\/\d+$/.test(url.pathname) && method === 'PUT') return true;
+  if (/^\/api\/admin\/mural\/posts\/\d+$/.test(url.pathname) && ['PUT','DELETE'].includes(method)) return true;
   if (/^\/api\/admin\/mural\/posts\/\d+\/(?:publish|archive|duplicate)$/.test(url.pathname) && method === 'POST') return true;
+  if (/^\/api\/admin\/mural\/posts\/\d+\/image$/.test(url.pathname) && ['POST','DELETE'].includes(method)) return true;
+  if (/^\/api\/admin\/mural\/collections\/\d+\/image$/.test(url.pathname) && ['POST','DELETE'].includes(method)) return true;
+  if (/^\/api\/admin\/mural\/products\/\d+\/image$/.test(url.pathname) && ['POST','DELETE'].includes(method)) return true;
   if (/^\/api\/products\/\d+$/.test(url.pathname) && ['PUT', 'PATCH', 'DELETE'].includes(method)) return true;
   if (/^\/api\/products\/\d+\/image$/.test(url.pathname) && method === 'POST') return true;
   if (/^\/api\/admin\/product-image-treatment\/\d+(?:\/(?:approve|redo|failed))?$/.test(url.pathname) && method === 'POST') return true;
