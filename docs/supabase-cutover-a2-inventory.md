@@ -1,43 +1,57 @@
 # Supabase cutover — A2 D1 mutation inventory
 
-Status: **in progress**. This inventory is intentionally conservative: a mutation stays listed until the
-Supabase-primary path bypasses D1 or the route is explicitly retired.
+Status: **primary-path migration complete; pre-unfreeze validation pending**.
 
-## Direct Supabase-primary paths already implemented
+The application still contains D1 SQL as a temporary compatibility/fallback layer. With
+`SUPABASE_READS_ENABLED=1` and `SUPABASE_WRITE_MODE=primary`, the active operational and
+administrative paths listed below use Supabase as the authoritative database. The production write
+freeze remains enabled until the final frozen smoke-test gate is complete.
 
-- Product create/update/delete, bulk products, product image and finishes.
-- Product GTIN link/unlink.
-- Product treatment review/approve/redo/failure and visual references.
-- New-cover notifications.
-- Scanner GTIN event writes and Mural read receipts.
-- Gemini call budget while Supabase reads are authoritative.
+## Direct Supabase-primary paths implemented
 
-The D1 SQL that remains in these modules is a compatibility path for non-primary modes and must remain
-unreachable when `SUPABASE_WRITE_MODE=primary`.
+- Product create/update/delete, bulk product import, product image and finishes.
+- Product GTIN link/unlink and GTIN scanner event writes.
+- Product treatment review/approve/redo/failure, manual Mural treatment upload/reset and visual references.
+- Product treatment queues, trained-reference diagnostics and cover-index diagnostics.
+- Scanner occurrence create/train/dismiss, including reference embedding persistence.
+- Recognition telemetry, recognition diagnostics, operator aggregates and operator rename.
+- Geometric-shadow evidence create/link/confirm, confirmation lookup and Admin summary.
+- User/admin notifications and notification read receipts.
+- Push-subscription persistence and active subscription reads; D1 push logs are skipped in primary mode.
+- Mural public read receipts and Mural Admin post/collection CRUD, images, metrics, readiness,
+  product picker and Gemini reference packages.
+- Reference reindex reads/writes.
+- NISTI → Commerce synchronization now sources the authoritative NISTI product rows from Supabase.
+- System Metrics and System Health use Supabase as the primary database when Supabase reads are enabled.
+- Gemini call budget uses the Supabase atomic RPC while Supabase reads are authoritative.
 
-## D1 mutation blockers found by the final static audit
+## Remaining D1 code classification
 
-| Module | D1 tables | Classification | Cutover action |
-| --- | --- | --- | --- |
-| `src/mural-router.js` | mural_posts, mural_post_reads, mural_collections, mural_collection_products, mural_product_images | operational/admin | migrate admin Mural reads + writes before unfreezing |
-| `src/occurrences-router.js` | scan_occurrences, cover_visual_references, cover_reference_embeddings | operational/admin | make occurrence create/train/dismiss Supabase-primary |
-| `src/recognition-metrics.js` | recognition_daily, recognition_events | operational telemetry | **migrated:** primary mode records telemetry directly in Supabase |
-| `src/system-metrics-clean-router.js` | recognition_events | admin | **migrated:** primary operator rename writes directly to Supabase |
-| `src/web-push.js` | push_subscriptions, push_logs | operational/telemetry | **migrated for primary mode:** subscription state is Supabase; D1 push logs are skipped |
-| `src/geometric-shadow-evidence-router.js` | geometric_shadow_evidence | operational telemetry | direct Supabase evidence/link/confirm path |
-| `src/gtin-router.js` | gtin_scan_events, product_gtins | operational/admin | event writes, GTIN link/unlink and admin dismissal are Supabase-primary; D1 SQL remains compatibility-only |
-| `src/geometric-shadow-confirmation-router.js` | geometric_shadow_evidence | operational telemetry | direct Supabase confirmation path |
-| `src/reference-reindex-router.js` | cover_reference_embeddings | maintenance | read pending references and persist embeddings in Supabase |
-| `src/core-router.js` | products, product_platforms, product_gtins, cover_visual_references, cover_reference_embeddings, mural_product_images, notifications | mixed | direct-primary routes already bypass most blocks; residual notification/test and legacy branches must be reviewed |
-| `src/product-finish-router.js` | products | compatibility | already bypassed in primary mode |
-| `src/cover-notifications.js` | notifications, notification_reads | compatibility | primary notification paths exist; verify every mark/read path |
-| `src/gemini-budget.js` | gemini_call_budget | emergency fallback | remove D1 fallback only after the cutover confidence window |
+| Module | D1 SQL still present | Primary-mode status |
+| --- | --- | --- |
+| `src/core-router.js` | product/catalog/reference/notification compatibility SQL | active primary product, image, reference and Admin diagnostic paths bypass D1 |
+| `src/mural-router.js` | Mural compatibility reads/writes | active Mural Admin writes and reads have direct Supabase branches |
+| `src/occurrences-router.js` | occurrence/training compatibility SQL | create/train/dismiss are direct Supabase-primary |
+| `src/recognition-metrics.js` | legacy telemetry/read SQL | primary telemetry and reads are Supabase |
+| `src/system-metrics-clean-router.js` | legacy D1 metrics/health path | Supabase-read mode uses Supabase-only database probes |
+| `src/web-push.js` | compatibility subscriptions and D1-only debug logs | subscriptions are Supabase-primary; D1 logs are skipped in primary |
+| `src/geometric-shadow-evidence-router.js` | legacy evidence/read SQL | active create/link/confirm/summary paths are Supabase |
+| `src/geometric-shadow-confirmation-router.js` | legacy confirmation SQL | primary confirmation reads/writes are Supabase |
+| `src/reference-reindex-router.js` | compatibility embedding SQL | primary pending-reference reads and embedding writes are Supabase |
+| `src/product-finish-router.js` | compatibility product update | direct Supabase-primary branch executes before D1 |
+| `src/cover-notifications.js` | compatibility notification SQL | primary notification writers/read receipts use Supabase |
+| `src/gemini-budget.js` | emergency D1 budget fallback | intentional temporary fallback only for eligible Supabase transport/server failures |
 
-## Rules for A2 completion
+## A2 completion invariants
 
-1. Every D1 mutation site is represented by the static confinement test.
-2. A route classified operational or administrative cannot execute a D1 mutation when
-   `SUPABASE_WRITE_MODE=primary`.
-3. Compatibility SQL may remain temporarily only behind an explicit non-primary branch.
-4. Maintenance routes must be migrated or explicitly disabled before the D1 binding is removed.
-5. No change to `SUPABASE_CUTOVER_WRITE_FREEZE` is allowed while any blocker above remains open.
+1. Every JavaScript module containing D1 mutation SQL remains represented by the static inventory test.
+2. No operational or administrative mutation may execute D1 when `SUPABASE_WRITE_MODE=primary`.
+3. No primary database read should require D1 when `SUPABASE_READS_ENABLED=1`; D1 SQL may remain only
+   as an explicit compatibility/emergency path during the confidence window.
+4. Primary Supabase RPCs remain `SECURITY INVOKER`, server-only and executable only by `service_role`.
+5. `SUPABASE_CUTOVER_WRITE_FREEZE=1` remains mandatory until the current PR Production Gate is green
+   and frozen smoke tests confirm Scanner, cadastro, Catálogo, Mural, Admin health and Commerce sync reads.
+6. The first production change after the frozen smoke tests is only
+   `SUPABASE_CUTOVER_WRITE_FREEZE=0`; the D1 binding is not removed in the same release.
+7. After writes are released, controlled writes must be verified directly in Supabase before the
+   compatibility/fallback removal phase begins.
