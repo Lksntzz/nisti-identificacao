@@ -108,4 +108,6 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '6'"));
   assert.ok(core.includes("COALESCE(mpi.processor,'') <> 'admin-upload'"));
   assert.ok(core.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
+  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '6'"));
+  assert.ok(publicImages.includes("row.processor === 'admin-upload'"));
 });

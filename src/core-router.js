@@ -112,6 +112,10 @@ async function productTreatmentSummary(env) {
         AND mpi.status='approved'
         AND mpi.processed_image_key IS NOT NULL
         AND mpi.source_image_key=p.image_key
+        AND (
+          mpi.processor='admin-upload'
+          OR mpi.processor_version=?
+        )
         THEN 1 ELSE 0 END) AS approved,
       SUM(CASE WHEN p.image_key IS NOT NULL
         AND (
@@ -119,11 +123,15 @@ async function productTreatmentSummary(env) {
           OR COALESCE(mpi.status,'') <> 'approved'
           OR mpi.processed_image_key IS NULL
           OR mpi.source_image_key IS NOT p.image_key
+          OR (
+            COALESCE(mpi.processor,'') <> 'admin-upload'
+            AND COALESCE(mpi.processor_version,'') <> ?
+          )
         )
         THEN 1 ELSE 0 END) AS pending
     FROM products p
     LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
-  `).first();
+  `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,PRODUCT_IMAGE_PROCESSOR_VERSION).first();
   return {
     with_image:Number(row?.with_image || 0),
     approved:Number(row?.approved || 0),
@@ -820,7 +828,9 @@ export default {
             p.image_key,
             mpi.source_image_key,
             mpi.processed_image_key,
-            mpi.status
+            mpi.status,
+            mpi.processor,
+            mpi.processor_version
           FROM products p
           LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
           WHERE p.id=?
@@ -829,7 +839,11 @@ export default {
 
         const processedReady = row.status === 'approved'
           && row.processed_image_key
-          && row.source_image_key === row.image_key;
+          && row.source_image_key === row.image_key
+          && (
+            row.processor === 'admin-upload'
+            || row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION
+          );
         let object = processedReady ? await env.PRODUCT_IMAGES.get(row.processed_image_key) : null;
         let servedKey = processedReady && object ? row.processed_image_key : row.image_key;
         if (!object) object = await env.PRODUCT_IMAGES.get(row.image_key);
