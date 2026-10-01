@@ -1,4 +1,5 @@
 import { mirrorSupabaseRpc, supabasePrimaryWritesRequested, supabaseWriteMode } from './supabase-write-store.js';
+import { supabaseReadsRequested, supabaseRpc } from './supabase-read-store.js';
 
 const TIMEZONE = 'America/Sao_Paulo';
 let tableReady = false;
@@ -268,12 +269,22 @@ function normalizeEvent(row) {
 }
 
 export async function readRecognitionEvents(env, options = {}) {
-  await ensureRecognitionMetrics(env);
   const limit = Math.max(1, Math.min(200, Number(options.limit) || 100));
   const kind = String(options.kind || '').trim();
   const issuesOnly = Boolean(options.issuesOnly);
   const operatorName = String(options.operator_name || options.operator || '').trim();
-  
+
+  if (supabaseReadsRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_recognition_events_v1',{
+      p_limit:limit,
+      p_kind:kind || null,
+      p_issues_only:issuesOnly,
+      p_operator_name:operatorName || null
+    });
+    return (Array.isArray(rows)?rows:[]).map(normalizeEvent);
+  }
+
+  await ensureRecognitionMetrics(env);
   const conditions = [];
   const binds = [];
 
@@ -304,6 +315,20 @@ export async function readRecognitionEvents(env, options = {}) {
 }
 
 export async function readOperatorStats(env) {
+  if (supabaseReadsRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_operator_stats_v1',{});
+    return (Array.isArray(rows)?rows:[]).map(r=>({
+      operator_name:r.operator_name || 'Operador Geral',
+      operator_id:r.operator_id || null,
+      total_attempts:Number(r.total_attempts || 0),
+      successes:Number(r.successes || 0),
+      unmatched:Number(r.unmatched || 0),
+      system_errors:Number(r.system_errors || 0),
+      success_rate:Number(r.success_rate || 0),
+      last_seen_at:r.last_seen_at || null
+    }));
+  }
+
   await ensureRecognitionMetrics(env);
   const rows = await env.DB.prepare(`
     SELECT
@@ -334,8 +359,25 @@ export async function readOperatorStats(env) {
 }
 
 export async function readRecognitionMetrics(env) {
-  await ensureRecognitionMetrics(env);
   const today = saoPauloDay();
+
+  if (supabaseReadsRequested(env)) {
+    const payload=await supabaseRpc(env,'nisti_recognition_metrics_v1',{p_day:today});
+    const todayRow=normalize(payload?.today || {});
+    const totalRow=normalize(payload?.since_monitoring || {});
+    return {
+      timezone:TIMEZONE,
+      monitoring_started_on:payload?.monitoring_started_on || today,
+      today:todayRow,
+      since_monitoring:totalRow,
+      average_ms_today:Number(payload?.average_ms_today || 0),
+      latest_success_at:payload?.latest_success_at || null,
+      latest_error_at:payload?.latest_error_at || null,
+      latest_error_message:payload?.latest_error_message || null
+    };
+  }
+
+  await ensureRecognitionMetrics(env);
   const todayRow = normalize(await env.DB.prepare(`SELECT * FROM recognition_daily WHERE day=?`).bind(today).first());
   const totalRow = normalize(await env.DB.prepare(`
     SELECT
