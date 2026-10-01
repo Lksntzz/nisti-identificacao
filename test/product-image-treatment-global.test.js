@@ -167,9 +167,10 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("status='approved',reviewed_by='admin'"));
   assert.ok(core.includes("processor='system-precise-redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
-  assert.ok(utility.includes('requestedOfficialVariant && !options.forceOutline'));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
   assert.ok(utility.includes('const outlineScale = 8 / 1024'));
   assert.ok(utility.includes('if (requestedOfficialVariant) {\n    const official = await buildOfficialProductMask'));
-  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 1);
+  assert.ok(utility.includes('const photoStructure = buildPlannerStructureProtection(data, width, height)'));
+  assert.ok(utility.includes('if (photoStructure) applyPlannerStructureMask'));
+  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 0);
 });
