@@ -7,7 +7,10 @@ const transparentOutlineInflight = new Map();
 const treatedProductImageCache = new Map();
 const treatedProductImageInflight = new Map();
 const MAX_CACHE_ENTRIES = 80;
-const MAX_RENDER_DIMENSION = 1800;
+// Keep generated RGBA PNGs safely below the 8 MB upload ceiling. A 1280 px
+// canvas has at most ~6.6 MB of uncompressed pixel data, so even difficult
+// photographic covers cannot wedge the queue with an oversized PNG.
+const MAX_RENDER_DIMENSION = 1280;
 const officialProductMaskCache = new Map();
 
 // Official outer contours supplied by NISTI. They are deliberately kept as
@@ -1154,8 +1157,15 @@ async function buildTreatedProductImage(src, options = {}) {
   if (!cutoutSrc) return src;
 
   const response = await fetch(cutoutSrc, { credentials:'same-origin' });
-  if (!response.ok) return src;
+  if (!response.ok) {
+    if (cutoutSrc.startsWith('blob:')) URL.revokeObjectURL(cutoutSrc);
+    return src;
+  }
   const blob = await response.blob();
+  // The official-mask path creates a temporary object URL for every product.
+  // Revoke it immediately after reading the Blob; otherwise hundreds of large
+  // canvases stay alive and the browser eventually stops the treatment loop.
+  if (cutoutSrc.startsWith('blob:')) URL.revokeObjectURL(cutoutSrc);
   const bitmap = await loadBitmap(blob);
   const width = Number(bitmap.width || bitmap.naturalWidth || 0);
   const height = Number(bitmap.height || bitmap.naturalHeight || 0);
