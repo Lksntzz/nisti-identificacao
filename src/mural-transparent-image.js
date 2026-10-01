@@ -987,6 +987,14 @@ async function buildTransparentProductImage(src, options = {}) {
   if (requestedOfficialVariant) {
     const official = await buildOfficialProductMask(width, height, options.tasselCode);
     if (!official) return src;
+
+    // The photos are not always positioned exactly like the supplied mold.
+    // Follow the real cover, wire-o and tassel anchors first, then intersect
+    // that cut with the correct official variant. This removes the large
+    // white steps beside the rings and the oversized white floor caused by
+    // applying a full-canvas contour verbatim.
+    const photoStructure = buildPlannerStructureProtection(data, width, height);
+    if (photoStructure) applyPlannerStructureMask(data, width, height, photoStructure);
     applyOfficialProductMask(data, official.mask);
 
     const officialProductMask = buildProductComponentsMask(data, width, height);
@@ -1221,26 +1229,9 @@ async function buildTreatedProductImage(src, options = {}) {
   }
   sourceContext.putImageData(imageData, 0, 0);
 
-  if (requestedOfficialVariant && !options.forceOutline) {
-    // The official contour already reserves the approved white band around
-    // the physical product. Adding a second synthetic dilation here would
-    // make that border too thick and would no longer match the supplied mold.
-    const outputBlob = await new Promise((resolve, reject) => {
-      sourceCanvas.toBlob(
-        result => result ? resolve(result) : reject(new Error('Falha ao gerar PNG pelo molde oficial.')),
-        'image/png'
-      );
-    });
-    return URL.createObjectURL(outputBlob);
-  }
-
   const solidMask = fillMaskInteriorHoles(productMask, width, height);
-  // 8 px at 1024 px, proportional at other resolutions: within the requested
-  // visual band of roughly 6–10 px per 1024 px.
-  // Standard output keeps 8 / 1024. A precise redo deliberately reaches this
-  // branch after recalculating the cutout from the original and receives its
-  // own 8 / 1024 external ring; previously the early return above prevented
-  // the forced border from ever being drawn.
+  // Normal and forced treatments now share the same clean 8 / 1024 ring. The
+  // official mold limits the silhouette; it is not painted as a white plate.
   const outlineScale = 8 / 1024;
   const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 2, 16);
   const expandedMask = dilateMask(solidMask, width, height, outlineRadius);
