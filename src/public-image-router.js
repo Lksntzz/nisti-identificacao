@@ -104,7 +104,7 @@ async function imageKey(env, entity, id) {
   );
 }
 
-async function serveObject(request, env, objectKey, url) {
+async function serveObject(request, env, objectKey, url, extraHeaders = null) {
   if (!objectKey) return notFound();
 
   const object = request.method === 'HEAD'
@@ -113,6 +113,11 @@ async function serveObject(request, env, objectKey, url) {
 
   if (!object) return notFound();
   const headers = responseHeaders(object, url);
+  if (extraHeaders) {
+    for (const [name, value] of Object.entries(extraHeaders)) {
+      if (value !== undefined && value !== null) headers.set(name, String(value));
+    }
+  }
 
   if (request.method === 'HEAD') {
     return new Response(null, { status: 200, headers });
@@ -135,11 +140,15 @@ export async function handlePublicImageRequest(request, env) {
     const productId = Number(productDisplayMatch[1]);
     const processedKey = await imageKeyFromD1(env, 'mural-product', productId);
     if (processedKey) {
-      const processed = await serveObject(request, env, processedKey, url);
+      const processed = await serveObject(request, env, processedKey, url, {
+        'x-nisti-image-source':'treated'
+      });
       if (processed.status !== 404) return processed;
     }
     const originalKey = await imageKey(env, 'product', productId);
-    return serveObject(request, env, originalKey, url);
+    return serveObject(request, env, originalKey, url, {
+      'x-nisti-image-source':'original'
+    });
   }
 
   const referenceMatch = url.pathname.match(/^\/api\/reference-images\/(\d+)$/);

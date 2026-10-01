@@ -90,3 +90,19 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(worker.includes("form.append('image'"));
   assert.ok(worker.includes('/failed'));
 });
+
+
+test('display endpoint marks treated versus original fallback and client reprocesses only original fallback', () => {
+  const publicImages = read('src/public-image-router.js');
+  const utility = read('src/mural-transparent-image.js');
+  const core = read('src/core-router.js');
+
+  assert.ok(publicImages.includes("'x-nisti-image-source':'treated'"));
+  assert.ok(publicImages.includes("'x-nisti-image-source':'original'"));
+  assert.ok(utility.includes("method:'HEAD'"));
+  assert.ok(utility.includes("response.headers.get('x-nisti-image-source')"));
+  assert.ok(utility.includes("if (source === 'treated') return normalized"));
+  assert.ok(utility.includes("if (source === 'original')"));
+  assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '5'"));
+});

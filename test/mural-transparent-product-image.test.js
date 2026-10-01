@@ -318,10 +318,14 @@ test('planner cutout uses the adaptive body template before any color flood-fill
   const buildStart = source.indexOf('async function buildTransparentProductImage');
   const buildEnd = source.indexOf('async function buildTreatedProductImage');
   const buildSource = source.slice(buildStart, buildEnd);
+  const templateDetection = buildSource.indexOf('const plannerStructureProtection = buildPlannerStructureProtection');
   const templateBranch = buildSource.indexOf('if (plannerStructureProtection)');
+  const genericEvidence = buildSource.indexOf('const subjectEvidence = buildSubjectProtection');
   const floodFill = buildSource.indexOf('const visited = new Uint8Array(total)');
-  assert.ok(templateBranch >= 0);
-  assert.ok(floodFill > templateBranch);
+  assert.ok(templateDetection >= 0);
+  assert.ok(templateBranch > templateDetection);
+  assert.ok(genericEvidence > templateBranch, 'planner geometry must run before generic color evidence');
+  assert.ok(floodFill > genericEvidence);
   assert.match(buildSource, /applyPlannerStructureMask\(data, width, height, plannerStructureProtection\)/);
   assert.match(source, /bodyPolygon: Object\.freeze/);
   assert.match(source, /buildPlannerReferenceBounds/);
