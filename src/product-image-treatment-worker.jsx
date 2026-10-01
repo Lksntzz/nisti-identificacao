@@ -4,9 +4,12 @@ import { treatedProductImageBlob } from './mural-transparent-image.js';
 const LOCK_KEY = 'nisti_product_image_treatment_lock_v8';
 export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
+export const TREATMENT_WAKE_EVENT = 'nisti:product-image-treatment-wake';
 const LOCK_TTL_MS = 90 * 1000;
 const BATCH_SIZE = 3;
 const MAX_TRANSIENT_ATTEMPTS = 3;
+const IDLE_POLL_MS = 15 * 60 * 1000;
+const PAUSED_POLL_MS = 5 * 60 * 1000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -128,12 +131,13 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
       if (running || cancelled) return;
       if (treatmentPaused()) {
         emitTreatmentProgress({ phase:'paused' });
-        if (!cancelled) wakeTimer = window.setTimeout(run, 30000);
+        if (!cancelled) wakeTimer = window.setTimeout(run, PAUSED_POLL_MS);
         return;
       }
       if (!acquireLock(owner)) return;
       running = true;
 
+      const changed = [];
       try {
         let emptyPasses = 0;
 
@@ -160,7 +164,6 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
           }
 
           emptyPasses = 0;
-          const changed = [];
 
           for (const item of items) {
             if (cancelled || treatmentPaused()) break;
@@ -201,19 +204,18 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
             await sleep(120);
           }
 
-          if (changed.length) {
-            try { await onBatchCompleteRef.current?.(changed); } catch {}
-          }
-
           await sleep(300);
         }
       } catch (error) {
         console.warn('[NISTI imagens] Fila automática interrompida temporariamente', error);
         emitTreatmentProgress({ phase:'error', error:String(error?.message || error) });
       } finally {
+        if (changed.length) {
+          try { await onBatchCompleteRef.current?.(changed); } catch {}
+        }
         running = false;
         releaseLock(owner);
-        if (!cancelled) wakeTimer = window.setTimeout(run, 30000);
+        if (!cancelled) wakeTimer = window.setTimeout(run, IDLE_POLL_MS);
       }
     };
 
@@ -225,13 +227,21 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
         wakeTimer = window.setTimeout(run, 0);
       }
     };
+    const onWake = () => {
+      if (treatmentPaused()) return;
+      if (wakeTimer) window.clearTimeout(wakeTimer);
+      wakeTimer = window.setTimeout(run, 0);
+    };
+
     window.addEventListener(TREATMENT_CONTROL_EVENT, onControl);
+    window.addEventListener(TREATMENT_WAKE_EVENT, onWake);
     const timer = window.setTimeout(run, 900);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
       if (wakeTimer) window.clearTimeout(wakeTimer);
       window.removeEventListener(TREATMENT_CONTROL_EVENT, onControl);
+      window.removeEventListener(TREATMENT_WAKE_EVENT, onWake);
       releaseLock(owner);
     };
   }, [enabled]);
