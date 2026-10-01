@@ -984,7 +984,7 @@ async function buildTransparentProductImage(src, options = {}) {
   // queued database derivative: a mismatched/missing mask must fail safely so
   // the original remains visible and untouched.
   const requestedOfficialVariant = officialProductMaskVariant(options.tasselCode);
-  if (requestedOfficialVariant && !options.forceOutline) {
+  if (requestedOfficialVariant) {
     const official = await buildOfficialProductMask(width, height, options.tasselCode);
     if (!official) return src;
     applyOfficialProductMask(data, official.mask);
