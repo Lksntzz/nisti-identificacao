@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CommerceSalesProductPerformance from './commerce-sales-product-performance.jsx';
+import ProductCutoutImage from './product-cutout-image.jsx';
 import './commerce-sales-dashboard.css';
 
 const PAGE_SIZE = 100;
@@ -535,25 +536,18 @@ function decisionSignalLabel(value) {
 }
 
 function ProductAvatar({ item }) {
-  const [failed, setFailed] = useState(false);
   const text = String(item.product_name || item.sku || '?').trim();
-
-  if (item.image_url && !failed) {
-    return (
-      <img
-        className="sales-product-image"
-        src={item.image_url}
-        alt=""
-        loading="lazy"
-        onError={() => setFailed(true)}
-      />
-    );
-  }
-
   return (
-    <span className={`sales-product-avatar ${String(item.platform_code || '').toLowerCase()}`}>
-      {text.charAt(0).toUpperCase()}
-    </span>
+    <ProductCutoutImage
+      className="sales-product-image"
+      src={item.image_url}
+      alt=""
+      fallback={(
+        <span className={`sales-product-avatar ${String(item.platform_code || '').toLowerCase()}`}>
+          {text.charAt(0).toUpperCase()}
+        </span>
+      )}
+    />
   );
 }
 
