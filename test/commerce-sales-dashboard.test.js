@@ -167,7 +167,8 @@ test('Produtos vendidos exibem imagem real e SKU da venda', () => {
 
   assert.equal(ui.includes('sales-product-image'), true);
   assert.equal(ui.includes('SKU vendido'), true);
-  assert.equal(ui.includes("src={item.image_url}"), true);
+  assert.equal(ui.includes('ProductCutoutImage'), true);
+  assert.equal(ui.includes('src={item.image_url}'), true);
   assert.equal(ui.includes("SKU vendido: {item.sku || '—'}"), true);
 
   assert.equal(css.includes('.sales-product-image'), true);
