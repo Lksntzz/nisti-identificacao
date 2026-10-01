@@ -1,6 +1,6 @@
 # Supabase cutover — A2 D1 mutation inventory
 
-Status: **primary-path migration complete; pre-unfreeze validation pending**.
+Status: **primary-path migration complete; frozen validation passed; release candidate has writes enabled**.
 
 The application still contains D1 SQL as a temporary compatibility/fallback layer. With
 `SUPABASE_READS_ENABLED=1` and `SUPABASE_WRITE_MODE=primary`, the active operational and
@@ -22,6 +22,7 @@ freeze remains enabled until the final frozen smoke-test gate is complete.
   product picker and Gemini reference packages.
 - Reference reindex reads/writes.
 - NISTI → Commerce synchronization now sources the authoritative NISTI product rows from Supabase.
+- Direct product create/update/finish and bulk import trigger Commerce synchronization; primary product deletion removes stale Commerce links.
 - System Metrics and System Health use Supabase as the primary database when Supabase reads are enabled.
 - Gemini call budget uses the Supabase atomic RPC while Supabase reads are authoritative.
 
@@ -50,9 +51,7 @@ freeze remains enabled until the final frozen smoke-test gate is complete.
 3. No primary database read should require D1 when `SUPABASE_READS_ENABLED=1`; D1 SQL may remain only
    as an explicit compatibility/emergency path during the confidence window.
 4. Primary Supabase RPCs remain `SECURITY INVOKER`, server-only and executable only by `service_role`.
-5. `SUPABASE_CUTOVER_WRITE_FREEZE=1` remains mandatory until the current PR Production Gate is green
-   and frozen smoke tests confirm Scanner, cadastro, Catálogo, Mural, Admin health and Commerce sync reads.
-6. The first production change after the frozen smoke tests is only
-   `SUPABASE_CUTOVER_WRITE_FREEZE=0`; the D1 binding is not removed in the same release.
+5. Frozen validation completed with green Production Gates and Supabase smoke reads for Scanner data, cadastro/Catálogo state, Mural, Admin health and Commerce synchronization.
+6. The release candidate sets `SUPABASE_CUTOVER_WRITE_FREEZE=0`; the D1 binding is intentionally retained in the same release as a compatibility/rollback layer.
 7. After writes are released, controlled writes must be verified directly in Supabase before the
    compatibility/fallback removal phase begins.
