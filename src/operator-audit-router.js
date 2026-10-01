@@ -61,7 +61,7 @@ function cutoverFreezeResponse(configError = null) {
 
 function primaryWriteFailureResponse(error) {
   console.error(JSON.stringify({
-    message: 'Supabase primary write failed after transitional D1 mutation',
+    message: 'Supabase primary write failed',
     code: error?.code || 'supabase_primary_write_failed',
     status: Number(error?.status || 0) || null
   }));
