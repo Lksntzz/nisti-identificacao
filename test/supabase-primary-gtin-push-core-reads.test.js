@@ -33,3 +33,8 @@ test('test notification is a direct primary mutation and does not require D1 rem
   assert.match(core,/recordNewCoverNotification\(env/);
   assert.match(mirror,/url\.pathname === '\/api\/admin\/notifications\/test'/);
 });
+
+test('Mural read receipts do not remirror from D1 in primary mode',()=>{
+  assert.match(mirror,/\/api\\\/mural\\\/\\d\+\\\/read/);
+  assert.match(mirror,/\/api\/mural\/mark-all-read/);
+});
