@@ -20,6 +20,14 @@ function pixelMetrics(r, g, b) {
   };
 }
 
+function isStrongForegroundPixel(r, g, b, a) {
+  if (a < 32) return false;
+  const { chroma, brightness } = pixelMetrics(r, g, b);
+  // Ignore pale studio shadows. Strong cover artwork, elastic and wire-o
+  // remain as evidence for the real product body.
+  return brightness < 218 || chroma > 30;
+}
+
 function isBorderBackgroundCandidate(r, g, b, a) {
   if (a < 8) return true;
   const { chroma, brightness } = pixelMetrics(r, g, b);
@@ -115,7 +123,92 @@ function maskStats(mask, width, height) {
   return { area, minX, maxX, minY, maxY, touches, ratio:area / Math.max(1, width * height) };
 }
 
+function buildDominantForegroundGrid(data, width, height) {
+  const columns = clamp(Math.round(width / 20), 48, 96);
+  const rows = clamp(Math.round(height / 20), 48, 96);
+  const cellCount = columns * rows;
+  const activity = new Uint32Array(cellCount);
+
+  for (let y = 0; y < height; y += 1) {
+    const cellY = Math.min(rows - 1, Math.floor(y * rows / height));
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      if (!isStrongForegroundPixel(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) continue;
+      const cellX = Math.min(columns - 1, Math.floor(x * columns / width));
+      activity[cellY * columns + cellX] += 1;
+    }
+  }
+
+  const approximateCellArea = Math.max(1, (width / columns) * (height / rows));
+  const minimumActivity = Math.max(2, Math.round(approximateCellArea * .008));
+  let connected = new Uint8Array(cellCount);
+  for (let index = 0; index < cellCount; index += 1) {
+    if (activity[index] >= minimumActivity) connected[index] = 1;
+  }
+
+  // Bridge artwork, elastic and wire-o that belong to the same agenda while
+  // leaving a detached corner logo as a separate, much smaller component.
+  for (let pass = 0; pass < 2; pass += 1) {
+    const expanded = connected.slice();
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < columns; x += 1) {
+        const index = y * columns + x;
+        if (!connected[index]) continue;
+        for (let yy = Math.max(0, y - 1); yy <= Math.min(rows - 1, y + 1); yy += 1) {
+          for (let xx = Math.max(0, x - 1); xx <= Math.min(columns - 1, x + 1); xx += 1) {
+            expanded[yy * columns + xx] = 1;
+          }
+        }
+      }
+    }
+    connected = expanded;
+  }
+
+  const labels = new Int32Array(cellCount);
+  labels.fill(-1);
+  const queue = new Int32Array(cellCount);
+  let label = 0;
+  let dominantLabel = -1;
+  let dominantWeight = 0;
+
+  for (let start = 0; start < cellCount; start += 1) {
+    if (!connected[start] || labels[start] >= 0) continue;
+    let head = 0;
+    let tail = 0;
+    let weight = 0;
+    labels[start] = label;
+    queue[tail++] = start;
+
+    while (head < tail) {
+      const index = queue[head++];
+      weight += activity[index];
+      const x = index % columns;
+      const y = Math.floor(index / columns);
+      const push = next => {
+        if (next < 0 || next >= cellCount || !connected[next] || labels[next] >= 0) return;
+        labels[next] = label;
+        queue[tail++] = next;
+      };
+      if (x > 0) push(index - 1);
+      if (x + 1 < columns) push(index + 1);
+      if (y > 0) push(index - columns);
+      if (y + 1 < rows) push(index + columns);
+    }
+
+    if (weight > dominantWeight) {
+      dominantWeight = weight;
+      dominantLabel = label;
+    }
+    label += 1;
+  }
+
+  if (dominantLabel < 0 || dominantWeight < Math.max(12, Math.round(width * height * .001))) return null;
+  return { columns, rows, labels, dominantLabel };
+}
+
 function buildSubjectProtection(data, width, height) {
+  const dominant = buildDominantForegroundGrid(data, width, height);
+  if (!dominant) return null;
   const rowMin = new Int32Array(height);
   const rowMax = new Int32Array(height);
   rowMin.fill(width);
@@ -125,11 +218,10 @@ function buildSubjectProtection(data, width, height) {
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const offset = (y * width + x) * 4;
-      const a = data[offset + 3];
-      if (a < 32) continue;
-      const { chroma, brightness } = pixelMetrics(data[offset], data[offset + 1], data[offset + 2]);
-      const strongForeground = brightness < 235 || chroma > 22;
-      if (!strongForeground) continue;
+      if (!isStrongForegroundPixel(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) continue;
+      const cellX = Math.min(dominant.columns - 1, Math.floor(x * dominant.columns / width));
+      const cellY = Math.min(dominant.rows - 1, Math.floor(y * dominant.rows / height));
+      if (dominant.labels[cellY * dominant.columns + cellX] !== dominant.dominantLabel) continue;
       strongPixels += 1;
       if (x < rowMin[y]) rowMin[y] = x;
       if (x > rowMax[y]) rowMax[y] = x;
@@ -160,8 +252,8 @@ function buildSubjectProtection(data, width, height) {
 
   const centerX = (minX + maxX) / 2;
   const centerY = (minY + maxY) / 2;
-  const padX = Math.max(2, Math.round(width * .018));
-  const padY = Math.max(2, Math.round(height * .018));
+  const padX = Math.max(2, Math.round(width * .022));
+  const padY = Math.max(2, Math.round(height * .022));
   const scaleX = 1 + padX / Math.max(1, (maxX - minX) / 2);
   const scaleY = 1 + padY / Math.max(1, (maxY - minY) / 2);
   const expandedHull = hull.map(point => ({
@@ -192,6 +284,19 @@ function buildSubjectProtection(data, width, height) {
   }
 
   return (x, y) => protectedMax[y] >= 0 && x >= protectedMin[y] && x <= protectedMax[y];
+}
+
+function clearOutsideSubject(data, width, height, isProtectedSubjectPixel) {
+  let removed = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (isProtectedSubjectPixel(x, y)) continue;
+      const alphaOffset = (y * width + x) * 4 + 3;
+      if (data[alphaOffset] > 0) removed += 1;
+      data[alphaOffset] = 0;
+    }
+  }
+  return removed;
 }
 
 function buildLargestConnectedSubjectMask(data, width, height) {
@@ -371,7 +476,7 @@ async function buildProductOutlineImage(src) {
   if (stats.ratio > .82 || stats.touches >= 3) return '';
 
   const solidMask = fillMaskInteriorHoles(mainMask, width, height);
-  const radius = clamp(Math.round(Math.max(width, height) * .003), 2, 6);
+  const radius = clamp(Math.round(Math.max(width, height) * .0018), 1, 3);
   const expandedMask = dilateMask(solidMask, width, height, radius);
 
   const outlineData = context.createImageData(width, height);
@@ -533,6 +638,11 @@ async function buildTransparentProductImage(src) {
     if (y + 1 < height) enqueue(index + width);
   }
 
+  // Hard-clip everything outside the dominant agenda body. This is what
+  // removes a printed/export logo sitting alone in a corner instead of
+  // allowing it to stretch the white outline toward itself.
+  clearOutsideSubject(data, width, height, isProtectedSubjectPixel);
+
   context.putImageData(imageData, 0, 0);
 
   const outputBlob = await new Promise((resolve, reject) => {
@@ -619,3 +729,8 @@ export function useTransparentProductOutline(src, enabled = true) {
 
   return outlineSrc;
 }
+
+export const __muralTransparentImageInternals = {
+  buildSubjectProtection,
+  clearOutsideSubject
+};
