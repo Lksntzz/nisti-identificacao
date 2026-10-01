@@ -129,7 +129,7 @@ test('structural fallback reads use preferred Supabase store and legacy self-tra
   assert.doesNotMatch(resolveSection, /env\.DB\.prepare/);
 });
 
-test('production cutover switches remain off by default', () => {
+test('production read cutover is enabled by default', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
-  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
+  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
 });
