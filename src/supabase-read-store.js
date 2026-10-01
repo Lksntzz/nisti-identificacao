@@ -277,3 +277,48 @@ export async function supabaseReserveUnreadNotifications(env, userId) {
   });
   return Number(value || 0);
 }
+
+
+export async function supabaseReserveGtinEvents(env, {
+  status = '',
+  pending = false,
+  today = false,
+  query = '',
+  limit = 25,
+  offset = 0
+} = {}) {
+  return rows(await supabaseRpc(env, 'nisti_reserve_gtin_events_v1', {
+    p_status:String(status || '').trim() || null,
+    p_pending:Boolean(pending),
+    p_today:Boolean(today),
+    p_query:String(query || '').trim() || null,
+    p_limit:Math.max(1,Math.min(100,Number(limit) || 25)),
+    p_offset:Math.max(0,Number(offset) || 0)
+  }));
+}
+
+export async function supabaseReserveMuralFeed(env, {
+  userId = 'anonymous',
+  kind = null,
+  limit = 20,
+  cursor = null
+} = {}) {
+  const value = await supabaseRpc(env, 'nisti_reserve_mural_feed_v1', {
+    p_user_id:String(userId || 'anonymous').trim().slice(0,100),
+    p_kind:String(kind || '').trim() || null,
+    p_limit:Math.max(1,Math.min(50,Number(limit) || 20)),
+    p_cursor_featured:cursor ? Number(cursor.featured || 0) === 1 : null,
+    p_cursor_priority:cursor ? Number(cursor.priority || 0) : null,
+    p_cursor_published_at:cursor?.published_at || null,
+    p_cursor_id:cursor ? Number(cursor.id || 0) || null : null
+  });
+  return value && typeof value === 'object'
+    ? value
+    : { rows:[], preview_rows:[], unread_count:0 };
+}
+
+export async function supabaseReserveMuralCollection(env, slug) {
+  return supabaseRpc(env, 'nisti_reserve_mural_collection_v1', {
+    p_slug:String(slug || '').trim()
+  });
+}
