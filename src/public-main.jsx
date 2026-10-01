@@ -3,6 +3,7 @@ import './app.css';
 import LOGO from './assets/logo.png';
 import GtinScannerOverlay from './gtin-scanner-overlay.jsx';
 import MuralNisti from './mural-nisti.jsx';
+import ProductCutoutImage from './product-cutout-image.jsx';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -260,11 +261,11 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
               onClick={() => !item.is_read && markOne(item.id)}
             >
               <div className="notification-thumb">
-                {item.image_url ? (
-                  <img src={item.image_url} alt={item.capa_code} loading="lazy" />
-                ) : (
-                  <div className="thumb-placeholder">Sem foto</div>
-                )}
+                <ProductCutoutImage
+                  src={item.image_url}
+                  alt={item.capa_code}
+                  fallback={<div className="thumb-placeholder">Sem foto</div>}
+                />
               </div>
               <div className="notification-info">
                 <div className="notification-top-row">
