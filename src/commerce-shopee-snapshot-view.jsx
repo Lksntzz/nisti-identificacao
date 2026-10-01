@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { commerceApi } from './commerce-admin-api.js';
+import ProductCutoutImage from './product-cutout-image.jsx';
 import {
   COMMERCE_PAGE_SIZE,
   CommerceEmptyState,
@@ -21,14 +22,12 @@ function publicShopeeUrl(item) {
 }
 
 function ImageThumb({ src, alt, className = '' }) {
-  if (!src) return <div className={`commerce-image-placeholder ${className}`}>Sem imagem</div>;
   return (
-    <img
+    <ProductCutoutImage
       className={className}
       src={src}
       alt={alt || ''}
-      loading="lazy"
-      referrerPolicy="no-referrer"
+      fallback={<div className={`commerce-image-placeholder ${className}`}>Sem imagem</div>}
     />
   );
 }
