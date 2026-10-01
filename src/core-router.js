@@ -911,6 +911,14 @@ export default {
         return new Response(object.body, { headers });
       }
 
+      if (url.pathname === '/api/admin/product-image-treatment/summary' && request.method === 'GET') {
+        return json({
+          ok:true,
+          processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+          summary:await productTreatmentSummary(env)
+        });
+      }
+
       if (url.pathname === '/api/admin/product-image-treatment/pending' && request.method === 'GET') {
         const requestedLimit = Number(url.searchParams.get('limit') || 3);
         const limit = Number.isInteger(requestedLimit) ? Math.max(1, Math.min(8, requestedLimit)) : 3;
@@ -945,7 +953,6 @@ export default {
         return json({
           ok:true,
           processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
-          summary:await productTreatmentSummary(env),
           items:(results || []).map(row=>({
             id:Number(row.id),
             sku:row.sku || null,
@@ -1025,8 +1032,7 @@ export default {
           original_image_url:productOriginalImageUrl(productId,product.image_key),
           image_url:productDisplayImageUrl(productId,product.image_key,key),
           width:png.width,
-          height:png.height,
-          summary:await productTreatmentSummary(env)
+          height:png.height
         });
       }
 
@@ -1069,7 +1075,7 @@ export default {
               error_message=NULL,updated_at=CURRENT_TIMESTAMP
           WHERE product_id=?
         `).bind(productId).run();
-        return json({ ok:true,product_id:productId,status:'approved',summary:await productTreatmentSummary(env) });
+        return json({ ok:true,product_id:productId,status:'approved' });
       }
 
       const treatmentRedo = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/redo$/);
@@ -1084,7 +1090,7 @@ export default {
             source_image_key=excluded.source_image_key,status='pending',processor='system-precise-redo',reviewed_by=NULL,
             reviewed_at=NULL,error_message=NULL,updated_at=CURRENT_TIMESTAMP
         `).bind(productId,row.image_key).run();
-        return json({ ok:true,product_id:productId,status:'pending',precise_redo:true,summary:await productTreatmentSummary(env) });
+        return json({ ok:true,product_id:productId,status:'pending',precise_redo:true });
       }
 
       const treatmentFailed = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/failed$/);
@@ -1112,7 +1118,7 @@ export default {
             updated_at=CURRENT_TIMESTAMP
         `).bind(productId,product.image_key,PRODUCT_IMAGE_PROCESSOR,PRODUCT_IMAGE_PROCESSOR_VERSION,reason).run();
 
-        return json({ ok:true, product_id:productId, status:'failed', summary:await productTreatmentSummary(env) });
+        return json({ ok:true, product_id:productId, status:'failed' });
       }
 
 
