@@ -48,7 +48,7 @@ function AdminMuralIcon({ name, size = 22 }) {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(path, { credentials: 'same-origin', ...options });
+  const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...options });
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : null;
   if (!response.ok) throw new Error(data?.error || `Erro ${response.status}`);
@@ -114,6 +114,7 @@ function TransparentMuralProductImage({ src, alt = '', className = '', draggable
 function MuralProductImageManager({ products, onChanged }) {
   const [query,setQuery]=useState('');
   const [showApproved,setShowApproved]=useState(false);
+  const [justApprovedIds,setJustApprovedIds]=useState(()=>new Set());
   const [busyId,setBusyId]=useState(null);
   const [error,setError]=useState('');
   const [paused,setPaused]=useState(()=>{
@@ -124,10 +125,12 @@ function MuralProductImageManager({ products, onChanged }) {
   });
   const filtered=useMemo(()=>{
     const term=query.trim().toLowerCase();
-    const visible=showApproved?products:products.filter(item=>!item.mural_image_ready);
+    const visible=showApproved
+      ?products.filter(item=>item.mural_image_ready)
+      :products.filter(item=>!item.mural_image_ready&&!justApprovedIds.has(Number(item.id)));
     if(!term)return visible;
     return visible.filter(item=>`${item.sku||''} ${item.nome||''} ${item.variacao||''}`.toLowerCase().includes(term));
-  },[products,query,showApproved]);
+  },[products,query,showApproved,justApprovedIds]);
 
   useEffect(()=>{
     let active=true;
@@ -225,7 +228,12 @@ function MuralProductImageManager({ products, onChanged }) {
   };
   const approve=async product=>{
     setBusyId(product.id);setError('');
-    try{await request(`/api/admin/product-image-treatment/${product.id}/approve`,{method:'POST'});await onChanged()}
+    try{
+      await request(`/api/admin/product-image-treatment/${product.id}/approve`,{method:'POST'});
+      setJustApprovedIds(current=>new Set(current).add(Number(product.id)));
+      setShowApproved(false);
+      await onChanged();
+    }
     catch(err){setError(err.message)}finally{setBusyId(null)}
   };
   const redo=async product=>{
