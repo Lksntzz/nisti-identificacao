@@ -1,1 +1,39 @@
-import assert from 'node:assert/strict';\nimport fs from 'node:fs';\nimport test from 'node:test';\n\nconst scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');\nconst directLookup = fs.readFileSync(new URL('../src/gtin-supabase-lookup.js', import.meta.url), 'utf8');\nconst edgeFunction = fs.readFileSync(new URL('../supabase/functions/gtin-lookup/index.ts', import.meta.url), 'utf8');\n\ntest('scanner resolves EAN through Supabase before the legacy Worker route', () => {\n  assert.match(scanner, /lookupGtinDirect\\(gtin\\)/);\n  const directIndex = scanner.indexOf('lookupGtinDirect(gtin)');\n  const workerIndex = scanner.indexOf('fetch(`/api/gtin/${encodeURIComponent(gtin)}`');\n  assert.ok(directIndex >= 0);\n  assert.ok(workerIndex > directIndex);\n});\n\ntest('Cloudflare telemetry is best effort and cannot block an identified product', () => {\n  assert.match(scanner, /void fetch\\('\/api\/gtin-events'/);\n  assert.match(scanner, /\\.catch\\(\\(\\) => \\{\\}\\)/);\n});\n\ntest('scanner retains a local last-resort lookup path', () => {\n  assert.match(scanner, /cachedProductForGtin\\(gtin\\)/);\n  assert.match(scanner, /loadGtinHistory\\(\\)\\.find/);\n});\n\ntest('browser direct lookup calls only the dedicated Supabase Edge Function', () => {\n  assert.match(directLookup, /supabase\\.co\/functions\/v1\/gtin-lookup/);\n  assert.doesNotMatch(directLookup, /service[_-]?role/i);\n  assert.doesNotMatch(directLookup, /apikey/i);\n  assert.match(directLookup, /response\\.status === 404/);\n});\n\ntest('Edge Function validates GTIN and keeps service credentials server-side', () => {\n  assert.match(edgeFunction, /\\^\\\\d\\{13\\}\\$/);\n  assert.match(edgeFunction, /Deno\\.env\\.get\\(\"SUPABASE_SERVICE_ROLE_KEY\"\\)/);\n  assert.match(edgeFunction, /nisti_reserve_gtin_lookup_v1/);\n  assert.match(edgeFunction, /method !== \"GET\"/);\n});\n
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+
+const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
+const directLookup = fs.readFileSync(new URL('../src/gtin-supabase-lookup.js', import.meta.url), 'utf8');
+const edgeFunction = fs.readFileSync(new URL('../supabase/functions/gtin-lookup/index.ts', import.meta.url), 'utf8');
+
+test('scanner resolves EAN through Supabase before the legacy Worker route', () => {
+  assert.match(scanner, /lookupGtinDirect\(gtin\)/);
+  const directIndex = scanner.indexOf('lookupGtinDirect(gtin)');
+  const workerIndex = scanner.indexOf('fetch(`/api/gtin/${encodeURIComponent(gtin)}`');
+  assert.ok(directIndex >= 0);
+  assert.ok(workerIndex > directIndex);
+});
+
+test('Cloudflare telemetry is best effort and cannot block an identified product', () => {
+  assert.match(scanner, /void fetch\('\/api\/gtin-events'/);
+  assert.match(scanner, /\.catch\(\(\) => \{\}\)/);
+});
+
+test('scanner retains a local last-resort lookup path', () => {
+  assert.match(scanner, /cachedProductForGtin\(gtin\)/);
+  assert.match(scanner, /loadGtinHistory\(\)\.find/);
+});
+
+test('browser direct lookup calls only the dedicated Supabase Edge Function', () => {
+  assert.match(directLookup, /supabase\.co\/functions\/v1\/gtin-lookup/);
+  assert.doesNotMatch(directLookup, /service[_-]?role/i);
+  assert.doesNotMatch(directLookup, /apikey/i);
+  assert.match(directLookup, /response\.status === 404/);
+});
+
+test('Edge Function validates GTIN and keeps service credentials server-side', () => {
+  assert.match(edgeFunction, /\^\\d\{13\}\$/);
+  assert.match(edgeFunction, /Deno\.env\.get\("SUPABASE_SERVICE_ROLE_KEY"\)/);
+  assert.match(edgeFunction, /nisti_reserve_gtin_lookup_v1/);
+  assert.match(edgeFunction, /method !== "GET"/);
+});
