@@ -113,9 +113,13 @@ async function productTreatmentSummary(env) {
           AND mpi.status='approved'
           AND mpi.processed_image_key IS NOT NULL
           AND mpi.source_image_key=p.image_key
+          AND mpi.reviewed_by='admin'
           THEN 1 ELSE 0 END AS is_approved,
         CASE WHEN p.image_key IS NOT NULL
-          AND mpi.status='review'
+          AND (
+            mpi.status='review'
+            OR (mpi.status='approved' AND COALESCE(mpi.reviewed_by,'')<>'admin')
+          )
           AND mpi.processed_image_key IS NOT NULL
           AND mpi.source_image_key=p.image_key
           THEN 1 ELSE 0 END AS is_review,
@@ -588,6 +592,7 @@ export default {
             mpi.status AS treated_image_status,
             mpi.processor AS treated_image_processor,
             mpi.processor_version AS treated_image_version,
+            mpi.reviewed_by AS treated_image_reviewed_by,
             (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
             (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link,
             (SELECT pg.gtin FROM product_gtins pg WHERE pg.product_id=p.id AND pg.active=1 ORDER BY pg.id ASC LIMIT 1) AS gtin,
@@ -604,7 +609,8 @@ export default {
           products: (results || []).map(product => {
             const treatedReady = product.treated_image_status === 'approved'
               && product.treated_image_key
-              && product.treated_source_image_key === product.image_key;
+              && product.treated_source_image_key === product.image_key
+              && product.treated_image_reviewed_by === 'admin';
             return {
               ...product,
               has_active_gtin: Number(product.has_active_gtin) === 1,
@@ -834,7 +840,8 @@ export default {
             mpi.processed_image_key,
             mpi.status,
             mpi.processor,
-            mpi.processor_version
+            mpi.processor_version,
+            mpi.reviewed_by
           FROM products p
           LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
           WHERE p.id=?
@@ -843,7 +850,8 @@ export default {
 
         const processedReady = row.status === 'approved'
           && row.processed_image_key
-          && row.source_image_key === row.image_key;
+          && row.source_image_key === row.image_key
+          && row.reviewed_by === 'admin';
         let object = processedReady ? await env.PRODUCT_IMAGES.get(row.processed_image_key) : null;
         let servedKey = processedReady && object ? row.processed_image_key : row.image_key;
         if (!object) object = await env.PRODUCT_IMAGES.get(row.image_key);
