@@ -752,6 +752,19 @@ async function adminDuplicatePost(id, env) {
 }
 
 async function adminDeletePost(id, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_post_write_v1',{
+      p_action:'delete',p_id:id,p_payload:{}
+    },`delete mural post ${id}`);
+    const value=result?.value || {};
+    if(value.status==='not_found') return json({ error:'Publicação não encontrada.' },404);
+    if(value.status!=='ok') return json({ error:'Não foi possível excluir a publicação.' },422);
+    if(value.image_key && Number(value.image_references || 0)===0 && env.PRODUCT_IMAGES) {
+      await env.PRODUCT_IMAGES.delete(value.image_key).catch(()=>{});
+    }
+    return json({ok:true,id});
+  }
+
   const current = await env.DB.prepare('SELECT id,image_key FROM mural_posts WHERE id=?').bind(id).first();
   if (!current) return json({ error:'Publicação não encontrada.' },404);
 
@@ -796,6 +809,31 @@ async function uploadEditorialImage(request, env, owner, id) {
   if (!detected || detected !== file.type) return json({ error: 'Conteúdo da imagem não corresponde ao formato informado.' }, 400);
   const key = `mural/${owner}/${id}/${crypto.randomUUID()}`;
   await env.PRODUCT_IMAGES.put(key, bytes, { httpMetadata: { contentType: detected } });
+
+  if (supabasePrimaryWritesRequested(env)) {
+    try {
+      const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_editorial_image_v1',{
+        p_owner:owner,p_id:id,p_image_key:key
+      },`mural ${owner} image ${id}`);
+      const value=result?.value || {};
+      if(value.status==='not_found') {
+        await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+        return json({error:'Registro não encontrado.'},404);
+      }
+      if(value.status!=='ok') {
+        await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+        return json({error:'Não foi possível salvar a imagem.'},422);
+      }
+      if(value.old_image_key && value.old_image_key!==key) {
+        await env.PRODUCT_IMAGES.delete(value.old_image_key).catch(()=>{});
+      }
+      return json({ok:true,image_key:key});
+    } catch(error) {
+      await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+      throw error;
+    }
+  }
+
   const table = owner === 'posts' ? 'mural_posts' : 'mural_collections';
   const existing = await env.DB.prepare(`SELECT image_key FROM ${table} WHERE id=?`).bind(id).first();
   if (!existing) { await env.PRODUCT_IMAGES.delete(key); return json({ error: 'Registro não encontrado.' }, 404); }
@@ -818,6 +856,18 @@ async function serveEditorialImage(key, env, { isPublic = true } = {}) {
 
 async function removeEditorialImage(env, owner, id) {
   if (!env.PRODUCT_IMAGES) return json({ error: 'Armazenamento de imagens indisponível.' }, 503);
+
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_editorial_image_v1',{
+      p_owner:owner,p_id:id,p_image_key:null
+    },`remove mural ${owner} image ${id}`);
+    const value=result?.value || {};
+    if(value.status==='not_found') return json({error:'Registro não encontrado.'},404);
+    if(value.status!=='ok') return json({error:'Não foi possível remover a imagem.'},422);
+    if(value.old_image_key) await env.PRODUCT_IMAGES.delete(value.old_image_key).catch(()=>{});
+    return json({ok:true});
+  }
+
   const table = owner === 'posts' ? 'mural_posts' : 'mural_collections';
   const existing = await env.DB.prepare(`SELECT image_key FROM ${table} WHERE id=?`).bind(id).first();
   if (!existing) return json({ error: 'Registro não encontrado.' }, 404);
@@ -1072,11 +1122,33 @@ async function adminPublishCollection(id, env) {
 }
 
 async function adminMetrics(env) {
+  const imageStatsPromise=env.PRODUCT_IMAGES
+    ? env.PRODUCT_IMAGES.list({ prefix:'mural/', limit:1000 }).catch(() => ({ objects:[] }))
+    : Promise.resolve({objects:[]});
+
+  if (supabasePrimaryWritesRequested(env)) {
+    const [metrics,imageStats]=await Promise.all([
+      supabaseRpc(env,'nisti_admin_mural_metrics_v1',{}),
+      imageStatsPromise
+    ]);
+    const editorialImages=imageStats?.objects || [];
+    const totalImageBytes=editorialImages.reduce((sum,item)=>sum+Number(item.size||0),0);
+    return json({
+      published_by_month:Array.isArray(metrics?.published_by_month)?metrics.published_by_month:[],
+      readers:Number(metrics?.readers || 0),
+      editorial_images:{
+        count:editorialImages.length,
+        average_bytes:editorialImages.length ? Math.round(totalImageBytes/editorialImages.length) : 0
+      },
+      top_reads:Array.isArray(metrics?.top_reads)?metrics.top_reads:[]
+    });
+  }
+
   const [publishedByMonth, readers, topReads, imageStats] = await Promise.all([
     env.DB.prepare(`SELECT substr(published_at,1,7) AS month,COUNT(*) AS total FROM mural_posts WHERE status='published' AND published_at IS NOT NULL GROUP BY substr(published_at,1,7) ORDER BY month DESC LIMIT 12`).all(),
     env.DB.prepare(`SELECT COUNT(DISTINCT user_id) AS total FROM mural_post_reads`).first(),
     env.DB.prepare(`SELECT mp.id,mp.title,COUNT(mr.user_id) AS reads FROM mural_posts mp JOIN mural_post_reads mr ON mr.post_id=mp.id GROUP BY mp.id,mp.title ORDER BY reads DESC,mp.id DESC LIMIT 10`).all(),
-    env.PRODUCT_IMAGES ? env.PRODUCT_IMAGES.list({ prefix:'mural/', limit:1000 }).catch(() => ({ objects:[] })) : Promise.resolve({ objects:[] })
+    imageStatsPromise
   ]);
   const editorialImages = imageStats?.objects || [];
   const totalImageBytes = editorialImages.reduce((sum,item) => sum + Number(item.size || 0),0);
@@ -1090,6 +1162,58 @@ async function adminMetrics(env) {
 
 
 async function adminReadiness(env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const payload=await supabaseRpc(env,'nisti_admin_mural_readiness_v1',{});
+    const contentRow=payload?.content || {};
+    const foldRows=Array.isArray(payload?.fold)?payload.fold:[];
+    const imageItems = await Promise.all(foldRows.map(async (row, index) => {
+      const key = row.image_key
+        || (row.kind === 'product' ? row.product_image_key : null)
+        || (row.kind === 'collection' ? row.collection_image_key : null)
+        || null;
+      let bytes = null;
+      if (key && env.PRODUCT_IMAGES?.head) {
+        const object = await env.PRODUCT_IMAGES.head(key).catch(() => null);
+        bytes = object ? Number(object.size || 0) : null;
+      }
+      const role = index === 0 && Boolean(row.featured) ? 'hero' : row.kind;
+      const budgetBytes = role === 'hero'
+        ? MURAL_IMAGE_BUDGETS.hero
+        : MURAL_IMAGE_BUDGETS[role] || null;
+      const imageRequired = role === 'hero' || row.kind === 'product' || row.kind === 'collection';
+      const missingRequiredImage = imageRequired && !key;
+      return {
+        id:Number(row.id),title:row.title,kind:row.kind,role,image_key:key,
+        image_required:imageRequired,missing_required_image:missingRequiredImage,bytes,
+        budget_bytes:budgetBytes,
+        within_budget:missingRequiredImage ? false : bytes === null || budgetBytes === null ? null : bytes <= budgetBytes
+      };
+    }));
+    const knownImageBytes=imageItems.reduce((sum,item)=>sum+(Number.isFinite(item.bytes)?item.bytes:0),0);
+    const allResolvable=imageItems.every(item=>!item.image_key||Number.isFinite(item.bytes));
+    const itemBudgetsOk=imageItems.every(item=>item.within_budget!==false);
+    const firstFoldOk=allResolvable && knownImageBytes<=MURAL_IMAGE_BUDGETS.first_fold;
+    const publishedNow=Number(contentRow?.total || 0);
+    const contentOk=publishedNow>=3;
+    const imagesOk=Boolean(env.PRODUCT_IMAGES) && firstFoldOk && itemBudgetsOk;
+    return json({
+      migration:{ok:true,present_tables:MURAL_REQUIRED_TABLES,missing_tables:[]},
+      content:{
+        ok:contentOk,published_now:publishedNow,minimum_for_qa:3,
+        by_kind:{
+          product:Number(contentRow?.products || 0),
+          collection:Number(contentRow?.collections || 0),
+          notice:Number(contentRow?.notices || 0)
+        }
+      },
+      images:{
+        ok:imagesOk,available:Boolean(env.PRODUCT_IMAGES),first_fold_bytes:knownImageBytes,
+        first_fold_budget_bytes:MURAL_IMAGE_BUDGETS.first_fold,all_resolvable:allResolvable,items:imageItems
+      },
+      automated_ready:contentOk && imagesOk
+    });
+  }
+
   const placeholders = MURAL_REQUIRED_TABLES.map(() => '?').join(',');
   const tableResult = await env.DB.prepare(
     `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
@@ -1215,25 +1339,36 @@ async function adminProducts(url, env) {
   const q = String(url.searchParams.get('q') || '').trim().slice(0,80);
   const requestedLimit = Number(url.searchParams.get('limit') || 80);
   const productLimit = Number.isInteger(requestedLimit) ? Math.max(1,Math.min(500,requestedLimit)) : 80;
-  const like = `%${q}%`;
-  const { results } = await env.DB.prepare(`
-    SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,p.wireo_code,p.tassel_code,p.elastico_code,p.miolo_code,
-      mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
-      mpi.processed_image_key AS mural_processed_image_key,mpi.processor AS mural_image_processor,
-      mpi.reviewed_at AS mural_image_reviewed_at,mpi.error_message AS mural_image_error,
-      (
-        SELECT mc2.name
-        FROM mural_collection_products mcp2
-        INNER JOIN mural_collections mc2 ON mc2.id=mcp2.collection_id
-        WHERE mcp2.product_id=p.id AND mc2.status='active'
-        ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
-        LIMIT 1
-      ) AS collection_name
-    FROM products p
-    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
-    WHERE (?='' OR sku LIKE ? OR nome LIKE ? OR variacao LIKE ?)
-    ORDER BY p.updated_at DESC,p.id DESC LIMIT ?
-  `).bind(q,like,like,like,productLimit).all();
+  let results=[];
+
+  if (supabasePrimaryWritesRequested(env)) {
+    const rows=await supabaseRpc(env,'nisti_admin_mural_products_v1',{
+      p_query:q || null,p_limit:productLimit
+    });
+    results=Array.isArray(rows)?rows:[];
+  } else {
+    const like = `%${q}%`;
+    const response=await env.DB.prepare(`
+      SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,p.wireo_code,p.tassel_code,p.elastico_code,p.miolo_code,
+        mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
+        mpi.processed_image_key AS mural_processed_image_key,mpi.processor AS mural_image_processor,
+        mpi.reviewed_at AS mural_image_reviewed_at,mpi.error_message AS mural_image_error,
+        (
+          SELECT mc2.name
+          FROM mural_collection_products mcp2
+          INNER JOIN mural_collections mc2 ON mc2.id=mcp2.collection_id
+          WHERE mcp2.product_id=p.id AND mc2.status='active'
+          ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
+          LIMIT 1
+        ) AS collection_name
+      FROM products p
+      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+      WHERE (?='' OR sku LIKE ? OR nome LIKE ? OR variacao LIKE ?)
+      ORDER BY p.updated_at DESC,p.id DESC LIMIT ?
+    `).bind(q,like,like,like,productLimit).all();
+    results=response.results || [];
+  }
+
   return json({items:(results||[]).map(row=>{
     const labels=finishLabels(row);
     const reviewable = (
@@ -1271,7 +1406,9 @@ function inspectTransparentPng(bytes) {
 
 async function uploadMuralProductImage(productId, request, env) {
   if (!env.PRODUCT_IMAGES) return json({ error:'Armazenamento de imagens indisponível.' },503);
-  const product = await env.DB.prepare('SELECT id,image_key FROM products WHERE id=?').bind(productId).first();
+  const product = supabasePrimaryWritesRequested(env)
+    ? await supabaseRpc(env,'nisti_admin_mural_gemini_product_v1',{p_product_id:productId})
+    : await env.DB.prepare('SELECT id,image_key FROM products WHERE id=?').bind(productId).first();
   if (!product) return json({ error:'Produto não encontrado.' },404);
   if (!product.image_key) return json({ error:'O produto ainda não possui imagem original.' },422);
 
@@ -1285,33 +1422,56 @@ async function uploadMuralProductImage(productId, request, env) {
   const png = inspectTransparentPng(bytes);
   if (!png) return json({ error:'Envie um PNG com canal de transparência e até 6000 × 6000 px.' },400);
 
-  const current = await env.DB.prepare(`
-    SELECT processed_image_key FROM mural_product_images WHERE product_id=?
-  `).bind(productId).first();
+  const currentProcessed=product.mural_processed_image_key || (
+    supabasePrimaryWritesRequested(env) ? null : (
+      await env.DB.prepare('SELECT processed_image_key FROM mural_product_images WHERE product_id=?').bind(productId).first()
+    )?.processed_image_key
+  );
   const key = `mural/products/${productId}/${crypto.randomUUID()}.png`;
   await env.PRODUCT_IMAGES.put(key, bytes, {
     httpMetadata:{ contentType:'image/png' },
     customMetadata:{ sourceImageKey:String(product.image_key), width:String(png.width), height:String(png.height) }
   });
-  await env.DB.prepare(`
-    INSERT INTO mural_product_images (
-      product_id,source_image_key,processed_image_key,status,processor,
-      processor_version,reviewed_by,reviewed_at,error_message,updated_at
-    ) VALUES (?,?,?,'review','admin-upload','1',NULL,NULL,NULL,CURRENT_TIMESTAMP)
-    ON CONFLICT(product_id) DO UPDATE SET
-      source_image_key=excluded.source_image_key,
-      processed_image_key=excluded.processed_image_key,
-      status='review',
-      processor='admin-upload',
-      processor_version='1',
-      reviewed_by=NULL,
-      reviewed_at=NULL,
-      error_message=NULL,
-      updated_at=CURRENT_TIMESTAMP
-  `).bind(productId,product.image_key,key).run();
-  if (current?.processed_image_key && current.processed_image_key !== key) {
-    await env.PRODUCT_IMAGES.delete(current.processed_image_key).catch(()=>{});
+
+  if (supabasePrimaryWritesRequested(env)) {
+    try {
+      const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v1',{
+        p_product_id:productId,p_action:'review',p_processed_image_key:key,
+        p_processor:'admin-upload',p_processor_version:'1',p_error_message:null
+      },`mural product image ${productId}`);
+      if(saved?.value?.status!=='ok') {
+        await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+        return json({error:'Produto não encontrado.'},404);
+      }
+      if(saved.value.old_processed_image_key && saved.value.old_processed_image_key!==key) {
+        await env.PRODUCT_IMAGES.delete(saved.value.old_processed_image_key).catch(()=>{});
+      }
+    } catch(error) {
+      await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+      throw error;
+    }
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO mural_product_images (
+        product_id,source_image_key,processed_image_key,status,processor,
+        processor_version,reviewed_by,reviewed_at,error_message,updated_at
+      ) VALUES (?,?,?,'review','admin-upload','1',NULL,NULL,NULL,CURRENT_TIMESTAMP)
+      ON CONFLICT(product_id) DO UPDATE SET
+        source_image_key=excluded.source_image_key,
+        processed_image_key=excluded.processed_image_key,
+        status='review',
+        processor='admin-upload',
+        processor_version='1',
+        reviewed_by=NULL,
+        reviewed_at=NULL,
+        error_message=NULL,
+        updated_at=CURRENT_TIMESTAMP
+    `).bind(productId,product.image_key,key).run();
+    if (currentProcessed && currentProcessed !== key) {
+      await env.PRODUCT_IMAGES.delete(currentProcessed).catch(()=>{});
+    }
   }
+
   return json({
     ok:true,
     product_id:productId,
@@ -1323,6 +1483,16 @@ async function uploadMuralProductImage(productId, request, env) {
 }
 
 async function removeMuralProductImage(productId, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_clear_product_treatment_v1',{
+      p_product_id:productId
+    },`clear mural product image ${productId}`);
+    const value=result?.value || {};
+    if(value.status==='not_found') return json({error:'Produto não encontrado.'},404);
+    if(value.old_processed_image_key) await env.PRODUCT_IMAGES?.delete(value.old_processed_image_key).catch(()=>{});
+    return json({ok:true,product_id:productId,status:'pending'});
+  }
+
   const row = await env.DB.prepare(`
     SELECT p.image_key,mpi.processed_image_key
     FROM products p
@@ -1346,20 +1516,31 @@ async function removeMuralProductImage(productId, env) {
 
 async function muralGeminiProReferences(env, { productId = null, collectionId = null } = {}) {
   if (Number.isInteger(productId) && productId > 0) {
-    const product = await env.DB.prepare(`
-      SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,
-        mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
-        mpi.processed_image_key AS mural_processed_image_key
-      FROM products p
-      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
-      WHERE p.id=?
-    `).bind(productId).first();
+    const product=supabasePrimaryWritesRequested(env)
+      ? await supabaseRpc(env,'nisti_admin_mural_gemini_product_v1',{p_product_id:productId})
+      : await env.DB.prepare(`
+          SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,
+            mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
+            mpi.processed_image_key AS mural_processed_image_key
+          FROM products p
+          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+          WHERE p.id=?
+        `).bind(productId).first();
     if (!product) throw new Error('Produto selecionado não encontrado.');
     if (!product.image_key) throw new Error('O produto selecionado ainda não possui imagem de referência.');
     return [product];
   }
 
   if (Number.isInteger(collectionId) && collectionId > 0) {
+    if (supabasePrimaryWritesRequested(env)) {
+      const payload=await supabaseRpc(env,'nisti_admin_mural_gemini_collection_v1',{p_collection_id:collectionId});
+      const collection=payload?.collection || null;
+      if(!collection) throw new Error('Coleção selecionada não encontrada.');
+      const products=Array.isArray(payload?.products)?payload.products:[];
+      if(!products.length) throw new Error('A coleção selecionada não possui produtos com imagem de referência.');
+      return products.map(product=>({...product,collection}));
+    }
+
     const collection = await env.DB.prepare(`
       SELECT id,name,year
       FROM mural_collections
