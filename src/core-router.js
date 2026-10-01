@@ -643,7 +643,7 @@ export default {
               mpi.reviewed_by AS treated_image_reviewed_by,
               fp.platform,
               fp.link,
-              fg.gtin,
+              fg.gtin AS gtin,
               CASE WHEN fg.gtin IS NULL THEN 0 ELSE 1 END AS has_active_gtin
             FROM products p
             LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
