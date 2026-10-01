@@ -271,11 +271,10 @@ export default function CommerceListingsView() {
                           <div>
                             {fallbackImages.slice(0, 6).map((image, index) => (
                               <figure key={`${listingId}-nisti-${image.product_id || index}`}>
-                                <img
+                                <ProductCutoutImage
                                   src={image.image_url}
                                   alt={image.variation_name || image.sku || `Produto ${index + 1}`}
-                                  loading="lazy"
-                                  referrerPolicy="no-referrer"
+                                  fallback={<div className="commerce-image-placeholder">—</div>}
                                 />
                                 <figcaption>{image.variation_name || image.sku || `SKU ${index + 1}`}</figcaption>
                               </figure>
