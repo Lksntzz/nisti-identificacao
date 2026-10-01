@@ -616,6 +616,16 @@ async function adminGetPost(id, env) {
 
 async function adminCreatePost(request, env) {
   const payload = validatePostPayload(await readJson(request));
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_post_write_v1',{
+      p_action:'create',p_id:null,p_payload:payload
+    },'create mural post primary');
+    const value=result?.value || {};
+    if(value.status==='product_not_found') return json({error:'Produto selecionado não existe.'},422);
+    if(value.status==='collection_not_found') return json({error:'Coleção selecionada não existe.'},422);
+    if(value.status!=='ok') return json({error:'Não foi possível criar a publicação.'},422);
+    return json({id:Number(value.id),status:'draft'},201);
+  }
   if (payload.product_id) {
     const product = await env.DB.prepare('SELECT id FROM products WHERE id=?').bind(payload.product_id).first();
     if (!product) return json({ error:'Produto selecionado não existe.' },422);
@@ -637,6 +647,19 @@ async function adminCreatePost(request, env) {
 }
 
 async function adminUpdatePost(id, request, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const current=await supabaseRpc(env,'nisti_admin_mural_post_v1',{p_id:id});
+    if(!current) return json({error:'Publicação não encontrada.'},404);
+    const payload=validatePostPayload(await readJson(request),current);
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_post_write_v1',{
+      p_action:'update',p_id:id,p_payload:payload
+    },`update mural post ${id}`);
+    const value=result?.value || {};
+    if(value.status==='product_not_found') return json({error:'Produto selecionado não existe.'},422);
+    if(value.status==='collection_not_found') return json({error:'Coleção selecionada não existe.'},422);
+    if(value.status!=='ok') return json({error:'Não foi possível atualizar a publicação.'},422);
+    return json({ok:true,id});
+  }
   const current = await env.DB.prepare('SELECT * FROM mural_posts WHERE id=?').bind(id).first();
   if (!current) return json({ error: 'Publicação não encontrada.' }, 404);
   const payload = validatePostPayload(await readJson(request), current);
