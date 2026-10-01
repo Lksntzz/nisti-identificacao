@@ -159,6 +159,7 @@ export async function listUserNotifications(env, userId, limit = 50) {
           r.read_at
         FROM notifications n
         LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
+        WHERE n.type='new_cover'
         ORDER BY n.id DESC
         LIMIT ?
       `).bind(safeUserId, safeLimit).all();
@@ -167,7 +168,7 @@ export async function listUserNotifications(env, userId, limit = 50) {
     'notifications:list'
   );
 
-  return (rows || []).map(row => {
+  return (rows || []).filter(row => (row.type || 'new_cover') === 'new_cover').map(row => {
     const version = row.image_key ? String(row.image_key).split('/').pop() : '';
     const imageUrl = row.product_id && row.image_key
       ? `/api/images/${row.product_id}${version ? `?v=${encodeURIComponent(version)}` : ''}`
@@ -203,7 +204,7 @@ export async function getUnreadNotificationsCount(env, userId) {
         SELECT COUNT(*) AS total
         FROM notifications n
         LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
-        WHERE r.id IS NULL
+        WHERE n.type='new_cover' AND r.id IS NULL
       `).bind(safeUserId).first();
       return Number(row?.total || 0);
     },
@@ -217,11 +218,23 @@ export async function markNotificationRead(env, notificationId, userId) {
   const safeUserId = String(userId || 'anonymous').trim().slice(0, 100);
   if (!id || id <= 0) return false;
 
-  await env.DB.prepare(`
+  const result = await env.DB.prepare(`
     INSERT INTO notification_reads (notification_id, user_id, read_at)
-    VALUES (?, ?, CURRENT_TIMESTAMP)
+    SELECT id, ?, CURRENT_TIMESTAMP
+    FROM notifications
+    WHERE id=? AND type='new_cover'
     ON CONFLICT(notification_id, user_id) DO NOTHING
-  `).bind(id, safeUserId).run();
+  `).bind(safeUserId, id).run();
+
+  if (!Number(result?.meta?.changes || 0)) {
+    const existing = await env.DB.prepare(`
+      SELECT r.id
+      FROM notification_reads r
+      INNER JOIN notifications n ON n.id=r.notification_id
+      WHERE r.notification_id=? AND r.user_id=? AND n.type='new_cover'
+    `).bind(id, safeUserId).first();
+    if (!existing) return false;
+  }
 
   await mirrorNotificationReadFromD1(env, id, safeUserId)
     .catch(error => logMirrorFailure(`notification read ${id}`, error));
@@ -237,7 +250,7 @@ export async function markAllNotificationsRead(env, userId) {
     INSERT INTO notification_reads (notification_id, user_id, read_at)
     SELECT n.id, ?, CURRENT_TIMESTAMP
     FROM notifications n
-    WHERE n.id NOT IN (
+    WHERE n.type='new_cover' AND n.id NOT IN (
       SELECT notification_id FROM notification_reads WHERE user_id = ?
     )
   `).bind(safeUserId, safeUserId).run();
