@@ -219,3 +219,28 @@ test('deep product core is protected even when its pixels are pure white', () =>
   assert.equal(__muralTransparentImageInternals.isDeepProtectedSubjectPixel(subject, width, height, 21, 50), false);
   assert.equal(__muralTransparentImageInternals.isDeepProtectedSubjectPixel(subject, width, height, 50, 16), false);
 });
+
+
+test('approved planner outline reference protects the complete light cover body by geometry', () => {
+  const width = 160;
+  const height = 220;
+  const subject = (x, y) => x >= 18 && x <= 142 && y >= 8 && y <= 212;
+  const template = __muralTransparentImageInternals.buildPlannerStructureProtection(subject, width, height);
+
+  assert.ok(template);
+  assert.equal(template(80, 110), true, 'center of a white cover must stay protected');
+  assert.equal(template(125, 110), true, 'page block must stay protected');
+  assert.equal(template(3, 110), false, 'outside background must remain removable');
+});
+
+test('planner structural reference is normalized and does not apply to unrelated wide products', () => {
+  const width = 220;
+  const height = 100;
+  const subject = (x, y) => x >= 5 && x <= 214 && y >= 5 && y <= 94;
+  assert.equal(
+    __muralTransparentImageInternals.buildPlannerStructureProtection(subject, width, height),
+    null
+  );
+});
+
+// planner-template-ci
