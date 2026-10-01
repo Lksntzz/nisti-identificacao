@@ -9,6 +9,7 @@ import { confirmGeometricShadowEvidence } from './geometric-shadow-evidence-rout
 import {
   mirrorSupabaseRpc,
   SupabasePrimaryWriteError,
+  supabasePrimaryWritesRequested,
   supabaseWriteMode
 } from './supabase-write-store.js';
 import {
@@ -106,8 +107,9 @@ export async function recordScanOccurrence(env, {
   operatorId = null
 }) {
   try {
-    if (!photoBytes || !env.PRODUCT_IMAGES || !env.DB) return null;
+    if (!photoBytes || !env.PRODUCT_IMAGES) return null;
     const writeMode = supabaseWriteMode(env);
+    if (!env.DB && !supabasePrimaryWritesRequested(env)) return null;
 
     const occurrenceId = crypto.randomUUID();
     const imageKey = `occurrences/${Date.now()}_${occurrenceId.slice(0, 8)}.jpg`;
@@ -115,6 +117,30 @@ export async function recordScanOccurrence(env, {
     await env.PRODUCT_IMAGES.put(imageKey, photoBytes, {
       httpMetadata: { contentType: photoMime }
     });
+
+    if (supabasePrimaryWritesRequested(env)) {
+      try {
+        const created = await mirrorSupabaseRpc(env, 'nisti_create_scan_occurrence_v1', {
+          p_row: {
+            image_key:imageKey,
+            platform,
+            suggested_capa_code:suggestedCapaCode,
+            confidence:Number(confidence || 0),
+            error_reason:errorReason,
+            operator_name:operatorName,
+            operator_id:operatorId,
+            status:'pending',
+            created_at:new Date().toISOString()
+          }
+        }, 'scan occurrence primary');
+        const rowId = Number(created?.value?.id || 0) || null;
+        if (!rowId) throw new Error('Supabase não retornou o ID da ocorrência.');
+        return rowId;
+      } catch (error) {
+        await env.PRODUCT_IMAGES.delete(imageKey).catch(() => {});
+        throw error;
+      }
+    }
 
     const res = await env.DB.prepare(`
       INSERT INTO scan_occurrences (
@@ -403,6 +429,17 @@ export async function handleOccurrencesAdminRequest(request, env) {
   const dismissMatch = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/dismiss$/);
   if (request.method === 'POST' && dismissMatch) {
     const id = Number(dismissMatch[1]);
+    if (supabasePrimaryWritesRequested(env)) {
+      const result = await mirrorSupabaseRpc(
+        env,
+        'nisti_dismiss_scan_occurrence_v1',
+        { p_id:id },
+        `dismiss occurrence ${id}`
+      );
+      if (result?.value?.status === 'not_found') return json({ error:'Ocorrência não encontrada.' },404);
+      return json({ ok:true, dismissed:true });
+    }
+
     await env.DB.prepare(
       "UPDATE scan_occurrences SET status = 'dismissed' WHERE id = ?"
     ).bind(id).run();
