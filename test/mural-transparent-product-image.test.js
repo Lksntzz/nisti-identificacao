@@ -115,10 +115,29 @@ test('outline is only the external white ring and rejects background-sized masks
   assert.match(source, /function maskStats/);
   assert.match(source, /if \(stats\.ratio > \.82 \|\| stats\.touches >= 3\) return ''/);
   assert.match(source, /const radius = clamp\(Math\.round\(Math\.max\(width, height\) \* \.0028\), 2, 5\)/);
-  assert.match(source, /const expandedMask = dilateMask\(solidMask, width, height, radius\)/);
-  assert.match(source, /if \(!expandedMask\[index\] \|\| solidMask\[index\]\) continue/);
+  assert.match(source, /const outlineMask = buildExternalOutlineRing\(mainMask, width, height, radius\)/);
+  assert.match(source, /if \(!outlineMask\[index\]\) continue/);
   assert.match(source, /outlineData\.data\[offset\] = 255/);
   assert.match(source, /export function useTransparentProductOutline/);
+});
+
+test('external outline leaves closed wire-o gaps transparent', () => {
+  const width = 15;
+  const height = 15;
+  const mask = new Uint8Array(width * height);
+  for (let x = 4; x <= 10; x += 1) {
+    mask[4 * width + x] = 1;
+    mask[10 * width + x] = 1;
+  }
+  for (let y = 4; y <= 10; y += 1) {
+    mask[y * width + 4] = 1;
+    mask[y * width + 10] = 1;
+  }
+
+  const outline = __muralTransparentImageInternals.buildExternalOutlineRing(mask, width, height, 2);
+  assert.equal(outline[7 * width + 7], 0, 'wire-o interior remains transparent');
+  assert.equal(outline[2 * width + 7], 1, 'external edge receives the white ring');
+  assert.equal(outline[4 * width + 7], 0, 'product pixels are never painted over');
 });
 
 test('outline follows detached wire-o details but ignores an isolated corner logo', () => {
@@ -183,7 +202,7 @@ test('global treated product image bakes a clean 6–10px-equivalent white outli
   assert.match(source, /async function buildTreatedProductImage/);
   assert.match(source, /8 \/ 1024/);
   assert.match(source, /const padding = outlineRadius \+ 2/);
-  assert.match(source, /if \(!expandedMask\[sourceIndex\] \|\| solidMask\[sourceIndex\]\) continue/);
+  assert.match(source, /if \(!outlineMask\[sourceIndex\]\) continue/);
   assert.match(source, /outputContext\.drawImage\(sourceCanvas, padding, padding\)/);
   assert.match(source, /export function useTreatedProductImage/);
 });
