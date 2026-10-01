@@ -221,7 +221,7 @@ test('deep product core is protected even when its pixels are pure white', () =>
 });
 
 
-test('approved planner outline reference protects the complete light cover body by geometry', () => {
+test('approved planner reference maps the exact outer silhouette, including wire-o protrusions', () => {
   const width = 160;
   const height = 220;
   const subject = (x, y) => x >= 18 && x <= 142 && y >= 8 && y <= 212;
@@ -230,6 +230,7 @@ test('approved planner outline reference protects the complete light cover body 
   assert.ok(template);
   assert.equal(template(80, 110), true, 'center of a white cover must stay protected');
   assert.equal(template(125, 110), true, 'page block must stay protected');
+  assert.equal(template(20, 34), true, 'wire-o protrusion from the approved outline must be preserved');
   assert.equal(template(3, 110), false, 'outside background must remain removable');
 });
 
@@ -244,3 +245,38 @@ test('planner structural reference is normalized and does not apply to unrelated
 });
 
 // planner-template-ci
+
+
+test('exact planner silhouette clears the white canvas outside without erasing the white cover', () => {
+  const width = 160;
+  const height = 220;
+  const subject = (x, y) => x >= 18 && x <= 142 && y >= 8 && y <= 212;
+  const template = __muralTransparentImageInternals.buildPlannerStructureProtection(subject, width, height);
+  assert.ok(template);
+
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let index = 0; index < width * height; index += 1) {
+    data[index * 4] = 255;
+    data[index * 4 + 1] = 255;
+    data[index * 4 + 2] = 255;
+    data[index * 4 + 3] = 255;
+  }
+
+  const removed = __muralTransparentImageInternals.applyPlannerStructureMask(data, width, height, template);
+  assert.ok(removed > 0);
+  assert.equal(data[(110 * width + 80) * 4 + 3], 255, 'white cover center stays opaque');
+  assert.equal(data[(110 * width + 3) * 4 + 3], 0, 'external white background becomes transparent');
+});
+
+test('planner cutout uses the exact template before any color flood-fill', () => {
+  const buildStart = source.indexOf('async function buildTransparentProductImage');
+  const buildEnd = source.indexOf('async function buildTreatedProductImage');
+  const buildSource = source.slice(buildStart, buildEnd);
+  const templateBranch = buildSource.indexOf('if (plannerStructureProtection)');
+  const floodFill = buildSource.indexOf('const visited = new Uint8Array(total)');
+  assert.ok(templateBranch >= 0);
+  assert.ok(floodFill > templateBranch);
+  assert.match(buildSource, /applyPlannerStructureMask\(data, width, height, plannerStructureProtection\)/);
+  assert.match(source, /outlinePolygon: Object\.freeze/);
+  assert.equal(source.includes('bodyPolygon: Object.freeze'), false);
+});
