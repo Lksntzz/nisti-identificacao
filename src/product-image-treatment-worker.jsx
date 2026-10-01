@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { treatedProductImageBlob } from './mural-transparent-image.js';
 
 const LOCK_KEY = 'nisti_product_image_treatment_lock_v6';
+export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
+export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
 const LOCK_TTL_MS = 90 * 1000;
 const BATCH_SIZE = 3;
 const MAX_TRANSIENT_ATTEMPTS = 3;
@@ -15,6 +17,14 @@ function emitTreatmentProgress(detail) {
   window.dispatchEvent(new CustomEvent('nisti:product-image-treatment-progress', {
     detail:{ timestamp:Date.now(), ...detail }
   }));
+}
+
+function treatmentPaused() {
+  try {
+    return localStorage.getItem(TREATMENT_PAUSE_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 function readLock() {
@@ -79,7 +89,8 @@ async function markFailed(productId, message) {
 
 async function processItem(item) {
   const blob = await treatedProductImageBlob(item.original_image_url, {
-    tasselCode:item.tassel_code
+    tasselCode:item.tassel_code,
+    forceOutline:Boolean(item.force_outline)
   });
   if (!blob) {
     await markFailed(item.id, 'A imagem original não gerou um recorte transparente seguro com o limite atual.');
@@ -94,7 +105,7 @@ async function processItem(item) {
     body:form
   });
 
-  return { id:item.id, status:'approved' };
+  return { id:item.id, status:'review' };
 }
 
 export default function ProductImageTreatmentWorker({ enabled = true, onBatchComplete }) {
@@ -114,13 +125,19 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
     const failureCounts = new Map();
 
     const run = async () => {
-      if (running || cancelled || !acquireLock(owner)) return;
+      if (running || cancelled) return;
+      if (treatmentPaused()) {
+        emitTreatmentProgress({ phase:'paused' });
+        if (!cancelled) wakeTimer = window.setTimeout(run, 30000);
+        return;
+      }
+      if (!acquireLock(owner)) return;
       running = true;
 
       try {
         let emptyPasses = 0;
 
-        while (!cancelled && emptyPasses < 2) {
+        while (!cancelled && !treatmentPaused() && emptyPasses < 2) {
           writeLock(owner);
 
           let payload;
@@ -146,7 +163,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
           const changed = [];
 
           for (const item of items) {
-            if (cancelled) break;
+            if (cancelled || treatmentPaused()) break;
             writeLock(owner);
             emitTreatmentProgress({
               phase:'processing',
@@ -200,11 +217,21 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
       }
     };
 
+    const onControl = event => {
+      const paused = Boolean(event?.detail?.paused ?? treatmentPaused());
+      emitTreatmentProgress({ phase:paused ? 'paused' : 'queue' });
+      if (!paused) {
+        if (wakeTimer) window.clearTimeout(wakeTimer);
+        wakeTimer = window.setTimeout(run, 0);
+      }
+    };
+    window.addEventListener(TREATMENT_CONTROL_EVENT, onControl);
     const timer = window.setTimeout(run, 900);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
       if (wakeTimer) window.clearTimeout(wakeTimer);
+      window.removeEventListener(TREATMENT_CONTROL_EVENT, onControl);
       releaseLock(owner);
     };
   }, [enabled]);
