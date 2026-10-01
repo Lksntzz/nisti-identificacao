@@ -10,6 +10,7 @@ import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
+import ProductImageTreatmentWorker from './product-image-treatment-worker.jsx';
 import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
 import {
   createEan13Svg,
@@ -1498,6 +1499,12 @@ function AdminApp() {
 
   return (
     <div className="admin-layout-root">
+      <ProductImageTreatmentWorker
+        enabled
+        onBatchComplete={async () => {
+          await refreshProducts();
+        }}
+      />
       <AdminSidebar
         activeView={activeView}
         onViewChange={handleNavChange}
