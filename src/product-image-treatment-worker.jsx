@@ -4,6 +4,7 @@ import { treatedProductImageBlob } from './mural-transparent-image.js';
 const LOCK_KEY = 'nisti_product_image_treatment_lock_v6';
 const LOCK_TTL_MS = 90 * 1000;
 const BATCH_SIZE = 3;
+const MAX_TRANSIENT_ATTEMPTS = 3;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -110,6 +111,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
     let cancelled = false;
     let running = false;
     let wakeTimer = null;
+    const failureCounts = new Map();
 
     const run = async () => {
       if (running || cancelled || !acquireLock(owner)) return;
@@ -153,6 +155,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
             });
             try {
               const result = await processItem(item);
+              failureCounts.delete(item.id);
               changed.push(result);
               emitTreatmentProgress({
                 phase:'processed',
@@ -161,9 +164,15 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
               });
             } catch (error) {
               console.warn('[NISTI imagens] Tratamento pendente', item?.id, error);
-              // Falhas transitórias de rede não viram erro definitivo no banco.
-              if (/recorte|transparente|confiança/i.test(String(error?.message || ''))) {
+              const attempts = (failureCounts.get(item.id) || 0) + 1;
+              failureCounts.set(item.id, attempts);
+              const definitive = /recorte|transparente|confiança|no máximo 8 mb/i.test(String(error?.message || ''));
+              // A single broken image must never block every product behind it.
+              // Network failures get retries; after the limit the original is
+              // preserved and the item moves to the visible failed total.
+              if (definitive || attempts >= MAX_TRANSIENT_ATTEMPTS) {
                 await markFailed(item.id, error.message);
+                failureCounts.delete(item.id);
                 changed.push({ id:item.id, status:'failed' });
               }
               emitTreatmentProgress({
