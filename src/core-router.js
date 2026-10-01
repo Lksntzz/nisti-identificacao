@@ -35,6 +35,8 @@ const TOP_K_REFERENCES = 24;
 const BULK_IMPORT_LIMIT = 100;
 const EXTRA_REFERENCE_LIMIT = 6;
 const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '4';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
   const id = Number(productId || 0);
@@ -76,6 +78,55 @@ function referenceImageUrl(reference) {
   if (!reference?.id || !reference?.image_key) return null;
   const version = String(reference.image_key).split('/').pop() || 'current';
   return `/api/reference-images/${reference.id}?v=${encodeURIComponent(version)}`;
+}
+
+function productOriginalImageUrl(productId, imageKey) {
+  if (!productId || !imageKey) return null;
+  return `/api/images/${Number(productId)}?v=${encodeURIComponent(String(imageKey))}`;
+}
+
+function productDisplayImageUrl(productId, imageKey, processedImageKey = null) {
+  if (!productId || !imageKey) return null;
+  const version = processedImageKey || imageKey;
+  return `/api/product-images/${Number(productId)}?v=${encodeURIComponent(String(version))}`;
+}
+
+function inspectTransparentPng(bytes) {
+  const view = new Uint8Array(bytes);
+  const signature = [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a];
+  if (view.length < 33 || signature.some((value,index)=>view[index]!==value)) return null;
+  const dataView = new DataView(bytes);
+  const width = dataView.getUint32(16);
+  const height = dataView.getUint32(20);
+  const colorType = view[25];
+  if (![4,6].includes(colorType) || width < 1 || height < 1 || width > 6000 || height > 6000) return null;
+  return { width, height };
+}
+
+async function productTreatmentSummary(env) {
+  const row = await env.DB.prepare(`
+    SELECT
+      SUM(CASE WHEN p.image_key IS NOT NULL THEN 1 ELSE 0 END) AS with_image,
+      SUM(CASE WHEN p.image_key IS NOT NULL
+        AND mpi.status='approved'
+        AND mpi.processed_image_key IS NOT NULL
+        AND mpi.source_image_key=p.image_key
+        THEN 1 ELSE 0 END) AS approved,
+      SUM(CASE WHEN p.image_key IS NOT NULL
+        AND NOT (
+          mpi.status='approved'
+          AND mpi.processed_image_key IS NOT NULL
+          AND mpi.source_image_key=p.image_key
+        )
+        THEN 1 ELSE 0 END) AS pending
+    FROM products p
+    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+  `).first();
+  return {
+    with_image:Number(row?.with_image || 0),
+    approved:Number(row?.approved || 0),
+    pending:Number(row?.pending || 0)
+  };
 }
 
 async function embedImage(env, bytes, mimeType) {
@@ -518,6 +569,11 @@ export default {
           SELECT
             p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,p.wireo_code,
             p.tassel_code,p.elastico_code,p.nome,p.variacao,p.image_key,p.created_at,
+            mpi.source_image_key AS treated_source_image_key,
+            mpi.processed_image_key AS treated_image_key,
+            mpi.status AS treated_image_status,
+            mpi.processor AS treated_image_processor,
+            mpi.processor_version AS treated_image_version,
             (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
             (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link,
             (SELECT pg.gtin FROM product_gtins pg WHERE pg.product_id=p.id AND pg.active=1 ORDER BY pg.id ASC LIMIT 1) AS gtin,
@@ -526,15 +582,25 @@ export default {
               WHERE pg.product_id=p.id AND pg.active=1
             ) AS has_active_gtin
           FROM products p
+          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
           ORDER BY p.id DESC
           LIMIT 1000
         `).all();
         return json({
-          products: (results || []).map(product => ({
-            ...product,
-            has_active_gtin: Number(product.has_active_gtin) === 1,
-            image_url: product.image_key ? `/api/images/${product.id}` : null
-          }))
+          products: (results || []).map(product => {
+            const treatedReady = product.treated_image_status === 'approved'
+              && product.treated_image_key
+              && product.treated_source_image_key === product.image_key;
+            return {
+              ...product,
+              has_active_gtin: Number(product.has_active_gtin) === 1,
+              original_image_url: productOriginalImageUrl(product.id, product.image_key),
+              image_url: product.image_key
+                ? productDisplayImageUrl(product.id, product.image_key, treatedReady ? product.treated_image_key : null)
+                : null,
+              treated_image_ready:Boolean(treatedReady)
+            };
+          })
         });
       }
 
@@ -623,7 +689,12 @@ export default {
       const productSingle = url.pathname.match(/^\/api\/products\/(\d+)$/);
       if (productSingle && request.method === 'DELETE') {
         const id = Number(productSingle[1]);
-        const product = await env.DB.prepare('SELECT capa_code, image_key FROM products WHERE id=?').bind(id).first();
+        const product = await env.DB.prepare(`
+          SELECT p.capa_code,p.image_key,mpi.processed_image_key
+          FROM products p
+          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+          WHERE p.id=?
+        `).bind(id).first();
         if (!product) return json({ error: 'Produto não encontrado' }, 404);
 
         await env.DB.prepare('DELETE FROM product_platforms WHERE product_id=?').bind(id).run();
@@ -640,6 +711,9 @@ export default {
 
         if (product.image_key) {
           await env.PRODUCT_IMAGES.delete(product.image_key).catch(() => {});
+        }
+        if (product.processed_image_key) {
+          await env.PRODUCT_IMAGES.delete(product.processed_image_key).catch(() => {});
         }
 
         return json({ ok: true, deleted_id: id });
@@ -710,7 +784,8 @@ export default {
         const commerceSync = await syncNistiProductToCommerceSafe(env, id);
         return json({
           ok: true,
-          image_url: `/api/images/${id}`,
+          image_url: productDisplayImageUrl(id, prod?.image_key),
+          original_image_url: productOriginalImageUrl(id, prod?.image_key),
           embedding_indexed: saved.indexed,
           embedding_error: saved.index_error,
           reference_id: saved.reference_id,
@@ -734,6 +809,186 @@ export default {
         );
         return new Response(object.body, { headers });
       }
+
+      const displayImageGet = url.pathname.match(/^\/api\/product-images\/(\d+)$/);
+      if (displayImageGet && request.method === 'GET') {
+        const productId = Number(displayImageGet[1]);
+        const row = await env.DB.prepare(`
+          SELECT
+            p.image_key,
+            mpi.source_image_key,
+            mpi.processed_image_key,
+            mpi.status
+          FROM products p
+          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+          WHERE p.id=?
+        `).bind(productId).first();
+        if (!row?.image_key) return new Response('Not found', { status: 404 });
+
+        const processedReady = row.status === 'approved'
+          && row.processed_image_key
+          && row.source_image_key === row.image_key;
+        let object = processedReady ? await env.PRODUCT_IMAGES.get(row.processed_image_key) : null;
+        let servedKey = processedReady && object ? row.processed_image_key : row.image_key;
+        if (!object) object = await env.PRODUCT_IMAGES.get(row.image_key);
+        if (!object) return new Response('Not found', { status: 404 });
+
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set('x-nisti-image-source', servedKey === row.image_key ? 'original' : 'treated');
+        headers.set(
+          'cache-control',
+          url.searchParams.has('v') ? 'public, max-age=31536000, immutable' : 'private, max-age=300'
+        );
+        return new Response(object.body, { headers });
+      }
+
+      if (url.pathname === '/api/admin/product-image-treatment/pending' && request.method === 'GET') {
+        const requestedLimit = Number(url.searchParams.get('limit') || 3);
+        const limit = Number.isInteger(requestedLimit) ? Math.max(1, Math.min(8, requestedLimit)) : 3;
+        const { results } = await env.DB.prepare(`
+          SELECT
+            p.id,p.sku,p.nome,p.image_key,
+            mpi.source_image_key,mpi.processed_image_key,mpi.status,
+            mpi.processor,mpi.processor_version,mpi.error_message
+          FROM products p
+          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+          WHERE p.image_key IS NOT NULL
+            AND (
+              mpi.product_id IS NULL
+              OR mpi.source_image_key IS NOT p.image_key
+              OR mpi.processed_image_key IS NULL
+              OR mpi.status IN ('pending','review','stale')
+              OR (
+                mpi.status='failed'
+                AND COALESCE(mpi.processor_version,'') <> ?
+              )
+            )
+          ORDER BY
+            CASE COALESCE(mpi.status,'pending')
+              WHEN 'pending' THEN 0
+              WHEN 'review' THEN 1
+              WHEN 'stale' THEN 2
+              ELSE 3
+            END,
+            p.id ASC
+          LIMIT ?
+        `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,limit).all();
+
+        return json({
+          ok:true,
+          processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+          summary:await productTreatmentSummary(env),
+          items:(results || []).map(row=>({
+            id:Number(row.id),
+            sku:row.sku || null,
+            name:row.nome || null,
+            image_key:row.image_key,
+            status:row.status || 'pending',
+            original_image_url:productOriginalImageUrl(row.id,row.image_key),
+            display_image_url:productDisplayImageUrl(row.id,row.image_key,row.processed_image_key)
+          }))
+        });
+      }
+
+      const treatmentUpload = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)$/);
+      if (treatmentUpload && request.method === 'POST') {
+        const productId = Number(treatmentUpload[1]);
+        if (!env.PRODUCT_IMAGES) return json({ error:'Armazenamento de imagens indisponível.' },503);
+
+        const product = await env.DB.prepare(`
+          SELECT p.id,p.image_key,mpi.processed_image_key
+          FROM products p
+          LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+          WHERE p.id=?
+        `).bind(productId).first();
+        if (!product) return json({ error:'Produto não encontrado.' },404);
+        if (!product.image_key) return json({ error:'Produto sem imagem original.' },422);
+
+        const form = await request.formData();
+        const file = form.get('image');
+        if (!(file instanceof File)) return json({ error:'Envie o PNG tratado no campo image.' },400);
+        if (file.size < 1 || file.size > MAX_TREATED_PRODUCT_IMAGE_BYTES) {
+          return json({ error:'O PNG tratado deve ter no máximo 8 MB.' },400);
+        }
+        const bytes = await file.arrayBuffer();
+        const png = inspectTransparentPng(bytes);
+        if (!png) return json({ error:'O tratamento precisa gerar PNG transparente válido.' },400);
+
+        const key = `processed/products/${productId}/${crypto.randomUUID()}.png`;
+        await env.PRODUCT_IMAGES.put(key,bytes,{
+          httpMetadata:{ contentType:'image/png' },
+          customMetadata:{
+            sourceImageKey:String(product.image_key),
+            processor:'system-browser-cutout',
+            processorVersion:PRODUCT_IMAGE_PROCESSOR_VERSION,
+            width:String(png.width),
+            height:String(png.height)
+          }
+        });
+
+        await env.DB.prepare(`
+          INSERT INTO mural_product_images (
+            product_id,source_image_key,processed_image_key,status,processor,
+            processor_version,reviewed_by,reviewed_at,error_message,updated_at
+          ) VALUES (?, ?, ?, 'approved', 'system-browser-cutout', ?, 'system', CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP)
+          ON CONFLICT(product_id) DO UPDATE SET
+            source_image_key=excluded.source_image_key,
+            processed_image_key=excluded.processed_image_key,
+            status='approved',
+            processor='system-browser-cutout',
+            processor_version=excluded.processor_version,
+            reviewed_by='system',
+            reviewed_at=CURRENT_TIMESTAMP,
+            error_message=NULL,
+            updated_at=CURRENT_TIMESTAMP
+        `).bind(productId,product.image_key,key,PRODUCT_IMAGE_PROCESSOR_VERSION).run();
+
+        if (product.processed_image_key && product.processed_image_key !== key) {
+          await env.PRODUCT_IMAGES.delete(product.processed_image_key).catch(()=>{});
+        }
+
+        return json({
+          ok:true,
+          product_id:productId,
+          status:'approved',
+          processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+          original_image_url:productOriginalImageUrl(productId,product.image_key),
+          image_url:productDisplayImageUrl(productId,product.image_key,key),
+          width:png.width,
+          height:png.height,
+          summary:await productTreatmentSummary(env)
+        });
+      }
+
+      const treatmentFailed = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/failed$/);
+      if (treatmentFailed && request.method === 'POST') {
+        const productId = Number(treatmentFailed[1]);
+        const body = await request.json().catch(()=>({}));
+        const reason = String(body?.error || 'Tratamento automático sem confiança suficiente.').slice(0,500);
+        const product = await env.DB.prepare('SELECT id,image_key FROM products WHERE id=?').bind(productId).first();
+        if (!product?.image_key) return json({ error:'Produto sem imagem original.' },404);
+
+        await env.DB.prepare(`
+          INSERT INTO mural_product_images (
+            product_id,source_image_key,processed_image_key,status,processor,
+            processor_version,reviewed_by,reviewed_at,error_message,updated_at
+          ) VALUES (?, ?, NULL, 'failed', 'system-browser-cutout', ?, NULL, NULL, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(product_id) DO UPDATE SET
+            source_image_key=excluded.source_image_key,
+            processed_image_key=NULL,
+            status='failed',
+            processor='system-browser-cutout',
+            processor_version=excluded.processor_version,
+            reviewed_by=NULL,
+            reviewed_at=NULL,
+            error_message=excluded.error_message,
+            updated_at=CURRENT_TIMESTAMP
+        `).bind(productId,product.image_key,PRODUCT_IMAGE_PROCESSOR_VERSION,reason).run();
+
+        return json({ ok:true, product_id:productId, status:'failed', summary:await productTreatmentSummary(env) });
+      }
+
 
       const referenceImageGet = url.pathname.match(/^\/api\/reference-images\/(\d+)$/);
       if (referenceImageGet && request.method === 'GET') {
