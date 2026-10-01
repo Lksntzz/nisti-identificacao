@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-test('Supabase reserve is configured with write mirroring and read cutover disabled', () => {
+test('Supabase production uses primary reads with transitional write mirroring', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_URL = "https:\/\/yioetdcbgorunwgwuawg\.supabase\.co"/);
-  assert.match(wrangler, /SUPABASE_READS_ENABLED = "0"/);
+  assert.match(wrangler, /SUPABASE_READS_ENABLED = "1"/);
   assert.match(wrangler, /SUPABASE_EMERGENCY_FALLBACK_ENABLED = "1"/);
   assert.match(wrangler, /SUPABASE_EMERGENCY_CIRCUIT_MS = "900000"/);
   assert.match(wrangler, /SUPABASE_WRITE_MODE = "mirror"/);

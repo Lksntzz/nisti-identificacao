@@ -136,8 +136,8 @@ test('Phase 6C SQL is invoker-only, service-role-only and preserves D1 IDs', () 
   assert.match(source, /INSERT INTO public\.cover_visual_references \(\s*id,/);
 });
 
-test('reserve phase enables mirroring without enabling Supabase reads', () => {
+test('production enables Supabase reads while retaining D1-to-Supabase write mirroring', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
-  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
+  assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
 });
