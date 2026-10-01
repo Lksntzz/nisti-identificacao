@@ -2,6 +2,10 @@ import app from './product-finish-router.js';
 import { requireValidGtin13 } from './gtin.js';
 import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
 import { explicitUtcTimestamp } from './date-time.js';
+import {
+  preferSupabaseRead,
+  supabaseReserveGtinLookup
+} from './supabase-read-store.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -321,29 +325,14 @@ async function listProductGtins(env, productId) {
   }));
 }
 
-async function lookupProductByGtin(env, gtin) {
-  const row = await env.DB.prepare(`
-    SELECT
-      g.gtin,g.gtin_type,g.source,
-      p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,
-      p.wireo_code,p.tassel_code,p.elastico_code,
-      p.nome,p.variacao,p.image_key
-    FROM product_gtins g
-    INNER JOIN products p ON p.id=g.product_id
-    WHERE g.gtin=? AND g.active=1
-    LIMIT 1
-  `).bind(gtin).first();
-
+function formatGtinLookup(row, platformRows = []) {
   if (!row) return null;
-
-  const { results: platformRows } = await env.DB.prepare(`
-    SELECT platform,link
-    FROM product_platforms
-    WHERE product_id=?
-    ORDER BY id ASC
-  `).bind(row.id).all();
-
   const finishLabels = productFinishLabels(row);
+  const platforms = Array.isArray(platformRows)
+    ? platformRows
+    : Array.isArray(row.platforms)
+      ? row.platforms
+      : [];
 
   return {
     gtin: row.gtin,
@@ -365,12 +354,49 @@ async function lookupProductByGtin(env, gtin) {
       variacao: row.variacao,
       image_key: row.image_key,
       image_url: row.image_key ? `/api/images/${Number(row.id)}` : null,
-      platforms: (platformRows || []).map(item => ({
+      platforms: platforms.map(item => ({
         platform: item.platform,
         link: item.link || null
       }))
     }
   };
+}
+
+async function lookupProductByGtinD1(env, gtin) {
+  const row = await env.DB.prepare(`
+    SELECT
+      g.gtin,g.gtin_type,g.source,
+      p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,
+      p.wireo_code,p.tassel_code,p.elastico_code,
+      p.nome,p.variacao,p.image_key
+    FROM product_gtins g
+    INNER JOIN products p ON p.id=g.product_id
+    WHERE g.gtin=? AND g.active=1
+    LIMIT 1
+  `).bind(gtin).first();
+
+  if (!row) return null;
+
+  const { results: platformRows } = await env.DB.prepare(`
+    SELECT platform,link
+    FROM product_platforms
+    WHERE product_id=?
+    ORDER BY id ASC
+  `).bind(row.id).all();
+
+  return formatGtinLookup(row, platformRows || []);
+}
+
+async function lookupProductByGtin(env, gtin) {
+  return preferSupabaseRead(
+    env,
+    async () => {
+      const row = await supabaseReserveGtinLookup(env, gtin);
+      return row ? formatGtinLookup(row, row.platforms || []) : null;
+    },
+    () => lookupProductByGtinD1(env, gtin),
+    'gtin:lookup'
+  );
 }
 
 async function bindGtinToProduct(env, productId, gtin, source) {
