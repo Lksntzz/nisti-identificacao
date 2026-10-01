@@ -611,6 +611,27 @@ export default {
         let source = 'd1';
         const d1Loader = async () => {
           const { results } = await env.DB.prepare(`
+            WITH first_platform_id AS (
+              SELECT product_id,MIN(id) AS id
+              FROM product_platforms
+              GROUP BY product_id
+            ),
+            first_platform AS (
+              SELECT pp.product_id,pp.platform,pp.link
+              FROM product_platforms pp
+              INNER JOIN first_platform_id fp ON fp.id=pp.id
+            ),
+            first_gtin_id AS (
+              SELECT product_id,MIN(id) AS id
+              FROM product_gtins
+              WHERE active=1
+              GROUP BY product_id
+            ),
+            first_gtin AS (
+              SELECT pg.product_id,pg.gtin
+              FROM product_gtins pg
+              INNER JOIN first_gtin_id fg ON fg.id=pg.id
+            )
             SELECT
               p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,p.wireo_code,
               p.tassel_code,p.elastico_code,p.nome,p.variacao,p.image_key,p.created_at,
@@ -620,15 +641,14 @@ export default {
               mpi.processor AS treated_image_processor,
               mpi.processor_version AS treated_image_version,
               mpi.reviewed_by AS treated_image_reviewed_by,
-              (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
-              (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link,
-              (SELECT pg.gtin FROM product_gtins pg WHERE pg.product_id=p.id AND pg.active=1 ORDER BY pg.id ASC LIMIT 1) AS gtin,
-              EXISTS(
-                SELECT 1 FROM product_gtins pg
-                WHERE pg.product_id=p.id AND pg.active=1
-              ) AS has_active_gtin
+              fp.platform,
+              fp.link,
+              fg.gtin AS gtin,
+              CASE WHEN fg.gtin IS NULL THEN 0 ELSE 1 END AS has_active_gtin
             FROM products p
             LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+            LEFT JOIN first_platform fp ON fp.product_id=p.id
+            LEFT JOIN first_gtin fg ON fg.product_id=p.id
             ORDER BY p.id DESC
             LIMIT 1000
           `).all();
@@ -911,6 +931,14 @@ export default {
         return new Response(object.body, { headers });
       }
 
+      if (url.pathname === '/api/admin/product-image-treatment/summary' && request.method === 'GET') {
+        return json({
+          ok:true,
+          processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+          summary:await productTreatmentSummary(env)
+        });
+      }
+
       if (url.pathname === '/api/admin/product-image-treatment/pending' && request.method === 'GET') {
         const requestedLimit = Number(url.searchParams.get('limit') || 3);
         const limit = Number.isInteger(requestedLimit) ? Math.max(1, Math.min(8, requestedLimit)) : 3;
@@ -945,7 +973,6 @@ export default {
         return json({
           ok:true,
           processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
-          summary:await productTreatmentSummary(env),
           items:(results || []).map(row=>({
             id:Number(row.id),
             sku:row.sku || null,
@@ -1025,8 +1052,7 @@ export default {
           original_image_url:productOriginalImageUrl(productId,product.image_key),
           image_url:productDisplayImageUrl(productId,product.image_key,key),
           width:png.width,
-          height:png.height,
-          summary:await productTreatmentSummary(env)
+          height:png.height
         });
       }
 
@@ -1069,7 +1095,7 @@ export default {
               error_message=NULL,updated_at=CURRENT_TIMESTAMP
           WHERE product_id=?
         `).bind(productId).run();
-        return json({ ok:true,product_id:productId,status:'approved',summary:await productTreatmentSummary(env) });
+        return json({ ok:true,product_id:productId,status:'approved' });
       }
 
       const treatmentRedo = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/redo$/);
@@ -1084,7 +1110,7 @@ export default {
             source_image_key=excluded.source_image_key,status='pending',processor='system-precise-redo',reviewed_by=NULL,
             reviewed_at=NULL,error_message=NULL,updated_at=CURRENT_TIMESTAMP
         `).bind(productId,row.image_key).run();
-        return json({ ok:true,product_id:productId,status:'pending',precise_redo:true,summary:await productTreatmentSummary(env) });
+        return json({ ok:true,product_id:productId,status:'pending',precise_redo:true });
       }
 
       const treatmentFailed = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/failed$/);
@@ -1112,7 +1138,7 @@ export default {
             updated_at=CURRENT_TIMESTAMP
         `).bind(productId,product.image_key,PRODUCT_IMAGE_PROCESSOR,PRODUCT_IMAGE_PROCESSOR_VERSION,reason).run();
 
-        return json({ ok:true, product_id:productId, status:'failed', summary:await productTreatmentSummary(env) });
+        return json({ ok:true, product_id:productId, status:'failed' });
       }
 
 

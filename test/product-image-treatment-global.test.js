@@ -101,7 +101,7 @@ test('Mural admin shows live treatment totals and the current SKU', () => {
   const core = read('src/core-router.js');
 
   assert.ok(admin.includes("nisti:product-image-treatment-progress"));
-  assert.ok(admin.includes("/api/admin/product-image-treatment/pending?limit=1"));
+  assert.ok(admin.includes("/api/admin/product-image-treatment/summary"));
   assert.ok(admin.includes('role="progressbar"'));
   assert.ok(admin.includes('Tratando agora:'));
   assert.ok(admin.includes('const onChangedRef=useRef(onChanged)'));
@@ -182,4 +182,19 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(utility.includes('if (validOfficialCut)'));
   assert.ok(utility.includes('data.set(originalPixels)'));
   assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 0);
+});
+
+
+test('automatic image treatment does not poll D1 aggressively while idle', () => {
+  const worker = read('src/product-image-treatment-worker.jsx');
+  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const core = read('src/core-router.js');
+
+  assert.ok(worker.includes('IDLE_POLL_MS = 15 * 60 * 1000'));
+  assert.ok(worker.includes('TREATMENT_WAKE_EVENT'));
+  assert.equal(worker.includes('window.setTimeout(run, 30000)'), false);
+  assert.equal(admin.includes('window.setInterval(refreshProgress,1500)'), false);
+  assert.ok(admin.includes('/api/admin/product-image-treatment/summary'));
+  assert.ok(core.includes("url.pathname === '/api/admin/product-image-treatment/summary'"));
+  assert.equal(core.includes('summary:await productTreatmentSummary(env),\n          items:'), false);
 });

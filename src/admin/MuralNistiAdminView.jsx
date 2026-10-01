@@ -157,8 +157,12 @@ function MuralProductImageManager({ products, onChanged }) {
       if(['processed','failed'].includes(detail.phase)){
         if(refreshTimer)window.clearTimeout(refreshTimer);
         refreshTimer=window.setTimeout(()=>{
-          if(active)Promise.resolve(onChangedRef.current?.()).catch(()=>{});
-        },180);
+          if(!active)return;
+          Promise.all([
+            refreshProgress(),
+            Promise.resolve(onChangedRef.current?.())
+          ]).catch(()=>{});
+        },1200);
       }
     };
 
@@ -166,7 +170,7 @@ function MuralProductImageManager({ products, onChanged }) {
       if(polling)return;
       polling=true;
       try{
-        const payload=await request('/api/admin/product-image-treatment/pending?limit=1');
+        const payload=await request('/api/admin/product-image-treatment/summary');
         if(!active)return;
         const summary=payload?.summary||{};
         setTreatmentProgress(current=>({
@@ -183,14 +187,15 @@ function MuralProductImageManager({ products, onChanged }) {
     };
 
     const onProgress=event=>mergeProgress(event.detail);
+    const onSummaryRequest=()=>refreshProgress();
     window.addEventListener('nisti:product-image-treatment-progress',onProgress);
+    window.addEventListener('nisti:product-image-treatment-summary-request',onSummaryRequest);
     refreshProgress();
-    const timer=window.setInterval(refreshProgress,1500);
     return()=>{
       active=false;
       if(refreshTimer)window.clearTimeout(refreshTimer);
-      window.clearInterval(timer);
       window.removeEventListener('nisti:product-image-treatment-progress',onProgress);
+      window.removeEventListener('nisti:product-image-treatment-summary-request',onSummaryRequest);
     };
   },[paused]);
 
@@ -227,19 +232,25 @@ function MuralProductImageManager({ products, onChanged }) {
     try{
       const form=new FormData();form.append('image',file);
       await request(`/api/admin/mural/products/${product.id}/image`,{method:'POST',body:form});
+      window.dispatchEvent(new CustomEvent('nisti:product-image-treatment-summary-request'));
       await onChanged();
     }catch(err){setError(err.message)}finally{setBusyId(null)}
   };
   const remove=async product=>{
     if(!window.confirm(`Remover a imagem tratada de ${product.sku}? A original será preservada.`))return;
     setBusyId(product.id);setError('');
-    try{await request(`/api/admin/mural/products/${product.id}/image`,{method:'DELETE'});await onChanged()}
+    try{
+      await request(`/api/admin/mural/products/${product.id}/image`,{method:'DELETE'});
+      window.dispatchEvent(new CustomEvent('nisti:product-image-treatment-summary-request'));
+      await onChanged()
+    }
     catch(err){setError(err.message)}finally{setBusyId(null)}
   };
   const approve=async product=>{
     setBusyId(product.id);setError('');
     try{
       await request(`/api/admin/product-image-treatment/${product.id}/approve`,{method:'POST'});
+      window.dispatchEvent(new CustomEvent('nisti:product-image-treatment-summary-request'));
       setJustApprovedIds(current=>new Set(current).add(Number(product.id)));
       setShowApproved(false);
       await onChanged();
@@ -251,6 +262,7 @@ function MuralProductImageManager({ products, onChanged }) {
     setBusyId(product.id);setError('');
     try{
       await request(`/api/admin/product-image-treatment/${product.id}/redo`,{method:'POST'});
+      window.dispatchEvent(new CustomEvent('nisti:product-image-treatment-summary-request'));
       await onChanged();
       if(!paused)window.dispatchEvent(new CustomEvent(TREATMENT_CONTROL_EVENT,{detail:{paused:false}}));
     }catch(err){setError(err.message)}finally{setBusyId(null)}
