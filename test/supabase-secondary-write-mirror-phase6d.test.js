@@ -173,8 +173,28 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
   }
 });
 
-test('Phase 6D still does not enable production cutover', () => {
+test('reserve phase keeps read cutover disabled while write mirroring is active', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
-  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"off"/);
+  assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"mirror"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"0"/);
+});
+
+
+test('reserve phase mirrors product image derivative mutations', () => {
+  const mutationMirror = fs.readFileSync('src/supabase-mutation-mirror.js', 'utf8');
+  const secondary = fs.readFileSync('src/supabase-secondary-write-store.js', 'utf8');
+  const migration = fs.readFileSync(
+    'supabase/migrations/20261001133500_supabase_reserve_product_images_v1.sql',
+    'utf8'
+  );
+
+  assert.match(secondary, /mirrorProductImageDerivativeFromD1/);
+  assert.match(secondary, /nisti_mirror_product_image/);
+  assert.match(mutationMirror, /product-image-treatment/);
+  assert.match(mutationMirror, /admin\/mural\/products/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.mural_product_images/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.nisti_mirror_product_image/);
+  assert.match(migration, /WHEN 'product-display'/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.nisti_mirror_product_image/);
+  assert.doesNotMatch(migration, /SECURITY DEFINER/i);
 });
