@@ -993,15 +993,31 @@ async function buildTransparentProductImage(src, options = {}) {
     // that cut with the correct official variant. This removes the large
     // white steps beside the rings and the oversized white floor caused by
     // applying a full-canvas contour verbatim.
+    const originalPixels = data.slice();
     const photoStructure = buildPlannerStructureProtection(data, width, height);
     if (photoStructure) applyPlannerStructureMask(data, width, height, photoStructure);
     applyOfficialProductMask(data, official.mask);
 
-    const officialProductMask = buildProductComponentsMask(data, width, height);
-    if (!officialProductMask) return src;
-    const officialStats = maskStats(officialProductMask, width, height);
+    let officialProductMask = buildProductComponentsMask(data, width, height);
+    let officialStats = officialProductMask ? maskStats(officialProductMask, width, height) : null;
+    const invalidPreciseCut = !officialStats
+      || officialStats.ratio < .45
+      || officialStats.ratio > .80
+      || officialStats.touches >= 3;
+
+    // A detached tassel can pull the photo-derived anchors away from the
+    // agenda body. Never fail the whole redo for that: restore the untouched
+    // original pixels and fall back to the correct official tassel variant.
+    if (invalidPreciseCut && photoStructure) {
+      data.set(originalPixels);
+      applyOfficialProductMask(data, official.mask);
+      officialProductMask = buildProductComponentsMask(data, width, height);
+      officialStats = officialProductMask ? maskStats(officialProductMask, width, height) : null;
+    }
+
     if (
-      officialStats.ratio < .45
+      !officialStats
+      || officialStats.ratio < .45
       || officialStats.ratio > .80
       || officialStats.touches >= 3
     ) return src;
