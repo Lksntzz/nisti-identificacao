@@ -327,3 +327,22 @@ test('GTIN dashboard uses the Supabase reserve without touching D1 when reads ar
   assert.match(store, /supabaseReserveGtinDashboard/);
   assert.match(router, /preferSupabaseRead[\s\S]*supabaseReserveGtinDashboard/);
 });
+
+test('primary operational writes bypass D1 for scanner events and mural reads', () => {
+  const migration = fs.readFileSync(
+    'supabase/migrations/20261001194000_primary_operational_writes_v1.sql',
+    'utf8'
+  );
+  const gtin = fs.readFileSync('src/gtin-router.js', 'utf8');
+  const mural = fs.readFileSync('src/mural-router.js', 'utf8');
+
+  for (const name of [
+    'nisti_record_gtin_scan_event_v1',
+    'nisti_mark_mural_post_read_v1',
+    'nisti_mark_all_mural_posts_read_v1'
+  ]) assert.match(migration, new RegExp(name));
+  assert.doesNotMatch(migration, /SECURITY DEFINER/i);
+  assert.match(gtin, /supabasePrimaryWritesRequested[\s\S]*nisti_record_gtin_scan_event_v1[\s\S]*return;/);
+  assert.match(mural, /supabasePrimaryWritesRequested[\s\S]*nisti_mark_mural_post_read_v1/);
+  assert.match(mural, /nisti_mark_all_mural_posts_read_v1/);
+});

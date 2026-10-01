@@ -32,8 +32,8 @@ export async function mirrorSupabaseRpc(env, rpcName, args, label = rpcName) {
   if (mode === 'off') return { attempted: false, ok: true };
 
   try {
-    await supabaseRpc(env, rpcName, args);
-    return { attempted: true, ok: true };
+    const value = await supabaseRpc(env, rpcName, args);
+    return { attempted: true, ok: true, value };
   } catch (error) {
     console.error(`[Supabase ${mode}] ${label} falhou`, {
       code: error?.code || 'supabase_mirror_error',

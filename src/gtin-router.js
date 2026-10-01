@@ -10,7 +10,8 @@ import {
 } from './supabase-read-store.js';
 import {
   mirrorSupabaseRpc,
-  supabaseMirrorWritesRequested
+  supabaseMirrorWritesRequested,
+  supabasePrimaryWritesRequested
 } from './supabase-write-store.js';
 
 function json(data, status = 200) {
@@ -101,13 +102,27 @@ async function insertGtinScanEvent(request, env, event) {
     throw error;
   }
 
-  await ensureGtinScanEventsTable(env);
   const productId = Number(event?.product_id || 0) || null;
   const responseMs = Math.max(0, Math.min(120000, Math.round(Number(event?.response_ms || 0))));
   const { operatorName, operatorId } = eventOperator(request, event);
 
   const createdAt = new Date().toISOString();
   const errorCode = cleanEventText(event?.error_code, 100);
+  if (supabasePrimaryWritesRequested(env)) {
+    await mirrorSupabaseRpc(env, 'nisti_record_gtin_scan_event_v1', {
+      p_gtin:gtin,
+      p_status:status,
+      p_product_id:productId,
+      p_operator_name:operatorName,
+      p_operator_id:operatorId,
+      p_response_ms:responseMs,
+      p_error_code:errorCode,
+      p_created_at:createdAt
+    }, 'direct GTIN scan event');
+    return;
+  }
+
+  await ensureGtinScanEventsTable(env);
   const result = await env.DB.prepare(`
     INSERT INTO gtin_scan_events (
       gtin,status,product_id,operator_name,operator_id,response_ms,error_code,created_at

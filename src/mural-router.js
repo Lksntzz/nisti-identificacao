@@ -9,6 +9,7 @@ import {
   supabaseReserveMuralPostImage,
   supabaseReserveMuralUnread
 } from './supabase-read-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 
 const MURAL_PUBLIC_RELEASED = false;
 const MURAL_GEMINI_PRO_MODES = Object.freeze(new Set(['product_scene', 'collection_scene']));
@@ -334,6 +335,18 @@ async function listMuralFeed(request, url, env) {
 }
 
 async function markRead(postId, userId, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result = await mirrorSupabaseRpc(
+      env,
+      'nisti_mark_mural_post_read_v1',
+      { p_post_id:postId, p_user_id:userId },
+      `mural read ${postId}`
+    );
+    const unreadCount = Number(result?.value ?? -1);
+    if (unreadCount < 0) return json({ error: 'Publicação do Mural não encontrada.' }, 404);
+    return json({ ok: true, unread_count: unreadCount });
+  }
+
   const post = await env.DB.prepare(`
     SELECT id
     FROM mural_posts
@@ -357,6 +370,16 @@ async function markRead(postId, userId, env) {
 }
 
 async function markAllRead(userId, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    await mirrorSupabaseRpc(
+      env,
+      'nisti_mark_all_mural_posts_read_v1',
+      { p_user_id:userId },
+      'mark all mural posts read'
+    );
+    return json({ ok: true, unread_count: 0 });
+  }
+
   await env.DB.prepare(`
     INSERT OR IGNORE INTO mural_post_reads (post_id,user_id,read_at)
     SELECT id,?,CURRENT_TIMESTAMP
