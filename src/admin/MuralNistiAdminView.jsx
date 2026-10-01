@@ -262,7 +262,7 @@ function MuralProductImageManager({ products, onChanged }) {
     </section>
     {error&&<div className="mural-admin-error">{error}</div>}
     <div className="mural-product-image-manager-grid">
-      {filtered.map(product=>{const previewSrc=product.mural_image_ready?product.image_url:product.mural_image_reviewable?product.review_image_url:null;const state=product.mural_image_ready?'approved':product.mural_image_reviewable?'review':product.mural_image_status==='failed'?'failed':product.mural_image_status==='redo'?'redo':'pending';const label={approved:'Aprovada e bloqueada',review:'Aguardando aprovação',failed:'Falhou',redo:'Refazendo com borda',pending:'Pendente'}[state];return <article key={product.id}>
+      {filtered.map(product=>{const previewSrc=product.mural_image_ready?product.image_url:product.mural_image_reviewable?product.review_image_url:null;const state=product.mural_image_ready?'approved':product.mural_image_reviewable?'review':product.mural_image_status==='failed'?'failed':product.mural_image_processor==='system-precise-redo'?'redo':'pending';const label={approved:'Aprovada e bloqueada',review:'Aguardando aprovação',failed:'Falhou',redo:'Refazendo com borda',pending:'Pendente'}[state];return <article key={product.id}>
         <div className="mural-product-image-pair">
           <figure><span>Original</span>{product.original_image_url?<img src={product.original_image_url} alt=""/>:<i>Sem imagem</i>}</figure>
           <figure className="processed"><span>PNG tratado</span>{previewSrc?<img src={previewSrc} alt=""/>:<i>{state==='redo'?'Refazendo…':'Pendente'}</i>}</figure>
