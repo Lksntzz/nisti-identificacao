@@ -170,5 +170,6 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(utility.includes('requestedOfficialVariant && !options.forceOutline'));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
   assert.ok(utility.includes('const outlineScale = 8 / 1024'));
-  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 2);
+  assert.ok(utility.includes('if (requestedOfficialVariant) {\n    const official = await buildOfficialProductMask'));
+  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 1);
 });
