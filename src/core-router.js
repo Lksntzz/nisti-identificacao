@@ -611,6 +611,27 @@ export default {
         let source = 'd1';
         const d1Loader = async () => {
           const { results } = await env.DB.prepare(`
+            WITH first_platform_id AS (
+              SELECT product_id,MIN(id) AS id
+              FROM product_platforms
+              GROUP BY product_id
+            ),
+            first_platform AS (
+              SELECT pp.product_id,pp.platform,pp.link
+              FROM product_platforms pp
+              INNER JOIN first_platform_id fp ON fp.id=pp.id
+            ),
+            first_gtin_id AS (
+              SELECT product_id,MIN(id) AS id
+              FROM product_gtins
+              WHERE active=1
+              GROUP BY product_id
+            ),
+            first_gtin AS (
+              SELECT pg.product_id,pg.gtin
+              FROM product_gtins pg
+              INNER JOIN first_gtin_id fg ON fg.id=pg.id
+            )
             SELECT
               p.id,p.sku,p.miolo_code,p.capa_code,p.acabamento_code,p.wireo_code,
               p.tassel_code,p.elastico_code,p.nome,p.variacao,p.image_key,p.created_at,
@@ -620,15 +641,14 @@ export default {
               mpi.processor AS treated_image_processor,
               mpi.processor_version AS treated_image_version,
               mpi.reviewed_by AS treated_image_reviewed_by,
-              (SELECT pp.platform FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS platform,
-              (SELECT pp.link FROM product_platforms pp WHERE pp.product_id=p.id ORDER BY pp.id ASC LIMIT 1) AS link,
-              (SELECT pg.gtin FROM product_gtins pg WHERE pg.product_id=p.id AND pg.active=1 ORDER BY pg.id ASC LIMIT 1) AS gtin,
-              EXISTS(
-                SELECT 1 FROM product_gtins pg
-                WHERE pg.product_id=p.id AND pg.active=1
-              ) AS has_active_gtin
+              fp.platform,
+              fp.link,
+              fg.gtin,
+              CASE WHEN fg.gtin IS NULL THEN 0 ELSE 1 END AS has_active_gtin
             FROM products p
             LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+            LEFT JOIN first_platform fp ON fp.product_id=p.id
+            LEFT JOIN first_gtin fg ON fg.product_id=p.id
             ORDER BY p.id DESC
             LIMIT 1000
           `).all();
