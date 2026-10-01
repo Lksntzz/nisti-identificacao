@@ -6,6 +6,7 @@ test('Supabase reserve is configured with write mirroring and read cutover disab
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_URL = "https:\/\/yioetdcbgorunwgwuawg\.supabase\.co"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED = "0"/);
+  assert.match(wrangler, /SUPABASE_EMERGENCY_FALLBACK_ENABLED = "1"/);
   assert.match(wrangler, /SUPABASE_WRITE_MODE = "mirror"/);
   assert.match(wrangler, /SUPABASE_READ_TIMEOUT_MS = "5000"/);
   assert.doesNotMatch(wrangler, /SUPABASE_SERVICE_ROLE_KEY/);
