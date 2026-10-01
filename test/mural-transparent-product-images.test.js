@@ -24,7 +24,7 @@ test('Mural creates transparent PNG cutouts by removing only border-connected ne
   assert.ok(utility.includes('const queue = new Int32Array(total)'));
   assert.ok(utility.includes("canvas.toBlob"));
   assert.ok(utility.includes("'image/png'"));
-  assert.ok(utility.includes('MAX_RENDER_DIMENSION = 1800'));
+  assert.ok(utility.includes('MAX_RENDER_DIMENSION = 1280'));
 });
 
 test('treated product rendering is shared across NISTI ID, Catalog, Scanner, Commerce and Mural without mutating source files', () => {
