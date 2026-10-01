@@ -35,9 +35,10 @@ test('unsafe mostly-white products keep their original source instead of being d
 });
 
 
-test('outline uses only the largest connected product and fills internal holes', () => {
-  assert.match(source, /function buildLargestConnectedSubjectMask/);
-  assert.match(source, /if \(count > largestSize\)/);
+test('outline keeps the product and nearby detached wire-o while filling internal holes', () => {
+  assert.match(source, /function buildProductComponentsMask/);
+  assert.match(source, /const closeToMainProduct/);
+  assert.match(source, /const anotherLargeProduct/);
   assert.match(source, /function fillMaskInteriorHoles/);
   assert.match(source, /if \(!mask\[index\] && !outside\[index\]\) solid\[index\] = 1/);
 });
@@ -46,11 +47,35 @@ test('outline is only the external white ring and rejects background-sized masks
   assert.match(source, /function dilateMask/);
   assert.match(source, /function maskStats/);
   assert.match(source, /if \(stats\.ratio > \.82 \|\| stats\.touches >= 3\) return ''/);
-  assert.match(source, /const radius = clamp\(Math\.round\(Math\.max\(width, height\) \* \.0018\), 1, 3\)/);
+  assert.match(source, /const radius = clamp\(Math\.round\(Math\.max\(width, height\) \* \.0028\), 2, 5\)/);
   assert.match(source, /const expandedMask = dilateMask\(solidMask, width, height, radius\)/);
   assert.match(source, /if \(!expandedMask\[index\] \|\| solidMask\[index\]\) continue/);
   assert.match(source, /outlineData\.data\[offset\] = 255/);
   assert.match(source, /export function useTransparentProductOutline/);
+});
+
+test('outline follows detached wire-o details but ignores an isolated corner logo', () => {
+  const width = 120;
+  const height = 100;
+  const data = new Uint8ClampedArray(width * height * 4);
+  const paint = (fromX, toX, fromY, toY) => {
+    for (let y = fromY; y <= toY; y += 1) {
+      for (let x = fromX; x <= toX; x += 1) {
+        data[(y * width + x) * 4 + 3] = 255;
+      }
+    }
+  };
+
+  paint(35, 94, 12, 91); // agenda body
+  paint(29, 32, 24, 28); // detached wire-o near the agenda
+  paint(29, 32, 42, 46);
+  paint(4, 14, 4, 10); // detached logo in the corner
+
+  const mask = __muralTransparentImageInternals.buildProductComponentsMask(data, width, height);
+  assert.ok(mask);
+  assert.equal(mask[50 * width + 60], 1);
+  assert.equal(mask[26 * width + 30], 1);
+  assert.equal(mask[7 * width + 8], 0);
 });
 
 test('detached corner logo cannot stretch the dominant agenda silhouette', () => {
