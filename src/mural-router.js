@@ -898,6 +898,28 @@ async function adminCreateCollection(request, env) {
 }
 
 async function adminUpdateCollection(id, request, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const current=await supabaseRpc(env,'nisti_admin_mural_collection_v1',{p_id:id});
+    if(!current) return json({error:'Coleção não encontrada.'},404);
+    const input=await readJson(request);
+    const name=requiredText(input.name ?? current.name,90,'Nome');
+    const slug=slugify(input.slug ?? current.slug);
+    const status=String(input.status ?? current.status);
+    if(!['active','archived'].includes(status)) throw new Error('Status de coleção inválido.');
+    const yearValue=input.year ?? current.year;
+    const year=yearValue ? Number(yearValue) : null;
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_collection_write_v1',{
+      p_action:'update',p_id:id,p_payload:{
+        slug,name,year:Number.isInteger(year)?year:null,
+        description:nullableText(input.description ?? current.description,700),
+        status
+      }
+    },`update mural collection ${id}`);
+    const value=result?.value || {};
+    if(value.status==='slug_conflict') return json({error:'Já existe uma coleção com esse slug.'},409);
+    if(value.status==='not_found') return json({error:'Coleção não encontrada.'},404);
+    return json({ok:true,id,slug:value.slug || slug});
+  }
   const current = await env.DB.prepare('SELECT * FROM mural_collections WHERE id=?').bind(id).first();
   if (!current) return json({ error:'Coleção não encontrada.' },404);
   const input = await readJson(request);
@@ -914,6 +936,20 @@ async function adminUpdateCollection(id, request, env) {
 }
 
 async function adminSetCollectionProducts(id, request, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const input=await readJson(request);
+    const productIds=Array.isArray(input.product_ids)
+      ? [...new Set(input.product_ids.map(Number).filter(value=>Number.isInteger(value)&&value>0))]
+      : [];
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_collection_write_v1',{
+      p_action:'set_products',p_id:id,p_payload:{product_ids:productIds}
+    },`set mural collection products ${id}`);
+    const value=result?.value || {};
+    if(value.status==='not_found') return json({error:'Coleção não encontrada.'},404);
+    if(value.status==='product_not_found') return json({error:'A coleção contém produto inexistente.'},422);
+    if(value.status!=='ok') return json({error:'Não foi possível atualizar os produtos da coleção.'},422);
+    return json({ok:true,count:Number(value.count || 0)});
+  }
   const collection = await env.DB.prepare('SELECT id FROM mural_collections WHERE id=?').bind(id).first();
   if (!collection) return json({error:'Coleção não encontrada.'},404);
   const input = await readJson(request);
@@ -934,6 +970,21 @@ async function adminSetCollectionProducts(id, request, env) {
 }
 
 async function adminPublishCollection(id, env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_collection_write_v1',{
+      p_action:'publish',p_id:id,p_payload:{}
+    },`publish mural collection ${id}`);
+    const value=result?.value || {};
+    if(value.status==='not_found') return json({error:'Coleção não encontrada.'},404);
+    if(value.status==='inactive') return json({error:'Ative a coleção antes de publicar no Mural.'},422);
+    if(value.status==='empty') return json({error:'Adicione pelo menos um produto à coleção antes de publicar.'},422);
+    if(value.status!=='ok') return json({error:'Não foi possível publicar a coleção.'},422);
+    return json({
+      ok:true,id:Number(value.id),collection_id:Number(value.collection_id),
+      status:'published',featured:true,badge:'NOVA COLEÇÃO',
+      published_at:value.published_at,product_count:Number(value.product_count || 0)
+    });
+  }
   const collection = await env.DB.prepare(`
     SELECT id,slug,name,year,description,image_key,status
     FROM mural_collections
