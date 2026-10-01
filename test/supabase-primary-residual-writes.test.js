@@ -37,7 +37,7 @@ test('occurrence create and dismiss bypass D1 in Supabase primary mode',()=>{
   const d1Create=occurrences.indexOf("INSERT INTO scan_occurrences");
   assert.ok(create>=0 && d1Create>create);
   assert.match(occurrences,/nisti_dismiss_scan_occurrence_v1/);
-  assert.match(mutationMirror,/admin\\\/occurrences\\\/\\d\+\\\/dismiss/);
+  assert.ok(mutationMirror.includes("/api/admin/occurrences/\\d+/(?:train|dismiss)"));
 });
 
 test('operator rename bypasses D1 in Supabase primary mode',()=>{
