@@ -83,12 +83,16 @@ test('Phase 6D mirrors a reindex batch with one Supabase RPC', async () => {
 
 test('Phase 6D notification and push writers mirror only after committed D1 writes', () => {
   const notifications = fs.readFileSync('src/cover-notifications.js', 'utf8');
+  const systemNotifications = fs.readFileSync('src/system-notifications.js', 'utf8');
   const push = fs.readFileSync('src/web-push.js', 'utf8');
 
   assert.match(notifications, /INSERT INTO notifications[\s\S]*await mirrorNotificationByCapaFromD1/);
   assert.match(notifications, /UPDATE notifications[\s\S]*mirrorNotificationsForProductOrCoverFromD1/);
   assert.match(notifications, /INSERT INTO notification_reads[\s\S]*mirrorNotificationReadFromD1/);
   assert.match(notifications, /markAllNotificationsRead[\s\S]*mirrorNotificationReadsForUserFromD1/);
+  assert.match(systemNotifications, /INSERT INTO notifications[\s\S]*mirrorNotificationByCapaFromD1/);
+  assert.match(systemNotifications, /INSERT INTO notification_reads[\s\S]*mirrorNotificationReadFromD1/);
+  assert.match(systemNotifications, /markAllAdminSystemNotificationsRead[\s\S]*mirrorNotificationReadsForUserFromD1/);
 
   assert.match(push, /INSERT INTO push_subscriptions[\s\S]*mirrorPushSubscriptionByEndpointFromD1/);
   assert.match(push, /DELETE FROM push_subscriptions[\s\S]*mirrorDeletedPushSubscriptionToSupabase/);
@@ -150,8 +154,8 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
     ['recognition_events', new Set(['recognition-metrics.js', 'system-metrics-clean-router.js'])],
     ['cover_visual_references', new Set(['core-router.js', 'occurrences-router.js'])],
     ['cover_reference_embeddings', new Set(['core-router.js', 'occurrences-router.js', 'reference-reindex-router.js'])],
-    ['notifications', new Set(['core-router.js', 'cover-notifications.js'])],
-    ['notification_reads', new Set(['cover-notifications.js'])],
+    ['notifications', new Set(['core-router.js', 'cover-notifications.js', 'system-notifications.js'])],
+    ['notification_reads', new Set(['cover-notifications.js', 'system-notifications.js'])],
     ['push_subscriptions', new Set(['web-push.js'])],
     ['scan_occurrences', new Set(['occurrences-router.js'])],
     ['geometric_shadow_evidence', new Set(['geometric-shadow-evidence-router.js', 'geometric-shadow-confirmation-router.js'])],

@@ -1,3 +1,9 @@
+import {
+  mirrorNotificationByCapaFromD1,
+  mirrorNotificationReadFromD1,
+  mirrorNotificationReadsForUserFromD1
+} from './supabase-secondary-write-store.js';
+
 const ADMIN_ID = '__admin_system__';
 const SYSTEM_CODE_PREFIX = '__SYS__';
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -40,7 +46,11 @@ export async function recordAdminSystemNotification(env, event = {}) {
     clean(event.request_path, 300)
   ).run();
 
-  return Number(result?.meta?.last_row_id || 0) || null;
+  const id = Number(result?.meta?.last_row_id || 0) || null;
+  await mirrorNotificationByCapaFromD1(env, marker).catch(error => {
+    console.warn('[Supabase mirror] system notification', error?.message || error);
+  });
+  return id;
 }
 
 export async function listAdminSystemNotifications(env, limit = 80) {
@@ -106,7 +116,12 @@ export async function markAdminSystemNotificationRead(env, notificationId) {
     WHERE id=? AND type<>'new_cover' AND capa_code LIKE ?
     ON CONFLICT(notification_id,user_id) DO NOTHING
   `).bind(ADMIN_ID, id, `${SYSTEM_CODE_PREFIX}%`).run();
-  if (Number(result?.meta?.changes || 0) > 0) return true;
+  if (Number(result?.meta?.changes || 0) > 0) {
+    await mirrorNotificationReadFromD1(env, id, ADMIN_ID).catch(error => {
+      console.warn('[Supabase mirror] system notification read', error?.message || error);
+    });
+    return true;
+  }
   const existing = await env.DB.prepare(`
     SELECT id FROM notification_reads
     WHERE notification_id=? AND user_id=?
@@ -126,6 +141,12 @@ export async function markAllAdminSystemNotificationsRead(env) {
         WHERE r.notification_id=n.id AND r.user_id=?
       )
   `).bind(ADMIN_ID, `${SYSTEM_CODE_PREFIX}%`, ADMIN_ID).run();
+
+  if (Number(result?.meta?.changes || 0) > 0) {
+    await mirrorNotificationReadsForUserFromD1(env, ADMIN_ID).catch(error => {
+      console.warn('[Supabase mirror] system notification reads', error?.message || error);
+    });
+  }
   return Number(result?.meta?.changes || 0);
 }
 
