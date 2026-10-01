@@ -168,4 +168,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("processor='system-precise-redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes('requestedOfficialVariant && !options.forceOutline'));
+  assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
+  assert.ok(utility.includes('const outlineScale = 8 / 1024'));
+  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 2);
 });
