@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createCatalogXlsx } from './catalog-xlsx.js';
 import { CommerceSyncBadge } from './CommerceSyncBadge.jsx';
 import { AdminState } from './AdminState.jsx';
+import ProductCutoutImage from '../product-cutout-image.jsx';
 
 const PAGE_SIZE = 10;
 
@@ -338,11 +339,10 @@ export function CatalogView({
                     <td>
                       <div className="capa-cell-wrap">
                         {product.image_url ? (
-                          <img
+                          <ProductCutoutImage
                             src={productImage(product)}
                             alt={product.sku}
                             className="table-thumb-img"
-                            loading="lazy"
                           />
                         ) : (
                           <div className="table-thumb-placeholder">
