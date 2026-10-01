@@ -12,7 +12,8 @@ export default function ProductCutoutImage({
   onError,
   ...props
 }) {
-  const normalized = String(src || '').trim();
+  const originalSrc = String(src || '').trim();
+  const normalized = originalSrc.replace(/^\/api\/images\/(\d+)/, '/api/product-images/$1');
   const treatedSrc = useTreatedProductImage(normalized, Boolean(normalized));
   const [failed, setFailed] = useState(false);
 
