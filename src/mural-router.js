@@ -1014,14 +1014,24 @@ async function adminProducts(url, env) {
     WHERE (?='' OR sku LIKE ? OR nome LIKE ? OR variacao LIKE ?)
     ORDER BY p.updated_at DESC,p.id DESC LIMIT ?
   `).bind(q,like,like,like,productLimit).all();
-  return json({items:(results||[]).map(row=>{ const labels=finishLabels(row); return {
-    ...row,
-    ...labels,
-    type:productTypeLabel(row),
-    original_image_url:row.image_key?`/api/images/${row.id}?v=${encodeURIComponent(row.image_key)}`:null,
-    image_url:muralProductImageUrl(row),
-    mural_image_ready:Boolean(approvedMuralProductKey(row))
-  }; })});
+  return json({items:(results||[]).map(row=>{
+    const labels=finishLabels(row);
+    const reviewable = row.mural_image_status === 'review'
+      && row.mural_processed_image_key
+      && row.mural_source_image_key === row.image_key;
+    return {
+      ...row,
+      ...labels,
+      type:productTypeLabel(row),
+      original_image_url:row.image_key?`/api/images/${row.id}?v=${encodeURIComponent(row.image_key)}`:null,
+      image_url:muralProductImageUrl(row),
+      review_image_url:reviewable
+        ? `/api/admin/product-image-treatment/${row.id}/preview?v=${encodeURIComponent(row.mural_processed_image_key)}`
+        : null,
+      mural_image_ready:Boolean(approvedMuralProductKey(row)),
+      mural_image_reviewable:Boolean(reviewable)
+    };
+  })});
 }
 
 function inspectTransparentPng(bytes) {
@@ -1064,15 +1074,15 @@ async function uploadMuralProductImage(productId, request, env) {
     INSERT INTO mural_product_images (
       product_id,source_image_key,processed_image_key,status,processor,
       processor_version,reviewed_by,reviewed_at,error_message,updated_at
-    ) VALUES (?,?,?,'approved','admin-upload','1','admin',CURRENT_TIMESTAMP,NULL,CURRENT_TIMESTAMP)
+    ) VALUES (?,?,?,'review','admin-upload','1',NULL,NULL,NULL,CURRENT_TIMESTAMP)
     ON CONFLICT(product_id) DO UPDATE SET
       source_image_key=excluded.source_image_key,
       processed_image_key=excluded.processed_image_key,
-      status='approved',
+      status='review',
       processor='admin-upload',
       processor_version='1',
-      reviewed_by='admin',
-      reviewed_at=CURRENT_TIMESTAMP,
+      reviewed_by=NULL,
+      reviewed_at=NULL,
       error_message=NULL,
       updated_at=CURRENT_TIMESTAMP
   `).bind(productId,product.image_key,key).run();
@@ -1082,8 +1092,8 @@ async function uploadMuralProductImage(productId, request, env) {
   return json({
     ok:true,
     product_id:productId,
-    status:'approved',
-    image_url:`/api/product-images/${productId}?v=${encodeURIComponent(key)}`,
+    status:'review',
+    image_url:`/api/admin/product-image-treatment/${productId}/preview?v=${encodeURIComponent(key)}`,
     width:png.width,
     height:png.height
   });
