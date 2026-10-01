@@ -971,6 +971,27 @@ function isPersistedProductImageUrl(src) {
   return /\/api\/product-images\/\d+(?:\?|$)/.test(String(src || ''));
 }
 
+function persistedProductOriginalUrl(src) {
+  const normalized = String(src || '').trim();
+  const match = normalized.match(/\/api\/product-images\/(\d+)(\?[^#]*)?/);
+  if (!match) return normalized;
+  return `/api/images/${match[1]}${match[2] || ''}`;
+}
+
+async function persistedProductImageSource(src) {
+  try {
+    const response = await fetch(src, {
+      method:'HEAD',
+      credentials:'same-origin',
+      cache:'no-store'
+    });
+    if (!response.ok) return 'unknown';
+    return String(response.headers.get('x-nisti-image-source') || '').trim().toLowerCase() || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 async function buildTreatedProductImage(src) {
   const cutoutSrc = await transparentProductImageUrl(src);
   if (!cutoutSrc) return src;
@@ -1066,11 +1087,23 @@ async function buildTreatedProductImage(src) {
 export async function treatedProductImageUrl(src) {
   const normalized = String(src || '').trim();
   if (!normalized || typeof document === 'undefined') return normalized;
-  if (isPersistedProductImageUrl(normalized)) return normalized;
   if (treatedProductImageCache.has(normalized)) return treatedProductImageCache.get(normalized);
   if (treatedProductImageInflight.has(normalized)) return treatedProductImageInflight.get(normalized);
 
-  const promise = buildTreatedProductImage(normalized)
+  const promise = (async () => {
+    if (isPersistedProductImageUrl(normalized)) {
+      const source = await persistedProductImageSource(normalized);
+      if (source === 'treated') return normalized;
+      if (source === 'original') {
+        const originalUrl = persistedProductOriginalUrl(normalized);
+        const localTreated = await buildTreatedProductImage(originalUrl);
+        return localTreated?.startsWith('blob:') ? localTreated : normalized;
+      }
+      return normalized;
+    }
+
+    return buildTreatedProductImage(normalized);
+  })()
     .then(url => {
       treatedProductImageInflight.delete(normalized);
       treatedProductImageCache.set(normalized, url || normalized);
@@ -1230,5 +1263,7 @@ export const __muralTransparentImageInternals = {
   applyPlannerStructureMask,
   pointInsidePolygon,
   isPersistedProductImageUrl,
+  persistedProductOriginalUrl,
+  persistedProductImageSource,
   buildTreatedProductImage
 };
