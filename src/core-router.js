@@ -113,10 +113,11 @@ async function productTreatmentSummary(env) {
         AND mpi.source_image_key=p.image_key
         THEN 1 ELSE 0 END) AS approved,
       SUM(CASE WHEN p.image_key IS NOT NULL
-        AND NOT (
-          mpi.status='approved'
-          AND mpi.processed_image_key IS NOT NULL
-          AND mpi.source_image_key=p.image_key
+        AND (
+          mpi.product_id IS NULL
+          OR COALESCE(mpi.status,'') <> 'approved'
+          OR mpi.processed_image_key IS NULL
+          OR mpi.source_image_key IS NOT p.image_key
         )
         THEN 1 ELSE 0 END) AS pending
     FROM products p
