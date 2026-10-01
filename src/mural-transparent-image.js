@@ -13,63 +13,23 @@ const MAX_RENDER_DIMENSION = 1800;
 // reference (1254×1254). The reference is used only as geometry: it protects
 // the physical body (cover + page block) independently of pixel color.
 const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
-  // The approved reference has a physical silhouette aspect of ~0.709.
-  // Keep the range deliberately tight so this exact mask is never applied to
-  // unrelated products.
-  aspectMin: .56,
-  aspectMax: .86,
-  outlinePolygon: Object.freeze([
-    [0.980392, 0.013889],
-    [0.800461, 0.000000],
-    [0.083045, 0.050654],
-    [0.064591, 0.058824],
-    [0.063437, 0.089869],
-    [0.002307, 0.099673],
-    [0.006920, 0.125000],
-    [0.063437, 0.129085],
-    [0.064591, 0.142974],
-    [0.006920, 0.150327],
-    [0.001153, 0.173203],
-    [0.063437, 0.181373],
-    [0.064591, 0.196078],
-    [0.006920, 0.203431],
-    [0.001153, 0.225490],
-    [0.065744, 0.236111],
-    [0.063437, 0.251634],
-    [0.013841, 0.254902],
-    [0.001153, 0.273693],
-    [0.017301, 0.286765],
-    [0.065744, 0.288399],
-    [0.064591, 0.303922],
-    [0.013841, 0.308007],
-    [0.002307, 0.325980],
-    [0.013841, 0.338235],
-    [0.065744, 0.341503],
-    [0.068051, 0.672386],
-    [0.010381, 0.679739],
-    [0.004614, 0.700980],
-    [0.068051, 0.712418],
-    [0.066897, 0.726307],
-    [0.011534, 0.732843],
-    [0.005767, 0.754085],
-    [0.068051, 0.764706],
-    [0.069204, 0.778595],
-    [0.012687, 0.785948],
-    [0.005767, 0.805556],
-    [0.069204, 0.819444],
-    [0.068051, 0.833333],
-    [0.016148, 0.838235],
-    [0.006920, 0.856209],
-    [0.019608, 0.868464],
-    [0.068051, 0.871732],
-    [0.069204, 0.886438],
-    [0.013841, 0.892974],
-    [0.008074, 0.915850],
-    [0.068051, 0.925654],
-    [0.076125, 0.959150],
-    [0.913495, 0.999183],
-    [0.937716, 0.983660],
-    [0.997693, 0.979575]
+  // Geometry measured from the approved 1254×1254 transparent reference.
+  // The rigid wire-o outline is NOT reused: wire-o placement varies between
+  // product photos. Only the stable physical body is templated.
+  silhouetteAspect: .709,
+  candidateAspectMin: .30,
+  candidateAspectMax: 1.05,
+  bodyPolygon: Object.freeze([
+    [.075, .055],
+    [.785, .010],
+    [.965, .020],
+    [.995, .045],
+    [.995, .965],
+    [.955, .982],
+    [.915, .995],
+    [.080, .955],
+    [.068, .915],
+    [.066, .095]
   ])
 });
 
@@ -181,13 +141,78 @@ function subjectProtectionBounds(isProtectedSubjectPixel, width, height) {
   }
 
   if (maxX < minX || maxY < minY) return null;
-  const padX = Math.max(2, Math.round(width * .018));
-  const padY = Math.max(2, Math.round(height * .012));
+  return { minX, maxX, minY, maxY };
+}
+
+function quantileIndexFromHistogram(histogram, total, quantile) {
+  const target = Math.max(1, Math.round(total * quantile));
+  let cumulative = 0;
+  for (let index = 0; index < histogram.length; index += 1) {
+    cumulative += histogram[index];
+    if (cumulative >= target) return index;
+  }
+  return histogram.length - 1;
+}
+
+function buildPlannerReferenceBounds(data, width, height) {
+  const columns = new Uint32Array(width);
+  const rows = new Uint32Array(height);
+  let strong = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      if (!isStrongForegroundPixel(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) continue;
+      columns[x] += 1;
+      rows[y] += 1;
+      strong += 1;
+    }
+  }
+
+  if (strong < Math.max(24, Math.round(width * height * .0015))) return null;
+
+  // Trim isolated logos/dust by using robust quantiles instead of raw min/max.
+  const x0 = quantileIndexFromHistogram(columns, strong, .006);
+  const x1 = quantileIndexFromHistogram(columns, strong, .994);
+  const y0 = quantileIndexFromHistogram(rows, strong, .006);
+  const y1 = quantileIndexFromHistogram(rows, strong, .994);
+  const observedWidth = x1 - x0 + 1;
+  const observedHeight = y1 - y0 + 1;
+  const observedAspect = observedWidth / Math.max(1, observedHeight);
+
+  if (
+    observedWidth < width * .20
+    || observedHeight < height * .30
+    || observedAspect < PLANNER_STRUCTURE_REFERENCE.candidateAspectMin
+    || observedAspect > PLANNER_STRUCTURE_REFERENCE.candidateAspectMax
+  ) return null;
+
+  // Fit the approved silhouette around the actual product anchors. Width is
+  // strongly anchored by wire-o/elastic/pages; height follows the reference
+  // aspect and is expanded only as much as needed to contain real evidence.
+  const requiredWidth = observedWidth * 1.045;
+  const requiredHeight = observedHeight * 1.035;
+  let boxWidth = Math.max(requiredWidth, requiredHeight * PLANNER_STRUCTURE_REFERENCE.silhouetteAspect);
+  let boxHeight = boxWidth / PLANNER_STRUCTURE_REFERENCE.silhouetteAspect;
+  if (boxHeight < requiredHeight) {
+    boxHeight = requiredHeight;
+    boxWidth = boxHeight * PLANNER_STRUCTURE_REFERENCE.silhouetteAspect;
+  }
+
+  if (boxWidth > width * .97 || boxHeight > height * .97) return null;
+
+  let minX = (x0 + x1) / 2 - boxWidth / 2;
+  let minY = (y0 + y1) / 2 - boxHeight / 2;
+  minX = clamp(minX, 0, width - boxWidth);
+  minY = clamp(minY, 0, height - boxHeight);
+
   return {
-    minX:clamp(minX - padX, 0, width - 1),
-    maxX:clamp(maxX + padX, 0, width - 1),
-    minY:clamp(minY - padY, 0, height - 1),
-    maxY:clamp(maxY + padY, 0, height - 1)
+    minX,
+    minY,
+    maxX:minX + boxWidth,
+    maxY:minY + boxHeight,
+    width:boxWidth,
+    height:boxHeight
   };
 }
 
@@ -203,35 +228,52 @@ function pointInsidePolygon(x, y, polygon) {
   return inside;
 }
 
-function buildPlannerStructureProtection(isProtectedSubjectPixel, width, height) {
-  const bounds = subjectProtectionBounds(isProtectedSubjectPixel, width, height);
+function buildPlannerStructureProtection(data, width, height) {
+  const bounds = buildPlannerReferenceBounds(data, width, height);
   if (!bounds) return null;
 
-  const boxWidth = bounds.maxX - bounds.minX + 1;
-  const boxHeight = bounds.maxY - bounds.minY + 1;
-  const aspect = boxWidth / Math.max(1, boxHeight);
-  if (aspect < PLANNER_STRUCTURE_REFERENCE.aspectMin || aspect > PLANNER_STRUCTURE_REFERENCE.aspectMax) {
-    return null;
-  }
-
-  const polygon = PLANNER_STRUCTURE_REFERENCE.outlinePolygon.map(([nx, ny]) => ([
-    bounds.minX + nx * boxWidth,
-    bounds.minY + ny * boxHeight
+  const polygon = PLANNER_STRUCTURE_REFERENCE.bodyPolygon.map(([nx, ny]) => ([
+    bounds.minX + nx * bounds.width,
+    bounds.minY + ny * bounds.height
   ]));
 
-  // This is the complete outer contour extracted from the approved reference,
-  // including the wire-o protrusions. It is intentionally a true silhouette,
-  // not a rectangular/core protection area.
-  return (x, y) => pointInsidePolygon(x + .5, y + .5, polygon);
+  const contains = (x, y) => pointInsidePolygon(x + .5, y + .5, polygon);
+  contains.bounds = bounds;
+  return contains;
+}
+
+function buildPlannerDetailMask(data, width, height, bounds) {
+  const total = width * height;
+  const mask = new Uint8Array(total);
+  const left = Math.max(0, Math.floor(bounds.minX - bounds.width * .16));
+  const right = Math.min(width - 1, Math.ceil(bounds.maxX + bounds.width * .035));
+  const top = Math.max(0, Math.floor(bounds.minY - bounds.height * .025));
+  const bottom = Math.min(height - 1, Math.ceil(bounds.maxY + bounds.height * .025));
+
+  for (let y = top; y <= bottom; y += 1) {
+    for (let x = left; x <= right; x += 1) {
+      const index = y * width + x;
+      const offset = index * 4;
+      if (isStrongForegroundPixel(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) {
+        mask[index] = 1;
+      }
+    }
+  }
+
+  const radius = clamp(Math.round(Math.max(width, height) * .0022), 1, 4);
+  return dilateMask(mask, width, height, radius);
 }
 
 function applyPlannerStructureMask(data, width, height, isPlannerPixel) {
-  if (!isPlannerPixel) return 0;
+  if (!isPlannerPixel?.bounds) return 0;
+  const detailMask = buildPlannerDetailMask(data, width, height, isPlannerPixel.bounds);
   let removed = 0;
+
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      if (isPlannerPixel(x, y)) continue;
-      const alphaOffset = (y * width + x) * 4 + 3;
+      const index = y * width + x;
+      if (isPlannerPixel(x, y) || detailMask[index]) continue;
+      const alphaOffset = index * 4 + 3;
       if (data[alphaOffset] > 0) removed += 1;
       data[alphaOffset] = 0;
     }
@@ -812,12 +854,11 @@ async function buildTransparentProductImage(src) {
   // product. The previous hull clipping was the source of the white slab.
   const subjectEvidence = buildSubjectProtection(data, width, height);
   if (!subjectEvidence) return src;
-  const plannerStructureProtection = buildPlannerStructureProtection(subjectEvidence, width, height);
+  const plannerStructureProtection = buildPlannerStructureProtection(data, width, height);
 
-  // For a planner matching the approved reference, do not guess by color at
-  // all. Preserve every pixel inside the exact physical silhouette and clear
-  // every pixel outside it. This keeps white covers intact and eliminates the
-  // white rectangular plate seen in the Mural.
+  // For a planner matching the approved reference, keep the stable body by
+  // geometry and derive variable details (wire-o/elastic/page edges) from the
+  // actual photo. This avoids both white-cover erosion and rigid white spikes.
   if (plannerStructureProtection) {
     applyPlannerStructureMask(data, width, height, plannerStructureProtection);
     const plannerMask = buildProductComponentsMask(data, width, height);
@@ -1161,7 +1202,9 @@ export const __muralTransparentImageInternals = {
   protectedSubjectCoverage,
   isDeepProtectedSubjectPixel,
   subjectProtectionBounds,
+  buildPlannerReferenceBounds,
   buildPlannerStructureProtection,
+  buildPlannerDetailMask,
   applyPlannerStructureMask,
   pointInsidePolygon,
   buildTreatedProductImage
