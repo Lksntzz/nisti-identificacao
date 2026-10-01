@@ -226,7 +226,7 @@ async function adminGtinEvents(url, env) {
       `).bind(...bindings,limit,offset).all();
 
       return {
-        total:Number(countRow?.total || 0),
+        total: Number(countRow?.total || 0),
         limit,
         offset,
         rows:results || []
