@@ -1,0 +1,100 @@
+name: Supabase Final Snapshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.cutover/run-snapshot.txt'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: nisti-supabase-final-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: Export D1 and build Supabase final replace
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify cutover freeze config
+        shell: bash
+        run: |
+          grep -q 'SUPABASE_CUTOVER_WRITE_FREEZE = "1"' wrangler.toml
+          grep -q 'SUPABASE_READS_ENABLED = "0"' wrangler.toml
+          grep -q 'SUPABASE_WRITE_MODE = "mirror"' wrangler.toml
+
+      - name: Export D1 snapshot
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+        run: |
+          set -euo pipefail
+          OUT="migration-export/final"
+          mkdir -p "$OUT"
+
+          WRANGLER_VERSION="$(npx wrangler --version 2>&1 | tail -n 1)"
+          echo "Wrangler: $WRANGLER_VERSION"
+
+          npx wrangler d1 export nisti-identificacao --remote --no-data --output "$OUT/d1-schema.sql"
+          npx wrangler d1 export nisti-identificacao --remote --no-schema --output "$OUT/d1-data.sql"
+
+          tables=(
+            products
+            product_platforms
+            cover_embeddings
+            recognition_daily
+            recognition_events
+            cover_visual_references
+            cover_reference_embeddings
+            cover_visual_signatures
+            notifications
+            notification_reads
+            push_subscriptions
+            scan_occurrences
+            geometric_shadow_evidence
+          )
+
+          printf '{"results":[' > "$OUT/d1-counts.json"
+          first=1
+          for table in "${tables[@]}"; do
+            raw="$(npx wrangler d1 execute nisti-identificacao --remote --json --command "SELECT COUNT(*) AS row_count FROM \"$table\";")"
+            count="$(printf '%s' "$raw" | jq -r '.[0].results[0].row_count')"
+            if [ "$first" -eq 0 ]; then printf ',' >> "$OUT/d1-counts.json"; fi
+            printf '{"table_name":"%s","row_count":%s}' "$table" "$count" >> "$OUT/d1-counts.json"
+            first=0
+          done
+          printf '],"success":true,"query_count":13}\n' >> "$OUT/d1-counts.json"
+
+          sha256sum "$OUT/d1-data.sql" "$OUT/d1-schema.sql" > "$OUT/sha256.txt"
+
+      - name: Convert D1 export for Supabase
+        run: node scripts/convert-d1-export-for-supabase.mjs migration-export/final/d1-data.sql
+
+      - name: Build atomic final replace
+        run: node scripts/build-supabase-final-replace.mjs migration-export/final/postgres-data.sql
+
+      - name: Upload cutover artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nisti-supabase-final-snapshot
+          path: migration-export/final/
+          if-no-files-found: error
+          retention-days: 7
