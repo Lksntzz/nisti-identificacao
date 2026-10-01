@@ -232,7 +232,7 @@ function MuralProductImageManager({ products, onChanged }) {
     try{
       await request(`/api/admin/product-image-treatment/${product.id}/redo`,{method:'POST'});
       await onChanged();
-      window.dispatchEvent(new CustomEvent(TREATMENT_CONTROL_EVENT,{detail:{paused:false}}));
+      if(!paused)window.dispatchEvent(new CustomEvent(TREATMENT_CONTROL_EVENT,{detail:{paused:false}}));
     }catch(err){setError(err.message)}finally{setBusyId(null)}
   };
 
