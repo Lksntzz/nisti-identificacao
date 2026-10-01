@@ -150,7 +150,7 @@ test('operator D1 writes are mirrored only after authoritative D1 rows exist', (
   assert.match(shadow, /nisti_mirror_confirm_geometric_shadow/);
 });
 
-test('cutover candidate enables Supabase reads and strict primary writes while frozen', () => {
+test('cutover release enables Supabase reads and strict primary writes with writes released', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);
   assert.match(wrangler, /SUPABASE_WRITE_MODE\s*=\s*"primary"/);
