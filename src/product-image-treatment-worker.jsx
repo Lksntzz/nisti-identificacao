@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { treatedProductImageBlob } from './mural-transparent-image.js';
 
 const LOCK_KEY = 'nisti_product_image_treatment_lock_v4';
@@ -88,6 +88,12 @@ async function processItem(item) {
 }
 
 export default function ProductImageTreatmentWorker({ enabled = true, onBatchComplete }) {
+  const onBatchCompleteRef = useRef(onBatchComplete);
+
+  useEffect(() => {
+    onBatchCompleteRef.current = onBatchComplete;
+  }, [onBatchComplete]);
+
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return undefined;
 
@@ -140,7 +146,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
           }
 
           if (changed.length) {
-            try { await onBatchComplete?.(changed); } catch {}
+            try { await onBatchCompleteRef.current?.(changed); } catch {}
           }
 
           await sleep(300);
@@ -159,7 +165,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
       window.clearTimeout(timer);
       releaseLock(owner);
     };
-  }, [enabled, onBatchComplete]);
+  }, [enabled]);
 
   return null;
 }
