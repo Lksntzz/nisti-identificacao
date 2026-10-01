@@ -106,24 +106,41 @@ END;
 
 CREATE TRIGGER IF NOT EXISTS trg_products_image_update_derivative
 AFTER UPDATE OF image_key ON products
-WHEN NEW.image_key IS NOT OLD.image_key
+WHEN NEW.image_key IS NOT OLD.image_key AND NEW.image_key IS NOT NULL
 BEGIN
   INSERT INTO mural_product_images (
     product_id,source_image_key,processed_image_key,status,processor,
     processor_version,reviewed_by,reviewed_at,error_message,created_at,updated_at
   ) VALUES (
-    NEW.id,NEW.image_key,NULL,
-    CASE WHEN NEW.image_key IS NULL THEN 'stale' ELSE 'pending' END,
+    NEW.id,NEW.image_key,NULL,'pending',
     NULL,NULL,NULL,NULL,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
   )
   ON CONFLICT(product_id) DO UPDATE SET
     source_image_key=excluded.source_image_key,
     processed_image_key=NULL,
-    status=excluded.status,
+    status='pending',
     processor=NULL,
     processor_version=NULL,
     reviewed_by=NULL,
     reviewed_at=NULL,
     error_message=NULL,
     updated_at=CURRENT_TIMESTAMP;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_products_image_clear_derivative
+AFTER UPDATE OF image_key ON products
+WHEN NEW.image_key IS NULL AND OLD.image_key IS NOT NULL
+BEGIN
+  UPDATE mural_product_images
+  SET
+    source_image_key=OLD.image_key,
+    processed_image_key=NULL,
+    status='stale',
+    processor=NULL,
+    processor_version=NULL,
+    reviewed_by=NULL,
+    reviewed_at=NULL,
+    error_message=NULL,
+    updated_at=CURRENT_TIMESTAMP
+  WHERE product_id=NEW.id;
 END;
