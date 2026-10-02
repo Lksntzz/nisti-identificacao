@@ -13,7 +13,7 @@ test('production Worker is detached from Cloudflare D1',()=>{
   assert.doesNotMatch(production,/binding\s*=\s*"DB"/);
   assert.match(production,/SUPABASE_READS_ENABLED = "1"/);
   assert.match(production,/SUPABASE_WRITE_MODE = "primary"/);
-  assert.match(production,/SUPABASE_EMERGENCY_FALLBACK_ENABLED = "0"/);
+  assert.doesNotMatch(production,/SUPABASE_EMERGENCY_/);
 });
 
 test('legacy D1 remains available only through an explicit compatibility config',()=>{
