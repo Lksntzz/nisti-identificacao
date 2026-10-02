@@ -353,12 +353,13 @@ test('planner cutout removes only border-connected studio background', () => {
   assert.equal(fixture.data[(100 * fixture.width + 22) * 4 + 3], 255);
 });
 
-test('planner cutout protects the body but traces the real source pixels', () => {
+test('geometry-aware cutout protects the body but traces the real source pixels', () => {
   const buildStart = source.indexOf('async function buildTransparentProductImage');
   const buildEnd = source.indexOf('async function buildTreatedProductImage');
   const buildSource = source.slice(buildStart, buildEnd);
-  assert.match(buildSource, /const plannerStructureProtection = buildPlannerStructureProtection/);
-  assert.match(buildSource, /removeConnectedStudioBackground\(data, width, height, plannerStructureProtection\)/);
+  assert.match(buildSource, /const geometry = classifyProductGeometry/);
+  assert.match(buildSource, /const structureProtection = buildGeometryProtection/);
+  assert.match(buildSource, /removeConnectedStudioBackground\(data, width, height, structureProtection\)/);
   assert.match(buildSource, /buildProductComponentsMask\(data, width, height/);
   assert.match(buildSource, /preserveAccessory/);
   assert.equal(buildSource.includes('applyOfficialProductMask'), false);
