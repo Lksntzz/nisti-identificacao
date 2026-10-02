@@ -4,7 +4,9 @@ import fs from 'node:fs';
 
 const mural=fs.readFileSync('src/mural-router.js','utf8');
 const mirror=fs.readFileSync('src/supabase-mutation-mirror.js','utf8');
-const sql=fs.readFileSync('supabase/migrations/20261001245000_primary_mural_residual_v2.sql','utf8');
+const legacySql=fs.readFileSync('supabase/migrations/20261001245000_primary_mural_residual_v2.sql','utf8');
+const referenceSql=fs.readFileSync('supabase/migrations/20261002085000_add_generic_mural_reference_aliases.sql','utf8');
+const sql=`${legacySql}\n${referenceSql}`;
 
 test('residual Mural admin reads and writes have direct Supabase-primary RPCs',()=>{
   for(const name of [
