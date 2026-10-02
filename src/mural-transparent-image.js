@@ -1039,7 +1039,7 @@ async function buildProductOutlineImage(src) {
   const stats = maskStats(mainMask, width, height);
   if (stats.ratio > .82 || stats.touches >= 3) return '';
 
-  const radius = clamp(Math.round(Math.max(width, height) * (5 / 1024)), 4, 7);
+  const radius = clamp(Math.round(Math.max(width, height) * (8 / 1024)), 6, 11);
   const outlineMask = buildExternalOutlineRing(mainMask, width, height, radius);
 
   const outlineData = context.createImageData(width, height);
