@@ -23,7 +23,6 @@ import {
   normalizePlatform
 } from './platform-scope.js';
 import {
-  preferSupabaseRead,
   supabaseReserveProducts,
   supabaseProductImageContext,
   supabaseCoverReferences,
