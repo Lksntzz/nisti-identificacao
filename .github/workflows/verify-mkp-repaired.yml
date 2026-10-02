@@ -1,0 +1,17 @@
+name: Verify Repaired MKP Mask
+on:
+  push:
+    branches: [debug/mkp-v15-repaired-mask]
+    paths: [.github/workflows/verify-mkp-repaired.yml]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repaired-mkp-mask
+          path: public/product-masks-mkp/wire_branco_com_tassel.png
+          retention-days: 1
