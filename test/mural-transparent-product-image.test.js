@@ -425,3 +425,53 @@ test('wire-o metadata activates accessory preservation even without a tassel', (
   assert.match(source, /applyMkpProductAlpha\(data, mkpAlpha, wireoRecoveryMask\)/);
   assert.match(source, /\|\| hasRegisteredWireo\(options\)/);
 });
+
+
+test('light wire-o stationery restores the continuous physical cover without restoring the studio background', () => {
+  const width = 200;
+  const height = 300;
+  const original = new Uint8ClampedArray(width * height * 4);
+  const cut = new Uint8ClampedArray(width * height * 4);
+
+  // White studio/source starts opaque. Coloured anchors approximate artwork,
+  // elastic and binding used to locate a portrait planner body.
+  for (let index = 0; index < width * height; index += 1) {
+    original[index * 4] = 250;
+    original[index * 4 + 1] = 250;
+    original[index * 4 + 2] = 250;
+    original[index * 4 + 3] = 255;
+    cut[index * 4] = 250;
+    cut[index * 4 + 1] = 250;
+    cut[index * 4 + 2] = 250;
+    cut[index * 4 + 3] = 0;
+  }
+  for (let y = 35; y <= 265; y += 8) {
+    for (let x = 52; x <= 148; x += 12) {
+      const offset = (y * width + x) * 4;
+      original[offset] = 205;
+      original[offset + 1] = 110;
+      original[offset + 2] = 70;
+    }
+  }
+
+  const body = __muralTransparentImageInternals.buildPlannerBodyProtection(
+    original, width, height, true
+  );
+  assert.ok(body, 'planner body geometry is available');
+
+  const inside = [100, 150];
+  const outside = [3, 150];
+  assert.equal(body(...inside), true);
+  assert.equal(body(...outside), false);
+
+  const restored = __muralTransparentImageInternals.restoreOriginalPixelsInsideProtection(
+    cut, original, width, height, body
+  );
+  assert.ok(restored > 1000, 'a meaningful continuous cover area is restored');
+  assert.equal(cut[(inside[1] * width + inside[0]) * 4 + 3], 255);
+  assert.equal(cut[(outside[1] * width + outside[0]) * 4 + 3], 0);
+
+  assert.match(source, /geometry\.kind === 'standard' && hasRegisteredWireo\(options\)/);
+  assert.match(source, /restoreOriginalPixelsInsideProtection\(/);
+  assert.match(source, /bodyPolygon: Object\.freeze/);
+});

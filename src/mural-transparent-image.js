@@ -44,6 +44,18 @@ const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
     [.915, .900],
     [.840, .940],
     [.200, .900]
+  ]),
+  // Conservative OUTER BODY for light wire-o stationery. The flood barrier
+  // above remains inset; this polygon is used only to restore original pixels
+  // that belong to the continuous cover/pages after the white studio flood.
+  // It intentionally excludes the wire-o/tassel area on the left.
+  bodyPolygon: Object.freeze([
+    [.145, .075],
+    [.815, .035],
+    [.925, .060],
+    [.945, .925],
+    [.865, .985],
+    [.155, .955]
   ])
 });
 
@@ -458,11 +470,12 @@ function pointInsidePolygon(x, y, polygon) {
   return inside;
 }
 
-function buildStructureProtection(data, width, height, reference, fitInsideCanvas = false) {
+function buildStructureProtection(data, width, height, reference, fitInsideCanvas = false, polygonKey = 'corePolygon') {
   const bounds = buildStructureReferenceBounds(data, width, height, reference, fitInsideCanvas);
-  if (!bounds) return null;
+  const normalizedPolygon = reference?.[polygonKey];
+  if (!bounds || !Array.isArray(normalizedPolygon) || normalizedPolygon.length < 3) return null;
 
-  const polygon = reference.corePolygon.map(([nx, ny]) => ([
+  const polygon = normalizedPolygon.map(([nx, ny]) => ([
     bounds.minX + nx * bounds.width,
     bounds.minY + ny * bounds.height
   ]));
@@ -475,6 +488,29 @@ function buildStructureProtection(data, width, height, reference, fitInsideCanva
 
 function buildPlannerStructureProtection(data, width, height, fitInsideCanvas = false) {
   return buildStructureProtection(data, width, height, PLANNER_STRUCTURE_REFERENCE, fitInsideCanvas);
+}
+
+function buildPlannerBodyProtection(data, width, height, fitInsideCanvas = false) {
+  return buildStructureProtection(
+    data, width, height, PLANNER_STRUCTURE_REFERENCE, fitInsideCanvas, 'bodyPolygon'
+  );
+}
+
+function restoreOriginalPixelsInsideProtection(data, originalPixels, width, height, protection) {
+  if (!protection || !originalPixels || originalPixels.length !== data.length) return 0;
+  let restored = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!protection(x, y)) continue;
+      const offset = (y * width + x) * 4;
+      if (data[offset + 3] < originalPixels[offset + 3]) restored += 1;
+      data[offset] = originalPixels[offset];
+      data[offset + 1] = originalPixels[offset + 1];
+      data[offset + 2] = originalPixels[offset + 2];
+      data[offset + 3] = originalPixels[offset + 3];
+    }
+  }
+  return restored;
 }
 
 function buildHorizontalStructureProtection(data, width, height, fitInsideCanvas = false) {
@@ -1338,7 +1374,23 @@ async function buildTransparentProductImage(src, options = {}) {
 
   if (structureProtection) {
     const originalPixels = data.slice();
+    const lightBodyProtection = geometry.kind === 'standard' && hasRegisteredWireo(options)
+      ? buildPlannerBodyProtection(originalPixels, width, height, options.forceOutline)
+      : null;
     removeConnectedStudioBackground(data, width, height, structureProtection);
+
+    // A white/off-white cover can be indistinguishable from the white studio
+    // background by colour alone. Once the safe planner geometry is known,
+    // restore the ORIGINAL pixels inside the physical body envelope. Printed
+    // flowers/text can never become the outer crop boundary, and the left
+    // accessory zone stays excluded so background between wire-o loops remains
+    // transparent.
+    if (lightBodyProtection) {
+      restoreOriginalPixelsInsideProtection(
+        data, originalPixels, width, height, lightBodyProtection
+      );
+    }
+
     const structureCoverage = protectedSubjectCoverage(
       data, width, height, structureProtection
     );
@@ -1823,6 +1875,8 @@ export const __muralTransparentImageInternals = {
   buildHorizontalReferenceBounds,
   buildDiscReferenceBounds,
   buildPlannerStructureProtection,
+  buildPlannerBodyProtection,
+  restoreOriginalPixelsInsideProtection,
   buildHorizontalStructureProtection,
   buildDiscStructureProtection,
   measureStrongForegroundGeometry,
