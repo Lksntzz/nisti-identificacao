@@ -32,8 +32,28 @@ test('official closed outline becomes a solid silhouette without relying on RGB 
   assert.equal(mask[0], 0, 'external background is removable');
 });
 
+test('official contour ignores detached antialiasing noise from the supplied mold', () => {
+  const width = 20;
+  const height = 20;
+  const outline = new Uint8ClampedArray(width * height * 4);
+  for (let x = 6; x <= 13; x += 1) {
+    outline[(6 * width + x) * 4 + 3] = 255;
+    outline[(13 * width + x) * 4 + 3] = 255;
+  }
+  for (let y = 6; y <= 13; y += 1) {
+    outline[(y * width + 6) * 4 + 3] = 255;
+    outline[(y * width + 13) * 4 + 3] = 255;
+  }
+  outline[(19 * width + 0) * 4 + 3] = 255;
+
+  const mask = __muralTransparentImageInternals.fillOfficialOutline(outline, width, height);
+  assert.equal(mask[10 * width + 10], 1, 'the product interior remains protected');
+  assert.equal(mask[19 * width], 0, 'detached mold noise is discarded');
+});
+
 test('background removal protects white and off-white covers with a physical-edge barrier', () => {
-  assert.match(source, /brightness >= 242 && chroma <= 18/);
+  assert.match(source, /brightness >= minimumBrightness && chroma <= 26/);
+  assert.match(source, /estimateBorderBackgroundBrightness/);
   assert.match(source, /function hasLocalProductEdge/);
   assert.match(source, /if \(delta >= 14\) return true/);
   assert.match(source, /if \(hasLocalProductEdge\(data, width, height, index\)\) return/);
@@ -48,14 +68,15 @@ test('only images with real transparent borders skip background cleanup', () => 
   assert.match(source, /function hasExistingTransparency/);
   assert.match(source, /function hasUsableTransparentBorder/);
   assert.match(source, /transparent \/ sampled >= 0\.18/);
-  assert.match(source, /hasExistingTransparency\(data, total\) && hasUsableTransparentBorder\(data, width, height\)/);
+  assert.match(source, /const sourceAlreadyCutOut = hasExistingTransparency\(data, total\)[\s\S]*&& hasUsableTransparentBorder\(data, width, height\)/);
+  assert.match(source, /if \(sourceAlreadyCutOut && !options\.forceOutline\) return src/);
 });
 
 test('light cover artwork is protected by a solid linear convex silhouette', () => {
   assert.match(source, /function buildSubjectProtection/);
   assert.match(source, /function buildDominantForegroundGrid/);
   assert.match(source, /function convexHull/);
-  assert.match(source, /return brightness < 218 \|\| chroma > 30/);
+  assert.match(source, /return brightness < 185 \|\| chroma > 24/);
   assert.match(source, /dominant\.labels/);
   assert.match(source, /const expandedHull = hull\.map/);
   assert.match(source, /protectedMin\[y\]/);

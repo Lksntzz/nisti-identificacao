@@ -72,7 +72,7 @@ BEGIN
   INSERT INTO public.recognition_events (
     id, created_at, day, kind, http_status, product_id, capa_code, sku,
     confidence, retrieval_score, identified_by, error_message,
-    total_ms, embedding_ms, vectorize_ms, local_cv_ms, reference_load_ms, gemini_ms,
+    total_ms, embedding_ms, vectorize_ms, local_cv_ms, reference_load_ms, verification_ms,
     retrieval_top1, retrieval_top1_code, retrieval_top2, retrieval_top2_code, retrieval_margin,
     candidate_count, verification_mode, accepted_by, model,
     retrieval_source, reused_candidates, pipeline_version, reference_candidate_count, vector_top_k,
@@ -95,7 +95,7 @@ BEGIN
     NULLIF(p_row->>'vectorize_ms', '')::BIGINT,
     NULLIF(p_row->>'local_cv_ms', '')::BIGINT,
     NULLIF(p_row->>'reference_load_ms', '')::BIGINT,
-    NULLIF(p_row->>'gemini_ms', '')::BIGINT,
+    NULLIF(p_row->>'verification_ms', '')::BIGINT,
     NULLIF(p_row->>'retrieval_top1', '')::DOUBLE PRECISION,
     NULLIF(p_row->>'retrieval_top1_code', ''),
     NULLIF(p_row->>'retrieval_top2', '')::DOUBLE PRECISION,
@@ -126,7 +126,7 @@ BEGIN
   v_unmatched := CASE WHEN v_kind = 'unmatched' THEN 1 ELSE 0 END;
   v_system_error := CASE WHEN v_kind = 'system_error' THEN 1 ELSE 0 END;
   v_embedding := CASE WHEN p_row->>'embedding_ms' IS NOT NULL THEN 1 ELSE 0 END;
-  v_generation := CASE WHEN p_row->>'gemini_ms' IS NOT NULL THEN 1 ELSE 0 END;
+  v_generation := CASE WHEN p_row->>'verification_ms' IS NOT NULL THEN 1 ELSE 0 END;
 
   INSERT INTO public.recognition_daily (
     day, attempts, successes, unmatched, system_errors,

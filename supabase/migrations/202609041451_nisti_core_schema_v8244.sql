@@ -67,7 +67,7 @@ CREATE TABLE public.recognition_events (
   error_message TEXT,
   total_ms BIGINT NOT NULL DEFAULT 0,
   embedding_ms BIGINT,
-  gemini_ms BIGINT,
+  verification_ms BIGINT,
   retrieval_top1 DOUBLE PRECISION,
   retrieval_top1_code TEXT,
   retrieval_top2 DOUBLE PRECISION,

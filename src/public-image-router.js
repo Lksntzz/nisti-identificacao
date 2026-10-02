@@ -3,7 +3,7 @@ import {
   supabaseImageKey
 } from './supabase-read-store.js';
 
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '8';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '9';
 
 function notFound() {
   return new Response('Not found', {
@@ -34,7 +34,6 @@ function responseHeaders(object, url) {
   );
 
   // These endpoints are intentionally public: the operator UI displays them
-  // and Gemini may fetch candidate images by HTTPS URL during verification.
   headers.set('access-control-allow-origin', '*');
   headers.set('cross-origin-resource-policy', 'cross-origin');
   headers.set('x-content-type-options', 'nosniff');
