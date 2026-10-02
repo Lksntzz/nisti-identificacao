@@ -47,8 +47,8 @@ test('API rejects stale treatment clients and only serves approved v18 derivativ
 });
 
 test('database migration invalidates pre-v18 derivatives without deleting originals', () => {
-  const supabase = read('supabase/migrations/20261002190000_manual_treated_images_v18.sql');
-  const d1 = read('migrations/0025_manual_treated_images_v18.sql');
+  const supabase = read('supabase/migrations/20261002213000_per_product_cutout_v18.sql');
+  const d1 = read('migrations/0026_per_product_cutout_v18.sql');
 
   for (const migration of [supabase, d1]) {
     assert.match(migration, /status='pending'/);
