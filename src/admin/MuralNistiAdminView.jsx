@@ -106,6 +106,7 @@ function TransparentMuralProductImage({ src, alt = '', className = '', draggable
 function MuralProductImageManager({ products, onChanged }) {
   const [query,setQuery]=useState('');
   const [showApproved,setShowApproved]=useState(false);
+  const [previewProduct,setPreviewProduct]=useState(null);
   const [justApprovedIds,setJustApprovedIds]=useState(()=>new Set());
   const [busyId,setBusyId]=useState(null);
   const [error,setError]=useState('');
@@ -213,8 +214,7 @@ function MuralProductImageManager({ products, onChanged }) {
             ?`${treatmentReview} imagem${treatmentReview===1?'':'ns'} aguardando aprovação`
             :'Todas as imagens foram revisadas';
 
-  const togglePaused=()=>{
-    const next=!paused;
+  const setTreatmentPaused=next=>{
     setPaused(next);
     try{localStorage.setItem(TREATMENT_PAUSE_KEY,next?'1':'0')}catch{}
     window.dispatchEvent(new CustomEvent(TREATMENT_CONTROL_EVENT,{detail:{paused:next}}));
@@ -263,7 +263,7 @@ function MuralProductImageManager({ products, onChanged }) {
   };
 
   return <div className="mural-product-image-manager">
-    <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. Só desaparece da revisão depois da sua aprovação.</p></div><div className="mural-product-image-manager-tools"><button type="button" onClick={()=>setShowApproved(value=>!value)}>{showApproved?'Ocultar aprovadas':'Ver aprovadas'}</button><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></div></header>
+    <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. Só vai para Revisados depois da sua aprovação.</p></div><div className="mural-product-image-manager-tools"><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></div></header>
     <section className={`mural-product-treatment-progress ${treatmentProgress.phase}`} aria-live="polite">
       <div className="mural-product-treatment-progress-copy">
         <span>Tratamento automático</span>
@@ -275,7 +275,10 @@ function MuralProductImageManager({ products, onChanged }) {
         <span><b>{treatmentReview}</b> para revisar</span>
         <span><b>{treatmentPending}</b> na fila</span>
         {treatmentFailed>0&&<span className="failed"><b>{treatmentFailed}</b> falhas</span>}
-        <button type="button" className="mural-product-treatment-toggle" onClick={togglePaused}>{paused?'Iniciar tratamento':'Pausar tratamento'}</button>
+        <span className="mural-product-treatment-controls">
+          <button type="button" className="start" disabled={!paused} onClick={()=>setTreatmentPaused(false)}>Iniciar tratamento</button>
+          <button type="button" className="pause" disabled={paused} onClick={()=>setTreatmentPaused(true)}>Pausar tratamentos</button>
+        </span>
       </div>
       <div
         className="mural-product-treatment-progress-track"
@@ -287,11 +290,15 @@ function MuralProductImageManager({ products, onChanged }) {
       ><i style={{width:`${treatmentPercent}%`}}/></div>
     </section>
     {error&&<div className="mural-admin-error">{error}</div>}
+    <nav className="mural-product-image-tabs" aria-label="Estado da revisão">
+      <button type="button" className={!showApproved?'active':''} aria-pressed={!showApproved} onClick={()=>setShowApproved(false)}>Para revisar</button>
+      <button type="button" className={showApproved?'active':''} aria-pressed={showApproved} onClick={()=>setShowApproved(true)}>Revisados</button>
+    </nav>
     <div className="mural-product-image-manager-grid">
-      {filtered.map(product=>{const previewSrc=product.mural_image_ready?product.image_url:product.mural_image_reviewable?product.review_image_url:null;const state=product.mural_image_ready?'approved':product.mural_image_reviewable?'review':product.mural_image_status==='failed'?'failed':product.mural_image_processor==='system-precise-redo'?'redo':'pending';const label={approved:'Aprovada e salva',review:'Aguardando aprovação',failed:'Falhou',redo:'Refazendo com borda',pending:'Pendente'}[state];return <article key={product.id}>
+      {filtered.map(product=>{const previewSrc=product.mural_image_ready?product.image_url:product.mural_image_reviewable?product.review_image_url:null;const state=product.mural_image_ready?'approved':product.mural_image_reviewable?'review':product.mural_image_status==='failed'?'failed':product.mural_image_processor==='system-precise-redo'?'redo':'pending';const label={approved:'Aprovada e salva',review:'Aguardando aprovação',failed:'Falhou',redo:'Refazendo com corte preciso',pending:'Pendente'}[state];return <article key={product.id}>
         <div className="mural-product-image-pair">
           <figure><span>Original</span>{product.original_image_url?<img src={product.original_image_url} alt=""/>:<i>Sem imagem</i>}</figure>
-          <figure className="processed"><span>PNG tratado</span>{previewSrc?<img src={previewSrc} alt=""/>:<i>{state==='redo'?'Refazendo…':'Pendente'}</i>}</figure>
+          <figure className="processed"><span>PNG tratado</span>{previewSrc?<button type="button" className="mural-product-image-preview" onClick={()=>setPreviewProduct({...product,previewSrc,state})} aria-label={`Ampliar imagem tratada de ${product.sku}`}><img src={previewSrc} alt=""/></button>:<i>{state==='redo'?'Refazendo…':'Pendente'}</i>}</figure>
         </div>
         <div><b>{product.sku}</b><small>{product.nome||product.type||'Produto NISTI'}</small></div>
         <footer>
@@ -304,6 +311,16 @@ function MuralProductImageManager({ products, onChanged }) {
       </article>})}
       {!filtered.length&&<div className="mural-product-image-manager-empty">Nenhuma imagem nesta fila.</div>}
     </div>
+    {previewProduct&&<div className="mural-product-image-lightbox" role="dialog" aria-modal="true" aria-label={`Imagem tratada de ${previewProduct.sku}`} onClick={()=>setPreviewProduct(null)}>
+      <section onClick={event=>event.stopPropagation()}>
+        <header><div><strong>{previewProduct.sku}</strong><small>{previewProduct.nome||previewProduct.type||'Produto NISTI'}</small></div><button type="button" onClick={()=>setPreviewProduct(null)} aria-label="Fechar">×</button></header>
+        <div className="mural-product-image-lightbox-canvas"><img src={previewProduct.previewSrc} alt={`Imagem tratada de ${previewProduct.sku}`}/></div>
+        <footer>
+          {previewProduct.mural_image_reviewable&&<button type="button" className="approve" disabled={busyId!==null} onClick={async()=>{await approve(previewProduct);setPreviewProduct(null)}}>Aprovar e mover para Revisados</button>}
+          <button type="button" disabled={busyId!==null} onClick={async()=>{await redo(previewProduct);setPreviewProduct(null)}}>Refazer com corte preciso</button>
+        </footer>
+      </section>
+    </div>}
   </div>;
 }
 

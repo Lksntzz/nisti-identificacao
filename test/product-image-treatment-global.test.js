@@ -205,9 +205,11 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(worker.includes('TREATMENT_PAUSE_KEY'));
   assert.ok(worker.includes("status:'review'"));
   assert.ok(worker.includes('forceOutline:Boolean(item.force_outline)'));
-  assert.ok(admin.includes("paused?'Iniciar tratamento':'Pausar tratamento'"));
+  assert.ok(admin.includes('>Iniciar tratamento</button>'));
+  assert.ok(admin.includes('>Pausar tratamentos</button>'));
   assert.ok(admin.includes('Aguardando aprovação'));
-  assert.ok(admin.includes("showApproved?'Ocultar aprovadas':'Ver aprovadas'"));
+  assert.ok(admin.includes('>Para revisar</button>'));
+  assert.ok(admin.includes('>Revisados</button>'));
   assert.ok(admin.includes('?products.filter(item=>item.mural_image_ready)'));
   assert.ok(admin.includes('!justApprovedIds.has(Number(item.id))'));
   assert.ok(admin.includes('setJustApprovedIds(current=>new Set(current).add(Number(product.id)))'));
@@ -220,13 +222,25 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("p_action:'redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
-  assert.ok(utility.includes('const outlineScale = 8 / 1024'));
+  assert.ok(utility.includes('options.forceOutline ? 5 / 1024 : 8 / 1024'));
   assert.ok(utility.includes('if (requestedOfficialVariant) {\n    const official = await buildOfficialProductMask'));
   assert.ok(utility.includes("requestedOfficialVariant === 'withTassel'"));
   assert.ok(utility.includes('estimateBorderBackgroundBrightness(data, width, height)'));
   assert.ok(utility.includes('if (validOfficialCut)'));
   assert.ok(utility.includes('data.set(originalPixels)'));
   assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 0);
+});
+
+
+test('Mural review opens a large preview and exposes approve and precise-redo actions', () => {
+  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const css = read('src/mural-admin.css');
+  assert.match(admin, /mural-product-image-lightbox/);
+  assert.match(admin, /Aprovar e mover para Revisados/);
+  assert.match(admin, /Refazer com corte preciso/);
+  assert.match(admin, /setJustApprovedIds/);
+  assert.match(css, /\.mural-product-image-lightbox-canvas/);
+  assert.match(css, /max-height:70vh/);
 });
 
 

@@ -1333,9 +1333,9 @@ async function buildTreatedProductImage(src, options = {}) {
   }
   sourceContext.putImageData(imageData, 0, 0);
 
-  // Normal and forced treatments now share the same clean 8 / 1024 ring. The
-  // official mold limits the silhouette; it is not painted as a white plate.
-  const outlineScale = 8 / 1024;
+  // A manual redo requests a tighter ring so the white border follows the
+  // product more precisely. The normal pass remains slightly more forgiving.
+  const outlineScale = options.forceOutline ? 5 / 1024 : 8 / 1024;
   const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 2, 16);
   const outlineMask = buildExternalOutlineRing(productMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
