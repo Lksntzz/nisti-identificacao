@@ -131,17 +131,10 @@ test('mirror RPC migration is retry-safe and service-role only', () => {
   assert.match(source, /GRANT EXECUTE ON FUNCTION public\.nisti_mirror_confirm_geometric_shadow[\s\S]*TO service_role/);
 });
 
-test('remaining operator compatibility writes mirror only after authoritative D1 rows exist', () => {
-  const occurrences = fs.readFileSync('src/occurrences-router.js', 'utf8');
-  assert.match(occurrences,/nisti_create_scan_occurrence_v1/);
-  assert.match(occurrences,/nisti_prepare_occurrence_training_v1/);
-  assert.match(occurrences,/nisti_commit_occurrence_training_v1/);
-  assert.doesNotMatch(occurrences,/env\.DB/);
-  assert.doesNotMatch(occurrences,/supabaseWriteMode/);
+test('remaining operator telemetry keeps guarded mirrors while occurrence runtime stays retired', () => {
+  assert.equal(fs.existsSync('src/occurrences-router.js'), false);
 
   const metrics = fs.readFileSync('src/recognition-metrics.js', 'utf8');
-  assert.match(metrics, /const eventResult = await env\.DB\.prepare/);
-  assert.match(metrics, /SELECT \*[\s\S]*FROM recognition_events[\s\S]*WHERE id=\?/);
   assert.match(metrics, /nisti_mirror_recognition_event/);
   assert.match(metrics, /if \(writeMode !== 'off'\)/);
 
