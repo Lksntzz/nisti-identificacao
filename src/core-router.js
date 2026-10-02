@@ -355,15 +355,10 @@ export default {
       const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
       if (imageUpload && request.method === 'POST') {
         const id = Number(imageUpload[1]);
+        // This endpoint stores the product's ORIGINAL image. It belongs to the
+        // NISTI ID product lifecycle and must not depend on the Mural treatment
+        // processor version. Version checks live only on treatment/mask routes.
         const form = await request.formData();
-        const clientProcessorVersion = String(form.get('processor_version') || '').trim();
-        if (clientProcessorVersion !== PRODUCT_IMAGE_PROCESSOR_VERSION) {
-          return json({
-            error:'A página do Mural está desatualizada. Atualize a página antes de processar imagens.',
-            code:'stale_image_processor',
-            expected_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION
-          },409);
-        }
         const file = form.get('image');
         if (!(file instanceof File)) return json({ error: 'Imagem obrigatória' }, 400);
         if (!file.type.startsWith('image/')) return json({ error: 'Arquivo deve ser uma imagem' }, 400);
