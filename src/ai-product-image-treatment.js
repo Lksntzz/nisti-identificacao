@@ -31,7 +31,20 @@ async function classifyTasselWithGemini(bytes, contentType, env) {
           { text:'Analise somente o produto principal. Responda JSON puro: {"has_tassel":boolean,"confidence":number,"reason":string}. Tassel é o pingente de fios preso à agenda; não confunda wire-o, elástico, sombra, logo ou decoração impressa com tassel.' },
           { inlineData:{ mimeType:contentType || 'image/jpeg', data:bytesToBase64(bytes) } }
         ] }],
-        generationConfig:{ responseMimeType:'application/json', temperature:0, maxOutputTokens:160 }
+        generationConfig:{
+          responseMimeType:'application/json',
+          responseSchema:{
+            type:'OBJECT',
+            properties:{
+              has_tassel:{type:'BOOLEAN'},
+              confidence:{type:'NUMBER',minimum:0,maximum:1},
+              reason:{type:'STRING'}
+            },
+            required:['has_tassel','confidence','reason']
+          },
+          thinkingConfig:{thinkingLevel:'minimal'},
+          maxOutputTokens:1024
+        }
       })
     }
   );
@@ -46,7 +59,11 @@ async function classifyTasselWithGemini(bytes, contentType, env) {
   const payload = await response.json();
   const text = payload?.candidates?.[0]?.content?.parts?.map(part=>part?.text || '').join('') || '';
   const parsed = parseGeminiJson(text);
-  if (!parsed || typeof parsed.has_tassel !== 'boolean') throw new Error('Gemini retornou classificação inválida.');
+  if (!parsed || typeof parsed.has_tassel !== 'boolean') {
+    const finishReason=String(payload?.candidates?.[0]?.finishReason || '').trim();
+    const detail=finishReason ? ` (finishReason: ${finishReason})` : '';
+    throw new Error(`Gemini retornou classificação inválida${detail}.`);
+  }
   return {
     available:true,
     provider:'gemini',

@@ -22,6 +22,11 @@ test('AI assistant uses supported vision analysis and keeps pixel cleanup local'
   assert.match(assistant,/@cf\/moondream\/moondream3\.1-9B-A2B/);
   assert.match(assistant,/gemini-3\.5-flash/);
   assert.match(assistant,/confidence >= \.7/);
+  assert.match(assistant,/responseSchema:/);
+  assert.match(assistant,/has_tassel:\\{type:'BOOLEAN'\\}/);
+  assert.match(assistant,/thinkingConfig:\\{thinkingLevel:'minimal'\\}/);
+  assert.match(assistant,/maxOutputTokens:1024/);
+  assert.doesNotMatch(assistant,/temperature:0/);
   assert.match(assistant,/task:'detect'/);
   assert.ok(core.includes("analyzeProductImageWithAi"));
   assert.ok(core.includes("detected_has_tassel"));
