@@ -202,8 +202,7 @@ export default {
             const treatedReady = product.treated_image_status === 'approved'
               && product.treated_image_key
               && product.treated_source_image_key === product.image_key
-              && product.treated_image_reviewed_by === 'admin'
-              && product.treated_image_version === PRODUCT_IMAGE_PROCESSOR_VERSION;
+              && product.treated_image_reviewed_by === 'admin';
             return {
               ...product,
               has_active_gtin:product.has_active_gtin === true || Number(product.has_active_gtin) === 1,
@@ -404,8 +403,7 @@ export default {
         const processedReady = treatmentStatus === 'approved'
           && row.processed_image_key
           && row.source_image_key === row.image_key
-          && row.reviewed_by === 'admin'
-          && row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION;
+          && row.reviewed_by === 'admin';
 
         let object = processedReady ? await env.PRODUCT_IMAGES.get(row.processed_image_key) : null;
         const servedKey = processedReady && object ? row.processed_image_key : row.image_key;
