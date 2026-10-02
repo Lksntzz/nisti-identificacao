@@ -77,7 +77,7 @@ test('upright product remains on the standard planner profile', () => {
 
 test('horizontal and disc profiles protect a white product core with distinct geometry', () => {
   const horizontal = fixture(220, 180);
-  horizontal.paint(18, 55, 202, 120, [30,30,30]);
+  horizontal.paint(18, 28, 202, 142, [30,30,30]);
   const horizontalProtect = __muralTransparentImageInternals.buildHorizontalStructureProtection(
     horizontal.data, horizontal.width, horizontal.height, true
   );
@@ -98,9 +98,9 @@ test('horizontal and disc profiles protect a white product core with distinct ge
 test('legacy square MKP mask is restricted to standard geometry', () => {
   assert.match(source, /const standardMkpEligible = geometry\.kind === 'standard'/);
   assert.match(source, /square canvas alone is no longer enough/);
-  assert.match(source, /geometry\.kind === 'horizontal'/);
-  assert.match(source, /geometry\.kind === 'perspective'/);
-  assert.match(source, /geometry\.kind === 'disc'/);
+  assert.match(source, /geometry\?\.kind === 'horizontal'/);
+  assert.match(source, /geometry\?\.kind === 'perspective'/);
+  assert.match(source, /geometry\?\.kind === 'disc'/);
 });
 
 test('worker supplies SKU and name so disc families are recognized during treatment and mask backfill', () => {
