@@ -40,7 +40,8 @@ import {
 
 const BULK_IMPORT_LIMIT = 100;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '10';
+const MAX_PRODUCT_MASK_BYTES = 4 * 1024 * 1024;
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '11';
 const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
@@ -111,6 +112,9 @@ async function saveProductImage(env, id, fileBytes, contentType) {
 
   if(value.old_processed_image_key) {
     await env.PRODUCT_IMAGES.delete(value.old_processed_image_key).catch(()=>{});
+  }
+  if(value.old_mask_image_key) {
+    await env.PRODUCT_IMAGES.delete(value.old_mask_image_key).catch(()=>{});
   }
 
   return { image_key:key };
@@ -311,6 +315,7 @@ export default {
         const keys = new Set([
           deleted.image_key,
           deleted.processed_image_key,
+          deleted.mask_image_key,
           ...(Array.isArray(deleted.reference_image_keys) ? deleted.reference_image_keys : [])
         ].filter(Boolean));
         for (const key of keys) await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
@@ -459,6 +464,117 @@ export default {
         });
       }
 
+      if (url.pathname === '/api/admin/product-image-mask/pending' && request.method === 'GET') {
+        const requestedLimit = Number(url.searchParams.get('limit') || 3);
+        const limit = Number.isInteger(requestedLimit) ? Math.max(1,Math.min(100,requestedLimit)) : 3;
+        const requestedOffset = Number(url.searchParams.get('offset') || 0);
+        const offset = Number.isInteger(requestedOffset) ? Math.max(0,requestedOffset) : 0;
+        const payload = await supabaseRpc(env,'nisti_product_mask_queue_v1',{
+          p_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+          p_limit:limit,
+          p_offset:offset
+        });
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        return json({
+          ok:true,
+          processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+          total:Number(payload?.total || 0),
+          limit:Number(payload?.limit || limit),
+          offset:Number(payload?.offset || offset),
+          items:items.map(row=>({
+            id:Number(row.id),
+            sku:row.sku || null,
+            name:row.nome || null,
+            tassel_code:row.tassel_code || 'X',
+            status:row.status || 'pending',
+            image_key:row.image_key,
+            mask_image_key:row.mask_image_key || null,
+            original_image_url:productOriginalImageUrl(row.id,row.image_key)
+          }))
+        });
+      }
+
+      const maskUpload = url.pathname.match(/^\/api\/admin\/product-image-mask\/(\d+)$/);
+      if (maskUpload && request.method === 'POST') {
+        const productId = Number(maskUpload[1]);
+        const product = await supabaseProductImageContext(env,productId);
+        if (!product?.image_key || product?.status === 'not_found') {
+          return json({error:'Produto sem imagem original.'},404);
+        }
+
+        const form = await request.formData();
+        const file = form.get('mask');
+        if (!(file instanceof File)) return json({error:'Máscara PNG obrigatória.'},400);
+        if (file.type !== 'image/png') return json({error:'A máscara precisa ser PNG.'},400);
+        if (file.size <= 0 || file.size > MAX_PRODUCT_MASK_BYTES) {
+          return json({error:'A máscara precisa ter no máximo 4 MB.'},400);
+        }
+        const bytes = await file.arrayBuffer();
+        const png = inspectTransparentPng(bytes);
+        if (!png) return json({error:'Máscara PNG inválida.'},400);
+
+        const key = `masks/products/${productId}/${crypto.randomUUID()}.png`;
+        await env.PRODUCT_IMAGES.put(key,bytes,{
+          httpMetadata:{contentType:'image/png'},
+          customMetadata:{
+            sourceImageKey:String(product.image_key),
+            processorVersion:PRODUCT_IMAGE_PROCESSOR_VERSION,
+            artifact:'product-mask',
+            width:String(png.width),
+            height:String(png.height)
+          }
+        });
+
+        let saved;
+        try {
+          saved=await mirrorSupabaseRpc(env,'nisti_set_product_mask_v1',{
+            p_product_id:productId,
+            p_mask_image_key:key,
+            p_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION
+          },'máscara individual do produto');
+        } catch(error) {
+          await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+          throw error;
+        }
+
+        if(saved.value?.status==='not_found') {
+          await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+          return json({error:'Produto sem imagem original.'},404);
+        }
+        if(saved.value?.status==='source_mismatch') {
+          await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+          return json({error:'A imagem original mudou durante a geração da máscara. Tente novamente.'},409);
+        }
+        if(saved.value?.status!=='ok') {
+          await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+          return json({error:'Não foi possível registrar a máscara individual.'},422);
+        }
+        if(saved.value.old_mask_image_key && saved.value.old_mask_image_key!==key) {
+          await env.PRODUCT_IMAGES.delete(saved.value.old_mask_image_key).catch(()=>{});
+        }
+
+        return json({
+          ok:true,product_id:productId,mask_saved:true,
+          mask_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+          width:png.width,height:png.height
+        });
+      }
+
+      const maskPreview = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/mask$/);
+      if (maskPreview && request.method === 'GET') {
+        const row = await supabaseProductImageContext(env,Number(maskPreview[1]));
+        if (!row?.mask_image_key || row.source_image_key !== row.image_key) {
+          return new Response('Not found',{status:404});
+        }
+        const object = await env.PRODUCT_IMAGES.get(row.mask_image_key);
+        if (!object) return new Response('Not found',{status:404});
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set('cache-control','private, no-store');
+        headers.set('x-content-type-options','nosniff');
+        return new Response(object.body,{headers});
+      }
+
       const treatmentUpload = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)$/);
       if (treatmentUpload && request.method === 'POST') {
         const productId = Number(treatmentUpload[1]);
@@ -490,31 +606,60 @@ export default {
             height:String(png.height)
           }
         });
-
-        let saved;
         try {
-          saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v1',{
-            p_product_id:productId,
-            p_action:'review',
-            p_processed_image_key:key,
-            p_processor:PRODUCT_IMAGE_PROCESSOR,
-            p_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
-            p_error_message:null
-          },'imagem tratada');
+          await env.PRODUCT_IMAGES.put(maskKey,maskBytes,{
+            httpMetadata:{contentType:'image/png'},
+            customMetadata:{
+              sourceImageKey:String(product.image_key),
+              processor:PRODUCT_IMAGE_PROCESSOR,
+              processorVersion:PRODUCT_IMAGE_PROCESSOR_VERSION,
+              artifact:'product-mask',
+              width:String(maskPng.width),
+              height:String(maskPng.height)
+            }
+          });
         } catch(error) {
           await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
           throw error;
         }
 
+        let saved;
+        try {
+          saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v2',{
+            p_product_id:productId,
+            p_action:'review',
+            p_processed_image_key:key,
+            p_mask_image_key:maskKey,
+            p_processor:PRODUCT_IMAGE_PROCESSOR,
+            p_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+            p_error_message:null
+          },'imagem tratada');
+        } catch(error) {
+          await Promise.all([
+            env.PRODUCT_IMAGES.delete(key).catch(()=>{}),
+            env.PRODUCT_IMAGES.delete(maskKey).catch(()=>{})
+          ]);
+          throw error;
+        }
+
         if(saved.value?.status!=='ok') {
-          await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
-          return json({error:'Produto não encontrado.'},404);
+          await Promise.all([
+            env.PRODUCT_IMAGES.delete(key).catch(()=>{}),
+            env.PRODUCT_IMAGES.delete(maskKey).catch(()=>{})
+          ]);
+          return json({error:'Produto não encontrado ou artefatos inválidos.'},saved.value?.status==='not_found' ? 404 : 422);
         }
         if(saved.value.old_processed_image_key && saved.value.old_processed_image_key!==key) {
           await env.PRODUCT_IMAGES.delete(saved.value.old_processed_image_key).catch(()=>{});
         }
         if(product.processed_image_key && product.processed_image_key!==key) {
           await env.PRODUCT_IMAGES.delete(product.processed_image_key).catch(()=>{});
+        }
+        if(saved.value.old_mask_image_key && saved.value.old_mask_image_key!==maskKey) {
+          await env.PRODUCT_IMAGES.delete(saved.value.old_mask_image_key).catch(()=>{});
+        }
+        if(product.mask_image_key && product.mask_image_key!==maskKey) {
+          await env.PRODUCT_IMAGES.delete(product.mask_image_key).catch(()=>{});
         }
 
         return json({
@@ -524,6 +669,8 @@ export default {
           processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
           original_image_url:productOriginalImageUrl(productId,product.image_key),
           image_url:productDisplayImageUrl(productId,product.image_key,key),
+          mask_saved:true,
+          mask_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
           width:png.width,
           height:png.height
         });
@@ -547,9 +694,9 @@ export default {
       const treatmentApprove = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/approve$/);
       if (treatmentApprove && request.method === 'POST') {
         const productId = Number(treatmentApprove[1]);
-        const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v1',{
+        const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v2',{
           p_product_id:productId,p_action:'approve',
-          p_processed_image_key:null,p_processor:null,p_processor_version:null,p_error_message:null
+          p_processed_image_key:null,p_mask_image_key:null,p_processor:null,p_processor_version:null,p_error_message:null
         },'aprovação de imagem tratada');
         if(saved.value?.status==='not_found') return json({error:'Produto sem imagem original.'},404);
         if(saved.value?.status==='invalid_derivative') {
@@ -561,11 +708,14 @@ export default {
       const treatmentRedo = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/redo$/);
       if (treatmentRedo && request.method === 'POST') {
         const productId = Number(treatmentRedo[1]);
-        const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v1',{
+        const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v2',{
           p_product_id:productId,p_action:'redo',
-          p_processed_image_key:null,p_processor:null,p_processor_version:null,p_error_message:null
+          p_processed_image_key:null,p_mask_image_key:null,p_processor:null,p_processor_version:null,p_error_message:null
         },'refazer imagem tratada');
         if(saved.value?.status==='not_found') return json({error:'Produto sem imagem original.'},404);
+        for (const key of [saved.value?.old_processed_image_key,saved.value?.old_mask_image_key].filter(Boolean)) {
+          await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+        }
         return json({ok:true,product_id:productId,status:'pending',precise_redo:true});
       }
 
@@ -574,14 +724,18 @@ export default {
         const productId = Number(treatmentFailed[1]);
         const body = await request.json().catch(()=>({}));
         const reason = String(body?.error || 'Tratamento automático sem confiança suficiente.').slice(0,500);
-        const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v1',{
+        const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v2',{
           p_product_id:productId,p_action:'failed',
           p_processed_image_key:null,
+          p_mask_image_key:null,
           p_processor:PRODUCT_IMAGE_PROCESSOR,
           p_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
           p_error_message:reason
         },'falha de imagem tratada');
         if(saved.value?.status==='not_found') return json({error:'Produto sem imagem original.'},404);
+        for (const key of [saved.value?.old_processed_image_key,saved.value?.old_mask_image_key].filter(Boolean)) {
+          await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+        }
         return json({ok:true,product_id:productId,status:'failed'});
       }
 
