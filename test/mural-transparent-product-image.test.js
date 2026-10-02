@@ -23,7 +23,7 @@ test('automatic treatment uses MKP body masks plus source wire-o recovery for re
   assert.match(source, /wire_preto_sem_tassel\.png/);
   assert.match(source, /wire_gold_com_tassel\.png/);
   assert.match(source, /function buildMkpProductAlpha/);
-  assert.match(source, /applyMkpProductAlpha\(data, mkpAlpha\)/);
+  assert.match(source, /applyMkpProductAlpha\(data, mkpAlpha, wireoRecoveryMask\)/);
   assert.match(source, /function removeConnectedStudioBackground/);
 });
 
