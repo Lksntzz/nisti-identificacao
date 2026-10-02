@@ -129,8 +129,7 @@ async function processMaskItem(item) {
     sku:item.sku,
     name:item.name,
     tasselCode:item.tassel_code,
-    wireoCode:item.wireo_code,
-    requireMkpMask:true
+    wireoCode:item.wireo_code
   });
   if (!maskBlob) throw new Error('Não foi possível gerar a máscara individual deste produto.');
 
