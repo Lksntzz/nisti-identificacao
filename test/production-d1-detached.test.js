@@ -7,6 +7,7 @@ const compatibility=fs.readFileSync('wrangler.d1-compat.toml','utf8');
 const gate=fs.readFileSync('.github/workflows/production-gate.yml','utf8');
 const deploy=fs.readFileSync('.github/workflows/deploy-production.yml','utf8');
 const core=fs.readFileSync('src/core-router.js','utf8');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 
 test('production Worker is detached from Cloudflare D1',()=>{
   assert.doesNotMatch(production,/\[\[d1_databases\]\]/);
@@ -36,4 +37,8 @@ test('health endpoint exposes whether the D1 binding is detached',()=>{
   const block=core.slice(start,end);
   assert.match(block,/d1_binding_configured:d1Attached/);
   assert.match(block,/compatibility_store:d1Attached \? 'd1' : 'detached'/);
+});
+
+test('manual legacy D1 migration script cannot use production Wrangler config',()=>{
+  assert.match(pkg.scripts['db:migrate'],/--config wrangler\.d1-compat\.toml/);
 });
