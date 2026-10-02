@@ -121,7 +121,7 @@ function inspectTransparentPng(bytes) {
   return { width, height };
 }
 
-async function embedImage(env, bytes, mimeType) {async function embedImage(env, bytes, mimeType) {
+async function embedImage(env, bytes, mimeType) {
   if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
   const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
   const response = await fetch(
