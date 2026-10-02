@@ -14,7 +14,7 @@ const MAX_RENDER_DIMENSION = 1280;
 const mkpProductMaskCache = new Map();
 
 const MKP_PRODUCT_MASKS = Object.freeze({
-  B:Object.freeze({ withTassel:'/product-masks-mkp/wire_branco_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_branco_sem_tassel.png' }),
+  B:Object.freeze({ withTassel:'/product-masks-mkp/wire_gold_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_branco_sem_tassel.png' }),
   P:Object.freeze({ withTassel:'/product-masks-mkp/wire_preto_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_preto_sem_tassel.png' }),
   R:Object.freeze({ withTassel:'/product-masks-mkp/wire_gold_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_gold_sem_tassel.png' })
 });
