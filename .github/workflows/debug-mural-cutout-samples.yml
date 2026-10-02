@@ -39,7 +39,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mural-cutout-v13-samples
-          path: samples/
+          path: |
+            samples/
+            public/product-masks-mkp/
           if-no-files-found: error
           retention-days: 1
           # rerun after MKP v14 deployment
