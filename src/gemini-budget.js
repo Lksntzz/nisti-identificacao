@@ -1,6 +1,4 @@
 import {
-  SupabaseReadError,
-  supabaseEmergencyFallbackRequested,
   supabaseReadsRequested,
   supabaseRpc
 } from './supabase-read-store.js';
@@ -52,21 +50,9 @@ export async function reserveGeminiBudget(env, lane, limitPerMinute) {
     return reserveD1Budget(env, cleanLane, limit, windowMinute);
   }
 
-  try {
-    return (await supabaseRpc(env, 'nisti_reserve_gemini_budget', {
-      p_lane: cleanLane,
-      p_window_minute: windowMinute,
-      p_limit: limit
-    })) === true;
-  } catch (error) {
-    if (
-      supabaseEmergencyFallbackRequested(env)
-      && error instanceof SupabaseReadError
-      && error.fallbackEligible
-    ) {
-      console.warn(`[Supabase] budget Gemini indisponível; fallback D1 explicitamente habilitado: ${error.code}`);
-      return reserveD1Budget(env, cleanLane, limit, windowMinute);
-    }
-    throw error;
-  }
+  return (await supabaseRpc(env, 'nisti_reserve_gemini_budget', {
+    p_lane: cleanLane,
+    p_window_minute: windowMinute,
+    p_limit: limit
+  })) === true;
 }

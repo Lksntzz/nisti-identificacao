@@ -66,30 +66,16 @@ test('Gemini budget uses atomic Supabase RPC without touching D1 when enabled', 
   }
 });
 
-test('temporary Supabase budget outage fails closed unless D1 fallback is explicitly enabled', async () => {
+test('temporary Supabase budget outage fails closed without touching legacy D1', async () => {
   const originalFetch = globalThis.fetch;
   const d1 = d1BudgetEnv();
   globalThis.fetch = async () => response('{"message":"temporary"}', 503);
   try {
     await assert.rejects(
-      () => reserveGeminiBudget(
-        { ...configuredEnv, SUPABASE_EMERGENCY_FALLBACK_ENABLED:'0', DB:d1.DB },
-        'verifier',
-        60
-      ),
+      () => reserveGeminiBudget({ ...configuredEnv, DB:d1.DB }, 'verifier', 60),
       /Supabase RPC nisti_reserve_gemini_budget falhou \(503\)/
     );
     assert.equal(d1.calls, 0);
-
-    assert.equal(
-      await reserveGeminiBudget(
-        { ...configuredEnv, SUPABASE_EMERGENCY_FALLBACK_ENABLED:'1', DB:d1.DB },
-        'verifier',
-        60
-      ),
-      true
-    );
-    assert.ok(d1.calls >= 1);
   } finally {
     globalThis.fetch = originalFetch;
   }

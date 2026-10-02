@@ -7,7 +7,6 @@ O snapshot final de 22 tabelas foi reconciliado no Supabase. A validação conge
 ```text
 SUPABASE_URL=https://yioetdcbgorunwgwuawg.supabase.co
 SUPABASE_READS_ENABLED=1
-SUPABASE_EMERGENCY_FALLBACK_ENABLED=0
 SUPABASE_READ_TIMEOUT_MS=5000
 SUPABASE_WRITE_MODE=primary
 SUPABASE_CUTOVER_WRITE_FREEZE=0
@@ -193,15 +192,15 @@ As operações reais passam a gravar diretamente no Supabase. Cadastro/edição 
 
 Confirmar as primeiras operações reais no Supabase, acompanhar Saúde/Logs, sincronização do Catálogo e filas de imagem/referência. Não remover o binding D1 no mesmo deploy da liberação de escrita; a retirada física do D1 pertence a uma fase posterior, depois da janela de confiança.
 
-## Semântica do fallback de leitura
+## Semântica de leitura pós-cutover
 
-Com `SUPABASE_READS_ENABLED=1` e `SUPABASE_EMERGENCY_FALLBACK_ENABLED=0`:
+Com `SUPABASE_READS_ENABLED=1`:
 
 - resposta Supabase válida, inclusive `[]`, `false` ou `null`, é autoritativa;
 - D1 não é consultado para mascarar dado ausente, divergente ou indisponibilidade do Supabase;
-- timeout, erro de transporte, HTTP 429 e 5xx do Supabase falham fechado em produção;
-- 401, 403, 404 e erro de configuração também falham fechado;
-- o fallback D1 só pode ser reativado manualmente com `SUPABASE_EMERGENCY_FALLBACK_ENABLED=1` em uma operação controlada, depois de confirmar que o D1 foi ressincronizado e está consistente.
+- timeout, erro de transporte, HTTP 429, 5xx, 401, 403, 404 e erros de configuração falham fechado;
+- não existe mais circuit breaker nem fallback automático Supabase → D1 no runtime de produção;
+- qualquer recuperação usando D1 exige congelamento, ressincronização e execução explícita com `wrangler.d1-compat.toml`.
 
 ## Rollback
 

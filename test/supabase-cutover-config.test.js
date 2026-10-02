@@ -6,8 +6,7 @@ test('Supabase cutover release uses primary reads, primary writes and releases t
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_URL = "https:\/\/yioetdcbgorunwgwuawg\.supabase\.co"/);
   assert.match(wrangler, /SUPABASE_READS_ENABLED = "1"/);
-  assert.match(wrangler, /SUPABASE_EMERGENCY_FALLBACK_ENABLED = "0"/);
-  assert.match(wrangler, /SUPABASE_EMERGENCY_CIRCUIT_MS = "900000"/);
+  assert.doesNotMatch(wrangler, /SUPABASE_EMERGENCY_/);
   assert.match(wrangler, /SUPABASE_WRITE_MODE = "primary"/);
   assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE = "0"/);
   assert.match(wrangler, /SUPABASE_READ_TIMEOUT_MS = "5000"/);
