@@ -3,7 +3,8 @@ import {
   normalizePlatform,
   platformNamespace,
   platformVectorId,
-  platformsForReference
+  platformsForReference,
+  supportedPlatforms
 } from './platform-scope.js';
 import { mirrorVisualReferencesBatchFromD1 } from './supabase-secondary-write-store.js';
 import { supabaseRpc } from './supabase-read-store.js';
@@ -72,7 +73,8 @@ async function embedImage(env, bytes, mimeType) {
 async function vectorsFromReference(env, reference, model, values) {
   const referenceId = Number(reference.id);
   const capaCode = String(reference.capa_code || '').trim().toUpperCase();
-  const platforms = await platformsForReference(env, reference);
+  let platforms = await platformsForReference(env, reference);
+  if (!platforms.length) platforms = supportedPlatforms();
 
   return platforms.map(platform => {
     const normalizedPlatform = normalizePlatform(platform);
@@ -142,7 +144,7 @@ export async function runReferenceReindex(env, { limit = 8 } = {}) {
 
   const processed = [];
   const errors = [];
-  const vectors = [];
+  let vectorized = 0;
 
   for (const reference of references) {
     try {
@@ -155,6 +157,24 @@ export async function runReferenceReindex(env, { limit = 8 } = {}) {
         bytes,
         object.httpMetadata?.contentType || 'image/jpeg'
       );
+
+      const scopedVectors = await vectorsFromReference(
+        env,
+        reference,
+        embeddingModel,
+        values
+      );
+      if (!env.COVER_VECTORS?.upsert) {
+        throw new Error('Binding COVER_VECTORS não configurado');
+      }
+      if (!scopedVectors.length) {
+        throw new Error('Nenhum namespace de plataforma disponível para a referência visual');
+      }
+
+      // Só marcamos a referência como embeddada no banco depois que o Vectorize
+      // confirmou o upsert. Assim uma falha vetorial permanece elegível ao retry.
+      await env.COVER_VECTORS.upsert(scopedVectors);
+      vectorized += scopedVectors.length;
 
       if (supabasePrimaryWritesRequested(env)) {
         const saved=await mirrorSupabaseRpc(env,'nisti_upsert_reference_embedding_v1',{
@@ -182,13 +202,6 @@ export async function runReferenceReindex(env, { limit = 8 } = {}) {
         ).run();
       }
 
-      const scopedVectors = await vectorsFromReference(
-        env,
-        reference,
-        embeddingModel,
-        values
-      );
-      vectors.push(...scopedVectors);
       processed.push({
         reference_id: Number(reference.id),
         capa_code: String(reference.capa_code || '').trim().toUpperCase(),
@@ -203,21 +216,6 @@ export async function runReferenceReindex(env, { limit = 8 } = {}) {
     }
   }
 
-  let vectorized = 0;
-  let vectorizeError = null;
-  if (vectors.length) {
-    if (!env.COVER_VECTORS?.upsert) {
-      vectorizeError = 'Binding COVER_VECTORS não configurado';
-    } else {
-      try {
-        await env.COVER_VECTORS.upsert(vectors);
-        vectorized = vectors.length;
-      } catch (error) {
-        vectorizeError = error?.message || 'Falha ao sincronizar Vectorize';
-      }
-    }
-  }
-
   const processedIds = processed.map(item => Number(item.reference_id)).filter(Boolean);
   if (processedIds.length && !supabasePrimaryWritesRequested(env)) {
     await mirrorVisualReferencesBatchFromD1(env, processedIds).catch(error => {
@@ -228,11 +226,11 @@ export async function runReferenceReindex(env, { limit = 8 } = {}) {
 
   const pending = await countPending(env, model);
   return {
-    ok: errors.length === 0 && !vectorizeError,
+    ok: errors.length === 0,
     processed,
     errors,
     vectorized,
-    vectorize_error: vectorizeError,
+    vectorize_error:null,
     pending_references: pending,
     pending_covers: pending,
     embedding_model: model,
