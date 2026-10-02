@@ -23,7 +23,6 @@ import {
   normalizePlatform
 } from './platform-scope.js';
 import {
-  d1EmergencyCircuitStatus,
   preferSupabaseRead,
   supabaseReserveProducts,
   supabaseProductImageContext,
@@ -714,7 +713,6 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === '/api/health') {
-        const reserveCircuit = d1EmergencyCircuitStatus();
         const supabaseReads = supabaseReadsRequested(env);
         const supabaseWrites = supabasePrimaryWritesRequested(env);
         const d1Attached = Boolean(env?.DB);
@@ -726,10 +724,10 @@ export default {
             write_authority: supabaseWrites ? 'supabase' : 'd1',
             d1_binding_configured:d1Attached,
             compatibility_store:d1Attached ? 'd1' : 'detached',
-            emergency_fallback_enabled: String(env?.SUPABASE_EMERGENCY_FALLBACK_ENABLED || '') === '1',
-            d1_reserve_circuit_open: d1Attached && reserveCircuit.open,
-            d1_reserve_circuit_open_until: d1Attached ? reserveCircuit.open_until : null,
-            d1_reserve_circuit_remaining_ms: d1Attached ? reserveCircuit.remaining_ms : 0
+            emergency_fallback_enabled:false,
+            d1_reserve_circuit_open:false,
+            d1_reserve_circuit_open_until:null,
+            d1_reserve_circuit_remaining_ms:0
           }
         });
       }
