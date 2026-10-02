@@ -16,14 +16,14 @@ test('MKP masks discard gray PSD matte while preserving the near-white silhouett
   assert.equal(normalizeMkpMaskValue(255), 255);
 });
 
-test('automatic treatment uses exact MKP masks for registered square planners', () => {
+test('automatic treatment uses MKP body masks plus source wire-o recovery for registered square planners', () => {
   assert.match(source, /const MKP_PRODUCT_MASKS/);
   assert.match(source, /wire_branco_com_tassel\.png/);
   assert.match(source, /wire_branco_sem_tassel\.png/);
   assert.match(source, /wire_preto_sem_tassel\.png/);
   assert.match(source, /wire_gold_com_tassel\.png/);
   assert.match(source, /function buildMkpProductAlpha/);
-  assert.match(source, /applyMkpProductAlpha\(data, mkpAlpha\)/);
+  assert.match(source, /applyMkpProductAlpha\(data, mkpAlpha, wireoRecoveryMask\)/);
   assert.match(source, /function removeConnectedStudioBackground/);
 });
 
@@ -364,4 +364,64 @@ test('geometry-aware cutout protects the body but traces the real source pixels'
   assert.match(buildSource, /preserveAccessory/);
   assert.equal(buildSource.includes('applyOfficialProductMask'), false);
   assert.equal(buildSource.includes('applyPlannerStructureMask'), false);
+});
+
+
+test('registered wire-o is recovered from the original source instead of being clipped by a fixed MKP mask', () => {
+  const width = 160;
+  const height = 220;
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let index = 0; index < width * height; index += 1) {
+    data[index * 4] = 255;
+    data[index * 4 + 1] = 255;
+    data[index * 4 + 2] = 255;
+    data[index * 4 + 3] = 255;
+  }
+
+  // Planner body starts at x=48. The fixed mask deliberately contains only
+  // the body, reproducing the failure where the real binding was erased.
+  const alpha = new Uint8ClampedArray(width * height);
+  for (let y = 25; y <= 198; y += 1) {
+    for (let x = 48; x <= 132; x += 1) alpha[y * width + x] = 255;
+  }
+
+  // Repeated dark reflections of a white/silver wire-o. The pale parts around
+  // them are intentionally the same white as the studio background.
+  for (const y of [42, 64, 86, 108, 130, 152, 174]) {
+    for (let yy = y; yy <= y + 3; yy += 1) {
+      for (let x = 35; x <= 41; x += 1) {
+        const offset = (yy * width + x) * 4;
+        data[offset] = 45;
+        data[offset + 1] = 45;
+        data[offset + 2] = 45;
+      }
+    }
+  }
+
+  const bounds = { minX:32, maxX:136, minY:20, maxY:202, width:104, height:182 };
+  const recovery = __muralTransparentImageInternals.buildWireoRecoveryMask(
+    data, width, height, bounds
+  );
+  assert.ok(recovery);
+  assert.equal(recovery[65 * width + 38], 1, 'wire-o evidence is recovered');
+  assert.equal(recovery[110 * width + 10], 0, 'far background is never recovered');
+
+  const merged = data.slice();
+  assert.equal(
+    __muralTransparentImageInternals.mergeMkpAlphaWithWireo(merged, alpha, recovery),
+    true
+  );
+  assert.equal(merged[(65 * width + 38) * 4 + 3], 255, 'wire-o survives MKP alpha');
+  assert.equal(merged[(110 * width + 10) * 4 + 3], 0, 'background remains transparent');
+});
+
+test('wire-o metadata activates accessory preservation even without a tassel', () => {
+  const { hasRegisteredWireo } = __muralTransparentImageInternals;
+  assert.equal(hasRegisteredWireo({ wireoCode:'B', tasselCode:'X' }), true);
+  assert.equal(hasRegisteredWireo({ wireoCode:'P', tasselCode:'X' }), true);
+  assert.equal(hasRegisteredWireo({ wireoCode:'R', tasselCode:'X' }), true);
+  assert.equal(hasRegisteredWireo({ wireoCode:'', tasselCode:'X' }), false);
+  assert.match(source, /const wireoRecoveryMask = plannerBounds/);
+  assert.match(source, /applyMkpProductAlpha\(data, mkpAlpha, wireoRecoveryMask\)/);
+  assert.match(source, /\|\| hasRegisteredWireo\(options\)/);
 });

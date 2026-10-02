@@ -159,10 +159,68 @@ async function buildMkpProductAlpha(width, height, wireoCode, tasselCode) {
   return alpha;
 }
 
-function applyMkpProductAlpha(data, alpha) {
+function hasRegisteredWireo(options = {}) {
+  const code = String(options.wireoCode || options.wireo_code || '').trim().toUpperCase();
+  return Boolean(code && code !== 'X' && code !== 'N/A');
+}
+
+function buildWireoRecoveryMask(data, width, height, plannerBounds) {
+  if (!plannerBounds || !width || !height) return null;
+
+  // The exact MKP reference is reliable for the planner body, but wire-o
+  // position varies a few pixels between mockups. Recover the binding from the
+  // ORIGINAL source in a narrow strip beside the left cover edge instead of
+  // allowing the fixed mask to erase pale/silver/white rings.
+  const left = clamp(Math.floor(plannerBounds.minX - plannerBounds.width * .035), 0, width - 1);
+  const right = clamp(Math.ceil(plannerBounds.minX + plannerBounds.width * .205), 0, width - 1);
+  const top = clamp(Math.floor(plannerBounds.minY - plannerBounds.height * .025), 0, height - 1);
+  const bottom = clamp(Math.ceil(plannerBounds.maxY + plannerBounds.height * .025), 0, height - 1);
+  if (right <= left || bottom <= top) return null;
+
+  const evidence = new Uint8Array(width * height);
+  let evidenceCount = 0;
+  const verticalBins = new Uint8Array(12);
+
+  for (let y = top; y <= bottom; y += 1) {
+    for (let x = left; x <= right; x += 1) {
+      const index = y * width + x;
+      const offset = index * 4;
+      const strong = isStrongForegroundPixel(
+        data[offset], data[offset + 1], data[offset + 2], data[offset + 3]
+      );
+      const edge = !strong && hasLocalProductEdge(data, width, height, index);
+      if (!strong && !edge) continue;
+      evidence[index] = 1;
+      evidenceCount += 1;
+      const bin = clamp(Math.floor((y - top) * verticalBins.length / Math.max(1, bottom - top + 1)), 0, verticalBins.length - 1);
+      verticalBins[bin] = 1;
+    }
+  }
+
+  // A real binding repeats along the spine. A single logo/dust mark must not
+  // become a recovered accessory just because it sits near the cover.
+  const occupiedBins = verticalBins.reduce((sum, value) => sum + value, 0);
+  if (evidenceCount < Math.max(18, Math.round(width * height * .00008)) || occupiedBins < 3) {
+    return null;
+  }
+
+  // White/silver rings may have only dark reflections on their edges. A small
+  // dilation reconnects those edge pixels to the pale metal without creating
+  // a solid rectangular strip or changing the approved outer contour.
+  return dilateMask(evidence, width, height, clamp(Math.round(Math.max(width, height) * .0022), 2, 3));
+}
+
+function mergeMkpAlphaWithWireo(data, alpha, recoveryMask) {
   if (!alpha || alpha.length * 4 !== data.length) return false;
-  for (let index = 0; index < alpha.length; index += 1) data[index * 4 + 3] = alpha[index];
+  for (let index = 0; index < alpha.length; index += 1) {
+    const recovered = recoveryMask?.[index] ? data[index * 4 + 3] : 0;
+    data[index * 4 + 3] = Math.max(alpha[index], recovered);
+  }
   return true;
+}
+
+function applyMkpProductAlpha(data, alpha, recoveryMask = null) {
+  return mergeMkpAlphaWithWireo(data, alpha, recoveryMask);
 }
 
 function pixelMetrics(r, g, b) {
@@ -1249,7 +1307,13 @@ async function buildTransparentProductImage(src, options = {}) {
     throw new Error('A máscara MKP obrigatória não pôde ser carregada.');
   }
   if (mkpAlpha) {
-    applyMkpProductAlpha(data, mkpAlpha);
+    const plannerBounds = hasRegisteredWireo(options)
+      ? buildPlannerReferenceBounds(data, width, height, true)
+      : null;
+    const wireoRecoveryMask = plannerBounds
+      ? buildWireoRecoveryMask(data, width, height, plannerBounds)
+      : null;
+    applyMkpProductAlpha(data, mkpAlpha, wireoRecoveryMask);
     context.putImageData(imageData, 0, 0);
     const outputBlob = await new Promise((resolve, reject) => {
       canvas.toBlob(result => result ? resolve(result) : reject(new Error('Falha ao aplicar máscara MKP.')), 'image/png');
@@ -1278,10 +1342,12 @@ async function buildTransparentProductImage(src, options = {}) {
     const structureCoverage = protectedSubjectCoverage(
       data, width, height, structureProtection
     );
-    const preserveAccessory = geometry.kind !== 'standard' || Boolean(
-      String(options.tasselCode || '').trim()
-      && String(options.tasselCode || '').trim().toUpperCase() !== 'X'
-    );
+    const preserveAccessory = geometry.kind !== 'standard'
+      || hasRegisteredWireo(options)
+      || Boolean(
+        String(options.tasselCode || '').trim()
+        && String(options.tasselCode || '').trim().toUpperCase() !== 'X'
+      );
     const minimumCoverage = geometry.kind === 'perspective' ? .84 : .90;
     const structureMask = structureCoverage >= minimumCoverage
       ? buildProductComponentsMask(data, width, height, {
@@ -1463,10 +1529,12 @@ async function buildTreatedProductImage(src, options = {}) {
     ? null
     : buildGeometryProtection(data, width, height, geometry, true);
   const candidateBounds = candidateProtection?.bounds || null;
-  const preserveAccessory = geometry.kind !== 'standard' || Boolean(
-    String(options.tasselCode || '').trim()
-    && String(options.tasselCode || '').trim().toUpperCase() !== 'X'
-  );
+  const preserveAccessory = geometry.kind !== 'standard'
+    || hasRegisteredWireo(options)
+    || Boolean(
+      String(options.tasselCode || '').trim()
+      && String(options.tasselCode || '').trim().toUpperCase() !== 'X'
+    );
   let productMask = usingMkpMask
     ? buildOpaqueMask(data, width, height)
     : buildProductComponentsMask(data, width, height, candidateBounds ? {
@@ -1738,6 +1806,9 @@ export const __muralTransparentImageInternals = {
   buildSubjectProtection,
   clearOutsideSubject,
   buildProductComponentsMask,
+  hasRegisteredWireo,
+  buildWireoRecoveryMask,
+  mergeMkpAlphaWithWireo,
   plannerMaskGeometryIsSafe,
   buildOpaqueMask,
   estimateBorderBackgroundBrightness,
