@@ -1,4 +1,5 @@
 import { supabaseRpc } from './supabase-read-store.js';
+import { supabasePrimaryWritesRequested } from './supabase-write-store.js';
 
 const BATCH_SIZE = 100;
 const STREAMS = Object.freeze([
@@ -147,6 +148,16 @@ async function syncPostReads(env) {
 }
 
 export async function runReserveBackfill(env) {
+  if (supabasePrimaryWritesRequested(env)) {
+    return {
+      ok:true,
+      skipped:true,
+      reason:'supabase_primary_authority',
+      streams:[],
+      expected_streams:[...STREAMS]
+    };
+  }
+
   const result=[];
   const jobs=[
     () => syncGtinEvents(env),
