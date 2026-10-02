@@ -38,3 +38,15 @@ test('Supabase health path does not require the D1 health check',()=>{
   assert.doesNotMatch(block,/Banco D1/);
   assert.match(block,/Banco primário \/ Supabase/);
 });
+
+test('Supabase health exposes pending visual references and scheduled repair context',()=>{
+  const start=metrics.indexOf('async function handleSystemHealthFromSupabase');
+  const end=metrics.indexOf('async function handleSystemHealth(env',start);
+  const block=metrics.slice(start,end);
+  assert.match(block,/nisti_vectorize_status_v1/);
+  assert.match(block,/pendingVisualReferences/);
+  assert.match(block,/pending_visual_references:pendingVisualReferences/);
+  assert.match(block,/repair_schedule:'\*\/30 \* \* \* \*'/);
+  assert.match(block,/ÍNDICE VISUAL/);
+  assert.match(block,/operationalIssues=[\s\S]*pendingVisualReferences/);
+});
