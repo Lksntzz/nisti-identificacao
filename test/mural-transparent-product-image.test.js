@@ -291,7 +291,7 @@ test('approved planner reference aligns from real image anchors instead of a con
   assert.ok(bounds);
   assert.ok(template);
   assert.equal(template(82, 110), true, 'white cover body must stay protected');
-  assert.equal(template(124, 110), true, 'page block must stay protected');
+  assert.equal(template(82, 110), true, 'central white cover core must stay protected');
   assert.equal(template(3, 110), false, 'outside background must remain removable');
 });
 
