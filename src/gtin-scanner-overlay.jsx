@@ -131,8 +131,8 @@ function normalizeProductTypeText(value) {
 
 function productTypeLabel(product) {
   const source = normalizeProductTypeText([
-    normalizedProduct?.nome,
-    normalizedProduct?.sku,
+    product?.nome,
+    product?.sku,
     product?.miolo_code
   ].filter(Boolean).join(' '));
 
@@ -158,7 +158,7 @@ function productTypeLabel(product) {
   const match = types.find(([pattern]) => pattern.test(source));
   if (match) return match[1];
 
-  const fallback = String(normalizedProduct?.nome || '').trim()
+  const fallback = String(product?.nome || '').trim()
     .replace(/\b20\d{2}\b/g, '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -288,7 +288,7 @@ function HistoryChevron({ up = false }) {
 }
 
 function hasTasselLabel(product) {
-  const value = String(normalizedProduct?.tassel || normalizedProduct?.tassel_code || '').trim().toUpperCase();
+  const value = String(product?.tassel || product?.tassel_code || '').trim().toUpperCase();
   return !value || value === 'X' || value.includes('SEM TASSEL') ? 'Não' : 'Sim';
 }
 
