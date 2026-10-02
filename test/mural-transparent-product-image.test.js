@@ -5,8 +5,20 @@ import { __muralTransparentImageInternals } from '../src/mural-transparent-image
 
 const source = fs.readFileSync(new URL('../src/mural-transparent-image.js', import.meta.url), 'utf8');
 
+test('MKP masks discard gray PSD matte while preserving the near-white silhouette', () => {
+  const { normalizeMkpMaskValue } = __muralTransparentImageInternals;
+  assert.equal(normalizeMkpMaskValue(0), 0);
+  assert.equal(normalizeMkpMaskValue(184), 0);
+  assert.equal(normalizeMkpMaskValue(216), 0);
+  assert.equal(normalizeMkpMaskValue(235), 0);
+  assert.ok(normalizeMkpMaskValue(245) > 150);
+  assert.equal(normalizeMkpMaskValue(250), 255);
+  assert.equal(normalizeMkpMaskValue(255), 255);
+});
+
 test('automatic treatment uses exact MKP masks for registered square planners', () => {
   assert.match(source, /const MKP_PRODUCT_MASKS/);
+  assert.match(source, /wire_branco_com_tassel\.png/);
   assert.match(source, /wire_branco_sem_tassel\.png/);
   assert.match(source, /wire_preto_sem_tassel\.png/);
   assert.match(source, /wire_gold_com_tassel\.png/);

@@ -14,7 +14,7 @@ const MAX_RENDER_DIMENSION = 1280;
 const mkpProductMaskCache = new Map();
 
 const MKP_PRODUCT_MASKS = Object.freeze({
-  B:Object.freeze({ withTassel:'/product-masks-mkp/wire_gold_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_branco_sem_tassel.png' }),
+  B:Object.freeze({ withTassel:'/product-masks-mkp/wire_branco_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_branco_sem_tassel.png' }),
   P:Object.freeze({ withTassel:'/product-masks-mkp/wire_preto_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_preto_sem_tassel.png' }),
   R:Object.freeze({ withTassel:'/product-masks-mkp/wire_gold_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_gold_sem_tassel.png' })
 });
@@ -77,6 +77,16 @@ function sourceMatchesMkpFrame(width, height) {
   return Math.abs(aspect - 1) <= MKP_MASK_MAX_ASPECT_ERROR;
 }
 
+function normalizeMkpMaskValue(value) {
+  // PSD-exported gold/black masks contain a gray matte (roughly 184–216)
+  // outside the actual white silhouette. Treating that matte as alpha keeps
+  // the studio background. Normalize only the near-white mask information,
+  // preserving a narrow antialiased edge instead of trusting raw luminance.
+  const normalized = clamp((Number(value || 0) - 235) / 15, 0, 1);
+  const smooth = normalized * normalized * (3 - 2 * normalized);
+  return Math.round(smooth * 255);
+}
+
 async function buildMkpProductAlpha(width, height, wireoCode, tasselCode) {
   const url = mkpProductMaskUrl(wireoCode, tasselCode);
   if (!url || !sourceMatchesMkpFrame(width, height) || typeof document === 'undefined') return null;
@@ -102,7 +112,7 @@ async function buildMkpProductAlpha(width, height, wireoCode, tasselCode) {
   const alpha = new Uint8ClampedArray(width * height);
   let visible = 0;
   for (let index = 0; index < alpha.length; index += 1) {
-    const value = pixels[index * 4];
+    const value = normalizeMkpMaskValue(pixels[index * 4]);
     alpha[index] = value;
     if (value >= 32) visible += 1;
   }
@@ -1557,5 +1567,6 @@ export const __muralTransparentImageInternals = {
   isPersistedProductImageUrl,
   persistedProductOriginalUrl,
   persistedProductImageSource,
-  buildTreatedProductImage
+  buildTreatedProductImage,
+  normalizeMkpMaskValue
 };
