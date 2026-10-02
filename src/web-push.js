@@ -1,9 +1,5 @@
-import {
-  mirrorDeletedPushSubscriptionToSupabase,
-  mirrorPushSubscriptionByEndpointFromD1
-} from './supabase-secondary-write-store.js';
 import { supabaseRpc } from './supabase-read-store.js';
-import { mirrorSupabaseRpc, SupabasePrimaryWriteError, supabasePrimaryWritesRequested } from './supabase-write-store.js';
+import { mirrorSupabaseRpc } from './supabase-write-store.js';
 
 const DEFAULT_VAPID_PUBLIC = 'BMGQFguG_CSRv9PiIgqRweD8o9cHv0LzzU9lZFwZLQv_Rmcn-xweIt0lCQwXVYgII2tyA68bBLskNe6s7XJ-oBc';
 const DEFAULT_VAPID_SUBJECT = 'mailto:contato@nistiprint.com.br';
@@ -192,53 +188,21 @@ export async function savePushSubscription(env, userId, subscription) {
 
   if (!endpoint || !p256dh || !auth) return false;
 
-  if (supabasePrimaryWritesRequested(env)) {
-    const result = await mirrorSupabaseRpc(env,'nisti_upsert_push_subscription_v1',{
-      p_user_id:safeUserId,
-      p_endpoint:endpoint,
-      p_p256dh:p256dh,
-      p_auth:auth
-    },'push subscription primary');
-    return result?.value?.status === 'ok';
-  }
-  if (!env?.DB) return false;
-
-  await env.DB.prepare(`
-    INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at, updated_at)
-    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    ON CONFLICT(endpoint) DO UPDATE SET
-      user_id=excluded.user_id,
-      p256dh=excluded.p256dh,
-      auth=excluded.auth,
-      updated_at=CURRENT_TIMESTAMP
-  `).bind(safeUserId, endpoint, p256dh, auth).run();
-
-  await mirrorPushSubscriptionByEndpointFromD1(env, endpoint).catch(error => {
-    console.error('[Supabase mirror] push subscription falhou', error?.message || error);
-    if (error instanceof SupabasePrimaryWriteError) throw error;
-  });
-
-  return true;
+  const result = await mirrorSupabaseRpc(env,'nisti_upsert_push_subscription_v1',{
+    p_user_id:safeUserId,
+    p_endpoint:endpoint,
+    p_p256dh:p256dh,
+    p_auth:auth
+  },'push subscription primary');
+  return result?.value?.status === 'ok';
 }
 
 export async function removePushSubscription(env, endpoint) {
   if (!endpoint) return false;
   const cleanEndpoint = String(endpoint).trim();
-  if (supabasePrimaryWritesRequested(env)) {
-    await mirrorSupabaseRpc(env,'nisti_delete_push_subscription',{
-      p_endpoint:cleanEndpoint
-    },'delete push subscription primary');
-    return true;
-  }
-  if (!env?.DB) return false;
-  await env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint=?')
-    .bind(cleanEndpoint).run();
-
-  await mirrorDeletedPushSubscriptionToSupabase(env, cleanEndpoint).catch(error => {
-    console.error('[Supabase mirror] delete push subscription falhou', error?.message || error);
-    if (error instanceof SupabasePrimaryWriteError) throw error;
-  });
-
+  await mirrorSupabaseRpc(env,'nisti_delete_push_subscription',{
+    p_endpoint:cleanEndpoint
+  },'delete push subscription primary');
   return true;
 }
 
@@ -273,16 +237,8 @@ export async function sendWebPushNotification(env, subscription, payload) {
 }
 
 async function loadPushSubscriptions(env) {
-  if (supabasePrimaryWritesRequested(env)) {
-    const rows = await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
-    return Array.isArray(rows) ? rows : [];
-  }
-  if (!env?.DB) return [];
-  const { results } = await env.DB.prepare(`
-    SELECT id, endpoint, p256dh, auth
-    FROM push_subscriptions
-  `).all();
-  return results || [];
+  const rows = await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
+  return Array.isArray(rows) ? rows : [];
 }
 
 export async function broadcastNewCoverPush(env, {
@@ -293,63 +249,35 @@ export async function broadcastNewCoverPush(env, {
   imageUrl = null
 }) {
   const privateKey = getVapidPrivateKey(env);
-  const primary = supabasePrimaryWritesRequested(env);
-  if (!primary && env?.DB) {
-    await env.DB.prepare(`
-      INSERT INTO push_logs (capa_code, endpoint, status, ok, error)
-      VALUES (?, 'SYSTEM_INIT', NULL, 0, ?)
-    `).bind(capaCode, `Key len: ${privateKey ? privateKey.length : 0}, DB: ${!!env.DB}`).run().catch(() => {});
-  }
-
   if (!privateKey) return;
 
   const subscriptions = await loadPushSubscriptions(env);
   if (!subscriptions.length) return;
 
   const payload = {
-    title: 'Nova Capa Cadastrada · NISTI PRINT',
-    body: `${productName || 'Novo Produto'} (${capaCode})${platform ? ` · ${platform}` : ''}${variacao ? ` - ${variacao}` : ''}`,
-    image_url: imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `https://nisti-identificacao.lksntz1411.workers.dev${imageUrl}`) : undefined,
-    capa_code: capaCode,
-    platform: platform || undefined,
-    url: '/'
+    title:'Nova Capa Cadastrada · NISTI PRINT',
+    body:`${productName || 'Novo Produto'} (${capaCode})${platform ? ` · ${platform}` : ''}${variacao ? ` - ${variacao}` : ''}`,
+    image_url:imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `https://nisti-identificacao.lksntz1411.workers.dev${imageUrl}`) : undefined,
+    capa_code:capaCode,
+    platform:platform || undefined,
+    url:'/'
   };
 
   const deadEndpoints = [];
 
-  await Promise.all(
-    subscriptions.map(async sub => {
-      try {
-        console.log(`[Push] Iniciando envio para sub ${sub.id}: ${sub.endpoint.slice(0, 40)}...`);
-        const res = await sendWebPushNotification(env, sub, payload);
-        console.log(`[Push] Retorno da sub ${sub.id}: status=${res.status}, ok=${res.ok}`);
-        
-        if (!primary && env?.DB) {
-          await env.DB.prepare(`
-            INSERT INTO push_logs (capa_code, endpoint, status, ok, error)
-            VALUES (?, ?, ?, ?, NULL)
-          `).bind(capaCode, sub.endpoint, res.status, res.ok ? 1 : 0).run().catch(() => {});
-        }
-
-        if (res.status === 404 || res.status === 410) {
-          deadEndpoints.push(sub.endpoint);
-        }
-      } catch (err) {
-        console.error(`[Push] Erro catastrófico na sub ${sub.id}:`, err.message);
-        if (!primary && env?.DB) {
-          await env.DB.prepare(`
-            INSERT INTO push_logs (capa_code, endpoint, status, ok, error)
-            VALUES (?, ?, NULL, 0, ?)
-          `).bind(capaCode, sub.endpoint, err.message).run().catch(() => {});
-        }
-      }
-    })
-  );
-
-  if (deadEndpoints.length > 0) {
-    for (const ep of deadEndpoints) {
-      await removePushSubscription(env, ep).catch(() => {});
+  await Promise.all(subscriptions.map(async sub => {
+    try {
+      console.log(`[Push] Iniciando envio para sub ${sub.id}: ${sub.endpoint.slice(0, 40)}...`);
+      const res = await sendWebPushNotification(env, sub, payload);
+      console.log(`[Push] Retorno da sub ${sub.id}: status=${res.status}, ok=${res.ok}`);
+      if (res.status === 404 || res.status === 410) deadEndpoints.push(sub.endpoint);
+    } catch (err) {
+      console.error(`[Push] Erro catastrófico na sub ${sub.id}:`, err.message);
     }
+  }));
+
+  for (const endpoint of deadEndpoints) {
+    await removePushSubscription(env, endpoint).catch(() => {});
   }
 }
 

@@ -30,7 +30,7 @@ freeze is released in production after the frozen smoke-test gate completed succ
 
 ## Remaining D1 code classification
 
-`src/core-router.js` no longer contains D1 SQL; product, image, treatment, cover-reference, diagnostics and push-admin database paths are Supabase-only.
+`src/core-router.js` no longer contains D1 SQL; product, image, treatment, cover-reference, diagnostics and push-admin database paths are Supabase-only.\n\n`src/cover-notifications.js` and `src/web-push.js` no longer contain D1 SQL; notification reads/writes and push subscription storage use Supabase directly.
 
 | Module | D1 SQL still present | Primary-mode status |
 | --- | --- | --- |
@@ -38,11 +38,9 @@ freeze is released in production after the frozen smoke-test gate completed succ
 | `src/occurrences-router.js` | occurrence/training compatibility SQL | create/train/dismiss are direct Supabase-primary |
 | `src/recognition-metrics.js` | legacy telemetry/read SQL | primary telemetry and reads are Supabase |
 | `src/system-metrics-clean-router.js` | legacy D1 metrics/health path | Supabase-read mode uses Supabase-only database probes |
-| `src/web-push.js` | compatibility subscriptions and D1-only debug logs | subscriptions are Supabase-primary; D1 logs are skipped in primary |
 | `src/geometric-shadow-evidence-router.js` | legacy evidence/read SQL | active create/link/confirm/summary paths are Supabase |
 | `src/gtin-router.js` | GTIN event/link/admin compatibility SQL | scanner events, GTIN link/unlink and admin dismissal are Supabase-primary |
 | `src/geometric-shadow-confirmation-router.js` | legacy confirmation SQL | primary confirmation reads/writes are Supabase |
-| `src/cover-notifications.js` | compatibility notification SQL | primary notification writers/read receipts use Supabase |
 | `src/gemini-budget.js` | legacy D1 budget implementation | production uses Supabase with no automatic fallback; D1 is only for explicit non-Supabase compatibility mode |
 
 ## A2 completion invariants
