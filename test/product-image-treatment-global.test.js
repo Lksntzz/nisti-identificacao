@@ -129,7 +129,8 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(main.includes('ProductImageTreatmentWorker'));
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
   assert.ok(worker.includes('treatedProductImageBlob'));
-  assert.ok(worker.includes('tasselCode:item.tassel_code'));
+  assert.ok(worker.includes('let effectiveTasselCode=item.tassel_code'));
+  assert.ok(worker.includes('tasselCode:effectiveTasselCode'));
   assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v8'"));
   assert.ok(worker.includes("cache:'no-store'"));
   assert.ok(worker.includes("form.append('image'"));
@@ -204,7 +205,8 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
 
   assert.ok(worker.includes('TREATMENT_PAUSE_KEY'));
   assert.ok(worker.includes("status:'review'"));
-  assert.ok(worker.includes('forceOutline:Boolean(item.force_outline)'));
+  assert.ok(worker.includes('forceOutline:aiUrl ? false : Boolean(item.force_outline)'));
+  assert.ok(worker.includes('preciseOutline:Boolean(item.force_outline)'));
   assert.ok(admin.includes('>Iniciar tratamento</button>'));
   assert.ok(admin.includes('>Pausar tratamentos</button>'));
   assert.ok(admin.includes('Aguardando aprovação'));
@@ -222,7 +224,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("p_action:'redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
-  assert.ok(utility.includes('options.forceOutline ? 5 / 1024 : 8 / 1024'));
+  assert.ok(utility.includes('options.forceOutline || options.preciseOutline ? 5 / 1024 : 8 / 1024'));
   assert.ok(utility.includes('sourceAlreadyCutOut && !options.forceOutline'));
   assert.ok(utility.includes('requestedOfficialVariant && !options.forceOutline'));
   assert.ok(utility.includes('buildPlannerStructureProtection(data, width, height, options.forceOutline)'));
