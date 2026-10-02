@@ -586,16 +586,33 @@ export default {
 
         const form = await request.formData();
         const file = form.get('image');
+        const maskFile = form.get('mask');
         if (!(file instanceof File)) return json({ error:'Envie o PNG tratado no campo image.' },400);
+        if (!(maskFile instanceof File)) return json({ error:'Envie a máscara PNG no campo mask.' },400);
+        if (file.type !== 'image/png' || maskFile.type !== 'image/png') {
+          return json({ error:'Imagem tratada e máscara precisam ser PNG.' },400);
+        }
         if (file.size < 1 || file.size > MAX_TREATED_PRODUCT_IMAGE_BYTES) {
           return json({ error:'O PNG tratado deve ter no máximo 8 MB.' },400);
         }
+        if (maskFile.size < 1 || maskFile.size > MAX_PRODUCT_MASK_BYTES) {
+          return json({ error:'A máscara deve ter no máximo 4 MB.' },400);
+        }
 
         const bytes = await file.arrayBuffer();
+        const maskBytes = await maskFile.arrayBuffer();
         const png = inspectTransparentPng(bytes);
+        const maskPng = inspectTransparentPng(maskBytes);
         if (!png) return json({ error:'O tratamento precisa gerar PNG transparente válido.' },400);
+        if (!maskPng) return json({ error:'A máscara individual precisa ser PNG válido.' },400);
+        const widthDelta = png.width - maskPng.width;
+        const heightDelta = png.height - maskPng.height;
+        if (widthDelta < 0 || heightDelta < 0 || widthDelta > 40 || heightDelta > 40) {
+          return json({ error:'A máscara não corresponde às dimensões da imagem tratada.' },400);
+        }
 
         const key = `processed/products/${productId}/${crypto.randomUUID()}.png`;
+        const maskKey = `masks/products/${productId}/${crypto.randomUUID()}.png`;
         await env.PRODUCT_IMAGES.put(key,bytes,{
           httpMetadata:{contentType:'image/png'},
           customMetadata:{
