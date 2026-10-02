@@ -1,0 +1,1 @@
+export const PRODUCT_IMAGE_PROCESSOR_VERSION = '15';

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { productImageMaskBlob, productImageTreatmentArtifactsBlob } from './mural-transparent-image.js';
+import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '15';
-const LOCK_KEY = 'nisti_product_image_treatment_lock_v15';
+const LOCK_KEY = `nisti_product_image_treatment_lock_v${PRODUCT_IMAGE_PROCESSOR_VERSION}`;
 export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
 export const TREATMENT_WAKE_EVENT = 'nisti:product-image-treatment-wake';
