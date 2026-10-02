@@ -1335,6 +1335,31 @@ async function persistedProductImageSource(src) {
   }
 }
 
+async function productMaskPngBlob(mask, width, height) {
+  if (!mask || !width || !height) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+  const imageData = context.createImageData(width, height);
+  for (let index = 0; index < mask.length; index += 1) {
+    const offset = index * 4;
+    const keep = mask[index] ? 255 : 0;
+    imageData.data[offset] = keep;
+    imageData.data[offset + 1] = keep;
+    imageData.data[offset + 2] = keep;
+    imageData.data[offset + 3] = 255;
+  }
+  context.putImageData(imageData, 0, 0);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      result => result ? resolve(result) : reject(new Error('Falha ao gerar máscara individual do produto.')),
+      'image/png'
+    );
+  });
+}
+
 async function buildTreatedProductImage(src, options = {}) {
   const requestedOfficialVariant = officialProductMaskVariant(options.tasselCode);
   const cutoutSrc = requestedOfficialVariant
@@ -1400,6 +1425,13 @@ async function buildTreatedProductImage(src, options = {}) {
     || productHeight < height * .25
     || stats.touches >= 3
   ) return src;
+
+  if (typeof options.onMask === 'function') {
+    const maskBlob = await productMaskPngBlob(productMask, width, height);
+    if (!maskBlob) return src;
+    await options.onMask(maskBlob);
+    if (options.maskOnly) return src;
+  }
 
   // Remove disconnected logos/watermarks from the final visible product while
   // keeping nearby detached physical pieces such as wire-o loops.
@@ -1490,6 +1522,41 @@ export async function treatedProductImageUrl(src) {
 
   treatedProductImageInflight.set(normalized, promise);
   return promise;
+}
+
+export async function productImageTreatmentArtifactsBlob(src, options = {}) {
+  const normalized = String(src || '').trim();
+  if (!normalized || typeof document === 'undefined' || isPersistedProductImageUrl(normalized)) return null;
+
+  let maskBlob = null;
+  const url = await buildTreatedProductImage(normalized, {
+    ...options,
+    onMask:blob => { maskBlob = blob; }
+  });
+  if (!url || !url.startsWith('blob:') || !maskBlob) return null;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const imageBlob = await response.blob();
+    if (imageBlob.type !== 'image/png' || imageBlob.size <= 0) return null;
+    return { imageBlob, maskBlob };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+export async function productImageMaskBlob(src, options = {}) {
+  const normalized = String(src || '').trim();
+  if (!normalized || typeof document === 'undefined' || isPersistedProductImageUrl(normalized)) return null;
+
+  let maskBlob = null;
+  await buildTreatedProductImage(normalized, {
+    ...options,
+    maskOnly:true,
+    onMask:blob => { maskBlob = blob; }
+  });
+  return maskBlob?.type === 'image/png' && maskBlob.size > 0 ? maskBlob : null;
 }
 
 export async function treatedProductImageBlob(src, options = {}) {
