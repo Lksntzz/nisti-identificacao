@@ -6,9 +6,8 @@ import {
   platformsForReference,
   supportedPlatforms
 } from './platform-scope.js';
-import { mirrorVisualReferencesBatchFromD1 } from './supabase-secondary-write-store.js';
 import { supabaseRpc } from './supabase-read-store.js';
-import { mirrorSupabaseRpc, SupabasePrimaryWriteError, supabasePrimaryWritesRequested } from './supabase-write-store.js';
+import { mirrorSupabaseRpc } from './supabase-write-store.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const MAX_REINDEX_LIMIT = 20;
@@ -99,42 +98,19 @@ async function vectorsFromReference(env, reference, model, values) {
 }
 
 async function pendingReferences(env, model, limit) {
-  if (supabasePrimaryWritesRequested(env)) {
-    const rows=await supabaseRpc(env,'nisti_pending_visual_references_v1',{
-      p_embedding_model:model,
-      p_dimensions:EMBEDDING_DIMENSIONS,
-      p_limit:limit
-    });
-    return Array.isArray(rows) ? rows : [];
-  }
-  const { results } = await env.DB.prepare(`
-    SELECT
-      r.id,r.capa_code,r.image_key,r.source_product_id,r.reference_kind
-    FROM cover_visual_references r
-    LEFT JOIN cover_reference_embeddings e
-      ON e.reference_id=r.id AND e.dimensions=? AND e.embedding_model=?
-    WHERE r.active=1 AND e.reference_id IS NULL
-    ORDER BY r.id ASC
-    LIMIT ?
-  `).bind(EMBEDDING_DIMENSIONS, model, limit).all();
-  return results || [];
+  const rows=await supabaseRpc(env,'nisti_pending_visual_references_v1',{
+    p_embedding_model:model,
+    p_dimensions:EMBEDDING_DIMENSIONS,
+    p_limit:limit
+  });
+  return Array.isArray(rows) ? rows : [];
 }
 
 async function countPending(env, model) {
-  if (supabasePrimaryWritesRequested(env)) {
-    return Number(await supabaseRpc(env,'nisti_count_pending_visual_references_v1',{
-      p_embedding_model:model,
-      p_dimensions:EMBEDDING_DIMENSIONS
-    }) || 0);
-  }
-  const row = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM cover_visual_references r
-    LEFT JOIN cover_reference_embeddings e
-      ON e.reference_id=r.id AND e.dimensions=? AND e.embedding_model=?
-    WHERE r.active=1 AND e.reference_id IS NULL
-  `).bind(EMBEDDING_DIMENSIONS, model).first();
-  return Number(row?.total || 0);
+  return Number(await supabaseRpc(env,'nisti_count_pending_visual_references_v1',{
+    p_embedding_model:model,
+    p_dimensions:EMBEDDING_DIMENSIONS
+  }) || 0);
 }
 
 export async function runReferenceReindex(env, { limit = 8 } = {}) {
@@ -176,31 +152,13 @@ export async function runReferenceReindex(env, { limit = 8 } = {}) {
       await env.COVER_VECTORS.upsert(scopedVectors);
       vectorized += scopedVectors.length;
 
-      if (supabasePrimaryWritesRequested(env)) {
-        const saved=await mirrorSupabaseRpc(env,'nisti_upsert_reference_embedding_v1',{
-          p_reference_id:Number(reference.id),
-          p_embedding_model:embeddingModel,
-          p_dimensions:values.length,
-          p_embedding_json:JSON.stringify(values)
-        },`reindex reference ${Number(reference.id)}`);
-        if(saved?.value !== true) throw new Error('Referência visual não encontrada no Supabase.');
-      } else {
-        await env.DB.prepare(`
-          INSERT INTO cover_reference_embeddings (
-            reference_id,embedding_model,dimensions,embedding_json,updated_at
-          ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
-          ON CONFLICT(reference_id) DO UPDATE SET
-            embedding_model=excluded.embedding_model,
-            dimensions=excluded.dimensions,
-            embedding_json=excluded.embedding_json,
-            updated_at=CURRENT_TIMESTAMP
-        `).bind(
-          Number(reference.id),
-          embeddingModel,
-          values.length,
-          JSON.stringify(values)
-        ).run();
-      }
+      const saved=await mirrorSupabaseRpc(env,'nisti_upsert_reference_embedding_v1',{
+        p_reference_id:Number(reference.id),
+        p_embedding_model:embeddingModel,
+        p_dimensions:values.length,
+        p_embedding_json:JSON.stringify(values)
+      },`reindex reference ${Number(reference.id)}`);
+      if(saved?.value !== true) throw new Error('Referência visual não encontrada no Supabase.');
 
       processed.push({
         reference_id: Number(reference.id),
@@ -214,14 +172,6 @@ export async function runReferenceReindex(env, { limit = 8 } = {}) {
         error: error?.message || 'Falha ao indexar referência'
       });
     }
-  }
-
-  const processedIds = processed.map(item => Number(item.reference_id)).filter(Boolean);
-  if (processedIds.length && !supabasePrimaryWritesRequested(env)) {
-    await mirrorVisualReferencesBatchFromD1(env, processedIds).catch(error => {
-      console.error('[Supabase mirror] reindex reference embeddings falhou', error?.message || error);
-      if (error instanceof SupabasePrimaryWriteError) throw error;
-    });
   }
 
   const pending = await countPending(env, model);

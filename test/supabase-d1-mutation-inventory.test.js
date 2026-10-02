@@ -12,13 +12,11 @@ function jsFiles(dir) {
 
 const reviewed = new Set([
   'src/core-router.js',
-  'src/product-finish-router.js',
   'src/recognition-metrics.js',
   'src/system-metrics-clean-router.js',
   'src/cover-notifications.js',
   'src/web-push.js',
   'src/occurrences-router.js',
-  'src/reference-reindex-router.js',
   'src/geometric-shadow-evidence-router.js',
   'src/gtin-router.js',
   'src/geometric-shadow-confirmation-router.js',

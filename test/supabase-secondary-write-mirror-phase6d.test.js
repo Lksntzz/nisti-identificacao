@@ -110,8 +110,9 @@ test('Phase 6D covers finish edits, synthetic notifications, reindex maintenance
   assert.ok(mutationMirror.includes('mirrorProductCatalogFromD1(env, Number(productFinish[1]))'));
   assert.match(mutationMirror, /\/api\/admin\/notifications\/test/);
   assert.match(mutationMirror, /mirrorNotificationByCapaFromD1/);
-  assert.match(reindex, /mirrorVisualReferencesBatchFromD1/);
-  assert.match(reindex, /processedIds/);
+  assert.match(reindex, /nisti_upsert_reference_embedding_v1/);
+  assert.doesNotMatch(reindex, /mirrorVisualReferencesBatchFromD1/);
+  assert.doesNotMatch(reindex, /env\.DB/);
   assert.match(shadowConfirmation, /supabaseWriteMode\(env\) !== 'off'/);
   assert.match(shadowConfirmation, /nisti_mirror_confirm_geometric_shadow/);
   assert.match(systemMetrics, /supabaseWriteMode\(env\) !== 'off'/);
@@ -149,12 +150,12 @@ test('Phase 6D SQL is SECURITY INVOKER and service-role only', () => {
 
 test('active D1 mutations remain confined to reviewed writer modules', () => {
   const allowed = new Map([
-    ['products', new Set(['core-router.js', 'product-finish-router.js'])],
+    ['products', new Set(['core-router.js'])],
     ['product_platforms', new Set(['core-router.js'])],
     ['recognition_daily', new Set(['recognition-metrics.js'])],
     ['recognition_events', new Set(['recognition-metrics.js', 'system-metrics-clean-router.js'])],
     ['cover_visual_references', new Set(['core-router.js', 'occurrences-router.js'])],
-    ['cover_reference_embeddings', new Set(['core-router.js', 'occurrences-router.js', 'reference-reindex-router.js'])],
+    ['cover_reference_embeddings', new Set(['core-router.js', 'occurrences-router.js'])],
     ['notifications', new Set(['core-router.js', 'cover-notifications.js', 'system-notifications.js'])],
     ['notification_reads', new Set(['cover-notifications.js', 'system-notifications.js'])],
     ['push_subscriptions', new Set(['web-push.js'])],
