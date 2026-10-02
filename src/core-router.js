@@ -53,7 +53,7 @@ const BULK_IMPORT_LIMIT = 100;
 const EXTRA_REFERENCE_LIMIT = 6;
 const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '8';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '9';
 const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
@@ -121,99 +121,8 @@ function inspectTransparentPng(bytes) {
   return { width, height };
 }
 
-async function embedImage(env, bytes, mimeType) {
-  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
-  const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
-    {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-goog-api-key': env.GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        content: {
-          parts: [{
-            inline_data: {
-              mime_type: mimeType || 'image/jpeg',
-              data: base64(bytes)
-            }
-          }]
-        },
-        output_dimensionality: EMBEDDING_DIMENSIONS
-      })
-    }
-  );
-  if (!response.ok) throw new Error(`Gemini Embedding falhou (${response.status})`);
-  const payload = await response.json();
-  const values = payload?.embedding?.values || payload?.embeddings?.[0]?.values;
-  if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
-    throw new Error('Gemini Embedding não retornou vetor válido');
-  }
-  return { model, values };
-}
-
-async function storeReferenceEmbedding(env, reference, bytes, mimeType, cleanupProductId = null) {
-  if (!reference?.id) throw new Error('Referência visual não encontrada');
-  const { model, values } = await embedImage(env, bytes, mimeType);
-
-  const referenceId = Number(reference.id);
-  const capaCode = String(reference.capa_code || '').trim().toUpperCase();
-  let platforms = await platformsForReference(env, reference);
-  if (!platforms.length) platforms = supportedPlatforms();
-
-  const vectors = platforms.map(platform => {
-    const normalizedPlatform = normalizePlatform(platform);
-    const namespace = platformNamespace(normalizedPlatform);
-    return {
-      id: platformVectorId(referenceId, normalizedPlatform),
-      namespace,
-      values,
-      metadata: {
-        reference_id: referenceId,
-        capa_code: capaCode,
-        platform: normalizedPlatform,
-        platform_key: namespace,
-        image_key: String(reference.image_key || ''),
-        source_product_id: Number(reference.source_product_id || 0),
-        reference_kind: String(reference.reference_kind || 'product'),
-        embedding_model: model,
-        updated_at: new Date().toISOString()
-      }
-    };
-  }).filter(v => v.id && v.namespace);
-
-  if (!env.COVER_VECTORS?.upsert) throw new Error('Binding COVER_VECTORS não configurado');
-  if (!vectors.length) throw new Error('Nenhum namespace de plataforma disponível para a referência visual');
-
-  await env.COVER_VECTORS.upsert(vectors);
-
-  const stored = await mirrorSupabaseRpc(env, 'nisti_store_reference_embedding_v1', {
-    p_reference_id:referenceId,
-    p_embedding_model:model,
-    p_dimensions:values.length,
-    p_embedding_json:JSON.stringify(values),
-    p_cleanup_product_id:cleanupProductId,
-    p_keep_image_key:cleanupProductId ? reference.image_key : null
-  }, 'embedding de referência visual');
-  if (stored.value?.status !== 'ok') throw new Error('Referência visual não encontrada no Supabase');
-
-  const removedReferences = stored.value?.removed_references || [];
-  if (removedReferences.length && env.COVER_VECTORS?.deleteByIds) {
-    const staleVectorIds = removedReferences.flatMap(item =>
-      supportedPlatforms()
-        .map(platform => platformVectorId(Number(item.id), platform))
-        .filter(Boolean)
-    );
-    if (staleVectorIds.length) {
-      await env.COVER_VECTORS.deleteByIds(staleVectorIds).catch(error => {
-        console.warn('[Vectorize] Falha ao remover vetores obsoletos:', error?.message || error);
-      });
-    }
-  }
-
-  return { model, values, removedReferences, vectorized:vectors.length };
+async function storeReferenceEmbedding() {
+  throw new Error('A indexação visual automática foi removida deste sistema.');
 }
 
 async function saveProductImage(env, id, fileBytes, contentType) {
@@ -875,7 +784,7 @@ export default {
       }
 
       if (url.pathname === '/api/admin/cover-index' && request.method === 'GET') {
-        const model=env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
+        const model='removed';
         const stats=await supabaseRpc(env,'nisti_cover_index_v1',{
           p_embedding_model:model,
           p_dimensions:EMBEDDING_DIMENSIONS
@@ -977,7 +886,6 @@ export default {
 
       if (url.pathname === '/api/admin/push/debug' && request.method === 'GET') {
         const privateKey=env.VAPID_PRIVATE_KEY ? 'presente (tamanho: ' + env.VAPID_PRIVATE_KEY.length + ')' : 'ausente';
-        const apiKey=env.GEMINI_API_KEY ? 'presente' : 'ausente';
         const publicKey=env.VAPID_PUBLIC_KEY ? 'presente' : 'usando default';
 
         const rows=await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
@@ -1012,7 +920,6 @@ export default {
 
         return json({
           vapid_private_key:privateKey,
-          gemini_api_key:apiKey,
           vapid_public_key:publicKey,
           active_subscriptions_count:subscriptions.length,
           send_results:sendResults
