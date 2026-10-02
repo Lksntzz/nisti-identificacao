@@ -91,15 +91,15 @@ test('mask calibration preserves pale nearby accessory evidence but rejects neut
   };
   paint(14,5,34,30,195,175,155);
   // Pale tassel: one chromatic strip connected to mostly light fibres => 20% strong evidence.
-  paint(9,13,13,22,236,236,236);
-  paint(9,13,9,22,170,205,180);
+  paint(8,13,12,22,236,236,236);
+  paint(8,13,8,22,170,205,180);
   // Neutral artifact with the same dimensions on the opposite side.
-  paint(35,13,39,22,240,240,240);
+  paint(36,13,40,22,240,240,240);
   const plannerBounds={minX:14,maxX:34,minY:5,maxY:30,width:20,height:25};
   const mask=buildProductComponentsMask(pixels,width,height,{plannerBounds});
   assert.ok(mask);
-  assert.equal(mask[17*width+10],1,'pale nearby tassel fibres must survive');
-  assert.equal(mask[17*width+37],0,'neutral detached residue must be rejected');
+  assert.equal(mask[17*width+9],1,'pale nearby tassel fibres must survive');
+  assert.equal(mask[17*width+38],0,'neutral detached residue must be rejected');
 });
 
 test('calibrated planner geometry rejects implausible wide cutouts', () => {
