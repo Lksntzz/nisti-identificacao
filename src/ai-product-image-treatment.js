@@ -1,4 +1,6 @@
 const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
+const DEFAULT_GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+const GEMINI_TRANSIENT_STATUSES = new Set([408,429,500,502,503,504]);
 const DEFAULT_WORKERS_VISION_MODEL = '@cf/moondream/moondream3.1-9B-A2B';
 
 function bytesToBase64(bytes) {
@@ -18,9 +20,11 @@ function parseGeminiJson(text) {
   try { return JSON.parse(normalized.slice(start, end + 1)); } catch { return null; }
 }
 
-async function classifyTasselWithGemini(bytes, contentType, env) {
-  if (!env.GEMINI_API_KEY) return { available:false, provider:'gemini', has_tassel:null, confidence:0, reason:'GEMINI_API_KEY ausente.' };
-  const model = String(env.GEMINI_IMAGE_MODEL || DEFAULT_GEMINI_MODEL).trim();
+function sleep(ms) {
+  return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+async function requestGeminiTasselClassification(bytes, contentType, env, model) {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
@@ -48,22 +52,28 @@ async function classifyTasselWithGemini(bytes, contentType, env) {
       })
     }
   );
+
   if (!response.ok) {
     let detail='';
     try {
       const errorPayload=await response.json();
       detail=String(errorPayload?.error?.message || errorPayload?.error?.status || '').trim();
     } catch {}
-    throw new Error(`Gemini ${model} respondeu HTTP ${response.status}${detail ? `: ${detail}` : '.'}`);
+    const error=new Error(`Gemini ${model} respondeu HTTP ${response.status}${detail ? `: ${detail}` : '.'}`);
+    error.status=response.status;
+    error.transient=GEMINI_TRANSIENT_STATUSES.has(response.status);
+    throw error;
   }
-  const payload = await response.json();
-  const text = payload?.candidates?.[0]?.content?.parts?.map(part=>part?.text || '').join('') || '';
-  const parsed = parseGeminiJson(text);
+
+  const payload=await response.json();
+  const text=payload?.candidates?.[0]?.content?.parts?.map(part=>part?.text || '').join('') || '';
+  const parsed=parseGeminiJson(text);
   if (!parsed || typeof parsed.has_tassel !== 'boolean') {
     const finishReason=String(payload?.candidates?.[0]?.finishReason || '').trim();
     const detail=finishReason ? ` (finishReason: ${finishReason})` : '';
-    throw new Error(`Gemini retornou classificação inválida${detail}.`);
+    throw new Error(`Gemini ${model} retornou classificação inválida${detail}.`);
   }
+
   return {
     available:true,
     provider:'gemini',
@@ -72,6 +82,34 @@ async function classifyTasselWithGemini(bytes, contentType, env) {
     confidence:Math.max(0,Math.min(1,Number(parsed.confidence || 0))),
     reason:String(parsed.reason || '').slice(0,240)
   };
+}
+
+async function classifyTasselWithGemini(bytes, contentType, env) {
+  if (!env.GEMINI_API_KEY) return { available:false, provider:'gemini', has_tassel:null, confidence:0, reason:'GEMINI_API_KEY ausente.' };
+
+  const primary=String(env.GEMINI_IMAGE_MODEL || DEFAULT_GEMINI_MODEL).trim();
+  const fallback=String(env.GEMINI_IMAGE_FALLBACK_MODEL || DEFAULT_GEMINI_FALLBACK_MODEL).trim();
+  const models=[...new Set([primary,fallback].filter(Boolean))];
+  const errors=[];
+
+  for (let modelIndex=0;modelIndex<models.length;modelIndex+=1) {
+    const model=models[modelIndex];
+    const maxAttempts=modelIndex===0 ? 3 : 2;
+
+    for (let attempt=1;attempt<=maxAttempts;attempt+=1) {
+      try {
+        return await requestGeminiTasselClassification(bytes,contentType,env,model);
+      } catch(error) {
+        errors.push(`${model} tentativa ${attempt}/${maxAttempts}: ${error.message}`);
+        if (!error.transient || attempt===maxAttempts) break;
+        const baseDelay=attempt===1 ? 700 : 1400;
+        const jitter=Math.floor(Math.random()*250);
+        await sleep(baseDelay+jitter);
+      }
+    }
+  }
+
+  throw new Error(errors.join(' | ').slice(0,900) || 'Gemini indisponível.');
 }
 
 async function classifyTasselWithWorkersAi(bytes, contentType, env) {

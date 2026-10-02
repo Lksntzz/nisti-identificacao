@@ -21,6 +21,11 @@ test('AI assistant uses supported vision analysis and keeps pixel cleanup local'
   assert.doesNotMatch(assistant,/@cf\/briaai\/rmbg-1\.4/);
   assert.match(assistant,/@cf\/moondream\/moondream3\.1-9B-A2B/);
   assert.match(assistant,/gemini-3\.5-flash/);
+  assert.match(assistant,/gemini-3\.1-flash-lite/);
+  assert.ok(assistant.includes('GEMINI_TRANSIENT_STATUSES'));
+  assert.ok(assistant.includes('error.transient=GEMINI_TRANSIENT_STATUSES.has(response.status)'));
+  assert.ok(assistant.includes('const maxAttempts=modelIndex===0 ? 3 : 2'));
+  assert.ok(assistant.includes('await sleep(baseDelay+jitter)'));
   assert.match(assistant,/confidence >= \.7/);
   assert.match(assistant,/responseSchema:/);
   assert.ok(assistant.includes("has_tassel:{type:'BOOLEAN'}"));
@@ -40,6 +45,7 @@ test('AI assistant uses supported vision analysis and keeps pixel cleanup local'
     assert.match(config,/\[ai\]\s+binding = "AI"/);
     assert.match(config,/AI_VISION_MODEL = "@cf\/moondream\/moondream3\.1-9B-A2B"/);
     assert.match(config,/GEMINI_IMAGE_MODEL = "gemini-3\.5-flash"/);
+    assert.match(config,/GEMINI_IMAGE_FALLBACK_MODEL = "gemini-3\.1-flash-lite"/);
   }
 });
 
