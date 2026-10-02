@@ -15,7 +15,7 @@ test('operator app registers the service worker and keeps push alive in backgrou
   const entry=fs.readFileSync(new URL('../src/entry.jsx',import.meta.url),'utf8');
   const publicApp=fs.readFileSync(new URL('../src/public-main.jsx',import.meta.url),'utf8');
 
-  assert.match(entry,/serviceWorker\.register\('\/sw\.js', \{ scope: '\/', updateViaCache: 'none' \}\)/);
+  assert.match(entry,/navigator\.serviceWorker[\s\S]*?\.register\('\/sw\.js', \{ scope: '\/', updateViaCache: 'none' \}\)/);
   assert.match(publicApp,/syncExistingPushSubscription/);
   assert.match(publicApp,/persistPushSubscription\(subscription\)/);
   assert.doesNotMatch(publicApp,/if \(sub\) \{\s*await sub\.unsubscribe/);
