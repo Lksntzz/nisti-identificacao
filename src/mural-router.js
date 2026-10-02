@@ -80,7 +80,6 @@ function finishLabels(row) {
 
 function approvedMuralProductKey(row) {
   if (row?.mural_image_status !== 'approved' || row?.mural_image_reviewed_by !== 'admin') return null;
-  if (row?.mural_image_processor_version !== PRODUCT_IMAGE_PROCESSOR_VERSION) return null;
   if (!row?.mural_processed_image_key || row?.mural_source_image_key !== row?.image_key) return null;
   return row.mural_processed_image_key;
 }
