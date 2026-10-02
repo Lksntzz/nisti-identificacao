@@ -1042,7 +1042,14 @@ async function buildTransparentProductImage(src, options = {}) {
   const { data } = imageData;
   const total = width * height;
 
+  const mkpMaskUrl = mkpProductMaskUrl(options.wireoCode, options.tasselCode);
+  if (options.requireMkpMask && sourceMatchesMkpFrame(width, height) && !mkpMaskUrl) {
+    throw new Error('Código de wire-o ausente ou inválido para selecionar a máscara MKP.');
+  }
   const mkpAlpha = await buildMkpProductAlpha(width, height, options.wireoCode, options.tasselCode);
+  if (options.requireMkpMask && sourceMatchesMkpFrame(width, height) && !mkpAlpha) {
+    throw new Error('A máscara MKP obrigatória não pôde ser carregada.');
+  }
   if (mkpAlpha) {
     applyMkpProductAlpha(data, mkpAlpha);
     context.putImageData(imageData, 0, 0);
