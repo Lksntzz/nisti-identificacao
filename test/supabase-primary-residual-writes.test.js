@@ -32,11 +32,14 @@ test('recognition telemetry bypasses D1 in Supabase primary mode',()=>{
   assert.match(metrics,/nisti_record_recognition_event_v1/);
 });
 
-test('occurrence create and dismiss bypass D1 in Supabase primary mode',()=>{
-  const create=occurrences.indexOf("nisti_create_scan_occurrence_v1");
-  const d1Create=occurrences.indexOf("INSERT INTO scan_occurrences");
-  assert.ok(create>=0 && d1Create>create);
+test('occurrence create, train, list and dismiss are Supabase-only',()=>{
+  assert.match(occurrences,/nisti_create_scan_occurrence_v1/);
+  assert.match(occurrences,/nisti_prepare_occurrence_training_v1/);
+  assert.match(occurrences,/nisti_commit_occurrence_training_v1/);
   assert.match(occurrences,/nisti_dismiss_scan_occurrence_v1/);
+  assert.match(occurrences,/supabaseReserveOccurrences/);
+  assert.doesNotMatch(occurrences,/env\.DB/);
+  assert.doesNotMatch(occurrences,/INSERT INTO scan_occurrences/);
   assert.ok(mutationMirror.includes("occurrences\\/\\d+\\/(?:train|dismiss)"));
 });
 
