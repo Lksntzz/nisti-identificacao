@@ -5,50 +5,11 @@ import { __muralTransparentImageInternals } from '../src/mural-transparent-image
 
 const source = fs.readFileSync(new URL('../src/mural-transparent-image.js', import.meta.url), 'utf8');
 
-test('official NISTI contours select the tassel variant from product metadata', () => {
-  assert.equal(__muralTransparentImageInternals.officialProductMaskVariant('X'), 'withoutTassel');
-  assert.equal(__muralTransparentImageInternals.officialProductMaskVariant('B'), 'withTassel');
-  assert.equal(__muralTransparentImageInternals.officialProductMaskVariant(''), null);
-  assert.ok(fs.existsSync(new URL('../public/product-masks/agenda-with-tassel.png', import.meta.url)));
-  assert.ok(fs.existsSync(new URL('../public/product-masks/agenda-without-tassel.png', import.meta.url)));
-  assert.match(source, /OFFICIAL_MASK_ASPECT_TOLERANCE = \.045/);
-});
-
-test('official closed outline becomes a solid silhouette without relying on RGB color', () => {
-  const width = 9;
-  const height = 9;
-  const outline = new Uint8ClampedArray(width * height * 4);
-  for (let x = 2; x <= 6; x += 1) {
-    outline[(2 * width + x) * 4 + 3] = 255;
-    outline[(6 * width + x) * 4 + 3] = 255;
-  }
-  for (let y = 2; y <= 6; y += 1) {
-    outline[(y * width + 2) * 4 + 3] = 255;
-    outline[(y * width + 6) * 4 + 3] = 255;
-  }
-
-  const mask = __muralTransparentImageInternals.fillOfficialOutline(outline, width, height);
-  assert.equal(mask[4 * width + 4], 1, 'white cover interior is protected');
-  assert.equal(mask[0], 0, 'external background is removable');
-});
-
-test('official contour ignores detached antialiasing noise from the supplied mold', () => {
-  const width = 20;
-  const height = 20;
-  const outline = new Uint8ClampedArray(width * height * 4);
-  for (let x = 6; x <= 13; x += 1) {
-    outline[(6 * width + x) * 4 + 3] = 255;
-    outline[(13 * width + x) * 4 + 3] = 255;
-  }
-  for (let y = 6; y <= 13; y += 1) {
-    outline[(y * width + 6) * 4 + 3] = 255;
-    outline[(y * width + 13) * 4 + 3] = 255;
-  }
-  outline[(19 * width + 0) * 4 + 3] = 255;
-
-  const mask = __muralTransparentImageInternals.fillOfficialOutline(outline, width, height);
-  assert.equal(mask[10 * width + 10], 1, 'the product interior remains protected');
-  assert.equal(mask[19 * width], 0, 'detached mold noise is discarded');
+test('automatic treatment no longer fills fixed external contour molds', () => {
+  assert.equal(source.includes('OFFICIAL_PRODUCT_MASKS'), false);
+  assert.equal(source.includes('fillOfficialOutline'), false);
+  assert.equal(source.includes('applyOfficialProductMask'), false);
+  assert.match(source, /function removeConnectedStudioBackground/);
 });
 
 test('background removal protects white and off-white covers with a physical-edge barrier', () => {
@@ -221,8 +182,8 @@ test('detached corner logo cannot stretch the dominant agenda silhouette', () =>
 
 test('global treated product image bakes a tight mask-calibrated white outline into transparent PNG', () => {
   assert.match(source, /async function buildTreatedProductImage/);
-  assert.match(source, /outlineScale:4 \/ 1024/);
-  assert.match(source, /preciseOutlineScale:3 \/ 1024/);
+  assert.match(source, /outlineScale:2 \/ 1024/);
+  assert.match(source, /preciseOutlineScale:1 \/ 1024/);
   assert.match(source, /const padding = outlineRadius \+ 2/);
   assert.match(source, /if \(!outlineMask\[sourceIndex\]\) continue/);
   assert.match(source, /outputContext\.drawImage\(sourceCanvas, padding, padding\)/);
@@ -359,44 +320,29 @@ test('planner template is not applied to unrelated wide products', () => {
   );
 });
 
-test('adaptive planner mask removes white canvas, keeps white cover and preserves actual wire-o', () => {
+test('planner cutout removes only border-connected studio background', () => {
   const fixture = plannerFixture();
   const template = __muralTransparentImageInternals.buildPlannerStructureProtection(
-    fixture.data,
-    fixture.width,
-    fixture.height
+    fixture.data, fixture.width, fixture.height
   );
   assert.ok(template);
-
-  const removed = __muralTransparentImageInternals.applyPlannerStructureMask(
-    fixture.data,
-    fixture.width,
-    fixture.height,
-    template
+  const result = __muralTransparentImageInternals.removeConnectedStudioBackground(
+    fixture.data, fixture.width, fixture.height, template
   );
-
-  assert.ok(removed > 0);
-  assert.equal(fixture.data[(110 * fixture.width + 82) * 4 + 3], 255, 'white cover center stays opaque');
-  assert.equal(fixture.data[(110 * fixture.width + 3) * 4 + 3], 0, 'external white background becomes transparent');
-  assert.equal(fixture.data[(100 * fixture.width + 22) * 4 + 3], 255, 'real wire-o/detail remains from source evidence');
+  assert.ok(result.removed > 0);
+  assert.equal(fixture.data[(110 * fixture.width + 82) * 4 + 3], 255);
+  assert.equal(fixture.data[(110 * fixture.width + 3) * 4 + 3], 0);
+  assert.equal(fixture.data[(100 * fixture.width + 22) * 4 + 3], 255);
 });
 
-
-test('planner cutout uses the adaptive body template before any color flood-fill', () => {
+test('planner cutout protects the body but traces the real source pixels', () => {
   const buildStart = source.indexOf('async function buildTransparentProductImage');
   const buildEnd = source.indexOf('async function buildTreatedProductImage');
   const buildSource = source.slice(buildStart, buildEnd);
-  const templateDetection = buildSource.indexOf('const plannerStructureProtection = buildPlannerStructureProtection');
-  const templateBranch = buildSource.indexOf('if (plannerStructureProtection)');
-  const genericEvidence = buildSource.indexOf('const subjectEvidence = buildSubjectProtection');
-  const floodFill = buildSource.indexOf('const visited = new Uint8Array(total)');
-  assert.ok(templateDetection >= 0);
-  assert.ok(templateBranch > templateDetection);
-  assert.ok(genericEvidence > templateBranch, 'planner geometry must run before generic color evidence');
-  assert.ok(floodFill > genericEvidence);
-  assert.match(buildSource, /applyPlannerStructureMask\(data, width, height, plannerStructureProtection\)/);
-  assert.match(source, /bodyPolygon: Object\.freeze/);
-  assert.match(source, /buildPlannerReferenceBounds/);
-  assert.match(source, /buildPlannerDetailMask/);
-  assert.equal(source.includes('outlinePolygon: Object.freeze'), false);
+  assert.match(buildSource, /const plannerStructureProtection = buildPlannerStructureProtection/);
+  assert.match(buildSource, /removeConnectedStudioBackground\(data, width, height, plannerStructureProtection\)/);
+  assert.match(buildSource, /buildProductComponentsMask\(data, width, height/);
+  assert.match(buildSource, /preserveAccessory/);
+  assert.equal(buildSource.includes('applyOfficialProductMask'), false);
+  assert.equal(buildSource.includes('applyPlannerStructureMask'), false);
 });
