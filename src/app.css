@@ -2686,6 +2686,99 @@ button.kpi-box {
   padding: 16px;
 }
 
+.unsaved-registration-backdrop {
+  z-index: 140;
+  background-color: rgba(15, 23, 42, 0.62);
+}
+
+.unsaved-registration-dialog {
+  width: min(430px, 100%);
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+  animation: modal-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.unsaved-registration-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.unsaved-registration-copy {
+  min-width: 0;
+}
+
+.unsaved-registration-copy h3 {
+  margin: 1px 0 6px;
+  color: #0f172a;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.unsaved-registration-copy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.unsaved-registration-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.unsaved-registration-discard {
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.unsaved-registration-discard:hover {
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.admin-modal-close:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .unsaved-registration-dialog {
+    grid-template-columns: 36px minmax(0, 1fr);
+    padding: 18px;
+  }
+
+  .unsaved-registration-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .unsaved-registration-actions {
+    flex-direction: column-reverse;
+  }
+
+  .unsaved-registration-actions .btn-cancel,
+  .unsaved-registration-actions .btn-submit-rainbow {
+    width: 100%;
+    min-height: 40px;
+  }
+}
+
 .admin-modal {
   width: min(620px, 100%);
   background: #ffffff;
