@@ -205,7 +205,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
 
   assert.ok(worker.includes('TREATMENT_PAUSE_KEY'));
   assert.ok(worker.includes("status:'review'"));
-  assert.ok(worker.includes('forceOutline:aiUrl ? false : Boolean(item.force_outline)'));
+  assert.ok(worker.includes('forceOutline:Boolean(item.force_outline)'));
   assert.ok(worker.includes('preciseOutline:Boolean(item.force_outline)'));
   assert.ok(admin.includes('>Iniciar tratamento</button>'));
   assert.ok(admin.includes('>Pausar tratamentos</button>'));
