@@ -24,7 +24,9 @@ freeze is released in production after the frozen smoke-test gate completed succ
 - NISTI → Commerce synchronization now sources the authoritative NISTI product rows from Supabase.
 - Direct product create/update/finish and bulk import trigger Commerce synchronization; primary product deletion removes stale Commerce links.
 - System Metrics and System Health use Supabase as the primary database when Supabase reads are enabled.
-- Gemini call budget uses the Supabase atomic RPC while Supabase reads are authoritative.
+- Gemini call budget is Supabase-only in the runtime.
+- Reference reindex is Supabase-only; scheduled maintenance no longer imports the legacy reserve backfill.
+- Product finish edits are Supabase-only and continue synchronizing/reconciling Commerce.
 
 ## Remaining D1 code classification
 
@@ -39,10 +41,7 @@ freeze is released in production after the frozen smoke-test gate completed succ
 | `src/geometric-shadow-evidence-router.js` | legacy evidence/read SQL | active create/link/confirm/summary paths are Supabase |
 | `src/gtin-router.js` | GTIN event/link/admin compatibility SQL | scanner events, GTIN link/unlink and admin dismissal are Supabase-primary |
 | `src/geometric-shadow-confirmation-router.js` | legacy confirmation SQL | primary confirmation reads/writes are Supabase |
-| `src/reference-reindex-router.js` | compatibility embedding SQL | primary pending-reference reads and embedding writes are Supabase |
-| `src/product-finish-router.js` | compatibility product update | direct Supabase-primary branch executes before D1 |
 | `src/cover-notifications.js` | compatibility notification SQL | primary notification writers/read receipts use Supabase |
-| `src/gemini-budget.js` | legacy D1 budget implementation | Supabase-primary has no fallback; D1 budget path exists only when Supabase reads are explicitly disabled |
 
 ## A2 completion invariants
 
@@ -55,3 +54,10 @@ freeze is released in production after the frozen smoke-test gate completed succ
 6. Production sets `SUPABASE_CUTOVER_WRITE_FREEZE=0`; the D1 binding has been removed from the production Worker and survives only through `wrangler.d1-compat.toml`.
 7. Controlled writes have been verified directly in Supabase; compatibility-removal is now the active phase.
 8. D1 must not regain data authority without an explicit freeze, resynchronization and reconciliation procedure.
+
+## Compatibility cleanup progress
+
+The production runtime no longer contains D1 branches in `src/gemini-budget.js`,
+`src/product-finish-router.js` or `src/reference-reindex-router.js`. The scheduled Worker entry point
+also no longer imports `src/supabase-reserve-backfill.js`; that module is retained only as a
+recovery artifact while D1 remains preserved outside the production Worker.
