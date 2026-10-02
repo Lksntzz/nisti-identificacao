@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { productImageMaskBlob, productImageTreatmentArtifactsBlob } from './mural-transparent-image.js';
 
-const LOCK_KEY = 'nisti_product_image_treatment_lock_v11';
+const LOCK_KEY = 'nisti_product_image_treatment_lock_v12';
 export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
 export const TREATMENT_WAKE_EVENT = 'nisti:product-image-treatment-wake';
