@@ -1229,12 +1229,23 @@ async function buildTransparentProductImage(src, options = {}) {
   const { data } = imageData;
   const total = width * height;
 
-  const mkpMaskUrl = mkpProductMaskUrl(options.wireoCode, options.tasselCode);
-  if (options.requireMkpMask && sourceMatchesMkpFrame(width, height) && !mkpMaskUrl) {
+  const geometry = classifyProductGeometry(data, width, height, options);
+  const standardMkpEligible = geometry.kind === 'standard' && sourceMatchesMkpFrame(width, height);
+  const mkpMaskUrl = standardMkpEligible
+    ? mkpProductMaskUrl(options.wireoCode, options.tasselCode)
+    : '';
+
+  // The legacy MKP mask is valid only for the standard upright planner. A
+  // square canvas alone is no longer enough: horizontal, perspective and disc
+  // products must use their own geometry so the cover is not cut by the
+  // vertical mold.
+  if (options.requireMkpMask && standardMkpEligible && !mkpMaskUrl) {
     throw new Error('Código de wire-o ausente ou inválido para selecionar a máscara MKP.');
   }
-  const mkpAlpha = await buildMkpProductAlpha(width, height, options.wireoCode, options.tasselCode);
-  if (options.requireMkpMask && sourceMatchesMkpFrame(width, height) && !mkpAlpha) {
+  const mkpAlpha = standardMkpEligible
+    ? await buildMkpProductAlpha(width, height, options.wireoCode, options.tasselCode)
+    : null;
+  if (options.requireMkpMask && standardMkpEligible && !mkpAlpha) {
     throw new Error('A máscara MKP obrigatória não pôde ser carregada.');
   }
   if (mkpAlpha) {
@@ -1253,46 +1264,47 @@ async function buildTransparentProductImage(src, options = {}) {
     && hasUsableTransparentBorder(data, width, height);
   if (sourceAlreadyCutOut && !options.forceOutline) return src;
 
-  // First try the approved planner geometry. A mostly white planner can have
-  // too little color contrast for the generic foreground detector, but its
-  // physical proportions are still sufficient to protect the real cover.
-  const plannerStructureProtection = buildPlannerStructureProtection(data, width, height, options.forceOutline);
+  // Protect the white/off-white body with the geometry that actually matches
+  // the product. Standard planners keep the approved vertical reference;
+  // landscape planners use a horizontal core; disc notebooks use a wider core;
+  // perspective scenes use an expanded convex subject hull.
+  const structureProtection = buildGeometryProtection(
+    data, width, height, geometry, options.forceOutline
+  );
 
-  // For a planner matching the approved reference, keep the stable body by
-  // geometry and derive variable details (wire-o/elastic/page edges) from the
-  // actual photo. This avoids both white-cover erosion and rigid white spikes.
-  if (plannerStructureProtection) {
+  if (structureProtection) {
     const originalPixels = data.slice();
-    removeConnectedStudioBackground(data, width, height, plannerStructureProtection);
-    const plannerCoverage = protectedSubjectCoverage(
-      data, width, height, plannerStructureProtection
+    removeConnectedStudioBackground(data, width, height, structureProtection);
+    const structureCoverage = protectedSubjectCoverage(
+      data, width, height, structureProtection
     );
-    const preserveAccessory = Boolean(
+    const preserveAccessory = geometry.kind !== 'standard' || Boolean(
       String(options.tasselCode || '').trim()
       && String(options.tasselCode || '').trim().toUpperCase() !== 'X'
     );
-    const plannerMask = plannerCoverage >= .90
+    const minimumCoverage = geometry.kind === 'perspective' ? .84 : .90;
+    const structureMask = structureCoverage >= minimumCoverage
       ? buildProductComponentsMask(data, width, height, {
-          plannerBounds:plannerStructureProtection.bounds,
+          plannerBounds:structureProtection.bounds,
           preserveAccessory
         })
       : null;
 
-    if (plannerMask && plannerMaskGeometryIsSafe(plannerMask, width, height)) {
-      const plannerStats = maskStats(plannerMask, width, height);
+    if (structureMask && productMaskGeometryIsSafe(structureMask, width, height, geometry.kind)) {
+      const structureStats = maskStats(structureMask, width, height);
       if (
-        plannerStats.ratio >= .12
-        && plannerStats.ratio <= .78
-        && plannerStats.touches < 3
+        structureStats.ratio >= .10
+        && structureStats.ratio <= .80
+        && structureStats.touches < 3
       ) {
-        const keepMask = dilateMask(plannerMask, width, height, 1);
+        const keepMask = dilateMask(structureMask, width, height, 1);
         for (let index = 0; index < total; index += 1) {
           if (!keepMask[index]) data[index * 4 + 3] = 0;
         }
         context.putImageData(imageData, 0, 0);
         const outputBlob = await new Promise((resolve, reject) => {
           canvas.toBlob(
-            result => result ? resolve(result) : reject(new Error('Falha ao converter planner para PNG transparente.')),
+            result => result ? resolve(result) : reject(new Error('Falha ao converter produto para PNG transparente.')),
             'image/png'
           );
         });
@@ -1320,8 +1332,10 @@ async function buildTransparentProductImage(src, options = {}) {
   // also preserves neutral export/background fragments. Component cleanup
   // keeps nearby high-contrast tassel/wire-o evidence and removes neutral
   // disconnected residue.
-  const productMask = buildProductComponentsMask(data, width, height);
-  if (!productMask) return src;
+  const productMask = buildProductComponentsMask(data, width, height, {
+    preserveAccessory:geometry.kind !== 'standard'
+  });
+  if (!productMask || !productMaskGeometryIsSafe(productMask, width, height, geometry.kind)) return src;
   const productStats = maskStats(productMask, width, height);
   const productWidth = productStats.maxX - productStats.minX + 1;
   const productHeight = productStats.maxY - productStats.minY + 1;
@@ -1441,17 +1455,34 @@ async function buildTreatedProductImage(src, options = {}) {
     return src;
   }
 
-  const usingMkpMask = Boolean(mkpProductMaskUrl(options.wireoCode, options.tasselCode))
+  const geometry = classifyProductGeometry(data, width, height, options);
+  const usingMkpMask = geometry.kind === 'standard'
+    && Boolean(mkpProductMaskUrl(options.wireoCode, options.tasselCode))
     && sourceMatchesMkpFrame(width, height);
-  const candidatePlannerBounds = usingMkpMask ? null : buildPlannerReferenceBounds(data, width, height, true);
+  const candidateProtection = usingMkpMask
+    ? null
+    : buildGeometryProtection(data, width, height, geometry, true);
+  const candidateBounds = candidateProtection?.bounds || null;
+  const preserveAccessory = geometry.kind !== 'standard' || Boolean(
+    String(options.tasselCode || '').trim()
+    && String(options.tasselCode || '').trim().toUpperCase() !== 'X'
+  );
   let productMask = usingMkpMask
     ? buildOpaqueMask(data, width, height)
-    : buildProductComponentsMask(data, width, height, candidatePlannerBounds ? { plannerBounds:candidatePlannerBounds } : {});
+    : buildProductComponentsMask(data, width, height, candidateBounds ? {
+        plannerBounds:candidateBounds,
+        preserveAccessory
+      } : { preserveAccessory });
   if (!productMask) return src;
-  if (!usingMkpMask && candidatePlannerBounds && !plannerMaskGeometryIsSafe(productMask, width, height)) {
-    // Do not force planner-specific filtering onto an unrelated product. Fall
-    // back to generic connected-component cleanup instead of damaging it.
-    productMask = buildProductComponentsMask(data, width, height);
+  if (
+    !usingMkpMask
+    && candidateBounds
+    && !productMaskGeometryIsSafe(productMask, width, height, geometry.kind)
+  ) {
+    // If the selected geometry envelope is not safe, retry with connected
+    // components only. This preserves the original rather than forcing a bad
+    // profile onto an unusual product.
+    productMask = buildProductComponentsMask(data, width, height, { preserveAccessory });
   }
   if (!productMask) return src;
   const stats = maskStats(productMask, width, height);
@@ -1718,7 +1749,14 @@ export const __muralTransparentImageInternals = {
   isDeepProtectedSubjectPixel,
   subjectProtectionBounds,
   buildPlannerReferenceBounds,
+  buildHorizontalReferenceBounds,
+  buildDiscReferenceBounds,
   buildPlannerStructureProtection,
+  buildHorizontalStructureProtection,
+  buildDiscStructureProtection,
+  measureStrongForegroundGeometry,
+  classifyProductGeometry,
+  productMaskGeometryIsSafe,
   removeConnectedStudioBackground,
   buildExternalOutlineRing,
   pointInsidePolygon,
