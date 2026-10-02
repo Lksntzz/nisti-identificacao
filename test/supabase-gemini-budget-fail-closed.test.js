@@ -5,19 +5,20 @@ import fs from 'node:fs';
 const source=fs.readFileSync('src/gemini-budget.js','utf8');
 const wrangler=fs.readFileSync('wrangler.toml','utf8');
 
-test('Gemini budget is Supabase-only in the runtime',()=>{
+test('Gemini budget uses Supabase without any runtime D1 emergency fallback in production',()=>{
   assert.match(source,/nisti_reserve_gemini_budget/);
-  assert.match(source,/supabaseRpc/);
-  assert.doesNotMatch(source,/env\.DB/);
-  assert.doesNotMatch(source,/reserveD1Budget/);
-  assert.doesNotMatch(source,/supabaseReadsRequested/);
+  assert.doesNotMatch(source,/supabaseEmergencyFallbackRequested/);
+  assert.doesNotMatch(source,/SUPABASE_EMERGENCY_/);
   assert.match(wrangler,/SUPABASE_READS_ENABLED = "1"/);
+  assert.doesNotMatch(wrangler,/SUPABASE_EMERGENCY_/);
 });
 
-test('Gemini budget has no fallback branch after Supabase promotion',()=>{
+test('legacy D1 budget path is reachable only when Supabase reads are explicitly disabled',()=>{
   const start=source.indexOf('export async function reserveGeminiBudget');
   const block=source.slice(start);
-  assert.doesNotMatch(block,/if \(!supabaseReadsRequested/);
+  const legacyGate=block.indexOf("if (!supabaseReadsRequested(env))");
+  const legacyCall=block.indexOf('return reserveD1Budget(env, cleanLane, limit, windowMinute)',legacyGate);
+  const supabaseCall=block.indexOf("nisti_reserve_gemini_budget",legacyGate);
+  assert.ok(legacyGate>=0 && legacyCall>legacyGate && supabaseCall>legacyCall);
   assert.doesNotMatch(block,/catch \(error\)/);
-  assert.doesNotMatch(block,/D1/);
 });
