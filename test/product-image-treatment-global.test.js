@@ -180,12 +180,15 @@ test('contour v9 requeues generated derivatives but preserves approved manual PN
   }
 });
 
-test('admin starts a background queue that persists safe treated PNGs', () => {
+test('admin mounts the treatment worker but processing only starts by explicit control', () => {
   const main = read('src/main.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
 
   assert.ok(main.includes('ProductImageTreatmentWorker'));
+  assert.equal(main.includes('TREATMENT_WAKE_EVENT'), false);
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
+  assert.ok(worker.includes("Deliberately do not run on mount"));
+  assert.equal(worker.includes('const timer = window.setTimeout(run, 900)'), false);
   assert.ok(worker.includes('productImageTreatmentArtifactsBlob'));
   assert.ok(worker.includes('tasselCode:item.tassel_code'));
   assert.ok(worker.includes('wireoCode:item.wireo_code'));
@@ -200,14 +203,14 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(worker.includes('/failed'));
 });
 
-test('stale browser clients cannot persist an older cutout algorithm as v12', () => {
+test('stale browser clients cannot persist or approve a pre-v17 cutout', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
   const core = read('src/core-router.js');
   const version = read('src/product-image-processor-version.js');
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '16'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"));
   assert.ok(worker.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.equal((worker.match(/form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/g) || []).length, 2);
-  assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 2);
+  assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 3);
   assert.ok(core.includes('clientProcessorVersion !== PRODUCT_IMAGE_PROCESSOR_VERSION'));
 });
 
@@ -267,7 +270,7 @@ test('Mural admin shows live treatment totals and the current SKU', () => {
 });
 
 
-test('display endpoint marks treated versus original fallback and client reprocesses only original fallback', () => {
+test('display endpoint is server-authoritative and only serves current approved derivatives', () => {
   const publicImages = read('src/public-image-router.js');
   const utility = read('src/mural-transparent-image.js');
   const core = read('src/core-router.js');
@@ -275,13 +278,11 @@ test('display endpoint marks treated versus original fallback and client reproce
 
   assert.ok(publicImages.includes("'x-nisti-image-source':'treated'"));
   assert.ok(publicImages.includes("'x-nisti-image-source':'original'"));
-  assert.ok(utility.includes("method:'HEAD'"));
-  assert.ok(utility.includes("response.headers.get('x-nisti-image-source')"));
-  assert.ok(utility.includes("if (source === 'treated') return normalized"));
-  assert.ok(utility.includes("if (source === 'original')"));
-  assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
+  const hook = utility.slice(utility.indexOf('export function useTreatedProductImage'), utility.indexOf('export const __muralTransparentImageInternals'));
+  assert.ok(hook.includes('Display is server-authoritative'));
+  assert.equal(hook.includes('treatedProductImageUrl('), false);
   const version = read('src/product-image-processor-version.js');
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '16'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"));
   assert.ok(core.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(core.includes("wireo_code:row.wireo_code || ''"));
@@ -290,7 +291,8 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.equal(queueSql.includes("queue_status IN ('pending','review','stale')"), false);
   assert.ok(queueSql.includes('p.wireo_code'));
   assert.ok(queueSql.includes("'wireo_code',COALESCE(wireo_code,''"));
-  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '16'"));
+  assert.ok(publicImages.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
+  assert.equal(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"), false);
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
@@ -320,7 +322,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(worker.includes('forceOutline:Boolean(item.force_outline)'));
   assert.ok(worker.includes('preciseOutline:Boolean(item.force_outline)'));
   assert.ok(admin.includes('>Iniciar tratamento</button>'));
-  assert.ok(admin.includes('>Pausar tratamentos</button>'));
+  assert.ok(admin.includes('>Pausar tratamento</button>'));
   assert.ok(admin.includes('Aguardando aprovação'));
   assert.ok(admin.includes('>Para revisar</button>'));
   assert.ok(admin.includes('>Revisados</button>'));
@@ -366,20 +368,23 @@ test('Mural review opens a large preview and exposes approve and precise-redo ac
 });
 
 
-test('automatic image treatment does not poll D1 aggressively while idle', () => {
+test('manual image treatment stays idle until the admin explicitly starts it', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
   const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const main = read('src/main.jsx');
   const core = read('src/core-router.js');
 
-  assert.ok(worker.includes('IDLE_POLL_MS = 15 * 60 * 1000'));
-  assert.ok(worker.includes('TREATMENT_WAKE_EVENT'));
-  assert.equal(worker.includes('window.setTimeout(run, 30000)'), false);
+  assert.equal(worker.includes('IDLE_POLL_MS'), false);
+  assert.equal(worker.includes('TREATMENT_WAKE_EVENT'), false);
+  assert.equal(main.includes('TREATMENT_WAKE_EVENT'), false);
+  assert.ok(worker.includes("return localStorage.getItem(TREATMENT_PAUSE_KEY) !== '0'"));
+  assert.ok(worker.includes("window.addEventListener(TREATMENT_CONTROL_EVENT, onControl)"));
+  assert.ok(worker.includes("emitTreatmentProgress({ phase:'paused', manual:true })"));
   assert.equal(admin.includes('window.setInterval(refreshProgress,1500)'), false);
-  assert.ok(admin.includes('/api/admin/product-image-treatment/summary'));
+  assert.ok(admin.includes('Tratamento manual'));
+  assert.ok(admin.includes('Aguardando início manual'));
   assert.ok(core.includes("url.pathname === '/api/admin/product-image-treatment/summary'"));
-  assert.equal(core.includes('summary:await productTreatmentSummary(env),\n          items:'), false);
 });
-
 test('image treatment retries after another admin tab owns the processing lock', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
   const admin = read('src/admin/MuralNistiAdminView.jsx');
