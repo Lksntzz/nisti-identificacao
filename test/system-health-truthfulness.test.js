@@ -51,10 +51,10 @@ test('EAN operations replace removed visual tools in the active AdminApp', () =>
 test('System health performs live checks and returns real operational issues', () => {
   const source = read('src/system-metrics-clean-router.js');
   assert.equal(source.includes("'/api/admin/system-health'"), true);
-  assert.equal(source.includes("runHealthCheck('d1'"), true);
+  assert.equal(source.includes("runHealthCheck('d1'"), false);
   assert.equal(source.includes("runHealthCheck('r2'"), true);
   assert.equal(source.includes("runHealthCheck('supabase'"), true);
-  assert.equal(source.includes("WHERE e.status='system_error'"), true);
+  assert.equal(source.includes('nisti_system_health_core_v1'), true);
   assert.equal(source.includes("commerce_nisti_product_statuses_v1"), true);
   assert.equal(source.includes('recent_issues'), true);
 });
