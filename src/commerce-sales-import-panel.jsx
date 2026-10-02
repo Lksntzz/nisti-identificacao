@@ -112,17 +112,26 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     setMessage('');
     try {
       const result = await stageCommerceSalesWorkbook(parsed, setProgress);
-      const replacedMonths = Array.isArray(result?.result?.replaced_months)
-        ? result.result.replaced_months
+      const commitResult = result?.result || {};
+      const replacedMonths = Array.isArray(commitResult?.replaced_months)
+        ? commitResult.replaced_months
         : [];
-      setMessage(
-        `Vendas importadas com sucesso. Snapshot #${result?.result?.snapshot_id || '—'} · ${brNumber(result?.result?.rows || 0)} linhas na base atual.${replacedMonths.length ? ` Mês(es) substituído(s): ${replacedMonths.join(', ')}.` : ''}`
-      );
+      if (commitResult.status === 'WAITING_PARTS') {
+        const missing = Array.isArray(commitResult.missing_parts) ? commitResult.missing_parts.join(', ') : '';
+        setMessage(
+          `Parte recebida com sucesso. ${brNumber(commitResult.parts_received || 0)}/${brNumber(commitResult.parts_expected || 0)} parte(s) recebida(s).${missing ? ` Falta(m): ${missing}.` : ''} O mês só será atualizado quando todas as partes forem importadas.`
+        );
+      } else {
+        const mergedParts = Number(commitResult?.merged_parts || 1);
+        setMessage(
+          `Vendas consolidadas com sucesso. Snapshot #${commitResult?.snapshot_id || '—'} · ${brNumber(commitResult?.rows || 0)} linhas na base atual.${mergedParts > 1 ? ` ${mergedParts} partes foram unidas automaticamente.` : ''}${replacedMonths.length ? ` Mês(es) atualizado(s): ${replacedMonths.join(', ')}.` : ''}`
+        );
+      }
       setFile(null);
       setParsed(null);
       setProgress(null);
       await refreshHistory();
-      onSalesChanged?.();
+      if (result?.result?.status !== 'WAITING_PARTS') onSalesChanged?.();
     } catch (err) {
       setError(err.message || 'Falha ao importar vendas.');
     } finally {
@@ -155,7 +164,7 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
         <div className="commerce-panel-header">
           <div>
             <h2>Importar arquivo de vendas</h2>
-            <p>Ao importar um mês completo, ele substitui automaticamente qualquer versão parcial do mesmo mês e plataforma. Outros meses e outras plataformas são preservados.</p>
+            <p>Ao importar um mês completo, ele substitui automaticamente qualquer versão parcial do mesmo mês e plataforma. Se a plataforma dividir o relatório em várias partes, o sistema aguarda todas e consolida o mês automaticamente. Outros meses e outras plataformas são preservados.</p>
           </div>
         </div>
 
@@ -190,7 +199,7 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
               onChange={handleFile}
               disabled={reading || importing}
             />
-            <small>{file ? file.name : 'Selecione o relatório exportado da plataforma. Para completar um mês parcial, envie o arquivo do mês inteiro.'}</small>
+            <small>{file ? file.name : 'Selecione o relatório exportado da plataforma. Se vier em parte 1/2, parte 2/2 etc., importe todas as partes; o sistema junta automaticamente.'}</small>
           </label>
 
           <button
