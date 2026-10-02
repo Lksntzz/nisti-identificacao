@@ -96,8 +96,11 @@ const PLANNER_MASK_CALIBRATION = Object.freeze({
   bboxAspectSafeMax:.88,
   nearbyDetailStrongRatio:.18,
   genericDetailStrongRatio:.30,
-  outlineScale:5 / 1024,
-  preciseOutlineScale:5 / 1024
+  // User-approved visual target: a clearly visible sticker contour. The ring
+  // is generated strictly OUTSIDE the product mask, so increasing thickness
+  // can never cover the cover/pages/accessories themselves.
+  outlineScale:8 / 1024,
+  preciseOutlineScale:8 / 1024
 });
 
 function clamp(value, min, max) {
@@ -1227,7 +1230,7 @@ async function buildTransparentProductImage(src, options = {}) {
 
   if (structureProtection) {
     const originalPixels = data.slice();
-    const lightBodyProtection = geometry.kind === 'standard' && hasRegisteredWireo(options)
+    const lightBodyProtection = geometry.kind === 'standard'
       ? buildPlannerBodyProtection(originalPixels, width, height, options.forceOutline)
       : null;
     removeConnectedStudioBackground(data, width, height, structureProtection);
@@ -1489,7 +1492,7 @@ async function buildTreatedProductImage(src, options = {}) {
   const outlineScale = options.forceOutline || options.preciseOutline
     ? PLANNER_MASK_CALIBRATION.preciseOutlineScale
     : PLANNER_MASK_CALIBRATION.outlineScale;
-  const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 4, 7);
+  const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 6, 11);
   const outlineMask = buildExternalOutlineRing(productMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
 
