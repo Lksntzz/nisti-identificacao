@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { productFinishLabels } from '../src/gtin-router.js';
+import fs from 'node:fs';
 
 test('translates stored finish codes for the EAN product response', () => {
   assert.deepEqual(productFinishLabels({
@@ -37,4 +38,11 @@ test('translates X elastic code as product without elastic', () => {
     tassel: 'Preto',
     elastico: 'Sem elástico'
   });
+});
+
+
+test('finish endpoint accepts X as the no-elastic code', () => {
+  const source = fs.readFileSync(new URL('../src/product-finish-router.js', import.meta.url), 'utf8');
+  assert.match(source, /elasticoCode !== 'X' && !ACCESSORY_COLORS\[elasticoCode\]/);
+  assert.match(source, /elasticoCode === 'X' \? 'Sem elástico'/);
 });
