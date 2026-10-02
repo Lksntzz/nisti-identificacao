@@ -253,7 +253,8 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(utility.includes('buildPlannerStructureProtection(data, width, height, options.forceOutline)'));
   assert.ok(utility.includes('const fitScale = Math.min(width * .995 / boxWidth, height * .995 / boxHeight)'));
   assert.ok(utility.includes('fillMaskInteriorHoles(dilateMask(mask, width, height, radius))'));
-  assert.ok(utility.includes("requestedOfficialVariant === 'withTassel'"));
+  assert.ok(utility.includes('strongRatio < .30'));
+  assert.ok(utility.includes('const officialProductMask = buildProductComponentsMask(data, width, height)'));
   assert.ok(utility.includes('estimateBorderBackgroundBrightness(data, width, height)'));
   assert.ok(utility.includes('if (validOfficialCut)'));
   assert.ok(utility.includes('data.set(originalPixels)'));
