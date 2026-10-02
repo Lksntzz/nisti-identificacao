@@ -74,7 +74,6 @@ export default {
           'cache-control': 'no-store'
         }
       });
-    }), { status: 410, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
     }
 
     const canonicalRequest = await canonicalizeCatalogRequest(request, url);
