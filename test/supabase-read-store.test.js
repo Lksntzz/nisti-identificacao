@@ -54,10 +54,30 @@ test('valid empty Supabase result is authoritative and does not fall back', asyn
   assert.equal(d1Calls, 0);
 });
 
-test('transport/server failure may use temporary D1 fallback', async () => {
+test('production Supabase read failures fail closed instead of serving stale D1', async () => {
+  let d1Calls = 0;
+  await assert.rejects(
+    () => preferSupabaseRead(
+      { ...configuredEnv, SUPABASE_EMERGENCY_FALLBACK_ENABLED: '0' },
+      async () => {
+        throw new SupabaseReadError('temporary', {
+          status: 503,
+          code: 'supabase_rpc_503',
+          fallbackEligible: true
+        });
+      },
+      async () => { d1Calls += 1; return 'stale-d1'; },
+      'temporary'
+    ),
+    /temporary/
+  );
+  assert.equal(d1Calls, 0);
+});
+
+test('legacy D1 fallback requires explicit opt-in even for retryable Supabase failures', async () => {
   let d1Calls = 0;
   const value = await preferSupabaseRead(
-    configuredEnv,
+    { ...configuredEnv, SUPABASE_EMERGENCY_FALLBACK_ENABLED: '1' },
     async () => {
       throw new SupabaseReadError('temporary', {
         status: 503,
@@ -66,7 +86,7 @@ test('transport/server failure may use temporary D1 fallback', async () => {
       });
     },
     async () => { d1Calls += 1; return 'd1'; },
-    'temporary'
+    'temporary-explicit-fallback'
   );
   assert.equal(value, 'd1');
   assert.equal(d1Calls, 1);
