@@ -24,7 +24,7 @@ test('EAN scanner keeps a bounded recent result history on the device', () => {
   assert.match(scannerSource, /createPortal/);
   assert.match(scannerSource, /gtin-history-modal-backdrop/);
   assert.match(scannerSource, /hasTasselLabel/);
-  assert.match(scannerSource, /item\.product\.elastico/);
+  assert.match(scannerSource, /elasticLabel\(item\.product\)/);
   assert.match(scannerSource, /item\.product\.wireo/);
   assert.doesNotMatch(scannerSource, /gtin-history-time/);
 });
