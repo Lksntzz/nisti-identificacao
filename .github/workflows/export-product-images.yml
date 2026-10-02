@@ -1,0 +1,61 @@
+name: Export NISTI Product Images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/export-product-images.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download current product images
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://nisti-identificacao.lksntz1411.workers.dev"
+          mkdir -p nisti_product_images
+          curl --fail --silent --show-error --location "$BASE/api/products" -o products.json
+          total="$(jq '.products | length' products.json)"
+          with_image="$(jq '[.products[] | select(.image_key != null and .image_key != "")] | length' products.json)"
+          echo "Products: $total; with image: $with_image"
+          test "$with_image" -gt 0
+
+          jq -c '.products[] | select(.image_key != null and .image_key != "")' products.json |
+          while IFS= read -r row; do
+            id="$(jq -r '.id' <<<"$row")"
+            sku="$(jq -r '.sku // ("produto-" + (.id|tostring))' <<<"$row")"
+            safe_sku="$(printf '%s' "$sku" | sed -E 's/[^A-Za-z0-9._-]+/_/g; s/^_+|_+$//g')"
+            tmp="nisti_product_images/.tmp-$id"
+            headers="nisti_product_images/.headers-$id"
+            curl --fail --silent --show-error --location --retry 3 --retry-all-errors -D "$headers" "$BASE/api/images/$id" -o "$tmp"
+
+            mime="$(awk 'BEGIN{IGNORECASE=1} /^content-type:/ {gsub("\\r",""); print $2}' "$headers" | tail -1)"
+            case "$mime" in
+              image/jpeg*) ext="jpg" ;;
+              image/png*) ext="png" ;;
+              image/webp*) ext="webp" ;;
+              image/gif*) ext="gif" ;;
+              *) ext="$(file --extension -b "$tmp" | cut -d/ -f1 | cut -d, -f1)"; [ "$ext" = "???" ] && ext="img" ;;
+            esac
+            mv "$tmp" "nisti_product_images/${safe_sku}__ID${id}.${ext}"
+            rm -f "$headers"
+          done
+
+          downloaded="$(find nisti_product_images -type f | wc -l | tr -d ' ')"
+          echo "Downloaded: $downloaded"
+          test "$downloaded" -eq "$with_image"
+
+      - name: Upload image ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: NISTI_IMAGENS_DO_SISTEMA
+          path: nisti_product_images/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
