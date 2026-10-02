@@ -578,7 +578,7 @@ export default {
         return json({ ok:true,id,updated:true,commerce_sync:commerceSync });
       }
 
-      const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);      const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
+      const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
       if (imageUpload && request.method === 'POST') {
         const id = Number(imageUpload[1]);
         const form = await request.formData();
@@ -836,7 +836,7 @@ export default {
         return new Response(object.body,{headers});
       }
 
-      const coverReferences = url.pathname.match(/^\/api\/admin\/covers\/([^/]+)\/references$/);      const coverReferences = url.pathname.match(/^\/api\/admin\/covers\/([^/]+)\/references$/);
+      const coverReferences = url.pathname.match(/^\/api\/admin\/covers\/([^/]+)\/references$/);
       if (coverReferences && request.method === 'GET') {
         const capaCode = decodeURIComponent(coverReferences[1]);
         return json({
@@ -893,7 +893,7 @@ export default {
         });
       }
 
-      if (url.pathname === '/api/admin/system-notifications' && request.method === 'GET') {      if (url.pathname === '/api/admin/system-notifications' && request.method === 'GET') {
+      if (url.pathname === '/api/admin/system-notifications' && request.method === 'GET') {
         const limit = Number(url.searchParams.get('limit')) || 80;
         const [notifications, unreadCount] = await Promise.all([
           listAdminSystemNotifications(env, limit),
@@ -1019,7 +1019,7 @@ export default {
         });
       }
 
-      if (url.pathname === '/api/admin/notifications/test' && request.method === 'POST') {      if (url.pathname === '/api/admin/notifications/test' && request.method === 'POST') {
+      if (url.pathname === '/api/admin/notifications/test' && request.method === 'POST') {
         const randomId = Math.floor(100 + Math.random() * 900);
         const capaCode = `TEST${randomId}`;
         const saved=await recordNewCoverNotification(env,{
