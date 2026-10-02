@@ -1,8 +1,9 @@
 import app from './vectorize-performance-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
-import { SupabasePrimaryWriteError } from './supabase-write-store.js';
+import { SupabasePrimaryWriteError, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 import { runReserveBackfill } from './supabase-reserve-backfill.js';
+import { runReferenceReindex } from './reference-reindex-router.js';
 import { recordAdminActivityFromResponse } from './system-notifications.js';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -152,6 +153,26 @@ export default {
   },
 
   async scheduled(_controller, env, ctx) {
+    if (supabasePrimaryWritesRequested(env)) {
+      ctx.waitUntil(
+        runReferenceReindex(env,{limit:4})
+          .then(result => {
+            if (result.processed.length || result.errors.length || result.vectorize_error) {
+              console.log('[Visual reference reindex] manutenção agendada', {
+                processed:result.processed.length,
+                errors:result.errors.length,
+                pending:result.pending_references,
+                vectorize_error:result.vectorize_error
+              });
+            }
+          })
+          .catch(error => {
+            console.warn('[Visual reference reindex] execução agendada falhou', error?.message || error);
+          })
+      );
+      return;
+    }
+
     ctx.waitUntil(
       runReserveBackfill(env).catch(error => {
         console.warn('[Supabase reserve backfill] execução agendada falhou', error?.message || error);
