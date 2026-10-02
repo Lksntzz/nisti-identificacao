@@ -23,8 +23,8 @@ test('AI assistant uses supported vision analysis and keeps pixel cleanup local'
   assert.match(assistant,/gemini-3\.5-flash/);
   assert.match(assistant,/confidence >= \.7/);
   assert.match(assistant,/responseSchema:/);
-  assert.match(assistant,/has_tassel:\\{type:'BOOLEAN'\\}/);
-  assert.match(assistant,/thinkingConfig:\\{thinkingLevel:'minimal'\\}/);
+  assert.ok(assistant.includes("has_tassel:{type:'BOOLEAN'}"));
+  assert.ok(assistant.includes("thinkingConfig:{thinkingLevel:'minimal'}"));
   assert.match(assistant,/maxOutputTokens:1024/);
   assert.doesNotMatch(assistant,/temperature:0/);
   assert.match(assistant,/task:'detect'/);
