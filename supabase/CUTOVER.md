@@ -2,7 +2,7 @@
 
 ## Estado do candidato após o corte de dados
 
-O snapshot final de 22 tabelas foi reconciliado no Supabase. A validação congelada foi concluída e o candidato de liberação usa Supabase como autoridade de leitura e escrita; o D1 permanece apenas como camada transitória de compatibilidade e recuperação controlada:
+O snapshot final de 22 tabelas foi reconciliado no Supabase. A validação congelada foi concluída e o candidato de liberação usa Supabase como autoridade de leitura e escrita; o D1 foi removido do binding do Worker de produção e permanece somente como banco legado para recuperação controlada:
 
 ```text
 SUPABASE_URL=https://yioetdcbgorunwgwuawg.supabase.co
@@ -20,6 +20,7 @@ SUPABASE_CUTOVER_WRITE_FREEZE=0
 - Supabase é a autoridade de leitura e escrita do candidato em modo `primary`.
 - Os writers operacionais e administrativos ativos possuem caminho direto Supabase; SQL D1 remanescente é compatibilidade/recuperação e não deve ser executado no caminho primário.
 - O D1 não é mais um hot standby: depois da liberação das escritas diretas, ele pode ficar defasado e não pode ser usado automaticamente como fallback de leitura.
+- O Worker de produção não recebe mais o binding `DB`; comandos de migração/rollback do D1 usam `wrangler.d1-compat.toml`.
 - O navegador nunca recebe a service-role key nem acessa o PostgreSQL diretamente.
 - Não alterar os thresholds de reconhecimento durante o cutover.
 - Não importar `push_logs`; essa tabela permanece legado/diagnóstico fora da autoridade PostgreSQL.
@@ -186,7 +187,7 @@ Após os smoke tests congelados e o Production Gate verde, o release altera some
 SUPABASE_CUTOVER_WRITE_FREEZE = "0"
 ```
 
-As operações reais passam a gravar diretamente no Supabase. Cadastro/edição de produto também dispara sincronização NISTI → Commerce, e exclusão remove o vínculo de sincronização correspondente. O D1 permanece conectado nesta versão apenas para compatibilidade e rollback.
+As operações reais passam a gravar diretamente no Supabase. Cadastro/edição de produto também dispara sincronização NISTI → Commerce, e exclusão remove o vínculo de sincronização correspondente. O D1 permanece preservado na conta apenas para recuperação, mas não está mais conectado ao Worker de produção.
 
 ### 9. Estabilização após a escrita direta
 
@@ -216,4 +217,4 @@ Um rollback de dados para D1 exige, nesta ordem:
 4. somente então alterar `SUPABASE_READS_ENABLED` ou `SUPABASE_WRITE_MODE`;
 5. manter a troca fail-closed se a reconciliação não fechar.
 
-Não excluir o D1, R2 ou Vectorize durante a estabilização. O D1 permanece como artefato de recuperação até existir um procedimento de restauração testado e independente.
+Não excluir o banco D1 legado, R2 ou Vectorize durante a estabilização. O D1 permanece como artefato de recuperação desconectado do Worker; qualquer uso exige configuração explícita de compatibilidade e ressincronização.

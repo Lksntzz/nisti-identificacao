@@ -1,0 +1,8 @@
+name = "nisti-identificacao-d1-compat"
+compatibility_date = "2026-08-17"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nisti-identificacao"
+database_id = "10181c7e-ffdc-41d5-a40e-802173da9a02"
+migrations_dir = "migrations"

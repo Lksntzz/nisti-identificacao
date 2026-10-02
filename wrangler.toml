@@ -9,11 +9,6 @@ binding = "ASSETS"
 run_worker_first = true
 not_found_handling = "single-page-application"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "nisti-identificacao"
-database_id = "10181c7e-ffdc-41d5-a40e-802173da9a02"
-
 [[r2_buckets]]
 binding = "PRODUCT_IMAGES"
 bucket_name = "nisti-identificacao-images"

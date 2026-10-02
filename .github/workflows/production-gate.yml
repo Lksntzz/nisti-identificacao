@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Validate D1 migrations locally
-        run: npx wrangler d1 migrations apply nisti-identificacao --local
+        run: npx wrangler d1 migrations apply nisti-identificacao --local --config wrangler.d1-compat.toml
       - name: Run tests
         run: npm test
       - name: Build
