@@ -191,7 +191,7 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(worker.includes('wireoCode:item.wireo_code'));
   assert.ok(worker.includes('requireMkpMask:true'));
   assert.equal(worker.includes('/ai'), false);
-  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v15'"));
+  assert.ok(worker.includes('nisti_product_image_treatment_lock_v${PRODUCT_IMAGE_PROCESSOR_VERSION}'));
   assert.ok(worker.includes("cache:'no-store'"));
   assert.ok(worker.includes("form.append('image'"));
   assert.ok(worker.includes("form.append('mask'"));
@@ -203,7 +203,9 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
 test('stale browser clients cannot persist an older cutout algorithm as v12', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
   const core = read('src/core-router.js');
-  assert.ok(worker.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '15'"));
+  const version = read('src/product-image-processor-version.js');
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '15'"));
+  assert.ok(worker.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.equal((worker.match(/form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/g) || []).length, 2);
   assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 2);
   assert.ok(core.includes('clientProcessorVersion !== PRODUCT_IMAGE_PROCESSOR_VERSION'));
@@ -278,7 +280,9 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'treated') return normalized"));
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
-  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '15'"));
+  const version = read('src/product-image-processor-version.js');
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '15'"));
+  assert.ok(core.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(core.includes("wireo_code:row.wireo_code || ''"));
   assert.ok(queueSql.includes("queue_status IN ('pending','stale')"));
