@@ -14,42 +14,43 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Download current product images
+      - name: Download current product images from R2
         shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+          R2_BUCKET: nisti-identificacao-images
         run: |
           set -euo pipefail
-          BASE="https://nisti-identificacao.lksntz1411.workers.dev"
+          API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/$R2_BUCKET"
           mkdir -p nisti_product_images
-          curl --fail --silent --show-error --location "$BASE/api/products" -o products.json
-          total="$(jq '.products | length' products.json)"
-          with_image="$(jq '[.products[] | select(.image_key != null and .image_key != "")] | length' products.json)"
-          echo "Products: $total; with image: $with_image"
-          test "$with_image" -gt 0
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API/objects?prefix=products%2F&per_page=1000" -o objects.json
+          count="$(jq '.result | length' objects.json)"
+          truncated="$(jq -r '.result_info.is_truncated // false' objects.json)"
+          echo "R2 product images: $count; truncated: $truncated"
+          test "$truncated" = "false"
+          test "$count" -gt 0
 
-          jq -c '.products[] | select(.image_key != null and .image_key != "")' products.json |
-          while IFS= read -r row; do
-            id="$(jq -r '.id' <<<"$row")"
-            sku="$(jq -r '.sku // ("produto-" + (.id|tostring))' <<<"$row")"
-            safe_sku="$(printf '%s' "$sku" | sed -E 's/[^A-Za-z0-9._-]+/_/g; s/^_+|_+$//g')"
-            tmp="nisti_product_images/.tmp-$id"
-            headers="nisti_product_images/.headers-$id"
-            curl --fail --silent --show-error --location --retry 3 --retry-all-errors -D "$headers" "$BASE/api/images/$id" -o "$tmp"
-
-            mime="$(awk 'BEGIN{IGNORECASE=1} /^content-type:/ {gsub("\\r",""); print $2}' "$headers" | tail -1)"
+          jq -r '.result[] | [.key, (.http_metadata.contentType // "application/octet-stream")] | @tsv' objects.json |
+          while IFS=$'\t' read -r key mime; do
+            id="$(cut -d/ -f2 <<<"$key")"
             case "$mime" in
               image/jpeg*) ext="jpg" ;;
               image/png*) ext="png" ;;
               image/webp*) ext="webp" ;;
               image/gif*) ext="gif" ;;
-              *) ext="$(file --extension -b "$tmp" | cut -d/ -f1 | cut -d, -f1)"; [ "$ext" = "???" ] && ext="img" ;;
+              *) ext="img" ;;
             esac
-            mv "$tmp" "nisti_product_images/${safe_sku}__ID${id}.${ext}"
-            rm -f "$headers"
+            encoded_key="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe="/"))' "$key")"
+            out="nisti_product_images/PRODUTO_ID${id}.${ext}"
+            curl --fail --silent --show-error --location --retry 3 --retry-all-errors -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API/objects/$encoded_key" -o "$out"
           done
 
           downloaded="$(find nisti_product_images -type f | wc -l | tr -d ' ')"
-          echo "Downloaded: $downloaded"
-          test "$downloaded" -eq "$with_image"
+          bytes="$(du -sb nisti_product_images | cut -f1)"
+          echo "Downloaded: $downloaded images; bytes: $bytes"
+          test "$downloaded" -eq "$count"
+          test "$downloaded" -eq 294
 
       - name: Upload image ZIP
         uses: actions/upload-artifact@v4
