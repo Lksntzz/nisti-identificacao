@@ -223,12 +223,16 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
   assert.ok(utility.includes('options.forceOutline ? 5 / 1024 : 8 / 1024'));
-  assert.ok(utility.includes('if (requestedOfficialVariant) {\n    const official = await buildOfficialProductMask'));
+  assert.ok(utility.includes('sourceAlreadyCutOut && !options.forceOutline'));
+  assert.ok(utility.includes('requestedOfficialVariant && !options.forceOutline'));
+  assert.ok(utility.includes('buildPlannerStructureProtection(data, width, height, options.forceOutline)'));
+  assert.ok(utility.includes('const fitScale = Math.min(width * .995 / boxWidth, height * .995 / boxHeight)'));
+  assert.ok(utility.includes('fillMaskInteriorHoles(dilateMask(mask, width, height, radius))'));
   assert.ok(utility.includes("requestedOfficialVariant === 'withTassel'"));
   assert.ok(utility.includes('estimateBorderBackgroundBrightness(data, width, height)'));
   assert.ok(utility.includes('if (validOfficialCut)'));
   assert.ok(utility.includes('data.set(originalPixels)'));
-  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 0);
+  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 1);
 });
 
 
