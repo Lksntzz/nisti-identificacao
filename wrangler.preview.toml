@@ -20,12 +20,7 @@ database_id = "10181c7e-ffdc-41d5-a40e-802173da9a02"
 binding = "PRODUCT_IMAGES"
 bucket_name = "nisti-identificacao-images"
 
-[ai]
-binding = "AI"
 
-[[vectorize]]
-binding = "COVER_VECTORS"
-index_name = "nisti-cover-embeddings"
 
 [secrets]
 required = [ "SUPABASE_SERVICE_ROLE_KEY" ]
@@ -39,6 +34,3 @@ SUPABASE_READS_ENABLED = "0"
 SUPABASE_READ_TIMEOUT_MS = "5000"
 SUPABASE_WRITE_MODE = "off"
 SUPABASE_CUTOVER_WRITE_FREEZE = "0"
-AI_VISION_MODEL = "@cf/moondream/moondream3.1-9B-A2B"
-GEMINI_IMAGE_MODEL = "gemini-3.5-flash"
-GEMINI_IMAGE_FALLBACK_MODEL = "gemini-3.1-flash-lite"
