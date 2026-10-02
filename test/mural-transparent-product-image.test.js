@@ -7,7 +7,7 @@ const source = fs.readFileSync(new URL('../src/mural-transparent-image.js', impo
 
 test('automatic treatment uses exact MKP masks for registered square planners', () => {
   assert.match(source, /const MKP_PRODUCT_MASKS/);
-  assert.match(source, /wire_branco_com_tassel\.png/);
+  assert.match(source, /wire_branco_sem_tassel\.png/);
   assert.match(source, /wire_preto_sem_tassel\.png/);
   assert.match(source, /wire_gold_com_tassel\.png/);
   assert.match(source, /function buildMkpProductAlpha/);
