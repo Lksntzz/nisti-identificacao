@@ -453,7 +453,7 @@ test('light wire-o stationery restores the continuous physical cover without res
   assert.equal(cut[(inside[1] * width + inside[0]) * 4 + 3], 255);
   assert.equal(cut[(outside[1] * width + outside[0]) * 4 + 3], 0);
 
-  assert.match(source, /geometry\.kind === 'standard' && hasRegisteredWireo\(options\)/);
+  assert.match(source, /const lightBodyProtection = geometry\.kind === 'standard'/);
   assert.match(source, /restoreOriginalPixelsInsideProtection\(/);
   assert.match(source, /bodyPolygon: Object\.freeze/);
 });
