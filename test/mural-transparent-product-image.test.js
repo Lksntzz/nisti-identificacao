@@ -5,10 +5,13 @@ import { __muralTransparentImageInternals } from '../src/mural-transparent-image
 
 const source = fs.readFileSync(new URL('../src/mural-transparent-image.js', import.meta.url), 'utf8');
 
-test('automatic treatment no longer fills fixed external contour molds', () => {
-  assert.equal(source.includes('OFFICIAL_PRODUCT_MASKS'), false);
-  assert.equal(source.includes('fillOfficialOutline'), false);
-  assert.equal(source.includes('applyOfficialProductMask'), false);
+test('automatic treatment uses exact MKP masks for registered square planners', () => {
+  assert.match(source, /const MKP_PRODUCT_MASKS/);
+  assert.match(source, /wire_branco_com_tassel\.png/);
+  assert.match(source, /wire_preto_sem_tassel\.png/);
+  assert.match(source, /wire_gold_com_tassel\.png/);
+  assert.match(source, /function buildMkpProductAlpha/);
+  assert.match(source, /applyMkpProductAlpha\(data, mkpAlpha\)/);
   assert.match(source, /function removeConnectedStudioBackground/);
 });
 
@@ -184,6 +187,8 @@ test('global treated product image bakes a tight mask-calibrated white outline i
   assert.match(source, /async function buildTreatedProductImage/);
   assert.match(source, /outlineScale:2 \/ 1024/);
   assert.match(source, /preciseOutlineScale:1 \/ 1024/);
+  assert.match(source, /MKP_OUTLINE_SCALE = 5 \/ 1024/);
+  assert.match(source, /MKP_PRECISE_OUTLINE_SCALE = 4 \/ 1024/);
   assert.match(source, /const padding = outlineRadius \+ 2/);
   assert.match(source, /if \(!outlineMask\[sourceIndex\]\) continue/);
   assert.match(source, /outputContext\.drawImage\(sourceCanvas, padding, padding\)/);
