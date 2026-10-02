@@ -44,16 +44,39 @@ test('neutral studio shadows are removable without classifying them as product d
   assert.equal(isStrongForegroundPixel(30, 30, 30, 255), true);
 });
 
-test('official tassel treatment preserves disconnected opaque components', () => {
-  const { buildOpaqueMask } = __muralTransparentImageInternals;
-  const pixels = new Uint8ClampedArray(4 * 2 * 4);
-  pixels[3] = 255;
-  pixels[(7 * 4) + 3] = 255;
-  assert.deepEqual([...buildOpaqueMask(pixels, 4, 2)], [1, 0, 0, 0, 0, 0, 0, 1]);
+test('tassel treatment keeps strong detached details and removes neutral artifacts', () => {
+  const { buildProductComponentsMask } = __muralTransparentImageInternals;
+  const width = 40;
+  const height = 30;
+  const pixels = new Uint8ClampedArray(width * height * 4);
+
+  const paint = (x0,y0,x1,y1,[r,g,b]) => {
+    for (let y=y0;y<=y1;y+=1) {
+      for (let x=x0;x<=x1;x+=1) {
+        const offset=(y*width+x)*4;
+        pixels[offset]=r;
+        pixels[offset+1]=g;
+        pixels[offset+2]=b;
+        pixels[offset+3]=255;
+      }
+    }
+  };
+
+  // Main planner body.
+  paint(10,5,24,24,[190,170,150]);
+  // Detached green tassel close to the binding: strong chromatic evidence.
+  paint(5,10,7,17,[90,190,120]);
+  // Equally sized neutral export/background fragment on the other side.
+  paint(27,10,29,17,[242,242,242]);
+
+  const mask=buildProductComponentsMask(pixels,width,height);
+  assert.ok(mask);
+  assert.equal(mask[12*width+6],1,'colored tassel must be preserved');
+  assert.equal(mask[12*width+28],0,'neutral detached artifact must be removed');
 
   const utility = read('src/mural-transparent-image.js');
-  assert.match(utility, /requestedOfficialVariant === 'withTassel'[\s\S]*buildOpaqueMask/);
-  assert.doesNotMatch(utility, /if \(official\) \{[\s\S]{0,500}applyPlannerStructureMask/);
+  assert.ok(utility.includes('strongRatio < .30'));
+  assert.doesNotMatch(utility, /requestedOfficialVariant === 'withTassel'[\s\S]{0,120}buildOpaqueMask/);
 });
 
 test('core product screens use the shared treatment', () => {
