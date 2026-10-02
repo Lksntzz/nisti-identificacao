@@ -40,6 +40,7 @@ const IGNORED_NON_AUTHORITATIVE_TABLES = new Set([
   'sqlite_sequence',
   'sqlite_stat1',
   'd1_migrations',
+  'gemini_call_budget',
   'legacy_model_call_budget',
   'push_logs'
 ]);
