@@ -1,0 +1,17 @@
+name: Debug MKP v14 Assets
+on:
+  push:
+    branches: [debug/mkp-v14-assets]
+    paths: [.github/workflows/debug-mkp-v14-assets.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mkp-v14-assets
+          path: public/product-masks-mkp/
+          retention-days: 1
