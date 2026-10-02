@@ -70,7 +70,7 @@ test('only images with real transparent borders skip background cleanup', () => 
   assert.match(source, /function hasUsableTransparentBorder/);
   assert.match(source, /transparent \/ sampled >= 0\.18/);
   assert.match(source, /const sourceAlreadyCutOut = hasExistingTransparency\(data, total\)[\s\S]*&& hasUsableTransparentBorder\(data, width, height\)/);
-  assert.match(source, /if \\(sourceAlreadyCutOut\\) return src/);
+  assert.match(source, /if \(sourceAlreadyCutOut\) return src/);
 });
 
 test('light cover artwork is protected by a solid linear convex silhouette', () => {
