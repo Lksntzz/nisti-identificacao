@@ -11,17 +11,6 @@ const MAX_CACHE_ENTRIES = 80;
 // canvas has at most ~6.6 MB of uncompressed pixel data, so even difficult
 // photographic covers cannot wedge the queue with an oversized PNG.
 const MAX_RENDER_DIMENSION = 1280;
-const officialProductMaskCache = new Map();
-
-// Official outer contours supplied by NISTI. They are deliberately kept as
-// assets instead of being approximated from white pixels in the product
-// image: a white cover and a white studio background can be identical in RGB.
-const OFFICIAL_PRODUCT_MASKS = Object.freeze({
-  withTassel:'/product-masks/agenda-with-tassel.png',
-  withoutTassel:'/product-masks/agenda-without-tassel.png'
-});
-const OFFICIAL_MASK_ASPECT_TOLERANCE = .045;
-
 // Structural mask normalized from the approved transparent planner outline
 // reference (1254×1254). The reference is used only as geometry: it protects
 // the physical body (cover + page block) independently of pixel color.
@@ -58,166 +47,12 @@ const PLANNER_MASK_CALIBRATION = Object.freeze({
   bboxAspectSafeMax:.88,
   nearbyDetailStrongRatio:.18,
   genericDetailStrongRatio:.30,
-  outlineScale:4 / 1024,
-  preciseOutlineScale:3 / 1024
+  outlineScale:2 / 1024,
+  preciseOutlineScale:1 / 1024
 });
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
-}
-
-function officialProductMaskVariant(tasselCode) {
-  const normalized = String(tasselCode || '').trim().toUpperCase();
-  if (!normalized) return null;
-  return normalized === 'X' ? 'withoutTassel' : 'withTassel';
-}
-
-async function loadOfficialProductMask(variant) {
-  if (!OFFICIAL_PRODUCT_MASKS[variant]) return null;
-  if (officialProductMaskCache.has(variant)) return officialProductMaskCache.get(variant);
-
-  const promise = (async () => {
-    const response = await fetch(OFFICIAL_PRODUCT_MASKS[variant], {
-      credentials:'same-origin',
-      cache:'force-cache'
-    });
-    if (!response.ok) throw new Error(`Molde oficial indisponível (${response.status}).`);
-    const bitmap = await loadBitmap(await response.blob());
-    const width = Number(bitmap.width || bitmap.naturalWidth || 0);
-    const height = Number(bitmap.height || bitmap.naturalHeight || 0);
-    if (!width || !height) throw new Error('Molde oficial sem dimensões válidas.');
-    return { bitmap, width, height };
-  })().catch(error => {
-    officialProductMaskCache.delete(variant);
-    throw error;
-  });
-
-  officialProductMaskCache.set(variant, promise);
-  return promise;
-}
-
-function fillOfficialOutline(outline, width, height) {
-  const total = width * height;
-  let barrier = new Uint8Array(total);
-  for (let index = 0; index < total; index += 1) {
-    if (outline[index * 4 + 3] >= 24) barrier[index] = 1;
-  }
-
-  // Supplied contour PNGs can contain isolated antialiasing specks. They must
-  // not become tiny opaque islands in the final cutout. A one-pixel dilation
-  // closes small breaks in the real contour, then only its dominant connected
-  // component is retained before the exterior flood-fill.
-  barrier = largestMaskComponent(dilateMask(barrier, width, height, 1), width, height);
-  if (!barrier) return new Uint8Array(total);
-
-  // The supplied files are closed external contours. Flooding only the area
-  // reachable from the canvas border converts that contour into a solid
-  // silhouette while preserving the entire white/off-white cover inside it.
-  const outside = new Uint8Array(total);
-  const queue = new Int32Array(total);
-  let head = 0;
-  let tail = 0;
-  const enqueue = index => {
-    if (index < 0 || index >= total || outside[index] || barrier[index]) return;
-    outside[index] = 1;
-    queue[tail++] = index;
-  };
-
-  for (let x = 0; x < width; x += 1) {
-    enqueue(x);
-    enqueue((height - 1) * width + x);
-  }
-  for (let y = 1; y < height - 1; y += 1) {
-    enqueue(y * width);
-    enqueue(y * width + width - 1);
-  }
-  while (head < tail) {
-    const index = queue[head++];
-    const x = index % width;
-    const y = Math.floor(index / width);
-    if (x > 0) enqueue(index - 1);
-    if (x + 1 < width) enqueue(index + 1);
-    if (y > 0) enqueue(index - width);
-    if (y + 1 < height) enqueue(index + width);
-  }
-
-  const silhouette = new Uint8Array(total);
-  for (let index = 0; index < total; index += 1) {
-    if (!outside[index]) silhouette[index] = 1;
-  }
-  return silhouette;
-}
-
-function largestMaskComponent(mask, width, height) {
-  const total = width * height;
-  const visited = new Uint8Array(total);
-  const queue = new Int32Array(total);
-  let largest = [];
-
-  for (let start = 0; start < total; start += 1) {
-    if (!mask[start] || visited[start]) continue;
-    let head = 0;
-    let tail = 0;
-    const component = [];
-    visited[start] = 1;
-    queue[tail++] = start;
-    while (head < tail) {
-      const index = queue[head++];
-      component.push(index);
-      const x = index % width;
-      const y = Math.floor(index / width);
-      for (let yy = Math.max(0,y-1); yy <= Math.min(height-1,y+1); yy += 1) {
-        for (let xx = Math.max(0,x-1); xx <= Math.min(width-1,x+1); xx += 1) {
-          const next = yy * width + xx;
-          if (!mask[next] || visited[next]) continue;
-          visited[next] = 1;
-          queue[tail++] = next;
-        }
-      }
-    }
-    if (component.length > largest.length) largest = component;
-  }
-
-  if (!largest.length) return null;
-  const result = new Uint8Array(total);
-  for (const index of largest) result[index] = 1;
-  return result;
-}
-
-async function buildOfficialProductMask(width, height, tasselCode) {
-  const variant = officialProductMaskVariant(tasselCode);
-  if (!variant || typeof document === 'undefined') return null;
-  const reference = await loadOfficialProductMask(variant);
-  if (!reference) return null;
-
-  const sourceAspect = width / Math.max(1, height);
-  const maskAspect = reference.width / Math.max(1, reference.height);
-  const aspectDifference = Math.abs(sourceAspect - maskAspect) / Math.max(.0001, maskAspect);
-  if (aspectDifference > OFFICIAL_MASK_ASPECT_TOLERANCE) return null;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d', { willReadFrequently:true });
-  if (!context) return null;
-  context.clearRect(0, 0, width, height);
-  context.drawImage(reference.bitmap, 0, 0, width, height);
-  const outline = context.getImageData(0, 0, width, height).data;
-  const mask = fillOfficialOutline(outline, width, height);
-  const stats = maskStats(mask, width, height);
-  if (stats.ratio < .45 || stats.ratio > .80 || stats.touches >= 3) return null;
-  return { mask, variant, stats };
-}
-
-function applyOfficialProductMask(data, mask) {
-  let removed = 0;
-  for (let index = 0; index < mask.length; index += 1) {
-    if (mask[index]) continue;
-    const alphaOffset = index * 4 + 3;
-    if (data[alphaOffset] > 0) removed += 1;
-    data[alphaOffset] = 0;
-  }
-  return removed;
 }
 
 function pixelMetrics(r, g, b) {
@@ -454,48 +289,6 @@ function buildPlannerStructureProtection(data, width, height, fitInsideCanvas = 
   const contains = (x, y) => pointInsidePolygon(x + .5, y + .5, polygon);
   contains.bounds = bounds;
   return contains;
-}
-
-function buildPlannerDetailMask(data, width, height, bounds) {
-  const total = width * height;
-  const mask = new Uint8Array(total);
-  // Tassels may hang well beyond the rigid cover on any side depending on how
-  // the product was photographed. Search a wider halo for strong real detail;
-  // neutral shadows are excluded by isStrongForegroundPixel().
-  const left = Math.max(0, Math.floor(bounds.minX - bounds.width * .28));
-  const right = Math.min(width - 1, Math.ceil(bounds.maxX + bounds.width * .18));
-  const top = Math.max(0, Math.floor(bounds.minY - bounds.height * .08));
-  const bottom = Math.min(height - 1, Math.ceil(bounds.maxY + bounds.height * .22));
-
-  for (let y = top; y <= bottom; y += 1) {
-    for (let x = left; x <= right; x += 1) {
-      const index = y * width + x;
-      const offset = index * 4;
-      if (isStrongForegroundPixel(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) {
-        mask[index] = 1;
-      }
-    }
-  }
-
-  const radius = clamp(Math.round(Math.max(width, height) * .0022), 1, 4);
-  return fillMaskInteriorHoles(dilateMask(mask, width, height, radius));
-}
-
-function applyPlannerStructureMask(data, width, height, isPlannerPixel) {
-  if (!isPlannerPixel?.bounds) return 0;
-  const detailMask = buildPlannerDetailMask(data, width, height, isPlannerPixel.bounds);
-  let removed = 0;
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const index = y * width + x;
-      if (isPlannerPixel(x, y) || detailMask[index]) continue;
-      const alphaOffset = index * 4 + 3;
-      if (data[alphaOffset] > 0) removed += 1;
-      data[alphaOffset] = 0;
-    }
-  }
-  return removed;
 }
 
 function cross(origin, a, b) {
@@ -762,6 +555,7 @@ function clearOutsideSubject(data, width, height, isProtectedSubjectPixel) {
 
 function buildProductComponentsMask(data, width, height, options = {}) {
   const plannerBounds = options?.plannerBounds || null;
+  const preserveAccessory = Boolean(options?.preserveAccessory);
   const total = width * height;
   const labels = new Int32Array(total);
   labels.fill(-1);
@@ -826,8 +620,8 @@ function buildProductComponentsMask(data, width, height, options = {}) {
   if (largestLabel < 0 || largestSize < Math.max(20, Math.round(total * .002))) return null;
 
   const main = components[largestLabel];
-  const maximumGapX = Math.max(2, Math.round(width * .035));
-  const maximumGapY = Math.max(2, Math.round(height * .035));
+  const maximumGapX = Math.max(2, Math.round(width * (preserveAccessory ? .060 : .035)));
+  const maximumGapY = Math.max(2, Math.round(height * (preserveAccessory ? .060 : .035)));
   const minimumDetailSize = Math.max(6, Math.round(total * .000003));
   const included = new Uint8Array(components.length);
   included[largestLabel] = 1;
@@ -865,7 +659,7 @@ function buildProductComponentsMask(data, width, height, options = {}) {
     // therefore gets a lower evidence threshold, while generic detached debris
     // keeps the stricter 30% rule that removed the old right-side artifacts.
     const minimumStrongRatio = plannerBounds && closeToMainProduct
-      ? PLANNER_MASK_CALIBRATION.nearbyDetailStrongRatio
+      ? (preserveAccessory ? .10 : PLANNER_MASK_CALIBRATION.nearbyDetailStrongRatio)
       : PLANNER_MASK_CALIBRATION.genericDetailStrongRatio;
     if (!anotherLargeProduct && strongRatio < minimumStrongRatio) continue;
     if (closeToMainProduct || anotherLargeProduct) included[label] = 1;
@@ -1101,6 +895,57 @@ async function loadBitmap(blob) {
   }
 }
 
+function removeConnectedStudioBackground(data, width, height, isProtectedSubjectPixel = null) {
+  const total = width * height;
+  const visited = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let head = 0;
+  let tail = 0;
+  let removed = 0;
+  const backgroundBrightness = estimateBorderBackgroundBrightness(data, width, height);
+
+  const enqueue = index => {
+    if (index < 0 || index >= total || visited[index]) return;
+    const offset = index * 4;
+    if (!isBorderBackgroundCandidate(
+      data[offset], data[offset + 1], data[offset + 2], data[offset + 3], backgroundBrightness
+    )) return;
+    const x = index % width;
+    const y = Math.floor(index / width);
+    if (
+      isProtectedSubjectPixel
+      && isDeepProtectedSubjectPixel(isProtectedSubjectPixel, width, height, x, y)
+    ) return;
+    if (hasLocalProductEdge(data, width, height, index)) return;
+    visited[index] = 1;
+    queue[tail++] = index;
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x);
+    enqueue((height - 1) * width + x);
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    enqueue(y * width);
+    enqueue(y * width + width - 1);
+  }
+
+  while (head < tail) {
+    const index = queue[head++];
+    const offset = index * 4;
+    const x = index % width;
+    const y = Math.floor(index / width);
+    if (data[offset + 3] > 0) removed += 1;
+    data[offset + 3] = 0;
+    if (x > 0) enqueue(index - 1);
+    if (x + 1 < width) enqueue(index + 1);
+    if (y > 0) enqueue(index - width);
+    if (y + 1 < height) enqueue(index + width);
+  }
+
+  return { removed, backgroundBrightness };
+}
+
 async function buildTransparentProductImage(src, options = {}) {
   const response = await fetch(src, {
     credentials:'same-origin',
@@ -1142,43 +987,6 @@ async function buildTransparentProductImage(src, options = {}) {
     && hasUsableTransparentBorder(data, width, height);
   if (sourceAlreadyCutOut && !options.forceOutline) return src;
 
-  // Prefer the official variant selected from product metadata. If a photo
-  // cannot be aligned safely with that asset, continue through the adaptive
-  // planner path below instead of failing the treatment queue.
-  const requestedOfficialVariant = officialProductMaskVariant(options.tasselCode);
-  if (requestedOfficialVariant && !options.forceOutline) {
-    const official = await buildOfficialProductMask(width, height, options.tasselCode);
-    if (official) {
-      const originalPixels = data.slice();
-      // The official silhouette is already selected from the product metadata
-      // and includes the entire white cover plus the tassel variant. Do not
-      // intersect it with the rigid planner body: that used to erase tassels.
-      applyOfficialProductMask(data, official.mask);
-
-      const officialProductMask = buildProductComponentsMask(data, width, height);
-      const officialStats = officialProductMask ? maskStats(officialProductMask, width, height) : null;
-      const validOfficialCut = officialStats
-        && officialStats.ratio >= .12
-        && officialStats.ratio <= .80
-        && officialStats.touches < 3;
-
-      if (validOfficialCut) {
-        context.putImageData(imageData, 0, 0);
-        const outputBlob = await new Promise((resolve, reject) => {
-          canvas.toBlob(
-            result => result ? resolve(result) : reject(new Error('Falha ao aplicar o molde oficial do produto.')),
-            'image/png'
-          );
-        });
-        return URL.createObjectURL(outputBlob);
-      }
-
-      // Restore the original before the adaptive fallback below. A tassel or
-      // unusual photo placement must never turn into a permanent queue error.
-      data.set(originalPixels);
-    }
-  }
-
   // First try the approved planner geometry. A mostly white planner can have
   // too little color contrast for the generic foreground detector, but its
   // physical proportions are still sufficient to protect the real cover.
@@ -1188,26 +996,44 @@ async function buildTransparentProductImage(src, options = {}) {
   // geometry and derive variable details (wire-o/elastic/page edges) from the
   // actual photo. This avoids both white-cover erosion and rigid white spikes.
   if (plannerStructureProtection) {
-    applyPlannerStructureMask(data, width, height, plannerStructureProtection);
-    const plannerMask = buildProductComponentsMask(data, width, height, {
-      plannerBounds:plannerStructureProtection.bounds
-    });
-    if (!plannerMask || !plannerMaskGeometryIsSafe(plannerMask, width, height)) return src;
-    const plannerStats = maskStats(plannerMask, width, height);
-    if (
-      plannerStats.ratio < .12
-      || plannerStats.ratio > .78
-      || plannerStats.touches >= 3
-    ) return src;
+    const originalPixels = data.slice();
+    removeConnectedStudioBackground(data, width, height, plannerStructureProtection);
+    const plannerCoverage = protectedSubjectCoverage(
+      data, width, height, plannerStructureProtection
+    );
+    const preserveAccessory = Boolean(
+      String(options.tasselCode || '').trim()
+      && String(options.tasselCode || '').trim().toUpperCase() !== 'X'
+    );
+    const plannerMask = plannerCoverage >= .90
+      ? buildProductComponentsMask(data, width, height, {
+          plannerBounds:plannerStructureProtection.bounds,
+          preserveAccessory
+        })
+      : null;
 
-    context.putImageData(imageData, 0, 0);
-    const outputBlob = await new Promise((resolve, reject) => {
-      canvas.toBlob(
-        result => result ? resolve(result) : reject(new Error('Falha ao converter planner para PNG transparente.')),
-        'image/png'
-      );
-    });
-    return URL.createObjectURL(outputBlob);
+    if (plannerMask && plannerMaskGeometryIsSafe(plannerMask, width, height)) {
+      const plannerStats = maskStats(plannerMask, width, height);
+      if (
+        plannerStats.ratio >= .12
+        && plannerStats.ratio <= .78
+        && plannerStats.touches < 3
+      ) {
+        const keepMask = dilateMask(plannerMask, width, height, 1);
+        for (let index = 0; index < total; index += 1) {
+          if (!keepMask[index]) data[index * 4 + 3] = 0;
+        }
+        context.putImageData(imageData, 0, 0);
+        const outputBlob = await new Promise((resolve, reject) => {
+          canvas.toBlob(
+            result => result ? resolve(result) : reject(new Error('Falha ao converter planner para PNG transparente.')),
+            'image/png'
+          );
+        });
+        return URL.createObjectURL(outputBlob);
+      }
+    }
+    data.set(originalPixels);
   }
 
   // Non-planner products still require strong generic foreground evidence.
@@ -1216,54 +1042,7 @@ async function buildTransparentProductImage(src, options = {}) {
   const subjectEvidence = buildSubjectProtection(data, width, height);
   if (!subjectEvidence) return src;
 
-  const visited = new Uint8Array(total);
-  const queue = new Int32Array(total);
-  let head = 0;
-  let tail = 0;
-  const backgroundBrightness = estimateBorderBackgroundBrightness(data, width, height);
-
-  const enqueue = index => {
-    if (index < 0 || index >= total || visited[index]) return;
-    const offset = index * 4;
-    if (!isBorderBackgroundCandidate(
-      data[offset],data[offset + 1],data[offset + 2],data[offset + 3],backgroundBrightness
-    )) return;
-    const x = index % width;
-    const y = Math.floor(index / width);
-    // Never let a near-white background flood enter the geometric core of the
-    // product. This is the decisive guard for white/off-white covers: color may
-    // match the studio background, but the interior belongs to the product.
-    if (isDeepProtectedSubjectPixel(subjectEvidence, width, height, x, y)) return;
-    if (hasLocalProductEdge(data, width, height, index)) return;
-    visited[index] = 1;
-    queue[tail++] = index;
-  };
-
-  for (let x = 0; x < width; x += 1) {
-    enqueue(x);
-    enqueue((height - 1) * width + x);
-  }
-  for (let y = 1; y < height - 1; y += 1) {
-    enqueue(y * width);
-    enqueue(y * width + width - 1);
-  }
-
-  while (head < tail) {
-    const index = queue[head++];
-    const offset = index * 4;
-    const x = index % width;
-    const y = Math.floor(index / width);
-
-    // Remove only smooth near-white pixels connected to the outer canvas.
-    // Local physical edges are barriers, so a white/off-white cover is never
-    // traversed merely because its color resembles the background.
-    data[offset + 3] = 0;
-
-    if (x > 0) enqueue(index - 1);
-    if (x + 1 < width) enqueue(index + 1);
-    if (y > 0) enqueue(index - width);
-    if (y + 1 < height) enqueue(index + width);
-  }
+  removeConnectedStudioBackground(data, width, height, subjectEvidence);
 
   // Second safety gate: compare the surviving opaque body with the geometric
   // product evidence detected before removal. If a leak ever eats a light
@@ -1361,10 +1140,7 @@ async function productMaskPngBlob(mask, width, height) {
 }
 
 async function buildTreatedProductImage(src, options = {}) {
-  const requestedOfficialVariant = officialProductMaskVariant(options.tasselCode);
-  const cutoutSrc = requestedOfficialVariant
-    ? await buildTransparentProductImage(src, options)
-    : await transparentProductImageUrl(src);
+  const cutoutSrc = await buildTransparentProductImage(src, options);
   if (!cutoutSrc) return src;
 
   let blob;
@@ -1373,12 +1149,7 @@ async function buildTreatedProductImage(src, options = {}) {
     if (!response.ok) return src;
     blob = await response.blob();
   } finally {
-    // The official-mask path creates a one-use object URL for every product.
-    // Revoke it after reading (including fetch failures); generic cutouts are
-    // cached elsewhere and must remain valid until that cache evicts them.
-    if (requestedOfficialVariant && cutoutSrc.startsWith('blob:')) {
-      URL.revokeObjectURL(cutoutSrc);
-    }
+    if (cutoutSrc.startsWith('blob:')) URL.revokeObjectURL(cutoutSrc);
   }
   const bitmap = await loadBitmap(blob);
   const width = Number(bitmap.width || bitmap.naturalWidth || 0);
@@ -1448,7 +1219,7 @@ async function buildTreatedProductImage(src, options = {}) {
   const outlineScale = options.forceOutline || options.preciseOutline
     ? PLANNER_MASK_CALIBRATION.preciseOutlineScale
     : PLANNER_MASK_CALIBRATION.outlineScale;
-  const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 2, 16);
+  const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 1, 5);
   const outlineMask = buildExternalOutlineRing(productMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
 
@@ -1684,11 +1455,6 @@ export function useTreatedProductImage(src, enabled = true) {
 }
 
 export const __muralTransparentImageInternals = {
-  officialProductMaskVariant,
-  fillOfficialOutline,
-  largestMaskComponent,
-  buildOfficialProductMask,
-  applyOfficialProductMask,
   buildSubjectProtection,
   clearOutsideSubject,
   buildProductComponentsMask,
@@ -1704,8 +1470,7 @@ export const __muralTransparentImageInternals = {
   subjectProtectionBounds,
   buildPlannerReferenceBounds,
   buildPlannerStructureProtection,
-  buildPlannerDetailMask,
-  applyPlannerStructureMask,
+  removeConnectedStudioBackground,
   buildExternalOutlineRing,
   pointInsidePolygon,
   isPersistedProductImageUrl,
