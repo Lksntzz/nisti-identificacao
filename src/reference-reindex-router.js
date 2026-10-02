@@ -135,11 +135,10 @@ async function countPending(env, model) {
   return Number(row?.total || 0);
 }
 
-async function reindexPending(request, env) {
-  const body = await request.json().catch(() => ({}));
-  const limit = Math.max(1, Math.min(MAX_REINDEX_LIMIT, Number(body.limit) || 8));
+export async function runReferenceReindex(env, { limit = 8 } = {}) {
+  const safeLimit = Math.max(1, Math.min(MAX_REINDEX_LIMIT, Number(limit) || 8));
   const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
-  const references = await pendingReferences(env, model, limit);
+  const references = await pendingReferences(env, model, safeLimit);
 
   const processed = [];
   const errors = [];
@@ -167,20 +166,20 @@ async function reindexPending(request, env) {
         if(saved?.value !== true) throw new Error('Referência visual não encontrada no Supabase.');
       } else {
         await env.DB.prepare(`
-        INSERT INTO cover_reference_embeddings (
-          reference_id,embedding_model,dimensions,embedding_json,updated_at
-        ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
-        ON CONFLICT(reference_id) DO UPDATE SET
-          embedding_model=excluded.embedding_model,
-          dimensions=excluded.dimensions,
-          embedding_json=excluded.embedding_json,
-          updated_at=CURRENT_TIMESTAMP
-      `).bind(
-        Number(reference.id),
-        embeddingModel,
-        values.length,
-        JSON.stringify(values)
-      ).run();
+          INSERT INTO cover_reference_embeddings (
+            reference_id,embedding_model,dimensions,embedding_json,updated_at
+          ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
+          ON CONFLICT(reference_id) DO UPDATE SET
+            embedding_model=excluded.embedding_model,
+            dimensions=excluded.dimensions,
+            embedding_json=excluded.embedding_json,
+            updated_at=CURRENT_TIMESTAMP
+        `).bind(
+          Number(reference.id),
+          embeddingModel,
+          values.length,
+          JSON.stringify(values)
+        ).run();
       }
 
       const scopedVectors = await vectorsFromReference(
@@ -228,7 +227,7 @@ async function reindexPending(request, env) {
   }
 
   const pending = await countPending(env, model);
-  return json({
+  return {
     ok: errors.length === 0 && !vectorizeError,
     processed,
     errors,
@@ -239,7 +238,13 @@ async function reindexPending(request, env) {
     embedding_model: model,
     embedding_dimensions: EMBEDDING_DIMENSIONS,
     vector_namespace: 'platform_key'
-  }, errors.length || vectorizeError ? 207 : 200);
+  };
+}
+
+async function reindexPending(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const result = await runReferenceReindex(env,{ limit:body.limit });
+  return json(result, result.ok ? 200 : 207);
 }
 
 export default {

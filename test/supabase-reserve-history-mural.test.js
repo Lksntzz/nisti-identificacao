@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-test('reserve backfill is incremental and scheduled without exposing a public run endpoint', () => {
+test('legacy reserve backfill stays available for rollback but is disabled under Supabase primary authority', () => {
   const backfill = fs.readFileSync('src/supabase-reserve-backfill.js','utf8');
   const router = fs.readFileSync('src/operator-audit-router.js','utf8');
   const wrangler = fs.readFileSync('wrangler.toml','utf8');
@@ -11,11 +11,15 @@ test('reserve backfill is incremental and scheduled without exposing a public ru
   assert.match(backfill,/BATCH_SIZE = 100/);
   assert.match(backfill,/mural_collection_products/);
   assert.match(backfill,/mural_post_reads/);
+  assert.match(backfill,/supabasePrimaryWritesRequested\(env\)/);
+  assert.match(backfill,/reason:'supabase_primary_authority'/);
   assert.match(router,/async scheduled\(_controller, env, ctx\)/);
+  assert.match(router,/runReferenceReindex\(env,\{limit:4\}\)/);
   assert.match(router,/runReserveBackfill\(env\)/);
   assert.doesNotMatch(router,/\/api\/admin\/reserve-sync\/run/);
   assert.match(wrangler,/crons = \["\*\/30 \* \* \* \*"\]/);
 });
+
 
 test('GTIN history mirrors new events directly and reads reserve only after backfill readiness', () => {
   const gtin = fs.readFileSync('src/gtin-router.js','utf8');
