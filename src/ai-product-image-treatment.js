@@ -1,5 +1,5 @@
-const DEFAULT_BACKGROUND_MODEL = '@cf/briaai/rmbg-1.4';
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+const DEFAULT_WORKERS_VISION_MODEL = '@cf/moondream/moondream3.1-9B-A2B';
 
 function bytesToBase64(bytes) {
   let binary = '';
@@ -11,7 +11,7 @@ function bytesToBase64(bytes) {
 }
 
 function parseGeminiJson(text) {
-  const normalized = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const normalized = String(text || '').trim().replace(/^\`\`\`(?:json)?\\s*/i, '').replace(/\\s*\`\`\`$/, '');
   const start = normalized.indexOf('{');
   const end = normalized.lastIndexOf('}');
   if (start < 0 || end <= start) return null;
@@ -19,7 +19,7 @@ function parseGeminiJson(text) {
 }
 
 async function classifyTasselWithGemini(bytes, contentType, env) {
-  if (!env.GEMINI_API_KEY) return { available:false, has_tassel:null, confidence:0 };
+  if (!env.GEMINI_API_KEY) return { available:false, provider:'gemini', has_tassel:null, confidence:0, reason:'GEMINI_API_KEY ausente.' };
   const model = String(env.GEMINI_IMAGE_MODEL || DEFAULT_GEMINI_MODEL).trim();
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
@@ -28,69 +28,102 @@ async function classifyTasselWithGemini(bytes, contentType, env) {
       headers:{ 'content-type':'application/json', 'x-goog-api-key':env.GEMINI_API_KEY },
       body:JSON.stringify({
         contents:[{ parts:[
-          { text:'Analise somente o produto principal. Responda JSON puro: {"has_tassel":boolean,"confidence":number,"reason":string}. Tassel é o pingente de fios preso à agenda; não confunda wire-o, elástico, sombra ou decoração impressa com tassel.' },
+          { text:'Analise somente o produto principal. Responda JSON puro: {"has_tassel":boolean,"confidence":number,"reason":string}. Tassel é o pingente de fios preso à agenda; não confunda wire-o, elástico, sombra, logo ou decoração impressa com tassel.' },
           { inlineData:{ mimeType:contentType || 'image/jpeg', data:bytesToBase64(bytes) } }
         ] }],
         generationConfig:{ responseMimeType:'application/json', temperature:0, maxOutputTokens:160 }
       })
     }
   );
-  if (!response.ok) throw new Error(`Gemini não conseguiu analisar o tassel (${response.status}).`);
+  if (!response.ok) throw new Error(`Gemini respondeu HTTP ${response.status}.`);
   const payload = await response.json();
   const text = payload?.candidates?.[0]?.content?.parts?.map(part=>part?.text || '').join('') || '';
   const parsed = parseGeminiJson(text);
-  if (!parsed || typeof parsed.has_tassel !== 'boolean') throw new Error('Gemini retornou uma classificação de tassel inválida.');
+  if (!parsed || typeof parsed.has_tassel !== 'boolean') throw new Error('Gemini retornou classificação inválida.');
   return {
     available:true,
+    provider:'gemini',
+    model,
     has_tassel:parsed.has_tassel,
     confidence:Math.max(0,Math.min(1,Number(parsed.confidence || 0))),
     reason:String(parsed.reason || '').slice(0,240)
   };
 }
 
-async function backgroundRemovalBytes(result) {
-  if (result instanceof Response) return new Uint8Array(await result.arrayBuffer());
-  if (result instanceof Blob) return new Uint8Array(await result.arrayBuffer());
-  if (result instanceof ArrayBuffer) return new Uint8Array(result);
-  if (ArrayBuffer.isView(result)) return new Uint8Array(result.buffer,result.byteOffset,result.byteLength);
-  if (typeof ReadableStream !== 'undefined' && result instanceof ReadableStream) {
-    return new Uint8Array(await new Response(result).arrayBuffer());
+async function classifyTasselWithWorkersAi(bytes, contentType, env) {
+  if (!env.AI?.run) return { available:false, provider:'workers-ai', has_tassel:null, confidence:0, reason:'Binding AI ausente.' };
+  const model = String(env.AI_VISION_MODEL || DEFAULT_WORKERS_VISION_MODEL).trim();
+  const image = `data:${contentType || 'image/jpeg'};base64,${bytesToBase64(bytes)}`;
+  const result = await env.AI.run(model,{
+    task:'detect',
+    image,
+    target:'tassel thread pendant attached to the main planner or agenda',
+    max_objects:4
+  });
+  const objects = Array.isArray(result?.objects) ? result.objects : [];
+  if (objects.length) {
+    return { available:true, provider:'workers-ai', model, has_tassel:true, confidence:.75, reason:'Workers AI localizou um tassel no produto.' };
   }
-  if (typeof result === 'string') {
-    const encoded=result.replace(/^data:image\/[^;]+;base64,/i,'');
-    const binary=atob(encoded);
-    return Uint8Array.from(binary,char=>char.charCodeAt(0));
-  }
-  if (typeof result?.image === 'string') {
-    const encoded=result.image.replace(/^data:image\/[^;]+;base64,/i,'');
-    const binary=atob(encoded);
-    return Uint8Array.from(binary,char=>char.charCodeAt(0));
-  }
-  throw new Error('Workers AI não retornou uma imagem tratada válida.');
+  return { available:true, provider:'workers-ai', model, has_tassel:null, confidence:0, reason:'Workers AI não localizou tassel com confiança suficiente.' };
 }
 
-export async function generateAiProductCutout(imageObject, tasselCode, env) {
-  if (!env.AI?.run) throw new Error('Workers AI não está configurado para o tratamento de imagens.');
+export async function analyzeProductImageWithAi(imageObject, tasselCode, env) {
   const bytes = new Uint8Array(await imageObject.arrayBuffer());
   const contentType = imageObject.httpMetadata?.contentType || 'image/jpeg';
   const registeredHasTassel = String(tasselCode || '').trim().toUpperCase() !== 'X';
+  const attempts=[];
 
-  const geminiPromise = classifyTasselWithGemini(bytes,contentType,env).catch(error=>({
-    available:false,has_tassel:null,confidence:0,reason:error.message
-  }));
-  const model = String(env.AI_BACKGROUND_REMOVAL_MODEL || DEFAULT_BACKGROUND_MODEL).trim();
-  const cutoutResult = await env.AI.run(model,{ image:Array.from(bytes) });
-  const [cutout,gemini] = await Promise.all([backgroundRemovalBytes(cutoutResult),geminiPromise]);
-  if (cutout.length < 32) throw new Error('Workers AI retornou uma imagem tratada vazia.');
+  try {
+    const gemini=await classifyTasselWithGemini(bytes,contentType,env);
+    attempts.push(gemini);
+    if (gemini.available && gemini.confidence >= .7 && typeof gemini.has_tassel === 'boolean') {
+      return {
+        applied:true,
+        provider:'gemini',
+        model:gemini.model,
+        registeredHasTassel,
+        detectedHasTassel:gemini.has_tassel,
+        confidence:gemini.confidence,
+        tasselDisagrees:gemini.has_tassel !== registeredHasTassel,
+        reason:gemini.reason,
+        attempts
+      };
+    }
+  } catch(error) {
+    attempts.push({available:false,provider:'gemini',has_tassel:null,confidence:0,reason:error.message});
+  }
 
-  const confidentGemini = gemini.available && gemini.confidence >= .7;
+  try {
+    const workers=await classifyTasselWithWorkersAi(bytes,contentType,env);
+    attempts.push(workers);
+    if (workers.available && typeof workers.has_tassel === 'boolean') {
+      return {
+        applied:true,
+        provider:'workers-ai',
+        model:workers.model,
+        registeredHasTassel,
+        detectedHasTassel:workers.has_tassel,
+        confidence:workers.confidence,
+        tasselDisagrees:workers.has_tassel !== registeredHasTassel,
+        reason:workers.reason,
+        attempts
+      };
+    }
+  } catch(error) {
+    attempts.push({available:false,provider:'workers-ai',has_tassel:null,confidence:0,reason:error.message});
+  }
+
   return {
-    bytes:cutout,
+    applied:false,
+    provider:'local-fallback',
+    model:null,
     registeredHasTassel,
-    detectedHasTassel:confidentGemini ? gemini.has_tassel : null,
-    tasselDisagrees:confidentGemini && gemini.has_tassel !== registeredHasTassel,
-    gemini
+    detectedHasTassel:null,
+    confidence:0,
+    tasselDisagrees:false,
+    reason:attempts.map(item=>`${item.provider}: ${item.reason || 'indisponível'}`).join(' | ').slice(0,480),
+    attempts
   };
 }
 
-export const __aiProductImageTreatmentInternals = { bytesToBase64, parseGeminiJson, backgroundRemovalBytes };
+export const __aiProductImageTreatmentInternals = { bytesToBase64, parseGeminiJson, classifyTasselWithWorkersAi };
