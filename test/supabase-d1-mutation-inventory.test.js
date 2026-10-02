@@ -20,6 +20,7 @@ const reviewed = new Set([
   'src/geometric-shadow-evidence-router.js',
   'src/gtin-router.js',
   'src/geometric-shadow-confirmation-router.js',
+  'src/gemini-budget.js',
   'src/mural-router.js'
 ]);
 
