@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import {
   explicitUtcTimestamp,
   parseNistiTimestamp,
-  formatSaoPauloDateTime
+  formatSaoPauloDateTime,
+  formatSaoPauloTimestamp
 } from '../src/date-time.js';
 
 test('D1 CURRENT_TIMESTAMP is treated as UTC before formatting', () => {
@@ -26,4 +27,10 @@ test('timestamps that already contain timezone are not modified', () => {
     explicitUtcTimestamp('2026-09-29T18:00:00+00:00'),
     '2026-09-29T18:00:00+00:00'
   );
+});
+
+test('timestamp formatter preserves custom empty date markers, including an empty string', () => {
+  assert.equal(formatSaoPauloTimestamp(null), '—');
+  assert.equal(formatSaoPauloTimestamp(null, { emptyDate: 'Sem data' }), 'Sem data');
+  assert.equal(formatSaoPauloTimestamp(null, { emptyDate: '' }), '');
 });

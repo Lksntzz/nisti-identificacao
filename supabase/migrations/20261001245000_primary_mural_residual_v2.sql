@@ -153,7 +153,7 @@ AS $$
   )
 $$;
 
-CREATE OR REPLACE FUNCTION public.nisti_admin_mural_gemini_product_v1(p_product_id bigint)
+CREATE OR REPLACE FUNCTION public.nisti_admin_mural_product_reference_v1(p_product_id bigint)
 RETURNS jsonb
 LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path=public,pg_temp
@@ -173,7 +173,7 @@ AS $$
   ) x
 $$;
 
-CREATE OR REPLACE FUNCTION public.nisti_admin_mural_gemini_collection_v1(p_collection_id bigint)
+CREATE OR REPLACE FUNCTION public.nisti_admin_mural_collection_reference_v1(p_collection_id bigint)
 RETURNS jsonb
 LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path=public,pg_temp
@@ -213,12 +213,12 @@ REVOKE ALL ON FUNCTION public.nisti_clear_product_treatment_v1(bigint) FROM PUBL
 REVOKE ALL ON FUNCTION public.nisti_admin_mural_products_v1(text,integer) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.nisti_admin_mural_metrics_v1() FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.nisti_admin_mural_readiness_v1() FROM PUBLIC,anon,authenticated;
-REVOKE ALL ON FUNCTION public.nisti_admin_mural_gemini_product_v1(bigint) FROM PUBLIC,anon,authenticated;
-REVOKE ALL ON FUNCTION public.nisti_admin_mural_gemini_collection_v1(bigint) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.nisti_admin_mural_product_reference_v1(bigint) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.nisti_admin_mural_collection_reference_v1(bigint) FROM PUBLIC,anon,authenticated;
 
 GRANT EXECUTE ON FUNCTION public.nisti_clear_product_treatment_v1(bigint) TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_admin_mural_products_v1(text,integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_admin_mural_metrics_v1() TO service_role;
 GRANT EXECUTE ON FUNCTION public.nisti_admin_mural_readiness_v1() TO service_role;
-GRANT EXECUTE ON FUNCTION public.nisti_admin_mural_gemini_product_v1(bigint) TO service_role;
-GRANT EXECUTE ON FUNCTION public.nisti_admin_mural_gemini_collection_v1(bigint) TO service_role;
+GRANT EXECUTE ON FUNCTION public.nisti_admin_mural_product_reference_v1(bigint) TO service_role;
+GRANT EXECUTE ON FUNCTION public.nisti_admin_mural_collection_reference_v1(bigint) TO service_role;

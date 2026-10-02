@@ -83,14 +83,14 @@ O payload original de cada linha é preservado junto da versão normalizada.
 
 A normalização possui perfis próprios para Shopee e para as diferentes abas do Mercado Livre porque as planilhas reais não usam um layout único.
 
-### Hyperlinks embutidos
+### Hiperlinks embutidos
 
-A planilha real do Mercado Livre contém células cujo texto visível é apenas o título do anúncio, enquanto a URL real está armazenada como hyperlink OOXML. O importador recupera o destino real para normalização e preserva o texto originalmente visível para auditoria.
+A planilha real do Mercado Livre contém células cujo texto visível é apenas o título do anúncio, enquanto a URL real está armazenada como hiperlink OOXML. O importador recupera o destino real para normalização e preserva o texto originalmente visível para auditoria.
 
 O leitor distingue:
 
-- hyperlinks existentes no workbook;
-- hyperlinks efetivamente recuperados porque o texto visível não era uma URL.
+- hiperlinks existentes no workbook;
+- hiperlinks efetivamente recuperados porque o texto visível não era uma URL.
 
 ### Produtos sem anúncio (`NOT_LISTED`)
 
@@ -198,7 +198,7 @@ Implementado:
 - dashboard, produtos e anúncios paginados;
 - módulo visual `/admin-commerce`;
 - parser `.xlsx` browser-side versionado;
-- recuperação de hyperlinks embutidos no Excel;
+- recuperação de hiperlinks embutidos no Excel;
 - staging de importação em lotes;
 - normalização Shopee/Mercado Livre;
 - reconciliação determinística e candidatos prováveis;

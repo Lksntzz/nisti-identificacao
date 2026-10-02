@@ -48,6 +48,6 @@ export function formatSaoPauloDateTime(value, {
 
 export function formatSaoPauloTimestamp(value, options = {}) {
   const formatted = formatSaoPauloDateTime(value, options);
-  if (formatted.date === (options.emptyDate || '—')) return formatted.date;
+  if (formatted.date === (options.emptyDate ?? '—')) return formatted.date;
   return `${formatted.date}, ${formatted.time}`;
 }

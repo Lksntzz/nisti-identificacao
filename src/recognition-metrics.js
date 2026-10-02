@@ -52,7 +52,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
     const systemError = kind === 'system_error' ? 1 : 0;
     const embeddingMs = numberOrNull(performance.embedding_ms ?? performance.embedding_and_index_ms);
     const embedding = embeddingMs !== null ? 1 : 0;
-    const generation = Number.isFinite(Number(performance.gemini_ms)) ? 1 : 0;
+    const generation = Number.isFinite(Number(performance.verification_ms)) ? 1 : 0;
     const totalMs = Math.max(0, Math.round(Number(performance.total_ms) || 0));
     const errorMessage = kind === 'success' ? null : textOrNull(data?.error || `Erro HTTP ${responseStatus}`, 500);
     const capaCode = textOrNull(data?.capa_code || product?.capa_code, 80)?.toUpperCase() || null;
@@ -69,7 +69,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
           product_id:product?.id || null,
           capa_code:capaCode,
           sku,
-          confidence:numberOrNull(data?.confidence ?? performance.gemini_confidence),
+          confidence:numberOrNull(data?.confidence ?? performance.verification_confidence),
           retrieval_score:numberOrNull(data?.retrieval_score),
           identified_by:textOrNull(data?.identified_by,160),
           error_message:errorMessage,
@@ -78,7 +78,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
           vectorize_ms:numberOrNull(performance.vectorize_ms),
           local_cv_ms:numberOrNull(performance.local_cv_ms),
           reference_load_ms:numberOrNull(performance.reference_load_ms),
-          gemini_ms:numberOrNull(performance.gemini_ms),
+          verification_ms:numberOrNull(performance.verification_ms),
           retrieval_top1:numberOrNull(performance.retrieval_top1),
           retrieval_top1_code:textOrNull(performance.retrieval_top1_code,80),
           retrieval_top2:numberOrNull(performance.retrieval_top2),
@@ -142,7 +142,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
       INSERT INTO recognition_events (
         day, kind, http_status, product_id, capa_code, sku,
         confidence, retrieval_score, identified_by, error_message,
-        total_ms, embedding_ms, vectorize_ms, local_cv_ms, reference_load_ms, gemini_ms,
+        total_ms, embedding_ms, vectorize_ms, local_cv_ms, reference_load_ms, verification_ms,
         retrieval_top1, retrieval_top1_code, retrieval_top2, retrieval_top2_code, retrieval_margin,
         candidate_count, verification_mode, accepted_by, model,
         retrieval_source, reused_candidates, pipeline_version, reference_candidate_count, vector_top_k,
@@ -155,7 +155,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
       product?.id || null,
       capaCode,
       sku,
-      numberOrNull(data?.confidence ?? performance.gemini_confidence),
+      numberOrNull(data?.confidence ?? performance.verification_confidence),
       numberOrNull(data?.retrieval_score),
       textOrNull(data?.identified_by, 160),
       errorMessage,
@@ -164,7 +164,7 @@ export async function recordRecognitionAttempt(env, responseStatus, data, option
       numberOrNull(performance.vectorize_ms),
       numberOrNull(performance.local_cv_ms),
       numberOrNull(performance.reference_load_ms),
-      numberOrNull(performance.gemini_ms),
+      numberOrNull(performance.verification_ms),
       numberOrNull(performance.retrieval_top1),
       textOrNull(performance.retrieval_top1_code, 80),
       numberOrNull(performance.retrieval_top2),
@@ -243,7 +243,7 @@ function normalizeEvent(row) {
     vectorize_ms: numberOrNull(row?.vectorize_ms),
     local_cv_ms: numberOrNull(row?.local_cv_ms),
     reference_load_ms: numberOrNull(row?.reference_load_ms),
-    gemini_ms: numberOrNull(row?.gemini_ms),
+    verification_ms: numberOrNull(row?.verification_ms),
     retrieval_top1: numberOrNull(row?.retrieval_top1),
     retrieval_top1_code: row?.retrieval_top1_code || null,
     retrieval_top2: numberOrNull(row?.retrieval_top2),

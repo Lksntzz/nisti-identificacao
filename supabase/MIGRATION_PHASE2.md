@@ -11,7 +11,7 @@ Cloudflare Worker
 ├── Supabase PostgreSQL → dados relacionais autoritativos
 ├── Vectorize           → retrieval visual
 ├── R2                  → imagens
-└── Gemini              → embeddings/IA
+└── serviço de modelo              → índice visual legado
 ```
 
 ## Regras de segurança
