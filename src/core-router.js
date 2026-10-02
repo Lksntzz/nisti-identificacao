@@ -122,52 +122,7 @@ function inspectTransparentPng(bytes) {
   return { width, height };
 }
 
-async function productTreatmentSummary(env) {
-  const row = await env.DB.prepare(`
-    WITH treatment_state AS (
-      SELECT
-        p.image_key,
-        CASE WHEN p.image_key IS NOT NULL
-          AND mpi.status='approved'
-          AND mpi.processed_image_key IS NOT NULL
-          AND mpi.source_image_key=p.image_key
-          AND mpi.reviewed_by='admin'
-          THEN 1 ELSE 0 END AS is_approved,
-        CASE WHEN p.image_key IS NOT NULL
-          AND (
-            mpi.status='review'
-            OR (mpi.status='approved' AND COALESCE(mpi.reviewed_by,'')<>'admin')
-          )
-          AND mpi.processed_image_key IS NOT NULL
-          AND mpi.source_image_key=p.image_key
-          AND COALESCE(mpi.processor_version,'')=?
-          THEN 1 ELSE 0 END AS is_review,
-        CASE WHEN p.image_key IS NOT NULL
-          AND mpi.status='failed'
-          AND mpi.source_image_key=p.image_key
-          AND COALESCE(mpi.processor_version,'')=?
-          THEN 1 ELSE 0 END AS is_failed
-      FROM products p
-      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
-    )
-    SELECT
-      SUM(CASE WHEN image_key IS NOT NULL THEN 1 ELSE 0 END) AS with_image,
-      SUM(is_approved) AS approved,
-      SUM(is_review) AS review,
-      SUM(is_failed) AS failed,
-      SUM(CASE WHEN image_key IS NOT NULL AND is_approved=0 AND is_review=0 AND is_failed=0 THEN 1 ELSE 0 END) AS pending
-    FROM treatment_state
-  `).bind(PRODUCT_IMAGE_PROCESSOR_VERSION,PRODUCT_IMAGE_PROCESSOR_VERSION).first();
-  return {
-    with_image:Number(row?.with_image || 0),
-    approved:Number(row?.approved || 0),
-    review:Number(row?.review || 0),
-    pending:Number(row?.pending || 0),
-    failed:Number(row?.failed || 0)
-  };
-}
-
-async function embedImage(env, bytes, mimeType) {
+async function embedImage(env, bytes, mimeType) {async function embedImage(env, bytes, mimeType) {
   if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
   const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
   const response = await fetch(
@@ -200,34 +155,6 @@ async function embedImage(env, bytes, mimeType) {
   return { model, values };
 }
 
-async function ensureVisualReference(env, {
-  capaCode,
-  imageKey,
-  sourceProductId = null,
-  referenceKind = 'product'
-}) {
-  const code = normalizeCapaCode(capaCode);
-  if (!code || !imageKey) throw new Error('Referência visual inválida');
-
-  await env.DB.prepare(`
-    INSERT INTO cover_visual_references (
-      capa_code,image_key,source_product_id,reference_kind,active,updated_at
-    ) VALUES (?,?,?,?,1,CURRENT_TIMESTAMP)
-    ON CONFLICT(capa_code,image_key) DO UPDATE SET
-      source_product_id=COALESCE(excluded.source_product_id,cover_visual_references.source_product_id),
-      reference_kind=excluded.reference_kind,
-      active=1,
-      updated_at=CURRENT_TIMESTAMP
-  `).bind(code, imageKey, sourceProductId, referenceKind).run();
-
-  return env.DB.prepare(`
-    SELECT id,capa_code,image_key,source_product_id,reference_kind,active,created_at,updated_at
-    FROM cover_visual_references
-    WHERE capa_code=? AND image_key=?
-    LIMIT 1
-  `).bind(code, imageKey).first();
-}
-
 async function storeReferenceEmbedding(env, reference, bytes, mimeType, cleanupProductId = null) {
   if (!reference?.id) throw new Error('Referência visual não encontrada');
   const { model, values } = await embedImage(env, bytes, mimeType);
@@ -258,41 +185,22 @@ async function storeReferenceEmbedding(env, reference, bytes, mimeType, cleanupP
     };
   }).filter(v => v.id && v.namespace);
 
-  if (!env.COVER_VECTORS?.upsert) {
-    throw new Error('Binding COVER_VECTORS não configurado');
-  }
-  if (!vectors.length) {
-    throw new Error('Nenhum namespace de plataforma disponível para a referência visual');
-  }
+  if (!env.COVER_VECTORS?.upsert) throw new Error('Binding COVER_VECTORS não configurado');
+  if (!vectors.length) throw new Error('Nenhum namespace de plataforma disponível para a referência visual');
 
-  // Vectorize primeiro. O embedding no banco funciona como marcador de conclusão:
-  // se o índice vetorial falhar, a referência continua pendente e o cron pode tentar novamente.
   await env.COVER_VECTORS.upsert(vectors);
 
-  let removedReferences = [];
-  if (supabasePrimaryWritesRequested(env)) {
-    const stored = await mirrorSupabaseRpc(env, 'nisti_store_reference_embedding_v1', {
-      p_reference_id:referenceId,p_embedding_model:model,p_dimensions:values.length,
-      p_embedding_json:JSON.stringify(values),p_cleanup_product_id:cleanupProductId,
-      p_keep_image_key:cleanupProductId ? reference.image_key : null
-    }, 'embedding de referência visual');
-    if (stored.value?.status !== 'ok') {
-      throw new Error('Referência visual não encontrada no Supabase');
-    }
-    removedReferences = stored.value?.removed_references || [];
-  } else {
-    await env.DB.prepare(`
-      INSERT INTO cover_reference_embeddings (
-        reference_id,embedding_model,dimensions,embedding_json,updated_at
-      ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
-      ON CONFLICT(reference_id) DO UPDATE SET
-        embedding_model=excluded.embedding_model,
-        dimensions=excluded.dimensions,
-        embedding_json=excluded.embedding_json,
-        updated_at=CURRENT_TIMESTAMP
-    `).bind(referenceId, model, values.length, JSON.stringify(values)).run();
-  }
+  const stored = await mirrorSupabaseRpc(env, 'nisti_store_reference_embedding_v1', {
+    p_reference_id:referenceId,
+    p_embedding_model:model,
+    p_dimensions:values.length,
+    p_embedding_json:JSON.stringify(values),
+    p_cleanup_product_id:cleanupProductId,
+    p_keep_image_key:cleanupProductId ? reference.image_key : null
+  }, 'embedding de referência visual');
+  if (stored.value?.status !== 'ok') throw new Error('Referência visual não encontrada no Supabase');
 
+  const removedReferences = stored.value?.removed_references || [];
   if (removedReferences.length && env.COVER_VECTORS?.deleteByIds) {
     const staleVectorIds = removedReferences.flatMap(item =>
       supportedPlatforms()
@@ -309,121 +217,50 @@ async function storeReferenceEmbedding(env, reference, bytes, mimeType, cleanupP
   return { model, values, removedReferences, vectorized:vectors.length };
 }
 
-async function cleanupStaleProductReferences(env, productId, keepImageKey) {
-  const { results } = await env.DB.prepare(`
-    SELECT id,image_key
-    FROM cover_visual_references
-    WHERE source_product_id=? AND image_key<>?
-  `).bind(productId, keepImageKey).all();
-
-  const removed = [];
-  for (const row of results || []) {
-    await env.DB.prepare('DELETE FROM cover_reference_embeddings WHERE reference_id=?')
-      .bind(row.id).run();
-    await env.DB.prepare('DELETE FROM cover_visual_references WHERE id=?')
-      .bind(row.id).run();
-    removed.push({ id: Number(row.id), image_key: row.image_key });
-  }
-  return removed;
-}
-
 async function saveProductImage(env, id, fileBytes, contentType) {
-  if (supabasePrimaryWritesRequested(env)) {
-    const key = `products/${id}/${crypto.randomUUID()}`;
-    await env.PRODUCT_IMAGES.put(key,fileBytes,{ httpMetadata:{ contentType } });
-    let prepared;
-    try {
-      prepared = await mirrorSupabaseRpc(env,'nisti_prepare_product_image_v1',{
-        p_product_id:id,p_image_key:key
-      },'imagem original de produto');
-    } catch (error) {
-      await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
-      throw error;
-    }
-    const value=prepared.value || {};
-    if(value.status==='not_found') {
-      await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
-      throw new Error('Produto não encontrado');
-    }
-    if(value.old_processed_image_key) await env.PRODUCT_IMAGES.delete(value.old_processed_image_key).catch(()=>{});
-    const reference=value.reference;
-    let indexed=false,indexError=null,removedReferences=[];
-    try {
-      const stored=await storeReferenceEmbedding(env,reference,new Uint8Array(fileBytes),contentType,id);
-      indexed=true; removedReferences=stored.removedReferences || [];
-      for(const stale of removedReferences) if(stale.image_key && stale.image_key!==key) {
+  const key = `products/${id}/${crypto.randomUUID()}`;
+  await env.PRODUCT_IMAGES.put(key,fileBytes,{ httpMetadata:{ contentType } });
+
+  let prepared;
+  try {
+    prepared = await mirrorSupabaseRpc(env,'nisti_prepare_product_image_v1',{
+      p_product_id:id,p_image_key:key
+    },'imagem original de produto');
+  } catch (error) {
+    await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+    throw error;
+  }
+
+  const value=prepared.value || {};
+  if(value.status==='not_found') {
+    await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+    throw new Error('Produto não encontrado');
+  }
+
+  if(value.old_processed_image_key) {
+    await env.PRODUCT_IMAGES.delete(value.old_processed_image_key).catch(()=>{});
+  }
+
+  const reference=value.reference;
+  let indexed=false,indexError=null,removedReferences=[];
+  try {
+    const stored=await storeReferenceEmbedding(env,reference,new Uint8Array(fileBytes),contentType,id);
+    indexed=true;
+    removedReferences=stored.removedReferences || [];
+    for(const stale of removedReferences) {
+      if(stale.image_key && stale.image_key!==key) {
         await env.PRODUCT_IMAGES.delete(stale.image_key).catch(()=>{});
       }
-    } catch(error) { indexError=error?.message || 'Falha ao indexar capa'; }
-    return { indexed,index_error:indexError,reference_id:Number(reference?.id||0),
-      removed_reference_ids:removedReferences.map(item=>Number(item.id)) };
-  }
-  const product = await env.DB.prepare(`
-    SELECT p.id,p.capa_code,p.image_key,mpi.processed_image_key AS mural_processed_image_key
-    FROM products p
-    LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
-    WHERE p.id=?
-  `).bind(id).first();
-  if (!product) throw new Error('Produto não encontrado');
-
-  const key = `products/${id}/${crypto.randomUUID()}`;
-  await env.PRODUCT_IMAGES.put(key, fileBytes, { httpMetadata: { contentType } });
-  await env.DB.prepare(`
-    UPDATE products SET image_key=?,updated_at=CURRENT_TIMESTAMP WHERE id=?
-  `).bind(key, id).run();
-
-  // A imagem do catálogo é a fonte original. O Mural usa uma derivada PNG
-  // própria e precisa refazê-la sempre que essa fonte muda.
-  await env.DB.prepare(`
-    INSERT INTO mural_product_images (
-      product_id,source_image_key,processed_image_key,status,processor,
-      processor_version,reviewed_by,reviewed_at,error_message,updated_at
-    ) VALUES (?,?,NULL,'pending',NULL,NULL,NULL,NULL,NULL,CURRENT_TIMESTAMP)
-    ON CONFLICT(product_id) DO UPDATE SET
-      source_image_key=excluded.source_image_key,
-      processed_image_key=NULL,
-      status='pending',
-      processor=NULL,
-      processor_version=NULL,
-      reviewed_by=NULL,
-      reviewed_at=NULL,
-      error_message=NULL,
-      updated_at=CURRENT_TIMESTAMP
-  `).bind(id, key).run();
-  if (product.mural_processed_image_key) {
-    await env.PRODUCT_IMAGES.delete(product.mural_processed_image_key).catch(()=>{});
-  }
-
-  const reference = await ensureVisualReference(env, {
-    capaCode: product.capa_code,
-    imageKey: key,
-    sourceProductId: id,
-    referenceKind: 'product'
-  });
-
-  let indexed = false;
-  let indexError = null;
-  let removedReferences = [];
-  try {
-    await storeReferenceEmbedding(env, reference, new Uint8Array(fileBytes), contentType);
-    indexed = true;
-    removedReferences = await cleanupStaleProductReferences(env, id, key);
-    for (const stale of removedReferences) {
-      if (stale.image_key && stale.image_key !== key) {
-        await env.PRODUCT_IMAGES.delete(stale.image_key).catch(() => {});
-      }
     }
-  } catch (error) {
-    indexError = error?.message || 'Falha ao indexar capa';
-    // A referência nova fica pendente para /api/admin/reindex-cover-embeddings.
-    // Mantemos a referência anterior ativa até a nova ser indexada com sucesso.
+  } catch(error) {
+    indexError=error?.message || 'Falha ao indexar capa';
   }
 
   return {
     indexed,
-    index_error: indexError,
-    reference_id: Number(reference?.id || 0),
-    removed_reference_ids: removedReferences.map(item => Number(item.id))
+    index_error:indexError,
+    reference_id:Number(reference?.id||0),
+    removed_reference_ids:removedReferences.map(item=>Number(item.id))
   };
 }
 
@@ -434,281 +271,131 @@ async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
   const platform = clean(row?.platform)?.toUpperCase() || null;
   const link = clean(row?.link);
   const gtin = clean(row?.gtin);
-
   const validGtin = gtin ? requireValidGtin13(gtin) : null;
-  if (supabasePrimaryWritesRequested(env)) {
-    const result = await mirrorSupabaseRpc(env, 'nisti_upsert_product_primary_v1', {
-      p_row: {
-        sku: parsed.sku, miolo_code: parsed.mioloCode, capa_code: parsed.capaCode,
-        acabamento_code: parsed.acabamentoCode, wireo_code: parsed.wireoCode,
-        tassel_code: parsed.tasselCode, elastico_code: parsed.elasticoCode,
-        nome, variacao, platform, link, gtin: validGtin
-      }
-    }, 'cadastro de produto');
-    const saved = result.value || {};
-    if (saved.status === 'gtin_conflict') throw new Error(`EAN ${validGtin} já está vinculado a outro produto.`);
-    const commerceSync = syncCommerce
-      ? await syncNistiProductToCommerceSafe(env, Number(saved.id))
-      : null;
-    return {
-      id: Number(saved.id), sku: saved.sku, capa_code: saved.capa_code,
-      gtin: saved.gtin || null, created: saved.created === true,
-      has_image: saved.has_image === true,
-      commerce_sync: commerceSync
-    };
-  }
 
-  let product = await env.DB.prepare(`SELECT id,image_key FROM products WHERE sku=?`)
-    .bind(parsed.sku).first();
-  if (validGtin) {
-    const conflict = await env.DB.prepare('SELECT product_id FROM product_gtins WHERE gtin=? AND active=1 LIMIT 1')
-      .bind(validGtin).first();
-    if (conflict && Number(conflict.product_id) !== Number(product?.id || 0)) {
-      throw new Error(`EAN ${validGtin} já está vinculado a outro produto.`);
-    }
-  }
-  let created = false;
-
-  if (!product) {
-    const result = await env.DB.prepare(`
-      INSERT INTO products (
-        sku,miolo_code,capa_code,acabamento_code,wireo_code,tassel_code,elastico_code,nome,variacao
-      ) VALUES (?,?,?,?,?,?,?,?,?)
-    `).bind(
-      parsed.sku, parsed.mioloCode, parsed.capaCode, parsed.acabamentoCode,
-      parsed.wireoCode, parsed.tasselCode, parsed.elasticoCode, nome, variacao
-    ).run();
-    product = { id: result.meta.last_row_id, image_key: null };
-    created = true;
-  } else {
-    await env.DB.prepare(`
-      UPDATE products SET
-        miolo_code=?,capa_code=?,acabamento_code=?,wireo_code=?,tassel_code=?,elastico_code=?,
-        nome=COALESCE(?,nome),variacao=COALESCE(?,variacao),updated_at=CURRENT_TIMESTAMP
-      WHERE id=?
-    `).bind(
-      parsed.mioloCode, parsed.capaCode, parsed.acabamentoCode,
-      parsed.wireoCode, parsed.tasselCode, parsed.elasticoCode,
-      nome, variacao, product.id
-    ).run();
-  }
-
-  if (platform) {
-    const existing = await env.DB.prepare(`
-      SELECT id FROM product_platforms
-      WHERE product_id=? AND platform=? ORDER BY id ASC LIMIT 1
-    `).bind(product.id, platform).first();
-    if (existing) {
-      if (link) {
-        await env.DB.prepare(`UPDATE product_platforms SET link=? WHERE id=?`)
-          .bind(link, existing.id).run();
-      }
-    } else {
-      await env.DB.prepare(`
-        INSERT INTO product_platforms (product_id,platform,link) VALUES (?,?,?)
-      `).bind(product.id, platform, link).run();
-    }
-  }
-
-  if (validGtin) {
-    await env.DB.prepare(`
-      INSERT INTO product_gtins (product_id,gtin,gtin_type,source,active,updated_at)
-      VALUES (?,?,'GTIN-13','NISTI',1,CURRENT_TIMESTAMP)
-      ON CONFLICT(gtin) DO UPDATE SET
-        product_id=excluded.product_id,source='NISTI',active=1,updated_at=CURRENT_TIMESTAMP
-    `).bind(product.id, validGtin).run();
-  }
-
-  if (created) {
-    await recordNewCoverNotification(env, {
-      capaCode: parsed.capaCode,
-      productId: product.id,
+  const result = await mirrorSupabaseRpc(env, 'nisti_upsert_product_primary_v1', {
+    p_row: {
       sku: parsed.sku,
-      productName: nome,
-      variacao: variacao,
-      platform: platform,
-      imageKey: product.image_key
-    }).catch(err => {
-      console.error('[Error] Falha no recordNewCoverNotification em upsertCatalogProduct:', err);
-    });
+      miolo_code: parsed.mioloCode,
+      capa_code: parsed.capaCode,
+      acabamento_code: parsed.acabamentoCode,
+      wireo_code: parsed.wireoCode,
+      tassel_code: parsed.tasselCode,
+      elastico_code: parsed.elasticoCode,
+      nome,
+      variacao,
+      platform,
+      link,
+      gtin: validGtin
+    }
+  }, 'cadastro de produto');
+
+  const saved = result.value || {};
+  if (saved.status === 'gtin_conflict') {
+    throw new Error(`EAN ${validGtin} já está vinculado a outro produto.`);
   }
 
   const commerceSync = syncCommerce
-    ? await syncNistiProductToCommerceSafe(env, Number(product.id))
+    ? await syncNistiProductToCommerceSafe(env, Number(saved.id))
     : null;
 
   return {
-    id: product.id,
-    sku: parsed.sku,
-    capa_code: parsed.capaCode,
-    gtin: gtin || null,
-    created,
-    has_image: Boolean(product.image_key),
-    commerce_sync: commerceSync
+    id:Number(saved.id),
+    sku:saved.sku,
+    capa_code:saved.capa_code,
+    gtin:saved.gtin || null,
+    created:saved.created === true,
+    has_image:saved.has_image === true,
+    commerce_sync:commerceSync
   };
 }
 
 async function listCoverReferences(env, capaCode) {
-  if (supabaseReadsRequested(env)) {
-    const results=await supabaseCoverReferences(env,normalizeCapaCode(capaCode));
-    return results.map(reference=>({...reference,id:Number(reference.id),
-      source_product_id:reference.source_product_id?Number(reference.source_product_id):null,
-      indexed:Number(reference.dimensions||0)===EMBEDDING_DIMENSIONS,image_url:referenceImageUrl(reference)}));
-  }
-  const { results } = await env.DB.prepare(`
-    SELECT
-      r.id,r.capa_code,r.image_key,r.source_product_id,r.reference_kind,r.active,
-      r.created_at,r.updated_at,
-      e.embedding_model,e.dimensions,e.updated_at AS embedding_updated_at
-    FROM cover_visual_references r
-    LEFT JOIN cover_reference_embeddings e ON e.reference_id=r.id
-    WHERE r.capa_code=? AND r.active=1
-    ORDER BY CASE WHEN r.reference_kind='product' THEN 0 ELSE 1 END, r.id ASC
-  `).bind(normalizeCapaCode(capaCode)).all();
-
-  return (results || []).map(reference => ({
+  const results=await supabaseCoverReferences(env,normalizeCapaCode(capaCode));
+  return results.map(reference=>({
     ...reference,
-    id: Number(reference.id),
-    source_product_id: reference.source_product_id ? Number(reference.source_product_id) : null,
-    indexed: Number(reference.dimensions || 0) === EMBEDDING_DIMENSIONS,
-    image_url: referenceImageUrl(reference)
+    id:Number(reference.id),
+    source_product_id:reference.source_product_id?Number(reference.source_product_id):null,
+    indexed:Number(reference.dimensions||0)===EMBEDDING_DIMENSIONS,
+    image_url:referenceImageUrl(reference)
   }));
 }
 
 async function addCoverReference(env, capaCode, file, kind) {
   const code = normalizeCapaCode(capaCode);
-  if (supabasePrimaryWritesRequested(env)) {
-    if (!(file instanceof File)) throw new Error('Imagem de referência obrigatória');
-    if (!String(file.type||'').startsWith('image/')) throw new Error('Arquivo deve ser uma imagem');
-    if (Number(file.size||0)>MAX_REFERENCE_UPLOAD_BYTES) throw new Error('Imagem de referência excede 10 MB');
-    const referenceKind=['real','perspective','personalized','difficult'].includes(String(kind||'').trim().toLowerCase())
-      ? String(kind).trim().toLowerCase():'real';
-    const key=`cover-references/${encodeURIComponent(code)}/${crypto.randomUUID()}`;
-    const bytes=await file.arrayBuffer();
-    await env.PRODUCT_IMAGES.put(key,bytes,{httpMetadata:{contentType:file.type||'image/jpeg'}});
-    let prepared;
-    try { prepared=await mirrorSupabaseRpc(env,'nisti_prepare_extra_reference_v1',{
-      p_capa_code:code,p_image_key:key,p_reference_kind:referenceKind
-    },'referência visual extra'); }
-    catch(error){await env.PRODUCT_IMAGES.delete(key).catch(()=>{});throw error;}
-    if(prepared.value?.status!=='ok') {
-      await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
-      if(prepared.value?.status==='cover_not_found') throw new Error('CAPA_CODE não encontrado no catálogo');
-      if(prepared.value?.status==='limit_reached') throw new Error(`Máximo de ${EXTRA_REFERENCE_LIMIT} referências adicionais por capa`);
-      throw new Error('Falha ao criar referência visual');
-    }
-    const reference=prepared.value.reference; let indexed=false,indexError=null;
-    try { await storeReferenceEmbedding(env,reference,new Uint8Array(bytes),file.type||'image/jpeg'); indexed=true; }
-    catch(error){indexError=error?.message||'Falha ao indexar referência';}
-    return {...reference,id:Number(reference.id),indexed,embedding_error:indexError,image_url:referenceImageUrl(reference)};
-  }
-  const exists = await env.DB.prepare(`SELECT id FROM products WHERE capa_code=? LIMIT 1`)
-    .bind(code).first();
-  if (!exists) throw new Error('CAPA_CODE não encontrado no catálogo');
-
   if (!(file instanceof File)) throw new Error('Imagem de referência obrigatória');
-  if (!String(file.type || '').startsWith('image/')) throw new Error('Arquivo deve ser uma imagem');
-  if (Number(file.size || 0) > MAX_REFERENCE_UPLOAD_BYTES) {
-    throw new Error('Imagem de referência excede 10 MB');
-  }
+  if (!String(file.type||'').startsWith('image/')) throw new Error('Arquivo deve ser uma imagem');
+  if (Number(file.size||0)>MAX_REFERENCE_UPLOAD_BYTES) throw new Error('Imagem de referência excede 10 MB');
 
-  const extraCount = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM cover_visual_references
-    WHERE capa_code=? AND active=1 AND reference_kind<>'product'
-  `).bind(code).first();
-  if (Number(extraCount?.total || 0) >= EXTRA_REFERENCE_LIMIT) {
-    throw new Error(`Máximo de ${EXTRA_REFERENCE_LIMIT} referências adicionais por capa`);
-  }
-
-  const referenceKind = ['real', 'perspective', 'personalized', 'difficult']
-    .includes(String(kind || '').trim().toLowerCase())
+  const referenceKind=['real','perspective','personalized','difficult'].includes(String(kind||'').trim().toLowerCase())
     ? String(kind).trim().toLowerCase()
     : 'real';
+  const key=`cover-references/${encodeURIComponent(code)}/${crypto.randomUUID()}`;
+  const bytes=await file.arrayBuffer();
+  await env.PRODUCT_IMAGES.put(key,bytes,{httpMetadata:{contentType:file.type||'image/jpeg'}});
 
-  const key = `cover-references/${encodeURIComponent(code)}/${crypto.randomUUID()}`;
-  const bytes = await file.arrayBuffer();
-  await env.PRODUCT_IMAGES.put(key, bytes, { httpMetadata: { contentType: file.type || 'image/jpeg' } });
-
-  const reference = await ensureVisualReference(env, {
-    capaCode: code,
-    imageKey: key,
-    sourceProductId: null,
-    referenceKind
-  });
-
-  let indexed = false;
-  let indexError = null;
+  let prepared;
   try {
-    await storeReferenceEmbedding(env, reference, new Uint8Array(bytes), file.type || 'image/jpeg');
-    indexed = true;
-  } catch (error) {
-    indexError = error?.message || 'Falha ao indexar referência';
+    prepared=await mirrorSupabaseRpc(env,'nisti_prepare_extra_reference_v1',{
+      p_capa_code:code,p_image_key:key,p_reference_kind:referenceKind
+    },'referência visual extra');
+  } catch(error) {
+    await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+    throw error;
+  }
+
+  if(prepared.value?.status!=='ok') {
+    await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
+    if(prepared.value?.status==='cover_not_found') throw new Error('CAPA_CODE não encontrado no catálogo');
+    if(prepared.value?.status==='limit_reached') throw new Error(`Máximo de ${EXTRA_REFERENCE_LIMIT} referências adicionais por capa`);
+    throw new Error('Falha ao criar referência visual');
+  }
+
+  const reference=prepared.value.reference;
+  let indexed=false,indexError=null;
+  try {
+    await storeReferenceEmbedding(env,reference,new Uint8Array(bytes),file.type||'image/jpeg');
+    indexed=true;
+  } catch(error) {
+    indexError=error?.message||'Falha ao indexar referência';
   }
 
   return {
     ...reference,
-    id: Number(reference.id),
+    id:Number(reference.id),
     indexed,
-    embedding_error: indexError,
-    image_url: referenceImageUrl(reference)
+    embedding_error:indexError,
+    image_url:referenceImageUrl(reference)
   };
 }
 
 async function deleteExtraReference(env, referenceId) {
-  if (supabasePrimaryWritesRequested(env)) {
-    const result=await mirrorSupabaseRpc(env,'nisti_delete_extra_reference_v1',{p_reference_id:referenceId},'exclusão de referência visual');
-    if(result.value?.status==='not_found') throw new Error('Referência visual não encontrada');
-    if(result.value?.status==='protected') throw new Error('A referência principal do produto deve ser alterada pelo mockup do produto');
-    const reference=result.value?.reference;
-    if(env.COVER_VECTORS?.deleteByIds) {
-      const vectorIds=supportedPlatforms().map(p=>platformVectorId(referenceId,p)).filter(Boolean);
-      if(vectorIds.length) await env.COVER_VECTORS.deleteByIds(vectorIds).catch(()=>{});
-    }
-    if(reference?.image_key) await env.PRODUCT_IMAGES.delete(reference.image_key).catch(()=>{});
-    return {id:Number(reference.id),capa_code:normalizeCapaCode(reference.capa_code),vector_id:`ref:${Number(reference.id)}`};
-  }
-  const reference = await env.DB.prepare(`
-    SELECT id,capa_code,image_key,source_product_id,reference_kind
-    FROM cover_visual_references
-    WHERE id=? AND active=1
-    LIMIT 1
-  `).bind(referenceId).first();
-  if (!reference) throw new Error('Referência visual não encontrada');
-  if (reference.reference_kind === 'product' || reference.source_product_id) {
+  const result=await mirrorSupabaseRpc(
+    env,
+    'nisti_delete_extra_reference_v1',
+    {p_reference_id:referenceId},
+    'exclusão de referência visual'
+  );
+  if(result.value?.status==='not_found') throw new Error('Referência visual não encontrada');
+  if(result.value?.status==='protected') {
     throw new Error('A referência principal do produto deve ser alterada pelo mockup do produto');
   }
 
-  // 1. Excluir do Vectorize
-  if (env.COVER_VECTORS?.deleteByIds) {
-    const platforms = supportedPlatforms();
-    const vectorIds = platforms.map(p => platformVectorId(referenceId, p)).filter(Boolean);
-    if (vectorIds.length > 0) {
-      await env.COVER_VECTORS.deleteByIds(vectorIds).catch(e => {
-        console.error('Falha ao excluir vetores do Vectorize:', e);
-      });
-    }
+  const reference=result.value?.reference;
+  if(env.COVER_VECTORS?.deleteByIds) {
+    const vectorIds=supportedPlatforms().map(p=>platformVectorId(referenceId,p)).filter(Boolean);
+    if(vectorIds.length) await env.COVER_VECTORS.deleteByIds(vectorIds).catch(()=>{});
   }
-
-  // 2. Excluir do Banco de Dados D1
-  await env.DB.prepare('DELETE FROM cover_reference_embeddings WHERE reference_id=?')
-    .bind(referenceId).run();
-  await env.DB.prepare('DELETE FROM cover_visual_references WHERE id=?')
-    .bind(referenceId).run();
-
-  // 3. Excluir do R2 Bucket
-  if (reference.image_key) {
-    await env.PRODUCT_IMAGES.delete(reference.image_key).catch(() => {});
-  }
+  if(reference?.image_key) await env.PRODUCT_IMAGES.delete(reference.image_key).catch(()=>{});
 
   return {
-    id: Number(reference.id),
-    capa_code: normalizeCapaCode(reference.capa_code),
-    vector_id: `ref:${Number(reference.id)}`
+    id:Number(reference.id),
+    capa_code:normalizeCapaCode(reference.capa_code),
+    vector_id:`ref:${Number(reference.id)}`
   };
 }
 
-export default {
+export default {export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     try {
