@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { productImageMaskBlob, productImageTreatmentArtifactsBlob } from './mural-transparent-image.js';
 
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '13';
-const LOCK_KEY = 'nisti_product_image_treatment_lock_v13';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '14';
+const LOCK_KEY = 'nisti_product_image_treatment_lock_v14';
 export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
 export const TREATMENT_WAKE_EVENT = 'nisti:product-image-treatment-wake';
@@ -95,6 +95,7 @@ async function markFailed(productId, message) {
 async function processItem(item) {
   const artifacts = await productImageTreatmentArtifactsBlob(item.original_image_url, {
     tasselCode:item.tassel_code,
+    wireoCode:item.wireo_code,
     forceOutline:Boolean(item.force_outline),
     preciseOutline:Boolean(item.force_outline)
   });
@@ -118,7 +119,8 @@ async function processItem(item) {
 
 async function processMaskItem(item) {
   const maskBlob = await productImageMaskBlob(item.original_image_url, {
-    tasselCode:item.tassel_code
+    tasselCode:item.tassel_code,
+    wireoCode:item.wireo_code
   });
   if (!maskBlob) throw new Error('Não foi possível gerar a máscara individual deste produto.');
 
