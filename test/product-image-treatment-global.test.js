@@ -285,7 +285,7 @@ test('Mural admin shows live treatment totals and the current SKU', () => {
 });
 
 
-test('display endpoint is server-authoritative and only serves current approved derivatives', () => {
+test('display endpoint is server-authoritative and serves explicitly approved derivatives across processor versions', () => {
   const publicImages = read('src/public-image-router.js');
   const utility = read('src/mural-transparent-image.js');
   const core = read('src/core-router.js');
@@ -306,7 +306,7 @@ test('display endpoint is server-authoritative and only serves current approved 
   assert.equal(queueSql.includes("queue_status IN ('pending','review','stale')"), false);
   assert.ok(queueSql.includes('p.wireo_code'));
   assert.ok(queueSql.includes("'wireo_code',COALESCE(wireo_code,''"));
-  assert.ok(publicImages.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
+  assert.equal(publicImages.includes('PRODUCT_IMAGE_PROCESSOR_VERSION'), false);
   assert.equal(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '18'"), false);
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
