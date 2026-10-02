@@ -210,8 +210,23 @@ test('stale browser clients cannot persist or approve a pre-v17 cutout', () => {
   assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"));
   assert.ok(worker.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.equal((worker.match(/form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/g) || []).length, 2);
-  assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 3);
+  assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 2);
   assert.ok(core.includes('clientProcessorVersion !== PRODUCT_IMAGE_PROCESSOR_VERSION'));
+});
+
+test('original product image upload is independent from the Mural processor version', () => {
+  const main = read('src/main.jsx');
+  const core = read('src/core-router.js');
+  const start = core.indexOf("const imageUpload = url.pathname.match(/^\\/api\\/products\\/(\\d+)\\/image$/);");
+  const end = core.indexOf("const imageGet = url.pathname.match", start);
+  const originalUpload = core.slice(start, end);
+
+  assert.ok(start >= 0 && end > start);
+  assert.ok(originalUpload.includes("const file = form.get('image')"));
+  assert.equal(originalUpload.includes('clientProcessorVersion'), false);
+  assert.equal(originalUpload.includes('stale_image_processor'), false);
+  assert.equal(main.includes("fd.append('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION)"), false);
+  assert.equal(main.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION }"), false);
 });
 
 test('each product treatment persists an individual auditable mask', () => {
