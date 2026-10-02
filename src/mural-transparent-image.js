@@ -1484,7 +1484,7 @@ async function buildTreatedProductImage(src, options = {}) {
     // profile onto an unusual product.
     productMask = buildProductComponentsMask(data, width, height, { preserveAccessory });
   }
-  if (!productMask) return src;
+  if (!productMask || !productMaskGeometryIsSafe(productMask, width, height, geometry.kind)) return src;
   const stats = maskStats(productMask, width, height);
   const productWidth = stats.maxX - stats.minX + 1;
   const productHeight = stats.maxY - stats.minY + 1;
