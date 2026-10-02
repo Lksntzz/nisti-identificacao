@@ -204,7 +204,7 @@ test('stale browser clients cannot persist an older cutout algorithm as v12', ()
   const worker = read('src/product-image-treatment-worker.jsx');
   const core = read('src/core-router.js');
   const version = read('src/product-image-processor-version.js');
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '15'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '16'"));
   assert.ok(worker.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.equal((worker.match(/form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/g) || []).length, 2);
   assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 2);
@@ -281,7 +281,7 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
   const version = read('src/product-image-processor-version.js');
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '15'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '16'"));
   assert.ok(core.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(core.includes("wireo_code:row.wireo_code || ''"));
@@ -290,7 +290,7 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.equal(queueSql.includes("queue_status IN ('pending','review','stale')"), false);
   assert.ok(queueSql.includes('p.wireo_code'));
   assert.ok(queueSql.includes("'wireo_code',COALESCE(wireo_code,''"));
-  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '15'"));
+  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '16'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
