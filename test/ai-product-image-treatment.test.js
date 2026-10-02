@@ -20,7 +20,7 @@ test('AI assistant uses supported vision analysis and keeps pixel cleanup local'
 
   assert.doesNotMatch(assistant,/@cf\/briaai\/rmbg-1\.4/);
   assert.match(assistant,/@cf\/moondream\/moondream3\.1-9B-A2B/);
-  assert.match(assistant,/gemini-2\.5-flash/);
+  assert.match(assistant,/gemini-3\.5-flash/);
   assert.match(assistant,/confidence >= \.7/);
   assert.match(assistant,/task:'detect'/);
   assert.ok(core.includes("analyzeProductImageWithAi"));
@@ -34,7 +34,7 @@ test('AI assistant uses supported vision analysis and keeps pixel cleanup local'
   for(const config of [production,preview]){
     assert.match(config,/\[ai\]\s+binding = "AI"/);
     assert.match(config,/AI_VISION_MODEL = "@cf\/moondream\/moondream3\.1-9B-A2B"/);
-    assert.match(config,/GEMINI_IMAGE_MODEL = "gemini-2\.5-flash"/);
+    assert.match(config,/GEMINI_IMAGE_MODEL = "gemini-3\.5-flash"/);
   }
 });
 
