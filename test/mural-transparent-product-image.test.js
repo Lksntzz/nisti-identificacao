@@ -136,7 +136,7 @@ test('outline is only the external white ring and rejects background-sized masks
   assert.match(source, /function dilateMask/);
   assert.match(source, /function maskStats/);
   assert.match(source, /if \(stats\.ratio > \.82 \|\| stats\.touches >= 3\) return ''/);
-  assert.match(source, /const radius = clamp\(Math\.round\(Math\.max\(width, height\) \* \(5 \/ 1024\)\), 4, 7\)/);
+  assert.match(source, /const radius = clamp\(Math\.round\(Math\.max\(width, height\) \* \(8 \/ 1024\)\), 6, 11\)/);
   assert.match(source, /const outlineMask = buildExternalOutlineRing\(mainMask, width, height, radius\)/);
   assert.match(source, /if \(!outlineMask\[index\]\) continue/);
   assert.match(source, /outlineData\.data\[offset\] = 255/);
@@ -220,11 +220,19 @@ test('detached corner logo cannot stretch the dominant agenda silhouette', () =>
 });
 
 
+
+
+test('standard planner structural body is restored even without wire-o metadata', () => {
+  assert.match(source, /const lightBodyProtection = geometry\.kind === 'standard'\s*\? buildPlannerBodyProtection/);
+  assert.doesNotMatch(source, /geometry\.kind === 'standard' && hasRegisteredWireo\(options\)/);
+  assert.match(source, /restoreOriginalPixelsInsideProtection\(\s*data, originalPixels, width, height, lightBodyProtection/);
+});
+
 test('global treated product image bakes the approved thicker white outline into transparent PNG', () => {
   assert.match(source, /async function buildTreatedProductImage/);
-  assert.match(source, /outlineScale:5 \/ 1024/);
-  assert.match(source, /preciseOutlineScale:5 \/ 1024/);
-  assert.match(source, /clamp\(Math\.round\(Math\.max\(width, height\) \* outlineScale\), 4, 7\)/);
+  assert.match(source, /outlineScale:8 \/ 1024/);
+  assert.match(source, /preciseOutlineScale:8 \/ 1024/);
+  assert.match(source, /clamp\(Math\.round\(Math\.max\(width, height\) \* outlineScale\), 6, 11\)/);
   assert.match(source, /const padding = outlineRadius \+ 2/);
   assert.match(source, /if \(!outlineMask\[sourceIndex\]\) continue/);
   assert.match(source, /outputContext\.drawImage\(sourceCanvas, padding, padding\)/);
@@ -445,7 +453,7 @@ test('light wire-o stationery restores the continuous physical cover without res
   assert.equal(cut[(inside[1] * width + inside[0]) * 4 + 3], 255);
   assert.equal(cut[(outside[1] * width + outside[0]) * 4 + 3], 0);
 
-  assert.match(source, /geometry\.kind === 'standard' && hasRegisteredWireo\(options\)/);
+  assert.match(source, /const lightBodyProtection = geometry\.kind === 'standard'/);
   assert.match(source, /restoreOriginalPixelsInsideProtection\(/);
   assert.match(source, /bodyPolygon: Object\.freeze/);
 });

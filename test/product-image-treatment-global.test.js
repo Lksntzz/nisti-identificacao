@@ -13,7 +13,7 @@ test('shared product component uses the final treated PNG pipeline', () => {
   assert.ok(utility.includes('export async function treatedProductImageUrl'));
   assert.ok(utility.includes('export async function treatedProductImageBlob'));
   assert.ok(utility.includes('export function useTreatedProductImage'));
-  assert.ok(utility.includes('outlineScale:5 / 1024'));
+  assert.ok(utility.includes('outlineScale:8 / 1024'));
 });
 
 test('white and off-white covers use conservative background detection and corruption guards', () => {
@@ -203,11 +203,11 @@ test('admin mounts the treatment worker but processing only starts by explicit c
   assert.ok(worker.includes('/failed'));
 });
 
-test('stale browser clients cannot persist or approve a pre-v18 cutout', () => {
+test('stale browser clients cannot persist or approve a pre-v19 cutout', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
   const core = read('src/core-router.js');
   const version = read('src/product-image-processor-version.js');
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '18'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '19'"));
   assert.ok(worker.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.equal((worker.match(/form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/g) || []).length, 2);
   assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 2);
@@ -297,7 +297,7 @@ test('display endpoint is server-authoritative and serves explicitly approved de
   assert.ok(hook.includes('Display is server-authoritative'));
   assert.equal(hook.includes('treatedProductImageUrl('), false);
   const version = read('src/product-image-processor-version.js');
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '18'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '19'"));
   assert.ok(core.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(core.includes("wireo_code:row.wireo_code || ''"));
@@ -307,7 +307,7 @@ test('display endpoint is server-authoritative and serves explicitly approved de
   assert.ok(queueSql.includes('p.wireo_code'));
   assert.ok(queueSql.includes("'wireo_code',COALESCE(wireo_code,''"));
   assert.equal(publicImages.includes('PRODUCT_IMAGE_PROCESSOR_VERSION'), false);
-  assert.equal(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '18'"), false);
+  assert.equal(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '19'"), false);
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
@@ -353,8 +353,8 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("p_action:'redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
-  assert.ok(utility.includes('outlineScale:5 / 1024'));
-  assert.ok(utility.includes('preciseOutlineScale:5 / 1024'));
+  assert.ok(utility.includes('outlineScale:8 / 1024'));
+  assert.ok(utility.includes('preciseOutlineScale:8 / 1024'));
   assert.ok(utility.includes('bboxAspectMedian:.737'));
   assert.ok(utility.includes('bboxAspectObservedMin:.682'));
   assert.ok(utility.includes('bboxAspectObservedMax:.766'));
