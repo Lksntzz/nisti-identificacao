@@ -50,6 +50,41 @@ const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
 // Calibrated from the 14 approved NISTI masks supplied for ID1..ID14.
 // These numbers are safety envelopes only; no per-ID crop or fixed mask is
 // applied at runtime. That keeps the treatment reusable for future products.
+const HORIZONTAL_STRUCTURE_REFERENCE = Object.freeze({
+  // Calibrated from MOCKUP HORIZONTAL LEH: landscape product body with wire-o
+  // on the left and pages/elastic on the right. The core protects white covers
+  // without forcing the vertical planner mold onto a horizontal mockup.
+  silhouetteAspect:1.20,
+  candidateAspectMin:1.04,
+  candidateAspectMax:1.70,
+  corePolygon:Object.freeze([
+    [.070,.105],
+    [.900,.080],
+    [.955,.105],
+    [.965,.875],
+    [.905,.940],
+    [.075,.895]
+  ])
+});
+
+const DISC_STRUCTURE_REFERENCE = Object.freeze({
+  // Disc-bound notebooks have detached discs that must remain part of the
+  // physical product. Keep a wider body core than the wire-o planner profile.
+  silhouetteAspect:.72,
+  candidateAspectMin:.48,
+  candidateAspectMax:.98,
+  corePolygon:Object.freeze([
+    [.075,.075],
+    [.900,.050],
+    [.955,.080],
+    [.955,.925],
+    [.875,.955],
+    [.080,.925]
+  ])
+});
+
+const PRODUCT_GEOMETRY_KINDS = Object.freeze(['standard','horizontal','perspective','disc']);
+
 const PLANNER_MASK_CALIBRATION = Object.freeze({
   referenceCount:14,
   bboxAspectMedian:.737,
@@ -273,7 +308,7 @@ function quantileIndexFromHistogram(histogram, total, quantile) {
   return histogram.length - 1;
 }
 
-function buildPlannerReferenceBounds(data, width, height, fitInsideCanvas = false) {
+function buildStructureReferenceBounds(data, width, height, reference, fitInsideCanvas = false) {
   const columns = new Uint32Array(width);
   const rows = new Uint32Array(height);
   let strong = 0;
@@ -302,8 +337,8 @@ function buildPlannerReferenceBounds(data, width, height, fitInsideCanvas = fals
   if (
     observedWidth < width * .20
     || observedHeight < height * .30
-    || observedAspect < PLANNER_STRUCTURE_REFERENCE.candidateAspectMin
-    || observedAspect > PLANNER_STRUCTURE_REFERENCE.candidateAspectMax
+    || observedAspect < reference.candidateAspectMin
+    || observedAspect > reference.candidateAspectMax
   ) return null;
 
   // Fit the approved silhouette around the actual product anchors. Width is
@@ -311,11 +346,11 @@ function buildPlannerReferenceBounds(data, width, height, fitInsideCanvas = fals
   // aspect and is expanded only as much as needed to contain real evidence.
   const requiredWidth = observedWidth * 1.045;
   const requiredHeight = observedHeight * 1.035;
-  let boxWidth = Math.max(requiredWidth, requiredHeight * PLANNER_STRUCTURE_REFERENCE.silhouetteAspect);
-  let boxHeight = boxWidth / PLANNER_STRUCTURE_REFERENCE.silhouetteAspect;
+  let boxWidth = Math.max(requiredWidth, requiredHeight * reference.silhouetteAspect);
+  let boxHeight = boxWidth / reference.silhouetteAspect;
   if (boxHeight < requiredHeight) {
     boxHeight = requiredHeight;
-    boxWidth = boxHeight * PLANNER_STRUCTURE_REFERENCE.silhouetteAspect;
+    boxWidth = boxHeight * reference.silhouetteAspect;
   }
 
   if (boxWidth > width * .97 || boxHeight > height * .97) {
@@ -340,6 +375,19 @@ function buildPlannerReferenceBounds(data, width, height, fitInsideCanvas = fals
   };
 }
 
+
+function buildPlannerReferenceBounds(data, width, height, fitInsideCanvas = false) {
+  return buildStructureReferenceBounds(data, width, height, PLANNER_STRUCTURE_REFERENCE, fitInsideCanvas);
+}
+
+function buildHorizontalReferenceBounds(data, width, height, fitInsideCanvas = false) {
+  return buildStructureReferenceBounds(data, width, height, HORIZONTAL_STRUCTURE_REFERENCE, fitInsideCanvas);
+}
+
+function buildDiscReferenceBounds(data, width, height, fitInsideCanvas = false) {
+  return buildStructureReferenceBounds(data, width, height, DISC_STRUCTURE_REFERENCE, fitInsideCanvas);
+}
+
 function pointInsidePolygon(x, y, polygon) {
   let inside = false;
   for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current++) {
@@ -352,11 +400,11 @@ function pointInsidePolygon(x, y, polygon) {
   return inside;
 }
 
-function buildPlannerStructureProtection(data, width, height, fitInsideCanvas = false) {
-  const bounds = buildPlannerReferenceBounds(data, width, height, fitInsideCanvas);
+function buildStructureProtection(data, width, height, reference, fitInsideCanvas = false) {
+  const bounds = buildStructureReferenceBounds(data, width, height, reference, fitInsideCanvas);
   if (!bounds) return null;
 
-  const polygon = PLANNER_STRUCTURE_REFERENCE.corePolygon.map(([nx, ny]) => ([
+  const polygon = reference.corePolygon.map(([nx, ny]) => ([
     bounds.minX + nx * bounds.width,
     bounds.minY + ny * bounds.height
   ]));
@@ -364,6 +412,19 @@ function buildPlannerStructureProtection(data, width, height, fitInsideCanvas = 
   const contains = (x, y) => pointInsidePolygon(x + .5, y + .5, polygon);
   contains.bounds = bounds;
   return contains;
+}
+
+
+function buildPlannerStructureProtection(data, width, height, fitInsideCanvas = false) {
+  return buildStructureProtection(data, width, height, PLANNER_STRUCTURE_REFERENCE, fitInsideCanvas);
+}
+
+function buildHorizontalStructureProtection(data, width, height, fitInsideCanvas = false) {
+  return buildStructureProtection(data, width, height, HORIZONTAL_STRUCTURE_REFERENCE, fitInsideCanvas);
+}
+
+function buildDiscStructureProtection(data, width, height, fitInsideCanvas = false) {
+  return buildStructureProtection(data, width, height, DISC_STRUCTURE_REFERENCE, fitInsideCanvas);
 }
 
 function cross(origin, a, b) {
@@ -612,7 +673,113 @@ function buildSubjectProtection(data, width, height) {
     protectedMax[y] = Math.min(width - 1, Math.ceil(Math.max(...intersections)));
   }
 
-  return (x, y) => protectedMax[y] >= 0 && x >= protectedMin[y] && x <= protectedMax[y];
+  const contains = (x, y) => protectedMax[y] >= 0 && x >= protectedMin[y] && x <= protectedMax[y];
+  contains.bounds = { minX, maxX, minY, maxY, width:maxX-minX+1, height:maxY-minY+1 };
+  return contains;
+}
+
+function normalizeGeometryText(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+}
+
+function isDiscBoundProduct(options = {}) {
+  const sku = normalizeGeometryText(options.sku || options.productSku);
+  const name = normalizeGeometryText(options.name || options.productName);
+  return /^(?:CDISC|CADISC)(?:[_\s-]|$)/.test(sku)
+    || /CADERNO\s+DE\s+DISCOS?/.test(name);
+}
+
+function measureStrongForegroundGeometry(data, width, height) {
+  const columns = new Uint32Array(width);
+  const rows = new Uint32Array(height);
+  let count = 0;
+  let sumX = 0;
+  let sumY = 0;
+  let sumXX = 0;
+  let sumYY = 0;
+  let sumXY = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      if (!isStrongForegroundPixel(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) continue;
+      columns[x] += 1;
+      rows[y] += 1;
+      count += 1;
+      sumX += x;
+      sumY += y;
+      sumXX += x * x;
+      sumYY += y * y;
+      sumXY += x * y;
+    }
+  }
+
+  if (count < Math.max(24, Math.round(width * height * .0015))) return null;
+
+  const x0 = quantileIndexFromHistogram(columns, count, .006);
+  const x1 = quantileIndexFromHistogram(columns, count, .994);
+  const y0 = quantileIndexFromHistogram(rows, count, .006);
+  const y1 = quantileIndexFromHistogram(rows, count, .994);
+  const bboxWidth = x1 - x0 + 1;
+  const bboxHeight = y1 - y0 + 1;
+  const meanX = sumX / count;
+  const meanY = sumY / count;
+  const covarianceXX = sumXX / count - meanX * meanX;
+  const covarianceYY = sumYY / count - meanY * meanY;
+  const covarianceXY = sumXY / count - meanX * meanY;
+  let angle = Math.atan2(2 * covarianceXY, covarianceXX - covarianceYY) * 90 / Math.PI;
+  angle = (angle + 180) % 180;
+  const axisTilt = Math.min(angle, Math.abs(90 - angle), Math.abs(180 - angle));
+
+  return {
+    angle,
+    axisTilt,
+    aspect:bboxWidth / Math.max(1, bboxHeight),
+    strongRatio:count / Math.max(1, width * height),
+    bounds:{ minX:x0, maxX:x1, minY:y0, maxY:y1, width:bboxWidth, height:bboxHeight }
+  };
+}
+
+function classifyProductGeometry(data, width, height, options = {}) {
+  const requested = String(options.geometryKind || '').trim().toLowerCase();
+  if (PRODUCT_GEOMETRY_KINDS.includes(requested)) {
+    return { kind:requested, source:'explicit', metrics:measureStrongForegroundGeometry(data, width, height) };
+  }
+  if (isDiscBoundProduct(options)) {
+    return { kind:'disc', source:'catalog', metrics:measureStrongForegroundGeometry(data, width, height) };
+  }
+
+  const metrics = measureStrongForegroundGeometry(data, width, height);
+  if (!metrics) return { kind:'standard', source:'fallback', metrics:null };
+
+  // Perspective is identified by a meaningful rotation away from both canvas
+  // axes. This catches tilted mockups such as the Bíblia example without
+  // confusing a normal landscape planner with a perspective scene.
+  if (metrics.axisTilt >= 12) {
+    return { kind:'perspective', source:'image', metrics };
+  }
+
+  // A true horizontal product has a wide robust foreground box and its main
+  // axis remains aligned with the canvas. Slight perspective is intentionally
+  // routed to the perspective profile above.
+  if (metrics.aspect >= 1.04 && (metrics.angle <= 12 || metrics.angle >= 168)) {
+    return { kind:'horizontal', source:'image', metrics };
+  }
+
+  return { kind:'standard', source:'image', metrics };
+}
+
+function buildGeometryProtection(data, width, height, geometry, fitInsideCanvas = false) {
+  if (geometry?.kind === 'horizontal') {
+    return buildHorizontalStructureProtection(data, width, height, fitInsideCanvas);
+  }
+  if (geometry?.kind === 'disc') {
+    return buildDiscStructureProtection(data, width, height, fitInsideCanvas);
+  }
+  if (geometry?.kind === 'perspective') {
+    return buildSubjectProtection(data, width, height);
+  }
+  return buildPlannerStructureProtection(data, width, height, fitInsideCanvas);
 }
 
 function clearOutsideSubject(data, width, height, isProtectedSubjectPixel) {
@@ -750,7 +917,7 @@ function buildProductComponentsMask(data, width, height, options = {}) {
   return mask;
 }
 
-function plannerMaskGeometryIsSafe(mask, width, height) {
+function productMaskGeometryIsSafe(mask, width, height, geometryKind = 'standard') {
   if (!mask) return false;
   const stats = maskStats(mask, width, height);
   if (!stats.area || stats.touches >= 3 || stats.ratio < .055 || stats.ratio > .82) return false;
@@ -758,8 +925,15 @@ function plannerMaskGeometryIsSafe(mask, width, height) {
   const boxHeight = stats.maxY - stats.minY + 1;
   if (boxWidth < width * .25 || boxHeight < height * .25) return false;
   const aspect = boxWidth / Math.max(1, boxHeight);
+  if (geometryKind === 'horizontal') return aspect >= .95 && aspect <= 1.75;
+  if (geometryKind === 'disc') return aspect >= .48 && aspect <= 1.00;
+  if (geometryKind === 'perspective') return aspect >= .70 && aspect <= 1.85;
   return aspect >= PLANNER_MASK_CALIBRATION.bboxAspectSafeMin
     && aspect <= PLANNER_MASK_CALIBRATION.bboxAspectSafeMax;
+}
+
+function plannerMaskGeometryIsSafe(mask, width, height) {
+  return productMaskGeometryIsSafe(mask, width, height, 'standard');
 }
 
 function buildOpaqueMask(data, width, height) {
