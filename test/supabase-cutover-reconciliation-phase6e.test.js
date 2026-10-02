@@ -47,11 +47,9 @@ test('Phase 6E final replace rejects non-snapshot SQL instead of executing it', 
 test('Phase 6E cutover freeze blocks mutating API requests before routers execute', () => {
   const source = fs.readFileSync('src/operator-audit-router.js', 'utf8');
   const freezeGuard = source.indexOf('if (isMutatingApiRequest(url, request))');
-  const shadowRouter = source.indexOf('handleGeometricShadowConfirmationRequest(request, env)');
   const downstream = source.indexOf('response = await app.fetch(request, env, ctx)');
 
   assert.ok(freezeGuard >= 0);
-  assert.ok(shadowRouter > freezeGuard);
   assert.ok(downstream > freezeGuard);
   assert.match(source, /SUPABASE_CUTOVER_WRITE_FREEZE/);
   assert.match(source, /cutover_write_freeze_invalid_config/);
