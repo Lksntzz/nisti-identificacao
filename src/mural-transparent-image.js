@@ -11,9 +11,9 @@ const MAX_CACHE_ENTRIES = 80;
 // canvas has at most ~6.6 MB of uncompressed pixel data, so even difficult
 // photographic covers cannot wedge the queue with an oversized PNG.
 const MAX_RENDER_DIMENSION = 1280;
-// Structural mask normalized from the approved transparent planner outline
-// reference (1254×1254). The reference is used only as geometry: it protects
-// the physical body (cover + page block) independently of pixel color.
+// Conservative inner geometry normalized from the planner family. It is not a
+// cutout mold: it only protects the interior of a white/off-white cover while
+// the actual outer silhouette is traced from the source pixels.
 const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
   // Geometry measured from the approved 1254×1254 transparent reference.
   // The rigid wire-o outline is NOT reused: wire-o placement varies between
@@ -21,17 +21,16 @@ const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
   silhouetteAspect: .709,
   candidateAspectMin: .30,
   candidateAspectMax: 1.05,
-  bodyPolygon: Object.freeze([
-    [.075, .055],
-    [.785, .010],
-    [.965, .020],
-    [.995, .045],
-    [.995, .965],
-    [.955, .982],
-    [.915, .995],
-    [.080, .955],
-    [.068, .915],
-    [.066, .095]
+  // This is deliberately an INNER CORE, not the outer silhouette. It only
+  // prevents the border flood from entering a white/off-white cover. The real
+  // outer edge, wire-o and tassel must always come from source pixels.
+  corePolygon: Object.freeze([
+    [.180, .100],
+    [.790, .060],
+    [.900, .085],
+    [.915, .900],
+    [.840, .940],
+    [.200, .900]
   ])
 });
 
@@ -281,7 +280,7 @@ function buildPlannerStructureProtection(data, width, height, fitInsideCanvas = 
   const bounds = buildPlannerReferenceBounds(data, width, height, fitInsideCanvas);
   if (!bounds) return null;
 
-  const polygon = PLANNER_STRUCTURE_REFERENCE.bodyPolygon.map(([nx, ny]) => ([
+  const polygon = PLANNER_STRUCTURE_REFERENCE.corePolygon.map(([nx, ny]) => ([
     bounds.minX + nx * bounds.width,
     bounds.minY + ny * bounds.height
   ]));
