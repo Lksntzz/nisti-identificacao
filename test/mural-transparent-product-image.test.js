@@ -111,7 +111,7 @@ test('outline is only the external white ring and rejects background-sized masks
   assert.match(source, /function dilateMask/);
   assert.match(source, /function maskStats/);
   assert.match(source, /if \(stats\.ratio > \.82 \|\| stats\.touches >= 3\) return ''/);
-  assert.match(source, /const radius = clamp\(Math\.round\(Math\.max\(width, height\) \* \.0028\), 2, 5\)/);
+  assert.match(source, /const radius = clamp\(Math\.round\(Math\.max\(width, height\) \* \(5 \/ 1024\)\), 4, 7\)/);
   assert.match(source, /const outlineMask = buildExternalOutlineRing\(mainMask, width, height, radius\)/);
   assert.match(source, /if \(!outlineMask\[index\]\) continue/);
   assert.match(source, /outlineData\.data\[offset\] = 255/);
