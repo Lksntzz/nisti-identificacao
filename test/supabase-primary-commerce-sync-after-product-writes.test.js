@@ -44,10 +44,11 @@ test('health endpoint reports Supabase as primary when Supabase reads are enable
   assert.match(block,/write_authority:\s*supabaseWrites \? 'supabase' : 'd1'/);
 });
 
-test('cover reference listing follows the read authority rather than the write switch',()=>{
+test('cover reference listing is Supabase-only after the D1 runtime detachment',()=>{
   const start=core.indexOf('async function listCoverReferences');
   const end=core.indexOf('async function addCoverReference',start);
   const block=core.slice(start,end);
-  assert.match(block,/if \(supabaseReadsRequested\(env\)\)/);
+  assert.match(block,/supabaseCoverReferences/);
+  assert.doesNotMatch(block,/env\.DB/);
   assert.doesNotMatch(block,/supabasePrimaryWritesRequested/);
 });

@@ -8,7 +8,7 @@ const push=fs.readFileSync(new URL('../src/web-push.js',import.meta.url),'utf8')
 const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
 
 test('product creation no longer creates automatic Mural drafts',()=>{
-  assert.ok(core.includes('if (created)'));
+  assert.ok(core.includes('nisti_upsert_product_primary_v1'));
   assert.equal(core.includes('suggestMuralProductDraft'),false);
   assert.equal(mural.includes('suggestMuralProductDraft'),false);
   assert.equal(mural.includes("'system:suggestion'"),false);

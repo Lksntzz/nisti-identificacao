@@ -13,6 +13,8 @@ const barcodeGen = fs.readFileSync(new URL('../src/admin/BarcodeGeneratorView.js
 const expeditionDashboard = fs.readFileSync(new URL('../src/admin/ExpeditionDashboard.jsx', import.meta.url), 'utf8');
 const productsWithoutGtinView = fs.readFileSync(new URL('../src/admin/ProductsWithoutGtinView.jsx', import.meta.url), 'utf8');
 const catalogView = fs.readFileSync(new URL('../src/admin/CatalogView.jsx', import.meta.url), 'utf8');
+const primaryProductWrites = fs.readFileSync(new URL('../supabase/migrations/20261001200000_primary_product_writes_v1.sql', import.meta.url), 'utf8');
+const reserveProducts = fs.readFileSync(new URL('../supabase/migrations/20261001162000_supabase_emergency_read_fallback_v1.sql', import.meta.url), 'utf8');
 
 test('EAN admin mantém gerador, histórico e operações sem a tela duplicada de Códigos EAN', () => {
   assert.match(gtinEvents + main, /function GtinEventsView/);
@@ -55,12 +57,14 @@ test('barcode generator presents collection download as an explicit view filter'
   assert.match(barcodeGen + main, /viewMode === 'collections'/);
 });
 
-test('new product registration writes its EAN atomically with an accepted source', () => {
+test('new product registration writes its EAN atomically with the NISTI source in Supabase', () => {
   assert.match(main, /gtin: cleanGtin/);
   assert.doesNotMatch(main, /source: 'ADMIN'/);
-  assert.match(coreRouter, /source='NISTI'/);
-  assert.doesNotMatch(coreRouter, /source='IMPORT'/);
-  assert.match(coreRouter, /upsertCatalogProduct\(env, body\)/);
+  assert.match(coreRouter, /gtin: validGtin/);
+  assert.match(coreRouter, /nisti_upsert_product_primary_v1/);
+  assert.match(primaryProductWrites, /VALUES\(v_product\.id,v_gtin,'GTIN-13','NISTI'/);
+  assert.match(primaryProductWrites, /source='NISTI'/);
+  assert.doesNotMatch(primaryProductWrites, /source='IMPORT'/);
 });
 
 test('manual and bulk registration immediately expose downloadable barcode labels', () => {
@@ -90,9 +94,10 @@ test('clicking the missing EAN alert opens the affected products', () => {
   assert.match(productsWithoutGtinView, /onClick=\{\(\) => onSelect\?\.\(product\)\}/);
 });
 
-test('catalog missing EAN filter uses the active GTIN relationship', () => {
-  assert.match(coreRouter, /AS has_active_gtin/);
-  assert.match(coreRouter, /AS gtin/);
+test('catalog missing EAN filter uses the active GTIN relationship from the Supabase catalog RPC', () => {
+  assert.match(reserveProducts, /AS has_active_gtin/);
+  assert.match(reserveProducts, /AS gtin/);
+  assert.match(coreRouter, /has_active_gtin:product\.has_active_gtin/);
   assert.match(catalogView, /!p\.has_active_gtin/);
   assert.doesNotMatch(catalogView, /!p\.capa_code && !p\.gtin/);
   assert.match(catalogView, /Apenas sem EAN/);

@@ -25,12 +25,13 @@ test('treatment admin read RPCs are invoker-only and service-role-only',()=>{
   }
 });
 
-test('when Supabase reads are enabled, treatment GET handlers call Supabase directly',()=>{
+test('treatment GET handlers are Supabase-only after the D1 runtime removal',()=>{
   const start=core.indexOf("/api/admin/product-image-treatment/summary");
   const end=core.indexOf("const treatmentUpload",start);
   const block=core.slice(start,end);
-  assert.ok(block.includes('supabaseReadsRequested(env)'));
   assert.ok(block.includes('supabaseProductTreatmentSummary'));
   assert.ok(block.includes('supabaseProductTreatmentQueue'));
+  assert.ok(!block.includes('supabaseReadsRequested(env)'));
   assert.ok(!block.includes('preferSupabaseRead('));
+  assert.ok(!block.includes('env.DB'));
 });

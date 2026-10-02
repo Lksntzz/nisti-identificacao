@@ -7,7 +7,7 @@ const reindex=fs.readFileSync('src/reference-reindex-router.js','utf8');
 
 test('product reference embedding is committed only after Vectorize upsert succeeds',()=>{
   const start=core.indexOf('async function storeReferenceEmbedding');
-  const end=core.indexOf('async function cleanupStaleProductReferences',start);
+  const end=core.indexOf('async function saveProductImage',start);
   const block=core.slice(start,end);
   const vector=block.indexOf('await env.COVER_VECTORS.upsert(vectors)');
   const database=block.indexOf("nisti_store_reference_embedding_v1");
@@ -19,7 +19,7 @@ test('product reference embedding is committed only after Vectorize upsert succe
 
 test('primary product image replacement removes stale Vectorize ids after DB cleanup',()=>{
   const start=core.indexOf('async function storeReferenceEmbedding');
-  const end=core.indexOf('async function cleanupStaleProductReferences',start);
+  const end=core.indexOf('async function saveProductImage',start);
   const block=core.slice(start,end);
   assert.match(block,/removedReferences\.length/);
   assert.match(block,/supportedPlatforms\(\)/);

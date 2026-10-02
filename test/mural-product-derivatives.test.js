@@ -10,6 +10,7 @@ const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'
 const publicImages=fs.readFileSync(new URL('../src/public-image-router.js',import.meta.url),'utf8');
 const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
 const deploy=fs.readFileSync(new URL('../.github/workflows/deploy-production.yml',import.meta.url),'utf8');
+const primaryImages=fs.readFileSync(new URL('../supabase/migrations/20261001210000_primary_product_images_v1.sql',import.meta.url),'utf8');
 
 test('Mural stores product derivatives separately without overwriting catalog originals',()=>{
   assert.match(migration,/CREATE TABLE IF NOT EXISTS mural_product_images/);
@@ -19,11 +20,13 @@ test('Mural stores product derivatives separately without overwriting catalog or
   assert.doesNotMatch(migration,/ALTER TABLE products ADD COLUMN/);
 });
 
-test('changing a catalog image invalidates its Mural derivative',()=>{
-  assert.match(core,/INSERT INTO mural_product_images/);
-  assert.match(core,/processed_image_key=NULL/);
-  assert.match(core,/status='pending'/);
-  assert.match(core,/PRODUCT_IMAGES\.delete\(product\.mural_processed_image_key\)/);
+test('changing a catalog image invalidates its Mural derivative in the Supabase image transaction',()=>{
+  assert.match(core,/nisti_prepare_product_image_v1/);
+  assert.match(primaryImages,/INSERT INTO public\.mural_product_images/);
+  assert.match(primaryImages,/processed_image_key=NULL/);
+  assert.match(primaryImages,/status='pending'/);
+  assert.match(core,/old_processed_image_key/);
+  assert.match(core,/PRODUCT_IMAGES\.delete\(value\.old_processed_image_key\)/);
 });
 
 test('public product display serves approved derivatives matching the current source image and keeps legacy Mural route',()=>{

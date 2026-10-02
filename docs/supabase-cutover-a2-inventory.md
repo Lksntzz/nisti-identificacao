@@ -30,9 +30,10 @@ freeze is released in production after the frozen smoke-test gate completed succ
 
 ## Remaining D1 code classification
 
+`src/core-router.js` no longer contains D1 SQL; product, image, treatment, cover-reference, diagnostics and push-admin database paths are Supabase-only.
+
 | Module | D1 SQL still present | Primary-mode status |
 | --- | --- | --- |
-| `src/core-router.js` | product/catalog/reference/notification compatibility SQL | active primary product, image, reference and Admin diagnostic paths bypass D1 |
 | `src/mural-router.js` | Mural compatibility reads/writes | active Mural Admin writes and reads have direct Supabase branches |
 | `src/occurrences-router.js` | occurrence/training compatibility SQL | create/train/dismiss are direct Supabase-primary |
 | `src/recognition-metrics.js` | legacy telemetry/read SQL | primary telemetry and reads are Supabase |

@@ -11,7 +11,6 @@ function jsFiles(dir) {
 }
 
 const reviewed = new Set([
-  'src/core-router.js',
   'src/recognition-metrics.js',
   'src/system-metrics-clean-router.js',
   'src/cover-notifications.js',

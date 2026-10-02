@@ -99,6 +99,7 @@ test('Mural admin shows live treatment totals and the current SKU', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
   const css = read('src/mural-admin.css');
   const core = read('src/core-router.js');
+  const summarySql = read('supabase/migrations/20261001223000_product_treatment_admin_reads_v1.sql');
 
   assert.ok(admin.includes("nisti:product-image-treatment-progress"));
   assert.ok(admin.includes("/api/admin/product-image-treatment/summary"));
@@ -110,7 +111,8 @@ test('Mural admin shows live treatment totals and the current SKU', () => {
   assert.ok(worker.includes("new CustomEvent('nisti:product-image-treatment-progress'"));
   assert.ok(worker.includes("phase:'processing'"));
   assert.ok(css.includes('.mural-product-treatment-progress-track'));
-  assert.ok(core.includes('failed:Number(row?.failed || 0)'));
+  assert.ok(core.includes('supabaseProductTreatmentSummary'));
+  assert.ok(summarySql.includes("'failed', COUNT(*) FILTER (WHERE is_failed)"));
 });
 
 
@@ -118,6 +120,7 @@ test('display endpoint marks treated versus original fallback and client reproce
   const publicImages = read('src/public-image-router.js');
   const utility = read('src/mural-transparent-image.js');
   const core = read('src/core-router.js');
+  const queueSql = read('supabase/migrations/20261001223000_product_treatment_admin_reads_v1.sql');
 
   assert.ok(publicImages.includes("'x-nisti-image-source':'treated'"));
   assert.ok(publicImages.includes("'x-nisti-image-source':'original'"));
@@ -127,10 +130,11 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
   assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '8'"));
-  assert.ok(core.includes("OR mpi.status IN ('pending','stale')"));
-  assert.ok(core.includes("COALESCE(mpi.processor_version,'')<>?"));
-  assert.equal(core.includes("mpi.status IN ('pending','review','stale')"), false);
-  assert.ok(core.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
+  assert.ok(core.includes('supabaseProductTreatmentQueue'));
+  assert.ok(queueSql.includes("queue_status IN ('pending','stale')"));
+  assert.ok(queueSql.includes("COALESCE(mpi.processor_version,'')<>(SELECT current_version FROM params)"));
+  assert.equal(queueSql.includes("queue_status IN ('pending','review','stale')"), false);
+  assert.ok(queueSql.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
   assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '8'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
@@ -169,9 +173,9 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(admin.includes('Aprovada e salva'));
   assert.ok(admin.includes('/approve'));
   assert.ok(admin.includes('/redo'));
-  assert.ok(core.includes("status='review'"));
-  assert.ok(core.includes("status='approved',reviewed_by='admin'"));
-  assert.ok(core.includes("processor='system-precise-redo'"));
+  assert.ok(core.includes("p_action:'review'"));
+  assert.ok(core.includes("p_action:'approve'"));
+  assert.ok(core.includes("p_action:'redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
   assert.ok(utility.includes('const outlineScale = 8 / 1024'));
