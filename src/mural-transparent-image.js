@@ -14,7 +14,7 @@ const MAX_RENDER_DIMENSION = 1280;
 const mkpProductMaskCache = new Map();
 
 const MKP_PRODUCT_MASKS = Object.freeze({
-  B:Object.freeze({ withTassel:'/product-masks-mkp/wire_branco_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_branco_sem_tassel.png' }),
+  B:Object.freeze({ withTassel:'/product-masks-mkp/wire_gold_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_branco_sem_tassel.png' }),
   P:Object.freeze({ withTassel:'/product-masks-mkp/wire_preto_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_preto_sem_tassel.png' }),
   R:Object.freeze({ withTassel:'/product-masks-mkp/wire_gold_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_gold_sem_tassel.png' })
 });
@@ -1042,7 +1042,14 @@ async function buildTransparentProductImage(src, options = {}) {
   const { data } = imageData;
   const total = width * height;
 
+  const mkpMaskUrl = mkpProductMaskUrl(options.wireoCode, options.tasselCode);
+  if (options.requireMkpMask && sourceMatchesMkpFrame(width, height) && !mkpMaskUrl) {
+    throw new Error('Código de wire-o ausente ou inválido para selecionar a máscara MKP.');
+  }
   const mkpAlpha = await buildMkpProductAlpha(width, height, options.wireoCode, options.tasselCode);
+  if (options.requireMkpMask && sourceMatchesMkpFrame(width, height) && !mkpAlpha) {
+    throw new Error('A máscara MKP obrigatória não pôde ser carregada.');
+  }
   if (mkpAlpha) {
     applyMkpProductAlpha(data, mkpAlpha);
     context.putImageData(imageData, 0, 0);

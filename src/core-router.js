@@ -41,7 +41,7 @@ import {
 const BULK_IMPORT_LIMIT = 100;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_PRODUCT_MASK_BYTES = 4 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '14';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '15';
 const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
@@ -476,6 +476,7 @@ export default {
             sku:row.sku || null,
             name:row.name || null,
             tassel_code:row.tassel_code || 'X',
+            wireo_code:row.wireo_code || '',
             image_key:row.image_key,
             status:row.status || row.queue_status || 'pending',
             queue_status:row.queue_status || null,
@@ -508,6 +509,7 @@ export default {
             sku:row.sku || null,
             name:row.nome || null,
             tassel_code:row.tassel_code || 'X',
+            wireo_code:row.wireo_code || '',
             status:row.status || 'pending',
             image_key:row.image_key,
             mask_image_key:row.mask_image_key || null,
