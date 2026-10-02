@@ -20,7 +20,7 @@ test('background removal protects white and off-white covers with a physical-edg
   assert.match(source, /if \(hasLocalProductEdge\(data, width, height, index\)\) return/);
   assert.match(source, /function protectedSubjectCoverage/);
   assert.match(source, /function isDeepProtectedSubjectPixel/);
-  assert.match(source, /isDeepProtectedSubjectPixel\(subjectEvidence, width, height, x, y\)/);
+  assert.match(source, /isDeepProtectedSubjectPixel\(isProtectedSubjectPixel, width, height, x, y\)/);
   assert.match(source, /if \(subjectCoverage < \.82\) return src/);
   assert.match(source, /productStats\.ratio < \.055/);
 });
