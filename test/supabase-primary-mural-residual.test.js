@@ -12,8 +12,8 @@ test('residual Mural admin reads and writes have direct Supabase-primary RPCs',(
     'nisti_admin_mural_products_v1',
     'nisti_admin_mural_metrics_v1',
     'nisti_admin_mural_readiness_v1',
-    'nisti_admin_mural_gemini_product_v1',
-    'nisti_admin_mural_gemini_collection_v1'
+    'nisti_admin_mural_product_reference_v1',
+    'nisti_admin_mural_collection_reference_v1'
   ]){
     assert.ok(sql.includes(name),`missing migration RPC ${name}`);
   }
@@ -37,8 +37,8 @@ test('Mural residual RPCs remain invoker-only and service-role-only',()=>{
     'nisti_admin_mural_products_v1',
     'nisti_admin_mural_metrics_v1',
     'nisti_admin_mural_readiness_v1',
-    'nisti_admin_mural_gemini_product_v1',
-    'nisti_admin_mural_gemini_collection_v1'
+    'nisti_admin_mural_product_reference_v1',
+    'nisti_admin_mural_collection_reference_v1'
   ]){
     assert.match(sql,new RegExp(`REVOKE ALL ON FUNCTION public\\.${name}\\(`));
     assert.match(sql,new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${name}\\(`));

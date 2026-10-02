@@ -11,8 +11,7 @@ test('Supabase cutover release uses primary reads, primary writes and releases t
   assert.match(wrangler, /SUPABASE_CUTOVER_WRITE_FREEZE = "0"/);
   assert.match(wrangler, /SUPABASE_READ_TIMEOUT_MS = "5000"/);
   assert.doesNotMatch(wrangler, /SUPABASE_SERVICE_ROLE_KEY/);
-  assert.match(wrangler, /RETRIEVAL_FASTPATH_MIN_SCORE = "0\.920"/);
-  assert.match(wrangler, /RETRIEVAL_FASTPATH_MIN_MARGIN = "0\.008"/);
+  assert.doesNotMatch(wrangler, /RETRIEVAL_FASTPATH_/);
 });
 
 test('cutover runbook keeps service role secret out of repository', () => {

@@ -2,18 +2,13 @@
 
 Sistema web da NISTI PRINT para identificar produtos pela arte frontal da capa na expedição.
 
-## Regra de identificação
+## Identificação de produtos
 
-- A foto da expedição considera somente a arte-base da capa.
-- Wire-O, tassel, elástico, miolo, plataforma e personalização textual não são usados para reconhecer visualmente a capa.
-- O sistema nunca inventa SKU.
-- O fluxo usa `gemini-embedding-2` para busca visual e `gemini-3.5-flash-lite` como verificador quando necessário.
-- Se uma mesma capa pertencer a mais de um SKU, o usuário escolhe entre os produtos cadastrados.
-- O retrieval principal aceita múltiplas referências visuais por `capa_code` e agrupa as correspondências por capa antes da verificação local.
+A identificação visual automática por câmera foi removida. O sistema mantém o cadastro, o catálogo comercial, a gestão de EAN e as demais operações administrativas sem chamadas a modelos externos.
 
 ## Interface
 
-- `/` — identificação pela câmera do celular.
+- `/` — painel público; as antigas rotas de identificação visual respondem como recurso removido.
 - `/admin` — administração protegida por sessão.
 - Administração: Geral, Mockups, Importação, Diagnóstico e Administração do sistema.
 
@@ -26,43 +21,30 @@ Frontend:
 - `src/app.css`
 
 Worker:
-- `src/vectorize-performance-router.js`
-- `src/vectorize-candidates.js`
-- `src/structural-final-v8.js`
 - `src/edge-router.js`
 - `src/product-finish-router.js`
-- `src/reference-reindex-router.js`
-- `src/vectorize-admin-router.js`
 - `src/storage-metrics-router.js`
 - `src/system-metrics-clean-router.js`
 - `src/core-router.js`
 - `src/public-image-router.js`
 - `src/platform-scope.js`
-- `src/recognition-metrics.js`
-- `src/gemini-budget.js`
 - `src/sku.js`
-
-## Referências visuais
-
-A partir da migration `0005_cover_visual_references.sql`, a mesma arte-base pode possuir várias referências oficiais. Cada referência recebe um embedding independente e um vetor por plataforma no Vectorize. A consulta retorna referências semelhantes da plataforma selecionada, agrupa por `capa_code` e envia as candidatas mais relevantes para a verificação comparativa multimodal via Gemini.
-
-Referências adicionais podem representar condições reais como foto frontal, perspectiva, personalização e condição difícil. Elas não criam novos produtos nem SKUs; apenas aumentam a cobertura visual da capa existente.
 
 ## Rollout e Migrações
 
-1. Validar as migrations localmente: `npx wrangler d1 migrations apply nisti-identificacao --local`.
-2. Aplicar a migration no D1 remoto: `npm run db:migrate`.
-3. Após o deploy, executar `/api/admin/reindex-cover-embeddings` até `pending_references = 0`.
-4. Executar `/api/admin/vectorize-sync` até todas as referências estarem sincronizadas.
-5. Validar `/api/admin/vectorize-status` e `/api/admin/cover-index`.
+O Supabase PostgreSQL é a autoridade de leitura e escrita em produção. O D1 não está vinculado ao Worker de produção e permanece somente como camada explícita de compatibilidade/recuperação por meio de `wrangler.d1-compat.toml`.
 
-O Production Gate executa a migration completa contra um D1 local antes do build. Isso valida a sintaxe e a sequência das migrations sem alterar o banco de produção.
+1. Revisar e aplicar as migrations versionadas do Supabase pelo procedimento operacional correspondente.
+2. Usar `npm run db:migrate` somente para manutenção deliberada do banco D1 de compatibilidade.
+3. Após o deploy, validar a saúde das leituras e escritas Supabase e os fluxos administrativos ativos.
+
+Consulte `supabase/CUTOVER.md` para o procedimento de cutover e `docs/supabase-cutover-a2-inventory.md` para o estado atual dos caminhos primários e da compatibilidade D1. As validações locais não alteram o banco de produção.
 
 ## Stack
 
 - React + Vite
 - Cloudflare Workers
-- Cloudflare D1
+- Supabase PostgreSQL (autoridade primária)
+- Cloudflare D1 (compatibilidade/recuperação, sem binding em produção)
 - Cloudflare R2
 - Cloudflare Vectorize
-- Google Gemini API (`gemini-embedding-2` + `gemini-3.5-flash-lite`)

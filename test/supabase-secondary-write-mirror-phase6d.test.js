@@ -47,7 +47,7 @@ test('Phase 6D mirrors a reindex batch with one Supabase RPC', async () => {
                   return {
                     results: binds.map(id => ({
                       reference_id: id,
-                      embedding_model: 'gemini-embedding-2',
+                      embedding_model: 'legacy-embedding',
                       dimensions: 768,
                       embedding_json: '[0]',
                       updated_at: '2026-09-05T00:00:00Z'
@@ -100,24 +100,6 @@ test('Phase 6D notification and push writers mirror only after committed D1 writ
   assert.doesNotMatch(push, /nisti_mirror_push_log/);
 });
 
-test('Phase 6D covers finish edits, synthetic notifications, reindex maintenance, shadow confirmation and operator rename', () => {
-  const mutationMirror = fs.readFileSync('src/supabase-mutation-mirror.js', 'utf8');
-  const reindex = fs.readFileSync('src/reference-reindex-router.js', 'utf8');
-  const shadowConfirmation = fs.readFileSync('src/geometric-shadow-confirmation-router.js', 'utf8');
-  const systemMetrics = fs.readFileSync('src/system-metrics-clean-router.js', 'utf8');
-
-  assert.ok(mutationMirror.includes('const productFinish = url.pathname.match'));
-  assert.ok(mutationMirror.includes('mirrorProductCatalogFromD1(env, Number(productFinish[1]))'));
-  assert.match(mutationMirror, /\/api\/admin\/notifications\/test/);
-  assert.match(mutationMirror, /mirrorNotificationByCapaFromD1/);
-  assert.match(reindex, /mirrorVisualReferencesBatchFromD1/);
-  assert.match(reindex, /processedIds/);
-  assert.match(shadowConfirmation, /supabaseWriteMode\(env\) !== 'off'/);
-  assert.match(shadowConfirmation, /nisti_mirror_confirm_geometric_shadow/);
-  assert.match(systemMetrics, /supabaseWriteMode\(env\) !== 'off'/);
-  assert.match(systemMetrics, /nisti_mirror_operator_name/);
-});
-
 test('Phase 6D SQL is SECURITY INVOKER and service-role only', () => {
   const source = fs.readFileSync(
     'supabase/migrations/202609050415_nisti_secondary_write_mirror_rpc_v1.sql',
@@ -153,14 +135,11 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
     ['product_platforms', new Set(['core-router.js'])],
     ['recognition_daily', new Set(['recognition-metrics.js'])],
     ['recognition_events', new Set(['recognition-metrics.js', 'system-metrics-clean-router.js'])],
-    ['cover_visual_references', new Set(['core-router.js', 'occurrences-router.js'])],
-    ['cover_reference_embeddings', new Set(['core-router.js', 'occurrences-router.js', 'reference-reindex-router.js'])],
     ['notifications', new Set(['core-router.js', 'cover-notifications.js', 'system-notifications.js'])],
     ['notification_reads', new Set(['cover-notifications.js', 'system-notifications.js'])],
     ['push_subscriptions', new Set(['web-push.js'])],
-    ['scan_occurrences', new Set(['occurrences-router.js'])],
     ['geometric_shadow_evidence', new Set(['geometric-shadow-evidence-router.js', 'geometric-shadow-confirmation-router.js'])],
-    ['gemini_call_budget', new Set(['gemini-budget.js'])],
+    ['legacy_model_call_budget', new Set(['legacy-model-budget.js'])],
     ['push_logs', new Set(['web-push.js'])]
   ]);
 

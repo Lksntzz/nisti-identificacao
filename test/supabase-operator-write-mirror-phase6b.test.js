@@ -131,25 +131,6 @@ test('mirror RPC migration is retry-safe and service-role only', () => {
   assert.match(source, /GRANT EXECUTE ON FUNCTION public\.nisti_mirror_confirm_geometric_shadow[\s\S]*TO service_role/);
 });
 
-test('operator D1 writes are mirrored only after authoritative D1 rows exist', () => {
-  const occurrences = fs.readFileSync('src/occurrences-router.js', 'utf8');
-  assert.match(occurrences, /const writeMode = supabaseWriteMode\(env\)/);
-  assert.match(occurrences, /SELECT id, image_key, platform, suggested_capa_code/);
-  assert.match(occurrences, /nisti_mirror_scan_occurrence/);
-  assert.match(occurrences, /if \(rowId && writeMode !== 'off'\)/);
-
-  const metrics = fs.readFileSync('src/recognition-metrics.js', 'utf8');
-  assert.match(metrics, /const eventResult = await env\.DB\.prepare/);
-  assert.match(metrics, /SELECT \*[\s\S]*FROM recognition_events[\s\S]*WHERE id=\?/);
-  assert.match(metrics, /nisti_mirror_recognition_event/);
-  assert.match(metrics, /if \(writeMode !== 'off'\)/);
-
-  const shadow = fs.readFileSync('src/geometric-shadow-evidence-router.js', 'utf8');
-  assert.match(shadow, /nisti_mirror_geometric_shadow_evidence/);
-  assert.match(shadow, /nisti_mirror_link_geometric_shadow/);
-  assert.match(shadow, /nisti_mirror_confirm_geometric_shadow/);
-});
-
 test('cutover release enables Supabase reads and strict primary writes with writes released', () => {
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
   assert.match(wrangler, /SUPABASE_READS_ENABLED\s*=\s*"1"/);

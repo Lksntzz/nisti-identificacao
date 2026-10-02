@@ -1,11 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { zipSync, strToU8 } from 'fflate';
 import {
   excelColumnIndex,
+  extractCommerceXlsxHyperlinks,
   hyperlinksForRow,
   parseWorkbookSheetTargets,
   parseWorksheetHyperlinks
 } from '../src/commerce-xlsx-hyperlinks.js';
+
+function xlsxBuffer(files) {
+  const bytes = zipSync(Object.fromEntries(
+    Object.entries(files).map(([path, contents]) => [path, strToU8(contents)])
+  ));
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
 
 test('mapeia nomes de abas para arquivos OOXML mesmo após reordenação', () => {
   const workbook = `<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Agendas" sheetId="7" r:id="rId3"/><sheet name="Planner" sheetId="2" r:id="rId9"/></sheets></workbook>`;
@@ -38,4 +47,33 @@ test('ignora links internos e esquemas não HTTP', () => {
   const sheet = `<worksheet xmlns:r="x"><hyperlinks><hyperlink ref="G3" r:id="r1"/><hyperlink ref="G4" r:id="r2"/></hyperlinks></worksheet>`;
   const rels = `<Relationships><Relationship Id="r1" Target="#A1"/><Relationship Id="r2" Target="javascript:alert(1)"/></Relationships>`;
   assert.equal(parseWorksheetHyperlinks(sheet, rels).size, 0);
+});
+
+test('extrai hiperlinks pelo pipeline XLSX completo, incluindo ZIP comprimido e entidades XML', async () => {
+  const workbook = `<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Planner &amp; Agendas" sheetId="2" r:id="rId9"/></sheets></workbook>`;
+  const workbookRels = `<Relationships><Relationship Id="rId9" Target="worksheets/sheet2.xml"/></Relationships>`;
+  const sheet = `<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><hyperlinks><hyperlink ref="G3" r:id="rId4"/><hyperlink ref="G4" r:id="rId5"/></hyperlinks></worksheet>`;
+  const sheetRels = `<Relationships><Relationship Id="rId4" Target="https://example.test/item?a=1&amp;b=2" TargetMode="External"/><Relationship Id="rId5" Target="javascript:alert(1)" TargetMode="External"/></Relationships>`;
+  const buffer = xlsxBuffer({
+    'xl/workbook.xml': workbook,
+    'xl/_rels/workbook.xml.rels': workbookRels,
+    'xl/worksheets/sheet2.xml': sheet,
+    'xl/worksheets/_rels/sheet2.xml.rels': sheetRels
+  });
+
+  const result = await extractCommerceXlsxHyperlinks(buffer);
+  assert.deepEqual([...result.keys()], ['Planner & Agendas']);
+  assert.deepEqual([...result.get('Planner & Agendas')], [
+    ['G3', 'https://example.test/item?a=1&b=2']
+  ]);
+  assert.deepEqual(hyperlinksForRow(result.get('Planner & Agendas'), 3), {
+    6: 'https://example.test/item?a=1&b=2'
+  });
+});
+
+test('falha de forma clara quando o arquivo XLSX não possui uma estrutura ZIP válida', async () => {
+  await assert.rejects(
+    extractCommerceXlsxHyperlinks(new Uint8Array(32).buffer),
+    /Estrutura ZIP do arquivo \.xlsx inválida/
+  );
 });
