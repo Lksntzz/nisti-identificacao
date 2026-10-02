@@ -29,12 +29,13 @@ test('phase 5 push is explicit and restricted to important notices or selected p
   assert.ok(admin.includes('window.confirm'));
 });
 
-test('phase 5 reuses existing VAPID subscriptions and cleans dead endpoints',()=>{
+test('phase 5 reuses Supabase VAPID subscriptions and cleans dead endpoints',()=>{
   assert.ok(push.includes('export async function broadcastMuralPush'));
-  assert.ok(push.includes('FROM push_subscriptions'));
+  assert.ok(push.includes('nisti_list_push_subscriptions_v1'));
   assert.ok(push.includes('sendWebPushNotification(env,sub,payload)'));
   assert.ok(push.includes('res.status===404||res.status===410'));
   assert.ok(push.includes('removePushSubscription(env,endpoint)'));
+  assert.equal(push.includes('env.DB'),false);
 });
 
 test('publishing the feed never dispatches mural push automatically',()=>{
