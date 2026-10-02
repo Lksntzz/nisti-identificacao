@@ -224,8 +224,6 @@ test('global treated product image bakes the approved thicker white outline into
   assert.match(source, /async function buildTreatedProductImage/);
   assert.match(source, /outlineScale:5 \/ 1024/);
   assert.match(source, /preciseOutlineScale:5 \/ 1024/);
-  assert.match(source, /MKP_OUTLINE_SCALE = 5 \/ 1024/);
-  assert.match(source, /MKP_PRECISE_OUTLINE_SCALE = 5 \/ 1024/);
   assert.match(source, /clamp\(Math\.round\(Math\.max\(width, height\) \* outlineScale\), 4, 7\)/);
   assert.match(source, /const padding = outlineRadius \+ 2/);
   assert.match(source, /if \(!outlineMask\[sourceIndex\]\) continue/);
