@@ -46,6 +46,7 @@ import {
   markAdminSystemNotificationRead,
   markAllAdminSystemNotificationsRead
 } from './system-notifications.js';
+import { generateAiProductCutout } from './ai-product-image-treatment.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_REFERENCES = 24;
@@ -602,6 +603,32 @@ export default {
             display_image_url:productDisplayImageUrl(row.id,row.image_key,row.processed_image_key)
           }))
         });
+      }
+
+      const aiTreatment = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/ai$/);
+      if (aiTreatment && request.method === 'POST') {
+        const productId=Number(aiTreatment[1]);
+        if (!env.PRODUCT_IMAGES) return json({error:'Armazenamento de imagens indisponível.'},503);
+        const product=await supabaseProductImageContext(env,productId);
+        if (!product?.image_key) return json({error:'Produto sem imagem original.'},404);
+        const object=await env.PRODUCT_IMAGES.get(product.image_key);
+        if (!object) return json({error:'Imagem original não encontrada.'},404);
+        try {
+          const result=await generateAiProductCutout(object,product.tassel_code,env);
+          return new Response(result.bytes,{
+            headers:{
+              'content-type':'image/png',
+              'cache-control':'private, no-store',
+              'x-content-type-options':'nosniff',
+              'x-nisti-ai-provider':'cloudflare-workers-ai+gemini',
+              'x-nisti-ai-tassel':result.detectedHasTassel===null?'unknown':result.detectedHasTassel?'yes':'no',
+              'x-nisti-ai-tassel-confidence':String(result.gemini.confidence || 0),
+              'x-nisti-ai-tassel-disagrees':result.tasselDisagrees?'1':'0'
+            }
+          });
+        } catch(error) {
+          return json({error:error.message || 'Tratamento assistido por IA indisponível.'},503);
+        }
       }
 
       const treatmentUpload = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)$/);

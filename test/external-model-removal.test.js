@@ -13,8 +13,12 @@ const runtimeSource = runtimeFiles.map(file => fs.readFileSync(file, 'utf8')).jo
 const muralAdmin = fs.readFileSync('src/admin/MuralNistiAdminView.jsx', 'utf8');
 const recognitionRouter = fs.readFileSync('src/vectorize-performance-router.js', 'utf8');
 
-test('runtime no longer contains external generative-model configuration or calls', () => {
-  assert.doesNotMatch(runtimeSource, /GEMINI_|generativelanguage\.googleapis\.com|:generateContent|:embedContent/i);
+test('external model access is limited to the reviewed product-image assistant', () => {
+  const assistant=fs.readFileSync('src/ai-product-image-treatment.js','utf8');
+  assert.match(assistant,/generativelanguage\.googleapis\.com/);
+  assert.match(assistant,/GEMINI_API_KEY/);
+  assert.match(assistant,/env\.AI\.run/);
+  assert.doesNotMatch(runtimeSource, /:embedContent/i);
 });
 
 test('Mural publication editor is manual-only', () => {

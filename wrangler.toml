@@ -13,6 +13,9 @@ not_found_handling = "single-page-application"
 binding = "PRODUCT_IMAGES"
 bucket_name = "nisti-identificacao-images"
 
+[ai]
+binding = "AI"
+
 [[vectorize]]
 binding = "COVER_VECTORS"
 index_name = "nisti-cover-embeddings"
@@ -26,6 +29,8 @@ SUPABASE_READS_ENABLED = "1"
 SUPABASE_READ_TIMEOUT_MS = "5000"
 SUPABASE_WRITE_MODE = "primary"
 SUPABASE_CUTOVER_WRITE_FREEZE = "0"
+AI_BACKGROUND_REMOVAL_MODEL = "@cf/briaai/rmbg-1.4"
+GEMINI_IMAGE_MODEL = "gemini-2.5-flash"
 
 
 [triggers]
