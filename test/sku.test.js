@@ -26,6 +26,12 @@ test('parseSku parses valid SKU without tassel (X)', () => {
   assert.equal(result.elastico, 'Preto');
 });
 
+test('parseSku treats X in the elastic position as product without elastic', () => {
+  const result = parseSku('CAD_CAPA_PBX');
+  assert.equal(result.elasticoCode, 'X');
+  assert.equal(result.elastico, 'Sem elástico');
+});
+
 test('parseSku throws error for malformed SKU structure', () => {
   assert.throws(() => parseSku('INVALID_SKU'), /SKU deve seguir MIOLO_CAPA_ACABAMENTO/);
   assert.throws(() => parseSku('A_B_C_D'), /SKU deve seguir MIOLO_CAPA_ACABAMENTO/);
