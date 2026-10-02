@@ -10,6 +10,26 @@ const configuredEnv = {
   SUPABASE_READ_TIMEOUT_MS: '1000'
 };
 
+function d1BudgetEnv(changes = 1) {
+  let calls = 0;
+  return {
+    get calls() { return calls; },
+    DB: {
+      prepare(sql) {
+        calls += 1;
+        return {
+          bind() { return this; },
+          async run() {
+            return /INSERT INTO gemini_call_budget/i.test(sql)
+              ? { meta: { changes } }
+              : { meta: { changes: 0 } };
+          }
+        };
+      }
+    }
+  };
+}
+
 function response(body, status = 200) {
   return new Response(body, {
     status,
@@ -17,16 +37,25 @@ function response(body, status = 200) {
   });
 }
 
+test('Gemini budget stays on D1 while Supabase cutover switch is off', async () => {
+  const d1 = d1BudgetEnv();
+  const allowed = await reserveGeminiBudget({ ...d1, SUPABASE_READS_ENABLED: '0' }, 'verifier', 60);
+  assert.equal(allowed, true);
+  assert.ok(d1.calls >= 1);
+});
+
 test('Gemini budget uses atomic Supabase RPC without touching D1 when enabled', async () => {
   const originalFetch = globalThis.fetch;
+  const d1 = d1BudgetEnv();
   let seen = null;
   globalThis.fetch = async (url, init) => {
     seen = { url: String(url), init };
     return response('true');
   };
   try {
-    const allowed = await reserveGeminiBudget(configuredEnv, 'catalog-verifier-total-v8', 60);
+    const allowed = await reserveGeminiBudget({ ...configuredEnv, DB: d1.DB }, 'catalog-verifier-total-v8', 60);
     assert.equal(allowed, true);
+    assert.equal(d1.calls, 0);
     assert.match(seen.url, /\/rpc\/nisti_reserve_gemini_budget$/);
     const body = JSON.parse(seen.init.body);
     assert.equal(body.p_lane, 'catalog-verifier-total-v8');
@@ -43,7 +72,7 @@ test('temporary Supabase budget outage fails closed without touching legacy D1',
   globalThis.fetch = async () => response('{"message":"temporary"}', 503);
   try {
     await assert.rejects(
-      () => reserveGeminiBudget(configuredEnv, 'verifier', 60),
+      () => reserveGeminiBudget({ ...configuredEnv, DB:d1.DB }, 'verifier', 60),
       /Supabase RPC nisti_reserve_gemini_budget falhou \(503\)/
     );
     assert.equal(d1.calls, 0);
@@ -58,7 +87,7 @@ test('Supabase auth/config budget errors fail closed instead of hiding behind D1
   globalThis.fetch = async () => response('{"message":"unauthorized"}', 401);
   try {
     await assert.rejects(
-      () => reserveGeminiBudget(configuredEnv, 'verifier', 60),
+      () => reserveGeminiBudget({ ...configuredEnv, DB: d1.DB }, 'verifier', 60),
       /Supabase RPC nisti_reserve_gemini_budget falhou \(401\)/
     );
     assert.equal(d1.calls, 0);
