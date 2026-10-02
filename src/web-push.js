@@ -206,7 +206,7 @@ export async function removePushSubscription(env, endpoint) {
   return true;
 }
 
-export async function sendWebPushNotification(env, subscription, payload) {export async function sendWebPushNotification(env, subscription, payload) {
+export async function sendWebPushNotification(env, subscription, payload) {
   if (!subscription?.endpoint || !subscription?.p256dh || !subscription?.auth) {
     return { ok: false, status: 400 };
   }
@@ -281,7 +281,7 @@ export async function broadcastNewCoverPush(env, {
   }
 }
 
-export async function broadcastMuralPush(env,{postId,title,body}) {export async function broadcastMuralPush(env,{postId,title,body}) {
+export async function broadcastMuralPush(env,{postId,title,body}) {
   const privateKey=getVapidPrivateKey(env);
   if(!privateKey) return {sent:0,failed:0,skipped:true};
   const subscriptions=await loadPushSubscriptions(env);
