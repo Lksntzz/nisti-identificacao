@@ -103,7 +103,6 @@ async function processItem(item) {
     name:item.name,
     tasselCode:item.tassel_code,
     wireoCode:item.wireo_code,
-    requireMkpMask:true,
     forceOutline:Boolean(item.force_outline),
     preciseOutline:Boolean(item.force_outline)
   });
