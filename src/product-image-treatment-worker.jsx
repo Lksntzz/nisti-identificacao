@@ -92,40 +92,61 @@ async function markFailed(productId, message) {
 }
 
 async function processItem(item) {
-  let aiUrl='';
-  let aiWarning='';
   let effectiveTasselCode=item.tassel_code;
+  let ai={
+    status:'local-fallback',
+    applied:false,
+    provider:'local-fallback',
+    model:null,
+    confidence:0,
+    message:'IA ainda não executada.'
+  };
+
   try {
-    const aiResponse=await fetch(`/api/admin/product-image-treatment/${item.id}/ai`,{
-      method:'POST',credentials:'same-origin',cache:'no-store'
-    });
-    if (!aiResponse.ok) throw new Error(`IA indisponível (${aiResponse.status})`);
-    const aiBlob=await aiResponse.blob();
-    if (aiBlob.type!=='image/png' || !aiBlob.size) throw new Error('IA retornou uma imagem inválida.');
-    aiUrl=URL.createObjectURL(aiBlob);
-    const detectedTassel=aiResponse.headers.get('x-nisti-ai-tassel');
-    if(detectedTassel==='yes')effectiveTasselCode='AI';
-    if(detectedTassel==='no')effectiveTasselCode='X';
-    if (aiResponse.headers.get('x-nisti-ai-tassel-disagrees')==='1') {
-      aiWarning='Gemini detectou divergência entre o tassel visível e o cadastro; revise antes de aprovar.';
+    const analysis=await requestJson(`/api/admin/product-image-treatment/${item.id}/ai`,{method:'POST'});
+    if (analysis.applied && typeof analysis.detected_has_tassel === 'boolean') {
+      effectiveTasselCode=analysis.detected_has_tassel ? 'AI' : 'X';
+      ai={
+        status:'applied',
+        applied:true,
+        provider:analysis.provider || 'ai',
+        model:analysis.model || null,
+        confidence:Number(analysis.confidence || 0),
+        detectedHasTassel:analysis.detected_has_tassel,
+        disagrees:Boolean(analysis.tassel_disagrees),
+        message:analysis.tassel_disagrees
+          ? 'IA detectou divergência entre o tassel visível e o cadastro; revise antes de aprovar.'
+          : `IA aplicada: ${analysis.provider || 'provedor de visão'}.`
+      };
+    } else {
+      ai={
+        status:'local-fallback',
+        applied:false,
+        provider:analysis.provider || 'local-fallback',
+        model:analysis.model || null,
+        confidence:Number(analysis.confidence || 0),
+        message:`Fallback local: ${analysis.reason || 'a IA não retornou confiança suficiente.'}`
+      };
     }
   } catch(error) {
-    aiWarning=`Assistência de IA não aplicada: ${error.message}`;
+    ai={
+      status:'local-fallback',
+      applied:false,
+      provider:'local-fallback',
+      model:null,
+      confidence:0,
+      message:`Fallback local: ${error.message}`
+    };
   }
 
-  let blob;
-  try {
-    blob = await treatedProductImageBlob(aiUrl || item.original_image_url, {
-      tasselCode:effectiveTasselCode,
-      forceOutline:aiUrl ? false : Boolean(item.force_outline),
-      preciseOutline:Boolean(item.force_outline)
-    });
-  } finally {
-    if(aiUrl)URL.revokeObjectURL(aiUrl);
-  }
+  const blob = await treatedProductImageBlob(item.original_image_url, {
+    tasselCode:effectiveTasselCode,
+    forceOutline:Boolean(item.force_outline),
+    preciseOutline:Boolean(item.force_outline)
+  });
   if (!blob) {
     await markFailed(item.id, 'A imagem original não gerou um recorte transparente seguro com o limite atual.');
-    return { id:item.id, status:'failed' };
+    return { id:item.id, status:'failed', ai };
   }
 
   const form = new FormData();
@@ -136,7 +157,12 @@ async function processItem(item) {
     body:form
   });
 
-  return { id:item.id, status:'review', warning:aiWarning };
+  return {
+    id:item.id,
+    status:'review',
+    ai,
+    warning:ai.status==='local-fallback' || ai.disagrees ? ai.message : ''
+  };
 }
 
 export default function ProductImageTreatmentWorker({ enabled = true, onBatchComplete }) {
