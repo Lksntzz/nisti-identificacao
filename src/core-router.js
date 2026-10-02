@@ -40,7 +40,7 @@ import {
 
 const BULK_IMPORT_LIMIT = 100;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '9';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '10';
 const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
