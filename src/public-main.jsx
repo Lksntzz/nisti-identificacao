@@ -591,11 +591,6 @@ function PublicIdentificationApp() {
         onSave={newName => {
           setOperatorName(newName);
           setOperatorNameState(newName);
-          api('/api/operator/update-name', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ operator_name: newName })
-          }).catch(() => {});
         }}
       />
     </main>
