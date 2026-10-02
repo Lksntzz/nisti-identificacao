@@ -353,15 +353,17 @@ async function handleSystemHealthFromSupabase(env, now) {
       };
     }),
     runHealthCheck('supabase','Banco primário / Supabase',async()=>{
-      const [core,summary,statuses]=await Promise.all([
+      const [core,summary,statuses,visualIndex]=await Promise.all([
         supabaseRpc(env,'nisti_system_health_core_v1',{}, {timeoutMs:5000}),
         supabaseRpc(env,'commerce_nisti_sync_status_v1',{}, {timeoutMs:5000}),
-        supabaseRpc(env,'commerce_nisti_product_statuses_v1',{}, {timeoutMs:5000})
+        supabaseRpc(env,'commerce_nisti_product_statuses_v1',{}, {timeoutMs:5000}),
+        supabaseRpc(env,'nisti_vectorize_status_v1',{}, {timeoutMs:5000})
       ]);
       return {
         core:core || {},
         summary:summary || {},
-        statuses:Array.isArray(statuses)?statuses:[]
+        statuses:Array.isArray(statuses)?statuses:[],
+        visual_index:visualIndex || {}
       };
     })
   ]);
@@ -401,6 +403,19 @@ async function handleSystemHealthFromSupabase(env, now) {
     last_synced_at:syncSummaryRaw.last_synced_at || null
   };
 
+  const visualIndexRaw=supabaseCheck.data?.visual_index || {};
+  const visualReferences=Number(visualIndexRaw.references || 0);
+  const visualEmbeddings=Number(visualIndexRaw.embeddings || 0);
+  const pendingVisualReferences=Math.max(0,visualReferences-visualEmbeddings);
+  const visualIndexSummary={
+    references:visualReferences,
+    embeddings:visualEmbeddings,
+    indexed_covers:Number(visualIndexRaw.covers || 0),
+    platform_count:Number(visualIndexRaw.platforms || 0),
+    pending_references:pendingVisualReferences,
+    repair_schedule:'*/30 * * * *'
+  };
+
   const syncErrors=syncStatuses
     .filter(item=>{
       const status=String(item?.sync_status || '').toUpperCase();
@@ -417,7 +432,16 @@ async function handleSystemHealthFromSupabase(env, now) {
       created_at:item?.last_synced_at || null
     }));
 
-  const recentIssues=[...syncErrors,...scanSummary.recent_errors]
+  const visualIndexIssues=pendingVisualReferences>0 ? [{
+    source:'ÍNDICE VISUAL',
+    severity:'warning',
+    title:`${pendingVisualReferences} referência${pendingVisualReferences===1?'':'s'} visual${pendingVisualReferences===1?'':'is'} pendente${pendingVisualReferences===1?'':'s'}`,
+    detail:'O reparo automático tentará gerar o embedding e sincronizar o Vectorize no próximo ciclo agendado.',
+    sku:null,gtin:null,operator_name:null,response_ms:null,
+    created_at:measuredAt
+  }] : [];
+
+  const recentIssues=[...visualIndexIssues,...syncErrors,...scanSummary.recent_errors]
     .sort((a,b)=>{
       const left=a.created_at?Date.parse(a.created_at):0;
       const right=b.created_at?Date.parse(b.created_at):0;
@@ -437,7 +461,11 @@ async function handleSystemHealthFromSupabase(env, now) {
   });
 
   const unavailable=checks.filter(check=>check.status==='error').length;
-  const operationalIssues=syncSummary.errors+syncSummary.conflicts+scanSummary.technical_errors_today;
+  const operationalIssues=
+    syncSummary.errors
+    + syncSummary.conflicts
+    + scanSummary.technical_errors_today
+    + pendingVisualReferences;
   const overallStatus=unavailable>0?'degraded':operationalIssues>0?'attention':'healthy';
 
   const payload={
@@ -451,10 +479,12 @@ async function handleSystemHealthFromSupabase(env, now) {
       services_total:checks.length,
       unavailable_services:unavailable,
       operational_issues:operationalIssues,
-      technical_errors_today:scanSummary.technical_errors_today
+      technical_errors_today:scanSummary.technical_errors_today,
+      pending_visual_references:pendingVisualReferences
     },
     checks,
     sync:syncSummary,
+    visual_index:visualIndexSummary,
     recent_issues:recentIssues,
     scan:{
       technical_errors_today:scanSummary.technical_errors_today,
