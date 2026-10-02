@@ -46,6 +46,22 @@ const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
   ])
 });
 
+// Calibrated from the 14 approved NISTI masks supplied for ID1..ID14.
+// These numbers are safety envelopes only; no per-ID crop or fixed mask is
+// applied at runtime. That keeps the treatment reusable for future products.
+const PLANNER_MASK_CALIBRATION = Object.freeze({
+  referenceCount:14,
+  bboxAspectMedian:.737,
+  bboxAspectObservedMin:.682,
+  bboxAspectObservedMax:.766,
+  bboxAspectSafeMin:.62,
+  bboxAspectSafeMax:.88,
+  nearbyDetailStrongRatio:.18,
+  genericDetailStrongRatio:.30,
+  outlineScale:4 / 1024,
+  preciseOutlineScale:3 / 1024
+});
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -744,7 +760,8 @@ function clearOutsideSubject(data, width, height, isProtectedSubjectPixel) {
   return removed;
 }
 
-function buildProductComponentsMask(data, width, height) {
+function buildProductComponentsMask(data, width, height, options = {}) {
+  const plannerBounds = options?.plannerBounds || null;
   const total = width * height;
   const labels = new Int32Array(total);
   labels.fill(-1);
@@ -820,16 +837,37 @@ function buildProductComponentsMask(data, width, height) {
     const component = components[label];
     if (component.count < minimumDetailSize) continue;
     const strongRatio = component.strongCount / Math.max(1, component.count);
-    const anotherLargeProduct = component.count >= largestSize * .12;
+    const anotherLargeProduct = !plannerBounds && component.count >= largestSize * .12;
     // Detached wire-o/tassel pieces contain dark or chromatic evidence. Neutral
     // white/grey rails, export handles and background chips do not. Reject
     // those low-evidence fragments even when their bounding box overlaps the
     // planner body; bbox proximity alone caused the right-side artifacts seen
     // in the rejected Mural treatment.
-    if (!anotherLargeProduct && strongRatio < .30) continue;
     const gapX = Math.max(0, main.minX - component.maxX - 1, component.minX - main.maxX - 1);
     const gapY = Math.max(0, main.minY - component.maxY - 1, component.minY - main.maxY - 1);
     const closeToMainProduct = gapX <= maximumGapX && gapY <= maximumGapY;
+
+    let insidePlannerDetailEnvelope = true;
+    if (plannerBounds) {
+      const left = plannerBounds.minX - plannerBounds.width * .30;
+      const right = plannerBounds.maxX + plannerBounds.width * .20;
+      const top = plannerBounds.minY - plannerBounds.height * .10;
+      const bottom = plannerBounds.maxY + plannerBounds.height * .24;
+      insidePlannerDetailEnvelope = component.maxX >= left
+        && component.minX <= right
+        && component.maxY >= top
+        && component.minY <= bottom;
+    }
+    if (!insidePlannerDetailEnvelope) continue;
+
+    // The supplied masks show that real tassel/wire-o details can be pale and
+    // contain only a minority of strongly chromatic/dark pixels. Nearby detail
+    // therefore gets a lower evidence threshold, while generic detached debris
+    // keeps the stricter 30% rule that removed the old right-side artifacts.
+    const minimumStrongRatio = plannerBounds && closeToMainProduct
+      ? PLANNER_MASK_CALIBRATION.nearbyDetailStrongRatio
+      : PLANNER_MASK_CALIBRATION.genericDetailStrongRatio;
+    if (!anotherLargeProduct && strongRatio < minimumStrongRatio) continue;
     if (closeToMainProduct || anotherLargeProduct) included[label] = 1;
   }
 
@@ -841,6 +879,18 @@ function buildProductComponentsMask(data, width, height) {
   }
 
   return mask;
+}
+
+function plannerMaskGeometryIsSafe(mask, width, height) {
+  if (!mask) return false;
+  const stats = maskStats(mask, width, height);
+  if (!stats.area || stats.touches >= 3 || stats.ratio < .055 || stats.ratio > .82) return false;
+  const boxWidth = stats.maxX - stats.minX + 1;
+  const boxHeight = stats.maxY - stats.minY + 1;
+  if (boxWidth < width * .25 || boxHeight < height * .25) return false;
+  const aspect = boxWidth / Math.max(1, boxHeight);
+  return aspect >= PLANNER_MASK_CALIBRATION.bboxAspectSafeMin
+    && aspect <= PLANNER_MASK_CALIBRATION.bboxAspectSafeMax;
 }
 
 function buildOpaqueMask(data, width, height) {
@@ -1139,8 +1189,10 @@ async function buildTransparentProductImage(src, options = {}) {
   // actual photo. This avoids both white-cover erosion and rigid white spikes.
   if (plannerStructureProtection) {
     applyPlannerStructureMask(data, width, height, plannerStructureProtection);
-    const plannerMask = buildProductComponentsMask(data, width, height);
-    if (!plannerMask) return src;
+    const plannerMask = buildProductComponentsMask(data, width, height, {
+      plannerBounds:plannerStructureProtection.bounds
+    });
+    if (!plannerMask || !plannerMaskGeometryIsSafe(plannerMask, width, height)) return src;
     const plannerStats = maskStats(plannerMask, width, height);
     if (
       plannerStats.ratio < .12
@@ -1327,7 +1379,16 @@ async function buildTreatedProductImage(src, options = {}) {
     return src;
   }
 
-  const productMask = buildProductComponentsMask(data, width, height);
+  const candidatePlannerBounds = buildPlannerReferenceBounds(data, width, height, true);
+  let productMask = buildProductComponentsMask(data, width, height, candidatePlannerBounds
+    ? { plannerBounds:candidatePlannerBounds }
+    : {});
+  if (!productMask) return src;
+  if (candidatePlannerBounds && !plannerMaskGeometryIsSafe(productMask, width, height)) {
+    // Do not force planner-specific filtering onto an unrelated product. Fall
+    // back to generic connected-component cleanup instead of damaging it.
+    productMask = buildProductComponentsMask(data, width, height);
+  }
   if (!productMask) return src;
   const stats = maskStats(productMask, width, height);
   const productWidth = stats.maxX - stats.minX + 1;
@@ -1351,7 +1412,9 @@ async function buildTreatedProductImage(src, options = {}) {
 
   // A manual redo requests a tighter ring so the white border follows the
   // product more precisely. The normal pass remains slightly more forgiving.
-  const outlineScale = options.forceOutline || options.preciseOutline ? 5 / 1024 : 8 / 1024;
+  const outlineScale = options.forceOutline || options.preciseOutline
+    ? PLANNER_MASK_CALIBRATION.preciseOutlineScale
+    : PLANNER_MASK_CALIBRATION.outlineScale;
   const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 2, 16);
   const outlineMask = buildExternalOutlineRing(productMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
@@ -1561,6 +1624,7 @@ export const __muralTransparentImageInternals = {
   buildSubjectProtection,
   clearOutsideSubject,
   buildProductComponentsMask,
+  plannerMaskGeometryIsSafe,
   buildOpaqueMask,
   estimateBorderBackgroundBrightness,
   isBorderBackgroundCandidate,
