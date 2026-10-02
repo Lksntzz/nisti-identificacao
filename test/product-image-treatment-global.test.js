@@ -13,7 +13,7 @@ test('shared product component uses the final treated PNG pipeline', () => {
   assert.ok(utility.includes('export async function treatedProductImageUrl'));
   assert.ok(utility.includes('export async function treatedProductImageBlob'));
   assert.ok(utility.includes('export function useTreatedProductImage'));
-  assert.ok(utility.includes('8 / 1024'));
+  assert.ok(utility.includes('outlineScale:4 / 1024'));
 });
 
 test('white and off-white covers use conservative background detection and corruption guards', () => {
@@ -75,8 +75,43 @@ test('tassel treatment keeps strong detached details and removes neutral artifac
   assert.equal(mask[12*width+28],0,'neutral detached artifact must be removed');
 
   const utility = read('src/mural-transparent-image.js');
-  assert.ok(utility.includes('strongRatio < .30'));
+  assert.ok(utility.includes('genericDetailStrongRatio:.30'));
   assert.doesNotMatch(utility, /requestedOfficialVariant === 'withTassel'[\s\S]{0,120}buildOpaqueMask/);
+});
+
+test('mask calibration preserves pale nearby accessory evidence but rejects neutral debris', () => {
+  const { buildProductComponentsMask } = __muralTransparentImageInternals;
+  const width=50;
+  const height=36;
+  const pixels=new Uint8ClampedArray(width*height*4);
+  const paint=(x0,y0,x1,y1,r,g,b)=>{
+    for(let y=y0;y<=y1;y+=1) for(let x=x0;x<=x1;x+=1){
+      const o=(y*width+x)*4; pixels[o]=r; pixels[o+1]=g; pixels[o+2]=b; pixels[o+3]=255;
+    }
+  };
+  paint(14,5,34,30,195,175,155);
+  // Pale tassel: one chromatic strip connected to mostly light fibres => 20% strong evidence.
+  paint(9,13,13,22,236,236,236);
+  paint(9,13,9,22,170,205,180);
+  // Neutral artifact with the same dimensions on the opposite side.
+  paint(35,13,39,22,240,240,240);
+  const plannerBounds={minX:14,maxX:34,minY:5,maxY:30,width:20,height:25};
+  const mask=buildProductComponentsMask(pixels,width,height,{plannerBounds});
+  assert.ok(mask);
+  assert.equal(mask[17*width+10],1,'pale nearby tassel fibres must survive');
+  assert.equal(mask[17*width+37],0,'neutral detached residue must be rejected');
+});
+
+test('calibrated planner geometry rejects implausible wide cutouts', () => {
+  const { plannerMaskGeometryIsSafe } = __muralTransparentImageInternals;
+  const width=100;
+  const height=100;
+  const valid=new Uint8Array(width*height);
+  for(let y=5;y<95;y+=1) for(let x=18;x<84;x+=1) valid[y*width+x]=1;
+  assert.equal(plannerMaskGeometryIsSafe(valid,width,height),true);
+  const tooWide=new Uint8Array(width*height);
+  for(let y=20;y<70;y+=1) for(let x=5;x<95;x+=1) tooWide[y*width+x]=1;
+  assert.equal(plannerMaskGeometryIsSafe(tooWide,width,height),false);
 });
 
 test('core product screens use the shared treatment', () => {
@@ -154,7 +189,7 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(worker.includes('treatedProductImageBlob'));
   assert.ok(worker.includes('tasselCode:item.tassel_code'));
   assert.equal(worker.includes('/ai'), false);
-  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v8'"));
+  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v10'"));
   assert.ok(worker.includes("cache:'no-store'"));
   assert.ok(worker.includes("form.append('image'"));
   assert.ok(worker.includes('/failed'));
@@ -195,13 +230,13 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'treated') return normalized"));
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
-  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '9'"));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '10'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(queueSql.includes("queue_status IN ('pending','stale')"));
   assert.ok(queueSql.includes("COALESCE(mpi.processor_version,'')<>(SELECT current_version FROM params)"));
   assert.equal(queueSql.includes("queue_status IN ('pending','review','stale')"), false);
   assert.ok(queueSql.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
-  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '9'"));
+  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '10'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
@@ -247,13 +282,20 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("p_action:'redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
-  assert.ok(utility.includes('options.forceOutline || options.preciseOutline ? 5 / 1024 : 8 / 1024'));
+  assert.ok(utility.includes('outlineScale:4 / 1024'));
+  assert.ok(utility.includes('preciseOutlineScale:3 / 1024'));
+  assert.ok(utility.includes('bboxAspectMedian:.737'));
+  assert.ok(utility.includes('bboxAspectObservedMin:.682'));
+  assert.ok(utility.includes('bboxAspectObservedMax:.766'));
+  assert.ok(utility.includes('plannerMaskGeometryIsSafe'));
+  assert.ok(utility.includes('nearbyDetailStrongRatio:.18'));
+  assert.ok(utility.includes('genericDetailStrongRatio:.30'))
   assert.ok(utility.includes('sourceAlreadyCutOut && !options.forceOutline'));
   assert.ok(utility.includes('requestedOfficialVariant && !options.forceOutline'));
   assert.ok(utility.includes('buildPlannerStructureProtection(data, width, height, options.forceOutline)'));
   assert.ok(utility.includes('const fitScale = Math.min(width * .995 / boxWidth, height * .995 / boxHeight)'));
   assert.ok(utility.includes('fillMaskInteriorHoles(dilateMask(mask, width, height, radius))'));
-  assert.ok(utility.includes('strongRatio < .30'));
+  assert.ok(utility.includes('genericDetailStrongRatio:.30'));
   assert.ok(utility.includes('const officialProductMask = buildProductComponentsMask(data, width, height)'));
   assert.ok(utility.includes('estimateBorderBackgroundBrightness(data, width, height)'));
   assert.ok(utility.includes('if (validOfficialCut)'));
