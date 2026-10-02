@@ -3,7 +3,7 @@ import {
   supabaseImageKey
 } from './supabase-read-store.js';
 
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '9';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '10';
 
 function notFound() {
   return new Response('Not found', {
