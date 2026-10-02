@@ -221,7 +221,8 @@ test('detached corner logo cannot stretch the dominant agenda silhouette', () =>
 
 test('global treated product image bakes a tight mask-calibrated white outline into transparent PNG', () => {
   assert.match(source, /async function buildTreatedProductImage/);
-  assert.match(source, /outlineScale:4 \/ 1024/);\n  assert.match(source, /preciseOutlineScale:3 \/ 1024/);
+  assert.match(source, /outlineScale:4 \/ 1024/);
+  assert.match(source, /preciseOutlineScale:3 \/ 1024/);
   assert.match(source, /const padding = outlineRadius \+ 2/);
   assert.match(source, /if \(!outlineMask\[sourceIndex\]\) continue/);
   assert.match(source, /outputContext\.drawImage\(sourceCanvas, padding, padding\)/);
