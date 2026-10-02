@@ -13,7 +13,7 @@ test('shared product component uses the final treated PNG pipeline', () => {
   assert.ok(utility.includes('export async function treatedProductImageUrl'));
   assert.ok(utility.includes('export async function treatedProductImageBlob'));
   assert.ok(utility.includes('export function useTreatedProductImage'));
-  assert.ok(utility.includes('outlineScale:2 / 1024'));
+  assert.ok(utility.includes('outlineScale:5 / 1024'));
 });
 
 test('white and off-white covers use conservative background detection and corruption guards', () => {
@@ -338,8 +338,8 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("p_action:'redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
-  assert.ok(utility.includes('outlineScale:2 / 1024'));
-  assert.ok(utility.includes('preciseOutlineScale:1 / 1024'));
+  assert.ok(utility.includes('outlineScale:5 / 1024'));
+  assert.ok(utility.includes('preciseOutlineScale:5 / 1024'));
   assert.ok(utility.includes('bboxAspectMedian:.737'));
   assert.ok(utility.includes('bboxAspectObservedMin:.682'));
   assert.ok(utility.includes('bboxAspectObservedMax:.766'));
