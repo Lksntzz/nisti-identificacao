@@ -46,7 +46,7 @@ import {
   markAdminSystemNotificationRead,
   markAllAdminSystemNotificationsRead
 } from './system-notifications.js';
-import { generateAiProductCutout } from './ai-product-image-treatment.js';
+import { analyzeProductImageWithAi } from './ai-product-image-treatment.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_REFERENCES = 24;
@@ -614,20 +614,23 @@ export default {
         const object=await env.PRODUCT_IMAGES.get(product.image_key);
         if (!object) return json({error:'Imagem original não encontrada.'},404);
         try {
-          const result=await generateAiProductCutout(object,product.tassel_code,env);
-          return new Response(result.bytes,{
-            headers:{
-              'content-type':'image/png',
-              'cache-control':'private, no-store',
-              'x-content-type-options':'nosniff',
-              'x-nisti-ai-provider':'cloudflare-workers-ai+gemini',
-              'x-nisti-ai-tassel':result.detectedHasTassel===null?'unknown':result.detectedHasTassel?'yes':'no',
-              'x-nisti-ai-tassel-confidence':String(result.gemini.confidence || 0),
-              'x-nisti-ai-tassel-disagrees':result.tasselDisagrees?'1':'0'
-            }
-          });
+          const result=await analyzeProductImageWithAi(object,product.tassel_code,env);
+          return json({
+            ok:true,
+            product_id:productId,
+            applied:Boolean(result.applied),
+            provider:result.provider,
+            model:result.model,
+            detected_has_tassel:result.detectedHasTassel,
+            registered_has_tassel:result.registeredHasTassel,
+            confidence:Number(result.confidence || 0),
+            tassel_disagrees:Boolean(result.tasselDisagrees),
+            reason:result.reason || '',
+            attempts:result.attempts
+          },200,{'cache-control':'private, no-store'});
         } catch(error) {
-          return json({error:error.message || 'Tratamento assistido por IA indisponível.'},503);
+          console.warn('[NISTI IA] Análise de imagem indisponível',productId,error);
+          return json({error:error.message || 'Assistência de IA indisponível.'},503);
         }
       }
 
