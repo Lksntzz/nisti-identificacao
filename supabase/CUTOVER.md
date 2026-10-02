@@ -2,11 +2,12 @@
 
 ## Estado do candidato após o corte de dados
 
-O snapshot final de 22 tabelas foi reconciliado no Supabase. A validação congelada foi concluída e o candidato de liberação usa Supabase como autoridade de leitura e escrita; o D1 permanece apenas como camada transitória de compatibilidade/emergência:
+O snapshot final de 22 tabelas foi reconciliado no Supabase. A validação congelada foi concluída e o candidato de liberação usa Supabase como autoridade de leitura e escrita; o D1 permanece apenas como camada transitória de compatibilidade e recuperação controlada:
 
 ```text
 SUPABASE_URL=https://yioetdcbgorunwgwuawg.supabase.co
 SUPABASE_READS_ENABLED=1
+SUPABASE_EMERGENCY_FALLBACK_ENABLED=0
 SUPABASE_READ_TIMEOUT_MS=5000
 SUPABASE_WRITE_MODE=primary
 SUPABASE_CUTOVER_WRITE_FREEZE=0
@@ -17,7 +18,8 @@ SUPABASE_CUTOVER_WRITE_FREEZE=0
 ## Invariantes de segurança
 
 - Supabase é a autoridade de leitura e escrita do candidato em modo `primary`.
-- Os writers operacionais e administrativos ativos possuem caminho direto Supabase; SQL D1 remanescente é compatibilidade/fallback e não deve ser executado no caminho primário.
+- Os writers operacionais e administrativos ativos possuem caminho direto Supabase; SQL D1 remanescente é compatibilidade/recuperação e não deve ser executado no caminho primário.
+- O D1 não é mais um hot standby: depois da liberação das escritas diretas, ele pode ficar defasado e não pode ser usado automaticamente como fallback de leitura.
 - O navegador nunca recebe a service-role key nem acessa o PostgreSQL diretamente.
 - Não alterar os thresholds de reconhecimento durante o cutover.
 - Não importar `push_logs`; essa tabela permanece legado/diagnóstico fora da autoridade PostgreSQL.
@@ -192,26 +194,26 @@ Confirmar as primeiras operações reais no Supabase, acompanhar Saúde/Logs, si
 
 ## Semântica do fallback de leitura
 
-Com `SUPABASE_READS_ENABLED=1`:
+Com `SUPABASE_READS_ENABLED=1` e `SUPABASE_EMERGENCY_FALLBACK_ENABLED=0`:
 
 - resposta Supabase válida, inclusive `[]`, `false` ou `null`, é autoritativa;
-- D1 não é consultado para mascarar dado ausente/divergente;
-- fallback D1 temporário ocorre somente em timeout, erro de transporte, HTTP 429 ou 5xx;
-- 401, 403, 404 e erro de configuração falham fechado para tornar problemas de cutover visíveis.
+- D1 não é consultado para mascarar dado ausente, divergente ou indisponibilidade do Supabase;
+- timeout, erro de transporte, HTTP 429 e 5xx do Supabase falham fechado em produção;
+- 401, 403, 404 e erro de configuração também falham fechado;
+- o fallback D1 só pode ser reativado manualmente com `SUPABASE_EMERGENCY_FALLBACK_ENABLED=1` em uma operação controlada, depois de confirmar que o D1 foi ressincronizado e está consistente.
 
 ## Rollback
 
-Antes do read cutover, rollback é simplesmente manter:
+Depois da promoção do Supabase, o rollback padrão é de **código**, mantendo o Supabase como autoridade de dados.
 
-```toml
-SUPABASE_READS_ENABLED = "0"
-```
+Não trocar automaticamente leituras/escritas para o D1: as escritas diretas Supabase não mantêm o D1 atualizado, portanto ele pode estar defasado.
 
-Depois de reads habilitados, o rollback operacional volta reads para D1:
+Um rollback de dados para D1 exige, nesta ordem:
 
-```toml
-SUPABASE_READS_ENABLED = "0"
-SUPABASE_WRITE_MODE = "mirror"
-```
+1. congelar escritas;
+2. gerar uma cópia consistente e atual do Supabase;
+3. ressincronizar/validar o D1;
+4. somente então alterar `SUPABASE_READS_ENABLED` ou `SUPABASE_WRITE_MODE`;
+5. manter a troca fail-closed se a reconciliação não fechar.
 
-Não excluir o D1, R2 ou Vectorize durante a estabilização. A remoção do D1 só pode ser considerada em uma fase posterior, após escrita primária Supabase, observabilidade e rollback terem sido validados independentemente.
+Não excluir o D1, R2 ou Vectorize durante a estabilização. O D1 permanece como artefato de recuperação até existir um procedimento de restauração testado e independente.
