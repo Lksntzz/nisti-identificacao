@@ -5,13 +5,10 @@ import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-versi
 const LOCK_KEY = `nisti_product_image_treatment_lock_v${PRODUCT_IMAGE_PROCESSOR_VERSION}`;
 export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
-export const TREATMENT_WAKE_EVENT = 'nisti:product-image-treatment-wake';
 const LOCK_TTL_MS = 90 * 1000;
 const LOCK_RETRY_MS = 5 * 1000;
 const BATCH_SIZE = 3;
 const MAX_TRANSIENT_ATTEMPTS = 3;
-const IDLE_POLL_MS = 15 * 60 * 1000;
-const PAUSED_POLL_MS = 5 * 60 * 1000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -26,10 +23,18 @@ function emitTreatmentProgress(detail) {
 
 function treatmentPaused() {
   try {
-    return localStorage.getItem(TREATMENT_PAUSE_KEY) === '1';
+    // Manual-only contract: a fresh tab/session is paused until the admin
+    // explicitly presses "Iniciar tratamento".
+    return localStorage.getItem(TREATMENT_PAUSE_KEY) !== '0';
   } catch {
-    return false;
+    return true;
   }
+}
+
+function setTreatmentPausedStorage(paused) {
+  try {
+    localStorage.setItem(TREATMENT_PAUSE_KEY, paused ? '1' : '0');
+  } catch {}
 }
 
 function readLock() {
@@ -156,7 +161,6 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
       if (running || cancelled) return;
       if (treatmentPaused()) {
         emitTreatmentProgress({ phase:'paused' });
-        if (!cancelled) wakeTimer = window.setTimeout(run, PAUSED_POLL_MS);
         return;
       }
       if (!acquireLock(owner)) {
@@ -262,33 +266,39 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
         }
         running = false;
         releaseLock(owner);
-        if (!cancelled) wakeTimer = window.setTimeout(run, IDLE_POLL_MS);
+
+        // Never keep polling in the background. One explicit start processes
+        // the current queue and then returns to the safe paused state.
+        if (!cancelled && !treatmentPaused()) {
+          setTreatmentPausedStorage(true);
+          emitTreatmentProgress({ phase:'complete', manual:true });
+        } else if (!cancelled) {
+          emitTreatmentProgress({ phase:'paused', manual:true });
+        }
       }
     };
 
     const onControl = event => {
-      const paused = Boolean(event?.detail?.paused ?? treatmentPaused());
-      emitTreatmentProgress({ phase:paused ? 'paused' : 'queue' });
-      if (!paused) {
+      const paused = Boolean(event?.detail?.paused ?? true);
+      setTreatmentPausedStorage(paused);
+      emitTreatmentProgress({ phase:paused ? 'paused' : 'queue', manual:true });
+      if (paused) {
         if (wakeTimer) window.clearTimeout(wakeTimer);
-        wakeTimer = window.setTimeout(run, 0);
+        wakeTimer = null;
+        return;
       }
-    };
-    const onWake = () => {
-      if (treatmentPaused()) return;
       if (wakeTimer) window.clearTimeout(wakeTimer);
       wakeTimer = window.setTimeout(run, 0);
     };
 
     window.addEventListener(TREATMENT_CONTROL_EVENT, onControl);
-    window.addEventListener(TREATMENT_WAKE_EVENT, onWake);
-    const timer = window.setTimeout(run, 900);
+    // Deliberately do not run on mount: opening NISTI Admin must never create
+    // or replace treated images without an explicit admin action.
+    emitTreatmentProgress({ phase:'paused', manual:true });
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
       if (wakeTimer) window.clearTimeout(wakeTimer);
       window.removeEventListener(TREATMENT_CONTROL_EVENT, onControl);
-      window.removeEventListener(TREATMENT_WAKE_EVENT, onWake);
       releaseLock(owner);
     };
   }, [enabled]);
