@@ -234,7 +234,7 @@ export async function trainOccurrenceDirectly(env, occurrenceId, capaCode, opera
   };
 }
 
-export async function handleOccurrencesAdminRequest(request, env) {export async function handleOccurrencesAdminRequest(request, env) {
+export async function handleOccurrencesAdminRequest(request, env) {
   const url = new URL(request.url);
 
   // GET /api/admin/occurrences
