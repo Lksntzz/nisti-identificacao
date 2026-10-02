@@ -227,9 +227,13 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
               // Network failures get retries; after the limit the original is
               // preserved and the item moves to the visible failed total.
               if (definitive || attempts >= MAX_TRANSIENT_ATTEMPTS) {
-                await markFailed(item.id, error.message);
+                if (!maskBackfill) {
+                  await markFailed(item.id, error.message);
+                  changed.push({ id:item.id, status:'failed' });
+                } else {
+                  changed.push({ id:item.id, status:item.status || 'unchanged', mask_saved:false, mask_error:true });
+                }
                 failureCounts.delete(item.id);
-                changed.push({ id:item.id, status:'failed' });
               }
               emitTreatmentProgress({
                 phase:'failed',

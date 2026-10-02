@@ -220,6 +220,18 @@ test('each product treatment persists an individual auditable mask', () => {
   assert.match(migration,/old_mask_image_key/);
 });
 
+test('mask backfill is visible and cannot destroy treatment review state', () => {
+  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const worker = read('src/product-image-treatment-worker.jsx');
+  const core = read('src/core-router.js');
+
+  assert.ok(core.includes('mask_ready:Math.max(0,withImage-maskPending)'));
+  assert.ok(core.includes('mask_pending:maskPending'));
+  assert.ok(admin.includes('Máscaras individuais:'));
+  assert.ok(admin.includes('máscaras salvas'));
+  assert.match(worker,/if \(!maskBackfill\) \{[\s\S]*await markFailed\(item\.id, error\.message\)/);
+});
+
 test('Mural admin shows live treatment totals and the current SKU', () => {
   const admin = read('src/admin/MuralNistiAdminView.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');

@@ -418,12 +418,26 @@ export default {
       }
 
       if (url.pathname === '/api/admin/product-image-treatment/summary' && request.method === 'GET') {
-        const summary = await supabaseProductTreatmentSummary(env,PRODUCT_IMAGE_PROCESSOR_VERSION);
+        const [summary,maskQueue] = await Promise.all([
+          supabaseProductTreatmentSummary(env,PRODUCT_IMAGE_PROCESSOR_VERSION),
+          supabaseRpc(env,'nisti_product_mask_queue_v1',{
+            p_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
+            p_limit:1,
+            p_offset:0
+          })
+        ]);
+        const withImage = Number(summary?.with_image || 0);
+        const maskPending = Number(maskQueue?.total || 0);
         return json({
           ok:true,
           read_source:'supabase',
           processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,
-          summary
+          summary:{
+            ...summary,
+            mask_total:withImage,
+            mask_ready:Math.max(0,withImage-maskPending),
+            mask_pending:maskPending
+          }
         });
       }
 
