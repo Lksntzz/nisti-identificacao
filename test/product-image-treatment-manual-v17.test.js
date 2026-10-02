@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('treated image v17 is manual-only from UI to worker', () => {
+test('treated image v18 is manual-only from UI to worker', () => {
   const main = read('src/main.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
   const admin = read('src/admin/MuralNistiAdminView.jsx');
@@ -31,13 +31,13 @@ test('rendering never manufactures a treated derivative in the browser', () => {
   assert.equal(hook.includes('buildTreatedProductImage('), false);
 });
 
-test('API rejects stale treatment clients and only serves approved v17 derivatives', () => {
+test('API rejects stale treatment clients and only serves approved v18 derivatives', () => {
   const core = read('src/core-router.js');
   const publicImages = read('src/public-image-router.js');
   const mural = read('src/mural-router.js');
   const version = read('src/product-image-processor-version.js');
 
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '18'"));
   assert.ok((core.match(/code:'stale_image_processor'/g) || []).length >= 2);
   assert.ok(core.includes('row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
   assert.ok(core.includes('product.treated_image_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
@@ -46,16 +46,16 @@ test('API rejects stale treatment clients and only serves approved v17 derivativ
   assert.ok(mural.includes('row?.mural_image_processor_version !== PRODUCT_IMAGE_PROCESSOR_VERSION'));
 });
 
-test('database migration invalidates pre-v17 derivatives without deleting originals', () => {
-  const supabase = read('supabase/migrations/20261002190000_manual_treated_images_v17.sql');
-  const d1 = read('migrations/0025_manual_treated_images_v17.sql');
+test('database migration invalidates pre-v18 derivatives without deleting originals', () => {
+  const supabase = read('supabase/migrations/20261002213000_per_product_cutout_v18.sql');
+  const d1 = read('migrations/0026_per_product_cutout_v18.sql');
 
   for (const migration of [supabase, d1]) {
     assert.match(migration, /status='pending'/);
-    assert.match(migration, /COALESCE\(processor_version,''\) <> '17'/);
+    assert.match(migration, /COALESCE\(processor_version,''\) <> '18'/);
     assert.doesNotMatch(migration, /DELETE FROM products|UPDATE products SET image_key/i);
   }
-  assert.match(supabase, /processor_version='17'/);
+  assert.match(supabase, /processor_version='18'/);
   assert.match(supabase, /reviewed_by='admin'/);
   assert.match(supabase, /status='review'/);
   assert.match(supabase, /processor_version=p_processor_version/);
