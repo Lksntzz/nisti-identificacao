@@ -3,12 +3,14 @@ import { createRoot } from 'react-dom/client';
 
 function registerNistiServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  window.addEventListener('load', () => {
+  const register = () => {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/', updateViaCache: 'none' })
       .then(registration => registration.update().catch(() => {}))
       .catch(error => console.warn('[PWA] Falha ao registrar Service Worker', error));
-  }, { once: true });
+  };
+  if (document.readyState === 'complete') register();
+  else window.addEventListener('load', register, { once: true });
 }
 
 registerNistiServiceWorker();
