@@ -1426,13 +1426,6 @@ async function buildTreatedProductImage(src, options = {}) {
     || stats.touches >= 3
   ) return src;
 
-  if (typeof options.onMask === 'function') {
-    const maskBlob = await productMaskPngBlob(productMask, width, height);
-    if (!maskBlob) return src;
-    await options.onMask(maskBlob);
-    if (options.maskOnly) return src;
-  }
-
   // Remove disconnected logos/watermarks from the final visible product while
   // keeping nearby detached physical pieces such as wire-o loops.
   const keepMask = dilateMask(productMask, width, height, 1);
@@ -1440,6 +1433,14 @@ async function buildTreatedProductImage(src, options = {}) {
     if (keepMask[index]) continue;
     data[index * 4 + 3] = 0;
   }
+  const persistedMask = buildOpaqueMask(data, width, height) || productMask;
+  if (typeof options.onMask === 'function') {
+    const maskBlob = await productMaskPngBlob(persistedMask, width, height);
+    if (!maskBlob) return src;
+    await options.onMask(maskBlob);
+    if (options.maskOnly) return src;
+  }
+
   sourceContext.putImageData(imageData, 0, 0);
 
   // A manual redo requests a tighter ring so the white border follows the
