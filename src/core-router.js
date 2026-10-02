@@ -89,7 +89,7 @@ function inspectTransparentPng(bytes) {
   return { width, height };
 }
 
-async async function saveProductImage(env, id, fileBytes, contentType) {
+async function saveProductImage(env, id, fileBytes, contentType) {
   const key = `products/${id}/${crypto.randomUUID()}`;
   await env.PRODUCT_IMAGES.put(key,fileBytes,{ httpMetadata:{ contentType } });
 
