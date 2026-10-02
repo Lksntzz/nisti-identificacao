@@ -168,8 +168,7 @@ function MuralProductImageManager({ products, onChanged }) {
 
     const mergeProgress=(detail={})=>{
       if(!active)return;
-      const phase=detail.phase||treatmentProgress.phase;
-      if(phase==='complete'||phase==='paused')setPaused(true);
+      if(detail.phase==='complete'||detail.phase==='paused')setPaused(true);
       setTreatmentProgress(current=>{
         const summary=detail.summary&&typeof detail.summary==='object'?detail.summary:{};
         const resolvedPhase=detail.phase||current.phase;
