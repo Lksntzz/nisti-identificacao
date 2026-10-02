@@ -99,6 +99,8 @@ async function markFailed(productId, message) {
 
 async function processItem(item) {
   const artifacts = await productImageTreatmentArtifactsBlob(item.original_image_url, {
+    sku:item.sku,
+    name:item.name,
     tasselCode:item.tassel_code,
     wireoCode:item.wireo_code,
     requireMkpMask:true,
@@ -125,6 +127,8 @@ async function processItem(item) {
 
 async function processMaskItem(item) {
   const maskBlob = await productImageMaskBlob(item.original_image_url, {
+    sku:item.sku,
+    name:item.name,
     tasselCode:item.tassel_code,
     wireoCode:item.wireo_code,
     requireMkpMask:true
