@@ -3,10 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   SupabaseReadError,
-  d1EmergencyCircuitStatus,
-  isD1DailyReadLimitError,
   preferSupabaseRead,
-  resetD1EmergencyCircuitForTests,
   supabaseRpc
 } from '../src/supabase-read-store.js';
 import {
@@ -54,6 +51,20 @@ test('valid empty Supabase result is authoritative and does not fall back', asyn
   assert.equal(d1Calls, 0);
 });
 
+test('legacy mode uses D1 directly only when Supabase reads are disabled', async () => {
+  let supabaseCalls = 0;
+  let d1Calls = 0;
+  const value = await preferSupabaseRead(
+    { SUPABASE_READS_ENABLED:'0' },
+    async () => { supabaseCalls += 1; return 'supabase'; },
+    async () => { d1Calls += 1; return 'd1'; },
+    'legacy-explicit-mode'
+  );
+  assert.equal(value,'d1');
+  assert.equal(supabaseCalls,0);
+  assert.equal(d1Calls,1);
+});
+
 test('production Supabase read failures fail closed instead of serving stale D1', async () => {
   let d1Calls = 0;
   await assert.rejects(
@@ -74,22 +85,24 @@ test('production Supabase read failures fail closed instead of serving stale D1'
   assert.equal(d1Calls, 0);
 });
 
-test('legacy D1 fallback requires explicit opt-in even for retryable Supabase failures', async () => {
+test('retryable Supabase failures never cross over to D1 while Supabase reads are enabled', async () => {
   let d1Calls = 0;
-  const value = await preferSupabaseRead(
-    { ...configuredEnv, SUPABASE_EMERGENCY_FALLBACK_ENABLED: '1' },
-    async () => {
-      throw new SupabaseReadError('temporary', {
-        status: 503,
-        code: 'supabase_rpc_503',
-        fallbackEligible: true
-      });
-    },
-    async () => { d1Calls += 1; return 'd1'; },
-    'temporary-explicit-fallback'
+  await assert.rejects(
+    () => preferSupabaseRead(
+      configuredEnv,
+      async () => {
+        throw new SupabaseReadError('temporary', {
+          status: 503,
+          code: 'supabase_rpc_503',
+          fallbackEligible: true
+        });
+      },
+      async () => { d1Calls += 1; return 'stale-d1'; },
+      'temporary-no-fallback'
+    ),
+    /temporary/
   );
-  assert.equal(value, 'd1');
-  assert.equal(d1Calls, 1);
+  assert.equal(d1Calls, 0);
 });
 
 test('configuration/auth errors fail closed and do not hide behind D1', async () => {
@@ -202,59 +215,6 @@ test('critical fastpath and Vectorize authority are wired to preferred store', (
 });
 
 
-test('emergency reserve fallback uses Supabase only for the D1 daily row-read limit', async () => {
-  resetD1EmergencyCircuitForTests();
-  let supabaseCalls = 0;
-  const env = {
-    SUPABASE_READS_ENABLED: '0',
-    SUPABASE_EMERGENCY_FALLBACK_ENABLED: '1'
-  };
-
-  const value = await preferSupabaseRead(
-    env,
-    async () => { supabaseCalls += 1; return 'supabase-reserve'; },
-    async () => { throw new Error("Your account has exceeded D1's free tier daily row read limit. [code: 7500]"); },
-    'quota-test'
-  );
-
-  assert.equal(value, 'supabase-reserve');
-  assert.equal(supabaseCalls, 1);
-  assert.equal(isD1DailyReadLimitError(new Error('daily row read limit exceeded')), true);
-});
-
-test('emergency reserve does not hide unrelated D1 failures', async () => {
-  resetD1EmergencyCircuitForTests();
-  let supabaseCalls = 0;
-  await assert.rejects(
-    () => preferSupabaseRead(
-      {
-        SUPABASE_READS_ENABLED: '0',
-        SUPABASE_EMERGENCY_FALLBACK_ENABLED: '1'
-      },
-      async () => { supabaseCalls += 1; return 'supabase'; },
-      async () => { throw new Error('D1 schema mismatch'); },
-      'schema-test'
-    ),
-    /schema mismatch/
-  );
-  assert.equal(supabaseCalls, 0);
-});
-
-test('emergency reserve stays disabled unless explicitly enabled', async () => {
-  resetD1EmergencyCircuitForTests();
-  let supabaseCalls = 0;
-  await assert.rejects(
-    () => preferSupabaseRead(
-      { SUPABASE_READS_ENABLED: '0' },
-      async () => { supabaseCalls += 1; return 'supabase'; },
-      async () => { throw new Error("exceeded D1's free tier daily row read limit"); },
-      'disabled-emergency'
-    ),
-    /row read limit/
-  );
-  assert.equal(supabaseCalls, 0);
-});
-
 test('reserve catalog RPC is service-role only', () => {
   const migration = fs.readFileSync(
     'supabase/migrations/20261001162000_supabase_emergency_read_fallback_v1.sql',
@@ -272,40 +232,6 @@ test('public product images use preferred store for treated and original keys', 
   assert.match(images, /imageKey\(env, 'product'/);
 });
 
-
-test('D1 quota circuit breaker skips repeated D1 reads during cooldown', async () => {
-  resetD1EmergencyCircuitForTests();
-  let d1Calls = 0;
-  let supabaseCalls = 0;
-  const env = {
-    SUPABASE_READS_ENABLED: '0',
-    SUPABASE_EMERGENCY_FALLBACK_ENABLED: '1',
-    SUPABASE_EMERGENCY_CIRCUIT_MS: '60000'
-  };
-
-  const first = await preferSupabaseRead(
-    env,
-    async () => { supabaseCalls += 1; return 'reserve-1'; },
-    async () => {
-      d1Calls += 1;
-      throw new Error("D1 daily row read limit exceeded [code: 7500]");
-    },
-    'circuit:first'
-  );
-  const second = await preferSupabaseRead(
-    env,
-    async () => { supabaseCalls += 1; return 'reserve-2'; },
-    async () => { d1Calls += 1; return 'should-not-run'; },
-    'circuit:second'
-  );
-
-  assert.equal(first, 'reserve-1');
-  assert.equal(second, 'reserve-2');
-  assert.equal(d1Calls, 1);
-  assert.equal(supabaseCalls, 2);
-  assert.equal(d1EmergencyCircuitStatus().open, true);
-  resetD1EmergencyCircuitForTests();
-});
 
 test('critical reserve RPCs cover scanner, occurrence history and notifications', () => {
   const migration = fs.readFileSync(
@@ -328,7 +254,7 @@ test('critical reserve RPCs cover scanner, occurrence history and notifications'
   assert.match(occurrences, /supabaseReserveOccurrences/);
   assert.match(notifications, /supabaseReserveNotifications/);
   assert.match(notifications, /supabaseReserveUnreadNotifications/);
-  assert.match(wrangler, /SUPABASE_EMERGENCY_CIRCUIT_MS = "900000"/);
+  assert.doesNotMatch(wrangler, /SUPABASE_EMERGENCY_/);
 });
 
 test('GTIN dashboard uses the Supabase reserve without touching D1 when reads are enabled', () => {
