@@ -185,3 +185,13 @@ test('Produtos vendidos exibem imagem real e SKU da venda', () => {
     assert.equal(rpc.includes(token), true, token);
   }
 });
+
+
+test('Painel de Vendas consolida períodos pelo mês-calendário', () => {
+  const migration = read('supabase/migrations/20261002111500_sales_dashboard_calendar_months_v2.sql');
+
+  assert.equal(migration.includes("to_char(min(sr.period_start),'YYYY-MM') as period_key"), true);
+  assert.equal(migration.includes("group by date_trunc('month',sr.period_start)"), true);
+  assert.equal(migration.includes("to_char(sf.period_start,'YYYY-MM') as period_key"), true);
+  assert.equal(migration.includes("group by date_trunc('month',s.period_start)"), true);
+});
