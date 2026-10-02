@@ -438,7 +438,9 @@ function productFinishLabels(row) {
     tassel: row?.tassel_code === 'X'
       ? 'Sem tassel'
       : ACCESSORY_COLORS[row?.tassel_code] || row?.tassel_code || null,
-    elastico: ACCESSORY_COLORS[row?.elastico_code] || row?.elastico_code || null
+    elastico: row?.elastico_code === 'X'
+      ? 'Sem elástico'
+      : ACCESSORY_COLORS[row?.elastico_code] || row?.elastico_code || null
   };
 }
 
