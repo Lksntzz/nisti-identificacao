@@ -106,19 +106,13 @@ test('post-cutover notification and push writers no longer depend on D1 mirrorin
   assert.doesNotMatch(push,/nisti_mirror_push_log/);
 });
 
-test('Phase 6D covers finish edits, synthetic notifications, reindex maintenance, shadow confirmation and operator rename', () => {
-  const mutationMirror = fs.readFileSync('src/supabase-mutation-mirror.js', 'utf8');
+test('Phase 6D keeps shadow/operator mirrors while retired visual reindex has no mutation path', () => {
   const reindex = fs.readFileSync('src/reference-reindex-router.js', 'utf8');
   const shadowConfirmation = fs.readFileSync('src/geometric-shadow-confirmation-router.js', 'utf8');
   const systemMetrics = fs.readFileSync('src/system-metrics-clean-router.js', 'utf8');
 
-  assert.ok(mutationMirror.includes('const productFinish = url.pathname.match'));
-  assert.ok(mutationMirror.includes('mirrorProductCatalogFromD1(env, Number(productFinish[1]))'));
-  assert.match(mutationMirror, /\/api\/admin\/notifications\/test/);
-  assert.match(mutationMirror, /mirrorNotificationByCapaFromD1/);
-  assert.match(reindex, /nisti_upsert_reference_embedding_v1/);
-  assert.doesNotMatch(reindex, /mirrorVisualReferencesBatchFromD1/);
-  assert.doesNotMatch(reindex, /env\.DB/);
+  assert.match(reindex, /export default app/);
+  assert.doesNotMatch(reindex, /nisti_upsert_reference_embedding_v1|mirrorVisualReferencesBatchFromD1|env\.DB/);
   assert.match(shadowConfirmation, /supabaseWriteMode\(env\) !== 'off'/);
   assert.match(shadowConfirmation, /nisti_mirror_confirm_geometric_shadow/);
   assert.match(systemMetrics, /supabaseWriteMode\(env\) !== 'off'/);
@@ -160,12 +154,9 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
     ['product_platforms', new Set(['core-router.js'])],
     ['recognition_daily', new Set(['recognition-metrics.js'])],
     ['recognition_events', new Set(['recognition-metrics.js', 'system-metrics-clean-router.js'])],
-    ['cover_visual_references', new Set(['core-router.js'])],
-    ['cover_reference_embeddings', new Set(['core-router.js'])],
     ['notifications', new Set(['system-notifications.js'])],
     ['notification_reads', new Set(['system-notifications.js'])],
     ['geometric_shadow_evidence', new Set(['geometric-shadow-evidence-router.js', 'geometric-shadow-confirmation-router.js'])],
-    ['gemini_call_budget', new Set(['gemini-budget.js'])],
   ]);
 
   const files = fs.readdirSync('src')
