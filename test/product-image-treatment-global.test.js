@@ -186,13 +186,38 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
 
   assert.ok(main.includes('ProductImageTreatmentWorker'));
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
-  assert.ok(worker.includes('treatedProductImageBlob'));
+  assert.ok(worker.includes('productImageTreatmentArtifactsBlob'));
   assert.ok(worker.includes('tasselCode:item.tassel_code'));
   assert.equal(worker.includes('/ai'), false);
-  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v10'"));
+  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v11'"));
   assert.ok(worker.includes("cache:'no-store'"));
   assert.ok(worker.includes("form.append('image'"));
+  assert.ok(worker.includes("form.append('mask'"));
+  assert.ok(worker.includes('/api/admin/product-image-mask/pending'));
+  assert.ok(worker.includes('processMaskItem'));
   assert.ok(worker.includes('/failed'));
+});
+
+test('each product treatment persists an individual auditable mask', () => {
+  const utility = read('src/mural-transparent-image.js');
+  const worker = read('src/product-image-treatment-worker.jsx');
+  const core = read('src/core-router.js');
+  const migration = read('supabase/migrations/20261002162500_persistent_product_masks_v1.sql');
+
+  assert.ok(utility.includes('productMaskPngBlob'));
+  assert.ok(utility.includes('productImageTreatmentArtifactsBlob'));
+  assert.ok(utility.includes('productImageMaskBlob'));
+  assert.ok(utility.includes("maskOnly:true"));
+  assert.ok(worker.includes("form.append('mask'"));
+  assert.ok(core.includes('masks/products/'));
+  assert.ok(core.includes('nisti_set_product_treatment_v2'));
+  assert.ok(core.includes('nisti_set_product_mask_v1'));
+  assert.ok(core.includes('/api/admin/product-image-treatment/'));
+  assert.ok(core.includes('/mask'));
+  assert.match(migration,/ADD COLUMN IF NOT EXISTS mask_image_key text/);
+  assert.match(migration,/mask_processor_version text/);
+  assert.match(migration,/nisti_product_mask_queue_v1/);
+  assert.match(migration,/old_mask_image_key/);
 });
 
 test('Mural admin shows live treatment totals and the current SKU', () => {
@@ -230,13 +255,13 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'treated') return normalized"));
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
-  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '10'"));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '11'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(queueSql.includes("queue_status IN ('pending','stale')"));
   assert.ok(queueSql.includes("COALESCE(mpi.processor_version,'')<>(SELECT current_version FROM params)"));
   assert.equal(queueSql.includes("queue_status IN ('pending','review','stale')"), false);
   assert.ok(queueSql.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
-  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '10'"));
+  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '11'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
