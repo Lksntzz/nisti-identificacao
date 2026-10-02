@@ -145,7 +145,7 @@ function MuralProductImageManager({ products, onChanged }) {
   const [busyId,setBusyId]=useState(null);
   const [error,setError]=useState('');
   const [paused,setPaused]=useState(()=>{
-    try{return localStorage.getItem(TREATMENT_PAUSE_KEY)==='1'}catch{return false}
+    try{return localStorage.getItem(TREATMENT_PAUSE_KEY)!=='0'}catch{return true}
   });
   const [treatmentProgress,setTreatmentProgress]=useState({
     loading:true,phase:'loading',with_image:0,approved:0,review:0,pending:0,failed:0,mask_total:0,mask_ready:0,mask_pending:0,current:null,error:''
@@ -168,16 +168,17 @@ function MuralProductImageManager({ products, onChanged }) {
 
     const mergeProgress=(detail={})=>{
       if(!active)return;
+      if(detail.phase==='complete'||detail.phase==='paused')setPaused(true);
       setTreatmentProgress(current=>{
         const summary=detail.summary&&typeof detail.summary==='object'?detail.summary:{};
-        const phase=detail.phase||current.phase;
-        const finished=['processed','failed'].includes(phase);
+        const resolvedPhase=detail.phase||current.phase;
+        const finished=['processed','failed','complete','paused'].includes(resolvedPhase);
         return {
           ...current,
           ...summary,
           loading:false,
-          phase,
-          current:phase==='processing'?(detail.product||null):finished?null:current.current,
+          phase:resolvedPhase,
+          current:resolvedPhase==='processing'?(detail.product||null):finished?null:current.current,
           error:detail.error||'',
         };
       });
@@ -238,7 +239,7 @@ function MuralProductImageManager({ products, onChanged }) {
   const treatmentStatus=treatmentProgress.loading
     ?'Verificando a fila…'
     :paused
-      ?'Tratamento pausado por você'
+      ?'Aguardando início manual'
     :treatmentProgress.phase==='waiting'
       ?'A fila está sendo processada em outra aba'
     :treatmentProgress.current?.sku
@@ -303,7 +304,7 @@ function MuralProductImageManager({ products, onChanged }) {
     <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. Só vai para Revisados depois da sua aprovação.</p></div><div className="mural-product-image-manager-tools"><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></div></header>
     <section className={`mural-product-treatment-progress ${treatmentProgress.phase}`} aria-live="polite">
       <div className="mural-product-treatment-progress-copy">
-        <span>Tratamento automático</span>
+        <span>Tratamento manual</span>
         <strong>{treatmentProgress.loading?'Carregando…':`${treatmentApproved} de ${treatmentTotal} imagens aprovadas`}</strong>
         <small>{treatmentStatus}</small>
         <small>{maskPending>0?`Máscaras individuais: ${maskReady} de ${maskTotal} prontas · ${maskPending} pendentes`:`Máscaras individuais: ${maskReady} de ${maskTotal} prontas`}</small>
@@ -316,7 +317,7 @@ function MuralProductImageManager({ products, onChanged }) {
         {treatmentFailed>0&&<span className="failed"><b>{treatmentFailed}</b> falhas</span>}
         <span className="mural-product-treatment-controls">
           <button type="button" className="start" disabled={!paused} onClick={()=>setTreatmentPaused(false)}>Iniciar tratamento</button>
-          <button type="button" className="pause" disabled={paused} onClick={()=>setTreatmentPaused(true)}>Pausar tratamentos</button>
+          <button type="button" className="pause" disabled={paused} onClick={()=>setTreatmentPaused(true)}>Pausar tratamento</button>
         </span>
       </div>
       <div

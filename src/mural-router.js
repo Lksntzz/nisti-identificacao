@@ -1,5 +1,6 @@
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 import { productTypeLabel } from './product-display.js';
+import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 import { broadcastMuralPush } from './web-push.js';
 import {
   preferSupabaseRead,
@@ -79,6 +80,7 @@ function finishLabels(row) {
 
 function approvedMuralProductKey(row) {
   if (row?.mural_image_status !== 'approved' || row?.mural_image_reviewed_by !== 'admin') return null;
+  if (row?.mural_image_processor_version !== PRODUCT_IMAGE_PROCESSOR_VERSION) return null;
   if (!row?.mural_processed_image_key || row?.mural_source_image_key !== row?.image_key) return null;
   return row.mural_processed_image_key;
 }
@@ -142,7 +144,8 @@ function mapFeedRow(row, collectionPreviews = new Map()) {
             mural_image_status:row.mural_image_status,
             mural_image_reviewed_by:row.mural_image_reviewed_by,
             mural_source_image_key:row.mural_source_image_key,
-            mural_processed_image_key:row.mural_processed_image_key
+            mural_processed_image_key:row.mural_processed_image_key,
+            mural_image_processor_version:row.mural_image_processor_version
           })
         : collectionId && row.collection_image_key
           ? `/api/mural/collections/${encodeURIComponent(row.collection_slug)}/image?v=${encodeURIComponent(row.collection_image_key)}`
@@ -155,7 +158,8 @@ function mapFeedRow(row, collectionPreviews = new Map()) {
             mural_image_status:row.mural_image_status,
             mural_image_reviewed_by:row.mural_image_reviewed_by,
             mural_source_image_key:row.mural_source_image_key,
-            mural_processed_image_key:row.mural_processed_image_key
+            mural_processed_image_key:row.mural_processed_image_key,
+            mural_image_processor_version:row.mural_image_processor_version
           }) ? 'product-processed' : 'product'
         : collectionId && row.collection_image_key
           ? 'collection'
@@ -238,7 +242,7 @@ async function listMuralFeed(request, url, env) {
           p.id AS product_id,p.sku,p.miolo_code,p.nome AS product_name,
           p.wireo_code,p.tassel_code,p.elastico_code,p.image_key AS product_image_key,
           mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
-          mpi.processed_image_key AS mural_processed_image_key,
+          mpi.processed_image_key AS mural_processed_image_key,mpi.processor_version AS mural_image_processor_version,
           (
             SELECT mc2.name
             FROM mural_collection_products mcp2
@@ -274,7 +278,7 @@ async function listMuralFeed(request, url, env) {
             mcp.collection_id,mcp.sort_order,
             p.id,p.sku,p.nome,p.variacao,p.miolo_code,p.image_key,
             mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
-            mpi.processed_image_key AS mural_processed_image_key
+            mpi.processed_image_key AS mural_processed_image_key,mpi.processor_version AS mural_image_processor_version
           FROM mural_collection_products mcp
           INNER JOIN products p ON p.id=mcp.product_id
           LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
@@ -410,7 +414,7 @@ async function collectionDetail(slug, env) {
         SELECT
           p.id,p.sku,p.miolo_code,p.nome,p.variacao,p.wireo_code,p.tassel_code,p.elastico_code,p.image_key,
           mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
-          mpi.processed_image_key AS mural_processed_image_key,
+          mpi.processed_image_key AS mural_processed_image_key,mpi.processor_version AS mural_image_processor_version,
           mcp.sort_order
         FROM mural_collection_products mcp
         INNER JOIN products p ON p.id = mcp.product_id
@@ -1350,7 +1354,7 @@ async function adminProducts(url, env) {
     const response=await env.DB.prepare(`
       SELECT p.id,p.sku,p.nome,p.variacao,p.image_key,p.wireo_code,p.tassel_code,p.elastico_code,p.miolo_code,
         mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,mpi.source_image_key AS mural_source_image_key,
-        mpi.processed_image_key AS mural_processed_image_key,mpi.processor AS mural_image_processor,
+        mpi.processed_image_key AS mural_processed_image_key,mpi.processor_version AS mural_image_processor_version,mpi.processor AS mural_image_processor,
         mpi.reviewed_at AS mural_image_reviewed_at,mpi.error_message AS mural_image_error,
         (
           SELECT mc2.name
@@ -1375,7 +1379,8 @@ async function adminProducts(url, env) {
       || (row.mural_image_status === 'approved' && row.mural_image_reviewed_by !== 'admin')
     )
       && row.mural_processed_image_key
-      && row.mural_source_image_key === row.image_key;
+      && row.mural_source_image_key === row.image_key
+      && row.mural_image_processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION;
     return {
       ...row,
       ...labels,

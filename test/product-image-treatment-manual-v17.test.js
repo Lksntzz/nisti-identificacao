@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+
+const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
+
+test('treated image v17 is manual-only from UI to worker', () => {
+  const main = read('src/main.jsx');
+  const worker = read('src/product-image-treatment-worker.jsx');
+  const admin = read('src/admin/MuralNistiAdminView.jsx');
+
+  assert.equal(main.includes('TREATMENT_WAKE_EVENT'), false);
+  assert.equal(worker.includes('TREATMENT_WAKE_EVENT'), false);
+  assert.equal(worker.includes('IDLE_POLL_MS'), false);
+  assert.equal(worker.includes('const timer = window.setTimeout(run, 900)'), false);
+  assert.ok(worker.includes("return localStorage.getItem(TREATMENT_PAUSE_KEY) !== '0'"));
+  assert.ok(worker.includes('TREATMENT_CONTROL_EVENT'));
+  assert.ok(admin.includes('Tratamento manual'));
+  assert.ok(admin.includes('Aguardando início manual'));
+});
+
+test('rendering never manufactures a treated derivative in the browser', () => {
+  const utility = read('src/mural-transparent-image.js');
+  const start = utility.indexOf('export function useTreatedProductImage');
+  const end = utility.indexOf('export const __muralTransparentImageInternals');
+  const hook = utility.slice(start, end);
+
+  assert.ok(start >= 0 && end > start);
+  assert.ok(hook.includes('Display is server-authoritative'));
+  assert.equal(hook.includes('treatedProductImageUrl('), false);
+  assert.equal(hook.includes('buildTreatedProductImage('), false);
+});
+
+test('API rejects stale treatment clients and only serves approved v17 derivatives', () => {
+  const core = read('src/core-router.js');
+  const publicImages = read('src/public-image-router.js');
+  const mural = read('src/mural-router.js');
+  const version = read('src/product-image-processor-version.js');
+
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"));
+  assert.ok((core.match(/code:'stale_image_processor'/g) || []).length >= 3);
+  assert.ok(core.includes('row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
+  assert.ok(core.includes('product.treated_image_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
+  assert.ok(publicImages.includes('row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
+  assert.ok(publicImages.includes('mpi.processor_version=?'));
+  assert.ok(mural.includes('row?.mural_image_processor_version !== PRODUCT_IMAGE_PROCESSOR_VERSION'));
+});
+
+test('database migration invalidates pre-v17 derivatives without deleting originals', () => {
+  const supabase = read('supabase/migrations/20261002190000_manual_treated_images_v17.sql');
+  const d1 = read('migrations/0025_manual_treated_images_v17.sql');
+
+  for (const migration of [supabase, d1]) {
+    assert.match(migration, /status='pending'/);
+    assert.match(migration, /COALESCE\(processor_version,''\) <> '17'/);
+    assert.doesNotMatch(migration, /DELETE FROM products|UPDATE products SET image_key/i);
+  }
+  assert.match(supabase, /processor_version='17'/);
+  assert.match(supabase, /reviewed_by='admin'/);
+  assert.match(supabase, /status='review'/);
+  assert.match(supabase, /processor_version=p_processor_version/);
+});

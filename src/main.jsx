@@ -10,7 +10,7 @@ import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
-import ProductImageTreatmentWorker, { TREATMENT_WAKE_EVENT } from './product-image-treatment-worker.jsx';
+import ProductImageTreatmentWorker from './product-image-treatment-worker.jsx';
 import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
 import {
@@ -1568,7 +1568,6 @@ function AdminApp() {
 
   const reportProductChange = async (payload = {}) => {
     await refreshAll();
-    window.dispatchEvent(new CustomEvent(TREATMENT_WAKE_EVENT));
     const ids = (payload.productIds || []).map(Number).filter(Number.isSafeInteger);
     const skus = (payload.skus || []).filter(Boolean);
     if (ids.length) setRecentProductIds(ids);

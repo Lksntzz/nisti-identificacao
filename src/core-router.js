@@ -202,7 +202,8 @@ export default {
             const treatedReady = product.treated_image_status === 'approved'
               && product.treated_image_key
               && product.treated_source_image_key === product.image_key
-              && product.treated_image_reviewed_by === 'admin';
+              && product.treated_image_reviewed_by === 'admin'
+              && product.treated_image_version === PRODUCT_IMAGE_PROCESSOR_VERSION;
             return {
               ...product,
               has_active_gtin:product.has_active_gtin === true || Number(product.has_active_gtin) === 1,
@@ -408,7 +409,8 @@ export default {
         const processedReady = treatmentStatus === 'approved'
           && row.processed_image_key
           && row.source_image_key === row.image_key
-          && row.reviewed_by === 'admin';
+          && row.reviewed_by === 'admin'
+          && row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION;
 
         let object = processedReady ? await env.PRODUCT_IMAGES.get(row.processed_image_key) : null;
         const servedKey = processedReady && object ? row.processed_image_key : row.image_key;
@@ -617,6 +619,14 @@ export default {
         if (!product.image_key) return json({ error:'Produto sem imagem original.' },422);
 
         const form = await request.formData();
+        const clientProcessorVersion = String(form.get('processor_version') || '').trim();
+        if (clientProcessorVersion !== PRODUCT_IMAGE_PROCESSOR_VERSION) {
+          return json({
+            error:'A página do Mural está desatualizada. Atualize a página antes de processar imagens.',
+            code:'stale_image_processor',
+            expected_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION
+          },409);
+        }
         const file = form.get('image');
         const maskFile = form.get('mask');
         if (!(file instanceof File)) return json({ error:'Envie o PNG tratado no campo image.' },400);
@@ -745,7 +755,8 @@ export default {
         const productId = Number(treatmentApprove[1]);
         const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v2',{
           p_product_id:productId,p_action:'approve',
-          p_processed_image_key:null,p_mask_image_key:null,p_processor:null,p_processor_version:null,p_error_message:null
+          p_processed_image_key:null,p_mask_image_key:null,p_processor:null,
+          p_processor_version:PRODUCT_IMAGE_PROCESSOR_VERSION,p_error_message:null
         },'aprovação de imagem tratada');
         if(saved.value?.status==='not_found') return json({error:'Produto sem imagem original.'},404);
         if(saved.value?.status==='invalid_derivative') {
