@@ -361,7 +361,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(utility.includes('plannerMaskGeometryIsSafe'));
   assert.ok(utility.includes('nearbyDetailStrongRatio:.18'));
   assert.ok(utility.includes('genericDetailStrongRatio:.30'))
-  assert.ok(utility.includes('sourceAlreadyCutOut && !options.forceOutline'));
+  assert.ok(utility.includes('if (sourceAlreadyCutOut) return src'));
   assert.ok(utility.includes('buildGeometryProtection('));
   assert.ok(utility.includes('const fitScale = Math.min(width * .995 / boxWidth, height * .995 / boxHeight)'));
   assert.ok(utility.includes('genericDetailStrongRatio:.30'));
