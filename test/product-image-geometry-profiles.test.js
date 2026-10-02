@@ -95,16 +95,16 @@ test('horizontal and disc profiles protect a white product core with distinct ge
   assert.equal(discProtect(4, 110), false);
 });
 
-test('legacy square MKP mask is restricted to standard geometry', () => {
-  assert.match(source, /const standardMkpEligible = geometry\.kind === 'standard'/);
-  assert.match(source, /square canvas alone is no longer enough/);
-  assert.match(source, /geometry\?\.kind === 'horizontal'/);
-  assert.match(source, /geometry\?\.kind === 'perspective'/);
-  assert.match(source, /geometry\?\.kind === 'disc'/);
+test('geometry profiles never fall back to a shared square MKP cutout', () => {
+  assert.equal(source.includes('standardMkpEligible'), false);
+  assert.equal(source.includes('buildMkpProductAlpha'), false);
+  assert.equal(source.includes('applyMkpProductAlpha'), false);
+  assert.match(source, /const geometry = classifyProductGeometry/);
+  assert.match(source, /const structureProtection = buildGeometryProtection/);
 });
 
 test('worker supplies SKU and name so disc families are recognized during treatment and mask backfill', () => {
   assert.ok((worker.match(/sku:item\.sku/g) || []).length >= 2);
   assert.ok((worker.match(/name:item\.name/g) || []).length >= 2);
-  assert.ok(worker.includes('requireMkpMask:true'));
+  assert.equal(worker.includes('requireMkpMask'), false);
 });
