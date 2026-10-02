@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { treatedProductImageBlob } from './mural-transparent-image.js';
+import { productImageMaskBlob, productImageTreatmentArtifactsBlob } from './mural-transparent-image.js';
 
-const LOCK_KEY = 'nisti_product_image_treatment_lock_v10';
+const LOCK_KEY = 'nisti_product_image_treatment_lock_v11';
 export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
 export const TREATMENT_WAKE_EVENT = 'nisti:product-image-treatment-wake';
@@ -92,25 +92,41 @@ async function markFailed(productId, message) {
 }
 
 async function processItem(item) {
-  const blob = await treatedProductImageBlob(item.original_image_url, {
+  const artifacts = await productImageTreatmentArtifactsBlob(item.original_image_url, {
     tasselCode:item.tassel_code,
     forceOutline:Boolean(item.force_outline),
     preciseOutline:Boolean(item.force_outline)
   });
-  if (!blob) {
-    await markFailed(item.id, 'A imagem original não gerou um recorte transparente seguro com o limite atual.');
+  if (!artifacts?.imageBlob || !artifacts?.maskBlob) {
+    await markFailed(item.id, 'A imagem original não gerou um recorte e uma máscara individual seguros.');
     return { id:item.id, status:'failed' };
   }
 
   const form = new FormData();
-  form.append('image', new File([blob], `produto-${item.id}-tratado.png`, { type:'image/png' }));
+  form.append('image', new File([artifacts.imageBlob], `produto-${item.id}-tratado.png`, { type:'image/png' }));
+  form.append('mask', new File([artifacts.maskBlob], `produto-${item.id}-mascara.png`, { type:'image/png' }));
 
   await requestJson(`/api/admin/product-image-treatment/${item.id}`, {
     method:'POST',
     body:form
   });
 
-  return { id:item.id, status:'review' };
+  return { id:item.id, status:'review', mask_saved:true };
+}
+
+async function processMaskItem(item) {
+  const maskBlob = await productImageMaskBlob(item.original_image_url, {
+    tasselCode:item.tassel_code
+  });
+  if (!maskBlob) throw new Error('Não foi possível gerar a máscara individual deste produto.');
+
+  const form = new FormData();
+  form.append('mask', new File([maskBlob], `produto-${item.id}-mascara.png`, { type:'image/png' }));
+  await requestJson(`/api/admin/product-image-mask/${item.id}`, {
+    method:'POST',
+    body:form
+  });
+  return { id:item.id, status:item.status || 'approved', mask_saved:true, mask_backfill:true };
 }
 
 export default function ProductImageTreatmentWorker({ enabled = true, onBatchComplete }) {
@@ -161,9 +177,20 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
             throw error;
           }
 
-          const items = Array.isArray(payload?.items) ? payload.items : [];
+          let items = Array.isArray(payload?.items) ? payload.items : [];
+          let maskBackfill = false;
+          if (!items.length) {
+            try {
+              const maskPayload = await requestJson(`/api/admin/product-image-mask/pending?limit=${BATCH_SIZE}`);
+              items = Array.isArray(maskPayload?.items) ? maskPayload.items : [];
+              maskBackfill = items.length > 0;
+            } catch (error) {
+              if (![401,403].includes(Number(error?.status))) throw error;
+            }
+          }
+
           emitTreatmentProgress({
-            phase:items.length ? 'queue' : 'idle',
+            phase:items.length ? (maskBackfill ? 'mask-backfill' : 'queue') : 'idle',
             summary:payload?.summary || null
           });
           if (!items.length) {
@@ -183,7 +210,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
               summary:payload?.summary || null
             });
             try {
-              const result = await processItem(item);
+              const result = maskBackfill ? await processMaskItem(item) : await processItem(item);
               failureCounts.delete(item.id);
               changed.push(result);
               emitTreatmentProgress({
