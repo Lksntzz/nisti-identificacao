@@ -1,0 +1,44 @@
+name: Debug Mural Cutout Samples
+
+on:
+  push:
+    branches: [debug/mural-cutout-v13-samples]
+    paths: [.github/workflows/debug-mural-cutout-samples.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Export latest processed and mask samples
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+          R2_BUCKET: nisti-identificacao-images
+        run: |
+          set -euo pipefail
+          API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/$R2_BUCKET"
+          mkdir -p samples/processed samples/masks
+          for id in $(seq 1 14); do
+            for prefix in processed masks; do
+              if [ "$prefix" = "processed" ]; then r2prefix="processed/products/$id/"; else r2prefix="masks/products/$id/"; fi
+              encoded_prefix="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$r2prefix")"
+              curl --fail --silent --show-error --location -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API/objects?prefix=$encoded_prefix&per_page=1000" -o list.json
+              key="$(jq -r '.result | sort_by(.last_modified) | last | .key // empty' list.json)"
+              if [ -n "$key" ]; then
+                encoded_key="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe="/"))' "$key")"
+                curl --fail --silent --show-error --location -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API/objects/$encoded_key" -o "samples/$prefix/ID$id.png"
+              fi
+            done
+          done
+      - name: Upload samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: mural-cutout-v13-samples
+          path: samples/
+          if-no-files-found: error
+          retention-days: 1
