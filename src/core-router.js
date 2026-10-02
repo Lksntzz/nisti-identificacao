@@ -717,17 +717,19 @@ export default {
         const reserveCircuit = d1EmergencyCircuitStatus();
         const supabaseReads = supabaseReadsRequested(env);
         const supabaseWrites = supabasePrimaryWritesRequested(env);
+        const d1Attached = Boolean(env?.DB);
         return json({
           ok: true,
           service: 'nisti-identificacao',
           database: {
             primary: supabaseReads ? 'supabase' : 'd1',
             write_authority: supabaseWrites ? 'supabase' : 'd1',
-            compatibility_store: supabaseReads ? 'd1' : 'supabase',
+            d1_binding_configured:d1Attached,
+            compatibility_store:d1Attached ? 'd1' : 'detached',
             emergency_fallback_enabled: String(env?.SUPABASE_EMERGENCY_FALLBACK_ENABLED || '') === '1',
-            d1_reserve_circuit_open: reserveCircuit.open,
-            d1_reserve_circuit_open_until: reserveCircuit.open_until,
-            d1_reserve_circuit_remaining_ms: reserveCircuit.remaining_ms
+            d1_reserve_circuit_open: d1Attached && reserveCircuit.open,
+            d1_reserve_circuit_open_until: d1Attached ? reserveCircuit.open_until : null,
+            d1_reserve_circuit_remaining_ms: d1Attached ? reserveCircuit.remaining_ms : 0
           }
         });
       }
