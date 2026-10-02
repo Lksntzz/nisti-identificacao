@@ -16,7 +16,7 @@ test('MKP masks discard gray PSD matte while preserving the near-white silhouett
   assert.equal(normalizeMkpMaskValue(255), 255);
 });
 
-test('automatic treatment uses exact MKP masks for registered square planners', () => {
+test('automatic treatment uses MKP body masks plus source wire-o recovery for registered square planners', () => {
   assert.match(source, /const MKP_PRODUCT_MASKS/);
   assert.match(source, /wire_branco_com_tassel\.png/);
   assert.match(source, /wire_branco_sem_tassel\.png/);
