@@ -82,10 +82,17 @@ async function loadOfficialProductMask(variant) {
 
 function fillOfficialOutline(outline, width, height) {
   const total = width * height;
-  const barrier = new Uint8Array(total);
+  let barrier = new Uint8Array(total);
   for (let index = 0; index < total; index += 1) {
     if (outline[index * 4 + 3] >= 24) barrier[index] = 1;
   }
+
+  // Supplied contour PNGs can contain isolated antialiasing specks. They must
+  // not become tiny opaque islands in the final cutout. A one-pixel dilation
+  // closes small breaks in the real contour, then only its dominant connected
+  // component is retained before the exterior flood-fill.
+  barrier = largestMaskComponent(dilateMask(barrier, width, height, 1), width, height);
+  if (!barrier) return new Uint8Array(total);
 
   // The supplied files are closed external contours. Flooding only the area
   // reachable from the canvas border converts that contour into a solid
@@ -123,6 +130,42 @@ function fillOfficialOutline(outline, width, height) {
     if (!outside[index]) silhouette[index] = 1;
   }
   return silhouette;
+}
+
+function largestMaskComponent(mask, width, height) {
+  const total = width * height;
+  const visited = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let largest = [];
+
+  for (let start = 0; start < total; start += 1) {
+    if (!mask[start] || visited[start]) continue;
+    let head = 0;
+    let tail = 0;
+    const component = [];
+    visited[start] = 1;
+    queue[tail++] = start;
+    while (head < tail) {
+      const index = queue[head++];
+      component.push(index);
+      const x = index % width;
+      const y = Math.floor(index / width);
+      for (let yy = Math.max(0,y-1); yy <= Math.min(height-1,y+1); yy += 1) {
+        for (let xx = Math.max(0,x-1); xx <= Math.min(width-1,x+1); xx += 1) {
+          const next = yy * width + xx;
+          if (!mask[next] || visited[next]) continue;
+          visited[next] = 1;
+          queue[tail++] = next;
+        }
+      }
+    }
+    if (component.length > largest.length) largest = component;
+  }
+
+  if (!largest.length) return null;
+  const result = new Uint8Array(total);
+  for (const index of largest) result[index] = 1;
+  return result;
 }
 
 async function buildOfficialProductMask(width, height, tasselCode) {
@@ -173,17 +216,43 @@ function pixelMetrics(r, g, b) {
 function isStrongForegroundPixel(r, g, b, a) {
   if (a < 32) return false;
   const { chroma, brightness } = pixelMetrics(r, g, b);
-  // Ignore pale studio shadows. Strong cover artwork, elastic and wire-o
-  // remain as evidence for the real product body.
-  return brightness < 218 || chroma > 30;
+  // Neutral studio shadows can be considerably darker than white while still
+  // not belonging to the product. Preserve genuinely dark hardware and
+  // coloured details (including tassels), but do not use a soft grey shadow
+  // as evidence that expands the product silhouette.
+  return brightness < 185 || chroma > 24;
 }
 
-function isBorderBackgroundCandidate(r, g, b, a) {
+function isBorderBackgroundCandidate(r, g, b, a, minimumBrightness = 242) {
   if (a < 8) return true;
   const { chroma, brightness } = pixelMetrics(r, g, b);
-  // Conservative studio-background candidate. White/off-white product parts
-  // are protected separately by the local edge barrier below.
-  return brightness >= 242 && chroma <= 18;
+  // Include soft neutral shadows connected to the studio background. White
+  // and off-white product parts remain protected by geometry and edge guards.
+  return brightness >= minimumBrightness && chroma <= 26;
+}
+
+function estimateBorderBackgroundBrightness(data, width, height) {
+  const histogram = new Uint32Array(256);
+  let samples = 0;
+  const sample = index => {
+    const offset = index * 4;
+    if (data[offset + 3] < 8) return;
+    const { chroma, brightness } = pixelMetrics(data[offset], data[offset + 1], data[offset + 2]);
+    if (chroma > 26) return;
+    histogram[clamp(Math.round(brightness), 0, 255)] += 1;
+    samples += 1;
+  };
+  for (let x = 0; x < width; x += 1) {
+    sample(x);
+    if (height > 1) sample((height - 1) * width + x);
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    sample(y * width);
+    if (width > 1) sample(y * width + width - 1);
+  }
+  if (!samples) return 242;
+  const median = quantileIndexFromHistogram(histogram, samples, .5);
+  return clamp(median - 38, 205, 242);
 }
 
 function hasLocalProductEdge(data, width, height, index) {
@@ -369,10 +438,13 @@ function buildPlannerStructureProtection(data, width, height) {
 function buildPlannerDetailMask(data, width, height, bounds) {
   const total = width * height;
   const mask = new Uint8Array(total);
-  const left = Math.max(0, Math.floor(bounds.minX - bounds.width * .16));
-  const right = Math.min(width - 1, Math.ceil(bounds.maxX + bounds.width * .035));
-  const top = Math.max(0, Math.floor(bounds.minY - bounds.height * .025));
-  const bottom = Math.min(height - 1, Math.ceil(bounds.maxY + bounds.height * .025));
+  // Tassels may hang well beyond the rigid cover on any side depending on how
+  // the product was photographed. Search a wider halo for strong real detail;
+  // neutral shadows are excluded by isStrongForegroundPixel().
+  const left = Math.max(0, Math.floor(bounds.minX - bounds.width * .28));
+  const right = Math.min(width - 1, Math.ceil(bounds.maxX + bounds.width * .18));
+  const top = Math.max(0, Math.floor(bounds.minY - bounds.height * .08));
+  const bottom = Math.min(height - 1, Math.ceil(bounds.maxY + bounds.height * .22));
 
   for (let y = top; y <= bottom; y += 1) {
     for (let x = left; x <= right; x += 1) {
@@ -754,6 +826,14 @@ function buildProductComponentsMask(data, width, height) {
   return mask;
 }
 
+function buildOpaqueMask(data, width, height) {
+  const mask = new Uint8Array(width * height);
+  for (let index = 0; index < mask.length; index += 1) {
+    if (data[index * 4 + 3] >= 32) mask[index] = 1;
+  }
+  return mask;
+}
+
 function fillMaskInteriorHoles(mask, width, height) {
   const total = width * height;
   const outside = new Uint8Array(total);
@@ -1000,19 +1080,18 @@ async function buildTransparentProductImage(src, options = {}) {
   if (requestedOfficialVariant) {
     const official = await buildOfficialProductMask(width, height, options.tasselCode);
     if (official) {
-      // The photos are not always positioned exactly like the supplied mold.
-      // Follow the real cover, wire-o and tassel anchors first, then intersect
-      // that cut with the correct official variant.
       const originalPixels = data.slice();
-      const photoStructure = buildPlannerStructureProtection(data, width, height);
-      if (photoStructure) applyPlannerStructureMask(data, width, height, photoStructure);
+      // The official silhouette is already selected from the product metadata
+      // and includes the entire white cover plus the tassel variant. Do not
+      // intersect it with the rigid planner body: that used to erase tassels.
       applyOfficialProductMask(data, official.mask);
 
-      const officialProductMask = buildProductComponentsMask(data, width, height);
+      const officialProductMask = requestedOfficialVariant === 'withTassel'
+        ? buildOpaqueMask(data, width, height)
+        : buildProductComponentsMask(data, width, height);
       const officialStats = officialProductMask ? maskStats(officialProductMask, width, height) : null;
-      const minimumRatio = photoStructure ? .12 : .45;
       const validOfficialCut = officialStats
-        && officialStats.ratio >= minimumRatio
+        && officialStats.ratio >= .12
         && officialStats.ratio <= .80
         && officialStats.touches < 3;
 
@@ -1072,11 +1151,14 @@ async function buildTransparentProductImage(src, options = {}) {
   const queue = new Int32Array(total);
   let head = 0;
   let tail = 0;
+  const backgroundBrightness = estimateBorderBackgroundBrightness(data, width, height);
 
   const enqueue = index => {
     if (index < 0 || index >= total || visited[index]) return;
     const offset = index * 4;
-    if (!isBorderBackgroundCandidate(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) return;
+    if (!isBorderBackgroundCandidate(
+      data[offset],data[offset + 1],data[offset + 2],data[offset + 3],backgroundBrightness
+    )) return;
     const x = index % width;
     const y = Math.floor(index / width);
     // Never let a near-white background flood enter the geometric core of the
@@ -1120,7 +1202,12 @@ async function buildTransparentProductImage(src, options = {}) {
   const subjectCoverage = protectedSubjectCoverage(data, width, height, subjectEvidence);
   if (subjectCoverage < .82) return src;
 
-  const productMask = buildProductComponentsMask(data, width, height);
+  // A tassel is intentionally detached from the cover in many photos. Once
+  // the official silhouette has removed the background, retain every opaque
+  // component so the tassel is not discarded as a small disconnected object.
+  const productMask = requestedOfficialVariant === 'withTassel'
+    ? buildOpaqueMask(data, width, height)
+    : buildProductComponentsMask(data, width, height);
   if (!productMask) return src;
   const productStats = maskStats(productMask, width, height);
   const productWidth = productStats.maxX - productStats.minX + 1;
@@ -1452,11 +1539,16 @@ export function useTreatedProductImage(src, enabled = true) {
 export const __muralTransparentImageInternals = {
   officialProductMaskVariant,
   fillOfficialOutline,
+  largestMaskComponent,
   buildOfficialProductMask,
   applyOfficialProductMask,
   buildSubjectProtection,
   clearOutsideSubject,
   buildProductComponentsMask,
+  buildOpaqueMask,
+  estimateBorderBackgroundBrightness,
+  isBorderBackgroundCandidate,
+  isStrongForegroundPixel,
   hasUsableTransparentBorder,
   hasLocalProductEdge,
   protectedSubjectCoverage,

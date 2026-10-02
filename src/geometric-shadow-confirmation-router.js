@@ -39,7 +39,7 @@ async function ticketKey(secret) {
 }
 
 async function verifyShadowTicket(env, token) {
-  const secret = String(env.TICKET_SECRET || env.ADMIN_PASSWORD || env.GEMINI_API_KEY || '');
+  const secret = String(env.TICKET_SECRET || env.ADMIN_PASSWORD || '');
   if (!secret) return null;
 
   const [encoded, signature] = String(token || '').split('.', 2);

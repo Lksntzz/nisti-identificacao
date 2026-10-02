@@ -21,7 +21,7 @@ test('Painel de saúde mostra diagnóstico e logs operacionais reais', () => {
   assert.equal(source.includes('Erros e ocorrências recentes'), true);
   assert.equal(source.includes('Verificar agora'), true);
   assert.equal(source.includes('Reindexar Vectorize'), false);
-  assert.equal(source.includes('Atividade de IA hoje'), false);
+  assert.equal(source.includes('Atividade automatizada hoje'), false);
 });
 
 test('Ferramentas visuais antigas não são renderizadas no AdminApp EAN', () => {

@@ -13,14 +13,6 @@ const EMPTY_POST = {
 };
 
 
-const AI_STYLES = Object.freeze([
-  { value:'editorial', label:'Editorial premium' },
-  { value:'cozy', label:'Mesa criativa' },
-  { value:'minimal', label:'Estúdio minimalista' },
-  { value:'floral', label:'Floral sofisticado' },
-  { value:'colorful', label:'Colorido criativo' }
-]);
-
 function AdminMuralIcon({ name, size = 22 }) {
   const common = {
     width:size, height:size, viewBox:'0 0 24 24', fill:'none',
@@ -209,6 +201,8 @@ function MuralProductImageManager({ products, onChanged }) {
     ?'Verificando a fila…'
     :paused
       ?'Tratamento pausado por você'
+    :treatmentProgress.phase==='waiting'
+      ?'A fila está sendo processada em outra aba'
     :treatmentProgress.current?.sku
       ?`Tratando agora: ${treatmentProgress.current.sku}`
       :treatmentPending>0
@@ -303,7 +297,7 @@ function MuralProductImageManager({ products, onChanged }) {
         <footer>
           <span className={`mural-product-image-state ${state}`}>{label}</span>
           {product.mural_image_reviewable&&<button type="button" className="approve" disabled={busyId!==null} onClick={()=>approve(product)}>Aprovar</button>}
-          {['approved','review','failed'].includes(state)&&<button type="button" disabled={busyId!==null} onClick={()=>redo(product)}>Refazer</button>}
+          {['approved','review','failed'].includes(state)&&<button type="button" disabled={busyId!==null} onClick={()=>redo(product)}>{state==='failed'?'Tentar novamente':'Refazer'}</button>}
           <label className="mural-product-image-upload">{busyId===product.id?'Enviando…':'Enviar PNG'}<input type="file" accept="image/png" disabled={busyId!==null} onChange={event=>upload(product,event.target.files?.[0])}/></label>
           {(product.mural_image_ready||product.mural_image_reviewable)&&<button type="button" disabled={busyId!==null} onClick={()=>remove(product)}>Remover</button>}
         </footer>
@@ -311,27 +305,6 @@ function MuralProductImageManager({ products, onChanged }) {
       {!filtered.length&&<div className="mural-product-image-manager-empty">Nenhuma imagem nesta fila.</div>}
     </div>
   </div>;
-}
-
-function GeminiReferenceFigure({ reference, index }) {
-  const transparentSrc = useTreatedProductImage(reference?.image_url, Boolean(reference?.image_url));
-  const filename = String(reference?.filename || `referencia-${index + 1}.png`).replace(/\.(jpe?g|webp)$/i, '.png');
-  return (
-    <figure>
-      <TransparentMuralProductImage
-        src={reference?.image_url}
-        alt={reference?.label || reference?.sku || 'Referência do produto'}
-        draggable
-      />
-      <figcaption>
-        <span>
-          <b>{reference?.sku || reference?.label || `Referência ${index + 1}`}</b>
-          <small>{reference?.name || reference?.variation || 'Produto NISTI'}</small>
-        </span>
-        <a href={transparentSrc || reference?.image_url} download={filename}>Baixar PNG</a>
-      </figcaption>
-    </figure>
-  );
 }
 
 function postForm(row) {
@@ -442,13 +415,6 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [geminiError, setGeminiError] = useState('');
-  const [geminiStyle, setGeminiStyle] = useState('editorial');
-  const [geminiProBusy, setGeminiProBusy] = useState(false);
-  const [geminiProPackage, setGeminiProPackage] = useState(null);
-  const [geminiPromptId, setGeminiPromptId] = useState('');
-  const [geminiProCopied, setGeminiProCopied] = useState(false);
-  const [artTab, setArtTab] = useState(() => (sourceItem?.kind === 'notice' || sourceItem?.prefillImage) ? 'preview' : 'gemini');
 
   useEffect(() => {
     if (form.kind !== 'product') return;
@@ -460,11 +426,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   }, [productQuery, form.kind]);
 
   useEffect(() => () => { if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
-  useEffect(() => {
-    setGeminiProPackage(null);
-    setGeminiPromptId('');
-    setGeminiProCopied(false);
-  }, [form.kind, form.product_id, form.collection_id, geminiStyle]);
+
 
   const selectedCollection = collections.find(row => Number(row.id) === Number(form.collection_id));
   const selectedCollectionProducts = String(selectedCollection?.product_ids || '')
@@ -473,21 +435,12 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
     .filter(id => Number.isInteger(id) && id > 0)
     .map(id => catalogProducts.find(product => Number(product.id) === id))
     .filter(Boolean);
-  const referenceImage = form.kind === 'product'
-    ? selectedProduct?.image_url
-    : selectedCollectionProducts.find(product => product.image_url)?.image_url || '';
-  const referenceDisplayImage = useTreatedProductImage(referenceImage, Boolean(referenceImage));
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
 
   const changeKind = nextKind => {
     setForm(current => ({ ...current, kind:nextKind, product_id:'', collection_id:'' }));
     setSelectedProduct(null);
     setProductQuery('');
-    setGeminiError('');
-    setGeminiProPackage(null);
-    setGeminiPromptId('');
-    setGeminiProCopied(false);
-    setArtTab(nextKind === 'notice' ? 'preview' : 'gemini');
   };
 
   const chooseImage = async file => {
@@ -501,62 +454,6 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
       setImage(prepared);
       setImageUrl(URL.createObjectURL(prepared));
     } catch (err) { setError(err.message); }
-  };
-
-  const prepareGeminiPro = async () => {
-    setGeminiError('');
-    if (!['product','collection'].includes(form.kind)) {
-      setGeminiError('O Gemini Pro está disponível somente para Produto e Coleção.');
-      return;
-    }
-    const mode = form.kind === 'product' ? 'product_scene' : 'collection_scene';
-    if (form.kind === 'product' && !Number(form.product_id)) {
-      setGeminiError('Selecione o produto que será usado como referência visual.');
-      return;
-    }
-    if (form.kind === 'collection' && !Number(form.collection_id)) {
-      setGeminiError('Selecione a coleção que será usada como referência visual.');
-      return;
-    }
-
-    setGeminiProBusy(true);
-    try {
-      const data = await request('/api/admin/mural/gemini-pro-package', {
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body:JSON.stringify({
-          mode,
-          product_id:Number(form.product_id) || null,
-          collection_id:Number(form.collection_id) || null,
-          style:geminiStyle,
-          title:form.title || '',
-          subtitle:form.subtitle || '',
-          badge:form.badge || ''
-        })
-      });
-      setGeminiProPackage(data);
-      setGeminiPromptId(data.prompt_versions?.[0]?.id || '');
-      setGeminiProCopied(false);
-    } catch (err) {
-      setGeminiError(err.message || 'Não foi possível preparar o material para o Gemini Pro.');
-    } finally {
-      setGeminiProBusy(false);
-    }
-  };
-
-  const selectedGeminiPrompt = geminiProPackage?.prompt_versions?.find(version => version.id === geminiPromptId)
-    || geminiProPackage?.prompt_versions?.[0]
-    || (geminiProPackage?.prompt ? { id:'default', label:'Prompt', prompt:geminiProPackage.prompt } : null);
-
-  const copyGeminiProPrompt = async () => {
-    if (!selectedGeminiPrompt?.prompt) return;
-    try {
-      await copyTextToClipboard(selectedGeminiPrompt.prompt);
-      setGeminiProCopied(true);
-      setTimeout(() => setGeminiProCopied(false), 2600);
-    } catch (err) {
-      setGeminiError(err.message || 'Não foi possível copiar o prompt.');
-    }
   };
 
   const removeImage = async () => {
@@ -607,7 +504,6 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
 
-  const canUseGemini = form.kind === 'product' || form.kind === 'collection';
   const publishLabel = form.published_at && new Date(form.published_at) > new Date() ? 'Agendar' : 'Publicar';
 
   return (
@@ -717,7 +613,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
           </section>
 
           <section className="mural-publisher-block">
-            <div className="mural-publisher-block-title"><strong>Imagem editorial manual</strong><span>Use para enviar uma arte pronta ou a imagem gerada no Gemini Pro.</span></div>
+            <div className="mural-publisher-block-title"><strong>Imagem editorial manual</strong><span>Envie uma arte pronta para a publicação.</span></div>
             <label className="mural-publisher-upload">
               <AdminMuralIcon name="image" size={24}/>
               <span><b>Selecionar imagem</b><small>JPEG, PNG ou WebP · até 5 MB após compressão</small></span>
@@ -731,143 +627,10 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
 
         <aside className="mural-publisher-art-panel">
           <header><span><h3>Arte da publicação</h3><p>Revise o visual antes de salvar ou publicar.</p></span><span className="mural-publisher-art-help">?</span></header>
-          <div className="mural-publisher-art-tabs">
-            <button type="button" className={artTab==='preview'?'active':''} onClick={()=>setArtTab('preview')}>Editor</button>
-            {canUseGemini && <button type="button" className={artTab==='gemini'?'active':''} onClick={()=>setArtTab('gemini')}><AdminMuralIcon name="sparkles" size={15}/> Gemini Pro</button>}
+          <div className="mural-publisher-preview-pane">
+            <MobilePreview form={form} product={selectedProduct} collection={selectedCollection} imageUrl={imageUrl}/>
+            {imageUrl && <div className="mural-publisher-current-art"><span>Imagem editorial aplicada</span><img src={imageUrl} alt="Imagem editorial atual"/></div>}
           </div>
-
-          {artTab === 'preview' ? (
-            <div className="mural-publisher-preview-pane">
-              <MobilePreview form={form} product={selectedProduct} collection={selectedCollection} imageUrl={imageUrl}/>
-              {imageUrl && <div className="mural-publisher-current-art"><span>Imagem editorial aplicada</span><img src={imageUrl} alt="Imagem editorial atual"/></div>}
-            </div>
-          ) : (
-            <div className="mural-publisher-ai-pane">
-              <section className="mural-publisher-ai-card">
-                <div className="mural-publisher-ai-heading"><span><AdminMuralIcon name="sparkles" size={20}/></span><div><strong>Criar arte no Gemini Pro</strong><p>O NISTI prepara o prompt e as imagens reais; você gera a arte usando sua conta Gemini Pro.</p></div></div>
-
-                <div className="mural-publisher-reference">
-                  <span>Referência</span>
-                  <div>
-                    {referenceDisplayImage ? <img className="mural-product-transparent" src={referenceDisplayImage} alt="Referência visual transparente"/> : <span className="placeholder"><AdminMuralIcon name={form.kind==='collection'?'collection':'product'} size={24}/></span>}
-                    <b>{form.kind==='product' ? (selectedProduct?.sku || 'Selecione um produto') : (selectedCollection?.name || 'Selecione uma coleção')}</b>
-                  </div>
-                </div>
-
-                <div className="mural-publisher-ai-style-label">Direção visual</div>
-                <div className="mural-publisher-ai-style-grid">
-                  {AI_STYLES.map(style=>(
-                    <button type="button" key={style.value} className={geminiStyle===style.value?'active':''} onClick={()=>setGeminiStyle(style.value)}>
-                      <span className={`mural-ai-style-thumb ${style.value}`}>
-                        {referenceDisplayImage && <img src={referenceDisplayImage} alt="" aria-hidden="true"/>}
-                        <i/><i/>
-                      </span>
-                      <small>{style.label}</small>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mural-publisher-ai-info" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px', color: '#64748b', lineHeight: '1.5', marginBottom: '16px' }}>
-                  <p style={{ margin: 0 }}>
-                    {form.kind === 'product'
-                      ? 'Padrão Product Hero Card: banner 2:1, texto à esquerda e exatamente 1 produto real à direita. Título, subtítulo, selo e direção visual entram nas 3 versões.'
-                      : 'Padrão Collection Launch Hero Card: banner 2:1, texto à esquerda e produtos reais da coleção à direita. A direção visual escolhida entra nas 3 versões.'}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  className="mural-publisher-gemini-pro"
-                  disabled={geminiProBusy || (form.kind==='product'&&!form.product_id) || (form.kind==='collection'&&!form.collection_id)}
-                  onClick={prepareGeminiPro}
-                >
-                  <AdminMuralIcon name="sparkles" size={18}/>
-                  <span>{geminiProBusy ? 'Preparando 3 prompts e referências…' : 'Preparar 3 versões de prompt'}</span>
-                </button>
-                <small className="mural-admin-ai-note">O NISTI apenas prepara o prompt e as referências. A geração acontece na sua conta Gemini Pro, sem usar a API de imagem do sistema.</small>
-
-                {geminiProPackage && (
-                  <div className="mural-gemini-pro-kit">
-                    <header>
-                      <span><b>{form.kind==='product' ? 'Product Hero Card pronto' : 'Collection Launch Hero Card pronto'}</b><small>3 prompts + {geminiProPackage.reference_count} referência(s) real(is)</small></span>
-                      <span className="mural-gemini-pro-ready"><AdminMuralIcon name="check" size={14}/> Pronto</span>
-                    </header>
-
-                    <div className="mural-gemini-pro-steps">
-                      <span><b>1</b> Escolha uma das 3 versões de prompt.</span>
-                      <span><b>2</b> Copie e abra o Gemini Pro; depois anexe as referências.</span>
-                      <span><b>3</b> Gere a arte, salve e traga de volta ao Mural.</span>
-                    </div>
-
-                    <div className="mural-gemini-direction-summary">
-                      <span>Direção visual escolhida</span>
-                      <strong>{AI_STYLES.find(style=>style.value===geminiProPackage.style)?.label || geminiProPackage.style}</strong>
-                      <small>{geminiProPackage.direction}</small>
-                    </div>
-
-                    <div className="mural-gemini-prompt-versions" role="radiogroup" aria-label="Escolha uma versão de prompt">
-                      {(geminiProPackage.prompt_versions || []).map((version,index)=>(
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={(geminiPromptId || geminiProPackage.prompt_versions?.[0]?.id) === version.id}
-                          className={(geminiPromptId || geminiProPackage.prompt_versions?.[0]?.id) === version.id ? 'active' : ''}
-                          key={version.id || index}
-                          onClick={()=>{setGeminiPromptId(version.id);setGeminiProCopied(false);}}
-                        >
-                          <span>{index+1}</span>
-                          <b>{version.label}</b>
-                          <small>{version.summary}</small>
-                        </button>
-                      ))}
-                    </div>
-
-                    {selectedGeminiPrompt?.prompt && (
-                      <details className="mural-gemini-prompt-preview">
-                        <summary>Visualizar prompt selecionado</summary>
-                        <pre>{selectedGeminiPrompt.prompt}</pre>
-                      </details>
-                    )}
-
-                    <div className="mural-gemini-pro-actions">
-                      <button type="button" onClick={copyGeminiProPrompt}>
-                        <AdminMuralIcon name={geminiProCopied?'check':'document'} size={16}/>
-                        {geminiProCopied ? 'Prompt copiado' : 'Copiar prompt'}
-                      </button>
-                      <a
-                        className="primary"
-                        href={geminiProPackage.gemini_url || 'https://gemini.google.com/app'}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={copyGeminiProPrompt}
-                      >
-                        <AdminMuralIcon name="sparkles" size={16}/> Copiar e abrir Gemini Pro
-                      </a>
-                    </div>
-
-                    <div className="mural-gemini-pro-references">
-                      {(geminiProPackage.references || []).map((reference,index)=>(
-                        <GeminiReferenceFigure
-                          key={reference.id || `${reference.sku || 'ref'}-${index}`}
-                          reference={reference}
-                          index={index}
-                        />
-                      ))}
-                    </div>
-
-                    <label className="mural-gemini-pro-return">
-                      <AdminMuralIcon name="image" size={20}/>
-                      <span><b>Trazer imagem gerada para o Mural</b><small>Selecione a arte salva do Gemini Pro.</small></span>
-                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={async e=>{ const file=e.target.files?.[0]; if(file){ await chooseImage(file); setArtTab('preview'); } }}/>
-                    </label>
-                  </div>
-                )}
-
-                {geminiError && <div className="mural-admin-ai-error">{geminiError}</div>}
-              </section>
-
-            </div>
-          )}
         </aside>
       </div>
 
