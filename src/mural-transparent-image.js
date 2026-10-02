@@ -765,6 +765,9 @@ function clearOutsideSubject(data, width, height, isProtectedSubjectPixel) {
 
 function buildProductComponentsMask(data, width, height, options = {}) {
   const plannerBounds = options?.plannerBounds || null;
+  const subjectProtection = typeof options?.subjectProtection === 'function'
+    ? options.subjectProtection
+    : null;
   const preserveAccessory = Boolean(options?.preserveAccessory);
   const total = width * height;
   const labels = new Int32Array(total);
@@ -868,11 +871,16 @@ function buildProductComponentsMask(data, width, height, options = {}) {
     // contain only a minority of strongly chromatic/dark pixels. Nearby detail
     // therefore gets a lower evidence threshold, while generic detached debris
     // keeps the stricter 30% rule that removed the old right-side artifacts.
-    const minimumStrongRatio = plannerBounds && closeToMainProduct
-      ? (preserveAccessory ? .10 : PLANNER_MASK_CALIBRATION.nearbyDetailStrongRatio)
-      : PLANNER_MASK_CALIBRATION.genericDetailStrongRatio;
+    const centerX = (component.minX + component.maxX) / 2;
+    const centerY = (component.minY + component.maxY) / 2;
+    const insideDetectedProduct = Boolean(subjectProtection?.(centerX, centerY));
+    const minimumStrongRatio = insideDetectedProduct
+      ? .05
+      : plannerBounds && closeToMainProduct
+        ? (preserveAccessory ? .10 : PLANNER_MASK_CALIBRATION.nearbyDetailStrongRatio)
+        : PLANNER_MASK_CALIBRATION.genericDetailStrongRatio;
     if (!anotherLargeProduct && strongRatio < minimumStrongRatio) continue;
-    if (closeToMainProduct || anotherLargeProduct) included[label] = 1;
+    if (insideDetectedProduct || closeToMainProduct || anotherLargeProduct) included[label] = 1;
   }
 
   // Keep the agenda body, nearby detached wire-o rings and any other large
@@ -1249,6 +1257,7 @@ async function buildTransparentProductImage(src, options = {}) {
     const structureMask = structureCoverage >= minimumCoverage
       ? buildProductComponentsMask(data, width, height, {
           plannerBounds:structureProtection.bounds,
+          subjectProtection:structureProtection,
           preserveAccessory
         })
       : null;
@@ -1431,7 +1440,9 @@ async function buildTreatedProductImage(src, options = {}) {
     data,
     width,
     height,
-    candidateBounds ? { plannerBounds:candidateBounds, preserveAccessory } : { preserveAccessory }
+    candidateBounds
+      ? { plannerBounds:candidateBounds, subjectProtection:candidateProtection, preserveAccessory }
+      : { preserveAccessory }
   );
   if (!productMask) return src;
   if (
