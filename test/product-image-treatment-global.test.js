@@ -362,11 +362,11 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(utility.includes('nearbyDetailStrongRatio:.18'));
   assert.ok(utility.includes('genericDetailStrongRatio:.30'))
   assert.ok(utility.includes('sourceAlreadyCutOut && !options.forceOutline'));
-  assert.ok(utility.includes('buildPlannerStructureProtection(data, width, height, options.forceOutline)'));
+  assert.ok(utility.includes('buildGeometryProtection('));
   assert.ok(utility.includes('const fitScale = Math.min(width * .995 / boxWidth, height * .995 / boxHeight)'));
   assert.ok(utility.includes('genericDetailStrongRatio:.30'));
   assert.ok(utility.includes('estimateBorderBackgroundBrightness(data, width, height)'));
-  assert.ok(utility.includes('removeConnectedStudioBackground(data, width, height, plannerStructureProtection)'));
+  assert.ok(utility.includes('removeConnectedStudioBackground(data, width, height, structureProtection)'));
   assert.equal(utility.includes('applyOfficialProductMask'), false);
 });
 
