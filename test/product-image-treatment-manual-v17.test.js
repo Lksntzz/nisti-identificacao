@@ -31,7 +31,7 @@ test('rendering never manufactures a treated derivative in the browser', () => {
   assert.equal(hook.includes('buildTreatedProductImage('), false);
 });
 
-test('API rejects stale treatment clients and only serves approved v18 derivatives', () => {
+test('API rejects stale treatment writes but keeps previously approved derivatives valid', () => {
   const core = read('src/core-router.js');
   const publicImages = read('src/public-image-router.js');
   const mural = read('src/mural-router.js');
@@ -39,13 +39,12 @@ test('API rejects stale treatment clients and only serves approved v18 derivativ
 
   assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '18'"));
   assert.ok((core.match(/code:'stale_image_processor'/g) || []).length >= 2);
-  assert.ok(core.includes('row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
-  assert.ok(core.includes('product.treated_image_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
-  assert.ok(publicImages.includes('row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
-  assert.ok(publicImages.includes('mpi.processor_version=?'));
-  assert.ok(mural.includes('row?.mural_image_processor_version !== PRODUCT_IMAGE_PROCESSOR_VERSION'));
+  assert.equal(core.includes('row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION'), false);
+  assert.equal(core.includes('product.treated_image_version === PRODUCT_IMAGE_PROCESSOR_VERSION'), false);
+  assert.equal(publicImages.includes('PRODUCT_IMAGE_PROCESSOR_VERSION'), false);
+  assert.equal(publicImages.includes('mpi.processor_version=?'), false);
+  assert.equal(mural.includes('row?.mural_image_processor_version !== PRODUCT_IMAGE_PROCESSOR_VERSION'), false);
 });
-
 test('database migration invalidates pre-v18 derivatives without deleting originals', () => {
   const supabase = read('supabase/migrations/20261002213000_per_product_cutout_v18.sql');
   const d1 = read('migrations/0026_per_product_cutout_v18.sql');
@@ -59,4 +58,14 @@ test('database migration invalidates pre-v18 derivatives without deleting origin
   assert.match(supabase, /reviewed_by='admin'/);
   assert.match(supabase, /status='review'/);
   assert.match(supabase, /processor_version=p_processor_version/);
+});
+
+
+test('processor upgrades never reopen an explicitly approved product', () => {
+  const migration = read('supabase/migrations/20261002215500_preserve_approved_treatment_state.sql');
+  assert.match(migration, /mpi\.status='approved'/);
+  assert.match(migration, /mpi\.reviewed_by='admin'/);
+  assert.match(migration, /mpi\.source_image_key=p\.image_key/);
+  assert.doesNotMatch(migration, /processor_version='18'/);
+  assert.doesNotMatch(migration, /UPDATE public\.mural_product_images[\s\S]{0,180}status='pending'/i);
 });
