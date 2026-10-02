@@ -148,7 +148,7 @@ function MuralProductImageManager({ products, onChanged }) {
     try{return localStorage.getItem(TREATMENT_PAUSE_KEY)==='1'}catch{return false}
   });
   const [treatmentProgress,setTreatmentProgress]=useState({
-    loading:true,phase:'loading',with_image:0,approved:0,review:0,pending:0,failed:0,current:null,error:''
+    loading:true,phase:'loading',with_image:0,approved:0,review:0,pending:0,failed:0,mask_total:0,mask_ready:0,mask_pending:0,current:null,error:''
   });
   const onChangedRef=useRef(onChanged);
   useEffect(()=>{onChangedRef.current=onChanged},[onChanged]);
@@ -231,6 +231,9 @@ function MuralProductImageManager({ products, onChanged }) {
   const treatmentReview=Number(treatmentProgress.review||0);
   const treatmentPending=Number(treatmentProgress.pending||0);
   const treatmentFailed=Number(treatmentProgress.failed||0);
+  const maskTotal=Number(treatmentProgress.mask_total||treatmentTotal||0);
+  const maskReady=Number(treatmentProgress.mask_ready||0);
+  const maskPending=Number(treatmentProgress.mask_pending||0);
   const treatmentPercent=treatmentTotal?Math.min(100,Math.round(treatmentApproved*100/treatmentTotal)):0;
   const treatmentStatus=treatmentProgress.loading
     ?'Verificando a fila…'
@@ -303,11 +306,13 @@ function MuralProductImageManager({ products, onChanged }) {
         <span>Tratamento automático</span>
         <strong>{treatmentProgress.loading?'Carregando…':`${treatmentApproved} de ${treatmentTotal} imagens aprovadas`}</strong>
         <small>{treatmentStatus}</small>
+        <small>{maskPending>0?`Máscaras individuais: ${maskReady} de ${maskTotal} prontas · ${maskPending} pendentes`:`Máscaras individuais: ${maskReady} de ${maskTotal} prontas`}</small>
       </div>
       <div className="mural-product-treatment-progress-numbers">
         <span><b>{treatmentApproved}</b> aprovadas</span>
         <span><b>{treatmentReview}</b> para revisar</span>
         <span><b>{treatmentPending}</b> na fila</span>
+        <span><b>{maskReady}</b> máscaras salvas</span>
         {treatmentFailed>0&&<span className="failed"><b>{treatmentFailed}</b> falhas</span>}
         <span className="mural-product-treatment-controls">
           <button type="button" className="start" disabled={!paused} onClick={()=>setTreatmentPaused(false)}>Iniciar tratamento</button>
