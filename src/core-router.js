@@ -233,64 +233,81 @@ async function storeReferenceEmbedding(env, reference, bytes, mimeType, cleanupP
   if (!reference?.id) throw new Error('Referência visual não encontrada');
   const { model, values } = await embedImage(env, bytes, mimeType);
 
+  const referenceId = Number(reference.id);
+  const capaCode = String(reference.capa_code || '').trim().toUpperCase();
+  let platforms = await platformsForReference(env, reference);
+  if (!platforms.length) platforms = supportedPlatforms();
+
+  const vectors = platforms.map(platform => {
+    const normalizedPlatform = normalizePlatform(platform);
+    const namespace = platformNamespace(normalizedPlatform);
+    return {
+      id: platformVectorId(referenceId, normalizedPlatform),
+      namespace,
+      values,
+      metadata: {
+        reference_id: referenceId,
+        capa_code: capaCode,
+        platform: normalizedPlatform,
+        platform_key: namespace,
+        image_key: String(reference.image_key || ''),
+        source_product_id: Number(reference.source_product_id || 0),
+        reference_kind: String(reference.reference_kind || 'product'),
+        embedding_model: model,
+        updated_at: new Date().toISOString()
+      }
+    };
+  }).filter(v => v.id && v.namespace);
+
+  if (!env.COVER_VECTORS?.upsert) {
+    throw new Error('Binding COVER_VECTORS não configurado');
+  }
+  if (!vectors.length) {
+    throw new Error('Nenhum namespace de plataforma disponível para a referência visual');
+  }
+
+  // Vectorize primeiro. O embedding no banco funciona como marcador de conclusão:
+  // se o índice vetorial falhar, a referência continua pendente e o cron pode tentar novamente.
+  await env.COVER_VECTORS.upsert(vectors);
+
   let removedReferences = [];
   if (supabasePrimaryWritesRequested(env)) {
     const stored = await mirrorSupabaseRpc(env, 'nisti_store_reference_embedding_v1', {
-      p_reference_id:Number(reference.id),p_embedding_model:model,p_dimensions:values.length,
+      p_reference_id:referenceId,p_embedding_model:model,p_dimensions:values.length,
       p_embedding_json:JSON.stringify(values),p_cleanup_product_id:cleanupProductId,
       p_keep_image_key:cleanupProductId ? reference.image_key : null
     }, 'embedding de referência visual');
+    if (stored.value?.status !== 'ok') {
+      throw new Error('Referência visual não encontrada no Supabase');
+    }
     removedReferences = stored.value?.removed_references || [];
-  } else await env.DB.prepare(`
-    INSERT INTO cover_reference_embeddings (
-      reference_id,embedding_model,dimensions,embedding_json,updated_at
-    ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
-    ON CONFLICT(reference_id) DO UPDATE SET
-      embedding_model=excluded.embedding_model,
-      dimensions=excluded.dimensions,
-      embedding_json=excluded.embedding_json,
-      updated_at=CURRENT_TIMESTAMP
-  `).bind(reference.id, model, values.length, JSON.stringify(values)).run();
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO cover_reference_embeddings (
+        reference_id,embedding_model,dimensions,embedding_json,updated_at
+      ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
+      ON CONFLICT(reference_id) DO UPDATE SET
+        embedding_model=excluded.embedding_model,
+        dimensions=excluded.dimensions,
+        embedding_json=excluded.embedding_json,
+        updated_at=CURRENT_TIMESTAMP
+    `).bind(referenceId, model, values.length, JSON.stringify(values)).run();
+  }
 
-  if (env.COVER_VECTORS?.upsert) {
-    try {
-      const referenceId = Number(reference.id);
-      const capaCode = String(reference.capa_code || '').trim().toUpperCase();
-      let platforms = await platformsForReference(env, reference);
-      if (!platforms.length) {
-        platforms = supportedPlatforms();
-      }
-
-      const vectors = platforms.map(platform => {
-        const normalizedPlatform = normalizePlatform(platform);
-        const namespace = platformNamespace(normalizedPlatform);
-        return {
-          id: platformVectorId(referenceId, normalizedPlatform),
-          namespace,
-          values,
-          metadata: {
-            reference_id: referenceId,
-            capa_code: capaCode,
-            platform: normalizedPlatform,
-            platform_key: namespace,
-            image_key: String(reference.image_key || ''),
-            source_product_id: Number(reference.source_product_id || 0),
-            reference_kind: String(reference.reference_kind || 'product'),
-            embedding_model: model,
-            updated_at: new Date().toISOString()
-          }
-        };
-      }).filter(v => v.id && v.namespace);
-
-      if (vectors.length) {
-        await env.COVER_VECTORS.upsert(vectors);
-      }
-    } catch (vErr) {
-      console.error('[Vectorize] Falha ao sincronizar vetor imediatamente:', vErr);
+  if (removedReferences.length && env.COVER_VECTORS?.deleteByIds) {
+    const staleVectorIds = removedReferences.flatMap(item =>
+      supportedPlatforms()
+        .map(platform => platformVectorId(Number(item.id), platform))
+        .filter(Boolean)
+    );
+    if (staleVectorIds.length) {
+      await env.COVER_VECTORS.deleteByIds(staleVectorIds).catch(error => {
+        console.warn('[Vectorize] Falha ao remover vetores obsoletos:', error?.message || error);
+      });
     }
   }
 
-  return { model, values, removedReferences };
+  return { model, values, removedReferences, vectorized:vectors.length };
 }
 
 async function cleanupStaleProductReferences(env, productId, keepImageKey) {
