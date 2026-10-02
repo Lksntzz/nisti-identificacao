@@ -31,8 +31,11 @@ jobs:
           test "$truncated" = "false"
           test "$count" -gt 0
 
-          jq -r '.result[] | [.key, (.http_metadata.contentType // "application/octet-stream")] | @tsv' objects.json |
-          while IFS=$'\t' read -r key mime; do
+          jq -r '.result[] | [.key, (.http_metadata.contentType // "application/octet-stream")] | @tsv' objects.json > objects.tsv
+          export API CLOUDFLARE_API_TOKEN
+          cat objects.tsv | xargs -P 16 -n 2 bash -c '
+            set -euo pipefail
+            key="$1"; mime="$2"
             id="$(cut -d/ -f2 <<<"$key")"
             case "$mime" in
               image/jpeg*) ext="jpg" ;;
@@ -41,10 +44,10 @@ jobs:
               image/gif*) ext="gif" ;;
               *) ext="img" ;;
             esac
-            encoded_key="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe="/"))' "$key")"
+            encoded_key="$(python3 -c '"'"'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe="/"))'"'"' "$key")"
             out="nisti_product_images/PRODUTO_ID${id}.${ext}"
             curl --fail --silent --show-error --location --retry 3 --retry-all-errors -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API/objects/$encoded_key" -o "$out"
-          done
+          ' _
 
           downloaded="$(find nisti_product_images -type f | wc -l | tr -d ' ')"
           bytes="$(du -sb nisti_product_images | cut -f1)"
