@@ -13,7 +13,7 @@ test('shared product component uses the final treated PNG pipeline', () => {
   assert.ok(utility.includes('export async function treatedProductImageUrl'));
   assert.ok(utility.includes('export async function treatedProductImageBlob'));
   assert.ok(utility.includes('export function useTreatedProductImage'));
-  assert.ok(utility.includes('outlineScale:4 / 1024'));
+  assert.ok(utility.includes('outlineScale:2 / 1024'));
 });
 
 test('white and off-white covers use conservative background detection and corruption guards', () => {
@@ -189,7 +189,7 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(worker.includes('productImageTreatmentArtifactsBlob'));
   assert.ok(worker.includes('tasselCode:item.tassel_code'));
   assert.equal(worker.includes('/ai'), false);
-  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v11'"));
+  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v12'"));
   assert.ok(worker.includes("cache:'no-store'"));
   assert.ok(worker.includes("form.append('image'"));
   assert.ok(worker.includes("form.append('mask'"));
@@ -267,13 +267,13 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'treated') return normalized"));
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
-  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '11'"));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '12'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(queueSql.includes("queue_status IN ('pending','stale')"));
   assert.ok(queueSql.includes("COALESCE(mpi.processor_version,'')<>(SELECT current_version FROM params)"));
   assert.equal(queueSql.includes("queue_status IN ('pending','review','stale')"), false);
   assert.ok(queueSql.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
-  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '11'"));
+  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '12'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
@@ -319,8 +319,8 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("p_action:'redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
-  assert.ok(utility.includes('outlineScale:4 / 1024'));
-  assert.ok(utility.includes('preciseOutlineScale:3 / 1024'));
+  assert.ok(utility.includes('outlineScale:2 / 1024'));
+  assert.ok(utility.includes('preciseOutlineScale:1 / 1024'));
   assert.ok(utility.includes('bboxAspectMedian:.737'));
   assert.ok(utility.includes('bboxAspectObservedMin:.682'));
   assert.ok(utility.includes('bboxAspectObservedMax:.766'));
@@ -328,16 +328,12 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(utility.includes('nearbyDetailStrongRatio:.18'));
   assert.ok(utility.includes('genericDetailStrongRatio:.30'))
   assert.ok(utility.includes('sourceAlreadyCutOut && !options.forceOutline'));
-  assert.ok(utility.includes('requestedOfficialVariant && !options.forceOutline'));
   assert.ok(utility.includes('buildPlannerStructureProtection(data, width, height, options.forceOutline)'));
   assert.ok(utility.includes('const fitScale = Math.min(width * .995 / boxWidth, height * .995 / boxHeight)'));
-  assert.ok(utility.includes('fillMaskInteriorHoles(dilateMask(mask, width, height, radius))'));
   assert.ok(utility.includes('genericDetailStrongRatio:.30'));
-  assert.ok(utility.includes('const officialProductMask = buildProductComponentsMask(data, width, height)'));
   assert.ok(utility.includes('estimateBorderBackgroundBrightness(data, width, height)'));
-  assert.ok(utility.includes('if (validOfficialCut)'));
-  assert.ok(utility.includes('data.set(originalPixels)'));
-  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 1);
+  assert.ok(utility.includes('removeConnectedStudioBackground(data, width, height, plannerStructureProtection)'));
+  assert.equal(utility.includes('applyOfficialProductMask'), false);
 });
 
 
