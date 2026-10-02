@@ -204,16 +204,11 @@ test('RPC migration is service-role only and never SECURITY DEFINER', () => {
   assert.match(source, /GRANT EXECUTE ON FUNCTION public\.nisti_products_for_cover\(TEXT, TEXT\) TO service_role/);
 });
 
-test('critical fastpath and Vectorize authority are wired to preferred store', () => {
-  const fastpath = fs.readFileSync('src/retrieval-fastpath.js', 'utf8');
-  const authority = fs.readFileSync('src/vector-match-authority.js', 'utf8');
+test('retired automatic visual fastpath stays removed', () => {
+  assert.equal(fs.existsSync('src/retrieval-fastpath.js'), false);
   const images = fs.readFileSync('src/public-image-router.js', 'utf8');
-  assert.match(fastpath, /supabaseProductsForCover/);
-  assert.match(fastpath, /preferSupabaseRead/);
-  assert.match(authority, /supabaseActiveReferences/);
   assert.match(images, /supabaseImageKey/);
 });
-
 
 test('reserve catalog RPC is service-role only', () => {
   const migration = fs.readFileSync(
@@ -233,25 +228,23 @@ test('public product images use preferred store for treated and original keys', 
 });
 
 
-test('critical reserve RPCs cover scanner, occurrence history and notifications', () => {
+test('critical reserve RPCs keep scanner and notification compatibility while occurrence runtime is retired', () => {
   const migration = fs.readFileSync(
     'supabase/migrations/20261001164500_supabase_emergency_critical_reads_v1.sql',
     'utf8'
   );
   const gtinRouter = fs.readFileSync('src/gtin-router.js', 'utf8');
-  const occurrences = fs.readFileSync('src/occurrences-router.js', 'utf8');
   const notifications = fs.readFileSync('src/cover-notifications.js', 'utf8');
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
 
   assert.match(migration, /nisti_reserve_gtin_lookup_v1/);
-  assert.match(migration, /nisti_reserve_occurrences_v1/);
   assert.match(migration, /nisti_reserve_notifications_v1/);
   assert.match(migration, /nisti_reserve_unread_notifications_v1/);
   assert.doesNotMatch(migration, /SECURITY DEFINER/i);
 
   assert.match(gtinRouter, /preferSupabaseRead/);
   assert.match(gtinRouter, /supabaseReserveGtinLookup/);
-  assert.match(occurrences, /supabaseReserveOccurrences/);
+  assert.equal(fs.existsSync('src/occurrences-router.js'), false);
   assert.match(notifications, /supabaseReserveNotifications/);
   assert.doesNotMatch(notifications, /supabaseReserveUnreadNotifications/);
   assert.match(notifications, /is_read/);

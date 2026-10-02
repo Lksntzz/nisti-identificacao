@@ -129,7 +129,7 @@ async function unzipEntry(arrayBuffer, entry) {
 
   if (entry.compression === 0) return bytes.slice();
   if (entry.compression !== 8) throw new Error(`Compressão ZIP não suportada no .xlsx: ${entry.compression}.`);
-  if (typeof DecompressionStream !== 'function') throw new Error('Este navegador não oferece descompressão ZIP necessária para preservar hyperlinks do Excel.');
+  if (typeof DecompressionStream !== 'function') throw new Error('Este navegador não oferece descompressão ZIP necessária para preservar hiperlinks do Excel.');
 
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
   return new Uint8Array(await new Response(stream).arrayBuffer());

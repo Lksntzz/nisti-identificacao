@@ -6,6 +6,7 @@ export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
 export const TREATMENT_WAKE_EVENT = 'nisti:product-image-treatment-wake';
 const LOCK_TTL_MS = 90 * 1000;
+const LOCK_RETRY_MS = 5 * 1000;
 const BATCH_SIZE = 3;
 const MAX_TRANSIENT_ATTEMPTS = 3;
 const IDLE_POLL_MS = 15 * 60 * 1000;
@@ -134,7 +135,14 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
         if (!cancelled) wakeTimer = window.setTimeout(run, PAUSED_POLL_MS);
         return;
       }
-      if (!acquireLock(owner)) return;
+      if (!acquireLock(owner)) {
+        // Another admin tab may be processing the queue. Keep this worker
+        // alive so it can take over when that tab closes or its lock expires.
+        // Previously a lock collision stopped this tab permanently.
+        emitTreatmentProgress({ phase:'waiting' });
+        if (!cancelled) wakeTimer = window.setTimeout(run, LOCK_RETRY_MS);
+        return;
+      }
       running = true;
 
       const changed = [];

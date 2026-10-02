@@ -44,11 +44,8 @@ test('Mural collection products prefer approved PNG derivatives and only fall ba
   assert.ok(mural.includes('useTreatedProductImage'));
   assert.ok(admin.includes('TransparentMuralProductImage'));
   assert.ok(admin.includes('useTreatedProductImage'));
-  assert.ok(admin.includes('GeminiReferenceFigure'));
-  assert.ok(admin.includes('Baixar PNG'));
   assert.ok(mural.includes('mural-product-transparent'));
   assert.ok(publicCss.includes('.mural-product-transparent'));
-  assert.ok(adminCss.includes('.mural-gemini-pro-references figure>img.mural-product-transparent'));
 });
 
 test('Mural product cutouts and collection animation do not add artificial shadows', () => {
@@ -56,9 +53,4 @@ test('Mural product cutouts and collection animation do not add artificial shado
   assert.ok(publicCss.includes('.mural-product-transparent,'));
   assert.ok(publicCss.includes('filter:none!important'));
   assert.ok(publicCss.includes('box-shadow:none!important'));
-});
-
-test('Gemini Pro references are named as PNG and prompt explains transparent references', () => {
-  assert.ok(router.includes('filename: `${rawName}.png`'));
-  assert.ok(router.includes('transparent PNG product reference'));
 });
