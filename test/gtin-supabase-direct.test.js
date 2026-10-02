@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
+import { normalizeGtinProduct } from '../src/gtin-supabase-lookup.js';
 
 const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
 const directLookup = fs.readFileSync(new URL('../src/gtin-supabase-lookup.js', import.meta.url), 'utf8');
@@ -36,4 +37,22 @@ test('Edge Function validates GTIN and keeps service credentials server-side', (
   assert.match(edgeFunction, /Deno\.env\.get\("SUPABASE_SERVICE_ROLE_KEY"\)/);
   assert.match(edgeFunction, /nisti_reserve_gtin_lookup_v1/);
   assert.match(edgeFunction, /method !== "GET"/);
+});
+
+
+test('scanner expands accessory finish codes into readable color names', () => {
+  const product = normalizeGtinProduct({
+    wireo_code: 'R',
+    tassel_code: 'A',
+    elastico_code: 'V'
+  });
+
+  assert.equal(product.wireo, 'Rose Gold');
+  assert.equal(product.tassel, 'Azul');
+  assert.equal(product.elastico, 'Verde');
+
+  assert.equal(
+    normalizeGtinProduct({ tassel_code: 'X' }).tassel,
+    'Sem tassel'
+  );
 });
