@@ -626,6 +626,18 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
   const [progressMsg, setProgressMsg] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
+
+  const hasUnsavedDraft = !result && (
+    nome.trim() !== ''
+    || variants.length > 1
+    || variants.some(variant =>
+      String(variant.sku || '').trim() !== ''
+      || String(variant.gtin || '').trim() !== ''
+      || String(variant.variacao || '').trim() !== ''
+      || Boolean(variant.file)
+    )
+  );
 
   const resetForm = () => {
     setNome('');
@@ -633,13 +645,40 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
     setProgressMsg('');
     setError('');
     setResult(null);
+    setConfirmCloseOpen(false);
   };
 
   useEffect(() => {
     if (!isOpen) resetForm();
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !hasUnsavedDraft || result) return undefined;
+
+    const protectUnsavedRegistration = event => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', protectUnsavedRegistration);
+    return () => window.removeEventListener('beforeunload', protectUnsavedRegistration);
+  }, [isOpen, hasUnsavedDraft, result]);
+
   if (!isOpen) return null;
+
+  const requestClose = () => {
+    if (busy) return;
+    if (result || !hasUnsavedDraft) {
+      onClose();
+      return;
+    }
+    setConfirmCloseOpen(true);
+  };
+
+  const discardRegistration = () => {
+    resetForm();
+    onClose();
+  };
 
   const addVariant = () => {
     setVariants(prev => [
@@ -756,14 +795,15 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
   };
 
   return (
-    <div className="admin-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="admin-modal create-modal" style={{ maxWidth: '820px' }}>
+    <>
+      <div className="admin-modal-backdrop" onClick={e => e.target === e.currentTarget && requestClose()}>
+        <div className="admin-modal create-modal" style={{ maxWidth: '820px' }}>
         <div className="admin-modal-head">
           <div>
             <h3>Cadastrar Novo Produto com Variações</h3>
             <small>Defina o produto pai e adicione todas as capas/variantes de uma vez.</small>
           </div>
-          <button type="button" className="admin-modal-close" onClick={onClose}>✕</button>
+          <button type="button" className="admin-modal-close" onClick={requestClose} disabled={busy} aria-label="Fechar cadastro">✕</button>
         </div>
 
         {result ? (
@@ -878,15 +918,53 @@ function CreateProductModal({ isOpen, onClose, onCreated }) {
             {error && <div className="form-error-banner" style={{ marginTop: '16px' }}>{error}</div>}
 
             <div className="admin-modal-foot" style={{ marginTop: '20px' }}>
-              <button type="button" className="btn-cancel" onClick={onClose} disabled={busy}>Cancelar</button>
+              <button type="button" className="btn-cancel" onClick={requestClose} disabled={busy}>Cancelar</button>
               <button type="submit" className={`btn-submit-rainbow ${busy ? 'nisti-action-busy' : ''}`} disabled={busy} style={{ minWidth: '180px' }}>
                 <span>{busy ? (progressMsg || 'Cadastrando variações…') : `Salvar ${variants.length} produto(s)`}</span>
               </button>
             </div>
           </form>
         )}
+        </div>
       </div>
-    </div>
+
+      {confirmCloseOpen && (
+        <div className="admin-modal-backdrop unsaved-registration-backdrop" role="presentation">
+          <div
+            className="unsaved-registration-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="unsaved-registration-title"
+            aria-describedby="unsaved-registration-description"
+          >
+            <div className="unsaved-registration-icon" aria-hidden="true">!</div>
+            <div className="unsaved-registration-copy">
+              <h3 id="unsaved-registration-title">Cadastro ainda não foi salvo</h3>
+              <p id="unsaved-registration-description">
+                Você começou a cadastrar este produto. Deseja continuar cadastrando o item?
+              </p>
+            </div>
+            <div className="unsaved-registration-actions">
+              <button
+                type="button"
+                className="btn-cancel unsaved-registration-discard"
+                onClick={discardRegistration}
+              >
+                Descartar cadastro
+              </button>
+              <button
+                type="button"
+                className="btn-submit-rainbow"
+                onClick={() => setConfirmCloseOpen(false)}
+                autoFocus
+              >
+                Continuar cadastrando
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
