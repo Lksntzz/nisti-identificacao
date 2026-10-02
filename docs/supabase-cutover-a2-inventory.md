@@ -1,11 +1,11 @@
 # Supabase cutover — A2 D1 mutation inventory
 
-Status: **primary-path migration complete; frozen validation passed; release candidate has writes enabled**.
+Status: **Supabase primary authority released in production; compatibility-removal phase in progress**.
 
-The application still contains D1 SQL as a temporary compatibility/fallback layer. With
+The application still contains D1 SQL as a temporary compatibility/recovery layer. With
 `SUPABASE_READS_ENABLED=1` and `SUPABASE_WRITE_MODE=primary`, the active operational and
 administrative paths listed below use Supabase as the authoritative database. The production write
-freeze remains enabled until the final frozen smoke-test gate is complete.
+write freeze is released in production after the frozen smoke-test gate completed successfully.
 
 ## Direct Supabase-primary paths implemented
 
@@ -42,16 +42,16 @@ freeze remains enabled until the final frozen smoke-test gate is complete.
 | `src/reference-reindex-router.js` | compatibility embedding SQL | primary pending-reference reads and embedding writes are Supabase |
 | `src/product-finish-router.js` | compatibility product update | direct Supabase-primary branch executes before D1 |
 | `src/cover-notifications.js` | compatibility notification SQL | primary notification writers/read receipts use Supabase |
-| `src/gemini-budget.js` | emergency D1 budget fallback | intentional temporary fallback only for eligible Supabase transport/server failures |
+| `src/gemini-budget.js` | legacy D1 budget implementation | Supabase-primary fails closed in production; D1 budget path requires explicit emergency opt-in or non-Supabase mode |
 
 ## A2 completion invariants
 
 1. Every JavaScript module containing D1 mutation SQL remains represented by the static inventory test.
 2. No operational or administrative mutation may execute D1 when `SUPABASE_WRITE_MODE=primary`.
-3. No primary database read should require D1 when `SUPABASE_READS_ENABLED=1`; D1 SQL may remain only
-   as an explicit compatibility/emergency path during the confidence window.
+3. No primary database read should require D1 when `SUPABASE_READS_ENABLED=1`; production has
+   `SUPABASE_EMERGENCY_FALLBACK_ENABLED=0`, so D1 cannot silently serve stale data.
 4. Primary Supabase RPCs remain `SECURITY INVOKER`, server-only and executable only by `service_role`.
 5. Frozen validation completed with green Production Gates and Supabase smoke reads for Scanner data, cadastro/Catálogo state, Mural, Admin health and Commerce synchronization.
 6. The release candidate sets `SUPABASE_CUTOVER_WRITE_FREEZE=0`; the D1 binding is intentionally retained in the same release as a compatibility/rollback layer.
-7. After writes are released, controlled writes must be verified directly in Supabase before the
-   compatibility/fallback removal phase begins.
+7. Controlled writes have been verified directly in Supabase; compatibility-removal is now the active phase.
+8. D1 must not regain data authority without an explicit freeze, resynchronization and reconciliation procedure.
