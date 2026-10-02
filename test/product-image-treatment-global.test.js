@@ -188,8 +188,9 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
   assert.ok(worker.includes('productImageTreatmentArtifactsBlob'));
   assert.ok(worker.includes('tasselCode:item.tassel_code'));
+  assert.ok(worker.includes('wireoCode:item.wireo_code'));
   assert.equal(worker.includes('/ai'), false);
-  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v13'"));
+  assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v14'"));
   assert.ok(worker.includes("cache:'no-store'"));
   assert.ok(worker.includes("form.append('image'"));
   assert.ok(worker.includes("form.append('mask'"));
@@ -201,7 +202,7 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
 test('stale browser clients cannot persist an older cutout algorithm as v12', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
   const core = read('src/core-router.js');
-  assert.ok(worker.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '13'"));
+  assert.ok(worker.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '14'"));
   assert.equal((worker.match(/form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/g) || []).length, 2);
   assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 2);
   assert.ok(core.includes('clientProcessorVersion !== PRODUCT_IMAGE_PROCESSOR_VERSION'));
@@ -276,13 +277,13 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'treated') return normalized"));
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
-  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '13'"));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '14'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(queueSql.includes("queue_status IN ('pending','stale')"));
   assert.ok(queueSql.includes("COALESCE(mpi.processor_version,'')<>(SELECT current_version FROM params)"));
   assert.equal(queueSql.includes("queue_status IN ('pending','review','stale')"), false);
-  assert.ok(queueSql.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
-  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '13'"));
+  assert.ok(queueSql.includes('p.id,p.sku,p.nome,p.image_key,p.wireo_code,p.tassel_code'));
+  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '14'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
