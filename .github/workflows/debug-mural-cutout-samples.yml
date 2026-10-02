@@ -32,9 +32,9 @@ jobs:
             curl --fail --silent --show-error --location -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API/$encoded" -o "$out"
           }
           get "products/1/354bc8e4-3e59-4287-92bc-83b371080c64" "debug-mural-images/id1-original.jpg"
-          get "processed/products/1/f63e6be2-4db4-44f6-9cb6-8c1d3b4aad64.png" "debug-mural-images/id1-treated.png"
+          get "processed/products/1/80a5443d-0967-4930-bc46-c9f4d9a2c13a.png" "debug-mural-images/id1-v12-treated.png"
           get "products/2/388c5780-3813-45d8-ad12-8afb0a671af4" "debug-mural-images/id2-original.jpg"
-          get "processed/products/2/bc11cf88-01dc-4f7e-af0d-76934b1676cd.png" "debug-mural-images/id2-treated.png"
+          get "processed/products/2/a34cde87-54d1-4db0-9b75-fb68adb9ee5c.png" "debug-mural-images/id2-v12-treated.png"
           get "products/176/caa858f6-a636-4433-8437-c20786291a72" "debug-mural-images/id176-original.jpg"
           get "processed/products/176/3801783f-750a-4e9a-b73d-ce136b876b9d.png" "debug-mural-images/id176-treated.png"
           file debug-mural-images/*
