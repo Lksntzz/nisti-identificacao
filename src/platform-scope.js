@@ -21,6 +21,14 @@ function normalizedPlatformText(value) {
     .trim();
 }
 
+function platformKey(value) {
+  return normalizedPlatformText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
 export function normalizePlatform(value) {
   const normalized = normalizedPlatformText(value);
   if (!normalized) return '';
@@ -66,7 +74,7 @@ export async function listPlatforms(env) {
 
   return SUPPORTED_PLATFORMS.map(platform => ({
     platform,
-    platform_key: platformNamespace(platform),
+    platform_key: platformKey(platform),
     product_count: counts.get(platform) || 0
   }));
 }
