@@ -268,7 +268,7 @@ test('display endpoint marks treated versus original fallback and client reproce
   const publicImages = read('src/public-image-router.js');
   const utility = read('src/mural-transparent-image.js');
   const core = read('src/core-router.js');
-  const queueSql = read('supabase/migrations/20261001223000_product_treatment_admin_reads_v1.sql');
+  const queueSql = read('supabase/migrations/20261002173000_mkp_treatment_queue_wireo_v1.sql');
 
   assert.ok(publicImages.includes("'x-nisti-image-source':'treated'"));
   assert.ok(publicImages.includes("'x-nisti-image-source':'original'"));
@@ -282,7 +282,8 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(queueSql.includes("queue_status IN ('pending','stale')"));
   assert.ok(queueSql.includes("COALESCE(mpi.processor_version,'')<>(SELECT current_version FROM params)"));
   assert.equal(queueSql.includes("queue_status IN ('pending','review','stale')"), false);
-  assert.ok(queueSql.includes('p.id,p.sku,p.nome,p.image_key,p.wireo_code,p.tassel_code'));
+  assert.ok(queueSql.includes('p.wireo_code'));
+  assert.ok(queueSql.includes("'wireo_code',COALESCE(wireo_code,''"));
   assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '14'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
