@@ -38,7 +38,7 @@ test('API rejects stale treatment clients and only serves approved v17 derivativ
   const version = read('src/product-image-processor-version.js');
 
   assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"));
-  assert.ok((core.match(/code:'stale_image_processor'/g) || []).length >= 3);
+  assert.ok((core.match(/code:'stale_image_processor'/g) || []).length >= 2);
   assert.ok(core.includes('row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
   assert.ok(core.includes('product.treated_image_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));
   assert.ok(publicImages.includes('row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION'));

@@ -7,12 +7,13 @@ const coreRouter = fs.readFileSync(new URL('../src/core-router.js', import.meta.
 const worker = fs.readFileSync(new URL('../src/product-image-treatment-worker.jsx', import.meta.url), 'utf8');
 const version = fs.readFileSync(new URL('../src/product-image-processor-version.js', import.meta.url), 'utf8');
 
-test('product image upload sends the same processor version required by the API', () => {
+test('Mural treatment uses the shared processor version without coupling original product uploads', () => {
   assert.match(version, /PRODUCT_IMAGE_PROCESSOR_VERSION\s*=\s*'\d+'/);
-  assert.match(main, /import \{ PRODUCT_IMAGE_PROCESSOR_VERSION \} from '\.\/product-image-processor-version\.js'/);
-  assert.match(main, /fd\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/);
+  assert.doesNotMatch(main, /import \{ PRODUCT_IMAGE_PROCESSOR_VERSION \} from '\.\/product-image-processor-version\.js'/);
+  assert.doesNotMatch(main, /fd\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/);
   assert.match(coreRouter, /import \{ PRODUCT_IMAGE_PROCESSOR_VERSION \} from '\.\/product-image-processor-version\.js'/);
   assert.match(worker, /import \{ PRODUCT_IMAGE_PROCESSOR_VERSION \} from '\.\/product-image-processor-version\.js'/);
+  assert.match(worker, /form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/);
 });
 
 test('processor version is not duplicated as a hardcoded contract', () => {
