@@ -36,7 +36,7 @@ export default {
         if (tasselCode !== 'X' && !ACCESSORY_COLORS[tasselCode]) {
           return json({ error: 'Tassel inválido.' }, 400);
         }
-        if (!ACCESSORY_COLORS[elasticoCode]) {
+        if (elasticoCode !== 'X' && !ACCESSORY_COLORS[elasticoCode]) {
           return json({ error: 'Elástico inválido.' }, 400);
         }
 
@@ -72,7 +72,7 @@ export default {
             elastico_code: elasticoCode,
             wireo: WIREO_COLORS[wireoCode],
             tassel: tasselCode === 'X' ? 'Sem tassel' : ACCESSORY_COLORS[tasselCode],
-            elastico: ACCESSORY_COLORS[elasticoCode]
+            elastico: elasticoCode === 'X' ? 'Sem elástico' : ACCESSORY_COLORS[elasticoCode]
           },
           commerce_sync:commerceSync
         });
