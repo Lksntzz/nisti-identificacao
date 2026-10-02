@@ -11,19 +11,9 @@ const MAX_CACHE_ENTRIES = 80;
 // canvas has at most ~6.6 MB of uncompressed pixel data, so even difficult
 // photographic covers cannot wedge the queue with an oversized PNG.
 const MAX_RENDER_DIMENSION = 1280;
-const mkpProductMaskCache = new Map();
-
-const MKP_PRODUCT_MASKS = Object.freeze({
-  B:Object.freeze({ withTassel:'/product-masks-mkp/wire_branco_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_branco_sem_tassel.png' }),
-  P:Object.freeze({ withTassel:'/product-masks-mkp/wire_preto_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_preto_sem_tassel.png' }),
-  R:Object.freeze({ withTassel:'/product-masks-mkp/wire_gold_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_gold_sem_tassel.png' })
-});
-const MKP_MASK_MAX_ASPECT_ERROR = .025;
-// White sticker contour calibrated to the approved visual reference.
-// "Precise" changes silhouette selection, not border thickness: both paths
-// keep the same visible contour so redo does not unexpectedly become thinner.
-const MKP_OUTLINE_SCALE = 5 / 1024;
-const MKP_PRECISE_OUTLINE_SCALE = 5 / 1024;
+// ID1..ID14 masks were used to calibrate safe geometry and outline thickness.
+// They are deliberately NOT applied as runtime cutout molds: different products
+// with the same wire-o colour do not share the same physical silhouette.
 // Conservative inner geometry normalized from the planner family. It is not a
 // cutout mold: it only protects the interior of a white/off-white cover while
 // the actual outer silhouette is traced from the source pixels.
@@ -114,125 +104,9 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function mkpProductMaskUrl(wireoCode, tasselCode) {
-  const wire = String(wireoCode || '').trim().toUpperCase();
-  const family = MKP_PRODUCT_MASKS[wire];
-  if (!family) return '';
-  const tassel = String(tasselCode || '').trim().toUpperCase();
-  return tassel === 'X' ? family.withoutTassel : family.withTassel;
-}
-
-function sourceMatchesMkpFrame(width, height) {
-  const aspect = Number(width || 0) / Math.max(1, Number(height || 0));
-  return Math.abs(aspect - 1) <= MKP_MASK_MAX_ASPECT_ERROR;
-}
-
-function normalizeMkpMaskValue(value) {
-  // PSD-exported gold/black masks contain a gray matte (roughly 184–216)
-  // outside the actual white silhouette. Treating that matte as alpha keeps
-  // the studio background. Normalize only the near-white mask information,
-  // preserving a narrow antialiased edge instead of trusting raw luminance.
-  const normalized = clamp((Number(value || 0) - 235) / 15, 0, 1);
-  const smooth = normalized * normalized * (3 - 2 * normalized);
-  return Math.round(smooth * 255);
-}
-
-async function buildMkpProductAlpha(width, height, wireoCode, tasselCode) {
-  const url = mkpProductMaskUrl(wireoCode, tasselCode);
-  if (!url || !sourceMatchesMkpFrame(width, height) || typeof document === 'undefined') return null;
-  let reference = mkpProductMaskCache.get(url);
-  if (!reference) {
-    const response = await fetch(url, { credentials:'same-origin', cache:'force-cache' });
-    if (!response.ok) throw new Error(`Máscara MKP indisponível (${response.status}).`);
-    const bitmap = await loadBitmap(await response.blob());
-    reference = { bitmap, width:Number(bitmap.width || bitmap.naturalWidth || 0), height:Number(bitmap.height || bitmap.naturalHeight || 0) };
-    if (!reference.width || !reference.height) throw new Error('Máscara MKP sem dimensões válidas.');
-    mkpProductMaskCache.set(url, reference);
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d', { willReadFrequently:true });
-  if (!context) return null;
-  context.clearRect(0, 0, width, height);
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = 'high';
-  context.drawImage(reference.bitmap, 0, 0, width, height);
-  const pixels = context.getImageData(0, 0, width, height).data;
-  const alpha = new Uint8ClampedArray(width * height);
-  let visible = 0;
-  for (let index = 0; index < alpha.length; index += 1) {
-    const value = normalizeMkpMaskValue(pixels[index * 4]);
-    alpha[index] = value;
-    if (value >= 32) visible += 1;
-  }
-  const ratio = visible / Math.max(1, alpha.length);
-  if (ratio < .35 || ratio > .75) throw new Error('Máscara MKP fora da geometria segura.');
-  return alpha;
-}
-
 function hasRegisteredWireo(options = {}) {
   const code = String(options.wireoCode || options.wireo_code || '').trim().toUpperCase();
   return Boolean(code && code !== 'X' && code !== 'N/A');
-}
-
-function buildWireoRecoveryMask(data, width, height, plannerBounds) {
-  if (!plannerBounds || !width || !height) return null;
-
-  // The exact MKP reference is reliable for the planner body, but wire-o
-  // position varies a few pixels between mockups. Recover the binding from the
-  // ORIGINAL source in a narrow strip beside the left cover edge instead of
-  // allowing the fixed mask to erase pale/silver/white rings.
-  const left = clamp(Math.floor(plannerBounds.minX - plannerBounds.width * .035), 0, width - 1);
-  const right = clamp(Math.ceil(plannerBounds.minX + plannerBounds.width * .205), 0, width - 1);
-  const top = clamp(Math.floor(plannerBounds.minY - plannerBounds.height * .025), 0, height - 1);
-  const bottom = clamp(Math.ceil(plannerBounds.maxY + plannerBounds.height * .025), 0, height - 1);
-  if (right <= left || bottom <= top) return null;
-
-  const evidence = new Uint8Array(width * height);
-  let evidenceCount = 0;
-  const verticalBins = new Uint8Array(12);
-
-  for (let y = top; y <= bottom; y += 1) {
-    for (let x = left; x <= right; x += 1) {
-      const index = y * width + x;
-      const offset = index * 4;
-      const strong = isStrongForegroundPixel(
-        data[offset], data[offset + 1], data[offset + 2], data[offset + 3]
-      );
-      const edge = !strong && hasLocalProductEdge(data, width, height, index);
-      if (!strong && !edge) continue;
-      evidence[index] = 1;
-      evidenceCount += 1;
-      const bin = clamp(Math.floor((y - top) * verticalBins.length / Math.max(1, bottom - top + 1)), 0, verticalBins.length - 1);
-      verticalBins[bin] = 1;
-    }
-  }
-
-  // A real binding repeats along the spine. A single logo/dust mark must not
-  // become a recovered accessory just because it sits near the cover.
-  const occupiedBins = verticalBins.reduce((sum, value) => sum + value, 0);
-  if (evidenceCount < Math.max(18, Math.round(width * height * .00008)) || occupiedBins < 3) {
-    return null;
-  }
-
-  // White/silver rings may have only dark reflections on their edges. A small
-  // dilation reconnects those edge pixels to the pale metal without creating
-  // a solid rectangular strip or changing the approved outer contour.
-  return dilateMask(evidence, width, height, clamp(Math.round(Math.max(width, height) * .0022), 2, 3));
-}
-
-function mergeMkpAlphaWithWireo(data, alpha, recoveryMask) {
-  if (!alpha || alpha.length * 4 !== data.length) return false;
-  for (let index = 0; index < alpha.length; index += 1) {
-    const recovered = recoveryMask?.[index] ? data[index * 4 + 3] : 0;
-    data[index * 4 + 3] = Math.max(alpha[index], recovered);
-  }
-  return true;
-}
-
-function applyMkpProductAlpha(data, alpha, recoveryMask = null) {
-  return mergeMkpAlphaWithWireo(data, alpha, recoveryMask);
 }
 
 function pixelMetrics(r, g, b) {
@@ -1324,45 +1198,16 @@ async function buildTransparentProductImage(src, options = {}) {
   const total = width * height;
 
   const geometry = classifyProductGeometry(data, width, height, options);
-  const standardMkpEligible = geometry.kind === 'standard' && sourceMatchesMkpFrame(width, height);
-  const mkpMaskUrl = standardMkpEligible
-    ? mkpProductMaskUrl(options.wireoCode, options.tasselCode)
-    : '';
-
-  // The legacy MKP mask is valid only for the standard upright planner. A
-  // square canvas alone is no longer enough: horizontal, perspective and disc
-  // products must use their own geometry so the cover is not cut by the
-  // vertical mold.
-  if (options.requireMkpMask && standardMkpEligible && !mkpMaskUrl) {
-    throw new Error('Código de wire-o ausente ou inválido para selecionar a máscara MKP.');
-  }
-  const mkpAlpha = standardMkpEligible
-    ? await buildMkpProductAlpha(width, height, options.wireoCode, options.tasselCode)
-    : null;
-  if (options.requireMkpMask && standardMkpEligible && !mkpAlpha) {
-    throw new Error('A máscara MKP obrigatória não pôde ser carregada.');
-  }
-  if (mkpAlpha) {
-    const plannerBounds = hasRegisteredWireo(options)
-      ? buildPlannerReferenceBounds(data, width, height, true)
-      : null;
-    const wireoRecoveryMask = plannerBounds
-      ? buildWireoRecoveryMask(data, width, height, plannerBounds)
-      : null;
-    applyMkpProductAlpha(data, mkpAlpha, wireoRecoveryMask);
-    context.putImageData(imageData, 0, 0);
-    const outputBlob = await new Promise((resolve, reject) => {
-      canvas.toBlob(result => result ? resolve(result) : reject(new Error('Falha ao aplicar máscara MKP.')), 'image/png');
-    });
-    return URL.createObjectURL(outputBlob);
-  }
+  // Every product is segmented from its OWN source image. Never select a
+  // cutout mold by wire-o/tassel metadata: products sharing those accessories
+  // can have different cover positions, perspective and page geometry.
 
   // Only skip processing when transparency is actually present on the outer
   // border. A tiny transparent logo/mark inside the image is not a prepared
   // product cutout and must not disable background cleanup.
   const sourceAlreadyCutOut = hasExistingTransparency(data, total)
     && hasUsableTransparentBorder(data, width, height);
-  if (sourceAlreadyCutOut && !options.forceOutline) return src;
+  if (sourceAlreadyCutOut) return src;
 
   // Protect the white/off-white body with the geometry that actually matches
   // the product. Standard planners keep the approved vertical reference;
@@ -1574,12 +1419,7 @@ async function buildTreatedProductImage(src, options = {}) {
   }
 
   const geometry = classifyProductGeometry(data, width, height, options);
-  const usingMkpMask = geometry.kind === 'standard'
-    && Boolean(mkpProductMaskUrl(options.wireoCode, options.tasselCode))
-    && sourceMatchesMkpFrame(width, height);
-  const candidateProtection = usingMkpMask
-    ? null
-    : buildGeometryProtection(data, width, height, geometry, true);
+  const candidateProtection = buildGeometryProtection(data, width, height, geometry, true);
   const candidateBounds = candidateProtection?.bounds || null;
   const preserveAccessory = geometry.kind !== 'standard'
     || hasRegisteredWireo(options)
@@ -1587,16 +1427,15 @@ async function buildTreatedProductImage(src, options = {}) {
       String(options.tasselCode || '').trim()
       && String(options.tasselCode || '').trim().toUpperCase() !== 'X'
     );
-  let productMask = usingMkpMask
-    ? buildOpaqueMask(data, width, height)
-    : buildProductComponentsMask(data, width, height, candidateBounds ? {
-        plannerBounds:candidateBounds,
-        preserveAccessory
-      } : { preserveAccessory });
+  let productMask = buildProductComponentsMask(
+    data,
+    width,
+    height,
+    candidateBounds ? { plannerBounds:candidateBounds, preserveAccessory } : { preserveAccessory }
+  );
   if (!productMask) return src;
   if (
-    !usingMkpMask
-    && candidateBounds
+    candidateBounds
     && !productMaskGeometryIsSafe(productMask, width, height, geometry.kind)
   ) {
     // If the selected geometry envelope is not safe, retry with connected
@@ -1636,9 +1475,9 @@ async function buildTreatedProductImage(src, options = {}) {
   // Keep the approved sticker-style contour thickness in both normal and
   // manual-redo paths. Precision changes the detected silhouette, never the
   // visible white border thickness.
-  const outlineScale = usingMkpMask
-    ? (options.forceOutline || options.preciseOutline ? MKP_PRECISE_OUTLINE_SCALE : MKP_OUTLINE_SCALE)
-    : (options.forceOutline || options.preciseOutline ? PLANNER_MASK_CALIBRATION.preciseOutlineScale : PLANNER_MASK_CALIBRATION.outlineScale);
+  const outlineScale = options.forceOutline || options.preciseOutline
+    ? PLANNER_MASK_CALIBRATION.preciseOutlineScale
+    : PLANNER_MASK_CALIBRATION.outlineScale;
   const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 4, 7);
   const outlineMask = buildExternalOutlineRing(productMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
@@ -1859,8 +1698,6 @@ export const __muralTransparentImageInternals = {
   clearOutsideSubject,
   buildProductComponentsMask,
   hasRegisteredWireo,
-  buildWireoRecoveryMask,
-  mergeMkpAlphaWithWireo,
   plannerMaskGeometryIsSafe,
   buildOpaqueMask,
   estimateBorderBackgroundBrightness,
@@ -1888,6 +1725,5 @@ export const __muralTransparentImageInternals = {
   isPersistedProductImageUrl,
   persistedProductOriginalUrl,
   persistedProductImageSource,
-  buildTreatedProductImage,
-  normalizeMkpMaskValue
+  buildTreatedProductImage
 };
