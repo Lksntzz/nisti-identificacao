@@ -192,7 +192,7 @@ test('admin mounts the treatment worker but processing only starts by explicit c
   assert.ok(worker.includes('productImageTreatmentArtifactsBlob'));
   assert.ok(worker.includes('tasselCode:item.tassel_code'));
   assert.ok(worker.includes('wireoCode:item.wireo_code'));
-  assert.ok(worker.includes('requireMkpMask:true'));
+  assert.equal(worker.includes('requireMkpMask'), false);
   assert.equal(worker.includes('/ai'), false);
   assert.ok(worker.includes('nisti_product_image_treatment_lock_v${PRODUCT_IMAGE_PROCESSOR_VERSION}'));
   assert.ok(worker.includes("cache:'no-store'"));
@@ -203,11 +203,11 @@ test('admin mounts the treatment worker but processing only starts by explicit c
   assert.ok(worker.includes('/failed'));
 });
 
-test('stale browser clients cannot persist or approve a pre-v17 cutout', () => {
+test('stale browser clients cannot persist or approve a pre-v18 cutout', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
   const core = read('src/core-router.js');
   const version = read('src/product-image-processor-version.js');
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '18'"));
   assert.ok(worker.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.equal((worker.match(/form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/g) || []).length, 2);
   assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 2);
@@ -297,7 +297,7 @@ test('display endpoint is server-authoritative and only serves current approved 
   assert.ok(hook.includes('Display is server-authoritative'));
   assert.equal(hook.includes('treatedProductImageUrl('), false);
   const version = read('src/product-image-processor-version.js');
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '18'"));
   assert.ok(core.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(core.includes("wireo_code:row.wireo_code || ''"));
@@ -307,7 +307,7 @@ test('display endpoint is server-authoritative and only serves current approved 
   assert.ok(queueSql.includes('p.wireo_code'));
   assert.ok(queueSql.includes("'wireo_code',COALESCE(wireo_code,''"));
   assert.ok(publicImages.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
-  assert.equal(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '17'"), false);
+  assert.equal(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '18'"), false);
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
