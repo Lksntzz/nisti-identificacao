@@ -764,6 +764,7 @@ function buildProductComponentsMask(data, width, height) {
     let maxX = -1;
     let minY = height;
     let maxY = -1;
+    let strongCount = 0;
     const label = components.length;
     labels[start] = label;
     queue[tail++] = start;
@@ -777,6 +778,10 @@ function buildProductComponentsMask(data, width, height) {
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
       if (y > maxY) maxY = y;
+      const offset = index * 4;
+      if (isStrongForegroundPixel(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) {
+        strongCount += 1;
+      }
 
       const push = next => {
         if (next < 0 || next >= total || labels[next] >= 0 || !isOpaque(next)) return;
@@ -794,7 +799,7 @@ function buildProductComponentsMask(data, width, height) {
       if (x + 1 < width && y + 1 < height) push(index + width + 1);
     }
 
-    components.push({ count, minX, maxX, minY, maxY });
+    components.push({ count, strongCount, minX, maxX, minY, maxY });
     if (count > largestSize) {
       largestSize = count;
       largestLabel = label;
@@ -814,10 +819,17 @@ function buildProductComponentsMask(data, width, height) {
     if (label === largestLabel) continue;
     const component = components[label];
     if (component.count < minimumDetailSize) continue;
+    const strongRatio = component.strongCount / Math.max(1, component.count);
+    const anotherLargeProduct = component.count >= largestSize * .12;
+    // Detached wire-o/tassel pieces contain dark or chromatic evidence. Neutral
+    // white/grey rails, export handles and background chips do not. Reject
+    // those low-evidence fragments even when their bounding box overlaps the
+    // planner body; bbox proximity alone caused the right-side artifacts seen
+    // in the rejected Mural treatment.
+    if (!anotherLargeProduct && strongRatio < .30) continue;
     const gapX = Math.max(0, main.minX - component.maxX - 1, component.minX - main.maxX - 1);
     const gapY = Math.max(0, main.minY - component.maxY - 1, component.minY - main.maxY - 1);
     const closeToMainProduct = gapX <= maximumGapX && gapY <= maximumGapY;
-    const anotherLargeProduct = component.count >= largestSize * .12;
     if (closeToMainProduct || anotherLargeProduct) included[label] = 1;
   }
 
@@ -1093,9 +1105,7 @@ async function buildTransparentProductImage(src, options = {}) {
       // intersect it with the rigid planner body: that used to erase tassels.
       applyOfficialProductMask(data, official.mask);
 
-      const officialProductMask = requestedOfficialVariant === 'withTassel'
-        ? buildOpaqueMask(data, width, height)
-        : buildProductComponentsMask(data, width, height);
+      const officialProductMask = buildProductComponentsMask(data, width, height);
       const officialStats = officialProductMask ? maskStats(officialProductMask, width, height) : null;
       const validOfficialCut = officialStats
         && officialStats.ratio >= .12
@@ -1209,12 +1219,11 @@ async function buildTransparentProductImage(src, options = {}) {
   const subjectCoverage = protectedSubjectCoverage(data, width, height, subjectEvidence);
   if (subjectCoverage < .82) return src;
 
-  // A tassel is intentionally detached from the cover in many photos. Once
-  // the official silhouette has removed the background, retain every opaque
-  // component so the tassel is not discarded as a small disconnected object.
-  const productMask = requestedOfficialVariant === 'withTassel'
-    ? buildOpaqueMask(data, width, height)
-    : buildProductComponentsMask(data, width, height);
+  // A tassel can be detached from the cover, but retaining every opaque pixel
+  // also preserves neutral export/background fragments. Component cleanup
+  // keeps nearby high-contrast tassel/wire-o evidence and removes neutral
+  // disconnected residue.
+  const productMask = buildProductComponentsMask(data, width, height);
   if (!productMask) return src;
   const productStats = maskStats(productMask, width, height);
   const productWidth = productStats.maxX - productStats.minX + 1;
