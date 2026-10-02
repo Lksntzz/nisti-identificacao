@@ -24,7 +24,7 @@ freeze is released in production after the frozen smoke-test gate completed succ
 - NISTI → Commerce synchronization now sources the authoritative NISTI product rows from Supabase.
 - Direct product create/update/finish and bulk import trigger Commerce synchronization; primary product deletion removes stale Commerce links.
 - System Metrics and System Health use Supabase as the primary database when Supabase reads are enabled.
-- Gemini call budget is Supabase-only in the runtime.
+- Gemini call budget uses Supabase in production; its D1 implementation remains only for explicit non-Supabase compatibility mode.
 - Reference reindex is Supabase-only; scheduled maintenance no longer imports the legacy reserve backfill.
 - Product finish edits are Supabase-only and continue synchronizing/reconciling Commerce.
 
@@ -42,6 +42,7 @@ freeze is released in production after the frozen smoke-test gate completed succ
 | `src/gtin-router.js` | GTIN event/link/admin compatibility SQL | scanner events, GTIN link/unlink and admin dismissal are Supabase-primary |
 | `src/geometric-shadow-confirmation-router.js` | legacy confirmation SQL | primary confirmation reads/writes are Supabase |
 | `src/cover-notifications.js` | compatibility notification SQL | primary notification writers/read receipts use Supabase |
+| `src/gemini-budget.js` | legacy D1 budget implementation | production uses Supabase with no automatic fallback; D1 is only for explicit non-Supabase compatibility mode |
 
 ## A2 completion invariants
 
