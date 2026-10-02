@@ -509,6 +509,7 @@ export default {
             sku:row.sku || null,
             name:row.nome || null,
             tassel_code:row.tassel_code || 'X',
+            wireo_code:row.wireo_code || '',
             status:row.status || 'pending',
             image_key:row.image_key,
             mask_image_key:row.mask_image_key || null,
