@@ -220,6 +220,14 @@ test('detached corner logo cannot stretch the dominant agenda silhouette', () =>
 });
 
 
+
+
+test('standard planner structural body is restored even without wire-o metadata', () => {
+  assert.match(source, /const lightBodyProtection = geometry\.kind === 'standard'\s*\? buildPlannerBodyProtection/);
+  assert.doesNotMatch(source, /geometry\.kind === 'standard' && hasRegisteredWireo\(options\)/);
+  assert.match(source, /restoreOriginalPixelsInsideProtection\(\s*data, originalPixels, width, height, lightBodyProtection/);
+});
+
 test('global treated product image bakes the approved thicker white outline into transparent PNG', () => {
   assert.match(source, /async function buildTreatedProductImage/);
   assert.match(source, /outlineScale:8 \/ 1024/);
