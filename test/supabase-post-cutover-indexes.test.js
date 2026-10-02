@@ -13,5 +13,9 @@ test('active Supabase foreign keys have explicit covering indexes',()=>{
 });
 
 test('index-only migration does not mutate table data',()=>{
-  assert.doesNotMatch(sql,/\b(?:INSERT|UPDATE|DELETE|TRUNCATE)\b/i);
+  const statements=sql
+    .split('\n')
+    .filter(line=>!line.trim().startsWith('--'))
+    .join('\n');
+  assert.doesNotMatch(statements,/\b(?:INSERT|UPDATE|DELETE|TRUNCATE)\b/i);
 });
