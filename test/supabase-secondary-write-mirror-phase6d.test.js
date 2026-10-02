@@ -160,11 +160,10 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
     ['product_platforms', new Set(['core-router.js'])],
     ['recognition_daily', new Set(['recognition-metrics.js'])],
     ['recognition_events', new Set(['recognition-metrics.js', 'system-metrics-clean-router.js'])],
-    ['cover_visual_references', new Set(['core-router.js', 'occurrences-router.js'])],
-    ['cover_reference_embeddings', new Set(['core-router.js', 'occurrences-router.js'])],
+    ['cover_visual_references', new Set(['core-router.js'])],
+    ['cover_reference_embeddings', new Set(['core-router.js'])],
     ['notifications', new Set(['system-notifications.js'])],
     ['notification_reads', new Set(['system-notifications.js'])],
-    ['scan_occurrences', new Set(['occurrences-router.js'])],
     ['geometric_shadow_evidence', new Set(['geometric-shadow-evidence-router.js', 'geometric-shadow-confirmation-router.js'])],
     ['gemini_call_budget', new Set(['gemini-budget.js'])],
   ]);
