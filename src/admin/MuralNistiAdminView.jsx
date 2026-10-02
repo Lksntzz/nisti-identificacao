@@ -168,17 +168,18 @@ function MuralProductImageManager({ products, onChanged }) {
 
     const mergeProgress=(detail={})=>{
       if(!active)return;
+      const phase=detail.phase||treatmentProgress.phase;
+      if(phase==='complete'||phase==='paused')setPaused(true);
       setTreatmentProgress(current=>{
         const summary=detail.summary&&typeof detail.summary==='object'?detail.summary:{};
-        const phase=detail.phase||current.phase;
-        const finished=['processed','failed','complete','paused'].includes(phase);
-        if(phase==='complete'||phase==='paused')setPaused(true);
+        const resolvedPhase=detail.phase||current.phase;
+        const finished=['processed','failed','complete','paused'].includes(resolvedPhase);
         return {
           ...current,
           ...summary,
           loading:false,
-          phase,
-          current:phase==='processing'?(detail.product||null):finished?null:current.current,
+          phase:resolvedPhase,
+          current:resolvedPhase==='processing'?(detail.product||null):finished?null:current.current,
           error:detail.error||'',
         };
       });
