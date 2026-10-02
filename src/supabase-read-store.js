@@ -126,35 +126,6 @@ export async function supabasePlatformExists(env, platform) {
   return (await supabaseRpc(env, 'nisti_platform_exists', { p_platform: platform })) === true;
 }
 
-export async function supabasePlatformsForReference(env, sourceProductId, capaCode) {
-  return rows(await supabaseRpc(env, 'nisti_platforms_for_reference', {
-    p_source_product_id: Number(sourceProductId || 0) || null,
-    p_capa_code: String(capaCode || '').trim().toUpperCase() || null
-  }));
-}
-
-export async function supabaseActiveReferences(env, ids) {
-  const cleanIds = [...new Set((ids || [])
-    .map(value => Number(value || 0))
-    .filter(value => Number.isInteger(value) && value > 0))];
-  if (!cleanIds.length) return [];
-  return rows(await supabaseRpc(env, 'nisti_active_references', { p_ids: cleanIds }));
-}
-
-export async function supabaseReferenceById(env, referenceId) {
-  const result = rows(await supabaseRpc(env, 'nisti_reference_by_id', {
-    p_reference_id: Number(referenceId || 0)
-  }));
-  return result[0] || null;
-}
-
-export async function supabaseReferenceByCover(env, capaCode) {
-  const result = rows(await supabaseRpc(env, 'nisti_reference_by_cover', {
-    p_capa_code: String(capaCode || '').trim().toUpperCase()
-  }));
-  return result[0] || null;
-}
-
 export async function supabaseProductsForCover(env, capaCode, platform) {
   return rows(await supabaseRpc(env, 'nisti_products_for_cover', {
     p_capa_code: String(capaCode || '').trim().toUpperCase(),
@@ -175,14 +146,6 @@ export async function supabaseProductImageContext(env, productId) {
     p_product_id:Number(productId || 0)
   });
 }
-
-export async function supabaseCoverReferences(env, capaCode) {
-  return rows(await supabaseRpc(env,'nisti_list_cover_references_v1',{
-    p_capa_code:String(capaCode || '').trim().toUpperCase()
-  }));
-}
-
-
 
 export async function supabaseProductTreatmentSummary(env, processorVersion = '8') {
   const value = await supabaseRpc(env, 'nisti_product_treatment_summary_v1', {
@@ -227,13 +190,6 @@ export async function supabaseReserveProductGtins(env, productId) {
   return rows(await supabaseRpc(env, 'nisti_reserve_product_gtins_v1', {
     p_product_id:Number(productId || 0)
   }));
-}
-
-export async function supabaseReserveOccurrences(env) {
-  const value = await supabaseRpc(env, 'nisti_reserve_occurrences_v1');
-  return value && typeof value === 'object'
-    ? value
-    : { stats:{ pending:0, trained:0, dismissed:0 }, occurrences:[] };
 }
 
 export async function supabaseReserveNotifications(env, userId, limit = 50) {
