@@ -2,8 +2,7 @@ import {
   preferSupabaseRead,
   supabaseImageKey
 } from './supabase-read-store.js';
-
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '16';
+import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 
 function notFound() {
   return new Response('Not found', {
@@ -66,7 +65,8 @@ async function imageKeyFromD1(env, entity, id) {
     const processedReady = row.status === 'approved'
       && row.processed_image_key
       && row.source_image_key === row.image_key
-      && row.reviewed_by === 'admin';
+      && row.reviewed_by === 'admin'
+      && row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION;
     return processedReady ? row.processed_image_key : row.image_key;
   }
   if (entity === 'mural-product') {
@@ -79,8 +79,9 @@ async function imageKeyFromD1(env, entity, id) {
         AND mpi.processed_image_key IS NOT NULL
         AND mpi.source_image_key=p.image_key
         AND mpi.reviewed_by='admin'
+        AND mpi.processor_version=?
       LIMIT 1
-    `).bind(id).first();
+    `).bind(id,PRODUCT_IMAGE_PROCESSOR_VERSION).first();
     return row?.processed_image_key || null;
   }
   return null;
