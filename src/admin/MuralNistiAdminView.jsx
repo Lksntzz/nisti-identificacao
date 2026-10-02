@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import '../mural-admin.css';
 import { MuralCard } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
@@ -100,6 +101,39 @@ function TransparentMuralProductImage({ src, alt = '', className = '', draggable
       draggable={draggable}
       aria-hidden={ariaHidden ? 'true' : undefined}
     />
+  );
+}
+
+function TreatedImageLightbox({ product, busy, onClose, onApprove, onRedo }) {
+  const [imageError,setImageError]=useState(false);
+
+  useEffect(()=>{
+    const previousOverflow=document.body.style.overflow;
+    const closeOnEscape=event=>{if(event.key==='Escape')onClose()};
+    document.body.style.overflow='hidden';
+    window.addEventListener('keydown',closeOnEscape);
+    return()=>{
+      document.body.style.overflow=previousOverflow;
+      window.removeEventListener('keydown',closeOnEscape);
+    };
+  },[onClose]);
+
+  return createPortal(
+    <div className="mural-product-image-lightbox" role="dialog" aria-modal="true" aria-label={`Imagem tratada de ${product.sku}`} onClick={onClose}>
+      <div className="mural-product-image-lightbox-dialog" onClick={event=>event.stopPropagation()}>
+        <header><div><strong>{product.sku}</strong><small>{product.nome||product.type||'Produto NISTI'}</small></div><button type="button" onClick={onClose} aria-label="Fechar">×</button></header>
+        <div className="mural-product-image-lightbox-canvas">
+          {!imageError
+            ?<img src={product.previewSrc} alt={`Imagem tratada de ${product.sku}`} onError={()=>setImageError(true)}/>
+            :<div className="mural-product-image-lightbox-error" role="alert"><strong>Não foi possível abrir a imagem tratada.</strong><span>Feche esta janela, atualize a lista e tente novamente.</span><button type="button" onClick={()=>setImageError(false)}>Tentar carregar novamente</button></div>}
+        </div>
+        <footer>
+          {product.mural_image_reviewable&&<button type="button" className="approve" disabled={busy} onClick={()=>onApprove(product)}>Aprovar e mover para Revisados</button>}
+          <button type="button" disabled={busy} onClick={()=>onRedo(product)}>Refazer com corte preciso</button>
+        </footer>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -311,16 +345,13 @@ function MuralProductImageManager({ products, onChanged }) {
       </article>})}
       {!filtered.length&&<div className="mural-product-image-manager-empty">Nenhuma imagem nesta fila.</div>}
     </div>
-    {previewProduct&&<div className="mural-product-image-lightbox" role="dialog" aria-modal="true" aria-label={`Imagem tratada de ${previewProduct.sku}`} onClick={()=>setPreviewProduct(null)}>
-      <section onClick={event=>event.stopPropagation()}>
-        <header><div><strong>{previewProduct.sku}</strong><small>{previewProduct.nome||previewProduct.type||'Produto NISTI'}</small></div><button type="button" onClick={()=>setPreviewProduct(null)} aria-label="Fechar">×</button></header>
-        <div className="mural-product-image-lightbox-canvas"><img src={previewProduct.previewSrc} alt={`Imagem tratada de ${previewProduct.sku}`}/></div>
-        <footer>
-          {previewProduct.mural_image_reviewable&&<button type="button" className="approve" disabled={busyId!==null} onClick={async()=>{await approve(previewProduct);setPreviewProduct(null)}}>Aprovar e mover para Revisados</button>}
-          <button type="button" disabled={busyId!==null} onClick={async()=>{await redo(previewProduct);setPreviewProduct(null)}}>Refazer com corte preciso</button>
-        </footer>
-      </section>
-    </div>}
+    {previewProduct&&<TreatedImageLightbox
+      product={previewProduct}
+      busy={busyId!==null}
+      onClose={()=>setPreviewProduct(null)}
+      onApprove={async product=>{await approve(product);setPreviewProduct(null)}}
+      onRedo={async product=>{await redo(product);setPreviewProduct(null)}}
+    />}
   </div>;
 }
 
