@@ -20,13 +20,15 @@ test('GTIN registry RPC is invoker-only and service-role-only',()=>{
   assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.nisti_gtin_registry_v1\(\)/);
 });
 
-test('core image and push diagnostics prefer Supabase reads',()=>{
+test('core image and push diagnostics use Supabase directly after D1 detachment',()=>{
   const imageBlock=core.slice(
     core.indexOf("const imageGet ="),
     core.indexOf("/api/admin/product-image-treatment/summary")
   );
-  assert.match(imageBlock,/supabaseReadsRequested\(env\)/);
+  assert.match(imageBlock,/supabaseProductImageContext/);
+  assert.doesNotMatch(imageBlock,/env\.DB/);
   assert.match(core,/nisti_list_push_subscriptions_v1/);
+  assert.doesNotMatch(core,/FROM push_subscriptions/);
 });
 
 test('test notification is a direct primary mutation and does not require D1 remirroring',()=>{
