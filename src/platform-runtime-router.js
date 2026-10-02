@@ -1,6 +1,4 @@
 import app from './edge-router.js';
-import { handleGeometricShadowManifestRequest } from './geometric-shadow-manifest.js';
-import { handleGeometricShadowEvidenceRequest } from './geometric-shadow-evidence-router.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { handlePublicImageRequest } from './public-image-router.js';
 
@@ -67,14 +65,6 @@ export default {
     const publicImageResponse = await handlePublicImageRequest(request, env);
     if (publicImageResponse) return publicImageResponse;
 
-    const geometricShadowManifestResponse = await handleGeometricShadowManifestRequest(request, env);
-    if (geometricShadowManifestResponse) return geometricShadowManifestResponse;
-
-    if (url.pathname.startsWith('/api/operator/geometric-shadow-evidence')) {
-      const geometricShadowEvidenceResponse = await handleGeometricShadowEvidenceRequest(request, env);
-      if (geometricShadowEvidenceResponse) return geometricShadowEvidenceResponse;
-    }
-
     if (request.method === 'GET' && url.pathname === '/api/platforms') {
       const platforms = await listPlatforms(env);
       return new Response(JSON.stringify({ ok: true, platforms }), {
@@ -84,13 +74,7 @@ export default {
           'cache-control': 'no-store'
         }
       });
-    }
-
-    if (request.method === 'POST' && ['/api/identify-candidates', '/api/identify', '/api/identify-detail'].includes(url.pathname)) {
-      return new Response(JSON.stringify({
-        error: 'A identificação visual automática foi removida deste sistema.',
-        technical_error: 'visual_recognition_removed'
-      }), { status: 410, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+    }), { status: 410, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
     }
 
     const canonicalRequest = await canonicalizeCatalogRequest(request, url);

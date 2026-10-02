@@ -16,17 +16,8 @@ import {
   broadcastNewCoverPush
 } from './web-push.js';
 import {
-  platformVectorId,
-  supportedPlatforms,
-  platformsForReference,
-  platformNamespace,
-  normalizePlatform
-} from './platform-scope.js';
-import {
   supabaseReserveProducts,
   supabaseProductImageContext,
-  supabaseCoverReferences,
-  supabaseReferenceById,
   supabaseReadsRequested,
   supabaseRpc,
   supabaseProductTreatmentSummary,
@@ -46,13 +37,8 @@ import {
   markAdminSystemNotificationRead,
   markAllAdminSystemNotificationsRead
 } from './system-notifications.js';
-import { analyzeProductImageWithAi } from './ai-product-image-treatment.js';
 
-const EMBEDDING_DIMENSIONS = 768;
-const TOP_K_REFERENCES = 24;
 const BULK_IMPORT_LIMIT = 100;
-const EXTRA_REFERENCE_LIMIT = 6;
-const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
 const PRODUCT_IMAGE_PROCESSOR_VERSION = '9';
 const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
@@ -80,25 +66,6 @@ function clean(value) {
   return text || null;
 }
 
-function normalizeCapaCode(value) {
-  return String(value || '').trim().toUpperCase();
-}
-
-function base64(bytes) {
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-
-function referenceImageUrl(reference) {
-  if (!reference?.id || !reference?.image_key) return null;
-  const version = String(reference.image_key).split('/').pop() || 'current';
-  return `/api/reference-images/${reference.id}?v=${encodeURIComponent(version)}`;
-}
-
 function productOriginalImageUrl(productId, imageKey) {
   if (!productId || !imageKey) return null;
   return `/api/images/${Number(productId)}?v=${encodeURIComponent(String(imageKey))}`;
@@ -120,10 +87,6 @@ function inspectTransparentPng(bytes) {
   const colorType = view[25];
   if (![4,6].includes(colorType) || width < 1 || height < 1 || width > 6000 || height > 6000) return null;
   return { width, height };
-}
-
-async function storeReferenceEmbedding() {
-  throw new Error('A indexação visual automática foi removida deste sistema.');
 }
 
 async function saveProductImage(env, id, fileBytes, contentType) {
@@ -150,27 +113,7 @@ async function saveProductImage(env, id, fileBytes, contentType) {
     await env.PRODUCT_IMAGES.delete(value.old_processed_image_key).catch(()=>{});
   }
 
-  const reference=value.reference;
-  let indexed=false,indexError=null,removedReferences=[];
-  try {
-    const stored=await storeReferenceEmbedding(env,reference,new Uint8Array(fileBytes),contentType,id);
-    indexed=true;
-    removedReferences=stored.removedReferences || [];
-    for(const stale of removedReferences) {
-      if(stale.image_key && stale.image_key!==key) {
-        await env.PRODUCT_IMAGES.delete(stale.image_key).catch(()=>{});
-      }
-    }
-  } catch(error) {
-    indexError=error?.message || 'Falha ao indexar capa';
-  }
-
-  return {
-    indexed,
-    index_error:indexError,
-    reference_id:Number(reference?.id||0),
-    removed_reference_ids:removedReferences.map(item=>Number(item.id))
-  };
+  return { image_key:key };
 }
 
 async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
@@ -216,91 +159,6 @@ async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
     created:saved.created === true,
     has_image:saved.has_image === true,
     commerce_sync:commerceSync
-  };
-}
-
-async function listCoverReferences(env, capaCode) {
-  const results=await supabaseCoverReferences(env,normalizeCapaCode(capaCode));
-  return results.map(reference=>({
-    ...reference,
-    id:Number(reference.id),
-    source_product_id:reference.source_product_id?Number(reference.source_product_id):null,
-    indexed:Number(reference.dimensions||0)===EMBEDDING_DIMENSIONS,
-    image_url:referenceImageUrl(reference)
-  }));
-}
-
-async function addCoverReference(env, capaCode, file, kind) {
-  const code = normalizeCapaCode(capaCode);
-  if (!(file instanceof File)) throw new Error('Imagem de referência obrigatória');
-  if (!String(file.type||'').startsWith('image/')) throw new Error('Arquivo deve ser uma imagem');
-  if (Number(file.size||0)>MAX_REFERENCE_UPLOAD_BYTES) throw new Error('Imagem de referência excede 10 MB');
-
-  const referenceKind=['real','perspective','personalized','difficult'].includes(String(kind||'').trim().toLowerCase())
-    ? String(kind).trim().toLowerCase()
-    : 'real';
-  const key=`cover-references/${encodeURIComponent(code)}/${crypto.randomUUID()}`;
-  const bytes=await file.arrayBuffer();
-  await env.PRODUCT_IMAGES.put(key,bytes,{httpMetadata:{contentType:file.type||'image/jpeg'}});
-
-  let prepared;
-  try {
-    prepared=await mirrorSupabaseRpc(env,'nisti_prepare_extra_reference_v1',{
-      p_capa_code:code,p_image_key:key,p_reference_kind:referenceKind
-    },'referência visual extra');
-  } catch(error) {
-    await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
-    throw error;
-  }
-
-  if(prepared.value?.status!=='ok') {
-    await env.PRODUCT_IMAGES.delete(key).catch(()=>{});
-    if(prepared.value?.status==='cover_not_found') throw new Error('CAPA_CODE não encontrado no catálogo');
-    if(prepared.value?.status==='limit_reached') throw new Error(`Máximo de ${EXTRA_REFERENCE_LIMIT} referências adicionais por capa`);
-    throw new Error('Falha ao criar referência visual');
-  }
-
-  const reference=prepared.value.reference;
-  let indexed=false,indexError=null;
-  try {
-    await storeReferenceEmbedding(env,reference,new Uint8Array(bytes),file.type||'image/jpeg');
-    indexed=true;
-  } catch(error) {
-    indexError=error?.message||'Falha ao indexar referência';
-  }
-
-  return {
-    ...reference,
-    id:Number(reference.id),
-    indexed,
-    embedding_error:indexError,
-    image_url:referenceImageUrl(reference)
-  };
-}
-
-async function deleteExtraReference(env, referenceId) {
-  const result=await mirrorSupabaseRpc(
-    env,
-    'nisti_delete_extra_reference_v1',
-    {p_reference_id:referenceId},
-    'exclusão de referência visual'
-  );
-  if(result.value?.status==='not_found') throw new Error('Referência visual não encontrada');
-  if(result.value?.status==='protected') {
-    throw new Error('A referência principal do produto deve ser alterada pelo mockup do produto');
-  }
-
-  const reference=result.value?.reference;
-  if(env.COVER_VECTORS?.deleteByIds) {
-    const vectorIds=supportedPlatforms().map(p=>platformVectorId(referenceId,p)).filter(Boolean);
-    if(vectorIds.length) await env.COVER_VECTORS.deleteByIds(vectorIds).catch(()=>{});
-  }
-  if(reference?.image_key) await env.PRODUCT_IMAGES.delete(reference.image_key).catch(()=>{});
-
-  return {
-    id:Number(reference.id),
-    capa_code:normalizeCapaCode(reference.capa_code),
-    vector_id:`ref:${Number(reference.id)}`
   };
 }
 
@@ -495,7 +353,7 @@ export default {
         const file = form.get('image');
         if (!(file instanceof File)) return json({ error: 'Imagem obrigatória' }, 400);
         if (!file.type.startsWith('image/')) return json({ error: 'Arquivo deve ser uma imagem' }, 400);
-        const saved = await saveProductImage(env, id, await file.arrayBuffer(), file.type);
+        await saveProductImage(env, id, await file.arrayBuffer(), file.type);
 
         const prod = await supabaseProductImageContext(env,id);
         if (prod?.image_key) {
@@ -507,10 +365,6 @@ export default {
           ok: true,
           image_url: productDisplayImageUrl(id, prod?.image_key),
           original_image_url: productOriginalImageUrl(id, prod?.image_key),
-          embedding_indexed: saved.indexed,
-          embedding_error: saved.index_error,
-          reference_id: saved.reference_id,
-          removed_reference_ids: saved.removed_reference_ids,
           commerce_sync: commerceSync
         });
       }
@@ -603,35 +457,6 @@ export default {
             display_image_url:productDisplayImageUrl(row.id,row.image_key,row.processed_image_key)
           }))
         });
-      }
-
-      const aiTreatment = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/ai$/);
-      if (aiTreatment && request.method === 'POST') {
-        const productId=Number(aiTreatment[1]);
-        if (!env.PRODUCT_IMAGES) return json({error:'Armazenamento de imagens indisponível.'},503);
-        const product=await supabaseProductImageContext(env,productId);
-        if (!product?.image_key) return json({error:'Produto sem imagem original.'},404);
-        const object=await env.PRODUCT_IMAGES.get(product.image_key);
-        if (!object) return json({error:'Imagem original não encontrada.'},404);
-        try {
-          const result=await analyzeProductImageWithAi(object,product.tassel_code,env);
-          return json({
-            ok:true,
-            product_id:productId,
-            applied:Boolean(result.applied),
-            provider:result.provider,
-            model:result.model,
-            detected_has_tassel:result.detectedHasTassel,
-            registered_has_tassel:result.registeredHasTassel,
-            confidence:Number(result.confidence || 0),
-            tassel_disagrees:Boolean(result.tasselDisagrees),
-            reason:result.reason || '',
-            attempts:result.attempts
-          },200,{'cache-control':'private, no-store'});
-        } catch(error) {
-          console.warn('[NISTI IA] Análise de imagem indisponível',productId,error);
-          return json({error:error.message || 'Assistência de IA indisponível.'},503);
-        }
       }
 
       const treatmentUpload = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)$/);
@@ -758,78 +583,6 @@ export default {
         },'falha de imagem tratada');
         if(saved.value?.status==='not_found') return json({error:'Produto sem imagem original.'},404);
         return json({ok:true,product_id:productId,status:'failed'});
-      }
-
-      const referenceImageGet = url.pathname.match(/^\/api\/reference-images\/(\d+)$/);
-      if (referenceImageGet && request.method === 'GET') {
-        const reference = await supabaseReferenceById(env,Number(referenceImageGet[1]));
-        if (!reference?.image_key) return new Response('Not found',{status:404});
-        const object = await env.PRODUCT_IMAGES.get(reference.image_key);
-        if (!object) return new Response('Not found',{status:404});
-        const headers = new Headers();
-        object.writeHttpMetadata(headers);
-        headers.set(
-          'cache-control',
-          url.searchParams.has('v') ? 'public, max-age=31536000, immutable' : 'private, max-age=300'
-        );
-        return new Response(object.body,{headers});
-      }
-
-      const coverReferences = url.pathname.match(/^\/api\/admin\/covers\/([^/]+)\/references$/);
-      if (coverReferences && request.method === 'GET') {
-        const capaCode = decodeURIComponent(coverReferences[1]);
-        return json({
-          ok: true,
-          capa_code: normalizeCapaCode(capaCode),
-          references: await listCoverReferences(env, capaCode),
-          max_extra_references: EXTRA_REFERENCE_LIMIT
-        });
-      }
-
-      if (coverReferences && request.method === 'POST') {
-        const capaCode = decodeURIComponent(coverReferences[1]);
-        const form = await request.formData();
-        const file = form.get('image');
-        const kind = form.get('kind');
-        const reference = await addCoverReference(env, capaCode, file, kind);
-        return json({ ok: true, reference }, 201);
-      }
-
-      const deleteReference = url.pathname.match(/^\/api\/admin\/cover-references\/(\d+)$/);
-      if (deleteReference && request.method === 'DELETE') {
-        return json({
-          ok: true,
-          deleted: await deleteExtraReference(env, Number(deleteReference[1]))
-        });
-      }
-
-      if (url.pathname === '/api/admin/trained-references' && request.method === 'GET') {
-        const rows=await supabaseRpc(env,'nisti_trained_references_v1',{p_limit:200});
-        const references=(Array.isArray(rows)?rows:[]).map(row=>({
-          ...row,
-          image_url:referenceImageUrl(row),
-          is_indexed:row.is_indexed === true || Number(row.is_indexed) > 0
-        }));
-        return json({ok:true,references});
-      }
-
-      if (url.pathname === '/api/admin/cover-index' && request.method === 'GET') {
-        const model='removed';
-        const stats=await supabaseRpc(env,'nisti_cover_index_v1',{
-          p_embedding_model:model,
-          p_dimensions:EMBEDDING_DIMENSIONS
-        });
-        return json({
-          reference_covers:Number(stats?.reference_covers || 0),
-          reference_images:Number(stats?.reference_images || 0),
-          indexed_references:Number(stats?.indexed_references || 0),
-          indexed_covers:Number(stats?.indexed_covers || 0),
-          pending_references:Number(stats?.pending_references || 0),
-          pending_covers:Number(stats?.pending_covers || 0),
-          embedding_model:model,
-          embedding_dimensions:EMBEDDING_DIMENSIONS,
-          top_k:TOP_K_REFERENCES
-        });
       }
 
       if (url.pathname === '/api/admin/system-notifications' && request.method === 'GET') {

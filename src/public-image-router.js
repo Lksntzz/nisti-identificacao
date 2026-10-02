@@ -69,21 +69,6 @@ async function imageKeyFromD1(env, entity, id) {
       && row.reviewed_by === 'admin';
     return processedReady ? row.processed_image_key : row.image_key;
   }
-  if (entity === 'reference') {
-    const row = await env.DB.prepare(`
-      SELECT image_key
-      FROM cover_visual_references
-      WHERE id=? AND active=1
-      LIMIT 1
-    `).bind(id).first();
-    return row?.image_key || null;
-  }
-  if (entity === 'occurrence') {
-    const row = await env.DB.prepare(
-      'SELECT image_key FROM scan_occurrences WHERE id=? LIMIT 1'
-    ).bind(id).first();
-    return row?.image_key || null;
-  }
   if (entity === 'mural-product') {
     const row = await env.DB.prepare(`
       SELECT mpi.processed_image_key
@@ -155,18 +140,6 @@ export async function handlePublicImageRequest(request, env) {
     return serveObject(request, env, originalKey, url, {
       'x-nisti-image-source':'original'
     });
-  }
-
-  const referenceMatch = url.pathname.match(/^\/api\/reference-images\/(\d+)$/);
-  if (referenceMatch) {
-    const objectKey = await imageKey(env, 'reference', Number(referenceMatch[1]));
-    return serveObject(request, env, objectKey, url);
-  }
-
-  const occurrenceMatch = url.pathname.match(/^\/api\/occurrence-images\/(\d+)$/);
-  if (occurrenceMatch) {
-    const objectKey = await imageKey(env, 'occurrence', Number(occurrenceMatch[1]));
-    return serveObject(request, env, objectKey, url);
   }
 
   const muralProductMatch = url.pathname.match(/^\/api\/mural-product-images\/(\d+)$/);

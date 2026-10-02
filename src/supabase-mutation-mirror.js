@@ -1,11 +1,7 @@
 import {
   mirrorDeletedProductToSupabase,
-  mirrorDeletedVisualReferenceToSupabase,
-  mirrorOccurrenceStateFromD1,
   mirrorProductCatalogBatchFromD1,
   mirrorProductCatalogFromD1,
-  mirrorTrainedOccurrenceArtifactsFromD1,
-  mirrorVisualReferenceFromD1,
   supabaseMirrorWritesRequested,
   supabasePrimaryWritesRequested
 } from './supabase-write-store.js';
@@ -31,14 +27,6 @@ async function responseJson(response) {
   }
 }
 
-async function requestJson(request) {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
-}
-
 function isDirectSupabasePrimaryMutation(url, method) {
   if (method === 'POST' && (url.pathname === '/api/products' || url.pathname === '/api/admin/bulk-products')) return true;
   if (method === 'POST' && url.pathname === '/api/admin/notifications/test') return true;
@@ -57,10 +45,6 @@ function isDirectSupabasePrimaryMutation(url, method) {
   if (/^\/api\/products\/\d+$/.test(url.pathname) && ['PUT', 'PATCH', 'DELETE'].includes(method)) return true;
   if (/^\/api\/products\/\d+\/image$/.test(url.pathname) && method === 'POST') return true;
   if (/^\/api\/admin\/product-image-treatment\/\d+(?:\/(?:approve|redo|failed))?$/.test(url.pathname) && method === 'POST') return true;
-  if (/^\/api\/admin\/covers\/[^/]+\/references$/.test(url.pathname) && method === 'POST') return true;
-  if (/^\/api\/admin\/cover-references\/\d+$/.test(url.pathname) && method === 'DELETE') return true;
-  if (/^\/api\/admin\/occurrences\/\d+\/(?:train|dismiss)$/.test(url.pathname) && method === 'POST') return true;
-  if (url.pathname === '/api/operator/confirm-selection' && method === 'POST') return true;
   if (/^\/api\/products\/\d+\/finish$/.test(url.pathname) && method === 'PATCH') return true;
   if (/^\/api\/products\/\d+\/gtins$/.test(url.pathname) && method === 'POST') return true;
   return /^\/api\/products\/\d+\/gtins\/[^/]+$/.test(url.pathname) && method === 'DELETE';
@@ -109,37 +93,6 @@ export async function mirrorSuccessfulMutation(request, response, env) {
       const data = await responseJson(response);
       await mirrorProductCatalogFromD1(env, productId);
       await mirrorProductImageDerivativeFromD1(env, productId);
-      if (data?.reference_id) {
-        await mirrorVisualReferenceFromD1(env, data.reference_id);
-      }
-      for (const referenceId of data?.removed_reference_ids || []) {
-        await mirrorDeletedVisualReferenceToSupabase(env, referenceId);
-      }
-      return;
-    }
-
-    const coverReferences = url.pathname.match(/^\/api\/admin\/covers\/([^/]+)\/references$/);
-    if (coverReferences && method === 'POST') {
-      const data = await responseJson(response);
-      await mirrorVisualReferenceFromD1(env, data?.reference?.id);
-      return;
-    }
-
-    const deleteReference = url.pathname.match(/^\/api\/admin\/cover-references\/(\d+)$/);
-    if (deleteReference && method === 'DELETE') {
-      await mirrorDeletedVisualReferenceToSupabase(env, Number(deleteReference[1]));
-      return;
-    }
-
-    const trainOccurrence = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/train$/);
-    if (trainOccurrence && method === 'POST') {
-      await mirrorTrainedOccurrenceArtifactsFromD1(env, Number(trainOccurrence[1]));
-      return;
-    }
-
-    const dismissOccurrence = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/dismiss$/);
-    if (dismissOccurrence && method === 'POST') {
-      await mirrorOccurrenceStateFromD1(env, Number(dismissOccurrence[1]));
       return;
     }
 
@@ -232,11 +185,6 @@ export async function mirrorSuccessfulMutation(request, response, env) {
       const data = await responseJson(response);
       await mirrorNotificationByCapaFromD1(env, data?.capa_code);
       return;
-    }
-
-    if (method === 'POST' && url.pathname === '/api/operator/confirm-selection') {
-      const body = await requestJson(request);
-      await mirrorTrainedOccurrenceArtifactsFromD1(env, body?.occurrence_id);
     }
   } catch (error) {
     // D1 has already committed at this transitional boundary. Mirror mode logs

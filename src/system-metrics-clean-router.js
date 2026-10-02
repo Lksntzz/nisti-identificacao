@@ -1,47 +1,13 @@
 import app from './core-router.js';
-import { readRecognitionEvents, readOperatorStats } from './recognition-metrics.js';
-import { mirrorSupabaseRpc, supabasePrimaryWritesRequested, supabaseWriteMode } from './supabase-write-store.js';
-import { supabaseReadsRequested, supabaseRpc } from './supabase-read-store.js';
+import { supabaseRpc } from './supabase-read-store.js';
 import { explicitUtcTimestamp } from './date-time.js';
 
 const TIMEZONE = 'America/Sao_Paulo';
-const EMBEDDING_DIMENSIONS = 768;
 const SYSTEM_METRICS_CACHE_TTL_MS = 5 * 60 * 1000;
-const OPERATOR_STATS_CACHE_TTL_MS = 5 * 60 * 1000;
 const SYSTEM_HEALTH_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let systemMetricsCache = { payload: null, expires_at: 0 };
-let operatorStatsCache = { operators: null, expires_at: 0 };
 let systemHealthCache = { payload: null, expires_at: 0 };
-
-// Referências documentais verificadas em 2026-09-02. Elas NÃO representam
-// consumo medido da conta Cloudflare/Google. O painel separa explicitamente
-// limite documentado de uso observado pelo NISTI.
-const DOCUMENTED_LIMITS = Object.freeze({
-  workers: {
-    free_requests_per_day: 100000,
-    source: 'Cloudflare Workers limits/pricing'
-  },
-  d1: {
-    free_max_database_bytes: 500 * 1024 * 1024,
-    free_account_storage_bytes: 5 * 1000 * 1000 * 1000,
-    free_rows_read_per_day: 5_000_000,
-    free_rows_written_per_day: 100_000,
-    source: 'Cloudflare D1 limits/pricing'
-  },
-  r2: {
-    free_standard_storage_gb_month: 10,
-    free_class_a_operations_per_month: 1_000_000,
-    free_class_b_operations_per_month: 10_000_000,
-    source: 'Cloudflare R2 pricing'
-  },
-  vectorize: {
-    free_stored_dimensions: 5_000_000,
-    free_queried_dimensions_per_month: 30_000_000,
-    source: 'Cloudflare Vectorize pricing'
-  },
-
-});
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -53,215 +19,33 @@ function json(data, status = 200) {
   });
 }
 
-function saoPauloDay(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).formatToParts(date);
-  const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return `${value.year}-${value.month}-${value.day}`;
-}
-
-async function readExpectedVectorFootprint(env) {
-  // v8.24.3: the previous query executed a correlated product/platform lookup
-  // once per indexed real_scan reference. As supervised references grew, the
-  // global ADM 30 s refresh multiplied those scans into millions of rows/day.
-  // Pre-aggregate both scopes once and join them back to the references.
-  const row = await env.DB.prepare(`
-    WITH indexed_refs AS (
-      SELECT r.id, r.capa_code, r.source_product_id
-      FROM cover_visual_references r
-      JOIN cover_reference_embeddings e ON e.reference_id = r.id
-      WHERE r.active = 1
-    ), product_platform_counts AS (
-      SELECT
-        pp.product_id,
-        COUNT(DISTINCT UPPER(TRIM(pp.platform))) AS platform_count
-      FROM product_platforms pp
-      WHERE UPPER(TRIM(pp.platform)) IN ('MERCADO LIVRE','SHOPEE','AMAZON')
-      GROUP BY pp.product_id
-    ), cover_platform_counts AS (
-      SELECT
-        UPPER(TRIM(p.capa_code)) AS capa_code,
-        COUNT(DISTINCT UPPER(TRIM(pp.platform))) AS platform_count
-      FROM products p
-      JOIN product_platforms pp ON pp.product_id = p.id
-      WHERE UPPER(TRIM(pp.platform)) IN ('MERCADO LIVRE','SHOPEE','AMAZON')
-      GROUP BY UPPER(TRIM(p.capa_code))
-    ), resolved AS (
-      SELECT
-        r.id,
-        CASE
-          WHEN r.source_product_id IS NOT NULL THEN COALESCE(product_scope.platform_count, 0)
-          ELSE COALESCE(cover_scope.platform_count, 0)
-        END AS platform_count
-      FROM indexed_refs r
-      LEFT JOIN product_platform_counts product_scope
-        ON product_scope.product_id = r.source_product_id
-      LEFT JOIN cover_platform_counts cover_scope
-        ON cover_scope.capa_code = UPPER(TRIM(r.capa_code))
-    )
-    SELECT
-      COUNT(*) AS indexed_references,
-      COALESCE(SUM(CASE WHEN platform_count > 0 THEN platform_count ELSE 3 END), 0) AS expected_vector_copies
-    FROM resolved
-  `).first();
-
-  const indexedReferences = Number(row?.indexed_references || 0);
-  const expectedVectorCopies = Number(row?.expected_vector_copies || 0);
-  return {
-    indexed_references: indexedReferences,
-    expected_vector_copies: expectedVectorCopies,
-    dimensions_per_vector: EMBEDDING_DIMENSIONS,
-    expected_stored_dimensions: expectedVectorCopies * EMBEDDING_DIMENSIONS,
-    measurement: 'derived_from_d1_platform_scope',
-    exact_provider_usage: false,
-    note: 'Estimativa do estado que o NISTI espera no Vectorize. A cobrança/uso real da conta exige Analytics da Cloudflare.'
-  };
-}
-
-async function handleSystemMetricsFromSupabase(env, now) {
-  const core=await supabaseRpc(env,'nisti_system_metrics_core_v1',{});
-  const productStats=core?.products || {};
-  const referenceStats=core?.references || {};
-  const embeddingActivity=core?.embedding_activity || {};
-  const vectorize=core?.vectorize || {
-    indexed_references:0,expected_vector_copies:0,dimensions_per_vector:EMBEDDING_DIMENSIONS,
-    expected_stored_dimensions:0,measurement:'derived_from_supabase_platform_scope',
-    exact_provider_usage:false
-  };
-
-  const payload={
-    ok:true,
-    measured_at:new Date().toISOString(),
-    timezone:TIMEZONE,
-    cache_ttl_seconds:SYSTEM_METRICS_CACHE_TTL_MS/1000,
-    primary_database:'supabase',
-    measurement_policy:{
-      provider_billing_connected:false,
-      cost_guarantee:false,
-      note:'O painel mostra medições do próprio NISTI e referências documentais. Não afirma consumo total da conta quando a API de billing/analytics do provedor não está conectada.'
-    },
-    documented_limits:{
-      verified_on:'2026-09-02',
-      ...DOCUMENTED_LIMITS
-    },
-    database:{
-      provider:'supabase',
-      status:'online',
-      used_bytes:Number(core?.database_size_bytes || 0),
-      measurement:'supabase_pg_database_size',
-      products:Number(productStats.total || 0),
-      products_with_image:Number(productStats.with_image || 0),
-      cover_embeddings:Number(referenceStats.indexed_total || 0),
-      cover_visual_references:Number(referenceStats.references_total || 0),
-      indexed_reference_covers:Number(referenceStats.indexed_covers || 0),
-      query_rows_read_for_this_probe:null,
-      served_by_colo:null,
-      served_by_region:null,
-      free_max_database_bytes:null,
-      percent_of_free_database_max:null,
-      account_daily_rows_read:null,
-      account_daily_rows_written:null,
-      account_usage_note:'O Supabase é a base primária; uso de billing/quota da conta não é inferido por esta consulta.'
-    },
-    vectorize,
-
-  };
-
-  systemMetricsCache={payload,expires_at:now+SYSTEM_METRICS_CACHE_TTL_MS};
-  return json(payload);
-}
-
 async function handleSystemMetrics(env, { force = false } = {}) {
   const now = Date.now();
   if (!force && systemMetricsCache.payload && now < systemMetricsCache.expires_at) {
     return json(systemMetricsCache.payload);
   }
-  if (supabaseReadsRequested(env)) {
-    return handleSystemMetricsFromSupabase(env,now);
-  }
-  if (!env.DB) throw new Error('Binding DB não configurado');
 
-  const productsProbe = await env.DB.prepare(`
-    SELECT
-      COUNT(*) AS total,
-      SUM(CASE WHEN image_key IS NOT NULL THEN 1 ELSE 0 END) AS with_image
-    FROM products
-  `).all();
-  const productStats = productsProbe.results?.[0] || {};
-  // D1Result.meta.size_after é o tamanho real do banco após a consulta.
-  const sizeBytes = Number(productsProbe.meta?.size_after || 0);
-
-  const referenceStats = await env.DB.prepare(`
-    SELECT
-      COUNT(*) AS references_total,
-      SUM(CASE WHEN e.reference_id IS NOT NULL THEN 1 ELSE 0 END) AS indexed_total,
-      COUNT(DISTINCT CASE WHEN e.reference_id IS NOT NULL THEN r.capa_code END) AS indexed_covers
-    FROM cover_visual_references r
-    LEFT JOIN cover_reference_embeddings e ON e.reference_id = r.id
-    WHERE r.active = 1
-  `).first();
-
-  const today = saoPauloDay();
-  const embeddingActivity = await env.DB.prepare(`
-    SELECT
-      COUNT(*) AS embeddings_updated_today,
-      COUNT(DISTINCT reference_id) AS references_updated_today
-    FROM cover_reference_embeddings
-    WHERE date(datetime(updated_at, '-3 hours')) = ?
-  `).bind(today).first();
-
-  const vectorize = await readExpectedVectorFootprint(env);
-
-  const d1Limit = DOCUMENTED_LIMITS.d1.free_max_database_bytes;
-  const d1Percent = d1Limit > 0 ? (sizeBytes / d1Limit) * 100 : null;
-
+  const core = await supabaseRpc(env, 'nisti_system_metrics_core_v1', {});
+  const productStats = core?.products || {};
   const payload = {
     ok: true,
     measured_at: new Date().toISOString(),
     timezone: TIMEZONE,
     cache_ttl_seconds: SYSTEM_METRICS_CACHE_TTL_MS / 1000,
-    measurement_policy: {
-      provider_billing_connected: false,
-      cost_guarantee: false,
-      note: 'O painel mostra medições do próprio NISTI e referências documentais. Não afirma consumo total da conta quando a API de billing/analytics do provedor não está conectada.'
-    },
-    documented_limits: {
-      verified_on: '2026-09-02',
-      ...DOCUMENTED_LIMITS
-    },
+    primary_database: 'supabase',
     database: {
+      provider: 'supabase',
       status: 'online',
-      used_bytes: sizeBytes,
-      measurement: 'd1_meta_size_after',
+      used_bytes: Number(core?.database_size_bytes || 0),
+      measurement: 'supabase_pg_database_size',
       products: Number(productStats.total || 0),
-      products_with_image: Number(productStats.with_image || 0),
-      cover_embeddings: Number(referenceStats?.indexed_total || 0),
-      cover_visual_references: Number(referenceStats?.references_total || 0),
-      indexed_reference_covers: Number(referenceStats?.indexed_covers || 0),
-      query_rows_read_for_this_probe: Number(productsProbe.meta?.rows_read || 0),
-      served_by_colo: productsProbe.meta?.served_by_colo || null,
-      served_by_region: productsProbe.meta?.served_by_region || null,
-      free_max_database_bytes: d1Limit,
-      percent_of_free_database_max: d1Percent,
-      account_daily_rows_read: null,
-      account_daily_rows_written: null,
-      account_usage_note: 'Rows read/write totais da conta não são inferidos a partir de uma consulta isolada.'
-    },
-    vectorize,
-
+      products_with_image: Number(productStats.with_image || 0)
+    }
   };
 
-  systemMetricsCache = {
-    payload,
-    expires_at: now + SYSTEM_METRICS_CACHE_TTL_MS
-  };
+  systemMetricsCache = { payload, expires_at: now + SYSTEM_METRICS_CACHE_TTL_MS };
   return json(payload);
 }
-
 
 function compactHealthError(error) {
   return String(error?.message || error || 'Falha desconhecida').replace(/\s+/g, ' ').slice(0, 220);
@@ -290,148 +74,10 @@ async function runHealthCheck(key, label, runner) {
   }
 }
 
-async function handleSystemHealthFromSupabase(env, now) {
-  const measuredAt=new Date().toISOString();
-  const workerCheck={
-    key:'worker',label:'Worker / API',status:'healthy',latency_ms:0,
-    data:{app_env:env.APP_ENV || null}
-  };
-
-  const [r2Check,supabaseCheck]=await Promise.all([
-    runHealthCheck('r2','Imagens R2',async()=>{
-      if(!env.PRODUCT_IMAGES) throw new Error('Binding PRODUCT_IMAGES não configurado');
-      const result=await env.PRODUCT_IMAGES.list({limit:1});
-      return {
-        reachable:true,
-        has_objects:Array.isArray(result?.objects) && result.objects.length>0,
-        truncated:Boolean(result?.truncated)
-      };
-    }),
-    runHealthCheck('supabase','Banco primário / Supabase',async()=>{
-      const [core,summary,statuses]=await Promise.all([
-        supabaseRpc(env,'nisti_system_health_core_v1',{}, {timeoutMs:5000}),
-        supabaseRpc(env,'commerce_nisti_sync_status_v1',{}, {timeoutMs:5000}),
-        supabaseRpc(env,'commerce_nisti_product_statuses_v1',{}, {timeoutMs:5000})
-      ]);
-      return {
-        core:core || {},
-        summary:summary || {},
-        statuses:Array.isArray(statuses)?statuses:[]
-      };
-    })
-  ]);
-
-  const core=supabaseCheck.data?.core || {};
-  const scanSummary={
-    technical_errors_today:Number(core.technical_errors_today || 0),
-    last_error_at:core.last_error_at || null,
-    recent_errors:(Array.isArray(core.recent_errors)?core.recent_errors:[]).map(row=>({
-      source:'BIPAGEM',
-      severity:'error',
-      title:'Erro técnico na bipagem',
-      detail:row.error_code || 'system_error',
-      sku:row.sku || null,
-      gtin:row.gtin || null,
-      operator_name:row.operator_name || null,
-      response_ms:Number(row.response_ms || 0),
-      created_at:explicitUtcTimestamp(row.created_at) || row.created_at || null
-    }))
-  };
-
-  const syncSummaryRaw=supabaseCheck.data?.summary || {};
-  const syncStatuses=Array.isArray(supabaseCheck.data?.statuses)?supabaseCheck.data.statuses:[];
-  const primaryProducts=Number(core.products || 0);
-  const syncSummary={
-    nisti_products:primaryProducts,
-    linked_total:Number(syncSummaryRaw.linked_total || 0),
-    conflicts:Number(syncSummaryRaw.conflicts || 0),
-    errors:Number(syncSummaryRaw.errors || 0),
-    unlinked:Math.max(
-      0,
-      primaryProducts
-        - Number(syncSummaryRaw.linked_total || 0)
-        - Number(syncSummaryRaw.conflicts || 0)
-        - Number(syncSummaryRaw.errors || 0)
-    ),
-    last_synced_at:syncSummaryRaw.last_synced_at || null
-  };
-
-  const syncErrors=syncStatuses
-    .filter(item=>{
-      const status=String(item?.sync_status || '').toUpperCase();
-      return Boolean(item?.last_error) || status==='ERROR' || status==='CONFLICT';
-    })
-    .slice(0,12)
-    .map(item=>({
-      source:'SINCRONIZAÇÃO',
-      severity:String(item?.sync_status || '').toUpperCase()==='CONFLICT'?'warning':'error',
-      title:item?.source_sku ? `Falha de sincronização · ${item.source_sku}` : 'Falha de sincronização',
-      detail:item?.last_error || `Status: ${item?.sync_status || 'ERROR'}`,
-      sku:item?.source_sku || item?.commerce_sku || null,
-      gtin:null,operator_name:null,response_ms:null,
-      created_at:item?.last_synced_at || null
-    }));
-
-  const recentIssues=[...syncErrors,...scanSummary.recent_errors]
-    .sort((a,b)=>{
-      const left=a.created_at?Date.parse(a.created_at):0;
-      const right=b.created_at?Date.parse(b.created_at):0;
-      return right-left;
-    })
-    .slice(0,20);
-
-  const checks=[workerCheck,r2Check,supabaseCheck].map(check=>{
-    const base={key:check.key,label:check.label,status:check.status,latency_ms:check.latency_ms};
-    if(check.error) base.error=check.error;
-    if(check.key==='worker') base.detail='A API respondeu a esta verificação.';
-    if(check.key==='r2' && check.status==='healthy') base.detail='Bucket de imagens acessível.';
-    if(check.key==='supabase' && check.status==='healthy') {
-      base.detail=`${primaryProducts.toLocaleString('pt-BR')} produtos acessíveis na base primária.`;
-    }
-    return base;
-  });
-
-  const unavailable=checks.filter(check=>check.status==='error').length;
-  const operationalIssues=
-    syncSummary.errors
-    + syncSummary.conflicts
-    + scanSummary.technical_errors_today;
-  const overallStatus=unavailable>0?'degraded':operationalIssues>0?'attention':'healthy';
-
-  const payload={
-    ok:unavailable===0,
-    measured_at:measuredAt,
-    cache_ttl_seconds:SYSTEM_HEALTH_CACHE_TTL_MS/1000,
-    primary_database:'supabase',
-    overall_status:overallStatus,
-    summary:{
-      services_ok:checks.length-unavailable,
-      services_total:checks.length,
-      unavailable_services:unavailable,
-      operational_issues:operationalIssues,
-      technical_errors_today:scanSummary.technical_errors_today
-    },
-    checks,
-    sync:syncSummary,
-    recent_issues:recentIssues,
-    scan:{
-      technical_errors_today:scanSummary.technical_errors_today,
-      last_error_at:scanSummary.last_error_at,
-      read_error:null
-    }
-  };
-
-  systemHealthCache={payload,expires_at:now+SYSTEM_HEALTH_CACHE_TTL_MS};
-  return json(payload);
-}
-
 async function handleSystemHealth(env, { force = false } = {}) {
   const now = Date.now();
   if (!force && systemHealthCache.payload && now < systemHealthCache.expires_at) {
     return json(systemHealthCache.payload);
-  }
-  if (supabaseReadsRequested(env)) {
-    return handleSystemHealthFromSupabase(env,now);
   }
 
   const measuredAt = new Date().toISOString();
@@ -443,12 +89,7 @@ async function handleSystemHealth(env, { force = false } = {}) {
     data: { app_env: env.APP_ENV || null }
   };
 
-  const [d1Check, r2Check, supabaseCheck] = await Promise.all([
-    runHealthCheck('d1', 'Banco D1', async () => {
-      if (!env.DB) throw new Error('Binding DB não configurado');
-      const row = await env.DB.prepare('SELECT COUNT(*) AS products FROM products').first();
-      return { products: Number(row?.products || 0) };
-    }),
+  const [r2Check, supabaseCheck] = await Promise.all([
     runHealthCheck('r2', 'Imagens R2', async () => {
       if (!env.PRODUCT_IMAGES) throw new Error('Binding PRODUCT_IMAGES não configurado');
       const result = await env.PRODUCT_IMAGES.list({ limit: 1 });
@@ -458,81 +99,48 @@ async function handleSystemHealth(env, { force = false } = {}) {
         truncated: Boolean(result?.truncated)
       };
     }),
-    runHealthCheck('supabase', 'Catálogo / Supabase', async () => {
-      const [summary, statuses] = await Promise.all([
+    runHealthCheck('supabase', 'Banco primário / Supabase', async () => {
+      const [core, summary, statuses] = await Promise.all([
+        supabaseRpc(env, 'nisti_system_health_core_v1', {}, { timeoutMs: 5000 }),
         supabaseRpc(env, 'commerce_nisti_sync_status_v1', {}, { timeoutMs: 5000 }),
         supabaseRpc(env, 'commerce_nisti_product_statuses_v1', {}, { timeoutMs: 5000 })
       ]);
       return {
+        core: core || {},
         summary: summary || {},
         statuses: Array.isArray(statuses) ? statuses : []
       };
     })
   ]);
 
-  let scanSummary = {
-    technical_errors_today: 0,
-    last_error_at: null,
-    recent_errors: []
+  const core = supabaseCheck.data?.core || {};
+  const scanSummary = {
+    technical_errors_today: Number(core.technical_errors_today || 0),
+    last_error_at: core.last_error_at || null,
+    recent_errors: (Array.isArray(core.recent_errors) ? core.recent_errors : []).map(row => ({
+      source: 'BIPAGEM',
+      severity: 'error',
+      title: 'Erro técnico na bipagem',
+      detail: row.error_code || 'system_error',
+      sku: row.sku || null,
+      gtin: row.gtin || null,
+      operator_name: row.operator_name || null,
+      response_ms: Number(row.response_ms || 0),
+      created_at: explicitUtcTimestamp(row.created_at) || row.created_at || null
+    }))
   };
 
-  if (d1Check.status === 'healthy') {
-    try {
-      const counts = await env.DB.prepare(`
-        SELECT
-          COUNT(*) FILTER (
-            WHERE status='system_error'
-              AND date(datetime(created_at,'-3 hours'))=date('now','-3 hours')
-          ) AS technical_errors_today,
-          MAX(CASE WHEN status='system_error' THEN created_at END) AS last_error_at
-        FROM gtin_scan_events
-      `).first();
-
-      const recent = await env.DB.prepare(`
-        SELECT
-          e.id,e.gtin,e.status,e.operator_name,e.error_code,e.response_ms,e.created_at,
-          p.sku,p.nome
-        FROM gtin_scan_events e
-        LEFT JOIN products p ON p.id=e.product_id
-        WHERE e.status='system_error'
-        ORDER BY e.created_at DESC,e.id DESC
-        LIMIT 12
-      `).all();
-
-      scanSummary = {
-        technical_errors_today: Number(counts?.technical_errors_today || 0),
-        last_error_at: counts?.last_error_at || null,
-        recent_errors: (recent?.results || []).map(row => ({
-          source: 'BIPAGEM',
-          severity: 'error',
-          title: 'Erro técnico na bipagem',
-          detail: row.error_code || 'system_error',
-          sku: row.sku || null,
-          gtin: row.gtin || null,
-          operator_name: row.operator_name || null,
-          response_ms: Number(row.response_ms || 0),
-          created_at: explicitUtcTimestamp(row.created_at) || null
-        }))
-      };
-    } catch (error) {
-      scanSummary.read_error = compactHealthError(error);
-    }
-  }
-
-  const d1Products = Number(d1Check.data?.products || 0);
   const syncSummaryRaw = supabaseCheck.data?.summary || {};
-  const syncStatuses = Array.isArray(supabaseCheck.data?.statuses)
-    ? supabaseCheck.data.statuses
-    : [];
-
+  const syncStatuses = Array.isArray(supabaseCheck.data?.statuses) ? supabaseCheck.data.statuses : [];
+  const primaryProducts = Number(core.products || 0);
   const syncSummary = {
-    nisti_products: d1Products,
+    nisti_products: primaryProducts,
     linked_total: Number(syncSummaryRaw.linked_total || 0),
     conflicts: Number(syncSummaryRaw.conflicts || 0),
     errors: Number(syncSummaryRaw.errors || 0),
     unlinked: Math.max(
       0,
-      d1Products
+      primaryProducts
         - Number(syncSummaryRaw.linked_total || 0)
         - Number(syncSummaryRaw.conflicts || 0)
         - Number(syncSummaryRaw.errors || 0)
@@ -566,7 +174,7 @@ async function handleSystemHealth(env, { force = false } = {}) {
     })
     .slice(0, 20);
 
-  const checks = [workerCheck, d1Check, r2Check, supabaseCheck].map(check => {
+  const checks = [workerCheck, r2Check, supabaseCheck].map(check => {
     const base = {
       key: check.key,
       label: check.label,
@@ -574,143 +182,43 @@ async function handleSystemHealth(env, { force = false } = {}) {
       latency_ms: check.latency_ms
     };
     if (check.error) base.error = check.error;
-
     if (check.key === 'worker') base.detail = 'A API respondeu a esta verificação.';
-    if (check.key === 'd1' && check.status === 'healthy') {
-      base.detail = `${Number(check.data?.products || 0).toLocaleString('pt-BR')} produtos acessíveis.`;
-    }
-    if (check.key === 'r2' && check.status === 'healthy') {
-      base.detail = 'Bucket de imagens acessível.';
-    }
+    if (check.key === 'r2' && check.status === 'healthy') base.detail = 'Bucket de imagens acessível.';
     if (check.key === 'supabase' && check.status === 'healthy') {
-      base.detail = `${syncSummary.linked_total.toLocaleString('pt-BR')} produtos sincronizados.`;
+      base.detail = `${primaryProducts.toLocaleString('pt-BR')} produtos acessíveis na base primária.`;
     }
     return base;
   });
 
   const unavailable = checks.filter(check => check.status === 'error').length;
-  const operationalIssues =
-    syncSummary.errors
-    + syncSummary.conflicts
-    + Number(scanSummary.technical_errors_today || 0);
-
-  const overallStatus = unavailable > 0
-    ? 'degraded'
-    : operationalIssues > 0
-      ? 'attention'
-      : 'healthy';
+  const operationalIssues = syncSummary.errors + syncSummary.conflicts + scanSummary.technical_errors_today;
+  const overallStatus = unavailable > 0 ? 'degraded' : operationalIssues > 0 ? 'attention' : 'healthy';
 
   const payload = {
     ok: unavailable === 0,
     measured_at: measuredAt,
     cache_ttl_seconds: SYSTEM_HEALTH_CACHE_TTL_MS / 1000,
+    primary_database: 'supabase',
     overall_status: overallStatus,
     summary: {
       services_ok: checks.length - unavailable,
       services_total: checks.length,
       unavailable_services: unavailable,
       operational_issues: operationalIssues,
-      technical_errors_today: Number(scanSummary.technical_errors_today || 0)
+      technical_errors_today: scanSummary.technical_errors_today
     },
     checks,
     sync: syncSummary,
     recent_issues: recentIssues,
     scan: {
-      technical_errors_today: Number(scanSummary.technical_errors_today || 0),
-      last_error_at: scanSummary.last_error_at || null,
-      read_error: scanSummary.read_error || null
+      technical_errors_today: scanSummary.technical_errors_today,
+      last_error_at: scanSummary.last_error_at,
+      read_error: null
     }
   };
 
-  systemHealthCache = {
-    payload,
-    expires_at: now + SYSTEM_HEALTH_CACHE_TTL_MS
-  };
-
+  systemHealthCache = { payload, expires_at: now + SYSTEM_HEALTH_CACHE_TTL_MS };
   return json(payload);
-}
-
-async function handleRecognitionEvents(url, env) {
-  const scope = String(url.searchParams.get('scope') || '').trim();
-  const kind = String(url.searchParams.get('kind') || '').trim();
-  const operatorName = String(url.searchParams.get('operator_name') || url.searchParams.get('operator') || '').trim();
-  const limit = Math.max(1, Math.min(200, Number(url.searchParams.get('limit')) || 100));
-  const events = await readRecognitionEvents(env, {
-    limit,
-    kind,
-    issuesOnly: scope === 'issues',
-    operator_name: operatorName
-  });
-  return json({
-    ok: true,
-    scope: scope || (kind || 'all'),
-    count: events.length,
-    events
-  });
-}
-
-async function handleOperators(env, { force = false } = {}) {
-  const now = Date.now();
-  if (!force && operatorStatsCache.operators && now < operatorStatsCache.expires_at) {
-    return json({
-      ok: true,
-      count: operatorStatsCache.operators.length,
-      operators: operatorStatsCache.operators,
-      cache_ttl_seconds: OPERATOR_STATS_CACHE_TTL_MS / 1000
-    });
-  }
-
-  const operators = await readOperatorStats(env);
-  operatorStatsCache = {
-    operators,
-    expires_at: now + OPERATOR_STATS_CACHE_TTL_MS
-  };
-  return json({
-    ok: true,
-    count: operators.length,
-    operators,
-    cache_ttl_seconds: OPERATOR_STATS_CACHE_TTL_MS / 1000
-  });
-}
-
-async function handleUpdateOperatorName(request, env) {
-  const body = await request.json().catch(() => ({}));
-  const userId = request.headers.get('x-user-id') || body?.operator_id || null;
-  const newName = String(body?.operator_name || '').trim().slice(0, 120);
-  if (!userId || !newName) {
-    return json({ ok: false, error: 'operator_id e operator_name são obrigatórios' }, 400);
-  }
-
-  if (supabasePrimaryWritesRequested(env)) {
-    const result = await mirrorSupabaseRpc(env, 'nisti_mirror_operator_name', {
-      p_operator_id:String(userId),
-      p_operator_name:newName
-    }, `operator name ${String(userId)}`);
-    operatorStatsCache = { operators:null, expires_at:0 };
-    return json({ ok:true, updated:Number(result?.value || 0) });
-  }
-
-  const result = await env.DB.prepare(`
-    UPDATE recognition_events
-    SET operator_name = ?
-    WHERE operator_id = ?
-      AND (operator_name IS NULL OR operator_name = '' OR operator_name != ?)
-  `).bind(newName, userId, newName).run();
-
-  // The operator aggregate is intentionally cached because GROUP BY over the
-  // append-only event table is one of the most expensive ADM reads. A rename
-  // is a rare explicit write, so invalidate only this in-memory snapshot.
-  operatorStatsCache = { operators: null, expires_at: 0 };
-
-  const updated = Number(result?.meta?.changes || 0);
-  if (updated > 0 && supabaseWriteMode(env) !== 'off') {
-    await mirrorSupabaseRpc(env, 'nisti_mirror_operator_name', {
-      p_operator_id: String(userId),
-      p_operator_name: newName
-    }, `operator name ${String(userId)}`);
-  }
-
-  return json({ ok: true, updated });
 }
 
 export default {
@@ -725,6 +233,7 @@ export default {
         return json({ error: error?.message || 'Falha ao ler métricas do sistema' }, 500);
       }
     }
+
     if (url.pathname === '/api/admin/system-health' && request.method === 'GET') {
       try {
         return await handleSystemHealth(env, { force });
@@ -732,28 +241,7 @@ export default {
         return json({ error: error?.message || 'Falha ao verificar saúde do sistema' }, 500);
       }
     }
-    if (url.pathname === '/api/admin/recognition-events' && request.method === 'GET') {
-      try {
-        return await handleRecognitionEvents(url, env);
-      } catch (error) {
-        return json({ error: error?.message || 'Falha ao ler diagnóstico de reconhecimento' }, 500);
-      }
-    }
-    if (url.pathname === '/api/admin/operators' && request.method === 'GET') {
-      try {
-        return await handleOperators(env, { force });
-      } catch (error) {
-        return json({ error: error?.message || 'Falha ao ler estatísticas de operadores' }, 500);
-      }
-    }
 
-    if (url.pathname === '/api/operator/update-name' && request.method === 'POST') {
-      try {
-        return await handleUpdateOperatorName(request, env);
-      } catch (error) {
-        return json({ error: error?.message || 'Falha ao atualizar nome do operador' }, 500);
-      }
-    }
     return app.fetch(request, env, ctx);
   }
 };

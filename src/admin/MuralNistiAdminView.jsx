@@ -148,7 +148,7 @@ function MuralProductImageManager({ products, onChanged }) {
     try{return localStorage.getItem(TREATMENT_PAUSE_KEY)==='1'}catch{return false}
   });
   const [treatmentProgress,setTreatmentProgress]=useState({
-    loading:true,phase:'loading',with_image:0,approved:0,review:0,pending:0,failed:0,current:null,error:'',ai:null
+    loading:true,phase:'loading',with_image:0,approved:0,review:0,pending:0,failed:0,current:null,error:''
   });
   const onChangedRef=useRef(onChanged);
   useEffect(()=>{onChangedRef.current=onChanged},[onChanged]);
@@ -178,8 +178,7 @@ function MuralProductImageManager({ products, onChanged }) {
           loading:false,
           phase,
           current:phase==='processing'?(detail.product||null):finished?null:current.current,
-          error:detail.error||detail.result?.warning||'',
-          ai:detail.result?.ai||current.ai
+          error:detail.error||'',
         };
       });
       if(['processed','failed'].includes(detail.phase)){
@@ -304,11 +303,6 @@ function MuralProductImageManager({ products, onChanged }) {
         <span>Tratamento automático</span>
         <strong>{treatmentProgress.loading?'Carregando…':`${treatmentApproved} de ${treatmentTotal} imagens aprovadas`}</strong>
         <small>{treatmentStatus}</small>
-        {treatmentProgress.ai&&<small className={`mural-product-treatment-ai ${treatmentProgress.ai.status||''}`}>
-          {treatmentProgress.ai.status==='applied'
-            ? `IA aplicada · ${treatmentProgress.ai.provider||'visão'}${treatmentProgress.ai.confidence? ` · ${Math.round(treatmentProgress.ai.confidence*100)}%`:''}`
-            : treatmentProgress.ai.message||'Fallback local ativo'}
-        </small>}
       </div>
       <div className="mural-product-treatment-progress-numbers">
         <span><b>{treatmentApproved}</b> aprovadas</span>

@@ -11,11 +11,7 @@ function jsFiles(dir) {
 }
 
 const reviewed = new Set([
-  'src/recognition-metrics.js',
-  'src/system-metrics-clean-router.js',
-  'src/geometric-shadow-evidence-router.js',
   'src/gtin-router.js',
-  'src/geometric-shadow-confirmation-router.js',
   'src/mural-router.js'
 ]);
 

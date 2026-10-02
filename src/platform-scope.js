@@ -1,8 +1,7 @@
 import {
   preferSupabaseRead,
   supabaseListPlatforms,
-  supabasePlatformExists,
-  supabasePlatformsForReference
+  supabasePlatformExists
 } from './supabase-read-store.js';
 
 const SUPPORTED_PLATFORMS = Object.freeze([
@@ -22,6 +21,14 @@ function normalizedPlatformText(value) {
     .trim();
 }
 
+function platformKey(value) {
+  return normalizedPlatformText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
 export function normalizePlatform(value) {
   const normalized = normalizedPlatformText(value);
   if (!normalized) return '';
@@ -36,25 +43,6 @@ export function normalizePlatform(value) {
 
 export function supportedPlatforms() {
   return [...SUPPORTED_PLATFORMS];
-}
-
-export function platformNamespace(value) {
-  const normalized = normalizePlatform(value);
-  if (!normalized) return '';
-  return normalized
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 64);
-}
-
-export function platformVectorId(referenceId, platform) {
-  const id = Number(referenceId || 0);
-  const namespace = platformNamespace(platform);
-  if (!Number.isInteger(id) || id <= 0 || !namespace) return '';
-  return `ref:${id}:p:${namespace}`;
 }
 
 async function listPlatformsFromD1(env) {
@@ -86,7 +74,7 @@ export async function listPlatforms(env) {
 
   return SUPPORTED_PLATFORMS.map(platform => ({
     platform,
-    platform_key: platformNamespace(platform),
+    platform_key: platformKey(platform),
     product_count: counts.get(platform) || 0
   }));
 }
@@ -117,40 +105,3 @@ export async function platformExists(env, platform) {
   );
 }
 
-async function platformsForReferenceFromD1(env, sourceProductId, capaCode) {
-  let results = [];
-  if (sourceProductId > 0) {
-    ({ results } = await env.DB.prepare(`
-      SELECT DISTINCT UPPER(TRIM(platform)) AS platform
-      FROM product_platforms
-      WHERE product_id=? AND TRIM(COALESCE(platform, '')) <> ''
-    `).bind(sourceProductId).all());
-  } else if (capaCode) {
-    ({ results } = await env.DB.prepare(`
-      SELECT DISTINCT UPPER(TRIM(pp.platform)) AS platform
-      FROM products p
-      JOIN product_platforms pp ON pp.product_id=p.id
-      WHERE UPPER(TRIM(p.capa_code))=?
-        AND TRIM(COALESCE(pp.platform, '')) <> ''
-    `).bind(capaCode).all());
-  }
-  return results || [];
-}
-
-export async function platformsForReference(env, reference) {
-  const sourceProductId = Number(reference?.source_product_id || 0);
-  const capaCode = String(reference?.capa_code || '').trim().toUpperCase();
-
-  const rows = await preferSupabaseRead(
-    env,
-    () => supabasePlatformsForReference(env, sourceProductId, capaCode),
-    () => platformsForReferenceFromD1(env, sourceProductId, capaCode),
-    'platforms-for-reference'
-  );
-
-  return [...new Set(
-    (rows || [])
-      .map(row => normalizePlatform(row.platform))
-      .filter(Boolean)
-  )];
-}

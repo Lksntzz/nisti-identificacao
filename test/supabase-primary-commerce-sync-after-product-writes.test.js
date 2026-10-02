@@ -7,7 +7,7 @@ const finish=fs.readFileSync('src/product-finish-router.js','utf8');
 
 test('Supabase-primary product create/update paths synchronize Commerce instead of returning a cutover skip',()=>{
   const upsertStart=core.indexOf('async function upsertCatalogProduct');
-  const upsertEnd=core.indexOf('async function listCoverReferences',upsertStart);
+  const upsertEnd=core.indexOf('export default',upsertStart);
   const upsert=core.slice(upsertStart,upsertEnd);
   assert.match(upsert,/syncNistiProductToCommerceSafe\(env, Number\(saved\.id\)\)/);
   assert.doesNotMatch(upsert,/reason:\s*'supabase_primary_cutover'/);
@@ -42,13 +42,4 @@ test('health endpoint reports Supabase as primary when Supabase reads are enable
   const block=core.slice(start,end);
   assert.match(block,/primary:\s*supabaseReads \? 'supabase' : 'd1'/);
   assert.match(block,/write_authority:\s*supabaseWrites \? 'supabase' : 'd1'/);
-});
-
-test('cover reference listing is Supabase-only after the D1 runtime detachment',()=>{
-  const start=core.indexOf('async function listCoverReferences');
-  const end=core.indexOf('async function addCoverReference',start);
-  const block=core.slice(start,end);
-  assert.match(block,/supabaseCoverReferences/);
-  assert.doesNotMatch(block,/env\.DB/);
-  assert.doesNotMatch(block,/supabasePrimaryWritesRequested/);
 });

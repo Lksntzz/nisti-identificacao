@@ -92,61 +92,14 @@ async function markFailed(productId, message) {
 }
 
 async function processItem(item) {
-  let effectiveTasselCode=item.tassel_code;
-  let ai={
-    status:'local-fallback',
-    applied:false,
-    provider:'local-fallback',
-    model:null,
-    confidence:0,
-    message:'IA ainda não executada.'
-  };
-
-  try {
-    const analysis=await requestJson(`/api/admin/product-image-treatment/${item.id}/ai`,{method:'POST'});
-    if (analysis.applied && typeof analysis.detected_has_tassel === 'boolean') {
-      effectiveTasselCode=analysis.detected_has_tassel ? 'AI' : 'X';
-      ai={
-        status:'applied',
-        applied:true,
-        provider:analysis.provider || 'ai',
-        model:analysis.model || null,
-        confidence:Number(analysis.confidence || 0),
-        detectedHasTassel:analysis.detected_has_tassel,
-        disagrees:Boolean(analysis.tassel_disagrees),
-        message:analysis.tassel_disagrees
-          ? 'IA detectou divergência entre o tassel visível e o cadastro; revise antes de aprovar.'
-          : `IA aplicada: ${analysis.provider || 'provedor de visão'}.`
-      };
-    } else {
-      ai={
-        status:'local-fallback',
-        applied:false,
-        provider:analysis.provider || 'local-fallback',
-        model:analysis.model || null,
-        confidence:Number(analysis.confidence || 0),
-        message:`Fallback local: ${analysis.reason || 'a IA não retornou confiança suficiente.'}`
-      };
-    }
-  } catch(error) {
-    ai={
-      status:'local-fallback',
-      applied:false,
-      provider:'local-fallback',
-      model:null,
-      confidence:0,
-      message:`Fallback local: ${error.message}`
-    };
-  }
-
   const blob = await treatedProductImageBlob(item.original_image_url, {
-    tasselCode:effectiveTasselCode,
+    tasselCode:item.tassel_code,
     forceOutline:Boolean(item.force_outline),
     preciseOutline:Boolean(item.force_outline)
   });
   if (!blob) {
     await markFailed(item.id, 'A imagem original não gerou um recorte transparente seguro com o limite atual.');
-    return { id:item.id, status:'failed', ai };
+    return { id:item.id, status:'failed' };
   }
 
   const form = new FormData();
@@ -157,12 +110,7 @@ async function processItem(item) {
     body:form
   });
 
-  return {
-    id:item.id,
-    status:'review',
-    ai,
-    warning:ai.status==='local-fallback' || ai.disagrees ? ai.message : ''
-  };
+  return { id:item.id, status:'review' };
 }
 
 export default function ProductImageTreatmentWorker({ enabled = true, onBatchComplete }) {

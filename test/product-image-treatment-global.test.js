@@ -152,8 +152,8 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(main.includes('ProductImageTreatmentWorker'));
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
   assert.ok(worker.includes('treatedProductImageBlob'));
-  assert.ok(worker.includes('let effectiveTasselCode=item.tassel_code'));
-  assert.ok(worker.includes('tasselCode:effectiveTasselCode'));
+  assert.ok(worker.includes('tasselCode:item.tassel_code'));
+  assert.equal(worker.includes('/ai'), false);
   assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v8'"));
   assert.ok(worker.includes("cache:'no-store'"));
   assert.ok(worker.includes("form.append('image'"));

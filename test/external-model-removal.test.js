@@ -11,22 +11,27 @@ const runtimeFiles = [
 ];
 const runtimeSource = runtimeFiles.map(file => fs.readFileSync(file, 'utf8')).join('\n');
 const muralAdmin = fs.readFileSync('src/admin/MuralNistiAdminView.jsx', 'utf8');
-const recognitionRouter = fs.readFileSync('src/vectorize-performance-router.js', 'utf8');
 
-test('external model access is limited to the reviewed product-image assistant', () => {
-  const assistant=fs.readFileSync('src/ai-product-image-treatment.js','utf8');
-  assert.match(assistant,/generativelanguage\.googleapis\.com/);
-  assert.match(assistant,/GEMINI_API_KEY/);
-  assert.match(assistant,/env\.AI\.run/);
-  assert.doesNotMatch(runtimeSource, /:embedContent/i);
+test('runtime has no external AI, Workers AI or Vectorize integration', () => {
+  assert.equal(fs.existsSync('src/ai-product-image-treatment.js'), false);
+  assert.equal(fs.existsSync('src/vectorize-admin-router.js'), false);
+  assert.doesNotMatch(runtimeSource, /generativelanguage\.googleapis\.com|GEMINI_API_KEY|GEMINI_IMAGE_MODEL|AI_VISION_MODEL|env\.AI\.run|COVER_VECTORS|:embedContent/i);
+  assert.doesNotMatch(fs.readFileSync('wrangler.toml','utf8'), /\[ai\]|\[\[vectorize\]\]/);
 });
 
-test('Mural publication editor is manual-only', () => {
-  assert.doesNotMatch(muralAdmin, /gemini|preparar versões de prompt|abrir modelo externo/i);
+test('Mural treatment is local and publication editor remains manual', () => {
+  const worker=fs.readFileSync('src/product-image-treatment-worker.jsx','utf8');
+  assert.doesNotMatch(worker, /\/ai\b|Gemini|Workers AI|detected_has_tassel/i);
+  assert.match(worker, /tasselCode:item\.tassel_code/);
+  assert.doesNotMatch(muralAdmin, /IA aplicada|gemini|preparar versões de prompt|abrir modelo externo/i);
   assert.match(muralAdmin, /Envie uma arte pronta para a publicação/);
 });
 
-test('removed visual-recognition endpoints fail explicitly', () => {
-  assert.match(recognitionRouter, /visual_recognition_removed/);
-  assert.match(recognitionRouter, /status: 410/);
+test('legacy visual-recognition runtime modules are absent', () => {
+  for (const file of [
+    'src/recognition-metrics.js',
+    'src/geometric-shadow-evidence-router.js',
+    'src/geometric-shadow-confirmation-router.js',
+    'public/geometric-core.js'
+  ]) assert.equal(fs.existsSync(file), false, `legacy AI file still exists: ${file}`);
 });
