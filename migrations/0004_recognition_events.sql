@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS recognition_events (
   error_message TEXT,
   total_ms INTEGER NOT NULL DEFAULT 0,
   embedding_ms INTEGER,
-  gemini_ms INTEGER,
+  verification_ms INTEGER,
   retrieval_top1 REAL,
   retrieval_top1_code TEXT,
   retrieval_top2 REAL,

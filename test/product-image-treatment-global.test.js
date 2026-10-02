@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
+import { __muralTransparentImageInternals } from '../src/mural-transparent-image.js';
 
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -17,11 +18,42 @@ test('shared product component uses the final treated PNG pipeline', () => {
 
 test('white and off-white covers use conservative background detection and corruption guards', () => {
   const utility = read('src/mural-transparent-image.js');
-  assert.ok(utility.includes('brightness >= 242 && chroma <= 18'));
+  assert.ok(utility.includes('brightness >= minimumBrightness && chroma <= 26'));
   assert.ok(utility.includes('productStats.ratio < .055'));
   assert.ok(utility.includes('productWidth < width * .25'));
   assert.ok(utility.includes('productHeight < height * .25'));
   assert.ok(utility.includes('return src'));
+});
+
+test('neutral studio shadows are removable without classifying them as product detail', () => {
+  const {
+    estimateBorderBackgroundBrightness,
+    isBorderBackgroundCandidate,
+    isStrongForegroundPixel
+  } = __muralTransparentImageInternals;
+  const width = 5;
+  const height = 5;
+  const pixels = new Uint8ClampedArray(width * height * 4).fill(250);
+  for (let index = 0; index < width * height; index += 1) pixels[index * 4 + 3] = 255;
+
+  const threshold = estimateBorderBackgroundBrightness(pixels, width, height);
+  assert.equal(threshold, 212);
+  assert.equal(isBorderBackgroundCandidate(220, 218, 219, 255, threshold), true);
+  assert.equal(isStrongForegroundPixel(210, 210, 210, 255), false);
+  assert.equal(isStrongForegroundPixel(150, 35, 65, 255), true);
+  assert.equal(isStrongForegroundPixel(30, 30, 30, 255), true);
+});
+
+test('official tassel treatment preserves disconnected opaque components', () => {
+  const { buildOpaqueMask } = __muralTransparentImageInternals;
+  const pixels = new Uint8ClampedArray(4 * 2 * 4);
+  pixels[3] = 255;
+  pixels[(7 * 4) + 3] = 255;
+  assert.deepEqual([...buildOpaqueMask(pixels, 4, 2)], [1, 0, 0, 0, 0, 0, 0, 1]);
+
+  const utility = read('src/mural-transparent-image.js');
+  assert.match(utility, /requestedOfficialVariant === 'withTassel'[\s\S]*buildOpaqueMask/);
+  assert.doesNotMatch(utility, /if \(official\) \{[\s\S]{0,500}applyPlannerStructureMask/);
 });
 
 test('core product screens use the shared treatment', () => {
@@ -80,6 +112,16 @@ test('database keeps original image and exposes persisted treated derivative as 
   assert.equal(migration.includes('UPDATE products SET image_key'), false);
 });
 
+test('contour v9 requeues generated derivatives but preserves approved manual PNGs', () => {
+  const d1 = read('migrations/0023_mural_product_images_contour_v9.sql');
+  const supabase = read('supabase/migrations/20261002093000_requeue_product_treatment_contour_v9.sql');
+  for (const migration of [d1, supabase]) {
+    assert.match(migration, /status = 'pending'/);
+    assert.match(migration, /processor = 'admin-upload'/);
+    assert.match(migration, /reviewed_by = 'admin'/);
+  }
+});
+
 test('admin starts a background queue that persists safe treated PNGs', () => {
   const main = read('src/main.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
@@ -87,7 +129,8 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(main.includes('ProductImageTreatmentWorker'));
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
   assert.ok(worker.includes('treatedProductImageBlob'));
-  assert.ok(worker.includes('tasselCode:item.tassel_code'));
+  assert.ok(worker.includes('let effectiveTasselCode=item.tassel_code'));
+  assert.ok(worker.includes('tasselCode:effectiveTasselCode'));
   assert.ok(worker.includes("LOCK_KEY = 'nisti_product_image_treatment_lock_v8'"));
   assert.ok(worker.includes("cache:'no-store'"));
   assert.ok(worker.includes("form.append('image'"));
@@ -126,12 +169,12 @@ test('display endpoint marks treated versus original fallback and client reproce
   assert.ok(utility.includes("if (source === 'treated') return normalized"));
   assert.ok(utility.includes("if (source === 'original')"));
   assert.ok(utility.includes('persistedProductOriginalUrl(normalized)'));
-  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '8'"));
+  assert.ok(core.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '9'"));
   assert.ok(core.includes("OR mpi.status IN ('pending','stale')"));
   assert.ok(core.includes("COALESCE(mpi.processor_version,'')<>?"));
   assert.equal(core.includes("mpi.status IN ('pending','review','stale')"), false);
   assert.ok(core.includes('p.id,p.sku,p.nome,p.image_key,p.tassel_code'));
-  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '8'"));
+  assert.ok(publicImages.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '9'"));
   assert.ok(publicImages.includes("row.status === 'approved'"));
   assert.equal(publicImages.includes("row.processor === 'admin-upload'"), false);
   assert.ok(publicImages.includes("row.reviewed_by === 'admin'"));
@@ -158,10 +201,13 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
 
   assert.ok(worker.includes('TREATMENT_PAUSE_KEY'));
   assert.ok(worker.includes("status:'review'"));
-  assert.ok(worker.includes('forceOutline:Boolean(item.force_outline)'));
-  assert.ok(admin.includes("paused?'Iniciar tratamento':'Pausar tratamento'"));
+  assert.ok(worker.includes('forceOutline:aiUrl ? false : Boolean(item.force_outline)'));
+  assert.ok(worker.includes('preciseOutline:Boolean(item.force_outline)'));
+  assert.ok(admin.includes('>Iniciar tratamento</button>'));
+  assert.ok(admin.includes('>Pausar tratamentos</button>'));
   assert.ok(admin.includes('Aguardando aprovação'));
-  assert.ok(admin.includes("showApproved?'Ocultar aprovadas':'Ver aprovadas'"));
+  assert.ok(admin.includes('>Para revisar</button>'));
+  assert.ok(admin.includes('>Revisados</button>'));
   assert.ok(admin.includes('?products.filter(item=>item.mural_image_ready)'));
   assert.ok(admin.includes('!justApprovedIds.has(Number(item.id))'));
   assert.ok(admin.includes('setJustApprovedIds(current=>new Set(current).add(Number(product.id)))'));
@@ -174,14 +220,36 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(core.includes("processor='system-precise-redo'"));
   assert.ok(core.includes("force_outline:row.processor === 'system-precise-redo'"));
   assert.ok(utility.includes("cache:options.forceOutline ? 'no-store' : 'default'"));
-  assert.ok(utility.includes('const outlineScale = 8 / 1024'));
-  assert.ok(utility.includes('if (requestedOfficialVariant) {\n    const official = await buildOfficialProductMask'));
-  assert.ok(utility.includes('const photoStructure = buildPlannerStructureProtection(data, width, height)'));
-  assert.ok(utility.includes('if (photoStructure) applyPlannerStructureMask'));
-  assert.ok(utility.includes('const minimumRatio = photoStructure ? .12 : .45'));
+  assert.ok(utility.includes('options.forceOutline || options.preciseOutline ? 5 / 1024 : 8 / 1024'));
+  assert.ok(utility.includes('sourceAlreadyCutOut && !options.forceOutline'));
+  assert.ok(utility.includes('requestedOfficialVariant && !options.forceOutline'));
+  assert.ok(utility.includes('buildPlannerStructureProtection(data, width, height, options.forceOutline)'));
+  assert.ok(utility.includes('const fitScale = Math.min(width * .995 / boxWidth, height * .995 / boxHeight)'));
+  assert.ok(utility.includes('fillMaskInteriorHoles(dilateMask(mask, width, height, radius))'));
+  assert.ok(utility.includes("requestedOfficialVariant === 'withTassel'\n    ? buildOpaqueMask"));
+  assert.ok(utility.includes('if (requestedOfficialVariant && !options.forceOutline) {\n    const official = await buildOfficialProductMask'));
+  assert.ok(utility.includes("requestedOfficialVariant === 'withTassel'"));
+  assert.ok(utility.includes('estimateBorderBackgroundBrightness(data, width, height)'));
   assert.ok(utility.includes('if (validOfficialCut)'));
   assert.ok(utility.includes('data.set(originalPixels)'));
-  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 0);
+  assert.equal((utility.match(/if \(requestedOfficialVariant && !options\.forceOutline\)/g) || []).length, 1);
+});
+
+test('Mural review opens a large preview and exposes approve and precise-redo actions', () => {
+  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const css = read('src/mural-admin.css');
+  assert.match(admin, /mural-product-image-lightbox/);
+  assert.match(admin, /createPortal/);
+  assert.match(admin, /mural-product-image-lightbox-dialog/);
+  assert.match(admin, /Não foi possível abrir a imagem tratada/);
+  assert.match(admin, /closeOnEscape/);
+  assert.match(admin, /Aprovar e mover para Revisados/);
+  assert.match(admin, /Refazer com corte preciso/);
+  assert.match(admin, /setJustApprovedIds/);
+  assert.match(css, /\.mural-product-image-lightbox-canvas/);
+  assert.match(css, /\.mural-product-image-lightbox-dialog/);
+  assert.match(css, /\.mural-product-image-lightbox-error/);
+  assert.match(css, /max-height:70vh/);
 });
 
 
@@ -197,4 +265,16 @@ test('automatic image treatment does not poll D1 aggressively while idle', () =>
   assert.ok(admin.includes('/api/admin/product-image-treatment/summary'));
   assert.ok(core.includes("url.pathname === '/api/admin/product-image-treatment/summary'"));
   assert.equal(core.includes('summary:await productTreatmentSummary(env),\n          items:'), false);
+});
+
+test('image treatment retries after another admin tab owns the processing lock', () => {
+  const worker = read('src/product-image-treatment-worker.jsx');
+  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const adminCss = read('src/mural-admin.css');
+
+  assert.match(worker, /const LOCK_RETRY_MS = 5 \* 1000/);
+  assert.match(worker, /if \(!acquireLock\(owner\)\) \{[\s\S]*phase:'waiting'[\s\S]*setTimeout\(run, LOCK_RETRY_MS\)/);
+  assert.match(admin, /A fila está sendo processada em outra aba/);
+  assert.match(admin, /state==='failed'\?'Tentar novamente':'Refazer'/);
+  assert.match(adminCss, /\.mural-product-treatment-progress\.waiting/);
 });

@@ -47,6 +47,7 @@ import {
   markAdminSystemNotificationRead,
   markAllAdminSystemNotificationsRead
 } from './system-notifications.js';
+import { generateAiProductCutout } from './ai-product-image-treatment.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 const TOP_K_REFERENCES = 24;
@@ -54,7 +55,7 @@ const BULK_IMPORT_LIMIT = 100;
 const EXTRA_REFERENCE_LIMIT = 6;
 const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR_VERSION = '8';
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '9';
 const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
@@ -167,39 +168,6 @@ async function productTreatmentSummary(env) {
   };
 }
 
-async function embedImage(env, bytes, mimeType) {
-  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
-  const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
-    {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-goog-api-key': env.GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        content: {
-          parts: [{
-            inline_data: {
-              mime_type: mimeType || 'image/jpeg',
-              data: base64(bytes)
-            }
-          }]
-        },
-        output_dimensionality: EMBEDDING_DIMENSIONS
-      })
-    }
-  );
-  if (!response.ok) throw new Error(`Gemini Embedding falhou (${response.status})`);
-  const payload = await response.json();
-  const values = payload?.embedding?.values || payload?.embeddings?.[0]?.values;
-  if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
-    throw new Error('Gemini Embedding não retornou vetor válido');
-  }
-  return { model, values };
-}
-
 async function ensureVisualReference(env, {
   capaCode,
   imageKey,
@@ -228,85 +196,8 @@ async function ensureVisualReference(env, {
   `).bind(code, imageKey).first();
 }
 
-async function storeReferenceEmbedding(env, reference, bytes, mimeType, cleanupProductId = null) {
-  if (!reference?.id) throw new Error('Referência visual não encontrada');
-  const { model, values } = await embedImage(env, bytes, mimeType);
-
-  const referenceId = Number(reference.id);
-  const capaCode = String(reference.capa_code || '').trim().toUpperCase();
-  let platforms = await platformsForReference(env, reference);
-  if (!platforms.length) platforms = supportedPlatforms();
-
-  const vectors = platforms.map(platform => {
-    const normalizedPlatform = normalizePlatform(platform);
-    const namespace = platformNamespace(normalizedPlatform);
-    return {
-      id: platformVectorId(referenceId, normalizedPlatform),
-      namespace,
-      values,
-      metadata: {
-        reference_id: referenceId,
-        capa_code: capaCode,
-        platform: normalizedPlatform,
-        platform_key: namespace,
-        image_key: String(reference.image_key || ''),
-        source_product_id: Number(reference.source_product_id || 0),
-        reference_kind: String(reference.reference_kind || 'product'),
-        embedding_model: model,
-        updated_at: new Date().toISOString()
-      }
-    };
-  }).filter(v => v.id && v.namespace);
-
-  if (!env.COVER_VECTORS?.upsert) {
-    throw new Error('Binding COVER_VECTORS não configurado');
-  }
-  if (!vectors.length) {
-    throw new Error('Nenhum namespace de plataforma disponível para a referência visual');
-  }
-
-  // Vectorize primeiro. O embedding no banco funciona como marcador de conclusão:
-  // se o índice vetorial falhar, a referência continua pendente e o cron pode tentar novamente.
-  await env.COVER_VECTORS.upsert(vectors);
-
-  let removedReferences = [];
-  if (supabasePrimaryWritesRequested(env)) {
-    const stored = await mirrorSupabaseRpc(env, 'nisti_store_reference_embedding_v1', {
-      p_reference_id:referenceId,p_embedding_model:model,p_dimensions:values.length,
-      p_embedding_json:JSON.stringify(values),p_cleanup_product_id:cleanupProductId,
-      p_keep_image_key:cleanupProductId ? reference.image_key : null
-    }, 'embedding de referência visual');
-    if (stored.value?.status !== 'ok') {
-      throw new Error('Referência visual não encontrada no Supabase');
-    }
-    removedReferences = stored.value?.removed_references || [];
-  } else {
-    await env.DB.prepare(`
-      INSERT INTO cover_reference_embeddings (
-        reference_id,embedding_model,dimensions,embedding_json,updated_at
-      ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
-      ON CONFLICT(reference_id) DO UPDATE SET
-        embedding_model=excluded.embedding_model,
-        dimensions=excluded.dimensions,
-        embedding_json=excluded.embedding_json,
-        updated_at=CURRENT_TIMESTAMP
-    `).bind(referenceId, model, values.length, JSON.stringify(values)).run();
-  }
-
-  if (removedReferences.length && env.COVER_VECTORS?.deleteByIds) {
-    const staleVectorIds = removedReferences.flatMap(item =>
-      supportedPlatforms()
-        .map(platform => platformVectorId(Number(item.id), platform))
-        .filter(Boolean)
-    );
-    if (staleVectorIds.length) {
-      await env.COVER_VECTORS.deleteByIds(staleVectorIds).catch(error => {
-        console.warn('[Vectorize] Falha ao remover vetores obsoletos:', error?.message || error);
-      });
-    }
-  }
-
-  return { model, values, removedReferences, vectorized:vectors.length };
+async function storeReferenceEmbedding() {
+  throw new Error('A indexação visual automática foi removida deste sistema.');
 }
 
 async function cleanupStaleProductReferences(env, productId, keepImageKey) {
@@ -1199,6 +1090,32 @@ export default {
         });
       }
 
+      const aiTreatment = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)\/ai$/);
+      if (aiTreatment && request.method === 'POST') {
+        const productId=Number(aiTreatment[1]);
+        if (!env.PRODUCT_IMAGES) return json({error:'Armazenamento de imagens indisponível.'},503);
+        const product=supabaseReadsRequested(env)
+          ? await supabaseProductImageContext(env,productId)
+          : await env.DB.prepare('SELECT id,image_key,tassel_code FROM products WHERE id=?').bind(productId).first();
+        if (!product?.image_key) return json({error:'Produto sem imagem original.'},404);
+        const object=await env.PRODUCT_IMAGES.get(product.image_key);
+        if (!object) return json({error:'Imagem original não encontrada.'},404);
+        try {
+          const result=await generateAiProductCutout(object,product.tassel_code,env);
+          return new Response(result.bytes,{
+            headers:{
+              'content-type':'image/png','cache-control':'private, no-store','x-content-type-options':'nosniff',
+              'x-nisti-ai-provider':'cloudflare-workers-ai+gemini',
+              'x-nisti-ai-tassel':result.detectedHasTassel===null?'unknown':result.detectedHasTassel?'yes':'no',
+              'x-nisti-ai-tassel-confidence':String(result.gemini.confidence || 0),
+              'x-nisti-ai-tassel-disagrees':result.tasselDisagrees?'1':'0'
+            }
+          });
+        } catch(error) {
+          return json({error:error.message || 'Tratamento assistido por IA indisponível.'},503);
+        }
+      }
+
       const treatmentUpload = url.pathname.match(/^\/api\/admin\/product-image-treatment\/(\d+)$/);
       if (treatmentUpload && request.method === 'POST') {
         const productId = Number(treatmentUpload[1]);
@@ -1457,7 +1374,7 @@ export default {
       }
 
       if (url.pathname === '/api/admin/cover-index' && request.method === 'GET') {
-        const model=env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
+        const model='removed';
         if (supabaseReadsRequested(env)) {
           const stats=await supabaseRpc(env,'nisti_cover_index_v1',{
             p_embedding_model:model,
@@ -1604,7 +1521,6 @@ export default {
 
       if (url.pathname === '/api/admin/push/debug' && request.method === 'GET') {
         const privateKey = env.VAPID_PRIVATE_KEY ? 'presente (tamanho: ' + env.VAPID_PRIVATE_KEY.length + ')' : 'ausente';
-        const apiKey = env.GEMINI_API_KEY ? 'presente' : 'ausente';
         const publicKey = env.VAPID_PUBLIC_KEY ? 'presente' : 'usando default';
 
         let subscriptions;
@@ -1649,7 +1565,6 @@ export default {
 
         return json({
           vapid_private_key: privateKey,
-          gemini_api_key: apiKey,
           vapid_public_key: publicKey,
           active_subscriptions_count: subscriptions.length,
           send_results: sendResults
@@ -1705,4 +1620,3 @@ export default {
     }
   }
 };
-

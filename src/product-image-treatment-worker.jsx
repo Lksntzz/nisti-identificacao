@@ -6,6 +6,7 @@ export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
 export const TREATMENT_WAKE_EVENT = 'nisti:product-image-treatment-wake';
 const LOCK_TTL_MS = 90 * 1000;
+const LOCK_RETRY_MS = 5 * 1000;
 const BATCH_SIZE = 3;
 const MAX_TRANSIENT_ATTEMPTS = 3;
 const IDLE_POLL_MS = 15 * 60 * 1000;
@@ -91,10 +92,37 @@ async function markFailed(productId, message) {
 }
 
 async function processItem(item) {
-  const blob = await treatedProductImageBlob(item.original_image_url, {
-    tasselCode:item.tassel_code,
-    forceOutline:Boolean(item.force_outline)
-  });
+  let aiUrl='';
+  let aiWarning='';
+  let effectiveTasselCode=item.tassel_code;
+  try {
+    const aiResponse=await fetch(`/api/admin/product-image-treatment/${item.id}/ai`,{
+      method:'POST',credentials:'same-origin',cache:'no-store'
+    });
+    if (!aiResponse.ok) throw new Error(`IA indisponível (${aiResponse.status})`);
+    const aiBlob=await aiResponse.blob();
+    if (aiBlob.type!=='image/png' || !aiBlob.size) throw new Error('IA retornou uma imagem inválida.');
+    aiUrl=URL.createObjectURL(aiBlob);
+    const detectedTassel=aiResponse.headers.get('x-nisti-ai-tassel');
+    if(detectedTassel==='yes')effectiveTasselCode='AI';
+    if(detectedTassel==='no')effectiveTasselCode='X';
+    if (aiResponse.headers.get('x-nisti-ai-tassel-disagrees')==='1') {
+      aiWarning='Gemini detectou divergência entre o tassel visível e o cadastro; revise antes de aprovar.';
+    }
+  } catch(error) {
+    aiWarning=`Assistência de IA não aplicada: ${error.message}`;
+  }
+
+  let blob;
+  try {
+    blob = await treatedProductImageBlob(aiUrl || item.original_image_url, {
+      tasselCode:effectiveTasselCode,
+      forceOutline:aiUrl ? false : Boolean(item.force_outline),
+      preciseOutline:Boolean(item.force_outline)
+    });
+  } finally {
+    if(aiUrl)URL.revokeObjectURL(aiUrl);
+  }
   if (!blob) {
     await markFailed(item.id, 'A imagem original não gerou um recorte transparente seguro com o limite atual.');
     return { id:item.id, status:'failed' };
@@ -108,7 +136,7 @@ async function processItem(item) {
     body:form
   });
 
-  return { id:item.id, status:'review' };
+  return { id:item.id, status:'review', warning:aiWarning };
 }
 
 export default function ProductImageTreatmentWorker({ enabled = true, onBatchComplete }) {
@@ -134,7 +162,14 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
         if (!cancelled) wakeTimer = window.setTimeout(run, PAUSED_POLL_MS);
         return;
       }
-      if (!acquireLock(owner)) return;
+      if (!acquireLock(owner)) {
+        // Another admin tab may be processing the queue. Keep this worker
+        // alive so it can take over when that tab closes or its lock expires.
+        // Previously a lock collision stopped this tab permanently.
+        emitTreatmentProgress({ phase:'waiting' });
+        if (!cancelled) wakeTimer = window.setTimeout(run, LOCK_RETRY_MS);
+        return;
+      }
       running = true;
 
       const changed = [];

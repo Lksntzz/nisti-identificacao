@@ -1,56 +1,8 @@
 import app from './edge-router.js';
-import { buildVectorizeTop1Candidates } from './vectorize-top1-candidates.js';
-import { structuralFinalIdentifyV8 } from './structural-final-v8.js';
-import { tryRetrievalFastPath } from './retrieval-fastpath.js';
-import { handleRetrievalBenchmarkRequest } from './retrieval-benchmark.js';
-import { handleRetrievalConsensusBenchmarkRequest } from './retrieval-consensus-benchmark.js';
-import { handleRetrievalRecallBenchmarkRequest } from './retrieval-recall-benchmark.js';
 import { handleGeometricShadowManifestRequest } from './geometric-shadow-manifest.js';
 import { handleGeometricShadowEvidenceRequest } from './geometric-shadow-evidence-router.js';
-import { recordRecognitionAttempt } from './recognition-metrics.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
 import { handlePublicImageRequest } from './public-image-router.js';
-import { handleOccurrencesAdminRequest } from './occurrences-router.js';
-
-const RECOGNITION_COOKIE = 'nisti_recognition_ticket';
-
-async function recordFallback(ctx, env, response, request) {
-  const type = response.headers.get('content-type') || '';
-  const data = type.includes('application/json')
-    ? await response.clone().json().catch(() => null)
-    : null;
-  if (!data) return;
-
-  let operatorName = null;
-  const rawOpName = request?.headers?.get('x-operator-name');
-  if (rawOpName) {
-    try { operatorName = decodeURIComponent(rawOpName); } catch { operatorName = rawOpName; }
-  }
-  const operatorId = request?.headers?.get('x-operator-id') || request?.headers?.get('x-user-id') || null;
-
-  const telemetry = recordRecognitionAttempt(env, response.status, data, { operatorName, operatorId });
-  if (ctx?.waitUntil) ctx.waitUntil(telemetry);
-  else await telemetry;
-}
-
-async function withRecognitionTicketCookie(response) {
-  if (!response?.ok) return response;
-  const data = await response.clone().json().catch(() => null);
-  if (!data?.ticket) return response;
-
-  const headers = new Headers(response.headers);
-  headers.delete('content-length');
-  headers.append(
-    'set-cookie',
-    `${RECOGNITION_COOKIE}=${data.ticket}; Path=/api; Max-Age=150; HttpOnly; Secure; SameSite=Lax`
-  );
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers
-  });
-}
 
 function invalidPlatformResponse() {
   return new Response(JSON.stringify({
@@ -115,15 +67,6 @@ export default {
     const publicImageResponse = await handlePublicImageRequest(request, env);
     if (publicImageResponse) return publicImageResponse;
 
-    const benchmarkResponse = await handleRetrievalBenchmarkRequest(request, env);
-    if (benchmarkResponse) return benchmarkResponse;
-
-    const consensusBenchmarkResponse = await handleRetrievalConsensusBenchmarkRequest(request, env);
-    if (consensusBenchmarkResponse) return consensusBenchmarkResponse;
-
-    const recallBenchmarkResponse = await handleRetrievalRecallBenchmarkRequest(request, env);
-    if (recallBenchmarkResponse) return recallBenchmarkResponse;
-
     const geometricShadowManifestResponse = await handleGeometricShadowManifestRequest(request, env);
     if (geometricShadowManifestResponse) return geometricShadowManifestResponse;
 
@@ -131,9 +74,6 @@ export default {
       const geometricShadowEvidenceResponse = await handleGeometricShadowEvidenceRequest(request, env);
       if (geometricShadowEvidenceResponse) return geometricShadowEvidenceResponse;
     }
-
-    const occurrencesResponse = await handleOccurrencesAdminRequest(request, env);
-    if (occurrencesResponse) return occurrencesResponse;
 
     if (request.method === 'GET' && url.pathname === '/api/platforms') {
       const platforms = await listPlatforms(env);
@@ -146,21 +86,11 @@ export default {
       });
     }
 
-    if (request.method === 'POST' && url.pathname === '/api/identify-candidates') {
-      const response = await buildVectorizeTop1Candidates(request, env);
-      return withRecognitionTicketCookie(response);
-    }
-
-    if (request.method === 'POST' && url.pathname === '/api/identify') {
-      const fastResponse = await tryRetrievalFastPath(request.clone(), env);
-      const response = fastResponse || await structuralFinalIdentifyV8(request, env);
-      await recordFallback(ctx, env, response, request);
-      return response;
-    }
-
-    if (request.method === 'POST' && url.pathname === '/api/identify-detail') {
-      const { identifyProductByDetail } = await import('./structural-final-v8.js');
-      return identifyProductByDetail(request, env);
+    if (request.method === 'POST' && ['/api/identify-candidates', '/api/identify', '/api/identify-detail'].includes(url.pathname)) {
+      return new Response(JSON.stringify({
+        error: 'A identificação visual automática foi removida deste sistema.',
+        technical_error: 'visual_recognition_removed'
+      }), { status: 410, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
     }
 
     const canonicalRequest = await canonicalizeCatalogRequest(request, url);

@@ -186,7 +186,7 @@ export async function supabaseCoverReferences(env, capaCode) {
 
 export async function supabaseProductTreatmentSummary(env, processorVersion = '8') {
   const value = await supabaseRpc(env, 'nisti_product_treatment_summary_v1', {
-    p_processor_version:String(processorVersion || '8').trim() || '8'
+    p_processor_version:String(processorVersion || '9').trim() || '9'
   });
   return value && typeof value === 'object'
     ? value
@@ -202,7 +202,7 @@ export async function supabaseProductTreatmentQueue(
 ) {
   const value = await supabaseRpc(env, 'nisti_product_treatment_queue_v1', {
     p_status:String(status || 'work').trim().toLowerCase() || 'work',
-    p_processor_version:String(processorVersion || '8').trim() || '8',
+    p_processor_version:String(processorVersion || '9').trim() || '9',
     p_limit:Number(limit || 20),
     p_offset:Number(offset || 0)
   });

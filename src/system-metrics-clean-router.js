@@ -1,5 +1,5 @@
 import app from './core-router.js';
-import { readRecognitionEvents, readRecognitionMetrics, readOperatorStats } from './recognition-metrics.js';
+import { readRecognitionEvents, readOperatorStats } from './recognition-metrics.js';
 import { mirrorSupabaseRpc, supabasePrimaryWritesRequested, supabaseWriteMode } from './supabase-write-store.js';
 import { supabaseReadsRequested, supabaseRpc } from './supabase-read-store.js';
 import { explicitUtcTimestamp } from './date-time.js';
@@ -40,10 +40,7 @@ const DOCUMENTED_LIMITS = Object.freeze({
     free_queried_dimensions_per_month: 30_000_000,
     source: 'Cloudflare Vectorize pricing'
   },
-  gemini: {
-    source: 'Google AI Studio / Gemini API rate limits',
-    note: 'Os limites ativos variam por projeto, modelo e tier; o NISTI não inventa RPM/RPD.'
-  }
+
 });
 
 function json(data, status = 200) {
@@ -126,10 +123,7 @@ async function readExpectedVectorFootprint(env) {
 }
 
 async function handleSystemMetricsFromSupabase(env, now) {
-  const [core,recognition]=await Promise.all([
-    supabaseRpc(env,'nisti_system_metrics_core_v1',{}),
-    readRecognitionMetrics(env)
-  ]);
+  const core=await supabaseRpc(env,'nisti_system_metrics_core_v1',{});
   const productStats=core?.products || {};
   const referenceStats=core?.references || {};
   const embeddingActivity=core?.embedding_activity || {};
@@ -174,24 +168,7 @@ async function handleSystemMetricsFromSupabase(env, now) {
       account_usage_note:'O Supabase é a base primária; uso de billing/quota da conta não é inferido por esta consulta.'
     },
     vectorize,
-    recognition,
-    gemini:{
-      configured:Boolean(env.GEMINI_API_KEY),
-      models:{
-        recognition:env.GEMINI_MODEL || null,
-        verifier:env.GEMINI_VERIFIER_MODEL || null,
-        detail:env.GEMINI_DETAIL_MODEL || null,
-        embedding:env.GEMINI_EMBEDDING_MODEL || null
-      },
-      observed_today:{
-        recognition_generation_requests:Number(recognition.today?.generation_requests || 0),
-        recognition_embedding_requests:Number(recognition.today?.embedding_requests || 0),
-        embeddings_updated_in_catalog:Number(embeddingActivity.embeddings_updated_today || 0),
-        references_updated_in_catalog:Number(embeddingActivity.references_updated_today || 0)
-      },
-      quota_usage:null,
-      quota_note:DOCUMENTED_LIMITS.gemini.note
-    }
+
   };
 
   systemMetricsCache={payload,expires_at:now+SYSTEM_METRICS_CACHE_TTL_MS};
@@ -237,7 +214,6 @@ async function handleSystemMetrics(env, { force = false } = {}) {
     WHERE date(datetime(updated_at, '-3 hours')) = ?
   `).bind(today).first();
 
-  const recognition = await readRecognitionMetrics(env);
   const vectorize = await readExpectedVectorFootprint(env);
 
   const d1Limit = DOCUMENTED_LIMITS.d1.free_max_database_bytes;
@@ -276,24 +252,7 @@ async function handleSystemMetrics(env, { force = false } = {}) {
       account_usage_note: 'Rows read/write totais da conta não são inferidos a partir de uma consulta isolada.'
     },
     vectorize,
-    recognition,
-    gemini: {
-      configured: Boolean(env.GEMINI_API_KEY),
-      models: {
-        recognition: env.GEMINI_MODEL || null,
-        verifier: env.GEMINI_VERIFIER_MODEL || null,
-        detail: env.GEMINI_DETAIL_MODEL || null,
-        embedding: env.GEMINI_EMBEDDING_MODEL || null
-      },
-      observed_today: {
-        recognition_generation_requests: Number(recognition.today?.generation_requests || 0),
-        recognition_embedding_requests: Number(recognition.today?.embedding_requests || 0),
-        embeddings_updated_in_catalog: Number(embeddingActivity?.embeddings_updated_today || 0),
-        references_updated_in_catalog: Number(embeddingActivity?.references_updated_today || 0)
-      },
-      quota_usage: null,
-      quota_note: DOCUMENTED_LIMITS.gemini.note
-    }
+
   };
 
   systemMetricsCache = {
@@ -332,10 +291,6 @@ async function runHealthCheck(key, label, runner) {
 }
 
 async function handleSystemHealthFromSupabase(env, now) {
-  if (systemHealthCache.payload && now < systemHealthCache.expires_at) {
-    return json(systemHealthCache.payload);
-  }
-
   const measuredAt=new Date().toISOString();
   const workerCheck={
     key:'worker',label:'Worker / API',status:'healthy',latency_ms:0,
@@ -353,17 +308,15 @@ async function handleSystemHealthFromSupabase(env, now) {
       };
     }),
     runHealthCheck('supabase','Banco primário / Supabase',async()=>{
-      const [core,summary,statuses,visualIndex]=await Promise.all([
+      const [core,summary,statuses]=await Promise.all([
         supabaseRpc(env,'nisti_system_health_core_v1',{}, {timeoutMs:5000}),
         supabaseRpc(env,'commerce_nisti_sync_status_v1',{}, {timeoutMs:5000}),
-        supabaseRpc(env,'commerce_nisti_product_statuses_v1',{}, {timeoutMs:5000}),
-        supabaseRpc(env,'nisti_vectorize_status_v1',{}, {timeoutMs:5000})
+        supabaseRpc(env,'commerce_nisti_product_statuses_v1',{}, {timeoutMs:5000})
       ]);
       return {
         core:core || {},
         summary:summary || {},
-        statuses:Array.isArray(statuses)?statuses:[],
-        visual_index:visualIndex || {}
+        statuses:Array.isArray(statuses)?statuses:[]
       };
     })
   ]);
@@ -403,19 +356,6 @@ async function handleSystemHealthFromSupabase(env, now) {
     last_synced_at:syncSummaryRaw.last_synced_at || null
   };
 
-  const visualIndexRaw=supabaseCheck.data?.visual_index || {};
-  const visualReferences=Number(visualIndexRaw.references || 0);
-  const visualEmbeddings=Number(visualIndexRaw.embeddings || 0);
-  const pendingVisualReferences=Math.max(0,visualReferences-visualEmbeddings);
-  const visualIndexSummary={
-    references:visualReferences,
-    embeddings:visualEmbeddings,
-    indexed_covers:Number(visualIndexRaw.covers || 0),
-    platform_count:Number(visualIndexRaw.platforms || 0),
-    pending_references:pendingVisualReferences,
-    repair_schedule:'*/30 * * * *'
-  };
-
   const syncErrors=syncStatuses
     .filter(item=>{
       const status=String(item?.sync_status || '').toUpperCase();
@@ -432,16 +372,7 @@ async function handleSystemHealthFromSupabase(env, now) {
       created_at:item?.last_synced_at || null
     }));
 
-  const visualIndexIssues=pendingVisualReferences>0 ? [{
-    source:'ÍNDICE VISUAL',
-    severity:'warning',
-    title:`${pendingVisualReferences} referência${pendingVisualReferences===1?'':'s'} visual${pendingVisualReferences===1?'':'is'} pendente${pendingVisualReferences===1?'':'s'}`,
-    detail:'O reparo automático tentará gerar o embedding e sincronizar o Vectorize no próximo ciclo agendado.',
-    sku:null,gtin:null,operator_name:null,response_ms:null,
-    created_at:measuredAt
-  }] : [];
-
-  const recentIssues=[...visualIndexIssues,...syncErrors,...scanSummary.recent_errors]
+  const recentIssues=[...syncErrors,...scanSummary.recent_errors]
     .sort((a,b)=>{
       const left=a.created_at?Date.parse(a.created_at):0;
       const right=b.created_at?Date.parse(b.created_at):0;
@@ -464,8 +395,7 @@ async function handleSystemHealthFromSupabase(env, now) {
   const operationalIssues=
     syncSummary.errors
     + syncSummary.conflicts
-    + scanSummary.technical_errors_today
-    + pendingVisualReferences;
+    + scanSummary.technical_errors_today;
   const overallStatus=unavailable>0?'degraded':operationalIssues>0?'attention':'healthy';
 
   const payload={
@@ -479,12 +409,10 @@ async function handleSystemHealthFromSupabase(env, now) {
       services_total:checks.length,
       unavailable_services:unavailable,
       operational_issues:operationalIssues,
-      technical_errors_today:scanSummary.technical_errors_today,
-      pending_visual_references:pendingVisualReferences
+      technical_errors_today:scanSummary.technical_errors_today
     },
     checks,
     sync:syncSummary,
-    visual_index:visualIndexSummary,
     recent_issues:recentIssues,
     scan:{
       technical_errors_today:scanSummary.technical_errors_today,
