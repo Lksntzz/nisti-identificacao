@@ -16,13 +16,11 @@ test('system health cache matches the reduced five-minute cadence', () => {
   assert.match(metrics,/SYSTEM_HEALTH_CACHE_TTL_MS = 5 \* 60 \* 1000/);
 });
 
-test('catalog list aggregates platform and GTIN relations once instead of correlated N+1 subqueries', () => {
+test('catalog list no longer executes D1 SQL after the Supabase runtime cutover', () => {
   const core=read('src/core-router.js');
-  assert.match(core,/WITH first_platform_id AS/);
-  assert.match(core,/first_gtin_id AS/);
-  assert.match(core,/LEFT JOIN first_platform fp ON fp\.product_id=p\.id/);
-  assert.match(core,/LEFT JOIN first_gtin fg ON fg\.product_id=p\.id/);
-  assert.doesNotMatch(core,/\(SELECT pp\.platform FROM product_platforms pp WHERE pp\.product_id=p\.id ORDER BY pp\.id ASC LIMIT 1\)/);
+  assert.match(core,/supabaseReserveProducts\(env\)/);
+  assert.doesNotMatch(core,/WITH first_platform_id AS/);
+  assert.doesNotMatch(core,/env\.DB/);
 });
 
 test('product mutations wake the treatment worker without short idle polling', () => {
