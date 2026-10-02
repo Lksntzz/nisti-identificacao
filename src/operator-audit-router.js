@@ -2,7 +2,6 @@ import app from './vectorize-performance-router.js';
 import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
 import { SupabasePrimaryWriteError } from './supabase-write-store.js';
-import { runReferenceReindex } from './reference-reindex-router.js';
 import { recordAdminActivityFromResponse } from './system-notifications.js';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -151,23 +150,6 @@ export default {
     return response;
   },
 
-  async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(
-      runReferenceReindex(env,{limit:4})
-        .then(result => {
-          if (result.processed.length || result.errors.length || result.vectorize_error) {
-            console.log('[Visual reference reindex] manutenção agendada', {
-              processed:result.processed.length,
-              errors:result.errors.length,
-              pending:result.pending_references,
-              vectorize_error:result.vectorize_error
-            });
-          }
-        })
-        .catch(error => {
-          console.warn('[Visual reference reindex] execução agendada falhou', error?.message || error);
-        })
-    );
-  }
+  async scheduled() {}
 };
 
