@@ -1,5 +1,4 @@
-import app from './vectorize-performance-router.js';
-import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
+import app from './platform-runtime-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
 import { SupabasePrimaryWriteError } from './supabase-write-store.js';
 import { recordAdminActivityFromResponse } from './system-notifications.js';
@@ -15,23 +14,6 @@ function json(data, status = 200, extraHeaders = null) {
       ...(extraHeaders || {})
     }
   });
-}
-
-function operatorNameFromRequest(request) {
-  const raw = request.headers.get('x-operator-name');
-  if (!raw) return '';
-  try {
-    return decodeURIComponent(raw).trim();
-  } catch {
-    return String(raw).trim();
-  }
-}
-
-function isRecognitionRequest(url, request) {
-  if (request.method !== 'POST') return false;
-  return url.pathname === '/api/identify-candidates'
-    || url.pathname === '/api/identify'
-    || url.pathname === '/api/identify-detail';
 }
 
 function isMutatingApiRequest(url, request) {
@@ -82,7 +64,6 @@ function scheduleAdminActivity(ctx, request, response, env) {
 }
 
 export default {
-
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
@@ -90,48 +71,9 @@ export default {
       try {
         if (cutoverWriteFreezeEnabled(env)) return cutoverFreezeResponse();
       } catch {
-        // Invalid maintenance configuration must fail closed for writes. Reads
-        // remain available so health/parity checks can still be performed.
         return cutoverFreezeResponse(true);
       }
     }
-
-    let shadowConfirmationResponse;
-    try {
-      shadowConfirmationResponse = await handleGeometricShadowConfirmationRequest(request, env);
-    } catch (error) {
-      if (error instanceof SupabasePrimaryWriteError) return primaryWriteFailureResponse(error);
-      throw error;
-    }
-    if (shadowConfirmationResponse) {
-      const activity = scheduleAdminActivity(ctx, request, shadowConfirmationResponse, env);
-      if (activity) await activity;
-      return shadowConfirmationResponse;
-    }
-
-    // Public operator app always sends x-user-id. If it does, require a
-    // non-empty operator name before any recognition work starts. This
-    // prevents anonymous scans from being stored as "Operador Geral" and
-    // closes the race where auto-scan starts while the profile modal is open.
-    if (isRecognitionRequest(url, request)) {
-      const operatorId = String(request.headers.get('x-user-id') || '').trim();
-      if (operatorId && !operatorNameFromRequest(request)) {
-        const response = json({
-          error: 'Identifique o operador antes de iniciar o reconhecimento.',
-          technical_error: 'operator_required'
-        }, 428);
-        const activity = scheduleAdminActivity(ctx, request, response, env);
-        if (activity) await activity;
-        return response;
-      }
-    }
-
-    // Only confirm-selection needs its JSON body again after the downstream
-    // router consumes it. Other mirrored mutations are identified by URL and
-    // their response payload, avoiding clones of large image uploads.
-    const mirrorRequest = request.method === 'POST' && url.pathname === '/api/operator/confirm-selection'
-      ? request.clone()
-      : request;
 
     let response;
     try {
@@ -140,16 +82,17 @@ export default {
       if (error instanceof SupabasePrimaryWriteError) return primaryWriteFailureResponse(error);
       throw error;
     }
+
     try {
-      await mirrorSuccessfulMutation(mirrorRequest, response, env);
+      await mirrorSuccessfulMutation(request, response, env);
     } catch (error) {
       return primaryWriteFailureResponse(error);
     }
-    const activity = scheduleAdminActivity(ctx, mirrorRequest, response, env);
+
+    const activity = scheduleAdminActivity(ctx, request, response, env);
     if (activity) await activity;
     return response;
   },
 
   async scheduled() {}
 };
-
