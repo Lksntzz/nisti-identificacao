@@ -1,3 +1,5 @@
+import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
+
 const SUPABASE_FUNCTION_URL = 'https://yioetdcbgorunwgwuawg.supabase.co/functions/v1/gtin-lookup';
 const DEFAULT_TIMEOUT_MS = 2400;
 
@@ -14,6 +16,25 @@ function timeoutMs(value) {
   const parsed = Number(value || DEFAULT_TIMEOUT_MS);
   if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
   return Math.max(500, Math.min(5000, Math.round(parsed)));
+}
+
+export function normalizeGtinProduct(product) {
+  if (!product) return product;
+
+  const wireoCode = String(product.wireo_code || '').trim().toUpperCase();
+  const tasselCode = String(product.tassel_code || '').trim().toUpperCase();
+  const elasticoCode = String(product.elastico_code || '').trim().toUpperCase();
+
+  return {
+    ...product,
+    wireo: product.wireo || WIREO_COLORS[wireoCode] || wireoCode || '',
+    tassel: product.tassel || (
+      tasselCode === 'X'
+        ? 'Sem tassel'
+        : ACCESSORY_COLORS[tasselCode] || tasselCode || ''
+    ),
+    elastico: product.elastico || ACCESSORY_COLORS[elasticoCode] || elasticoCode || ''
+  };
 }
 
 export async function lookupGtinDirect(gtin, { timeout = DEFAULT_TIMEOUT_MS } = {}) {
@@ -49,7 +70,7 @@ export async function lookupGtinDirect(gtin, { timeout = DEFAULT_TIMEOUT_MS } = 
 
     return {
       gtin: normalized,
-      product: payload.product
+      product: normalizeGtinProduct(payload.product)
     };
   } catch (error) {
     if (error instanceof DirectGtinLookupError) throw error;

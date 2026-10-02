@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isValidGtin13 } from './gtin.js';
 import { decodeEan13LumaRow, imageDataToLumaRow } from './gtin-camera-decoder.js';
-import { lookupGtinDirect } from './gtin-supabase-lookup.js';
+import { lookupGtinDirect, normalizeGtinProduct } from './gtin-supabase-lookup.js';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import './gtin-scanner.css';
 
@@ -84,6 +84,7 @@ function loadGtinHistory() {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter(item => item && /^\d{13}$/.test(String(item.gtin || '')) && item.product)
+      .map(item => ({ ...item, product: normalizeGtinProduct(item.product) }))
       .slice(0, GTIN_HISTORY_LIMIT);
   } catch {
     return [];
@@ -102,20 +103,21 @@ function cachedProductForGtin(gtin) {
 }
 
 function historyEntry(gtin, product) {
+  const normalizedProduct = normalizeGtinProduct(product);
   return {
     id: `${Date.now()}-${gtin}`,
     gtin,
     scanned_at: new Date().toISOString(),
     product: {
-      id: product?.id || null,
-      sku: product?.sku || '',
-      nome: product?.nome || '',
-      variacao: product?.variacao || '',
-      capa_code: product?.capa_code || '',
-      wireo: product?.wireo || product?.wireo_code || '',
-      tassel: product?.tassel || product?.tassel_code || '',
-      elastico: product?.elastico || product?.elastico_code || '',
-      image_url: product?.image_url || ''
+      id: normalizedProduct?.id || null,
+      sku: normalizedProduct?.sku || '',
+      nome: normalizedProduct?.nome || '',
+      variacao: normalizedProduct?.variacao || '',
+      capa_code: normalizedProduct?.capa_code || '',
+      wireo: normalizedProduct?.wireo || normalizedProduct?.wireo_code || '',
+      tassel: normalizedProduct?.tassel || normalizedProduct?.tassel_code || '',
+      elastico: normalizedProduct?.elastico || normalizedProduct?.elastico_code || '',
+      image_url: normalizedProduct?.image_url || ''
     }
   };
 }
@@ -483,11 +485,12 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
 
     const acceptProduct = resolvedProduct => {
+      const normalizedProduct = normalizeGtinProduct(resolvedProduct);
       setLastGtin(gtin);
-      setProduct(resolvedProduct);
+      setProduct(normalizedProduct);
       acceptedGtinRef.current = { value: gtin, lastSeenAt: Date.now() };
-      if (options.recordHistory !== false) addToHistory(gtin, resolvedProduct);
-      onProductResolved?.(resolvedProduct, gtin);
+      if (options.recordHistory !== false) addToHistory(gtin, normalizedProduct);
+      onProductResolved?.(normalizedProduct, gtin);
       setLookupError('');
       setCaptureFeedback('captured');
       triggerHaptic(80);
