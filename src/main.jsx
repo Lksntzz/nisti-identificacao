@@ -38,6 +38,11 @@ const TASSEL_OPTIONS = [
   ...ACCESSORY_OPTIONS
 ];
 
+const ELASTIC_OPTIONS = [
+  ['X', 'Sem elástico'],
+  ...ACCESSORY_OPTIONS
+];
+
 async function api(path, options = {}) {
   const response = await fetch(path, { credentials: 'same-origin', ...options });
   const type = response.headers.get('content-type') || '';
@@ -1151,7 +1156,7 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
             <div className="form-group">
               <label>Elástico</label>
               <select value={elastico} onChange={e => setElastico(e.target.value)}>
-                {ACCESSORY_OPTIONS.map(([val, label]) => (
+                {ELASTIC_OPTIONS.map(([val, label]) => (
                   <option key={val} value={val}>{label}</option>
                 ))}
               </select>
@@ -1295,7 +1300,7 @@ function ViewProductModal({ product, isOpen, onClose, onEdit, onSyncComplete }) 
               </div>
               <div className="view-spec-item">
                 <span>Elástico</span>
-                <strong>{ACCESSORY_OPTIONS.find(([v]) => v === product.elastico_code)?.[1] || product.elastico_code || 'Branco'}</strong>
+                <strong>{ELASTIC_OPTIONS.find(([v]) => v === product.elastico_code)?.[1] || product.elastico_code || 'Branco'}</strong>
               </div>
             </div>
 

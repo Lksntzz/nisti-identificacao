@@ -203,7 +203,7 @@ function ProductSummary({ gtin, product, continuous = false }) {
   const primaryDetails = [
     { label: 'Wire-o', value: product.wireo || product.wireo_code, icon: 'wireo' },
     { label: 'Tassel', value: product.tassel || product.tassel_code, icon: 'tassel' },
-    { label: 'Elástico', value: product.elastico || product.elastico_code, icon: 'elastic' }
+    { label: 'Elástico', value: elasticLabel(product), icon: 'elastic' }
   ].filter(item => item.value);
 
   const secondaryDetails = [
@@ -290,6 +290,11 @@ function HistoryChevron({ up = false }) {
 function hasTasselLabel(product) {
   const value = String(product?.tassel || product?.tassel_code || '').trim().toUpperCase();
   return !value || value === 'X' || value.includes('SEM TASSEL') ? 'Não' : 'Sim';
+}
+
+function elasticLabel(product) {
+  const value = String(product?.elastico || product?.elastico_code || '').trim();
+  return value.toUpperCase() === 'X' ? 'Sem elástico' : value;
 }
 
 function GtinHistory({ history, onOpen }) {
@@ -384,7 +389,7 @@ function GtinHistoryModal({ history, onClear, onClose }) {
                     </div>
                     <div>
                       <span>Elástico</span>
-                      <strong>{item.product.elastico || item.product.elastico_code || '—'}</strong>
+                      <strong>{elasticLabel(item.product) || '—'}</strong>
                     </div>
                     <div>
                       <span>Wire-o</span>

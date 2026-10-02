@@ -14,7 +14,7 @@ export function parseSku(sku) {
   const [wireoCode, tasselCode, elasticoCode] = acabamentoCode;
   if (!WIREO_COLORS[wireoCode]) throw new Error(`Wire-O desconhecido: ${wireoCode}`);
   if (tasselCode !== 'X' && !ACCESSORY_COLORS[tasselCode]) throw new Error(`Tassel desconhecido: ${tasselCode}`);
-  if (!ACCESSORY_COLORS[elasticoCode]) throw new Error(`Elástico desconhecido: ${elasticoCode}`);
+  if (elasticoCode !== 'X' && !ACCESSORY_COLORS[elasticoCode]) throw new Error(`Elástico desconhecido: ${elasticoCode}`);
 
   return {
     sku: value,
@@ -26,6 +26,6 @@ export function parseSku(sku) {
     elasticoCode,
     wireo: WIREO_COLORS[wireoCode],
     tassel: tasselCode === 'X' ? 'Sem tassel' : ACCESSORY_COLORS[tasselCode],
-    elastico: ACCESSORY_COLORS[elasticoCode],
+    elastico: elasticoCode === 'X' ? 'Sem elástico' : ACCESSORY_COLORS[elasticoCode],
   };
 }
