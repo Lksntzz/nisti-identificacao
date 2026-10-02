@@ -11,7 +11,6 @@ import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import ProductImageTreatmentWorker from './product-image-treatment-worker.jsx';
-import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
 import {
   createEan13Svg,
@@ -1041,7 +1040,6 @@ function EditProductModal({ product, isOpen, onClose, onUpdated }) {
       if (file) {
         const compressed = await compressAdminImage(file);
         const fd = new FormData();
-        fd.append('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION);
         fd.append('image', compressed || file);
         const imageResult = await api(`/api/products/${product.id}/image`, {
           method: 'POST',
