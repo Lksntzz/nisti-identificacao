@@ -23,10 +23,11 @@ test('catalog list no longer executes D1 SQL after the Supabase runtime cutover'
   assert.doesNotMatch(core,/env\.DB/);
 });
 
-test('product mutations wake the treatment worker without short idle polling', () => {
+test('product mutations do not wake the manual treatment worker', () => {
   const main=read('src/main.jsx');
   const worker=read('src/product-image-treatment-worker.jsx');
-  assert.match(main,/TREATMENT_WAKE_EVENT/);
-  assert.match(main,/window\.dispatchEvent\(new CustomEvent\(TREATMENT_WAKE_EVENT\)\)/);
-  assert.match(worker,/window\.addEventListener\(TREATMENT_WAKE_EVENT, onWake\)/);
+  assert.doesNotMatch(main,/TREATMENT_WAKE_EVENT/);
+  assert.doesNotMatch(worker,/TREATMENT_WAKE_EVENT/);
+  assert.doesNotMatch(worker,/IDLE_POLL_MS/);
+  assert.match(worker,/window\.addEventListener\(TREATMENT_CONTROL_EVENT, onControl\)/);
 });
