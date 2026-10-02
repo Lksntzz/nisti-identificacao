@@ -25,8 +25,21 @@ test('arquivos multipartes de vendas aguardam todas as partes e são consolidado
   assert.equal(migration.includes('missing_parts'), true);
   assert.equal(migration.includes('merged_parts'), true);
   assert.equal(migration.includes("b.status='STAGED'"), true);
-  assert.equal(migration.includes('_part_[0-9]+_of_[0-9]+[.]xlsx
-), true);
+  assert.equal(migration.includes("'_part_([0-9]+)_of_([0-9]+)[.]xlsx
+});
+
+test('Central de Importações explica a regra de consolidação de partes', () => {
+  const panel = read('src/commerce-sales-import-panel.jsx');
+  const router = read('src/commerce-admin-router.js');
+
+  assert.equal(panel.includes('substitui automaticamente qualquer versão parcial do mesmo mês e plataforma'), true);
+  assert.equal(panel.includes('o sistema aguarda todas e consolida o mês automaticamente'), true);
+  assert.equal(panel.includes('o sistema junta automaticamente'), true);
+  assert.equal(panel.includes('WAITING_PARTS'), true);
+  assert.equal(panel.includes('partes foram unidas automaticamente'), true);
+  assert.equal(router.includes('sales_import_period_regression'), true);
+});
+"), true);
 });
 
 test('Central de Importações explica a regra de consolidação de partes', () => {
