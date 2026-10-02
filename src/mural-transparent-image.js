@@ -1518,31 +1518,11 @@ export function useTransparentProductOutline(src, enabled = true) {
 }
 
 export function useTreatedProductImage(src, enabled = true) {
+  // Display is server-authoritative. Rendering a product must never create a
+  // new derivative in the browser; the URL already resolves to either the
+  // original image or an explicitly approved treated image.
   const normalized = String(src || '').trim();
-  const cached = normalized && treatedProductImageCache.get(normalized);
-  const [resolvedSrc, setResolvedSrc] = useState(() => cached || normalized);
-
-  useEffect(() => {
-    let active = true;
-    if (!enabled || !normalized) {
-      setResolvedSrc(normalized);
-      return () => { active = false; };
-    }
-
-    const existing = treatedProductImageCache.get(normalized);
-    if (existing) {
-      setResolvedSrc(existing);
-      return () => { active = false; };
-    }
-
-    setResolvedSrc(normalized);
-    treatedProductImageUrl(normalized).then(url => {
-      if (active) setResolvedSrc(url || normalized);
-    });
-    return () => { active = false; };
-  }, [normalized, enabled]);
-
-  return resolvedSrc;
+  return enabled ? normalized : normalized;
 }
 
 export const __muralTransparentImageInternals = {
