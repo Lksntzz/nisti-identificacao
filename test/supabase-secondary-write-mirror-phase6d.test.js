@@ -81,23 +81,29 @@ test('Phase 6D mirrors a reindex batch with one Supabase RPC', async () => {
   }
 });
 
-test('Phase 6D notification and push writers mirror only after committed D1 writes', () => {
+test('post-cutover notification and push writers no longer depend on D1 mirroring', () => {
   const notifications = fs.readFileSync('src/cover-notifications.js', 'utf8');
   const systemNotifications = fs.readFileSync('src/system-notifications.js', 'utf8');
   const push = fs.readFileSync('src/web-push.js', 'utf8');
 
-  assert.match(notifications, /INSERT INTO notifications[\s\S]*await mirrorNotificationByCapaFromD1/);
-  assert.match(notifications, /UPDATE notifications[\s\S]*mirrorNotificationsForProductOrCoverFromD1/);
-  assert.match(notifications, /INSERT INTO notification_reads[\s\S]*mirrorNotificationReadFromD1/);
-  assert.match(notifications, /markAllNotificationsRead[\s\S]*mirrorNotificationReadsForUserFromD1/);
-  assert.match(notifications, /recordAdminSystemNotification[\s\S]*INSERT INTO notifications[\s\S]*mirrorNotificationByCapaFromD1/);
-  assert.match(notifications, /markAdminSystemNotificationRead[\s\S]*INSERT INTO notification_reads[\s\S]*mirrorNotificationReadFromD1/);
-  assert.match(notifications, /markAllAdminSystemNotificationsRead[\s\S]*mirrorNotificationReadsForUserFromD1/);
-  assert.doesNotMatch(systemNotifications, /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:notifications|notification_reads)\b/i);
+  for(const rpc of [
+    'nisti_record_new_cover_notification_v1',
+    'nisti_update_notification_image_v1',
+    'nisti_mark_notification_read_v1',
+    'nisti_mark_all_notifications_read_v1',
+    'nisti_record_admin_system_notification_v1'
+  ]) assert.match(notifications,new RegExp(rpc));
 
-  assert.match(push, /INSERT INTO push_subscriptions[\s\S]*mirrorPushSubscriptionByEndpointFromD1/);
-  assert.match(push, /DELETE FROM push_subscriptions[\s\S]*mirrorDeletedPushSubscriptionToSupabase/);
-  assert.doesNotMatch(push, /nisti_mirror_push_log/);
+  assert.doesNotMatch(notifications,/env\.DB/);
+  assert.doesNotMatch(notifications,/FromD1/);
+  assert.doesNotMatch(systemNotifications,/\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:notifications|notification_reads)\b/i);
+
+  assert.match(push,/nisti_upsert_push_subscription_v1/);
+  assert.match(push,/nisti_delete_push_subscription/);
+  assert.match(push,/nisti_list_push_subscriptions_v1/);
+  assert.doesNotMatch(push,/env\.DB/);
+  assert.doesNotMatch(push,/FromD1|ToSupabase/);
+  assert.doesNotMatch(push,/nisti_mirror_push_log/);
 });
 
 test('Phase 6D covers finish edits, synthetic notifications, reindex maintenance, shadow confirmation and operator rename', () => {
@@ -156,13 +162,11 @@ test('active D1 mutations remain confined to reviewed writer modules', () => {
     ['recognition_events', new Set(['recognition-metrics.js', 'system-metrics-clean-router.js'])],
     ['cover_visual_references', new Set(['core-router.js', 'occurrences-router.js'])],
     ['cover_reference_embeddings', new Set(['core-router.js', 'occurrences-router.js'])],
-    ['notifications', new Set(['core-router.js', 'cover-notifications.js', 'system-notifications.js'])],
-    ['notification_reads', new Set(['cover-notifications.js', 'system-notifications.js'])],
-    ['push_subscriptions', new Set(['web-push.js'])],
+    ['notifications', new Set(['system-notifications.js'])],
+    ['notification_reads', new Set(['system-notifications.js'])],
     ['scan_occurrences', new Set(['occurrences-router.js'])],
     ['geometric_shadow_evidence', new Set(['geometric-shadow-evidence-router.js', 'geometric-shadow-confirmation-router.js'])],
     ['gemini_call_budget', new Set(['gemini-budget.js'])],
-    ['push_logs', new Set(['web-push.js'])]
   ]);
 
   const files = fs.readdirSync('src')
