@@ -1,5 +1,6 @@
 import {
   SupabaseReadError,
+  supabaseEmergencyFallbackRequested,
   supabaseReadsRequested,
   supabaseRpc
 } from './supabase-read-store.js';
@@ -58,8 +59,12 @@ export async function reserveGeminiBudget(env, lane, limitPerMinute) {
       p_limit: limit
     })) === true;
   } catch (error) {
-    if (error instanceof SupabaseReadError && error.fallbackEligible) {
-      console.warn(`[Supabase] budget Gemini indisponível; usando fallback D1 temporário: ${error.code}`);
+    if (
+      supabaseEmergencyFallbackRequested(env)
+      && error instanceof SupabaseReadError
+      && error.fallbackEligible
+    ) {
+      console.warn(`[Supabase] budget Gemini indisponível; fallback D1 explicitamente habilitado: ${error.code}`);
       return reserveD1Budget(env, cleanLane, limit, windowMinute);
     }
     throw error;
