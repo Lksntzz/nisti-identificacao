@@ -150,8 +150,12 @@ export async function preferSupabaseRead(env, supabaseLoader, d1Loader, label = 
     try {
       return await supabaseLoader();
     } catch (error) {
-      if (error instanceof SupabaseReadError && error.fallbackEligible) {
-        console.warn(`[Supabase] ${label} indisponível; usando fallback D1 temporário: ${error.code}`);
+      if (
+        supabaseEmergencyFallbackRequested(env)
+        && error instanceof SupabaseReadError
+        && error.fallbackEligible
+      ) {
+        console.warn(`[Supabase] ${label} indisponível; usando fallback D1 explicitamente habilitado: ${error.code}`);
         return d1Loader();
       }
       throw error;
