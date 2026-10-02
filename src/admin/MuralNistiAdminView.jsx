@@ -178,7 +178,7 @@ function MuralProductImageManager({ products, onChanged }) {
           loading:false,
           phase,
           current:phase==='processing'?(detail.product||null):finished?null:current.current,
-          error:detail.error||''
+          error:detail.error||detail.result?.warning||''
         };
       });
       if(['processed','failed'].includes(detail.phase)){
