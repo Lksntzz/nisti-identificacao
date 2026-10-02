@@ -1,4 +1,4 @@
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
 const DEFAULT_WORKERS_VISION_MODEL = '@cf/moondream/moondream3.1-9B-A2B';
 
 function bytesToBase64(bytes) {
@@ -35,7 +35,14 @@ async function classifyTasselWithGemini(bytes, contentType, env) {
       })
     }
   );
-  if (!response.ok) throw new Error(`Gemini respondeu HTTP ${response.status}.`);
+  if (!response.ok) {
+    let detail='';
+    try {
+      const errorPayload=await response.json();
+      detail=String(errorPayload?.error?.message || errorPayload?.error?.status || '').trim();
+    } catch {}
+    throw new Error(`Gemini ${model} respondeu HTTP ${response.status}${detail ? `: ${detail}` : '.'}`);
+  }
   const payload = await response.json();
   const text = payload?.candidates?.[0]?.content?.parts?.map(part=>part?.text || '').join('') || '';
   const parsed = parseGeminiJson(text);
