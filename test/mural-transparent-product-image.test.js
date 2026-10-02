@@ -70,7 +70,7 @@ test('only images with real transparent borders skip background cleanup', () => 
   assert.match(source, /function hasUsableTransparentBorder/);
   assert.match(source, /transparent \/ sampled >= 0\.18/);
   assert.match(source, /const sourceAlreadyCutOut = hasExistingTransparency\(data, total\)[\s\S]*&& hasUsableTransparentBorder\(data, width, height\)/);
-  assert.match(source, /if \(sourceAlreadyCutOut && !options\.forceOutline\) return src/);
+  assert.match(source, /if \\(sourceAlreadyCutOut\\) return src/);
 });
 
 test('light cover artwork is protected by a solid linear convex silhouette', () => {
@@ -396,9 +396,8 @@ test('wire-o metadata activates accessory preservation even without a tassel', (
   assert.equal(hasRegisteredWireo({ wireoCode:'P', tasselCode:'X' }), true);
   assert.equal(hasRegisteredWireo({ wireoCode:'R', tasselCode:'X' }), true);
   assert.equal(hasRegisteredWireo({ wireoCode:'', tasselCode:'X' }), false);
-  assert.match(source, /const wireoRecoveryMask = plannerBounds/);
-  assert.match(source, /applyMkpProductAlpha\(data, mkpAlpha, wireoRecoveryMask\)/);
-  assert.match(source, /\|\| hasRegisteredWireo\(options\)/);
+  assert.match(source, /\\|\\| hasRegisteredWireo\\(options\\)/);
+  assert.equal(source.includes('applyMkpProductAlpha'), false);
 });
 
 
