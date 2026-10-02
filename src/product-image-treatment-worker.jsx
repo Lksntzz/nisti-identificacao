@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { productImageMaskBlob, productImageTreatmentArtifactsBlob } from './mural-transparent-image.js';
 
+const PRODUCT_IMAGE_PROCESSOR_VERSION = '12';
 const LOCK_KEY = 'nisti_product_image_treatment_lock_v12';
 export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
@@ -103,6 +104,7 @@ async function processItem(item) {
   }
 
   const form = new FormData();
+  form.append('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION);
   form.append('image', new File([artifacts.imageBlob], `produto-${item.id}-tratado.png`, { type:'image/png' }));
   form.append('mask', new File([artifacts.maskBlob], `produto-${item.id}-mascara.png`, { type:'image/png' }));
 
@@ -121,6 +123,7 @@ async function processMaskItem(item) {
   if (!maskBlob) throw new Error('Não foi possível gerar a máscara individual deste produto.');
 
   const form = new FormData();
+  form.append('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION);
   form.append('mask', new File([maskBlob], `produto-${item.id}-mascara.png`, { type:'image/png' }));
   await requestJson(`/api/admin/product-image-mask/${item.id}`, {
     method:'POST',

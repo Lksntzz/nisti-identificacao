@@ -198,6 +198,15 @@ test('admin starts a background queue that persists safe treated PNGs', () => {
   assert.ok(worker.includes('/failed'));
 });
 
+test('stale browser clients cannot persist an older cutout algorithm as v12', () => {
+  const worker = read('src/product-image-treatment-worker.jsx');
+  const core = read('src/core-router.js');
+  assert.ok(worker.includes("const PRODUCT_IMAGE_PROCESSOR_VERSION = '12'"));
+  assert.equal((worker.match(/form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/g) || []).length, 2);
+  assert.equal((core.match(/code:'stale_image_processor'/g) || []).length, 2);
+  assert.ok(core.includes('clientProcessorVersion !== PRODUCT_IMAGE_PROCESSOR_VERSION'));
+});
+
 test('each product treatment persists an individual auditable mask', () => {
   const utility = read('src/mural-transparent-image.js');
   const worker = read('src/product-image-treatment-worker.jsx');
