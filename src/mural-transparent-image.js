@@ -19,8 +19,11 @@ const MKP_PRODUCT_MASKS = Object.freeze({
   R:Object.freeze({ withTassel:'/product-masks-mkp/wire_gold_com_tassel.png', withoutTassel:'/product-masks-mkp/wire_gold_sem_tassel.png' })
 });
 const MKP_MASK_MAX_ASPECT_ERROR = .025;
+// White sticker contour calibrated to the approved visual reference.
+// "Precise" changes silhouette selection, not border thickness: both paths
+// keep the same visible contour so redo does not unexpectedly become thinner.
 const MKP_OUTLINE_SCALE = 5 / 1024;
-const MKP_PRECISE_OUTLINE_SCALE = 4 / 1024;
+const MKP_PRECISE_OUTLINE_SCALE = 5 / 1024;
 // Conservative inner geometry normalized from the planner family. It is not a
 // cutout mold: it only protects the interior of a white/off-white cover while
 // the actual outer silhouette is traced from the source pixels.
@@ -56,8 +59,8 @@ const PLANNER_MASK_CALIBRATION = Object.freeze({
   bboxAspectSafeMax:.88,
   nearbyDetailStrongRatio:.18,
   genericDetailStrongRatio:.30,
-  outlineScale:2 / 1024,
-  preciseOutlineScale:1 / 1024
+  outlineScale:5 / 1024,
+  preciseOutlineScale:5 / 1024
 });
 
 function clamp(value, min, max) {
@@ -883,7 +886,7 @@ async function buildProductOutlineImage(src) {
   const stats = maskStats(mainMask, width, height);
   if (stats.ratio > .82 || stats.touches >= 3) return '';
 
-  const radius = clamp(Math.round(Math.max(width, height) * .0028), 2, 5);
+  const radius = clamp(Math.round(Math.max(width, height) * (5 / 1024)), 4, 7);
   const outlineMask = buildExternalOutlineRing(mainMask, width, height, radius);
 
   const outlineData = context.createImageData(width, height);
@@ -1305,12 +1308,13 @@ async function buildTreatedProductImage(src, options = {}) {
 
   sourceContext.putImageData(imageData, 0, 0);
 
-  // A manual redo requests a tighter ring so the white border follows the
-  // product more precisely. The normal pass remains slightly more forgiving.
+  // Keep the approved sticker-style contour thickness in both normal and
+  // manual-redo paths. Precision changes the detected silhouette, never the
+  // visible white border thickness.
   const outlineScale = usingMkpMask
     ? (options.forceOutline || options.preciseOutline ? MKP_PRECISE_OUTLINE_SCALE : MKP_OUTLINE_SCALE)
     : (options.forceOutline || options.preciseOutline ? PLANNER_MASK_CALIBRATION.preciseOutlineScale : PLANNER_MASK_CALIBRATION.outlineScale);
-  const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 1, 5);
+  const outlineRadius = clamp(Math.round(Math.max(width, height) * outlineScale), 4, 7);
   const outlineMask = buildExternalOutlineRing(productMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
 
