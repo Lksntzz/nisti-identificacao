@@ -5,17 +5,11 @@ import {
   supportedPlatforms,
   normalizePlatform
 } from './platform-scope.js';
-import { confirmGeometricShadowEvidence } from './geometric-shadow-evidence-router.js';
 import {
   mirrorSupabaseRpc,
-  SupabasePrimaryWriteError,
-  supabasePrimaryWritesRequested,
-  supabaseWriteMode
+  SupabasePrimaryWriteError
 } from './supabase-write-store.js';
-import {
-  preferSupabaseRead,
-  supabaseReserveOccurrences
-} from './supabase-read-store.js';
+import { supabaseReserveOccurrences } from './supabase-read-store.js';
 
 const EMBEDDING_DIMENSIONS = 768;
 
@@ -108,79 +102,36 @@ export async function recordScanOccurrence(env, {
 }) {
   try {
     if (!photoBytes || !env.PRODUCT_IMAGES) return null;
-    const writeMode = supabaseWriteMode(env);
-    if (!env.DB && !supabasePrimaryWritesRequested(env)) return null;
 
     const occurrenceId = crypto.randomUUID();
     const imageKey = `occurrences/${Date.now()}_${occurrenceId.slice(0, 8)}.jpg`;
 
     await env.PRODUCT_IMAGES.put(imageKey, photoBytes, {
-      httpMetadata: { contentType: photoMime }
+      httpMetadata:{contentType:photoMime}
     });
 
-    if (supabasePrimaryWritesRequested(env)) {
-      try {
-        const created = await mirrorSupabaseRpc(env, 'nisti_create_scan_occurrence_v1', {
-          p_row: {
-            image_key:imageKey,
-            platform,
-            suggested_capa_code:suggestedCapaCode,
-            confidence:Number(confidence || 0),
-            error_reason:errorReason,
-            operator_name:operatorName,
-            operator_id:operatorId,
-            status:'pending',
-            created_at:new Date().toISOString()
-          }
-        }, 'scan occurrence primary');
-        const rowId = Number(created?.value?.id || 0) || null;
-        if (!rowId) throw new Error('Supabase não retornou o ID da ocorrência.');
-        return rowId;
-      } catch (error) {
-        await env.PRODUCT_IMAGES.delete(imageKey).catch(() => {});
-        throw error;
-      }
+    try {
+      const created = await mirrorSupabaseRpc(env, 'nisti_create_scan_occurrence_v1', {
+        p_row:{
+          image_key:imageKey,
+          platform,
+          suggested_capa_code:suggestedCapaCode,
+          confidence:Number(confidence || 0),
+          error_reason:errorReason,
+          operator_name:operatorName,
+          operator_id:operatorId,
+          status:'pending',
+          created_at:new Date().toISOString()
+        }
+      }, 'scan occurrence primary');
+
+      const rowId = Number(created?.value?.id || 0) || null;
+      if (!rowId) throw new Error('Supabase não retornou o ID da ocorrência.');
+      return rowId;
+    } catch (error) {
+      await env.PRODUCT_IMAGES.delete(imageKey).catch(() => {});
+      throw error;
     }
-
-    const res = await env.DB.prepare(`
-      INSERT INTO scan_occurrences (
-        image_key,
-        platform,
-        suggested_capa_code,
-        confidence,
-        error_reason,
-        operator_name,
-        operator_id,
-        status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-    `).bind(
-      imageKey,
-      platform,
-      suggestedCapaCode,
-      Number(confidence || 0),
-      errorReason,
-      operatorName,
-      operatorId
-    ).run();
-
-    const rowId = Number(res.meta?.last_row_id || 0) || null;
-    if (rowId && writeMode !== 'off') {
-      const row = await env.DB.prepare(`
-        SELECT id, image_key, platform, suggested_capa_code, confidence, error_reason,
-               operator_name, operator_id, status, trained_capa_code, trained_at, created_at
-        FROM scan_occurrences
-        WHERE id=?
-        LIMIT 1
-      `).bind(rowId).first();
-
-      if (row) {
-        await mirrorSupabaseRpc(env, 'nisti_mirror_scan_occurrence', {
-          p_row: row
-        }, 'scan occurrence');
-      }
-    }
-
-    return rowId;
   } catch (err) {
     if (err instanceof SupabasePrimaryWriteError) throw err;
     console.error('Falha ao registrar ocorrência:', err);
@@ -195,200 +146,91 @@ export async function trainOccurrenceDirectly(env, occurrenceId, capaCode, opera
     throw new Error('ID da ocorrência e capa_code são obrigatórios.');
   }
 
-  if (supabasePrimaryWritesRequested(env)) {
-    const prepared=await mirrorSupabaseRpc(env,'nisti_prepare_occurrence_training_v1',{
-      p_occurrence_id:id,
-      p_capa_code:cleanCapaCode
-    },`prepare occurrence training ${id}`);
-    const prep=prepared?.value || {};
-    if(prep.status==='not_found') throw new Error('Ocorrência não encontrada.');
-    if(prep.status!=='ok') throw new Error('Não foi possível preparar o treinamento da ocorrência.');
+  const prepared = await mirrorSupabaseRpc(env,'nisti_prepare_occurrence_training_v1',{
+    p_occurrence_id:id,
+    p_capa_code:cleanCapaCode
+  },`prepare occurrence training ${id}`);
+  const prep = prepared?.value || {};
 
-    const referenceId=Number(prep.reference_id || 0);
-    if(!referenceId) throw new Error('Supabase não retornou o ID da referência visual.');
-    const occurrence={id,image_key:prep.image_key,platform:prep.platform || null};
+  if(prep.status==='not_found') throw new Error('Ocorrência não encontrada.');
+  if(prep.status!=='ok') throw new Error('Não foi possível preparar o treinamento da ocorrência.');
 
-    const imageObj=await env.PRODUCT_IMAGES.get(occurrence.image_key);
-    if(!imageObj) throw new Error('Foto não encontrada no R2.');
-    const photoBytes=new Uint8Array(await imageObj.arrayBuffer());
-    const vector=await embedImage(env,photoBytes,'image/jpeg');
-    const embeddingModel=env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
+  const referenceId = Number(prep.reference_id || 0);
+  if(!referenceId) throw new Error('Supabase não retornou o ID da referência visual.');
 
-    if(env.COVER_VECTORS?.upsert) {
-      const refObj={capa_code:cleanCapaCode,source_product_id:null};
-      let platforms=await platformsForReference(env,refObj);
-      if(!platforms.length && occurrence.platform) platforms=[occurrence.platform];
-      if(!platforms.length) platforms=supportedPlatforms();
-
-      const vectorInserts=[];
-      for(const plat of platforms) {
-        const normPlat=normalizePlatform(plat);
-        const namespace=platformNamespace(normPlat);
-        if(!namespace) continue;
-        const vectorId=platformVectorId(referenceId,normPlat) || `ref:${referenceId}:p:${namespace}`;
-        vectorInserts.push({
-          id:vectorId,
-          values:vector,
-          namespace,
-          metadata:{
-            reference_id:referenceId,
-            capa_code:cleanCapaCode,
-            reference_kind:'real_scan',
-            platform:normPlat,
-            platform_key:namespace,
-            image_key:String(occurrence.image_key || '')
-          }
-        });
-      }
-      if(vectorInserts.length) await env.COVER_VECTORS.upsert(vectorInserts);
-    }
-
-    const committed=await mirrorSupabaseRpc(env,'nisti_commit_occurrence_training_v1',{
-      p_occurrence_id:id,
-      p_reference_id:referenceId,
-      p_capa_code:cleanCapaCode,
-      p_embedding_model:embeddingModel,
-      p_dimensions:EMBEDDING_DIMENSIONS,
-      p_embedding_json:JSON.stringify(vector)
-    },`commit occurrence training ${id}`);
-    if(committed?.value?.status!=='ok') throw new Error('Supabase não concluiu o treinamento da ocorrência.');
-
-    try {
-      await mirrorSupabaseRpc(env,'nisti_mirror_confirm_geometric_shadow',{
-        p_occurrence_id:id,
-        p_photo_sha256:await sha256Hex(photoBytes),
-        p_capa_code:cleanCapaCode,
-        p_source:operatorName ? 'operator_confirmed_training' : 'admin_confirmed_training',
-        p_confirmed_at:new Date().toISOString()
-      },`confirm occurrence shadow ${id}`);
-    } catch(error) {
-      console.error('Falha ao confirmar evidência geométrica shadow:',error);
-    }
-
-    return {
-      ok:true,
-      trained:true,
-      capa_code:cleanCapaCode,
-      reference_id:referenceId,
-      message:`Sistema treinado com sucesso para a capa ${cleanCapaCode}!`
-    };
-  }
-
-  const occurrence = await env.DB.prepare(
-    'SELECT id, image_key, platform FROM scan_occurrences WHERE id=? LIMIT 1'
-  ).bind(id).first();
-
-  if (!occurrence) {
-    throw new Error('Ocorrência não encontrada.');
-  }
+  const occurrence = {
+    id,
+    image_key:prep.image_key,
+    platform:prep.platform || null
+  };
 
   const imageObj = await env.PRODUCT_IMAGES.get(occurrence.image_key);
-  if (!imageObj) {
-    throw new Error('Foto não encontrada no R2.');
-  }
+  if(!imageObj) throw new Error('Foto não encontrada no R2.');
+
   const photoBytes = new Uint8Array(await imageObj.arrayBuffer());
+  const vector = await embedImage(env,photoBytes,'image/jpeg');
+  const embeddingModel = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
 
-  // 1. Inserir em cover_visual_references como foto real de bancada
-  await env.DB.prepare(`
-    INSERT INTO cover_visual_references (
-      capa_code,
-      image_key,
-      reference_kind,
-      active
-    ) VALUES (?, ?, 'real_scan', 1)
-    ON CONFLICT(capa_code, image_key) DO UPDATE SET active=1, updated_at=CURRENT_TIMESTAMP
-  `).bind(cleanCapaCode, occurrence.image_key).run();
+  if(env.COVER_VECTORS?.upsert) {
+    const refObj={capa_code:cleanCapaCode,source_product_id:null};
+    let platforms=await platformsForReference(env,refObj);
+    if(!platforms.length && occurrence.platform) platforms=[occurrence.platform];
+    if(!platforms.length) platforms=supportedPlatforms();
 
-  const refRow = await env.DB.prepare(
-    'SELECT id FROM cover_visual_references WHERE capa_code=? AND image_key=? LIMIT 1'
-  ).bind(cleanCapaCode, occurrence.image_key).first();
-
-  const referenceId = refRow?.id;
-  if (!referenceId) {
-    throw new Error('Falha ao obter ID da referência visual.');
-  }
-
-  // 2. Gerar Embedding
-  const vector = await embedImage(env, photoBytes, 'image/jpeg');
-
-  // 3. Salvar embedding no D1
-  await env.DB.prepare(`
-    INSERT OR REPLACE INTO cover_reference_embeddings (
-      reference_id,
-      embedding_model,
-      dimensions,
-      embedding_json,
-      updated_at
-    ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-  `).bind(
-    referenceId,
-    env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2',
-    EMBEDDING_DIMENSIONS,
-    JSON.stringify(vector)
-  ).run();
-
-  // 4. Inserir no Vectorize para cada plataforma suportada
-  if (env.COVER_VECTORS?.upsert) {
-    const refObj = { capa_code: cleanCapaCode, source_product_id: null };
-    let platforms = await platformsForReference(env, refObj);
-    if (!platforms.length && occurrence.platform) {
-      platforms = [occurrence.platform];
-    }
-    if (!platforms.length) {
-      platforms = supportedPlatforms();
-    }
-
-    const vectorInserts = [];
-    for (const plat of platforms) {
-      const normPlat = normalizePlatform(plat);
-      const namespace = platformNamespace(normPlat);
-      const vectorId = platformVectorId(referenceId, normPlat) || `ref:${referenceId}:p:${namespace}`;
+    const vectorInserts=[];
+    for(const plat of platforms) {
+      const normPlat=normalizePlatform(plat);
+      const namespace=platformNamespace(normPlat);
+      if(!namespace) continue;
+      const vectorId=platformVectorId(referenceId,normPlat) || `ref:${referenceId}:p:${namespace}`;
       vectorInserts.push({
-        id: vectorId,
-        values: vector,
+        id:vectorId,
+        values:vector,
         namespace,
-        metadata: {
-          reference_id: referenceId,
-          capa_code: cleanCapaCode,
-          reference_kind: 'real_scan',
-          platform: normPlat,
-          platform_key: namespace,
-          image_key: String(occurrence.image_key || '')
+        metadata:{
+          reference_id:referenceId,
+          capa_code:cleanCapaCode,
+          reference_kind:'real_scan',
+          platform:normPlat,
+          platform_key:namespace,
+          image_key:String(occurrence.image_key || '')
         }
       });
     }
-
-    if (vectorInserts.length) {
-      await env.COVER_VECTORS.upsert(vectorInserts);
-    }
+    if(vectorInserts.length) await env.COVER_VECTORS.upsert(vectorInserts);
   }
 
-  // 5. Marcar ocorrência como treinada
-  await env.DB.prepare(`
-    UPDATE scan_occurrences
-    SET status = 'trained', trained_capa_code = ?, trained_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `).bind(cleanCapaCode, id).run();
+  const committed=await mirrorSupabaseRpc(env,'nisti_commit_occurrence_training_v1',{
+    p_occurrence_id:id,
+    p_reference_id:referenceId,
+    p_capa_code:cleanCapaCode,
+    p_embedding_model:embeddingModel,
+    p_dimensions:EMBEDDING_DIMENSIONS,
+    p_embedding_json:JSON.stringify(vector)
+  },`commit occurrence training ${id}`);
 
-  // 6. Só confirmação humana/administrativa transforma shadow em ground truth.
-  // Falha de telemetria não pode impedir o treinamento real já concluído.
+  if(committed?.value?.status!=='ok') {
+    throw new Error('Supabase não concluiu o treinamento da ocorrência.');
+  }
+
   try {
-    await confirmGeometricShadowEvidence(env, {
-      occurrenceId: id,
-      photoSha256: await sha256Hex(photoBytes),
-      capaCode: cleanCapaCode,
-      source: operatorName ? 'operator_confirmed_training' : 'admin_confirmed_training'
-    });
-  } catch (error) {
-    console.error('Falha ao confirmar evidência geométrica shadow:', error);
+    await mirrorSupabaseRpc(env,'nisti_mirror_confirm_geometric_shadow',{
+      p_occurrence_id:id,
+      p_photo_sha256:await sha256Hex(photoBytes),
+      p_capa_code:cleanCapaCode,
+      p_source:operatorName ? 'operator_confirmed_training' : 'admin_confirmed_training',
+      p_confirmed_at:new Date().toISOString()
+    },`confirm occurrence shadow ${id}`);
+  } catch(error) {
+    console.error('Falha ao confirmar evidência geométrica shadow:',error);
   }
 
   return {
-    ok: true,
-    trained: true,
-    capa_code: cleanCapaCode,
-    reference_id: referenceId,
-    message: `Sistema treinado com sucesso para a capa ${cleanCapaCode}!`
+    ok:true,
+    trained:true,
+    capa_code:cleanCapaCode,
+    reference_id:referenceId,
+    message:`Sistema treinado com sucesso para a capa ${cleanCapaCode}!`
   };
 }
 
@@ -397,69 +239,35 @@ export async function handleOccurrencesAdminRequest(request, env) {
 
   // GET /api/admin/occurrences
   if (request.method === 'GET' && url.pathname === '/api/admin/occurrences') {
-    let source = 'd1';
-    const payload = await preferSupabaseRead(
-      env,
-      async () => {
-        source = 'supabase-reserve';
-        return supabaseReserveOccurrences(env);
-      },
-      async () => {
-        const pendingList = await env.DB.prepare(`
-          SELECT id, image_key, platform, suggested_capa_code, confidence, error_reason, operator_name, operator_id, status, created_at
-          FROM scan_occurrences
-          WHERE status = 'pending'
-          ORDER BY created_at DESC
-          LIMIT 60
-        `).all();
-
-        const counts = await env.DB.prepare(`
-          SELECT 
-            COUNT(CASE WHEN status = 'pending' THEN 1 END) AS pending_count,
-            COUNT(CASE WHEN status = 'trained' THEN 1 END) AS trained_count,
-            COUNT(CASE WHEN status = 'dismissed' THEN 1 END) AS dismissed_count
-          FROM scan_occurrences
-        `).first();
-
-        return {
-          stats:{
-            pending:Number(counts?.pending_count || 0),
-            trained:Number(counts?.trained_count || 0),
-            dismissed:Number(counts?.dismissed_count || 0)
-          },
-          occurrences:pendingList.results || []
-        };
-      },
-      'occurrences:list'
-    );
+    const payload = await supabaseReserveOccurrences(env);
 
     const occurrences = (payload?.occurrences || []).map(row => ({
-      id: Number(row.id),
-      image_url: `/api/occurrence-images/${Number(row.id)}`,
-      platform: row.platform,
-      suggested_capa_code: row.suggested_capa_code,
-      confidence: Number(row.confidence || 0),
-      error_reason: row.error_reason,
-      operator_name: row.operator_name || 'Operador Geral',
-      operator_id: row.operator_id,
-      status: row.status,
-      created_at: row.created_at
+      id:Number(row.id),
+      image_url:`/api/occurrence-images/${Number(row.id)}`,
+      platform:row.platform,
+      suggested_capa_code:row.suggested_capa_code,
+      confidence:Number(row.confidence || 0),
+      error_reason:row.error_reason,
+      operator_name:row.operator_name || 'Operador Geral',
+      operator_id:row.operator_id,
+      status:row.status,
+      created_at:row.created_at
     }));
 
     return json({
-      ok: true,
-      reserve_mode: source === 'supabase-reserve',
-      read_source: source,
-      stats: {
-        pending: Number(payload?.stats?.pending || 0),
-        trained: Number(payload?.stats?.trained || 0),
-        dismissed: Number(payload?.stats?.dismissed || 0)
+      ok:true,
+      reserve_mode:false,
+      read_source:'supabase',
+      stats:{
+        pending:Number(payload?.stats?.pending || 0),
+        trained:Number(payload?.stats?.trained || 0),
+        dismissed:Number(payload?.stats?.dismissed || 0)
       },
       occurrences
     });
   }
 
-  // POST /api/admin/occurrences/:id/train
+  // POST /api/admin/occurrences/:id/train  // POST /api/admin/occurrences/:id/train
   const trainMatch = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/train$/);
   if (request.method === 'POST' && trainMatch) {
     try {
@@ -508,25 +316,19 @@ export async function handleOccurrencesAdminRequest(request, env) {
   const dismissMatch = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/dismiss$/);
   if (request.method === 'POST' && dismissMatch) {
     const id = Number(dismissMatch[1]);
-    if (supabasePrimaryWritesRequested(env)) {
-      const result = await mirrorSupabaseRpc(
-        env,
-        'nisti_dismiss_scan_occurrence_v1',
-        { p_id:id },
-        `dismiss occurrence ${id}`
-      );
-      if (result?.value?.status === 'not_found') return json({ error:'Ocorrência não encontrada.' },404);
-      return json({ ok:true, dismissed:true });
+    const result = await mirrorSupabaseRpc(
+      env,
+      'nisti_dismiss_scan_occurrence_v1',
+      {p_id:id},
+      `dismiss occurrence ${id}`
+    );
+    if (result?.value?.status === 'not_found') {
+      return json({error:'Ocorrência não encontrada.'},404);
     }
-
-    await env.DB.prepare(
-      "UPDATE scan_occurrences SET status = 'dismissed' WHERE id = ?"
-    ).bind(id).run();
-
-    return json({ ok: true, dismissed: true });
+    return json({ok:true,dismissed:true});
   }
 
-  // POST /api/report-occurrence (Called by operator when the identified result is wrong)
+  // POST /api/report-occurrence  // POST /api/report-occurrence (Called by operator when the identified result is wrong)
   if (request.method === 'POST' && url.pathname === '/api/report-occurrence') {
     try {
       const form = await request.formData();

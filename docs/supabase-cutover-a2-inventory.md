@@ -30,12 +30,11 @@ freeze is released in production after the frozen smoke-test gate completed succ
 
 ## Remaining D1 code classification
 
-`src/core-router.js` no longer contains D1 SQL; product, image, treatment, cover-reference, diagnostics and push-admin database paths are Supabase-only.\n\n`src/cover-notifications.js` and `src/web-push.js` no longer contain D1 SQL; notification reads/writes and push subscription storage use Supabase directly.
+`src/core-router.js` no longer contains D1 SQL; product, image, treatment, cover-reference, diagnostics and push-admin database paths are Supabase-only.\n\n`src/cover-notifications.js` and `src/web-push.js` no longer contain D1 SQL; notification reads/writes and push subscription storage use Supabase directly.\n\n`src/occurrences-router.js` no longer contains D1 SQL; occurrence creation, training, listing and dismissal use Supabase directly while R2 and Vectorize remain the image/vector stores.
 
 | Module | D1 SQL still present | Primary-mode status |
 | --- | --- | --- |
 | `src/mural-router.js` | Mural compatibility reads/writes | active Mural Admin writes and reads have direct Supabase branches |
-| `src/occurrences-router.js` | occurrence/training compatibility SQL | create/train/dismiss are direct Supabase-primary |
 | `src/recognition-metrics.js` | legacy telemetry/read SQL | primary telemetry and reads are Supabase |
 | `src/system-metrics-clean-router.js` | legacy D1 metrics/health path | Supabase-read mode uses Supabase-only database probes |
 | `src/geometric-shadow-evidence-router.js` | legacy evidence/read SQL | active create/link/confirm/summary paths are Supabase |
