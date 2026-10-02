@@ -253,7 +253,8 @@ test('critical reserve RPCs cover scanner, occurrence history and notifications'
   assert.match(gtinRouter, /supabaseReserveGtinLookup/);
   assert.match(occurrences, /supabaseReserveOccurrences/);
   assert.match(notifications, /supabaseReserveNotifications/);
-  assert.match(notifications, /supabaseReserveUnreadNotifications/);
+  assert.doesNotMatch(notifications, /supabaseReserveUnreadNotifications/);
+  assert.match(notifications, /is_read/);
   assert.doesNotMatch(wrangler, /SUPABASE_EMERGENCY_/);
 });
 
