@@ -394,7 +394,7 @@ async function deleteExtraReference(env, referenceId) {
   };
 }
 
-export default {export default {
+export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     try {
@@ -573,8 +573,8 @@ export default {export default {
         },'edição de produto');
         if (result.value?.status === 'not_found') return json({ error:'Produto não encontrado' },404);
 
-        const commerceSync = await syncNistiProductToCommerceSafe(env,id);
-        scheduleCommerceReconcile(ctx,env,id,commerceSync);
+        const commerceSync = await syncNistiProductToCommerceSafe(env, id);
+        scheduleCommerceReconcile(ctx, env, id, commerceSync);
         return json({ ok:true,id,updated:true,commerce_sync:commerceSync });
       }
 
