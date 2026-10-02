@@ -57,7 +57,7 @@ freeze is released in production after the frozen smoke-test gate completed succ
 
 ## Compatibility cleanup progress
 
-The production runtime no longer contains D1 branches in `src/gemini-budget.js`,
-`src/product-finish-router.js` or `src/reference-reindex-router.js`. The scheduled Worker entry point
+The production runtime no longer contains D1 branches in `src/product-finish-router.js` or
+`src/reference-reindex-router.js`. The scheduled Worker entry point
 also no longer imports `src/supabase-reserve-backfill.js`; that module is retained only as a
 recovery artifact while D1 remains preserved outside the production Worker.
