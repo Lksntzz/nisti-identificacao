@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
+function registerNistiServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  const register = () => {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/', updateViaCache: 'none' })
+      .then(registration => registration.update().catch(() => {}))
+      .catch(error => console.warn('[PWA] Falha ao registrar Service Worker', error));
+  };
+  if (document.readyState === 'complete') register();
+  else window.addEventListener('load', register, { once: true });
+}
+
+registerNistiServiceWorker();
+
 function getInitialRoute() {
   const hash = window.location.hash;
   if (window.location.pathname === '/admin-commerce') {

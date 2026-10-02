@@ -103,6 +103,53 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+function pushSubscriptionData(subscription) {
+  if (!subscription?.endpoint) return null;
+  const serialized = typeof subscription.toJSON === 'function' ? subscription.toJSON() : null;
+  if (serialized?.keys?.p256dh && serialized?.keys?.auth) {
+    return {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: serialized.keys.p256dh,
+        auth: serialized.keys.auth
+      }
+    };
+  }
+
+  const rawKey = subscription.getKey?.('p256dh');
+  const rawAuth = subscription.getKey?.('auth');
+  const encode = value => value
+    ? btoa(String.fromCharCode(...new Uint8Array(value))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+    : '';
+
+  return {
+    endpoint: subscription.endpoint,
+    keys: { p256dh: encode(rawKey), auth: encode(rawAuth) }
+  };
+}
+
+async function persistPushSubscription(subscription) {
+  const payload = pushSubscriptionData(subscription);
+  if (!payload?.keys?.p256dh || !payload?.keys?.auth) {
+    throw new Error('Assinatura push incompleta.');
+  }
+  return api('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ subscription: payload })
+  });
+}
+
+async function syncExistingPushSubscription() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return false;
+  if (Notification.permission !== 'granted') return false;
+  const reg = await navigator.serviceWorker.ready;
+  const subscription = await reg.pushManager.getSubscription();
+  if (!subscription) return false;
+  await persistPushSubscription(subscription);
+  return true;
+}
+
 function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -155,34 +202,16 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
 
-      if (sub) {
-        await sub.unsubscribe().catch(() => {});
+      if (!sub) {
+        const keyData = await api('/api/push/public-key');
+        const appServerKey = urlBase64ToUint8Array(keyData.publicKey);
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: appServerKey
+        });
       }
 
-      const keyData = await api('/api/push/public-key');
-      const appServerKey = urlBase64ToUint8Array(keyData.publicKey);
-
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: appServerKey
-      });
-
-      const rawKey = sub.getKey ? sub.getKey('p256dh') : null;
-      const rawAuth = sub.getKey ? sub.getKey('auth') : null;
-
-      const subData = {
-        endpoint: sub.endpoint,
-        keys: {
-          p256dh: rawKey ? btoa(String.fromCharCode(...new Uint8Array(rawKey))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') : '',
-          auth: rawAuth ? btoa(String.fromCharCode(...new Uint8Array(rawAuth))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') : ''
-        }
-      };
-
-      await api('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ subscription: subData })
-      });
+      await persistPushSubscription(sub);
 
       setPushStatus('granted');
     } catch (err) {
@@ -477,6 +506,12 @@ function PublicIdentificationApp() {
   const [muralAccess, setMuralAccess] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [publicView, setPublicView] = useState('scanner');
+
+  useEffect(() => {
+    syncExistingPushSubscription().catch(error => {
+      console.warn('[Push] Não foi possível renovar a assinatura existente', error);
+    });
+  }, []);
 
   useEffect(() => {
     const handleHash = () => {

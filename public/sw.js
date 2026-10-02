@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-id-v37';
+const CACHE_NAME = 'nisti-id-v38';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -58,6 +58,42 @@ self.addEventListener('fetch', event => {
   }
 });
 
+function pushApplicationServerKey(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const raw = atob((base64String + padding).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, char => char.charCodeAt(0));
+}
+
+self.addEventListener('pushsubscriptionchange', event => {
+  event.waitUntil((async () => {
+    try {
+      if (event.oldSubscription?.endpoint) {
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ endpoint: event.oldSubscription.endpoint })
+        }).catch(() => null);
+      }
+
+      const keyResponse = await fetch('/api/push/public-key', { cache: 'no-store' });
+      if (!keyResponse.ok) throw new Error('VAPID public key indisponível');
+      const { publicKey } = await keyResponse.json();
+      const subscription = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: pushApplicationServerKey(publicKey)
+      });
+      const serialized = subscription.toJSON();
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ subscription: serialized })
+      });
+    } catch (error) {
+      console.error('[Push] Falha ao renovar assinatura em background', error);
+    }
+  })());
+});
+
 self.addEventListener('push', event => {
   let data = {};
   try {
@@ -72,11 +108,17 @@ self.addEventListener('push', event => {
     icon: new URL('/nisti-logo.png', self.location.origin).href,
     badge: new URL('/nisti-logo.png', self.location.origin).href,
     image: data.image_url || undefined,
-    tag: data.capa_code ? `capa-${data.capa_code}` : 'nisti-new-cover',
+    tag: data.capa_code
+      ? `capa-${data.capa_code}`
+      : data.mural_post_id
+        ? `mural-${data.mural_post_id}`
+        : `nisti-${Date.now()}`,
     renotify: true,
+    timestamp: Date.now(),
     data: {
       url: data.url || '/',
-      capa_code: data.capa_code
+      capa_code: data.capa_code,
+      mural_post_id: data.mural_post_id
     }
   };
 
