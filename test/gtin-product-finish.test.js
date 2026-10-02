@@ -25,3 +25,16 @@ test('preserves an unknown finish code instead of hiding product data', () => {
     elastico: null
   });
 });
+
+
+test('translates X elastic code as product without elastic', () => {
+  assert.deepEqual(productFinishLabels({
+    wireo_code: 'B',
+    tassel_code: 'P',
+    elastico_code: 'X'
+  }), {
+    wireo: 'Branco',
+    tassel: 'Preto',
+    elastico: 'Sem elástico'
+  });
+});
