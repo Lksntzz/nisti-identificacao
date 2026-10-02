@@ -347,7 +347,7 @@ function quantileIndexFromHistogram(histogram, total, quantile) {
   return histogram.length - 1;
 }
 
-function buildPlannerReferenceBounds(data, width, height) {
+function buildPlannerReferenceBounds(data, width, height, fitInsideCanvas = false) {
   const columns = new Uint32Array(width);
   const rows = new Uint32Array(height);
   let strong = 0;
@@ -392,7 +392,12 @@ function buildPlannerReferenceBounds(data, width, height) {
     boxWidth = boxHeight * PLANNER_STRUCTURE_REFERENCE.silhouetteAspect;
   }
 
-  if (boxWidth > width * .97 || boxHeight > height * .97) return null;
+  if (boxWidth > width * .97 || boxHeight > height * .97) {
+    if (!fitInsideCanvas) return null;
+    const fitScale = Math.min(width * .995 / boxWidth, height * .995 / boxHeight);
+    boxWidth *= fitScale;
+    boxHeight *= fitScale;
+  }
 
   let minX = (x0 + x1) / 2 - boxWidth / 2;
   let minY = (y0 + y1) / 2 - boxHeight / 2;
@@ -421,8 +426,8 @@ function pointInsidePolygon(x, y, polygon) {
   return inside;
 }
 
-function buildPlannerStructureProtection(data, width, height) {
-  const bounds = buildPlannerReferenceBounds(data, width, height);
+function buildPlannerStructureProtection(data, width, height, fitInsideCanvas = false) {
+  const bounds = buildPlannerReferenceBounds(data, width, height, fitInsideCanvas);
   if (!bounds) return null;
 
   const polygon = PLANNER_STRUCTURE_REFERENCE.bodyPolygon.map(([nx, ny]) => ([
@@ -457,7 +462,7 @@ function buildPlannerDetailMask(data, width, height, bounds) {
   }
 
   const radius = clamp(Math.round(Math.max(width, height) * .0022), 1, 4);
-  return dilateMask(mask, width, height, radius);
+  return fillMaskInteriorHoles(dilateMask(mask, width, height, radius));
 }
 
 function applyPlannerStructureMask(data, width, height, isPlannerPixel) {
@@ -1071,13 +1076,15 @@ async function buildTransparentProductImage(src, options = {}) {
   // Only skip processing when transparency is actually present on the outer
   // border. A tiny transparent logo/mark inside the image is not a prepared
   // product cutout and must not disable background cleanup.
-  if (hasExistingTransparency(data, total) && hasUsableTransparentBorder(data, width, height)) return src;
+  const sourceAlreadyCutOut = hasExistingTransparency(data, total)
+    && hasUsableTransparentBorder(data, width, height);
+  if (sourceAlreadyCutOut && !options.forceOutline) return src;
 
   // Prefer the official variant selected from product metadata. If a photo
   // cannot be aligned safely with that asset, continue through the adaptive
   // planner path below instead of failing the treatment queue.
   const requestedOfficialVariant = officialProductMaskVariant(options.tasselCode);
-  if (requestedOfficialVariant) {
+  if (requestedOfficialVariant && !options.forceOutline) {
     const official = await buildOfficialProductMask(width, height, options.tasselCode);
     if (official) {
       const originalPixels = data.slice();
@@ -1115,7 +1122,7 @@ async function buildTransparentProductImage(src, options = {}) {
   // First try the approved planner geometry. A mostly white planner can have
   // too little color contrast for the generic foreground detector, but its
   // physical proportions are still sufficient to protect the real cover.
-  const plannerStructureProtection = buildPlannerStructureProtection(data, width, height);
+  const plannerStructureProtection = buildPlannerStructureProtection(data, width, height, options.forceOutline);
 
   // For a planner matching the approved reference, keep the stable body by
   // geometry and derive variable details (wire-o/elastic/page edges) from the
