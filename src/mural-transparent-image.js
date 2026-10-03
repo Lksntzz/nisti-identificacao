@@ -40,12 +40,16 @@ const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
   // that belong to the continuous cover/pages after the white studio flood.
   // It intentionally excludes the wire-o/tassel area on the left.
   bodyPolygon: Object.freeze([
-    [.145, .075],
-    [.815, .035],
-    [.925, .060],
-    [.945, .925],
-    [.865, .985],
-    [.155, .955]
+    // v20: keep the physical cover/page stack, but stop the restore envelope
+    // before the detached "roof" above the cover and before the studio shadow
+    // under the product. These margins are calibrated from the rejected v19
+    // examples and remain relative to each product's own detected bounds.
+    [.155, .095],
+    [.815, .055],
+    [.930, .080],
+    [.945, .910],
+    [.865, .965],
+    [.165, .945]
   ])
 });
 
@@ -388,6 +392,46 @@ function restoreOriginalPixelsInsideProtection(data, originalPixels, width, heig
     }
   }
   return restored;
+}
+
+
+function clearExteriorStudioResidue(data, width, height, bodyProtection) {
+  const bounds = bodyProtection?.bounds;
+  if (!bounds) return 0;
+
+  // The physical body polygon deliberately excludes the two recurrent studio
+  // artifacts from the NISTI mockups: the detached pale rail above the cover
+  // and the neutral cast shadow below it. Limit cleanup to the body's horizontal
+  // neighborhood so a tassel/wire-o at the left is never removed as "shadow".
+  const left = Math.max(0, Math.floor(bounds.minX - bounds.width * .08));
+  const right = Math.min(width - 1, Math.ceil(bounds.maxX + bounds.width * .12));
+  const topLimit = bounds.minY + bounds.height * .105;
+  const bottomLimit = bounds.minY + bounds.height * .925;
+  let removed = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    if (y > topLimit && y < bottomLimit) continue;
+    for (let x = left; x <= right; x += 1) {
+      if (bodyProtection(x, y)) continue;
+      const offset = (y * width + x) * 4;
+      if (data[offset + 3] < 32) continue;
+      const { chroma, brightness } = pixelMetrics(
+        data[offset], data[offset + 1], data[offset + 2]
+      );
+
+      // Top residue is almost white. Bottom residue is the neutral grey/white
+      // cast shadow. Very dark/chromatic pixels remain eligible as real
+      // hardware/artwork, so black wire-o and coloured accessories survive.
+      const detachedTopRail = y <= topLimit && brightness >= 202 && chroma <= 24;
+      const bottomStudioShadow = y >= bottomLimit && brightness >= 108 && chroma <= 20;
+      if (!detachedTopRail && !bottomStudioShadow) continue;
+
+      data[offset + 3] = 0;
+      removed += 1;
+    }
+  }
+
+  return removed;
 }
 
 function buildHorizontalStructureProtection(data, width, height, fitInsideCanvas = false) {
@@ -1245,6 +1289,10 @@ async function buildTransparentProductImage(src, options = {}) {
       restoreOriginalPixelsInsideProtection(
         data, originalPixels, width, height, lightBodyProtection
       );
+      // Restoration is structural, never a license to bring back the studio.
+      // Strip the detached top rail and the neutral cast shadow after restoring
+      // the white cover/page stack.
+      clearExteriorStudioResidue(data, width, height, lightBodyProtection);
     }
 
     const structureCoverage = protectedSubjectCoverage(
