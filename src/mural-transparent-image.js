@@ -1776,6 +1776,7 @@ export const __muralTransparentImageInternals = {
   buildPlannerStructureProtection,
   buildPlannerBodyProtection,
   restoreOriginalPixelsInsideProtection,
+  clearExteriorStudioResidue,
   buildHorizontalStructureProtection,
   buildDiscStructureProtection,
   measureStrongForegroundGeometry,
