@@ -65,6 +65,37 @@ test('background removal protects white and off-white covers with a physical-edg
   assert.match(source, /productStats\.ratio < \.055/);
 });
 
+test('v20 removes detached top rail and bottom studio shadow without cutting the physical body', () => {
+  const width = 100;
+  const height = 100;
+  const data = new Uint8ClampedArray(width * height * 4);
+  const paint = (x, y, rgb) => {
+    const offset = (y * width + x) * 4;
+    data[offset] = rgb[0];
+    data[offset + 1] = rgb[1];
+    data[offset + 2] = rgb[2];
+    data[offset + 3] = 255;
+  };
+
+  const body = (x, y) => x >= 20 && x <= 80 && y >= 10 && y <= 90;
+  body.bounds = { minX:20, maxX:80, minY:10, maxY:90, width:60, height:80 };
+
+  paint(50, 5, [250, 250, 250]);   // detached pale rail above the product
+  paint(50, 96, [190, 190, 190]); // neutral cast shadow below the product
+  paint(50, 50, [248, 248, 248]); // legitimate white page/body pixel
+  paint(18, 96, [25, 25, 25]);    // dark hardware/accessory outside cleanup zone
+
+  const removed = __muralTransparentImageInternals.clearExteriorStudioResidue(
+    data, width, height, body
+  );
+
+  assert.equal(removed, 2);
+  assert.equal(data[(5 * width + 50) * 4 + 3], 0);
+  assert.equal(data[(96 * width + 50) * 4 + 3], 0);
+  assert.equal(data[(50 * width + 50) * 4 + 3], 255);
+  assert.equal(data[(96 * width + 18) * 4 + 3], 255);
+});
+
 test('only images with real transparent borders skip background cleanup', () => {
   assert.match(source, /function hasExistingTransparency/);
   assert.match(source, /function hasUsableTransparentBorder/);
