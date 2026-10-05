@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { productImageMaskBlob, productImageTreatmentArtifactsBlob } from './mural-transparent-image.js';
+import { productImageMaskBlob } from './mural-transparent-image.js';
+import { canvaAlphaOutlineArtifactsBlob } from './canva-alpha-outline.js';
 import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 
 const LOCK_KEY = `nisti_product_image_treatment_lock_v${PRODUCT_IMAGE_PROCESSOR_VERSION}`;
@@ -87,6 +88,23 @@ async function requestJson(path, options = {}) {
   return data || {};
 }
 
+async function requestBlob(path, options = {}) {
+  const response = await fetch(path, { credentials:'same-origin', cache:'no-store', ...options });
+  const type = response.headers.get('content-type') || '';
+  if (!response.ok) {
+    const data = type.includes('application/json') ? await response.json().catch(() => ({})) : {};
+    const error = new Error(data?.error || `Erro ${response.status}`);
+    error.status = response.status;
+    error.code = data?.code || '';
+    throw error;
+  }
+  const blob = await response.blob();
+  if (blob.type !== 'image/png' || blob.size <= 0) {
+    throw new Error('O Canva não retornou PNG transparente válido.');
+  }
+  return blob;
+}
+
 async function markFailed(productId, message) {
   try {
     await requestJson(`/api/admin/product-image-treatment/${productId}/failed`, {
@@ -98,17 +116,31 @@ async function markFailed(productId, message) {
 }
 
 async function processItem(item) {
-  const artifacts = await productImageTreatmentArtifactsBlob(item.original_image_url, {
-    sku:item.sku,
-    name:item.name,
-    tasselCode:item.tassel_code,
-    wireoCode:item.wireo_code,
-    forceOutline:Boolean(item.force_outline),
-    preciseOutline:Boolean(item.force_outline)
+  const sourceResponse = await fetch(item.original_image_url, {
+    credentials:'same-origin',
+    cache:'no-store'
   });
+  if (!sourceResponse.ok) throw new Error('Não foi possível abrir a imagem original do produto.');
+  const sourceBlob = await sourceResponse.blob();
+  if (!/^image\/(png|jpeg|webp)$/i.test(sourceBlob.type || '')) {
+    throw new Error('A imagem original não está em PNG, JPEG ou WEBP.');
+  }
+
+  const canvaForm = new FormData();
+  canvaForm.append('name', String(item.sku || item.name || `produto-${item.id}`).slice(0, 40));
+  canvaForm.append('image', new File(
+    [sourceBlob],
+    `produto-${item.id}-original`,
+    { type:sourceBlob.type }
+  ));
+
+  const cutoutBlob = await requestBlob('/api/admin/canva/background-remove', {
+    method:'POST',
+    body:canvaForm
+  });
+  const artifacts = await canvaAlphaOutlineArtifactsBlob(cutoutBlob);
   if (!artifacts?.imageBlob || !artifacts?.maskBlob) {
-    await markFailed(item.id, 'A imagem original não gerou um recorte e uma máscara individual seguros.');
-    return { id:item.id, status:'failed' };
+    throw new Error('O recorte do Canva não gerou os artefatos finais do NISTI.');
   }
 
   const form = new FormData();
@@ -121,7 +153,13 @@ async function processItem(item) {
     body:form
   });
 
-  return { id:item.id, status:'review', mask_saved:true };
+  return {
+    id:item.id,
+    status:'review',
+    mask_saved:true,
+    processor:'canva-bgremove-alpha-outline',
+    outline_px:artifacts.outlinePx
+  };
 }
 
 async function processMaskItem(item) {
@@ -176,6 +214,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
       running = true;
 
       const changed = [];
+      let terminalItems = 0;
       try {
         let emptyPasses = 0;
 
@@ -233,6 +272,15 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
               });
             } catch (error) {
               console.warn('[NISTI imagens] Tratamento pendente', item?.id, error);
+              if (Number(error?.status) === 429 || error?.code === 'canva_credit_quota_exceeded') {
+                setTreatmentPausedStorage(true);
+                emitTreatmentProgress({
+                  phase:'error',
+                  product:{ id:item.id, sku:item.sku || null, name:item.name || null },
+                  error:String(error?.message || 'Limite de créditos do Canva atingido.')
+                });
+                break;
+              }
               const attempts = (failureCounts.get(item.id) || 0) + 1;
               failureCounts.set(item.id, attempts);
               const definitive = /recorte|transparente|confiança|no máximo 8 mb/i.test(String(error?.message || ''));
@@ -253,6 +301,12 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
                 product:{ id:item.id, sku:item.sku || null, name:item.name || null },
                 error:String(error?.message || 'Falha no tratamento.')
               });
+              if (definitive || attempts >= MAX_TRANSIENT_ATTEMPTS) terminalItems += 1;
+            }
+            if (changed.length > terminalItems) terminalItems = changed.length;
+            if (terminalItems >= 1) {
+              setTreatmentPausedStorage(true);
+              break;
             }
             await sleep(120);
           }
