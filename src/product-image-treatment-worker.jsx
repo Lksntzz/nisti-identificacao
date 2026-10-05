@@ -8,7 +8,7 @@ export const TREATMENT_PAUSE_KEY = 'nisti_product_image_treatment_paused_v1';
 export const TREATMENT_CONTROL_EVENT = 'nisti:product-image-treatment-control';
 const LOCK_TTL_MS = 90 * 1000;
 const LOCK_RETRY_MS = 5 * 1000;
-const BATCH_SIZE = 3;
+const BATCH_SIZE = 1;
 const MAX_TRANSIENT_ATTEMPTS = 3;
 
 function sleep(ms) {
