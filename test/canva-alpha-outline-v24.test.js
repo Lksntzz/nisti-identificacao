@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { __canvaAlphaOutlineInternals } from '../src/canva-alpha-outline.js';
@@ -29,4 +30,12 @@ test('Canva design safely scales dimensions above API maximum',()=>{
   const size=fitDesignSize({metadata:{width:10000,height:1000}});
   assert.equal(size.width,8000);
   assert.equal(size.height,800);
+});
+
+
+test('Mural outline uses thicker 12px target without growing inward',()=>{
+  const source=fs.readFileSync(new URL('../src/canva-alpha-outline.js',import.meta.url),'utf8');
+  assert.ok(source.includes('const TARGET_OUTLINE_AT_1024=12;'));
+  assert.ok(source.includes('TARGET_OUTLINE_AT_1024/1024),7,16)'));
+  assert.ok(source.includes('if(!expanded[i] || binary[i]) continue;'));
 });

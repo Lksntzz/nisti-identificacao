@@ -1,5 +1,5 @@
 const MAX_RENDER_DIMENSION=1280;
-const TARGET_OUTLINE_AT_1024=8;
+const TARGET_OUTLINE_AT_1024=12;
 
 function clamp(value,min,max){ return Math.min(max,Math.max(min,value)); }
 
@@ -77,7 +77,7 @@ export async function canvaAlphaOutlineArtifactsBlob(cutoutBlob){
   const scale=Math.min(1,MAX_RENDER_DIMENSION/Math.max(sourceWidth,sourceHeight));
   const width=Math.max(1,Math.round(sourceWidth*scale));
   const height=Math.max(1,Math.round(sourceHeight*scale));
-  const radius=clamp(Math.round(Math.min(width,height)*TARGET_OUTLINE_AT_1024/1024),5,12);
+  const radius=clamp(Math.round(Math.min(width,height)*TARGET_OUTLINE_AT_1024/1024),7,16);
   const paddedWidth=width+radius*2;
   const paddedHeight=height+radius*2;
 
