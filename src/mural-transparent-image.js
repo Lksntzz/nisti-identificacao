@@ -1304,7 +1304,12 @@ async function buildTransparentProductImage(src, options = {}) {
   const sourceHeight = Number(bitmap.height || bitmap.naturalHeight || 0);
   if (!sourceWidth || !sourceHeight) throw new Error('Imagem do produto sem dimensões válidas.');
 
-  const scale = Math.min(1, MAX_RENDER_DIMENSION / Math.max(sourceWidth, sourceHeight));
+  const maxRenderDimension = clamp(
+    Number(options.maxRenderDimension || MAX_RENDER_DIMENSION),
+    640,
+    MAX_RENDER_DIMENSION
+  );
+  const scale = Math.min(1, maxRenderDimension / Math.max(sourceWidth, sourceHeight));
   const width = Math.max(1, Math.round(sourceWidth * scale));
   const height = Math.max(1, Math.round(sourceHeight * scale));
 
