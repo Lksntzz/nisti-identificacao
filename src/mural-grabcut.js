@@ -40,7 +40,6 @@ export async function loadOpenCvForGrabCut() {
     script.src = OPENCV_SCRIPT_URL;
     script.async = true;
     script.defer = true;
-    script.crossOrigin = 'anonymous';
     script.dataset.nistiOpencvGrabcut = '1';
     script.onload = () => resolveOpenCvRuntime(globalThis.cv).then(resolve, reject);
     script.onerror = () => reject(new Error('Não foi possível carregar o motor OpenCV do novo recorte.'));
@@ -325,7 +324,7 @@ async function binaryMaskPng(mask, width, height) {
   return canvasPngBlob(canvas, 'Falha ao gerar a máscara GrabCut.');
 }
 
-async function treatedPngFromMask(sourceCanvas, sourceContext, mask, width, height) {
+async function treatedPngFromMask(sourceContext, mask, width, height) {
   const imageData = sourceContext.getImageData(0, 0, width, height);
   for (let index = 0; index < mask.length; index += 1) {
     imageData.data[index * 4 + 3] = mask[index] ? 255 : 0;
@@ -369,10 +368,8 @@ export async function grabCutProductArtifacts(src) {
   const normalized = String(src || '').trim();
   if (!normalized) throw new Error('Produto sem imagem original.');
 
-  const [cv, bitmap] = await Promise.all([
-    loadOpenCvForGrabCut(),
-    imageBitmapFromUrl(normalized)
-  ]);
+  const cv = await loadOpenCvForGrabCut();
+  const bitmap = await imageBitmapFromUrl(normalized);
 
   let rgba = null;
   let rgb = null;
@@ -411,7 +408,7 @@ export async function grabCutProductArtifacts(src) {
     const stats = assertSafeMask(cleanedMask, width, height);
     const [maskBlob, imageBlob] = await Promise.all([
       binaryMaskPng(cleanedMask, width, height),
-      treatedPngFromMask(canvas, context, cleanedMask, width, height)
+      treatedPngFromMask(context, cleanedMask, width, height)
     ]);
 
     return {
