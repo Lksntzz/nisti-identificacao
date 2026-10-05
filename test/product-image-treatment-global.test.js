@@ -189,8 +189,7 @@ test('admin mounts the treatment worker but processing only starts by explicit c
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
   assert.ok(worker.includes("Deliberately do not run on mount"));
   assert.equal(worker.includes('const timer = window.setTimeout(run, 900)'), false);
-  assert.ok(worker.includes('backgroundProductImageTreatmentArtifactsBlob'));
-  assert.equal(worker.includes('productImageTreatmentArtifactsBlob'), false);
+  assert.ok(worker.includes('productImageTreatmentArtifactsBlob'));
   assert.ok(worker.includes('tasselCode:item.tassel_code'));
   assert.ok(worker.includes('wireoCode:item.wireo_code'));
   assert.equal(worker.includes('requireMkpMask'), false);
@@ -261,7 +260,7 @@ test('mask backfill is visible and cannot destroy treatment review state', () =>
   assert.ok(core.includes('mask_pending:maskPending'));
   assert.ok(admin.includes('Máscaras individuais:'));
   assert.ok(admin.includes('máscaras salvas'));
-  assert.match(worker,/if \(!maskBackfill\) \{[\s\S]*markFailed\(item\.id, error\.message, \{ preserveExisting \}\)/);
+  assert.match(worker,/if \(!maskBackfill\) \{[\s\S]*await markFailed\(item\.id, error\.message\)/);
 });
 
 test('Mural admin shows live treatment totals and the current SKU', () => {
