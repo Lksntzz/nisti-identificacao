@@ -1,4 +1,5 @@
 const DEFAULT_TREATMENT_TIMEOUT_MS = 30 * 1000;
+const BACKGROUND_MAX_RENDER_DIMENSION = 1024;
 
 function backgroundWorkerSupported() {
   return typeof Worker !== 'undefined'
@@ -66,7 +67,8 @@ function runBackgroundTreatment(src, options = {}, { maskOnly = false, timeoutMs
         tasselCode:options.tasselCode || options.tassel_code || null,
         wireoCode:options.wireoCode || options.wireo_code || null,
         forceOutline:Boolean(options.forceOutline),
-        preciseOutline:Boolean(options.preciseOutline)
+        preciseOutline:Boolean(options.preciseOutline),
+        maxRenderDimension:BACKGROUND_MAX_RENDER_DIMENSION
       },
       maskOnly:Boolean(maskOnly)
     });
@@ -86,5 +88,6 @@ export async function backgroundProductImageMaskBlob(src, options = {}) {
 
 export const __backgroundTreatmentInternals = {
   DEFAULT_TREATMENT_TIMEOUT_MS,
+  BACKGROUND_MAX_RENDER_DIMENSION,
   backgroundWorkerSupported
 };
