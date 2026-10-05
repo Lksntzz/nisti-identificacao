@@ -1,4 +1,5 @@
 import { supabaseRpc } from './supabase-read-store.js';
+import { canvaBackgroundRemoveToPng, CanvaCutoutError } from './canva-product-cutout.js';
 
 const CANVA_AUTHORIZE_URL = 'https://www.canva.com/api/oauth/authorize';
 const CANVA_TOKEN_URL = 'https://api.canva.com/rest/v1/oauth/token';
@@ -404,6 +405,76 @@ async function connectionStatus(request, env) {
   }
 }
 
+async function backgroundRemove(request, env) {
+  const config=bridgeConfig(request,env);
+  if(!config.configured){
+    return json({
+      error:'Integração Canva ainda não configurada no Worker.',
+      code:'canva_not_configured',
+      missing:config.missing
+    },503);
+  }
+
+  try{
+    const token=await accessToken(env,config);
+    if(!token) return json({
+      error:'Canva não está conectado ao Mural.',
+      code:'canva_not_connected'
+    },401);
+
+    const capabilitiesResult=await canvaGet('/users/me/capabilities',token);
+    const capabilities=Array.isArray(capabilitiesResult?.capabilities)
+      ? capabilitiesResult.capabilities
+      : [];
+    if(!capabilities.includes('background_removal')){
+      return json({
+        error:'Esta conta Canva não possui remoção de fundo disponível.',
+        code:'canva_background_removal_unavailable'
+      },403);
+    }
+    if(!capabilities.includes('export_png_transparency')){
+      return json({
+        error:'Esta conta Canva não permite exportar PNG transparente.',
+        code:'canva_transparent_export_unavailable'
+      },403);
+    }
+
+    const form=await request.formData();
+    const file=form.get('image');
+    if(!(file instanceof File)) return json({error:'Imagem obrigatória.',code:'image_required'},400);
+    const allowed=new Set(['image/png','image/jpeg','image/webp']);
+    if(!allowed.has(String(file.type||'').toLowerCase())){
+      return json({error:'Use uma imagem PNG, JPEG ou WEBP.',code:'image_type_invalid'},400);
+    }
+    if(file.size<1 || file.size>20*1024*1024){
+      return json({error:'A imagem precisa ter no máximo 20 MB.',code:'image_size_invalid'},400);
+    }
+
+    const name=String(form.get('name')||file.name||'NISTI produto').trim().slice(0,40) || 'NISTI produto';
+    const output=await canvaBackgroundRemoveToPng({
+      bytes:await file.arrayBuffer(),
+      token,
+      name
+    });
+    return new Response(output,{
+      status:200,
+      headers:{
+        'content-type':'image/png',
+        'cache-control':'no-store',
+        'x-nisti-image-processor':'canva-background-removal'
+      }
+    });
+  }catch(error){
+    const status=Number(error?.status||0) || 502;
+    const code=String(error?.code||'canva_background_removal_failed');
+    console.warn('[Canva imagem] Falha controlada', {status,code});
+    return json({
+      error:String(error?.message||'Falha no tratamento do Canva.').slice(0,300),
+      code
+    },status);
+  }
+}
+
 async function revokeToken(config, token) {
   if (!token) return;
   const controller = new AbortController();
@@ -465,6 +536,9 @@ export async function handleCanvaImageBridgeRequest(request, env) {
   }
   if (url.pathname === '/api/admin/canva/connect' && request.method === 'POST') {
     return beginConnection(request,env);
+  }
+  if (url.pathname === '/api/admin/canva/background-remove' && request.method === 'POST') {
+    return backgroundRemove(request,env);
   }
   if (url.pathname === '/api/admin/canva/disconnect' && request.method === 'POST') {
     return disconnect(request,env);
