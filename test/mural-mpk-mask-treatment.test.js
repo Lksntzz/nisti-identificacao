@@ -33,6 +33,8 @@ test('MPK treatment is deterministic and does not reintroduce heuristic segmenta
   assert.match(source, /fillVerticalBaseFromRle/);
   assert.match(source, /new Path2D/);
   assert.doesNotMatch(source, /VERTICAL_BASE_PATH/);
+  assert.match(source, /drawVerticalBindingBridges/);
+  assert.match(source, /profile === 'vertical_v1'/);
   assert.doesNotMatch(source, /grabcut|opencv|gemini|workers ai|flood.?fill/i);
   assert.doesNotMatch(source, /https?:\/\//);
 });
