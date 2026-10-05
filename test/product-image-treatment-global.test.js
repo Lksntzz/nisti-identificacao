@@ -189,7 +189,7 @@ test('admin mounts the treatment worker but processing only starts by explicit c
   assert.ok(worker.includes('/api/admin/product-image-treatment/pending'));
   assert.ok(worker.includes("Deliberately do not run on mount"));
   assert.equal(worker.includes('const timer = window.setTimeout(run, 900)'), false);
-  assert.ok(worker.includes('productImageTreatmentArtifactsBlob'));
+  assert.ok(worker.includes('mpkProductImageTreatmentArtifactsBlob'));
   assert.ok(worker.includes('tasselCode:item.tassel_code'));
   assert.ok(worker.includes('wireoCode:item.wireo_code'));
   assert.equal(worker.includes('requireMkpMask'), false);
