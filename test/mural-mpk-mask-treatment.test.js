@@ -29,7 +29,10 @@ test('MPK v22 respects SKU accessory X rules', () => {
 test('MPK treatment is deterministic and does not reintroduce heuristic segmentation or external AI', () => {
   assert.match(source, /MKP FRENTE ATUAL copiar 2\.psd/);
   assert.match(source, /MOCKUP HORIZONTAL\(1\)\.psd/);
+  assert.match(source, /VERTICAL_BASE_RLE/);
+  assert.match(source, /fillVerticalBaseFromRle/);
   assert.match(source, /new Path2D/);
+  assert.doesNotMatch(source, /VERTICAL_BASE_PATH/);
   assert.doesNotMatch(source, /grabcut|opencv|gemini|workers ai|flood.?fill/i);
   assert.doesNotMatch(source, /https?:\/\//);
 });
