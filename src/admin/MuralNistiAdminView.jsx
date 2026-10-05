@@ -366,6 +366,7 @@ function MuralProductImageManager({ products, onChanged }) {
         <footer>
           <span className={`mural-product-image-state ${state}`}>{label}</span>
           {product.mural_image_reviewable&&<button type="button" className="approve" disabled={busyId!==null} onClick={()=>approve(product)}>Aprovar</button>}
+          {product.original_image_url&&<button type="button" className="grabcut-trial" disabled={busyId!==null} onClick={()=>tryGrabCut(product)}>Testar novo recorte</button>}
           {['approved','review','failed'].includes(state)&&<button type="button" disabled={busyId!==null} onClick={()=>redo(product)}>{state==='failed'?'Tentar novamente':'Refazer'}</button>}
           <label className="mural-product-image-upload">{busyId===product.id?'Enviando…':'Enviar PNG'}<input type="file" accept="image/png" disabled={busyId!==null} onChange={event=>upload(product,event.target.files?.[0])}/></label>
           {(product.mural_image_ready||product.mural_image_reviewable)&&<button type="button" disabled={busyId!==null} onClick={()=>remove(product)}>Remover</button>}
