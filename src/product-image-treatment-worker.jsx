@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { backgroundProductImageMaskBlob, backgroundProductImageTreatmentArtifactsBlob } from './product-image-treatment-background.js';
+import { productImageMaskBlob, productImageTreatmentArtifactsBlob } from './mural-transparent-image.js';
 import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 
 const LOCK_KEY = `nisti_product_image_treatment_lock_v${PRODUCT_IMAGE_PROCESSOR_VERSION}`;
@@ -87,23 +87,18 @@ async function requestJson(path, options = {}) {
   return data || {};
 }
 
-async function markFailed(productId, message, { preserveExisting = false } = {}) {
+async function markFailed(productId, message) {
   try {
-    return await requestJson(`/api/admin/product-image-treatment/${productId}/failed`, {
+    await requestJson(`/api/admin/product-image-treatment/${productId}/failed`, {
       method:'POST',
       headers:{ 'content-type':'application/json' },
-      body:JSON.stringify({
-        error:String(message || 'Tratamento automático sem confiança suficiente.').slice(0, 500),
-        preserve_existing:Boolean(preserveExisting)
-      })
+      body:JSON.stringify({ error:String(message || 'Tratamento automático sem confiança suficiente.').slice(0, 500) })
     });
-  } catch {
-    return null;
-  }
+  } catch {}
 }
 
 async function processItem(item) {
-  const artifacts = await backgroundProductImageTreatmentArtifactsBlob(item.original_image_url, {
+  const artifacts = await productImageTreatmentArtifactsBlob(item.original_image_url, {
     sku:item.sku,
     name:item.name,
     tasselCode:item.tassel_code,
@@ -112,7 +107,8 @@ async function processItem(item) {
     preciseOutline:Boolean(item.force_outline)
   });
   if (!artifacts?.imageBlob || !artifacts?.maskBlob) {
-    throw new Error('A imagem original não gerou um recorte e uma máscara individual seguros.');
+    await markFailed(item.id, 'A imagem original não gerou um recorte e uma máscara individual seguros.');
+    return { id:item.id, status:'failed' };
   }
 
   const form = new FormData();
@@ -129,7 +125,7 @@ async function processItem(item) {
 }
 
 async function processMaskItem(item) {
-  const maskBlob = await backgroundProductImageMaskBlob(item.original_image_url, {
+  const maskBlob = await productImageMaskBlob(item.original_image_url, {
     sku:item.sku,
     name:item.name,
     tasselCode:item.tassel_code,
@@ -162,8 +158,6 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
     let running = false;
     let wakeTimer = null;
     const failureCounts = new Map();
-    const skippedTreatmentIds = new Set();
-    let treatmentOffset = 0;
 
     const run = async () => {
       if (running || cancelled) return;
@@ -190,9 +184,7 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
 
           let payload;
           try {
-            payload = await requestJson(
-              `/api/admin/product-image-treatment/pending?limit=${BATCH_SIZE}&offset=${treatmentOffset}`
-            );
+            payload = await requestJson(`/api/admin/product-image-treatment/pending?limit=${BATCH_SIZE}`);
           } catch (error) {
             if ([401,403].includes(Number(error?.status))) return;
             throw error;
@@ -200,14 +192,6 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
 
           let items = Array.isArray(payload?.items) ? payload.items : [];
           let maskBackfill = false;
-          if (items.length) {
-            const rawCount = items.length;
-            items = items.filter(item => !skippedTreatmentIds.has(Number(item.id)));
-            if (!items.length && rawCount > 0) {
-              treatmentOffset += rawCount;
-              continue;
-            }
-          }
           if (!items.length) {
             try {
               const maskPayload = await requestJson(`/api/admin/product-image-mask/pending?limit=${BATCH_SIZE}`);
@@ -241,7 +225,6 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
             try {
               const result = maskBackfill ? await processMaskItem(item) : await processItem(item);
               failureCounts.delete(item.id);
-              if (!maskBackfill) treatmentOffset = 0;
               changed.push(result);
               emitTreatmentProgress({
                 phase:'processed',
@@ -252,24 +235,14 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
               console.warn('[NISTI imagens] Tratamento pendente', item?.id, error);
               const attempts = (failureCounts.get(item.id) || 0) + 1;
               failureCounts.set(item.id, attempts);
-              const definitive = /recorte|transparente|confiança|no máximo 8 mb|excedeu \d+ segundos|segundo plano|não suporta o tratamento seguro/i.test(String(error?.message || ''));
+              const definitive = /recorte|transparente|confiança|no máximo 8 mb/i.test(String(error?.message || ''));
               // A single broken image must never block every product behind it.
               // Network failures get retries; after the limit the original is
               // preserved and the item moves to the visible failed total.
               if (definitive || attempts >= MAX_TRANSIENT_ATTEMPTS) {
                 if (!maskBackfill) {
-                  const preserveExisting = Boolean(
-                    item.has_existing_derivative
-                    || (item.queue_status === 'stale' && ['review','approved'].includes(String(item.status || '')))
-                  );
-                  const failed = await markFailed(item.id, error.message, { preserveExisting });
-                  if (failed?.preserved) {
-                    skippedTreatmentIds.add(Number(item.id));
-                    changed.push({ id:item.id, status:item.status || 'review', preserved:true });
-                  } else {
-                    changed.push({ id:item.id, status:'failed' });
-                    treatmentOffset = 0;
-                  }
+                  await markFailed(item.id, error.message);
+                  changed.push({ id:item.id, status:'failed' });
                 } else {
                   changed.push({ id:item.id, status:item.status || 'unchanged', mask_saved:false, mask_error:true });
                 }
