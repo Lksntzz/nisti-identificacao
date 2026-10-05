@@ -361,9 +361,16 @@ function MuralProductImageManager({ products, onChanged }) {
         <small>{canvaDetail}</small>
       </div>
       <div className="mural-canva-bridge-actions">
-        {canvaStatus.configured&&!canvaStatus.connected&&<button type="button" disabled={canvaBusy||canvaStatus.loading} onClick={connectCanva}>{canvaBusy?'Abrindo…':'Conectar Canva'}</button>}
-        {canvaStatus.connected&&<button type="button" disabled={canvaBusy} onClick={disconnectCanva}>{canvaBusy?'Aguarde…':'Desconectar'}</button>}
-        <button type="button" disabled={canvaBusy||canvaStatus.loading} onClick={refreshCanvaStatus}>Verificar</button>
+        <button
+          type="button"
+          className={canvaStatus.connected?'connected':''}
+          disabled={canvaStatus.connected||canvaBusy||canvaStatus.loading||!canvaStatus.configured}
+          onClick={connectCanva}
+        >
+          {canvaStatus.loading?'Verificando Canva…':canvaStatus.connected?'Canva conectado':canvaBusy?'Abrindo…':'Conectar Canva'}
+        </button>
+        {canvaStatus.connected&&<button type="button" className="secondary" disabled={canvaBusy} onClick={disconnectCanva}>Desconectar</button>}
+        <button type="button" className="secondary" disabled={canvaBusy||canvaStatus.loading} onClick={refreshCanvaStatus}>Verificar</button>
       </div>
     </section>
     <section className={`mural-product-treatment-progress ${treatmentProgress.phase}`} aria-live="polite">
