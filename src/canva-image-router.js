@@ -2,6 +2,7 @@ import { supabaseRpc } from './supabase-read-store.js';
 
 const CANVA_AUTHORIZE_URL = 'https://www.canva.com/api/oauth/authorize';
 const CANVA_TOKEN_URL = 'https://api.canva.com/rest/v1/oauth/token';
+const CANVA_REVOKE_URL = 'https://api.canva.com/rest/v1/oauth/revoke';
 const CANVA_API_URL = 'https://api.canva.com/rest/v1';
 const CANVA_SCOPES = Object.freeze(['asset:read','asset:write','profile:read']);
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
@@ -403,7 +404,53 @@ async function connectionStatus(request, env) {
   }
 }
 
-async function disconnect(env) {
+async function revokeToken(config, token) {
+  if (!token) return;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort('canva-revoke-timeout'), 12000);
+  try {
+    const credentials = btoa(`${config.clientId}:${config.clientSecret}`);
+    const response = await fetch(CANVA_REVOKE_URL,{
+      method:'POST',
+      signal:controller.signal,
+      headers:{
+        authorization:`Basic ${credentials}`,
+        'content-type':'application/x-www-form-urlencoded',
+        accept:'application/json'
+      },
+      body:new URLSearchParams({token})
+    });
+    if (!response.ok && response.status !== 400) {
+      throw new CanvaBridgeError('Canva não confirmou a revogação da sessão.', {
+        status:502,
+        code:'canva_revoke_failed'
+      });
+    }
+  } catch (error) {
+    if (error instanceof CanvaBridgeError) throw error;
+    throw new CanvaBridgeError('Não foi possível revogar a sessão no Canva.', {
+      status:502,
+      code:'canva_revoke_transport_error'
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function disconnect(request, env) {
+  const config = bridgeConfig(request,env);
+  if (!config.configured) {
+    return json({
+      error:'Integração Canva não está configurada para uma desconexão segura.',
+      code:'canva_not_configured',
+      missing:config.missing
+    },503);
+  }
+
+  const current = await loadConnection(env,config);
+  if (current) {
+    await revokeToken(config,current.refresh_token || current.access_token);
+  }
   await supabaseRpc(env,'nisti_canva_connection_clear_v1',{});
   return json({ok:true,connected:false});
 }
@@ -420,7 +467,7 @@ export async function handleCanvaImageBridgeRequest(request, env) {
     return beginConnection(request,env);
   }
   if (url.pathname === '/api/admin/canva/disconnect' && request.method === 'POST') {
-    return disconnect(env);
+    return disconnect(request,env);
   }
   return null;
 }
