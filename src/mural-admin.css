@@ -1775,3 +1775,40 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
 .mural-product-image-lightbox{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:24px;background:rgba(15,23,42,.76);backdrop-filter:blur(6px)}.mural-product-image-lightbox>section{display:grid;width:min(980px,96vw);max-height:94vh;overflow:hidden;border-radius:22px;background:#fff;box-shadow:0 32px 100px rgba(0,0,0,.35)}.mural-product-image-lightbox header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 20px;border-bottom:1px solid #e2e8f0}.mural-product-image-lightbox header>div{display:grid;gap:2px}.mural-product-image-lightbox header small{color:#64748b}.mural-product-image-lightbox header>button{width:38px;height:38px;border:0;border-radius:999px;background:#eef2f7;color:#334155;font-size:25px}.mural-product-image-lightbox-canvas{display:grid;place-items:center;min-height:55vh;padding:24px;overflow:auto;background:linear-gradient(45deg,#edf1f6 25%,transparent 25%),linear-gradient(-45deg,#edf1f6 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#edf1f6 75%),linear-gradient(-45deg,transparent 75%,#edf1f6 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}.mural-product-image-lightbox-canvas img{display:block;max-width:100%;max-height:70vh;object-fit:contain;filter:none!important;box-shadow:none!important}.mural-product-image-lightbox footer{display:flex;justify-content:flex-end;gap:9px;padding:15px 20px;border-top:1px solid #e2e8f0}.mural-product-image-lightbox footer button{cursor:pointer;padding:11px 15px;border:1px solid #cbd5e1;border-radius:11px;background:#fff;color:#334155;font:inherit;font-weight:850}.mural-product-image-lightbox footer button.approve{border-color:#15803d;background:#15803d;color:#fff}
 @media(max-width:680px){.mural-product-image-manager>header{align-items:stretch;flex-direction:column}.mural-product-image-manager-tools{align-items:stretch;flex-direction:column}.mural-product-image-manager>header input{width:100%}.mural-product-treatment-progress{grid-template-columns:1fr}.mural-product-treatment-progress-numbers{justify-content:flex-start}.mural-product-treatment-progress-track{grid-column:1}}
 
+
+
+.mural-canva-bridge{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin:14px 0;
+  padding:14px 16px;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  background:#fff;
+}
+.mural-canva-bridge>div:first-child{display:grid;gap:3px;min-width:0}
+.mural-canva-bridge span{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#6b7280}
+.mural-canva-bridge strong{font-size:15px;color:#111827}
+.mural-canva-bridge small{font-size:12px;line-height:1.45;color:#6b7280}
+.mural-canva-bridge.connected{border-color:#bbf7d0;background:#f0fdf4}
+.mural-canva-bridge.missing{border-color:#fde68a;background:#fffbeb}
+.mural-canva-bridge-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.mural-canva-bridge-actions button{
+  border:1px solid #d1d5db;
+  border-radius:10px;
+  padding:9px 12px;
+  background:#fff;
+  color:#111827;
+  font:inherit;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+.mural-canva-bridge-actions button:first-child{background:#111827;color:#fff;border-color:#111827}
+.mural-canva-bridge-actions button:disabled{opacity:.5;cursor:not-allowed}
+@media (max-width:720px){
+  .mural-canva-bridge{align-items:flex-start;flex-direction:column}
+  .mural-canva-bridge-actions{width:100%;justify-content:flex-start}
+}
