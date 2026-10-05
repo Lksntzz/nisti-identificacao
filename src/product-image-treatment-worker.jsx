@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { productImageMaskBlob, productImageTreatmentArtifactsBlob } from './mural-transparent-image.js';
+import { backgroundProductImageMaskBlob, backgroundProductImageTreatmentArtifactsBlob } from './product-image-treatment-background.js';
 import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 
 const LOCK_KEY = `nisti_product_image_treatment_lock_v${PRODUCT_IMAGE_PROCESSOR_VERSION}`;
@@ -98,7 +98,7 @@ async function markFailed(productId, message) {
 }
 
 async function processItem(item) {
-  const artifacts = await productImageTreatmentArtifactsBlob(item.original_image_url, {
+  const artifacts = await backgroundProductImageTreatmentArtifactsBlob(item.original_image_url, {
     sku:item.sku,
     name:item.name,
     tasselCode:item.tassel_code,
@@ -125,7 +125,7 @@ async function processItem(item) {
 }
 
 async function processMaskItem(item) {
-  const maskBlob = await productImageMaskBlob(item.original_image_url, {
+  const maskBlob = await backgroundProductImageMaskBlob(item.original_image_url, {
     sku:item.sku,
     name:item.name,
     tasselCode:item.tassel_code,
