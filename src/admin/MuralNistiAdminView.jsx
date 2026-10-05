@@ -6,8 +6,6 @@ import { productTypeLabel } from '../product-display.js';
 import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx';
 import { useTreatedProductImage } from '../mural-transparent-image.js';
 import { TREATMENT_CONTROL_EVENT, TREATMENT_PAUSE_KEY } from '../product-image-treatment-worker.jsx';
-import { PRODUCT_IMAGE_PROCESSOR_VERSION } from '../product-image-processor-version.js';
-import { grabCutProductArtifacts } from '../mural-grabcut.js';
 
 const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',
@@ -106,7 +104,7 @@ function TransparentMuralProductImage({ src, alt = '', className = '', draggable
   );
 }
 
-function TreatedImageLightbox({ product, busy, onClose, onApprove, onRedo, onGrabCut }) {
+function TreatedImageLightbox({ product, busy, onClose, onApprove, onRedo }) {
   const [imageError,setImageError]=useState(false);
 
   useEffect(()=>{
@@ -131,7 +129,6 @@ function TreatedImageLightbox({ product, busy, onClose, onApprove, onRedo, onGra
         </div>
         <footer>
           {product.mural_image_reviewable&&<button type="button" className="approve" disabled={busy} onClick={()=>onApprove(product)}>Aprovar e mover para Revisados</button>}
-          <button type="button" disabled={busy} onClick={()=>onGrabCut(product)}>Testar novo recorte</button>
           <button type="button" disabled={busy} onClick={()=>onRedo(product)}>Refazer com corte preciso</button>
         </footer>
       </div>
@@ -303,25 +300,6 @@ function MuralProductImageManager({ products, onChanged }) {
     }catch(err){setError(err.message)}finally{setBusyId(null)}
   };
 
-  const tryGrabCut=async product=>{
-    if(product.mural_image_ready&&!window.confirm(`Testar o novo recorte em ${product.sku}? A imagem aprovada ficará em revisão até você aprovar o novo resultado.`))return;
-    setBusyId(product.id);setError('');
-    try{
-      const artifacts=await grabCutProductArtifacts(product.original_image_url);
-      const form=new FormData();
-      form.append('processor_version',PRODUCT_IMAGE_PROCESSOR_VERSION);
-      form.append('image',new File([artifacts.imageBlob],`produto-${product.id}-grabcut.png`,{type:'image/png'}));
-      form.append('mask',new File([artifacts.maskBlob],`produto-${product.id}-grabcut-mask.png`,{type:'image/png'}));
-      await request(`/api/admin/product-image-treatment/${product.id}`,{method:'POST',body:form});
-      window.dispatchEvent(new CustomEvent('nisti:product-image-treatment-summary-request'));
-      await onChanged();
-    }catch(err){
-      setError(`Novo recorte: ${err.message}`);
-    }finally{
-      setBusyId(null);
-    }
-  };
-
   return <div className="mural-product-image-manager">
     <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. Só vai para Revisados depois da sua aprovação.</p></div><div className="mural-product-image-manager-tools"><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></div></header>
     <section className={`mural-product-treatment-progress ${treatmentProgress.phase}`} aria-live="polite">
@@ -366,7 +344,6 @@ function MuralProductImageManager({ products, onChanged }) {
         <footer>
           <span className={`mural-product-image-state ${state}`}>{label}</span>
           {product.mural_image_reviewable&&<button type="button" className="approve" disabled={busyId!==null} onClick={()=>approve(product)}>Aprovar</button>}
-          {product.original_image_url&&<button type="button" className="grabcut-trial" disabled={busyId!==null} onClick={()=>tryGrabCut(product)}>Testar novo recorte</button>}
           {['approved','review','failed'].includes(state)&&<button type="button" disabled={busyId!==null} onClick={()=>redo(product)}>{state==='failed'?'Tentar novamente':'Refazer'}</button>}
           <label className="mural-product-image-upload">{busyId===product.id?'Enviando…':'Enviar PNG'}<input type="file" accept="image/png" disabled={busyId!==null} onChange={event=>upload(product,event.target.files?.[0])}/></label>
           {(product.mural_image_ready||product.mural_image_reviewable)&&<button type="button" disabled={busyId!==null} onClick={()=>remove(product)}>Remover</button>}
@@ -379,7 +356,6 @@ function MuralProductImageManager({ products, onChanged }) {
       busy={busyId!==null}
       onClose={()=>setPreviewProduct(null)}
       onApprove={async product=>{await approve(product);setPreviewProduct(null)}}
-      onGrabCut={async product=>{await tryGrabCut(product);setPreviewProduct(null)}}
       onRedo={async product=>{await redo(product);setPreviewProduct(null)}}
     />}
   </div>;
