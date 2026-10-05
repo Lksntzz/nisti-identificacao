@@ -261,7 +261,7 @@ test('mask backfill is visible and cannot destroy treatment review state', () =>
   assert.ok(core.includes('mask_pending:maskPending'));
   assert.ok(admin.includes('Máscaras individuais:'));
   assert.ok(admin.includes('máscaras salvas'));
-  assert.match(worker,/if \(!maskBackfill\) \{[\s\S]*await markFailed\(item\.id, error\.message\)/);
+  assert.match(worker,/if \(!maskBackfill\) \{[\s\S]*markFailed\(item\.id, error\.message, \{ preserveExisting \}\)/);
 });
 
 test('Mural admin shows live treatment totals and the current SKU', () => {
