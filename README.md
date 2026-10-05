@@ -69,13 +69,13 @@ O tratamento é executado localmente no navegador, sem IA. Ele usa máscaras, ge
 - preservar Wire-O, tassel, elástico, páginas, luz e sombra reais;
 - eliminar marcas e componentes desconectados do produto;
 - enquadrar o recorte com margem transparente mínima;
-- gerar PNG com canal alfa real, sem contorno branco artificial.
+- reduzir sombras externas sem apagar a antisserrilha das peças reais;\n- gerar PNG com canal alfa real e contorno branco externo fino e uniforme.
 
 A geometria das agendas foi ajustada a partir do mockup oficial do Photoshop. O arquivo PSD é apenas referência visual; ele não é necessário no Worker e não executa instruções.
 
 As imagens originais nunca são sobrescritas. Cada nova versão do processador coloca os tratamentos antigos novamente na fila. O resultado passa por revisão antes da aprovação para uso no Mural e nas demais interfaces.
 
-Versão atual do processador: `10`.
+Versão atual do processador: `11`.
 
 ## Arquitetura de produção
 
@@ -183,6 +183,6 @@ O deploy de produção é serializado para evitar duas publicações concorrente
 - banco principal: Supabase;
 - armazenamento de imagens: Cloudflare R2;
 - identificação operacional: EAN-13;
-- tratamento de imagens: determinístico, versão 10;
+- tratamento de imagens: determinístico, versão 11;
 - inteligência artificial: não utilizada;
 - produção: ativa no Cloudflare Workers.
