@@ -1,8 +1,6 @@
 {
-  "name": "NISTI ID · Identificação Visual",
-  "description": "NISTI ID - Sistema de Identificação Visual e Reconhecimento de Livros e Produtos",
+  "name": "NISTI ID · Operação e Catálogo",
+  "description": "Sistema NISTI PRINT para identificação por EAN, gestão de produtos, Catálogo Comercial, tratamento determinístico de imagens e Mural NISTI.",
   "version": "0.5.0",
-  "capabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "capabilities": []
 }
