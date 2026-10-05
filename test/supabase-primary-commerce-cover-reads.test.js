@@ -14,17 +14,3 @@ test('commerce synchronization sources NISTI products from Supabase when reads a
   const primary=commerce.indexOf('if (supabaseReadsRequested(env))',start);
   assert.ok(primary>=0 && d1>primary);
 });
-
-test('cover training diagnostics use Supabase read RPCs',()=>{
-  assert.match(core,/nisti_trained_references_v1/);
-  assert.match(core,/nisti_cover_index_v1/);
-  assert.match(core,/supabaseReadsRequested\(env\)/);
-});
-
-test('cover admin read RPCs are server-only invoker functions',()=>{
-  assert.doesNotMatch(sql,/SECURITY DEFINER/i);
-  for(const name of ['nisti_trained_references_v1','nisti_cover_index_v1']){
-    assert.match(sql,new RegExp(`REVOKE ALL ON FUNCTION public\\.${name}\\(`));
-    assert.match(sql,new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${name}\\(`));
-  }
-});

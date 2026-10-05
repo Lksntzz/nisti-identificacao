@@ -14,35 +14,6 @@ function cleanText(value, limit = 500) {
   return text ? text.slice(0, limit) : '';
 }
 
-export async function mirrorVisualReferencesBatchFromD1(env, referenceIds) {
-  if (!supabaseMirrorWritesRequested(env)) return { attempted: false, ok: true };
-  const ids = positiveIds(referenceIds);
-  if (!ids.length) return { attempted: false, ok: true };
-
-  const placeholders = ids.map(() => '?').join(',');
-  const [{ results: references }, { results: embeddings }] = await Promise.all([
-    env.DB.prepare(`
-      SELECT id,capa_code,image_key,source_product_id,reference_kind,active,created_at,updated_at
-      FROM cover_visual_references
-      WHERE id IN (${placeholders})
-      ORDER BY id ASC
-    `).bind(...ids).all(),
-    env.DB.prepare(`
-      SELECT reference_id,embedding_model,dimensions,embedding_json,updated_at
-      FROM cover_reference_embeddings
-      WHERE reference_id IN (${placeholders})
-      ORDER BY reference_id ASC
-    `).bind(...ids).all()
-  ]);
-
-  return mirrorSupabaseRpc(
-    env,
-    'nisti_mirror_visual_references_batch',
-    { p_references: references || [], p_embeddings: embeddings || [] },
-    `visual reference batch (${ids.length})`
-  );
-}
-
 export async function mirrorNotificationByCapaFromD1(env, capaCode) {
   if (!supabaseMirrorWritesRequested(env)) return { attempted: false, ok: true };
   const code = cleanText(capaCode, 80).toUpperCase();

@@ -23,7 +23,6 @@ function RootApp() {
   const [AdminComponent, setAdminComponent] = useState(null);
   const [CommerceComponent, setCommerceComponent] = useState(null);
   const [PublicComponent, setPublicComponent] = useState(null);
-  const [ShadowPromptComponent, setShadowPromptComponent] = useState(null);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -46,17 +45,12 @@ function RootApp() {
       import('./main.jsx').then(mod => {
         setAdminComponent(() => mod.default || mod.AdminApp);
       });
-    } else if (route === 'public' && (!PublicComponent || !ShadowPromptComponent)) {
-      Promise.all([
-        import('./public-main.jsx'),
-        import('./shadow-confirmation-client.js'),
-        import('./shadow-confirmation-prompt.jsx')
-      ]).then(([publicMod, _clientMod, promptMod]) => {
+    } else if (route === 'public' && !PublicComponent) {
+      import('./public-main.jsx').then(publicMod => {
         setPublicComponent(() => publicMod.default || publicMod.PublicIdentificationApp);
-        setShadowPromptComponent(() => promptMod.default);
       });
     }
-  }, [route, AdminComponent, CommerceComponent, PublicComponent, ShadowPromptComponent]);
+  }, [route, AdminComponent, CommerceComponent, PublicComponent]);
 
   if (route === 'commerce') {
     if (!CommerceComponent) {
@@ -82,7 +76,7 @@ function RootApp() {
     return <Comp />;
   }
 
-  if (!PublicComponent || !ShadowPromptComponent) {
+  if (!PublicComponent) {
     return (
       <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', fontFamily: 'sans-serif' }}>
         <span>Carregando aplicação…</span>
@@ -91,14 +85,7 @@ function RootApp() {
   }
 
   const PubComp = PublicComponent;
-  const PromptComp = ShadowPromptComponent;
-
-  return (
-    <>
-      <PubComp />
-      <PromptComp />
-    </>
-  );
+  return <PubComp />;
 }
 
 const rootElement = document.getElementById('root');

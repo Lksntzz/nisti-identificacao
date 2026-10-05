@@ -16,13 +16,6 @@ import {
   broadcastNewCoverPush
 } from './web-push.js';
 import {
-  platformVectorId,
-  supportedPlatforms,
-  platformsForReference,
-  platformNamespace,
-  normalizePlatform
-} from './platform-scope.js';
-import {
   d1EmergencyCircuitStatus,
   preferSupabaseRead,
   supabaseReserveProducts,
@@ -49,8 +42,6 @@ import {
   markAllAdminSystemNotificationsRead
 } from './system-notifications.js';
 
-const EMBEDDING_DIMENSIONS = 768;
-const TOP_K_REFERENCES = 24;
 const BULK_IMPORT_LIMIT = 100;
 const EXTRA_REFERENCE_LIMIT = 6;
 const MAX_REFERENCE_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -168,39 +159,6 @@ async function productTreatmentSummary(env) {
   };
 }
 
-async function embedImage(env, bytes, mimeType) {
-  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
-  const model = env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
-    {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-goog-api-key': env.GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        content: {
-          parts: [{
-            inline_data: {
-              mime_type: mimeType || 'image/jpeg',
-              data: base64(bytes)
-            }
-          }]
-        },
-        output_dimensionality: EMBEDDING_DIMENSIONS
-      })
-    }
-  );
-  if (!response.ok) throw new Error(`Gemini Embedding falhou (${response.status})`);
-  const payload = await response.json();
-  const values = payload?.embedding?.values || payload?.embeddings?.[0]?.values;
-  if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
-    throw new Error('Gemini Embedding não retornou vetor válido');
-  }
-  return { model, values };
-}
-
 async function ensureVisualReference(env, {
   capaCode,
   imageKey,
@@ -227,88 +185,6 @@ async function ensureVisualReference(env, {
     WHERE capa_code=? AND image_key=?
     LIMIT 1
   `).bind(code, imageKey).first();
-}
-
-async function storeReferenceEmbedding(env, reference, bytes, mimeType, cleanupProductId = null) {
-  if (!reference?.id) throw new Error('Referência visual não encontrada');
-  const { model, values } = await embedImage(env, bytes, mimeType);
-
-  let removedReferences = [];
-  if (supabasePrimaryWritesRequested(env)) {
-    const stored = await mirrorSupabaseRpc(env, 'nisti_store_reference_embedding_v1', {
-      p_reference_id:Number(reference.id),p_embedding_model:model,p_dimensions:values.length,
-      p_embedding_json:JSON.stringify(values),p_cleanup_product_id:cleanupProductId,
-      p_keep_image_key:cleanupProductId ? reference.image_key : null
-    }, 'embedding de referência visual');
-    removedReferences = stored.value?.removed_references || [];
-  } else await env.DB.prepare(`
-    INSERT INTO cover_reference_embeddings (
-      reference_id,embedding_model,dimensions,embedding_json,updated_at
-    ) VALUES (?,?,?,?,CURRENT_TIMESTAMP)
-    ON CONFLICT(reference_id) DO UPDATE SET
-      embedding_model=excluded.embedding_model,
-      dimensions=excluded.dimensions,
-      embedding_json=excluded.embedding_json,
-      updated_at=CURRENT_TIMESTAMP
-  `).bind(reference.id, model, values.length, JSON.stringify(values)).run();
-
-  if (env.COVER_VECTORS?.upsert) {
-    try {
-      const referenceId = Number(reference.id);
-      const capaCode = String(reference.capa_code || '').trim().toUpperCase();
-      let platforms = await platformsForReference(env, reference);
-      if (!platforms.length) {
-        platforms = supportedPlatforms();
-      }
-
-      const vectors = platforms.map(platform => {
-        const normalizedPlatform = normalizePlatform(platform);
-        const namespace = platformNamespace(normalizedPlatform);
-        return {
-          id: platformVectorId(referenceId, normalizedPlatform),
-          namespace,
-          values,
-          metadata: {
-            reference_id: referenceId,
-            capa_code: capaCode,
-            platform: normalizedPlatform,
-            platform_key: namespace,
-            image_key: String(reference.image_key || ''),
-            source_product_id: Number(reference.source_product_id || 0),
-            reference_kind: String(reference.reference_kind || 'product'),
-            embedding_model: model,
-            updated_at: new Date().toISOString()
-          }
-        };
-      }).filter(v => v.id && v.namespace);
-
-      if (vectors.length) {
-        await env.COVER_VECTORS.upsert(vectors);
-      }
-    } catch (vErr) {
-      console.error('[Vectorize] Falha ao sincronizar vetor imediatamente:', vErr);
-    }
-  }
-
-  return { model, values, removedReferences };
-}
-
-async function cleanupStaleProductReferences(env, productId, keepImageKey) {
-  const { results } = await env.DB.prepare(`
-    SELECT id,image_key
-    FROM cover_visual_references
-    WHERE source_product_id=? AND image_key<>?
-  `).bind(productId, keepImageKey).all();
-
-  const removed = [];
-  for (const row of results || []) {
-    await env.DB.prepare('DELETE FROM cover_reference_embeddings WHERE reference_id=?')
-      .bind(row.id).run();
-    await env.DB.prepare('DELETE FROM cover_visual_references WHERE id=?')
-      .bind(row.id).run();
-    removed.push({ id: Number(row.id), image_key: row.image_key });
-  }
-  return removed;
 }
 
 async function saveProductImage(env, id, fileBytes, contentType) {
@@ -843,7 +719,6 @@ export default {
         await env.DB.prepare('DELETE FROM product_platforms WHERE product_id=?').bind(id).run();
         const { results: refs } = await env.DB.prepare('SELECT id, image_key FROM cover_visual_references WHERE source_product_id=?').bind(id).all();
         for (const ref of refs || []) {
-          await env.DB.prepare('DELETE FROM cover_reference_embeddings WHERE reference_id=?').bind(ref.id).run();
           await env.DB.prepare('DELETE FROM cover_visual_references WHERE id=?').bind(ref.id).run();
           if (ref.image_key && ref.image_key !== product.image_key) {
             await env.PRODUCT_IMAGES.delete(ref.image_key).catch(() => {});
@@ -1342,89 +1217,6 @@ export default {
         return json({
           ok: true,
           deleted: await deleteExtraReference(env, Number(deleteReference[1]))
-        });
-      }
-
-      if (url.pathname === '/api/admin/trained-references' && request.method === 'GET') {
-        let results;
-        if (supabaseReadsRequested(env)) {
-          const rows=await supabaseRpc(env,'nisti_trained_references_v1',{p_limit:200});
-          results=Array.isArray(rows)?rows:[];
-        } else {
-          ({ results } = await env.DB.prepare(`
-            SELECT r.id, r.capa_code, r.image_key, r.reference_kind, r.created_at,
-                   (SELECT COUNT(*) FROM cover_reference_embeddings e WHERE e.reference_id=r.id) AS is_indexed
-            FROM cover_visual_references r
-            WHERE r.active=1 AND r.reference_kind='real_scan'
-            ORDER BY r.created_at DESC
-            LIMIT 200
-          `).all());
-        }
-
-        const references = (results || []).map(row => ({
-          ...row,
-          image_url: referenceImageUrl(row),
-          is_indexed: row.is_indexed === true || Number(row.is_indexed) > 0
-        }));
-
-        return json({
-          ok: true,
-          references
-        });
-      }
-
-      if (url.pathname === '/api/admin/cover-index' && request.method === 'GET') {
-        const model=env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
-        if (supabaseReadsRequested(env)) {
-          const stats=await supabaseRpc(env,'nisti_cover_index_v1',{
-            p_embedding_model:model,
-            p_dimensions:EMBEDDING_DIMENSIONS
-          });
-          return json({
-            reference_covers:Number(stats?.reference_covers || 0),
-            reference_images:Number(stats?.reference_images || 0),
-            indexed_references:Number(stats?.indexed_references || 0),
-            indexed_covers:Number(stats?.indexed_covers || 0),
-            pending_references:Number(stats?.pending_references || 0),
-            pending_covers:Number(stats?.pending_covers || 0),
-            embedding_model:model,
-            embedding_dimensions:EMBEDDING_DIMENSIONS,
-            top_k:TOP_K_REFERENCES
-          });
-        }
-
-        const referenceCovers = await env.DB.prepare(`
-          SELECT COUNT(DISTINCT capa_code) AS total FROM products WHERE image_key IS NOT NULL
-        `).first();
-        const referenceImages = await env.DB.prepare(`
-          SELECT COUNT(*) AS total FROM cover_visual_references WHERE active=1
-        `).first();
-        const indexedReferences = await env.DB.prepare(`
-          SELECT COUNT(*) AS total
-          FROM cover_visual_references r
-          JOIN cover_reference_embeddings e ON e.reference_id=r.id
-          WHERE r.active=1 AND e.dimensions=? AND e.embedding_model=?
-        `).bind(EMBEDDING_DIMENSIONS,model).first();
-        const indexedCovers = await env.DB.prepare(`
-          SELECT COUNT(DISTINCT r.capa_code) AS total
-          FROM cover_visual_references r
-          JOIN cover_reference_embeddings e ON e.reference_id=r.id
-          WHERE r.active=1 AND e.dimensions=? AND e.embedding_model=?
-        `).bind(EMBEDDING_DIMENSIONS,model).first();
-        const pendingReferences = Math.max(
-          0,
-          Number(referenceImages?.total || 0) - Number(indexedReferences?.total || 0)
-        );
-        return json({
-          reference_covers:Number(referenceCovers?.total || 0),
-          reference_images:Number(referenceImages?.total || 0),
-          indexed_references:Number(indexedReferences?.total || 0),
-          indexed_covers:Number(indexedCovers?.total || 0),
-          pending_references:pendingReferences,
-          pending_covers:pendingReferences,
-          embedding_model:model,
-          embedding_dimensions:EMBEDDING_DIMENSIONS,
-          top_k:TOP_K_REFERENCES
         });
       }
 

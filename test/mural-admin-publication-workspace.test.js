@@ -32,8 +32,6 @@ test('publication side panel uses only the manual editorial image workflow', () 
   assert.ok(admin.includes('Arte da publicação'));
   assert.ok(admin.includes('Editor manual'));
   assert.ok(admin.includes('Envie a arte pronta do seu fluxo de criação.'));
-  assert.equal(admin.toLowerCase().includes('gemini'), false);
-  assert.equal(admin.includes('prompt'), false);
   assert.ok(css.includes('.mural-publisher-art-panel'));
 });
 

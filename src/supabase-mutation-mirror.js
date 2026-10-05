@@ -1,11 +1,7 @@
 import {
   mirrorDeletedProductToSupabase,
-  mirrorDeletedVisualReferenceToSupabase,
-  mirrorOccurrenceStateFromD1,
   mirrorProductCatalogBatchFromD1,
   mirrorProductCatalogFromD1,
-  mirrorTrainedOccurrenceArtifactsFromD1,
-  mirrorVisualReferenceFromD1,
   supabaseMirrorWritesRequested,
   supabasePrimaryWritesRequested
 } from './supabase-write-store.js';
@@ -106,40 +102,8 @@ export async function mirrorSuccessfulMutation(request, response, env) {
     const imageUpload = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
     if (imageUpload && method === 'POST') {
       const productId = Number(imageUpload[1]);
-      const data = await responseJson(response);
       await mirrorProductCatalogFromD1(env, productId);
       await mirrorProductImageDerivativeFromD1(env, productId);
-      if (data?.reference_id) {
-        await mirrorVisualReferenceFromD1(env, data.reference_id);
-      }
-      for (const referenceId of data?.removed_reference_ids || []) {
-        await mirrorDeletedVisualReferenceToSupabase(env, referenceId);
-      }
-      return;
-    }
-
-    const coverReferences = url.pathname.match(/^\/api\/admin\/covers\/([^/]+)\/references$/);
-    if (coverReferences && method === 'POST') {
-      const data = await responseJson(response);
-      await mirrorVisualReferenceFromD1(env, data?.reference?.id);
-      return;
-    }
-
-    const deleteReference = url.pathname.match(/^\/api\/admin\/cover-references\/(\d+)$/);
-    if (deleteReference && method === 'DELETE') {
-      await mirrorDeletedVisualReferenceToSupabase(env, Number(deleteReference[1]));
-      return;
-    }
-
-    const trainOccurrence = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/train$/);
-    if (trainOccurrence && method === 'POST') {
-      await mirrorTrainedOccurrenceArtifactsFromD1(env, Number(trainOccurrence[1]));
-      return;
-    }
-
-    const dismissOccurrence = url.pathname.match(/^\/api\/admin\/occurrences\/(\d+)\/dismiss$/);
-    if (dismissOccurrence && method === 'POST') {
-      await mirrorOccurrenceStateFromD1(env, Number(dismissOccurrence[1]));
       return;
     }
 

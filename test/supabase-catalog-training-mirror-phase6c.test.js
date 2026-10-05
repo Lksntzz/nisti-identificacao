@@ -84,25 +84,6 @@ test('Phase 6C batch mirror reads committed D1 rows and emits one Supabase RPC',
   }
 });
 
-test('Phase 6C mutation middleware covers all catalog and supervised-training write paths', () => {
-  const source = fs.readFileSync('src/supabase-mutation-mirror.js', 'utf8');
-  for (const expected of [
-    '/api/products',
-    '/api/admin/bulk-products',
-    'api\\/products\\/(\\d+)\\/image',
-    'api\\/admin\\/covers\\/([^/]+)\\/references',
-    'api\\/admin\\/cover-references\\/(\\d+)',
-    'api\\/admin\\/occurrences\\/(\\d+)\\/train',
-    'api\\/admin\\/occurrences\\/(\\d+)\\/dismiss',
-    '/api/operator/confirm-selection'
-  ]) {
-    assert.ok(source.includes(expected), `missing mirrored mutation path: ${expected}`);
-  }
-  assert.match(source, /mirrorProductCatalogBatchFromD1/);
-  assert.match(source, /mirrorTrainedOccurrenceArtifactsFromD1/);
-  assert.match(source, /mirrorDeletedVisualReferenceToSupabase/);
-});
-
 test('Phase 6C is wired after downstream success without cloning large image requests', () => {
   const source = fs.readFileSync('src/operator-audit-router.js', 'utf8');
   assert.match(source, /mirrorSuccessfulMutation/);

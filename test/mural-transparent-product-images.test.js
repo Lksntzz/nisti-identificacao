@@ -55,8 +55,3 @@ test('Mural product cutouts and collection animation do not add artificial shado
   assert.ok(publicCss.includes('filter:none!important'));
   assert.ok(publicCss.includes('box-shadow:none!important'));
 });
-
-test('Mural admin no longer exposes an assisted image package', () => {
-  assert.equal(router.toLowerCase().includes('gemini-pro-package'), false);
-  assert.equal(admin.toLowerCase().includes('gemini'), false);
-});
