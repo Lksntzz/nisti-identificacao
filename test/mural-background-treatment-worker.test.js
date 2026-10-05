@@ -17,11 +17,14 @@ test('Mural treatment queue runs heavy processing in a dedicated Worker', () => 
   assert.match(client, /new Worker\(/);
   assert.match(client, /worker\.terminate\(\)/);
   assert.match(client, /DEFAULT_TREATMENT_TIMEOUT_MS = 30 \* 1000/);
+  assert.match(client, /BACKGROUND_MAX_RENDER_DIMENSION = 1024/);
   assert.match(client, /OffscreenCanvas/);
   assert.doesNotMatch(client, /opencv|grabcut|docs\.opencv/i);
 
   assert.match(worker, /buildTreatedProductImage/);
   assert.match(worker, /self\.onmessage/);
+  assert.match(queue, /preserveExisting/);
+  assert.match(queue, /skippedTreatmentIds/);
   assert.doesNotMatch(worker, /https?:\/\//);
 });
 
