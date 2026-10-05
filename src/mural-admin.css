@@ -1807,7 +1807,10 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
   cursor:pointer;
 }
 .mural-canva-bridge-actions button:first-child{background:#111827;color:#fff;border-color:#111827}
+.mural-canva-bridge-actions button.connected{background:#166534;color:#fff;border-color:#166534;opacity:1}
+.mural-canva-bridge-actions button.secondary{background:#fff;color:#111827;border-color:#d1d5db}
 .mural-canva-bridge-actions button:disabled{opacity:.5;cursor:not-allowed}
+.mural-canva-bridge-actions button.connected:disabled{opacity:1}
 @media (max-width:720px){
   .mural-canva-bridge{align-items:flex-start;flex-direction:column}
   .mural-canva-bridge-actions{width:100%;justify-content:flex-start}
