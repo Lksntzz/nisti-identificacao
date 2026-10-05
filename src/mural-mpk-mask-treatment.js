@@ -153,7 +153,61 @@ function buildCutout(bitmap, maskCanvas) {
   return canvas;
 }
 
-function buildOutlinedCutout(cutoutCanvas, maskCanvas) {
+function drawVerticalBindingBridges(ctx, maskCanvas) {
+  const width = maskCanvas.width;
+  const height = maskCanvas.height;
+  const maskCtx = maskCanvas.getContext('2d', { willReadFrequently:true });
+  const alpha = maskCtx.getImageData(0, 0, width, height).data;
+  const maxGap = Math.max(18, Math.round(width * 0.042));
+  const minBodyRun = Math.max(80, Math.round(width * 0.25));
+  const maxBodyStart = Math.round(width * 0.42);
+
+  ctx.save();
+  ctx.fillStyle = '#fff';
+
+  for (let y = 0; y < height; y += 1) {
+    const runs = [];
+    let start = -1;
+    let previous = -2;
+
+    for (let x = 0; x < width; x += 1) {
+      const opaque = alpha[(y * width + x) * 4 + 3] > 32;
+      if (opaque) {
+        if (start < 0 || x !== previous + 1) {
+          if (start >= 0) runs.push([start, previous]);
+          start = x;
+        }
+        previous = x;
+      }
+    }
+    if (start >= 0) runs.push([start, previous]);
+
+    const bodyRuns = runs.filter(([x0, x1]) =>
+      x1 - x0 + 1 >= minBodyRun && x0 <= maxBodyStart
+    );
+    if (!bodyRuns.length) continue;
+
+    const [bodyStart] = bodyRuns.reduce((best, run) =>
+      run[1] - run[0] > best[1] - best[0] ? run : best
+    );
+
+    const nearbyRuns = runs.filter(([x0, x1]) =>
+      x1 < bodyStart
+      && bodyStart - x1 - 1 > 0
+      && bodyStart - x1 - 1 <= maxGap
+      && x1 - x0 + 1 >= 3
+    );
+    if (!nearbyRuns.length) continue;
+
+    const bridgeFrom = nearbyRuns.reduce((best, run) => run[1] > best[1] ? run : best)[1] + 1;
+    const bridgeWidth = bodyStart - bridgeFrom;
+    if (bridgeWidth > 0) ctx.fillRect(bridgeFrom, y, bridgeWidth, 1);
+  }
+
+  ctx.restore();
+}
+
+function buildOutlinedCutout(cutoutCanvas, maskCanvas, profile) {
   const width = cutoutCanvas.width;
   const height = cutoutCanvas.height;
   const radius = Math.max(6, Math.min(11, Math.round(
@@ -171,6 +225,15 @@ function buildOutlinedCutout(cutoutCanvas, maskCanvas) {
     const dy = Math.round(Math.sin(angle) * radius);
     ctx.drawImage(maskCanvas, dx, dy);
   }
+
+  // On the vertical MPK, the real wire-o leaves small open gaps between the
+  // coil and the spine. Those are physically transparent, but a sticker-style
+  // white contour must bridge only these short gaps so they do not render as
+  // dark square blocks on transparent backgrounds.
+  if (profile === 'vertical_v1') {
+    drawVerticalBindingBridges(ctx, maskCanvas);
+  }
+
   ctx.drawImage(cutoutCanvas, 0, 0);
   return canvas;
 }
@@ -197,7 +260,7 @@ async function buildMpkArtifacts(src, options = {}, maskOnly = false) {
     if (maskOnly) return { maskBlob, profile, geometry, flags };
 
     const cutout = buildCutout(bitmap, maskCanvas);
-    const outlined = buildOutlinedCutout(cutout, maskCanvas);
+    const outlined = buildOutlinedCutout(cutout, maskCanvas, profile);
     const imageBlob = await canvasBlob(outlined, 'Falha ao gerar o PNG tratado pelo MPK.');
     return { imageBlob, maskBlob, profile, geometry, flags };
   } finally {
