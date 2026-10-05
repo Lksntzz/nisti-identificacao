@@ -42,7 +42,7 @@ import {
 const BULK_IMPORT_LIMIT = 100;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_PRODUCT_MASK_BYTES = 4 * 1024 * 1024;
-const PRODUCT_IMAGE_PROCESSOR = 'system-official-mask';
+const PRODUCT_IMAGE_PROCESSOR = 'canva-bgremove-alpha-outline';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
   const id = Number(productId || 0);
