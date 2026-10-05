@@ -28,17 +28,13 @@ test('collection publication shows real collection products in the editor', () =
   assert.ok(css.includes('.mural-publisher-collection-products'));
 });
 
-test('Gemini Pro handoff is the only assisted image workflow in the publication side panel', () => {
+test('publication side panel uses only the manual editorial image workflow', () => {
   assert.ok(admin.includes('Arte da publicação'));
-  assert.ok(admin.includes('Gemini Pro'));
-  assert.ok(admin.includes('mural-publisher-ai-style-grid'));
-  assert.ok(admin.includes('Preparar 3 versões de prompt'));
-  assert.ok(admin.includes('Copiar e abrir Gemini Pro'));
-  assert.ok(admin.includes('Trazer imagem gerada para o Mural'));
-  assert.equal(admin.includes('Gerar arte com IA'), false);
-  assert.equal(admin.includes('IA · Nano Banana'), false);
+  assert.ok(admin.includes('Editor manual'));
+  assert.ok(admin.includes('Envie a arte pronta do seu fluxo de criação.'));
+  assert.equal(admin.toLowerCase().includes('gemini'), false);
+  assert.equal(admin.includes('prompt'), false);
   assert.ok(css.includes('.mural-publisher-art-panel'));
-  assert.ok(css.includes('.mural-gemini-pro-kit'));
 });
 
 test('workspace remains responsive on tablet and mobile', () => {

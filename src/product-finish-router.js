@@ -1,4 +1,4 @@
-import app from './geometric-shadow-evidence-admin-router.js';
+import app from './core-router.js';
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 import { syncNistiProductToCommerceSafe, reconcileNistiProductToCommerceSafe } from './nisti-commerce-sync.js';

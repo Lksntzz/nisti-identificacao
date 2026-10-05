@@ -13,7 +13,6 @@ import {
 import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
 
 const MURAL_PUBLIC_RELEASED = false;
-const MURAL_GEMINI_PRO_MODES = Object.freeze(new Set(['product_scene', 'collection_scene']));
 
 const TAB_KIND = Object.freeze({
   all: null,
@@ -2042,7 +2041,6 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     if (path === '/api/admin/mural/products' && request.method === 'GET') return adminProducts(url, env);
     if (path === '/api/admin/mural/metrics' && request.method === 'GET') return adminMetrics(env);
     if (path === '/api/admin/mural/readiness' && request.method === 'GET') return adminReadiness(env);
-    if (path === '/api/admin/mural/gemini-pro-package' && request.method === 'POST') return adminPrepareMuralGeminiPro(request, env);
     if (path === '/api/admin/mural/collections' && request.method === 'GET') return adminListCollections(env);
     if (path === '/api/admin/mural/collections' && request.method === 'POST') return adminCreateCollection(request, env);
 

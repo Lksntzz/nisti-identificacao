@@ -331,16 +331,7 @@ async function saveProductImage(env, id, fileBytes, contentType) {
     }
     if(value.old_processed_image_key) await env.PRODUCT_IMAGES.delete(value.old_processed_image_key).catch(()=>{});
     const reference=value.reference;
-    let indexed=false,indexError=null,removedReferences=[];
-    try {
-      const stored=await storeReferenceEmbedding(env,reference,new Uint8Array(fileBytes),contentType,id);
-      indexed=true; removedReferences=stored.removedReferences || [];
-      for(const stale of removedReferences) if(stale.image_key && stale.image_key!==key) {
-        await env.PRODUCT_IMAGES.delete(stale.image_key).catch(()=>{});
-      }
-    } catch(error) { indexError=error?.message || 'Falha ao indexar capa'; }
-    return { indexed,index_error:indexError,reference_id:Number(reference?.id||0),
-      removed_reference_ids:removedReferences.map(item=>Number(item.id)) };
+    return { reference_saved:true,reference_id:Number(reference?.id||0) };
   }
   const product = await env.DB.prepare(`
     SELECT p.id,p.capa_code,p.image_key,mpi.processed_image_key AS mural_processed_image_key
@@ -385,29 +376,9 @@ async function saveProductImage(env, id, fileBytes, contentType) {
     referenceKind: 'product'
   });
 
-  let indexed = false;
-  let indexError = null;
-  let removedReferences = [];
-  try {
-    await storeReferenceEmbedding(env, reference, new Uint8Array(fileBytes), contentType);
-    indexed = true;
-    removedReferences = await cleanupStaleProductReferences(env, id, key);
-    for (const stale of removedReferences) {
-      if (stale.image_key && stale.image_key !== key) {
-        await env.PRODUCT_IMAGES.delete(stale.image_key).catch(() => {});
-      }
-    }
-  } catch (error) {
-    indexError = error?.message || 'Falha ao indexar capa';
-    // A referência nova fica pendente para /api/admin/reindex-cover-embeddings.
-    // Mantemos a referência anterior ativa até a nova ser indexada com sucesso.
-  }
-
   return {
-    indexed,
-    index_error: indexError,
-    reference_id: Number(reference?.id || 0),
-    removed_reference_ids: removedReferences.map(item => Number(item.id))
+    reference_saved:true,
+    reference_id: Number(reference?.id || 0)
   };
 }
 
@@ -537,15 +508,13 @@ async function listCoverReferences(env, capaCode) {
     const results=await supabaseCoverReferences(env,normalizeCapaCode(capaCode));
     return results.map(reference=>({...reference,id:Number(reference.id),
       source_product_id:reference.source_product_id?Number(reference.source_product_id):null,
-      indexed:Number(reference.dimensions||0)===EMBEDDING_DIMENSIONS,image_url:referenceImageUrl(reference)}));
+      image_url:referenceImageUrl(reference)}));
   }
   const { results } = await env.DB.prepare(`
     SELECT
       r.id,r.capa_code,r.image_key,r.source_product_id,r.reference_kind,r.active,
-      r.created_at,r.updated_at,
-      e.embedding_model,e.dimensions,e.updated_at AS embedding_updated_at
+      r.created_at,r.updated_at
     FROM cover_visual_references r
-    LEFT JOIN cover_reference_embeddings e ON e.reference_id=r.id
     WHERE r.capa_code=? AND r.active=1
     ORDER BY CASE WHEN r.reference_kind='product' THEN 0 ELSE 1 END, r.id ASC
   `).bind(normalizeCapaCode(capaCode)).all();
@@ -554,7 +523,6 @@ async function listCoverReferences(env, capaCode) {
     ...reference,
     id: Number(reference.id),
     source_product_id: reference.source_product_id ? Number(reference.source_product_id) : null,
-    indexed: Number(reference.dimensions || 0) === EMBEDDING_DIMENSIONS,
     image_url: referenceImageUrl(reference)
   }));
 }
@@ -581,10 +549,8 @@ async function addCoverReference(env, capaCode, file, kind) {
       if(prepared.value?.status==='limit_reached') throw new Error(`Máximo de ${EXTRA_REFERENCE_LIMIT} referências adicionais por capa`);
       throw new Error('Falha ao criar referência visual');
     }
-    const reference=prepared.value.reference; let indexed=false,indexError=null;
-    try { await storeReferenceEmbedding(env,reference,new Uint8Array(bytes),file.type||'image/jpeg'); indexed=true; }
-    catch(error){indexError=error?.message||'Falha ao indexar referência';}
-    return {...reference,id:Number(reference.id),indexed,embedding_error:indexError,image_url:referenceImageUrl(reference)};
+    const reference=prepared.value.reference;
+    return {...reference,id:Number(reference.id),reference_saved:true,image_url:referenceImageUrl(reference)};
   }
   const exists = await env.DB.prepare(`SELECT id FROM products WHERE capa_code=? LIMIT 1`)
     .bind(code).first();
@@ -621,20 +587,10 @@ async function addCoverReference(env, capaCode, file, kind) {
     referenceKind
   });
 
-  let indexed = false;
-  let indexError = null;
-  try {
-    await storeReferenceEmbedding(env, reference, new Uint8Array(bytes), file.type || 'image/jpeg');
-    indexed = true;
-  } catch (error) {
-    indexError = error?.message || 'Falha ao indexar referência';
-  }
-
   return {
     ...reference,
     id: Number(reference.id),
-    indexed,
-    embedding_error: indexError,
+    reference_saved:true,
     image_url: referenceImageUrl(reference)
   };
 }
@@ -645,12 +601,8 @@ async function deleteExtraReference(env, referenceId) {
     if(result.value?.status==='not_found') throw new Error('Referência visual não encontrada');
     if(result.value?.status==='protected') throw new Error('A referência principal do produto deve ser alterada pelo mockup do produto');
     const reference=result.value?.reference;
-    if(env.COVER_VECTORS?.deleteByIds) {
-      const vectorIds=supportedPlatforms().map(p=>platformVectorId(referenceId,p)).filter(Boolean);
-      if(vectorIds.length) await env.COVER_VECTORS.deleteByIds(vectorIds).catch(()=>{});
-    }
     if(reference?.image_key) await env.PRODUCT_IMAGES.delete(reference.image_key).catch(()=>{});
-    return {id:Number(reference.id),capa_code:normalizeCapaCode(reference.capa_code),vector_id:`ref:${Number(reference.id)}`};
+    return {id:Number(reference.id),capa_code:normalizeCapaCode(reference.capa_code)};
   }
   const reference = await env.DB.prepare(`
     SELECT id,capa_code,image_key,source_product_id,reference_kind
@@ -663,32 +615,16 @@ async function deleteExtraReference(env, referenceId) {
     throw new Error('A referência principal do produto deve ser alterada pelo mockup do produto');
   }
 
-  // 1. Excluir do Vectorize
-  if (env.COVER_VECTORS?.deleteByIds) {
-    const platforms = supportedPlatforms();
-    const vectorIds = platforms.map(p => platformVectorId(referenceId, p)).filter(Boolean);
-    if (vectorIds.length > 0) {
-      await env.COVER_VECTORS.deleteByIds(vectorIds).catch(e => {
-        console.error('Falha ao excluir vetores do Vectorize:', e);
-      });
-    }
-  }
-
-  // 2. Excluir do Banco de Dados D1
-  await env.DB.prepare('DELETE FROM cover_reference_embeddings WHERE reference_id=?')
-    .bind(referenceId).run();
   await env.DB.prepare('DELETE FROM cover_visual_references WHERE id=?')
     .bind(referenceId).run();
 
-  // 3. Excluir do R2 Bucket
   if (reference.image_key) {
     await env.PRODUCT_IMAGES.delete(reference.image_key).catch(() => {});
   }
 
   return {
     id: Number(reference.id),
-    capa_code: normalizeCapaCode(reference.capa_code),
-    vector_id: `ref:${Number(reference.id)}`
+    capa_code: normalizeCapaCode(reference.capa_code)
   };
 }
 
@@ -1013,10 +949,8 @@ export default {
           ok: true,
           image_url: productDisplayImageUrl(id, prod?.image_key),
           original_image_url: productOriginalImageUrl(id, prod?.image_key),
-          embedding_indexed: saved.indexed,
-          embedding_error: saved.index_error,
+          reference_saved: saved.reference_saved,
           reference_id: saved.reference_id,
-          removed_reference_ids: saved.removed_reference_ids,
           commerce_sync: commerceSync
         });
       }
@@ -1587,7 +1521,6 @@ export default {
 
       if (url.pathname === '/api/admin/push/debug' && request.method === 'GET') {
         const privateKey = env.VAPID_PRIVATE_KEY ? 'presente (tamanho: ' + env.VAPID_PRIVATE_KEY.length + ')' : 'ausente';
-        const apiKey = env.GEMINI_API_KEY ? 'presente' : 'ausente';
         const publicKey = env.VAPID_PUBLIC_KEY ? 'presente' : 'usando default';
 
         let subscriptions;
@@ -1632,7 +1565,6 @@ export default {
 
         return json({
           vapid_private_key: privateKey,
-          gemini_api_key: apiKey,
           vapid_public_key: publicKey,
           active_subscriptions_count: subscriptions.length,
           send_results: sendResults

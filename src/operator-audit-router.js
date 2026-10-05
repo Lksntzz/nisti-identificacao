@@ -1,5 +1,4 @@
-import app from './vectorize-performance-router.js';
-import { handleGeometricShadowConfirmationRequest } from './geometric-shadow-confirmation-router.js';
+import app from './edge-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
 import { SupabasePrimaryWriteError } from './supabase-write-store.js';
 import { runReserveBackfill } from './supabase-reserve-backfill.js';
@@ -95,19 +94,6 @@ export default {
         // remain available so health/parity checks can still be performed.
         return cutoverFreezeResponse(true);
       }
-    }
-
-    let shadowConfirmationResponse;
-    try {
-      shadowConfirmationResponse = await handleGeometricShadowConfirmationRequest(request, env);
-    } catch (error) {
-      if (error instanceof SupabasePrimaryWriteError) return primaryWriteFailureResponse(error);
-      throw error;
-    }
-    if (shadowConfirmationResponse) {
-      const activity = scheduleAdminActivity(ctx, request, shadowConfirmationResponse, env);
-      if (activity) await activity;
-      return shadowConfirmationResponse;
     }
 
     // Public operator app always sends x-user-id. If it does, require a
