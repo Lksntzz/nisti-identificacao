@@ -7,7 +7,8 @@ const OUTLINE_RADIUS_AT_1200 = 8;
 
 // These paths are generated directly from the two Photoshop MPKs supplied by
 // NISTI. They are geometry masks, not hand-drawn approximations.
-// Vertical base source: exact union of "TROCA A CAPA" with only the physical
+// Vertical base source: "MKP FRENTE ATUAL copiar 2.psd", exact union of
+// "TROCA A CAPA" with only the physical
 // wire-o region from "Camada 4 copiar". Stored as row-runs so the browser
 // reproduces the raster Photoshop silhouette instead of approximating it with
 // a polygon.
