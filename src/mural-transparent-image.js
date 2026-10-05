@@ -50,6 +50,17 @@ const PLANNER_STRUCTURE_REFERENCE = Object.freeze({
     [.945, .910],
     [.865, .965],
     [.165, .945]
+  ]),
+  // v21: dedicated right-side page-stack protection. The outer white pages
+  // can be almost identical to the white studio background and were being
+  // dropped as a weak detached component after restoration. This narrow band
+  // is still bounded away from the top rail and bottom shadow.
+  pageStackPolygon: Object.freeze([
+    [.800, .090],
+    [.975, .105],
+    [.985, .895],
+    [.930, .950],
+    [.835, .930]
   ])
 });
 
@@ -375,6 +386,27 @@ function buildPlannerBodyProtection(data, width, height, fitInsideCanvas = false
   return buildStructureProtection(
     data, width, height, PLANNER_STRUCTURE_REFERENCE, fitInsideCanvas, 'bodyPolygon'
   );
+}
+
+function buildPlannerPageStackProtection(data, width, height, fitInsideCanvas = false) {
+  return buildStructureProtection(
+    data, width, height, PLANNER_STRUCTURE_REFERENCE, fitInsideCanvas, 'pageStackPolygon'
+  );
+}
+
+function combineProtections(...protections) {
+  const active = protections.filter(protection => typeof protection === 'function');
+  if (!active.length) return null;
+  const contains = (x, y) => active.some(protection => protection(x, y));
+  const bounds = active.map(protection => protection.bounds).filter(Boolean);
+  if (bounds.length) {
+    const minX = Math.min(...bounds.map(bound => bound.minX));
+    const minY = Math.min(...bounds.map(bound => bound.minY));
+    const maxX = Math.max(...bounds.map(bound => bound.maxX));
+    const maxY = Math.max(...bounds.map(bound => bound.maxY));
+    contains.bounds = { minX, minY, maxX, maxY, width:maxX-minX, height:maxY-minY };
+  }
+  return contains;
 }
 
 function restoreOriginalPixelsInsideProtection(data, originalPixels, width, height, protection) {
@@ -815,6 +847,9 @@ function buildProductComponentsMask(data, width, height, options = {}) {
   const subjectProtection = typeof options?.subjectProtection === 'function'
     ? options.subjectProtection
     : null;
+  const trustedPhysicalProtection = typeof options?.trustedPhysicalProtection === 'function'
+    ? options.trustedPhysicalProtection
+    : null;
   const preserveAccessory = Boolean(options?.preserveAccessory);
   const total = width * height;
   const labels = new Int32Array(total);
@@ -921,13 +956,18 @@ function buildProductComponentsMask(data, width, height, options = {}) {
     const centerX = (component.minX + component.maxX) / 2;
     const centerY = (component.minY + component.maxY) / 2;
     const insideDetectedProduct = Boolean(subjectProtection?.(centerX, centerY));
-    const minimumStrongRatio = insideDetectedProduct
-      ? .05
-      : plannerBounds && closeToMainProduct
-        ? (preserveAccessory ? .10 : PLANNER_MASK_CALIBRATION.nearbyDetailStrongRatio)
-        : PLANNER_MASK_CALIBRATION.genericDetailStrongRatio;
+    const insideTrustedPhysical = Boolean(trustedPhysicalProtection?.(centerX, centerY));
+    const minimumStrongRatio = insideTrustedPhysical
+      ? 0
+      : insideDetectedProduct
+        ? .05
+        : plannerBounds && closeToMainProduct
+          ? (preserveAccessory ? .10 : PLANNER_MASK_CALIBRATION.nearbyDetailStrongRatio)
+          : PLANNER_MASK_CALIBRATION.genericDetailStrongRatio;
     if (!anotherLargeProduct && strongRatio < minimumStrongRatio) continue;
-    if (insideDetectedProduct || closeToMainProduct || anotherLargeProduct) included[label] = 1;
+    if (insideTrustedPhysical || insideDetectedProduct || closeToMainProduct || anotherLargeProduct) {
+      included[label] = 1;
+    }
   }
 
   // Keep the agenda body, nearby detached wire-o rings and any other large
@@ -1277,6 +1317,10 @@ async function buildTransparentProductImage(src, options = {}) {
     const lightBodyProtection = geometry.kind === 'standard'
       ? buildPlannerBodyProtection(originalPixels, width, height, options.forceOutline)
       : null;
+    const pageStackProtection = geometry.kind === 'standard'
+      ? buildPlannerPageStackProtection(originalPixels, width, height, options.forceOutline)
+      : null;
+    const trustedPhysicalProtection = combineProtections(lightBodyProtection, pageStackProtection);
     removeConnectedStudioBackground(data, width, height, structureProtection);
 
     // A white/off-white cover can be indistinguishable from the white studio
@@ -1289,10 +1333,17 @@ async function buildTransparentProductImage(src, options = {}) {
       restoreOriginalPixelsInsideProtection(
         data, originalPixels, width, height, lightBodyProtection
       );
+    }
+    if (pageStackProtection) {
+      restoreOriginalPixelsInsideProtection(
+        data, originalPixels, width, height, pageStackProtection
+      );
+    }
+    if (trustedPhysicalProtection) {
       // Restoration is structural, never a license to bring back the studio.
       // Strip the detached top rail and the neutral cast shadow after restoring
-      // the white cover/page stack.
-      clearExteriorStudioResidue(data, width, height, lightBodyProtection);
+      // the white cover and the dedicated right-side page stack.
+      clearExteriorStudioResidue(data, width, height, trustedPhysicalProtection);
     }
 
     const structureCoverage = protectedSubjectCoverage(
@@ -1308,7 +1359,8 @@ async function buildTransparentProductImage(src, options = {}) {
     const structureMask = structureCoverage >= minimumCoverage
       ? buildProductComponentsMask(data, width, height, {
           plannerBounds:structureProtection.bounds,
-          subjectProtection:structureProtection,
+          subjectProtection:combineProtections(structureProtection, trustedPhysicalProtection),
+          trustedPhysicalProtection,
           preserveAccessory
         })
       : null;
@@ -1775,6 +1827,8 @@ export const __muralTransparentImageInternals = {
   buildDiscReferenceBounds,
   buildPlannerStructureProtection,
   buildPlannerBodyProtection,
+  buildPlannerPageStackProtection,
+  combineProtections,
   restoreOriginalPixelsInsideProtection,
   clearExteriorStudioResidue,
   buildHorizontalStructureProtection,
