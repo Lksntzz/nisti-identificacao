@@ -5,7 +5,7 @@ import { handleCommerceListingStateRequest } from './commerce-listing-state-rout
 import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
 import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
 import { handleMuralRequest } from './mural-router.js';
-import { handleCanvaImageBridgeRequest } from './canva-image-router.js';
+import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
 const SESSION_SECONDS = 60 * 60 * 12;
@@ -142,7 +142,7 @@ export default {
       return json({ error: 'Acesso administrativo não autorizado.' }, 401);
     }
 
-    const canvaResponse = await handleCanvaImageBridgeRequest(request, env);
+    const canvaResponse = await handleCanvaBridgeRequest(request, env);
     if (canvaResponse) return canvaResponse;
 
     const muralQaRequested = request.headers.get('x-mural-qa') === '1';
