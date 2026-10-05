@@ -4,7 +4,7 @@ const CANVA_AUTHORIZE_URL = 'https://www.canva.com/api/oauth/authorize';
 const CANVA_TOKEN_URL = 'https://api.canva.com/rest/v1/oauth/token';
 const CANVA_REVOKE_URL = 'https://api.canva.com/rest/v1/oauth/revoke';
 const CANVA_API_URL = 'https://api.canva.com/rest/v1';
-const CANVA_SCOPES = Object.freeze(['asset:read','asset:write','profile:read']);
+const CANVA_SCOPES = Object.freeze(['asset:read','asset:write','design:content:read','design:content:write','profile:read']);
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const TOKEN_REFRESH_SKEW_MS = 2 * 60 * 1000;
 
