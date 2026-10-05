@@ -440,6 +440,47 @@ test('wire-o metadata activates accessory preservation even without a tassel', (
 });
 
 
+test('v21 keeps a low-contrast detached right page stack as trusted physical geometry', () => {
+  const width = 100;
+  const height = 100;
+  const data = new Uint8ClampedArray(width * height * 4);
+  const paint = (fromX, toX, fromY, toY, rgb) => {
+    for (let y = fromY; y <= toY; y += 1) {
+      for (let x = fromX; x <= toX; x += 1) {
+        const offset = (y * width + x) * 4;
+        data[offset] = rgb[0];
+        data[offset + 1] = rgb[1];
+        data[offset + 2] = rgb[2];
+        data[offset + 3] = 255;
+      }
+    }
+  };
+
+  paint(20, 65, 15, 85, [25, 25, 25]);       // dark cover / main component
+  paint(70, 80, 20, 80, [248, 248, 248]);    // white page stack, low contrast
+
+  const trustedPages = (x, y) => x >= 68 && x <= 84 && y >= 15 && y <= 86;
+  trustedPages.bounds = { minX:68, maxX:84, minY:15, maxY:86, width:16, height:71 };
+
+  const mask = __muralTransparentImageInternals.buildProductComponentsMask(
+    data,
+    width,
+    height,
+    {
+      plannerBounds:{ minX:18, maxX:86, minY:12, maxY:88, width:68, height:76 },
+      trustedPhysicalProtection:trustedPages,
+      preserveAccessory:false
+    }
+  );
+
+  assert.ok(mask);
+  assert.equal(mask[50 * width + 75], 1, 'white right-side pages remain part of the product');
+  assert.equal(mask[5 * width + 95], 0, 'unrelated outside background remains excluded');
+  assert.match(source, /pageStackPolygon: Object\.freeze/);
+  assert.match(source, /insideTrustedPhysical/);
+  assert.match(source, /trustedPhysicalProtection/);
+});
+
 test('light wire-o stationery restores the continuous physical cover without restoring the studio background', () => {
   const width = 200;
   const height = 300;
