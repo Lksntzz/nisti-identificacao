@@ -477,8 +477,7 @@ export default {
             queue_status:row.queue_status || null,
             force_outline:row.processor === 'system-precise-redo',
             original_image_url:productOriginalImageUrl(row.id,row.image_key),
-            display_image_url:productDisplayImageUrl(row.id,row.image_key,row.processed_image_key),
-            has_existing_derivative:Boolean(row.processed_image_key)
+            display_image_url:productDisplayImageUrl(row.id,row.image_key,row.processed_image_key)
           }))
         });
       }
@@ -778,20 +777,6 @@ export default {
         const productId = Number(treatmentFailed[1]);
         const body = await request.json().catch(()=>({}));
         const reason = String(body?.error || 'Tratamento automático sem confiança suficiente.').slice(0,500);
-        const preserveExisting = body?.preserve_existing === true;
-        const existing = preserveExisting ? await supabaseProductImageContext(env,productId) : null;
-        if (
-          preserveExisting
-          && existing?.processed_image_key
-          && existing?.source_image_key === existing?.image_key
-        ) {
-          return json({
-            ok:true,
-            product_id:productId,
-            status:existing.status || 'review',
-            preserved:true
-          });
-        }
         const saved=await mirrorSupabaseRpc(env,'nisti_set_product_treatment_v2',{
           p_product_id:productId,p_action:'failed',
           p_processed_image_key:null,
