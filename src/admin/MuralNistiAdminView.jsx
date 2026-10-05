@@ -144,6 +144,8 @@ function MuralProductImageManager({ products, onChanged }) {
   const [justApprovedIds,setJustApprovedIds]=useState(()=>new Set());
   const [busyId,setBusyId]=useState(null);
   const [error,setError]=useState('');
+  const [canvaStatus,setCanvaStatus]=useState({loading:true,configured:false,connected:false,background_removal:false,missing:[]});
+  const [canvaBusy,setCanvaBusy]=useState(false);
   const [paused,setPaused]=useState(()=>{
     try{return localStorage.getItem(TREATMENT_PAUSE_KEY)!=='0'}catch{return true}
   });
@@ -152,6 +154,39 @@ function MuralProductImageManager({ products, onChanged }) {
   });
   const onChangedRef=useRef(onChanged);
   useEffect(()=>{onChangedRef.current=onChanged},[onChanged]);
+
+  const refreshCanvaStatus=async()=>{
+    try{
+      const payload=await request('/api/admin/canva/status');
+      setCanvaStatus({loading:false,configured:false,connected:false,background_removal:false,missing:[],...payload});
+    }catch(err){
+      setCanvaStatus(current=>({...current,loading:false,connected:false,error:err.message}));
+    }
+  };
+
+  useEffect(()=>{refreshCanvaStatus()},[]);
+
+  const connectCanva=async()=>{
+    setCanvaBusy(true);setError('');
+    try{
+      const payload=await request('/api/admin/canva/connect',{method:'POST'});
+      if(!payload?.authorization_url)throw new Error('Canva não retornou a URL de autorização.');
+      window.location.assign(payload.authorization_url);
+    }catch(err){
+      setError(err.message);
+      setCanvaBusy(false);
+    }
+  };
+
+  const disconnectCanva=async()=>{
+    if(!window.confirm('Desconectar o Canva do Mural NISTI?'))return;
+    setCanvaBusy(true);setError('');
+    try{
+      await request('/api/admin/canva/disconnect',{method:'POST'});
+      await refreshCanvaStatus();
+    }catch(err){setError(err.message)}finally{setCanvaBusy(false)}
+  };
+
   const filtered=useMemo(()=>{
     const term=query.trim().toLowerCase();
     const visible=showApproved
@@ -300,8 +335,37 @@ function MuralProductImageManager({ products, onChanged }) {
     }catch(err){setError(err.message)}finally{setBusyId(null)}
   };
 
+  const canvaLabel=canvaStatus.loading
+    ?'Verificando Canva…'
+    :!canvaStatus.configured
+      ?'Configuração pendente'
+      :canvaStatus.connected&&canvaStatus.background_removal
+        ?'Canva conectado'
+        :canvaStatus.connected
+          ?'Conectado sem remoção de fundo'
+          :'Pronto para conectar';
+  const canvaDetail=!canvaStatus.configured
+    ?`Faltam segredos no Worker: ${(canvaStatus.missing||[]).join(', ')}`
+    :canvaStatus.connected&&canvaStatus.background_removal
+      ?'Remoção de fundo disponível. O fluxo de produção permanece bloqueado até a validação do PNG em tamanho original.'
+      :canvaStatus.connected
+        ?'A conta conectada não possui o recurso background_removal.'
+        :'Autorize a conta Canva que será usada pelo Mural.';
+
   return <div className="mural-product-image-manager">
     <header><div><h3>Imagens tratadas dos produtos</h3><p>A foto original do catálogo fica intacta. Só vai para Revisados depois da sua aprovação.</p></div><div className="mural-product-image-manager-tools"><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar SKU ou nome"/></div></header>
+    <section className={`mural-canva-bridge ${canvaStatus.connected?'connected':canvaStatus.configured?'ready':'missing'}`} aria-live="polite">
+      <div>
+        <span>Canva · integração segura</span>
+        <strong>{canvaLabel}</strong>
+        <small>{canvaDetail}</small>
+      </div>
+      <div className="mural-canva-bridge-actions">
+        {canvaStatus.configured&&!canvaStatus.connected&&<button type="button" disabled={canvaBusy||canvaStatus.loading} onClick={connectCanva}>{canvaBusy?'Abrindo…':'Conectar Canva'}</button>}
+        {canvaStatus.connected&&<button type="button" disabled={canvaBusy} onClick={disconnectCanva}>{canvaBusy?'Aguarde…':'Desconectar'}</button>}
+        <button type="button" disabled={canvaBusy||canvaStatus.loading} onClick={refreshCanvaStatus}>Verificar</button>
+      </div>
+    </section>
     <section className={`mural-product-treatment-progress ${treatmentProgress.phase}`} aria-live="polite">
       <div className="mural-product-treatment-progress-copy">
         <span>Tratamento manual</span>
