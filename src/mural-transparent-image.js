@@ -122,6 +122,36 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function createRasterCanvas(width, height) {
+  if (typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  }
+  if (typeof OffscreenCanvas !== 'undefined') {
+    return new OffscreenCanvas(width, height);
+  }
+  throw new Error('Canvas indisponível para o tratamento da imagem.');
+}
+
+async function canvasPngBlob(canvas, errorMessage) {
+  if (typeof canvas?.convertToBlob === 'function') {
+    const blob = await canvas.convertToBlob({ type:'image/png' });
+    if (blob?.size) return blob;
+    throw new Error(errorMessage);
+  }
+  if (typeof canvas?.toBlob === 'function') {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        result => result?.size ? resolve(result) : reject(new Error(errorMessage)),
+        'image/png'
+      );
+    });
+  }
+  throw new Error(errorMessage);
+}
+
 function hasRegisteredWireo(options = {}) {
   const code = String(options.wireoCode || options.wireo_code || '').trim().toUpperCase();
   return Boolean(code && code !== 'X' && code !== 'N/A');
@@ -1098,9 +1128,7 @@ async function buildProductOutlineImage(src) {
   const height = Number(bitmap.height || bitmap.naturalHeight || 0);
   if (!width || !height) return '';
 
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  const canvas = createRasterCanvas(width, height);
   const context = canvas.getContext('2d', { willReadFrequently:true });
   if (!context) return '';
 
@@ -1141,9 +1169,7 @@ async function buildProductOutlineImage(src) {
 
   context.clearRect(0, 0, width, height);
   context.putImageData(outlineData, 0, 0);
-  const outputBlob = await new Promise((resolve, reject) => {
-    canvas.toBlob(result => result ? resolve(result) : reject(new Error('Falha ao gerar o contorno do produto.')), 'image/png');
-  });
+  const outputBlob = await canvasPngBlob(canvas, 'Falha ao gerar o contorno do produto.');
   return URL.createObjectURL(outputBlob);
 }
 
@@ -1190,6 +1216,10 @@ function remember(src, url) {
 async function loadBitmap(blob) {
   if (typeof createImageBitmap === 'function') {
     return createImageBitmap(blob);
+  }
+
+  if (typeof Image === 'undefined') {
+    throw new Error('Este navegador não oferece decodificação de imagem compatível com o tratamento em segundo plano.');
   }
 
   const objectUrl = URL.createObjectURL(blob);
@@ -1278,9 +1308,7 @@ async function buildTransparentProductImage(src, options = {}) {
   const width = Math.max(1, Math.round(sourceWidth * scale));
   const height = Math.max(1, Math.round(sourceHeight * scale));
 
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  const canvas = createRasterCanvas(width, height);
   const context = canvas.getContext('2d', { willReadFrequently:true });
   if (!context) throw new Error('Canvas indisponível para preparar transparência.');
 
@@ -1377,12 +1405,7 @@ async function buildTransparentProductImage(src, options = {}) {
           if (!keepMask[index]) data[index * 4 + 3] = 0;
         }
         context.putImageData(imageData, 0, 0);
-        const outputBlob = await new Promise((resolve, reject) => {
-          canvas.toBlob(
-            result => result ? resolve(result) : reject(new Error('Falha ao converter produto para PNG transparente.')),
-            'image/png'
-          );
-        });
+        const outputBlob = await canvasPngBlob(canvas, 'Falha ao converter produto para PNG transparente.');
         return URL.createObjectURL(outputBlob);
       }
     }
@@ -1437,9 +1460,7 @@ async function buildTransparentProductImage(src, options = {}) {
 
   context.putImageData(imageData, 0, 0);
 
-  const outputBlob = await new Promise((resolve, reject) => {
-    canvas.toBlob(result => result ? resolve(result) : reject(new Error('Falha ao converter produto para PNG transparente.')), 'image/png');
-  });
+  const outputBlob = await canvasPngBlob(canvas, 'Falha ao converter produto para PNG transparente.');
 
   return URL.createObjectURL(outputBlob);
 }
@@ -1471,9 +1492,7 @@ async function persistedProductImageSource(src) {
 
 async function productMaskPngBlob(mask, width, height) {
   if (!mask || !width || !height) return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  const canvas = createRasterCanvas(width, height);
   const context = canvas.getContext('2d');
   if (!context) return null;
   const imageData = context.createImageData(width, height);
@@ -1486,12 +1505,7 @@ async function productMaskPngBlob(mask, width, height) {
     imageData.data[offset + 3] = 255;
   }
   context.putImageData(imageData, 0, 0);
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      result => result ? resolve(result) : reject(new Error('Falha ao gerar máscara individual do produto.')),
-      'image/png'
-    );
-  });
+  return canvasPngBlob(canvas, 'Falha ao gerar máscara individual do produto.');
 }
 
 async function buildTreatedProductImage(src, options = {}) {
@@ -1511,9 +1525,7 @@ async function buildTreatedProductImage(src, options = {}) {
   const height = Number(bitmap.height || bitmap.naturalHeight || 0);
   if (!width || !height) return src;
 
-  const sourceCanvas = document.createElement('canvas');
-  sourceCanvas.width = width;
-  sourceCanvas.height = height;
+  const sourceCanvas = createRasterCanvas(width, height);
   const sourceContext = sourceCanvas.getContext('2d', { willReadFrequently:true });
   if (!sourceContext) return src;
   sourceContext.clearRect(0, 0, width, height);
@@ -1596,9 +1608,7 @@ async function buildTreatedProductImage(src, options = {}) {
   const outlineMask = buildExternalOutlineRing(productMask, width, height, outlineRadius);
   const padding = outlineRadius + 2;
 
-  const outputCanvas = document.createElement('canvas');
-  outputCanvas.width = width + padding * 2;
-  outputCanvas.height = height + padding * 2;
+  const outputCanvas = createRasterCanvas(width + padding * 2, height + padding * 2);
   const outputContext = outputCanvas.getContext('2d', { willReadFrequently:true });
   if (!outputContext) return src;
 
@@ -1619,12 +1629,7 @@ async function buildTreatedProductImage(src, options = {}) {
   outputContext.putImageData(outlineData, 0, 0);
   outputContext.drawImage(sourceCanvas, padding, padding);
 
-  const outputBlob = await new Promise((resolve, reject) => {
-    outputCanvas.toBlob(
-      result => result ? resolve(result) : reject(new Error('Falha ao gerar imagem tratada do produto.')),
-      'image/png'
-    );
-  });
+  const outputBlob = await canvasPngBlob(outputCanvas, 'Falha ao gerar imagem tratada do produto.');
   return URL.createObjectURL(outputBlob);
 }
 
