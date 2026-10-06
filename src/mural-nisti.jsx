@@ -588,6 +588,26 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       onTransitionEnd={handleIntroTransitionEnd}
     >
       <span className="mural-collection-reveal-vignette" aria-hidden="true" />
+      <span className="mural-collection-party-effects" aria-hidden="true">
+        {Array.from({ length: 28 }, (_, index) => {
+          const colors = ['#ff6b8a','#ffd166','#6ee7b7','#7dd3fc','#c4b5fd','#f9a8d4'];
+          return (
+            <i
+              key={index}
+              className={`mural-collection-party-particle${index % 7 === 0 ? ' is-sparkle' : ''}`}
+              style={{
+                '--party-left': `${4 + ((index * 37) % 92)}%`,
+                '--party-delay': `${-((index * 173) % 2400)}ms`,
+                '--party-duration': `${2400 + (index % 5) * 320}ms`,
+                '--party-drift': `${-46 + ((index * 29) % 92)}px`,
+                '--party-spin': `${240 + ((index * 41) % 420)}deg`,
+                '--party-scale': String(.72 + (index % 4) * .1),
+                '--party-color': colors[index % colors.length]
+              }}
+            />
+          );
+        })}
+      </span>
       <span className="mural-collection-reveal-white-arc" aria-hidden="true" />
       <div className={`mural-collection-reveal-fan fan-${Math.min(products.length,4)}`} aria-hidden="true">
         <span className="mural-collection-reveal-product is-main">
