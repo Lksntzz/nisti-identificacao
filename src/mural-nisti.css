@@ -3511,7 +3511,7 @@
   position:absolute;
   z-index:6;
   left:50%;
-  top:48%;
+  top:24%;
   width:min(86vw,560px);
   display:grid;
   justify-items:center;
@@ -3569,7 +3569,7 @@
   .mural-collection-reveal-white-arc{bottom:-14%;height:54%;width:165%}
   .mural-collection-reveal-fan{inset:15% 0 8%}
   .mural-collection-reveal-product{width:160px;height:246px}
-  .mural-collection-reveal-title{top:49%;width:90vw}
+  .mural-collection-reveal-title{top:26%;width:90vw}
   .mural-collection-reveal-title>strong{font-size:clamp(28px,9vw,42px)}
 }
 @media (max-width:360px){
