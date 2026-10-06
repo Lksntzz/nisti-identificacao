@@ -522,7 +522,7 @@ function AdminNotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount 
   );
 }
 
-function AdminTopbar({ onToggleSidebar, unreadCount, activeView, onOpenNotifications }) {
+function AdminTopbar({ onToggleSidebar, unreadCount, activeView, onOpenNotifications, desktopPreview, onToggleDesktopPreview }) {
   const pageTitle = activeView === 'catalogo' ? 'Produtos NISTI'
     : activeView === 'mural-nisti' ? 'Mural NISTI'
     : activeView === 'gerador-barras' ? 'Gerador de Barras'
@@ -553,6 +553,20 @@ function AdminTopbar({ onToggleSidebar, unreadCount, activeView, onOpenNotificat
       </div>
 
       <div className="topbar-right">
+        <button
+          type="button"
+          className={`topbar-desktop-preview-btn ${desktopPreview ? 'active' : ''}`}
+          onClick={onToggleDesktopPreview}
+          title={desktopPreview ? 'Voltar para visualização do celular' : 'Visualizar como computador'}
+          aria-label={desktopPreview ? 'Voltar para visualização do celular' : 'Visualizar como computador'}
+          aria-pressed={desktopPreview}
+        >
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="12" rx="2" />
+            <path d="M8 20h8M12 16v4" />
+          </svg>
+          <span>{desktopPreview ? 'Modo celular' : 'Modo PC'}</span>
+        </button>
         <button
           type="button"
           className={`topbar-bell-btn ${unreadCount > 0 ? 'has-unread' : ''}`}
@@ -1640,6 +1654,16 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
    MAIN ADMIN APP ROOT
    ========================================================================= */
 function AdminApp() {
+  const desktopPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('desktop') === '1';
+
+  const toggleDesktopPreview = () => {
+    const url = new URL(window.location.href);
+    if (desktopPreview) url.searchParams.delete('desktop');
+    else url.searchParams.set('desktop', '1');
+    window.location.assign(url.toString());
+  };
+
   const [activeView, setActiveView] = useState(() => {
     const hash = typeof window !== 'undefined' ? window.location.hash : '';
     if (hash === '#admin/mural-nisti' || hash === '#mural-nisti' || hash === '#mural-admin' || hash === '#admin-mural') {
@@ -1835,7 +1859,7 @@ function AdminApp() {
   }
 
   return (
-    <div className="admin-layout-root">
+    <div className={`admin-layout-root ${desktopPreview ? 'admin-desktop-preview' : ''}`}>
       <ProductImageTreatmentWorker
         enabled
         onBatchComplete={async () => {
@@ -1857,6 +1881,8 @@ function AdminApp() {
           unreadCount={unreadCount}
           activeView={activeView}
           onOpenNotifications={() => setNotificationsOpen(true)}
+          desktopPreview={desktopPreview}
+          onToggleDesktopPreview={toggleDesktopPreview}
         />
 
         <AdminNotificationsModal
