@@ -6,16 +6,24 @@ function read(path) {
   return fs.readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 }
 
-test('menu administrativo expõe o Catálogo Comercial como módulo protegido', () => {
+test('menu administrativo expõe o Catálogo como árvore de ferramentas no painel principal', () => {
   const nav = read('src/admin-navigation.js');
   assert.equal(nav.includes("title: 'COMERCIAL'"), true);
-  assert.equal(nav.includes("href: '/admin-commerce'"), true);
+  assert.equal(nav.includes("label: 'Catálogo'"), true);
+  assert.equal(nav.includes("id: 'sales'"), true);
+  assert.equal(nav.includes("id: 'import-center'"), true);
+  assert.equal(nav.includes("id: 'pending'"), true);
+  assert.equal(nav.includes("href: '/admin-commerce'"), false);
 });
 
-test('menu principal navega para o módulo comercial ao selecionar commerce', () => {
+test('menu principal mantém as ferramentas comerciais dentro de /admin', () => {
   const main = read('src/main.jsx');
-  assert.equal(main.includes("if (viewId === 'commerce')"), true);
-  assert.equal(main.includes("window.location.href = '/admin-commerce'"), true);
+  assert.equal(main.includes("window.location.href = '/admin-commerce'"), false);
+  assert.equal(main.includes("activeView === 'commerce'"), true);
+  assert.equal(main.includes("commerceSection === 'catalog'"), true);
+  assert.equal(main.includes("commerceSection === 'sales'"), true);
+  assert.equal(main.includes("commerceSection === 'import-center'"), true);
+  assert.equal(main.includes("commerceSection === 'pending'"), true);
 });
 
 test('entry resolve /admin-commerce antes do prefixo genérico /admin', () => {
