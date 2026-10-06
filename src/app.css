@@ -1897,6 +1897,40 @@ select:focus,input[type=text]:focus,input[type=url]:focus { border-color: #b9c7f
   gap: 10px;
 }
 
+.topbar-desktop-preview-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: border-color .15s ease, background-color .15s ease, color .15s ease, transform .15s ease;
+}
+
+.topbar-desktop-preview-btn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.topbar-desktop-preview-btn.active {
+  border-color: #93c5fd;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.admin-desktop-preview .topbar-desktop-preview-btn {
+  display: inline-flex;
+}
+
 .topbar-system-status {
   display: inline-flex;
   align-items: center;
@@ -3450,6 +3484,12 @@ button.kpi-box {
 }
 
 @media (max-width: 860px) {
+  .topbar-desktop-preview-btn {
+    display: inline-flex;
+  }
+  .topbar-desktop-preview-btn span {
+    display: none;
+  }
   .admin-sidebar {
     position: fixed;
     top: 0;
