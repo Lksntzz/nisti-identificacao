@@ -927,7 +927,7 @@ function MuralAdminOverview({ posts, collections, products, readiness, loading, 
 }
 
 export default function MuralNistiAdminView() {
-  const [section,setSection]=useState('posts');
+  const [section,setSection]=useState('overview');
   const [posts,setPosts]=useState([]);
   const [collections,setCollections]=useState([]);
   const [products,setProducts]=useState([]);
@@ -977,6 +977,17 @@ export default function MuralNistiAdminView() {
     }
   };
 
+  const sectionMeta = {
+    overview:{title:'Mural NISTI',description:'Visão geral das ferramentas, conteúdo e estado de liberação.',icon:'home',eyebrow:'VISÃO GERAL'},
+    posts:{title:'Publicações',description:'Gerencie produtos, avisos e conteúdos publicados para os operadores.',icon:'document',eyebrow:'CONTEÚDO'},
+    collections:{title:'Coleções',description:'Organize produtos em coleções, configure banners e defina a ordem editorial.',icon:'collection',eyebrow:'CONTEÚDO'},
+    images:{title:'Imagens dos produtos',description:'Trate, revise e aprove as imagens que alimentam o Mural.',icon:'image',eyebrow:'PRODUÇÃO VISUAL'},
+    metrics:{title:'Métricas',description:'Acompanhe leituras e indicadores de uso do Mural.',icon:'metrics',eyebrow:'GESTÃO E CONTROLE'},
+    qa:{title:'QA de liberação',description:'Valide estrutura, conteúdo e desempenho antes da liberação.',icon:'shield',eyebrow:'GESTÃO E CONTROLE'}
+  };
+  const currentSection = sectionMeta[section] || sectionMeta.overview;
+  const reviewImageCount = products.filter(row=>row.mural_image_reviewable).length;
+
   if (editor) {
     return <PostEditor
       item={editor}
@@ -988,56 +999,117 @@ export default function MuralNistiAdminView() {
   }
 
   return <section className="mural-admin-view mural-admin-dashboard">
-    <header className="mural-admin-dashboard-header">
+    <header className="mural-admin-dashboard-header mural-admin-dashboard-header-hierarchy">
       <div className="mural-admin-dashboard-title">
-        <span className="icon"><AdminMuralIcon name="user" size={22}/></span>
-        <span><h2>Conteúdo para operadores</h2><p>Crie, gerencie e publique produtos, coleções e avisos que serão exibidos no Mural.</p></span>
+        <span className="icon"><AdminMuralIcon name={currentSection.icon} size={22}/></span>
+        <span><small className="mural-admin-section-eyebrow">{currentSection.eyebrow}</small><h2>{currentSection.title}</h2><p>{currentSection.description}</p></span>
       </div>
       <div className="mural-admin-dashboard-actions">
         <button type="button" className="qa" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>
+        {section==='overview'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
         {section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
         {section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}
       </div>
     </header>
-    <div className="mural-admin-manager-nav">
-      <div>
-        <button className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>Publicações</button>
-        <button className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>Coleções</button>
-        <button className={section==='images'?'active':''} onClick={()=>setSection('images')}>Imagens dos produtos</button>
-        <button className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>Métricas</button>
-        <button className={section==='qa'?'active':''} onClick={()=>setSection('qa')}>QA de liberação</button>
-      </div>
-      <span className="mural-admin-private-badge">QA privado · público em “Em breve”</span>
+
+    <div className="mural-admin-workspace">
+      <aside className="mural-admin-hierarchy-nav" aria-label="Ferramentas do Mural">
+        <button type="button" className={section==='overview'?'active':''} onClick={()=>setSection('overview')}>
+          <span className="nav-icon"><AdminMuralIcon name="home" size={18}/></span>
+          <span><b>Visão geral</b><small>Painel e atalhos</small></span>
+        </button>
+
+        <div className="mural-admin-hierarchy-group">
+          <span>CONTEÚDO</span>
+          <button type="button" className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>
+            <span className="nav-icon"><AdminMuralIcon name="document" size={18}/></span>
+            <span><b>Publicações</b><small>Produtos e avisos</small></span>
+            <em>{posts.length}</em>
+          </button>
+          <button type="button" className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>
+            <span className="nav-icon"><AdminMuralIcon name="collection" size={18}/></span>
+            <span><b>Coleções</b><small>Capas e banners</small></span>
+            <em>{collections.length}</em>
+          </button>
+        </div>
+
+        <div className="mural-admin-hierarchy-group">
+          <span>PRODUÇÃO VISUAL</span>
+          <button type="button" className={section==='images'?'active':''} onClick={()=>setSection('images')}>
+            <span className="nav-icon"><AdminMuralIcon name="image" size={18}/></span>
+            <span><b>Imagens dos produtos</b><small>Tratamento e revisão</small></span>
+            {reviewImageCount>0&&<em className="attention">{reviewImageCount}</em>}
+          </button>
+        </div>
+
+        <div className="mural-admin-hierarchy-group">
+          <span>GESTÃO E CONTROLE</span>
+          <button type="button" className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>
+            <span className="nav-icon"><AdminMuralIcon name="metrics" size={18}/></span>
+            <span><b>Métricas</b><small>Leitura e desempenho</small></span>
+          </button>
+          <button type="button" className={section==='qa'?'active':''} onClick={()=>setSection('qa')}>
+            <span className="nav-icon"><AdminMuralIcon name="shield" size={18}/></span>
+            <span><b>QA de liberação</b><small>Validação final</small></span>
+            <i className={readiness?.automated_ready?'ok':'pending'} aria-hidden="true"/>
+          </button>
+        </div>
+
+        <div className="mural-admin-hierarchy-status">
+          <span>AMBIENTE</span>
+          <b>QA privado</b>
+          <small>Público permanece em “Em breve”.</small>
+        </div>
+      </aside>
+
+      <main className="mural-admin-workspace-content">
+        {error&&<div className="mural-admin-error">{error}</div>}
+
+        {section==='overview'&&<MuralAdminOverview
+          posts={posts}
+          collections={collections}
+          products={products}
+          readiness={readiness}
+          loading={loading}
+          onNavigate={setSection}
+          onNewPost={()=>setEditor({mode:'new'})}
+          onNewCollection={()=>setCollectionEditor({mode:'new'})}
+        />}
+
+        {section==='posts'&&<MuralPublicationsDashboard
+          posts={posts}
+          collections={collections}
+          loading={loading}
+          onEdit={setEditor}
+          onAction={action}
+          onPush={sendPush}
+          onDelete={deletePost}
+        />}
+
+        {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.show_year!==false&&Number(row.show_year??1)!==0&&row.year?row.year:'sem ano no banner'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
+
+        {section==='images'&&<MuralProductImageManager products={products} onChanged={load}/>}
+
+        {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>IMAGEM EDITORIAL MÉDIA</small><strong>{metrics?.editorial_images?.average_bytes ? `${Math.round(metrics.editorial_images.average_bytes/1024)} KB` : '0 KB'}</strong><span>{metrics?.editorial_images?.count ?? 0} imagens</span></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
+
+        {section==='qa'&&<div className="mural-admin-readiness">
+          <div className="mural-admin-readiness-summary">
+            <div><small>READINESS AUTOMÁTICO</small><strong>{readiness?.automated_ready?'Pronto para smoke':'Pendências detectadas'}</strong><p>Valida o ambiente atual sem remover o gate público do Mural.</p></div>
+            <div className="mural-admin-readiness-summary-actions"><ReadinessBadge ok={Boolean(readiness?.automated_ready)} unknown={!readiness}/><button type="button" onClick={refreshReadiness}>Atualizar diagnóstico</button></div>
+          </div>
+          <div className="mural-admin-readiness-grid">
+            <article><div><small>MIGRATION D1</small><strong>{readiness?.migration?.ok?'Estrutura presente':'Estrutura incompleta'}</strong></div><ReadinessBadge ok={Boolean(readiness?.migration?.ok)} unknown={!readiness}/>{readiness?.migration?.missing_tables?.length>0&&<p>Faltando: {readiness.migration.missing_tables.join(', ')}</p>}</article>
+            <article><div><small>CONTEÚDO PARA QA</small><strong>{readiness?.content?.published_now ?? '—'} publicados agora</strong></div><ReadinessBadge ok={Boolean(readiness?.content?.ok)} unknown={!readiness}/><p>Meta mínima: {readiness?.content?.minimum_for_qa ?? 3}. Produto {readiness?.content?.by_kind?.product ?? 0} · Coleção {readiness?.content?.by_kind?.collection ?? 0} · Aviso {readiness?.content?.by_kind?.notice ?? 0}.</p></article>
+            <article><div><small>PRIMEIRA DOBRA</small><strong>{formatBytes(readiness?.images?.first_fold_bytes)} / {formatBytes(readiness?.images?.first_fold_budget_bytes)}</strong></div><ReadinessBadge ok={Boolean(readiness?.images?.ok)} unknown={!readiness || !readiness?.images?.available}/><p>Soma do hero + primeiros cards, usando os objetos reais do R2 quando disponíveis.</p></article>
+          </div>
+          <div className="mural-admin-readiness-list">
+            <h3>Imagens da primeira dobra</h3>
+            {readiness?.images?.items?.length?readiness.images.items.map(item=><div key={item.id}><span><b>{item.title}</b><small>{item.role} · {item.kind}</small></span><span>{formatBytes(item.bytes)} / {formatBytes(item.budget_bytes)}</span><ReadinessBadge ok={item.within_budget!==false} unknown={item.within_budget===null}/></div>):<p>Nenhuma imagem mensurável na primeira dobra.</p>}
+          </div>
+          <div className="mural-admin-readiness-manual"><strong>Ainda exige validação real</strong><p>Scanner → Mural → Scanner com reinício da câmera, breakpoints 360/390/430 px, safe-area no iPhone e abertura abaixo de 1 s continuam sendo smoke tests em aparelho real.</p></div>
+        </div>}
+      </main>
     </div>
-    {error&&<div className="mural-admin-error">{error}</div>}
-    {section==='posts'&&<MuralPublicationsDashboard
-      posts={posts}
-      collections={collections}
-      loading={loading}
-      onEdit={setEditor}
-      onAction={action}
-      onPush={sendPush}
-      onDelete={deletePost}
-    />}
-    {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.show_year!==false&&Number(row.show_year??1)!==0&&row.year?row.year:'sem ano no banner'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
-    {section==='images'&&<MuralProductImageManager products={products} onChanged={load}/>}
-    {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>IMAGEM EDITORIAL MÉDIA</small><strong>{metrics?.editorial_images?.average_bytes ? `${Math.round(metrics.editorial_images.average_bytes/1024)} KB` : '0 KB'}</strong><span>{metrics?.editorial_images?.count ?? 0} imagens</span></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
-    {section==='qa'&&<div className="mural-admin-readiness">
-      <div className="mural-admin-readiness-summary">
-        <div><small>READINESS AUTOMÁTICO</small><strong>{readiness?.automated_ready?'Pronto para smoke':'Pendências detectadas'}</strong><p>Valida o ambiente atual sem remover o gate público do Mural.</p></div>
-        <div className="mural-admin-readiness-summary-actions"><ReadinessBadge ok={Boolean(readiness?.automated_ready)} unknown={!readiness}/><button type="button" onClick={refreshReadiness}>Atualizar diagnóstico</button></div>
-      </div>
-      <div className="mural-admin-readiness-grid">
-        <article><div><small>MIGRATION D1</small><strong>{readiness?.migration?.ok?'Estrutura presente':'Estrutura incompleta'}</strong></div><ReadinessBadge ok={Boolean(readiness?.migration?.ok)} unknown={!readiness}/>{readiness?.migration?.missing_tables?.length>0&&<p>Faltando: {readiness.migration.missing_tables.join(', ')}</p>}</article>
-        <article><div><small>CONTEÚDO PARA QA</small><strong>{readiness?.content?.published_now ?? '—'} publicados agora</strong></div><ReadinessBadge ok={Boolean(readiness?.content?.ok)} unknown={!readiness}/><p>Meta mínima: {readiness?.content?.minimum_for_qa ?? 3}. Produto {readiness?.content?.by_kind?.product ?? 0} · Coleção {readiness?.content?.by_kind?.collection ?? 0} · Aviso {readiness?.content?.by_kind?.notice ?? 0}.</p></article>
-        <article><div><small>PRIMEIRA DOBRA</small><strong>{formatBytes(readiness?.images?.first_fold_bytes)} / {formatBytes(readiness?.images?.first_fold_budget_bytes)}</strong></div><ReadinessBadge ok={Boolean(readiness?.images?.ok)} unknown={!readiness || !readiness?.images?.available}/><p>Soma do hero + primeiros cards, usando os objetos reais do R2 quando disponíveis.</p></article>
-      </div>
-      <div className="mural-admin-readiness-list">
-        <h3>Imagens da primeira dobra</h3>
-        {readiness?.images?.items?.length?readiness.images.items.map(item=><div key={item.id}><span><b>{item.title}</b><small>{item.role} · {item.kind}</small></span><span>{formatBytes(item.bytes)} / {formatBytes(item.budget_bytes)}</span><ReadinessBadge ok={item.within_budget!==false} unknown={item.within_budget===null}/></div>):<p>Nenhuma imagem mensurável na primeira dobra.</p>}
-      </div>
-      <div className="mural-admin-readiness-manual"><strong>Ainda exige validação real</strong><p>Scanner → Mural → Scanner com reinício da câmera, breakpoints 360/390/430 px, safe-area no iPhone e abertura abaixo de 1 s continuam sendo smoke tests em aparelho real.</p></div>
-    </div>}
 
     {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
   </section>;
