@@ -777,7 +777,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
 }
 
 function CollectionEditor({ item, products, onClose, onSaved }) {
-  const [form,setForm]=useState({name:item?.name||'',slug:item?.slug||'',year:item?.year||'',description:item?.description||'',status:item?.status||'active'});
+  const [form,setForm]=useState({name:item?.name||'',slug:item?.slug||'',year:item?.year||'',show_year:item?.show_year!==false&&Number(item?.show_year??1)!==0,hero_message:item?.hero_message||'',visual_direction:item?.visual_direction||'automatic',theme_notes:item?.theme_notes||'',description:item?.description||'',status:item?.status||'active'});
   const [selected,setSelected]=useState(()=>String(item?.product_ids||'').split(',').map(Number).filter(id=>Number.isInteger(id)&&id>0));
   const [image,setImage]=useState(null);
   const [storedImageKey,setStoredImageKey]=useState(item?.image_key||'');
@@ -832,8 +832,24 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
   };
   return <div className="mural-admin-modal" role="dialog" aria-modal="true"><div className="mural-admin-editor compact"><header><h2>{item?'Editar coleção':'Nova coleção'}</h2><button onClick={onClose}>×</button></header><div className="mural-admin-collection-form">
     <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL DO MURAL</span><strong>Collection Launch Hero Card</strong><small>Mesmo visual do mockup: banner horizontal 2:1, selo NOVA COLEÇÃO automático, nome + ano + frase curta e capas reais da coleção. O Mural público continua bloqueado; a publicação é visível somente no QA.</small></div>
-    <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><div className="mural-admin-inline"><label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label><label>Ano<input type="number" value={form.year} onChange={e=>setForm({...form,year:e.target.value})}/></label></div>
-    <label>Frase / descrição da coleção<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Quando houver texto, o início desta descrição será usado como frase curta no Hero Card da coleção.</small></label>
+    <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
+    <div className="mural-admin-inline">
+      <label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label>
+      <label className="mural-collection-year-field">Ano<input type="number" value={form.year} disabled={!form.show_year} onChange={e=>setForm({...form,year:e.target.value})}/><small>{form.show_year?'Aparece no banner quando preenchido.':'O ano ficará oculto no banner.'}</small></label>
+    </div>
+    <label className="mural-admin-toggle-row"><input type="checkbox" checked={form.show_year} onChange={e=>setForm({...form,show_year:e.target.checked})}/><span><b>Exibir ano no banner</b><small>Desative para coleções que não usam ano.</small></span></label>
+    <label>Mensagem curta do banner<input maxLength="140" value={form.hero_message} onChange={e=>setForm({...form,hero_message:e.target.value})} placeholder="Ex.: Mais fofura para o seu dia a dia."/><small>Texto curto abaixo do nome da coleção.</small></label>
+    <div className="mural-admin-inline">
+      <label>Direção visual<select value={form.visual_direction} onChange={e=>setForm({...form,visual_direction:e.target.value})}><option value="automatic">Automática</option><option value="delicate">Delicada</option><option value="premium">Premium</option><option value="minimal">Minimalista</option><option value="playful">Divertida</option></select><small>Será usada na geração do banner Canva.</small></label>
+      <label>Elementos / cores do tema<textarea rows="3" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, patinhas, estrelas e brilho suave"/></label>
+    </div>
+    <div className="mural-collection-hero-config-preview">
+      <span>NOVA COLEÇÃO</span>
+      <strong>{form.name||'Nome da coleção'}{form.show_year&&form.year?' '+form.year:''}</strong>
+      <small>{form.hero_message||'Mensagem curta do banner'}</small>
+      <em>{({automatic:'Automática',delicate:'Delicada',premium:'Premium',minimal:'Minimalista',playful:'Divertida'})[form.visual_direction]||'Automática'}{form.theme_notes?' · '+form.theme_notes:''}</em>
+    </div>
+    <label>Descrição da coleção<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Descrição detalhada. A mensagem curta acima é usada primeiro no Hero Card.</small></label>
     <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
     {imageUrl&&<div className="mural-admin-banner-preview"><img src={imageUrl} alt={form.name||'Banner da coleção'}/><button type="button" disabled={busy} onClick={removeBanner}>Remover banner</button></div>}
     {item&&<label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
@@ -937,7 +953,7 @@ export default function MuralNistiAdminView() {
       onPush={sendPush}
       onDelete={deletePost}
     />}
-    {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.year||'sem ano'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
+    {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.show_year!==false&&Number(row.show_year??1)!==0&&row.year?row.year:'sem ano no banner'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
     {section==='images'&&<MuralProductImageManager products={products} onChanged={load}/>}
     {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>IMAGEM EDITORIAL MÉDIA</small><strong>{metrics?.editorial_images?.average_bytes ? `${Math.round(metrics.editorial_images.average_bytes/1024)} KB` : '0 KB'}</strong><span>{metrics?.editorial_images?.count ?? 0} imagens</span></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
     {section==='qa'&&<div className="mural-admin-readiness">

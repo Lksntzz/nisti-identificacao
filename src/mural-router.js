@@ -181,6 +181,10 @@ function mapFeedRow(row, collectionPreviews = new Map()) {
           slug: row.collection_slug,
           name: row.collection_name,
           year: row.collection_year ? Number(row.collection_year) : null,
+          show_year: row.collection_show_year !== false && Number(row.collection_show_year ?? 1) !== 0,
+          hero_message: row.collection_hero_message || null,
+          visual_direction: row.collection_visual_direction || 'automatic',
+          theme_notes: row.collection_theme_notes || null,
           description: row.collection_description || null,
           product_count: Number(collectionPreview?.count || 0),
           preview_products: collectionPreview?.items || []
@@ -250,7 +254,7 @@ async function listMuralFeed(request, url, env) {
             ORDER BY COALESCE(mc2.year,0) DESC,mc2.id DESC
             LIMIT 1
           ) AS product_collection_name,
-          mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,mc.year AS collection_year,mc.description AS collection_description,mc.image_key AS collection_image_key,
+          mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,mc.year AS collection_year,mc.show_year AS collection_show_year,mc.hero_message AS collection_hero_message,mc.visual_direction AS collection_visual_direction,mc.theme_notes AS collection_theme_notes,mc.description AS collection_description,mc.image_key AS collection_image_key,
           CASE WHEN mr.post_id IS NULL THEN 0 ELSE 1 END AS is_read
         FROM mural_posts mp
         LEFT JOIN products p ON p.id = mp.product_id
@@ -402,7 +406,7 @@ async function collectionDetail(slug, env) {
     () => supabaseReserveMuralCollection(env,slug),
     async () => {
       const collection = await env.DB.prepare(`
-        SELECT id,slug,name,year,description,image_key,status
+        SELECT id,slug,name,year,show_year,hero_message,visual_direction,theme_notes,description,image_key,status
         FROM mural_collections
         WHERE slug = ? AND status = 'active'
         LIMIT 1
@@ -437,6 +441,10 @@ async function collectionDetail(slug, env) {
       slug:collection.slug,
       name:collection.name,
       year:collection.year ? Number(collection.year) : null,
+      show_year:collection.show_year !== false && Number(collection.show_year ?? 1) !== 0,
+      hero_message:collection.hero_message || null,
+      visual_direction:collection.visual_direction || 'automatic',
+      theme_notes:collection.theme_notes || null,
       description:collection.description || null,
       image_url:collection.image_key ? `/api/mural/collections/${encodeURIComponent(collection.slug)}/image?v=${encodeURIComponent(collection.image_key)}` : null,
       products:products.map(row => {
@@ -462,6 +470,7 @@ async function collectionDetail(slug, env) {
 const ADMIN_KINDS = new Set(['product', 'collection', 'notice']);
 const ADMIN_STATUSES = new Set(['draft', 'published', 'archived']);
 const NOTICE_LEVELS = new Set(['important', 'attention', 'info']);
+const COLLECTION_VISUAL_DIRECTIONS = new Set(['automatic','delicate','premium','minimal','playful']);
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_EDITORIAL_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_MURAL_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -925,11 +934,17 @@ async function adminCreateCollection(request, env) {
   const slug = slugify(input.slug || name);
   if (!slug) throw new Error('Slug inválido.');
   const year = input.year ? Number(input.year) : null;
+  const showYear = input.show_year !== false;
+  const heroMessage = nullableText(input.hero_message,140);
+  const visualDirection = String(input.visual_direction || 'automatic').trim().toLowerCase();
+  if (!COLLECTION_VISUAL_DIRECTIONS.has(visualDirection)) throw new Error('Direção visual da coleção inválida.');
+  const themeNotes = nullableText(input.theme_notes,400);
   const description = nullableText(input.description,700);
   if (supabasePrimaryWritesRequested(env)) {
     const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_collection_write_v1',{
       p_action:'create',p_id:null,p_payload:{
-        slug,name,year:Number.isInteger(year)?year:null,description
+        slug,name,year:Number.isInteger(year)?year:null,show_year:showYear,
+        hero_message:heroMessage,visual_direction:visualDirection,theme_notes:themeNotes,description
       }
     },'create mural collection primary');
     const value=result?.value || {};
@@ -939,9 +954,9 @@ async function adminCreateCollection(request, env) {
   }
   try {
     const result = await env.DB.prepare(`
-      INSERT INTO mural_collections (slug,name,year,description,status,updated_at)
-      VALUES (?,?,?,?, 'active',CURRENT_TIMESTAMP)
-    `).bind(slug,name,Number.isInteger(year) ? year : null,description).run();
+      INSERT INTO mural_collections (slug,name,year,show_year,hero_message,visual_direction,theme_notes,description,status,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,'active',CURRENT_TIMESTAMP)
+    `).bind(slug,name,Number.isInteger(year) ? year : null,showYear?1:0,heroMessage,visualDirection,themeNotes,description).run();
     return json({ id:Number(result.meta.last_row_id),slug },201);
   } catch (error) {
     if (String(error.message).includes('UNIQUE')) return json({ error:'Já existe uma coleção com esse slug.' },409);
@@ -960,9 +975,15 @@ async function adminUpdateCollection(id, request, env) {
     if(!['active','archived'].includes(status)) throw new Error('Status de coleção inválido.');
     const yearValue=input.year ?? current.year;
     const year=yearValue ? Number(yearValue) : null;
+    const showYear=input.show_year ?? current.show_year ?? true;
+    const heroMessage=nullableText(input.hero_message ?? current.hero_message,140);
+    const visualDirection=String(input.visual_direction ?? current.visual_direction ?? 'automatic').trim().toLowerCase();
+    if(!COLLECTION_VISUAL_DIRECTIONS.has(visualDirection)) throw new Error('Direção visual da coleção inválida.');
+    const themeNotes=nullableText(input.theme_notes ?? current.theme_notes,400);
     const result=await mirrorSupabaseRpc(env,'nisti_admin_mural_collection_write_v1',{
       p_action:'update',p_id:id,p_payload:{
-        slug,name,year:Number.isInteger(year)?year:null,
+        slug,name,year:Number.isInteger(year)?year:null,show_year:Boolean(showYear),
+        hero_message:heroMessage,visual_direction:visualDirection,theme_notes:themeNotes,
         description:nullableText(input.description ?? current.description,700),
         status
       }
@@ -981,9 +1002,14 @@ async function adminUpdateCollection(id, request, env) {
   if (!['active','archived'].includes(status)) throw new Error('Status de coleção inválido.');
   const yearValue = input.year ?? current.year;
   const year = yearValue ? Number(yearValue) : null;
+  const showYear = input.show_year ?? current.show_year ?? 1;
+  const heroMessage = nullableText(input.hero_message ?? current.hero_message,140);
+  const visualDirection = String(input.visual_direction ?? current.visual_direction ?? 'automatic').trim().toLowerCase();
+  if(!COLLECTION_VISUAL_DIRECTIONS.has(visualDirection)) throw new Error('Direção visual da coleção inválida.');
+  const themeNotes = nullableText(input.theme_notes ?? current.theme_notes,400);
   await env.DB.prepare(`
-    UPDATE mural_collections SET slug=?,name=?,year=?,description=?,status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?
-  `).bind(slug,name,Number.isInteger(year)?year:null,nullableText(input.description ?? current.description,700),status,id).run();
+    UPDATE mural_collections SET slug=?,name=?,year=?,show_year=?,hero_message=?,visual_direction=?,theme_notes=?,description=?,status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?
+  `).bind(slug,name,Number.isInteger(year)?year:null,showYear?1:0,heroMessage,visualDirection,themeNotes,nullableText(input.description ?? current.description,700),status,id).run();
   return json({ok:true,id,slug});
 }
 
@@ -1038,7 +1064,7 @@ async function adminPublishCollection(id, env) {
     });
   }
   const collection = await env.DB.prepare(`
-    SELECT id,slug,name,year,description,image_key,status
+    SELECT id,slug,name,year,show_year,hero_message,visual_direction,theme_notes,description,image_key,status
     FROM mural_collections
     WHERE id=?
     LIMIT 1
@@ -1056,8 +1082,9 @@ async function adminPublishCollection(id, env) {
 
   const name = String(collection.name || '').trim();
   const year = collection.year ? String(collection.year) : '';
-  const title = year && !name.endsWith(year) ? `${name} ${year}` : name;
-  const supporting = String(collection.description || '').trim()
+  const title = collection.show_year !== 0 && collection.show_year !== false && year && !name.endsWith(year) ? `${name} ${year}` : name;
+  const supporting = String(collection.hero_message || '').trim()
+    || String(collection.description || '').trim()
     || `Conheça a nova coleção ${title}.`;
   const publishedAt = new Date().toISOString();
 
