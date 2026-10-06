@@ -485,14 +485,15 @@ function CollectionRevealIntro({ products, title, onComplete }) {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const secondaryCount = Math.max(0, products.length - 1);
-  const secondaryStart = 1850;
-  const secondaryStep = 900;
-  const secondaryDuration = 1350;
-  const fanHold = 1100;
-  const fadeDuration = 380;
-  const lastCoverFinish = secondaryCount
-    ? secondaryStart + (secondaryCount - 1) * secondaryStep + secondaryDuration
-    : 2700;
+  const secondaryStart = 2100;
+  const secondaryStep = 3000;
+  const secondaryDuration = 1100;
+  const titleDelay = secondaryCount
+    ? secondaryStart + (secondaryCount - 1) * secondaryStep + secondaryDuration + 350
+    : 2850;
+  const titleDuration = 2400;
+  const fadeDuration = 420;
+  const introFinish = titleDelay + titleDuration;
 
   useEffect(() => {
     const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
@@ -505,8 +506,8 @@ function CollectionRevealIntro({ products, title, onComplete }) {
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => setReady(true));
     });
-    const leaveTimer = window.setTimeout(() => setLeaving(true), lastCoverFinish + fanHold);
-    const completeTimer = window.setTimeout(onComplete, lastCoverFinish + fanHold + fadeDuration);
+    const leaveTimer = window.setTimeout(() => setLeaving(true), introFinish);
+    const completeTimer = window.setTimeout(onComplete, introFinish + fadeDuration);
 
     return () => {
       cancelAnimationFrame(firstFrame);
@@ -514,7 +515,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       window.clearTimeout(leaveTimer);
       window.clearTimeout(completeTimer);
     };
-  }, [lastCoverFinish, onComplete]);
+  }, [introFinish, onComplete]);
 
   const mainProduct = products[0];
   const secondaryProducts = products.slice(1);
@@ -552,6 +553,17 @@ function CollectionRevealIntro({ products, title, onComplete }) {
           );
         })}
       </div>
+      <span
+        className="mural-collection-reveal-title"
+        style={{
+          '--collection-title-delay': `${titleDelay}ms`,
+          '--collection-title-duration': `${titleDuration}ms`
+        }}
+        aria-hidden="true"
+      >
+        <small>NOVA COLEÇÃO</small>
+        <strong>{title}</strong>
+      </span>
     </div>
   );
 }
