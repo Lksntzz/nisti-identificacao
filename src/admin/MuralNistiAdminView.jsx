@@ -38,6 +38,11 @@ function AdminMuralIcon({ name, size = 22 }) {
   if (name === 'user') return <svg {...common}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>;
   if (name === 'home') return <svg {...common}><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg>;
   if (name === 'chevron') return <svg {...common}><path d="m9 18 6-6-6-6"/></svg>;
+  if (name === 'eye') return <svg {...common}><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>;
+  if (name === 'upload') return <svg {...common}><path d="M12 16V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v5h14v-5"/></svg>;
+  if (name === 'clock') return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>;
+  if (name === 'info') return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></svg>;
+  if (name === 'close') return <svg {...common}><path d="m7 7 10 10M17 7 7 17"/></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>;
 }
 
@@ -475,10 +480,14 @@ function MobilePreview({ form, product, collection, imageUrl }) {
     elastico: product.elastico || null
   } : null;
   const collectionPreview = form.kind === 'collection' && collection ? {
-    id: Number(collection.id),
+    id: Number(collection.id || 0),
     slug: collection.slug || '',
     name: collection.name || '',
-    year: collection.year ? Number(collection.year) : null
+    year: collection.year ? Number(collection.year) : null,
+    show_year: collection.show_year !== false,
+    hero_message: collection.hero_message || null,
+    description: collection.description || null,
+    preview_products: Array.isArray(collection.preview_products) ? collection.preview_products : []
   } : null;
   const collectionImage = collection?.image_key
     ? `/api/admin/mural/collections/${collection.id}/image?v=${encodeURIComponent(collection.image_key)}`
