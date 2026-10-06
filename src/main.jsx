@@ -177,7 +177,35 @@ function catalogRowsFromCsv(text) {
 /* =========================================================================
    SIDEBAR COMPONENT
    ========================================================================= */
-function AdminSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar }) {
+function AdminSidebar({
+  activeView,
+  onViewChange,
+  sidebarOpen,
+  onCloseSidebar,
+  activeMuralSection = 'overview',
+  onMuralSectionChange
+}) {
+  const [expandedItems,setExpandedItems]=useState(()=>new Set(activeView==='mural-nisti'?['mural-nisti']:[]));
+
+  useEffect(()=>{
+    if(activeView!=='mural-nisti') return;
+    setExpandedItems(previous=>{
+      if(previous.has('mural-nisti')) return previous;
+      const next=new Set(previous);
+      next.add('mural-nisti');
+      return next;
+    });
+  },[activeView]);
+
+  const toggleExpanded = itemId => {
+    setExpandedItems(previous=>{
+      const next=new Set(previous);
+      if(next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  };
+
   return (
     <>
       {sidebarOpen && <div className="sidebar-mobile-backdrop" onClick={onCloseSidebar} />}
@@ -199,6 +227,68 @@ function AdminSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar })
               <ul className="sidebar-section-list">
                 {section.items.map(item => {
                   const isActive = activeView === item.id;
+                  const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+                  const isExpanded = hasChildren && expandedItems.has(item.id);
+
+                  if (hasChildren) {
+                    return (
+                      <li key={item.id} className={`sidebar-nav-tree ${isExpanded ? 'expanded' : ''}`}>
+                        <div className={`sidebar-nav-tree-parent ${isActive ? 'active' : ''}`}>
+                          <button
+                            type="button"
+                            className={`sidebar-nav-item sidebar-nav-parent-main ${isActive ? 'active' : ''}`}
+                            onClick={() => {
+                              onViewChange(item.id);
+                              onMuralSectionChange?.('overview');
+                              setExpandedItems(previous => {
+                                const next = new Set(previous);
+                                next.add(item.id);
+                                return next;
+                              });
+                            }}
+                          >
+                            <SidebarIcon name={item.icon} />
+                            <span className="sidebar-item-label">{item.label}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`sidebar-nav-chevron ${isExpanded ? 'expanded' : ''}`}
+                            aria-label={isExpanded ? `Recolher ${item.label}` : `Expandir ${item.label}`}
+                            aria-expanded={isExpanded}
+                            onClick={() => toggleExpanded(item.id)}
+                          >
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m6 9 6 6 6-6" />
+                            </svg>
+                          </button>
+                        </div>
+                        {isExpanded && (
+                          <ul className="sidebar-submenu">
+                            {item.children.map(child => {
+                              const childActive = isActive && activeMuralSection === child.id;
+                              return (
+                                <li key={child.id}>
+                                  <button
+                                    type="button"
+                                    className={`sidebar-submenu-item ${childActive ? 'active' : ''}`}
+                                    onClick={() => {
+                                      onViewChange(item.id);
+                                      onMuralSectionChange?.(child.id);
+                                      onCloseSidebar();
+                                    }}
+                                  >
+                                    <span className="sidebar-submenu-rail" aria-hidden="true" />
+                                    <span>{child.label}</span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  }
+
                   return (
                     <li key={item.id}>
                       <button
@@ -1568,6 +1658,7 @@ function AdminApp() {
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
+  const [muralSection,setMuralSection]=useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [metrics, setMetrics] = useState(null);
@@ -1754,6 +1845,8 @@ function AdminApp() {
       <AdminSidebar
         activeView={activeView}
         onViewChange={handleNavChange}
+        activeMuralSection={muralSection}
+        onMuralSectionChange={setMuralSection}
         sidebarOpen={sidebarOpen}
         onCloseSidebar={() => setSidebarOpen(false)}
       />
@@ -1798,7 +1891,7 @@ function AdminApp() {
               </>
             )}
 
-            {activeView === 'mural-nisti' && <MuralNistiAdminView />}
+            {activeView === 'mural-nisti' && <MuralNistiAdminView activeSection={muralSection} onSectionChange={setMuralSection} />}
 
             {activeView === 'catalogo' && (
               <CatalogView
