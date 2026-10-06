@@ -464,20 +464,35 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
   );
 }
 
-function collectionRevealPosition(index) {
+function collectionRevealPosition(index, totalProducts) {
+  const presets = {
+    2: [
+      { side:'right', x:'72px', y:'2%', rotation:'9deg', scale:'.94' }
+    ],
+    3: [
+      { side:'left', x:'-82px', y:'4%', rotation:'-11deg', scale:'.91' },
+      { side:'right', x:'82px', y:'4%', rotation:'11deg', scale:'.91' }
+    ],
+    4: [
+      { side:'left', x:'-104px', y:'7%', rotation:'-14deg', scale:'.86' },
+      { side:'right', x:'104px', y:'7%', rotation:'14deg', scale:'.86' },
+      { side:'right', x:'18px', y:'-7%', rotation:'2deg', scale:'.92' }
+    ]
+  };
+  const preset = presets[totalProducts]?.[index - 1];
+  if (preset) return { ...preset, layer:String(6 + index) };
+
   const lane = Math.ceil(index / 2);
   const side = index % 2 ? -1 : 1;
-  const spread = 62 + ((lane - 1) % 4) * 30;
+  const spread = 70 + ((lane - 1) % 4) * 30;
   const depth = Math.floor((lane - 1) / 4);
   return {
     side: side < 0 ? 'left' : 'right',
     x: `${side * spread}px`,
-    y: `${Math.min(18, lane * 3 + depth * 2)}%`,
-    rotation: `${side * Math.min(20, 7 + lane * 3)}deg`,
-    scale: String(Math.max(.7, .96 - lane * .05)),
-    layer: String(index % 2
-      ? Math.max(1, 5 - Math.floor(index / 2))
-      : 7 + Math.floor(index / 2))
+    y: `${Math.min(16, lane * 3 + depth * 2)}%`,
+    rotation: `${side * Math.min(20, 8 + lane * 3)}deg`,
+    scale: String(Math.max(.68, .94 - lane * .045)),
+    layer: String(6 + index)
   };
 }
 
@@ -528,13 +543,13 @@ function CollectionRevealIntro({ products, title, onComplete }) {
     >
       <span className="mural-collection-reveal-vignette" aria-hidden="true" />
       <span className="mural-collection-reveal-white-arc" aria-hidden="true" />
-      <div className="mural-collection-reveal-fan" aria-hidden="true">
+      <div className={`mural-collection-reveal-fan fan-${Math.min(products.length,4)}`} aria-hidden="true">
         <span className="mural-collection-reveal-product is-main">
           <CollectionProductImage product={mainProduct} eager />
         </span>
         {secondaryProducts.map((product, secondaryIndex) => {
           const index = secondaryIndex + 1;
-          const position = collectionRevealPosition(index);
+          const position = collectionRevealPosition(index, products.length);
           return (
           <span
             key={product.id}
