@@ -742,52 +742,56 @@ function CollectionDialog({ slug, onClose }) {
                 {collection.description && <p>{collection.description}</p>}
                 <div className="mural-collection-editorial-meta">
                   <strong>{products.length}</strong>
-                  <span>produto{products.length === 1 ? '' : 's'} selecionado{products.length === 1 ? '' : 's'}</span>
+                  <span>{products.length > 1 ? `1 capa principal + ${products.length - 1} variaç${products.length - 1 === 1 ? 'ão' : 'ões'}` : 'capa principal'}</span>
                 </div>
               </div>
             </header>
 
             {featuredProduct ? (
               <article
-                className="mural-collection-featured-product"
+                className="mural-collection-featured-product mural-collection-main-cover"
                 data-collection-reveal
                 style={{ '--collection-item-delay': '45ms', '--collection-item-shift': '0px' }}
               >
                 <div className="mural-collection-featured-media">
                   <CollectionProductImage product={featuredProduct} eager />
-                  <span>DESTAQUE</span>
+                  <span>CAPA PRINCIPAL</span>
                 </div>
                 <div className="mural-collection-featured-copy">
-                  <small>Produto em destaque</small>
-                  <strong>{featuredProduct.type}</strong>
-                  {featuredProduct.name && <p>{featuredProduct.name}</p>}
+                  <small>Capa principal da coleção</small>
+                  <strong>{featuredProduct.name || featuredProduct.type || 'Produto NISTI'}</strong>
+                  {featuredProduct.type && featuredProduct.name && <p>{featuredProduct.type}</p>}
                   <ProductMeta product={{ ...featuredProduct, collection: formatCollectionTitle(collection) }} />
                 </div>
               </article>
             ) : null}
 
             {remainingProducts.length ? (
-              <section className="mural-collection-selection" aria-label="Produtos da coleção">
+              <section className="mural-collection-selection mural-collection-variants" aria-label="Variações da coleção">
                 <div className="mural-collection-selection-heading">
-                  <span>Seleção</span>
-                  <strong>Mais produtos da coleção</strong>
+                  <span>VARIAÇÕES</span>
+                  <strong>Outras capas da coleção</strong>
+                  <small>Cada variação mantém suas próprias informações e acabamentos.</small>
                 </div>
-                <div className="mural-collection-grid">
+                <div className="mural-collection-variant-list">
                   {remainingProducts.map((product, index) => (
                     <article
                       key={product.id}
-                      className="mural-collection-product"
+                      className="mural-collection-variant-card"
                       data-collection-reveal
                       style={{
                         '--collection-item-delay': `${Math.min(index + 1, 8) * 45}ms`,
                         '--collection-item-shift': index % 2 === 0 ? '-8px' : '8px'
                       }}
                     >
-                      <CollectionProductImage product={product} />
-                      <div>
-                        <strong>{product.type}</strong>
-                        {product.name && <small className="mural-collection-cover-name">Capa · {product.name}</small>}
-                        <span>{product.sku}</span>
+                      <div className="mural-collection-variant-media">
+                        <CollectionProductImage product={product} />
+                        <span>VARIAÇÃO {String(index + 1).padStart(2,'0')}</span>
+                      </div>
+                      <div className="mural-collection-variant-copy">
+                        <small>{product.type || 'Produto NISTI'}</small>
+                        <strong>{product.name || product.type || 'Variação da coleção'}</strong>
+                        {product.sku && <span className="mural-collection-variant-sku">{product.sku}</span>}
                         <CollectionFinishChips product={product} />
                       </div>
                     </article>
