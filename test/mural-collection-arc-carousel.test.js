@@ -144,3 +144,22 @@ test('operator can tap or click the cinematic intro to open the information card
   assert.ok(css.includes('cursor:pointer'));
   assert.ok(css.includes('touch-action:manipulation'));
 });
+
+
+test('collection cinematic intro runs lightweight confetti and sparkle effects until it closes', () => {
+  assert.ok(mural.includes('mural-collection-party-effects'));
+  assert.ok(mural.includes('Array.from({ length: 28 }'));
+  assert.ok(mural.includes('mural-collection-party-particle'));
+  assert.ok(mural.includes("is-sparkle"));
+  assert.ok(css.includes('@keyframes mural-collection-party-fall'));
+  assert.ok(css.includes('animation:mural-collection-party-fall'));
+  assert.ok(css.includes('pointer-events:none'));
+  assert.ok(css.includes('will-change:transform,opacity'));
+});
+
+test('party effects stop automatically when intro unmounts and are disabled for reduced motion', () => {
+  assert.ok(mural.includes('onClick={finishIntro}'));
+  assert.ok(css.includes('.mural-collection-party-effects{'));
+  assert.ok(css.includes('display:none!important'));
+  assert.ok(css.includes('@media (prefers-reduced-motion:reduce)'));
+});
