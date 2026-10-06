@@ -467,14 +467,17 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
 function collectionRevealPosition(index) {
   const lane = Math.ceil(index / 2);
   const side = index % 2 ? -1 : 1;
-  const spread = 58 + ((lane - 1) % 4) * 28;
+  const spread = 62 + ((lane - 1) % 4) * 30;
   const depth = Math.floor((lane - 1) / 4);
   return {
     side: side < 0 ? 'left' : 'right',
     x: `${side * spread}px`,
-    y: `${Math.min(22, lane * 4 + depth * 3)}%`,
-    rotation: `${side * Math.min(22, 8 + lane * 3)}deg`,
-    scale: String(Math.max(.68, .96 - lane * .055))
+    y: `${Math.min(18, lane * 3 + depth * 2)}%`,
+    rotation: `${side * Math.min(20, 7 + lane * 3)}deg`,
+    scale: String(Math.max(.7, .96 - lane * .05)),
+    layer: String(index % 2
+      ? Math.max(1, 5 - Math.floor(index / 2))
+      : 7 + Math.floor(index / 2))
   };
 }
 
@@ -482,10 +485,14 @@ function CollectionRevealIntro({ products, title, onComplete }) {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const secondaryCount = Math.max(0, products.length - 1);
+  const secondaryStart = 1850;
+  const secondaryStep = 900;
+  const secondaryDuration = 1350;
+  const fanHold = 1100;
+  const fadeDuration = 380;
   const lastCoverFinish = secondaryCount
-    ? 1600 + (secondaryCount - 1) * 1050 + 1500
-    : 2800;
-  const mainFloatCycles = Math.max(1, Math.ceil((lastCoverFinish + 1200 - 1250) / 2200));
+    ? secondaryStart + (secondaryCount - 1) * secondaryStep + secondaryDuration
+    : 2700;
 
   useEffect(() => {
     const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
@@ -498,8 +505,8 @@ function CollectionRevealIntro({ products, title, onComplete }) {
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => setReady(true));
     });
-    const leaveTimer = window.setTimeout(() => setLeaving(true), lastCoverFinish + 1200);
-    const completeTimer = window.setTimeout(onComplete, lastCoverFinish + 1620);
+    const leaveTimer = window.setTimeout(() => setLeaving(true), lastCoverFinish + fanHold);
+    const completeTimer = window.setTimeout(onComplete, lastCoverFinish + fanHold + fadeDuration);
 
     return () => {
       cancelAnimationFrame(firstFrame);
@@ -521,10 +528,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       <span className="mural-collection-reveal-vignette" aria-hidden="true" />
       <span className="mural-collection-reveal-white-arc" aria-hidden="true" />
       <div className="mural-collection-reveal-fan" aria-hidden="true">
-        <span
-          className="mural-collection-reveal-product is-main"
-          style={{ '--main-float-cycles': String(mainFloatCycles) }}
-        >
+        <span className="mural-collection-reveal-product is-main">
           <CollectionProductImage product={mainProduct} eager />
         </span>
         {secondaryProducts.map((product, secondaryIndex) => {
@@ -535,12 +539,12 @@ function CollectionRevealIntro({ products, title, onComplete }) {
             key={product.id}
             className={`mural-collection-reveal-product is-secondary from-${position.side}`}
             style={{
-              '--reveal-product-delay': `${1600 + secondaryIndex * 1050}ms`,
+              '--reveal-product-delay': `${secondaryStart + secondaryIndex * secondaryStep}ms`,
               '--reveal-final-x': position.x,
               '--reveal-final-y': position.y,
               '--reveal-final-rotation': position.rotation,
               '--reveal-final-scale': position.scale,
-              '--reveal-final-layer': String(10 + index)
+              '--reveal-final-layer': position.layer
             }}
           >
             <CollectionProductImage product={product} eager />
