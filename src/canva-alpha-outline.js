@@ -117,7 +117,7 @@ export async function canvaAlphaOutlineArtifactsBlob(cutoutBlob){
   if(!outputCtx) throw new Error('Canvas indisponível para gerar o contorno.');
   const outlineData=outputCtx.createImageData(paddedWidth,paddedHeight);
   for(let i=0;i<expanded.length;i+=1){
-    if(!expanded[i] || binary[i]) continue;
+    if(!expanded[i]) continue;
     const offset=i*4;
     outlineData.data[offset]=255;
     outlineData.data[offset+1]=255;
