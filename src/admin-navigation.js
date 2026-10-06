@@ -10,9 +10,7 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
         children: Object.freeze([
           { id: 'posts', label: 'Publicações' },
           { id: 'collections', label: 'Coleções' },
-          { id: 'images', label: 'Imagens dos produtos' },
-          { id: 'metrics', label: 'Métricas' },
-          { id: 'qa', label: 'QA de liberação' }
+          { id: 'images', label: 'Imagens dos produtos' }
         ])
       },
       { id: 'gerador-barras', label: 'Gerador de Barras', icon: 'barcode' }
