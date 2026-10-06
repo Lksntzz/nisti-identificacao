@@ -576,8 +576,15 @@ function CollectionRevealIntro({ products, title, onComplete }) {
   return (
     <div
       className={`mural-collection-reveal-intro${ready ? ' is-ready' : ''}${leaving ? ' is-leaving' : ''}`}
-      role="img"
-      aria-label={`Apresentação dos produtos da coleção ${title}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Pular apresentação da coleção ${title} e abrir informações`}
+      onClick={finishIntro}
+      onKeyDown={event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        finishIntro();
+      }}
       onTransitionEnd={handleIntroTransitionEnd}
     >
       <span className="mural-collection-reveal-vignette" aria-hidden="true" />
