@@ -1891,7 +1891,7 @@ function AdminApp() {
               </>
             )}
 
-            {activeView === 'mural-nisti' && <MuralNistiAdminView activeSection={muralSection} onSectionChange={setMuralSection} />}
+            {activeView === 'mural-nisti' && <MuralNistiAdminView activeSection={muralSection} />}
 
             {activeView === 'catalogo' && (
               <CatalogView
