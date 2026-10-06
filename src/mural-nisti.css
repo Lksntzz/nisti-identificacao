@@ -3393,6 +3393,9 @@
   background:#030303;
   opacity:1;
   transition:opacity 220ms ease;
+  cursor:pointer;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
 }
 .mural-collection-reveal-intro.is-leaving{
   opacity:0;
@@ -3453,13 +3456,15 @@
 }
 .mural-collection-reveal-product.is-main{
   z-index:6;
-  visibility:hidden;
+  opacity:0;
   transform:translate3d(-50%,64vh,0) rotate(0) scale(.62);
-  transition:transform 1250ms cubic-bezier(.22,.61,.36,1);
+  transition:
+    transform 1250ms cubic-bezier(.22,.61,.36,1),
+    opacity 520ms ease-out;
   transition-delay:520ms;
 }
 .mural-collection-reveal-intro.is-ready .mural-collection-reveal-product.is-main{
-  visibility:visible;
+  opacity:1;
   transform:translate3d(-50%,-6%,0) rotate(0) scale(1.07);
 }
 .mural-collection-reveal-intro.is-ready .mural-collection-reveal-fan.fan-2 .mural-collection-reveal-product.is-main{
@@ -3473,7 +3478,7 @@
 }
 .mural-collection-reveal-product.is-secondary{
   z-index:var(--reveal-final-layer,2);
-  visibility:hidden;
+  opacity:0;
   transform:translate3d(-50%,16%,0) rotate(0) scale(.76);
 }
 .mural-collection-reveal-intro.is-ready .mural-collection-reveal-product.is-secondary{
@@ -3481,11 +3486,11 @@
 }
 @keyframes mural-collection-cover-arrive{
   0%{
-    visibility:visible;
+    opacity:0;
     transform:translate3d(-50%,16%,0) rotate(0) scale(.76);
   }
   100%{
-    visibility:visible;
+    opacity:1;
     transform:translate3d(calc(-50% + var(--reveal-final-x)),var(--reveal-final-y),0) rotate(var(--reveal-final-rotation)) scale(var(--reveal-final-scale));
   }
 }
