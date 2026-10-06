@@ -9,6 +9,10 @@ import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
+import CommerceManagementView from './commerce-management-view.jsx';
+import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
+import CommerceImportCenter from './commerce-import-center.jsx';
+import './commerce-admin.css';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import ProductImageTreatmentWorker from './product-image-treatment-worker.jsx';
 import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
@@ -183,16 +187,20 @@ function AdminSidebar({
   sidebarOpen,
   onCloseSidebar,
   activeMuralSection = 'dashboard',
-  onMuralSectionChange
+  onMuralSectionChange,
+  activeCommerceSection = 'catalog',
+  onCommerceSectionChange
 }) {
-  const [expandedItems,setExpandedItems]=useState(()=>new Set(activeView==='mural-nisti'?['mural-nisti']:[]));
+  const [expandedItems,setExpandedItems]=useState(()=>new Set(
+    activeView==='mural-nisti' ? ['mural-nisti'] : activeView==='commerce' ? ['commerce'] : []
+  ));
 
   useEffect(()=>{
-    if(activeView!=='mural-nisti') return;
+    if(!['mural-nisti','commerce'].includes(activeView)) return;
     setExpandedItems(previous=>{
-      if(previous.has('mural-nisti')) return previous;
+      if(previous.has(activeView)) return previous;
       const next=new Set(previous);
-      next.add('mural-nisti');
+      next.add(activeView);
       return next;
     });
   },[activeView]);
@@ -238,8 +246,12 @@ function AdminSidebar({
                             type="button"
                             className={`sidebar-nav-item sidebar-nav-parent-main ${isActive ? 'active' : ''}`}
                             onClick={() => {
+                              if (item.id === 'commerce') {
+                                toggleExpanded(item.id);
+                                return;
+                              }
                               onViewChange(item.id);
-                              onMuralSectionChange?.('dashboard');
+                              if (item.id === 'mural-nisti') onMuralSectionChange?.('dashboard');
                               setExpandedItems(previous => {
                                 const next = new Set(previous);
                                 next.add(item.id);
@@ -265,7 +277,8 @@ function AdminSidebar({
                         {isExpanded && (
                           <ul className="sidebar-submenu">
                             {item.children.map(child => {
-                              const childActive = isActive && activeMuralSection === child.id;
+                              const activeChildSection = item.id === 'commerce' ? activeCommerceSection : activeMuralSection;
+                              const childActive = isActive && activeChildSection === child.id;
                               return (
                                 <li key={child.id}>
                                   <button
@@ -273,7 +286,8 @@ function AdminSidebar({
                                     className={`sidebar-submenu-item ${childActive ? 'active' : ''}`}
                                     onClick={() => {
                                       onViewChange(item.id);
-                                      onMuralSectionChange?.(child.id);
+                                      if (item.id === 'commerce') onCommerceSectionChange?.(child.id);
+                                      else onMuralSectionChange?.(child.id);
                                       onCloseSidebar();
                                     }}
                                   >
@@ -522,9 +536,16 @@ function AdminNotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount 
   );
 }
 
-function AdminTopbar({ onToggleSidebar, unreadCount, activeView, onOpenNotifications, desktopPreview, onToggleDesktopPreview }) {
+function AdminTopbar({ onToggleSidebar, unreadCount, activeView, activeCommerceSection = 'catalog', onOpenNotifications, desktopPreview, onToggleDesktopPreview }) {
+  const commerceTitle = ({
+    catalog: 'Catálogo',
+    sales: 'Vendas',
+    'import-center': 'Central de Importações',
+    pending: 'Pendências'
+  })[activeCommerceSection] || 'Catálogo';
   const pageTitle = activeView === 'catalogo' ? 'Produtos NISTI'
     : activeView === 'mural-nisti' ? 'Mural NISTI'
+    : activeView === 'commerce' ? commerceTitle
     : activeView === 'gerador-barras' ? 'Gerador de Barras'
     : activeView === 'historico-ean' ? 'Histórico de Bipagens'
     : activeView === 'ean-nao-cadastrados' ? 'EAN não Cadastrados'
@@ -1683,6 +1704,8 @@ function AdminApp() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
   const [muralSection,setMuralSection]=useState('dashboard');
+  const [commerceSection,setCommerceSection]=useState('catalog');
+  const [salesRevision,setSalesRevision]=useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [metrics, setMetrics] = useState(null);
@@ -1833,10 +1856,6 @@ function AdminApp() {
   };
 
   const handleNavChange = viewId => {
-    if (viewId === 'commerce') {
-      window.location.href = '/admin-commerce';
-      return;
-    }
     setActiveView(viewId);
   };
   const productsWithoutGtin = gtinDashboard?.products_without_gtin || [];
@@ -1871,6 +1890,8 @@ function AdminApp() {
         onViewChange={handleNavChange}
         activeMuralSection={muralSection}
         onMuralSectionChange={setMuralSection}
+        activeCommerceSection={commerceSection}
+        onCommerceSectionChange={setCommerceSection}
         sidebarOpen={sidebarOpen}
         onCloseSidebar={() => setSidebarOpen(false)}
       />
@@ -1880,6 +1901,7 @@ function AdminApp() {
           onToggleSidebar={() => setSidebarOpen(prev => !prev)}
           unreadCount={unreadCount}
           activeView={activeView}
+          activeCommerceSection={commerceSection}
           onOpenNotifications={() => setNotificationsOpen(true)}
           desktopPreview={desktopPreview}
           onToggleDesktopPreview={toggleDesktopPreview}
@@ -1903,7 +1925,7 @@ function AdminApp() {
 
         <main className="admin-page-content">
           <div key={activeView} className="admin-view-transition">
-            {activeView !== 'mural-nisti' && (
+            {activeView !== 'mural-nisti' && activeView !== 'commerce' && (
               <>
                 <WelcomeDateBanner />
                 {/* Dashboard de Produtividade da Expedição & KPIs */}
@@ -1918,6 +1940,17 @@ function AdminApp() {
             )}
 
             {activeView === 'mural-nisti' && <MuralNistiAdminView activeSection={muralSection} onSectionChange={setMuralSection} />}
+
+            {activeView === 'commerce' && (
+              <div className="commerce-admin-inline-view">
+                {commerceSection === 'catalog' && <CommerceManagementView mode="catalog" />}
+                {commerceSection === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
+                {commerceSection === 'import-center' && (
+                  <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />
+                )}
+                {commerceSection === 'pending' && <CommerceManagementView mode="pending" />}
+              </div>
+            )}
 
             {activeView === 'catalogo' && (
               <CatalogView

@@ -19,7 +19,17 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
   {
     title: 'COMERCIAL',
     items: Object.freeze([
-      { id: 'commerce', label: 'Catálogo Comercial', icon: 'grid', href: '/admin-commerce' }
+      {
+        id: 'commerce',
+        label: 'Catálogo',
+        icon: 'grid',
+        children: Object.freeze([
+          { id: 'catalog', label: 'Catálogo' },
+          { id: 'sales', label: 'Vendas' },
+          { id: 'import-center', label: 'Central de Importações' },
+          { id: 'pending', label: 'Pendências' }
+        ])
+      }
     ])
   },
   {
