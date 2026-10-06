@@ -44,9 +44,10 @@ test('collection variants wait three seconds before the next cover and title clo
   assert.ok(mural.includes('const secondaryStep = 1500'));
   assert.ok(mural.includes('const secondaryDuration = 1100'));
   assert.ok(mural.includes('const titleDuration = 2400'));
-  assert.ok(mural.includes('const introFinish = titleDelay + titleDuration'));
-  assert.ok(mural.includes('window.setTimeout(() => setLeaving(true), introFinish)'));
-  assert.ok(mural.includes('window.setTimeout(onComplete, introFinish + fadeDuration)'));
+  assert.ok(mural.includes("event.animationName !== 'mural-collection-title-rise'"));
+  assert.ok(mural.includes('setLeaving(true)'));
+  assert.ok(mural.includes('onTransitionEnd={handleIntroTransitionEnd}'));
+  assert.ok(mural.includes('onAnimationEnd={handleTitleAnimationEnd}'));
   assert.ok(css.includes('animation:mural-collection-cover-arrive 1100ms'));
   assert.ok(mural.includes('{!showIntro && ('));
   assert.ok(css.includes('@media (prefers-reduced-motion:reduce)'));
@@ -87,4 +88,14 @@ test('collection reveal has dedicated compositions for two three and four covers
   assert.ok(css.includes('.mural-collection-reveal-fan.fan-2'));
   assert.ok(css.includes('.mural-collection-reveal-fan.fan-3'));
   assert.ok(css.includes('.mural-collection-reveal-fan.fan-4'));
+});
+
+
+test('collection intro closes automatically on real animation end and mounts the information card', () => {
+  assert.ok(mural.includes("event.propertyName !== 'opacity'"));
+  assert.ok(mural.includes('finishIntro()'));
+  assert.ok(mural.includes('const [introComplete, setIntroComplete] = useState(false)'));
+  assert.ok(mural.includes('onComplete={() => setIntroComplete(true)}'));
+  assert.ok(mural.includes('{!showIntro && ('));
+  assert.ok(css.includes('transition:opacity 220ms ease'));
 });
