@@ -3392,7 +3392,7 @@
   overflow:hidden;
   background:#030303;
   opacity:1;
-  transition:opacity 380ms ease;
+  transition:opacity 220ms ease;
 }
 .mural-collection-reveal-intro.is-leaving{
   opacity:0;

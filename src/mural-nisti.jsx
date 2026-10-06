@@ -507,12 +507,12 @@ function CollectionRevealIntro({ products, title, onComplete }) {
     ? secondaryStart + (secondaryCount - 1) * secondaryStep + secondaryDuration + 350
     : 2850;
   const titleDuration = 2400;
-  const fadeDuration = 420;
-  const introFinish = titleDelay + titleDuration;
+  const completedRef = useRef(false);
 
   useEffect(() => {
     const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     if (reduced) {
+      completedRef.current = true;
       onComplete();
       return undefined;
     }
@@ -521,16 +521,34 @@ function CollectionRevealIntro({ products, title, onComplete }) {
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => setReady(true));
     });
-    const leaveTimer = window.setTimeout(() => setLeaving(true), introFinish);
-    const completeTimer = window.setTimeout(onComplete, introFinish + fadeDuration);
 
     return () => {
       cancelAnimationFrame(firstFrame);
       cancelAnimationFrame(secondFrame);
-      window.clearTimeout(leaveTimer);
-      window.clearTimeout(completeTimer);
     };
-  }, [introFinish, onComplete]);
+  }, [onComplete]);
+
+  const finishIntro = () => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    onComplete();
+  };
+
+  useEffect(() => {
+    if (!leaving) return undefined;
+    const fallback = window.setTimeout(finishIntro, 320);
+    return () => window.clearTimeout(fallback);
+  }, [leaving]);
+
+  const handleTitleAnimationEnd = event => {
+    if (event.animationName !== 'mural-collection-title-rise' || leaving) return;
+    setLeaving(true);
+  };
+
+  const handleIntroTransitionEnd = event => {
+    if (!leaving || event.target !== event.currentTarget || event.propertyName !== 'opacity') return;
+    finishIntro();
+  };
 
   const mainProduct = products[0];
   const secondaryProducts = products.slice(1);
@@ -540,6 +558,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       className={`mural-collection-reveal-intro${ready ? ' is-ready' : ''}${leaving ? ' is-leaving' : ''}`}
       role="img"
       aria-label={`Apresentação dos produtos da coleção ${title}`}
+      onTransitionEnd={handleIntroTransitionEnd}
     >
       <span className="mural-collection-reveal-vignette" aria-hidden="true" />
       <span className="mural-collection-reveal-white-arc" aria-hidden="true" />
@@ -575,6 +594,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
           '--collection-title-duration': `${titleDuration}ms`
         }}
         aria-hidden="true"
+        onAnimationEnd={handleTitleAnimationEnd}
       >
         <small>NOVA COLEÇÃO</small>
         <strong>{title}</strong>
