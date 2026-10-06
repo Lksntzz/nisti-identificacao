@@ -37,7 +37,7 @@ test('API rejects stale treatment writes but keeps previously approved derivativ
   const mural = read('src/mural-router.js');
   const version = read('src/product-image-processor-version.js');
 
-  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '24'"));
+  assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '25'"));
   assert.ok((core.match(/code:'stale_image_processor'/g) || []).length >= 2);
   assert.equal(core.includes('row.processor_version === PRODUCT_IMAGE_PROCESSOR_VERSION'), false);
   assert.equal(core.includes('product.treated_image_version === PRODUCT_IMAGE_PROCESSOR_VERSION'), false);
