@@ -23,11 +23,14 @@ test('dashboard provides type tabs, search, filters, author and sorting', () => 
   assert.ok(dashboard.includes('Mais recentes primeiro'));
 });
 
-test('dashboard table includes thumbnails badges status author and action menu', () => {
+test('dashboard table includes thumbnails badges status author views and action menu', () => {
   assert.ok(dashboard.includes("row.product_image_url || row.collection_image_url"));
   assert.ok(dashboard.includes('★ DESTAQUE'));
   assert.ok(dashboard.includes('IMPORTANTE'));
   assert.ok(dashboard.includes('mural-admin-author'));
+  assert.ok(dashboard.includes('Visualizações'));
+  assert.ok(dashboard.includes('mural-admin-views'));
+  assert.ok(dashboard.includes("Icon name=\"eye\""));
   assert.ok(dashboard.includes('mural-admin-action-menu'));
   assert.ok(dashboard.includes('Editar publicação'));
   assert.ok(dashboard.includes('Duplicar'));
@@ -60,4 +63,15 @@ test('dashboard visual is responsive', () => {
   assert.ok(css.includes('.mural-admin-modern-table'));
   assert.ok(css.includes('@media(max-width:900px)'));
   assert.ok(css.includes('@media(max-width:640px)'));
+});
+
+
+test('Mural metrics live inside Publications instead of a separate tool', () => {
+  assert.ok(admin.includes('metrics={metrics}'));
+  assert.ok(dashboard.includes('Operadores com leitura'));
+  assert.ok(dashboard.includes('Publicações no mês'));
+  assert.ok(dashboard.includes('Visualizações'));
+  assert.equal(admin.includes("section==='metrics'"), false);
+  assert.equal(admin.includes("section==='qa'"), false);
+  assert.ok(router.includes("(SELECT COUNT(*) FROM mural_post_reads mr WHERE mr.post_id=mp.id) AS reads"));
 });
