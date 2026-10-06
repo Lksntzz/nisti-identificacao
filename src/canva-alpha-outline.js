@@ -1,5 +1,7 @@
 const MAX_RENDER_DIMENSION=1280;
 const TARGET_OUTLINE_AT_1024=12;
+const EDGE_ALPHA_THRESHOLD=20;
+const INNER_WHITE_SEAM_PX=2;
 
 function clamp(value,min,max){ return Math.min(max,Math.max(min,value)); }
 
@@ -64,6 +66,47 @@ function dilate(mask,width,height,radius){
   return current;
 }
 
+function whitenOuterSeam(imageData,width,height){
+  const data=imageData.data;
+  const solid=new Uint8Array(width*height);
+
+  for(let i=0;i<solid.length;i+=1){
+    const alpha=data[i*4+3];
+    if(alpha>=EDGE_ALPHA_THRESHOLD){
+      solid[i]=1;
+    }else{
+      data[i*4+3]=0;
+    }
+  }
+
+  for(let y=0;y<height;y+=1){
+    for(let x=0;x<width;x+=1){
+      const index=y*width+x;
+      if(!solid[index]) continue;
+
+      let edge=false;
+      for(let dy=-INNER_WHITE_SEAM_PX;dy<=INNER_WHITE_SEAM_PX&&!edge;dy+=1){
+        for(let dx=-INNER_WHITE_SEAM_PX;dx<=INNER_WHITE_SEAM_PX;dx+=1){
+          if(dx===0&&dy===0) continue;
+          const nx=x+dx;
+          const ny=y+dy;
+          if(nx<0||ny<0||nx>=width||ny>=height||!solid[ny*width+nx]){
+            edge=true;
+            break;
+          }
+        }
+      }
+      if(!edge) continue;
+
+      const offset=index*4;
+      data[offset]=255;
+      data[offset+1]=255;
+      data[offset+2]=255;
+    }
+  }
+  return imageData;
+}
+
 export async function canvaAlphaOutlineArtifactsBlob(cutoutBlob){
   if(!(cutoutBlob instanceof Blob) || cutoutBlob.type!=='image/png' || cutoutBlob.size<1){
     throw new Error('O Canva não retornou um PNG transparente válido.');
@@ -90,14 +133,15 @@ export async function canvaAlphaOutlineArtifactsBlob(cutoutBlob){
   sourceCtx.drawImage(image,0,0,width,height);
   if(typeof image.close==='function') image.close();
 
-  const sourceData=sourceCtx.getImageData(0,0,width,height);
+  const sourceData=whitenOuterSeam(sourceCtx.getImageData(0,0,width,height),width,height);
+  sourceCtx.putImageData(sourceData,0,0);
   const productMask=new Uint8Array(paddedWidth*paddedHeight);
   let opaquePixels=0;
   for(let y=0;y<height;y+=1){
     for(let x=0;x<width;x+=1){
       const sourceIndex=y*width+x;
       const alpha=sourceData.data[sourceIndex*4+3];
-      if(alpha<8) continue;
+      if(alpha<EDGE_ALPHA_THRESHOLD) continue;
       productMask[(y+radius)*paddedWidth+(x+radius)]=alpha;
       opaquePixels+=1;
     }
@@ -107,7 +151,7 @@ export async function canvaAlphaOutlineArtifactsBlob(cutoutBlob){
   }
 
   const binary=new Uint8Array(productMask.length);
-  for(let i=0;i<productMask.length;i+=1) binary[i]=productMask[i]>=8 ? 255 : 0;
+  for(let i=0;i<productMask.length;i+=1) binary[i]=productMask[i]>=EDGE_ALPHA_THRESHOLD ? 255 : 0;
   const expanded=dilate(binary,paddedWidth,paddedHeight,radius);
 
   const outputCanvas=document.createElement('canvas');
@@ -151,4 +195,4 @@ export async function canvaAlphaOutlineArtifactsBlob(cutoutBlob){
   return {imageBlob,maskBlob,outlinePx:radius,width:paddedWidth,height:paddedHeight};
 }
 
-export const __canvaAlphaOutlineInternals={clamp,dilate};
+export const __canvaAlphaOutlineInternals={clamp,dilate,whitenOuterSeam};
