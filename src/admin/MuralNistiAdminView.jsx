@@ -737,7 +737,7 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
                 <span><b>Selecionar imagem</b><small>JPEG, PNG ou WebP · até 5 MB</small></span>
                 <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseImage(e.target.files?.[0])}/>
               </label>
-              {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem</button>}
+              {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem editorial</button>}
             </section>
           </div>
 
