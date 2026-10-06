@@ -1,154 +1,431 @@
 # NISTI ID
 
-Sistema operacional da NISTI PRINT para cadastro de produtos, leitura de EAN na expedição, gestão do catálogo comercial e publicação de conteúdo no Mural NISTI.
+Sistema operacional da NISTI PRINT para cadastro mestre de produtos, identificação por EAN na expedição, gestão do Catálogo Comercial, vendas, importações e publicação de conteúdo no Mural NISTI.
 
-Produção: [nisti-identificacao.lksntz1411.workers.dev](https://nisti-identificacao.lksntz1411.workers.dev)
+**Produção:** [nisti-identificacao.lksntz1411.workers.dev](https://nisti-identificacao.lksntz1411.workers.dev)  
+**Última revisão deste README:** 06/10/2026
 
-## Como o sistema opera hoje
+## Estado operacional atual
 
-O NISTI ID identifica produtos pelo código EAN-13 lido na câmera do celular ou informado pelo operador. O código é consultado no cadastro oficial e retorna o produto, SKU, capa, variação e imagem correspondentes.
+O NISTI ID opera com duas experiências principais:
 
-O sistema não usa inteligência artificial, reconhecimento visual, embeddings ou geração automática de SKU. Toda identificação é determinística e baseada nos dados cadastrados.
+- **Operador:** identificação de produtos por EAN e acesso às funções operacionais liberadas.
+- **Administrador:** cadastro de produtos, Mural NISTI, Catálogo Comercial, vendas, importações, histórico de bipagens, EANs não cadastrados, geração de códigos e Saúde & Logs.
 
-Fluxo operacional:
+O painel administrativo usa uma única navegação em `/admin`. As ferramentas do **Mural NISTI** e do **Catálogo** ficam organizadas em menus expansíveis na barra lateral e são carregadas dentro do próprio painel, sem abrir módulos separados durante a navegação normal.
 
-1. O produto é cadastrado no painel administrativo com SKU, EAN e dados comerciais.
-2. O cadastro principal é gravado no Supabase PostgreSQL.
-3. A imagem original é preservada no Cloudflare R2.
-4. O tratamento de imagem gera uma versão PNG transparente para revisão.
-5. O Produto Mestre e os anúncios compatíveis são sincronizados com o Catálogo Comercial.
-6. Na expedição, o operador lê o EAN e recebe o produto exato.
-7. Leituras, códigos não cadastrados e falhas técnicas ficam disponíveis no painel administrativo.
+## Como o sistema opera
 
-## Módulos ativos
+### 1. Cadastro mestre
 
-### Identificação e expedição
+O produto é cadastrado em **Produtos NISTI** com seus dados principais, SKU, EAN, acessórios e imagem.
 
-- leitura de EAN-13 pela câmera;
-- consulta direta ao cadastro oficial;
-- resultado com produto, SKU, capa e imagem;
-- histórico de leituras por operador;
-- fila de EANs não cadastrados;
-- painel de cobertura EAN e erros técnicos.
+O Supabase PostgreSQL é a autoridade principal de leitura e escrita. As imagens originais e derivadas ficam no Cloudflare R2.
 
-### Administração do NISTI ID
+A imagem original é preservada. Processos de tratamento geram arquivos derivados e nunca substituem silenciosamente o original.
 
-- cadastro, edição e exclusão de produtos;
-- vínculo e desvínculo de EANs;
-- importação em lote por CSV;
-- geração de etiquetas EAN-13 em PNG;
-- gestão de produtos sem EAN;
-- diagnóstico da sincronização com o Catálogo;
-- notificações e saúde operacional do sistema.
+### 2. Identificação por EAN
 
-### Catálogo Comercial
+Na operação de expedição:
 
-- Produto Mestre com anúncios de múltiplas plataformas;
-- Catálogo, Vendas, Central de Importações e Pendências;
-- importação de planilhas e staging antes do commit;
-- reconciliação por SKU, família e capa;
-- controle independente dos estados de anúncio;
-- sincronização com os produtos do NISTI ID;
-- revisão manual de conflitos e casos ambíguos.
+1. o operador lê o código EAN-13;
+2. o sistema consulta o cadastro oficial;
+3. localiza o produto correspondente;
+4. mostra as informações operacionais necessárias, incluindo SKU, imagem e acessórios;
+5. registra a bipagem;
+6. códigos sem correspondência entram na fila de **EAN não Cadastrados**.
 
-### Mural NISTI
+A identificação não depende de reconhecimento visual, embeddings ou geração automática de SKU.
 
-- publicações de produtos, coleções e avisos;
-- editor com prévia do visual do operador;
-- agendamento, prioridade e ordenação editorial;
-- Mural QA separado da liberação pública;
-- confirmação de leitura por operador;
-- gestão e aprovação das imagens tratadas.
+### 3. Sincronização com o Catálogo Comercial
 
-## Tratamento de imagens
+O Catálogo Comercial consolida o Produto Mestre e os anúncios conhecidos das plataformas.
 
-O tratamento é executado localmente no navegador, sem IA. Ele usa máscaras, geometria e análise determinística de pixels para:
+O fluxo atual permite:
 
-- remover o fundo conectado às bordas;
-- proteger capas brancas e claras;
-- preservar Wire-O, tassel, elástico, páginas, luz e sombra reais;
-- eliminar marcas e componentes desconectados do produto;
-- enquadrar o recorte com margem transparente mínima;
-- reduzir sombras externas sem apagar a antisserrilha das peças reais;\n- gerar PNG com canal alfa real e contorno branco externo fino e uniforme.
+- cruzar Produto Mestre e anúncios;
+- revisar vínculos por SKU e evidências disponíveis;
+- visualizar presença por plataforma;
+- tratar conflitos e casos ambíguos;
+- controlar estados de anúncios;
+- analisar produtos com e sem venda;
+- importar novos dados antes de efetivar alterações.
 
-A geometria das agendas foi ajustada a partir do mockup oficial do Photoshop. O arquivo PSD é apenas referência visual; ele não é necessário no Worker e não executa instruções.
+As alterações do NISTI ID devem refletir no Catálogo por meio das rotinas de sincronização e reconciliação.
 
-As imagens originais nunca são sobrescritas. Cada nova versão do processador coloca os tratamentos antigos novamente na fila. O resultado passa por revisão antes da aprovação para uso no Mural e nas demais interfaces.
+## Navegação administrativa
 
-Versão atual do processador: `11`.
+### CADASTRO
+
+#### Produtos NISTI
+
+Cadastro mestre do sistema.
+
+Principais funções:
+
+- cadastrar produtos;
+- editar dados e SKU;
+- vincular ou corrigir EAN;
+- manter imagens;
+- importar cadastros em lote;
+- consultar sincronização comercial;
+- abrir detalhes do Produto Mestre.
+
+#### Mural NISTI ▾
+
+O Mural possui três ferramentas:
+
+**Painel**
+
+Visualiza e administra as publicações já criadas.
+
+Inclui métricas, publicações existentes, status e ações administrativas.
+
+**Publicar**
+
+Editor unificado de novas publicações.
+
+Tipos disponíveis:
+
+- **Produto**
+- **Informação**
+- **Coleção**
+
+O editor possui hierarquia por etapas, campos específicos para cada tipo, configurações de publicação e prévia lateral da experiência do operador.
+
+**Tratamento**
+
+Área responsável pelo tratamento, revisão e aprovação das imagens usadas pelo Mural.
+
+É nessa ferramenta que a integração direta com o Canva está ativa.
+
+#### Gerador de Barras
+
+Gera códigos EAN-13 e arquivos para uso operacional.
+
+### COMERCIAL
+
+#### Catálogo ▾
+
+O item **Catálogo** é um menu expansível. Clicar no item principal abre ou fecha as ferramentas; ele não redireciona o administrador para outra aplicação.
+
+As ferramentas são:
+
+**Catálogo**
+
+Visão consolidada dos Produtos Mestre e anúncios de múltiplas plataformas.
+
+**Vendas**
+
+Painel de faturamento, pedidos, unidades, produtos com venda e análise de itens sem venda.
+
+**Central de Importações**
+
+Importação controlada de arquivos de catálogo e vendas, com validação e conferência antes da efetivação.
+
+**Pendências**
+
+Fila de vínculos, divergências e casos que exigem revisão.
+
+Todas essas ferramentas são renderizadas dentro do painel principal `/admin`.
+
+A rota `/admin-commerce` ainda é aceita pelo backend por compatibilidade, mas não é usada pela navegação administrativa principal.
+
+### BIPAGENS
+
+- **Histórico de Bipagens**
+- **EAN não Cadastrados**
+
+### SISTEMA
+
+- **Saúde & Logs**
+
+## Mural NISTI
+
+O Mural é a central de comunicação visual para os operadores.
+
+### Painel
+
+O Painel mostra o conteúdo já publicado e concentra a gestão editorial.
+
+### Publicar
+
+O editor atual foi reorganizado em um fluxo único.
+
+#### Produto
+
+Permite:
+
+- buscar o produto por nome ou SKU;
+- selecionar o Produto Mestre;
+- usar imagem editorial opcional;
+- definir título, subtítulo, descrição e selo;
+- configurar destaque, publicação, expiração e ordem;
+- visualizar a prévia no formato do Mural antes de publicar.
+
+#### Informação
+
+Permite:
+
+- prioridade Normal, Atenção ou Importante;
+- classificação como Comunicado Interno, Processo ou Novidade;
+- título;
+- linha de apoio;
+- mensagem;
+- imagem editorial opcional;
+- programação e ordenação;
+- prévia do conteúdo.
+
+#### Coleção
+
+Permite:
+
+- nome da coleção;
+- ano;
+- frase curta;
+- banner/arte da coleção;
+- busca e seleção de produtos;
+- ordenação dos produtos;
+- direção visual e notas de tema;
+- descrição;
+- escolha de exibir ou não o ano;
+- prévia da coleção.
+
+## Integração Canva
+
+O Canva está integrado diretamente ao NISTI e atualmente é usado no **Mural → Tratamento**.
+
+### Autenticação
+
+A integração usa OAuth com PKCE.
+
+Escopos solicitados atualmente:
+
+- `asset:read`
+- `asset:write`
+- `design:content:read`
+- `design:content:write`
+- `profile:read`
+
+O painel possui ações para:
+
+- conectar a conta Canva;
+- verificar o estado da conexão;
+- desconectar a conta.
+
+### Segurança da conexão
+
+Os segredos da aplicação Canva permanecem no Cloudflare Worker:
+
+- `CANVA_CLIENT_ID`
+- `CANVA_CLIENT_SECRET`
+- `CANVA_TOKEN_ENCRYPTION_KEY`
+
+Tokens OAuth não são gravados em texto puro.
+
+O payload da conexão é criptografado com AES-GCM antes de ser armazenado no Supabase. As tabelas e RPCs da conexão são restritas ao `service_role`.
+
+### Tratamento de imagem com Canva
+
+Fluxo atual:
+
+1. o NISTI carrega a imagem original do produto;
+2. envia a imagem para o Canva;
+3. o Canva executa **background removal**;
+4. o NISTI solicita/exporta o resultado como PNG transparente;
+5. o navegador executa o pós-processamento NISTI;
+6. é criada uma máscara individual;
+7. é aplicado o contorno branco externo;
+8. imagem e máscara são gravadas como derivados;
+9. o produto entra em revisão;
+10. somente após aprovação a imagem tratada passa a ser considerada pronta.
+
+O sistema verifica se a conta Canva conectada possui as capacidades:
+
+- `background_removal`
+- `export_png_transparency`
+
+Se a conta não possuir esses recursos, o tratamento é bloqueado de forma controlada.
+
+### Processador atual
+
+**Versão:** `25`
+
+Pipeline ativo:
+
+```text
+Imagem original
+      │
+      ▼
+Canva Asset Upload
+      │
+      ▼
+Canva Background Removal
+      │
+      ▼
+PNG transparente
+      │
+      ▼
+NISTI Alpha + Outline
+  ├── saneamento do alpha
+  ├── preservação da silhueta
+  ├── máscara individual
+  └── contorno branco externo
+      │
+      ▼
+Revisão manual
+      │
+      ▼
+Aprovação
+```
+
+O contorno atual usa referência aproximada de 12 px em uma imagem de 1024 px, com ajuste proporcional limitado pelo processador.
+
+### Execução da fila
+
+O tratamento é manual por padrão:
+
+- uma nova sessão começa pausada;
+- o administrador precisa iniciar o tratamento;
+- a fila processa um item por vez;
+- existe lock entre abas administrativas;
+- falhas transitórias possuem tentativas controladas;
+- um produto com erro não deve bloquear a fila inteira;
+- ao atingir limite de créditos do Canva, a fila é pausada e o erro é exibido;
+- o original permanece preservado.
+
+## Inteligência artificial e automação
+
+O NISTI **não usa IA generativa para identificar produtos, gerar SKU, decidir EAN ou sincronizar o Catálogo**.
+
+As integrações antigas com Gemini/Workers AI para reconhecimento visual foram removidas.
+
+O processamento externo inteligente ativo hoje é a transformação de imagem fornecida pelo Canva para remoção de fundo. O restante do fluxo NISTI — máscara, contorno, persistência, revisão e aprovação — é controlado pelo próprio sistema.
 
 ## Arquitetura de produção
 
 ```text
-Operador/Admin
-      │
-      ▼
-React + Vite (SPA)
-      │
-      ▼
+Operador / Administrador
+          │
+          ▼
+React 18 + Vite 6
+          │
+          ▼
 Cloudflare Worker
-  ├── Supabase PostgreSQL — banco principal e autoridade de escrita
-  ├── Cloudflare R2 — imagens originais e tratadas
-  └── Cloudflare D1 — armazenamento de compatibilidade e reserva emergencial
+  ├── Edge Router e APIs administrativas
+  ├── autenticação administrativa
+  ├── integração Canva OAuth/API
+  └── rotinas de sincronização
+          │
+          ├────────► Supabase PostgreSQL
+          │          banco principal / autoridade de escrita
+          │
+          ├────────► Cloudflare R2
+          │          imagens originais e derivadas
+          │
+          └────────► Canva API
+                     remoção de fundo e PNG transparente
 ```
 
-### Autoridade dos dados
+### Supabase
 
-- `SUPABASE_READS_ENABLED=1`: leituras principais no Supabase.
-- `SUPABASE_WRITE_MODE=primary`: escritas principais no Supabase.
-- `SUPABASE_CUTOVER_WRITE_FREEZE=0`: operação normal de escrita.
-- D1 não é o banco principal; permanece como compatibilidade e reserva emergencial controlada.
-- Um cron executado a cada 30 minutos mantém rotinas de reserva e manutenção.
+Configuração de produção atual:
 
-### Armazenamento de imagens
+- `SUPABASE_READS_ENABLED=1`
+- `SUPABASE_WRITE_MODE=primary`
+- `SUPABASE_CUTOVER_WRITE_FREEZE=0`
 
-- originais e derivados ficam no bucket R2 `nisti-identificacao-images`;
-- o banco guarda as chaves e o estado do tratamento;
-- imagens tratadas possuem versão, status de revisão e histórico de aprovação;
-- uma falha de tratamento não elimina nem substitui o original.
+O Supabase é a autoridade principal de dados.
+
+Se uma escrita crítica não for confirmada no banco principal, a operação é tratada como falha em vez de simular sucesso.
+
+### Cloudflare R2
+
+Bucket de produção:
+
+`nisti-identificacao-images`
+
+Usado para imagens originais e arquivos derivados do sistema.
+
+### Cloudflare D1
+
+D1 não é a autoridade principal do sistema atual.
+
+O repositório ainda mantém scripts e migrations de compatibilidade para D1, mas o `wrangler.toml` de produção não possui binding D1 como banco operacional principal.
 
 ## Rotas principais
 
-- `/` — scanner EAN e experiência do operador;
+- `/` — experiência do operador / identificação por EAN;
 - `/admin` — painel administrativo protegido;
-- `/admin-commerce` — Catálogo Comercial protegido;
-- `/?mural=qa` — validação interna do Mural;
-- `/api/health` — diagnóstico público mínimo do serviço.
+- `/admin-login` — autenticação administrativa;
+- `/admin-logout` — encerramento da sessão;
+- `/admin-commerce` — rota protegida mantida por compatibilidade;
+- `/api/health` — diagnóstico mínimo do serviço.
 
-O Mural público permanece protegido por gate de liberação. Estar autenticado como administrador não libera automaticamente a interface pública.
+### Rotas administrativas Canva
+
+Protegidas pela sessão administrativa:
+
+- `GET /api/admin/canva/status`
+- `POST /api/admin/canva/connect`
+- `POST /api/admin/canva/background-remove`
+- `POST /api/admin/canva/disconnect`
+- `GET /canva-oauth/callback` — callback OAuth.
 
 ## Segurança
 
-- operações administrativas exigem sessão válida;
-- credenciais de serviço permanecem no Worker e não são enviadas ao navegador;
-- RPCs sensíveis do Supabase são restritas ao service role;
-- arquivos originais são preservados para recuperação;
-- gravações críticas retornam confirmação da autoridade principal;
-- o sistema registra atividades operacionais, falhas de tratamento e tentativas recusadas.
+- sessão administrativa protegida por cookie `HttpOnly`, `Secure` e `SameSite=Strict`;
+- APIs administrativas exigem sessão válida;
+- credenciais de serviço não são enviadas ao navegador;
+- tokens Canva são criptografados antes de persistir;
+- RPCs sensíveis do Supabase ficam restritas ao `service_role`;
+- imagens originais são preservadas;
+- operações críticas não devem retornar sucesso sem confirmação da autoridade principal;
+- atividades administrativas e falhas operacionais são registradas.
 
 ## Stack atual
 
 - React 18;
+- React DOM 18;
 - Vite 6;
 - Cloudflare Workers;
 - Cloudflare R2;
 - Supabase PostgreSQL;
-- Cloudflare D1 como reserva de compatibilidade;
-- GitHub Actions para testes, build, preview e deploy.
+- Canva REST API + OAuth;
+- GitHub Actions;
+- Node.js test runner;
+- `read-excel-file` para importações XLSX;
+- `fflate` para geração/manipulação de arquivos compactados.
 
-## Desenvolvimento
+## Desenvolvimento local
 
-Requisitos: Node.js 20 ou superior e acesso aos recursos configurados no Cloudflare/Supabase.
+Requisitos:
+
+- Node.js 20 ou superior;
+- dependências instaladas;
+- acesso às configurações necessárias do Cloudflare/Supabase para testar integrações reais.
+
+Instalação:
 
 ```bash
 npm install
+```
+
+Servidor local:
+
+```bash
 npm run dev
 ```
 
-Validação local:
+Testes:
 
 ```bash
 npm test
+```
+
+Build:
+
+```bash
 npm run build
 ```
 
@@ -166,23 +443,34 @@ npm run db:migrate
 
 ## Entrega contínua
 
-Os workflows do GitHub executam:
+Os workflows do GitHub são responsáveis por validar alterações antes da produção.
 
-- validação das migrations D1 em ambiente local;
+O fluxo inclui:
+
+- checkout;
+- instalação das dependências;
+- validação local das migrations D1;
 - suíte automatizada de testes;
 - build de produção;
-- preview isolado do Catálogo Comercial;
-- aplicação controlada de migrations modificadas;
-- deploy do Worker de produção;
-- exportações de segurança das imagens originais e do snapshot final do D1.
+- detecção de mudanças de migration;
+- aplicação controlada de migrations quando necessário;
+- deploy do Worker de produção.
 
-O deploy de produção é serializado para evitar duas publicações concorrentes.
+O deploy de produção é serializado para reduzir risco de publicações concorrentes.
 
-## Estado atual
+## Resumo do estado atual
 
-- banco principal: Supabase;
-- armazenamento de imagens: Cloudflare R2;
-- identificação operacional: EAN-13;
-- tratamento de imagens: determinístico, versão 11;
-- inteligência artificial: não utilizada;
-- produção: ativa no Cloudflare Workers.
+| Área | Estado |
+| --- | --- |
+| Banco principal | Supabase PostgreSQL |
+| Imagens | Cloudflare R2 |
+| Identificação operacional | EAN-13 |
+| Administração | Painel único em `/admin` |
+| Mural | Painel / Publicar / Tratamento |
+| Publicar | Produto / Informação / Coleção |
+| Catálogo | Catálogo / Vendas / Central de Importações / Pendências |
+| Canva | Integrado via OAuth e ativo no tratamento de imagens |
+| Processador de imagens | Versão 25 |
+| Reconhecimento visual próprio | Removido |
+| Gemini / Workers AI | Removidos |
+| Produção | Cloudflare Workers |
