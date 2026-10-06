@@ -917,10 +917,9 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
   if (editor) {
     return <PostEditor
       item={editor}
-      collections={collections}
-      catalogProducts={products}
       onClose={()=>setEditor(null)}
-      onSaved={async()=>{await load();await refreshReadiness()}}
+      onSaved={load}
+      onCreateCollection={()=>{setEditor(null);setCollectionEditor({mode:'new'})}}
     />;
   }
 
