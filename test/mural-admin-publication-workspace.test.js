@@ -55,17 +55,19 @@ test('universal Mural publisher keeps one editor for product collection and noti
 });
 
 
-test('collection creation uses one official editor everywhere in the Mural', () => {
+test('collection creation has only one entry point in the Collections tool', () => {
   assert.equal((admin.match(/<CollectionEditor/g) || []).length, 1);
-  assert.ok(admin.includes('const collectionEditorView = collectionEditor ? <CollectionEditor'));
-  assert.ok(admin.includes("onCreateCollection={()=>setCollectionEditor({mode:'new'})}"));
-  assert.ok(admin.includes('+ Criar nova coleção'));
+  assert.equal((admin.match(/\+ Nova coleção/g) || []).length, 1);
+  assert.equal(admin.includes('+ Criar nova coleção'), false);
+  assert.equal(admin.includes('onCreateCollection'), false);
+  assert.ok(admin.includes("section==='collections'&&<button className=\"primary\" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>"));
   assert.ok(admin.includes('Publicar coleção existente'));
-  assert.ok(admin.includes('Use uma coleção já criada no Mural.'));
 });
 
-test('publication collection flow selects an existing collection instead of duplicating collection creation UI', () => {
-  assert.ok(admin.includes('A criação e edição da coleção usam sempre o editor oficial de Coleções.'));
+test('publication collection flow only selects an existing collection', () => {
+  assert.ok(admin.includes('Para criar ou editar uma coleção, use a ferramenta Coleções do menu do Mural.'));
   assert.ok(admin.includes('Selecione uma coleção'));
-  assert.ok(css.includes('.mural-publisher-collection-source'));
+  assert.ok(admin.includes('mural-publisher-collection-empty'));
+  assert.equal(css.includes('.mural-publisher-collection-source'), false);
+  assert.ok(css.includes('.mural-publisher-collection-empty'));
 });
