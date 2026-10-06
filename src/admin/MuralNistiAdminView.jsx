@@ -527,7 +527,7 @@ function MobilePreview({ form, product, collection, imageUrl }) {
   );
 }
 
-function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved, onCreateCollection }) {
+function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved }) {
   const sourceItem = item && item.mode === 'new' ? null : item;
   const [form, setForm] = useState(() => postForm(sourceItem));
   const [products, setProducts] = useState([]);
@@ -707,12 +707,10 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved,
             <section className="mural-publisher-block">
               <div className="mural-publisher-block-title">
                 <strong>Publicar coleção existente</strong>
-                <span>A criação e edição da coleção usam sempre o editor oficial de Coleções.</span>
+                <span>Para criar ou editar uma coleção, use a ferramenta Coleções do menu do Mural.</span>
               </div>
-              <div className="mural-publisher-collection-source">
-                <label className="mural-publisher-field">Coleção <em>*</em><select value={form.collection_id} onChange={e=>set('collection_id',e.target.value)}><option value="">Selecione uma coleção</option>{collections.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-                <button type="button" className="mural-publisher-secondary" onClick={onCreateCollection}><AdminMuralIcon name="collection" size={16}/> + Criar nova coleção</button>
-              </div>
+              <label className="mural-publisher-field">Coleção <em>*</em><select value={form.collection_id} onChange={e=>set('collection_id',e.target.value)}><option value="">Selecione uma coleção</option>{collections.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+              {!collections.some(c=>c.status==='active') && <div className="mural-publisher-collection-empty">Nenhuma coleção ativa. Crie a coleção primeiro na ferramenta Coleções.</div>}
               {selectedCollection && (
                 <div className="mural-publisher-collection-products">
                   <header><span><b>Produtos da coleção</b><small>{selectedCollectionProducts.length || selectedCollection.product_count || 0} produtos vinculados</small></span><em>Ordem definida na coleção</em></header>
@@ -959,24 +957,14 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
     qa:{title:'QA de liberação',description:'Valide estrutura, conteúdo e desempenho antes da liberação.',icon:'shield',eyebrow:'GESTÃO E CONTROLE'}
   };
   const currentSection = sectionMeta[section] || sectionMeta.posts;
-  const collectionEditorView = collectionEditor ? <CollectionEditor
-    item={collectionEditor.mode==='new'?null:collectionEditor}
-    products={products}
-    onClose={()=>setCollectionEditor(null)}
-    onSaved={async()=>{await load();await refreshReadiness()}}
-  /> : null;
   if (editor) {
-    return <>
-      <PostEditor
-        item={editor}
-        collections={collections}
-        catalogProducts={products}
-        onClose={()=>setEditor(null)}
-        onSaved={async()=>{await load();await refreshReadiness()}}
-        onCreateCollection={()=>setCollectionEditor({mode:'new'})}
-      />
-      {collectionEditorView}
-    </>;
+    return <PostEditor
+      item={editor}
+      collections={collections}
+      catalogProducts={products}
+      onClose={()=>setEditor(null)}
+      onSaved={async()=>{await load();await refreshReadiness()}}
+    />;
   }
 
   return <section className="mural-admin-view mural-admin-dashboard">
@@ -1031,6 +1019,6 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
       </main>
     </div>
 
-    {collectionEditorView}
+    {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
   </section>;
 }
