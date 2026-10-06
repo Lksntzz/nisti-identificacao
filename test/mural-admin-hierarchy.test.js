@@ -16,7 +16,9 @@ test('Mural admin is controlled only by the main panel submenu',()=>{
 });
 
 test('Mural keeps only operational tools after overview removal',()=>{
-  for(const label of ['Publicações','Coleções','Imagens dos produtos','Métricas','QA de liberação']) assert.ok(admin.includes(label));
+  for(const label of ['Publicações','Coleções','Imagens dos produtos']) assert.ok(admin.includes(label));
+  assert.equal(admin.includes("metrics:{title:'Métricas'"),false);
+  assert.equal(admin.includes("qa:{title:'QA de liberação'"),false);
   assert.equal(admin.includes("overview:{title:'Mural NISTI'"),false);
   assert.ok(admin.includes("const currentSection = sectionMeta[section] || sectionMeta.posts"));
 });

@@ -5,13 +5,13 @@ import fs from 'node:fs';
 const mural=fs.readFileSync('src/mural-router.js','utf8');
 const mirror=fs.readFileSync('src/supabase-mutation-mirror.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261001245000_primary_mural_residual_v2.sql','utf8');
+const cleanupSql=fs.readFileSync('supabase/migrations/20261006194000_mural_publications_metrics_v1.sql','utf8');
 
 test('residual Mural admin reads and writes have direct Supabase-primary RPCs',()=>{
   for(const name of [
     'nisti_clear_product_treatment_v1',
     'nisti_admin_mural_products_v1',
     'nisti_admin_mural_metrics_v1',
-    'nisti_admin_mural_readiness_v1',
     'nisti_admin_mural_product_reference_v1',
     'nisti_admin_mural_collection_reference_v1'
   ]){
@@ -23,8 +23,7 @@ test('residual Mural admin reads and writes have direct Supabase-primary RPCs',(
     'nisti_set_product_treatment_v1',
     'nisti_clear_product_treatment_v1',
     'nisti_admin_mural_products_v1',
-    'nisti_admin_mural_metrics_v1',
-    'nisti_admin_mural_readiness_v1'
+    'nisti_admin_mural_metrics_v1'
   ]){
     assert.ok(mural.includes(name),`missing Mural primary route ${name}`);
   }
@@ -36,7 +35,6 @@ test('Mural residual RPCs remain invoker-only and service-role-only',()=>{
     'nisti_clear_product_treatment_v1',
     'nisti_admin_mural_products_v1',
     'nisti_admin_mural_metrics_v1',
-    'nisti_admin_mural_readiness_v1',
     'nisti_admin_mural_product_reference_v1',
     'nisti_admin_mural_collection_reference_v1'
   ]){
@@ -50,4 +48,11 @@ test('Mural image and delete routes are treated as direct primary mutations',()=
   assert.ok(mirror.includes("mural\\/posts\\/\\d+\\/image"));
   assert.ok(mirror.includes("mural\\/collections\\/\\d+\\/image"));
   assert.ok(mirror.includes("mural\\/products\\/\\d+\\/image"));
+});
+
+
+test('retired Mural release-readiness RPC and route are removed',()=>{
+  assert.equal(mural.includes('nisti_admin_mural_readiness_v1'),false);
+  assert.equal(mural.includes('/api/admin/mural/readiness'),false);
+  assert.ok(cleanupSql.includes('DROP FUNCTION IF EXISTS public.nisti_admin_mural_readiness_v1()'));
 });

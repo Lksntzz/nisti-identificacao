@@ -37,8 +37,6 @@ function AdminMuralIcon({ name, size = 22 }) {
   if (name === 'calendar') return <svg {...common}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>;
   if (name === 'user') return <svg {...common}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>;
   if (name === 'home') return <svg {...common}><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg>;
-  if (name === 'metrics') return <svg {...common}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>;
-  if (name === 'shield') return <svg {...common}><path d="M12 3 20 6v5c0 5-3.4 8.3-8 10-4.6-1.7-8-5-8-10V6l8-3Z"/><path d="m9 12 2 2 4-4"/></svg>;
   if (name === 'chevron') return <svg {...common}><path d="m9 18 6-6-6-6"/></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>;
 }
@@ -76,21 +74,6 @@ function toLocalInput(value) {
   if (Number.isNaN(date.getTime())) return '';
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 16);
-}
-
-function formatBytes(value) {
-  if (value === null || value === undefined || value === '') return '—';
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes < 0) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-function ReadinessBadge({ ok, unknown = false }) {
-  const state = unknown ? 'unknown' : ok ? 'ok' : 'pending';
-  const label = unknown ? 'Não medido' : ok ? 'OK' : 'Pendente';
-  return <span className={`mural-admin-readiness-badge ${state}`}>{label}</span>;
 }
 
 function TransparentMuralProductImage({ src, alt = '', className = '', draggable = false, ariaHidden = false }) {
@@ -527,7 +510,7 @@ function MobilePreview({ form, product, collection, imageUrl }) {
   );
 }
 
-function PostEditor({ item, onClose, onSaved }) {
+function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
   const sourceItem = item && item.mode === 'new' ? null : item;
   const [form, setForm] = useState(() => postForm(sourceItem));
   const [products, setProducts] = useState([]);
@@ -645,7 +628,7 @@ function PostEditor({ item, onClose, onSaved }) {
       <header className="mural-publisher-header">
         <div className="mural-publisher-title">
           <span className="mural-publisher-title-icon"><AdminMuralIcon name="sparkles" size={23}/></span>
-          <span><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2><p>Editor universal do Mural para Produto ou Aviso.</p></span>
+          <span><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2><p>Escolha Produto, Aviso ou Coleção. Coleção usa o mesmo editor oficial de Nova coleção.</p></span>
         </div>
 
       </header>
@@ -657,9 +640,10 @@ function PostEditor({ item, onClose, onSaved }) {
             <div className="mural-publisher-type-grid">
               {[
                 ['product','product','Produto','Destaque um produto específico.'],
-                ['notice','notice','Aviso','Comunicado para operadores.']
+                ['notice','notice','Aviso','Comunicado para operadores.'],
+                ['collection','collection','Coleção','Use a mesma interface de Nova coleção.']
               ].map(([value,icon,label,description])=>(
-                <button type="button" key={value} className={form.kind===value?'active':''} onClick={()=>changeKind(value)}>
+                <button type="button" key={value} className={form.kind===value?'active':''} onClick={()=>value==='collection'?onCreateCollection():changeKind(value)}>
                   <span><AdminMuralIcon name={icon} size={25}/></span>
                   <b>{label}</b>
                   <small>{description}</small>
@@ -743,7 +727,7 @@ function PostEditor({ item, onClose, onSaved }) {
       <footer className="mural-publisher-universal-actions" aria-label="Ações da publicação">
         <div>
           <strong>Publicação do Mural</strong>
-          <small>Fluxo único para Produto ou Aviso. Coleções usam o editor próprio.</small>
+          <small>Produto e Aviso usam este editor; Coleção abre o editor oficial de Nova coleção.</small>
         </div>
         <span>
           <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
@@ -815,7 +799,7 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
       <div className="mural-admin-collection-form">
         <div className="mural-admin-collection-body">
           <div className="mural-admin-collection-fields">
-            <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL DO MURAL</span><strong>Collection Launch Hero Card</strong><small>Banner horizontal 2:1, selo NOVA COLEÇÃO automático, nome + ano opcional + frase curta e capas reais da coleção. O Mural público continua bloqueado; a publicação é visível somente no QA.</small></div>
+            <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL DO MURAL</span><strong>Collection Launch Hero Card</strong><small>Banner horizontal 2:1, selo NOVA COLEÇÃO automático, nome + ano opcional + frase curta e capas reais da coleção.</small></div>
             <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
             <div className="mural-admin-inline">
               <label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label>
@@ -859,7 +843,7 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
         <div className="mural-admin-actions mural-admin-collection-actions">
           <button type="button" onClick={onClose}>Cancelar</button>
           <button type="button" disabled={busy||!form.name} onClick={()=>save(false)}>Salvar coleção</button>
-          <button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}>{busy?'Processando…':'Salvar e publicar no Mural QA'}</button>
+          <button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}>{busy?'Processando…':'Salvar e publicar no Mural'}</button>
         </div>
       </div>
     </div>
@@ -876,28 +860,23 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [metrics,setMetrics]=useState(null);
-  const [readiness,setReadiness]=useState(null);
 
   const load=async()=>{
     setLoading(true);setError('');
     try{
-      const [p,c,prod]=await Promise.all([
+      const [p,c,prod,m]=await Promise.all([
         request('/api/admin/mural/posts'),
         request('/api/admin/mural/collections'),
-        request('/api/admin/mural/products?limit=500')
+        request('/api/admin/mural/products?limit=500'),
+        request('/api/admin/mural/metrics')
       ]);
-      setPosts(p.items||[]);setCollections(c.items||[]);setProducts(prod.items||[]);
+      setPosts(p.items||[]);setCollections(c.items||[]);setProducts(prod.items||[]);setMetrics(m||null);
     }catch(err){setError(err.message)}finally{setLoading(false)}
   };
-  const refreshReadiness=async()=>{
-    try{setReadiness(await request('/api/admin/mural/readiness'))}catch{setReadiness(null)}
-  };
   useEffect(()=>{load()},[]);
-  useEffect(()=>{request('/api/admin/mural/metrics').then(setMetrics).catch(()=>setMetrics(null))},[]);
-  useEffect(()=>{refreshReadiness()},[]);
 
   const action=async(id,name)=>{
-    try{setError('');await request(`/api/admin/mural/posts/${id}/${name}`,{method:'POST'});await load();await refreshReadiness()}catch(err){setError(err.message)}
+    try{setError('');await request(`/api/admin/mural/posts/${id}/${name}`,{method:'POST'});await load()}catch(err){setError(err.message)}
   };
   const sendPush=async row=>{
     if(!window.confirm(`Enviar notificação deste conteúdo para os dispositivos inscritos?\n\n${row.title}`))return;
@@ -911,7 +890,6 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
       setError('');
       await request(`/api/admin/mural/posts/${row.id}`,{method:'DELETE'});
       await load();
-      await refreshReadiness();
     }catch(err){
       setError(err.message);
     }
@@ -934,17 +912,14 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
     posts:{title:'Publicações',description:'Gerencie produtos, avisos e conteúdos publicados para os operadores.',icon:'document',eyebrow:'CONTEÚDO'},
     collections:{title:'Coleções',description:'Organize produtos em coleções, configure banners e defina a ordem editorial.',icon:'collection',eyebrow:'CONTEÚDO'},
     images:{title:'Imagens dos produtos',description:'Trate, revise e aprove as imagens que alimentam o Mural.',icon:'image',eyebrow:'PRODUÇÃO VISUAL'},
-    metrics:{title:'Métricas',description:'Acompanhe leituras e indicadores de uso do Mural.',icon:'metrics',eyebrow:'GESTÃO E CONTROLE'},
-    qa:{title:'QA de liberação',description:'Valide estrutura, conteúdo e desempenho antes da liberação.',icon:'shield',eyebrow:'GESTÃO E CONTROLE'}
   };
   const currentSection = sectionMeta[section] || sectionMeta.posts;
   if (editor) {
     return <PostEditor
       item={editor}
-      collections={collections}
-      catalogProducts={products}
       onClose={()=>setEditor(null)}
-      onSaved={async()=>{await load();await refreshReadiness()}}
+      onSaved={load}
+      onCreateCollection={()=>{setEditor(null);setCollectionEditor({mode:'new'})}}
     />;
   }
 
@@ -955,7 +930,6 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
         <span><small className="mural-admin-section-eyebrow">{currentSection.eyebrow}</small><h2>{currentSection.title}</h2><p>{currentSection.description}</p></span>
       </div>
       <div className="mural-admin-dashboard-actions">
-        <button type="button" className="qa" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>
         {section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
         {section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}
       </div>
@@ -969,6 +943,7 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
           posts={posts}
           collections={collections}
           loading={loading}
+          metrics={metrics}
           onEdit={openPublicationEditor}
           onAction={action}
           onPush={sendPush}
@@ -979,27 +954,9 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
 
         {section==='images'&&<MuralProductImageManager products={products} onChanged={load}/>}
 
-        {section==='metrics'&&<div className="mural-admin-metrics"><article><small>OPERADORES COM LEITURA</small><strong>{metrics?.readers ?? '—'}</strong></article><article><small>IMAGEM EDITORIAL MÉDIA</small><strong>{metrics?.editorial_images?.average_bytes ? `${Math.round(metrics.editorial_images.average_bytes/1024)} KB` : '0 KB'}</strong><span>{metrics?.editorial_images?.count ?? 0} imagens</span></article><article><small>PUBLICAÇÕES NO MÊS</small><strong>{metrics?.published_by_month?.[0]?.total ?? 0}</strong><span>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</span></article><div className="mural-admin-metric-list"><h3>Posts com mais leituras</h3>{metrics?.top_reads?.length?metrics.top_reads.map(row=><div key={row.id}><span>{row.title}</span><b>{row.reads}</b></div>):<p>Sem leituras registradas.</p>}</div></div>}
-
-        {section==='qa'&&<div className="mural-admin-readiness">
-          <div className="mural-admin-readiness-summary">
-            <div><small>READINESS AUTOMÁTICO</small><strong>{readiness?.automated_ready?'Pronto para smoke':'Pendências detectadas'}</strong><p>Valida o ambiente atual sem remover o gate público do Mural.</p></div>
-            <div className="mural-admin-readiness-summary-actions"><ReadinessBadge ok={Boolean(readiness?.automated_ready)} unknown={!readiness}/><button type="button" onClick={refreshReadiness}>Atualizar diagnóstico</button></div>
-          </div>
-          <div className="mural-admin-readiness-grid">
-            <article><div><small>MIGRATION D1</small><strong>{readiness?.migration?.ok?'Estrutura presente':'Estrutura incompleta'}</strong></div><ReadinessBadge ok={Boolean(readiness?.migration?.ok)} unknown={!readiness}/>{readiness?.migration?.missing_tables?.length>0&&<p>Faltando: {readiness.migration.missing_tables.join(', ')}</p>}</article>
-            <article><div><small>CONTEÚDO PARA QA</small><strong>{readiness?.content?.published_now ?? '—'} publicados agora</strong></div><ReadinessBadge ok={Boolean(readiness?.content?.ok)} unknown={!readiness}/><p>Meta mínima: {readiness?.content?.minimum_for_qa ?? 3}. Produto {readiness?.content?.by_kind?.product ?? 0} · Coleção {readiness?.content?.by_kind?.collection ?? 0} · Aviso {readiness?.content?.by_kind?.notice ?? 0}.</p></article>
-            <article><div><small>PRIMEIRA DOBRA</small><strong>{formatBytes(readiness?.images?.first_fold_bytes)} / {formatBytes(readiness?.images?.first_fold_budget_bytes)}</strong></div><ReadinessBadge ok={Boolean(readiness?.images?.ok)} unknown={!readiness || !readiness?.images?.available}/><p>Soma do hero + primeiros cards, usando os objetos reais do R2 quando disponíveis.</p></article>
-          </div>
-          <div className="mural-admin-readiness-list">
-            <h3>Imagens da primeira dobra</h3>
-            {readiness?.images?.items?.length?readiness.images.items.map(item=><div key={item.id}><span><b>{item.title}</b><small>{item.role} · {item.kind}</small></span><span>{formatBytes(item.bytes)} / {formatBytes(item.budget_bytes)}</span><ReadinessBadge ok={item.within_budget!==false} unknown={item.within_budget===null}/></div>):<p>Nenhuma imagem mensurável na primeira dobra.</p>}
-          </div>
-          <div className="mural-admin-readiness-manual"><strong>Ainda exige validação real</strong><p>Scanner → Mural → Scanner com reinício da câmera, breakpoints 360/390/430 px, safe-area no iPhone e abertura abaixo de 1 s continuam sendo smoke tests em aparelho real.</p></div>
-        </div>}
       </main>
     </div>
 
-    {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
+    {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={load}/>} 
   </section>;
 }

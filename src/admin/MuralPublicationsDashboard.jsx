@@ -14,6 +14,7 @@ function Icon({ name, size = 18 }) {
   if (name === 'search') return <svg {...common}><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>;
   if (name === 'sliders') return <svg {...common}><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M8 15v4"/></svg>;
   if (name === 'more') return <svg {...common}><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>;
+  if (name === 'eye') return <svg {...common}><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>;
   return <svg {...common}><path d="m12 3 1.35 4.15L17.5 8.5l-4.15 1.35L12 14l-1.35-4.15L6.5 8.5l4.15-1.35L12 3Z"/></svg>;
 }
 
@@ -47,7 +48,7 @@ function Status({ value }) {
   return <span className={'mural-admin-status '+value}><i aria-hidden="true"/>{statusLabel(value)}</span>;
 }
 
-export default function MuralPublicationsDashboard({ posts, collections, loading, onEdit, onAction, onPush, onDelete }) {
+export default function MuralPublicationsDashboard({ posts, collections, loading, metrics, onEdit, onAction, onPush, onDelete }) {
   const [kind,setKind]=useState('');
   const [status,setStatus]=useState('');
   const [author,setAuthor]=useState('');
@@ -142,8 +143,9 @@ export default function MuralPublicationsDashboard({ posts, collections, loading
   const safePage=Math.min(page,totalPages);
   const visible=filtered.slice((safePage-1)*pageSize,safePage*pageSize);
   const activeCollections=collections.filter(row=>row.status==='active').length;
-  const publishedProducts=posts.filter(row=>row.kind==='product'&&row.status==='published').length;
-  const publishedNotices=posts.filter(row=>row.kind==='notice'&&row.status==='published').length;
+  const totalViews=posts.reduce((sum,row)=>sum+Number(row.reads||0),0);
+  const publishedThisMonth=Number(metrics?.published_by_month?.[0]?.total || 0);
+  const readers=Number(metrics?.readers || 0);
   const thisWeek=posts.filter(row=>{
     const time=new Date(row.created_at||row.published_at||0).getTime();
     return Number.isFinite(time)&&time>0&&Date.now()-time<=7*86400000;
@@ -152,9 +154,9 @@ export default function MuralPublicationsDashboard({ posts, collections, loading
   return <>
     <div className="mural-admin-summary-grid">
       <article><span className="metric-icon blue"><Icon name="document" size={25}/></span><div><strong>{counts.all}</strong><b>Publicações</b><small>{thisWeek?'+ '+thisWeek+' esta semana':'Sem novas esta semana'}</small></div></article>
-      <article><span className="metric-icon indigo"><Icon name="product" size={25}/></span><div><strong>{counts.product}</strong><b>Produtos</b><small>{publishedProducts} publicados</small></div></article>
-      <article><span className="metric-icon cyan"><Icon name="collection" size={25}/></span><div><strong>{activeCollections}</strong><b>Coleções ativas</b><small>{counts.collection} publicações de coleção</small></div></article>
-      <article><span className="metric-icon pink"><Icon name="notice" size={25}/></span><div><strong>{publishedNotices}</strong><b>Avisos publicados</b><small>{counts.notice} avisos cadastrados</small></div></article>
+      <article><span className="metric-icon indigo"><Icon name="eye" size={25}/></span><div><strong>{totalViews}</strong><b>Visualizações</b><small>Soma das leituras registradas</small></div></article>
+      <article><span className="metric-icon cyan"><Icon name="product" size={25}/></span><div><strong>{readers}</strong><b>Operadores com leitura</b><small>{activeCollections} coleções ativas</small></div></article>
+      <article><span className="metric-icon pink"><Icon name="notice" size={25}/></span><div><strong>{publishedThisMonth}</strong><b>Publicações no mês</b><small>{metrics?.published_by_month?.[0]?.month || 'Sem publicações'}</small></div></article>
     </div>
 
     <section className="mural-admin-publications-card">
@@ -181,7 +183,7 @@ export default function MuralPublicationsDashboard({ posts, collections, loading
 
       <div className="mural-admin-modern-table-wrap">
         <table className="mural-admin-modern-table">
-          <thead><tr><th>Publicação</th><th>Tipo</th><th>Selo</th><th>Status</th><th>Período</th><th>Autor</th><th>Ações</th></tr></thead>
+          <thead><tr><th>Publicação</th><th>Tipo</th><th>Selo</th><th>Status</th><th>Período</th><th>Autor</th><th>Visualizações</th><th>Ações</th></tr></thead>
           <tbody>
             {visible.map(row=>{
               const imageUrl=row.image_key
@@ -206,6 +208,7 @@ export default function MuralPublicationsDashboard({ posts, collections, loading
                 <td><Status value={row.status}/></td>
                 <td><span className="mural-admin-period"><b>{period.date}</b>{period.time&&<small>{period.time}</small>}{row.expires_at?<em>até {expires.date}</em>:<em>Sem data de fim</em>}</span></td>
                 <td><span className="mural-admin-author"><i>{initials(author)}</i><span><b>{author}</b><small>{row.updated_at?dateParts(row.updated_at).date:'—'}</small></span></span></td>
+                <td><span className="mural-admin-views" title={`${Number(row.reads||0)} visualizações`}><Icon name="eye" size={16}/><b>{Number(row.reads||0)}</b></span></td>
                 <td className="mural-admin-actions-cell">
                   <button type="button" className="mural-admin-kebab" aria-label={'Ações de '+row.title} aria-expanded={openMenu===row.id} onClick={event=>toggleActionMenu(event,row.id)}><Icon name="more" size={19}/></button>
                   {openMenu===row.id&&menuPosition&&typeof document!=='undefined'&&createPortal(

@@ -99,11 +99,11 @@ test('Mural NISTI exposes its tools as a submenu of the main admin navigation', 
   assert.ok(mural);
   assert.deepEqual(
     mural.children.map(item => item.id),
-    ['posts','collections','images','metrics','qa']
+    ['posts','collections','images']
   );
   assert.deepEqual(
     mural.children.map(item => item.label),
-    ['Publicações','Coleções','Imagens dos produtos','Métricas','QA de liberação']
+    ['Publicações','Coleções','Imagens dos produtos']
   );
 });
 
@@ -128,4 +128,12 @@ test('Mural NISTI no longer exposes an overview entry and opens on publications'
   assert.ok(source.includes("const [muralSection,setMuralSection]=useState('posts')"));
   assert.ok(source.includes("activeMuralSection = 'posts'"));
   assert.ok(source.includes("onMuralSectionChange?.('posts')"));
+});
+
+
+test('Mural submenu does not expose retired Metrics or QA tools', () => {
+  const mural = flattenedItems().find(item => item.id === 'mural-nisti');
+  const ids = mural.children.map(item => item.id);
+  assert.equal(ids.includes('metrics'), false);
+  assert.equal(ids.includes('qa'), false);
 });
