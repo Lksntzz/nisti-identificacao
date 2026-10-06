@@ -652,58 +652,87 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
             </div>
           </section>
 
-          <section className="mural-publisher-block">
-            <label className="mural-publisher-field">Título <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Nova Coleção 2027"/></label>
-            <label className="mural-publisher-field">Subtítulo<input maxLength="120" value={form.subtitle || ''} onChange={e=>set('subtitle',e.target.value)} placeholder="Uma frase curta para o card e o destaque."/></label>
-            <label className="mural-publisher-field">Descrição<textarea maxLength="700" rows="5" value={form.body || ''} onChange={e=>set('body',e.target.value)} placeholder="Conte o que os operadores precisam saber."/><small>{String(form.body || '').length}/700</small></label>
-          </section>
-
           {form.kind === 'product' && (
-            <section className="mural-publisher-block">
-              <div className="mural-publisher-block-title"><strong>Produto</strong><span>Selecione a referência real do catálogo.</span></div>
-              <label className="mural-publisher-field">Buscar produto<input value={productQuery} onChange={e=>setProductQuery(e.target.value)} placeholder="Buscar por SKU ou nome"/></label>
-              <div className="mural-publisher-product-search">
-                {products.map(product=>(
-                  <button type="button" className={Number(form.product_id)===Number(product.id)?'selected':''} key={product.id} onClick={()=>{set('product_id',product.id);setSelectedProduct(product);setProductQuery(product.sku);}}>
-                    {product.image_url ? <TransparentMuralProductImage src={product.image_url} alt="" ariaHidden/> : <span className="placeholder"><AdminMuralIcon name="product" size={22}/></span>}
-                    <span><b>{product.sku}</b><small>{product.nome || product.variacao || product.type || 'Produto NISTI'}</small></span>
-                    {Number(form.product_id)===Number(product.id)&&<i><AdminMuralIcon name="check" size={14}/></i>}
-                  </button>
-                ))}
-              </div>
-              <div className="mural-product-visual-standard">
-                <span>PADRÃO VISUAL</span>
-                <strong>Product Hero Card</strong>
-                <small>Banner 2:1 · texto à esquerda · exatamente 1 produto real à direita · foco total no produto.</small>
-              </div>
-            </section>
+            <>
+              <section className="mural-publisher-block mural-publisher-product-panel">
+                <div className="mural-publisher-section-kicker"><AdminMuralIcon name="product" size={16}/><span>PRODUTO</span></div>
+                <div className="mural-publisher-block-title"><strong>Escolha o produto primeiro</strong><span>O card e a prévia passam a usar os dados reais do item selecionado.</span></div>
+                {selectedProduct && <div className="mural-publisher-selected-product">
+                  <figure>{selectedProduct.image_url ? <TransparentMuralProductImage src={selectedProduct.image_url} alt={selectedProduct.nome || selectedProduct.sku}/> : <span><AdminMuralIcon name="product" size={28}/></span>}</figure>
+                  <div><small>PRODUTO SELECIONADO</small><strong>{selectedProduct.sku}</strong><span>{selectedProduct.nome || selectedProduct.variacao || selectedProduct.type || 'Produto NISTI'}</span>
+                    <div className="mural-publisher-selected-product-meta">
+                      {selectedProduct.type&&<em>{selectedProduct.type}</em>}
+                      {selectedProduct.collection_name&&<em>{selectedProduct.collection_name}</em>}
+                      {selectedProduct.wireo&&<em>Wire-o {selectedProduct.wireo}</em>}
+                    </div>
+                  </div>
+                  <i><AdminMuralIcon name="check" size={15}/></i>
+                </div>}
+                <label className="mural-publisher-field mural-publisher-search-field">Buscar produto<input value={productQuery} onChange={e=>setProductQuery(e.target.value)} placeholder="Digite SKU ou nome do produto"/></label>
+                <div className="mural-publisher-product-search">
+                  {products.map(product=>(
+                    <button type="button" className={Number(form.product_id)===Number(product.id)?'selected':''} key={product.id} onClick={()=>{set('product_id',product.id);setSelectedProduct(product);setProductQuery(product.sku);}}>
+                      {product.image_url ? <TransparentMuralProductImage src={product.image_url} alt="" ariaHidden/> : <span className="placeholder"><AdminMuralIcon name="product" size={22}/></span>}
+                      <span><b>{product.sku}</b><small>{product.nome || product.variacao || product.type || 'Produto NISTI'}</small></span>
+                      {Number(form.product_id)===Number(product.id)&&<i><AdminMuralIcon name="check" size={14}/></i>}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="mural-publisher-block mural-publisher-copy-panel">
+                <div className="mural-publisher-section-kicker"><AdminMuralIcon name="document" size={16}/><span>CONTEÚDO</span></div>
+                <div className="mural-publisher-copy-grid">
+                  <label className="mural-publisher-field mural-publisher-copy-title">Título <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Planner Cactus 2027"/></label>
+                  <label className="mural-publisher-field">Subtítulo<input maxLength="120" value={form.subtitle || ''} onChange={e=>set('subtitle',e.target.value)} placeholder="Uma frase curta para o destaque."/></label>
+                  <label className="mural-publisher-field mural-publisher-copy-body">Descrição<textarea maxLength="700" rows="4" value={form.body || ''} onChange={e=>set('body',e.target.value)} placeholder="O que o operador precisa saber sobre este produto?"/><small>{String(form.body || '').length}/700</small></label>
+                </div>
+              </section>
+            </>
           )}
 
           {form.kind === 'notice' && (
-            <section className="mural-publisher-block">
-              <label className="mural-publisher-field">Prioridade visual<select value={form.notice_level} onChange={e=>set('notice_level',e.target.value)}><option value="important">Importante</option><option value="attention">Atenção</option><option value="info">Informação</option></select></label>
+            <section className="mural-publisher-block mural-publisher-notice-panel">
+              <div className="mural-publisher-section-kicker"><AdminMuralIcon name="notice" size={16}/><span>AVISO</span></div>
+              <div className="mural-publisher-block-title"><strong>Monte o aviso em uma única área</strong><span>Defina o nível e escreva a mensagem que o operador vai receber.</span></div>
+              <div className="mural-publisher-notice-levels" role="group" aria-label="Prioridade do aviso">
+                {[
+                  ['important','Importante','Comunicado normal'],
+                  ['attention','Atenção','Exige atenção do operador'],
+                  ['info','Informação','Atualização informativa']
+                ].map(([value,label,description])=><button type="button" key={value} className={form.notice_level===value?'active':''} onClick={()=>set('notice_level',value)}>
+                  <span><AdminMuralIcon name="notice" size={17}/></span><b>{label}</b><small>{description}</small>
+                </button>)}
+              </div>
+              <div className="mural-publisher-notice-copy">
+                <label className="mural-publisher-field">Título do aviso <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Atenção ao novo procedimento"/></label>
+                <label className="mural-publisher-field">Linha de apoio<input maxLength="120" value={form.subtitle || ''} onChange={e=>set('subtitle',e.target.value)} placeholder="Resumo curto para o card."/></label>
+                <label className="mural-publisher-field mural-publisher-notice-message">Mensagem<textarea maxLength="700" rows="5" value={form.body || ''} onChange={e=>set('body',e.target.value)} placeholder="Escreva a orientação completa para os operadores."/><small>{String(form.body || '').length}/700</small></label>
+              </div>
             </section>
           )}
 
-          <section className="mural-publisher-block">
-            <div className="mural-publisher-block-title"><strong>Exibição</strong><span>Controle selos, destaque e ordem editorial.</span></div>
-            <div className="mural-publisher-display-grid">
-              <label className="mural-publisher-field">Selo direito<input maxLength="40" value={form.badge || ''} onChange={e=>set('badge',e.target.value)} placeholder="NOVO"/></label>
-              <label className="mural-publisher-field">Prioridade<input type="number" min="0" max="100" value={form.priority} onChange={e=>set('priority',e.target.value)}/></label>
-              <label className="mural-publisher-featured"><input type="checkbox" checked={form.featured} onChange={e=>set('featured',e.target.checked)}/><span><b>Destaque no topo</b><small>Mostra a publicação no hero principal.</small></span></label>
-            </div>
-          </section>
+          <div className="mural-publisher-controls-grid">
+            <section className="mural-publisher-block mural-publisher-control-card">
+              <div className="mural-publisher-block-title"><strong>Exibição</strong><span>Como aparece no Mural.</span></div>
+              <div className="mural-publisher-display-grid">
+                <label className="mural-publisher-field">Selo<input maxLength="40" value={form.badge || ''} onChange={e=>set('badge',e.target.value)} placeholder={form.kind==='notice'?'AVISO':'NOVO'}/></label>
+                <label className="mural-publisher-field">Ordem<input type="number" min="0" max="100" value={form.priority} onChange={e=>set('priority',e.target.value)}/></label>
+                <label className="mural-publisher-featured"><input type="checkbox" checked={form.featured} onChange={e=>set('featured',e.target.checked)}/><span><b>Destaque no topo</b><small>Prioriza no início do Mural.</small></span></label>
+              </div>
+            </section>
 
-          <section className="mural-publisher-block mural-publisher-schedule">
-            <div className="mural-publisher-block-title"><strong>Publicação e expiração</strong><span>Opcional. Sem data, o botão Publicar entra imediatamente.</span></div>
-            <div className="mural-admin-inline">
-              <label className="mural-publisher-field">Publicar em<input type="datetime-local" value={form.published_at} onChange={e=>set('published_at',e.target.value)}/></label>
-              <label className="mural-publisher-field">Expira em<input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)}/></label>
-            </div>
-          </section>
+            <section className="mural-publisher-block mural-publisher-control-card mural-publisher-schedule">
+              <div className="mural-publisher-block-title"><strong>Programação</strong><span>Opcional.</span></div>
+              <div className="mural-publisher-schedule-grid">
+                <label className="mural-publisher-field">Publicar em<input type="datetime-local" value={form.published_at} onChange={e=>set('published_at',e.target.value)}/></label>
+                <label className="mural-publisher-field">Expira em<input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)}/></label>
+              </div>
+            </section>
+          </div>
 
-          <section className="mural-publisher-block">
-            <div className="mural-publisher-block-title"><strong>Imagem editorial manual</strong><span>Envie uma arte pronta para a publicação.</span></div>
+          <section className="mural-publisher-block mural-publisher-image-panel">
+            <div className="mural-publisher-block-title"><strong>Imagem editorial</strong><span>Opcional. Use uma arte pronta quando necessário.</span></div>
             <label className="mural-publisher-upload">
               <AdminMuralIcon name="image" size={24}/>
               <span><b>Selecionar imagem</b><small>JPEG, PNG ou WebP · até 5 MB após compressão</small></span>
@@ -716,7 +745,17 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
         </form>
 
         <aside className="mural-publisher-art-panel">
-          <header><span><h3>Arte da publicação</h3><p>Revise o visual antes de salvar ou publicar.</p></span><span className="mural-publisher-art-help">?</span></header>
+          <header><span><small>{form.kind==='product'?'PRODUTO':'AVISO'}</small><h3>{form.kind==='product'?'Prévia da publicação de produto':'Prévia do aviso'}</h3><p>Veja como o operador receberá esse conteúdo.</p></span><span className="mural-publisher-art-help">?</span></header>
+          <div className="mural-publisher-preview-context">
+            {form.kind==='product' ? (
+              selectedProduct ? <div className="mural-publisher-preview-reference">
+                <span><AdminMuralIcon name="product" size={17}/></span>
+                <div><small>REFERÊNCIA ATUAL</small><b>{selectedProduct.sku}</b><em>{selectedProduct.nome || selectedProduct.variacao || selectedProduct.type || 'Produto NISTI'}</em></div>
+              </div> : <div className="mural-publisher-preview-empty"><AdminMuralIcon name="product" size={18}/><span>Selecione um produto para completar a prévia.</span></div>
+            ) : (
+              <div className={`mural-publisher-preview-notice is-${form.notice_level || 'info'}`}><AdminMuralIcon name="notice" size={17}/><span><small>NÍVEL DO AVISO</small><b>{form.notice_level==='attention'?'Atenção':form.notice_level==='important'?'Importante':'Informação'}</b></span></div>
+            )}
+          </div>
           <div className="mural-publisher-preview-pane">
             <MobilePreview form={form} product={selectedProduct} collection={null} imageUrl={imageUrl}/>
             {imageUrl && <div className="mural-publisher-current-art"><span>Imagem editorial aplicada</span><img src={imageUrl} alt="Imagem editorial atual"/></div>}
