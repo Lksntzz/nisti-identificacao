@@ -36,7 +36,7 @@ test('existing collection publication edit also routes to the official Collectio
 
 test('publication side panel keeps the manual image workflow', () => {
   assert.ok(admin.includes('Arte da publicação'));
-  assert.ok(admin.includes('Envie uma arte pronta para a publicação.'));
+  assert.ok(admin.includes('Opcional. Use uma arte pronta quando necessário.'));
   assert.ok(css.includes('.mural-publisher-art-panel'));
 });
 
@@ -53,4 +53,35 @@ test('publication and collection editors share one full-page panel system', () =
   assert.ok(css.includes('.mural-collection-workspace{'));
   assert.ok(css.includes('max-width:1480px'));
   assert.ok(admin.includes('mural-publisher-universal-actions mural-collection-universal-actions'));
+});
+
+
+test('product publication has a product-first hierarchy instead of the generic long form', () => {
+  assert.ok(admin.includes('mural-publisher-product-panel'));
+  assert.ok(admin.includes('Escolha o produto primeiro'));
+  assert.ok(admin.includes('mural-publisher-selected-product'));
+  assert.ok(admin.includes('PRODUTO SELECIONADO'));
+  assert.ok(admin.includes('mural-publisher-copy-panel'));
+  assert.ok(css.includes('.mural-publisher-selected-product'));
+  assert.ok(css.includes('.mural-publisher-copy-grid'));
+});
+
+test('notice publication has a dedicated message and priority panel', () => {
+  assert.ok(admin.includes('mural-publisher-notice-panel'));
+  assert.ok(admin.includes('Monte o aviso em uma única área'));
+  assert.ok(admin.includes('mural-publisher-notice-levels'));
+  assert.ok(admin.includes('Título do aviso'));
+  assert.ok(admin.includes('Mensagem<textarea'));
+  assert.ok(css.includes('.mural-publisher-notice-levels'));
+  assert.ok(css.includes('.mural-publisher-notice-copy'));
+});
+
+test('product and notice share compact controls and a contextual right preview', () => {
+  assert.ok(admin.includes('mural-publisher-controls-grid'));
+  assert.ok(admin.includes('mural-publisher-preview-context'));
+  assert.ok(admin.includes('Prévia da publicação de produto'));
+  assert.ok(admin.includes('Prévia do aviso'));
+  assert.ok(css.includes('grid-template-columns:minmax(0,1fr) minmax(320px,370px)'));
+  assert.ok(css.includes('.mural-publisher-preview-reference'));
+  assert.ok(css.includes('.mural-publisher-preview-notice'));
 });
