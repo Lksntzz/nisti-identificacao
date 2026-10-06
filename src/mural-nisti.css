@@ -3407,6 +3407,63 @@
     radial-gradient(circle at 50% 64%,rgba(52,52,52,.42),transparent 38%),
     linear-gradient(180deg,#000 0%,#080808 58%,#111 100%);
 }
+.mural-collection-party-effects{
+  position:absolute;
+  z-index:5;
+  inset:0;
+  overflow:hidden;
+  pointer-events:none;
+}
+.mural-collection-party-particle{
+  position:absolute;
+  top:-8%;
+  left:var(--party-left);
+  width:7px;
+  height:13px;
+  border-radius:2px;
+  background:var(--party-color);
+  opacity:0;
+  transform:translate3d(0,-12vh,0) rotate(0deg) scale(var(--party-scale,1));
+  will-change:transform,opacity;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+}
+.mural-collection-party-particle:nth-child(3n){
+  width:10px;
+  height:6px;
+  border-radius:999px;
+}
+.mural-collection-party-particle:nth-child(4n){
+  width:6px;
+  height:6px;
+  border-radius:50%;
+}
+.mural-collection-party-particle.is-sparkle{
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 0 10px rgba(255,255,255,.95),0 0 18px rgba(255,255,255,.55);
+}
+.mural-collection-reveal-intro.is-ready .mural-collection-party-particle{
+  animation:mural-collection-party-fall var(--party-duration) linear var(--party-delay) infinite;
+}
+@keyframes mural-collection-party-fall{
+  0%{
+    opacity:0;
+    transform:translate3d(0,-12vh,0) rotate(0deg) scale(var(--party-scale,1));
+  }
+  10%{
+    opacity:.96;
+  }
+  82%{
+    opacity:.9;
+  }
+  100%{
+    opacity:0;
+    transform:translate3d(var(--party-drift),112vh,0) rotate(var(--party-spin)) scale(var(--party-scale,1));
+  }
+}
 .mural-collection-reveal-white-arc{
   position:absolute;
   z-index:1;
@@ -3572,6 +3629,9 @@
   .mural-collection-reveal-title{
     transition:none!important;
     animation:none!important;
+  }
+  .mural-collection-party-effects{
+    display:none!important;
   }
 }
 
