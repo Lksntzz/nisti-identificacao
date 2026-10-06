@@ -731,7 +731,7 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
             </section>
 
             <section className="mural-publisher-block mural-publisher-control-card mural-publisher-image-panel">
-              <div className="mural-publisher-block-title"><strong>Imagem editorial</strong><span>Opcional.</span></div>
+              <div className="mural-publisher-block-title"><strong>Imagem editorial</strong><span>Opcional. Use uma arte pronta quando necessário.</span></div>
               <label className="mural-publisher-upload">
                 <AdminMuralIcon name="image" size={21}/>
                 <span><b>Selecionar imagem</b><small>JPEG, PNG ou WebP · até 5 MB</small></span>
