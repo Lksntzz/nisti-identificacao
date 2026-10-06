@@ -8,9 +8,9 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
         label: 'Mural NISTI',
         icon: 'mural',
         children: Object.freeze([
-          { id: 'collections', label: 'Coleções' },
-          { id: 'posts', label: 'Publicações' },
-          { id: 'images', label: 'Imagens dos produtos' }
+          { id: 'dashboard', label: 'Painel' },
+          { id: 'publish', label: 'Publicar' },
+          { id: 'treatment', label: 'Tratamento' }
         ])
       },
       { id: 'gerador-barras', label: 'Gerador de Barras', icon: 'barcode' }
