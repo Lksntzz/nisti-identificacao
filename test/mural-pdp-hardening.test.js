@@ -24,9 +24,11 @@ test('collection membership rejects invalid and missing product ids',()=>{
   assert.match(router,/A coleção contém produto inexistente/);
 });
 
-test('PDP observability includes average editorial image size',()=>{
-  assert.match(router,/editorial_images:\{ count:editorialImages\.length, average_bytes:/);
-  assert.match(admin,/IMAGEM EDITORIAL MÉDIA/);
+test('PDP observability exposes per-publication visualizations',()=>{
+  assert.match(router,/mural_post_reads mr WHERE mr\.post_id=mp\.id\) AS reads/);
+  assert.match(dashboard,/Visualizações/);
+  assert.match(dashboard,/mural-admin-views/);
+  assert.match(dashboard,/Number\(row\.reads\|\|0\)/);
 });
 
 test('admin product preview uses current image and resolved finishes',()=>{
