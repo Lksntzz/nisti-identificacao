@@ -3436,7 +3436,7 @@
   width:clamp(176px,52vw,285px);
   height:clamp(266px,78vw,430px);
   transform-origin:50% 100%;
-  will-change:transform,opacity;
+  will-change:transform;
   backface-visibility:hidden;
   -webkit-backface-visibility:hidden;
   transform-style:preserve-3d;
@@ -3453,13 +3453,13 @@
 }
 .mural-collection-reveal-product.is-main{
   z-index:6;
-  opacity:0;
+  visibility:hidden;
   transform:translate3d(-50%,64vh,0) rotate(0) scale(.62);
-  transition:transform 1250ms cubic-bezier(.22,.61,.36,1),opacity 360ms ease-out;
+  transition:transform 1250ms cubic-bezier(.22,.61,.36,1);
   transition-delay:520ms;
 }
 .mural-collection-reveal-intro.is-ready .mural-collection-reveal-product.is-main{
-  opacity:1;
+  visibility:visible;
   transform:translate3d(-50%,-6%,0) rotate(0) scale(1.07);
 }
 .mural-collection-reveal-intro.is-ready .mural-collection-reveal-fan.fan-2 .mural-collection-reveal-product.is-main{
@@ -3473,39 +3473,19 @@
 }
 .mural-collection-reveal-product.is-secondary{
   z-index:var(--reveal-final-layer,2);
-  opacity:0;
-  transform:translate3d(-50%,14%,0) rotate(0) scale(.74);
-}
-.mural-collection-reveal-product.is-secondary.from-left{
-  --reveal-mid-x:-40px;
-  --reveal-mid-rotation:-6deg;
-  --reveal-peek-x:-72px;
-  --reveal-peek-rotation:-11deg;
-}
-.mural-collection-reveal-product.is-secondary.from-right{
-  --reveal-mid-x:40px;
-  --reveal-mid-rotation:6deg;
-  --reveal-peek-x:72px;
-  --reveal-peek-rotation:11deg;
+  visibility:hidden;
+  transform:translate3d(-50%,16%,0) rotate(0) scale(.76);
 }
 .mural-collection-reveal-intro.is-ready .mural-collection-reveal-product.is-secondary{
-  animation:mural-collection-cover-arrive 1250ms cubic-bezier(.22,.61,.36,1) var(--reveal-product-delay) both;
+  animation:mural-collection-cover-arrive 1250ms cubic-bezier(.22,.61,.36,1) var(--reveal-product-delay) forwards;
 }
 @keyframes mural-collection-cover-arrive{
   0%{
-    opacity:0;
+    visibility:visible;
     transform:translate3d(-50%,16%,0) rotate(0) scale(.76);
   }
-  32%{
-    opacity:.72;
-    transform:translate3d(calc(-50% + var(--reveal-mid-x)),7%,0) rotate(var(--reveal-mid-rotation)) scale(.84);
-  }
-  68%{
-    opacity:1;
-    transform:translate3d(calc(-50% + var(--reveal-peek-x)),2%,0) rotate(var(--reveal-peek-rotation)) scale(.9);
-  }
   100%{
-    opacity:1;
+    visibility:visible;
     transform:translate3d(calc(-50% + var(--reveal-final-x)),var(--reveal-final-y),0) rotate(var(--reveal-final-rotation)) scale(var(--reveal-final-scale));
   }
 }

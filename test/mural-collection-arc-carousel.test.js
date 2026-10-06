@@ -35,7 +35,7 @@ test('arc rises before main cover and every later cover finishes above the previ
   assert.ok(css.includes('z-index:6'));
   assert.ok(css.includes('z-index:2'));
   assert.ok(css.includes('z-index:var(--reveal-final-layer,2)'));
-  assert.ok(css.includes('var(--reveal-peek-x)'));
+  assert.equal(css.includes('var(--reveal-peek-x)'), false);
   assert.equal(mural.includes('products.slice(0, 5)'), false);
 });
 
@@ -54,15 +54,22 @@ test('collection variants wait 1.5 seconds before the next cover and title close
 });
 
 
-test('white arc and product reveal use smooth GPU-friendly transforms without layer jumps', () => {
+test('white arc and product reveal use one opaque continuous motion without intermediate advances', () => {
+  const motionStart=css.indexOf('.mural-collection-reveal-product.is-main{');
+  const motionEnd=css.indexOf('.mural-collection-reveal-title{');
+  const motion=css.slice(motionStart,motionEnd);
   assert.ok(css.includes('box-shadow:none'));
   assert.ok(css.includes('filter:none'));
   assert.ok(css.includes('backface-visibility:hidden'));
-  assert.ok(css.includes('z-index:var(--reveal-final-layer,2)'));
-  assert.equal(css.includes('55%{\n    z-index:2'), false);
-  assert.equal(css.includes('56%{\n    z-index:var(--reveal-final-layer)'), false);
-  assert.ok(css.includes('32%{\n    opacity:.72'));
-  assert.ok(css.includes('68%{\n    opacity:1'));
+  assert.ok(motion.includes('z-index:var(--reveal-final-layer,2)'));
+  assert.ok(motion.includes('visibility:hidden'));
+  assert.ok(motion.includes('visibility:visible'));
+  assert.ok(motion.includes('var(--reveal-product-delay) forwards'));
+  assert.equal(motion.includes('32%{'), false);
+  assert.equal(motion.includes('68%{'), false);
+  assert.equal(motion.includes('opacity:.72'), false);
+  assert.equal(motion.includes('--reveal-mid-x'), false);
+  assert.equal(motion.includes('--reveal-peek-x'), false);
 });
 
 
@@ -111,4 +118,14 @@ test('collection reveal waits for eager product images before starting, with a s
   assert.ok(mural.includes('window.setTimeout(() => setAssetsReady(true), 900)'));
   assert.ok(mural.includes('if (!assetsReady) return undefined'));
   assert.ok(mural.includes('onReady={() => markProductReady'));
+});
+
+
+test('animated collection products never fade through partial opacity', () => {
+  const mainStart=css.indexOf('.mural-collection-reveal-product.is-main{');
+  const titleStart=css.indexOf('.mural-collection-reveal-title{');
+  const productMotion=css.slice(mainStart,titleStart);
+  assert.equal(productMotion.includes('opacity:'), false);
+  assert.ok(productMotion.includes('transition:transform 1250ms'));
+  assert.ok(productMotion.includes('@keyframes mural-collection-cover-arrive'));
 });
