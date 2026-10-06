@@ -38,6 +38,11 @@ function AdminMuralIcon({ name, size = 22 }) {
   if (name === 'user') return <svg {...common}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>;
   if (name === 'home') return <svg {...common}><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg>;
   if (name === 'chevron') return <svg {...common}><path d="m9 18 6-6-6-6"/></svg>;
+  if (name === 'eye') return <svg {...common}><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>;
+  if (name === 'upload') return <svg {...common}><path d="M12 16V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v5h14v-5"/></svg>;
+  if (name === 'clock') return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>;
+  if (name === 'info') return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></svg>;
+  if (name === 'close') return <svg {...common}><path d="m7 7 10 10M17 7 7 17"/></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>;
 }
 
@@ -475,10 +480,14 @@ function MobilePreview({ form, product, collection, imageUrl }) {
     elastico: product.elastico || null
   } : null;
   const collectionPreview = form.kind === 'collection' && collection ? {
-    id: Number(collection.id),
+    id: Number(collection.id || 0),
     slug: collection.slug || '',
     name: collection.name || '',
-    year: collection.year ? Number(collection.year) : null
+    year: collection.year ? Number(collection.year) : null,
+    show_year: collection.show_year !== false,
+    hero_message: collection.hero_message || null,
+    description: collection.description || null,
+    preview_products: Array.isArray(collection.preview_products) ? collection.preview_products : []
   } : null;
   const collectionImage = collection?.image_key
     ? `/api/admin/mural/collections/${collection.id}/image?v=${encodeURIComponent(collection.image_key)}`
@@ -510,9 +519,102 @@ function MobilePreview({ form, product, collection, imageUrl }) {
   );
 }
 
+
+function PublishTypeSelector({ activeKind, onSelect, locked = false }) {
+  const options = [
+    ['product','product','Produto','Destaque um produto específico no Mural.'],
+    ['notice','document','Informação','Comunique avisos e informações importantes.'],
+    ['collection','collection','Coleção','Crie uma coleção com produtos e temas.']
+  ];
+  return (
+    <section className="mural-publish-v2-step mural-publish-v2-type-step">
+      <header className="mural-publish-v2-step-heading">
+        <span className="mural-publish-v2-step-number">1</span>
+        <div><strong>Escolha o tipo de publicação</strong><small>Selecione o formato ideal para o conteúdo que deseja publicar.</small></div>
+      </header>
+      <div className="mural-publish-v2-type-grid">
+        {options.map(([value,icon,label,description])=>{
+          const active=activeKind===value;
+          const disabled=locked&&!active;
+          return (
+            <button
+              type="button"
+              key={value}
+              className={active?'active':''}
+              disabled={disabled}
+              aria-pressed={active}
+              onClick={()=>!disabled&&onSelect(value)}
+            >
+              <span className={"mural-publish-v2-type-icon is-"+value}><AdminMuralIcon name={icon} size={24}/></span>
+              <span className="mural-publish-v2-type-copy"><b>{label}</b><small>{description}</small></span>
+              <span className="mural-publish-v2-type-action">{active?<AdminMuralIcon name="check" size={14}/>:<AdminMuralIcon name="chevron" size={15}/>}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function PublishImageField({ imageUrl, image, busy, onChoose, onRemove, title = 'Imagem editorial (opcional)', helper = 'PNG, JPG ou WebP · até 5 MB', removeLabel = 'Remover imagem editorial' }) {
+  return (
+    <div className="mural-publish-v2-image-field">
+      <div className="mural-publish-v2-field-label"><strong>{title}</strong><AdminMuralIcon name="info" size={14}/></div>
+      {imageUrl ? (
+        <div className="mural-publish-v2-image-preview">
+          <img src={imageUrl} alt="Imagem selecionada"/>
+          <button type="button" onClick={onRemove} disabled={busy} aria-label={removeLabel} title={removeLabel}><AdminMuralIcon name="close" size={14}/></button>
+        </div>
+      ) : (
+        <label className="mural-publish-v2-upload">
+          <AdminMuralIcon name="image" size={26}/>
+          <span><b>Clique para enviar uma imagem</b><small>{helper}</small></span>
+          <span className="mural-publish-v2-upload-action"><AdminMuralIcon name="upload" size={15}/> Escolher imagem</span>
+          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>onChoose(e.target.files?.[0])}/>
+        </label>
+      )}
+      {image && <small className="mural-publish-v2-image-ready">Imagem preparada e pronta para envio.</small>}
+    </div>
+  );
+}
+
+function PublishPreviewCard({ activeKind, form, product, collection, imageUrl }) {
+  return (
+    <aside className="mural-publish-v2-preview">
+      <header>
+        <span className="mural-publish-v2-preview-icon"><AdminMuralIcon name="eye" size={21}/></span>
+        <span><strong>Prévia</strong><small>Visualize como sua publicação será exibida no app dos operadores.</small></span>
+        <AdminMuralIcon name="info" size={15}/>
+      </header>
+      <div className="mural-publish-v2-preview-body">
+        {activeKind ? (
+          <MobilePreview form={form} product={product} collection={collection} imageUrl={imageUrl}/>
+        ) : (
+          <div className="mural-publish-v2-phone-empty" aria-label="Prévia vazia">
+            <div className="mural-publish-v2-phone-empty-top"><b>9:41</b><span>•••</span></div>
+            <div className="mural-publish-v2-phone-empty-title"><b>Mural NISTI</b><AdminMuralIcon name="notice" size={17}/></div>
+            <div className="mural-publish-v2-phone-empty-card">
+              <span className="mural-publish-v2-skeleton square"/>
+              <span className="mural-publish-v2-skeleton line short"/>
+              <span className="mural-publish-v2-skeleton line"/>
+              <span className="mural-publish-v2-skeleton line"/>
+              <span className="mural-publish-v2-skeleton media"/>
+              <span className="mural-publish-v2-skeleton line"/>
+              <span className="mural-publish-v2-skeleton line short"/>
+            </div>
+          </div>
+        )}
+      </div>
+      <footer><AdminMuralIcon name="info" size={15}/><span>Esta é uma prévia ilustrativa. O conteúdo final respeita o layout real do Mural.</span></footer>
+    </aside>
+  );
+}
+
 function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
   const sourceItem = item && item.mode === 'new' ? null : item;
-  const [form, setForm] = useState(() => postForm(sourceItem));
+  const presetKind = sourceItem?.kind || (item?.mode === 'new' ? item?.kind || null : null);
+  const [activeKind,setActiveKind]=useState(presetKind);
+  const [form, setForm] = useState(() => postForm(sourceItem || (presetKind ? {...EMPTY_POST,kind:presetKind} : null)));
   const [products, setProducts] = useState([]);
   const [productQuery, setProductQuery] = useState(sourceItem?.product_sku || '');
   const [selectedProduct, setSelectedProduct] = useState(sourceItem?.product_id ? {
@@ -537,23 +639,50 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (form.kind !== 'product') return;
+    if (activeKind !== 'product') return;
     const timer = setTimeout(() => {
       request(`/api/admin/mural/products?q=${encodeURIComponent(productQuery)}`)
         .then(data => setProducts(data.items || [])).catch(() => setProducts([]));
     }, 220);
     return () => clearTimeout(timer);
-  }, [productQuery, form.kind]);
+  }, [productQuery, activeKind]);
 
   useEffect(() => () => { if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
-
 
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
 
   const changeKind = nextKind => {
-    setForm(current => ({ ...current, kind:nextKind, product_id:'', collection_id:'' }));
-    setSelectedProduct(null);
-    setProductQuery('');
+    if (nextKind === 'collection') {
+      onCreateCollection();
+      return;
+    }
+    setActiveKind(nextKind);
+    setError('');
+    setForm(current => ({
+      ...current,
+      kind:nextKind,
+      product_id:nextKind==='product'?current.product_id:'',
+      collection_id:'',
+      notice_level:nextKind==='notice'?(current.notice_level || 'info'):null,
+      badge:nextKind==='notice'
+        ? (['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].includes(current.badge) ? current.badge : 'COMUNICADO INTERNO')
+        : (['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].includes(current.badge) ? 'NOVO' : (current.badge || 'NOVO'))
+    }));
+    if (nextKind !== 'product') {
+      setSelectedProduct(null);
+      setProductQuery('');
+    }
+  };
+
+  const chooseProduct = product => {
+    setSelectedProduct(product);
+    setProductQuery(product.sku || product.nome || '');
+    setForm(current=>({
+      ...current,
+      kind:'product',
+      product_id:product.id,
+      title:current.title || product.nome || product.variacao || product.sku || ''
+    }));
   };
 
   const chooseImage = async file => {
@@ -584,15 +713,17 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
 
   const payload = () => ({
     ...form,
-    product_id: form.kind === 'product' ? Number(form.product_id) || null : null,
+    kind:activeKind || form.kind,
+    product_id: activeKind === 'product' ? Number(form.product_id) || null : null,
     collection_id: null,
-    notice_level: form.kind === 'notice' ? form.notice_level : null,
+    notice_level: activeKind === 'notice' ? form.notice_level : null,
     priority: Number(form.priority) || 0,
     published_at: form.published_at ? new Date(form.published_at).toISOString() : null,
     expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null
   });
 
   const save = async publish => {
+    if (!activeKind) { setError('Escolha Produto, Informação ou Coleção para começar.'); return; }
     setBusy(true); setError('');
     try {
       const body = JSON.stringify(payload());
@@ -619,167 +750,152 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
   };
 
   const publishLabel = form.published_at && new Date(form.published_at) > new Date() ? 'Agendar' : 'Publicar';
+  const readyToSave = Boolean(activeKind && form.title?.trim() && (activeKind !== 'product' || form.product_id));
 
   return (
-    <section className="mural-publisher-workspace" aria-label="Editor de publicação do Mural">
+    <section className="mural-publisher-workspace mural-publish-v2" aria-label="Editor de publicação do Mural">
       <nav className="mural-publisher-breadcrumb" aria-label="Navegação">
-        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><button type="button" onClick={onClose}>{sourceItem ? 'Painel' : 'Publicar'}</button><span>›</span><strong>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</strong>
+        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><strong>{sourceItem ? 'Editar publicação' : 'Publicar'}</strong>
       </nav>
 
-      <header className="mural-publisher-header">
+      <header className="mural-publisher-header mural-publish-v2-page-header">
         <div className="mural-publisher-title">
-          <span className="mural-publisher-title-icon"><AdminMuralIcon name="sparkles" size={23}/></span>
-          <span><h2>{sourceItem ? 'Editar publicação' : 'Publicar'}</h2><p>{sourceItem ? 'Ajuste o conteúdo existente do Mural.' : 'Crie uma nova publicação de Produto, Informação ou Coleção.'}</p></span>
+          <span className="mural-publisher-title-icon"><AdminMuralIcon name="notice" size={23}/></span>
+          <span><h2>Publicar no Mural</h2><p>{sourceItem?'Edite o conteúdo existente mantendo a mesma estrutura visual.':'Crie novos conteúdos para os operadores.'}</p></span>
         </div>
-
       </header>
 
-      <div className="mural-publisher-layout">
-        <form id="mural-publication-form" className="mural-publisher-form" onSubmit={event => { event.preventDefault(); save(false); }}>
-          <section className="mural-publisher-block mural-publisher-type-panel">
-            <div className="mural-publisher-block-title"><strong>Tipo de publicação</strong><span>Escolha como o conteúdo será apresentado no Mural.</span></div>
-            <div className="mural-publisher-type-grid">
-              {[
-                ['product','product','Produto','Destaque um produto específico.'],
-                ['notice','notice','Informação','Comunicado ou informação para operadores.'],
-                ['collection','collection','Coleção','Use a mesma interface de Nova coleção.']
-              ].map(([value,icon,label,description])=>(
-                <button type="button" key={value} className={form.kind===value?'active':''} onClick={()=>value==='collection'?onCreateCollection():changeKind(value)}>
-                  <span><AdminMuralIcon name={icon} size={25}/></span>
-                  <b>{label}</b>
-                  <small>{description}</small>
-                </button>
-              ))}
-            </div>
-          </section>
+      <div className="mural-publish-v2-shell">
+        <form id="mural-publication-form" className="mural-publish-v2-form" onSubmit={event => { event.preventDefault(); save(false); }}>
+          <PublishTypeSelector activeKind={activeKind} locked={Boolean(sourceItem)} onSelect={changeKind}/>
 
-          {form.kind === 'product' && (
+          {!activeKind && (
+            <section className="mural-publish-v2-step mural-publish-v2-empty-state">
+              <header className="mural-publish-v2-step-heading">
+                <span className="mural-publish-v2-step-number">2</span>
+                <div><strong>Conteúdo da publicação</strong><small>Defina os detalhes da sua publicação.</small></div>
+              </header>
+              <div className="mural-publish-v2-empty-illustration">
+                <span><AdminMuralIcon name="notice" size={38}/></span>
+                <strong>Selecione o tipo de publicação acima</strong>
+                <small>Escolha entre Produto, Informação ou Coleção para começar a criar seu conteúdo.</small>
+              </div>
+            </section>
+          )}
+
+          {activeKind === 'product' && (
             <>
-              <section className="mural-publisher-block mural-publisher-product-panel">
-                <div className="mural-publisher-section-kicker"><AdminMuralIcon name="product" size={16}/><span>PRODUTO</span></div>
-                <div className="mural-publisher-block-title"><strong>Escolha o produto primeiro</strong><span>O card e a prévia passam a usar os dados reais do item selecionado.</span></div>
-                {selectedProduct && <div className="mural-publisher-selected-product">
-                  <figure>{selectedProduct.image_url ? <TransparentMuralProductImage src={selectedProduct.image_url} alt={selectedProduct.nome || selectedProduct.sku}/> : <span><AdminMuralIcon name="product" size={28}/></span>}</figure>
-                  <div><small>PRODUTO SELECIONADO</small><strong>{selectedProduct.sku}</strong><span>{selectedProduct.nome || selectedProduct.variacao || selectedProduct.type || 'Produto NISTI'}</span>
-                    <div className="mural-publisher-selected-product-meta">
-                      {selectedProduct.type&&<em>{selectedProduct.type}</em>}
-                      {selectedProduct.collection_name&&<em>{selectedProduct.collection_name}</em>}
-                      {selectedProduct.wireo&&<em>Wire-o {selectedProduct.wireo}</em>}
-                    </div>
+              <section className="mural-publish-v2-step mural-publish-v2-content-step">
+                <header className="mural-publish-v2-step-heading">
+                  <span className="mural-publish-v2-step-number">2</span>
+                  <div><strong>Produto em destaque</strong><small>Preencha as informações para criar sua publicação de produto.</small></div>
+                </header>
+                <div className="mural-publish-v2-product-layout">
+                  <div className="mural-publish-v2-product-copy">
+                    <label className="mural-publish-v2-field mural-publish-v2-search">Buscar produto
+                      <span><AdminMuralIcon name="search" size={16}/><input value={productQuery} onChange={e=>setProductQuery(e.target.value)} placeholder="Digite o nome, código ou SKU do produto..."/></span>
+                    </label>
+                    {selectedProduct && (
+                      <div className="mural-publish-v2-selected-product">
+                        <figure>{selectedProduct.image_url?<TransparentMuralProductImage src={selectedProduct.image_url} alt={selectedProduct.nome||selectedProduct.sku}/>:<AdminMuralIcon name="product" size={28}/>}</figure>
+                        <span><strong>{selectedProduct.nome || selectedProduct.variacao || 'Produto NISTI'}</strong><small>SKU: {selectedProduct.sku}</small></span>
+                        <button type="button" onClick={()=>{setSelectedProduct(null);set('product_id','');setProductQuery('')}} aria-label="Remover produto"><AdminMuralIcon name="close" size={14}/></button>
+                      </div>
+                    )}
+                    {productQuery && (
+                      <div className="mural-publish-v2-product-results">
+                        {products.slice(0,6).map(product=>(
+                          <button type="button" className={Number(form.product_id)===Number(product.id)?'selected':''} key={product.id} onClick={()=>chooseProduct(product)}>
+                            <figure>{product.image_url?<TransparentMuralProductImage src={product.image_url} alt="" ariaHidden/>:<AdminMuralIcon name="product" size={19}/>}</figure>
+                            <span><b>{product.nome || product.variacao || product.sku}</b><small>{product.sku}</small></span>
+                            {Number(form.product_id)===Number(product.id)&&<AdminMuralIcon name="check" size={14}/>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <i><AdminMuralIcon name="check" size={15}/></i>
-                </div>}
-                <label className="mural-publisher-field mural-publisher-search-field">Buscar produto<input value={productQuery} onChange={e=>setProductQuery(e.target.value)} placeholder="Digite SKU ou nome do produto"/></label>
-                <div className="mural-publisher-product-search">
-                  {products.map(product=>(
-                    <button type="button" className={Number(form.product_id)===Number(product.id)?'selected':''} key={product.id} onClick={()=>{set('product_id',product.id);setSelectedProduct(product);setProductQuery(product.sku);}}>
-                      {product.image_url ? <TransparentMuralProductImage src={product.image_url} alt="" ariaHidden/> : <span className="placeholder"><AdminMuralIcon name="product" size={22}/></span>}
-                      <span><b>{product.sku}</b><small>{product.nome || product.variacao || product.type || 'Produto NISTI'}</small></span>
-                      {Number(form.product_id)===Number(product.id)&&<i><AdminMuralIcon name="check" size={14}/></i>}
-                    </button>
-                  ))}
+                  <PublishImageField imageUrl={imageUrl} image={image} busy={busy} onChoose={chooseImage} onRemove={removeImage}/>
                 </div>
-              </section>
-
-              <section className="mural-publisher-block mural-publisher-copy-panel">
-                <div className="mural-publisher-section-kicker"><AdminMuralIcon name="document" size={16}/><span>CONTEÚDO</span></div>
-                <div className="mural-publisher-copy-grid">
-                  <label className="mural-publisher-field mural-publisher-copy-title">Título <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Planner Cactus 2027"/></label>
-                  <label className="mural-publisher-field">Subtítulo<input maxLength="120" value={form.subtitle || ''} onChange={e=>set('subtitle',e.target.value)} placeholder="Uma frase curta para o destaque."/></label>
-                  <label className="mural-publisher-field mural-publisher-copy-body">Descrição<textarea maxLength="700" rows="4" value={form.body || ''} onChange={e=>set('body',e.target.value)} placeholder="O que o operador precisa saber sobre este produto?"/><small>{String(form.body || '').length}/700</small></label>
+                <div className="mural-publish-v2-copy-grid">
+                  <label className="mural-publish-v2-field">Título da publicação <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Planner Cactus 2027"/><small>{String(form.title||'').length}/90</small></label>
+                  <label className="mural-publish-v2-field">Subtítulo<input maxLength="120" value={form.subtitle||''} onChange={e=>set('subtitle',e.target.value)} placeholder="Uma frase curta para o destaque."/><small>{String(form.subtitle||'').length}/120</small></label>
+                  <label className="mural-publish-v2-field mural-publish-v2-wide">Descrição curta<textarea maxLength="700" rows="3" value={form.body||''} onChange={e=>set('body',e.target.value)} placeholder="Explique o que o operador precisa saber sobre este produto."/><small>{String(form.body||'').length}/700</small></label>
+                  <label className="mural-publish-v2-field">Selo do card<input maxLength="18" value={form.badge||''} onChange={e=>set('badge',e.target.value)} placeholder="NOVO"/><small>{String(form.badge||'').length}/18</small></label>
+                  <label className="mural-publish-v2-field">Ação no Mural<input value="Ver produto" disabled/><span className="mural-publish-v2-field-note">Definida pelo sistema.</span></label>
                 </div>
               </section>
             </>
           )}
 
-          {form.kind === 'notice' && (
-            <section className="mural-publisher-block mural-publisher-notice-panel">
-              <div className="mural-publisher-section-kicker"><AdminMuralIcon name="notice" size={16}/><span>INFORMAÇÃO</span></div>
-              <div className="mural-publisher-block-title"><strong>Monte a informação em uma única área</strong><span>Defina o nível e escreva a mensagem que o operador vai receber.</span></div>
-              <div className="mural-publisher-notice-levels" role="group" aria-label="Prioridade da informação">
-                {[
-                  ['important','Importante','Comunicado normal'],
-                  ['attention','Atenção','Exige atenção do operador'],
-                  ['info','Informação','Atualização informativa']
-                ].map(([value,label,description])=><button type="button" key={value} className={form.notice_level===value?'active':''} onClick={()=>set('notice_level',value)}>
-                  <span><AdminMuralIcon name="notice" size={17}/></span><b>{label}</b><small>{description}</small>
-                </button>)}
-              </div>
-              <div className="mural-publisher-notice-copy">
-                <label className="mural-publisher-field">Título da informação <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Atenção ao novo procedimento"/></label>
-                <label className="mural-publisher-field">Linha de apoio<input maxLength="120" value={form.subtitle || ''} onChange={e=>set('subtitle',e.target.value)} placeholder="Resumo curto para o card."/></label>
-                <label className="mural-publisher-field mural-publisher-notice-message">Mensagem<textarea maxLength="700" rows="5" value={form.body || ''} onChange={e=>set('body',e.target.value)} placeholder="Escreva a orientação completa para os operadores."/><small>{String(form.body || '').length}/700</small></label>
+          {activeKind === 'notice' && (
+            <section className="mural-publish-v2-step mural-publish-v2-content-step">
+              <header className="mural-publish-v2-step-heading">
+                <span className="mural-publish-v2-step-number">2</span>
+                <div><strong>Informação para operadores</strong><small>Preencha os detalhes da sua publicação.</small></div>
+              </header>
+              <div className="mural-publish-v2-information-layout">
+                <div className="mural-publish-v2-information-copy">
+                  <div className="mural-publish-v2-field-label"><strong>Prioridade da publicação</strong><AdminMuralIcon name="info" size={14}/></div>
+                  <div className="mural-publish-v2-priority" role="group" aria-label="Prioridade da publicação">
+                    {[
+                      ['info','Normal','•'],
+                      ['attention','Atenção','!'],
+                      ['important','Importante','!']
+                    ].map(([value,label,symbol])=>(
+                      <button type="button" key={value} className={form.notice_level===value?'active is-'+value:'is-'+value} onClick={()=>set('notice_level',value)}><span>{symbol}</span>{label}</button>
+                    ))}
+                  </div>
+                  <div className="mural-publish-v2-field-label"><strong>Tipo de informação</strong><small>Usado como selo no Mural.</small></div>
+                  <div className="mural-publish-v2-category-chips">
+                    {['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].map(value=><button type="button" key={value} className={form.badge===value?'active':''} onClick={()=>set('badge',value)}>{value}</button>)}
+                  </div>
+                  <label className="mural-publish-v2-field">Título da informação <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Nova instrução de expedição"/><small>{String(form.title||'').length}/90</small></label>
+                  <label className="mural-publish-v2-field">Linha de apoio<input maxLength="120" value={form.subtitle||''} onChange={e=>set('subtitle',e.target.value)} placeholder="Resumo curto para o card."/><small>{String(form.subtitle||'').length}/120</small></label>
+                  <label className="mural-publish-v2-field">Mensagem<textarea maxLength="700" rows="6" value={form.body||''} onChange={e=>set('body',e.target.value)} placeholder="Escreva a orientação completa para os operadores."/><small>{String(form.body||'').length}/700</small></label>
+                </div>
+                <PublishImageField imageUrl={imageUrl} image={image} busy={busy} onChoose={chooseImage} onRemove={removeImage}/>
               </div>
             </section>
           )}
 
-          <div className="mural-publisher-controls-grid">
-            <section className="mural-publisher-block mural-publisher-control-card">
-              <div className="mural-publisher-block-title"><strong>Exibição</strong><span>Como aparece no Mural.</span></div>
-              <div className="mural-publisher-display-grid">
-                <label className="mural-publisher-field">Selo<input maxLength="40" value={form.badge || ''} onChange={e=>set('badge',e.target.value)} placeholder={form.kind==='notice'?'AVISO':'NOVO'}/></label>
-                <label className="mural-publisher-field">Ordem<input type="number" min="0" max="100" value={form.priority} onChange={e=>set('priority',e.target.value)}/></label>
-                <label className="mural-publisher-featured"><input type="checkbox" checked={form.featured} onChange={e=>set('featured',e.target.checked)}/><span><b>Destaque no topo</b><small>Prioriza no início do Mural.</small></span></label>
+          {activeKind && (
+            <section className="mural-publish-v2-step mural-publish-v2-settings">
+              <header className="mural-publish-v2-step-heading">
+                <span className="mural-publish-v2-step-number">3</span>
+                <div><strong>Configurações de publicação</strong><small>Defina quando e como sua publicação será exibida.</small></div>
+              </header>
+              <div className="mural-publish-v2-settings-grid">
+                <label className="mural-publish-v2-switch">
+                  <input type="checkbox" checked={form.featured} onChange={e=>set('featured',e.target.checked)}/>
+                  <span aria-hidden="true"/>
+                  <b>Fixar no topo do Mural</b>
+                  <small>Mantém esta publicação em destaque para os operadores.</small>
+                </label>
+                <label className="mural-publish-v2-field">Publicar em<span className="mural-publish-v2-input-icon"><AdminMuralIcon name="calendar" size={15}/><input type="datetime-local" value={form.published_at} onChange={e=>set('published_at',e.target.value)}/></span></label>
+                <label className="mural-publish-v2-field">Expira em <em className="muted">(opcional)</em><span className="mural-publish-v2-input-icon"><AdminMuralIcon name="calendar" size={15}/><input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)}/></span></label>
+                <label className="mural-publish-v2-field mural-publish-v2-order-field">Ordem<input type="number" min="0" max="100" value={form.priority} onChange={e=>set('priority',e.target.value)}/></label>
               </div>
             </section>
+          )}
 
-            <section className="mural-publisher-block mural-publisher-control-card mural-publisher-schedule">
-              <div className="mural-publisher-block-title"><strong>Programação</strong><span>Opcional.</span></div>
-              <div className="mural-publisher-schedule-grid">
-                <label className="mural-publisher-field">Publicar em<input type="datetime-local" value={form.published_at} onChange={e=>set('published_at',e.target.value)}/></label>
-                <label className="mural-publisher-field">Expira em<input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)}/></label>
-              </div>
-            </section>
-
-            <section className="mural-publisher-block mural-publisher-control-card mural-publisher-image-panel">
-              <div className="mural-publisher-block-title"><strong>Imagem editorial</strong><span>Opcional. Use uma arte pronta quando necessário.</span></div>
-              <label className="mural-publisher-upload">
-                <AdminMuralIcon name="image" size={21}/>
-                <span><b>Selecionar imagem</b><small>JPEG, PNG ou WebP · até 5 MB</small></span>
-                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseImage(e.target.files?.[0])}/>
-              </label>
-              {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem editorial</button>}
-            </section>
-          </div>
-
-          {error && <div className="mural-admin-error">{error}</div>}
+          {error&&<div className="mural-admin-error mural-publish-v2-error">{error}</div>}
         </form>
 
-        <aside className="mural-publisher-art-panel">
-          <header><span><small>{form.kind==='product'?'PRODUTO':'AVISO'}</small><h3>{form.kind==='product'?'Prévia da publicação de produto':'Prévia do aviso'}</h3><p>Veja como o operador receberá esse conteúdo.</p></span><span className="mural-publisher-art-help">?</span></header>
-          <div className="mural-publisher-preview-context">
-            {form.kind==='product' ? (
-              selectedProduct ? <div className="mural-publisher-preview-reference">
-                <span><AdminMuralIcon name="product" size={17}/></span>
-                <div><small>REFERÊNCIA ATUAL</small><b>{selectedProduct.sku}</b><em>{selectedProduct.nome || selectedProduct.variacao || selectedProduct.type || 'Produto NISTI'}</em></div>
-              </div> : <div className="mural-publisher-preview-empty"><AdminMuralIcon name="product" size={18}/><span>Selecione um produto para completar a prévia.</span></div>
-            ) : (
-              <div className={`mural-publisher-preview-notice is-${form.notice_level || 'info'}`}><AdminMuralIcon name="notice" size={17}/><span><small>NÍVEL DO AVISO</small><b>{form.notice_level==='attention'?'Atenção':form.notice_level==='important'?'Importante':'Informação'}</b></span></div>
-            )}
-          </div>
-          <div className="mural-publisher-preview-pane">
-            <MobilePreview form={form} product={selectedProduct} collection={null} imageUrl={imageUrl}/>
-            {imageUrl && <div className="mural-publisher-current-art"><span>Imagem editorial aplicada</span><img src={imageUrl} alt="Imagem editorial atual"/></div>}
-          </div>
-        </aside>
+        <PublishPreviewCard activeKind={activeKind} form={{...form,kind:activeKind||form.kind}} product={selectedProduct} collection={null} imageUrl={imageUrl}/>
       </div>
 
-      <footer className="mural-publisher-universal-actions" aria-label="Ações da publicação">
-        <div>
-          <strong>Publicação do Mural</strong>
-          <small>Produto e Informação usam este editor; Coleção abre o editor oficial de Nova coleção.</small>
-        </div>
+      <footer className="mural-publisher-universal-actions mural-publish-v2-actions" aria-label="Ações da publicação">
+        <button type="button" className="mural-publisher-secondary" onClick={onClose}>Cancelar</button>
         <span>
-          <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
-          <button type="submit" form="mural-publication-form" disabled={busy}>Salvar rascunho</button>
-          <button type="button" className="primary" disabled={busy} onClick={()=>save(true)}><AdminMuralIcon name="sparkles" size={16}/> {publishLabel}</button>
+          <button type="submit" form="mural-publication-form" disabled={busy||!readyToSave}><AdminMuralIcon name="document" size={15}/> Salvar rascunho</button>
+          <button type="button" className="primary" disabled={busy||!readyToSave} onClick={()=>save(true)}><AdminMuralIcon name="notice" size={16}/> {publishLabel}</button>
         </span>
       </footer>
     </section>
   );
 }
 
-function CollectionEditor({ item, products, onClose, onSaved }) {
+function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
   const [form,setForm]=useState({name:item?.name||'',slug:item?.slug||'',year:item?.year||'',show_year:item?.show_year!==false&&Number(item?.show_year??1)!==0,hero_message:item?.hero_message||'',visual_direction:item?.visual_direction||'automatic',theme_notes:item?.theme_notes||'',description:item?.description||'',status:item?.status||'active'});
   const [selected,setSelected]=useState(()=>String(item?.product_ids||'').split(',').map(Number).filter(id=>Number.isInteger(id)&&id>0));
   const [image,setImage]=useState(null);
@@ -788,15 +904,16 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
   const [query,setQuery]=useState('');
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
-  const filtered=products.filter(p=>!query||`${p.sku} ${p.nome||''}`.toLowerCase().includes(query.toLowerCase())).slice(0,8);
+  const filtered=products.filter(p=>!query||`${p.sku} ${p.nome||''} ${p.variacao||''}`.toLowerCase().includes(query.toLowerCase())).slice(0,8);
   const toggle=id=>setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id]);
   const move=(id,direction)=>setSelected(current=>{
     const index=current.indexOf(id);const target=index+direction;
     if(index<0||target<0||target>=current.length)return current;
     const next=[...current];[next[index],next[target]]=[next[target],next[index]];return next;
   });
-  const selectedProducts=selected.map(id=>products.find(product=>product.id===id)).filter(Boolean);
+  const selectedProducts=selected.map(id=>products.find(product=>Number(product.id)===Number(id))).filter(Boolean);
   useEffect(()=>()=>{if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl)},[imageUrl]);
+
   const chooseBanner=async file=>{
     setError('');
     if(!file)return;
@@ -827,93 +944,140 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
       const id=item?.id||data.id;
       await request(`/api/admin/mural/collections/${id}/products`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({product_ids:selected})});
       if(image){const fd=new FormData();fd.append('image',image);await request(`/api/admin/mural/collections/${id}/image`,{method:'POST',body:fd});}
-      if(publish){
-        await request(`/api/admin/mural/collections/${id}/publish`,{method:'POST'});
-      }
+      if(publish){await request(`/api/admin/mural/collections/${id}/publish`,{method:'POST'});}
       await onSaved();onClose();
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
+
+  const switchKind=kind=>{
+    if(kind==='collection')return;
+    if(item)return;
+    onSwitchKind?.(kind);
+  };
+
+  const collectionPreview={
+    id:Number(item?.id||0),
+    slug:form.slug||'nova-colecao',
+    name:form.name||'Nova coleção',
+    year:form.year?Number(form.year):null,
+    show_year:form.show_year,
+    hero_message:form.hero_message||null,
+    description:form.description||null,
+    preview_products:selectedProducts.slice(0,4).map(p=>({
+      id:Number(p.id),sku:p.sku||null,type:p.type||productTypeLabel(p),
+      image_url:p.image_url||null,image_source:p.mural_image_ready?'product-processed':'product'
+    }))
+  };
+  const collectionPreviewForm={
+    ...EMPTY_POST,kind:'collection',title:form.name||'Nova coleção',
+    subtitle:form.hero_message||'',body:form.description||'',badge:'NOVA COLEÇÃO',
+    featured:true,published_at:''
+  };
+
   return (
-    <section className="mural-collection-workspace" aria-label={item?'Editar coleção':'Nova coleção'}>
+    <section className="mural-collection-workspace mural-publish-v2 mural-publish-v2-collection" aria-label={item?'Editar coleção':'Nova coleção'}>
       <nav className="mural-publisher-breadcrumb" aria-label="Navegação">
-        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><button type="button" onClick={onClose}>Coleções</button><span>›</span><strong>{item?'Editar coleção':'Nova coleção'}</strong>
+        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><strong>{item?'Editar coleção':'Publicar'}</strong>
       </nav>
 
-      <header className="mural-publisher-header mural-collection-workspace-header">
+      <header className="mural-publisher-header mural-publish-v2-page-header">
         <div className="mural-publisher-title">
-          <span className="mural-publisher-title-icon"><AdminMuralIcon name="collection" size={23}/></span>
-          <span><h2>{item?'Editar coleção':'Nova coleção'}</h2><p>Configure a identidade, o banner e os produtos da coleção em um único painel.</p></span>
+          <span className="mural-publisher-title-icon"><AdminMuralIcon name="notice" size={23}/></span>
+          <span><h2>Publicar no Mural</h2><p>{item?'Edite a coleção mantendo a mesma estrutura visual.':'Crie novos conteúdos para os operadores.'}</p></span>
         </div>
       </header>
 
-      <div className="mural-collection-workspace-layout">
-        <section className="mural-collection-workspace-form">
-          <div className="mural-collection-workspace-section-heading">
-            <div><small>INFORMAÇÕES</small><strong>Dados da coleção</strong></div>
-            <span>Nome, período e direção visual</span>
-          </div>
+      <div className="mural-publish-v2-shell">
+        <div className="mural-publish-v2-form">
+          <PublishTypeSelector activeKind="collection" locked={Boolean(item)} onSelect={switchKind}/>
 
-          <div className="mural-collection-workspace-fields">
-            <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL DO MURAL</span><strong>Collection Launch Hero Card</strong><small>Banner horizontal 2:1, selo NOVA COLEÇÃO automático, nome + ano opcional + frase curta e capas reais da coleção.</small></div>
-            <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
-            <div className="mural-admin-inline">
-              <label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label>
-              <label className="mural-collection-year-field">Ano<input type="number" value={form.year} disabled={!form.show_year} onChange={e=>setForm({...form,year:e.target.value})}/><small>{form.show_year?'Aparece no banner quando preenchido.':'O ano ficará oculto no banner.'}</small></label>
-            </div>
-            <label className="mural-admin-toggle-row"><input type="checkbox" checked={form.show_year} onChange={e=>setForm({...form,show_year:e.target.checked})}/><span><b>Exibir ano no banner</b><small>Desative para coleções que não usam ano.</small></span></label>
-            <label>Mensagem curta do banner<input maxLength="140" value={form.hero_message} onChange={e=>setForm({...form,hero_message:e.target.value})} placeholder="Ex.: Mais fofura para o seu dia a dia."/><small>Texto curto abaixo do nome da coleção.</small></label>
-            <div className="mural-admin-inline">
-              <label>Direção visual<select value={form.visual_direction} onChange={e=>setForm({...form,visual_direction:e.target.value})}><option value="automatic">Automática</option><option value="delicate">Delicada</option><option value="premium">Premium</option><option value="minimal">Minimalista</option><option value="playful">Divertida</option></select><small>Usada na composição visual do banner.</small></label>
-              <label>Elementos / cores do tema<textarea rows="3" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, patinhas, estrelas e brilho suave"/></label>
-            </div>
-            <label>Descrição da coleção<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Descrição detalhada. A mensagem curta acima é usada primeiro no Hero Card.</small></label>
-            {item&&<label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
-            {error&&<div className="mural-admin-error">{error}</div>}
-          </div>
-        </section>
+          <section className="mural-publish-v2-step mural-publish-v2-content-step">
+            <header className="mural-publish-v2-step-heading">
+              <span className="mural-publish-v2-step-number">2</span>
+              <div><strong>{item?'Editar coleção':'Nova coleção'}</strong><small>Preencha as informações e organize os produtos da coleção.</small></div>
+            </header>
 
-        <aside className="mural-collection-workspace-preview">
-          <section className="mural-collection-preview-card">
-            <div className="mural-collection-workspace-section-heading">
-              <div><small>PRÉVIA</small><strong>Banner da coleção</strong></div>
-              <span>Visual que será usado no Mural</span>
+            <div className="mural-publish-v2-collection-top">
+              <div className="mural-publish-v2-copy-grid">
+                <label className="mural-publish-v2-field">Nome da coleção <em>*</em><input maxLength="90" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Ex.: Coleção 2027"/><small>{String(form.name||'').length}/90</small></label>
+                <label className="mural-publish-v2-field mural-publish-v2-year">Ano<input type="number" value={form.year} disabled={!form.show_year} onChange={e=>setForm({...form,year:e.target.value})} placeholder="2027"/></label>
+                <label className="mural-publish-v2-field mural-publish-v2-wide">Frase curta<input maxLength="140" value={form.hero_message} onChange={e=>setForm({...form,hero_message:e.target.value})} placeholder="Mais cor para um ano extraordinário."/><small>{String(form.hero_message||'').length}/140</small></label>
+                <label className="mural-publish-v2-field">Slug <em className="muted">(opcional)</em><input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} placeholder="gerado automaticamente"/></label>
+                <label className="mural-publish-v2-field">Ação no Mural<input value="Ver coleção" disabled/><span className="mural-publish-v2-field-note">Definida pelo sistema.</span></label>
+              </div>
+              <PublishImageField imageUrl={imageUrl} image={image} busy={busy} onChoose={chooseBanner} onRemove={removeBanner} title="Arte da coleção" helper="Recomendado: banner horizontal 2:1 · PNG, JPG ou WebP" removeLabel="Remover banner"/>
             </div>
-            <div className="mural-collection-hero-config-preview">
-              <span>NOVA COLEÇÃO</span>
-              <strong>{form.name||'Nome da coleção'}{form.show_year&&form.year?' '+form.year:''}</strong>
-              <small>{form.hero_message||'Mensagem curta do banner'}</small>
-              <em>{({automatic:'Automática',delicate:'Delicada',premium:'Premium',minimal:'Minimalista',playful:'Divertida'})[form.visual_direction]||'Automática'}{form.theme_notes?' · '+form.theme_notes:''}</em>
+
+            <div className="mural-publish-v2-collection-products">
+              <div className="mural-publish-v2-field-label"><strong>Produtos da coleção <em>*</em></strong><small>Selecione e ordene os produtos que farão parte desta coleção.</small></div>
+              <label className="mural-publish-v2-field mural-publish-v2-search">
+                <span><AdminMuralIcon name="search" size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome do produto"/></span>
+              </label>
+              <div className="mural-publish-v2-collection-product-grid">
+                {filtered.map(p=>(
+                  <button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}>
+                    <figure>{p.image_url?<TransparentMuralProductImage src={p.image_url} alt="" ariaHidden/>:<AdminMuralIcon name="product" size={19}/>}</figure>
+                    <span><b>{p.nome||p.variacao||p.sku}</b><small>{p.sku}</small></span>
+                    <span className="mural-publish-v2-product-check">{selected.includes(p.id)?<AdminMuralIcon name="check" size={13}/>:'+'}</span>
+                  </button>
+                ))}
+              </div>
+              {selectedProducts.length>0&&(
+                <div className="mural-publish-v2-order-list">
+                  <header><strong>Ordem de exibição</strong><small>{selectedProducts.length} selecionado{selectedProducts.length===1?'':'s'}</small></header>
+                  <div>
+                    {selectedProducts.map((p,index)=>(
+                      <article key={p.id}>
+                        <span className="mural-publish-v2-drag">⋮⋮</span>
+                        <figure>{p.image_url?<TransparentMuralProductImage src={p.image_url} alt="" ariaHidden/>:<AdminMuralIcon name="product" size={17}/>}</figure>
+                        <span><b>{p.nome||p.variacao||p.sku}</b><small>{p.sku}</small></span>
+                        <span className="mural-publish-v2-order-actions"><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button><button type="button" onClick={()=>toggle(p.id)} aria-label={`Remover ${p.sku} da coleção`}>×</button></span>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <label className="mural-collection-file-picker">
-              <span>Banner da coleção</span>
-              <span className="mural-collection-file-row"><b>Escolher imagem</b><small>{image?'Imagem selecionada':storedImageKey?'Imagem atual':'Nenhuma imagem'}</small></span>
-              <input className="mural-collection-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/>
-            </label>
-            {imageUrl&&<div className="mural-admin-banner-preview"><img src={imageUrl} alt={form.name||'Banner da coleção'}/><button type="button" disabled={busy} onClick={removeBanner}>Remover banner</button></div>}
-            <div className="mural-admin-collection-preview-summary">
-              <span><b>{selected.length}</b> produto{selected.length===1?'':'s'} selecionado{selected.length===1?'':'s'}</span>
-              <span><b>{form.show_year&&form.year?form.year:'—'}</b> ano exibido</span>
+
+            <details className="mural-publish-v2-collection-advanced">
+              <summary><AdminMuralIcon name="sliders" size={15}/><span>Direção visual e detalhes da coleção</span></summary>
+              <div>
+                <label className="mural-publish-v2-field">Direção visual<select value={form.visual_direction} onChange={e=>setForm({...form,visual_direction:e.target.value})}><option value="automatic">Automática</option><option value="delicate">Delicada</option><option value="premium">Premium</option><option value="minimal">Minimalista</option><option value="playful">Divertida</option></select></label>
+                <label className="mural-publish-v2-field">Elementos / cores do tema<textarea rows="3" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, estrelas, brilho suave"/></label>
+                <label className="mural-publish-v2-field mural-publish-v2-wide">Descrição da coleção<textarea rows="3" maxLength="700" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
+                {item&&<label className="mural-publish-v2-field">Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
+              </div>
+            </details>
+          </section>
+
+          <section className="mural-publish-v2-step mural-publish-v2-settings">
+            <header className="mural-publish-v2-step-heading">
+              <span className="mural-publish-v2-step-number">3</span>
+              <div><strong>Configurações de publicação</strong><small>Defina como esta coleção será exibida.</small></div>
+            </header>
+            <div className="mural-publish-v2-settings-grid collection">
+              <label className="mural-publish-v2-switch">
+                <input type="checkbox" checked={form.show_year} onChange={e=>setForm({...form,show_year:e.target.checked})}/>
+                <span aria-hidden="true"/>
+                <b>Mostrar ano no banner</b>
+                <small>Exibe o ano da coleção na apresentação.</small>
+              </label>
+              <div className="mural-publish-v2-setting-note"><AdminMuralIcon name="clock" size={17}/><span><b>Publicação</b><small>A coleção entra no Mural ao clicar em Publicar.</small></span></div>
+              <div className="mural-publish-v2-setting-note"><AdminMuralIcon name="collection" size={17}/><span><b>{selected.length} produto{selected.length===1?'':'s'}</b><small>Ordem editorial definida acima.</small></span></div>
             </div>
           </section>
 
-          <section className="mural-collection-products-panel">
-            <div className="mural-collection-workspace-section-heading">
-              <div><small>PRODUTOS</small><strong>Capas da coleção</strong></div>
-              <span>Selecione e organize a ordem editorial</span>
-            </div>
-            <label className="mural-collection-product-search">Buscar produto<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
-            <div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
-            {selectedProducts.length>0&&<div className="mural-admin-selected-products compact" aria-label="Ordem editorial dos produtos"><strong>Ordem da coleção</strong>{selectedProducts.slice(0,6).map((p,index)=><div key={p.id}><span>{index+1}. {p.sku}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}{selectedProducts.length>6&&<small>+{selectedProducts.length-6} produto(s) selecionado(s)</small>}</div>}
-          </section>
-        </aside>
+          {error&&<div className="mural-admin-error mural-publish-v2-error">{error}</div>}
+        </div>
+
+        <PublishPreviewCard activeKind="collection" form={collectionPreviewForm} product={null} collection={collectionPreview} imageUrl={imageUrl}/>
       </div>
 
-      <footer className="mural-publisher-universal-actions mural-collection-universal-actions" aria-label="Ações da coleção">
-        <div><strong>Coleção do Mural</strong><small>Revise dados, banner e produtos antes de salvar ou publicar.</small></div>
+      <footer className="mural-publisher-universal-actions mural-publish-v2-actions mural-collection-universal-actions" aria-label="Ações da coleção">
+        <button type="button" className="mural-publisher-secondary" onClick={onClose}>{item?'Voltar':'Cancelar'}</button>
         <span>
-          <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
-          <button type="button" disabled={busy||!form.name} onClick={()=>save(false)}>Salvar coleção</button>
-          <button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}><AdminMuralIcon name="sparkles" size={16}/> {busy?'Processando…':'Salvar e publicar'}</button>
+          <button type="button" disabled={busy||!form.name} onClick={()=>save(false)}><AdminMuralIcon name="document" size={15}/> Salvar coleção</button>
+          <button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}><AdminMuralIcon name="notice" size={16}/> {busy?'Processando…':'Publicar'}</button>
         </span>
       </footer>
     </section>
@@ -991,6 +1155,7 @@ export default function MuralNistiAdminView({ activeSection = 'dashboard', onSec
       products={products}
       onClose={()=>setCollectionEditor(null)}
       onSaved={load}
+      onSwitchKind={kind=>{setCollectionEditor(null);setEditor({mode:'new',kind})}}
     />;
   }
 

@@ -8,8 +8,8 @@ const mural=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'u
 const migration=fs.readFileSync(new URL('../supabase/migrations/20261006145000_mural_collection_hero_v1.sql',import.meta.url),'utf8');
 
 test('collection editor exposes optional year and hero banner metadata',()=>{
-  assert.ok(admin.includes('Exibir ano no banner'));
-  assert.ok(admin.includes('Mensagem curta do banner'));
+  assert.ok(admin.includes('Mostrar ano no banner'));
+  assert.ok(admin.includes('Frase curta'));
   assert.ok(admin.includes('Direção visual'));
   assert.ok(admin.includes('Elementos / cores do tema'));
   assert.ok(admin.includes("hero_message:item?.hero_message||''"));

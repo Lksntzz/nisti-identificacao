@@ -5,25 +5,24 @@ import fs from 'node:fs';
 const view=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../src/mural-admin.css',import.meta.url),'utf8');
 
-test('collection banner picker remains custom and readable',()=>{
-  assert.ok(view.includes('className="mural-collection-file-picker"'));
-  assert.ok(view.includes('className="mural-collection-file-row"'));
-  assert.ok(view.includes('>Escolher imagem</b>'));
-  assert.ok(view.includes('className="mural-collection-file-input"'));
-  assert.ok(css.includes('opacity:0'));
+test('collection image picker follows the shared Publicar image component',()=>{
+  assert.ok(view.includes('title="Arte da coleção"'));
+  assert.ok(view.includes('Recomendado: banner horizontal 2:1'));
+  assert.ok(view.includes('mural-publish-v2-image-preview'));
+  assert.ok(css.includes('.mural-publish-v2-upload'));
 });
 
-test('collection product selection has its own organized panel',()=>{
+test('collection product selection is searchable visual and ordered',()=>{
   assert.ok(view.includes('.slice(0,8)'));
-  assert.ok(view.includes('mural-collection-products-panel'));
-  assert.ok(view.includes('selectedProducts.slice(0,6)'));
-  assert.ok(view.includes('Ordem da coleção'));
-  assert.ok(css.includes('max-height:280px'));
+  assert.ok(view.includes('mural-publish-v2-collection-product-grid'));
+  assert.ok(view.includes('mural-publish-v2-order-list'));
+  assert.ok(view.includes('Ordem de exibição'));
+  assert.ok(css.includes('max-height:184px'));
 });
 
-test('collection fields no longer use tiny compact modal typography',()=>{
-  assert.equal(css.includes('/* Compact collection editor: fit desktop viewport without page scrolling */'),false);
-  assert.ok(css.includes('.mural-collection-workspace label'));
-  assert.ok(css.includes('font-size:11.5px'));
-  assert.ok(css.includes('font-size:13px'));
+test('collection advanced metadata stays available without cluttering the main panel',()=>{
+  assert.ok(view.includes('mural-publish-v2-collection-advanced'));
+  assert.ok(view.includes('Direção visual'));
+  assert.ok(view.includes('Elementos / cores do tema'));
+  assert.ok(view.includes('Descrição da coleção'));
 });
