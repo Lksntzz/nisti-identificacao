@@ -785,7 +785,7 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
   const [query,setQuery]=useState('');
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
-  const filtered=products.filter(p=>!query||`${p.sku} ${p.nome||''}`.toLowerCase().includes(query.toLowerCase())).slice(0,30);
+  const filtered=products.filter(p=>!query||`${p.sku} ${p.nome||''}`.toLowerCase().includes(query.toLowerCase())).slice(0,8);
   const toggle=id=>setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id]);
   const move=(id,direction)=>setSelected(current=>{
     const index=current.indexOf(id);const target=index+direction;
@@ -846,13 +846,10 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
             <label>Mensagem curta do banner<input maxLength="140" value={form.hero_message} onChange={e=>setForm({...form,hero_message:e.target.value})} placeholder="Ex.: Mais fofura para o seu dia a dia."/><small>Texto curto abaixo do nome da coleção.</small></label>
             <div className="mural-admin-inline">
               <label>Direção visual<select value={form.visual_direction} onChange={e=>setForm({...form,visual_direction:e.target.value})}><option value="automatic">Automática</option><option value="delicate">Delicada</option><option value="premium">Premium</option><option value="minimal">Minimalista</option><option value="playful">Divertida</option></select><small>Será usada na geração do banner Canva.</small></label>
-              <label>Elementos / cores do tema<textarea rows="3" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, patinhas, estrelas e brilho suave"/></label>
+              <label>Elementos / cores do tema<textarea rows="2" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, patinhas, estrelas e brilho suave"/></label>
             </div>
-            <label>Descrição da coleção<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Descrição detalhada. A mensagem curta acima é usada primeiro no Hero Card.</small></label>
+            <label>Descrição da coleção<textarea rows="2" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Descrição detalhada. A mensagem curta acima é usada primeiro no Hero Card.</small></label>
             {item&&<label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
-            <label>Produtos<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
-            {selectedProducts.length>0&&<div className="mural-admin-selected-products" aria-label="Ordem editorial dos produtos"><strong>Ordem editorial</strong>{selectedProducts.map((p,index)=><div key={p.id}><span>{index+1}. {p.sku} · {p.nome||'Produto NISTI'}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}</div>}
-            <div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
             {error&&<div className="mural-admin-error">{error}</div>}
           </div>
           <aside className="mural-admin-collection-preview-pane">
@@ -863,11 +860,20 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
               <small>{form.hero_message||'Mensagem curta do banner'}</small>
               <em>{({automatic:'Automática',delicate:'Delicada',premium:'Premium',minimal:'Minimalista',playful:'Divertida'})[form.visual_direction]||'Automática'}{form.theme_notes?' · '+form.theme_notes:''}</em>
             </div>
-            <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
+            <label className="mural-collection-file-picker">
+              <span>Banner da coleção</span>
+              <span className="mural-collection-file-row"><b>Escolher imagem</b><small>{image?'Imagem selecionada':storedImageKey?'Imagem atual':'Nenhuma imagem'}</small></span>
+              <input className="mural-collection-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/>
+            </label>
             {imageUrl&&<div className="mural-admin-banner-preview"><img src={imageUrl} alt={form.name||'Banner da coleção'}/><button type="button" disabled={busy} onClick={removeBanner}>Remover banner</button></div>}
             <div className="mural-admin-collection-preview-summary">
               <span><b>{selected.length}</b> produto{selected.length===1?'':'s'} selecionado{selected.length===1?'':'s'}</span>
               <span><b>{form.show_year&&form.year?form.year:'—'}</b> ano exibido</span>
+            </div>
+            <div className="mural-admin-collection-products-compact">
+              <label>Produtos<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
+              <div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
+              {selectedProducts.length>0&&<div className="mural-admin-selected-products compact" aria-label="Ordem editorial dos produtos"><strong>Destaques do banner</strong>{selectedProducts.slice(0,4).map((p,index)=><div key={p.id}><span>{index+1}. {p.sku}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}{selectedProducts.length>4&&<small>+{selectedProducts.length-4} produto(s) selecionado(s)</small>}</div>}
             </div>
           </aside>
         </div>
