@@ -23,13 +23,13 @@ test('intro shows only transparent product imagery over a white arc and dark scr
   assert.equal(mural.includes('mural-collection-arc-caption'), false);
 });
 
-test('arc rises before main cover and secondary covers settle in alternating fan layers', () => {
+test('arc rises before main cover and every later cover finishes above the previous one', () => {
   assert.ok(css.includes('transform:translate3d(-50%,64vh,0) rotate(0) scale(.62)'));
   assert.ok(css.includes('transition-delay:520ms'));
   assert.equal(css.includes('@keyframes mural-collection-main-float'), false);
   assert.ok(css.includes('@keyframes mural-collection-cover-arrive'));
   assert.ok(mural.includes("side: side < 0 ? 'left' : 'right'"));
-  assert.ok(mural.includes('layer: String(index % 2'));
+  assert.ok(mural.includes('layer: String(6 + index)'));
   assert.ok(mural.includes("'--reveal-product-delay': `${secondaryStart + secondaryIndex * secondaryStep}ms`"));
   assert.ok(mural.includes("'--reveal-final-layer': position.layer"));
   assert.ok(css.includes('z-index:6'));
@@ -75,4 +75,16 @@ test('collection intro enlarges products and raises the collection name between 
 test('collection title stays above the product fan', () => {
   assert.ok(css.includes('top:24%'));
   assert.ok(css.includes('.mural-collection-reveal-title{top:26%;width:90vw}'));
+});
+
+
+test('collection reveal has dedicated compositions for two three and four covers', () => {
+  assert.ok(mural.includes('2: ['));
+  assert.ok(mural.includes('3: ['));
+  assert.ok(mural.includes('4: ['));
+  assert.ok(mural.includes('collectionRevealPosition(index, products.length)'));
+  assert.ok(mural.includes('fan-${Math.min(products.length,4)}'));
+  assert.ok(css.includes('.mural-collection-reveal-fan.fan-2'));
+  assert.ok(css.includes('.mural-collection-reveal-fan.fan-3'));
+  assert.ok(css.includes('.mural-collection-reveal-fan.fan-4'));
 });

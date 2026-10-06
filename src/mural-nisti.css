@@ -3459,6 +3459,15 @@
   opacity:1;
   transform:translate3d(-50%,-6%,0) rotate(0) scale(1.07);
 }
+.mural-collection-reveal-intro.is-ready .mural-collection-reveal-fan.fan-2 .mural-collection-reveal-product.is-main{
+  transform:translate3d(-68%,-4%,0) rotate(-3deg) scale(1.05);
+}
+.mural-collection-reveal-intro.is-ready .mural-collection-reveal-fan.fan-3 .mural-collection-reveal-product.is-main{
+  transform:translate3d(-50%,-5%,0) rotate(0) scale(1.05);
+}
+.mural-collection-reveal-intro.is-ready .mural-collection-reveal-fan.fan-4 .mural-collection-reveal-product.is-main{
+  transform:translate3d(-50%,2%,0) rotate(0) scale(1.01);
+}
 .mural-collection-reveal-product.is-secondary{
   z-index:2;
   opacity:0;
@@ -3569,6 +3578,8 @@
   .mural-collection-reveal-white-arc{bottom:-14%;height:54%;width:165%}
   .mural-collection-reveal-fan{inset:15% 0 8%}
   .mural-collection-reveal-product{width:160px;height:246px}
+  .mural-collection-reveal-fan.fan-2 .mural-collection-reveal-product{width:168px;height:258px}
+  .mural-collection-reveal-fan.fan-4 .mural-collection-reveal-product{width:154px;height:237px}
   .mural-collection-reveal-title{top:26%;width:90vw}
   .mural-collection-reveal-title>strong{font-size:clamp(28px,9vw,42px)}
 }
