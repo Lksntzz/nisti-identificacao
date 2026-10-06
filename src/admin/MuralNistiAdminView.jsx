@@ -926,8 +926,10 @@ function MuralAdminOverview({ posts, collections, products, readiness, loading, 
   </div>;
 }
 
-export default function MuralNistiAdminView() {
-  const [section,setSection]=useState('overview');
+export default function MuralNistiAdminView({ activeSection = null, onSectionChange = null }) {
+  const [internalSection,setInternalSection]=useState('overview');
+  const section = activeSection || internalSection;
+  const setSection = onSectionChange || setInternalSection;
   const [posts,setPosts]=useState([]);
   const [collections,setCollections]=useState([]);
   const [products,setProducts]=useState([]);
@@ -1003,7 +1005,6 @@ export default function MuralNistiAdminView() {
         <span><small className="mural-admin-section-eyebrow">{currentSection.eyebrow}</small><h2>{currentSection.title}</h2><p>{currentSection.description}</p></span>
       </div>
       <div className="mural-admin-dashboard-actions">
-        {section!=='overview'&&<button type="button" className="mural-admin-back-overview" onClick={()=>setSection('overview')}><AdminMuralIcon name="back" size={16}/> Visão geral</button>}
         <button type="button" className="qa" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>
         {section==='overview'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
         {section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
