@@ -341,7 +341,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(admin.includes('>Iniciar tratamento</button>'));
   assert.ok(admin.includes('>Pausar tratamento</button>'));
   assert.ok(admin.includes('Aguardando aprovação'));
-  assert.ok(admin.includes('>Para revisar</button>'));
+  assert.ok(admin.includes('Revisar tratados <b>{treatmentReview}</b>'));
   assert.ok(admin.includes('>Revisados</button>'));
   assert.ok(admin.includes('?products.filter(item=>item.mural_image_ready)'));
   assert.ok(admin.includes('!justApprovedIds.has(Number(item.id))'));
