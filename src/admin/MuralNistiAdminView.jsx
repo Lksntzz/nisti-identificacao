@@ -556,14 +556,14 @@ function PublishTypeSelector({ activeKind, onSelect, locked = false }) {
   );
 }
 
-function PublishImageField({ imageUrl, image, busy, onChoose, onRemove, title = 'Imagem editorial (opcional)', helper = 'PNG, JPG ou WebP · até 5 MB' }) {
+function PublishImageField({ imageUrl, image, busy, onChoose, onRemove, title = 'Imagem editorial (opcional)', helper = 'PNG, JPG ou WebP · até 5 MB', removeLabel = 'Remover imagem editorial' }) {
   return (
     <div className="mural-publish-v2-image-field">
       <div className="mural-publish-v2-field-label"><strong>{title}</strong><AdminMuralIcon name="info" size={14}/></div>
       {imageUrl ? (
         <div className="mural-publish-v2-image-preview">
           <img src={imageUrl} alt="Imagem selecionada"/>
-          <button type="button" onClick={onRemove} disabled={busy} aria-label="Remover imagem"><AdminMuralIcon name="close" size={14}/></button>
+          <button type="button" onClick={onRemove} disabled={busy} aria-label={removeLabel} title={removeLabel}><AdminMuralIcon name="close" size={14}/></button>
         </div>
       ) : (
         <label className="mural-publish-v2-upload">
@@ -1005,7 +1005,7 @@ function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
                 <label className="mural-publish-v2-field">Slug <em className="muted">(opcional)</em><input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} placeholder="gerado automaticamente"/></label>
                 <label className="mural-publish-v2-field">Ação no Mural<input value="Ver coleção" disabled/><span className="mural-publish-v2-field-note">Definida pelo sistema.</span></label>
               </div>
-              <PublishImageField imageUrl={imageUrl} image={image} busy={busy} onChoose={chooseBanner} onRemove={removeBanner} title="Arte da coleção" helper="Recomendado: banner horizontal 2:1 · PNG, JPG ou WebP"/>
+              <PublishImageField imageUrl={imageUrl} image={image} busy={busy} onChoose={chooseBanner} onRemove={removeBanner} title="Arte da coleção" helper="Recomendado: banner horizontal 2:1 · PNG, JPG ou WebP" removeLabel="Remover banner"/>
             </div>
 
             <div className="mural-publish-v2-collection-products">
@@ -1031,7 +1031,7 @@ function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
                         <span className="mural-publish-v2-drag">⋮⋮</span>
                         <figure>{p.image_url?<TransparentMuralProductImage src={p.image_url} alt="" ariaHidden/>:<AdminMuralIcon name="product" size={17}/>}</figure>
                         <span><b>{p.nome||p.variacao||p.sku}</b><small>{p.sku}</small></span>
-                        <span className="mural-publish-v2-order-actions"><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)}>↓</button><button type="button" onClick={()=>toggle(p.id)}>×</button></span>
+                        <span className="mural-publish-v2-order-actions"><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button><button type="button" onClick={()=>toggle(p.id)} aria-label={`Remover ${p.sku} da coleção`}>×</button></span>
                       </article>
                     ))}
                   </div>
