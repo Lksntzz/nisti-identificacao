@@ -893,10 +893,8 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
   </div>;
 }
 
-export default function MuralNistiAdminView({ activeSection = null, onSectionChange = null }) {
-  const [internalSection,setInternalSection]=useState('posts');
-  const section = activeSection || internalSection;
-  const setSection = onSectionChange || setInternalSection;
+export default function MuralNistiAdminView({ activeSection = 'posts' }) {
+  const section = activeSection;
   const [posts,setPosts]=useState([]);
   const [collections,setCollections]=useState([]);
   const [products,setProducts]=useState([]);
