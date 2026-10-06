@@ -53,3 +53,19 @@ test('universal Mural publisher keeps one editor for product collection and noti
   assert.ok(admin.includes("form.kind === 'notice'"));
   assert.equal((admin.match(/aria-label="Ações da publicação"/g) || []).length, 1);
 });
+
+
+test('collection creation uses one official editor everywhere in the Mural', () => {
+  assert.equal((admin.match(/<CollectionEditor/g) || []).length, 1);
+  assert.ok(admin.includes('const collectionEditorView = collectionEditor ? <CollectionEditor'));
+  assert.ok(admin.includes("onCreateCollection={()=>setCollectionEditor({mode:'new'})}"));
+  assert.ok(admin.includes('+ Criar nova coleção'));
+  assert.ok(admin.includes('Publicar coleção existente'));
+  assert.ok(admin.includes('Use uma coleção já criada no Mural.'));
+});
+
+test('publication collection flow selects an existing collection instead of duplicating collection creation UI', () => {
+  assert.ok(admin.includes('A criação e edição da coleção usam sempre o editor oficial de Coleções.'));
+  assert.ok(admin.includes('Selecione uma coleção'));
+  assert.ok(css.includes('.mural-publisher-collection-source'));
+});
