@@ -12,11 +12,13 @@ test('part 7 routes collection cards directly to the collection showcase', () =>
   assert.ok(mural.includes('setSelected(null)'));
 });
 
-test('part 7 makes the collection look curated with collage, hero and featured product', () => {
+test('part 7 makes the collection look curated with collage, principal cover and variations', () => {
   assert.ok(mural.includes('mural-collection-editorial-hero'));
   assert.ok(mural.includes('mural-collection-collage'));
   assert.ok(mural.includes('mural-collection-featured-product'));
-  assert.ok(mural.includes('Mais produtos da coleção'));
+  assert.ok(mural.includes('Outras capas da coleção'));
+  assert.ok(mural.includes('CAPA PRINCIPAL'));
+  assert.ok(mural.includes('mural-collection-variant-card'));
   assert.ok(css.includes('.mural-collection-editorial-media'));
   assert.ok(css.includes('.mural-collection-featured-product'));
 });
