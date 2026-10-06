@@ -3822,3 +3822,36 @@
     transform:none!important;
   }
 }
+
+
+/* Collection banner: preserve the complete uploaded artwork */
+.mural-collection-detail.has-cover .mural-collection-editorial-media{
+  height:auto;
+  min-height:0;
+  aspect-ratio:auto;
+  overflow:hidden;
+  background:#f6f8fc;
+}
+.mural-collection-detail.has-cover .mural-collection-editorial-media>.mural-collection-cover{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:none;
+  object-fit:contain;
+  object-position:center;
+  transform:none;
+}
+.mural-collection-detail.has-cover .mural-collection-editorial-media>.mural-collection-cover.is-loaded{
+  transform:none;
+}
+.mural-collection-detail.has-cover .mural-collection-editorial-copy{
+  margin:12px 14px 0;
+}
+@media (max-width:430px){
+  .mural-collection-detail.has-cover .mural-collection-editorial-media{
+    height:auto;
+  }
+  .mural-collection-detail.has-cover .mural-collection-editorial-copy{
+    margin:10px 12px 0;
+  }
+}
