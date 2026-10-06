@@ -527,7 +527,7 @@ function MobilePreview({ form, product, collection, imageUrl }) {
   );
 }
 
-function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved }) {
+function PostEditor({ item, onClose, onSaved }) {
   const sourceItem = item && item.mode === 'new' ? null : item;
   const [form, setForm] = useState(() => postForm(sourceItem));
   const [products, setProducts] = useState([]);
@@ -565,13 +565,6 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   useEffect(() => () => { if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
 
 
-  const selectedCollection = collections.find(row => Number(row.id) === Number(form.collection_id));
-  const selectedCollectionProducts = String(selectedCollection?.product_ids || '')
-    .split(',')
-    .map(Number)
-    .filter(id => Number.isInteger(id) && id > 0)
-    .map(id => catalogProducts.find(product => Number(product.id) === id))
-    .filter(Boolean);
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
 
   const changeKind = nextKind => {
@@ -609,7 +602,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
   const payload = () => ({
     ...form,
     product_id: form.kind === 'product' ? Number(form.product_id) || null : null,
-    collection_id: form.kind === 'collection' ? Number(form.collection_id) || null : null,
+    collection_id: null,
     notice_level: form.kind === 'notice' ? form.notice_level : null,
     priority: Number(form.priority) || 0,
     published_at: form.published_at ? new Date(form.published_at).toISOString() : null,
@@ -652,7 +645,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
       <header className="mural-publisher-header">
         <div className="mural-publisher-title">
           <span className="mural-publisher-title-icon"><AdminMuralIcon name="sparkles" size={23}/></span>
-          <span><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2><p>Editor universal do Mural para Produto, Coleção ou Aviso.</p></span>
+          <span><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2><p>Editor universal do Mural para Produto ou Aviso.</p></span>
         </div>
 
       </header>
@@ -664,7 +657,6 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
             <div className="mural-publisher-type-grid">
               {[
                 ['product','product','Produto','Destaque um produto específico.'],
-                ['collection','collection','Publicar coleção','Use uma coleção já criada no Mural.'],
                 ['notice','notice','Aviso','Comunicado para operadores.']
               ].map(([value,icon,label,description])=>(
                 <button type="button" key={value} className={form.kind===value?'active':''} onClick={()=>changeKind(value)}>
@@ -700,30 +692,6 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
                 <strong>Product Hero Card</strong>
                 <small>Banner 2:1 · texto à esquerda · exatamente 1 produto real à direita · foco total no produto.</small>
               </div>
-            </section>
-          )}
-
-          {form.kind === 'collection' && (
-            <section className="mural-publisher-block">
-              <div className="mural-publisher-block-title">
-                <strong>Publicar coleção existente</strong>
-                <span>Para criar ou editar uma coleção, use a ferramenta Coleções do menu do Mural.</span>
-              </div>
-              <label className="mural-publisher-field">Coleção <em>*</em><select value={form.collection_id} onChange={e=>set('collection_id',e.target.value)}><option value="">Selecione uma coleção</option>{collections.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-              {!collections.some(c=>c.status==='active') && <div className="mural-publisher-collection-empty">Nenhuma coleção ativa. Crie a coleção primeiro na ferramenta Coleções.</div>}
-              {selectedCollection && (
-                <div className="mural-publisher-collection-products">
-                  <header><span><b>Produtos da coleção</b><small>{selectedCollectionProducts.length || selectedCollection.product_count || 0} produtos vinculados</small></span><em>Ordem definida na coleção</em></header>
-                  <div>
-                    {selectedCollectionProducts.length ? selectedCollectionProducts.map((product,index)=>(
-                      <figure key={product.id}>
-                        {product.image_url ? <TransparentMuralProductImage src={product.image_url} alt={product.nome || product.sku}/> : <span><AdminMuralIcon name="product" size={24}/></span>}
-                        <figcaption><b>{product.sku}</b><small>{index+1}</small></figcaption>
-                      </figure>
-                    )) : <p>Esta coleção ainda não possui produtos carregados na visão atual.</p>}
-                  </div>
-                </div>
-              )}
             </section>
           )}
 
@@ -766,7 +734,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
         <aside className="mural-publisher-art-panel">
           <header><span><h3>Arte da publicação</h3><p>Revise o visual antes de salvar ou publicar.</p></span><span className="mural-publisher-art-help">?</span></header>
           <div className="mural-publisher-preview-pane">
-            <MobilePreview form={form} product={selectedProduct} collection={selectedCollection} imageUrl={imageUrl}/>
+            <MobilePreview form={form} product={selectedProduct} collection={null} imageUrl={imageUrl}/>
             {imageUrl && <div className="mural-publisher-current-art"><span>Imagem editorial aplicada</span><img src={imageUrl} alt="Imagem editorial atual"/></div>}
           </div>
         </aside>
@@ -775,7 +743,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
       <footer className="mural-publisher-universal-actions" aria-label="Ações da publicação">
         <div>
           <strong>Publicação do Mural</strong>
-          <small>Fluxo único para Produto, Coleção ou Aviso.</small>
+          <small>Fluxo único para Produto ou Aviso. Coleções usam o editor próprio.</small>
         </div>
         <span>
           <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
@@ -949,6 +917,19 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
     }
   };
 
+  const openPublicationEditor=row=>{
+    if(row?.kind==='collection'){
+      const linked=collections.find(collection=>Number(collection.id)===Number(row.collection_id));
+      if(linked){
+        setCollectionEditor(linked);
+        return;
+      }
+      setError('A publicação aponta para uma coleção que não existe mais. Abra Coleções para corrigir.');
+      return;
+    }
+    setEditor(row);
+  };
+
   const sectionMeta = {
     posts:{title:'Publicações',description:'Gerencie produtos, avisos e conteúdos publicados para os operadores.',icon:'document',eyebrow:'CONTEÚDO'},
     collections:{title:'Coleções',description:'Organize produtos em coleções, configure banners e defina a ordem editorial.',icon:'collection',eyebrow:'CONTEÚDO'},
@@ -988,7 +969,7 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
           posts={posts}
           collections={collections}
           loading={loading}
-          onEdit={setEditor}
+          onEdit={openPublicationEditor}
           onAction={action}
           onPush={sendPush}
           onDelete={deletePost}
