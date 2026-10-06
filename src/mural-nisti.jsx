@@ -636,13 +636,20 @@ function CollectionDialog({ slug, onClose }) {
 
   useEffect(() => {
     const root = detailRef.current;
-    if (!root || !state.data?.products?.length) return undefined;
+    if (!introComplete || !root || !state.data?.products?.length) return undefined;
+
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const nodes = [...root.querySelectorAll('[data-collection-reveal]')];
+    if (!nodes.length) return undefined;
+
+    // The principal cover must never remain hidden after the cinematic intro.
+    nodes[0].classList.add('is-visible');
+
     if (reduced || typeof IntersectionObserver === 'undefined') {
       nodes.forEach(node => node.classList.add('is-visible'));
       return undefined;
     }
+
     const observer = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
@@ -650,10 +657,11 @@ function CollectionDialog({ slug, onClose }) {
           observer.unobserve(entry.target);
         }
       }
-    }, { root, threshold: .16, rootMargin:'0px 0px -4% 0px' });
-    nodes.forEach(node => observer.observe(node));
+    }, { root, threshold: .12, rootMargin:'0px 0px 8% 0px' });
+
+    nodes.slice(1).forEach(node => observer.observe(node));
     return () => observer.disconnect();
-  }, [state.data]);
+  }, [state.data, introComplete]);
 
   const handleCollectionScroll = event => {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
