@@ -26,12 +26,11 @@ test('mural admin writes inherit existing admin session protection',()=>{
   assert.match(edge,/validSession\(request, env\)/);
 });
 
-test('publication editor supports product and notice while collections use their dedicated editor',()=>{
+test('publication editor exposes product notice and collection with one collection editor',()=>{
   assert.ok(admin.includes('MuralNistiAdminView'));
-  for(const kind of ['product','notice']) assert.ok(admin.includes(`['${kind}','${kind}'`));
-  assert.equal(admin.includes("['collection','collection'"),false);
+  for(const kind of ['product','notice','collection']) assert.ok(admin.includes(`['${kind}','${kind}'`));
   assert.ok(admin.includes('function CollectionEditor'));
-  assert.ok(admin.includes("if(row?.kind==='collection')"));
+  assert.ok(admin.includes("value==='collection'?onCreateCollection():changeKind(value)"));
   assert.ok(admin.includes('setCollectionEditor(linked)'));
   assert.ok(admin.includes('function MobilePreview'));
   assert.ok(admin.includes('mural-publisher-preview-pane'));
