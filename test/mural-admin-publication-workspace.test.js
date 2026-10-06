@@ -5,112 +5,74 @@ import test from 'node:test';
 const admin = fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../src/mural-admin.css', import.meta.url), 'utf8');
 
-test('publication editor opens as an inline workspace instead of a modal', () => {
-  assert.ok(admin.includes("if (editor) {"));
-  assert.ok(admin.includes('<PostEditor'));
-  assert.ok(admin.includes('className="mural-publisher-workspace"'));
-  assert.ok(admin.includes('className="mural-publisher-layout"'));
+test('Publicar uses the Canva-inspired full-page studio instead of a modal', () => {
+  assert.ok(admin.includes('mural-publisher-workspace mural-publish-v2'));
+  assert.ok(admin.includes('mural-publish-v2-shell'));
+  assert.ok(admin.includes('mural-publish-v2-form'));
+  assert.ok(admin.includes('<PublishPreviewCard'));
+  assert.equal(admin.includes('className="mural-admin-modal" role="dialog"'), false);
 });
 
-test('Publish tool exposes Product Information and Collection', () => {
-  assert.ok(admin.includes("['product','product','Produto','Destaque um produto específico.']"));
-  assert.ok(admin.includes("['notice','notice','Informação','Comunicado ou informação para operadores.']"));
-  assert.ok(admin.includes("['collection','collection','Coleção','Use a mesma interface de Nova coleção.']"));
-  assert.ok(admin.includes("value==='collection'?onCreateCollection():changeKind(value)"));
-  assert.ok(css.includes('grid-template-columns:repeat(3,minmax(0,1fr))'));
+test('Publicar starts with three explicit content types', () => {
+  assert.ok(admin.includes("['product','product','Produto','Destaque um produto específico no Mural.']"));
+  assert.ok(admin.includes("['notice','document','Informação','Comunique avisos e informações importantes.']"));
+  assert.ok(admin.includes("['collection','collection','Coleção','Crie uma coleção com produtos e temas.']"));
+  assert.ok(admin.includes('Escolha o tipo de publicação'));
+  assert.ok(admin.includes('mural-publish-v2-empty-state'));
+  assert.ok(css.includes('.mural-publish-v2-type-grid'));
 });
 
-test('Collection from Publish reuses the exact official CollectionEditor', () => {
+test('product panel contains product search editorial image copy and system action', () => {
+  assert.ok(admin.includes('Produto em destaque'));
+  assert.ok(admin.includes('mural-publish-v2-selected-product'));
+  assert.ok(admin.includes('Digite o nome, código ou SKU do produto...'));
+  assert.ok(admin.includes("title = 'Imagem editorial (opcional)'"));
+  assert.ok(admin.includes('Título da publicação'));
+  assert.ok(admin.includes('Descrição curta'));
+  assert.ok(admin.includes('Ação no Mural'));
+  assert.ok(admin.includes('value="Ver produto"'));
+});
+
+test('information panel has priority category copy and image controls', () => {
+  assert.ok(admin.includes('Informação para operadores'));
+  assert.ok(admin.includes('Prioridade da publicação'));
+  for (const label of ['Normal','Atenção','Importante','COMUNICADO INTERNO','PROCESSO','NOVIDADE']) {
+    assert.ok(admin.includes(label), label);
+  }
+  assert.ok(admin.includes('Título da informação'));
+  assert.ok(admin.includes('Linha de apoio'));
+  assert.ok(admin.includes('Mensagem'));
+});
+
+test('collection panel reuses the same studio hierarchy and official collection API', () => {
   assert.equal((admin.match(/function CollectionEditor/g) || []).length, 1);
-  assert.ok(admin.includes("onCreateCollection={()=>{setEditor(null);setCollectionEditor({mode:'new'})}}"));
-  assert.ok(admin.includes('if (collectionEditor) {'));
-  assert.ok(admin.includes('return <CollectionEditor'));
+  assert.ok(admin.includes('mural-publish-v2-collection'));
+  assert.ok(admin.includes('Produtos da coleção'));
+  assert.ok(admin.includes('Ordem de exibição'));
+  assert.ok(admin.includes('Arte da coleção'));
+  assert.ok(admin.includes("request(item?\`/api/admin/mural/collections/\${item.id}\`:'/api/admin/mural/collections'"));
   assert.ok(admin.includes("onCreateCollection={()=>setCollectionEditor({mode:'new'})}"));
 });
 
-test('existing collection publication edit also routes to the official CollectionEditor', () => {
-  assert.ok(admin.includes("if(row?.kind==='collection')"));
-  assert.ok(admin.includes('setCollectionEditor(linked)'));
-  assert.ok(admin.includes('onEdit={openPublicationEditor}'));
-});
-
-test('publication side panel keeps the manual image workflow', () => {
-  assert.ok(admin.includes('Prévia da publicação de produto'));
-  assert.ok(admin.includes('Prévia do aviso'));
-  assert.ok(admin.includes('Opcional. Use uma arte pronta quando necessário.'));
-  assert.ok(css.includes('.mural-publisher-art-panel'));
-});
-
-test('publication action bar stays universal on desktop and mobile', () => {
-  assert.ok(admin.includes('mural-publisher-universal-actions'));
-  assert.ok(admin.includes('Produto e Informação usam este editor; Coleção abre o editor oficial de Nova coleção.'));
+test('all publication panels share a right live preview and fixed action hierarchy', () => {
+  assert.ok(admin.includes('Visualize como sua publicação será exibida no app dos operadores.'));
+  assert.ok(admin.includes('mural-publish-v2-preview'));
+  assert.ok(admin.includes('mural-publish-v2-actions'));
   assert.equal((admin.match(/Salvar rascunho/g) || []).length, 1);
-  assert.ok(css.includes('.mural-publisher-universal-actions'));
+  assert.ok(admin.includes("busy?'Processando…':'Publicar'"));
+  assert.ok(css.includes('position:sticky'));
 });
 
-
-test('publication and collection editors share one full-page panel system', () => {
-  assert.ok(css.includes('.mural-publisher-workspace,'));
-  assert.ok(css.includes('.mural-collection-workspace{'));
-  assert.ok(css.includes('max-width:1480px'));
-  assert.ok(admin.includes('mural-publisher-universal-actions mural-collection-universal-actions'));
+test('publication settings expose featured scheduling expiration and order', () => {
+  assert.ok(admin.includes('Fixar no topo do Mural'));
+  assert.ok(admin.includes('Publicar em'));
+  assert.ok(admin.includes('Expira em'));
+  assert.ok(admin.includes('Ordem'));
+  assert.ok(css.includes('.mural-publish-v2-settings-grid'));
 });
 
-
-test('product publication has a product-first hierarchy instead of the generic long form', () => {
-  assert.ok(admin.includes('mural-publisher-product-panel'));
-  assert.ok(admin.includes('Escolha o produto primeiro'));
-  assert.ok(admin.includes('mural-publisher-selected-product'));
-  assert.ok(admin.includes('PRODUTO SELECIONADO'));
-  assert.ok(admin.includes('mural-publisher-copy-panel'));
-  assert.ok(css.includes('.mural-publisher-selected-product'));
-  assert.ok(css.includes('.mural-publisher-copy-grid'));
-});
-
-test('information publication has a dedicated message and priority panel', () => {
-  assert.ok(admin.includes('mural-publisher-notice-panel'));
-  assert.ok(admin.includes('Monte a informação em uma única área'));
-  assert.ok(admin.includes('mural-publisher-notice-levels'));
-  assert.ok(admin.includes('Título da informação'));
-  assert.ok(admin.includes('Mensagem<textarea'));
-  assert.ok(css.includes('.mural-publisher-notice-levels'));
-  assert.ok(css.includes('.mural-publisher-notice-copy'));
-});
-
-test('product and notice share compact controls and a contextual right preview', () => {
-  assert.ok(admin.includes('mural-publisher-controls-grid'));
-  assert.ok(admin.includes('mural-publisher-preview-context'));
-  assert.ok(admin.includes('Prévia da publicação de produto'));
-  assert.ok(admin.includes('Prévia do aviso'));
-  assert.ok(css.includes('grid-template-columns:minmax(0,1fr) minmax(320px,370px)'));
-  assert.ok(css.includes('.mural-publisher-preview-reference'));
-  assert.ok(css.includes('.mural-publisher-preview-notice'));
-});
-
-
-test('desktop publisher uses one viewport with equal compact cards and no page scroll', () => {
-  assert.ok(admin.includes('mural-publisher-type-panel'));
-  assert.ok(css.includes('@media(min-width:1100px) and (min-height:650px)'));
-  assert.ok(css.includes('height:calc(100dvh - 90px)'));
-  assert.ok(css.includes('grid-template-rows:20px 46px minmax(0,1fr) 48px'));
-  assert.ok(css.includes('.mural-publisher-controls-grid{'));
-  assert.ok(css.includes('grid-template-columns:repeat(3,minmax(0,1fr))'));
-  assert.ok(css.includes('.mural-publisher-product-panel,\n.mural-publisher-copy-panel,\n.mural-publisher-notice-panel{'));
-  assert.ok(css.includes('height:238px'));
-});
-
-test('image editorial joins display and scheduling in the same settings strip', () => {
-  const settingsStart = admin.indexOf('className="mural-publisher-controls-grid"');
-  const settingsEnd = admin.indexOf('{error &&', settingsStart);
-  const settings = admin.slice(settingsStart, settingsEnd);
-  assert.ok(settings.includes('mural-publisher-control-card mural-publisher-schedule'));
-  assert.ok(settings.includes('mural-publisher-control-card mural-publisher-image-panel'));
-  assert.equal((settings.match(/mural-publisher-control-card/g) || []).length, 3);
-});
-
-
-test('publisher keeps the no-page-scroll desktop mode at 768px-class heights', () => {
-  assert.ok(css.includes('@media(min-width:1100px) and (min-height:650px) and (max-height:800px)'));
-  assert.ok(css.includes('@media(max-width:1080px), (max-height:649px)'));
-  assert.ok(css.includes('.mural-publisher-universal-actions{min-height:48px}'));
+test('studio is responsive without a duplicate mobile implementation', () => {
+  assert.ok(css.includes('@media(max-width:900px)'));
+  assert.ok(css.includes('.mural-publish-v2-shell{grid-template-columns:1fr}'));
+  assert.ok(css.includes('@media(max-width:620px)'));
 });
