@@ -652,13 +652,9 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
       <header className="mural-publisher-header">
         <div className="mural-publisher-title">
           <span className="mural-publisher-title-icon"><AdminMuralIcon name="sparkles" size={23}/></span>
-          <span><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2><p>Crie uma novidade, coleção ou aviso para os operadores.</p></span>
+          <span><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2><p>Editor universal do Mural para Produto, Coleção ou Aviso.</p></span>
         </div>
-        <div className="mural-publisher-header-actions">
-          <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
-          <button type="submit" form="mural-publication-form" disabled={busy}>Salvar rascunho</button>
-          <button type="button" className="primary" disabled={busy} onClick={()=>save(true)}><AdminMuralIcon name="sparkles" size={16}/> {publishLabel}</button>
-        </div>
+
       </header>
 
       <div className="mural-publisher-layout">
@@ -771,9 +767,16 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
         </aside>
       </div>
 
-      <footer className="mural-publisher-mobile-actions">
-        <button type="submit" form="mural-publication-form" disabled={busy}>Salvar rascunho</button>
-        <button type="button" className="primary" disabled={busy} onClick={()=>save(true)}>{publishLabel}</button>
+      <footer className="mural-publisher-universal-actions" aria-label="Ações da publicação">
+        <div>
+          <strong>Publicação do Mural</strong>
+          <small>Fluxo único para Produto, Coleção ou Aviso.</small>
+        </div>
+        <span>
+          <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
+          <button type="submit" form="mural-publication-form" disabled={busy}>Salvar rascunho</button>
+          <button type="button" className="primary" disabled={busy} onClick={()=>save(true)}><AdminMuralIcon name="sparkles" size={16}/> {publishLabel}</button>
+        </span>
       </footer>
     </section>
   );
@@ -890,46 +893,8 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
   </div>;
 }
 
-function MuralAdminOverview({ posts, collections, products, readiness, loading, onNavigate, onNewPost, onNewCollection }) {
-  const published = posts.filter(row=>row.status==='published').length;
-  const drafts = posts.filter(row=>row.status==='draft').length;
-  const activeCollections = collections.filter(row=>row.status==='active').length;
-  const approvedImages = products.filter(row=>row.mural_image_ready).length;
-  const reviewImages = products.filter(row=>row.mural_image_reviewable).length;
-
-  const tools = [
-    { key:'posts', icon:'document', group:'CONTEÚDO', title:'Publicações', description:'Produtos, avisos e conteúdos exibidos aos operadores.', metric:`${published} publicadas · ${drafts} rascunhos` },
-    { key:'collections', icon:'collection', group:'CONTEÚDO', title:'Coleções', description:'Monte coleções, capas, banners e ordem editorial.', metric:`${activeCollections} ativas` },
-    { key:'images', icon:'image', group:'PRODUÇÃO VISUAL', title:'Imagens dos produtos', description:'Trate, revise e aprove as imagens usadas no Mural.', metric:`${approvedImages} aprovadas · ${reviewImages} para revisar` },
-    { key:'metrics', icon:'metrics', group:'GESTÃO', title:'Métricas', description:'Acompanhe leitura e desempenho do conteúdo.', metric:'Leitura e uso' },
-    { key:'qa', icon:'shield', group:'CONTROLE', title:'QA de liberação', description:'Valide estrutura, conteúdo e peso antes de liberar.', metric:readiness?.automated_ready?'Pronto para smoke':'Verificar pendências' }
-  ];
-
-  return <div className="mural-admin-overview">
-    <section className="mural-admin-overview-hero">
-      <div><span>PAINEL DO MURAL</span><h3>Gerencie o conteúdo seguindo o fluxo certo</h3><p>Crie o conteúdo, prepare as imagens e valide a liberação antes de chegar aos operadores.</p></div>
-      <div className="mural-admin-overview-hero-actions">
-        <button type="button" className="primary" onClick={onNewPost}>+ Nova publicação</button>
-        <button type="button" onClick={onNewCollection}>+ Nova coleção</button>
-      </div>
-    </section>
-    <div className="mural-admin-overview-flow" aria-label="Fluxo do Mural">
-      <span><b>1</b> Conteúdo</span><i>→</i><span><b>2</b> Produção visual</span><i>→</i><span><b>3</b> Revisão</span><i>→</i><span><b>4</b> QA e publicação</span>
-    </div>
-    <div className="mural-admin-overview-grid">
-      {tools.map(tool=><button type="button" key={tool.key} className="mural-admin-overview-tool" onClick={()=>onNavigate(tool.key)}>
-        <span className="tool-icon"><AdminMuralIcon name={tool.icon} size={22}/></span>
-        <span className="tool-copy"><small>{tool.group}</small><strong>{tool.title}</strong><p>{tool.description}</p><em>{loading?'Carregando…':tool.metric}</em></span>
-        <AdminMuralIcon name="chevron" size={17}/>
-      </button>)}
-    </div>
-  </div>;
-}
-
-export default function MuralNistiAdminView({ activeSection = null, onSectionChange = null }) {
-  const [internalSection,setInternalSection]=useState('overview');
-  const section = activeSection || internalSection;
-  const setSection = onSectionChange || setInternalSection;
+export default function MuralNistiAdminView({ activeSection = 'posts' }) {
+  const section = activeSection;
   const [posts,setPosts]=useState([]);
   const [collections,setCollections]=useState([]);
   const [products,setProducts]=useState([]);
@@ -980,14 +945,13 @@ export default function MuralNistiAdminView({ activeSection = null, onSectionCha
   };
 
   const sectionMeta = {
-    overview:{title:'Mural NISTI',description:'Visão geral das ferramentas, conteúdo e estado de liberação.',icon:'home',eyebrow:'VISÃO GERAL'},
     posts:{title:'Publicações',description:'Gerencie produtos, avisos e conteúdos publicados para os operadores.',icon:'document',eyebrow:'CONTEÚDO'},
     collections:{title:'Coleções',description:'Organize produtos em coleções, configure banners e defina a ordem editorial.',icon:'collection',eyebrow:'CONTEÚDO'},
     images:{title:'Imagens dos produtos',description:'Trate, revise e aprove as imagens que alimentam o Mural.',icon:'image',eyebrow:'PRODUÇÃO VISUAL'},
     metrics:{title:'Métricas',description:'Acompanhe leituras e indicadores de uso do Mural.',icon:'metrics',eyebrow:'GESTÃO E CONTROLE'},
     qa:{title:'QA de liberação',description:'Valide estrutura, conteúdo e desempenho antes da liberação.',icon:'shield',eyebrow:'GESTÃO E CONTROLE'}
   };
-  const currentSection = sectionMeta[section] || sectionMeta.overview;
+  const currentSection = sectionMeta[section] || sectionMeta.posts;
   if (editor) {
     return <PostEditor
       item={editor}
@@ -1006,7 +970,6 @@ export default function MuralNistiAdminView({ activeSection = null, onSectionCha
       </div>
       <div className="mural-admin-dashboard-actions">
         <button type="button" className="qa" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>
-        {section==='overview'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
         {section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
         {section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}
       </div>
@@ -1015,17 +978,6 @@ export default function MuralNistiAdminView({ activeSection = null, onSectionCha
     <div className="mural-admin-workspace mural-admin-workspace-single">
       <main className="mural-admin-workspace-content">
         {error&&<div className="mural-admin-error">{error}</div>}
-
-        {section==='overview'&&<MuralAdminOverview
-          posts={posts}
-          collections={collections}
-          products={products}
-          readiness={readiness}
-          loading={loading}
-          onNavigate={setSection}
-          onNewPost={()=>setEditor({mode:'new'})}
-          onNewCollection={()=>setCollectionEditor({mode:'new'})}
-        />}
 
         {section==='posts'&&<MuralPublicationsDashboard
           posts={posts}
