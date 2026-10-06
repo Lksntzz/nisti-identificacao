@@ -2198,3 +2198,374 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
     flex:1 1 auto;
   }
 }
+
+
+/* Product + Notice publisher redesign */
+.mural-publisher-layout{
+  grid-template-columns:minmax(0,1fr) minmax(320px,370px);
+  gap:18px;
+}
+.mural-publisher-form{
+  gap:12px;
+  overflow:visible;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+}
+.mural-publisher-form>.mural-publisher-block,
+.mural-publisher-controls-grid>.mural-publisher-block{
+  border:1px solid #e3e9f2;
+  border-radius:17px;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(15,23,42,.035);
+}
+.mural-publisher-section-kicker{
+  width:max-content;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:#2563eb;
+  font-size:8.5px;
+  line-height:1;
+  font-weight:950;
+  letter-spacing:.1em;
+}
+.mural-publisher-product-panel{
+  gap:12px;
+}
+.mural-publisher-selected-product{
+  min-height:94px;
+  display:grid;
+  grid-template-columns:74px minmax(0,1fr) 28px;
+  align-items:center;
+  gap:12px;
+  padding:10px;
+  border:1px solid #cfe0ff;
+  border-radius:14px;
+  background:linear-gradient(135deg,#f8fbff,#f1f6ff);
+}
+.mural-publisher-selected-product figure{
+  width:74px;
+  height:74px;
+  display:grid;
+  place-items:center;
+  margin:0;
+  overflow:hidden;
+  border:1px solid #dce6f5;
+  border-radius:11px;
+  background:#fff;
+}
+.mural-publisher-selected-product figure img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+.mural-publisher-selected-product figure>span{
+  color:#64748b;
+}
+.mural-publisher-selected-product>div{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.mural-publisher-selected-product>div>small{
+  color:#6b7a90;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.08em;
+}
+.mural-publisher-selected-product>div>strong{
+  overflow:hidden;
+  color:#14213b;
+  font-size:15px;
+  line-height:1.1;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mural-publisher-selected-product>div>span{
+  overflow:hidden;
+  color:#64748b;
+  font-size:10px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mural-publisher-selected-product>i{
+  width:26px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:#2563eb;
+  color:#fff;
+  font-style:normal;
+}
+.mural-publisher-selected-product-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  margin-top:3px;
+}
+.mural-publisher-selected-product-meta em{
+  max-width:160px;
+  overflow:hidden;
+  padding:4px 6px;
+  border:1px solid #dbe5f3;
+  border-radius:999px;
+  background:#fff;
+  color:#64748b;
+  font-size:8px;
+  font-style:normal;
+  font-weight:750;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mural-publisher-search-field input{
+  background:#fbfdff;
+}
+.mural-publisher-product-search{
+  max-height:205px;
+}
+.mural-publisher-copy-panel{
+  gap:12px;
+}
+.mural-publisher-copy-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:11px;
+}
+.mural-publisher-copy-body{
+  grid-column:1/-1;
+}
+.mural-publisher-copy-body textarea{
+  min-height:108px;
+}
+.mural-publisher-notice-panel{
+  gap:14px;
+}
+.mural-publisher-notice-levels{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+.mural-publisher-notice-levels button{
+  min-width:0;
+  min-height:82px;
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr);
+  grid-template-rows:auto auto;
+  align-items:center;
+  gap:2px 8px;
+  padding:10px;
+  border:1px solid #e0e6ef;
+  border-radius:12px;
+  background:#fff;
+  color:#64748b;
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+}
+.mural-publisher-notice-levels button>span{
+  grid-row:1/3;
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  background:#f1f5f9;
+  color:#64748b;
+}
+.mural-publisher-notice-levels button b{
+  color:#1e293b;
+  font-size:10.5px;
+}
+.mural-publisher-notice-levels button small{
+  color:#8492a6;
+  font-size:8.5px;
+  line-height:1.2;
+}
+.mural-publisher-notice-levels button.active{
+  border-color:#8ab3ff;
+  background:#f5f9ff;
+  box-shadow:0 0 0 2px rgba(37,99,235,.07);
+}
+.mural-publisher-notice-levels button.active>span{
+  background:#e7efff;
+  color:#2563eb;
+}
+.mural-publisher-notice-copy{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:11px;
+  padding-top:3px;
+}
+.mural-publisher-notice-message{
+  grid-column:1/-1;
+}
+.mural-publisher-notice-message textarea{
+  min-height:132px;
+}
+.mural-publisher-controls-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:12px;
+}
+.mural-publisher-control-card{
+  min-width:0;
+  padding:15px 16px;
+  border-bottom:0;
+}
+.mural-publisher-control-card .mural-publisher-display-grid{
+  grid-template-columns:minmax(0,1fr) 92px;
+  gap:8px;
+}
+.mural-publisher-control-card .mural-publisher-featured{
+  min-height:52px;
+}
+.mural-publisher-schedule-grid{
+  display:grid;
+  gap:9px;
+}
+.mural-publisher-image-panel{
+  padding-top:15px;
+  padding-bottom:15px;
+}
+.mural-publisher-image-panel .mural-publisher-upload{
+  min-height:64px;
+}
+.mural-publisher-art-panel{
+  top:72px;
+  border-radius:18px;
+}
+.mural-publisher-art-panel>header{
+  padding:16px 16px 10px;
+}
+.mural-publisher-art-panel>header>span:first-child{
+  display:grid;
+  gap:3px;
+}
+.mural-publisher-art-panel>header>span:first-child>small{
+  color:#2563eb;
+  font-size:8px;
+  line-height:1;
+  font-weight:950;
+  letter-spacing:.1em;
+}
+.mural-publisher-art-panel>header h3{
+  font-size:13px;
+}
+.mural-publisher-preview-context{
+  padding:0 16px 10px;
+}
+.mural-publisher-preview-reference,
+.mural-publisher-preview-notice,
+.mural-publisher-preview-empty{
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:9px 10px;
+  border:1px solid #e1e7ef;
+  border-radius:11px;
+  background:#f8fafc;
+}
+.mural-publisher-preview-reference>span,
+.mural-publisher-preview-notice>svg,
+.mural-publisher-preview-empty>svg{
+  flex:0 0 auto;
+  color:#2563eb;
+}
+.mural-publisher-preview-reference>div,
+.mural-publisher-preview-notice>span{
+  min-width:0;
+  display:grid;
+  gap:1px;
+}
+.mural-publisher-preview-reference small,
+.mural-publisher-preview-notice small{
+  color:#94a3b8;
+  font-size:7.5px;
+  font-weight:950;
+  letter-spacing:.07em;
+}
+.mural-publisher-preview-reference b,
+.mural-publisher-preview-notice b{
+  color:#1e293b;
+  font-size:10.5px;
+}
+.mural-publisher-preview-reference em{
+  overflow:hidden;
+  color:#64748b;
+  font-size:8.5px;
+  font-style:normal;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mural-publisher-preview-empty{
+  color:#718096;
+  font-size:9px;
+  line-height:1.35;
+}
+.mural-publisher-preview-notice.is-attention{
+  border-color:#fed7aa;
+  background:#fff7ed;
+}
+.mural-publisher-preview-notice.is-attention>svg{
+  color:#c2410c;
+}
+.mural-publisher-preview-notice.is-important{
+  border-color:#fecdd3;
+  background:#fff7f7;
+}
+.mural-publisher-preview-notice.is-important>svg{
+  color:#be123c;
+}
+.mural-publisher-preview-pane{
+  padding-top:0;
+}
+.mural-publisher-preview-pane .mural-admin-phone{
+  width:min(100%,300px);
+  margin:0 auto;
+}
+.mural-publisher-universal-actions{
+  bottom:8px;
+}
+@media(max-width:1180px){
+  .mural-publisher-layout{
+    grid-template-columns:minmax(0,1fr) 330px;
+  }
+  .mural-publisher-controls-grid{
+    grid-template-columns:1fr;
+  }
+}
+@media(max-width:960px){
+  .mural-publisher-layout{
+    grid-template-columns:1fr;
+  }
+  .mural-publisher-art-panel{
+    position:static;
+  }
+}
+@media(max-width:680px){
+  .mural-publisher-copy-grid,
+  .mural-publisher-notice-copy,
+  .mural-publisher-controls-grid{
+    grid-template-columns:1fr;
+  }
+  .mural-publisher-copy-body,
+  .mural-publisher-notice-message{
+    grid-column:auto;
+  }
+  .mural-publisher-notice-levels{
+    grid-template-columns:1fr;
+  }
+  .mural-publisher-notice-levels button{
+    min-height:62px;
+  }
+  .mural-publisher-selected-product{
+    grid-template-columns:58px minmax(0,1fr) 26px;
+  }
+  .mural-publisher-selected-product figure{
+    width:58px;
+    height:58px;
+  }
+}
