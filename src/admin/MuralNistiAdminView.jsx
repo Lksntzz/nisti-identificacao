@@ -139,7 +139,7 @@ function TreatedImageLightbox({ product, busy, onClose, onApprove, onRedo }) {
 
 function MuralProductImageManager({ products, onChanged }) {
   const [query,setQuery]=useState('');
-  const [showApproved,setShowApproved]=useState(false);
+  const [imageTab,setImageTab]=useState('review');
   const [previewProduct,setPreviewProduct]=useState(null);
   const [justApprovedIds,setJustApprovedIds]=useState(()=>new Set());
   const [busyId,setBusyId]=useState(null);
@@ -189,12 +189,14 @@ function MuralProductImageManager({ products, onChanged }) {
 
   const filtered=useMemo(()=>{
     const term=query.trim().toLowerCase();
-    const visible=showApproved
+    const visible=imageTab==='approved'
       ?products.filter(item=>item.mural_image_ready)
-      :products.filter(item=>!item.mural_image_ready&&!justApprovedIds.has(Number(item.id)));
+      :imageTab==='review'
+        ?products.filter(item=>item.mural_image_reviewable&&!justApprovedIds.has(Number(item.id)))
+        :products.filter(item=>!item.mural_image_ready&&!item.mural_image_reviewable&&!justApprovedIds.has(Number(item.id)));
     if(!term)return visible;
     return visible.filter(item=>`${item.sku||''} ${item.nome||''} ${item.variacao||''}`.toLowerCase().includes(term));
-  },[products,query,showApproved,justApprovedIds]);
+  },[products,query,imageTab,justApprovedIds]);
 
   useEffect(()=>{
     let active=true;
@@ -319,7 +321,7 @@ function MuralProductImageManager({ products, onChanged }) {
       await request(`/api/admin/product-image-treatment/${product.id}/approve`,{method:'POST'});
       window.dispatchEvent(new CustomEvent('nisti:product-image-treatment-summary-request'));
       setJustApprovedIds(current=>new Set(current).add(Number(product.id)));
-      setShowApproved(false);
+      setImageTab('review');
       await onChanged();
     }
     catch(err){setError(err.message)}finally{setBusyId(null)}
@@ -402,8 +404,15 @@ function MuralProductImageManager({ products, onChanged }) {
     </section>
     {error&&<div className="mural-admin-error">{error}</div>}
     <nav className="mural-product-image-tabs" aria-label="Estado da revisão">
-      <button type="button" className={!showApproved?'active':''} aria-pressed={!showApproved} onClick={()=>setShowApproved(false)}>Para revisar</button>
-      <button type="button" className={showApproved?'active':''} aria-pressed={showApproved} onClick={()=>setShowApproved(true)}>Revisados</button>
+      <button type="button" className={imageTab==='queue'?'active':''} aria-pressed={imageTab==='queue'} onClick={()=>setImageTab('queue')}>
+        Fila <b>{treatmentPending+treatmentFailed}</b>
+      </button>
+      <button type="button" className={imageTab==='review'?'active':''} aria-pressed={imageTab==='review'} onClick={()=>setImageTab('review')}>
+        Revisar tratados <b>{treatmentReview}</b>
+      </button>
+      <button type="button" className={imageTab==='approved'?'active':''} aria-pressed={imageTab==='approved'} onClick={()=>setImageTab('approved')}>
+        Revisados <b>{treatmentApproved}</b>
+      </button>
     </nav>
     <div className="mural-product-image-manager-grid">
       {filtered.map(product=>{const previewSrc=product.mural_image_ready?product.image_url:product.mural_image_reviewable?product.review_image_url:null;const state=product.mural_image_ready?'approved':product.mural_image_reviewable?'review':product.mural_image_status==='failed'?'failed':product.mural_image_processor==='system-precise-redo'?'redo':'pending';const label={approved:'Aprovada e salva',review:'Aguardando aprovação',failed:'Falhou',redo:'Refazendo com corte preciso',pending:'Pendente'}[state];return <article key={product.id}>
