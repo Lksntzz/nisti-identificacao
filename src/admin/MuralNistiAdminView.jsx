@@ -793,12 +793,27 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
       await onSaved();onClose();
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
-  return <div className="mural-admin-modal" role="dialog" aria-modal="true">
-    <div className="mural-admin-editor mural-admin-collection-editor">
-      <header><h2>{item?'Editar coleção':'Nova coleção'}</h2><button onClick={onClose}>×</button></header>
-      <div className="mural-admin-collection-form">
-        <div className="mural-admin-collection-body">
-          <div className="mural-admin-collection-fields">
+  return (
+    <section className="mural-collection-workspace" aria-label={item?'Editar coleção':'Nova coleção'}>
+      <nav className="mural-publisher-breadcrumb" aria-label="Navegação">
+        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><button type="button" onClick={onClose}>Coleções</button><span>›</span><strong>{item?'Editar coleção':'Nova coleção'}</strong>
+      </nav>
+
+      <header className="mural-publisher-header mural-collection-workspace-header">
+        <div className="mural-publisher-title">
+          <span className="mural-publisher-title-icon"><AdminMuralIcon name="collection" size={23}/></span>
+          <span><h2>{item?'Editar coleção':'Nova coleção'}</h2><p>Configure a identidade, o banner e os produtos da coleção em um único painel.</p></span>
+        </div>
+      </header>
+
+      <div className="mural-collection-workspace-layout">
+        <section className="mural-collection-workspace-form">
+          <div className="mural-collection-workspace-section-heading">
+            <div><small>INFORMAÇÕES</small><strong>Dados da coleção</strong></div>
+            <span>Nome, período e direção visual</span>
+          </div>
+
+          <div className="mural-collection-workspace-fields">
             <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL DO MURAL</span><strong>Collection Launch Hero Card</strong><small>Banner horizontal 2:1, selo NOVA COLEÇÃO automático, nome + ano opcional + frase curta e capas reais da coleção.</small></div>
             <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
             <div className="mural-admin-inline">
@@ -808,15 +823,21 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
             <label className="mural-admin-toggle-row"><input type="checkbox" checked={form.show_year} onChange={e=>setForm({...form,show_year:e.target.checked})}/><span><b>Exibir ano no banner</b><small>Desative para coleções que não usam ano.</small></span></label>
             <label>Mensagem curta do banner<input maxLength="140" value={form.hero_message} onChange={e=>setForm({...form,hero_message:e.target.value})} placeholder="Ex.: Mais fofura para o seu dia a dia."/><small>Texto curto abaixo do nome da coleção.</small></label>
             <div className="mural-admin-inline">
-              <label>Direção visual<select value={form.visual_direction} onChange={e=>setForm({...form,visual_direction:e.target.value})}><option value="automatic">Automática</option><option value="delicate">Delicada</option><option value="premium">Premium</option><option value="minimal">Minimalista</option><option value="playful">Divertida</option></select><small>Será usada na geração do banner Canva.</small></label>
-              <label>Elementos / cores do tema<textarea rows="2" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, patinhas, estrelas e brilho suave"/></label>
+              <label>Direção visual<select value={form.visual_direction} onChange={e=>setForm({...form,visual_direction:e.target.value})}><option value="automatic">Automática</option><option value="delicate">Delicada</option><option value="premium">Premium</option><option value="minimal">Minimalista</option><option value="playful">Divertida</option></select><small>Usada na composição visual do banner.</small></label>
+              <label>Elementos / cores do tema<textarea rows="3" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, patinhas, estrelas e brilho suave"/></label>
             </div>
-            <label>Descrição da coleção<textarea rows="2" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Descrição detalhada. A mensagem curta acima é usada primeiro no Hero Card.</small></label>
+            <label>Descrição da coleção<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Descrição detalhada. A mensagem curta acima é usada primeiro no Hero Card.</small></label>
             {item&&<label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
             {error&&<div className="mural-admin-error">{error}</div>}
           </div>
-          <aside className="mural-admin-collection-preview-pane">
-            <div className="mural-admin-collection-preview-heading"><span>PRÉVIA DO BANNER</span><small>Visualização da configuração da coleção</small></div>
+        </section>
+
+        <aside className="mural-collection-workspace-preview">
+          <section className="mural-collection-preview-card">
+            <div className="mural-collection-workspace-section-heading">
+              <div><small>PRÉVIA</small><strong>Banner da coleção</strong></div>
+              <span>Visual que será usado no Mural</span>
+            </div>
             <div className="mural-collection-hero-config-preview">
               <span>NOVA COLEÇÃO</span>
               <strong>{form.name||'Nome da coleção'}{form.show_year&&form.year?' '+form.year:''}</strong>
@@ -833,21 +854,30 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
               <span><b>{selected.length}</b> produto{selected.length===1?'':'s'} selecionado{selected.length===1?'':'s'}</span>
               <span><b>{form.show_year&&form.year?form.year:'—'}</b> ano exibido</span>
             </div>
-            <div className="mural-admin-collection-products-compact">
-              <label>Produtos<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
-              <div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
-              {selectedProducts.length>0&&<div className="mural-admin-selected-products compact" aria-label="Ordem editorial dos produtos"><strong>Destaques do banner</strong>{selectedProducts.slice(0,4).map((p,index)=><div key={p.id}><span>{index+1}. {p.sku}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}{selectedProducts.length>4&&<small>+{selectedProducts.length-4} produto(s) selecionado(s)</small>}</div>}
+          </section>
+
+          <section className="mural-collection-products-panel">
+            <div className="mural-collection-workspace-section-heading">
+              <div><small>PRODUTOS</small><strong>Capas da coleção</strong></div>
+              <span>Selecione e organize a ordem editorial</span>
             </div>
-          </aside>
-        </div>
-        <div className="mural-admin-actions mural-admin-collection-actions">
-          <button type="button" onClick={onClose}>Cancelar</button>
-          <button type="button" disabled={busy||!form.name} onClick={()=>save(false)}>Salvar coleção</button>
-          <button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}>{busy?'Processando…':'Salvar e publicar no Mural'}</button>
-        </div>
+            <label className="mural-collection-product-search">Buscar produto<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
+            <div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
+            {selectedProducts.length>0&&<div className="mural-admin-selected-products compact" aria-label="Ordem editorial dos produtos"><strong>Ordem da coleção</strong>{selectedProducts.slice(0,6).map((p,index)=><div key={p.id}><span>{index+1}. {p.sku}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}{selectedProducts.length>6&&<small>+{selectedProducts.length-6} produto(s) selecionado(s)</small>}</div>}
+          </section>
+        </aside>
       </div>
-    </div>
-  </div>;
+
+      <footer className="mural-publisher-universal-actions mural-collection-universal-actions" aria-label="Ações da coleção">
+        <div><strong>Coleção do Mural</strong><small>Revise dados, banner e produtos antes de salvar ou publicar.</small></div>
+        <span>
+          <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
+          <button type="button" disabled={busy||!form.name} onClick={()=>save(false)}>Salvar coleção</button>
+          <button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}><AdminMuralIcon name="sparkles" size={16}/> {busy?'Processando…':'Salvar e publicar'}</button>
+        </span>
+      </footer>
+    </section>
+  );
 }
 
 export default function MuralNistiAdminView({ activeSection = 'posts' }) {
@@ -914,6 +944,14 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
     images:{title:'Imagens dos produtos',description:'Trate, revise e aprove as imagens que alimentam o Mural.',icon:'image',eyebrow:'PRODUÇÃO VISUAL'},
   };
   const currentSection = sectionMeta[section] || sectionMeta.posts;
+  if (collectionEditor) {
+    return <CollectionEditor
+      item={collectionEditor.mode==='new'?null:collectionEditor}
+      products={products}
+      onClose={()=>setCollectionEditor(null)}
+      onSaved={load}
+    />;
+  }
   if (editor) {
     return <PostEditor
       item={editor}
@@ -957,6 +995,5 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
       </main>
     </div>
 
-    {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={load}/>} 
   </section>;
 }

@@ -23,7 +23,8 @@ test('New publication exposes Product Notice and Collection', () => {
 test('Collection from New publication reuses the exact official CollectionEditor', () => {
   assert.equal((admin.match(/function CollectionEditor/g) || []).length, 1);
   assert.ok(admin.includes("onCreateCollection={()=>{setEditor(null);setCollectionEditor({mode:'new'})}}"));
-  assert.ok(admin.includes("{collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor}"));
+  assert.ok(admin.includes('if (collectionEditor) {'));
+  assert.ok(admin.includes('return <CollectionEditor'));
   assert.ok(admin.includes("section==='collections'&&<button className=\"primary\" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>"));
 });
 
@@ -44,4 +45,12 @@ test('publication action bar stays universal on desktop and mobile', () => {
   assert.ok(admin.includes('Produto e Aviso usam este editor; Coleção abre o editor oficial de Nova coleção.'));
   assert.equal((admin.match(/Salvar rascunho/g) || []).length, 1);
   assert.ok(css.includes('.mural-publisher-universal-actions'));
+});
+
+
+test('publication and collection editors share one full-page panel system', () => {
+  assert.ok(css.includes('.mural-publisher-workspace,'));
+  assert.ok(css.includes('.mural-collection-workspace{'));
+  assert.ok(css.includes('max-width:1480px'));
+  assert.ok(admin.includes('mural-publisher-universal-actions mural-collection-universal-actions'));
 });
