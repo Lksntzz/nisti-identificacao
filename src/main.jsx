@@ -182,7 +182,7 @@ function AdminSidebar({
   onViewChange,
   sidebarOpen,
   onCloseSidebar,
-  activeMuralSection = 'collections',
+  activeMuralSection = 'dashboard',
   onMuralSectionChange
 }) {
   const [expandedItems,setExpandedItems]=useState(()=>new Set(activeView==='mural-nisti'?['mural-nisti']:[]));
@@ -239,7 +239,7 @@ function AdminSidebar({
                             className={`sidebar-nav-item sidebar-nav-parent-main ${isActive ? 'active' : ''}`}
                             onClick={() => {
                               onViewChange(item.id);
-                              onMuralSectionChange?.('collections');
+                              onMuralSectionChange?.('dashboard');
                               setExpandedItems(previous => {
                                 const next = new Set(previous);
                                 next.add(item.id);
@@ -1682,7 +1682,7 @@ function AdminApp() {
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
-  const [muralSection,setMuralSection]=useState('collections');
+  const [muralSection,setMuralSection]=useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [metrics, setMetrics] = useState(null);
@@ -1917,7 +1917,7 @@ function AdminApp() {
               </>
             )}
 
-            {activeView === 'mural-nisti' && <MuralNistiAdminView activeSection={muralSection} />}
+            {activeView === 'mural-nisti' && <MuralNistiAdminView activeSection={muralSection} onSectionChange={setMuralSection} />}
 
             {activeView === 'catalogo' && (
               <CatalogView
