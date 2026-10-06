@@ -43,7 +43,7 @@ test('admin accepts transparent PNG derivatives and preserves the original image
   assert.match(router,/inspectTransparentPng/);
   assert.match(router,/\[4,6\]\.includes\(colorType\)/);
   assert.match(router,/mural\/products\/\$\{productId\}/);
-  assert.match(admin,/Imagens dos produtos/);
+  assert.match(admin,/Tratamento/);
   assert.match(admin,/A foto original do catálogo fica intacta/);
   assert.match(admin,/original_image_url/);
 });
