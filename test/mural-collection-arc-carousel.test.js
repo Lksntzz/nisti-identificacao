@@ -54,7 +54,7 @@ test('collection variants wait 1.5 seconds before the next cover and title close
 });
 
 
-test('white arc and product reveal use one opaque continuous motion without intermediate advances', () => {
+test('white arc and product reveal use one continuous motion with smooth fade-in', () => {
   const motionStart=css.indexOf('.mural-collection-reveal-product.is-main{');
   const motionEnd=css.indexOf('.mural-collection-reveal-title{');
   const motion=css.slice(motionStart,motionEnd);
@@ -62,8 +62,9 @@ test('white arc and product reveal use one opaque continuous motion without inte
   assert.ok(css.includes('filter:none'));
   assert.ok(css.includes('backface-visibility:hidden'));
   assert.ok(motion.includes('z-index:var(--reveal-final-layer,2)'));
-  assert.ok(motion.includes('visibility:hidden'));
-  assert.ok(motion.includes('visibility:visible'));
+  assert.ok(motion.includes('opacity:0'));
+  assert.ok(motion.includes('opacity:1'));
+  assert.ok(motion.includes('opacity 520ms ease-out'));
   assert.ok(motion.includes('var(--reveal-product-delay) forwards'));
   assert.equal(motion.includes('32%{'), false);
   assert.equal(motion.includes('68%{'), false);
@@ -121,11 +122,25 @@ test('collection reveal waits for eager product images before starting, with a s
 });
 
 
-test('animated collection products never fade through partial opacity', () => {
+test('animated collection products fade only while following a single transform path', () => {
   const mainStart=css.indexOf('.mural-collection-reveal-product.is-main{');
   const titleStart=css.indexOf('.mural-collection-reveal-title{');
   const productMotion=css.slice(mainStart,titleStart);
-  assert.equal(productMotion.includes('opacity:'), false);
-  assert.ok(productMotion.includes('transition:transform 1250ms'));
+  assert.ok(productMotion.includes('opacity:0'));
+  assert.ok(productMotion.includes('opacity:1'));
+  assert.ok(productMotion.includes('transform 1250ms'));
   assert.ok(productMotion.includes('@keyframes mural-collection-cover-arrive'));
+  assert.equal(productMotion.includes('32%{'), false);
+  assert.equal(productMotion.includes('68%{'), false);
+});
+
+
+test('operator can tap or click the cinematic intro to open the information card immediately', () => {
+  assert.ok(mural.includes('role="button"'));
+  assert.ok(mural.includes('tabIndex={0}'));
+  assert.ok(mural.includes('onClick={finishIntro}'));
+  assert.ok(mural.includes("event.key !== 'Enter' && event.key !== ' '"));
+  assert.ok(mural.includes('finishIntro();'));
+  assert.ok(css.includes('cursor:pointer'));
+  assert.ok(css.includes('touch-action:manipulation'));
 });
