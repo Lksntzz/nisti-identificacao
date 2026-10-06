@@ -99,11 +99,11 @@ test('Mural NISTI exposes its tools as a submenu of the main admin navigation', 
   assert.ok(mural);
   assert.deepEqual(
     mural.children.map(item => item.id),
-    ['collections','posts','images']
+    ['dashboard','publish','treatment']
   );
   assert.deepEqual(
     mural.children.map(item => item.label),
-    ['Coleções','Publicações','Imagens dos produtos']
+    ['Painel','Publicar','Tratamento']
   );
 });
 
@@ -121,13 +121,13 @@ test('main sidebar renders an expandable Mural tree and controls the selected Mu
 });
 
 
-test('Mural NISTI no longer exposes an overview entry and opens on collections', () => {
+test('Mural NISTI opens on the publication dashboard', () => {
   const mural = flattenedItems().find(item => item.id === 'mural-nisti');
   assert.equal(mural.children.some(item => item.id === 'overview'), false);
   const source = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
-  assert.ok(source.includes("const [muralSection,setMuralSection]=useState('collections')"));
-  assert.ok(source.includes("activeMuralSection = 'collections'"));
-  assert.ok(source.includes("onMuralSectionChange?.('collections')"));
+  assert.ok(source.includes("const [muralSection,setMuralSection]=useState('dashboard')"));
+  assert.ok(source.includes("activeMuralSection = 'dashboard'"));
+  assert.ok(source.includes("onMuralSectionChange?.('dashboard')"));
 });
 
 

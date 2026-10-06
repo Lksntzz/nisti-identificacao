@@ -165,7 +165,7 @@ export default function MuralPublicationsDashboard({ posts, collections, loading
           ['', 'sparkles', 'Todas', counts.all],
           ['product','product','Produtos',counts.product],
           ['collection','collection','Coleções',counts.collection],
-          ['notice','notice','Avisos',counts.notice]
+          ['notice','notice','Informações',counts.notice]
         ].map(([value,icon,label,count])=>(
           <button type="button" key={label} className={kind===value?'active':''} onClick={()=>setKind(value)}>
             <Icon name={icon} size={16}/><span>{label}</span><b>{count}</b>
@@ -192,12 +192,12 @@ export default function MuralPublicationsDashboard({ posts, collections, loading
               const period=dateParts(row.published_at);
               const expires=dateParts(row.expires_at);
               const author=authorLabel(row.created_by);
-              const typeLabel=row.kind==='product'?'Produto':row.kind==='collection'?'Coleção':'Aviso';
+              const typeLabel=row.kind==='product'?'Produto':row.kind==='collection'?'Coleção':'Informação';
               const meta=row.kind==='product'
                 ? [row.product_sku,row.product_collection_name].filter(Boolean).join(' · ')
                 : row.kind==='collection'
                   ? (row.collection_name||'Coleção do Mural')
-                  : row.notice_level==='important'?'Aviso importante':'Comunicado aos operadores';
+                  : row.notice_level==='important'?'Informação importante':'Comunicado aos operadores';
               return <tr key={row.id}>
                 <td><div className="mural-admin-publication-cell">
                   <span className={'thumb '+row.kind}>{imageUrl?<img src={imageUrl} alt="" aria-hidden="true"/>:<Icon name={row.kind==='notice'?'notice':row.kind} size={28}/>}</span>

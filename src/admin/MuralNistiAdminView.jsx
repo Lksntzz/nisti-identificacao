@@ -511,7 +511,7 @@ function MobilePreview({ form, product, collection, imageUrl }) {
 }
 
 function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
-  const sourceItem = item;
+  const sourceItem = item && item.mode === 'new' ? null : item;
   const [form, setForm] = useState(() => postForm(sourceItem));
   const [products, setProducts] = useState([]);
   const [productQuery, setProductQuery] = useState(sourceItem?.product_sku || '');
@@ -596,9 +596,13 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
     setBusy(true); setError('');
     try {
       const body = JSON.stringify(payload());
-      const id = sourceItem?.id;
-      if (!id) throw new Error('Publicação inválida para edição.');
-      await request(`/api/admin/mural/posts/${id}`, { method:'PUT', headers:{'content-type':'application/json'}, body });
+      let id = sourceItem?.id;
+      if (id) {
+        await request(`/api/admin/mural/posts/${id}`, { method:'PUT', headers:{'content-type':'application/json'}, body });
+      } else {
+        const created = await request('/api/admin/mural/posts', { method:'POST', headers:{'content-type':'application/json'}, body });
+        id = created.id;
+      }
       if (image) {
         const formData = new FormData(); formData.append('image', image);
         await request(`/api/admin/mural/posts/${id}/image`, { method:'POST', body:formData });
@@ -619,13 +623,13 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
   return (
     <section className="mural-publisher-workspace" aria-label="Editor de publicação do Mural">
       <nav className="mural-publisher-breadcrumb" aria-label="Navegação">
-        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><button type="button" onClick={onClose}>Publicações</button><span>›</span><strong>Editar publicação</strong>
+        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><button type="button" onClick={onClose}>{sourceItem ? 'Painel' : 'Publicar'}</button><span>›</span><strong>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</strong>
       </nav>
 
       <header className="mural-publisher-header">
         <div className="mural-publisher-title">
           <span className="mural-publisher-title-icon"><AdminMuralIcon name="sparkles" size={23}/></span>
-          <span><h2>Editar publicação</h2><p>Ajuste o conteúdo existente. Novas coleções são criadas pela ferramenta Coleções.</p></span>
+          <span><h2>{sourceItem ? 'Editar publicação' : 'Publicar'}</h2><p>{sourceItem ? 'Ajuste o conteúdo existente do Mural.' : 'Crie uma nova publicação de Produto, Informação ou Coleção.'}</p></span>
         </div>
 
       </header>
@@ -637,7 +641,7 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
             <div className="mural-publisher-type-grid">
               {[
                 ['product','product','Produto','Destaque um produto específico.'],
-                ['notice','notice','Aviso','Comunicado para operadores.'],
+                ['notice','notice','Informação','Comunicado ou informação para operadores.'],
                 ['collection','collection','Coleção','Use a mesma interface de Nova coleção.']
               ].map(([value,icon,label,description])=>(
                 <button type="button" key={value} className={form.kind===value?'active':''} onClick={()=>value==='collection'?onCreateCollection():changeKind(value)}>
@@ -690,9 +694,9 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
 
           {form.kind === 'notice' && (
             <section className="mural-publisher-block mural-publisher-notice-panel">
-              <div className="mural-publisher-section-kicker"><AdminMuralIcon name="notice" size={16}/><span>AVISO</span></div>
-              <div className="mural-publisher-block-title"><strong>Monte o aviso em uma única área</strong><span>Defina o nível e escreva a mensagem que o operador vai receber.</span></div>
-              <div className="mural-publisher-notice-levels" role="group" aria-label="Prioridade do aviso">
+              <div className="mural-publisher-section-kicker"><AdminMuralIcon name="notice" size={16}/><span>INFORMAÇÃO</span></div>
+              <div className="mural-publisher-block-title"><strong>Monte a informação em uma única área</strong><span>Defina o nível e escreva a mensagem que o operador vai receber.</span></div>
+              <div className="mural-publisher-notice-levels" role="group" aria-label="Prioridade da informação">
                 {[
                   ['important','Importante','Comunicado normal'],
                   ['attention','Atenção','Exige atenção do operador'],
@@ -702,7 +706,7 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
                 </button>)}
               </div>
               <div className="mural-publisher-notice-copy">
-                <label className="mural-publisher-field">Título do aviso <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Atenção ao novo procedimento"/></label>
+                <label className="mural-publisher-field">Título da informação <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Atenção ao novo procedimento"/></label>
                 <label className="mural-publisher-field">Linha de apoio<input maxLength="120" value={form.subtitle || ''} onChange={e=>set('subtitle',e.target.value)} placeholder="Resumo curto para o card."/></label>
                 <label className="mural-publisher-field mural-publisher-notice-message">Mensagem<textarea maxLength="700" rows="5" value={form.body || ''} onChange={e=>set('body',e.target.value)} placeholder="Escreva a orientação completa para os operadores."/><small>{String(form.body || '').length}/700</small></label>
               </div>
@@ -763,7 +767,7 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
       <footer className="mural-publisher-universal-actions" aria-label="Ações da publicação">
         <div>
           <strong>Publicação do Mural</strong>
-          <small>Produto e Aviso usam este editor; Coleção abre o editor oficial de Nova coleção.</small>
+          <small>Produto e Informação usam este editor; Coleção abre o editor oficial de Nova coleção.</small>
         </div>
         <span>
           <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
@@ -916,7 +920,7 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
   );
 }
 
-export default function MuralNistiAdminView({ activeSection = 'collections' }) {
+export default function MuralNistiAdminView({ activeSection = 'dashboard', onSectionChange }) {
   const section = activeSection;
   const [posts,setPosts]=useState([]);
   const [collections,setCollections]=useState([]);
@@ -968,18 +972,19 @@ export default function MuralNistiAdminView({ activeSection = 'collections' }) {
         setCollectionEditor(linked);
         return;
       }
-      setError('A publicação aponta para uma coleção que não existe mais. Abra Coleções para corrigir.');
+      setError('A publicação aponta para uma coleção que não existe mais. A coleção vinculada não existe mais. Crie ou publique novamente pela ferramenta Publicar.');
       return;
     }
     setEditor(row);
   };
 
   const sectionMeta = {
-    posts:{title:'Publicações',description:'Acompanhe, edite e organize os conteúdos já publicados para os operadores.',icon:'document',eyebrow:'CONTEÚDO'},
-    collections:{title:'Coleções',description:'Organize produtos em coleções, configure banners e defina a ordem editorial.',icon:'collection',eyebrow:'CONTEÚDO'},
-    images:{title:'Imagens dos produtos',description:'Trate, revise e aprove as imagens que alimentam o Mural.',icon:'image',eyebrow:'PRODUÇÃO VISUAL'},
+    dashboard:{title:'Painel',description:'Visualize e gerencie as publicações já feitas no Mural.',icon:'document',eyebrow:'MURAL NISTI'},
+    publish:{title:'Publicar',description:'Crie uma nova publicação de Produto, Informação ou Coleção.',icon:'sparkles',eyebrow:'MURAL NISTI'},
+    treatment:{title:'Tratamento',description:'Trate, revise e aprove as imagens dos produtos usadas no Mural.',icon:'image',eyebrow:'PRODUÇÃO VISUAL'},
   };
-  const currentSection = sectionMeta[section] || sectionMeta.collections;
+  const currentSection = sectionMeta[section] || sectionMeta.dashboard;
+
   if (collectionEditor) {
     return <CollectionEditor
       item={collectionEditor.mode==='new'?null:collectionEditor}
@@ -988,6 +993,7 @@ export default function MuralNistiAdminView({ activeSection = 'collections' }) {
       onSaved={load}
     />;
   }
+
   if (editor) {
     return <PostEditor
       item={editor}
@@ -997,14 +1003,20 @@ export default function MuralNistiAdminView({ activeSection = 'collections' }) {
     />;
   }
 
+  if (section === 'publish') {
+    return <PostEditor
+      item={{mode:'new'}}
+      onClose={()=>onSectionChange?.('dashboard')}
+      onSaved={load}
+      onCreateCollection={()=>setCollectionEditor({mode:'new'})}
+    />;
+  }
+
   return <section className="mural-admin-view mural-admin-dashboard">
     <header className="mural-admin-dashboard-header mural-admin-dashboard-header-hierarchy">
       <div className="mural-admin-dashboard-title">
         <span className="icon"><AdminMuralIcon name={currentSection.icon} size={22}/></span>
         <span><small className="mural-admin-section-eyebrow">{currentSection.eyebrow}</small><h2>{currentSection.title}</h2><p>{currentSection.description}</p></span>
-      </div>
-      <div className="mural-admin-dashboard-actions">
-        {section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}
       </div>
     </header>
 
@@ -1012,7 +1024,7 @@ export default function MuralNistiAdminView({ activeSection = 'collections' }) {
       <main className="mural-admin-workspace-content">
         {error&&<div className="mural-admin-error">{error}</div>}
 
-        {section==='posts'&&<MuralPublicationsDashboard
+        {section==='dashboard'&&<MuralPublicationsDashboard
           posts={posts}
           collections={collections}
           loading={loading}
@@ -1023,9 +1035,7 @@ export default function MuralNistiAdminView({ activeSection = 'collections' }) {
           onDelete={deletePost}
         />}
 
-        {section==='collections'&&<div className="mural-admin-collections">{collections.map(row=><article key={row.id}><div><Status value={row.status==='active'?'published':'archived'}/><h3>{row.name}</h3><p>{row.description||'Sem descrição.'}</p><small>{row.product_count||0} produtos · {row.show_year!==false&&Number(row.show_year??1)!==0&&row.year?row.year:'sem ano no banner'}</small></div><button onClick={()=>setCollectionEditor(row)}>Editar</button></article>)}{!loading&&!collections.length&&<div className="mural-admin-empty">Nenhuma coleção cadastrada.</div>}</div>}
-
-        {section==='images'&&<MuralProductImageManager products={products} onChanged={load}/>}
+        {section==='treatment'&&<MuralProductImageManager products={products} onChanged={load}/>}
 
       </main>
     </div>

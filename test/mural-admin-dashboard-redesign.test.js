@@ -16,7 +16,7 @@ test('Mural admin uses the approved publication dashboard layout', () => {
 });
 
 test('dashboard provides type tabs, search, filters, author and sorting', () => {
-  for (const label of ['Todas','Produtos','Coleções','Avisos']) assert.ok(dashboard.includes(label));
+  for (const label of ['Todas','Produtos','Coleções','Informações']) assert.ok(dashboard.includes(label));
   assert.ok(dashboard.includes('Buscar por título, coleção ou SKU...'));
   assert.ok(dashboard.includes('Todos os status'));
   assert.ok(dashboard.includes('Qualquer autor'));
