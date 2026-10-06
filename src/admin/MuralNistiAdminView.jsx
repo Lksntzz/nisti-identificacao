@@ -632,7 +632,7 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
   const [image, setImage] = useState(() => sourceItem?.prefillImage || null);
   const [imageUrl, setImageUrl] = useState(() => {
     if (sourceItem?.prefillImage) return URL.createObjectURL(sourceItem.prefillImage);
-    if (sourceItem?.image_key) return \`/api/admin/mural/posts/\${sourceItem.id}/image?v=\${encodeURIComponent(sourceItem.image_key)}\`;
+    if (sourceItem?.image_key) return `/api/admin/mural/posts/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}`;
     return '';
   });
   const [busy, setBusy] = useState(false);
@@ -641,7 +641,7 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
   useEffect(() => {
     if (activeKind !== 'product') return;
     const timer = setTimeout(() => {
-      request(\`/api/admin/mural/products?q=\${encodeURIComponent(productQuery)}\`)
+      request(`/api/admin/mural/products?q=${encodeURIComponent(productQuery)}`)
         .then(data => setProducts(data.items || [])).catch(() => setProducts([]));
     }, 220);
     return () => clearTimeout(timer);
@@ -705,7 +705,7 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
     if (!sourceItem?.id || !sourceItem?.image_key) { setImageUrl(''); return; }
     setBusy(true);
     try {
-      await request(\`/api/admin/mural/posts/\${sourceItem.id}/image\`, { method:'DELETE' });
+      await request(`/api/admin/mural/posts/${sourceItem.id}/image`, { method:'DELETE' });
       setImageUrl('');
       sourceItem.image_key = null;
     } catch (err) { setError(err.message); } finally { setBusy(false); }
@@ -729,17 +729,17 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
       const body = JSON.stringify(payload());
       let id = sourceItem?.id;
       if (id) {
-        await request(\`/api/admin/mural/posts/\${id}\`, { method:'PUT', headers:{'content-type':'application/json'}, body });
+        await request(`/api/admin/mural/posts/${id}`, { method:'PUT', headers:{'content-type':'application/json'}, body });
       } else {
         const created = await request('/api/admin/mural/posts', { method:'POST', headers:{'content-type':'application/json'}, body });
         id = created.id;
       }
       if (image) {
         const formData = new FormData(); formData.append('image', image);
-        await request(\`/api/admin/mural/posts/\${id}/image\`, { method:'POST', body:formData });
+        await request(`/api/admin/mural/posts/${id}/image`, { method:'POST', body:formData });
       }
       if (publish) {
-        await request(\`/api/admin/mural/posts/\${id}/publish\`, {
+        await request(`/api/admin/mural/posts/${id}/publish`, {
           method:'POST', headers:{'content-type':'application/json'},
           body:JSON.stringify({ published_at: form.published_at ? new Date(form.published_at).toISOString() : null })
         });
@@ -900,11 +900,11 @@ function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
   const [selected,setSelected]=useState(()=>String(item?.product_ids||'').split(',').map(Number).filter(id=>Number.isInteger(id)&&id>0));
   const [image,setImage]=useState(null);
   const [storedImageKey,setStoredImageKey]=useState(item?.image_key||'');
-  const [imageUrl,setImageUrl]=useState(item?.image_key ? \`/api/admin/mural/collections/\${item.id}/image?v=\${encodeURIComponent(item.image_key)}\` : '');
+  const [imageUrl,setImageUrl]=useState(item?.image_key ? `/api/admin/mural/collections/${item.id}/image?v=${encodeURIComponent(item.image_key)}` : '');
   const [query,setQuery]=useState('');
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
-  const filtered=products.filter(p=>!query||\`\${p.sku} \${p.nome||''} \${p.variacao||''}\`.toLowerCase().includes(query.toLowerCase())).slice(0,8);
+  const filtered=products.filter(p=>!query||`${p.sku} ${p.nome||''} ${p.variacao||''}`.toLowerCase().includes(query.toLowerCase())).slice(0,8);
   const toggle=id=>setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id]);
   const move=(id,direction)=>setSelected(current=>{
     const index=current.indexOf(id);const target=index+direction;
@@ -932,7 +932,7 @@ function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
     if(!item?.id||!storedImageKey){setImageUrl('');return}
     setBusy(true);
     try{
-      await request(\`/api/admin/mural/collections/\${item.id}/image\`,{method:'DELETE'});
+      await request(`/api/admin/mural/collections/${item.id}/image`,{method:'DELETE'});
       setStoredImageKey('');setImageUrl('');
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
@@ -940,11 +940,11 @@ function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
     setBusy(true);setError('');
     try{
       const opts={method:item?'PUT':'POST',headers:{'content-type':'application/json'},body:JSON.stringify(form)};
-      const data=await request(item?\`/api/admin/mural/collections/\${item.id}\`:'/api/admin/mural/collections',opts);
+      const data=await request(item?`/api/admin/mural/collections/${item.id}`:'/api/admin/mural/collections',opts);
       const id=item?.id||data.id;
-      await request(\`/api/admin/mural/collections/\${id}/products\`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({product_ids:selected})});
-      if(image){const fd=new FormData();fd.append('image',image);await request(\`/api/admin/mural/collections/\${id}/image\`,{method:'POST',body:fd});}
-      if(publish){await request(\`/api/admin/mural/collections/\${id}/publish\`,{method:'POST'});}
+      await request(`/api/admin/mural/collections/${id}/products`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({product_ids:selected})});
+      if(image){const fd=new FormData();fd.append('image',image);await request(`/api/admin/mural/collections/${id}/image`,{method:'POST',body:fd});}
+      if(publish){await request(`/api/admin/mural/collections/${id}/publish`,{method:'POST'});}
       await onSaved();onClose();
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
