@@ -1817,3 +1817,17 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
   .mural-canva-bridge{align-items:flex-start;flex-direction:column}
   .mural-canva-bridge-actions{width:100%;justify-content:flex-start}
 }
+
+
+/* Collection hero configuration */
+.mural-admin-toggle-row{display:flex!important;grid-template-columns:none!important;align-items:flex-start;gap:10px!important;padding:11px 12px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fafc}
+.mural-admin-toggle-row>input{width:18px!important;min-height:18px!important;margin-top:1px}
+.mural-admin-toggle-row>span{display:grid;gap:2px}
+.mural-admin-toggle-row b{color:#24334f;font-size:12px}
+.mural-admin-toggle-row small,.mural-collection-year-field small,.mural-admin-collection-form label>small{color:#8a97ab;font-weight:600;line-height:1.35}
+.mural-collection-year-field input:disabled{background:#f1f5f9;color:#94a3b8}
+.mural-collection-hero-config-preview{display:grid;gap:5px;padding:16px 17px;border:1px solid #eadcff;border-radius:16px;background:linear-gradient(135deg,#fff7fd 0%,#f4f1ff 48%,#eef7ff 100%);overflow:hidden}
+.mural-collection-hero-config-preview>span{width:max-content;padding:4px 7px;border-radius:999px;background:#fff;color:#8b5cf6;font-size:9px;font-weight:900;letter-spacing:.08em}
+.mural-collection-hero-config-preview>strong{color:#312e81;font-size:22px;line-height:1.05}
+.mural-collection-hero-config-preview>small{color:#5b6476;font-size:12px}
+.mural-collection-hero-config-preview>em{color:#8a73a9;font-size:10px;font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
