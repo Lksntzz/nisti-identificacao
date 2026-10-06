@@ -182,7 +182,7 @@ function AdminSidebar({
   onViewChange,
   sidebarOpen,
   onCloseSidebar,
-  activeMuralSection = 'overview',
+  activeMuralSection = 'posts',
   onMuralSectionChange
 }) {
   const [expandedItems,setExpandedItems]=useState(()=>new Set(activeView==='mural-nisti'?['mural-nisti']:[]));
@@ -239,7 +239,7 @@ function AdminSidebar({
                             className={`sidebar-nav-item sidebar-nav-parent-main ${isActive ? 'active' : ''}`}
                             onClick={() => {
                               onViewChange(item.id);
-                              onMuralSectionChange?.('overview');
+                              onMuralSectionChange?.('posts');
                               setExpandedItems(previous => {
                                 const next = new Set(previous);
                                 next.add(item.id);
@@ -1658,7 +1658,7 @@ function AdminApp() {
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
-  const [muralSection,setMuralSection]=useState('overview');
+  const [muralSection,setMuralSection]=useState('posts');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [metrics, setMetrics] = useState(null);
