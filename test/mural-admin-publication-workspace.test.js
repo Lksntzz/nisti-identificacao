@@ -13,19 +13,28 @@ test('publication editor opens as an inline workspace instead of a modal', () =>
   assert.equal(admin.includes('{editor&&<PostEditor'), false);
 });
 
-test('publication workspace uses the approved three-type visual selector', () => {
+test('new publication editor contains only product and notice', () => {
   assert.ok(admin.includes("['product','product','Produto','Destaque um produto específico.']"));
-  assert.ok(admin.includes("['collection','collection','Publicar coleção','Use uma coleção já criada no Mural.']"));
   assert.ok(admin.includes("['notice','notice','Aviso','Comunicado para operadores.']"));
-  assert.ok(admin.includes('mural-publisher-type-grid'));
-  assert.ok(css.includes('.mural-publisher-type-grid'));
+  assert.equal(admin.includes("['collection','collection'"), false);
+  assert.ok(admin.includes('Editor universal do Mural para Produto ou Aviso.'));
+  assert.ok(css.includes('grid-template-columns:repeat(2,minmax(0,1fr))'));
 });
 
-test('collection publication shows real collection products in the editor', () => {
-  assert.ok(admin.includes("const selectedCollectionProducts = String(selectedCollection?.product_ids || '')"));
-  assert.ok(admin.includes('mural-publisher-collection-products'));
-  assert.ok(admin.includes('catalogProducts={products}'));
-  assert.ok(css.includes('.mural-publisher-collection-products'));
+test('collection creation and editing stay exclusively in the Collections editor', () => {
+  assert.equal((admin.match(/<CollectionEditor/g) || []).length, 1);
+  assert.equal((admin.match(/\+ Nova coleção/g) || []).length, 1);
+  assert.ok(admin.includes("section==='collections'&&<button className=\"primary\" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>"));
+  assert.equal(admin.includes('Publicar coleção existente'), false);
+  assert.equal(admin.includes("form.kind === 'collection' && ("), false);
+  assert.equal(admin.includes('mural-publisher-collection-products'), false);
+});
+
+test('existing collection publication edit routes to the official CollectionEditor', () => {
+  assert.ok(admin.includes("if(row?.kind==='collection')"));
+  assert.ok(admin.includes("const linked=collections.find(collection=>Number(collection.id)===Number(row.collection_id))"));
+  assert.ok(admin.includes('setCollectionEditor(linked)'));
+  assert.ok(admin.includes('onEdit={openPublicationEditor}'));
 });
 
 test('publication side panel keeps only the manual image workflow', () => {
@@ -39,35 +48,16 @@ test('workspace uses one universal action interface on desktop and mobile', () =
   assert.ok(admin.includes('mural-publisher-universal-actions'));
   assert.equal(admin.includes('mural-publisher-mobile-actions'), false);
   assert.equal(admin.includes('mural-publisher-header-actions'), false);
-  assert.ok(admin.includes('Fluxo único para Produto, Coleção ou Aviso.'));
+  assert.ok(admin.includes('Fluxo único para Produto ou Aviso. Coleções usam o editor próprio.'));
   assert.equal((admin.match(/Salvar rascunho/g) || []).length, 1);
   assert.ok(css.includes('.mural-publisher-universal-actions'));
   assert.ok(css.includes('@media(max-width:640px)'));
 });
 
-
-test('universal Mural publisher keeps one editor for product collection and notice', () => {
-  assert.ok(admin.includes('Editor universal do Mural para Produto, Coleção ou Aviso.'));
-  assert.ok(admin.includes("form.kind === 'product'"));
-  assert.ok(admin.includes("form.kind === 'collection'"));
-  assert.ok(admin.includes("form.kind === 'notice'"));
-  assert.equal((admin.match(/aria-label="Ações da publicação"/g) || []).length, 1);
-});
-
-
-test('collection creation has only one entry point in the Collections tool', () => {
-  assert.equal((admin.match(/<CollectionEditor/g) || []).length, 1);
-  assert.equal((admin.match(/\+ Nova coleção/g) || []).length, 1);
-  assert.equal(admin.includes('+ Criar nova coleção'), false);
-  assert.equal(admin.includes('onCreateCollection'), false);
-  assert.ok(admin.includes("section==='collections'&&<button className=\"primary\" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>"));
-  assert.ok(admin.includes('Publicar coleção existente'));
-});
-
-test('publication collection flow only selects an existing collection', () => {
-  assert.ok(admin.includes('Para criar ou editar uma coleção, use a ferramenta Coleções do menu do Mural.'));
-  assert.ok(admin.includes('Selecione uma coleção'));
-  assert.ok(admin.includes('mural-publisher-collection-empty'));
+test('collection-specific publisher UI and CSS are removed instead of hidden', () => {
+  assert.equal(admin.includes('mural-publisher-collection-source'), false);
+  assert.equal(admin.includes('mural-publisher-collection-empty'), false);
   assert.equal(css.includes('.mural-publisher-collection-source'), false);
-  assert.ok(css.includes('.mural-publisher-collection-empty'));
+  assert.equal(css.includes('.mural-publisher-collection-empty'), false);
+  assert.equal(css.includes('.mural-publisher-collection-products'), false);
 });
