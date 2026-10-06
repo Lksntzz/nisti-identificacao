@@ -33,9 +33,12 @@ test('Canva design safely scales dimensions above API maximum',()=>{
 });
 
 
-test('Mural outline uses thicker 12px target without growing inward',()=>{
+test('Mural outline uses thicker 12px target and white backing under alpha fringe',()=>{
   const source=fs.readFileSync(new URL('../src/canva-alpha-outline.js',import.meta.url),'utf8');
   assert.ok(source.includes('const TARGET_OUTLINE_AT_1024=12;'));
   assert.ok(source.includes('TARGET_OUTLINE_AT_1024/1024),7,16)'));
-  assert.ok(source.includes('if(!expanded[i] || binary[i]) continue;'));
+  assert.ok(source.includes('if(!expanded[i]) continue;'));
+  assert.equal(source.includes('if(!expanded[i] || binary[i]) continue;'),false);
+  assert.ok(source.includes('outputCtx.putImageData(outlineData,0,0);'));
+  assert.ok(source.includes('outputCtx.drawImage(sourceCanvas,radius,radius);'));
 });
