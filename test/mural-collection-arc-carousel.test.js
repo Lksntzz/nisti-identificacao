@@ -41,7 +41,7 @@ test('arc rises before main cover and secondary covers settle in alternating fan
 
 test('collection variants wait three seconds before the next cover and title closes the intro', () => {
   assert.ok(mural.includes('const secondaryStart = 2100'));
-  assert.ok(mural.includes('const secondaryStep = 3000'));
+  assert.ok(mural.includes('const secondaryStep = 1500'));
   assert.ok(mural.includes('const secondaryDuration = 1100'));
   assert.ok(mural.includes('const titleDuration = 2400'));
   assert.ok(mural.includes('const introFinish = titleDelay + titleDuration'));
@@ -69,4 +69,10 @@ test('collection intro enlarges products and raises the collection name between 
   assert.ok(css.includes('@keyframes mural-collection-title-rise'));
   assert.ok(css.includes('z-index:6'));
   assert.ok(css.includes('backdrop-filter:none'));
+});
+
+
+test('collection title stays above the product fan', () => {
+  assert.ok(css.includes('top:24%'));
+  assert.ok(css.includes('.mural-collection-reveal-title{top:26%;width:90vw}'));
 });
