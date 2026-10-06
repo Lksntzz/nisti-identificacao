@@ -635,7 +635,7 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
 
       <div className="mural-publisher-layout">
         <form id="mural-publication-form" className="mural-publisher-form" onSubmit={event => { event.preventDefault(); save(false); }}>
-          <section className="mural-publisher-block">
+          <section className="mural-publisher-block mural-publisher-type-panel">
             <div className="mural-publisher-block-title"><strong>Tipo de publicação</strong><span>Escolha como o conteúdo será apresentado no Mural.</span></div>
             <div className="mural-publisher-type-grid">
               {[
@@ -729,17 +729,17 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
                 <label className="mural-publisher-field">Expira em<input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)}/></label>
               </div>
             </section>
-          </div>
 
-          <section className="mural-publisher-block mural-publisher-image-panel">
-            <div className="mural-publisher-block-title"><strong>Imagem editorial</strong><span>Opcional. Use uma arte pronta quando necessário.</span></div>
-            <label className="mural-publisher-upload">
-              <AdminMuralIcon name="image" size={24}/>
-              <span><b>Selecionar imagem</b><small>JPEG, PNG ou WebP · até 5 MB após compressão</small></span>
-              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseImage(e.target.files?.[0])}/>
-            </label>
-            {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem editorial</button>}
-          </section>
+            <section className="mural-publisher-block mural-publisher-control-card mural-publisher-image-panel">
+              <div className="mural-publisher-block-title"><strong>Imagem editorial</strong><span>Opcional.</span></div>
+              <label className="mural-publisher-upload">
+                <AdminMuralIcon name="image" size={21}/>
+                <span><b>Selecionar imagem</b><small>JPEG, PNG ou WebP · até 5 MB</small></span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseImage(e.target.files?.[0])}/>
+              </label>
+              {(imageUrl || image) && <button type="button" className="mural-admin-remove-image" disabled={busy} onClick={removeImage}>Remover imagem</button>}
+            </section>
+          </div>
 
           {error && <div className="mural-admin-error">{error}</div>}
         </form>
