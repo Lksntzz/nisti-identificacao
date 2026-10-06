@@ -830,34 +830,55 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
       await onSaved();onClose();
     }catch(err){setError(err.message)}finally{setBusy(false)}
   };
-  return <div className="mural-admin-modal" role="dialog" aria-modal="true"><div className="mural-admin-editor compact"><header><h2>{item?'Editar coleção':'Nova coleção'}</h2><button onClick={onClose}>×</button></header><div className="mural-admin-collection-form">
-    <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL DO MURAL</span><strong>Collection Launch Hero Card</strong><small>Mesmo visual do mockup: banner horizontal 2:1, selo NOVA COLEÇÃO automático, nome + ano + frase curta e capas reais da coleção. O Mural público continua bloqueado; a publicação é visível somente no QA.</small></div>
-    <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
-    <div className="mural-admin-inline">
-      <label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label>
-      <label className="mural-collection-year-field">Ano<input type="number" value={form.year} disabled={!form.show_year} onChange={e=>setForm({...form,year:e.target.value})}/><small>{form.show_year?'Aparece no banner quando preenchido.':'O ano ficará oculto no banner.'}</small></label>
+  return <div className="mural-admin-modal" role="dialog" aria-modal="true">
+    <div className="mural-admin-editor mural-admin-collection-editor">
+      <header><h2>{item?'Editar coleção':'Nova coleção'}</h2><button onClick={onClose}>×</button></header>
+      <div className="mural-admin-collection-form">
+        <div className="mural-admin-collection-body">
+          <div className="mural-admin-collection-fields">
+            <div className="mural-collection-visual-standard"><span>PADRÃO VISUAL DO MURAL</span><strong>Collection Launch Hero Card</strong><small>Banner horizontal 2:1, selo NOVA COLEÇÃO automático, nome + ano opcional + frase curta e capas reais da coleção. O Mural público continua bloqueado; a publicação é visível somente no QA.</small></div>
+            <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
+            <div className="mural-admin-inline">
+              <label>Slug<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label>
+              <label className="mural-collection-year-field">Ano<input type="number" value={form.year} disabled={!form.show_year} onChange={e=>setForm({...form,year:e.target.value})}/><small>{form.show_year?'Aparece no banner quando preenchido.':'O ano ficará oculto no banner.'}</small></label>
+            </div>
+            <label className="mural-admin-toggle-row"><input type="checkbox" checked={form.show_year} onChange={e=>setForm({...form,show_year:e.target.checked})}/><span><b>Exibir ano no banner</b><small>Desative para coleções que não usam ano.</small></span></label>
+            <label>Mensagem curta do banner<input maxLength="140" value={form.hero_message} onChange={e=>setForm({...form,hero_message:e.target.value})} placeholder="Ex.: Mais fofura para o seu dia a dia."/><small>Texto curto abaixo do nome da coleção.</small></label>
+            <div className="mural-admin-inline">
+              <label>Direção visual<select value={form.visual_direction} onChange={e=>setForm({...form,visual_direction:e.target.value})}><option value="automatic">Automática</option><option value="delicate">Delicada</option><option value="premium">Premium</option><option value="minimal">Minimalista</option><option value="playful">Divertida</option></select><small>Será usada na geração do banner Canva.</small></label>
+              <label>Elementos / cores do tema<textarea rows="3" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, patinhas, estrelas e brilho suave"/></label>
+            </div>
+            <label>Descrição da coleção<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Descrição detalhada. A mensagem curta acima é usada primeiro no Hero Card.</small></label>
+            {item&&<label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
+            <label>Produtos<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
+            {selectedProducts.length>0&&<div className="mural-admin-selected-products" aria-label="Ordem editorial dos produtos"><strong>Ordem editorial</strong>{selectedProducts.map((p,index)=><div key={p.id}><span>{index+1}. {p.sku} · {p.nome||'Produto NISTI'}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}</div>}
+            <div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
+            {error&&<div className="mural-admin-error">{error}</div>}
+          </div>
+          <aside className="mural-admin-collection-preview-pane">
+            <div className="mural-admin-collection-preview-heading"><span>PRÉVIA DO BANNER</span><small>Visualização da configuração da coleção</small></div>
+            <div className="mural-collection-hero-config-preview">
+              <span>NOVA COLEÇÃO</span>
+              <strong>{form.name||'Nome da coleção'}{form.show_year&&form.year?' '+form.year:''}</strong>
+              <small>{form.hero_message||'Mensagem curta do banner'}</small>
+              <em>{({automatic:'Automática',delicate:'Delicada',premium:'Premium',minimal:'Minimalista',playful:'Divertida'})[form.visual_direction]||'Automática'}{form.theme_notes?' · '+form.theme_notes:''}</em>
+            </div>
+            <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
+            {imageUrl&&<div className="mural-admin-banner-preview"><img src={imageUrl} alt={form.name||'Banner da coleção'}/><button type="button" disabled={busy} onClick={removeBanner}>Remover banner</button></div>}
+            <div className="mural-admin-collection-preview-summary">
+              <span><b>{selected.length}</b> produto{selected.length===1?'':'s'} selecionado{selected.length===1?'':'s'}</span>
+              <span><b>{form.show_year&&form.year?form.year:'—'}</b> ano exibido</span>
+            </div>
+          </aside>
+        </div>
+        <div className="mural-admin-actions mural-admin-collection-actions">
+          <button type="button" onClick={onClose}>Cancelar</button>
+          <button type="button" disabled={busy||!form.name} onClick={()=>save(false)}>Salvar coleção</button>
+          <button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}>{busy?'Processando…':'Salvar e publicar no Mural QA'}</button>
+        </div>
+      </div>
     </div>
-    <label className="mural-admin-toggle-row"><input type="checkbox" checked={form.show_year} onChange={e=>setForm({...form,show_year:e.target.checked})}/><span><b>Exibir ano no banner</b><small>Desative para coleções que não usam ano.</small></span></label>
-    <label>Mensagem curta do banner<input maxLength="140" value={form.hero_message} onChange={e=>setForm({...form,hero_message:e.target.value})} placeholder="Ex.: Mais fofura para o seu dia a dia."/><small>Texto curto abaixo do nome da coleção.</small></label>
-    <div className="mural-admin-inline">
-      <label>Direção visual<select value={form.visual_direction} onChange={e=>setForm({...form,visual_direction:e.target.value})}><option value="automatic">Automática</option><option value="delicate">Delicada</option><option value="premium">Premium</option><option value="minimal">Minimalista</option><option value="playful">Divertida</option></select><small>Será usada na geração do banner Canva.</small></label>
-      <label>Elementos / cores do tema<textarea rows="3" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, patinhas, estrelas e brilho suave"/></label>
-    </div>
-    <div className="mural-collection-hero-config-preview">
-      <span>NOVA COLEÇÃO</span>
-      <strong>{form.name||'Nome da coleção'}{form.show_year&&form.year?' '+form.year:''}</strong>
-      <small>{form.hero_message||'Mensagem curta do banner'}</small>
-      <em>{({automatic:'Automática',delicate:'Delicada',premium:'Premium',minimal:'Minimalista',playful:'Divertida'})[form.visual_direction]||'Automática'}{form.theme_notes?' · '+form.theme_notes:''}</em>
-    </div>
-    <label>Descrição da coleção<textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><small>Descrição detalhada. A mensagem curta acima é usada primeiro no Hero Card.</small></label>
-    <label>Banner da coleção<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseBanner(e.target.files?.[0])}/><small>JPEG, PNG ou WebP; até 5 MB após compressão.</small></label>
-    {imageUrl&&<div className="mural-admin-banner-preview"><img src={imageUrl} alt={form.name||'Banner da coleção'}/><button type="button" disabled={busy} onClick={removeBanner}>Remover banner</button></div>}
-    {item&&<label>Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
-    <label>Produtos<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome"/></label>
-    {selectedProducts.length>0&&<div className="mural-admin-selected-products" aria-label="Ordem editorial dos produtos"><strong>Ordem editorial</strong>{selectedProducts.map((p,index)=><div key={p.id}><span>{index+1}. {p.sku} · {p.nome||'Produto NISTI'}</span><div><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button></div></div>)}</div>}
-    <div className="mural-admin-product-grid">{filtered.map(p=><button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}><b>{p.sku}</b><span>{p.nome}</span></button>)}</div>
-    {error&&<div className="mural-admin-error">{error}</div>}<div className="mural-admin-actions"><button type="button" onClick={onClose}>Cancelar</button><button type="button" disabled={busy||!form.name} onClick={()=>save(false)}>Salvar coleção</button><button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}>{busy?'Processando…':'Salvar e publicar no Mural QA'}</button></div>
-  </div></div></div>;
+  </div>;
 }
 
 export default function MuralNistiAdminView() {
