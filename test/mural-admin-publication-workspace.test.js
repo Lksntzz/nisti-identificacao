@@ -86,3 +86,24 @@ test('product and notice share compact controls and a contextual right preview',
   assert.ok(css.includes('.mural-publisher-preview-reference'));
   assert.ok(css.includes('.mural-publisher-preview-notice'));
 });
+
+
+test('desktop publisher uses one viewport with equal compact cards and no page scroll', () => {
+  assert.ok(admin.includes('mural-publisher-type-panel'));
+  assert.ok(css.includes('@media(min-width:1100px) and (min-height:820px)'));
+  assert.ok(css.includes('height:calc(100dvh - 94px)'));
+  assert.ok(css.includes('grid-template-rows:24px 54px minmax(0,1fr) 54px'));
+  assert.ok(css.includes('.mural-publisher-controls-grid{'));
+  assert.ok(css.includes('grid-template-columns:repeat(3,minmax(0,1fr))'));
+  assert.ok(css.includes('.mural-publisher-product-panel,\n.mural-publisher-copy-panel,\n.mural-publisher-notice-panel{'));
+  assert.ok(css.includes('height:276px'));
+});
+
+test('image editorial joins display and scheduling in the same settings strip', () => {
+  const settingsStart = admin.indexOf('className="mural-publisher-controls-grid"');
+  const settingsEnd = admin.indexOf('{error &&', settingsStart);
+  const settings = admin.slice(settingsStart, settingsEnd);
+  assert.ok(settings.includes('mural-publisher-control-card mural-publisher-schedule'));
+  assert.ok(settings.includes('mural-publisher-control-card mural-publisher-image-panel'));
+  assert.equal((settings.match(/mural-publisher-control-card/g) || []).length, 3);
+});
