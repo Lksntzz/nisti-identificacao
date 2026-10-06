@@ -486,7 +486,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
   const [leaving, setLeaving] = useState(false);
   const secondaryCount = Math.max(0, products.length - 1);
   const secondaryStart = 2100;
-  const secondaryStep = 3000;
+  const secondaryStep = 1500;
   const secondaryDuration = 1100;
   const titleDelay = secondaryCount
     ? secondaryStart + (secondaryCount - 1) * secondaryStep + secondaryDuration + 350
