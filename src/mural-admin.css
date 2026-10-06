@@ -662,41 +662,15 @@
   color:#fff;
   font-style:normal;
 }
-.mural-publisher-collection-source{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
-  gap:10px;
-  align-items:end;
-}
-.mural-publisher-collection-source>.mural-publisher-secondary{
-  min-height:42px;
-  padding:0 13px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:7px;
-  border:1px solid #cfd8e6;
-  border-radius:11px;
-  background:#fff;
-  color:#475569!important;
-  font:inherit;
-  font-size:10px;
-  font-weight:850;
-  white-space:nowrap;
-  cursor:pointer;
-}
-.mural-publisher-collection-source>.mural-publisher-secondary:hover{
-  border-color:#a5b4fc;
-  color:#4338ca!important;
-  background:#f8faff;
-}
-@media(max-width:640px){
-  .mural-publisher-collection-source{
-    grid-template-columns:1fr;
-  }
-  .mural-publisher-collection-source>.mural-publisher-secondary{
-    width:100%;
-  }
+.mural-publisher-collection-empty{
+  padding:10px 12px;
+  border:1px solid #fed7aa;
+  border-radius:10px;
+  background:#fff7ed;
+  color:#9a3412;
+  font-size:9px;
+  line-height:1.35;
+  font-weight:750;
 }
 
 .mural-publisher-collection-products{
