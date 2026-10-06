@@ -35,7 +35,8 @@ test('existing collection publication edit also routes to the official Collectio
 });
 
 test('publication side panel keeps the manual image workflow', () => {
-  assert.ok(admin.includes('Arte da publicação'));
+  assert.ok(admin.includes('Prévia da publicação de produto'));
+  assert.ok(admin.includes('Prévia do aviso'));
   assert.ok(admin.includes('Opcional. Use uma arte pronta quando necessário.'));
   assert.ok(css.includes('.mural-publisher-art-panel'));
 });
