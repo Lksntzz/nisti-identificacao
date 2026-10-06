@@ -654,9 +654,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
           <span className="mural-publisher-title-icon"><AdminMuralIcon name="sparkles" size={23}/></span>
           <span><h2>{sourceItem ? 'Editar publicação' : 'Nova publicação'}</h2><p>Editor universal do Mural para Produto, Coleção ou Aviso.</p></span>
         </div>
-        <div className="mural-publisher-header-actions">
-          <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
-        </div>
+
       </header>
 
       <div className="mural-publisher-layout">
@@ -772,9 +770,10 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
       <footer className="mural-publisher-universal-actions" aria-label="Ações da publicação">
         <div>
           <strong>Publicação do Mural</strong>
-          <small>Uma única ação para Produto, Coleção ou Aviso.</small>
+          <small>Fluxo único para Produto, Coleção ou Aviso.</small>
         </div>
         <span>
+          <button type="button" className="mural-publisher-secondary" onClick={onClose}><AdminMuralIcon name="back" size={16}/> Voltar</button>
           <button type="submit" form="mural-publication-form" disabled={busy}>Salvar rascunho</button>
           <button type="button" className="primary" disabled={busy} onClick={()=>save(true)}><AdminMuralIcon name="sparkles" size={16}/> {publishLabel}</button>
         </span>
