@@ -34,31 +34,35 @@ test('arc rises before main cover and every later cover finishes above the previ
   assert.ok(mural.includes("'--reveal-final-layer': position.layer"));
   assert.ok(css.includes('z-index:6'));
   assert.ok(css.includes('z-index:2'));
-  assert.ok(css.includes('z-index:var(--reveal-final-layer)'));
+  assert.ok(css.includes('z-index:var(--reveal-final-layer,2)'));
   assert.ok(css.includes('var(--reveal-peek-x)'));
   assert.equal(mural.includes('products.slice(0, 5)'), false);
 });
 
-test('collection variants wait three seconds before the next cover and title closes the intro', () => {
+test('collection variants wait 1.5 seconds before the next cover and title closes the intro', () => {
   assert.ok(mural.includes('const secondaryStart = 2100'));
   assert.ok(mural.includes('const secondaryStep = 1500'));
-  assert.ok(mural.includes('const secondaryDuration = 1100'));
+  assert.ok(mural.includes('const secondaryDuration = 1250'));
   assert.ok(mural.includes('const titleDuration = 2400'));
   assert.ok(mural.includes("event.animationName !== 'mural-collection-title-rise'"));
   assert.ok(mural.includes('setLeaving(true)'));
   assert.ok(mural.includes('onTransitionEnd={handleIntroTransitionEnd}'));
   assert.ok(mural.includes('onAnimationEnd={handleTitleAnimationEnd}'));
-  assert.ok(css.includes('animation:mural-collection-cover-arrive 1100ms'));
+  assert.ok(css.includes('animation:mural-collection-cover-arrive 1250ms'));
   assert.ok(mural.includes('{!showIntro && ('));
   assert.ok(css.includes('@media (prefers-reduced-motion:reduce)'));
 });
 
 
-test('white arc is clean and secondary covers emerge from behind before layer swap', () => {
+test('white arc and product reveal use smooth GPU-friendly transforms without layer jumps', () => {
   assert.ok(css.includes('box-shadow:none'));
-  assert.ok(css.includes('transition:transform 1050ms cubic-bezier(.16,1,.3,1),opacity 420ms ease'));
-  assert.ok(css.includes('55%{\n    z-index:2'));
-  assert.ok(css.includes('56%{\n    z-index:var(--reveal-final-layer)'));
+  assert.ok(css.includes('filter:none'));
+  assert.ok(css.includes('backface-visibility:hidden'));
+  assert.ok(css.includes('z-index:var(--reveal-final-layer,2)'));
+  assert.equal(css.includes('55%{\n    z-index:2'), false);
+  assert.equal(css.includes('56%{\n    z-index:var(--reveal-final-layer)'), false);
+  assert.ok(css.includes('32%{\n    opacity:.72'));
+  assert.ok(css.includes('68%{\n    opacity:1'));
 });
 
 
@@ -98,4 +102,13 @@ test('collection intro closes automatically on real animation end and mounts the
   assert.ok(mural.includes('onComplete={() => setIntroComplete(true)}'));
   assert.ok(mural.includes('{!showIntro && ('));
   assert.ok(css.includes('transition:opacity 220ms ease'));
+});
+
+
+test('collection reveal waits for eager product images before starting, with a short fallback', () => {
+  assert.ok(mural.includes('const [assetsReady, setAssetsReady]'));
+  assert.ok(mural.includes('readyAssetsRef'));
+  assert.ok(mural.includes('window.setTimeout(() => setAssetsReady(true), 900)'));
+  assert.ok(mural.includes('if (!assetsReady) return undefined'));
+  assert.ok(mural.includes('onReady={() => markProductReady'));
 });

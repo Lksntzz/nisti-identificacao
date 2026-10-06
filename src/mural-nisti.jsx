@@ -138,7 +138,7 @@ function MuralImage({ item, eager = false, className = '' }) {
 }
 
 
-function CollectionProductImage({ product, className = '', eager = false }) {
+function CollectionProductImage({ product, className = '', eager = false, onReady = null }) {
   const src = product?.image_url || '';
   const needsTreatment = product?.image_source !== 'product-processed';
   const displaySrc = useTreatedProductImage(src, Boolean(src) && needsTreatment);
@@ -160,7 +160,11 @@ function CollectionProductImage({ product, className = '', eager = false }) {
       loading={eager ? 'eager' : 'lazy'}
       fetchPriority={eager ? 'high' : 'auto'}
       decoding="async"
-      onError={() => setFailed(true)}
+      onLoad={() => onReady?.()}
+      onError={() => {
+        setFailed(true);
+        onReady?.();
+      }}
     />
   );
 }
@@ -499,15 +503,24 @@ function collectionRevealPosition(index, totalProducts) {
 function CollectionRevealIntro({ products, title, onComplete }) {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const expectedImageCount = products.filter(product => Boolean(product?.image_url)).length;
+  const [assetsReady, setAssetsReady] = useState(expectedImageCount === 0);
+  const readyAssetsRef = useRef(new Set());
   const secondaryCount = Math.max(0, products.length - 1);
   const secondaryStart = 2100;
   const secondaryStep = 1500;
-  const secondaryDuration = 1100;
+  const secondaryDuration = 1250;
   const titleDelay = secondaryCount
     ? secondaryStart + (secondaryCount - 1) * secondaryStep + secondaryDuration + 350
     : 2850;
   const titleDuration = 2400;
   const completedRef = useRef(false);
+
+  useEffect(() => {
+    if (assetsReady) return undefined;
+    const fallback = window.setTimeout(() => setAssetsReady(true), 900);
+    return () => window.clearTimeout(fallback);
+  }, [assetsReady]);
 
   useEffect(() => {
     const reduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
@@ -516,6 +529,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       onComplete();
       return undefined;
     }
+    if (!assetsReady) return undefined;
 
     let secondFrame = 0;
     const firstFrame = requestAnimationFrame(() => {
@@ -526,7 +540,13 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       cancelAnimationFrame(firstFrame);
       cancelAnimationFrame(secondFrame);
     };
-  }, [onComplete]);
+  }, [assetsReady, onComplete]);
+
+  const markProductReady = productId => {
+    if (!productId || readyAssetsRef.current.has(productId)) return;
+    readyAssetsRef.current.add(productId);
+    if (readyAssetsRef.current.size >= expectedImageCount) setAssetsReady(true);
+  };
 
   const finishIntro = () => {
     if (completedRef.current) return;
@@ -564,7 +584,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       <span className="mural-collection-reveal-white-arc" aria-hidden="true" />
       <div className={`mural-collection-reveal-fan fan-${Math.min(products.length,4)}`} aria-hidden="true">
         <span className="mural-collection-reveal-product is-main">
-          <CollectionProductImage product={mainProduct} eager />
+          <CollectionProductImage product={mainProduct} eager onReady={() => markProductReady(mainProduct?.id)} />
         </span>
         {secondaryProducts.map((product, secondaryIndex) => {
           const index = secondaryIndex + 1;
@@ -582,7 +602,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
               '--reveal-final-layer': position.layer
             }}
           >
-            <CollectionProductImage product={product} eager />
+            <CollectionProductImage product={product} eager onReady={() => markProductReady(product.id)} />
           </span>
           );
         })}
