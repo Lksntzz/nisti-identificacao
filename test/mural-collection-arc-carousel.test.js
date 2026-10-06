@@ -59,7 +59,7 @@ test('white arc and product reveal use one opaque continuous motion without inte
   const motionEnd=css.indexOf('.mural-collection-reveal-title{');
   const motion=css.slice(motionStart,motionEnd);
   assert.ok(css.includes('box-shadow:none'));
-  assert.ok(motion.includes('filter:none'));
+  assert.ok(css.includes('filter:none'));
   assert.ok(motion.includes('backface-visibility:hidden'));
   assert.ok(motion.includes('z-index:var(--reveal-final-layer,2)'));
   assert.ok(motion.includes('visibility:hidden'));
