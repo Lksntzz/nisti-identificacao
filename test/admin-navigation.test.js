@@ -92,3 +92,30 @@ test('Admin navigation groups tools into clear sections', () => {
     ['CADASTRO', 'COMERCIAL', 'BIPAGENS', 'SISTEMA']
   );
 });
+
+
+test('Mural NISTI exposes its tools as a submenu of the main admin navigation', () => {
+  const mural = flattenedItems().find(item => item.id === 'mural-nisti');
+  assert.ok(mural);
+  assert.deepEqual(
+    mural.children.map(item => item.id),
+    ['overview','posts','collections','images','metrics','qa']
+  );
+  assert.deepEqual(
+    mural.children.map(item => item.label),
+    ['Visão geral','Publicações','Coleções','Imagens dos produtos','Métricas','QA de liberação']
+  );
+});
+
+test('main sidebar renders an expandable Mural tree and controls the selected Mural tool', () => {
+  const source = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../src/app.css', import.meta.url), 'utf8');
+  assert.ok(source.includes('sidebar-nav-chevron'));
+  assert.ok(source.includes('aria-expanded={isExpanded}'));
+  assert.ok(source.includes('sidebar-submenu'));
+  assert.ok(source.includes('activeMuralSection'));
+  assert.ok(source.includes('onMuralSectionChange'));
+  assert.ok(source.includes('activeSection={muralSection}'));
+  assert.ok(css.includes('.sidebar-submenu-item'));
+  assert.ok(css.includes('.sidebar-nav-chevron.expanded svg'));
+});
