@@ -51,7 +51,7 @@ test('Admin navigation keeps catalog, barcode generator, commerce, operations an
   for (const expected of [
     'Produtos NISTI',
     'Gerador de Barras',
-    'Catálogo Comercial',
+    'Catálogo',
     'Histórico de Bipagens',
     'EAN não Cadastrados',
     'Saúde & Logs'
@@ -107,7 +107,21 @@ test('Mural NISTI exposes its tools as a submenu of the main admin navigation', 
   );
 });
 
-test('main sidebar renders an expandable Mural tree and controls the selected Mural tool', () => {
+test('Catálogo exposes commercial tools as an expandable submenu', () => {
+  const catalog = flattenedItems().find(item => item.id === 'commerce');
+  assert.ok(catalog);
+  assert.equal(catalog.href, undefined);
+  assert.deepEqual(
+    catalog.children.map(item => item.id),
+    ['catalog','sales','import-center','pending']
+  );
+  assert.deepEqual(
+    catalog.children.map(item => item.label),
+    ['Catálogo','Vendas','Central de Importações','Pendências']
+  );
+});
+
+test('main sidebar renders expandable Mural and Catálogo trees without leaving the admin', () => {
   const source = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
   const css = fs.readFileSync(new URL('../src/app.css', import.meta.url), 'utf8');
   assert.ok(source.includes('sidebar-nav-chevron'));
@@ -115,7 +129,11 @@ test('main sidebar renders an expandable Mural tree and controls the selected Mu
   assert.ok(source.includes('sidebar-submenu'));
   assert.ok(source.includes('activeMuralSection'));
   assert.ok(source.includes('onMuralSectionChange'));
+  assert.ok(source.includes('activeCommerceSection'));
+  assert.ok(source.includes('onCommerceSectionChange'));
   assert.ok(source.includes('activeSection={muralSection}'));
+  assert.ok(source.includes("item.id === 'commerce'"));
+  assert.equal(source.includes("window.location.href = '/admin-commerce'"), false);
   assert.ok(css.includes('.sidebar-submenu-item'));
   assert.ok(css.includes('.sidebar-nav-chevron.expanded svg'));
 });
