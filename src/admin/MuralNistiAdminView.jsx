@@ -1155,6 +1155,7 @@ export default function MuralNistiAdminView({ activeSection = 'dashboard', onSec
       products={products}
       onClose={()=>setCollectionEditor(null)}
       onSaved={load}
+      onSwitchKind={kind=>{setCollectionEditor(null);setEditor({mode:'new',kind})}}
     />;
   }
 
