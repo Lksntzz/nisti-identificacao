@@ -919,7 +919,7 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
   );
 }
 
-export default function MuralNistiAdminView({ activeSection = 'posts' }) {
+export default function MuralNistiAdminView({ activeSection = 'collections' }) {
   const section = activeSection;
   const [posts,setPosts]=useState([]);
   const [collections,setCollections]=useState([]);
@@ -978,11 +978,11 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
   };
 
   const sectionMeta = {
-    posts:{title:'Publicações',description:'Gerencie produtos, avisos e conteúdos publicados para os operadores.',icon:'document',eyebrow:'CONTEÚDO'},
+    posts:{title:'Publicações',description:'Acompanhe, edite e organize os conteúdos já publicados para os operadores.',icon:'document',eyebrow:'CONTEÚDO'},
     collections:{title:'Coleções',description:'Organize produtos em coleções, configure banners e defina a ordem editorial.',icon:'collection',eyebrow:'CONTEÚDO'},
     images:{title:'Imagens dos produtos',description:'Trate, revise e aprove as imagens que alimentam o Mural.',icon:'image',eyebrow:'PRODUÇÃO VISUAL'},
   };
-  const currentSection = sectionMeta[section] || sectionMeta.posts;
+  const currentSection = sectionMeta[section] || sectionMeta.collections;
   if (collectionEditor) {
     return <CollectionEditor
       item={collectionEditor.mode==='new'?null:collectionEditor}
@@ -1007,7 +1007,6 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
         <span><small className="mural-admin-section-eyebrow">{currentSection.eyebrow}</small><h2>{currentSection.title}</h2><p>{currentSection.description}</p></span>
       </div>
       <div className="mural-admin-dashboard-actions">
-        {section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
         {section==='collections'&&<button className="primary" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>}
       </div>
     </header>
