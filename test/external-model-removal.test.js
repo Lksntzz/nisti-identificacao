@@ -24,7 +24,7 @@ test('Mural treatment is local and publication editor remains manual', () => {
   assert.doesNotMatch(worker, /\/ai\b|Gemini|Workers AI|detected_has_tassel/i);
   assert.match(worker, /tasselCode:item\.tassel_code/);
   assert.doesNotMatch(muralAdmin, /IA aplicada|gemini|preparar versões de prompt|abrir modelo externo/i);
-  assert.match(muralAdmin, /Opcional\. Use uma arte pronta quando necessário\./);
+  assert.match(muralAdmin, /Imagem editorial \(opcional\)/);\n  assert.match(muralAdmin, /Clique para enviar uma imagem/);\n  assert.match(muralAdmin, /accept=\"image\/jpeg,image\/png,image\/webp\"/);
 });
 
 test('legacy visual-recognition runtime modules are absent', () => {
