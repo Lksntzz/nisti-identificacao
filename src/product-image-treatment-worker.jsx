@@ -214,7 +214,6 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
       running = true;
 
       const changed = [];
-      let terminalItems = 0;
       try {
         let emptyPasses = 0;
 
@@ -301,12 +300,6 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
                 product:{ id:item.id, sku:item.sku || null, name:item.name || null },
                 error:String(error?.message || 'Falha no tratamento.')
               });
-              if (definitive || attempts >= MAX_TRANSIENT_ATTEMPTS) terminalItems += 1;
-            }
-            if (changed.length > terminalItems) terminalItems = changed.length;
-            if (terminalItems >= 1) {
-              setTreatmentPausedStorage(true);
-              break;
             }
             await sleep(120);
           }
@@ -323,8 +316,8 @@ export default function ProductImageTreatmentWorker({ enabled = true, onBatchCom
         running = false;
         releaseLock(owner);
 
-        // Never keep polling in the background. One explicit start processes
-        // the current queue and then returns to the safe paused state.
+        // One explicit start processes the entire current queue sequentially
+        // and then returns to the safe paused state.
         if (!cancelled && !treatmentPaused()) {
           setTreatmentPausedStorage(true);
           emitTreatmentProgress({ phase:'complete', manual:true });
