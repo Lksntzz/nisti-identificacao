@@ -11,7 +11,6 @@ test('residual Mural admin reads and writes have direct Supabase-primary RPCs',(
     'nisti_clear_product_treatment_v1',
     'nisti_admin_mural_products_v1',
     'nisti_admin_mural_metrics_v1',
-    'nisti_admin_mural_readiness_v1',
     'nisti_admin_mural_product_reference_v1',
     'nisti_admin_mural_collection_reference_v1'
   ]){
@@ -23,8 +22,7 @@ test('residual Mural admin reads and writes have direct Supabase-primary RPCs',(
     'nisti_set_product_treatment_v1',
     'nisti_clear_product_treatment_v1',
     'nisti_admin_mural_products_v1',
-    'nisti_admin_mural_metrics_v1',
-    'nisti_admin_mural_readiness_v1'
+    'nisti_admin_mural_metrics_v1'
   ]){
     assert.ok(mural.includes(name),`missing Mural primary route ${name}`);
   }
@@ -50,4 +48,10 @@ test('Mural image and delete routes are treated as direct primary mutations',()=
   assert.ok(mirror.includes("mural\\/posts\\/\\d+\\/image"));
   assert.ok(mirror.includes("mural\\/collections\\/\\d+\\/image"));
   assert.ok(mirror.includes("mural\\/products\\/\\d+\\/image"));
+});
+
+
+test('retired Mural release-readiness RPC and route are removed',()=>{
+  assert.equal(mural.includes('nisti_admin_mural_readiness_v1'),false);
+  assert.equal(mural.includes('/api/admin/mural/readiness'),false);
 });
