@@ -12,20 +12,20 @@ test('publication editor opens as an inline workspace instead of a modal', () =>
   assert.ok(admin.includes('className="mural-publisher-layout"'));
 });
 
-test('New publication exposes Product Notice and Collection', () => {
+test('Publish tool exposes Product Information and Collection', () => {
   assert.ok(admin.includes("['product','product','Produto','Destaque um produto específico.']"));
-  assert.ok(admin.includes("['notice','notice','Aviso','Comunicado para operadores.']"));
+  assert.ok(admin.includes("['notice','notice','Informação','Comunicado ou informação para operadores.']"));
   assert.ok(admin.includes("['collection','collection','Coleção','Use a mesma interface de Nova coleção.']"));
   assert.ok(admin.includes("value==='collection'?onCreateCollection():changeKind(value)"));
   assert.ok(css.includes('grid-template-columns:repeat(3,minmax(0,1fr))'));
 });
 
-test('Collection from New publication reuses the exact official CollectionEditor', () => {
+test('Collection from Publish reuses the exact official CollectionEditor', () => {
   assert.equal((admin.match(/function CollectionEditor/g) || []).length, 1);
   assert.ok(admin.includes("onCreateCollection={()=>{setEditor(null);setCollectionEditor({mode:'new'})}}"));
   assert.ok(admin.includes('if (collectionEditor) {'));
   assert.ok(admin.includes('return <CollectionEditor'));
-  assert.ok(admin.includes("section==='collections'&&<button className=\"primary\" onClick={()=>setCollectionEditor({mode:'new'})}>+ Nova coleção</button>"));
+  assert.ok(admin.includes("onCreateCollection={()=>setCollectionEditor({mode:'new'})}"));
 });
 
 test('existing collection publication edit also routes to the official CollectionEditor', () => {
@@ -43,7 +43,7 @@ test('publication side panel keeps the manual image workflow', () => {
 
 test('publication action bar stays universal on desktop and mobile', () => {
   assert.ok(admin.includes('mural-publisher-universal-actions'));
-  assert.ok(admin.includes('Produto e Aviso usam este editor; Coleção abre o editor oficial de Nova coleção.'));
+  assert.ok(admin.includes('Produto e Informação usam este editor; Coleção abre o editor oficial de Nova coleção.'));
   assert.equal((admin.match(/Salvar rascunho/g) || []).length, 1);
   assert.ok(css.includes('.mural-publisher-universal-actions'));
 });
@@ -67,11 +67,11 @@ test('product publication has a product-first hierarchy instead of the generic l
   assert.ok(css.includes('.mural-publisher-copy-grid'));
 });
 
-test('notice publication has a dedicated message and priority panel', () => {
+test('information publication has a dedicated message and priority panel', () => {
   assert.ok(admin.includes('mural-publisher-notice-panel'));
-  assert.ok(admin.includes('Monte o aviso em uma única área'));
+  assert.ok(admin.includes('Monte a informação em uma única área'));
   assert.ok(admin.includes('mural-publisher-notice-levels'));
-  assert.ok(admin.includes('Título do aviso'));
+  assert.ok(admin.includes('Título da informação'));
   assert.ok(admin.includes('Mensagem<textarea'));
   assert.ok(css.includes('.mural-publisher-notice-levels'));
   assert.ok(css.includes('.mural-publisher-notice-copy'));
