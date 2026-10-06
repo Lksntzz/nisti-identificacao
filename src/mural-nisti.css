@@ -3465,10 +3465,14 @@
   transform:translate3d(-50%,14%,0) rotate(0) scale(.74);
 }
 .mural-collection-reveal-product.is-secondary.from-left{
+  --reveal-mid-x:-40px;
+  --reveal-mid-rotation:-6deg;
   --reveal-peek-x:-72px;
   --reveal-peek-rotation:-11deg;
 }
 .mural-collection-reveal-product.is-secondary.from-right{
+  --reveal-mid-x:40px;
+  --reveal-mid-rotation:6deg;
   --reveal-peek-x:72px;
   --reveal-peek-rotation:11deg;
 }
@@ -3484,7 +3488,7 @@
   24%{
     z-index:2;
     opacity:.96;
-    transform:translate3d(calc(-50% + (var(--reveal-peek-x) * .55)),5%,0) rotate(calc(var(--reveal-peek-rotation) * .55)) scale(.84);
+    transform:translate3d(calc(-50% + var(--reveal-mid-x)),5%,0) rotate(var(--reveal-mid-rotation)) scale(.84);
   }
   55%{
     z-index:2;
