@@ -527,7 +527,7 @@ function MobilePreview({ form, product, collection, imageUrl }) {
   );
 }
 
-function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved }) {
+function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved, onCreateCollection }) {
   const sourceItem = item && item.mode === 'new' ? null : item;
   const [form, setForm] = useState(() => postForm(sourceItem));
   const [products, setProducts] = useState([]);
@@ -664,7 +664,7 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
             <div className="mural-publisher-type-grid">
               {[
                 ['product','product','Produto','Destaque um produto específico.'],
-                ['collection','collection','Coleção','Destaque uma coleção de produtos.'],
+                ['collection','collection','Publicar coleção','Use uma coleção já criada no Mural.'],
                 ['notice','notice','Aviso','Comunicado para operadores.']
               ].map(([value,icon,label,description])=>(
                 <button type="button" key={value} className={form.kind===value?'active':''} onClick={()=>changeKind(value)}>
@@ -705,7 +705,14 @@ function PostEditor({ item, collections, catalogProducts = [], onClose, onSaved 
 
           {form.kind === 'collection' && (
             <section className="mural-publisher-block">
-              <label className="mural-publisher-field">Coleção <em>*</em><select value={form.collection_id} onChange={e=>set('collection_id',e.target.value)}><option value="">Selecione</option>{collections.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+              <div className="mural-publisher-block-title">
+                <strong>Publicar coleção existente</strong>
+                <span>A criação e edição da coleção usam sempre o editor oficial de Coleções.</span>
+              </div>
+              <div className="mural-publisher-collection-source">
+                <label className="mural-publisher-field">Coleção <em>*</em><select value={form.collection_id} onChange={e=>set('collection_id',e.target.value)}><option value="">Selecione uma coleção</option>{collections.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+                <button type="button" className="mural-publisher-secondary" onClick={onCreateCollection}><AdminMuralIcon name="collection" size={16}/> + Criar nova coleção</button>
+              </div>
               {selectedCollection && (
                 <div className="mural-publisher-collection-products">
                   <header><span><b>Produtos da coleção</b><small>{selectedCollectionProducts.length || selectedCollection.product_count || 0} produtos vinculados</small></span><em>Ordem definida na coleção</em></header>
@@ -952,14 +959,24 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
     qa:{title:'QA de liberação',description:'Valide estrutura, conteúdo e desempenho antes da liberação.',icon:'shield',eyebrow:'GESTÃO E CONTROLE'}
   };
   const currentSection = sectionMeta[section] || sectionMeta.posts;
+  const collectionEditorView = collectionEditor ? <CollectionEditor
+    item={collectionEditor.mode==='new'?null:collectionEditor}
+    products={products}
+    onClose={()=>setCollectionEditor(null)}
+    onSaved={async()=>{await load();await refreshReadiness()}}
+  /> : null;
   if (editor) {
-    return <PostEditor
-      item={editor}
-      collections={collections}
-      catalogProducts={products}
-      onClose={()=>setEditor(null)}
-      onSaved={async()=>{await load();await refreshReadiness()}}
-    />;
+    return <>
+      <PostEditor
+        item={editor}
+        collections={collections}
+        catalogProducts={products}
+        onClose={()=>setEditor(null)}
+        onSaved={async()=>{await load();await refreshReadiness()}}
+        onCreateCollection={()=>setCollectionEditor({mode:'new'})}
+      />
+      {collectionEditorView}
+    </>;
   }
 
   return <section className="mural-admin-view mural-admin-dashboard">
@@ -1014,6 +1031,6 @@ export default function MuralNistiAdminView({ activeSection = 'posts' }) {
       </main>
     </div>
 
-    {collectionEditor&&<CollectionEditor item={collectionEditor.mode==='new'?null:collectionEditor} products={products} onClose={()=>setCollectionEditor(null)} onSaved={async()=>{await load();await refreshReadiness()}}/>}
+    {collectionEditorView}
   </section>;
 }
