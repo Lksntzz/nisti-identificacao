@@ -29,7 +29,9 @@ test('motion part 3 adds one-shot unread emphasis and premium hover without loop
   assert.ok(css.includes('@keyframes mural-unread-accent'));
   assert.ok(css.includes('.mural-card:hover .mural-card-content'));
   assert.ok(css.includes('.mural-card-collection:hover .mural-collection-card-copy'));
-  const part3 = css.slice(css.indexOf('/* Motion Part 3:'));
+  const part3Start = css.indexOf('/* Motion Part 3:');
+  const part3End = css.indexOf('/* Motion Part 4:', part3Start);
+  const part3 = css.slice(part3Start, part3End);
   assert.equal(part3.includes('infinite'), false);
 });
 
