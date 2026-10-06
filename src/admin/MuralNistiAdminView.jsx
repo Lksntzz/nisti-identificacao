@@ -986,8 +986,6 @@ export default function MuralNistiAdminView() {
     qa:{title:'QA de liberação',description:'Valide estrutura, conteúdo e desempenho antes da liberação.',icon:'shield',eyebrow:'GESTÃO E CONTROLE'}
   };
   const currentSection = sectionMeta[section] || sectionMeta.overview;
-  const reviewImageCount = products.filter(row=>row.mural_image_reviewable).length;
-
   if (editor) {
     return <PostEditor
       item={editor}
@@ -1005,6 +1003,7 @@ export default function MuralNistiAdminView() {
         <span><small className="mural-admin-section-eyebrow">{currentSection.eyebrow}</small><h2>{currentSection.title}</h2><p>{currentSection.description}</p></span>
       </div>
       <div className="mural-admin-dashboard-actions">
+        {section!=='overview'&&<button type="button" className="mural-admin-back-overview" onClick={()=>setSection('overview')}><AdminMuralIcon name="back" size={16}/> Visão geral</button>}
         <button type="button" className="qa" onClick={()=>window.location.assign('/?mural=qa')}>Abrir Mural QA</button>
         {section==='overview'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
         {section==='posts'&&<button className="primary" onClick={()=>setEditor({mode:'new'})}>+ Nova publicação</button>}
@@ -1012,56 +1011,7 @@ export default function MuralNistiAdminView() {
       </div>
     </header>
 
-    <div className="mural-admin-workspace">
-      <aside className="mural-admin-hierarchy-nav" aria-label="Ferramentas do Mural">
-        <button type="button" className={section==='overview'?'active':''} onClick={()=>setSection('overview')}>
-          <span className="nav-icon"><AdminMuralIcon name="home" size={18}/></span>
-          <span><b>Visão geral</b><small>Painel e atalhos</small></span>
-        </button>
-
-        <div className="mural-admin-hierarchy-group">
-          <span>CONTEÚDO</span>
-          <button type="button" className={section==='posts'?'active':''} onClick={()=>setSection('posts')}>
-            <span className="nav-icon"><AdminMuralIcon name="document" size={18}/></span>
-            <span><b>Publicações</b><small>Produtos e avisos</small></span>
-            <em>{posts.length}</em>
-          </button>
-          <button type="button" className={section==='collections'?'active':''} onClick={()=>setSection('collections')}>
-            <span className="nav-icon"><AdminMuralIcon name="collection" size={18}/></span>
-            <span><b>Coleções</b><small>Capas e banners</small></span>
-            <em>{collections.length}</em>
-          </button>
-        </div>
-
-        <div className="mural-admin-hierarchy-group">
-          <span>PRODUÇÃO VISUAL</span>
-          <button type="button" className={section==='images'?'active':''} onClick={()=>setSection('images')}>
-            <span className="nav-icon"><AdminMuralIcon name="image" size={18}/></span>
-            <span><b>Imagens dos produtos</b><small>Tratamento e revisão</small></span>
-            {reviewImageCount>0&&<em className="attention">{reviewImageCount}</em>}
-          </button>
-        </div>
-
-        <div className="mural-admin-hierarchy-group">
-          <span>GESTÃO E CONTROLE</span>
-          <button type="button" className={section==='metrics'?'active':''} onClick={()=>setSection('metrics')}>
-            <span className="nav-icon"><AdminMuralIcon name="metrics" size={18}/></span>
-            <span><b>Métricas</b><small>Leitura e desempenho</small></span>
-          </button>
-          <button type="button" className={section==='qa'?'active':''} onClick={()=>setSection('qa')}>
-            <span className="nav-icon"><AdminMuralIcon name="shield" size={18}/></span>
-            <span><b>QA de liberação</b><small>Validação final</small></span>
-            <i className={readiness?.automated_ready?'ok':'pending'} aria-hidden="true"/>
-          </button>
-        </div>
-
-        <div className="mural-admin-hierarchy-status">
-          <span>AMBIENTE</span>
-          <b>QA privado</b>
-          <small>Público permanece em “Em breve”.</small>
-        </div>
-      </aside>
-
+    <div className="mural-admin-workspace mural-admin-workspace-single">
       <main className="mural-admin-workspace-content">
         {error&&<div className="mural-admin-error">{error}</div>}
 
