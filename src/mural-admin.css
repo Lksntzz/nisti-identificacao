@@ -15,7 +15,7 @@
 .mural-admin-heading-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .mural-admin-heading-actions>button{min-height:44px}
 .mural-admin-error{padding:10px 12px;border:1px solid #fecaca;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:12px;font-weight:650}
-.mural-admin-readiness-list>div{grid-template-columns:1fr}.mural-admin-readiness-list>div>.mural-admin-readiness-badge{grid-column:auto}}@media(max-width:600px){}/* Mural publication image editor. */
+/* Mural publication image editor. */
 .mural-studio-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1230,9 +1230,9 @@
   overflow-y:visible;
   border-top:1px solid #e8edf3;
 }
-.mural-admin-modern-table{
+ .mural-admin-modern-table{
   width:100%;
-  min-width:1050px;
+  min-width:1160px;
   border-collapse:collapse;
 }
 .mural-admin-modern-table th{
