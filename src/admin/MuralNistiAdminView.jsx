@@ -36,6 +36,9 @@ function AdminMuralIcon({ name, size = 22 }) {
   if (name === 'more') return <svg {...common}><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>;
   if (name === 'calendar') return <svg {...common}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>;
   if (name === 'user') return <svg {...common}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>;
+  if (name === 'home') return <svg {...common}><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg>;
+  if (name === 'metrics') return <svg {...common}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>;
+  if (name === 'shield') return <svg {...common}><path d="M12 3 20 6v5c0 5-3.4 8.3-8 10-4.6-1.7-8-5-8-10V6l8-3Z"/><path d="m9 12 2 2 4-4"/></svg>;
   if (name === 'chevron') return <svg {...common}><path d="m9 18 6-6-6-6"/></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>;
 }
@@ -883,6 +886,42 @@ function CollectionEditor({ item, products, onClose, onSaved }) {
           <button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}>{busy?'Processando…':'Salvar e publicar no Mural QA'}</button>
         </div>
       </div>
+    </div>
+  </div>;
+}
+
+function MuralAdminOverview({ posts, collections, products, readiness, loading, onNavigate, onNewPost, onNewCollection }) {
+  const published = posts.filter(row=>row.status==='published').length;
+  const drafts = posts.filter(row=>row.status==='draft').length;
+  const activeCollections = collections.filter(row=>row.status==='active').length;
+  const approvedImages = products.filter(row=>row.mural_image_ready).length;
+  const reviewImages = products.filter(row=>row.mural_image_reviewable).length;
+
+  const tools = [
+    { key:'posts', icon:'document', group:'CONTEÚDO', title:'Publicações', description:'Produtos, avisos e conteúdos exibidos aos operadores.', metric:`${published} publicadas · ${drafts} rascunhos` },
+    { key:'collections', icon:'collection', group:'CONTEÚDO', title:'Coleções', description:'Monte coleções, capas, banners e ordem editorial.', metric:`${activeCollections} ativas` },
+    { key:'images', icon:'image', group:'PRODUÇÃO VISUAL', title:'Imagens dos produtos', description:'Trate, revise e aprove as imagens usadas no Mural.', metric:`${approvedImages} aprovadas · ${reviewImages} para revisar` },
+    { key:'metrics', icon:'metrics', group:'GESTÃO', title:'Métricas', description:'Acompanhe leitura e desempenho do conteúdo.', metric:'Leitura e uso' },
+    { key:'qa', icon:'shield', group:'CONTROLE', title:'QA de liberação', description:'Valide estrutura, conteúdo e peso antes de liberar.', metric:readiness?.automated_ready?'Pronto para smoke':'Verificar pendências' }
+  ];
+
+  return <div className="mural-admin-overview">
+    <section className="mural-admin-overview-hero">
+      <div><span>PAINEL DO MURAL</span><h3>Gerencie o conteúdo seguindo o fluxo certo</h3><p>Crie o conteúdo, prepare as imagens e valide a liberação antes de chegar aos operadores.</p></div>
+      <div className="mural-admin-overview-hero-actions">
+        <button type="button" className="primary" onClick={onNewPost}>+ Nova publicação</button>
+        <button type="button" onClick={onNewCollection}>+ Nova coleção</button>
+      </div>
+    </section>
+    <div className="mural-admin-overview-flow" aria-label="Fluxo do Mural">
+      <span><b>1</b> Conteúdo</span><i>→</i><span><b>2</b> Produção visual</span><i>→</i><span><b>3</b> Revisão</span><i>→</i><span><b>4</b> QA e publicação</span>
+    </div>
+    <div className="mural-admin-overview-grid">
+      {tools.map(tool=><button type="button" key={tool.key} className="mural-admin-overview-tool" onClick={()=>onNavigate(tool.key)}>
+        <span className="tool-icon"><AdminMuralIcon name={tool.icon} size={22}/></span>
+        <span className="tool-copy"><small>{tool.group}</small><strong>{tool.title}</strong><p>{tool.description}</p><em>{loading?'Carregando…':tool.metric}</em></span>
+        <AdminMuralIcon name="chevron" size={17}/>
+      </button>)}
     </div>
   </div>;
 }
