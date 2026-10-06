@@ -34,7 +34,7 @@ test('arc rises before main cover and every later cover finishes above the previ
   assert.ok(mural.includes("'--reveal-final-layer': position.layer"));
   assert.ok(css.includes('z-index:6'));
   assert.ok(css.includes('z-index:2'));
-  assert.ok(css.includes('z-index:var(--reveal-final-layer)'));
+  assert.ok(css.includes('z-index:var(--reveal-final-layer,2)'));
   assert.ok(css.includes('var(--reveal-peek-x)'));
   assert.equal(mural.includes('products.slice(0, 5)'), false);
 });
