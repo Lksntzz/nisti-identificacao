@@ -17,7 +17,7 @@ test('published collections open with a product-only cinematic reveal before the
 test('intro shows only transparent product imagery over a white arc and dark screen', () => {
   assert.ok(mural.includes('const mainProduct = products[0]'));
   assert.ok(mural.includes('const secondaryProducts = products.slice(1)'));
-  assert.ok(css.includes('background:rgba(0,0,0,.94)'));
+  assert.ok(css.includes('background:rgba(0,0,0,.96)'));
   assert.ok(css.includes('.mural-collection-reveal-white-arc'));
   assert.ok(css.includes('background:transparent'));
   assert.equal(mural.includes('mural-collection-arc-caption'), false);
@@ -39,14 +39,15 @@ test('arc rises before main cover and secondary covers settle in alternating fan
   assert.equal(mural.includes('products.slice(0, 5)'), false);
 });
 
-test('slower intro holds the complete fan before mounting the card', () => {
-  assert.ok(mural.includes('const secondaryStart = 1850'));
-  assert.ok(mural.includes('const secondaryStep = 900'));
-  assert.ok(mural.includes('const secondaryDuration = 1350'));
-  assert.ok(mural.includes('const fanHold = 1100'));
-  assert.ok(mural.includes('lastCoverFinish + fanHold'));
-  assert.ok(mural.includes('lastCoverFinish + fanHold + fadeDuration'));
-  assert.ok(css.includes('animation:mural-collection-cover-arrive 1350ms'));
+test('collection variants wait three seconds before the next cover and title closes the intro', () => {
+  assert.ok(mural.includes('const secondaryStart = 2100'));
+  assert.ok(mural.includes('const secondaryStep = 3000'));
+  assert.ok(mural.includes('const secondaryDuration = 1100'));
+  assert.ok(mural.includes('const titleDuration = 2400'));
+  assert.ok(mural.includes('const introFinish = titleDelay + titleDuration'));
+  assert.ok(mural.includes('window.setTimeout(() => setLeaving(true), introFinish)'));
+  assert.ok(mural.includes('window.setTimeout(onComplete, introFinish + fadeDuration)'));
+  assert.ok(css.includes('animation:mural-collection-cover-arrive 1100ms'));
   assert.ok(mural.includes('{!showIntro && ('));
   assert.ok(css.includes('@media (prefers-reduced-motion:reduce)'));
 });
@@ -57,4 +58,15 @@ test('white arc is clean and secondary covers emerge from behind before layer sw
   assert.ok(css.includes('transition:transform 1050ms cubic-bezier(.16,1,.3,1),opacity 420ms ease'));
   assert.ok(css.includes('55%{\n    z-index:2'));
   assert.ok(css.includes('56%{\n    z-index:var(--reveal-final-layer)'));
+});
+
+
+test('collection intro enlarges products and raises the collection name between fan layers', () => {
+  assert.ok(css.includes('width:clamp(176px,52vw,285px)'));
+  assert.ok(css.includes('height:clamp(266px,78vw,430px)'));
+  assert.ok(mural.includes('className="mural-collection-reveal-title"'));
+  assert.ok(mural.includes('<strong>{title}</strong>'));
+  assert.ok(css.includes('@keyframes mural-collection-title-rise'));
+  assert.ok(css.includes('z-index:6'));
+  assert.ok(css.includes('backdrop-filter:none'));
 });
