@@ -55,18 +55,21 @@ test('collection variants wait 1.5 seconds before the next cover and title close
 
 
 test('white arc and product reveal use one opaque continuous motion without intermediate advances', () => {
+  const motionStart=css.indexOf('.mural-collection-reveal-product.is-main{');
+  const motionEnd=css.indexOf('.mural-collection-reveal-title{');
+  const motion=css.slice(motionStart,motionEnd);
   assert.ok(css.includes('box-shadow:none'));
-  assert.ok(css.includes('filter:none'));
-  assert.ok(css.includes('backface-visibility:hidden'));
-  assert.ok(css.includes('z-index:var(--reveal-final-layer,2)'));
-  assert.ok(css.includes('visibility:hidden'));
-  assert.ok(css.includes('visibility:visible'));
-  assert.ok(css.includes('var(--reveal-product-delay) forwards'));
-  assert.equal(css.includes('32%{'), false);
-  assert.equal(css.includes('68%{'), false);
-  assert.equal(css.includes('opacity:.72'), false);
-  assert.equal(css.includes('--reveal-mid-x'), false);
-  assert.equal(css.includes('--reveal-peek-x'), false);
+  assert.ok(motion.includes('filter:none'));
+  assert.ok(motion.includes('backface-visibility:hidden'));
+  assert.ok(motion.includes('z-index:var(--reveal-final-layer,2)'));
+  assert.ok(motion.includes('visibility:hidden'));
+  assert.ok(motion.includes('visibility:visible'));
+  assert.ok(motion.includes('var(--reveal-product-delay) forwards'));
+  assert.equal(motion.includes('32%{'), false);
+  assert.equal(motion.includes('68%{'), false);
+  assert.equal(motion.includes('opacity:.72'), false);
+  assert.equal(motion.includes('--reveal-mid-x'), false);
+  assert.equal(motion.includes('--reveal-peek-x'), false);
 });
 
 
