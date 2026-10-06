@@ -6,7 +6,7 @@ const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',impor
 const css=fs.readFileSync(new URL('../src/mural-admin.css',import.meta.url),'utf8');
 
 test('Mural admin is controlled only by the main panel submenu',()=>{
-  assert.ok(admin.includes("export default function MuralNistiAdminView({ activeSection = 'dashboard' })"));
+  assert.ok(admin.includes("export default function MuralNistiAdminView({ activeSection = 'dashboard', onSectionChange })"));
   assert.ok(admin.includes('const section = activeSection'));
   assert.ok(admin.includes('mural-admin-workspace-single'));
   assert.equal(admin.includes('MuralAdminOverview'),false);
