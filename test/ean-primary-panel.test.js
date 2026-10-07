@@ -63,7 +63,7 @@ test('continuous scanner can be paused without stopping the camera stream', () =
 
 test('EAN result highlights product finishes without an animated camera overlay', () => {
   assert.match(scannerSource, /label: 'Wire-o', value: product\.wireo/);
-  assert.match(scannerSource, /label: 'Tassel', value: hasTasselLabel\(product\)/);
+  assert.match(scannerSource, /label: 'Tassel', value: product\.tassel/);
   assert.match(scannerSource, /label: 'Elástico', value: elasticLabel\(product\)/);
   assert.doesNotMatch(scannerSource, /gtin-camera-scan-beam/);
   assert.doesNotMatch(scannerSource, /gtin-laser-dynamic/);
