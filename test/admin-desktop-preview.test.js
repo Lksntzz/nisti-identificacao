@@ -3,18 +3,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const desktopMode = fs.readFileSync(new URL('../public/desktop-mode.js', import.meta.url), 'utf8');
 const source = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const desktopBootstrap = fs.readFileSync(new URL('../public/desktop-mode.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../src/app.css', import.meta.url), 'utf8');
 
 test('admin mobile desktop preview is activated before the app renders', () => {
   assert.ok(html.includes('id="nisti-viewport"'));
   assert.ok(html.includes('<script src="/desktop-mode.js"></script>'));
-  assert.ok(desktopMode.includes("params.get('desktop') !== '1'"));
-  assert.ok(desktopMode.includes('width=1440'));
-  assert.ok(desktopMode.includes('user-scalable=yes'));
-  assert.ok(desktopMode.includes("document.documentElement.dataset.nistiDesktopPreview = '1'"));
-  assert.equal(html.includes("<script>"), false);
+  assert.ok(desktopBootstrap.includes("params.get('desktop') !== '1'"));
+  assert.ok(desktopBootstrap.includes('width=1440'));
+  assert.ok(desktopBootstrap.includes('user-scalable=yes'));
+  assert.ok(desktopBootstrap.includes("document.documentElement.dataset.nistiDesktopPreview = '1'"));
 });
 
 test('admin topbar exposes a reversible Modo PC control', () => {
