@@ -1,5 +1,5 @@
 import { supabaseRpc } from './supabase-read-store.js';
-import { canvaBackgroundRemoveToPng, canvaUploadAsset, CanvaCutoutError } from './canva-product-cutout.js';
+import { canvaBackgroundRemoveToPng, canvaUploadAsset, safeCanvaDownloadUrl, CanvaCutoutError } from './canva-product-cutout.js';
 
 const CANVA_AUTHORIZE_URL = 'https://www.canva.com/api/oauth/authorize';
 const CANVA_TOKEN_URL = 'https://api.canva.com/rest/v1/oauth/token';
@@ -526,9 +526,9 @@ async function exportArtwork(request,env) {
     if(job?.status!=='success'){
       job=await pollCanvaJob(`/exports/${encodeURIComponent(job.id)}`,token,'a exportação da arte');
     }
-    const downloadUrl=Array.isArray(job?.urls)?job.urls[0]:'';
-    if(!downloadUrl)throw new CanvaBridgeError('Canva concluiu a exportação sem retornar o PNG.',{
-      status:502,code:'canva_export_url_missing'
+    const downloadUrl=safeCanvaDownloadUrl(Array.isArray(job?.urls)?job.urls[0]:'');
+    if(!downloadUrl)throw new CanvaBridgeError('Canva retornou uma URL de exportação inválida ou não autorizada.',{
+      status:502,code:'canva_export_url_invalid'
     });
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort('canva-art-download-timeout'),15000);
