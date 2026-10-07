@@ -9,11 +9,11 @@ const migration=fs.readFileSync(new URL('../supabase/migrations/20261006145000_m
 
 test('collection editor exposes optional year and hero banner metadata',()=>{
   assert.ok(admin.includes('Mostrar ano no banner'));
-  assert.ok(admin.includes('Frase curta'));
+  assert.ok(admin.includes('Frase de destaque (hero)'));
   assert.ok(admin.includes('Direção visual'));
   assert.ok(admin.includes('Elementos / cores do tema'));
-  assert.ok(admin.includes("hero_message:item?.hero_message||''"));
-  assert.ok(admin.includes("visual_direction:item?.visual_direction||'automatic'"));
+  assert.ok(admin.includes("hero_message: (isEditingCollection ? sourceItem?.hero_message : '') || ''"));
+  assert.ok(admin.includes("visual_direction: (isEditingCollection ? sourceItem?.visual_direction : '') || 'automatic'"));
 });
 
 test('collection API persists hero configuration',()=>{
