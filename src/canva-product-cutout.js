@@ -26,7 +26,7 @@ function detectImageType(bytes){
   return null;
 }
 
-function safeCanvaDownloadUrl(value){
+export function safeCanvaDownloadUrl(value){
   try{
     const url=new URL(String(value||''));
     const host=url.hostname.toLowerCase();
