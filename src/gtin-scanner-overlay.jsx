@@ -201,7 +201,7 @@ function ProductSummary({ gtin, product, continuous = false }) {
 
   const primaryDetails = [
     { label: 'Wire-o', value: product.wireo || product.wireo_code, icon: 'wireo' },
-    { label: 'Tassel', value: product.tassel || product.tassel_code, icon: 'tassel' },
+    { label: 'Tassel', value: hasTasselLabel(product), icon: 'tassel' },
     { label: 'Elástico', value: elasticLabel(product), icon: 'elastic' }
   ].filter(item => item.value);
 
@@ -287,8 +287,14 @@ function HistoryChevron({ up = false }) {
 }
 
 function hasTasselLabel(product) {
-  const value = String(product?.tassel || product?.tassel_code || '').trim().toUpperCase();
-  return !value || value === 'X' || value.includes('SEM TASSEL') ? 'Não' : 'Sim';
+  const value = String(product?.tassel || product?.tassel_code || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\\u0300-\\u036f]/g, '')
+    .toUpperCase();
+  return !value || ['X', 'N', 'NAO', 'NO', 'FALSE', '0'].includes(value) || value.includes('SEM TASSEL')
+    ? 'Não'
+    : 'Sim';
 }
 
 function elasticLabel(product) {
