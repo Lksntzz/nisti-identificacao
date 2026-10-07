@@ -23,6 +23,12 @@ test('Mural keeps only operational tools after overview removal',()=>{
   assert.ok(admin.includes("const currentSection = sectionMeta[section] || sectionMeta.dashboard"));
 });
 
+test('Mural restores private test-area launch without reintroducing the QA tool',()=>{
+  assert.ok(admin.includes('Área de teste'));
+  assert.ok(admin.includes("window.location.assign('/?mural=qa')"));
+  assert.equal(admin.includes("qa:{title:'QA de liberação'"),false);
+});
+
 test('single-navigation workspace uses full width and old overview styles are removed',()=>{
   assert.ok(css.includes('/* Mural Admin hierarchy workspace */'));
   assert.ok(css.includes('.mural-admin-workspace-single'));
