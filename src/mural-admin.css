@@ -2240,3 +2240,199 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
   .mural-publish-v2-actions>span button{flex:1}
   .mural-publish-v2-phone-empty{width:min(100%,292px)}
 }
+
+
+/* Canva artwork flow inside Publicar */
+.mural-publish-v2-canva{
+  border-color:#dedff2;
+  background:linear-gradient(180deg,#fff 0%,#fbfbff 100%);
+}
+.mural-publish-v2-canva .mural-publish-v2-step-number{
+  background:linear-gradient(135deg,#7c3aed,#2563eb);
+}
+.mural-publish-v2-canva-body{
+  display:grid;
+  gap:10px;
+  padding:0 16px 16px;
+}
+.mural-publish-v2-canva-state,
+.mural-publish-v2-canva-hint{
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  padding:10px 12px;
+  border:1px solid #e6e7f0;
+  border-radius:9px;
+  background:#f8f9fc;
+  color:#667085;
+  font-size:9px;
+  line-height:1.4;
+}
+.mural-publish-v2-canva-connect{
+  min-height:72px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:11px 12px;
+  border:1px solid #e3def8;
+  border-radius:11px;
+  background:linear-gradient(135deg,#faf7ff,#f6f9ff);
+}
+.mural-publish-v2-canva-connect>span{
+  min-width:0;
+  display:grid;
+  gap:4px;
+}
+.mural-publish-v2-canva-connect b{
+  color:#2d2857;
+  font-size:11px;
+}
+.mural-publish-v2-canva-connect small{
+  color:#7a7894;
+  font-size:8.5px;
+  line-height:1.35;
+}
+.mural-publish-v2-canva-connect button,
+.mural-publish-v2-canva-create,
+.mural-publish-v2-canva-design-actions button,
+.mural-publish-v2-canva-design-actions a{
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:0 12px;
+  border:1px solid #6657df;
+  border-radius:8px;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5);
+  color:#fff;
+  font:inherit;
+  font-size:9px;
+  font-weight:850;
+  text-decoration:none;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.mural-publish-v2-canva-connect button:disabled,
+.mural-publish-v2-canva-create:disabled,
+.mural-publish-v2-canva-design-actions button:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
+.mural-publish-v2-canva-controls{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:end;
+}
+.mural-publish-v2-canva-controls label{
+  display:grid;
+  gap:6px;
+  color:#28364f;
+  font-size:9.5px;
+  font-weight:850;
+}
+.mural-publish-v2-canva-controls select{
+  width:100%;
+  min-height:39px;
+  padding:0 10px;
+  border:1px solid #d9e1ec;
+  border-radius:8px;
+  background:#fff;
+  color:#25324a;
+  font:inherit;
+  font-size:10px;
+  outline:none;
+}
+.mural-publish-v2-canva-design{
+  min-width:0;
+  display:grid;
+  grid-template-columns:70px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  padding:9px;
+  border:1px solid #dfe3ef;
+  border-radius:11px;
+  background:#fff;
+}
+.mural-publish-v2-canva-design-thumb{
+  width:70px;
+  height:50px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border-radius:8px;
+  background:#f1f3f8;
+  color:#6c63cf;
+}
+.mural-publish-v2-canva-design-thumb img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.mural-publish-v2-canva-design>span:nth-child(2){
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.mural-publish-v2-canva-design b{
+  overflow:hidden;
+  color:#202943;
+  font-size:10px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mural-publish-v2-canva-design small{
+  color:#7c8799;
+  font-size:8px;
+  line-height:1.35;
+}
+.mural-publish-v2-canva-design-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.mural-publish-v2-canva-design-actions a{
+  border-color:#d8ddea;
+  background:#fff;
+  color:#4c5870;
+}
+.mural-publish-v2-canva-error{
+  margin:0;
+}
+@media(max-width:900px){
+  .mural-publish-v2-canva-design{
+    grid-template-columns:56px minmax(0,1fr);
+  }
+  .mural-publish-v2-canva-design-thumb{
+    width:56px;
+    height:44px;
+  }
+  .mural-publish-v2-canva-design-actions{
+    grid-column:1/-1;
+    justify-content:flex-end;
+  }
+}
+@media(max-width:620px){
+  .mural-publish-v2-canva-body{padding:0 12px 12px}
+  .mural-publish-v2-canva-controls{grid-template-columns:1fr}
+  .mural-publish-v2-canva-create{width:100%}
+  .mural-publish-v2-canva-connect{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .mural-publish-v2-canva-connect button{width:100%}
+  .mural-publish-v2-canva-design{
+    grid-template-columns:1fr;
+  }
+  .mural-publish-v2-canva-design-thumb{
+    width:100%;
+    height:120px;
+  }
+  .mural-publish-v2-canva-design-actions{
+    grid-column:auto;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+}
