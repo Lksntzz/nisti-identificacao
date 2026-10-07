@@ -11,6 +11,8 @@ const COOKIE_NAME = 'nisti_admin_session';
 const SESSION_SECONDS = 60 * 60 * 12;
 const ADMIN_APP_PATH = '/admin';
 const COMMERCE_ADMIN_APP_PATH = '/admin-commerce';
+const MUTATING_METHODS = new Set(['POST','PUT','PATCH','DELETE']);
+const LOGIN_FAILURE_DELAY_MS = 275;
 
 function base64url(bytes) {
   let binary = '';
@@ -58,6 +60,13 @@ function readCookie(request, name) {
   return null;
 }
 
+function sessionSigningSecret(env) {
+  const password=String(env?.ADMIN_PASSWORD||'');
+  if(!password)return '';
+  const dedicated=String(env?.ADMIN_SESSION_SECRET||'').trim();
+  return dedicated ? `${dedicated}:${password}` : password;
+}
+
 async function createSession(secret) {
   const payload = JSON.stringify({ exp: Math.floor(Date.now() / 1000) + SESSION_SECONDS, nonce: crypto.randomUUID() });
   const encoded = base64url(textBytes(payload));
@@ -66,7 +75,7 @@ async function createSession(secret) {
 }
 
 async function validSession(request, env) {
-  const secret = String(env.ADMIN_PASSWORD || '');
+  const secret = sessionSigningSecret(env);
   if (!secret) return false;
   const token = readCookie(request, COOKIE_NAME);
   if (!token || !token.includes('.')) return false;
@@ -98,6 +107,46 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
+function sameOriginMutationAllowed(request) {
+  if (!MUTATING_METHODS.has(String(request.method || '').toUpperCase())) return true;
+  const requestUrl = new URL(request.url);
+  const origin = String(request.headers.get('origin') || '').trim();
+  if (origin && origin !== requestUrl.origin) return false;
+  const fetchSite = String(request.headers.get('sec-fetch-site') || '').trim().toLowerCase();
+  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') return false;
+  return true;
+}
+
+function withSecurityHeaders(response) {
+  if (!(response instanceof Response)) return response;
+  const headers = new Headers(response.headers);
+  headers.set('x-content-type-options','nosniff');
+  headers.set('x-frame-options','DENY');
+  headers.set('referrer-policy','no-referrer');
+  headers.set('permissions-policy','camera=(self), microphone=(), geolocation=(), payment=(), usb=()');
+  headers.set('cross-origin-opener-policy','same-origin');
+  headers.set('strict-transport-security','max-age=31536000; includeSubDomains');
+  if (!headers.has('cross-origin-resource-policy')) headers.set('cross-origin-resource-policy','same-origin');
+
+  const contentType = String(headers.get('content-type') || '').toLowerCase();
+  if (contentType.includes('text/html')) {
+    headers.set(
+      'content-security-policy',
+      "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://yioetdcbgorunwgwuawg.supabase.co https://api.canva.com https://www.canva.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'"
+    );
+  }
+
+  return new Response(response.body, {
+    status:response.status,
+    statusText:response.statusText,
+    headers
+  });
+}
+
+function delayedLoginFailure(message, status = 401) {
+  return new Promise(resolve => setTimeout(() => resolve(withSecurityHeaders(html(loginPage(message), status))), LOGIN_FAILURE_DELAY_MS));
+}
+
 function isProtectedApi(pathname) {
   if (pathname.startsWith('/api/admin/')) return true;
   if (pathname === '/api/products' || pathname.startsWith('/api/products/')) return true;
@@ -106,8 +155,11 @@ function isProtectedApi(pathname) {
 }
 
 async function serveProtectedAdminApp(request, env, url) {
-  if (!(await validSession(request, env))) return Response.redirect(new URL('/admin-login', url), 302);
-  return env.ASSETS.fetch(new Request(new URL('/', url), { headers: request.headers }));
+  if (!(await validSession(request, env))) return withSecurityHeaders(Response.redirect(new URL('/admin-login', url), 302));
+  const response=await env.ASSETS.fetch(new Request(new URL('/', url), { headers: request.headers }));
+  const headers=new Headers(response.headers);
+  headers.set('cache-control','no-store, private');
+  return withSecurityHeaders(new Response(response.body,{status:response.status,statusText:response.statusText,headers}));
 }
 
 export default {
@@ -119,31 +171,35 @@ export default {
       return serveProtectedAdminApp(request, env, url);
     }
 
+    if ((pathname === '/admin-login' || pathname.startsWith('/api/')) && !sameOriginMutationAllowed(request)) {
+      return withSecurityHeaders(json({ error:'Origem da solicitação não autorizada.' },403));
+    }
+
     if (pathname === '/admin-login' && request.method === 'GET') {
-      if (await validSession(request, env)) return Response.redirect(new URL(ADMIN_APP_PATH, url), 302);
-      return html(loginPage(env.ADMIN_PASSWORD ? '' : 'A administração ainda não foi ativada. Configure o segredo ADMIN_PASSWORD no Cloudflare.'));
+      if (await validSession(request, env)) return withSecurityHeaders(Response.redirect(new URL(ADMIN_APP_PATH, url), 302));
+      return withSecurityHeaders(html(loginPage(env.ADMIN_PASSWORD ? '' : 'A administração ainda não foi ativada. Configure o segredo ADMIN_PASSWORD no Cloudflare.')));
     }
 
     if (pathname === '/admin-login' && request.method === 'POST') {
       const configured = String(env.ADMIN_PASSWORD || '');
-      if (!configured) return html(loginPage('A administração está bloqueada até o segredo ADMIN_PASSWORD ser configurado no Cloudflare.'), 503);
+      if (!configured) return withSecurityHeaders(html(loginPage('A administração está bloqueada até o segredo ADMIN_PASSWORD ser configurado no Cloudflare.'), 503));
       const form = await request.formData();
       const supplied = String(form.get('password') || '');
-      if (!supplied || !(await secureEqualText(supplied, configured))) return html(loginPage('Senha incorreta.'), 401);
-      const token = await createSession(configured);
-      return new Response(null, { status: 302, headers: { location: ADMIN_APP_PATH, 'set-cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`, 'cache-control': 'no-store' } });
+      if (!supplied || !(await secureEqualText(supplied, configured))) return delayedLoginFailure('Senha incorreta.', 401);
+      const token = await createSession(sessionSigningSecret(env));
+      return withSecurityHeaders(new Response(null, { status: 302, headers: { location: ADMIN_APP_PATH, 'set-cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`, 'cache-control': 'no-store' } }));
     }
 
     if (pathname === '/admin-logout') {
-      return new Response(null, { status: 302, headers: { location: '/', 'set-cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`, 'cache-control': 'no-store' } });
+      return withSecurityHeaders(new Response(null, { status: 302, headers: { location: '/', 'set-cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`, 'cache-control': 'no-store' } }));
     }
 
     if (isProtectedApi(pathname) && !(await validSession(request, env))) {
-      return json({ error: 'Acesso administrativo não autorizado.' }, 401);
+      return withSecurityHeaders(json({ error: 'Acesso administrativo não autorizado.' }, 401));
     }
 
     const canvaResponse = await handleCanvaBridgeRequest(request, env);
-    if (canvaResponse) return canvaResponse;
+    if (canvaResponse) return withSecurityHeaders(canvaResponse);
 
     const muralQaRequested = request.headers.get('x-mural-qa') === '1';
     const muralQaAsset = request.method === 'GET' && (
@@ -154,23 +210,23 @@ export default {
       ? await validSession(request, env)
       : false;
     const muralResponse = await handleMuralRequest(request, env, { qaAuthorized: muralQaSession });
-    if (muralResponse) return muralResponse;
+    if (muralResponse) return withSecurityHeaders(muralResponse);
 
     const listingEditorResponse = await handleCommerceListingEditorRequest(request, env);
-    if (listingEditorResponse) return listingEditorResponse;
+    if (listingEditorResponse) return withSecurityHeaders(listingEditorResponse);
 
     const productStateResponse = await handleCommerceProductStateRequest(request, env);
-    if (productStateResponse) return productStateResponse;
+    if (productStateResponse) return withSecurityHeaders(productStateResponse);
 
     const listingStateResponse = await handleCommerceListingStateRequest(request, env);
-    if (listingStateResponse) return listingStateResponse;
+    if (listingStateResponse) return withSecurityHeaders(listingStateResponse);
 
     const commerceUpdateResponse = await handleCommerceUpdateAdminRequest(request, env);
-    if (commerceUpdateResponse) return commerceUpdateResponse;
+    if (commerceUpdateResponse) return withSecurityHeaders(commerceUpdateResponse);
 
     const commerceResponse = await handleCommerceAdminRequest(request, env);
-    if (commerceResponse) return commerceResponse;
+    if (commerceResponse) return withSecurityHeaders(commerceResponse);
 
-    return app.fetch(request, env, ctx);
+    return withSecurityHeaders(await app.fetch(request, env, ctx));
   }
 };
