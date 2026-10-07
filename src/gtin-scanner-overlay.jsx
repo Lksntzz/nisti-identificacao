@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isValidGtin13 } from './gtin.js';
 import { decodeEan13LumaRow, imageDataToLumaRow } from './gtin-camera-decoder.js';
-import { lookupGtinDirect, normalizeGtinProduct } from './gtin-supabase-lookup.js';
+import { normalizeGtinProduct } from './gtin-product-normalizer.js';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import './gtin-scanner.css';
 
@@ -508,59 +508,29 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       ...(operatorName ? { 'x-operator-name': encodeURIComponent(operatorName) } : {}),
       ...(operatorId ? { 'x-user-id': operatorId } : {})
     };
-    const lookupStartedAt = Date.now();
-    let directError = null;
-    let directResult = null;
     let workerStatus = 0;
     let workerData = null;
+    let workerError = null;
 
     try {
       try {
-        directResult = await lookupGtinDirect(gtin);
-      } catch (error) {
-        directError = error;
-      }
-
-      if (directResult?.product) {
-        const accepted = acceptProduct(directResult.product);
-
-        void fetch('/api/gtin-events', {
-          method: 'POST',
-          credentials: 'same-origin',
-          cache: 'no-store',
-          headers: {
-            accept: 'application/json',
-            'content-type': 'application/json',
-            ...operatorHeaders
-          },
-          body: JSON.stringify({
-            gtin,
-            status: 'identified',
-            product_id: directResult.product.id,
-            response_ms: Date.now() - lookupStartedAt
-          })
-        }).catch(() => {});
-
-        return accepted;
-      }
-
-      try {
         const response = await fetch(`/api/gtin/${encodeURIComponent(gtin)}`, {
-          method: 'GET',
-          credentials: 'same-origin',
-          cache: 'no-store',
-          headers: {
-            accept: 'application/json',
+          method:'GET',
+          credentials:'same-origin',
+          cache:'no-store',
+          headers:{
+            accept:'application/json',
             ...operatorHeaders
           }
         });
-        workerStatus = response.status;
-        workerData = await response.json().catch(() => null);
-
-        if (response.ok && workerData?.product) {
+        workerStatus=response.status;
+        workerData=await response.json().catch(()=>null);
+        if(response.ok&&workerData?.product){
           return acceptProduct(workerData.product);
         }
-      } catch {}
+      }catch(error){
+        workerError=error;
+      }
 
       const cachedProduct = cachedProductForGtin(gtin);
       if (cachedProduct) return acceptProduct(cachedProduct);
@@ -568,13 +538,13 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       setCaptureFeedback('error');
       feedbackTimeoutRef.current = setTimeout(() => setCaptureFeedback('idle'), 900);
 
-      if (workerStatus === 404 || (!directError && directResult === null)) {
+      if (workerStatus === 404) {
         lastRejectedRef.current = { value: gtin, at: Date.now() };
         setLookupError(`EAN ${gtin} não está cadastrado no catálogo sincronizado.`);
         return false;
       }
 
-      setLookupError(workerData?.error || directError?.message || 'Falha de conexão ao consultar o EAN.');
+      setLookupError(workerData?.error || workerError?.message || 'Falha de conexão ao consultar o EAN.');
       return false;
     } finally {
       lookupBusyRef.current = false;
