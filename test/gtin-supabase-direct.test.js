@@ -1,58 +1,32 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { normalizeGtinProduct } from '../src/gtin-supabase-lookup.js';
+import { normalizeGtinProduct } from '../src/gtin-product-normalizer.js';
 
 const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
-const directLookup = fs.readFileSync(new URL('../src/gtin-supabase-lookup.js', import.meta.url), 'utf8');
-const edgeFunction = fs.readFileSync(new URL('../supabase/functions/gtin-lookup/index.ts', import.meta.url), 'utf8');
 
-test('scanner resolves EAN through Supabase before the legacy Worker route', () => {
-  assert.match(scanner, /lookupGtinDirect\(gtin\)/);
-  const directIndex = scanner.indexOf('lookupGtinDirect(gtin)');
+test('scanner resolves EAN only through the same-origin Worker API', () => {
+  assert.match(scanner, /fetch\(\`\/api\/gtin\/\$\{encodeURIComponent\(gtin\)\}\`/);
+  assert.doesNotMatch(scanner, /lookupGtinDirect/);
+  assert.doesNotMatch(scanner, /supabase\.co\/functions\/v1\/gtin-lookup/);
+});
+
+test('scanner retains local history only as a last-resort display cache', () => {
   const workerIndex = scanner.indexOf('fetch(`/api/gtin/${encodeURIComponent(gtin)}`');
-  assert.ok(directIndex >= 0);
-  assert.ok(workerIndex > directIndex);
+  const cacheIndex = scanner.indexOf('cachedProductForGtin(gtin)', workerIndex);
+  assert.ok(workerIndex >= 0);
+  assert.ok(cacheIndex > workerIndex);
 });
-
-test('Cloudflare telemetry is best effort and cannot block an identified product', () => {
-  assert.match(scanner, /void fetch\('\/api\/gtin-events'/);
-  assert.match(scanner, /\.catch\(\(\) => \{\}\)/);
-});
-
-test('scanner retains a local last-resort lookup path', () => {
-  assert.match(scanner, /cachedProductForGtin\(gtin\)/);
-  assert.match(scanner, /loadGtinHistory\(\)\.find/);
-});
-
-test('browser direct lookup calls only the dedicated Supabase Edge Function', () => {
-  assert.match(directLookup, /supabase\.co\/functions\/v1\/gtin-lookup/);
-  assert.doesNotMatch(directLookup, /service[_-]?role/i);
-  assert.doesNotMatch(directLookup, /apikey/i);
-  assert.match(directLookup, /response\.status === 404/);
-});
-
-test('Edge Function validates GTIN and keeps service credentials server-side', () => {
-  assert.match(edgeFunction, /\^\\d\{13\}\$/);
-  assert.match(edgeFunction, /Deno\.env\.get\("SUPABASE_SERVICE_ROLE_KEY"\)/);
-  assert.match(edgeFunction, /nisti_reserve_gtin_lookup_v1/);
-  assert.match(edgeFunction, /method !== "GET"/);
-});
-
 
 test('scanner expands accessory finish codes into readable color names', () => {
   const product = normalizeGtinProduct({
-    wireo_code: 'R',
-    tassel_code: 'A',
-    elastico_code: 'V'
+    wireo_code:'R',
+    tassel_code:'A',
+    elastico_code:'V'
   });
-
-  assert.equal(product.wireo, 'Rose Gold');
-  assert.equal(product.tassel, 'Azul');
-  assert.equal(product.elastico, 'Verde');
-
-  assert.equal(
-    normalizeGtinProduct({ tassel_code: 'X' }).tassel,
-    'Sem tassel'
-  );
+  assert.equal(product.wireo,'Rose Gold');
+  assert.equal(product.tassel,'Azul');
+  assert.equal(product.elastico,'Verde');
+  assert.equal(normalizeGtinProduct({ tassel_code:'X', elastico_code:'X' }).tassel,'Sem tassel');
+  assert.equal(normalizeGtinProduct({ tassel_code:'X', elastico_code:'X' }).elastico,'Sem elástico');
 });
