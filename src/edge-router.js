@@ -169,8 +169,49 @@ function html(body, status = 200) {
   return new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store, private', 'x-robots-tag': 'noindex, nofollow' } });
 }
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+function json(data, status = 200, extraHeaders = {}) {
+  const headers = new Headers({
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store'
+  });
+  for (const [name, value] of Object.entries(extraHeaders || {})) {
+    headers.set(name, String(value));
+  }
+  return new Response(JSON.stringify(data), { status, headers });
+}
+
+function rateLimitKey(request, scope) {
+  const clientIp = String(request.headers.get('CF-Connecting-IP') || 'anonymous')
+    .trim()
+    .slice(0, 128) || 'anonymous';
+  return `${scope}:${clientIp}`;
+}
+
+async function enforceRateLimit(env, request, pathname) {
+  const method = String(request.method || '').toUpperCase();
+  const loginRequest = pathname === '/admin-login' && method === 'POST';
+  const apiRequest = pathname.startsWith('/api/');
+  if (!loginRequest && !apiRequest) return null;
+
+  const binding = env?.[loginRequest ? 'LOGIN_RATE_LIMITER' : 'GLOBAL_RATE_LIMITER'];
+  if (!binding || typeof binding.limit !== 'function') return null;
+
+  const scope = loginRequest ? 'admin-login' : 'api';
+  try {
+    const result = await binding.limit({ key: rateLimitKey(request, scope) });
+    if (result?.success === false) {
+      return withSecurityHeaders(
+        json(
+          { error: 'Muitas requisições. Tente novamente em instantes.' },
+          429,
+          { 'retry-after': '60' }
+        )
+      );
+    }
+  } catch (error) {
+    console.error('[Rate limit] Falha ao consultar binding do Cloudflare', error?.message || error);
+  }
+  return null;
 }
 
 function sameOriginMutationAllowed(request) {
@@ -240,6 +281,9 @@ export default {
     if ((pathname === '/admin-login' || pathname.startsWith('/api/')) && !sameOriginMutationAllowed(request)) {
       return withSecurityHeaders(json({ error:'Origem da solicitação não autorizada.' },403));
     }
+
+    const rateLimitResponse = await enforceRateLimit(env, request, pathname);
+    if (rateLimitResponse) return rateLimitResponse;
 
     if (pathname === '/admin-login' && request.method === 'GET') {
       if (await validSession(request, env)) return withSecurityHeaders(Response.redirect(new URL(ADMIN_APP_PATH, url), 302));
