@@ -290,7 +290,7 @@ function hasTasselLabel(product) {
   const value = String(product?.tassel || product?.tassel_code || '')
     .trim()
     .normalize('NFD')
-    .replace(/[\\u0300-\\u036f]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase();
   return !value || ['X', 'N', 'NAO', 'NO', 'FALSE', '0'].includes(value) || value.includes('SEM TASSEL')
     ? 'Não'
