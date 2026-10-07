@@ -125,9 +125,20 @@ self.addEventListener('push', event => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
+function safeNotificationTarget(value) {
+  try {
+    const target = new URL(String(value || '/'), self.location.origin);
+    if (target.origin !== self.location.origin) return '/';
+    if (!target.pathname.startsWith('/')) return '/';
+    return target.pathname + target.search + target.hash;
+  } catch {
+    return '/';
+  }
+}
+
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const targetUrl = safeNotificationTarget(event.notification.data?.url);
 
   event.waitUntil((async () => {
     const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
