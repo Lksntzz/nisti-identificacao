@@ -132,7 +132,7 @@ function withSecurityHeaders(response) {
   if (contentType.includes('text/html')) {
     headers.set(
       'content-security-policy',
-      "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://yioetdcbgorunwgwuawg.supabase.co https://api.canva.com https://www.canva.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'"
+      "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://yioetdcbgorunwgwuawg.supabase.co https://api.canva.com https://www.canva.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:; manifest-src 'self'"
     );
   }
 
