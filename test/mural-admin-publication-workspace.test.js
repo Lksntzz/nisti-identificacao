@@ -28,7 +28,7 @@ test('product panel contains product search editorial image copy and system acti
   assert.ok(admin.includes('Título da publicação'));
   assert.ok(admin.includes('Descrição curta'));
   assert.ok(admin.includes('Ação no Mural'));
-  assert.ok(admin.includes('activeKind === 'collection' ? 'Ver coleção' : activeKind === 'notice' ? 'Ver aviso' : 'Ver produto''));
+  assert.ok(admin.includes("activeKind === 'collection' ? 'Ver coleção' : activeKind === 'notice' ? 'Ver aviso' : 'Ver produto'"));
 });
 
 test('information panel has priority category copy and image controls', () => {
