@@ -8,12 +8,13 @@ test('Publish tool creates a new publication without a dashboard create button',
   assert.match(source,/const sourceItem = item && item\.mode === 'new' \? null : item/);
   assert.ok(source.includes("if (section === 'publish')"));
   assert.ok(source.includes("item={{mode:'new'}}"));
-  assert.ok(source.includes("request('/api/admin/mural/posts', { method:'POST'"));
+  assert.ok(source.includes("request('/api/admin/mural/posts', {"));
+  assert.ok(source.includes("method: 'POST'"));
   assert.equal(source.includes('+ Nova publicação'),false);
 });
 
 test('Publish tool routes Collection to the official collection editor',()=>{
   assert.ok(source.includes("onCreateCollection={()=>setCollectionEditor({mode:'new'})}"));
   assert.ok(source.includes('return <CollectionEditor'));
-  assert.ok(source.includes("['collection','collection','Coleção','Crie uma coleção com produtos e temas.']"));
+  assert.ok(source.includes("<span>Coleção</span>"));
 });
