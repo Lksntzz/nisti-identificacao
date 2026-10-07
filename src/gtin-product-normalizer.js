@@ -10,12 +10,13 @@ function colorLabel(value, colors, code, emptyLabel = '') {
   return colors[raw] || colors[normalizedCode(code)] || String(value || code || '').trim();
 }
 
-function tasselPresenceLabel(value, code) {
+function tasselLabel(value, code) {
   const raw = normalizedCode(value);
   const effective = normalizedCode(code) || raw;
   if (!effective) return '';
   const noTassel = new Set(['X', 'N', 'NAO', 'NÃO', 'NO', 'FALSE', '0', 'SEM TASSEL']);
-  return noTassel.has(effective) ? 'Não' : 'Sim';
+  if (noTassel.has(effective)) return 'Não';
+  return ACCESSORY_COLORS[effective] || String(value || code || '').trim() || effective;
 }
 
 export function normalizeGtinProduct(product) {
@@ -33,7 +34,7 @@ export function normalizeGtinProduct(product) {
   return {
     ...product,
     wireo: colorLabel(wireoCode || product.wireo || product.wireo_code, WIREO_COLORS, wireoCode),
-    tassel: tasselPresenceLabel(product.tassel || product.tassel_code, tasselCode),
+    tassel: tasselLabel(product.tassel || product.tassel_code, tasselCode),
     elastico: colorLabel(elasticoCode || product.elastico || product.elastico_code, ACCESSORY_COLORS, elasticoCode, 'Sem elástico')
   };
 }
