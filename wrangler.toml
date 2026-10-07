@@ -26,6 +26,12 @@ namespace_id = "419002"
 simple.limit = 10
 simple.period = 60
 
+[[ratelimits]]
+name = "CANVA_ART_RATE_LIMITER"
+namespace_id = "419003"
+simple.limit = 6
+simple.period = 60
+
 
 
 
