@@ -31,8 +31,8 @@ export function normalizeGtinProduct(product) {
 
   return {
     ...product,
-    wireo: colorLabel(product.wireo || product.wireo_code, WIREO_COLORS, wireoCode),
+    wireo: colorLabel(wireoCode || product.wireo || product.wireo_code, WIREO_COLORS, wireoCode),
     tassel: tasselPresenceLabel(product.tassel || product.tassel_code, tasselCode),
-    elastico: colorLabel(product.elastico || product.elastico_code, ACCESSORY_COLORS, elasticoCode)
+    elastico: colorLabel(elasticoCode || product.elastico || product.elastico_code, ACCESSORY_COLORS, elasticoCode)
   };
 }
