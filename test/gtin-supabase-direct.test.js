@@ -25,7 +25,7 @@ test('scanner expands accessory finish codes and tassel presence', () => {
     elastico_code:'V'
   });
   assert.equal(product.wireo,'Rose Gold');
-  assert.equal(product.tassel,'Sim');
+  assert.equal(product.tassel,'Azul');
   assert.equal(product.elastico,'Verde');
   assert.equal(normalizeGtinProduct({ tassel_code:'X', elastico_code:'X' }).tassel,'Não');
   assert.equal(normalizeGtinProduct({ tassel_code:'X', elastico_code:'X' }).elastico,'Sem elástico');

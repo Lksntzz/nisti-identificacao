@@ -201,7 +201,7 @@ function ProductSummary({ gtin, product, continuous = false }) {
 
   const primaryDetails = [
     { label: 'Wire-o', value: product.wireo || product.wireo_code, icon: 'wireo' },
-    { label: 'Tassel', value: hasTasselLabel(product), icon: 'tassel' },
+    { label: 'Tassel', value: product.tassel || product.tassel_code, icon: 'tassel' },
     { label: 'Elástico', value: elasticLabel(product), icon: 'elastic' }
   ].filter(item => item.value);
 
