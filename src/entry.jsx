@@ -16,11 +16,10 @@ function registerNistiServiceWorker() {
 registerNistiServiceWorker();
 
 function getInitialRoute() {
-  const pathname = window.location.pathname;
-  if (pathname === '/admin-commerce') {
+  if (window.location.pathname === '/admin-commerce') {
     return 'commerce';
   }
-  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+  if (window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')) {
     return 'admin';
   }
   return 'public';
