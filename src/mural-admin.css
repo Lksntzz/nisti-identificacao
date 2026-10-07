@@ -2080,6 +2080,169 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
   box-shadow:0 8px 17px rgba(37,99,235,.20);
 }
 
+/* Publicação: editor compacto, com todos os grupos sempre legíveis no desktop.
+   A prévia usa as mesmas peças do Mural, mas nunca pode escapar do mockup do celular. */
+.mural-publish-v2-preview .mural-admin-shared-preview{
+  min-width:0;
+  overflow:hidden;
+}
+.mural-publish-v2-preview .mural-admin-shared-preview .mural-card{
+  max-width:100%;
+}
+
+@media (min-width:1024px){
+  .mural-publish-v2{
+    max-width:none;
+    gap:8px;
+  }
+  .mural-publish-v2-page-header{
+    min-height:54px;
+    padding-bottom:0;
+  }
+  .mural-publish-v2-page-header .mural-publisher-title-icon{
+    width:42px;
+    height:42px;
+    flex-basis:42px;
+    border-radius:12px;
+  }
+  .mural-publish-v2-page-header .mural-publisher-title h2{font-size:24px}
+  .mural-publish-v2-page-header .mural-publisher-title p{font-size:11px}
+  .mural-publish-v2-shell{
+    grid-template-columns:minmax(0,1fr) minmax(300px,350px);
+    gap:12px;
+  }
+  .mural-publish-v2-form{gap:8px}
+  .mural-publish-v2-step-heading{
+    min-height:46px;
+    gap:9px;
+    padding:9px 12px 7px;
+  }
+  .mural-publish-v2-step-number{
+    width:26px;
+    height:26px;
+    flex-basis:26px;
+    font-size:11px;
+  }
+  .mural-publish-v2-step-heading strong{font-size:12px}
+  .mural-publish-v2-step-heading small{font-size:8.5px}
+  .mural-publish-v2-type-grid{
+    gap:7px;
+    padding:0 12px 11px;
+  }
+  .mural-publish-v2-type-grid button{
+    min-height:72px;
+    grid-template-columns:34px minmax(0,1fr) 22px;
+    gap:7px;
+    padding:9px;
+    border-radius:10px;
+  }
+  .mural-publish-v2-type-icon{width:34px;height:34px}
+  .mural-publish-v2-type-icon svg{width:18px;height:18px}
+  .mural-publish-v2-type-copy{gap:2px}
+  .mural-publish-v2-type-copy b{font-size:11px}
+  .mural-publish-v2-type-copy small{font-size:8px;line-height:1.2}
+  .mural-publish-v2-type-action{width:22px;height:22px}
+  .mural-publish-v2-product-layout,
+  .mural-publish-v2-information-layout,
+  .mural-publish-v2-collection-top{
+    gap:10px;
+    padding:0 12px 8px;
+  }
+  .mural-publish-v2-product-copy,
+  .mural-publish-v2-information-copy{gap:7px}
+  .mural-publish-v2-field{gap:4px;font-size:9px}
+  .mural-publish-v2-field input,
+  .mural-publish-v2-field select,
+  .mural-publish-v2-field textarea{
+    min-height:32px;
+    padding:6px 8px;
+    border-radius:7px;
+    font-size:9px;
+  }
+  .mural-publish-v2-field textarea{
+    min-height:45px;
+    resize:none;
+  }
+  .mural-publish-v2-search>span,
+  .mural-publish-v2-input-icon{gap:5px;padding-left:8px;border-radius:7px}
+  .mural-publish-v2-search>span input,
+  .mural-publish-v2-input-icon input{min-height:30px}
+  .mural-publish-v2-selected-product{min-height:48px;grid-template-columns:36px minmax(0,1fr) 24px;gap:7px;padding:5px 7px}
+  .mural-publish-v2-selected-product figure{width:36px;height:36px}
+  .mural-publish-v2-selected-product b{font-size:9px}
+  .mural-publish-v2-selected-product small{font-size:7.5px}
+  .mural-publish-v2-selected-product>button{width:23px;height:23px}
+  .mural-publish-v2-upload,
+  .mural-publish-v2-image-preview{min-height:82px}
+  .mural-publish-v2-image-preview img{height:82px}
+  .mural-publish-v2-upload{gap:3px;padding:8px}
+  .mural-publish-v2-upload>svg{width:18px;height:18px}
+  .mural-publish-v2-upload b{font-size:8px}
+  .mural-publish-v2-upload small{font-size:7px}
+  .mural-publish-v2-upload-action{min-height:22px;padding:0 7px;font-size:7px}
+  .mural-publish-v2-copy-grid{gap:7px 9px;padding:0 12px}
+  .mural-publish-v2-content-step{padding-bottom:10px}
+  .mural-publish-v2-canva .mural-publish-v2-canva-body{padding-bottom:8px}
+  .mural-publish-v2-canva-controls{gap:8px;padding:0 12px}
+  .mural-publish-v2-canva-controls label{font-size:9px}
+  .mural-publish-v2-canva-controls select,
+  .mural-publish-v2-canva-create{min-height:31px;font-size:8px}
+  .mural-publish-v2-canva-hint{margin:7px 12px 0;font-size:7px}
+  .mural-publish-v2-settings{padding-bottom:9px}
+  .mural-publish-v2-settings-grid{gap:7px;padding:0 12px}
+  .mural-publish-v2-switch,
+  .mural-publish-v2-setting-note{min-height:44px;padding:6px 8px}
+  .mural-publish-v2-switch b,
+  .mural-publish-v2-setting-note b{font-size:8px}
+  .mural-publish-v2-switch small,
+  .mural-publish-v2-setting-note small{font-size:6.8px}
+  .mural-publish-v2-preview>header{min-height:58px;padding:10px 11px 6px}
+  .mural-publish-v2-preview-icon{width:32px;height:32px;border-radius:9px}
+  .mural-publish-v2-preview-icon svg{width:17px;height:17px}
+  .mural-publish-v2-preview>header{grid-template-columns:32px minmax(0,1fr) 15px;gap:8px}
+  .mural-publish-v2-preview>header strong{font-size:12px}
+  .mural-publish-v2-preview>header small{font-size:8px}
+  .mural-publish-v2-preview-body{min-height:0;padding:2px 11px 10px}
+  .mural-publish-v2-preview .mural-admin-phone{
+    width:min(100%,268px);
+    min-height:0;
+    padding:10px 8px 12px;
+    border-width:3px;
+    border-radius:29px;
+  }
+  .mural-publish-v2-preview .mural-admin-phone-head{min-height:34px;padding:0 4px 6px}
+  .mural-publish-v2-preview .mural-admin-phone-head b{font-size:10px}
+  .mural-publish-v2-preview .mural-admin-phone-head span{font-size:7px}
+  .mural-publish-v2-preview .mural-admin-shared-preview{padding-top:7px}
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-reference{
+    min-height:104px;
+    grid-template-columns:78px minmax(0,1fr);
+    gap:8px;
+    padding:7px 31px 7px 7px;
+    border-radius:13px;
+  }
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-media{width:78px;height:90px;min-height:90px;border-radius:10px}
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-title-row strong{font-size:12px}
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-product-name,
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-subtitle,
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-summary{font-size:8px;line-height:1.2}
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-new-pill{min-height:15px;padding:2px 5px;font-size:6px}
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-relative-date,
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-reference-meta{font-size:6.5px}
+  .mural-publish-v2-preview .mural-admin-shared-preview .mural-card-arrow{right:7px;width:25px;height:25px;margin-top:-12px}
+  .mural-publish-v2-preview>footer{margin:0 11px 11px;padding:7px 8px}
+  .mural-publish-v2-preview>footer span{font-size:7px}
+  .mural-publish-v2-actions{min-height:50px;padding:6px 8px}
+  .mural-publish-v2-actions button{min-height:33px;padding:0 11px;font-size:8.5px}
+}
+
+@media (min-width:1024px) and (max-height:760px){
+  .mural-publish-v2 .mural-publisher-breadcrumb{display:none}
+  .mural-publish-v2-page-header{display:none}
+  .mural-publish-v2-preview>footer{display:none}
+  .mural-publish-v2-actions{position:sticky;bottom:4px}
+}
+
 /* Collection panel inside Publicar */
 .mural-publish-v2-collection{
   display:grid;
