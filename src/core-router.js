@@ -19,7 +19,6 @@ import {
 import {
   supabaseReserveProducts,
   supabaseProductImageContext,
-  supabaseReadsRequested,
   supabaseRpc,
   supabaseProductTreatmentSummary,
   supabaseProductTreatmentQueue
