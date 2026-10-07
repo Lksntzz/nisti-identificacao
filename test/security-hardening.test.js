@@ -90,7 +90,7 @@ test('admin session cookie is HttpOnly Secure Strict and can use a dedicated sig
 
 test('public operator route cannot load admin panels from hash shortcuts', () => {
   const entry = fs.readFileSync(new URL('../src/entry.jsx', import.meta.url), 'utf8');
-  assert.match(entry, /pathname === '\\/admin'/);
+  assert.match(entry, /pathname === '\/admin'/);
   assert.doesNotMatch(entry, /hash.*admin|mural-admin/);
 });
 
