@@ -193,7 +193,7 @@ Permite:
 
 ## Integração Canva
 
-O Canva está integrado diretamente ao NISTI e atualmente é usado no **Mural → Tratamento**.
+O Canva está integrado diretamente ao NISTI e é usado em dois fluxos: **Mural → Tratamento**, para recorte de imagens, e **Mural → Publicar**, para criação de artes a partir de Brand Templates com campos de preenchimento automático.
 
 ### Autenticação
 
@@ -205,6 +205,9 @@ Escopos solicitados atualmente:
 - `asset:write`
 - `design:content:read`
 - `design:content:write`
+- `design:meta:read`
+- `brandtemplate:meta:read`
+- `brandtemplate:content:read`
 - `profile:read`
 
 O painel possui ações para:
@@ -224,6 +227,26 @@ Os segredos da aplicação Canva permanecem no Cloudflare Worker:
 Tokens OAuth não são gravados em texto puro.
 
 O payload da conexão é criptografado com AES-GCM antes de ser armazenado no Supabase. As tabelas e RPCs da conexão são restritas ao `service_role`.
+
+### Criação de artes no Publicar
+
+O editor **Mural → Publicar** usa a mesma conexão OAuth do Canva para criar artes de Produto, Informação e Coleção.
+
+Fluxo:
+
+1. o administrador preenche os dados da publicação no NISTI;
+2. o sistema lista os Brand Templates Canva que possuem dataset/autofill;
+3. o administrador escolhe um template;
+4. o NISTI envia textos e imagens compatíveis com os campos do template;
+5. o Canva cria um novo design por Autofill;
+6. o sistema disponibiliza **Editar no Canva**;
+7. depois da edição, **Usar esta arte** exporta a primeira página em PNG;
+8. o PNG volta para o editor do NISTI e entra na prévia da publicação;
+9. ao salvar/publicar, a arte segue o mesmo fluxo de imagem editorial da publicação.
+
+A criação de arte não publica conteúdo automaticamente. O administrador continua responsável por confirmar **Salvar rascunho** ou **Publicar** no NISTI.
+
+Conexões Canva criadas antes da inclusão dos novos escopos podem exigir uma reconexão única para autorizar Brand Templates e criação/exportação de designs.
 
 ### Tratamento de imagem com Canva
 
@@ -324,7 +347,8 @@ Cloudflare Worker
           │          imagens originais e derivadas
           │
           └────────► Canva API
-                     remoção de fundo e PNG transparente
+                     remoção de fundo, Brand Templates,
+                     Autofill e exportação PNG
 ```
 
 ### Supabase
@@ -369,6 +393,9 @@ Protegidas pela sessão administrativa:
 - `GET /api/admin/canva/status`
 - `POST /api/admin/canva/connect`
 - `POST /api/admin/canva/background-remove`
+- `GET /api/admin/canva/templates`
+- `POST /api/admin/canva/art/create`
+- `POST /api/admin/canva/art/export`
 - `POST /api/admin/canva/disconnect`
 - `GET /canva-oauth/callback` — callback OAuth.
 
@@ -469,7 +496,7 @@ O deploy de produção é serializado para reduzir risco de publicações concor
 | Mural | Painel / Publicar / Tratamento |
 | Publicar | Produto / Informação / Coleção |
 | Catálogo | Catálogo / Vendas / Central de Importações / Pendências |
-| Canva | Integrado via OAuth e ativo no tratamento de imagens |
+| Canva | OAuth ativo no tratamento de imagens e na criação de artes do Publicar |
 | Processador de imagens | Versão 25 |
 | Reconhecimento visual próprio | Removido |
 | Gemini / Workers AI | Removidos |
