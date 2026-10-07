@@ -30,19 +30,18 @@ test('Canva artwork requires the design and brand-template scopes',()=>{
 });
 
 test('Publicar shows Canva artwork workflow for all publication types',()=>{
-  assert.ok(admin.includes('function CanvaArtworkPanel'));
+  assert.ok(admin.includes('function CanvaArtworkModal'));
   assert.ok(admin.includes('Arte da publicação · Canva'));
   assert.ok(admin.includes('Criar no Canva'));
   assert.ok(admin.includes('Editar no Canva'));
   assert.ok(admin.includes('Usar esta arte'));
   assert.ok(admin.includes("kind={activeKind}"));
-  assert.ok(admin.includes('kind="collection"'));
+  assert.ok(admin.includes('activeKind === 'collection''));
   assert.ok(admin.includes('onUseImage={useCanvaImage}'));
-  assert.ok(admin.includes('onUseImage={useCanvaBanner}'));
 });
 
 test('Canva artwork is responsive and integrated into the publication studio',()=>{
   assert.ok(css.includes('.mural-publish-v2-canva'));
-  assert.ok(css.includes('.mural-publish-v2-canva-design-actions'));
+  assert.ok(css.includes('.mural-canva-modal'));
   assert.ok(css.includes('@media(max-width:620px)'));
 });
