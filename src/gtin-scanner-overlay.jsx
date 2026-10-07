@@ -14,11 +14,10 @@ const GTIN_HISTORY_LIMIT = 20;
 function scannerOperatorContext() {
   try {
     return {
-      operatorName: localStorage.getItem('nisti_operator_name') || '',
-      operatorId: localStorage.getItem('nisti_shipping_user_id') || ''
+      operatorName: localStorage.getItem('nisti_operator_name') || ''
     };
   } catch {
-    return { operatorName: '', operatorId: '' };
+    return { operatorName: '' };
   }
 }
 
@@ -503,10 +502,9 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
       return true;
     };
 
-    const { operatorName, operatorId } = scannerOperatorContext();
+    const { operatorName } = scannerOperatorContext();
     const operatorHeaders = {
-      ...(operatorName ? { 'x-operator-name': encodeURIComponent(operatorName) } : {}),
-      ...(operatorId ? { 'x-user-id': operatorId } : {})
+      ...(operatorName ? { 'x-operator-name': encodeURIComponent(operatorName) } : {})
     };
     let workerStatus = 0;
     let workerData = null;
