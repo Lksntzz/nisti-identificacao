@@ -189,22 +189,12 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === '/api/health') {
-        const supabaseReads = supabaseReadsRequested(env);
-        const supabaseWrites = supabasePrimaryWritesRequested(env);
-        const d1Attached = Boolean(env?.DB);
         return json({
-          ok: true,
-          service: 'nisti-identificacao',
-          database: {
-            primary: supabaseReads ? 'supabase' : 'd1',
-            write_authority: supabaseWrites ? 'supabase' : 'd1',
-            d1_binding_configured:d1Attached,
-            compatibility_store:d1Attached ? 'd1' : 'detached',
-            emergency_fallback_enabled:false,
-            d1_reserve_circuit_open:false,
-            d1_reserve_circuit_open_until:null,
-            d1_reserve_circuit_remaining_ms:0
-          }
+          ok:true,
+          service:'nisti-identificacao'
+        },200,{
+          'cache-control':'no-store',
+          'x-content-type-options':'nosniff'
         });
       }
 
