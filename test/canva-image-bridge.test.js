@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handleCanvaImageBridgeRequest } from '../src/canva-image-router.js';
+import { handleCanvaImageBridgeRequest, imageIndexForField } from '../src/canva-image-router.js';
+
+test('Canva artwork keeps numbered image fields in their intended order', () => {
+  assert.equal(imageIndexForField('IMAGEM DO ITEM 1', 1), 0);
+  assert.equal(imageIndexForField('IMAGEM DO ITEM 2', 0), 1);
+  assert.equal(imageIndexForField('Capa 6', 0), 5);
+  assert.equal(imageIndexForField('Imagem principal', 3), 0);
+});
 
 test('Canva bridge reports missing Worker secrets without exposing credentials', async () => {
   const response = await handleCanvaImageBridgeRequest(
