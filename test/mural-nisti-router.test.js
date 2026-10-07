@@ -23,9 +23,8 @@ test('mural feed excludes unpublished, future and expired content', () => {
 });
 
 test('mural router is registered before app fallback', () => {
-  assert.match(edgeRouter, /handleMuralRequest/);
-  const muralPosition = edgeRouter.indexOf('handleMuralRequest');
-  const appPosition = edgeRouter.lastIndexOf('return app.fetch');
+  const muralPosition = edgeRouter.indexOf('const muralResponse = await handleMuralRequest');
+  const appPosition = edgeRouter.lastIndexOf('app.fetch(');
   assert.ok(muralPosition >= 0 && muralPosition < appPosition);
 });
 
