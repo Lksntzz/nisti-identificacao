@@ -13,6 +13,8 @@ const ADMIN_APP_PATH = '/admin';
 const COMMERCE_ADMIN_APP_PATH = '/admin-commerce';
 const MUTATING_METHODS = new Set(['POST','PUT','PATCH','DELETE']);
 const LOGIN_FAILURE_DELAY_MS = 275;
+const OPERATOR_COOKIE_NAME = 'nisti_operator_session';
+const OPERATOR_SESSION_SECONDS = 60 * 60 * 24 * 180;
 
 function base64url(bytes) {
   let binary = '';
@@ -94,6 +96,70 @@ async function validSession(request, env) {
   }
 }
 
+async function operatorHmac(env, value) {
+  const secret=sessionSigningSecret(env);
+  if(!secret)return null;
+  const keyMaterial=await crypto.subtle.digest('SHA-256',textBytes(`nisti-operator:${secret}`));
+  const key=await crypto.subtle.importKey('raw',keyMaterial,{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC',key,textBytes(value)));
+}
+
+async function createOperatorSession(env) {
+  const id=`op_${crypto.randomUUID()}`;
+  const exp=Math.floor(Date.now()/1000)+OPERATOR_SESSION_SECONDS;
+  const payload=base64url(textBytes(JSON.stringify({id,exp})));
+  const signature=await operatorHmac(env,payload);
+  if(!signature)return null;
+  return {id,token:`${payload}.${base64url(signature)}`};
+}
+
+async function readOperatorSession(request,env) {
+  const token=readCookie(request,OPERATOR_COOKIE_NAME);
+  if(!token||!token.includes('.'))return null;
+  const [payloadEncoded,signatureEncoded]=token.split('.',2);
+  try{
+    const expected=await operatorHmac(env,payloadEncoded);
+    if(!expected)return null;
+    const actual=fromBase64url(signatureEncoded);
+    if(expected.length!==actual.length)return null;
+    let diff=0;
+    for(let i=0;i<expected.length;i++)diff|=expected[i]^actual[i];
+    if(diff!==0)return null;
+    const payload=JSON.parse(new TextDecoder().decode(fromBase64url(payloadEncoded)));
+    const id=String(payload?.id||'');
+    if(!/^op_[0-9a-f-]{36}$/i.test(id))return null;
+    if(Number(payload?.exp||0)<=Math.floor(Date.now()/1000))return null;
+    return {id,token};
+  }catch{
+    return null;
+  }
+}
+
+async function verifiedOperatorRequest(request,env) {
+  if(!new URL(request.url).pathname.startsWith('/api/'))return {request,setCookie:null};
+  if(new URL(request.url).pathname.startsWith('/api/admin/'))return {request,setCookie:null};
+
+  let session=await readOperatorSession(request,env);
+  let setCookie=null;
+  if(!session){
+    session=await createOperatorSession(env);
+    if(!session)return {request,setCookie:null};
+    setCookie=`${OPERATOR_COOKIE_NAME}=${session.token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${OPERATOR_SESSION_SECONDS}`;
+  }
+
+  const headers=new Headers(request.headers);
+  headers.set('x-user-id',session.id);
+  const secured=new Request(request,{headers});
+  return {request:secured,setCookie};
+}
+
+function attachOperatorCookie(response,setCookie) {
+  if(!setCookie||!(response instanceof Response))return response;
+  const headers=new Headers(response.headers);
+  headers.append('set-cookie',setCookie);
+  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+}
+
 function loginPage(message = '') {
   const safe = String(message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>NISTI ID · Administração</title><style>*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f3f4f6;color:#111827;min-height:100vh;display:grid;place-items:center;padding:20px}.card{width:min(420px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:22px;padding:28px;box-shadow:0 18px 50px rgba(17,24,39,.10)}.brand{font-size:11px;font-weight:900;letter-spacing:.16em;color:#6b7280;margin:0 0 8px}h1{font-size:28px;margin:0 0 8px}p{color:#6b7280;line-height:1.5;margin:0 0 20px}label{display:grid;gap:8px;font-size:13px;font-weight:800}input{width:100%;padding:14px 15px;border:1px solid #d1d5db;border-radius:12px;font:inherit}button{width:100%;margin-top:14px;border:0;border-radius:12px;padding:14px 16px;font:inherit;font-weight:900;background:#111827;color:#fff}.error{padding:11px 12px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;margin-bottom:16px;font-size:13px}.back{display:block;text-align:center;margin-top:16px;color:#6b7280;text-decoration:none;font-size:13px}</style></head><body><main class="card"><p class="brand">NISTI ID</p><h1>Área administrativa</h1><p>Acesso restrito. Somente pessoas autorizadas podem abrir o painel administrativo.</p>${safe ? `<div class="error">${safe}</div>` : ''}<form method="post" action="/admin-login"><label>Senha administrativa<input type="password" name="password" required autofocus autocomplete="current-password"></label><button type="submit">Entrar na administração</button></form><a class="back" href="/">Voltar ao Painel Geral</a></main></body></html>`;
@@ -132,7 +198,7 @@ function withSecurityHeaders(response) {
   if (contentType.includes('text/html')) {
     headers.set(
       'content-security-policy',
-      "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://yioetdcbgorunwgwuawg.supabase.co https://api.canva.com https://www.canva.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:; manifest-src 'self'"
+      "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://api.canva.com https://www.canva.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:; manifest-src 'self'"
     );
   }
 
@@ -198,6 +264,9 @@ export default {
       return withSecurityHeaders(json({ error: 'Acesso administrativo não autorizado.' }, 401));
     }
 
+    const operatorContext=await verifiedOperatorRequest(request,env);
+    request=operatorContext.request;
+
     const canvaResponse = await handleCanvaBridgeRequest(request, env);
     if (canvaResponse) return withSecurityHeaders(canvaResponse);
 
@@ -210,7 +279,7 @@ export default {
       ? await validSession(request, env)
       : false;
     const muralResponse = await handleMuralRequest(request, env, { qaAuthorized: muralQaSession });
-    if (muralResponse) return withSecurityHeaders(muralResponse);
+    if (muralResponse) return withSecurityHeaders(attachOperatorCookie(muralResponse,operatorContext.setCookie));
 
     const listingEditorResponse = await handleCommerceListingEditorRequest(request, env);
     if (listingEditorResponse) return withSecurityHeaders(listingEditorResponse);
@@ -227,6 +296,6 @@ export default {
     const commerceResponse = await handleCommerceAdminRequest(request, env);
     if (commerceResponse) return withSecurityHeaders(commerceResponse);
 
-    return withSecurityHeaders(await app.fetch(request, env, ctx));
+    return withSecurityHeaders(attachOperatorCookie(await app.fetch(request, env, ctx),operatorContext.setCookie));
   }
 };

@@ -38,6 +38,12 @@ function getVapidSubject(env) {
   return env?.VAPID_SUBJECT || DEFAULT_VAPID_SUBJECT;
 }
 
+const TRUSTED_PUSH_HOSTS = new Set([
+  'web.push.apple.com',
+  'fcm.googleapis.com',
+  'updates.push.services.mozilla.com'
+]);
+
 function isPrivateIpv4(hostname) {
   const match=String(hostname||'').match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if(!match)return false;
@@ -62,6 +68,7 @@ export function safePushEndpoint(value) {
     if(!host||host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')||host.endsWith('.internal'))return null;
     if(host==='::1'||host.startsWith('fe80:')||host.startsWith('fc')||host.startsWith('fd')||isPrivateIpv4(host))return null;
     if(url.username||url.password)return null;
+    if(!TRUSTED_PUSH_HOSTS.has(host))return null;
     return url.toString();
   }catch{
     return null;

@@ -1,5 +1,5 @@
 import { supabaseRpc } from './supabase-read-store.js';
-import { canvaBackgroundRemoveToPng, canvaUploadAsset, CanvaCutoutError } from './canva-product-cutout.js';
+import { canvaBackgroundRemoveToPng, canvaUploadAsset, safeCanvaDownloadUrl, CanvaCutoutError } from './canva-product-cutout.js';
 
 const CANVA_AUTHORIZE_URL = 'https://www.canva.com/api/oauth/authorize';
 const CANVA_TOKEN_URL = 'https://api.canva.com/rest/v1/oauth/token';
@@ -288,6 +288,19 @@ async function pollCanvaJob(path, token, label) {
   });
 }
 
+export function safeCanvaPageUrl(value) {
+  try {
+    const url=new URL(String(value||''));
+    const host=url.hostname.toLowerCase();
+    if(url.protocol!=='https:' || url.username || url.password) return null;
+    if(url.port && url.port!=='443') return null;
+    if(host!=='canva.com' && host!=='www.canva.com') return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 function normalizeFieldName(value) {
   return String(value || '')
     .normalize('NFD')
@@ -487,8 +500,8 @@ async function createArtwork(request,env) {
       design:{
         id:design.id,
         title:design.title||title,
-        edit_url:design.urls?.edit_url||design.url||null,
-        view_url:design.urls?.view_url||design.url||null,
+        edit_url:safeCanvaPageUrl(design.urls?.edit_url||design.url),
+        view_url:safeCanvaPageUrl(design.urls?.view_url||design.url),
         thumbnail:design.thumbnail?.url||null
       },
       template_id:templateId,
@@ -526,9 +539,9 @@ async function exportArtwork(request,env) {
     if(job?.status!=='success'){
       job=await pollCanvaJob(`/exports/${encodeURIComponent(job.id)}`,token,'a exportação da arte');
     }
-    const downloadUrl=Array.isArray(job?.urls)?job.urls[0]:'';
-    if(!downloadUrl)throw new CanvaBridgeError('Canva concluiu a exportação sem retornar o PNG.',{
-      status:502,code:'canva_export_url_missing'
+    const downloadUrl=safeCanvaDownloadUrl(Array.isArray(job?.urls)?job.urls[0]:'');
+    if(!downloadUrl)throw new CanvaBridgeError('Canva retornou uma URL de exportação inválida ou não autorizada.',{
+      status:502,code:'canva_export_url_invalid'
     });
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort('canva-art-download-timeout'),15000);

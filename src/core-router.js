@@ -19,7 +19,6 @@ import {
 import {
   supabaseReserveProducts,
   supabaseProductImageContext,
-  supabaseReadsRequested,
   supabaseRpc,
   supabaseProductTreatmentSummary,
   supabaseProductTreatmentQueue
@@ -40,8 +39,10 @@ import {
 } from './system-notifications.js';
 
 const BULK_IMPORT_LIMIT = 100;
+const MAX_ORIGINAL_PRODUCT_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_PRODUCT_MASK_BYTES = 4 * 1024 * 1024;
+const ORIGINAL_IMAGE_TYPES = new Set(['image/jpeg','image/png','image/webp']);
 const PRODUCT_IMAGE_PROCESSOR = 'canva-bgremove-alpha-outline';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
@@ -62,6 +63,11 @@ function json(data, status = 200, headers = {}) {
   });
 }
 
+function verifiedOperatorId(request) {
+  const value=String(request.headers.get('x-user-id')||'').trim();
+  return /^op_[0-9a-f-]{36}$/i.test(value) ? value : null;
+}
+
 function clean(value) {
   const text = String(value ?? '').trim();
   return text || null;
@@ -76,6 +82,17 @@ function productDisplayImageUrl(productId, imageKey, processedImageKey = null) {
   if (!productId || !imageKey) return null;
   const version = processedImageKey || imageKey;
   return `/api/product-images/${Number(productId)}?v=${encodeURIComponent(String(version))}`;
+}
+
+function detectOriginalImageType(bytes) {
+  const view=new Uint8Array(bytes);
+  if(view.length>=3 && view[0]===0xff && view[1]===0xd8 && view[2]===0xff) return 'image/jpeg';
+  if(view.length>=8 && view[0]===0x89 && view[1]===0x50 && view[2]===0x4e && view[3]===0x47
+    && view[4]===0x0d && view[5]===0x0a && view[6]===0x1a && view[7]===0x0a) return 'image/png';
+  if(view.length>=12
+    && String.fromCharCode(...view.slice(0,4))==='RIFF'
+    && String.fromCharCode(...view.slice(8,12))==='WEBP') return 'image/webp';
+  return null;
 }
 
 function inspectTransparentPng(bytes) {
@@ -171,22 +188,12 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === '/api/health') {
-        const supabaseReads = supabaseReadsRequested(env);
-        const supabaseWrites = supabasePrimaryWritesRequested(env);
-        const d1Attached = Boolean(env?.DB);
         return json({
-          ok: true,
-          service: 'nisti-identificacao',
-          database: {
-            primary: supabaseReads ? 'supabase' : 'd1',
-            write_authority: supabaseWrites ? 'supabase' : 'd1',
-            d1_binding_configured:d1Attached,
-            compatibility_store:d1Attached ? 'd1' : 'detached',
-            emergency_fallback_enabled:false,
-            d1_reserve_circuit_open:false,
-            d1_reserve_circuit_open_until:null,
-            d1_reserve_circuit_remaining_ms:0
-          }
+          ok:true,
+          service:'nisti-identificacao'
+        },200,{
+          'cache-control':'no-store',
+          'x-content-type-options':'nosniff'
         });
       }
 
@@ -360,8 +367,17 @@ export default {
         const form = await request.formData();
         const file = form.get('image');
         if (!(file instanceof File)) return json({ error: 'Imagem obrigatória' }, 400);
-        if (!file.type.startsWith('image/')) return json({ error: 'Arquivo deve ser uma imagem' }, 400);
-        await saveProductImage(env, id, await file.arrayBuffer(), file.type);
+        const declaredType=String(file.type||'').toLowerCase();
+        if (!ORIGINAL_IMAGE_TYPES.has(declaredType)) return json({ error: 'Formato permitido: JPEG, PNG ou WebP.' }, 400);
+        if (file.size < 1 || file.size > MAX_ORIGINAL_PRODUCT_IMAGE_BYTES) {
+          return json({ error: 'Imagem original deve ter no máximo 12 MB.' }, 400);
+        }
+        const bytes=await file.arrayBuffer();
+        const detectedType=detectOriginalImageType(bytes);
+        if(!detectedType || detectedType!==declaredType) {
+          return json({ error:'Conteúdo da imagem não corresponde ao formato informado.' },400);
+        }
+        await saveProductImage(env, id, bytes, detectedType);
 
         const prod = await supabaseProductImageContext(env,id);
         if (prod?.image_key) {
@@ -820,7 +836,8 @@ export default {
       }
 
       if (url.pathname === '/api/notifications' && request.method === 'GET') {
-        const userId = request.headers.get('x-user-id') || url.searchParams.get('user_id') || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const limit = Number(url.searchParams.get('limit')) || 50;
         const notifications = await listUserNotifications(env, userId, limit);
         const unreadCount = await getUnreadNotificationsCount(env, userId);
@@ -828,7 +845,8 @@ export default {
       }
 
       if (url.pathname === '/api/notifications/unread-count' && request.method === 'GET') {
-        const userId = request.headers.get('x-user-id') || url.searchParams.get('user_id') || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const count = await getUnreadNotificationsCount(env, userId);
         return json({ ok: true, unread_count: count });
       }
@@ -837,7 +855,8 @@ export default {
       if (readSingle && request.method === 'POST') {
         const notificationId = Number(readSingle[1]);
         const body = await request.json().catch(() => ({}));
-        const userId = request.headers.get('x-user-id') || body?.user_id || url.searchParams.get('user_id') || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const success = await markNotificationRead(env, notificationId, userId);
         const unreadCount = await getUnreadNotificationsCount(env, userId);
         return json({ ok: success, unread_count: unreadCount });
@@ -845,7 +864,8 @@ export default {
 
       if (url.pathname === '/api/notifications/mark-all-read' && request.method === 'POST') {
         const body = await request.json().catch(() => ({}));
-        const userId = request.headers.get('x-user-id') || body?.user_id || url.searchParams.get('user_id') || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const updated = await markAllNotificationsRead(env, userId);
         return json({ ok: true, marked_count: updated, unread_count: 0 });
       }
@@ -875,44 +895,11 @@ export default {
       }
 
       if (url.pathname === '/api/admin/push/debug' && request.method === 'GET') {
-        const privateKey=env.VAPID_PRIVATE_KEY ? 'presente (tamanho: ' + env.VAPID_PRIVATE_KEY.length + ')' : 'ausente';
-        const publicKey=env.VAPID_PUBLIC_KEY ? 'presente' : 'usando default';
-
         const rows=await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
         const subscriptions=Array.isArray(rows)?rows:[];
-        const testPayload={
-          title:'Teste de Sinal · NISTI PRINT',
-          body:'Verificando integridade das conexões push em segundo plano.',
-          url:'/'
-        };
-
-        const sendResults=[];
-        for(const sub of subscriptions) {
-          try {
-            const res=await sendWebPushNotification(env,sub,testPayload);
-            sendResults.push({
-              id:sub.id,
-              user_id:sub.user_id,
-              endpoint:sub.endpoint.slice(0,50)+'...',
-              ok:res.ok,
-              status:res.status
-            });
-          } catch(err) {
-            sendResults.push({
-              id:sub.id,
-              user_id:sub.user_id,
-              endpoint:sub.endpoint.slice(0,50)+'...',
-              ok:false,
-              error:err.message
-            });
-          }
-        }
-
         return json({
-          vapid_private_key:privateKey,
-          vapid_public_key:publicKey,
-          active_subscriptions_count:subscriptions.length,
-          send_results:sendResults
+          configured:Boolean(env.VAPID_PRIVATE_KEY),
+          active_subscriptions_count:subscriptions.length
         });
       }
 
@@ -942,7 +929,8 @@ export default {
 
       if (url.pathname === '/api/push/subscribe' && request.method === 'POST') {
         const body = await request.json().catch(() => ({}));
-        const userId = request.headers.get('x-user-id') || body?.user_id || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const success = await savePushSubscription(env, userId, body?.subscription);
         return json({ ok: success });
       }

@@ -33,7 +33,8 @@ function json(data, status = 200) {
 }
 
 function cleanUserId(request) {
-  return String(request.headers.get('x-user-id') || 'anonymous').trim().slice(0, 100) || 'anonymous';
+  const value=String(request.headers.get('x-user-id')||'').trim();
+  return /^op_[0-9a-f-]{36}$/i.test(value) ? value : null;
 }
 
 function clampLimit(value) {
@@ -203,6 +204,7 @@ async function listMuralFeed(request, url, env) {
   const cursor = decodeCursor(cursorValue);
   if (cursorValue && !cursor) return json({ error: 'Cursor do Mural inválido.' }, 400);
   const userId = cleanUserId(request);
+  if(!userId)return json({error:'Sessão do operador inválida.'},401);
   const kind = TAB_KIND[tab];
 
   const payload = await preferSupabaseRead(
@@ -1388,16 +1390,22 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     }
 
     if (path === '/api/mural/unread-count' && request.method === 'GET') {
-      return json({ unread_count: await unreadCount(cleanUserId(request), env) });
+      const userId=cleanUserId(request);
+      if(!userId)return json({error:'Sessão do operador inválida.'},401);
+      return json({ unread_count: await unreadCount(userId, env) });
     }
 
     const read = path.match(/^\/api\/mural\/(\d+)\/read$/);
     if (read && request.method === 'POST') {
-      return await markRead(Number(read[1]), cleanUserId(request), env);
+      const userId=cleanUserId(request);
+      if(!userId)return json({error:'Sessão do operador inválida.'},401);
+      return await markRead(Number(read[1]), userId, env);
     }
 
     if (path === '/api/mural/mark-all-read' && request.method === 'POST') {
-      return await markAllRead(cleanUserId(request), env);
+      const userId=cleanUserId(request);
+      if(!userId)return json({error:'Sessão do operador inválida.'},401);
+      return await markAllRead(userId, env);
     }
 
     const postImage = path.match(/^\/api\/mural\/images\/(\d+)$/);

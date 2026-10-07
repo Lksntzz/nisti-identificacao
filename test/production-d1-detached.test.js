@@ -31,12 +31,12 @@ test('CI and deploy D1 migration commands use the compatibility config',()=>{
   assert.match(deploy,/run: npx wrangler deploy/);
 });
 
-test('health endpoint exposes whether the D1 binding is detached',()=>{
+test('public health endpoint does not expose D1 binding details',()=>{
   const start=core.indexOf("url.pathname === '/api/health'");
   const end=core.indexOf("url.pathname === '/api/sku/parse'",start);
   const block=core.slice(start,end);
-  assert.match(block,/d1_binding_configured:d1Attached/);
-  assert.match(block,/compatibility_store:d1Attached \? 'd1' : 'detached'/);
+  assert.match(block,/service:'nisti-identificacao'/);
+  assert.doesNotMatch(block,/d1_binding_configured|compatibility_store|write_authority|primary:/);
 });
 
 test('manual legacy D1 migration script cannot use production Wrangler config',()=>{

@@ -36,10 +36,11 @@ test('finish edits synchronize and reconcile Commerce after the authoritative wr
   assert.ok(primary>=0 && sync>primary);
 });
 
-test('health endpoint reports Supabase as primary when Supabase reads are enabled',()=>{
+test('public health endpoint does not reveal Supabase write or read topology',()=>{
   const start=core.indexOf("url.pathname === '/api/health'");
   const end=core.indexOf("url.pathname === '/api/sku/parse'",start);
   const block=core.slice(start,end);
-  assert.match(block,/primary:\s*supabaseReads \? 'supabase' : 'd1'/);
-  assert.match(block,/write_authority:\s*supabaseWrites \? 'supabase' : 'd1'/);
+  assert.match(block,/ok:true/);
+  assert.match(block,/service:'nisti-identificacao'/);
+  assert.doesNotMatch(block,/supabaseReads|supabaseWrites|write_authority|database:/);
 });
