@@ -2599,3 +2599,98 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
     grid-template-columns:1fr 1fr;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Publicar: desktop sem página vertical. Os controles que antes apareciam
+   abaixo do formulário ficam na mesma área de trabalho, lado a lado.
+   -------------------------------------------------------------------------- */
+@media (min-width:1024px) and (min-height:700px){
+  .mural-publish-v2{
+    height:calc(100dvh - 70px)!important;
+    min-height:0!important;
+    grid-template-rows:auto auto minmax(0,1fr) auto!important;
+    gap:7px;
+    overflow:hidden!important;
+  }
+  .mural-publish-v2-shell{
+    min-height:0;
+    overflow:hidden;
+    align-items:stretch;
+  }
+  .mural-publish-v2-form{
+    min-height:0;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,.94fr);
+    grid-template-areas:
+      "type type"
+      "content content"
+      "canva settings";
+    align-content:start;
+    gap:8px!important;
+    overflow:hidden;
+  }
+  .mural-publish-v2-form>.mural-publish-v2-type-step{grid-area:type}
+  .mural-publish-v2-form>.mural-publish-v2-content-step{grid-area:content}
+  .mural-publish-v2-form>.mural-publish-v2-canva{grid-area:canva}
+  .mural-publish-v2-form>.mural-publish-v2-settings{grid-area:settings}
+
+  .mural-publish-v2-form>.mural-publish-v2-canva,
+  .mural-publish-v2-form>.mural-publish-v2-settings{
+    align-self:stretch;
+    min-height:0;
+  }
+  .mural-publish-v2-form>.mural-publish-v2-canva .mural-publish-v2-step-heading,
+  .mural-publish-v2-form>.mural-publish-v2-settings .mural-publish-v2-step-heading{
+    min-height:39px;
+    padding-top:7px;
+    padding-bottom:5px;
+  }
+  .mural-publish-v2-form>.mural-publish-v2-canva .mural-publish-v2-step-heading small,
+  .mural-publish-v2-form>.mural-publish-v2-settings .mural-publish-v2-step-heading small{display:none}
+
+  .mural-publish-v2-canva-body{gap:6px;padding:0 10px 10px}
+  .mural-publish-v2-canva-controls{grid-template-columns:minmax(0,1fr) auto;gap:6px}
+  .mural-publish-v2-canva-hint,
+  .mural-publish-v2-canva-state{min-height:29px;padding:6px 8px;font-size:7px}
+  .mural-publish-v2-canva-connect{min-height:50px;padding:7px 8px;gap:7px}
+  .mural-publish-v2-canva-connect small{display:none}
+  .mural-publish-v2-canva-connect button,
+  .mural-publish-v2-canva-create{min-height:27px;padding:0 8px;font-size:7px}
+
+  .mural-publish-v2-settings{padding-bottom:10px!important}
+  .mural-publish-v2-settings-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:6px!important;
+    padding:0 10px!important;
+  }
+  .mural-publish-v2-settings-grid>.mural-publish-v2-order-field{grid-column:2}
+  .mural-publish-v2-settings-grid.collection{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .mural-publish-v2-settings-grid.collection>:last-child{grid-column:1/-1}
+  .mural-publish-v2-settings .mural-publish-v2-switch,
+  .mural-publish-v2-settings .mural-publish-v2-setting-note{min-height:38px}
+  .mural-publish-v2-settings .mural-publish-v2-switch small,
+  .mural-publish-v2-settings .mural-publish-v2-setting-note small{display:none}
+
+  .mural-publish-v2-preview{
+    max-height:100%;
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr) auto;
+  }
+  .mural-publish-v2-preview-body{
+    min-height:0;
+    overflow:hidden;
+    align-items:start;
+  }
+  .mural-publish-v2-preview .mural-admin-phone{width:min(100%,286px)}
+  .mural-publish-v2-preview>footer{margin-bottom:9px}
+
+  /* Coleção pode ter muitos produtos: somente essa lista rola; o editor,
+     a prévia, Canva e as configurações continuam fixos. */
+  .mural-publish-v2-collection .mural-publish-v2-content-step{
+    max-height:clamp(210px,35dvh,330px);
+    overflow:auto;
+    scrollbar-gutter:stable;
+  }
+  .mural-publish-v2-collection .mural-publish-v2-collection-product-grid{max-height:118px}
+  .mural-publish-v2-collection .mural-publish-v2-order-list>div{max-height:104px;overflow:auto}
+}
