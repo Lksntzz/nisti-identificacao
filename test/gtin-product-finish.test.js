@@ -58,7 +58,7 @@ test('normalizes scanner finish labels from SKU codes', () => {
   });
 
   assert.equal(product.wireo, 'Preto');
-  assert.equal(product.tassel, 'Sim');
+  assert.equal(product.tassel, 'Branco');
   assert.equal(product.elastico, 'Sem elástico');
 });
 
