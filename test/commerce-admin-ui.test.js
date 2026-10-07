@@ -29,9 +29,11 @@ test('menu principal mantém as ferramentas comerciais dentro de /admin', () => 
 test('entry resolve /admin-commerce antes do prefixo genérico /admin', () => {
   const entry = read('src/entry.jsx');
   const commerce = entry.indexOf("window.location.pathname === '/admin-commerce'");
-  const admin = entry.indexOf("window.location.pathname.startsWith('/admin')");
+  const admin = entry.indexOf("pathname === '/admin'");
+  const adminSubroutes = entry.indexOf("pathname.startsWith('/admin/')");
   assert.ok(commerce >= 0);
   assert.ok(admin > commerce);
+  assert.ok(adminSubroutes > admin);
   assert.equal(entry.includes("import('./commerce-admin-app-v2.jsx')"), true);
 });
 
