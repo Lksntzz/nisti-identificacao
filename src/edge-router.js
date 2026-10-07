@@ -15,6 +15,7 @@ const MUTATING_METHODS = new Set(['POST','PUT','PATCH','DELETE']);
 const LOGIN_FAILURE_DELAY_MS = 275;
 const OPERATOR_COOKIE_NAME = 'nisti_operator_session';
 const OPERATOR_SESSION_SECONDS = 60 * 60 * 24;
+const CANVA_ART_CREATE_PATH = '/api/admin/canva/art/create';
 
 function base64url(bytes) {
   let binary = '';
@@ -190,13 +191,19 @@ function rateLimitKey(request, scope) {
 async function enforceRateLimit(env, request, pathname) {
   const method = String(request.method || '').toUpperCase();
   const loginRequest = pathname === '/admin-login' && method === 'POST';
+  const canvaArtCreateRequest = pathname === CANVA_ART_CREATE_PATH && method === 'POST';
   const apiRequest = pathname.startsWith('/api/');
   if (!loginRequest && !apiRequest) return null;
 
-  const binding = env?.[loginRequest ? 'LOGIN_RATE_LIMITER' : 'GLOBAL_RATE_LIMITER'];
+  const bindingName = loginRequest
+    ? 'LOGIN_RATE_LIMITER'
+    : canvaArtCreateRequest
+      ? 'CANVA_ART_RATE_LIMITER'
+      : 'GLOBAL_RATE_LIMITER';
+  const binding = env?.[bindingName];
   if (!binding || typeof binding.limit !== 'function') return null;
 
-  const scope = loginRequest ? 'admin-login' : 'api';
+  const scope = loginRequest ? 'admin-login' : canvaArtCreateRequest ? 'canva-art-create' : 'api';
   try {
     const result = await binding.limit({ key: rateLimitKey(request, scope) });
     if (result?.success === false) {
