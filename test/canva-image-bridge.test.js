@@ -16,7 +16,7 @@ test('Canva bridge reports missing Worker secrets without exposing credentials',
     ['CANVA_CLIENT_ID','CANVA_CLIENT_SECRET','CANVA_TOKEN_ENCRYPTION_KEY'].sort()
   );
   assert.equal(payload.redirect_uri,'https://nisti.example/canva-oauth/callback');
-  assert.deepEqual(payload.required_scopes,['asset:read','asset:write','design:content:read','design:content:write','profile:read']);
+  assert.deepEqual(payload.required_scopes,['asset:read','asset:write','design:content:read','design:content:write','design:meta:read','brandtemplate:meta:read','brandtemplate:content:read','profile:read']);
 });
 
 test('Canva connect refuses to start when backend secrets are absent', async () => {
