@@ -40,8 +40,10 @@ import {
 } from './system-notifications.js';
 
 const BULK_IMPORT_LIMIT = 100;
+const MAX_ORIGINAL_PRODUCT_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_PRODUCT_MASK_BYTES = 4 * 1024 * 1024;
+const ORIGINAL_IMAGE_TYPES = new Set(['image/jpeg','image/png','image/webp']);
 const PRODUCT_IMAGE_PROCESSOR = 'canva-bgremove-alpha-outline';
 
 function scheduleCommerceReconcile(ctx, env, productId, commerceSync) {
@@ -81,6 +83,17 @@ function productDisplayImageUrl(productId, imageKey, processedImageKey = null) {
   if (!productId || !imageKey) return null;
   const version = processedImageKey || imageKey;
   return `/api/product-images/${Number(productId)}?v=${encodeURIComponent(String(version))}`;
+}
+
+function detectOriginalImageType(bytes) {
+  const view=new Uint8Array(bytes);
+  if(view.length>=3 && view[0]===0xff && view[1]===0xd8 && view[2]===0xff) return 'image/jpeg';
+  if(view.length>=8 && view[0]===0x89 && view[1]===0x50 && view[2]===0x4e && view[3]===0x47
+    && view[4]===0x0d && view[5]===0x0a && view[6]===0x1a && view[7]===0x0a) return 'image/png';
+  if(view.length>=12
+    && String.fromCharCode(...view.slice(0,4))==='RIFF'
+    && String.fromCharCode(...view.slice(8,12))==='WEBP') return 'image/webp';
+  return null;
 }
 
 function inspectTransparentPng(bytes) {
@@ -365,8 +378,17 @@ export default {
         const form = await request.formData();
         const file = form.get('image');
         if (!(file instanceof File)) return json({ error: 'Imagem obrigatória' }, 400);
-        if (!file.type.startsWith('image/')) return json({ error: 'Arquivo deve ser uma imagem' }, 400);
-        await saveProductImage(env, id, await file.arrayBuffer(), file.type);
+        const declaredType=String(file.type||'').toLowerCase();
+        if (!ORIGINAL_IMAGE_TYPES.has(declaredType)) return json({ error: 'Formato permitido: JPEG, PNG ou WebP.' }, 400);
+        if (file.size < 1 || file.size > MAX_ORIGINAL_PRODUCT_IMAGE_BYTES) {
+          return json({ error: 'Imagem original deve ter no máximo 12 MB.' }, 400);
+        }
+        const bytes=await file.arrayBuffer();
+        const detectedType=detectOriginalImageType(bytes);
+        if(!detectedType || detectedType!==declaredType) {
+          return json({ error:'Conteúdo da imagem não corresponde ao formato informado.' },400);
+        }
+        await saveProductImage(env, id, bytes, detectedType);
 
         const prod = await supabaseProductImageContext(env,id);
         if (prod?.image_key) {
