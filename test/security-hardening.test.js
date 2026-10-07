@@ -88,6 +88,12 @@ test('admin session cookie is HttpOnly Secure Strict and can use a dedicated sig
   assert.match(cookie,/SameSite=Strict/i);
 });
 
+test('public operator route cannot load admin panels from hash shortcuts', () => {
+  const entry = fs.readFileSync(new URL('../src/entry.jsx', import.meta.url), 'utf8');
+  assert.match(entry, /pathname === '\\/admin'/);
+  assert.doesNotMatch(entry, /hash.*admin|mural-admin/);
+});
+
 test('public clients no longer call Supabase Edge Functions directly', () => {
   const publicMain=fs.readFileSync(new URL('../src/public-main.jsx',import.meta.url),'utf8');
   const scanner=fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx',import.meta.url),'utf8');
