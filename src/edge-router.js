@@ -14,7 +14,7 @@ const COMMERCE_ADMIN_APP_PATH = '/admin-commerce';
 const MUTATING_METHODS = new Set(['POST','PUT','PATCH','DELETE']);
 const LOGIN_FAILURE_DELAY_MS = 275;
 const OPERATOR_COOKIE_NAME = 'nisti_operator_session';
-const OPERATOR_SESSION_SECONDS = 60 * 60 * 24 * 180;
+const OPERATOR_SESSION_SECONDS = 60 * 60 * 24;
 
 function base64url(bytes) {
   let binary = '';
