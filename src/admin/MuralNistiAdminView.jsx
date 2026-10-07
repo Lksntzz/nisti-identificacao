@@ -50,7 +50,11 @@ async function request(path, options = {}) {
   const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...options });
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : null;
-  if (!response.ok) throw new Error(data?.error || `Erro ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(data?.error || `Erro ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -529,6 +533,8 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
   const [design, setDesign] = useState(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  const [createCooldownUntil, setCreateCooldownUntil] = useState(0);
+  const createLockRef = useRef(false);
 
   const load = async () => {
     setError('');
@@ -556,6 +562,13 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
       load();
     }
   }, [isOpen, kind]);
+
+  useEffect(() => {
+    const remaining = createCooldownUntil - Date.now();
+    if (remaining <= 0) return undefined;
+    const timer = window.setTimeout(() => setCreateCooldownUntil(0), remaining);
+    return () => window.clearTimeout(timer);
+  }, [createCooldownUntil]);
 
   if (!isOpen) return null;
 
@@ -588,7 +601,13 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
   };
 
   const createDesign = async () => {
+    if (createLockRef.current) return;
+    if (createCooldownUntil > Date.now()) {
+      setError('O Canva está em espera temporária. Aguarde um minuto antes de criar outra arte.');
+      return;
+    }
     if (!templateId) { setError('Escolha um template do Canva.'); return; }
+    createLockRef.current = true;
     setBusy('create'); setError('');
     try {
       const formData = new FormData();
@@ -612,7 +631,15 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
       }
       const payload = await request('/api/admin/canva/art/create', { method: 'POST', body: formData });
       setDesign(payload.design || null);
-    } catch (err) { setError(err.message); } finally { setBusy(''); }
+    } catch (err) {
+      if (err?.status === 429) {
+        setCreateCooldownUntil(Date.now() + 60_000);
+        setError('O Canva atingiu o limite temporário. Aguarde um minuto e tente novamente apenas uma vez.');
+      } else setError(err.message);
+    } finally {
+      createLockRef.current = false;
+      setBusy('');
+    }
   };
 
   const importDesign = async () => {
@@ -674,11 +701,11 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
                 <button
                   type="button"
                   className="mural-publish-v2-canva-create"
-                  disabled={!templateId || Boolean(busy)}
+                  disabled={!templateId || Boolean(busy) || createCooldownUntil > Date.now()}
                   onClick={createDesign}
                 >
                   <AdminMuralIcon name="sparkles" size={15}/>
-                  {busy === 'create' ? 'Criando no Canva…' : 'Criar no Canva'}
+                  {busy === 'create' ? 'Criando no Canva…' : createCooldownUntil > Date.now() ? 'Aguarde 1 min' : 'Criar no Canva'}
                 </button>
               </div>
               {!templates.length && (
