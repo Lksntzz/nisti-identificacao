@@ -669,13 +669,15 @@ async function connectionStatus(request, env) {
       connected:false,
       missing:config.missing,
       redirect_uri:config.redirectUri,
-      required_scopes:CANVA_SCOPES
+      required_scopes:CANVA_SCOPES,
+      art_creation_ready:false,
+      art_missing_scopes:CANVA_ART_SCOPES
     });
   }
 
-  let token;
+  let connection;
   try {
-    token = await accessToken(env,config);
+    connection = await activeConnection(env,config);
   } catch (error) {
     return json({
       ok:true,
@@ -683,19 +685,25 @@ async function connectionStatus(request, env) {
       connected:false,
       reason:error?.code || 'canva_connection_invalid',
       redirect_uri:config.redirectUri,
-      required_scopes:CANVA_SCOPES
+      required_scopes:CANVA_SCOPES,
+      art_creation_ready:false,
+      art_missing_scopes:CANVA_ART_SCOPES
     });
   }
+  const token=connection?.access_token || '';
   if (!token) {
     return json({
       ok:true,
       configured:true,
       connected:false,
       redirect_uri:config.redirectUri,
-      required_scopes:CANVA_SCOPES
+      required_scopes:CANVA_SCOPES,
+      art_creation_ready:false,
+      art_missing_scopes:CANVA_ART_SCOPES
     });
   }
 
+  const artMissing=missingScopes(connection,CANVA_ART_SCOPES);
   try {
     const [capabilitiesResult,profileResult] = await Promise.all([
       canvaGet('/users/me/capabilities',token),
@@ -710,6 +718,10 @@ async function connectionStatus(request, env) {
       connected:true,
       redirect_uri:config.redirectUri,
       required_scopes:CANVA_SCOPES,
+      granted_scopes:[...scopeSet(connection)],
+      art_creation_ready:artMissing.length===0,
+      art_missing_scopes:artMissing,
+      requires_reconnect:artMissing.length>0,
       capabilities,
       background_removal:capabilities.includes('background_removal'),
       export_png_transparency:capabilities.includes('export_png_transparency'),
@@ -722,7 +734,9 @@ async function connectionStatus(request, env) {
       connected:false,
       reason:error?.code || 'canva_status_failed',
       redirect_uri:config.redirectUri,
-      required_scopes:CANVA_SCOPES
+      required_scopes:CANVA_SCOPES,
+      art_creation_ready:false,
+      art_missing_scopes:artMissing
     });
   }
 }
@@ -861,6 +875,15 @@ export async function handleCanvaImageBridgeRequest(request, env) {
   }
   if (url.pathname === '/api/admin/canva/background-remove' && request.method === 'POST') {
     return backgroundRemove(request,env);
+  }
+  if (url.pathname === '/api/admin/canva/templates' && request.method === 'GET') {
+    return listArtworkTemplates(request,env);
+  }
+  if (url.pathname === '/api/admin/canva/art/create' && request.method === 'POST') {
+    return createArtwork(request,env);
+  }
+  if (url.pathname === '/api/admin/canva/art/export' && request.method === 'POST') {
+    return exportArtwork(request,env);
   }
   if (url.pathname === '/api/admin/canva/disconnect' && request.method === 'POST') {
     return disconnect(request,env);
