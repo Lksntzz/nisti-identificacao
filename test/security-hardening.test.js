@@ -176,7 +176,7 @@ test('production gates audit runtime dependencies and critical findings', () => 
     const workflow=fs.readFileSync(new URL(path,import.meta.url),'utf8');
     assert.match(workflow,/npm ci --no-audit --no-fund/);
     assert.match(workflow,/npm audit --omit=dev --audit-level=high/);
-    assert.match(workflow,/npm audit --audit-level=critical/);
+    assert.match(workflow,/npm audit --audit-level=high/);
     assert.match(workflow,/persist-credentials: false/);
   }
 });
