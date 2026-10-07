@@ -45,3 +45,10 @@ test('Canva artwork is responsive and integrated into the publication studio',()
   assert.ok(css.includes('.mural-canva-modal'));
   assert.ok(css.includes('@media(max-width:620px)'));
 });
+
+test('Canva artwork prevents duplicate creates and handles temporary Canva throttling',()=>{
+  assert.ok(admin.includes('const createLockRef = useRef(false)'));
+  assert.ok(admin.includes('createCooldownUntil > Date.now()'));
+  assert.ok(admin.includes('err?.status === 429'));
+  assert.ok(admin.includes('Aguarde um minuto e tente novamente apenas uma vez.'));
+});
