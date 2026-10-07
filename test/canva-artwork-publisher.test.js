@@ -10,7 +10,7 @@ test('Canva artwork API exposes templates create and export routes',()=>{
   assert.ok(router.includes("'/api/admin/canva/templates'"));
   assert.ok(router.includes("'/api/admin/canva/art/create'"));
   assert.ok(router.includes("'/api/admin/canva/art/export'"));
-  assert.ok(router.includes("'/brand-templates?'"));
+  assert.ok(router.includes('/brand-templates?'));
   assert.ok(router.includes("'/autofills'"));
   assert.ok(router.includes("'/exports'"));
 });
