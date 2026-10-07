@@ -13,19 +13,6 @@ class ApiError extends Error {
   }
 }
 
-function getUserId() {
-  try {
-    let id = localStorage.getItem('nisti_shipping_user_id');
-    if (!id) {
-      id = 'op_' + crypto.randomUUID();
-      localStorage.setItem('nisti_shipping_user_id', id);
-    }
-    return id;
-  } catch {
-    return 'op_guest';
-  }
-}
-
 function getOperatorName() {
   try {
     return localStorage.getItem('nisti_operator_name') || '';
@@ -44,7 +31,6 @@ function setOperatorName(name) {
 async function api(path, options = {}) {
   const operatorName = getOperatorName();
   const headers = {
-    'x-user-id': getUserId(),
     ...(operatorName ? { 'x-operator-name': encodeURIComponent(operatorName) } : {}),
     ...(options.headers || {})
   };
