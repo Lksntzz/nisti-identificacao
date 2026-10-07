@@ -21,6 +21,26 @@ test('cross-site mutations are rejected before application routing', async () =>
   assert.deepEqual(await response.json(),{error:'Origem da solicitação não autorizada.'});
 });
 
+test('Cloudflare rate limit blocks abusive API and login bursts', async () => {
+  const limitedEnv = {
+    GLOBAL_RATE_LIMITER: { limit: async ({ key }) => ({ success: key !== 'api:203.0.113.10' }) },
+    LOGIN_RATE_LIMITER: { limit: async () => ({ success: false }) }
+  };
+
+  const apiResponse = await edgeRouter.fetch(new Request('https://nisti.example/api/mural/feed', {
+    headers: { 'CF-Connecting-IP': '203.0.113.10' }
+  }), limitedEnv, {});
+  assert.equal(apiResponse.status, 429);
+  assert.equal(apiResponse.headers.get('retry-after'), '60');
+
+  const loginResponse = await edgeRouter.fetch(new Request('https://nisti.example/admin-login', {
+    method: 'POST',
+    headers: { 'origin': 'https://nisti.example', 'content-type': 'application/x-www-form-urlencoded' },
+    body: 'password=wrong'
+  }), limitedEnv, {});
+  assert.equal(loginResponse.status, 429);
+});
+
 test('protected admin APIs cannot be opened from DevTools without a signed admin session', async () => {
   const response=await edgeRouter.fetch(
     new Request('https://nisti.example/api/admin/mural/posts',{method:'GET'}),
