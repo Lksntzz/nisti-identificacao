@@ -44,7 +44,7 @@ test('EAN operations replace removed visual tools in the active AdminApp', () =>
   assert.equal(main.includes("activeView === 'shadow-observability'"), false);
   assert.equal(main.includes('<GeometricShadowObservability embedded />'), false);
   assert.equal(entry.includes("pathname === '/admin/shadow-observability'"), false);
-  assert.equal(entry.includes("pathname.startsWith('/admin')"), true);
+  assert.equal(entry.includes("pathname.startsWith('/admin/')"), true);
 });
 
 
