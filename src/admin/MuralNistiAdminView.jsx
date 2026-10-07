@@ -618,8 +618,8 @@ function CanvaArtworkPanel({ kind, metadata, imageFiles = [], imageUrls = [], on
         if(!response.ok)continue;
         const blob=await response.blob();
         if(!/^image\/(png|jpeg|webp)$/i.test(blob.type||''))continue;
-        const key=slot===1?'image':\`image_\${slot}\`;
-        formData.append(key,new File([blob],\`nisti-canva-\${slot}.\${blob.type.includes('png')?'png':blob.type.includes('webp')?'webp':'jpg'}\`,{type:blob.type}));
+        const key=slot===1?'image':`image_${slot}`;
+        formData.append(key,new File([blob],`nisti-canva-${slot}.${blob.type.includes('png')?'png':blob.type.includes('webp')?'webp':'jpg'}`,{type:blob.type}));
         slot+=1;
       }catch{}
     }
@@ -634,7 +634,7 @@ function CanvaArtworkPanel({ kind, metadata, imageFiles = [], imageUrls = [], on
       formData.append('metadata',JSON.stringify(metadata||{}));
       let slot=1;
       for(const file of imageFiles.filter(Boolean).slice(0,6)){
-        const key=slot===1?'image':\`image_\${slot}\`;
+        const key=slot===1?'image':`image_${slot}`;
         formData.append(key,file);
         slot+=1;
       }
@@ -643,7 +643,7 @@ function CanvaArtworkPanel({ kind, metadata, imageFiles = [], imageUrls = [], on
         await appendRemoteImages(remoteData);
         for(const [key,value] of remoteData.entries()){
           if(slot>6)break;
-          const target=slot===1?'image':\`image_\${slot}\`;
+          const target=slot===1?'image':`image_${slot}`;
           formData.append(target,value);
           slot+=1;
         }
@@ -662,7 +662,7 @@ function CanvaArtworkPanel({ kind, metadata, imageFiles = [], imageUrls = [], on
         headers:{'content-type':'application/json'},
         body:JSON.stringify({design_id:design.id})
       });
-      const file=new File([blob],\`nisti-canva-\${kind||'arte'}-\${design.id}.png\`,{type:'image/png'});
+      const file=new File([blob],`nisti-canva-${kind||'arte'}-${design.id}.png`,{type:'image/png'});
       await onUseImage?.(file);
     }catch(err){setError(err.message)}finally{setBusy('')}
   };
