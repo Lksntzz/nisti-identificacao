@@ -16,17 +16,10 @@ function registerNistiServiceWorker() {
 registerNistiServiceWorker();
 
 function getInitialRoute() {
-  const hash = window.location.hash;
   if (window.location.pathname === '/admin-commerce') {
     return 'commerce';
   }
-  if (
-    window.location.pathname.startsWith('/admin') ||
-    hash === '#admin' ||
-    hash.startsWith('#/admin') ||
-    hash === '#mural-admin' ||
-    hash.startsWith('#/mural-admin')
-  ) {
+  if (window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')) {
     return 'admin';
   }
   return 'public';
