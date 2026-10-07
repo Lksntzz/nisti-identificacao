@@ -54,6 +54,18 @@ async function request(path, options = {}) {
   return data;
 }
 
+async function requestBlob(path, options = {}) {
+  const response = await fetch(path, { credentials:'same-origin', cache:'no-store', ...options });
+  const type=response.headers.get('content-type')||'';
+  if(!response.ok){
+    const data=type.includes('application/json')?await response.json().catch(()=>({})):{};
+    throw new Error(data?.error||`Erro ${response.status}`);
+  }
+  const blob=await response.blob();
+  if(blob.type!=='image/png'||blob.size<1)throw new Error('O Canva não retornou um PNG válido.');
+  return blob;
+}
+
 async function copyTextToClipboard(value) {
   const text = String(value || '');
   if (!text) throw new Error('O prompt ainda não foi preparado.');
@@ -556,6 +568,150 @@ function PublishTypeSelector({ activeKind, onSelect, locked = false }) {
   );
 }
 
+
+function CanvaArtworkPanel({ kind, metadata, imageFiles = [], imageUrls = [], onUseImage }) {
+  const [status,setStatus]=useState({loading:true,connected:false,art_creation_ready:false,art_missing_scopes:[]});
+  const [templates,setTemplates]=useState([]);
+  const [templateId,setTemplateId]=useState('');
+  const [design,setDesign]=useState(null);
+  const [busy,setBusy]=useState('');
+  const [error,setError]=useState('');
+
+  const load=async()=>{
+    setError('');
+    try{
+      const nextStatus=await request('/api/admin/canva/status');
+      setStatus({loading:false,connected:false,art_creation_ready:false,art_missing_scopes:[],...nextStatus});
+      if(!nextStatus?.connected||!nextStatus?.art_creation_ready){
+        setTemplates([]);
+        return;
+      }
+      const payload=await request('/api/admin/canva/templates');
+      const items=Array.isArray(payload?.items)?payload.items:[];
+      setTemplates(items);
+      setTemplateId(current=>current&&items.some(item=>item.id===current)?current:(items[0]?.id||''));
+    }catch(err){
+      setStatus(current=>({...current,loading:false}));
+      setError(err.message);
+    }
+  };
+
+  useEffect(()=>{load()},[kind]);
+
+  const connect=async()=>{
+    setBusy('connect');setError('');
+    try{
+      const payload=await request('/api/admin/canva/connect',{method:'POST'});
+      if(!payload?.authorization_url)throw new Error('Canva não retornou a URL de autorização.');
+      window.location.assign(payload.authorization_url);
+    }catch(err){
+      setError(err.message);
+      setBusy('');
+    }
+  };
+
+  const appendRemoteImages=async formData=>{
+    let slot=1;
+    for(const src of imageUrls.filter(Boolean).slice(0,6)){
+      try{
+        const response=await fetch(src,{credentials:'same-origin',cache:'no-store'});
+        if(!response.ok)continue;
+        const blob=await response.blob();
+        if(!/^image\/(png|jpeg|webp)$/i.test(blob.type||''))continue;
+        const key=slot===1?'image':`image_${slot}`;
+        formData.append(key,new File([blob],`nisti-canva-${slot}.${blob.type.includes('png')?'png':blob.type.includes('webp')?'webp':'jpg'}`,{type:blob.type}));
+        slot+=1;
+      }catch{}
+    }
+  };
+
+  const createDesign=async()=>{
+    if(!templateId){setError('Escolha um template do Canva.');return}
+    setBusy('create');setError('');
+    try{
+      const formData=new FormData();
+      formData.append('template_id',templateId);
+      formData.append('metadata',JSON.stringify(metadata||{}));
+      let slot=1;
+      for(const file of imageFiles.filter(Boolean).slice(0,6)){
+        const key=slot===1?'image':`image_${slot}`;
+        formData.append(key,file);
+        slot+=1;
+      }
+      if(slot<=6){
+        const remoteData=new FormData();
+        await appendRemoteImages(remoteData);
+        for(const [key,value] of remoteData.entries()){
+          if(slot>6)break;
+          const target=slot===1?'image':`image_${slot}`;
+          formData.append(target,value);
+          slot+=1;
+        }
+      }
+      const payload=await request('/api/admin/canva/art/create',{method:'POST',body:formData});
+      setDesign(payload.design||null);
+    }catch(err){setError(err.message)}finally{setBusy('')}
+  };
+
+  const importDesign=async()=>{
+    if(!design?.id)return;
+    setBusy('export');setError('');
+    try{
+      const blob=await requestBlob('/api/admin/canva/art/export',{
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({design_id:design.id})
+      });
+      const file=new File([blob],`nisti-canva-${kind||'arte'}-${design.id}.png`,{type:'image/png'});
+      await onUseImage?.(file);
+    }catch(err){setError(err.message)}finally{setBusy('')}
+  };
+
+  const reconnectNeeded=status.connected&&!status.art_creation_ready;
+  return (
+    <section className="mural-publish-v2-step mural-publish-v2-canva">
+      <header className="mural-publish-v2-step-heading">
+        <span className="mural-publish-v2-step-number"><AdminMuralIcon name="sparkles" size={15}/></span>
+        <div><strong>Arte da publicação · Canva</strong><small>Crie a arte a partir de um template NISTI, edite no Canva e importe o resultado para esta publicação.</small></div>
+      </header>
+      <div className="mural-publish-v2-canva-body">
+        {status.loading?(
+          <div className="mural-publish-v2-canva-state">Verificando integração Canva…</div>
+        ):!status.connected||reconnectNeeded?(
+          <div className="mural-publish-v2-canva-connect">
+            <span><b>{reconnectNeeded?'Reconexão necessária':'Canva não conectado'}</b><small>{reconnectNeeded?'A conexão atual é anterior aos recursos de criação de arte. Reconecte uma vez para autorizar os novos escopos.':'Conecte a conta Canva para criar artes diretamente pelo Mural.'}</small></span>
+            <button type="button" onClick={connect} disabled={busy==='connect'}>{busy==='connect'?'Abrindo…':reconnectNeeded?'Reconectar Canva':'Conectar Canva'}</button>
+          </div>
+        ):(
+          <>
+            <div className="mural-publish-v2-canva-controls">
+              <label>Template Canva
+                <select value={templateId} onChange={e=>{setTemplateId(e.target.value);setDesign(null)}}>
+                  {!templates.length&&<option value="">Nenhum template com autofill encontrado</option>}
+                  {templates.map(template=><option key={template.id} value={template.id}>{template.title}</option>)}
+                </select>
+              </label>
+              <button type="button" className="mural-publish-v2-canva-create" disabled={!templateId||Boolean(busy)} onClick={createDesign}><AdminMuralIcon name="sparkles" size={15}/>{busy==='create'?'Criando…':'Criar no Canva'}</button>
+            </div>
+            {!templates.length&&<div className="mural-publish-v2-canva-hint">Para aparecer aqui, o template precisa ser um Brand Template do Canva com campos de preenchimento automático.</div>}
+            {design&&(
+              <div className="mural-publish-v2-canva-design">
+                <span className="mural-publish-v2-canva-design-thumb">{design.thumbnail?<img src={design.thumbnail} alt="Prévia do design Canva"/>:<AdminMuralIcon name="image" size={24}/>}</span>
+                <span><b>{design.title||'Arte NISTI no Canva'}</b><small>Edite no Canva. Quando terminar, volte aqui e importe a versão atual.</small></span>
+                <span className="mural-publish-v2-canva-design-actions">
+                  {design.edit_url&&<a href={design.edit_url} target="_blank" rel="noreferrer">Editar no Canva</a>}
+                  <button type="button" onClick={importDesign} disabled={Boolean(busy)}>{busy==='export'?'Importando…':'Usar esta arte'}</button>
+                </span>
+              </div>
+            )}
+          </>
+        )}
+        {error&&<div className="mural-admin-error mural-publish-v2-canva-error">{error}</div>}
+      </div>
+    </section>
+  );
+}
+
 function PublishImageField({ imageUrl, image, busy, onChoose, onRemove, title = 'Imagem editorial (opcional)', helper = 'PNG, JPG ou WebP · até 5 MB', removeLabel = 'Remover imagem editorial' }) {
   return (
     <div className="mural-publish-v2-image-field">
@@ -696,6 +852,16 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
       setImage(prepared);
       setImageUrl(URL.createObjectURL(prepared));
     } catch (err) { setError(err.message); }
+  };
+
+  const useCanvaImage = async file => {
+    setError('');
+    if(!file)return;
+    if(file.type!=='image/png')return setError('A arte exportada do Canva precisa estar em PNG.');
+    if(file.size>5*1024*1024)return setError('A arte exportada do Canva excede 5 MB.');
+    if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
+    setImage(file);
+    setImageUrl(URL.createObjectURL(file));
   };
 
   const removeImage = async () => {
@@ -859,6 +1025,25 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
           )}
 
           {activeKind && (
+            <CanvaArtworkPanel
+              kind={activeKind}
+              metadata={{
+                kind:activeKind,
+                kind_label:activeKind==='product'?'Produto':'Informação',
+                title:form.title||selectedProduct?.nome||selectedProduct?.variacao||'',
+                subtitle:form.subtitle||'',
+                body:form.body||'',
+                badge:form.badge||'',
+                sku:selectedProduct?.sku||'',
+                cta:activeKind==='product'?'Ver produto':''
+              }}
+              imageFiles={image?[image]:[]}
+              imageUrls={activeKind==='product'&&selectedProduct?.image_url?[selectedProduct.image_url]:[]}
+              onUseImage={useCanvaImage}
+            />
+          )}
+
+          {activeKind && (
             <section className="mural-publish-v2-step mural-publish-v2-settings">
               <header className="mural-publish-v2-step-heading">
                 <span className="mural-publish-v2-step-number">3</span>
@@ -924,6 +1109,14 @@ function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
       if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
       setImage(prepared);setImageUrl(URL.createObjectURL(prepared));
     }catch(err){setError(err.message)}
+  };
+  const useCanvaBanner=async file=>{
+    setError('');
+    if(!file)return;
+    if(file.type!=='image/png'){setError('A arte exportada do Canva precisa estar em PNG.');return}
+    if(file.size>5*1024*1024){setError('A arte exportada do Canva excede 5 MB.');return}
+    if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
+    setImage(file);setImageUrl(URL.createObjectURL(file));
   };
   const removeBanner=async()=>{
     setError('');
@@ -1049,6 +1242,23 @@ function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
               </div>
             </details>
           </section>
+
+          <CanvaArtworkPanel
+            kind="collection"
+            metadata={{
+              kind:'collection',
+              kind_label:'Coleção',
+              title:form.name||'',
+              subtitle:form.hero_message||'',
+              body:form.description||'',
+              badge:'NOVA COLEÇÃO',
+              year:form.year||'',
+              cta:'Ver coleção'
+            }}
+            imageFiles={image?[image]:[]}
+            imageUrls={selectedProducts.slice(0,6).map(product=>product.image_url).filter(Boolean)}
+            onUseImage={useCanvaBanner}
+          />
 
           <section className="mural-publish-v2-step mural-publish-v2-settings">
             <header className="mural-publish-v2-step-heading">
