@@ -110,7 +110,7 @@ async function pollJob(path,token,kind){
   });
 }
 
-async function uploadAsset(bytes,token,name){
+export async function canvaUploadAsset(bytes,token,name){
   if(!(bytes instanceof ArrayBuffer) || bytes.byteLength<1 || bytes.byteLength>MAX_INPUT_BYTES){
     throw new CanvaCutoutError('Imagem de entrada inválida ou maior que 20 MB.',{
       status:400,code:'canva_input_invalid'
@@ -267,7 +267,7 @@ export async function canvaBackgroundRemoveToPng({bytes,token,name='NISTI produt
   let sourceAssetId='';
   let cutoutAssetId='';
   try{
-    const source=await uploadAsset(bytes,token,`${name} original`);
+    const source=await canvaUploadAsset(bytes,token,`${name} original`);
     sourceAssetId=source.id;
     const cutout=await removeBackground(source.id,token,`${name} sem fundo`);
     cutoutAssetId=cutout.id;
