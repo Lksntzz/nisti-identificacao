@@ -38,6 +38,41 @@ function getVapidSubject(env) {
   return env?.VAPID_SUBJECT || DEFAULT_VAPID_SUBJECT;
 }
 
+function isPrivateIpv4(hostname) {
+  const match=String(hostname||'').match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if(!match)return false;
+  const octets=match.slice(1).map(Number);
+  if(octets.some(value=>value<0||value>255))return true;
+  const [a,b]=octets;
+  return a===10
+    || a===127
+    || a===0
+    || (a===169&&b===254)
+    || (a===172&&b>=16&&b<=31)
+    || (a===192&&b===168);
+}
+
+export function safePushEndpoint(value) {
+  const raw=String(value||'').trim();
+  if(!raw||raw.length>2048)return null;
+  try{
+    const url=new URL(raw);
+    if(url.protocol!=='https:')return null;
+    const host=url.hostname.toLowerCase().replace(/^\[|\]$/g,'');
+    if(!host||host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')||host.endsWith('.internal'))return null;
+    if(host==='::1'||host.startsWith('fe80:')||host.startsWith('fc')||host.startsWith('fd')||isPrivateIpv4(host))return null;
+    if(url.username||url.password)return null;
+    return url.toString();
+  }catch{
+    return null;
+  }
+}
+
+function validPushKey(value,{min=16,max=256}={}) {
+  const clean=String(value||'').trim();
+  return clean.length>=min&&clean.length<=max&&/^[A-Za-z0-9_-]+$/.test(clean);
+}
+
 async function createVapidJwt(env, endpoint) {
   const publicKeyStr = getVapidPublicKey(env);
   const privateKeyStr = getVapidPrivateKey(env);
@@ -181,12 +216,12 @@ async function encryptPushPayload(clientP256dh, clientAuth, payloadText) {
 
 export async function savePushSubscription(env, userId, subscription) {
   if (!subscription?.endpoint) return false;
-  const endpoint = String(subscription.endpoint).trim();
+  const endpoint = safePushEndpoint(subscription.endpoint);
   const p256dh = String(subscription?.keys?.p256dh || '').trim();
   const auth = String(subscription?.keys?.auth || '').trim();
   const safeUserId = String(userId || 'anonymous').trim().slice(0, 100);
 
-  if (!endpoint || !p256dh || !auth) return false;
+  if (!endpoint || !validPushKey(p256dh,{min:40,max:200}) || !validPushKey(auth,{min:16,max:100})) return false;
 
   const result = await mirrorSupabaseRpc(env,'nisti_upsert_push_subscription_v1',{
     p_user_id:safeUserId,
@@ -198,8 +233,8 @@ export async function savePushSubscription(env, userId, subscription) {
 }
 
 export async function removePushSubscription(env, endpoint) {
-  if (!endpoint) return false;
-  const cleanEndpoint = String(endpoint).trim();
+  const cleanEndpoint = safePushEndpoint(endpoint);
+  if (!cleanEndpoint) return false;
   await mirrorSupabaseRpc(env,'nisti_delete_push_subscription',{
     p_endpoint:cleanEndpoint
   },'delete push subscription primary');
@@ -211,7 +246,10 @@ export async function sendWebPushNotification(env, subscription, payload) {
     return { ok: false, status: 400 };
   }
 
-  const endpoint = subscription.endpoint;
+  const endpoint = safePushEndpoint(subscription.endpoint);
+  if(!endpoint || !validPushKey(subscription.p256dh,{min:40,max:200}) || !validPushKey(subscription.auth,{min:16,max:100})) {
+    return {ok:false,status:400};
+  }
   const jwt = await createVapidJwt(env, endpoint);
   const publicKey = getVapidPublicKey(env);
 
