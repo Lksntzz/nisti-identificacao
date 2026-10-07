@@ -18,15 +18,15 @@ test('scanner retains local history only as a last-resort display cache', () => 
   assert.ok(cacheIndex > workerIndex);
 });
 
-test('scanner expands accessory finish codes into readable color names', () => {
+test('scanner expands accessory finish codes and tassel presence', () => {
   const product = normalizeGtinProduct({
     wireo_code:'R',
     tassel_code:'A',
     elastico_code:'V'
   });
   assert.equal(product.wireo,'Rose Gold');
-  assert.equal(product.tassel,'Azul');
+  assert.equal(product.tassel,'Sim');
   assert.equal(product.elastico,'Verde');
-  assert.equal(normalizeGtinProduct({ tassel_code:'X', elastico_code:'X' }).tassel,'Sem tassel');
+  assert.equal(normalizeGtinProduct({ tassel_code:'X', elastico_code:'X' }).tassel,'Não');
   assert.equal(normalizeGtinProduct({ tassel_code:'X', elastico_code:'X' }).elastico,'Sem elástico');
 });

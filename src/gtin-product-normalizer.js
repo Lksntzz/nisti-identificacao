@@ -1,24 +1,39 @@
-import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
+import { ACCESSORY_COLORS, WIREO_COLORS, parseSku } from './sku.js';
+
+function normalizedCode(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function colorLabel(value, colors, code, emptyLabel = '') {
+  const raw = normalizedCode(value);
+  if (raw === 'X' && emptyLabel) return emptyLabel;
+  return colors[raw] || colors[normalizedCode(code)] || String(value || code || '').trim();
+}
+
+function tasselPresenceLabel(value, code) {
+  const raw = normalizedCode(value);
+  const effective = normalizedCode(code) || raw;
+  if (!effective) return '';
+  const noTassel = new Set(['X', 'N', 'NAO', 'NÃO', 'NO', 'FALSE', '0', 'SEM TASSEL']);
+  return noTassel.has(effective) ? 'Não' : 'Sim';
+}
 
 export function normalizeGtinProduct(product) {
   if (!product) return product;
 
-  const wireoCode = String(product.wireo_code || '').trim().toUpperCase();
-  const tasselCode = String(product.tassel_code || '').trim().toUpperCase();
-  const elasticoCode = String(product.elastico_code || '').trim().toUpperCase();
+  let parsedSku = null;
+  try {
+    parsedSku = parseSku(product.sku);
+  } catch {}
+
+  const wireoCode = normalizedCode(product.wireo_code) || parsedSku?.wireoCode || '';
+  const tasselCode = normalizedCode(product.tassel_code) || parsedSku?.tasselCode || '';
+  const elasticoCode = normalizedCode(product.elastico_code) || parsedSku?.elasticoCode || '';
 
   return {
     ...product,
-    wireo: product.wireo || WIREO_COLORS[wireoCode] || wireoCode || '',
-    tassel: product.tassel || (
-      tasselCode === 'X'
-        ? 'Sem tassel'
-        : ACCESSORY_COLORS[tasselCode] || tasselCode || ''
-    ),
-    elastico: product.elastico || (
-      elasticoCode === 'X'
-        ? 'Sem elástico'
-        : ACCESSORY_COLORS[elasticoCode] || elasticoCode || ''
-    )
+    wireo: colorLabel(wireoCode || product.wireo || product.wireo_code, WIREO_COLORS, wireoCode),
+    tassel: tasselPresenceLabel(product.tassel || product.tassel_code, tasselCode),
+    elastico: colorLabel(elasticoCode || product.elastico || product.elastico_code, ACCESSORY_COLORS, elasticoCode, 'Sem elástico')
   };
 }
