@@ -5,6 +5,7 @@ import test from 'node:test';
 import edgeRouter from '../src/edge-router.js';
 import { safePushEndpoint } from '../src/web-push.js';
 import { safeCanvaDownloadUrl } from '../src/canva-product-cutout.js';
+import { safeCanvaPageUrl } from '../src/canva-image-router.js';
 
 test('cross-site mutations are rejected before application routing', async () => {
   const response=await edgeRouter.fetch(new Request('https://nisti.example/api/admin/mural/posts',{
@@ -117,6 +118,28 @@ test('Canva server-side downloads accept only official HTTPS export URLs', () =>
     'https://127.0.0.1/example.png',
     'https://user:pass@export-download.canva.com/example.png'
   ]) assert.equal(safeCanvaDownloadUrl(value),null,value);
+});
+
+test('Canva editing links are restricted to the official Canva web origin', () => {
+  assert.equal(
+    safeCanvaPageUrl('https://www.canva.com/design/ABC/edit'),
+    'https://www.canva.com/design/ABC/edit'
+  );
+  assert.equal(safeCanvaPageUrl('https://canva.com/design/ABC/view'),'https://canva.com/design/ABC/view');
+  for(const value of [
+    'http://www.canva.com/design/ABC/edit',
+    'https://evil.canva.com/design/ABC/edit',
+    'https://attacker.example/design/ABC/edit',
+    'https://user:pass@www.canva.com/design/ABC/edit'
+  ]) assert.equal(safeCanvaPageUrl(value),null,value);
+});
+
+test('public health endpoint does not disclose database topology', async () => {
+  const response=await edgeRouter.fetch(new Request('https://nisti.example/api/health'),{}, {});
+  assert.equal(response.status,200);
+  const payload=await response.json();
+  assert.deepEqual(payload,{ok:true,service:'nisti-identificacao'});
+  assert.equal('database' in payload,false);
 });
 
 test('original product image upload validates size MIME and file signature', () => {
