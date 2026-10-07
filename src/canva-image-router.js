@@ -328,9 +328,12 @@ function textValueForField(fieldName, metadata) {
   return '';
 }
 
-function imageIndexForField(fieldName, fallbackIndex) {
+export function imageIndexForField(fieldName, fallbackIndex) {
   const key=normalizeFieldName(fieldName);
-  const match=key.match(/(?:produto|product|imagem|image|foto|photo|capa|cover)([1-9])/);
+  // Canva normalizes labels such as "IMAGEM DO ITEM 1" to "imagedoitem1".
+  // Keep the explicit number authoritative so image fields are never filled
+  // in the wrong order just because Canva returned the dataset in another order.
+  const match=key.match(/(?:produto|product|imagem|image|foto|photo|capa|cover).*?([1-9]\d*)$/);
   if (match) return Math.max(0,Number(match[1])-1);
   if (/hero|principal|main|destaque|background|fundo/.test(key)) return 0;
   return fallbackIndex;
