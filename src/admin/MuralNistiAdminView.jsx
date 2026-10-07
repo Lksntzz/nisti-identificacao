@@ -854,6 +854,16 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
     } catch (err) { setError(err.message); }
   };
 
+  const useCanvaImage = async file => {
+    setError('');
+    if(!file)return;
+    if(file.type!=='image/png')return setError('A arte exportada do Canva precisa estar em PNG.');
+    if(file.size>5*1024*1024)return setError('A arte exportada do Canva excede 5 MB.');
+    if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
+    setImage(file);
+    setImageUrl(URL.createObjectURL(file));
+  };
+
   const removeImage = async () => {
     setError('');
     if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
@@ -1015,6 +1025,25 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
           )}
 
           {activeKind && (
+            <CanvaArtworkPanel
+              kind={activeKind}
+              metadata={{
+                kind:activeKind,
+                kind_label:activeKind==='product'?'Produto':'Informação',
+                title:form.title||selectedProduct?.nome||selectedProduct?.variacao||'',
+                subtitle:form.subtitle||'',
+                body:form.body||'',
+                badge:form.badge||'',
+                sku:selectedProduct?.sku||'',
+                cta:activeKind==='product'?'Ver produto':''
+              }}
+              imageFiles={image?[image]:[]}
+              imageUrls={activeKind==='product'&&selectedProduct?.image_url?[selectedProduct.image_url]:[]}
+              onUseImage={useCanvaImage}
+            />
+          )}
+
+          {activeKind && (
             <section className="mural-publish-v2-step mural-publish-v2-settings">
               <header className="mural-publish-v2-step-heading">
                 <span className="mural-publish-v2-step-number">3</span>
@@ -1080,6 +1109,14 @@ function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
       if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
       setImage(prepared);setImageUrl(URL.createObjectURL(prepared));
     }catch(err){setError(err.message)}
+  };
+  const useCanvaBanner=async file=>{
+    setError('');
+    if(!file)return;
+    if(file.type!=='image/png'){setError('A arte exportada do Canva precisa estar em PNG.');return}
+    if(file.size>5*1024*1024){setError('A arte exportada do Canva excede 5 MB.');return}
+    if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
+    setImage(file);setImageUrl(URL.createObjectURL(file));
   };
   const removeBanner=async()=>{
     setError('');
@@ -1205,6 +1242,23 @@ function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
               </div>
             </details>
           </section>
+
+          <CanvaArtworkPanel
+            kind="collection"
+            metadata={{
+              kind:'collection',
+              kind_label:'Coleção',
+              title:form.name||'',
+              subtitle:form.hero_message||'',
+              body:form.description||'',
+              badge:'NOVA COLEÇÃO',
+              year:form.year||'',
+              cta:'Ver coleção'
+            }}
+            imageFiles={image?[image]:[]}
+            imageUrls={selectedProducts.slice(0,6).map(product=>product.image_url).filter(Boolean)}
+            onUseImage={useCanvaBanner}
+          />
 
           <section className="mural-publish-v2-step mural-publish-v2-settings">
             <header className="mural-publish-v2-step-heading">
