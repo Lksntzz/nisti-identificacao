@@ -23,7 +23,7 @@ test('cross-site mutations are rejected before application routing', async () =>
 
 test('Cloudflare rate limit blocks abusive API and login bursts', async () => {
   const limitedEnv = {
-    GLOBAL_RATE_LIMITER: { limit: async ({ key }) => ({ success: key === 'api:203.0.113.10' }) },
+    GLOBAL_RATE_LIMITER: { limit: async ({ key }) => ({ success: key !== 'api:203.0.113.10' }) },
     LOGIN_RATE_LIMITER: { limit: async () => ({ success: false }) }
   };
 
