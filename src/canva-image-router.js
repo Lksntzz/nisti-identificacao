@@ -516,7 +516,7 @@ async function exportArtwork(request,env) {
       headers:{'content-type':'application/json'},
       body:JSON.stringify({
         design_id:designId,
-        format:{type:'png',pages:[1],lossless:true}
+        format:{type:'png',pages:[1],lossless:true,width:1600}
       })
     });
     let job=started?.job;
