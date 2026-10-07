@@ -244,7 +244,7 @@ function HeroScene({ item, collectionPreviews }) {
   );
 }
 
-function CollectionLaunchHero({ item, onOpen }) {
+export function CollectionLaunchHero({ item, onOpen }) {
   const previews = item.collection?.preview_products || [];
   const hasBanner = Boolean(item.image_url);
   const title = formatCollectionTitle(item.collection) || item.title;
@@ -254,7 +254,7 @@ function CollectionLaunchHero({ item, onOpen }) {
     <button
       type="button"
       className={`mural-launch-hero mural-hero-enter${hasBanner ? ' has-banner' : ' is-composed'}`}
-      onClick={() => onOpen(item)}
+      onClick={() => onOpen?.(item)}
       aria-label={`Abrir coleção ${title}`}
     >
       {hasBanner ? (
@@ -285,7 +285,7 @@ function CollectionLaunchHero({ item, onOpen }) {
   );
 }
 
-function Hero({ item, onOpen }) {
+export function Hero({ item, onOpen }) {
   if (!item) return null;
   const isCollection = item.kind === 'collection';
   if (isCollection) return <CollectionLaunchHero item={item} onOpen={onOpen} />;
@@ -295,14 +295,16 @@ function Hero({ item, onOpen }) {
     <button
       type="button"
       className="mural-hero mural-hero-enter mural-hero-editorial"
-      onClick={() => onOpen(item)}
+      onClick={() => onOpen?.(item)}
     >
       <HeroScene item={item} collectionPreviews={collectionPreviews} />
       <span className="mural-hero-shade" aria-hidden="true" />
-      <span className="mural-hero-featured-badge"><MuralIcon name="star" size={13} /> DESTAQUE</span>
-      {!item.is_read && <span className="mural-hero-new-badge">NOVO</span>}
-      <span className="mural-hero-copy">
+      <div className="mural-hero-header-badges">
+        <span className="mural-hero-featured-badge"><MuralIcon name="star" size={12} /> DESTAQUE</span>
         {item.badge && item.badge !== 'NOVO' && <span className="mural-hero-eyebrow">{item.badge}</span>}
+        {!item.is_read && <span className="mural-hero-new-badge">NOVO</span>}
+      </div>
+      <span className="mural-hero-copy">
         <strong>{item.title}</strong>
         {item.subtitle && <span className="mural-hero-subtitle">{item.subtitle}</span>}
         {item.body && <span className="mural-hero-body">{item.body}</span>}
@@ -312,7 +314,7 @@ function Hero({ item, onOpen }) {
   );
 }
 
-function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 }) {
+export function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 }) {
   const previews = item.collection?.preview_products || [];
   const title = formatCollectionTitle(item.collection) || item.title;
   const supporting = item.collection?.hero_message || item.collection?.description || item.subtitle || item.body || 'Conheça os produtos desta nova coleção.';
@@ -325,13 +327,16 @@ function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 }) {
       className={`mural-collection-launch-card mural-collection-tone-${tone} mural-reveal`}
       style={revealStyle}
       data-mural-reveal
-      onClick={() => onOpen(item)}
+      onClick={() => onOpen?.(item)}
       aria-label={`Abrir coleção ${title}`}
     >
       <span className="mural-collection-launch-copy">
+        <span className="mural-collection-topline">
+          <span className="mural-card-editorial-pill is-collection">{item.badge || 'NOVA COLEÇÃO'}</span>
+          {!item.is_read && <span className="mural-card-new-pill">NOVO</span>}
+        </span>
         <strong>{title}</strong>
         <span>{supporting}</span>
-        <em>NOVA COLEÇÃO</em>
       </span>
       <span className="mural-collection-launch-products" aria-hidden="true">
         {previews.length ? previews.slice(0, 3).map((product, productIndex) => (
@@ -354,6 +359,7 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
   if (isCollection) return <CollectionLaunchCard item={item} onOpen={onOpen} eager={eager} index={index} />;
   const revealStyle = { '--mural-card-delay': `${Math.min(index, 8) * 45}ms` };
   const relativeDate = formatRelativeDate(item.published_at);
+  const displayTitle = item.title || (isProduct ? item.product?.nome || item.product?.sku : 'Publicação');
 
   return (
     <button
@@ -361,10 +367,10 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
       className={`mural-card mural-card-${item.kind} mural-card-reference mural-reveal${!item.is_read ? ' unread' : ''}`}
       style={revealStyle}
       data-mural-reveal
-      onClick={() => onOpen(item)}
+      onClick={() => onOpen?.(item)}
     >
       {isNotice ? (
-        <span className={`mural-card-media mural-notice-visual ${item.notice_level || 'info'}`}><MuralIcon name="megaphone" size={40} /></span>
+        <span className={`mural-card-media mural-notice-visual ${item.notice_level || 'info'}`}><MuralIcon name="megaphone" size={38} /></span>
       ) : (
         <span className="mural-card-media"><MuralImage item={item} eager={eager} className="mural-card-image" /></span>
       )}
@@ -373,30 +379,41 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
         <span className="mural-card-topline">
           <span className="mural-card-badges">
             {!item.is_read && <span className="mural-card-new-pill">NOVO</span>}
-            {isNotice && <span className="mural-card-notice-pill"><i />AVISO</span>}
+            {isNotice && (
+              <span className={`mural-card-notice-pill${item.notice_level === 'important' ? ' is-important' : ''}`}>
+                <i />{item.notice_level === 'important' ? 'IMPORTANTE' : 'AVISO'}
+              </span>
+            )}
+            {item.badge && item.badge !== 'NOVO' && (
+              <span className="mural-card-editorial-pill">{item.badge}</span>
+            )}
           </span>
           {relativeDate && <span className="mural-card-relative-date">{relativeDate}</span>}
         </span>
 
         <span className="mural-card-title-row">
-          <strong>{isProduct ? item.product?.type || item.title : item.title}</strong>
+          <strong>{displayTitle}</strong>
         </span>
 
-        {isProduct && item.title !== item.product?.type && <span className="mural-card-product-name">{item.title}</span>}
-        {isNotice && item.subtitle && <span className="mural-card-subtitle">{item.subtitle}</span>}
-        {isNotice && item.body && <span className="mural-card-summary">{item.body}</span>}
+        {item.subtitle ? (
+          <span className="mural-card-subtitle">{item.subtitle}</span>
+        ) : isNotice && item.body ? (
+          <span className="mural-card-summary">{item.body}</span>
+        ) : isProduct && item.product?.nome && item.product.nome !== displayTitle ? (
+          <span className="mural-card-product-name">{item.product.nome}</span>
+        ) : null}
 
         {isProduct && (
           <span className="mural-card-reference-meta">
-            <MuralIcon name="layers" size={14} />
+            <MuralIcon name="layers" size={13} />
             <span>{item.product?.wireo ? `Wire-o ${item.product.wireo}` : item.product?.collection || 'Produto NISTI'}</span>
             {item.product?.elastico && <><i>•</i><span>Elástico {item.product.elastico}</span></>}
+            {item.product?.sku && <><i>•</i><span>SKU {item.product.sku}</span></>}
           </span>
         )}
-
       </span>
 
-      <span className="mural-card-arrow" aria-hidden="true"><MuralIcon name="chevron" size={21} /></span>
+      <span className="mural-card-arrow" aria-hidden="true"><MuralIcon name="chevron" size={20} /></span>
     </button>
   );
 }
@@ -421,7 +438,7 @@ function useAnimatedDialogClose(onClose, duration = 180) {
   return { closing, requestClose };
 }
 
-function DetailDialog({ item, onClose, onOpenCollection }) {
+export function DetailDialog({ item, onClose, onOpenCollection }) {
   const closeRef = useRef(null);
   const hasMedia = Boolean(item?.image_url);
   const { closing, requestClose } = useAnimatedDialogClose(onClose);

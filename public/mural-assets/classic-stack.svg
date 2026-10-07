@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 200" width="100%" height="100%">
+  <defs>
+    <filter id="classic-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="-2" dy="5" stdDeviation="5" flood-color="#022c22" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Notebook 2 (Back, tilted 5deg) -->
+  <g transform="translate(125, 22) rotate(5)" filter="url(#classic-shadow)">
+    <rect x="0" y="0" width="105" height="145" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+    <g fill="#c99738">
+      <rect x="-4" y="10" width="8" height="3" rx="1.5"/><rect x="-4" y="25" width="8" height="3" rx="1.5"/><rect x="-4" y="40" width="8" height="3" rx="1.5"/><rect x="-4" y="55" width="8" height="3" rx="1.5"/><rect x="-4" y="70" width="8" height="3" rx="1.5"/><rect x="-4" y="85" width="8" height="3" rx="1.5"/><rect x="-4" y="100" width="8" height="3" rx="1.5"/><rect x="-4" y="115" width="8" height="3" rx="1.5"/><rect x="-4" y="130" width="8" height="3" rx="1.5"/>
+    </g>
+    <!-- Gold filigree / ornament -->
+    <rect x="12" y="12" width="81" height="121" rx="4" fill="none" stroke="#f5d77f" stroke-width="0.8" opacity="0.6"/>
+    <text x="52" y="65" font-family="'Times New Roman', serif" font-size="10" font-weight="700" fill="#f5d77f" text-anchor="middle" letter-spacing="1">CLASSIC</text>
+    <text x="52" y="80" font-family="'Times New Roman', serif" font-size="8" fill="#f5d77f" text-anchor="middle">2027</text>
+  </g>
+
+  <!-- Notebook 1 (Front, tilted -3deg) -->
+  <g transform="translate(60, 30) rotate(-3)" filter="url(#classic-shadow)">
+    <rect x="0" y="0" width="105" height="150" rx="9" fill="#064e3b" stroke="#047857" stroke-width="1.8"/>
+    <g fill="#c99738">
+      <rect x="-4" y="12" width="9" height="3.5" rx="1.7"/><rect x="-4" y="28" width="9" height="3.5" rx="1.7"/><rect x="-4" y="44" width="9" height="3.5" rx="1.7"/><rect x="-4" y="60" width="9" height="3.5" rx="1.7"/><rect x="-4" y="76" width="9" height="3.5" rx="1.7"/><rect x="-4" y="92" width="9" height="3.5" rx="1.7"/><rect x="-4" y="108" width="9" height="3.5" rx="1.7"/><rect x="-4" y="124" width="9" height="3.5" rx="1.7"/><rect x="-4" y="138" width="9" height="3.5" rx="1.7"/>
+    </g>
+    <!-- Gold luxury frame -->
+    <rect x="12" y="14" width="81" height="122" rx="4" fill="none" stroke="#f5d77f" stroke-width="0.9" opacity="0.75"/>
+    <circle cx="52.5" cy="50" r="14" fill="none" stroke="#f5d77f" stroke-width="0.8" opacity="0.7"/>
+    <text x="52.5" y="76" font-family="'Times New Roman', serif" font-size="9" font-weight="700" fill="#f5d77f" text-anchor="middle" letter-spacing="1">CLASSIC</text>
+    <text x="52.5" y="90" font-family="'Times New Roman', serif" font-size="8" fill="#f5d77f" text-anchor="middle">2027</text>
+  </g>
+</svg>

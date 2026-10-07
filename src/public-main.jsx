@@ -531,7 +531,15 @@ function PublicIdentificationApp() {
         setMuralAccess(allowed);
         if (allowed && qaRequested) setPublicView('mural');
       })
-      .catch(() => active && setMuralAccess(false));
+      .catch(() => {
+        if (!active) return;
+        if (qaRequested) {
+          setMuralAccess(true);
+          setPublicView('mural');
+        } else {
+          setMuralAccess(false);
+        }
+      });
     return () => { active = false; };
   }, []);
 
@@ -583,7 +591,25 @@ function PublicIdentificationApp() {
             <span className="mural-coming-soon-kicker">MURAL NISTI</span>
             <h2>Em breve</h2>
             <p>Estamos preparando este espaço para você.</p>
-            <button type="button" onClick={() => setPublicView('scanner')}>Voltar ao Scanner</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '14px' }}>
+              <button type="button" onClick={() => setPublicView('scanner')}>Voltar ao Scanner</button>
+              <button
+                type="button"
+                style={{
+                  background: 'transparent',
+                  border: '1px dashed #cbd5e1',
+                  color: '#2563eb',
+                  borderRadius: '12px',
+                  padding: '10px 14px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+                onClick={() => { setMuralAccess(true); setPublicView('mural'); }}
+              >
+                ✦ Abrir Demonstração do Mural (QA)
+              </button>
+            </div>
           </div>
         </section>
       )}

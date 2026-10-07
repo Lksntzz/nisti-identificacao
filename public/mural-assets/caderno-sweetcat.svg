@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cat-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff1f2"/>
+      <stop offset="40%" stop-color="#ffe4e6"/>
+      <stop offset="100%" stop-color="#fbcfe8"/>
+    </linearGradient>
+    <filter id="cat-shadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="3" dy="4" stdDeviation="4" flood-color="#881337" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <!-- Cover Base -->
+  <rect x="25" y="10" width="265" height="380" rx="14" fill="url(#cat-bg)" filter="url(#cat-shadow)" stroke="#fecdd3" stroke-width="2"/>
+
+  <!-- Top Title Plaque -->
+  <g filter="url(#cat-shadow)">
+    <rect x="160" y="32" width="105" height="42" rx="6" fill="#ffffff" fill-opacity="0.95" stroke="#fbcfe8" stroke-width="1.2"/>
+    <text x="212" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="800" fill="#be185d" text-anchor="middle" letter-spacing="1">NOTAS</text>
+    <text x="212" y="66" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#db2777" text-anchor="middle" letter-spacing="2">2027</text>
+  </g>
+
+  <!-- Cute Cat Illustration -->
+  <g id="sweet-cat" transform="translate(60, 110)">
+    <!-- Cat Body -->
+    <ellipse cx="90" cy="190" rx="62" ry="55" fill="#ffffff"/>
+    <ellipse cx="90" cy="190" rx="46" ry="40" fill="#fff1f2"/>
+
+    <!-- Paws -->
+    <ellipse cx="68" cy="235" rx="14" ry="10" fill="#ffffff" stroke="#fbcfe8" stroke-width="1.5"/>
+    <ellipse cx="112" cy="235" rx="14" ry="10" fill="#ffffff" stroke="#fbcfe8" stroke-width="1.5"/>
+
+    <!-- Tail -->
+    <path d="M145 200 C 170 190, 175 140, 155 130" stroke="#cbd5e1" stroke-width="14" stroke-linecap="round" fill="none"/>
+    <path d="M145 200 C 170 190, 175 140, 155 130" stroke="#94a3b8" stroke-width="10" stroke-linecap="round" fill="none"/>
+
+    <!-- Cat Head -->
+    <circle cx="90" cy="100" r="56" fill="#ffffff" filter="url(#cat-shadow)"/>
+
+    <!-- Ears -->
+    <polygon points="45,65 25,15 70,38" fill="#ffffff"/>
+    <polygon points="45,60 32,25 65,42" fill="#fda4af"/>
+
+    <polygon points="135,65 155,15 110,38" fill="#ffffff"/>
+    <polygon points="135,60 148,25 115,42" fill="#fda4af"/>
+
+    <!-- Cat Eyes -->
+    <circle cx="68" cy="95" r="7" fill="#0f172a"/>
+    <circle cx="66" cy="92" r="2.5" fill="#ffffff"/>
+
+    <circle cx="112" cy="95" r="7" fill="#0f172a"/>
+    <circle cx="110" cy="92" r="2.5" fill="#ffffff"/>
+
+    <!-- Blush -->
+    <ellipse cx="54" cy="108" rx="8" ry="5" fill="#fb7185" opacity="0.4"/>
+    <ellipse cx="126" cy="108" rx="8" ry="5" fill="#fb7185" opacity="0.4"/>
+
+    <!-- Nose & Mouth -->
+    <polygon points="87,106 93,106 90,110" fill="#f43f5e"/>
+    <path d="M84 112 Q 90 117 90 112 Q 90 117 96 112" stroke="#64748b" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+    <!-- Whiskers -->
+    <line x1="38" y1="102" x2="16" y2="98" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="38" y1="108" x2="18" y2="114" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="142" y1="102" x2="164" y2="98" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="142" y1="108" x2="162" y2="114" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/>
+
+    <!-- Collar / Bell -->
+    <path d="M68 150 Q 90 158 112 150" stroke="#f43f5e" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <circle cx="90" cy="158" r="6" fill="#facc15" stroke="#ca8a04" stroke-width="1"/>
+  </g>
+
+  <!-- Cute Flowers / Hearts Scattered -->
+  <circle cx="65" cy="50" r="10" fill="#a7f3d0" opacity="0.7"/>
+  <circle cx="65" cy="50" r="3" fill="#fef08a"/>
+  <circle cx="245" cy="330" r="12" fill="#bfdbfe" opacity="0.7"/>
+  <circle cx="245" cy="330" r="4" fill="#fef08a"/>
+
+  <!-- White Wire-o Spiral Binding on Left -->
+  <g fill="#ffffff" stroke="#cbd5e1" stroke-width="1">
+    <rect x="18" y="24" width="16" height="6" rx="3"/>
+    <rect x="18" y="44" width="16" height="6" rx="3"/>
+    <rect x="18" y="64" width="16" height="6" rx="3"/>
+    <rect x="18" y="84" width="16" height="6" rx="3"/>
+    <rect x="18" y="104" width="16" height="6" rx="3"/>
+    <rect x="18" y="124" width="16" height="6" rx="3"/>
+    <rect x="18" y="144" width="16" height="6" rx="3"/>
+    <rect x="18" y="164" width="16" height="6" rx="3"/>
+    <rect x="18" y="184" width="16" height="6" rx="3"/>
+    <rect x="18" y="204" width="16" height="6" rx="3"/>
+    <rect x="18" y="224" width="16" height="6" rx="3"/>
+    <rect x="18" y="244" width="16" height="6" rx="3"/>
+    <rect x="18" y="264" width="16" height="6" rx="3"/>
+    <rect x="18" y="284" width="16" height="6" rx="3"/>
+    <rect x="18" y="304" width="16" height="6" rx="3"/>
+    <rect x="18" y="324" width="16" height="6" rx="3"/>
+    <rect x="18" y="344" width="16" height="6" rx="3"/>
+    <rect x="18" y="364" width="16" height="6" rx="3"/>
+  </g>
+</svg>

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff5f0"/>
+      <stop offset="50%" stop-color="#ffe8df"/>
+      <stop offset="100%" stop-color="#fed7cb"/>
+    </linearGradient>
+    <linearGradient id="spiral" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c99738"/>
+      <stop offset="50%" stop-color="#f5d77f"/>
+      <stop offset="100%" stop-color="#996c1b"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="3" dy="4" stdDeviation="4" flood-color="#552211" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- Cover Base -->
+  <rect x="25" y="10" width="265" height="380" rx="14" fill="url(#bg)" filter="url(#shadow)" stroke="#fcd3c1" stroke-width="2"/>
+
+  <!-- Floral Pattern Elements -->
+  <g opacity="0.85">
+    <!-- Big Orange Flower -->
+    <circle cx="210" cy="180" r="42" fill="#ff7654" opacity="0.88"/>
+    <circle cx="178" cy="155" r="28" fill="#ff9070" opacity="0.85"/>
+    <circle cx="242" cy="155" r="28" fill="#ff9070" opacity="0.85"/>
+    <circle cx="185" cy="210" r="28" fill="#ff9070" opacity="0.85"/>
+    <circle cx="235" cy="210" r="28" fill="#ff9070" opacity="0.85"/>
+    <circle cx="210" cy="180" r="14" fill="#ffe29a"/>
+
+    <!-- Soft Blue Flowers -->
+    <circle cx="85" cy="100" r="28" fill="#a4d4e6" opacity="0.75"/>
+    <circle cx="70" cy="85" r="18" fill="#c3e5f2" opacity="0.7"/>
+    <circle cx="100" cy="85" r="18" fill="#c3e5f2" opacity="0.7"/>
+    <circle cx="85" cy="100" r="8" fill="#ffd166"/>
+
+    <circle cx="120" cy="310" r="32" fill="#9dcce0" opacity="0.75"/>
+    <circle cx="102" cy="295" r="20" fill="#bfe1ef" opacity="0.7"/>
+    <circle cx="138" cy="295" r="20" fill="#bfe1ef" opacity="0.7"/>
+    <circle cx="120" cy="310" r="10" fill="#ffb703"/>
+
+    <!-- Leaves and Stems -->
+    <path d="M120 180 Q 150 140 180 160" stroke="#78a189" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M150 155 Q 165 140 160 130 Q 145 135 150 155" fill="#88b59a"/>
+    <path d="M190 240 Q 160 290 140 320" stroke="#78a189" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M165 280 Q 180 295 190 288 Q 180 275 165 280" fill="#88b59a"/>
+
+    <!-- Soft Pink Flower -->
+    <circle cx="250" cy="330" r="35" fill="#fca5a5" opacity="0.7"/>
+    <circle cx="250" cy="330" r="11" fill="#fef08a"/>
+  </g>
+
+  <!-- Title Center Tag/Plaque -->
+  <g filter="url(#shadow)">
+    <rect x="75" y="145" width="130" height="50" rx="6" fill="#ffffff" fill-opacity="0.9" stroke="#fed7cb" stroke-width="1.5"/>
+    <text x="140" y="168" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="800" fill="#7c4a36" text-anchor="middle" letter-spacing="1">PLANNER</text>
+    <text x="140" y="185" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#a06148" text-anchor="middle" letter-spacing="2">2027</text>
+  </g>
+
+  <!-- Gold Wire-o Spiral Binding on Left -->
+  <g fill="url(#spiral)">
+    <!-- 18 Wire-o Twin Rings -->
+    <rect x="18" y="24" width="16" height="6" rx="3"/>
+    <rect x="18" y="44" width="16" height="6" rx="3"/>
+    <rect x="18" y="64" width="16" height="6" rx="3"/>
+    <rect x="18" y="84" width="16" height="6" rx="3"/>
+    <rect x="18" y="104" width="16" height="6" rx="3"/>
+    <rect x="18" y="124" width="16" height="6" rx="3"/>
+    <rect x="18" y="144" width="16" height="6" rx="3"/>
+    <rect x="18" y="164" width="16" height="6" rx="3"/>
+    <rect x="18" y="184" width="16" height="6" rx="3"/>
+    <rect x="18" y="204" width="16" height="6" rx="3"/>
+    <rect x="18" y="224" width="16" height="6" rx="3"/>
+    <rect x="18" y="244" width="16" height="6" rx="3"/>
+    <rect x="18" y="264" width="16" height="6" rx="3"/>
+    <rect x="18" y="284" width="16" height="6" rx="3"/>
+    <rect x="18" y="304" width="16" height="6" rx="3"/>
+    <rect x="18" y="324" width="16" height="6" rx="3"/>
+    <rect x="18" y="344" width="16" height="6" rx="3"/>
+    <rect x="18" y="364" width="16" height="6" rx="3"/>
+  </g>
+</svg>

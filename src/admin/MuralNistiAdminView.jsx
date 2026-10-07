@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import '../mural-admin.css';
-import { MuralCard } from '../mural-nisti.jsx';
+import { MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
 import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx';
 import { useTreatedProductImage } from '../mural-transparent-image.js';
@@ -480,86 +480,40 @@ function Status({ value }) {
   return <span className={`mural-admin-status ${value}`}><i aria-hidden="true" />{labels[value] || value}</span>;
 }
 
-function MobilePreview({ form, product, collection, imageUrl }) {
-  const title = form.title || 'Título da publicação';
-  const productPreview = form.kind === 'product' && product ? {
-    id: Number(product.id),
-    sku: product.sku || null,
-    type: product.type || productTypeLabel(product),
-    collection: product.collection_name || null,
-    wireo: product.wireo || null,
-    tassel: product.tassel || null,
-    elastico: product.elastico || null
-  } : null;
-  const collectionPreview = form.kind === 'collection' && collection ? {
-    id: Number(collection.id || 0),
-    slug: collection.slug || '',
-    name: collection.name || '',
-    year: collection.year ? Number(collection.year) : null,
-    show_year: collection.show_year !== false,
-    hero_message: collection.hero_message || null,
-    description: collection.description || null,
-    preview_products: Array.isArray(collection.preview_products) ? collection.preview_products : []
-  } : null;
-  const collectionImage = collection?.image_key
-    ? `/api/admin/mural/collections/${collection.id}/image?v=${encodeURIComponent(collection.image_key)}`
-    : '';
-  const previewItem = {
-    id: 0,
-    kind: form.kind,
-    title,
-    subtitle: form.subtitle || null,
-    body: form.body || null,
-    badge: form.badge || null,
-    badge_tone: form.badge_tone || null,
-    featured: Boolean(form.featured),
-    published_at: form.published_at ? new Date(form.published_at).toISOString() : new Date().toISOString(),
-    is_read: false,
-    image_url: imageUrl || product?.image_url || collectionImage || null,
-    product: productPreview,
-    collection: collectionPreview,
-    notice_level: form.kind === 'notice' ? form.notice_level : null
-  };
-
-  return (
-    <div className="mural-admin-phone" aria-label="Pré-visualização mobile">
-      <div className="mural-admin-phone-head"><b>Mural NISTI</b><span>Visual do operador</span></div>
-      <div className="mural-admin-shared-preview">
-        <MuralCard item={previewItem} onOpen={() => {}} eager />
-      </div>
-    </div>
-  );
-}
-
-
 function PublishTypeSelector({ activeKind, onSelect, locked = false }) {
   const options = [
-    ['product','product','Produto','Destaque um produto específico no Mural.'],
-    ['notice','document','Informação','Comunique avisos e informações importantes.'],
-    ['collection','collection','Coleção','Crie uma coleção com produtos e temas.']
+    ['product','product','Produto','Destaque um produto do catálogo'],
+    ['notice','document','Informação','Aviso ou comunicado interno'],
+    ['collection','collection','Coleção','Vitrine temática com banner']
   ];
   return (
     <section className="mural-publish-v2-step mural-publish-v2-type-step">
       <header className="mural-publish-v2-step-heading">
         <span className="mural-publish-v2-step-number">1</span>
-        <div><strong>Escolha o tipo de publicação</strong><small>Selecione o formato ideal para o conteúdo que deseja publicar.</small></div>
+        <div>
+          <strong>Escolha o tipo de publicação</strong>
+          <small>Selecione o formato ideal para o conteúdo no Mural.</small>
+        </div>
       </header>
       <div className="mural-publish-v2-type-grid">
         {options.map(([value,icon,label,description])=>{
-          const active=activeKind===value;
-          const disabled=locked&&!active;
+          const active = activeKind === value;
+          const disabled = locked && !active;
           return (
             <button
               type="button"
               key={value}
-              className={active?'active':''}
+              className={active ? 'active' : ''}
               disabled={disabled}
               aria-pressed={active}
-              onClick={()=>!disabled&&onSelect(value)}
+              onClick={() => !disabled && onSelect(value)}
             >
-              <span className={"mural-publish-v2-type-icon is-"+value}><AdminMuralIcon name={icon} size={24}/></span>
-              <span className="mural-publish-v2-type-copy"><b>{label}</b><small>{description}</small></span>
-              <span className="mural-publish-v2-type-action">{active?<AdminMuralIcon name="check" size={14}/>:<AdminMuralIcon name="chevron" size={15}/>}</span>
+              <span className={"mural-publish-v2-type-icon is-" + value}><AdminMuralIcon name={icon} size={20}/></span>
+              <span className="mural-publish-v2-type-copy">
+                <b>{label}</b>
+                <small>{description}</small>
+              </span>
+              <span className="mural-publish-v2-type-action">{active ? <AdminMuralIcon name="check" size={13}/> : <AdminMuralIcon name="chevron" size={14}/>}</span>
             </button>
           );
         })}
@@ -568,277 +522,1120 @@ function PublishTypeSelector({ activeKind, onSelect, locked = false }) {
   );
 }
 
+function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], imageUrls = [], onUseImage, onStatusChange }) {
+  const [status, setStatus] = useState({ loading: true, connected: false, art_creation_ready: false, art_missing_scopes: [] });
+  const [templates, setTemplates] = useState([]);
+  const [templateId, setTemplateId] = useState('');
+  const [design, setDesign] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
 
-function CanvaArtworkPanel({ kind, metadata, imageFiles = [], imageUrls = [], onUseImage }) {
-  const [status,setStatus]=useState({loading:true,connected:false,art_creation_ready:false,art_missing_scopes:[]});
-  const [templates,setTemplates]=useState([]);
-  const [templateId,setTemplateId]=useState('');
-  const [design,setDesign]=useState(null);
-  const [busy,setBusy]=useState('');
-  const [error,setError]=useState('');
-
-  const load=async()=>{
+  const load = async () => {
     setError('');
-    try{
-      const nextStatus=await request('/api/admin/canva/status');
-      setStatus({loading:false,connected:false,art_creation_ready:false,art_missing_scopes:[],...nextStatus});
-      if(!nextStatus?.connected||!nextStatus?.art_creation_ready){
+    try {
+      const nextStatus = await request('/api/admin/canva/status');
+      const st = { loading: false, connected: false, art_creation_ready: false, art_missing_scopes: [], ...nextStatus };
+      setStatus(st);
+      onStatusChange?.(st);
+      if (!nextStatus?.connected || !nextStatus?.art_creation_ready) {
         setTemplates([]);
         return;
       }
-      const payload=await request('/api/admin/canva/templates');
-      const items=Array.isArray(payload?.items)?payload.items:[];
+      const payload = await request('/api/admin/canva/templates');
+      const items = Array.isArray(payload?.items) ? payload.items : [];
       setTemplates(items);
-      setTemplateId(current=>current&&items.some(item=>item.id===current)?current:(items[0]?.id||''));
-    }catch(err){
-      setStatus(current=>({...current,loading:false}));
+      setTemplateId(current => current && items.some(item => item.id === current) ? current : (items[0]?.id || ''));
+    } catch (err) {
+      setStatus(current => ({ ...current, loading: false }));
       setError(err.message);
     }
   };
 
-  useEffect(()=>{load()},[kind]);
+  useEffect(() => {
+    if (isOpen) {
+      load();
+    }
+  }, [isOpen, kind]);
 
-  const connect=async()=>{
-    setBusy('connect');setError('');
-    try{
-      const payload=await request('/api/admin/canva/connect',{method:'POST'});
-      if(!payload?.authorization_url)throw new Error('Canva não retornou a URL de autorização.');
+  if (!isOpen) return null;
+
+  const connect = async () => {
+    setBusy('connect');
+    setError('');
+    try {
+      const payload = await request('/api/admin/canva/connect', { method: 'POST' });
+      if (!payload?.authorization_url) throw new Error('Canva não retornou a URL de autorização.');
       window.location.assign(payload.authorization_url);
-    }catch(err){
+    } catch (err) {
       setError(err.message);
       setBusy('');
     }
   };
 
-  const appendRemoteImages=async formData=>{
-    let slot=1;
-    for(const src of imageUrls.filter(Boolean).slice(0,6)){
-      try{
-        const response=await fetch(src,{credentials:'same-origin',cache:'no-store'});
-        if(!response.ok)continue;
-        const blob=await response.blob();
-        if(!/^image\/(png|jpeg|webp)$/i.test(blob.type||''))continue;
-        const key=slot===1?'image':`image_${slot}`;
-        formData.append(key,new File([blob],`nisti-canva-${slot}.${blob.type.includes('png')?'png':blob.type.includes('webp')?'webp':'jpg'}`,{type:blob.type}));
-        slot+=1;
-      }catch{}
+  const appendRemoteImages = async formData => {
+    let slot = 1;
+    for (const src of imageUrls.filter(Boolean).slice(0, 6)) {
+      try {
+        const response = await fetch(src, { credentials: 'same-origin', cache: 'no-store' });
+        if (!response.ok) continue;
+        const blob = await response.blob();
+        if (!/^image\/(png|jpeg|webp)$/i.test(blob.type || '')) continue;
+        const key = slot === 1 ? 'image' : `image_${slot}`;
+        formData.append(key, new File([blob], `nisti-canva-${slot}.${blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg'}`, { type: blob.type }));
+        slot += 1;
+      } catch {}
     }
   };
 
-  const createDesign=async()=>{
-    if(!templateId){setError('Escolha um template do Canva.');return}
-    setBusy('create');setError('');
-    try{
-      const formData=new FormData();
-      formData.append('template_id',templateId);
-      formData.append('metadata',JSON.stringify(metadata||{}));
-      let slot=1;
-      for(const file of imageFiles.filter(Boolean).slice(0,6)){
-        const key=slot===1?'image':`image_${slot}`;
-        formData.append(key,file);
-        slot+=1;
+  const createDesign = async () => {
+    if (!templateId) { setError('Escolha um template do Canva.'); return; }
+    setBusy('create'); setError('');
+    try {
+      const formData = new FormData();
+      formData.append('template_id', templateId);
+      formData.append('metadata', JSON.stringify(metadata || {}));
+      let slot = 1;
+      for (const file of imageFiles.filter(Boolean).slice(0, 6)) {
+        const key = slot === 1 ? 'image' : `image_${slot}`;
+        formData.append(key, file);
+        slot += 1;
       }
-      if(slot<=6){
-        const remoteData=new FormData();
+      if (slot <= 6) {
+        const remoteData = new FormData();
         await appendRemoteImages(remoteData);
-        for(const [key,value] of remoteData.entries()){
-          if(slot>6)break;
-          const target=slot===1?'image':`image_${slot}`;
-          formData.append(target,value);
-          slot+=1;
+        for (const [key, value] of remoteData.entries()) {
+          if (slot > 6) break;
+          const target = slot === 1 ? 'image' : `image_${slot}`;
+          formData.append(target, value);
+          slot += 1;
         }
       }
-      const payload=await request('/api/admin/canva/art/create',{method:'POST',body:formData});
-      setDesign(payload.design||null);
-    }catch(err){setError(err.message)}finally{setBusy('')}
+      const payload = await request('/api/admin/canva/art/create', { method: 'POST', body: formData });
+      setDesign(payload.design || null);
+    } catch (err) { setError(err.message); } finally { setBusy(''); }
   };
 
-  const importDesign=async()=>{
-    if(!design?.id)return;
-    setBusy('export');setError('');
-    try{
-      const blob=await requestBlob('/api/admin/canva/art/export',{
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body:JSON.stringify({design_id:design.id})
+  const importDesign = async () => {
+    if (!design?.id) return;
+    setBusy('export'); setError('');
+    try {
+      const blob = await requestBlob('/api/admin/canva/art/export', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ design_id: design.id })
       });
-      const file=new File([blob],`nisti-canva-${kind||'arte'}-${design.id}.png`,{type:'image/png'});
+      const file = new File([blob], `nisti-canva-${kind || 'arte'}-${design.id}.png`, { type: 'image/png' });
       await onUseImage?.(file);
-    }catch(err){setError(err.message)}finally{setBusy('')}
+      onClose?.();
+    } catch (err) { setError(err.message); } finally { setBusy(''); }
   };
 
-  const reconnectNeeded=status.connected&&!status.art_creation_ready;
+  const reconnectNeeded = status.connected && !status.art_creation_ready;
+
   return (
-    <section className="mural-publish-v2-step mural-publish-v2-canva">
-      <header className="mural-publish-v2-step-heading">
-        <span className="mural-publish-v2-step-number"><AdminMuralIcon name="sparkles" size={15}/></span>
-        <div><strong>Arte da publicação · Canva</strong><small>Crie a arte a partir de um template NISTI, edite no Canva e importe o resultado para esta publicação.</small></div>
-      </header>
-      <div className="mural-publish-v2-canva-body">
-        {status.loading?(
-          <div className="mural-publish-v2-canva-state">Verificando integração Canva…</div>
-        ):!status.connected||reconnectNeeded?(
-          <div className="mural-publish-v2-canva-connect">
-            <span><b>{reconnectNeeded?'Reconexão necessária':'Canva não conectado'}</b><small>{reconnectNeeded?'A conexão atual é anterior aos recursos de criação de arte. Reconecte uma vez para autorizar os novos escopos.':'Conecte a conta Canva para criar artes diretamente pelo Mural.'}</small></span>
-            <button type="button" onClick={connect} disabled={busy==='connect'}>{busy==='connect'?'Abrindo…':reconnectNeeded?'Reconectar Canva':'Conectar Canva'}</button>
-          </div>
-        ):(
-          <>
-            <div className="mural-publish-v2-canva-controls">
-              <label>Template Canva
-                <select value={templateId} onChange={e=>{setTemplateId(e.target.value);setDesign(null)}}>
-                  {!templates.length&&<option value="">Nenhum template com autofill encontrado</option>}
-                  {templates.map(template=><option key={template.id} value={template.id}>{template.title}</option>)}
-                </select>
-              </label>
-              <button type="button" className="mural-publish-v2-canva-create" disabled={!templateId||Boolean(busy)} onClick={createDesign}><AdminMuralIcon name="sparkles" size={15}/>{busy==='create'?'Criando…':'Criar no Canva'}</button>
+    <div className="mural-canva-modal-backdrop" onClick={onClose}>
+      <div className="mural-canva-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Integração Canva">
+        <header className="mural-canva-modal-header">
+          <div className="mural-canva-modal-title">
+            <span className="mural-canva-modal-icon"><AdminMuralIcon name="sparkles" size={18}/></span>
+            <div>
+              <strong>Arte da publicação · Canva</strong>
+              <small>Crie e importe artes de templates oficiais da NISTI diretamente para o Mural.</small>
             </div>
-            {!templates.length&&<div className="mural-publish-v2-canva-hint">Para aparecer aqui, o template precisa ser um Brand Template do Canva com campos de preenchimento automático.</div>}
-            {design&&(
-              <div className="mural-publish-v2-canva-design">
-                <span className="mural-publish-v2-canva-design-thumb">{design.thumbnail?<img src={design.thumbnail} alt="Prévia do design Canva"/>:<AdminMuralIcon name="image" size={24}/>}</span>
-                <span><b>{design.title||'Arte NISTI no Canva'}</b><small>Edite no Canva. Quando terminar, volte aqui e importe a versão atual.</small></span>
-                <span className="mural-publish-v2-canva-design-actions">
-                  {design.edit_url&&<a href={design.edit_url} target="_blank" rel="noreferrer">Editar no Canva</a>}
-                  <button type="button" onClick={importDesign} disabled={Boolean(busy)}>{busy==='export'?'Importando…':'Usar esta arte'}</button>
-                </span>
+          </div>
+          <button type="button" className="mural-canva-modal-close" onClick={onClose} aria-label="Fechar modal Canva">
+            <AdminMuralIcon name="close" size={16}/>
+          </button>
+        </header>
+
+        <div className="mural-canva-modal-body">
+          {status.loading ? (
+            <div className="mural-publish-v2-canva-state">Verificando conexão com o Canva…</div>
+          ) : !status.connected || reconnectNeeded ? (
+            <div className="mural-publish-v2-canva-connect">
+              <div className="mural-publish-v2-canva-connect-copy">
+                <b>{reconnectNeeded ? 'Reconexão necessária' : 'Canva não conectado'}</b>
+                <p>{reconnectNeeded ? 'A conexão atual precisa de novas autorizações para criar artes. Reconecte uma vez para continuar.' : 'Conecte sua conta do Canva para gerar e importar banners, produtos e comunicados com templates oficiais NISTI.'}</p>
               </div>
-            )}
-          </>
-        )}
-        {error&&<div className="mural-admin-error mural-publish-v2-canva-error">{error}</div>}
+              <button type="button" className="mural-canva-btn-primary" onClick={connect} disabled={busy === 'connect'}>
+                {busy === 'connect' ? 'Abrindo…' : reconnectNeeded ? 'Reconectar Canva' : 'Conectar com o Canva'}
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="mural-publish-v2-canva-controls">
+                <label>
+                  Template Oficial do Canva
+                  <select value={templateId} onChange={e => { setTemplateId(e.target.value); setDesign(null); }}>
+                    {!templates.length && <option value="">Nenhum template com autofill encontrado</option>}
+                    {templates.map(template => <option key={template.id} value={template.id}>{template.title}</option>)}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="mural-publish-v2-canva-create"
+                  disabled={!templateId || Boolean(busy)}
+                  onClick={createDesign}
+                >
+                  <AdminMuralIcon name="sparkles" size={15}/>
+                  {busy === 'create' ? 'Criando no Canva…' : 'Criar no Canva'}
+                </button>
+              </div>
+              {!templates.length && (
+                <div className="mural-publish-v2-canva-hint">
+                  Para aparecer aqui, o template precisa ser um Brand Template do Canva com campos de preenchimento automático.
+                </div>
+              )}
+              {design && (
+                <div className="mural-publish-v2-canva-design">
+                  <span className="mural-publish-v2-canva-design-thumb">
+                    {design.thumbnail ? <img src={design.thumbnail} alt="Prévia do design Canva"/> : <AdminMuralIcon name="image" size={24}/>}
+                  </span>
+                  <div className="mural-publish-v2-canva-design-info">
+                    <b>{design.title || 'Arte NISTI no Canva'}</b>
+                    <small>Edite no Canva. Quando terminar, volte e importe a versão atualizada.</small>
+                  </div>
+                  <div className="mural-publish-v2-canva-design-actions">
+                    {design.edit_url && (
+                      <a href={design.edit_url} target="_blank" rel="noreferrer" className="mural-canva-edit-link">
+                        Editar no Canva ↗
+                      </a>
+                    )}
+                    <button type="button" className="mural-canva-use-btn" onClick={importDesign} disabled={Boolean(busy)}>
+                      <AdminMuralIcon name="check" size={13}/>
+                      {busy === 'export' ? 'Importando…' : 'Usar esta arte'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+          {error && <div className="mural-admin-error mural-publish-v2-canva-error">{error}</div>}
+        </div>
+
+        <footer className="mural-canva-modal-footer">
+          <button type="button" className="mural-publisher-secondary" onClick={onClose}>Fechar</button>
+        </footer>
       </div>
-    </section>
+    </div>
   );
 }
 
-function PublishImageField({ imageUrl, image, busy, onChoose, onRemove, title = 'Imagem editorial (opcional)', helper = 'PNG, JPG ou WebP · até 5 MB', removeLabel = 'Remover imagem editorial' }) {
+function PublishImageField({
+  imageUrl,
+  image,
+  busy,
+  onChoose,
+  onRemove,
+  onOpenCanva,
+  canvaConnected,
+  title = 'Imagem editorial (opcional)',
+  helper = 'PNG, JPG ou WebP · até 5 MB',
+  removeLabel = 'Remover imagem editorial'
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlDraft, setUrlDraft] = useState('');
+  const fileInputRef = useRef(null);
+
+  const handleDragOver = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) onChoose?.(file);
+  };
+
+  const handleApplyUrl = () => {
+    if (urlDraft.trim()) {
+      onChoose?.(urlDraft.trim());
+      setShowUrlInput(false);
+      setUrlDraft('');
+    }
+  };
+
   return (
     <div className="mural-publish-v2-image-field">
-      <div className="mural-publish-v2-field-label"><strong>{title}</strong><AdminMuralIcon name="info" size={14}/></div>
+      <div className="mural-publish-v2-field-label">
+        <strong>{title}</strong>
+        <AdminMuralIcon name="info" size={14}/>
+      </div>
+
       {imageUrl ? (
-        <div className="mural-publish-v2-image-preview">
-          <img src={imageUrl} alt="Imagem selecionada"/>
-          <button type="button" onClick={onRemove} disabled={busy} aria-label={removeLabel} title={removeLabel}><AdminMuralIcon name="close" size={14}/></button>
+        <div className="mural-publish-v2-image-card">
+          <div className="mural-publish-v2-image-preview">
+            <img src={imageUrl} alt="Imagem da publicação"/>
+            <div className="mural-publish-v2-image-preview-overlay">
+              <span className="mural-publish-v2-image-badge">
+                <AdminMuralIcon name="check" size={12}/> Imagem pronta
+              </span>
+              <div className="mural-publish-v2-image-actions">
+                <button
+                  type="button"
+                  className="mural-publish-v2-action-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={busy}
+                  title="Trocar imagem"
+                >
+                  <AdminMuralIcon name="upload" size={13}/> Trocar
+                </button>
+                <button
+                  type="button"
+                  className="mural-publish-v2-action-btn is-danger"
+                  onClick={onRemove}
+                  disabled={busy}
+                  aria-label={removeLabel}
+                  title={removeLabel}
+                >
+                  <AdminMuralIcon name="close" size={13}/>
+                </button>
+              </div>
+            </div>
+          </div>
+          {image && (
+            <div className="mural-publish-v2-image-meta">
+              <span title={image.name}>{image.name}</span>
+              <small>{(image.size / (1024 * 1024)).toFixed(2)} MB</small>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            style={{ display: 'none' }}
+            onChange={e => {
+              if (e.target.files?.[0]) onChoose?.(e.target.files[0]);
+              e.target.value = '';
+            }}
+          />
+        </div>
+      ) : showUrlInput ? (
+        <div className="mural-publish-v2-url-box">
+          <label>
+            <span>Colar link direto da imagem (URL)</span>
+            <input
+              type="url"
+              placeholder="https://exemplo.com/imagem.png"
+              value={urlDraft}
+              onChange={e => setUrlDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleApplyUrl(); }}
+              autoFocus
+            />
+          </label>
+          <div className="mural-publish-v2-url-actions">
+            <button type="button" className="is-cancel" onClick={() => setShowUrlInput(false)}>Cancelar</button>
+            <button type="button" className="is-apply" onClick={handleApplyUrl} disabled={!urlDraft.trim()}>Usar URL</button>
+          </div>
         </div>
       ) : (
-        <label className="mural-publish-v2-upload">
-          <AdminMuralIcon name="image" size={26}/>
-          <span><b>Clique para enviar uma imagem</b><small>{helper}</small></span>
-          <span className="mural-publish-v2-upload-action"><AdminMuralIcon name="upload" size={15}/> Escolher imagem</span>
-          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>onChoose(e.target.files?.[0])}/>
-        </label>
+        <div
+          className={`mural-publish-v2-upload ${isDragging ? 'is-dragging' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            style={{ display: 'none' }}
+            onChange={e => {
+              if (e.target.files?.[0]) onChoose?.(e.target.files[0]);
+              e.target.value = '';
+            }}
+          />
+          <span className="mural-publish-v2-upload-icon">
+            <AdminMuralIcon name="image" size={24}/>
+          </span>
+          <span className="mural-publish-v2-upload-text">
+            <b>Clique para enviar uma imagem</b>
+            <small>ou arraste o arquivo até aqui · {helper}</small>
+          </span>
+          <div className="mural-publish-v2-upload-actions" onClick={e => e.stopPropagation()}>
+            <span
+              className="mural-publish-v2-upload-action"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <AdminMuralIcon name="upload" size={14}/> Escolher arquivo
+            </span>
+            <button
+              type="button"
+              className="mural-publish-v2-url-toggle-btn"
+              onClick={() => setShowUrlInput(true)}
+              title="Colar link de imagem da internet"
+            >
+              Link URL
+            </button>
+            {onOpenCanva && (
+              <button
+                type="button"
+                className="mural-publish-v2-canva-trigger-btn"
+                onClick={onOpenCanva}
+                title="Criar arte com Canva"
+              >
+                <AdminMuralIcon name="sparkles" size={13}/>
+                Canva
+              </button>
+            )}
+          </div>
+        </div>
       )}
       {image && <small className="mural-publish-v2-image-ready">Imagem preparada e pronta para envio.</small>}
     </div>
   );
 }
 
-function PublishPreviewCard({ activeKind, form, product, collection, imageUrl }) {
+function PublishPreviewCard({ activeKind, form, product, collection, selectedProducts = [], imageUrl, onToggleFeatured }) {
+  const [viewMode, setViewMode] = useState(form.featured ? 'hero' : 'feed'); // 'feed' | 'hero' | 'detail'
+  const [tabFilter, setTabFilter] = useState(() => (
+    activeKind === 'product' ? 'product' : activeKind === 'collection' ? 'collection' : activeKind === 'notice' ? 'notice' : 'all'
+  ));
+
+  useEffect(() => {
+    if (activeKind) {
+      setTabFilter(activeKind === 'product' ? 'product' : activeKind === 'collection' ? 'collection' : 'notice');
+    }
+  }, [activeKind]);
+
+  const title = form.title || form.name || (
+    activeKind === 'product' ? (product?.nome || product?.sku || 'Planner Especial') :
+    activeKind === 'notice' ? 'Aviso Importante' :
+    'Nova Coleção 2027'
+  );
+
+  const productPreview = (activeKind === 'product' && product) ? {
+    id: Number(product.id),
+    sku: product.sku || 'SKU-001',
+    nome: product.nome || title,
+    type: product.type || productTypeLabel(product) || 'Caderno Argolado',
+    collection: product.collection_name || 'Coleção NISTI',
+    wireo: product.wireo || 'Bronze',
+    tassel: product.tassel || null,
+    elastico: product.elastico || 'Rosa',
+    image_url: product.image_url || null,
+    mural_image_ready: Boolean(product.mural_image_ready)
+  } : (activeKind === 'product') ? {
+    id: 1,
+    sku: 'SKU-EXEMPLO',
+    nome: title,
+    type: 'Produto NISTI',
+    collection: 'Catálogo',
+    wireo: 'Bronze',
+    tassel: null,
+    elastico: 'Preto',
+    image_url: null,
+    mural_image_ready: false
+  } : null;
+
+  const collectionProducts = selectedProducts.length > 0 ? selectedProducts : (collection?.preview_products || []);
+  const collectionPreview = (activeKind === 'collection') ? {
+    id: Number(collection?.id || 0),
+    slug: form.slug || collection?.slug || 'nova-colecao',
+    name: form.name || form.title || collection?.name || 'Nova Coleção',
+    year: form.year ? Number(form.year) : (collection?.year ? Number(collection.year) : 2027),
+    show_year: form.show_year !== false,
+    hero_message: form.hero_message || form.subtitle || collection?.hero_message || 'Mais cor e elegância para o ano.',
+    description: form.description || form.body || collection?.description || 'Coleção exclusiva com acabamentos premium.',
+    preview_products: collectionProducts.slice(0, 4).map(p => ({
+      id: Number(p.id),
+      sku: p.sku || null,
+      type: p.type || productTypeLabel(p),
+      image_url: p.image_url || null,
+      wireo: p.wireo || null,
+      elastico: p.elastico || null,
+      image_source: p.mural_image_ready ? 'product-processed' : 'product'
+    }))
+  } : null;
+
+  const collectionImage = collection?.image_key
+    ? `/api/admin/mural/collections/${collection.id}/image?v=${encodeURIComponent(collection.image_key)}`
+    : '';
+
+  const displayImage = imageUrl || (activeKind === 'product' ? product?.image_url : null) || collectionImage || null;
+
+  const previewItem = {
+    id: 0,
+    kind: activeKind || 'notice',
+    title,
+    subtitle: form.subtitle || form.hero_message || (activeKind === 'notice' ? 'Linha de apoio' : ''),
+    body: form.body || form.description || (activeKind === 'notice' ? 'Mensagem e orientações detalhadas para a expedição e produção.' : ''),
+    badge: form.badge || (activeKind === 'notice' ? 'COMUNICADO INTERNO' : activeKind === 'collection' ? 'NOVA COLEÇÃO' : 'NOVO'),
+    badge_tone: form.badge_tone || null,
+    featured: Boolean(form.featured),
+    published_at: form.published_at ? new Date(form.published_at).toISOString() : new Date().toISOString(),
+    is_read: false,
+    image_url: displayImage,
+    image_source: imageUrl ? 'post' : (activeKind === 'product' ? 'product' : 'collection'),
+    product: productPreview,
+    collection: collectionPreview,
+    notice_level: activeKind === 'notice' ? (form.notice_level || 'info') : null
+  };
+
+  const sampleProductItem = {
+    id: 101,
+    kind: 'product',
+    title: 'Planner Espiral Floral 2027',
+    subtitle: 'Acabamento holográfico com visão semanal',
+    body: 'Miolo permanente, encadernação wire-o bronze e elástico rosa.',
+    badge: 'NOVO',
+    published_at: new Date(Date.now() - 3600000).toISOString(),
+    is_read: true,
+    product: {
+      id: 101,
+      sku: 'PLN-FLORAL-01',
+      nome: 'Planner Espiral Floral 2027',
+      type: 'Planner Semanal',
+      wireo: 'Bronze',
+      elastico: 'Rosa',
+      collection: 'Jardim Secreto'
+    }
+  };
+
+  const sampleNoticeItem = {
+    id: 102,
+    kind: 'notice',
+    title: 'Conferência Obrigatória de Wire-o',
+    subtitle: 'Procedimento padrão para turno da tarde',
+    body: 'Verificar alinhamento do espiral e fechamento do elástico antes de embalar.',
+    badge: 'COMUNICADO INTERNO',
+    notice_level: 'attention',
+    published_at: new Date(Date.now() - 7200000).toISOString(),
+    is_read: true
+  };
+
+  const sampleCollectionItem = {
+    id: 103,
+    kind: 'collection',
+    title: 'Coleção Minimalista 2027',
+    subtitle: 'Linha executiva com tons pastéis',
+    body: 'Lançamento exclusivo com acabamentos sóbrios e ferragens premium.',
+    badge: 'NOVA COLEÇÃO',
+    published_at: new Date(Date.now() - 14400000).toISOString(),
+    is_read: false,
+    collection: {
+      id: 103,
+      name: 'Coleção Minimalista',
+      year: 2027,
+      hero_message: 'Linha executiva com tons pastéis',
+      preview_products: [
+        { id: 1, sku: 'MIN-01', type: 'Planner' },
+        { id: 2, sku: 'MIN-02', type: 'Caderno' }
+      ]
+    }
+  };
+
+  const [activeDetailItem, setActiveDetailItem] = useState(null);
+  const [ctaFeedback, setCtaFeedback] = useState(false);
+  const [simulatedPush, setSimulatedPush] = useState(false);
+  const [feedbackToast, setFeedbackToast] = useState(null);
+
+  const openDetail = (itemToOpen) => {
+    setActiveDetailItem(itemToOpen || previewItem);
+    setViewMode('detail');
+  };
+
+  const currentDetailItem = activeDetailItem || previewItem;
+
+  const handleAppTabClick = (tabKey) => {
+    setTabFilter(tabKey);
+    if (viewMode === 'detail') {
+      setViewMode(form.featured ? 'hero' : 'feed');
+    }
+  };
+
+  const triggerPushSimulation = () => {
+    setSimulatedPush(true);
+    setFeedbackToast('Notificação push simulada enviada para o dispositivo!');
+    setTimeout(() => {
+      setSimulatedPush(false);
+      setFeedbackToast(null);
+    }, 4500);
+  };
+
+  const handleTestCta = () => {
+    setCtaFeedback(true);
+    const msg = currentDetailItem.kind === 'notice'
+      ? '✓ Leitura registrada no terminal do operador!'
+      : currentDetailItem.kind === 'collection'
+      ? '✓ Catálogo da coleção acessado com sucesso!'
+      : '✓ Ficha técnica do produto aberta no sistema!';
+    setFeedbackToast(msg);
+    setTimeout(() => {
+      setCtaFeedback(false);
+      setFeedbackToast(null);
+    }, 3000);
+  };
+
   return (
     <aside className="mural-publish-v2-preview">
       <header>
-        <span className="mural-publish-v2-preview-icon"><AdminMuralIcon name="eye" size={21}/></span>
-        <span><strong>Prévia</strong><small>Visualize como sua publicação será exibida no app dos operadores.</small></span>
-        <AdminMuralIcon name="info" size={15}/>
-      </header>
-      <div className="mural-publish-v2-preview-body">
-        {activeKind ? (
-          <MobilePreview form={form} product={product} collection={collection} imageUrl={imageUrl}/>
-        ) : (
-          <div className="mural-publish-v2-phone-empty" aria-label="Prévia vazia">
-            <div className="mural-publish-v2-phone-empty-top"><b>9:41</b><span>•••</span></div>
-            <div className="mural-publish-v2-phone-empty-title"><b>Mural NISTI</b><AdminMuralIcon name="notice" size={17}/></div>
-            <div className="mural-publish-v2-phone-empty-card">
-              <span className="mural-publish-v2-skeleton square"/>
-              <span className="mural-publish-v2-skeleton line short"/>
-              <span className="mural-publish-v2-skeleton line"/>
-              <span className="mural-publish-v2-skeleton line"/>
-              <span className="mural-publish-v2-skeleton media"/>
-              <span className="mural-publish-v2-skeleton line"/>
-              <span className="mural-publish-v2-skeleton line short"/>
-            </div>
+        <div className="mural-publish-v2-preview-title-row">
+          <div className="mural-publish-v2-preview-heading">
+            <span className="mural-publish-v2-preview-icon"><AdminMuralIcon name="eye" size={20}/></span>
+            <span>
+              <strong>Prévia no Mural</strong>
+              <small>Simulador interativo do app dos operadores</small>
+            </span>
+          </div>
+          <div className="mural-preview-header-actions">
+            {onToggleFeatured && (
+              <button
+                type="button"
+                className={`mural-preview-featured-toggle-btn ${form.featured ? 'is-featured' : ''}`}
+                onClick={onToggleFeatured}
+                title="Fixar ou desfixar destaque no topo do feed"
+              >
+                <AdminMuralIcon name="star" size={13}/>
+                <span>{form.featured ? 'Destaque ativo' : 'Fixar destaque'}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="mural-preview-test-push-btn"
+              onClick={triggerPushSimulation}
+              title="Testar como a notificação push chega para o operador"
+            >
+              <AdminMuralIcon name="bell" size={13}/>
+              <span>Simular push</span>
+            </button>
+          </div>
+        </div>
+
+        {activeKind && (
+          <div className="mural-publish-v2-preview-tabs" role="tablist" aria-label="Modo de visualização">
+            <button
+              type="button"
+              className={viewMode === 'feed' ? 'active' : ''}
+              onClick={() => { setViewMode('feed'); setActiveDetailItem(null); }}
+              title="Ver no fluxo de cards do feed"
+            >
+              Feed de Cards
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'hero' ? 'active' : ''}
+              onClick={() => { setViewMode('hero'); setActiveDetailItem(null); }}
+              title="Ver como banner de destaque no topo"
+            >
+              Banner Destaque {form.featured ? '★' : ''}
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'detail' ? 'active' : ''}
+              onClick={() => openDetail(previewItem)}
+              title="Ver detalhes completos do card clicado"
+            >
+              Detalhe Expandido
+            </button>
           </div>
         )}
+      </header>
+
+      <div className="mural-publish-v2-preview-body">
+        <div className="mural-preview-smartphone" aria-label="Mockup do aplicativo móvel">
+          {/* Dynamic Island */}
+          <div className="mural-preview-dynamic-island" aria-hidden="true" />
+          
+          {/* Simulated Push Notification Banner */}
+          {simulatedPush && (
+            <div
+              className="mural-preview-push-banner"
+              onClick={() => { openDetail(previewItem); setSimulatedPush(false); }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="mural-preview-push-icon"><AdminMuralIcon name="notice" size={16}/></div>
+              <div className="mural-preview-push-info">
+                <div className="mural-preview-push-top">
+                  <b>Mural NISTI</b>
+                  <span>agora</span>
+                </div>
+                <strong>{previewItem.title}</strong>
+                <p>{previewItem.subtitle || previewItem.body || 'Novo comunicado disponível no mural.'}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Floating feedback toast */}
+          {feedbackToast && (
+            <div className="mural-preview-toast">
+              <span>{feedbackToast}</span>
+            </div>
+          )}
+
+          {/* Status Bar */}
+          <div className="mural-preview-status-bar">
+            <span>09:41</span>
+            <div className="mural-preview-status-icons" aria-hidden="true">
+              <span>5G</span>
+              <span>●●●●</span>
+              <div className="mural-preview-battery"><div className="mural-preview-battery-fill" /></div>
+            </div>
+          </div>
+
+          {/* App Header */}
+          <div className="mural-preview-app-header">
+            <div className="mural-preview-app-title">
+              <span className="mural-preview-sparkles" aria-hidden="true">✦✦✦</span>
+              <b>Mural NISTI</b>
+            </div>
+            <div className="mural-preview-app-drops" aria-hidden="true">
+              <span className="drop-cyan" />
+              <span className="drop-pink" />
+              <span className="drop-yellow" />
+            </div>
+          </div>
+
+          {/* App Category Tabs */}
+          <div className="mural-preview-app-tabs" role="tablist" aria-label="Filtro do app">
+            <button
+              type="button"
+              className={tabFilter === 'all' ? 'active' : ''}
+              onClick={() => handleAppTabClick('all')}
+            >
+              Tudo
+            </button>
+            <button
+              type="button"
+              className={tabFilter === 'product' ? 'active' : ''}
+              onClick={() => handleAppTabClick('product')}
+            >
+              Produtos
+            </button>
+            <button
+              type="button"
+              className={tabFilter === 'collection' ? 'active' : ''}
+              onClick={() => handleAppTabClick('collection')}
+            >
+              Coleções
+            </button>
+            <button
+              type="button"
+              className={tabFilter === 'notice' ? 'active' : ''}
+              onClick={() => handleAppTabClick('notice')}
+            >
+              Avisos
+            </button>
+          </div>
+
+          {/* Viewport */}
+          <div className="mural-preview-viewport">
+            {!activeKind ? (
+              <div className="mural-preview-empty-card">
+                <span><AdminMuralIcon name="notice" size={24} /></span>
+                <b>Escolha o tipo de publicação</b>
+                <small>Selecione Produto, Informação ou Coleção para acompanhar a prévia interativa em tempo real.</small>
+              </div>
+            ) : viewMode === 'detail' ? (
+              <div className="mural-preview-detail-view">
+                <button
+                  type="button"
+                  className="mural-preview-detail-back"
+                  onClick={() => setViewMode(form.featured ? 'hero' : 'feed')}
+                  aria-label="Voltar para a prévia do feed"
+                >
+                  ‹ Voltar ao feed
+                </button>
+
+                {currentDetailItem.image_url ? (
+                  <div className="mural-preview-detail-media">
+                    <img src={currentDetailItem.image_url} alt="Arte em destaque" />
+                  </div>
+                ) : currentDetailItem.kind === 'product' && (
+                  <div className="mural-preview-detail-placeholder">
+                    <AdminMuralIcon name="product" size={36}/>
+                    <small>Foto padrão do catálogo</small>
+                  </div>
+                )}
+
+                <div className="mural-card-badges">
+                  {!currentDetailItem.is_read && <span className="mural-new-badge">NOVO</span>}
+                  {currentDetailItem.kind === 'notice' && (
+                    <span className={`mural-notice-label ${currentDetailItem.notice_level || 'info'}`}>
+                      {currentDetailItem.notice_level === 'important' ? 'Importante' : currentDetailItem.notice_level === 'attention' ? 'Atenção' : 'Informação'}
+                    </span>
+                  )}
+                  {currentDetailItem.badge && currentDetailItem.badge !== 'NOVO' && (
+                    <span className="mural-editorial-badge">{currentDetailItem.badge}</span>
+                  )}
+                </div>
+
+                <div className="mural-preview-detail-typography">
+                  {currentDetailItem.kind === 'product' && currentDetailItem.product?.type && (
+                    <span className="mural-preview-detail-kicker">{currentDetailItem.product.type}</span>
+                  )}
+                  <strong>{currentDetailItem.title}</strong>
+                  {currentDetailItem.subtitle && <p className="mural-preview-detail-subtitle">{currentDetailItem.subtitle}</p>}
+                  {currentDetailItem.body && <p className="mural-preview-detail-body">{currentDetailItem.body}</p>}
+                </div>
+
+                {currentDetailItem.kind === 'product' && currentDetailItem.product && (
+                  <div className="mural-preview-detail-specs">
+                    <div><b>SKU</b><span>{currentDetailItem.product.sku || 'N/A'}</span></div>
+                    <div><b>Wire-o</b><span>{currentDetailItem.product.wireo || 'Padrão'}</span></div>
+                    <div><b>Elástico</b><span>{currentDetailItem.product.elastico || 'Padrão'}</span></div>
+                    <div><b>Coleção</b><span>{currentDetailItem.product.collection || 'Catálogo'}</span></div>
+                  </div>
+                )}
+
+                {currentDetailItem.kind === 'collection' && (currentDetailItem.collection?.preview_products?.length > 0 || collectionProducts.length > 0) && (
+                  <div className="mural-preview-collection-vitrine">
+                    <header>
+                      <b>Vitrine da coleção</b>
+                      <small>{(currentDetailItem.collection?.preview_products || collectionProducts).length} produtos</small>
+                    </header>
+                    <div className="mural-preview-collection-chips">
+                      {(currentDetailItem.collection?.preview_products || collectionProducts).slice(0, 6).map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className="mural-preview-collection-chip-btn"
+                          onClick={() => openDetail({
+                            id: p.id,
+                            kind: 'product',
+                            title: p.nome || p.type || p.sku,
+                            subtitle: `Produto da coleção ${currentDetailItem.title}`,
+                            body: `SKU: ${p.sku || 'N/A'} • Wire-o: ${p.wireo || 'Padrão'} • Elástico: ${p.elastico || 'Padrão'}`,
+                            badge: 'COLEÇÃO',
+                            image_url: p.image_url || null,
+                            product: p
+                          })}
+                          title={`Ver detalhes do ${p.sku || p.nome}`}
+                        >
+                          {p.image_url && <img src={p.image_url} alt=""/>}
+                          <b>{p.sku || p.nome || p.type}</b>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {currentDetailItem.kind === 'notice' && (
+                  <div className={`mural-preview-notice-callout is-${currentDetailItem.notice_level || 'info'}`}>
+                    <AdminMuralIcon name="notice" size={18}/>
+                    <span>Orientação prioritária para equipes de expedição e triagem.</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className={`mural-preview-detail-action-btn ${ctaFeedback ? 'is-success' : ''}`}
+                  onClick={handleTestCta}
+                >
+                  <AdminMuralIcon name={ctaFeedback ? 'check' : 'layers'} size={15}/>
+                  <span>
+                    {ctaFeedback
+                      ? 'Ação executada com sucesso!'
+                      : currentDetailItem.kind === 'collection'
+                      ? 'Ver catálogo da coleção'
+                      : currentDetailItem.kind === 'notice'
+                      ? 'Confirmar leitura no terminal'
+                      : 'Ver produto no catálogo'}
+                  </span>
+                </button>
+              </div>
+            ) : viewMode === 'hero' ? (
+              <div className="mural-preview-hero-container">
+                {activeKind === 'collection' ? (
+                  <CollectionLaunchHero item={{ ...previewItem, featured: true }} onOpen={() => openDetail(previewItem)} />
+                ) : (
+                  <Hero item={{ ...previewItem, featured: true }} onOpen={() => openDetail(previewItem)} />
+                )}
+                <div className="mural-preview-click-hint">
+                  <small>Clique no banner acima para abrir o detalhe em tela cheia.</small>
+                </div>
+              </div>
+            ) : (
+              <div className="mural-preview-feed-list">
+                {/* Visualização de acordo com o filtro selecionado */}
+                {tabFilter === 'all' && (
+                  <>
+                    {/* Destaque fixado (Hero) se featured for verdadeiro */}
+                    {form.featured && (
+                      activeKind === 'collection' ? (
+                        <CollectionLaunchHero item={previewItem} onOpen={() => openDetail(previewItem)} />
+                      ) : (
+                        <Hero item={previewItem} onOpen={() => openDetail(previewItem)} />
+                      )
+                    )}
+
+                    {/* Card normal de feed */}
+                    {!form.featured && (
+                      activeKind === 'collection' ? (
+                        <CollectionLaunchCard item={previewItem} onOpen={() => openDetail(previewItem)} eager />
+                      ) : (
+                        <MuralCard item={previewItem} onOpen={() => openDetail(previewItem)} eager />
+                      )
+                    )}
+
+                    {/* Outros itens contextuais interativos para compor o feed completo */}
+                    <div className="mural-preview-secondary-card" title="Clique para abrir detalhe deste item">
+                      <MuralCard
+                        item={activeKind === 'product' ? sampleNoticeItem : sampleProductItem}
+                        onOpen={() => openDetail(activeKind === 'product' ? sampleNoticeItem : sampleProductItem)}
+                      />
+                    </div>
+
+                    <div className="mural-preview-secondary-card" title="Clique para abrir detalhe desta coleção">
+                      <CollectionLaunchCard
+                        item={sampleCollectionItem}
+                        onOpen={() => openDetail(sampleCollectionItem)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {tabFilter === 'product' && (
+                  <>
+                    {activeKind === 'product' ? (
+                      form.featured ? (
+                        <Hero item={previewItem} onOpen={() => openDetail(previewItem)} />
+                      ) : (
+                        <MuralCard item={previewItem} onOpen={() => openDetail(previewItem)} eager />
+                      )
+                    ) : (
+                      <div className="mural-preview-tab-sample-wrap">
+                        <div className="mural-preview-tab-sample-header">
+                          <small>Exemplo do feed de Produtos:</small>
+                        </div>
+                        <MuralCard
+                          item={sampleProductItem}
+                          onOpen={() => openDetail(sampleProductItem)}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {tabFilter === 'collection' && (
+                  <>
+                    {activeKind === 'collection' ? (
+                      form.featured ? (
+                        <CollectionLaunchHero item={previewItem} onOpen={() => openDetail(previewItem)} />
+                      ) : (
+                        <CollectionLaunchCard item={previewItem} onOpen={() => openDetail(previewItem)} eager />
+                      )
+                    ) : (
+                      <div className="mural-preview-tab-sample-wrap">
+                        <div className="mural-preview-tab-sample-header">
+                          <small>Exemplo do feed de Coleções:</small>
+                        </div>
+                        <CollectionLaunchCard
+                          item={sampleCollectionItem}
+                          onOpen={() => openDetail(sampleCollectionItem)}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {tabFilter === 'notice' && (
+                  <>
+                    {activeKind === 'notice' ? (
+                      form.featured ? (
+                        <Hero item={previewItem} onOpen={() => openDetail(previewItem)} />
+                      ) : (
+                        <MuralCard item={previewItem} onOpen={() => openDetail(previewItem)} eager />
+                      )
+                    ) : (
+                      <div className="mural-preview-tab-sample-wrap">
+                        <div className="mural-preview-tab-sample-header">
+                          <small>Exemplo do feed de Avisos:</small>
+                        </div>
+                        <MuralCard
+                          item={sampleNoticeItem}
+                          onOpen={() => openDetail(sampleNoticeItem)}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-      <footer><AdminMuralIcon name="info" size={15}/><span>Esta é uma prévia ilustrativa. O conteúdo final respeita o layout real do Mural.</span></footer>
+
+      <footer>
+        <span className="mural-publish-v2-preview-pulse" aria-hidden="true" />
+        <span>Prévia 100% interativa — teste abas, botões e clique nos cards para abrir o detalhe.</span>
+      </footer>
     </aside>
   );
 }
 
-function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
+function MuralPublishWorkspace({ item, products = [], onClose, onSaved }) {
   const sourceItem = item && item.mode === 'new' ? null : item;
-  const presetKind = sourceItem?.kind || (item?.mode === 'new' ? item?.kind || null : null);
-  const [activeKind,setActiveKind]=useState(presetKind);
-  const [form, setForm] = useState(() => postForm(sourceItem || (presetKind ? {...EMPTY_POST,kind:presetKind} : null)));
-  const [products, setProducts] = useState([]);
+  const isEditingCollection = Boolean(sourceItem && (sourceItem.kind === 'collection' || sourceItem.product_ids !== undefined));
+  const presetKind = sourceItem?.kind || (isEditingCollection ? 'collection' : (item?.mode === 'new' ? item?.kind || null : null));
+
+  const [activeKind, setActiveKind] = useState(presetKind || 'product');
+  const [form, setForm] = useState(() => postForm(sourceItem || (presetKind ? { ...EMPTY_POST, kind: presetKind } : null)));
+  const [collectionForm, setCollectionForm] = useState(() => ({
+    name: (isEditingCollection ? sourceItem?.name : '') || '',
+    slug: (isEditingCollection ? sourceItem?.slug : '') || '',
+    year: (isEditingCollection ? sourceItem?.year : '') || '',
+    show_year: isEditingCollection ? (sourceItem?.show_year !== false && Number(sourceItem?.show_year ?? 1) !== 0) : true,
+    hero_message: (isEditingCollection ? sourceItem?.hero_message : '') || '',
+    visual_direction: (isEditingCollection ? sourceItem?.visual_direction : '') || 'automatic',
+    theme_notes: (isEditingCollection ? sourceItem?.theme_notes : '') || '',
+    description: (isEditingCollection ? sourceItem?.description : '') || '',
+    status: (isEditingCollection ? sourceItem?.status : '') || 'active',
+    featured: isEditingCollection ? Boolean(sourceItem?.featured ?? true) : true
+  }));
+
+  const [catalogProducts, setCatalogProducts] = useState(products);
   const [productQuery, setProductQuery] = useState(sourceItem?.product_sku || '');
+  const [collectionProductQuery, setCollectionProductQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(sourceItem?.product_id ? {
-    id:sourceItem.product_id,
-    sku:sourceItem.product_sku,
-    nome:sourceItem.product_name,
-    miolo_code:sourceItem.product_miolo_code,
-    type:sourceItem.product_type,
-    image_url:sourceItem.product_image_url,
-    wireo:sourceItem.product_wireo,
-    tassel:sourceItem.product_tassel,
-    elastico:sourceItem.product_elastico,
-    collection_name:sourceItem.product_collection_name
+    id: sourceItem.product_id,
+    sku: sourceItem.product_sku,
+    nome: sourceItem.product_name,
+    miolo_code: sourceItem.product_miolo_code,
+    type: sourceItem.product_type,
+    image_url: sourceItem.product_image_url,
+    wireo: sourceItem.product_wireo,
+    tassel: sourceItem.product_tassel,
+    elastico: sourceItem.product_elastico,
+    collection_name: sourceItem.product_collection_name
   } : null);
+
+  const [selectedCollectionProductIds, setSelectedCollectionProductIds] = useState(() => {
+    if (isEditingCollection && sourceItem?.product_ids) {
+      return String(sourceItem.product_ids).split(',').map(Number).filter(id => Number.isInteger(id) && id > 0);
+    }
+    return [];
+  });
+
   const [image, setImage] = useState(() => sourceItem?.prefillImage || null);
   const [imageUrl, setImageUrl] = useState(() => {
     if (sourceItem?.prefillImage) return URL.createObjectURL(sourceItem.prefillImage);
-    if (sourceItem?.image_key) return `/api/admin/mural/posts/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}`;
+    if (sourceItem?.image_key) {
+      if (isEditingCollection) {
+        return `/api/admin/mural/collections/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}`;
+      }
+      return `/api/admin/mural/posts/${sourceItem.id}/image?v=${encodeURIComponent(sourceItem.image_key)}`;
+    }
     return '';
   });
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [canvaModalOpen, setCanvaModalOpen] = useState(false);
+  const [canvaStatus, setCanvaStatus] = useState({ loading: true, connected: false });
 
+  // Sync Canva status on mount
+  useEffect(() => {
+    request('/api/admin/canva/status')
+      .then(s => setCanvaStatus({ loading: false, connected: Boolean(s?.connected && s?.art_creation_ready) }))
+      .catch(() => setCanvaStatus({ loading: false, connected: false }));
+  }, []);
+
+  // Sync catalog products if passed or load
+  useEffect(() => {
+    if (products && products.length > 0) {
+      setCatalogProducts(products);
+    } else {
+      request('/api/admin/mural/products?limit=500')
+        .then(data => setCatalogProducts(data.items || []))
+        .catch(() => {});
+    }
+  }, [products]);
+
+  // Real-time product search for single product post
   useEffect(() => {
     if (activeKind !== 'product') return;
+    if (!productQuery) return;
     const timer = setTimeout(() => {
       request(`/api/admin/mural/products?q=${encodeURIComponent(productQuery)}`)
-        .then(data => setProducts(data.items || [])).catch(() => setProducts([]));
+        .then(data => setCatalogProducts(prev => {
+          const incoming = data.items || [];
+          const map = new Map(prev.map(p => [p.id, p]));
+          incoming.forEach(p => map.set(p.id, p));
+          return Array.from(map.values());
+        }))
+        .catch(() => {});
     }, 220);
     return () => clearTimeout(timer);
   }, [productQuery, activeKind]);
 
-  useEffect(() => () => { if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
+  useEffect(() => () => {
+    if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
+  }, [imageUrl]);
 
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
+  const setCol = (key, value) => setCollectionForm(current => ({ ...current, [key]: value }));
 
   const changeKind = nextKind => {
-    if (nextKind === 'collection') {
-      onCreateCollection();
-      return;
-    }
     setActiveKind(nextKind);
     setError('');
-    setForm(current => ({
-      ...current,
-      kind:nextKind,
-      product_id:nextKind==='product'?current.product_id:'',
-      collection_id:'',
-      notice_level:nextKind==='notice'?(current.notice_level || 'info'):null,
-      badge:nextKind==='notice'
-        ? (['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].includes(current.badge) ? current.badge : 'COMUNICADO INTERNO')
-        : (['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].includes(current.badge) ? 'NOVO' : (current.badge || 'NOVO'))
-    }));
-    if (nextKind !== 'product') {
-      setSelectedProduct(null);
-      setProductQuery('');
+    if (nextKind === 'notice') {
+      setForm(current => ({
+        ...current,
+        kind: 'notice',
+        product_id: '',
+        collection_id: '',
+        notice_level: current.notice_level || 'info',
+        badge: ['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].includes(current.badge) ? current.badge : 'COMUNICADO INTERNO'
+      }));
+    } else if (nextKind === 'product') {
+      setForm(current => ({
+        ...current,
+        kind: 'product',
+        collection_id: '',
+        notice_level: null,
+        badge: ['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].includes(current.badge) ? 'NOVO' : (current.badge || 'NOVO')
+      }));
+    } else if (nextKind === 'collection') {
+      setForm(current => ({
+        ...current,
+        kind: 'collection',
+        badge: 'NOVA COLEÇÃO',
+        featured: true
+      }));
     }
   };
 
-  const chooseProduct = product => {
-    setSelectedProduct(product);
-    setProductQuery(product.sku || product.nome || '');
-    setForm(current=>({
+  const chooseProduct = prod => {
+    setSelectedProduct(prod);
+    setProductQuery(prod.sku || prod.nome || '');
+    setForm(current => ({
       ...current,
-      kind:'product',
-      product_id:product.id,
-      title:current.title || product.nome || product.variacao || product.sku || ''
+      kind: 'product',
+      product_id: prod.id,
+      title: current.title || prod.nome || prod.variacao || prod.sku || ''
     }));
+  };
+
+  const toggleCollectionProduct = prodId => {
+    setSelectedCollectionProductIds(cur => cur.includes(prodId) ? cur.filter(x => x !== prodId) : [...cur, prodId]);
+  };
+
+  const moveCollectionProduct = (prodId, direction) => {
+    setSelectedCollectionProductIds(cur => {
+      const idx = cur.indexOf(prodId);
+      const target = idx + direction;
+      if (idx < 0 || target < 0 || target >= cur.length) return cur;
+      const next = [...cur];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
   };
 
   const chooseImage = async file => {
@@ -856,10 +1653,10 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
 
   const useCanvaImage = async file => {
     setError('');
-    if(!file)return;
-    if(file.type!=='image/png')return setError('A arte exportada do Canva precisa estar em PNG.');
-    if(file.size>5*1024*1024)return setError('A arte exportada do Canva excede 5 MB.');
-    if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
+    if (!file) return;
+    if (file.type !== 'image/png') return setError('A arte exportada do Canva precisa estar em PNG.');
+    if (file.size > 5 * 1024 * 1024) return setError('A arte exportada do Canva excede 5 MB.');
+    if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
     setImage(file);
     setImageUrl(URL.createObjectURL(file));
   };
@@ -871,427 +1668,711 @@ function PostEditor({ item, onClose, onSaved, onCreateCollection }) {
     if (!sourceItem?.id || !sourceItem?.image_key) { setImageUrl(''); return; }
     setBusy(true);
     try {
-      await request(`/api/admin/mural/posts/${sourceItem.id}/image`, { method:'DELETE' });
+      if (isEditingCollection) {
+        await request(`/api/admin/mural/collections/${sourceItem.id}/image`, { method: 'DELETE' });
+      } else {
+        await request(`/api/admin/mural/posts/${sourceItem.id}/image`, { method: 'DELETE' });
+      }
       setImageUrl('');
       sourceItem.image_key = null;
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
 
-  const payload = () => ({
-    ...form,
-    kind:activeKind || form.kind,
-    product_id: activeKind === 'product' ? Number(form.product_id) || null : null,
-    collection_id: null,
-    notice_level: activeKind === 'notice' ? form.notice_level : null,
-    priority: Number(form.priority) || 0,
-    published_at: form.published_at ? new Date(form.published_at).toISOString() : null,
-    expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null
-  });
-
-  const save = async publish => {
-    if (!activeKind) { setError('Escolha Produto, Informação ou Coleção para começar.'); return; }
-    setBusy(true); setError('');
+  const save = async (publish = false) => {
+    setError('');
+    setBusy(true);
     try {
-      const body = JSON.stringify(payload());
-      let id = sourceItem?.id;
-      if (id) {
-        await request(`/api/admin/mural/posts/${id}`, { method:'PUT', headers:{'content-type':'application/json'}, body });
+      if (activeKind === 'collection') {
+        const name = collectionForm.name?.trim() || form.title?.trim();
+        if (!name) { setError('Preencha o nome da coleção.'); setBusy(false); return; }
+        if (publish && selectedCollectionProductIds.length === 0) {
+          setError('Selecione ao menos 1 produto para publicar a coleção.'); setBusy(false); return;
+        }
+
+        const bodyData = {
+          name,
+          slug: collectionForm.slug?.trim() || '',
+          year: collectionForm.year || '',
+          show_year: collectionForm.show_year !== false,
+          hero_message: collectionForm.hero_message?.trim() || form.subtitle?.trim() || '',
+          visual_direction: collectionForm.visual_direction || 'automatic',
+          theme_notes: collectionForm.theme_notes?.trim() || '',
+          description: collectionForm.description?.trim() || form.body?.trim() || '',
+          status: collectionForm.status || 'active'
+        };
+
+        const id = (sourceItem && isEditingCollection) ? sourceItem.id : null;
+        let savedId = id;
+        if (id) {
+          await request(`/api/admin/mural/collections/${id}`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(bodyData)
+          });
+        } else {
+          const created = await request('/api/admin/mural/collections', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(bodyData)
+          });
+          savedId = created.id;
+        }
+
+        if (selectedCollectionProductIds.length > 0) {
+          await request(`/api/admin/mural/collections/${savedId}/products`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ product_ids: selectedCollectionProductIds })
+          });
+        }
+
+        if (image) {
+          const fd = new FormData();
+          fd.append('image', image);
+          await request(`/api/admin/mural/collections/${savedId}/image`, { method: 'POST', body: fd });
+        }
+
+        if (publish) {
+          await request(`/api/admin/mural/collections/${savedId}/publish`, { method: 'POST' });
+        }
       } else {
-        const created = await request('/api/admin/mural/posts', { method:'POST', headers:{'content-type':'application/json'}, body });
-        id = created.id;
+        // Product or Notice
+        const title = form.title?.trim() || (activeKind === 'product' ? selectedProduct?.nome : '');
+        if (!title) { setError('Preencha o título da publicação.'); setBusy(false); return; }
+        if (activeKind === 'product' && !selectedProduct && !form.product_id) {
+          setError('Selecione um produto no catálogo.'); setBusy(false); return;
+        }
+
+        const bodyData = {
+          ...form,
+          title,
+          kind: activeKind,
+          product_id: activeKind === 'product' ? Number(selectedProduct?.id || form.product_id) || null : null,
+          collection_id: null,
+          notice_level: activeKind === 'notice' ? (form.notice_level || 'info') : null,
+          priority: Number(form.priority) || 0,
+          published_at: form.published_at ? new Date(form.published_at).toISOString() : null,
+          expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null
+        };
+
+        let id = (sourceItem && !isEditingCollection) ? sourceItem.id : null;
+        if (id) {
+          await request(`/api/admin/mural/posts/${id}`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(bodyData)
+          });
+        } else {
+          const created = await request('/api/admin/mural/posts', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(bodyData)
+          });
+          id = created.id;
+        }
+
+        if (image) {
+          const fd = new FormData();
+          fd.append('image', image);
+          await request(`/api/admin/mural/posts/${id}/image`, { method: 'POST', body: fd });
+        }
+
+        if (publish) {
+          await request(`/api/admin/mural/posts/${id}/publish`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ published_at: form.published_at ? new Date(form.published_at).toISOString() : null })
+          });
+        }
       }
-      if (image) {
-        const formData = new FormData(); formData.append('image', image);
-        await request(`/api/admin/mural/posts/${id}/image`, { method:'POST', body:formData });
-      }
-      if (publish) {
-        await request(`/api/admin/mural/posts/${id}/publish`, {
-          method:'POST', headers:{'content-type':'application/json'},
-          body:JSON.stringify({ published_at: form.published_at ? new Date(form.published_at).toISOString() : null })
-        });
-      }
+
       await onSaved();
       onClose();
-    } catch (err) { setError(err.message); } finally { setBusy(false); }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const publishLabel = form.published_at && new Date(form.published_at) > new Date() ? 'Agendar' : 'Publicar';
-  const readyToSave = Boolean(activeKind && form.title?.trim() && (activeKind !== 'product' || form.product_id));
+  // Filtered products for collection picker
+  const filteredCollectionCatalog = catalogProducts.filter(p =>
+    !collectionProductQuery ||
+    `${p.sku} ${p.nome || ''} ${p.variacao || ''}`.toLowerCase().includes(collectionProductQuery.toLowerCase())
+  ).slice(0, 10);
+
+  const selectedCollectionProducts = selectedCollectionProductIds
+    .map(id => catalogProducts.find(p => Number(p.id) === Number(id)))
+    .filter(Boolean);
+
+  const publishLabel = form.published_at && new Date(form.published_at) > new Date() ? 'Agendar' : 'Publicar no Mural';
+  const readyToSave = activeKind === 'collection'
+    ? Boolean((collectionForm.name || form.title)?.trim())
+    : Boolean(form.title?.trim() && (activeKind !== 'product' || selectedProduct || form.product_id));
 
   return (
-    <section className="mural-publisher-workspace mural-publish-v2" aria-label="Editor de publicação do Mural">
-      <nav className="mural-publisher-breadcrumb" aria-label="Navegação">
-        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><strong>{sourceItem ? 'Editar publicação' : 'Publicar'}</strong>
-      </nav>
+    <section className="mural-publisher-workspace mural-studio-workspace" aria-label="Editor de publicação do Mural">
+      {/* Top Studio Bar with all Primary Actions and Kind Selector */}
+      <header className="mural-studio-topbar">
+        <div className="mural-studio-topbar-left">
+          <button type="button" className="mural-studio-back-btn" onClick={onClose} title="Voltar ao Painel">
+            ‹ Voltar
+          </button>
+          <div className="mural-studio-heading">
+            <h2>{sourceItem ? 'Editar no Mural' : 'Publicar no Mural'}</h2>
+            <small>Expedição e produção NISTI</small>
+          </div>
+          <div className="mural-studio-kind-tabs" role="tablist" aria-label="Tipo de publicação">
+            <button
+              type="button"
+              className={activeKind === 'product' ? 'active' : ''}
+              disabled={Boolean(sourceItem)}
+              onClick={() => changeKind('product')}
+            >
+              <AdminMuralIcon name="product" size={15}/>
+              <span>Produto</span>
+            </button>
+            <button
+              type="button"
+              className={activeKind === 'notice' ? 'active' : ''}
+              disabled={Boolean(sourceItem)}
+              onClick={() => changeKind('notice')}
+            >
+              <AdminMuralIcon name="notice" size={15}/>
+              <span>Informação</span>
+            </button>
+            <button
+              type="button"
+              className={activeKind === 'collection' ? 'active' : ''}
+              disabled={Boolean(sourceItem)}
+              onClick={() => changeKind('collection')}
+            >
+              <AdminMuralIcon name="collection" size={15}/>
+              <span>Coleção</span>
+            </button>
+          </div>
+        </div>
 
-      <header className="mural-publisher-header mural-publish-v2-page-header">
-        <div className="mural-publisher-title">
-          <span className="mural-publisher-title-icon"><AdminMuralIcon name="notice" size={23}/></span>
-          <span><h2>Publicar no Mural</h2><p>{sourceItem?'Edite o conteúdo existente mantendo a mesma estrutura visual.':'Crie novos conteúdos para os operadores.'}</p></span>
+        <div className="mural-studio-topbar-right">
+          <button
+            type="button"
+            className={`mural-studio-canva-btn ${canvaStatus.connected ? 'is-connected' : ''}`}
+            onClick={() => setCanvaModalOpen(true)}
+            title={canvaStatus.connected ? 'Abrir criação de arte no Canva' : 'Conectar conta Canva'}
+          >
+            <AdminMuralIcon name="sparkles" size={15}/>
+            <span>{canvaStatus.connected ? 'Criar no Canva' : 'Conectar ao Canva'}</span>
+            {canvaStatus.connected && <span className="mural-studio-online-dot" title="Canva pronto e conectado"/>}
+          </button>
+          <div className="mural-studio-topbar-divider" aria-hidden="true"/>
+          <button type="button" className="mural-studio-btn-ghost" onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="mural-studio-btn-subtle"
+            disabled={busy || !readyToSave}
+            onClick={() => save(false)}
+          >
+            <AdminMuralIcon name="document" size={14}/> Salvar rascunho
+          </button>
+          <button
+            type="button"
+            className="mural-studio-btn-primary"
+            disabled={busy || !readyToSave}
+            onClick={() => save(true)}
+          >
+            <AdminMuralIcon name="notice" size={15}/> {busy ? 'Processando…' : publishLabel}
+          </button>
         </div>
       </header>
 
-      <div className="mural-publish-v2-shell">
-        <form id="mural-publication-form" className="mural-publish-v2-form" onSubmit={event => { event.preventDefault(); save(false); }}>
-          <PublishTypeSelector activeKind={activeKind} locked={Boolean(sourceItem)} onSelect={changeKind}/>
-
-          {!activeKind && (
-            <section className="mural-publish-v2-step mural-publish-v2-empty-state">
-              <header className="mural-publish-v2-step-heading">
-                <span className="mural-publish-v2-step-number">2</span>
-                <div><strong>Conteúdo da publicação</strong><small>Defina os detalhes da sua publicação.</small></div>
+      {/* Main Studio Body: 2 Columns */}
+      <div className="mural-studio-body">
+        <form id="mural-publication-form" className="mural-studio-form" onSubmit={e => { e.preventDefault(); save(false); }}>
+          
+          {/* Card 1: Identificação & Imagem */}
+          {activeKind === 'product' && (
+            <section className="mural-studio-card">
+              <header className="mural-studio-card-header">
+                <strong>1. Produto e imagem de destaque</strong>
+                <small>Vincule ao catálogo e defina a imagem principal.</small>
               </header>
-              <div className="mural-publish-v2-empty-illustration">
-                <span><AdminMuralIcon name="notice" size={38}/></span>
-                <strong>Selecione o tipo de publicação acima</strong>
-                <small>Escolha entre Produto, Informação ou Coleção para começar a criar seu conteúdo.</small>
+
+              <div className="mural-studio-split-row">
+                <div className="mural-studio-col">
+                  <label className="mural-publish-v2-field mural-publish-v2-search">
+                    Buscar produto no catálogo
+                    <span>
+                      <AdminMuralIcon name="search" size={16}/>
+                      <input
+                        value={productQuery}
+                        onChange={e => setProductQuery(e.target.value)}
+                        placeholder="Digite o SKU, nome ou código do produto..."
+                      />
+                    </span>
+                  </label>
+
+                  {selectedProduct && (
+                    <div className="mural-studio-selected-product">
+                      <figure>
+                        {selectedProduct.image_url ? (
+                          <TransparentMuralProductImage src={selectedProduct.image_url} alt={selectedProduct.nome || selectedProduct.sku}/>
+                        ) : (
+                          <AdminMuralIcon name="product" size={28}/>
+                        )}
+                      </figure>
+                      <div className="mural-studio-selected-info">
+                        <strong>{selectedProduct.nome || selectedProduct.variacao || 'Produto NISTI'}</strong>
+                        <small>SKU: {selectedProduct.sku}{selectedProduct.collection_name ? ` · ${selectedProduct.collection_name}` : ''}</small>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedProduct(null); set('product_id', ''); setProductQuery(''); }}
+                        aria-label="Remover produto selecionado"
+                        title="Remover produto selecionado"
+                      >
+                        <AdminMuralIcon name="close" size={14}/>
+                      </button>
+                    </div>
+                  )}
+
+                  {productQuery && !selectedProduct && (
+                    <div className="mural-publish-v2-product-results">
+                      {catalogProducts.slice(0, 6).map(prod => (
+                        <button
+                          type="button"
+                          className={Number(form.product_id) === Number(prod.id) ? 'selected' : ''}
+                          key={prod.id}
+                          onClick={() => chooseProduct(prod)}
+                        >
+                          <figure>
+                            {prod.image_url ? (
+                              <TransparentMuralProductImage src={prod.image_url} alt="" ariaHidden/>
+                            ) : (
+                              <AdminMuralIcon name="product" size={19}/>
+                            )}
+                          </figure>
+                          <span>
+                            <b>{prod.nome || prod.variacao || prod.sku}</b>
+                            <small>{prod.sku}</small>
+                          </span>
+                          {Number(form.product_id) === Number(prod.id) && <AdminMuralIcon name="check" size={14}/>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mural-studio-col">
+                  <PublishImageField
+                    imageUrl={imageUrl}
+                    image={image}
+                    busy={busy}
+                    onChoose={chooseImage}
+                    onRemove={removeImage}
+                    onOpenCanva={() => setCanvaModalOpen(true)}
+                    canvaConnected={canvaStatus.connected}
+                    title="Imagem de apoio ou foto real (opcional)"
+                    helper="PNG, JPG ou WebP · até 5 MB"
+                  />
+                </div>
               </div>
             </section>
           )}
 
-          {activeKind === 'product' && (
-            <>
-              <section className="mural-publish-v2-step mural-publish-v2-content-step">
-                <header className="mural-publish-v2-step-heading">
-                  <span className="mural-publish-v2-step-number">2</span>
-                  <div><strong>Produto em destaque</strong><small>Preencha as informações para criar sua publicação de produto.</small></div>
-                </header>
-                <div className="mural-publish-v2-product-layout">
-                  <div className="mural-publish-v2-product-copy">
-                    <label className="mural-publish-v2-field mural-publish-v2-search">Buscar produto
-                      <span><AdminMuralIcon name="search" size={16}/><input value={productQuery} onChange={e=>setProductQuery(e.target.value)} placeholder="Digite o nome, código ou SKU do produto..."/></span>
-                    </label>
-                    {selectedProduct && (
-                      <div className="mural-publish-v2-selected-product">
-                        <figure>{selectedProduct.image_url?<TransparentMuralProductImage src={selectedProduct.image_url} alt={selectedProduct.nome||selectedProduct.sku}/>:<AdminMuralIcon name="product" size={28}/>}</figure>
-                        <span><strong>{selectedProduct.nome || selectedProduct.variacao || 'Produto NISTI'}</strong><small>SKU: {selectedProduct.sku}</small></span>
-                        <button type="button" onClick={()=>{setSelectedProduct(null);set('product_id','');setProductQuery('')}} aria-label="Remover produto"><AdminMuralIcon name="close" size={14}/></button>
-                      </div>
-                    )}
-                    {productQuery && (
-                      <div className="mural-publish-v2-product-results">
-                        {products.slice(0,6).map(product=>(
-                          <button type="button" className={Number(form.product_id)===Number(product.id)?'selected':''} key={product.id} onClick={()=>chooseProduct(product)}>
-                            <figure>{product.image_url?<TransparentMuralProductImage src={product.image_url} alt="" ariaHidden/>:<AdminMuralIcon name="product" size={19}/>}</figure>
-                            <span><b>{product.nome || product.variacao || product.sku}</b><small>{product.sku}</small></span>
-                            {Number(form.product_id)===Number(product.id)&&<AdminMuralIcon name="check" size={14}/>}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <PublishImageField imageUrl={imageUrl} image={image} busy={busy} onChoose={chooseImage} onRemove={removeImage}/>
-                </div>
-                <div className="mural-publish-v2-copy-grid">
-                  <label className="mural-publish-v2-field">Título da publicação <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Planner Cactus 2027"/><small>{String(form.title||'').length}/90</small></label>
-                  <label className="mural-publish-v2-field">Subtítulo<input maxLength="120" value={form.subtitle||''} onChange={e=>set('subtitle',e.target.value)} placeholder="Uma frase curta para o destaque."/><small>{String(form.subtitle||'').length}/120</small></label>
-                  <label className="mural-publish-v2-field mural-publish-v2-wide">Descrição curta<textarea maxLength="700" rows="3" value={form.body||''} onChange={e=>set('body',e.target.value)} placeholder="Explique o que o operador precisa saber sobre este produto."/><small>{String(form.body||'').length}/700</small></label>
-                  <label className="mural-publish-v2-field">Selo do card<input maxLength="18" value={form.badge||''} onChange={e=>set('badge',e.target.value)} placeholder="NOVO"/><small>{String(form.badge||'').length}/18</small></label>
-                  <label className="mural-publish-v2-field">Ação no Mural<input value="Ver produto" disabled/><span className="mural-publish-v2-field-note">Definida pelo sistema.</span></label>
-                </div>
-              </section>
-            </>
-          )}
-
           {activeKind === 'notice' && (
-            <section className="mural-publish-v2-step mural-publish-v2-content-step">
-              <header className="mural-publish-v2-step-heading">
-                <span className="mural-publish-v2-step-number">2</span>
-                <div><strong>Informação para operadores</strong><small>Preencha os detalhes da sua publicação.</small></div>
+            <section className="mural-studio-card">
+              <header className="mural-studio-card-header">
+                <strong>1. Classificação e imagem do comunicado</strong>
+                <small>Defina a prioridade e infográfico para a equipe.</small>
               </header>
-              <div className="mural-publish-v2-information-layout">
-                <div className="mural-publish-v2-information-copy">
-                  <div className="mural-publish-v2-field-label"><strong>Prioridade da publicação</strong><AdminMuralIcon name="info" size={14}/></div>
+
+              <div className="mural-studio-split-row">
+                <div className="mural-studio-col">
+                  <div className="mural-publish-v2-field-label">
+                    <strong>Prioridade do comunicado</strong>
+                    <AdminMuralIcon name="info" size={14}/>
+                  </div>
                   <div className="mural-publish-v2-priority" role="group" aria-label="Prioridade da publicação">
                     {[
                       ['info','Normal','•'],
                       ['attention','Atenção','!'],
                       ['important','Importante','!']
-                    ].map(([value,label,symbol])=>(
-                      <button type="button" key={value} className={form.notice_level===value?'active is-'+value:'is-'+value} onClick={()=>set('notice_level',value)}><span>{symbol}</span>{label}</button>
+                    ].map(([val,lbl,sym]) => (
+                      <button
+                        type="button"
+                        key={val}
+                        className={form.notice_level === val ? `active is-${val}` : `is-${val}`}
+                        onClick={() => set('notice_level', val)}
+                      >
+                        <span>{sym}</span>{lbl}
+                      </button>
                     ))}
                   </div>
-                  <div className="mural-publish-v2-field-label"><strong>Tipo de informação</strong><small>Usado como selo no Mural.</small></div>
-                  <div className="mural-publish-v2-category-chips">
-                    {['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].map(value=><button type="button" key={value} className={form.badge===value?'active':''} onClick={()=>set('badge',value)}>{value}</button>)}
+
+                  <div className="mural-publish-v2-field-label" style={{ marginTop: '10px' }}>
+                    <strong>Tipo de informação</strong>
+                    <small>Define a categoria operacional.</small>
                   </div>
-                  <label className="mural-publish-v2-field">Título da informação <em>*</em><input maxLength="90" required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ex.: Nova instrução de expedição"/><small>{String(form.title||'').length}/90</small></label>
-                  <label className="mural-publish-v2-field">Linha de apoio<input maxLength="120" value={form.subtitle||''} onChange={e=>set('subtitle',e.target.value)} placeholder="Resumo curto para o card."/><small>{String(form.subtitle||'').length}/120</small></label>
-                  <label className="mural-publish-v2-field">Mensagem<textarea maxLength="700" rows="6" value={form.body||''} onChange={e=>set('body',e.target.value)} placeholder="Escreva a orientação completa para os operadores."/><small>{String(form.body||'').length}/700</small></label>
+                  <div className="mural-publish-v2-category-chips">
+                    {['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].map(cat => (
+                      <button
+                        type="button"
+                        key={cat}
+                        className={form.badge === cat ? 'active' : ''}
+                        onClick={() => set('badge', cat)}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <PublishImageField imageUrl={imageUrl} image={image} busy={busy} onChoose={chooseImage} onRemove={removeImage}/>
+
+                <div className="mural-studio-col">
+                  <PublishImageField
+                    imageUrl={imageUrl}
+                    image={image}
+                    busy={busy}
+                    onChoose={chooseImage}
+                    onRemove={removeImage}
+                    onOpenCanva={() => setCanvaModalOpen(true)}
+                    canvaConnected={canvaStatus.connected}
+                    title="Infográfico ou imagem de apoio (opcional)"
+                    helper="PNG, JPG ou WebP · até 5 MB"
+                  />
+                </div>
               </div>
             </section>
           )}
 
-          {activeKind && (
-            <CanvaArtworkPanel
-              kind={activeKind}
-              metadata={{
-                kind:activeKind,
-                kind_label:activeKind==='product'?'Produto':'Informação',
-                title:form.title||selectedProduct?.nome||selectedProduct?.variacao||'',
-                subtitle:form.subtitle||'',
-                body:form.body||'',
-                badge:form.badge||'',
-                sku:selectedProduct?.sku||'',
-                cta:activeKind==='product'?'Ver produto':''
-              }}
-              imageFiles={image?[image]:[]}
-              imageUrls={activeKind==='product'&&selectedProduct?.image_url?[selectedProduct.image_url]:[]}
-              onUseImage={useCanvaImage}
-            />
-          )}
-
-          {activeKind && (
-            <section className="mural-publish-v2-step mural-publish-v2-settings">
-              <header className="mural-publish-v2-step-heading">
-                <span className="mural-publish-v2-step-number">3</span>
-                <div><strong>Configurações de publicação</strong><small>Defina quando e como sua publicação será exibida.</small></div>
+          {activeKind === 'collection' && (
+            <section className="mural-studio-card">
+              <header className="mural-studio-card-header">
+                <strong>1. Informações da coleção e banner</strong>
+                <small>Ano, tema e arte visual da vitrine.</small>
               </header>
-              <div className="mural-publish-v2-settings-grid">
-                <label className="mural-publish-v2-switch">
-                  <input type="checkbox" checked={form.featured} onChange={e=>set('featured',e.target.checked)}/>
-                  <span aria-hidden="true"/>
-                  <b>Fixar no topo do Mural</b>
-                  <small>Mantém esta publicação em destaque para os operadores.</small>
-                </label>
-                <label className="mural-publish-v2-field">Publicar em<span className="mural-publish-v2-input-icon"><AdminMuralIcon name="calendar" size={15}/><input type="datetime-local" value={form.published_at} onChange={e=>set('published_at',e.target.value)}/></span></label>
-                <label className="mural-publish-v2-field">Expira em <em className="muted">(opcional)</em><span className="mural-publish-v2-input-icon"><AdminMuralIcon name="calendar" size={15}/><input type="datetime-local" value={form.expires_at} onChange={e=>set('expires_at',e.target.value)}/></span></label>
-                <label className="mural-publish-v2-field mural-publish-v2-order-field">Ordem<input type="number" min="0" max="100" value={form.priority} onChange={e=>set('priority',e.target.value)}/></label>
+
+              <div className="mural-studio-split-row">
+                <div className="mural-studio-col">
+                  <div className="mural-publish-v2-field-row">
+                    <label className="mural-publish-v2-field mural-publish-v2-year">
+                      Ano da coleção
+                      <input
+                        type="number"
+                        value={collectionForm.year}
+                        onChange={e => setCol('year', e.target.value)}
+                        placeholder="2027"
+                      />
+                    </label>
+                    <label className="mural-publish-v2-field">
+                      Slug <em className="muted">(opcional)</em>
+                      <input
+                        value={collectionForm.slug}
+                        onChange={e => setCol('slug', e.target.value)}
+                        placeholder="gerado automaticamente"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="mural-publish-v2-field">
+                    Direção visual
+                    <select
+                      value={collectionForm.visual_direction}
+                      onChange={e => setCol('visual_direction', e.target.value)}
+                    >
+                      <option value="automatic">Automática (Harmonização inteligente)</option>
+                      <option value="delicate">Delicada (Tons pastéis e florais)</option>
+                      <option value="premium">Premium (Dourado, contrastes sóbrios)</option>
+                      <option value="minimal">Minimalista (Geométrico, monocromático)</option>
+                      <option value="playful">Divertida (Cores vivas e lúdicas)</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="mural-studio-col">
+                  <PublishImageField
+                    imageUrl={imageUrl}
+                    image={image}
+                    busy={busy}
+                    onChoose={chooseImage}
+                    onRemove={removeImage}
+                    onOpenCanva={() => setCanvaModalOpen(true)}
+                    canvaConnected={canvaStatus.connected}
+                    title="Arte da coleção (banner 2:1 recomendado)"
+                    helper="Recomendado: banner horizontal 2:1 · PNG, JPG ou WebP"
+                    removeLabel="Remover banner da coleção"
+                  />
+                </div>
               </div>
             </section>
           )}
 
-          {error&&<div className="mural-admin-error mural-publish-v2-error">{error}</div>}
+          {/* Card 2: Conteúdo Editorial */}
+          <section className="mural-studio-card">
+            <header className="mural-studio-card-header">
+              <strong>2. Textos e conteúdo da publicação</strong>
+              <small>Informações diretas exibidas nos cards para os operadores.</small>
+            </header>
+
+            <div className="mural-studio-copy-grid">
+              <label className="mural-publish-v2-field">
+                {activeKind === 'collection' ? 'Nome da coleção' : activeKind === 'notice' ? 'Título da informação' : 'Título da publicação'} <em>*</em>
+                <input
+                  maxLength="90"
+                  required
+                  value={activeKind === 'collection' ? collectionForm.name : form.title}
+                  onChange={e => activeKind === 'collection' ? setCol('name', e.target.value) : set('title', e.target.value)}
+                  placeholder={activeKind === 'collection' ? 'Ex.: Coleção Minimalista 2027' : activeKind === 'notice' ? 'Ex.: Nova conferência obrigatória de Wire-o' : 'Ex.: Planner Cactus 2027'}
+                />
+                <small>{String((activeKind === 'collection' ? collectionForm.name : form.title) || '').length}/90</small>
+              </label>
+
+              <label className="mural-publish-v2-field">
+                {activeKind === 'collection' ? 'Frase de destaque (hero)' : 'Subtítulo / Linha de apoio'}
+                <input
+                  maxLength="120"
+                  value={activeKind === 'collection' ? (collectionForm.hero_message || '') : (form.subtitle || '')}
+                  onChange={e => activeKind === 'collection' ? setCol('hero_message', e.target.value) : set('subtitle', e.target.value)}
+                  placeholder="Uma frase curta de impacto."
+                />
+                <small>{String((activeKind === 'collection' ? collectionForm.hero_message : form.subtitle) || '').length}/120</small>
+              </label>
+
+              <label className="mural-publish-v2-field mural-publish-v2-wide">
+                {activeKind === 'collection' ? 'Descrição da coleção' : activeKind === 'notice' ? 'Mensagem completa do aviso' : 'Descrição curta'}
+                <textarea
+                  maxLength="700"
+                  rows="3"
+                  value={activeKind === 'collection' ? (collectionForm.description || '') : (form.body || '')}
+                  onChange={e => activeKind === 'collection' ? setCol('description', e.target.value) : set('body', e.target.value)}
+                  placeholder={activeKind === 'notice' ? 'Escreva a orientação completa para os operadores da expedição.' : 'Orientações e especificações que os operadores precisam saber.'}
+                />
+                <small>{String((activeKind === 'collection' ? collectionForm.description : form.body) || '').length}/700</small>
+              </label>
+
+              <label className="mural-publish-v2-field">
+                Selo do card
+                <input
+                  maxLength="24"
+                  value={form.badge || (activeKind === 'collection' ? 'NOVA COLEÇÃO' : '')}
+                  onChange={e => set('badge', e.target.value)}
+                  placeholder={activeKind === 'notice' ? 'COMUNICADO INTERNO' : activeKind === 'collection' ? 'NOVA COLEÇÃO' : 'NOVO'}
+                />
+                <small>{String(form.badge || '').length}/24</small>
+              </label>
+
+              <label className="mural-publish-v2-field">
+                Ação no Mural
+                <input value={activeKind === 'collection' ? 'Ver coleção' : activeKind === 'notice' ? 'Ver aviso' : 'Ver produto'} disabled/>
+                <span className="mural-publish-v2-field-note">Padrão do sistema para este tipo de publicação.</span>
+              </label>
+            </div>
+          </section>
+
+          {/* Produtos da Coleção (quando for coleção) */}
+          {activeKind === 'collection' && (
+            <section className="mural-studio-card">
+              <header className="mural-studio-card-header">
+                <strong>Produtos da coleção <em>*</em></strong>
+                <small>{selectedCollectionProducts.length} produto{selectedCollectionProducts.length === 1 ? '' : 's'} selecionado{selectedCollectionProducts.length === 1 ? '' : 's'}</small>
+              </header>
+
+              <label className="mural-publish-v2-field mural-publish-v2-search">
+                <span>
+                  <AdminMuralIcon name="search" size={16}/>
+                  <input
+                    value={collectionProductQuery}
+                    onChange={e => setCollectionProductQuery(e.target.value)}
+                    placeholder="Buscar SKU ou nome do produto para adicionar..."
+                  />
+                </span>
+              </label>
+
+              <div className="mural-publish-v2-collection-product-grid">
+                {filteredCollectionCatalog.map(p => (
+                  <button
+                    type="button"
+                    className={selectedCollectionProductIds.includes(p.id) ? 'selected' : ''}
+                    key={p.id}
+                    onClick={() => toggleCollectionProduct(p.id)}
+                  >
+                    <figure>
+                      {p.image_url ? (
+                        <TransparentMuralProductImage src={p.image_url} alt="" ariaHidden/>
+                      ) : (
+                        <AdminMuralIcon name="product" size={19}/>
+                      )}
+                    </figure>
+                    <span>
+                      <b>{p.nome || p.variacao || p.sku}</b>
+                      <small>{p.sku}</small>
+                    </span>
+                    <span className="mural-publish-v2-product-check">
+                      {selectedCollectionProductIds.includes(p.id) ? <AdminMuralIcon name="check" size={13}/> : '+'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Card 3: Configurações & Agendamento */}
+          <section className="mural-studio-card">
+            <header className="mural-studio-card-header">
+              <strong>3. Configurações de exibição</strong>
+              <small>Defina quando e como o conteúdo será exibido no feed.</small>
+            </header>
+
+            <div className="mural-studio-settings-row">
+              <label className="mural-publish-v2-setting-tile mural-publish-v2-switch">
+                <input
+                  type="checkbox"
+                  checked={activeKind === 'collection' ? collectionForm.featured : form.featured}
+                  onChange={e => activeKind === 'collection' ? setCol('featured', e.target.checked) : set('featured', e.target.checked)}
+                />
+                <span aria-hidden="true"/>
+                <div>
+                  <b>Fixar no topo do Mural</b>
+                  <small>Exibe em destaque prioritário no feed.</small>
+                </div>
+              </label>
+
+              {activeKind === 'collection' ? (
+                <label className="mural-publish-v2-setting-tile mural-publish-v2-switch">
+                  <input
+                    type="checkbox"
+                    checked={collectionForm.show_year}
+                    onChange={e => setCol('show_year', e.target.checked)}
+                  />
+                  <span aria-hidden="true"/>
+                  <div>
+                    <b>Mostrar ano no banner</b>
+                    <small>Exibe o ano junto ao título da coleção.</small>
+                  </div>
+                </label>
+              ) : (
+                <div className="mural-publish-v2-setting-tile mural-publish-v2-input-tile">
+                  <div className="mural-publish-v2-tile-label">
+                    <AdminMuralIcon name="calendar" size={15}/>
+                    <span>Publicar em</span>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={form.published_at}
+                    onChange={e => set('published_at', e.target.value)}
+                  />
+                </div>
+              )}
+
+              {activeKind === 'collection' ? (
+                <div className="mural-publish-v2-setting-tile mural-publish-v2-setting-note">
+                  <span className="mural-publish-v2-note-icon"><AdminMuralIcon name="clock" size={18}/></span>
+                  <div>
+                    <b>Publicação imediata</b>
+                    <small>Disponível logo após salvar.</small>
+                  </div>
+                </div>
+              ) : (
+                <div className="mural-publish-v2-setting-tile mural-publish-v2-input-tile">
+                  <div className="mural-publish-v2-tile-label">
+                    <AdminMuralIcon name="calendar" size={15}/>
+                    <span>Expira em <em className="muted">(opcional)</em></span>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={form.expires_at}
+                    onChange={e => set('expires_at', e.target.value)}
+                  />
+                </div>
+              )}
+
+              {activeKind === 'collection' ? (
+                <div className="mural-publish-v2-setting-tile mural-publish-v2-setting-note">
+                  <span className="mural-publish-v2-note-icon"><AdminMuralIcon name="collection" size={18}/></span>
+                  <div>
+                    <b>{selectedCollectionProducts.length} produto{selectedCollectionProducts.length === 1 ? '' : 's'}</b>
+                    <small>Na vitrine desta coleção.</small>
+                  </div>
+                </div>
+              ) : (
+                <div className="mural-publish-v2-setting-tile mural-publish-v2-input-tile">
+                  <div className="mural-publish-v2-tile-label">
+                    <AdminMuralIcon name="sliders" size={15}/>
+                    <span>Ordem de exibição</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={form.priority}
+                    onChange={e => set('priority', e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+
+          {error && <div className="mural-admin-error mural-publish-v2-error">{error}</div>}
         </form>
 
-        <PublishPreviewCard activeKind={activeKind} form={{...form,kind:activeKind||form.kind}} product={selectedProduct} collection={null} imageUrl={imageUrl}/>
+        {/* Prévia Interativa em Tempo Real */}
+        <div className="mural-studio-preview-pane">
+          <PublishPreviewCard
+            activeKind={activeKind}
+            form={activeKind === 'collection' ? { ...collectionForm, title: collectionForm.name, body: collectionForm.description, subtitle: collectionForm.hero_message, kind: 'collection', badge: form.badge || 'NOVA COLEÇÃO', featured: collectionForm.featured } : form}
+            product={selectedProduct}
+            collection={activeKind === 'collection' ? { ...collectionForm, id: sourceItem?.id || 0, preview_products: selectedCollectionProducts } : null}
+            selectedProducts={selectedCollectionProducts}
+            imageUrl={imageUrl}
+            onToggleFeatured={() => {
+              if (activeKind === 'collection') {
+                setCol('featured', !collectionForm.featured);
+              } else {
+                set('featured', !form.featured);
+              }
+            }}
+          />
+        </div>
       </div>
 
-      <footer className="mural-publisher-universal-actions mural-publish-v2-actions" aria-label="Ações da publicação">
-        <button type="button" className="mural-publisher-secondary" onClick={onClose}>Cancelar</button>
-        <span>
-          <button type="submit" form="mural-publication-form" disabled={busy||!readyToSave}><AdminMuralIcon name="document" size={15}/> Salvar rascunho</button>
-          <button type="button" className="primary" disabled={busy||!readyToSave} onClick={()=>save(true)}><AdminMuralIcon name="notice" size={16}/> {publishLabel}</button>
-        </span>
-      </footer>
+      {/* Modal Oficial do Canva */}
+      <CanvaArtworkModal
+        isOpen={canvaModalOpen}
+        onClose={() => setCanvaModalOpen(false)}
+        kind={activeKind}
+        metadata={{
+          kind: activeKind,
+          kind_label: activeKind === 'product' ? 'Produto' : activeKind === 'notice' ? 'Informação' : 'Coleção',
+          title: activeKind === 'collection' ? collectionForm.name : form.title || selectedProduct?.nome || '',
+          subtitle: activeKind === 'collection' ? collectionForm.hero_message : form.subtitle || '',
+          body: activeKind === 'collection' ? collectionForm.description : form.body || '',
+          badge: activeKind === 'collection' ? (form.badge || 'NOVA COLEÇÃO') : form.badge || '',
+          sku: selectedProduct?.sku || '',
+          cta: activeKind === 'collection' ? 'Ver coleção' : activeKind === 'product' ? 'Ver produto' : 'Ver aviso'
+        }}
+        imageFiles={image ? [image] : []}
+        imageUrls={
+          activeKind === 'product' && selectedProduct?.image_url
+            ? [selectedProduct.image_url]
+            : activeKind === 'collection'
+            ? selectedCollectionProducts.slice(0, 6).map(p => p.image_url).filter(Boolean)
+            : []
+        }
+        onUseImage={useCanvaImage}
+        onStatusChange={st => setCanvaStatus({ loading: false, connected: Boolean(st?.connected && st?.art_creation_ready) })}
+      />
     </section>
   );
 }
 
-function CollectionEditor({ item, products, onClose, onSaved, onSwitchKind }) {
-  const [form,setForm]=useState({name:item?.name||'',slug:item?.slug||'',year:item?.year||'',show_year:item?.show_year!==false&&Number(item?.show_year??1)!==0,hero_message:item?.hero_message||'',visual_direction:item?.visual_direction||'automatic',theme_notes:item?.theme_notes||'',description:item?.description||'',status:item?.status||'active'});
-  const [selected,setSelected]=useState(()=>String(item?.product_ids||'').split(',').map(Number).filter(id=>Number.isInteger(id)&&id>0));
-  const [image,setImage]=useState(null);
-  const [storedImageKey,setStoredImageKey]=useState(item?.image_key||'');
-  const [imageUrl,setImageUrl]=useState(item?.image_key ? `/api/admin/mural/collections/${item.id}/image?v=${encodeURIComponent(item.image_key)}` : '');
-  const [query,setQuery]=useState('');
-  const [error,setError]=useState('');
-  const [busy,setBusy]=useState(false);
-  const filtered=products.filter(p=>!query||`${p.sku} ${p.nome||''} ${p.variacao||''}`.toLowerCase().includes(query.toLowerCase())).slice(0,8);
-  const toggle=id=>setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id]);
-  const move=(id,direction)=>setSelected(current=>{
-    const index=current.indexOf(id);const target=index+direction;
-    if(index<0||target<0||target>=current.length)return current;
-    const next=[...current];[next[index],next[target]]=[next[target],next[index]];return next;
-  });
-  const selectedProducts=selected.map(id=>products.find(product=>Number(product.id)===Number(id))).filter(Boolean);
-  useEffect(()=>()=>{if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl)},[imageUrl]);
+function PostEditor(props) {
+  return <MuralPublishWorkspace {...props} />;
+}
 
-  const chooseBanner=async file=>{
-    setError('');
-    if(!file)return;
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){setError('Use JPEG, PNG ou WebP.');return}
-    try{
-      const prepared=await compressImage(file);
-      if(prepared.size>5*1024*1024)throw new Error('A imagem final excede 5 MB.');
-      if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
-      setImage(prepared);setImageUrl(URL.createObjectURL(prepared));
-    }catch(err){setError(err.message)}
-  };
-  const useCanvaBanner=async file=>{
-    setError('');
-    if(!file)return;
-    if(file.type!=='image/png'){setError('A arte exportada do Canva precisa estar em PNG.');return}
-    if(file.size>5*1024*1024){setError('A arte exportada do Canva excede 5 MB.');return}
-    if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
-    setImage(file);setImageUrl(URL.createObjectURL(file));
-  };
-  const removeBanner=async()=>{
-    setError('');
-    if(imageUrl.startsWith('blob:'))URL.revokeObjectURL(imageUrl);
-    setImage(null);
-    if(!item?.id||!storedImageKey){setImageUrl('');return}
-    setBusy(true);
-    try{
-      await request(`/api/admin/mural/collections/${item.id}/image`,{method:'DELETE'});
-      setStoredImageKey('');setImageUrl('');
-    }catch(err){setError(err.message)}finally{setBusy(false)}
-  };
-  const save=async(publish=false)=>{
-    setBusy(true);setError('');
-    try{
-      const opts={method:item?'PUT':'POST',headers:{'content-type':'application/json'},body:JSON.stringify(form)};
-      const data=await request(item?`/api/admin/mural/collections/${item.id}`:'/api/admin/mural/collections',opts);
-      const id=item?.id||data.id;
-      await request(`/api/admin/mural/collections/${id}/products`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({product_ids:selected})});
-      if(image){const fd=new FormData();fd.append('image',image);await request(`/api/admin/mural/collections/${id}/image`,{method:'POST',body:fd});}
-      if(publish){await request(`/api/admin/mural/collections/${id}/publish`,{method:'POST'});}
-      await onSaved();onClose();
-    }catch(err){setError(err.message)}finally{setBusy(false)}
-  };
-
-  const switchKind=kind=>{
-    if(kind==='collection')return;
-    if(item)return;
-    onSwitchKind?.(kind);
-  };
-
-  const collectionPreview={
-    id:Number(item?.id||0),
-    slug:form.slug||'nova-colecao',
-    name:form.name||'Nova coleção',
-    year:form.year?Number(form.year):null,
-    show_year:form.show_year,
-    hero_message:form.hero_message||null,
-    description:form.description||null,
-    preview_products:selectedProducts.slice(0,4).map(p=>({
-      id:Number(p.id),sku:p.sku||null,type:p.type||productTypeLabel(p),
-      image_url:p.image_url||null,image_source:p.mural_image_ready?'product-processed':'product'
-    }))
-  };
-  const collectionPreviewForm={
-    ...EMPTY_POST,kind:'collection',title:form.name||'Nova coleção',
-    subtitle:form.hero_message||'',body:form.description||'',badge:'NOVA COLEÇÃO',
-    featured:true,published_at:''
-  };
-
-  return (
-    <section className="mural-collection-workspace mural-publish-v2 mural-publish-v2-collection" aria-label={item?'Editar coleção':'Nova coleção'}>
-      <nav className="mural-publisher-breadcrumb" aria-label="Navegação">
-        <button type="button" onClick={onClose}>Mural NISTI</button><span>›</span><strong>{item?'Editar coleção':'Publicar'}</strong>
-      </nav>
-
-      <header className="mural-publisher-header mural-publish-v2-page-header">
-        <div className="mural-publisher-title">
-          <span className="mural-publisher-title-icon"><AdminMuralIcon name="notice" size={23}/></span>
-          <span><h2>Publicar no Mural</h2><p>{item?'Edite a coleção mantendo a mesma estrutura visual.':'Crie novos conteúdos para os operadores.'}</p></span>
-        </div>
-      </header>
-
-      <div className="mural-publish-v2-shell">
-        <div className="mural-publish-v2-form">
-          <PublishTypeSelector activeKind="collection" locked={Boolean(item)} onSelect={switchKind}/>
-
-          <section className="mural-publish-v2-step mural-publish-v2-content-step">
-            <header className="mural-publish-v2-step-heading">
-              <span className="mural-publish-v2-step-number">2</span>
-              <div><strong>{item?'Editar coleção':'Nova coleção'}</strong><small>Preencha as informações e organize os produtos da coleção.</small></div>
-            </header>
-
-            <div className="mural-publish-v2-collection-top">
-              <div className="mural-publish-v2-copy-grid">
-                <label className="mural-publish-v2-field">Nome da coleção <em>*</em><input maxLength="90" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Ex.: Coleção 2027"/><small>{String(form.name||'').length}/90</small></label>
-                <label className="mural-publish-v2-field mural-publish-v2-year">Ano<input type="number" value={form.year} disabled={!form.show_year} onChange={e=>setForm({...form,year:e.target.value})} placeholder="2027"/></label>
-                <label className="mural-publish-v2-field mural-publish-v2-wide">Frase curta<input maxLength="140" value={form.hero_message} onChange={e=>setForm({...form,hero_message:e.target.value})} placeholder="Mais cor para um ano extraordinário."/><small>{String(form.hero_message||'').length}/140</small></label>
-                <label className="mural-publish-v2-field">Slug <em className="muted">(opcional)</em><input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} placeholder="gerado automaticamente"/></label>
-                <label className="mural-publish-v2-field">Ação no Mural<input value="Ver coleção" disabled/><span className="mural-publish-v2-field-note">Definida pelo sistema.</span></label>
-              </div>
-              <PublishImageField imageUrl={imageUrl} image={image} busy={busy} onChoose={chooseBanner} onRemove={removeBanner} title="Arte da coleção" helper="Recomendado: banner horizontal 2:1 · PNG, JPG ou WebP" removeLabel="Remover banner"/>
-            </div>
-
-            <div className="mural-publish-v2-collection-products">
-              <div className="mural-publish-v2-field-label"><strong>Produtos da coleção <em>*</em></strong><small>Selecione e ordene os produtos que farão parte desta coleção.</small></div>
-              <label className="mural-publish-v2-field mural-publish-v2-search">
-                <span><AdminMuralIcon name="search" size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar SKU ou nome do produto"/></span>
-              </label>
-              <div className="mural-publish-v2-collection-product-grid">
-                {filtered.map(p=>(
-                  <button type="button" className={selected.includes(p.id)?'selected':''} key={p.id} onClick={()=>toggle(p.id)}>
-                    <figure>{p.image_url?<TransparentMuralProductImage src={p.image_url} alt="" ariaHidden/>:<AdminMuralIcon name="product" size={19}/>}</figure>
-                    <span><b>{p.nome||p.variacao||p.sku}</b><small>{p.sku}</small></span>
-                    <span className="mural-publish-v2-product-check">{selected.includes(p.id)?<AdminMuralIcon name="check" size={13}/>:'+'}</span>
-                  </button>
-                ))}
-              </div>
-              {selectedProducts.length>0&&(
-                <div className="mural-publish-v2-order-list">
-                  <header><strong>Ordem de exibição</strong><small>{selectedProducts.length} selecionado{selectedProducts.length===1?'':'s'}</small></header>
-                  <div>
-                    {selectedProducts.map((p,index)=>(
-                      <article key={p.id}>
-                        <span className="mural-publish-v2-drag">⋮⋮</span>
-                        <figure>{p.image_url?<TransparentMuralProductImage src={p.image_url} alt="" ariaHidden/>:<AdminMuralIcon name="product" size={17}/>}</figure>
-                        <span><b>{p.nome||p.variacao||p.sku}</b><small>{p.sku}</small></span>
-                        <span className="mural-publish-v2-order-actions"><button type="button" disabled={index===0} onClick={()=>move(p.id,-1)} aria-label={`Mover ${p.sku} para cima`}>↑</button><button type="button" disabled={index===selectedProducts.length-1} onClick={()=>move(p.id,1)} aria-label={`Mover ${p.sku} para baixo`}>↓</button><button type="button" onClick={()=>toggle(p.id)} aria-label={`Remover ${p.sku} da coleção`}>×</button></span>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <details className="mural-publish-v2-collection-advanced">
-              <summary><AdminMuralIcon name="sliders" size={15}/><span>Direção visual e detalhes da coleção</span></summary>
-              <div>
-                <label className="mural-publish-v2-field">Direção visual<select value={form.visual_direction} onChange={e=>setForm({...form,visual_direction:e.target.value})}><option value="automatic">Automática</option><option value="delicate">Delicada</option><option value="premium">Premium</option><option value="minimal">Minimalista</option><option value="playful">Divertida</option></select></label>
-                <label className="mural-publish-v2-field">Elementos / cores do tema<textarea rows="3" maxLength="400" value={form.theme_notes} onChange={e=>setForm({...form,theme_notes:e.target.value})} placeholder="Ex.: rosa e lilás, flores, estrelas, brilho suave"/></label>
-                <label className="mural-publish-v2-field mural-publish-v2-wide">Descrição da coleção<textarea rows="3" maxLength="700" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
-                {item&&<label className="mural-publish-v2-field">Status<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Ativa</option><option value="archived">Arquivada</option></select></label>}
-              </div>
-            </details>
-          </section>
-
-          <CanvaArtworkPanel
-            kind="collection"
-            metadata={{
-              kind:'collection',
-              kind_label:'Coleção',
-              title:form.name||'',
-              subtitle:form.hero_message||'',
-              body:form.description||'',
-              badge:'NOVA COLEÇÃO',
-              year:form.year||'',
-              cta:'Ver coleção'
-            }}
-            imageFiles={image?[image]:[]}
-            imageUrls={selectedProducts.slice(0,6).map(product=>product.image_url).filter(Boolean)}
-            onUseImage={useCanvaBanner}
-          />
-
-          <section className="mural-publish-v2-step mural-publish-v2-settings">
-            <header className="mural-publish-v2-step-heading">
-              <span className="mural-publish-v2-step-number">3</span>
-              <div><strong>Configurações de publicação</strong><small>Defina como esta coleção será exibida.</small></div>
-            </header>
-            <div className="mural-publish-v2-settings-grid collection">
-              <label className="mural-publish-v2-switch">
-                <input type="checkbox" checked={form.show_year} onChange={e=>setForm({...form,show_year:e.target.checked})}/>
-                <span aria-hidden="true"/>
-                <b>Mostrar ano no banner</b>
-                <small>Exibe o ano da coleção na apresentação.</small>
-              </label>
-              <div className="mural-publish-v2-setting-note"><AdminMuralIcon name="clock" size={17}/><span><b>Publicação</b><small>A coleção entra no Mural ao clicar em Publicar.</small></span></div>
-              <div className="mural-publish-v2-setting-note"><AdminMuralIcon name="collection" size={17}/><span><b>{selected.length} produto{selected.length===1?'':'s'}</b><small>Ordem editorial definida acima.</small></span></div>
-            </div>
-          </section>
-
-          {error&&<div className="mural-admin-error mural-publish-v2-error">{error}</div>}
-        </div>
-
-        <PublishPreviewCard activeKind="collection" form={collectionPreviewForm} product={null} collection={collectionPreview} imageUrl={imageUrl}/>
-      </div>
-
-      <footer className="mural-publisher-universal-actions mural-publish-v2-actions mural-collection-universal-actions" aria-label="Ações da coleção">
-        <button type="button" className="mural-publisher-secondary" onClick={onClose}>{item?'Voltar':'Cancelar'}</button>
-        <span>
-          <button type="button" disabled={busy||!form.name} onClick={()=>save(false)}><AdminMuralIcon name="document" size={15}/> Salvar coleção</button>
-          <button type="button" className="primary" disabled={busy||!form.name||selected.length===0} onClick={()=>save(true)}><AdminMuralIcon name="notice" size={16}/> {busy?'Processando…':'Publicar'}</button>
-        </span>
-      </footer>
-    </section>
-  );
+function CollectionEditor(props) {
+  return <MuralPublishWorkspace {...props} initialKind="collection" />;
 }
 
 export default function MuralNistiAdminView({ activeSection = 'dashboard', onSectionChange }) {
