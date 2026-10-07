@@ -15,6 +15,30 @@ export class CanvaCutoutError extends Error {
 
 function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
 
+function detectImageType(bytes){
+  const b=new Uint8Array(bytes);
+  if(b.length>=3 && b[0]===0xff && b[1]===0xd8 && b[2]===0xff) return 'image/jpeg';
+  if(b.length>=8 && b[0]===0x89 && b[1]===0x50 && b[2]===0x4e && b[3]===0x47
+    && b[4]===0x0d && b[5]===0x0a && b[6]===0x1a && b[7]===0x0a) return 'image/png';
+  if(b.length>=12
+    && String.fromCharCode(...b.slice(0,4))==='RIFF'
+    && String.fromCharCode(...b.slice(8,12))==='WEBP') return 'image/webp';
+  return null;
+}
+
+function safeCanvaDownloadUrl(value){
+  try{
+    const url=new URL(String(value||''));
+    const host=url.hostname.toLowerCase();
+    if(url.protocol!=='https:' || url.username || url.password) return null;
+    if(url.port && url.port!=='443') return null;
+    if(host!=='export-download.canva.com' && !host.endsWith('.export-download.canva.com')) return null;
+    return url.toString();
+  }catch{
+    return null;
+  }
+}
+
 function safeMessage(data){
   return String(
     data?.message
@@ -114,6 +138,11 @@ export async function canvaUploadAsset(bytes,token,name){
   if(!(bytes instanceof ArrayBuffer) || bytes.byteLength<1 || bytes.byteLength>MAX_INPUT_BYTES){
     throw new CanvaCutoutError('Imagem de entrada inválida ou maior que 20 MB.',{
       status:400,code:'canva_input_invalid'
+    });
+  }
+  if(!detectImageType(bytes)){
+    throw new CanvaCutoutError('O conteúdo enviado ao Canva não é uma imagem JPEG, PNG ou WebP válida.',{
+      status:400,code:'canva_input_type_invalid'
     });
   }
   const started=await canvaJson('/asset-uploads',token,{
@@ -223,9 +252,9 @@ async function exportTransparentPng(designId,token,size){
     });
     job=await pollJob(`/exports/${encodeURIComponent(initial.id)}`,token,'a exportação PNG');
   }
-  const url=Array.isArray(job?.urls) ? job.urls[0] : '';
-  if(!url) throw new CanvaCutoutError('Canva concluiu a exportação sem URL do PNG.',{
-    code:'canva_export_url_missing'
+  const url=safeCanvaDownloadUrl(Array.isArray(job?.urls) ? job.urls[0] : '');
+  if(!url) throw new CanvaCutoutError('Canva retornou uma URL de exportação inválida ou não autorizada.',{
+    code:'canva_export_url_invalid'
   });
 
   const controller=new AbortController();
@@ -285,5 +314,7 @@ export const __canvaCutoutInternals={
   utf8Base64,
   safeMessage,
   safeCode,
-  fitDesignSize
+  fitDesignSize,
+  detectImageType,
+  safeCanvaDownloadUrl
 };
