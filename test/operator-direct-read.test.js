@@ -21,3 +21,11 @@ test('direct operator Edge Function keeps service credentials server-side', () =
   assert.match(edge, /nisti_reserve_mural_unread_v1/);
   assert.doesNotMatch(client, /SERVICE_ROLE|service_role|apikey/i);
 });
+
+
+test('operator direct read restricts CORS and validates the operator header', () => {
+  assert.match(edge, /ALLOWED_ORIGINS/);
+  assert.match(edge, /nisti-identificacao\.lksntz1411\.workers\.dev/);
+  assert.match(edge, /request\.headers\.get\("x-user-id"\)/);
+  assert.doesNotMatch(edge, /x-user-id"\) \|\| url\.searchParams\.get\("user_id"\)/);
+});
