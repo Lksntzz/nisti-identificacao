@@ -41,6 +41,22 @@ test('Cloudflare rate limit blocks abusive API and login bursts', async () => {
   assert.equal(loginResponse.status, 429);
 });
 
+test('Canva artwork creation has an isolated rate limit', async () => {
+  let globalCalls=0;
+  let canvaCalls=0;
+  const response=await edgeRouter.fetch(new Request('https://nisti.example/api/admin/canva/art/create',{
+    method:'POST',
+    headers:{origin:'https://nisti.example','CF-Connecting-IP':'203.0.113.10'},
+    body:new FormData()
+  }),{
+    GLOBAL_RATE_LIMITER:{limit:async()=>{globalCalls+=1;return {success:false}}},
+    CANVA_ART_RATE_LIMITER:{limit:async({key})=>{canvaCalls+=1;assert.equal(key,'canva-art-create:203.0.113.10');return {success:false}}}
+  },{});
+  assert.equal(response.status,429);
+  assert.equal(globalCalls,0);
+  assert.equal(canvaCalls,1);
+});
+
 test('protected admin APIs cannot be opened from DevTools without a signed admin session', async () => {
   const response=await edgeRouter.fetch(
     new Request('https://nisti.example/api/admin/mural/posts',{method:'GET'}),
