@@ -2088,6 +2088,22 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved }) {
                       <option value="playful">Divertida (Cores vivas e lúdicas)</option>
                     </select>
                   </label>
+
+                  <details className="mural-publish-v2-collection-advanced">
+                    <summary>Detalhes editoriais da coleção</summary>
+                    <div>
+                      <label className="mural-publish-v2-field">
+                        Elementos / cores do tema
+                        <textarea
+                          rows="3"
+                          maxLength="500"
+                          value={collectionForm.theme_notes}
+                          onChange={e => setCol('theme_notes', e.target.value)}
+                          placeholder="Ex.: flores suaves, tons pastel e acabamento dourado."
+                        />
+                      </label>
+                    </div>
+                  </details>
                 </div>
 
                 <div className="mural-studio-col">
@@ -2214,6 +2230,30 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved }) {
                   </button>
                 ))}
               </div>
+
+              {selectedCollectionProducts.length > 1 && (
+                <div className="mural-publish-v2-order-list">
+                  <header>
+                    <strong>Ordem editorial</strong>
+                    <small>Use as setas para definir a sequência da vitrine.</small>
+                  </header>
+                  <div>
+                    {selectedCollectionProducts.map((product, index) => (
+                      <article key={product.id}>
+                        <span className="mural-publish-v2-drag" aria-label={`Posição ${index + 1}`}>{index + 1}</span>
+                        <figure>
+                          {product.image_url ? <TransparentMuralProductImage src={product.image_url} alt="" ariaHidden/> : <AdminMuralIcon name="product" size={18}/>}
+                        </figure>
+                        <span><b>{product.nome || product.variacao || product.sku}</b><small>{product.sku}</small></span>
+                        <span className="mural-publish-v2-order-actions">
+                          <button type="button" onClick={() => moveCollectionProduct(product.id, -1)} disabled={index === 0} aria-label={`Mover ${product.sku} para cima`}>↑</button>
+                          <button type="button" onClick={() => moveCollectionProduct(product.id, 1)} disabled={index === selectedCollectionProducts.length - 1} aria-label={`Mover ${product.sku} para baixo`}>↓</button>
+                        </span>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
