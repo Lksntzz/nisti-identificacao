@@ -82,5 +82,13 @@ jobs:
           } else {
             console.log(message);
           }
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Exportação de originais\\n\\n${message}\\n\\n- O relatório de ausências está em \\`failures.txt\\`.\\n- Imagens tratadas não são alteradas por este workflow.\\n`);
+          const summary = [
+            '### Exportação de originais',
+            '',
+            message,
+            '',
+            '- O relatório de ausências está em \`failures.txt\`.',
+            '- Imagens tratadas não são alteradas por este workflow.'
+          ].join('\\n') + '\\n';
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
           NODE
