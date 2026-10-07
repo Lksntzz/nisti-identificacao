@@ -52,7 +52,7 @@ jobs:
         if: always()
         run: |
           cd export
-          zip -q -r nisti-imagens-originais.zip original-images manifest.csv export-summary.json
+          zip -q -r nisti-imagens-originais.zip original-images manifest.csv export-summary.json failures.txt
 
       - name: Upload ZIP
         if: always()
@@ -64,7 +64,23 @@ jobs:
           compression-level: 0
           retention-days: 1
 
-      - name: Verify complete export
+      - name: Publish export report
         if: always()
+        shell: bash
         run: |
-          node -e "const s=require('./export/export-summary.json'); if(s.failed) { console.error(s); process.exit(1) } console.log(s)"
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const s = JSON.parse(fs.readFileSync('./export/export-summary.json', 'utf8'));
+          if (!Number.isInteger(s.total) || !Number.isInteger(s.exported) || !Number.isInteger(s.failed)) {
+            throw new Error('Resumo de exportação inválido.');
+          }
+          const message = `Exportação concluída: ${s.exported}/${s.total} originais disponíveis; ausentes no R2: ${s.failed}.`;
+          if (s.failed > 0) {
+            console.warn(`Aviso: ${message}`);
+            console.warn('Os itens ausentes permanecem listados em export/failures.txt; nenhuma imagem tratada foi substituída.');
+          } else {
+            console.log(message);
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Exportação de originais\\n\\n${message}\\n\\n- O relatório de ausências está em \\`failures.txt\\`.\\n- Imagens tratadas não são alteradas por este workflow.\\n`);
+          NODE
