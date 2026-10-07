@@ -45,6 +45,19 @@ test('admin login responses carry browser hardening headers', async () => {
   assert.match(csp,/frame-ancestors 'none'/);
   assert.match(csp,/object-src 'none'/);
   assert.match(csp,/form-action 'self'/);
+  assert.match(csp,/script-src 'self';/);
+  assert.equal(csp.includes("script-src 'self' 'unsafe-inline'"),false);
+});
+
+test('browser bootstrap has no inline executable script and Vite does not trust every host', () => {
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const vite=fs.readFileSync(new URL('../vite.config.js',import.meta.url),'utf8');
+  const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
+  assert.match(html,/src="\/desktop-mode\.js"/);
+  assert.equal(/<script>/.test(html),false);
+  assert.equal(vite.includes("allowedHosts: 'all'"),false);
+  assert.match(sw,/safeNotificationTarget/);
+  assert.match(sw,/target\.origin !== self\.location\.origin/);
 });
 
 test('session signing supports a dedicated Worker secret', () => {
