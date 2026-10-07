@@ -97,6 +97,7 @@ test('production workflows use immutable action SHAs and dependency audit', () =
     assert.match(workflow,/actions\/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020/);
     assert.match(workflow,/persist-credentials: false/);
     assert.match(workflow,/npm ci --no-audit --no-fund/);
-    assert.match(workflow,/npm audit --audit-level=high/);
+    assert.match(workflow,/npm audit --omit=dev --audit-level=high/);
+    assert.match(workflow,/npm audit --audit-level=critical/);
   }
 });
