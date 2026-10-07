@@ -36,7 +36,7 @@ test('Publicar shows Canva artwork workflow for all publication types',()=>{
   assert.ok(admin.includes('Editar no Canva'));
   assert.ok(admin.includes('Usar esta arte'));
   assert.ok(admin.includes("kind={activeKind}"));
-  assert.ok(admin.includes('activeKind === 'collection''));
+  assert.ok(admin.includes("activeKind === 'collection'"));
   assert.ok(admin.includes('onUseImage={useCanvaImage}'));
 });
 
