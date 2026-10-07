@@ -13,7 +13,7 @@ test('scanner resolves EAN only through the same-origin Worker API', () => {
 
 test('scanner retains local history only as a last-resort display cache', () => {
   const workerIndex = scanner.indexOf('fetch(`/api/gtin/${encodeURIComponent(gtin)}`');
-  const cacheIndex = scanner.indexOf('cachedProductForGtin(gtin)');
+  const cacheIndex = scanner.indexOf('cachedProductForGtin(gtin)', workerIndex);
   assert.ok(workerIndex >= 0);
   assert.ok(cacheIndex > workerIndex);
 });
