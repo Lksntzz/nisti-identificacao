@@ -4,8 +4,9 @@ function normalizedCode(value) {
   return String(value || '').trim().toUpperCase();
 }
 
-function colorLabel(value, colors, code) {
+function colorLabel(value, colors, code, emptyLabel = '') {
   const raw = normalizedCode(value);
+  if (raw === 'X' && emptyLabel) return emptyLabel;
   return colors[raw] || colors[normalizedCode(code)] || String(value || code || '').trim();
 }
 
@@ -33,6 +34,6 @@ export function normalizeGtinProduct(product) {
     ...product,
     wireo: colorLabel(wireoCode || product.wireo || product.wireo_code, WIREO_COLORS, wireoCode),
     tassel: tasselPresenceLabel(product.tassel || product.tassel_code, tasselCode),
-    elastico: colorLabel(elasticoCode || product.elastico || product.elastico_code, ACCESSORY_COLORS, elasticoCode)
+    elastico: colorLabel(elasticoCode || product.elastico || product.elastico_code, ACCESSORY_COLORS, elasticoCode, 'Sem elástico')
   };
 }
