@@ -288,6 +288,19 @@ async function pollCanvaJob(path, token, label) {
   });
 }
 
+export function safeCanvaPageUrl(value) {
+  try {
+    const url=new URL(String(value||''));
+    const host=url.hostname.toLowerCase();
+    if(url.protocol!=='https:' || url.username || url.password) return null;
+    if(url.port && url.port!=='443') return null;
+    if(host!=='canva.com' && host!=='www.canva.com') return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 function normalizeFieldName(value) {
   return String(value || '')
     .normalize('NFD')
@@ -487,8 +500,8 @@ async function createArtwork(request,env) {
       design:{
         id:design.id,
         title:design.title||title,
-        edit_url:design.urls?.edit_url||design.url||null,
-        view_url:design.urls?.view_url||design.url||null,
+        edit_url:safeCanvaPageUrl(design.urls?.edit_url||design.url),
+        view_url:safeCanvaPageUrl(design.urls?.view_url||design.url),
         thumbnail:design.thumbnail?.url||null
       },
       template_id:templateId,
