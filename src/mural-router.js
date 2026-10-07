@@ -33,7 +33,8 @@ function json(data, status = 200) {
 }
 
 function cleanUserId(request) {
-  return String(request.headers.get('x-user-id') || 'anonymous').trim().slice(0, 100) || 'anonymous';
+  const value=String(request.headers.get('x-user-id')||'').trim();
+  return /^op_[0-9a-f-]{36}$/i.test(value) ? value : null;
 }
 
 function clampLimit(value) {
