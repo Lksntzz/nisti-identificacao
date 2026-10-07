@@ -28,14 +28,14 @@ test('mural admin writes inherit existing admin session protection',()=>{
 
 test('publication editor exposes product information and collection with one collection editor',()=>{
   assert.ok(admin.includes('MuralNistiAdminView'));
-  assert.ok(admin.includes("['product','product','Produto'"));
-  assert.ok(admin.includes("['notice','document','Informação'"));
-  assert.ok(admin.includes("['collection','collection','Coleção'"));
+  assert.ok(admin.includes("changeKind('product')"));
+  assert.ok(admin.includes("changeKind('notice')"));
+  assert.ok(admin.includes("changeKind('collection')"));
   assert.ok(admin.includes('function CollectionEditor'));
   assert.ok(admin.includes("if (nextKind === 'collection')"));
   assert.ok(admin.includes('setCollectionEditor(linked)'));
-  assert.ok(admin.includes('function MobilePreview'));
-  assert.ok(admin.includes('mural-publish-v2-preview'));
+  assert.ok(admin.includes('function PublishPreviewCard'));
+  assert.ok(admin.includes('mural-studio-preview-pane'));
   assert.ok(admin.includes('datetime-local'));
   assert.ok(dashboard.includes("onAction(row.id,'archive')"));
   assert.ok(dashboard.includes("onAction(row.id,'duplicate')"));
