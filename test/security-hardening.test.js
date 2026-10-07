@@ -105,6 +105,11 @@ test('push endpoints reject localhost private networks credentials and non-HTTPS
     safePushEndpoint('https://web.push.apple.com/Q123'),
     'https://web.push.apple.com/Q123'
   );
+  assert.equal(
+    safePushEndpoint('https://wns2-southcentralus.notify.windows.com/w/?token=Q123'),
+    'https://wns2-southcentralus.notify.windows.com/w/?token=Q123'
+  );
+  assert.equal(safePushEndpoint('https://notify.windows.com.evil.test/push'),null);
 });
 
 test('Canva server-side downloads accept only official HTTPS export URLs', () => {
