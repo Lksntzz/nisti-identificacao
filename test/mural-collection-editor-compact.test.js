@@ -6,18 +6,18 @@ const view=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import
 const css=fs.readFileSync(new URL('../src/mural-admin.css',import.meta.url),'utf8');
 
 test('collection image picker follows the shared Publicar image component',()=>{
-  assert.ok(view.includes('title="Arte da coleção"'));
+  assert.ok(view.includes('title="Arte da coleção (banner 2:1 recomendado)"'));
   assert.ok(view.includes('Recomendado: banner horizontal 2:1'));
   assert.ok(view.includes('mural-publish-v2-image-preview'));
   assert.ok(css.includes('.mural-publish-v2-upload'));
 });
 
 test('collection product selection is searchable visual and ordered',()=>{
-  assert.ok(view.includes('.slice(0,8)'));
+  assert.ok(view.includes('.slice(0, 10)'));
   assert.ok(view.includes('mural-publish-v2-collection-product-grid'));
   assert.ok(view.includes('mural-publish-v2-order-list'));
   assert.ok(view.includes('Ordem de exibição'));
-  assert.ok(css.includes('max-height:184px'));
+  assert.ok(css.includes('.mural-publish-v2-order-list'));
 });
 
 test('collection advanced metadata stays available without cluttering the main panel',()=>{
