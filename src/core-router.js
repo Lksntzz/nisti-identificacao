@@ -62,6 +62,11 @@ function json(data, status = 200, headers = {}) {
   });
 }
 
+function verifiedOperatorId(request) {
+  const value=String(request.headers.get('x-user-id')||'').trim();
+  return /^op_[0-9a-f-]{36}$/i.test(value) ? value : null;
+}
+
 function clean(value) {
   const text = String(value ?? '').trim();
   return text || null;
@@ -820,7 +825,8 @@ export default {
       }
 
       if (url.pathname === '/api/notifications' && request.method === 'GET') {
-        const userId = request.headers.get('x-user-id') || url.searchParams.get('user_id') || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const limit = Number(url.searchParams.get('limit')) || 50;
         const notifications = await listUserNotifications(env, userId, limit);
         const unreadCount = await getUnreadNotificationsCount(env, userId);
@@ -828,7 +834,8 @@ export default {
       }
 
       if (url.pathname === '/api/notifications/unread-count' && request.method === 'GET') {
-        const userId = request.headers.get('x-user-id') || url.searchParams.get('user_id') || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const count = await getUnreadNotificationsCount(env, userId);
         return json({ ok: true, unread_count: count });
       }
@@ -837,7 +844,8 @@ export default {
       if (readSingle && request.method === 'POST') {
         const notificationId = Number(readSingle[1]);
         const body = await request.json().catch(() => ({}));
-        const userId = request.headers.get('x-user-id') || body?.user_id || url.searchParams.get('user_id') || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const success = await markNotificationRead(env, notificationId, userId);
         const unreadCount = await getUnreadNotificationsCount(env, userId);
         return json({ ok: success, unread_count: unreadCount });
@@ -845,7 +853,8 @@ export default {
 
       if (url.pathname === '/api/notifications/mark-all-read' && request.method === 'POST') {
         const body = await request.json().catch(() => ({}));
-        const userId = request.headers.get('x-user-id') || body?.user_id || url.searchParams.get('user_id') || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const updated = await markAllNotificationsRead(env, userId);
         return json({ ok: true, marked_count: updated, unread_count: 0 });
       }
@@ -875,44 +884,11 @@ export default {
       }
 
       if (url.pathname === '/api/admin/push/debug' && request.method === 'GET') {
-        const privateKey=env.VAPID_PRIVATE_KEY ? 'presente (tamanho: ' + env.VAPID_PRIVATE_KEY.length + ')' : 'ausente';
-        const publicKey=env.VAPID_PUBLIC_KEY ? 'presente' : 'usando default';
-
         const rows=await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
         const subscriptions=Array.isArray(rows)?rows:[];
-        const testPayload={
-          title:'Teste de Sinal · NISTI PRINT',
-          body:'Verificando integridade das conexões push em segundo plano.',
-          url:'/'
-        };
-
-        const sendResults=[];
-        for(const sub of subscriptions) {
-          try {
-            const res=await sendWebPushNotification(env,sub,testPayload);
-            sendResults.push({
-              id:sub.id,
-              user_id:sub.user_id,
-              endpoint:sub.endpoint.slice(0,50)+'...',
-              ok:res.ok,
-              status:res.status
-            });
-          } catch(err) {
-            sendResults.push({
-              id:sub.id,
-              user_id:sub.user_id,
-              endpoint:sub.endpoint.slice(0,50)+'...',
-              ok:false,
-              error:err.message
-            });
-          }
-        }
-
         return json({
-          vapid_private_key:privateKey,
-          vapid_public_key:publicKey,
-          active_subscriptions_count:subscriptions.length,
-          send_results:sendResults
+          configured:Boolean(env.VAPID_PRIVATE_KEY),
+          active_subscriptions_count:subscriptions.length
         });
       }
 
@@ -942,7 +918,8 @@ export default {
 
       if (url.pathname === '/api/push/subscribe' && request.method === 'POST') {
         const body = await request.json().catch(() => ({}));
-        const userId = request.headers.get('x-user-id') || body?.user_id || 'anonymous';
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const success = await savePushSubscription(env, userId, body?.subscription);
         return json({ ok: success });
       }
