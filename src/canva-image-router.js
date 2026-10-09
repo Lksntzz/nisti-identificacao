@@ -377,7 +377,7 @@ async function listArtworkTemplates(request,env) {
     const url=new URL(request.url);
     const query=String(url.searchParams.get('q')||'').trim().slice(0,80);
     const params=new URLSearchParams({
-      dataset:'non_empty',
+      dataset:'any',
       limit:'50',
       ownership:'any',
       sort_by:query?'relevance':'modified_descending'
@@ -388,7 +388,7 @@ async function listArtworkTemplates(request,env) {
       id:String(item.id||''),
       title:String(item.title||'Template Canva'),
       thumbnail:item.thumbnail?.url||null,
-      create_url:item.create_url||null,
+      create_url:safeCanvaPageUrl(item.create_url),
       updated_at:item.updated_at||null
     })).filter(item=>item.id);
     return json({ok:true,items,continuation:data?.continuation||null});
@@ -398,6 +398,25 @@ async function listArtworkTemplates(request,env) {
       code:String(error?.code||'canva_templates_failed')
     },Number(error?.status||0)||502);
   }
+}
+
+// The Canva create_url opens a new editable copy of the Brand Template, even
+// when there are no supported autofill fields. Never fabricate a design ID.
+async function manualBrandTemplateResponse(templateId,token) {
+  const metadata=await canvaGet(`/brand-templates/${encodeURIComponent(templateId)}`,token);
+  const createUrl=safeCanvaPageUrl(metadata?.brand_template?.create_url);
+  if(!createUrl)throw new CanvaBridgeError(
+    'O Canva não forneceu um link válido para editar este template. Selecione outro modelo.',{
+      status:422,code:'canva_template_create_url_missing'
+    }
+  );
+  return json({
+    ok:true,
+    mode:'manual',
+    template_id:templateId,
+    manual_create_url:createUrl,
+    note:'Este template não possui preenchimento automático. A arte será aberta no Canva para edição manual.'
+  });
 }
 
 async function createArtwork(request,env) {
@@ -417,9 +436,7 @@ async function createArtwork(request,env) {
     const datasetResult=await canvaGet(`/brand-templates/${encodeURIComponent(templateId)}/dataset`,token);
     const dataset=datasetResult?.dataset && typeof datasetResult.dataset==='object' ? datasetResult.dataset : {};
     const fields=Object.entries(dataset);
-    if(!fields.length)throw new CanvaBridgeError('Este template não possui campos de preenchimento automático.',{
-      status:422,code:'canva_template_dataset_empty'
-    });
+    if(!fields.length)return manualBrandTemplateResponse(templateId,token);
 
     const files=[];
     for(let index=0;index<6;index+=1){
@@ -466,11 +483,7 @@ async function createArtwork(request,env) {
       }
     }
 
-    if(!Object.keys(data).length){
-      throw new CanvaBridgeError('O template não possui campos compatíveis com os dados desta publicação.',{
-        status:422,code:'canva_template_fields_unmatched'
-      });
-    }
+    if(!Object.keys(data).length)return manualBrandTemplateResponse(templateId,token);
 
     const title=String(
       metadata.design_title
@@ -500,6 +513,7 @@ async function createArtwork(request,env) {
     });
     return json({
       ok:true,
+      mode:'autofill',
       design:{
         id:design.id,
         title:design.title||title,

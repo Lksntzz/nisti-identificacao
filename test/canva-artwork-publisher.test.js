@@ -52,3 +52,42 @@ test('Canva artwork prevents duplicate creates and handles temporary Canva throt
   assert.ok(admin.includes('err?.status === 429'));
   assert.ok(admin.includes('Aguarde um minuto e tente novamente apenas uma vez.'));
 });
+
+test('Canva lists all Brand Templates and falls back to a real Canva create URL',()=>{
+  assert.match(router,/dataset:'any'/);
+  assert.match(router,/create_url:safeCanvaPageUrl\(item\.create_url\)/);
+  assert.match(router,/async function manualBrandTemplateResponse\(templateId,token\)/);
+  assert.match(router,/canvaGet\(`\/brand-templates\/\$\{encodeURIComponent\(templateId\)\}`,token\)/);
+  assert.match(router,/safeCanvaPageUrl\(metadata\?\.brand_template\?\.create_url\)/);
+  assert.match(router,/mode:'manual'/);
+  assert.match(router,/manual_create_url:createUrl/);
+  assert.match(router,/if\(!fields\.length\)return manualBrandTemplateResponse\(templateId,token\)/);
+  assert.match(router,/if\(!Object\.keys\(data\)\.length\)return manualBrandTemplateResponse\(templateId,token\)/);
+  assert.match(router,/mode:'autofill'/);
+  assert.doesNotMatch(router,/code:'canva_template_fields_unmatched'/);
+});
+
+test('Canva manual fallback offers editing without inventing an exportable design id',()=>{
+  const modal=admin.slice(admin.indexOf('function CanvaArtworkModal'),admin.indexOf('function PublishImageField'));
+  assert.match(modal,/payload\?\.mode === 'manual'/);
+  assert.match(modal,/setManualCreateUrl\(payload\.manual_create_url\)/);
+  assert.match(modal,/href=\{manualCreateUrl\}/);
+  assert.match(modal,/target="_blank" rel="noopener noreferrer"/);
+  assert.match(modal,/exporte em PNG e envie o arquivo/);
+  assert.match(modal,/if \(!payload\?\.design\?\.id\)/);
+  assert.match(modal,/setManualCreateUrl\(''\)/);
+  assert.match(modal,/onUseImage\?\.\(file\)/);
+});
+
+test('Canva modal uses one primary/secondary button row, not unstyled inline actions',()=>{
+  const modal=admin.slice(admin.indexOf('function CanvaArtworkModal'),admin.indexOf('function PublishImageField'));
+  const footer=modal.slice(modal.indexOf('<footer className="mural-canva-modal-footer">'));
+  assert.match(footer,/mural-canva-modal-action-secondary/);
+  assert.match(footer,/mural-canva-modal-action-primary/);
+  assert.match(footer,/onClick=\{createDesign\}/);
+  assert.doesNotMatch(modal,/className="mural-publish-v2-canva-create"/);
+  assert.match(css,/\.mural-canva-modal \.mural-canva-modal-action\{/);
+  assert.match(css,/min-height:42px/);
+  assert.match(css,/\.mural-canva-modal \.mural-canva-modal-action-primary\{/);
+  assert.match(css,/\.mural-canva-modal \.mural-canva-modal-action-secondary\{/);
+});
