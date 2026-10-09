@@ -252,7 +252,7 @@ test('critical reserve RPCs keep scanner and notification compatibility while oc
     'utf8'
   );
   assert.match(scopedNotifications, /WHEN p_user_id='__admin_system__'/);
-  assert.match(scopedNotifications, /ELSE n\\.type='new_cover'/);
+  assert.match(scopedNotifications, /ELSE n\.type='new_cover'/);
   assert.match(notifications, /is_read/);
   assert.doesNotMatch(wrangler, /SUPABASE_EMERGENCY_/);
 });
