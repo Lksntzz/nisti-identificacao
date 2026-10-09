@@ -1994,6 +1994,20 @@ select:focus,input[type=text]:focus,input[type=url]:focus { border-color: #b9c7f
   transition: all 0.15s ease;
 }
 
+
+/* A stable, single-image glyph avoids SVG animation/repaint ghosts in the admin header. */
+.topbar-bell-btn::before {
+  content: '';
+  display: block;
+  width: 20px;
+  height: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23475569%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M18%208a6%206%200%200%200-12%200c0%207-3%209-3%209h18s-3-2-3-9%22%2F%3E%3Cpath%20d%3D%22M13.73%2021a2%202%200%200%201-3.46%200%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
 .topbar-bell-btn:hover {
   background: #f8fafc;
   color: #0f172a;
@@ -6405,14 +6419,6 @@ button.kpi-box:active {
   }
 }
 
-@keyframes nisti-bell-ring {
-  0%, 100% { transform: rotate(0); }
-  20% { transform: rotate(10deg); }
-  40% { transform: rotate(-9deg); }
-  60% { transform: rotate(6deg); }
-  80% { transform: rotate(-4deg); }
-}
-
 @keyframes nisti-badge-pop {
   0% { opacity: 0; transform: scale(0.55); }
   68% { opacity: 1; transform: scale(1.18); }
@@ -6459,11 +6465,6 @@ button.kpi-box:active {
   border-color: #bfdbfe;
   background: #eff6ff;
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.10);
-}
-
-.topbar-bell-btn.has-unread > svg {
-  transform-origin: 50% 8%;
-  animation: nisti-bell-ring 620ms ease-out 1;
 }
 
 .topbar-bell-badge {
@@ -6563,7 +6564,6 @@ button.kpi-box:active {
 
 @media (prefers-reduced-motion: reduce) {
   .admin-page-title-motion,
-  .topbar-bell-btn.has-unread > svg,
   .topbar-bell-badge,
   .sidebar-nav-item.active svg,
   .admin-modal .admin-modal-head,
