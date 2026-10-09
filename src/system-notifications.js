@@ -42,6 +42,8 @@ function ignoredActivityPath(pathname) {
     || pathname === '/api/notifications/mark-all-read'
     || pathname === '/api/push/subscribe'
     || pathname === '/api/push/unsubscribe'
+    || pathname === '/api/push/status'
+    || pathname === '/api/push/test'
     || pathname === '/api/mural/read'
     || pathname === '/api/mural/mark-all-read';
 }
