@@ -11,7 +11,6 @@ import {
   mirrorMuralPostFromD1,
   mirrorMuralPostReadFromD1,
   mirrorMuralReadsForUserFromD1,
-  mirrorNotificationByCapaFromD1,
   mirrorProductImageDerivativeFromD1
 } from './supabase-secondary-write-store.js';
 
@@ -29,7 +28,6 @@ async function responseJson(response) {
 
 function isDirectSupabasePrimaryMutation(url, method) {
   if (method === 'POST' && (url.pathname === '/api/products' || url.pathname === '/api/admin/bulk-products')) return true;
-  if (method === 'POST' && url.pathname === '/api/admin/notifications/test') return true;
   if (method === 'POST' && /^\/api\/mural\/\d+\/read$/.test(url.pathname)) return true;
   if (method === 'POST' && url.pathname === '/api/mural/mark-all-read') return true;
   if (method === 'POST' && url.pathname === '/api/admin/mural/posts') return true;
@@ -181,11 +179,7 @@ export async function mirrorSuccessfulMutation(request, response, env) {
       return;
     }
 
-    if (method === 'POST' && url.pathname === '/api/admin/notifications/test') {
-      const data = await responseJson(response);
-      await mirrorNotificationByCapaFromD1(env, data?.capa_code);
-      return;
-    }
+
   } catch (error) {
     // D1 has already committed at this transitional boundary. Mirror mode logs
     // divergence, while primary mode fails closed so callers never mistake a
