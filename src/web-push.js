@@ -356,10 +356,10 @@ export async function broadcastNewCoverPush(env, {
   imageUrl = null
 }) {
   const privateKey = getVapidPrivateKey(env);
-  if (!privateKey) return;
+  if (!privateKey) return {sent:0,failed:0,skipped:true,reason:'vapid_private_missing'};
 
   const subscriptions = await loadPushSubscriptions(env);
-  if (!subscriptions.length) return;
+  if (!subscriptions.length) return {sent:0,failed:0,skipped:true,reason:'no_subscriptions'};
 
   const payload = {
     title:'Nova Capa Cadastrada · NISTI PRINT',
@@ -371,14 +371,19 @@ export async function broadcastNewCoverPush(env, {
   };
 
   const deadEndpoints = [];
+  let sent=0;
+  let failed=0;
 
   await Promise.all(subscriptions.map(async sub => {
     try {
       console.log(`[Push] Iniciando envio para sub ${sub.id}: ${sub.endpoint.slice(0, 40)}...`);
       const res = await sendWebPushNotification(env, sub, payload);
       console.log(`[Push] Retorno da sub ${sub.id}: status=${res.status}, ok=${res.ok}`);
+      if (res.ok) sent += 1;
+      else failed += 1;
       if (res.status === 404 || res.status === 410) deadEndpoints.push(sub.endpoint);
     } catch (err) {
+      failed += 1;
       console.error(`[Push] Erro catastrófico na sub ${sub.id}:`, err.message);
     }
   }));
@@ -386,6 +391,7 @@ export async function broadcastNewCoverPush(env, {
   for (const endpoint of deadEndpoints) {
     await removePushSubscription(env, endpoint).catch(() => {});
   }
+  return {sent,failed,skipped:false};
 }
 
 export async function broadcastMuralPush(env,{postId,title,body}) {

@@ -140,6 +140,36 @@ async function saveProductImage(env, id, fileBytes, contentType) {
   return { image_key:key };
 }
 
+function scheduleNewCoverPush(ctx, env, saved, row) {
+  const notificationId=Number(saved?.cover_notification_id || 0);
+  // Only the database's atomic first insertion of this cover can initiate push.
+  if (!saved?.cover_notification_created || !Number.isInteger(notificationId) || notificationId<=0) return false;
+  const task=broadcastNewCoverPush(env,{
+    capaCode:saved.capa_code,
+    productName:clean(row?.nome),
+    variacao:clean(row?.variacao),
+    platform:clean(row?.platform)?.toUpperCase() || null
+  }).then(result => {
+    console.log('[Push Nova Capa] Disparo automático concluído', {
+      notificationId,
+      capaCode:saved.capa_code,
+      sent:Number(result?.sent || 0),
+      failed:Number(result?.failed || 0),
+      skipped:Boolean(result?.skipped)
+    });
+  }).catch(error => {
+    console.error('[Push Nova Capa] Disparo automático falhou', {
+      notificationId,
+      capaCode:saved.capa_code,
+      message:error?.message || String(error)
+    });
+  });
+  // Keep the operation alive after responding to the product registration.
+  if (ctx?.waitUntil) ctx.waitUntil(task);
+  else return task;
+  return true;
+}
+
 async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
   const parsed = parseSku(row?.sku);
   const nome = clean(row?.nome);
@@ -182,6 +212,8 @@ async function upsertCatalogProduct(env, row, { syncCommerce = true } = {}) {
     gtin:saved.gtin || null,
     created:saved.created === true,
     has_image:saved.has_image === true,
+    cover_notification_created:saved.cover_notification_created === true,
+    cover_notification_id:Number(saved.cover_notification_id) || null,
     commerce_sync:commerceSync
   };
 }
@@ -231,6 +263,7 @@ export default {
       if (url.pathname === '/api/products' && request.method === 'POST') {
         const body = await request.json();
         const saved = await upsertCatalogProduct(env, body);
+        scheduleNewCoverPush(ctx, env, saved, body);
         scheduleCommerceReconcile(ctx, env, saved.id, saved.commerce_sync);
         return json({ ok: true, ...saved }, saved.created ? 201 : 200);
       }
@@ -286,7 +319,9 @@ export default {
         const errors = [];
         for (let i = 0; i < rows.length; i += 1) {
           try {
-            imported.push({ row: i + 1, ...await upsertCatalogProduct(env, rows[i], { syncCommerce: false }) });
+            const saved=await upsertCatalogProduct(env, rows[i], { syncCommerce: false });
+            imported.push({ row: i + 1, ...saved });
+            scheduleNewCoverPush(ctx, env, saved, rows[i]);
           } catch (error) {
             errors.push({ row: i + 1, sku: clean(rows[i]?.sku), error: error?.message || 'Falha ao importar' });
           }
