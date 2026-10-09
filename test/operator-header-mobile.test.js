@@ -14,7 +14,7 @@ test('mobile public header allocates separate brand and action columns in all vi
 });
 
 test('mobile header hotfix forces clients onto the refreshed asset cache',()=>{
-  assert.match(sw,/CACHE_NAME = 'nisti-id-v38'/);
+  assert.match(sw,/CACHE_NAME = 'nisti-id-v39'/);
 });
 
 test('latest public header override is not scoped only to the scanner viewport',()=>{
