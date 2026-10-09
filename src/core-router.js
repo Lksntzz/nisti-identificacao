@@ -932,7 +932,10 @@ export default {
         const userId = verifiedOperatorId(request);
         if (!userId) return json({ error:'Sessão do operador inválida.' },401);
         const success = await savePushSubscription(env, userId, body?.subscription);
-        return json({ ok: success });
+        return json(success
+          ? { ok: true }
+          : { ok: false, error: 'Não foi possível salvar a assinatura de notificações neste aparelho.' },
+          success ? 200 : 400);
       }
 
       if (url.pathname === '/api/push/unsubscribe' && request.method === 'POST') {
