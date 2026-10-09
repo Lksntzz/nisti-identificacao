@@ -531,6 +531,7 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
   const [templates, setTemplates] = useState([]);
   const [templateId, setTemplateId] = useState('');
   const [design, setDesign] = useState(null);
+  const [manualCreateUrl, setManualCreateUrl] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [createCooldownUntil, setCreateCooldownUntil] = useState(0);
@@ -559,6 +560,8 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
 
   useEffect(() => {
     if (isOpen) {
+      setDesign(null);
+      setManualCreateUrl('');
       load();
     }
   }, [isOpen, kind]);
@@ -609,6 +612,8 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
     if (!templateId) { setError('Escolha um template do Canva.'); return; }
     createLockRef.current = true;
     setBusy('create'); setError('');
+    setManualCreateUrl('');
+    setDesign(null);
     try {
       const formData = new FormData();
       formData.append('template_id', templateId);
@@ -630,7 +635,13 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
         }
       }
       const payload = await request('/api/admin/canva/art/create', { method: 'POST', body: formData });
-      setDesign(payload.design || null);
+      if (payload?.mode === 'manual') {
+        if (!payload.manual_create_url) throw new Error('O Canva não retornou um link para edição manual.');
+        setManualCreateUrl(payload.manual_create_url);
+      } else {
+        if (!payload?.design?.id) throw new Error('O Canva não retornou a arte criada.');
+        setDesign(payload.design);
+      }
     } catch (err) {
       if (err?.status === 429) {
         setCreateCooldownUntil(Date.now() + 60_000);
@@ -684,33 +695,31 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
                 <b>{reconnectNeeded ? 'Reconexão necessária' : 'Canva não conectado'}</b>
                 <p>{reconnectNeeded ? 'A conexão atual precisa de novas autorizações para criar artes. Reconecte uma vez para continuar.' : 'Conecte sua conta do Canva para gerar e importar banners, produtos e comunicados com templates oficiais NISTI.'}</p>
               </div>
-              <button type="button" className="mural-canva-btn-primary" onClick={connect} disabled={busy === 'connect'}>
-                {busy === 'connect' ? 'Abrindo…' : reconnectNeeded ? 'Reconectar Canva' : 'Conectar com o Canva'}
-              </button>
             </div>
           ) : (
             <>
               <div className="mural-publish-v2-canva-controls">
                 <label>
                   Template Oficial do Canva
-                  <select value={templateId} onChange={e => { setTemplateId(e.target.value); setDesign(null); }}>
-                    {!templates.length && <option value="">Nenhum template com autofill encontrado</option>}
+                  <select value={templateId} onChange={e => { setTemplateId(e.target.value); setDesign(null); setManualCreateUrl(''); setError(''); }}>
+                    {!templates.length && <option value="">Nenhum template oficial disponível</option>}
                     {templates.map(template => <option key={template.id} value={template.id}>{template.title}</option>)}
                   </select>
                 </label>
-                <button
-                  type="button"
-                  className="mural-publish-v2-canva-create"
-                  disabled={!templateId || Boolean(busy) || createCooldownUntil > Date.now()}
-                  onClick={createDesign}
-                >
-                  <AdminMuralIcon name="sparkles" size={15}/>
-                  {busy === 'create' ? 'Criando no Canva…' : createCooldownUntil > Date.now() ? 'Aguarde 1 min' : 'Criar no Canva'}
-                </button>
               </div>
               {!templates.length && (
                 <div className="mural-publish-v2-canva-hint">
-                  Para aparecer aqui, o template precisa ser um Brand Template do Canva com campos de preenchimento automático.
+                  Nenhum template oficial disponível na conta. Publique um Brand Template no Canva para utilizá-lo aqui.
+                </div>
+              )}
+              {manualCreateUrl && (
+                <div className="mural-canva-manual-state" role="status">
+                  <strong>Edição manual disponível</strong>
+                  <p>Este template não possui preenchimento automático. A arte será aberta no Canva para edição manual.</p>
+                  <a className="mural-canva-edit-link" href={manualCreateUrl} target="_blank" rel="noopener noreferrer">
+                    Abrir template no Canva ↗
+                  </a>
+                  <small>Depois de editar, exporte em PNG e envie o arquivo pelo campo de imagem da publicação no Mural.</small>
                 </div>
               )}
               {design && (
@@ -741,7 +750,23 @@ function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], i
         </div>
 
         <footer className="mural-canva-modal-footer">
-          <button type="button" className="mural-publisher-secondary" onClick={onClose}>Fechar</button>
+          <button type="button" className="mural-canva-modal-action mural-canva-modal-action-secondary" onClick={onClose}>Fechar</button>
+          {status.connected && status.art_creation_ready && (
+            <button
+              type="button"
+              className="mural-canva-modal-action mural-canva-modal-action-primary"
+              disabled={!templateId || Boolean(busy) || createCooldownUntil > Date.now()}
+              onClick={createDesign}
+            >
+              <AdminMuralIcon name="sparkles" size={15}/>
+              {busy === 'create' ? 'Criando no Canva…' : createCooldownUntil > Date.now() ? 'Aguarde 1 min' : 'Criar no Canva'}
+            </button>
+          )}
+          {(!status.connected || reconnectNeeded) && !status.loading && (
+            <button type="button" className="mural-canva-modal-action mural-canva-modal-action-primary" onClick={connect} disabled={Boolean(busy)}>
+              {busy === 'connect' ? 'Abrindo…' : reconnectNeeded ? 'Reconectar Canva' : 'Conectar com o Canva'}
+            </button>
+          )}
         </footer>
       </div>
     </div>
