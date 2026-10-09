@@ -63,3 +63,24 @@ test('push self-test is scoped to the signed operator and uses restricted databa
   assert.match(push, /code:'provider_accepted'/);
   assert.match(log, /pathname === '\/api\/push\/test'/);
 });
+
+test('primary product RPC identifies only the first notification for each distinct cover', () => {
+  const migration=read('../supabase/migrations/20261009160000_new_cover_auto_push_v1.sql');
+  assert.match(migration,/v_notification_id bigint;/);
+  const insertMatches=[...migration.matchAll(/ON CONFLICT \(capa_code\) DO NOTHING\s+RETURNING id INTO v_notification_id/g)];
+  assert.equal(insertMatches.length,2,'both create and update paths must handle truly new covers');
+  assert.match(migration,/'cover_notification_created',v_notification_id IS NOT NULL/);
+  assert.match(migration,/'cover_notification_id',v_notification_id/);
+  assert.match(migration,/REVOKE ALL ON FUNCTION public\.nisti_upsert_product_primary_v1/);
+});
+
+test('product POST and bulk import schedule a push for the newly inserted cover only', () => {
+  const webpush=read('../src/web-push.js');
+  assert.match(core,/const notificationId=Number\(saved\?\.cover_notification_id \|\| 0\)/);
+  assert.match(core,/if \(!saved\?\.cover_notification_created/);
+  assert.match(core,/ctx\?\.waitUntil\) ctx\.waitUntil\(task\)/);
+  assert.match(core,/scheduleNewCoverPush\(ctx, env, saved, body\)/);
+  assert.match(core,/scheduleNewCoverPush\(ctx, env, saved, rows\[i\]\)/);
+  assert.match(webpush,/return \{sent,failed,skipped:false\};/);
+  assert.match(webpush,/if \(res\.ok\) sent \+= 1/);
+});
