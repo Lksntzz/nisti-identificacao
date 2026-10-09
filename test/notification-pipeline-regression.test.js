@@ -40,3 +40,26 @@ test('push renewal does not discard the prior endpoint before saving the new one
   assert.match(sw, /event\.newSubscription \|\|/);
   assert.match(sw, /operatorClient\.navigate\(target\)/);
 });
+
+test('operator push status verifies server registration and correct VAPID pairing', () => {
+  const push = read('../src/web-push.js');
+  assert.match(push, /export async function pushVapidHealth/);
+  assert.match(push, /crypto\.subtle\.verify/);
+  assert.match(push, /vapid_keys_mismatch/);
+  assert.match(operatorApp, /await api\('\/api\/push\/status'/);
+  assert.match(operatorApp, /!status\?\.registered \|\| !status\?\.vapid_ready/);
+  assert.match(operatorApp, /Testar envio/);
+});
+
+test('push self-test is scoped to the signed operator and uses restricted database lookup', () => {
+  const sql = read('../supabase/migrations/20261009155000_push_device_scope_v1.sql');
+  const push = read('../src/web-push.js');
+  const log = read('../src/system-notifications.js');
+  assert.match(sql, /ps\.user_id = LEFT\(NULLIF\(BTRIM\(p_user_id\)/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.nisti_get_push_device_v1/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.nisti_get_push_device_v1.*TO service_role/);
+  assert.match(core, /sendOperatorDevicePushTest\(env,userId,body\?\.endpoint\)/);
+  assert.match(push, /nisti_get_push_device_v1/);
+  assert.match(push, /code:'provider_accepted'/);
+  assert.match(log, /pathname === '\/api\/push\/test'/);
+});

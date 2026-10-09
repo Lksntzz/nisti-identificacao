@@ -14,7 +14,10 @@ import {
   savePushSubscription,
   removePushSubscription,
   sendWebPushNotification,
-  broadcastNewCoverPush
+  broadcastNewCoverPush,
+  pushVapidHealth,
+  getOperatorPushDevice,
+  sendOperatorDevicePushTest
 } from './web-push.js';
 import {
   supabaseReserveProducts,
@@ -921,6 +924,23 @@ export default {
           created:Boolean(saved?.created),
           authority:supabasePrimaryWritesRequested(env)?'supabase':'d1'
         });
+      }
+
+      if (url.pathname === '/api/push/status' && request.method === 'POST') {
+        const userId=verifiedOperatorId(request);
+        if(!userId) return json({ok:false,error:'Sessão do operador inválida.'},401);
+        const body=await request.json().catch(()=>({}));
+        const vapid=await pushVapidHealth(env);
+        const device=await getOperatorPushDevice(env,userId,body?.endpoint);
+        return json({ok:true,registered:Boolean(device),vapid_ready:vapid.ready,vapid_code:vapid.code},200,{'cache-control':'no-store'});
+      }
+
+      if (url.pathname === '/api/push/test' && request.method === 'POST') {
+        const userId=verifiedOperatorId(request);
+        if(!userId) return json({ok:false,error:'Sessão do operador inválida.'},401);
+        const body=await request.json().catch(()=>({}));
+        const result=await sendOperatorDevicePushTest(env,userId,body?.endpoint);
+        return json(result,result.ok?200:result.code==='device_not_registered'?409:502,{'cache-control':'no-store'});
       }
 
       if (url.pathname === '/api/push/public-key' && request.method === 'GET') {

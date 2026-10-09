@@ -132,6 +132,62 @@ async function createVapidJwt(env, endpoint) {
   return `${unsigned}.${b64url(sig)}`;
 }
 
+// Sign and verify using the effective public/private VAPID pair. Never expose the private key.
+export async function pushVapidHealth(env) {
+  if (!getVapidPrivateKey(env)) return { ready:false, code:'vapid_private_missing' };
+  try {
+    const jwt=await createVapidJwt(env,'https://web.push.apple.com');
+    const parts=jwt.split('.');
+    const raw=fromB64url(getVapidPublicKey(env));
+    if(raw.length!==65 || raw[0]!==4) return {ready:false,code:'vapid_public_invalid'};
+    const verifier=await crypto.subtle.importKey('raw',raw,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);
+    const valid=await crypto.subtle.verify(
+      {name:'ECDSA',hash:'SHA-256'},
+      verifier,
+      fromB64url(parts[2]),
+      new TextEncoder().encode(`${parts[0]}.${parts[1]}`)
+    );
+    return valid ? {ready:true,code:'ok'} : {ready:false,code:'vapid_keys_mismatch'};
+  } catch {
+    return {ready:false,code:'vapid_sign_error'};
+  }
+}
+
+export async function getOperatorPushDevice(env,userId,rawEndpoint) {
+  const endpoint=safePushEndpoint(rawEndpoint);
+  const safeUserId=String(userId||'').trim().slice(0,100);
+  if(!endpoint||!/^op_[0-9a-f-]{36}$/i.test(safeUserId)) return null;
+  const row=await supabaseRpc(env,'nisti_get_push_device_v1',{
+    p_user_id:safeUserId,p_endpoint:endpoint
+  });
+  return row?.endpoint===endpoint && row?.p256dh && row?.auth ? row : null;
+}
+
+export async function sendOperatorDevicePushTest(env,userId,endpoint) {
+  const device=await getOperatorPushDevice(env,userId,endpoint);
+  if(!device) return {ok:false,code:'device_not_registered',status:404};
+  const vapid=await pushVapidHealth(env);
+  if(!vapid.ready) return {ok:false,code:vapid.code,status:503};
+  try {
+    const result=await sendWebPushNotification(env,device,{
+      title:'Teste de notificação · NISTI ID',
+      body:'Se esta notificação apareceu, o envio push chegou ao dispositivo.',
+      url:'/',
+      test:true
+    });
+    if(result.status===404||result.status===410) {
+      await removePushSubscription(env,device.endpoint).catch(()=>{});
+      return {ok:false,code:'subscription_expired',status:result.status};
+    }
+    return result.ok
+      ? {ok:true,code:'provider_accepted',status:result.status}
+      : {ok:false,code:'provider_rejected',status:result.status};
+  } catch(error) {
+    console.error('[Push Test] Erro de envio',error?.message||String(error));
+    return {ok:false,code:'push_send_error',status:502};
+  }
+}
+
 async function encryptPushPayload(clientP256dh, clientAuth, payloadText) {
   const userPubBytes = fromB64url(clientP256dh);
   const userAuthBytes = fromB64url(clientAuth);
