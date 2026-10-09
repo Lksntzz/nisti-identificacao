@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-id-v38';
+const CACHE_NAME = 'nisti-id-v39';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -67,27 +67,31 @@ function pushApplicationServerKey(base64String) {
 self.addEventListener('pushsubscriptionchange', event => {
   event.waitUntil((async () => {
     try {
-      if (event.oldSubscription?.endpoint) {
-        await fetch('/api/push/unsubscribe', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ endpoint: event.oldSubscription.endpoint })
-        }).catch(() => null);
-      }
-
       const keyResponse = await fetch('/api/push/public-key', { cache: 'no-store' });
       if (!keyResponse.ok) throw new Error('VAPID public key indisponível');
       const { publicKey } = await keyResponse.json();
-      const subscription = await self.registration.pushManager.subscribe({
+      const subscription = event.newSubscription || await self.registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: pushApplicationServerKey(publicKey)
       });
       const serialized = subscription.toJSON();
-      await fetch('/api/push/subscribe', {
+      const saved = await fetch('/api/push/subscribe', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ subscription: serialized })
       });
+      if (!saved.ok || (await saved.json().catch(() => null))?.ok !== true) {
+        throw new Error('Servidor não confirmou a nova assinatura push');
+      }
+      if (event.oldSubscription?.endpoint && event.oldSubscription.endpoint !== subscription.endpoint) {
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ endpoint: event.oldSubscription.endpoint })
+        }).catch(() => null);
+      }
     } catch (error) {
       console.error('[Push] Falha ao renovar assinatura em background', error);
     }
@@ -142,14 +146,20 @@ self.addEventListener('notificationclick', event => {
 
   event.waitUntil((async () => {
     const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const client of allClients) {
-      if ('focus' in client) {
-        client.focus();
-        return;
-      }
+    const target = new URL(targetUrl, self.location.origin).href;
+    const operatorClient = allClients.find(client => {
+      try { return new URL(client.url).pathname === '/' && 'focus' in client; }
+      catch { return false; }
+    });
+    if (operatorClient) {
+      const navigated = 'navigate' in operatorClient
+        ? await operatorClient.navigate(target).catch(() => null)
+        : null;
+      await (navigated || operatorClient).focus();
+      return;
     }
     if (self.clients.openWindow) {
-      await self.clients.openWindow(targetUrl);
+      await self.clients.openWindow(target);
     }
   })());
 });
