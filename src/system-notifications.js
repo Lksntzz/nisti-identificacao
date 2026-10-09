@@ -242,7 +242,7 @@ export function describeAdminSystemActivity({ pathname, method, status, data, ac
 }
 
 export async function recordAdminActivityFromResponse(request, response, env) {
-  if (!env?.DB || !request || !response) return null;
+  if (!env || !request || !response) return null;
   const url = new URL(request.url);
   const pathname = url.pathname;
   const method = String(request.method || 'GET').toUpperCase();
