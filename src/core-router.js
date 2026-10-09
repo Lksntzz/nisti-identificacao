@@ -2,7 +2,6 @@ import { parseSku } from './sku.js';
 import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 import { requireValidGtin13 } from './gtin.js';
 import {
-  recordNewCoverNotification,
   updateNotificationImage,
   listUserNotifications,
   getUnreadNotificationsCount,
@@ -13,11 +12,9 @@ import {
   getVapidPublicKey,
   savePushSubscription,
   removePushSubscription,
-  sendWebPushNotification,
   broadcastNewCoverPush,
   pushVapidHealth,
-  getOperatorPushDevice,
-  sendOperatorDevicePushTest
+  getOperatorPushDevice
 } from './web-push.js';
 import {
   supabaseReserveProducts,
@@ -26,7 +23,7 @@ import {
   supabaseProductTreatmentSummary,
   supabaseProductTreatmentQueue
 } from './supabase-read-store.js';
-import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
+import { mirrorSupabaseRpc } from './supabase-write-store.js';
 import {
   syncNistiProductsToCommerce,
   syncNistiProductToCommerceSafe,
@@ -908,56 +905,12 @@ export default {
         return json({ ok: true, marked_count: updated, unread_count: 0 });
       }
 
-      if (url.pathname === '/api/admin/push/six-covers' && request.method === 'GET') {
-        const payload = {
-          title:'6 Novas Capas Cadastradas',
-          body:'As capas PQV1, PQV2, PQV3, PQV4, PQV5 e PQV6 (Pequenas Aventuras) já estão prontas no catálogo.',
-          image_url:'https://nisti-identificacao.lksntz1411.workers.dev/api/images/210',
-          url:'/'
-        };
-
-        const rows=await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
-        const subscriptions=Array.isArray(rows)?rows:[];
-        const sendResults=[];
-
-        await Promise.all(subscriptions.map(async sub=>{
-          try {
-            const res=await sendWebPushNotification(env,sub,payload);
-            sendResults.push({sub_id:sub.id,status:res.status});
-          } catch(err) {
-            sendResults.push({sub_id:sub.id,error:err.message});
-          }
-        }));
-
-        return json({ok:true,sent_count:sendResults.length,results:sendResults});
-      }
-
       if (url.pathname === '/api/admin/push/debug' && request.method === 'GET') {
         const rows=await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
         const subscriptions=Array.isArray(rows)?rows:[];
         return json({
           configured:Boolean(env.VAPID_PRIVATE_KEY),
           active_subscriptions_count:subscriptions.length
-        });
-      }
-
-      if (url.pathname === '/api/admin/notifications/test' && request.method === 'POST') {
-        const randomId = Math.floor(100 + Math.random() * 900);
-        const capaCode = `TEST${randomId}`;
-        const saved=await recordNewCoverNotification(env,{
-          capaCode,
-          productId:null,
-          sku:'TEST_SKU',
-          productName:'Capa de Teste do Sistema',
-          variacao:'Variação Teste',
-          platform:'SHOPEE',
-          imageKey:null
-        });
-        return json({
-          ok:Boolean(saved),
-          capa_code:capaCode,
-          created:Boolean(saved?.created),
-          authority:supabasePrimaryWritesRequested(env)?'supabase':'d1'
         });
       }
 
@@ -968,14 +921,6 @@ export default {
         const vapid=await pushVapidHealth(env);
         const device=await getOperatorPushDevice(env,userId,body?.endpoint);
         return json({ok:true,registered:Boolean(device),vapid_ready:vapid.ready,vapid_code:vapid.code},200,{'cache-control':'no-store'});
-      }
-
-      if (url.pathname === '/api/push/test' && request.method === 'POST') {
-        const userId=verifiedOperatorId(request);
-        if(!userId) return json({ok:false,error:'Sessão do operador inválida.'},401);
-        const body=await request.json().catch(()=>({}));
-        const result=await sendOperatorDevicePushTest(env,userId,body?.endpoint);
-        return json(result,result.ok?200:result.code==='device_not_registered'?409:502,{'cache-control':'no-store'});
       }
 
       if (url.pathname === '/api/push/public-key' && request.method === 'GET') {
