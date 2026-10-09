@@ -109,11 +109,13 @@ async function persistPushSubscription(subscription) {
   if (!payload?.keys?.p256dh || !payload?.keys?.auth) {
     throw new Error('Assinatura push incompleta.');
   }
-  return api('/api/push/subscribe', {
+  const result = await api('/api/push/subscribe', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ subscription: payload })
   });
+  if (result?.ok !== true) throw new Error('O servidor não confirmou a assinatura de notificações.');
+  return result;
 }
 
 async function syncExistingPushSubscription() {
@@ -131,6 +133,7 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [pushStatus, setPushStatus] = useState('unknown');
+  const [pushError, setPushError] = useState('');
   const load = async () => {
     setLoading(true);
     try {
@@ -167,6 +170,7 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   const togglePush = async () => {
     if (pushStatus === 'subscribing') return;
     setPushStatus('subscribing');
+    setPushError('');
 
     try {
       const permission = await Notification.requestPermission();
@@ -192,7 +196,8 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
       setPushStatus('granted');
     } catch (err) {
       console.error('Push subscription error:', err);
-      setPushStatus('supported');
+      setPushError(err?.message || 'Não foi possível ativar notificações.');
+      setPushStatus('error');
     }
   };
 
@@ -248,11 +253,13 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
                 : pushStatus === 'denied'
                 ? 'Permissão bloqueada no navegador.'
                 : pushStatus === 'unsupported'
-                ? 'Push indisponível neste navegador.'
+                ? 'Push indisponível neste navegador. No iPhone, instale o aplicativo na Tela de Início.'
+                : pushStatus === 'error'
+                ? pushError || 'Não foi possível ativar notificações.'
                 : 'Receba avisos instantâneos quando novos itens forem cadastrados.'}
             </span>
           </div>
-          {pushStatus === 'supported' && (
+          {(pushStatus === 'supported' || pushStatus === 'error') && (
             <button type="button" className="push-enable-btn" onClick={togglePush}>
               Ativar
             </button>

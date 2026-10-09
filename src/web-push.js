@@ -337,7 +337,7 @@ export async function broadcastMuralPush(env,{postId,title,body}) {
   if(!privateKey) return {sent:0,failed:0,skipped:true};
   const subscriptions=await loadPushSubscriptions(env);
   let sent=0;let failed=0;const dead=[];
-  const payload={title:String(title||'Mural NISTI').slice(0,90),body:String(body||'Nova publicação no Mural NISTI').slice(0,180),url:'/?view=mural',mural_post_id:Number(postId)};
+  const payload={title:String(title||'Mural NISTI').slice(0,90),body:String(body||'Nova publicação no Mural NISTI').slice(0,180),url:'/#mural',mural_post_id:Number(postId)};
   await Promise.all(subscriptions.map(async sub=>{try{const res=await sendWebPushNotification(env,sub,payload);if(res.ok)sent+=1;else failed+=1;if(res.status===404||res.status===410)dead.push(sub.endpoint)}catch(error){failed+=1;console.error('[Push Mural] Falha de envio',{postId:Number(postId),subscriptionId:sub.id,message:error?.message||String(error)})}}));
   for(const endpoint of dead) await removePushSubscription(env,endpoint).catch(()=>{});
   return {sent,failed,skipped:false};

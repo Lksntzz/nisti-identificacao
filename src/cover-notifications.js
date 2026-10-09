@@ -1,5 +1,5 @@
 import { broadcastNewCoverPush } from './web-push.js';
-import { supabaseReserveNotifications } from './supabase-read-store.js';
+import { supabaseReserveNotifications, supabaseReserveUnreadNotifications } from './supabase-read-store.js';
 import { mirrorSupabaseRpc } from './supabase-write-store.js';
 
 function clean(value) {
@@ -94,11 +94,7 @@ export async function listUserNotifications(env, userId, limit = 50) {
 export async function getUnreadNotificationsCount(env, userId) {
   if (!env) return 0;
   const safeUserId = String(userId || 'anonymous').trim().slice(0, 100);
-  const rows = await supabaseReserveNotifications(env, safeUserId, 100);
-  return (rows || []).filter(row =>
-    (row.type || 'new_cover') === 'new_cover'
-    && !(row.is_read === true || Number(row.is_read) === 1)
-  ).length;
+  return supabaseReserveUnreadNotifications(env, safeUserId);
 }
 
 export async function markNotificationRead(env, notificationId, userId) {
@@ -201,12 +197,7 @@ export async function listAdminSystemNotifications(env, limit = 80) {
 
 export async function getAdminSystemUnreadCount(env) {
   if (!env) return 0;
-  const rows = await supabaseReserveNotifications(env, ADMIN_SYSTEM_USER_ID, 100);
-  return (rows || []).filter(row =>
-    row.type !== 'new_cover'
-    && String(row.capa_code || '').startsWith(ADMIN_SYSTEM_CODE_PREFIX)
-    && !(row.is_read === true || Number(row.is_read) === 1)
-  ).length;
+  return supabaseReserveUnreadNotifications(env, ADMIN_SYSTEM_USER_ID);
 }
 
 export async function markAdminSystemNotificationRead(env, notificationId) {
