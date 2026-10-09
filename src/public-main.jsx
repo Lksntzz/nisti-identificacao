@@ -134,8 +134,6 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   const [markingAll, setMarkingAll] = useState(false);
   const [pushStatus, setPushStatus] = useState('unknown');
   const [pushError, setPushError] = useState('');
-  const [pushTestStatus, setPushTestStatus] = useState('');
-  const [testingPush, setTestingPush] = useState(false);
   const load = async () => {
     setLoading(true);
     try {
@@ -232,38 +230,6 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
     }
   };
 
-  const testPushDelivery = async () => {
-    if (testingPush) return;
-    setTestingPush(true);
-    setPushTestStatus('');
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (!sub?.endpoint) throw new Error('Este aparelho não tem assinatura push. Ative novamente.');
-      const result = await api('/api/push/test', {
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body:JSON.stringify({endpoint:sub.endpoint})
-      });
-      if (result?.code !== 'provider_accepted') throw new Error('O provedor não confirmou o envio.');
-      setPushTestStatus('Servidor de push aceitou o teste. Confira a notificação no aparelho, também com a tela bloqueada.');
-    } catch (error) {
-      const code = error?.data?.code;
-      const explanations = {
-        vapid_keys_mismatch:'As chaves VAPID do servidor não correspondem.',
-        vapid_private_missing:'Chave privada de push ausente no servidor.',
-        vapid_sign_error:'O servidor não conseguiu assinar o push.',
-        device_not_registered:'Dispositivo não reconhecido. Reative as notificações.',
-        subscription_expired:'Assinatura expirada. Reative as notificações.',
-        provider_rejected:'O provedor push recusou a mensagem (HTTP ' + (error?.data?.status || '?') + ').',
-        push_send_error:'Falha do servidor no envio da mensagem push.'
-      };
-      setPushTestStatus(explanations[code] || error?.message || 'O teste falhou.');
-    } finally {
-      setTestingPush(false);
-    }
-  };
-
   const markOne = async (id) => {
     try {
       await api(`/api/notifications/${id}/read`, { method: 'POST' });
@@ -335,12 +301,6 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
           {pushStatus === 'granted' && (
             <span className="push-status-badge">Ativo</span>
           )}
-          {pushStatus === 'granted' && (
-            <button type="button" className="push-enable-btn" disabled={testingPush} onClick={testPushDelivery}>
-              {testingPush ? 'Testando…' : 'Testar envio'}
-            </button>
-          )}
-          {pushTestStatus && <small role="status" style={{display:'block',width:'100%',marginTop:'8px'}}>{pushTestStatus}</small>}
         </div>
 
         <div className="notifications-body">

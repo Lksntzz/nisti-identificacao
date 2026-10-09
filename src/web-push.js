@@ -163,31 +163,6 @@ export async function getOperatorPushDevice(env,userId,rawEndpoint) {
   return row?.endpoint===endpoint && row?.p256dh && row?.auth ? row : null;
 }
 
-export async function sendOperatorDevicePushTest(env,userId,endpoint) {
-  const device=await getOperatorPushDevice(env,userId,endpoint);
-  if(!device) return {ok:false,code:'device_not_registered',status:404};
-  const vapid=await pushVapidHealth(env);
-  if(!vapid.ready) return {ok:false,code:vapid.code,status:503};
-  try {
-    const result=await sendWebPushNotification(env,device,{
-      title:'Teste de notificação · NISTI ID',
-      body:'Se esta notificação apareceu, o envio push chegou ao dispositivo.',
-      url:'/',
-      test:true
-    });
-    if(result.status===404||result.status===410) {
-      await removePushSubscription(env,device.endpoint).catch(()=>{});
-      return {ok:false,code:'subscription_expired',status:result.status};
-    }
-    return result.ok
-      ? {ok:true,code:'provider_accepted',status:result.status}
-      : {ok:false,code:'provider_rejected',status:result.status};
-  } catch(error) {
-    console.error('[Push Test] Erro de envio',error?.message||String(error));
-    return {ok:false,code:'push_send_error',status:502};
-  }
-}
-
 async function encryptPushPayload(clientP256dh, clientAuth, payloadText) {
   const userPubBytes = fromB64url(clientP256dh);
   const userAuthBytes = fromB64url(clientAuth);

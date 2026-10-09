@@ -31,9 +31,10 @@ test('core image and push diagnostics use Supabase directly after D1 detachment'
   assert.doesNotMatch(core,/FROM push_subscriptions/);
 });
 
-test('test notification is a direct primary mutation and does not require D1 remirroring',()=>{
-  assert.match(core,/recordNewCoverNotification\(env/);
-  assert.match(mirror,/url\.pathname === '\/api\/admin\/notifications\/test'/);
+test('manual notification test routes are retired; real new cover registration still dispatches push',()=>{
+  assert.doesNotMatch(core,/\/api\/admin\/notifications\/test/);
+  assert.doesNotMatch(mirror,/\/api\/admin\/notifications\/test/);
+  assert.match(core,/scheduleNewCoverPush\(ctx, env, saved, body\)/);
 });
 
 test('Mural read receipts do not remirror from D1 in primary mode',()=>{
