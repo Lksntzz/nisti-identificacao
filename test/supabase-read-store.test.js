@@ -246,7 +246,13 @@ test('critical reserve RPCs keep scanner and notification compatibility while oc
   assert.match(gtinRouter, /supabaseReserveGtinLookup/);
   assert.equal(fs.existsSync('src/occurrences-router.js'), false);
   assert.match(notifications, /supabaseReserveNotifications/);
-  assert.doesNotMatch(notifications, /supabaseReserveUnreadNotifications/);
+  assert.match(notifications, /supabaseReserveUnreadNotifications/);
+  const scopedNotifications = fs.readFileSync(
+    'supabase/migrations/20261009153500_notification_feed_scope_v1.sql',
+    'utf8'
+  );
+  assert.match(scopedNotifications, /WHEN p_user_id='__admin_system__'/);
+  assert.match(scopedNotifications, /ELSE n\\.type='new_cover'/);
   assert.match(notifications, /is_read/);
   assert.doesNotMatch(wrangler, /SUPABASE_EMERGENCY_/);
 });
