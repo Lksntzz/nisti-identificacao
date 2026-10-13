@@ -58,16 +58,30 @@ export async function commerceDashboard(env) {
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
+export async function commerceProductSalesPlanning(env, filters = {}) {
+  const ids = [...new Set((Array.isArray(filters.productIds) ? filters.productIds : [])
+    .map(cleanId).filter(Boolean))].slice(0,100);
+  if (!ids.length) return { items: [] };
+  const result = await supabaseRpc(env,'commerce_product_sales_planning_v1',{
+    p_product_ids:ids,
+    p_platform:cleanText(filters.platform)||'TODAS',
+    p_months:Math.max(1,Math.min(12,Number(filters.months)||3))
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {items:[]};
+}
+
 export async function commerceProducts(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);
-  const rows = await supabaseRpc(env, 'commerce_list_products_v3', {
+  const rows = await supabaseRpc(env, filters.presence && filters.presence !== 'ALL'
+    ? 'commerce_list_products_planning_cards_v1' : 'commerce_list_products_v3', {
     p_search: cleanText(filters.search),
     p_marketplace_code: cleanText(filters.marketplace),
     p_category_id: cleanId(filters.categoryId),
     p_internal_status: cleanText(filters.status),
     p_limit: limit,
-    p_offset: offset
+    p_offset: offset,
+    ...(filters.presence && filters.presence !== 'ALL' ? {p_presence:filters.presence} : {})
   });
 
   return {
