@@ -371,7 +371,13 @@ export default {
         const primaryRow = { ...body };
 
         if (body.sku) {
-          const parsed = parseSku(body.sku);
+          const supplied = parseSku(body.sku);
+          // When editing the finish, the selected colors are authoritative.
+          // Rebuild the canonical SKU instead of re-parsing the old SKU over them.
+          const wireo = String(body.wireo_code ?? supplied.wireoCode).trim().toUpperCase();
+          const tassel = String(body.tassel_code ?? supplied.tasselCode).trim().toUpperCase();
+          const elastico = String(body.elastico_code ?? supplied.elasticoCode).trim().toUpperCase();
+          const parsed = parseSku(`${supplied.mioloCode}_${supplied.capaCode}_${wireo}${tassel}${elastico}`);
           Object.assign(primaryRow,{
             sku:parsed.sku,
             miolo_code:parsed.mioloCode,
