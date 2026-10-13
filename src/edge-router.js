@@ -221,13 +221,25 @@ async function enforceRateLimit(env, request, pathname) {
   return null;
 }
 
+const OFFICIAL_NISTI_ORIGINS = new Set([
+  'https://admin.sistemanistiid.online',
+  'https://sistemanistiid.online'
+]);
+
 function sameOriginMutationAllowed(request) {
   if (!MUTATING_METHODS.has(String(request.method || '').toUpperCase())) return true;
   const requestUrl = new URL(request.url);
   const origin = String(request.headers.get('origin') || '').trim();
-  if (origin && origin !== requestUrl.origin) return false;
   const fetchSite = String(request.headers.get('sec-fetch-site') || '').trim().toLowerCase();
-  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') return false;
+  if (origin === 'null') return false;
+  const isOfficialLogin = requestUrl.pathname === '/admin-login' && request.method === 'POST';
+  const trustedOfficialOrigin = isOfficialLogin
+    && OFFICIAL_NISTI_ORIGINS.has(requestUrl.origin)
+    && OFFICIAL_NISTI_ORIGINS.has(origin);
+  if (origin && origin !== requestUrl.origin && !trustedOfficialOrigin) return false;
+  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') {
+    if (!(trustedOfficialOrigin && fetchSite === 'same-site')) return false;
+  }
   return true;
 }
 
@@ -286,6 +298,9 @@ export default {
     }
 
     if ((pathname === '/admin-login' || pathname.startsWith('/api/')) && !sameOriginMutationAllowed(request)) {
+      if (pathname === '/admin-login') {
+        return withSecurityHeaders(html(loginPage('A solicitação de login veio de uma origem não autorizada. Abra diretamente o endereço oficial do painel.'),403));
+      }
       return withSecurityHeaders(json({ error:'Origem da solicitação não autorizada.' },403));
     }
 
