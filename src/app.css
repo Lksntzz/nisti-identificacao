@@ -7533,3 +7533,23 @@ button.kpi-box:active {
 .nisti-sales-history-track>div{height:100%;background:#2563eb;border-radius:8px}
 .nisti-sales-modal-note{margin:20px 0 0;color:#64748b;font-size:12px;line-height:1.5}
 @media(max-width:520px){.nisti-sales-modal{padding:17px}.nisti-sales-modal-metrics{gap:8px}.nisti-sales-modal-metrics strong{font-size:16px}.nisti-sales-history-row{grid-template-columns:66px minmax(0,1fr) 65px}}
+
+
+/* Expanded product sales dashboard */
+.nisti-sales-modal{width:min(900px,100%);padding:28px}
+.nisti-sales-modal-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;align-items:end}
+.nisti-sales-modal-filters label{font-weight:600;min-width:0}
+.nisti-sales-modal-filters select{width:100%;max-width:100%;font-size:13px}
+.nisti-sales-modal-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.nisti-sales-modal-metrics>div{min-width:0}
+.nisti-sales-chart-heading{display:flex;justify-content:space-between;gap:16px;align-items:center;margin:18px 0 8px}
+.nisti-sales-chart-heading h4{margin:0 0 4px}
+.nisti-sales-chart-heading small{color:#64748b;font-size:12px}
+.nisti-sales-chart-heading>span{font-size:12px;color:#334155}
+.nisti-sales-trend-chart{display:block;width:100%;max-height:280px;margin:12px auto 20px;overflow:visible}
+.nisti-sales-empty-chart{border:1px dashed #cbd5e1;border-radius:10px;padding:34px;text-align:center;color:#64748b}
+.nisti-sales-monthly-table{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.nisti-sales-monthly-table>div{display:flex;justify-content:space-between;gap:7px;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px}
+.nisti-sales-monthly-table span{color:#64748b}
+@media(max-width:650px){.nisti-sales-modal{padding:17px}.nisti-sales-modal-filters{grid-template-columns:1fr 1fr}.nisti-sales-modal-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:390px){.nisti-sales-modal-filters{grid-template-columns:1fr}}
