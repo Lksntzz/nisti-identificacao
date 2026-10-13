@@ -26,6 +26,7 @@ import {
   commerceSalesDashboard,
   commerceSalesProductPerformance,
   commerceProductSalesPlanning,
+  nistiProductsSalesPlanning,
   commerceSalesImportBatches,
   commerceCreateSalesImport,
   commerceAppendSalesImportRows,
@@ -314,6 +315,14 @@ export async function handleCommerceAdminRequest(request, env) {
         offset: query(url, 'offset')
       });
       return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/products/nisti-sales-planning`) {
+      const ids = String(query(url,'ids') || '').split(',').map(positiveId).filter(Boolean);
+      if (!ids.length || ids.length > 100) return json({error:'Informe até 100 produtos válidos.'},400);
+      return json(await nistiProductsSalesPlanning(env,{
+        productIds:ids,platform:query(url,'platform'),months:query(url,'months')
+      }));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/products/sales-planning`) {

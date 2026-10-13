@@ -58,6 +58,17 @@ export async function commerceDashboard(env) {
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
+export async function nistiProductsSalesPlanning(env, filters = {}) {
+  const ids = [...new Set((Array.isArray(filters.productIds) ? filters.productIds : [])
+    .map(cleanId).filter(Boolean))].slice(0,100);
+  if (!ids.length) return { items: [] };
+  return await supabaseRpc(env,'nisti_products_sales_planning_v1',{
+    p_nisti_ids:ids,
+    p_platform:cleanText(filters.platform)||'TODAS',
+    p_months:Math.max(1,Math.min(12,Number(filters.months)||3))
+  });
+}
+
 export async function commerceProductSalesPlanning(env, filters = {}) {
   const ids = [...new Set((Array.isArray(filters.productIds) ? filters.productIds : [])
     .map(cleanId).filter(Boolean))].slice(0,100);

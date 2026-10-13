@@ -123,6 +123,11 @@ export function CatalogView({
 }) {
   const [search, setSearch] = useState('');
   const [platformFilter, setPlatformFilter] = useState('');
+  const [presenceFilter, setPresenceFilter] = useState('ALL');
+  const [historyMonths, setHistoryMonths] = useState(3);
+  const [planning, setPlanning] = useState({});
+  const [planningLoading, setPlanningLoading] = useState(false);
+  const [planningError, setPlanningError] = useState('');
   const [onlyWithoutEan, setOnlyWithoutEan] = useState(false);
   const [page, setPage] = useState(1);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -146,15 +151,16 @@ export function CatalogView({
       const catalogPlatformList = catalogPlatforms(p);
       const matchPlatform = !platformFilter || catalogPlatformList.some(platform => platform.code === platformFilter);
       const matchEanFilter = !onlyWithoutEan || !p.has_active_gtin;
+      const matchPresence = presenceFilter === 'ALL' || (presenceFilter === 'EXCLUSIVE' ? catalogPlatformList.length === 1 : catalogPlatformList.length > 1);
       const platformSearch = catalogPlatformList.map(platform => platform.label || platform.code).join(' ');
       const matchQuery = !q || [p.sku, p.nome, p.variacao, p.capa_code, platformSearch, p.gtin].some(
         val => String(val || '').toLowerCase().includes(q)
       );
-      return matchPlatform && matchEanFilter && matchQuery;
+      return matchPlatform && matchPresence && matchEanFilter && matchQuery;
     });
-  }, [products, search, platformFilter, onlyWithoutEan]);
+  }, [products, search, platformFilter, presenceFilter, onlyWithoutEan]);
 
-  useEffect(() => setPage(1), [search, platformFilter, onlyWithoutEan]);
+  useEffect(() => setPage(1), [search, platformFilter, presenceFilter, onlyWithoutEan]);
 
   const exportExcel = () => {
     const blob = new Blob([createCatalogXlsx(filtered)], {
@@ -176,6 +182,24 @@ export function CatalogView({
   }, [page, pages]);
 
   const slice = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const visibleIds = slice.map(p => Number(p.id)).filter(Number.isSafeInteger).join(',');
+  useEffect(() => {
+    if (!visibleIds) { setPlanning({}); setPlanningError(''); return; }
+    let cancelled = false;
+    setPlanningLoading(true);
+    setPlanningError('');
+    const params = new URLSearchParams({ids:visibleIds,platform:platformFilter || 'TODAS',months:String(historyMonths)});
+    fetch('/api/admin/commerce/products/nisti-sales-planning?' + params,{credentials:'same-origin'})
+      .then(async response => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result?.error || 'Falha ao consultar vendas.');
+        return result;
+      })
+      .then(result => { if (!cancelled) setPlanning(Object.fromEntries((result.items || []).map(item => [item.nisti_product_id,item]))); })
+      .catch(error => { if (!cancelled) { setPlanningError(error.message); setPlanning({}); } })
+      .finally(() => { if (!cancelled) setPlanningLoading(false); });
+    return () => { cancelled = true; };
+  }, [visibleIds,platformFilter,historyMonths]);
   const selectedPlatformLabel = platforms.find(item => item.code === platformFilter)?.label || platformFilter;
   const pageDirection = page >= previousPageRef.current ? 'forward' : 'backward';
   const tableMotionKey = `${search.trim()}|${platformFilter}|${onlyWithoutEan ? '1' : '0'}|${page}`;
@@ -258,6 +282,16 @@ export function CatalogView({
             )}
           </div>
 
+          <select aria-label="Exclusividade dos anúncios" value={presenceFilter} onChange={event=>setPresenceFilter(event.target.value)}>
+            <option value="ALL">Todos os anúncios</option>
+            <option value="EXCLUSIVE">Exclusivos da plataforma</option>
+            <option value="SHARED">Multiplataforma</option>
+          </select>
+          <select aria-label="Histórico das vendas" value={historyMonths} onChange={event=>setHistoryMonths(Number(event.target.value))}>
+            <option value={3}>Últimos 3 meses</option>
+            <option value={6}>Últimos 6 meses</option>
+            <option value={12}>Últimos 12 meses</option>
+          </select>
           <button type="button" className="btn-toolbar-filter" title="Baixar planilha Excel com tabela e filtro por plataforma" onClick={exportExcel}>
             <span>Baixar a planilha</span>
           </button>
@@ -307,6 +341,7 @@ export function CatalogView({
               <th style={{ width: '130px' }}>CAPA CODE</th>
               <th>PRODUTO</th>
               <th style={{ width: '160px' }}>PLATAFORMA</th>
+              <th>VENDAS E PROJEÇÃO</th>
               <th style={{ width: '150px' }}>CADASTRADO EM</th>
               <th style={{ width: '180px' }}>STATUS</th>
               <th style={{ width: '120px', textAlign: 'right' }}>AÇÕES</th>
@@ -315,7 +350,7 @@ export function CatalogView({
           <tbody key={tableMotionKey} className={`nisti-table-swap ${pageDirection}`}>
             {slice.length === 0 ? (
               <tr>
-                <td colSpan="6" className="table-empty-row nisti-state-cell">
+                <td colSpan="7" className="table-empty-row nisti-state-cell">
                   <AdminState
                     tone="empty"
                     compact
@@ -366,6 +401,24 @@ export function CatalogView({
                       <CatalogPlatformTags product={product} />
                     </td>
 
+                    <td>
+                      <div className="nisti-product-sales-cell">
+                        {planningLoading ? <small>Consultando vendas…</small> : planningError ? <small title={planningError}>Vendas indisponíveis</small> : !planning[product.id] ? <small>Sem vínculo comercial</small> : (() => {
+                          const report = planning[product.id];
+                          const hasMonth = report.month_units != null;
+                          const number = v => Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
+                          return <>
+                            <strong>Mês: {hasMonth ? number(report.month_units) + ' un.' : 'sem importação'}</strong>
+                            <small>Saída/dia: {report.daily_average == null ? '—' : number(report.daily_average)}</small>
+                            <small>Projeção: {report.month_projection == null ? '—' : number(report.month_projection) + ' un.'}</small>
+                            <small>Média histórica: {report.historic_monthly_average == null ? '—' : number(report.historic_monthly_average) + ' un.'}</small>
+                            <small title={(report.history || []).map(x=>x.month+': '+x.units+' un.').join(' | ')}>
+                              {(report.history || []).map(x=>x.month.slice(5)+'/'+x.month.slice(2,4)+': '+x.units).join(' · ') || 'Sem histórico'}
+                            </small>
+                          </>;
+                        })()}
+                      </div>
+                    </td>
                     <td>
                       <div className="datetime-cell">
                         <span>{dateInfo.date}</span>
