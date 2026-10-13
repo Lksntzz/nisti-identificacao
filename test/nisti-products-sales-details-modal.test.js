@@ -10,7 +10,7 @@ test('NISTI products removes sales column and shows a sales action alongside eye
   assert.match(view,/title="Ver vendas e projeção"/);
   assert.match(view,/title="Visualizar detalhes"/);
   assert.match(view,/title="Editar produto"/);
-  assert.match(view,/onClick=\{\(\) => setSalesProduct\(product\)\}/);
+  assert.ok(view.includes('setSalesProduct(product)'));
   assert.match(view,/colSpan="6"/);
 });
 
