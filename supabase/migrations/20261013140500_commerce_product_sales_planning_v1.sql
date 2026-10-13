@@ -13,7 +13,7 @@ params as (
     (now() at time zone 'America/Sao_Paulo')::date as today_local,
     date_trunc('month',now() at time zone 'America/Sao_Paulo')::date as current_month,
     greatest(1,least(12,coalesce(p_months,3))) as history_months,
-    case when upper(coalesce(p_platform,'')) in ('SHOPEE','ML_NOVO','ML_ANTIGO')
+    case when upper(coalesce(p_platform,'')) in ('SHOPEE','ML_NOVO','ML_ANTIGO','MERCADO_LIVRE')
       then upper(p_platform) else 'TODAS' end as platform
 ),
 ids as (select distinct unnest(coalesce(p_product_ids,array[]::bigint[])) as product_id),
@@ -32,7 +32,7 @@ available as (
     least(max(sr.period_end)::date,(select today_local from params)) as last_date
   from public.commerce_sales_summary_rows sr
   join snapshot sn on sn.id=sr.snapshot_id cross join params p
-  where (p.platform='TODAS' or sr.platform_code=p.platform)
+  where (p.platform='TODAS' or sr.platform_code=p.platform or (p.platform='MERCADO_LIVRE' and sr.platform_code in ('ML_NOVO','ML_ANTIGO')))
     and sr.period_start>=p.current_month-(p.history_months || ' months')::interval
     and sr.period_start<p.current_month+interval '1 month'
   group by 1
@@ -43,7 +43,7 @@ units_by_month as (
   from public.commerce_sales_rows r join snapshot sn on sn.id=r.snapshot_id
   join sku_map sm on sm.sku_norm=r.sku_norm
   cross join params p
-  where (p.platform='TODAS' or r.platform_code=p.platform)
+  where (p.platform='TODAS' or r.platform_code=p.platform or (p.platform='MERCADO_LIVRE' and r.platform_code in ('ML_NOVO','ML_ANTIGO')))
     and r.period_start>=p.current_month-(p.history_months || ' months')::interval
     and r.period_start<p.current_month+interval '1 month'
   group by sm.product_id,2
