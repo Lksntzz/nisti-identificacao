@@ -71,3 +71,13 @@ test('normalizes a product without tassel from SKU X', () => {
   assert.equal(product.tassel, 'Não');
   assert.equal(product.elastico, 'Branco');
 });
+
+test('editing a product rebuilds its SKU from the selected elastic color instead of restoring the old color', () => {
+  const source=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
+  const edit=source.slice(source.indexOf("if (productSingle && (request.method === 'PUT'"),source.indexOf("const imageUpload ="));
+  assert.match(edit,/body\.elastico_code \?\? supplied\.elasticoCode/);
+  assert.match(edit,/body\.wireo_code \?\? supplied\.wireoCode/);
+  assert.match(edit,/body\.tassel_code \?\? supplied\.tasselCode/);
+  assert.match(edit,/parseSku\(\`\$\{supplied\.mioloCode\}_\$\{supplied\.capaCode\}_/);
+  assert.ok(edit.indexOf('elastico_code:parsed.elasticoCode') < edit.indexOf("'nisti_update_product_primary_v1'"));
+});
