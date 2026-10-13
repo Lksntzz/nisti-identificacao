@@ -13,8 +13,9 @@ test('mobile public header allocates separate brand and action columns in all vi
   assert.match(css,/\.app\.general \.operator-profile-pill\s*\{[^}]*max-width:96px/);
 });
 
-test('mobile header hotfix forces clients onto the refreshed asset cache',()=>{
-  assert.match(sw,/CACHE_NAME = 'nisti-id-v39'/);
+test('mobile header uses updated PWA cache without forcing open pages to reload',()=>{
+  assert.match(sw,/CACHE_NAME = 'nisti-id-v40'/);
+  assert.doesNotMatch(sw,/client\\.navigate\\(/);
 });
 
 test('latest public header override is not scoped only to the scanner viewport',()=>{
