@@ -25,6 +25,7 @@ import {
   commerceShopeeSnapshot,
   commerceSalesDashboard,
   commerceSalesProductPerformance,
+  commerceProductSalesPlanning,
   commerceSalesImportBatches,
   commerceCreateSalesImport,
   commerceAppendSalesImportRows,
@@ -306,12 +307,23 @@ export async function handleCommerceAdminRequest(request, env) {
       const result = await commerceProducts(env, {
         search: query(url, 'search'),
         marketplace: query(url, 'marketplace'),
+        presence: query(url, 'presence'),
         categoryId: query(url, 'category_id'),
         status: query(url, 'status'),
         limit: query(url, 'limit'),
         offset: query(url, 'offset')
       });
       return json(paginationPayload(result));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/products/sales-planning`) {
+      const ids = String(query(url,'ids') || '').split(',').map(positiveId).filter(Boolean);
+      if (!ids.length || ids.length > 100) return json({ error:'Informe até 100 produtos válidos.' },400);
+      return json(await commerceProductSalesPlanning(env,{
+        productIds:ids,
+        platform:query(url,'platform'),
+        months:query(url,'months')
+      }));
     }
 
     const productDetailMatch = pathname.match(/^\/api\/admin\/commerce\/products\/(\d+)\/details$/);
