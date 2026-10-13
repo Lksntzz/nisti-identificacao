@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nisti-id-v39';
+const CACHE_NAME = 'nisti-id-v40';
 const SHELL_KEY = '/__nisti_shell__';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -8,8 +8,8 @@ self.addEventListener('activate', event => {
     const names = await caches.keys();
     await Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name)));
     await self.clients.claim();
-    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    await Promise.all(windows.map(client => client.navigate(client.url).catch(() => null)));
+    // Never force open screens to reload: scanners, forms and draft posts may be active.
+    // Newly opened navigations use the newly activated worker automatically.
   })());
 });
 
@@ -44,14 +44,18 @@ self.addEventListener('fetch', event => {
     event.respondWith((async () => {
       try {
         const response = await fetch(request, { cache: 'no-store' });
-        if (response.ok) {
+        // Only cache the public operator shell. Never save protected login or
+        // personalized responses as an offline fallback.
+        if (url.pathname === '/' && response.ok && response.headers.get('content-type')?.includes('text/html')) {
           const cache = await caches.open(CACHE_NAME);
           await cache.put(SHELL_KEY, response.clone());
         }
         return response;
       } catch (error) {
-        const cached = await caches.match(SHELL_KEY);
-        if (cached) return cached;
+        if (url.pathname === '/') {
+          const cached = await caches.match(SHELL_KEY);
+          if (cached) return cached;
+        }
         throw error;
       }
     })());

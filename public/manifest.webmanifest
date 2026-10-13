@@ -10,7 +10,11 @@
   "display": "standalone",
   "background_color": "#F8FAFC",
   "theme_color": "#0B1329",
-  "categories": ["business", "productivity", "utilities"],
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
   "prefer_related_applications": false,
   "icons": [
     {
@@ -24,6 +28,20 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Abrir Scanner EAN",
+      "short_name": "Scanner",
+      "url": "/#scanner",
+      "description": "Abrir rapidamente a câmera de leitura de códigos"
+    },
+    {
+      "name": "Mural NISTI",
+      "short_name": "Mural",
+      "url": "/#mural",
+      "description": "Consultar publicações e avisos"
     }
   ]
 }
