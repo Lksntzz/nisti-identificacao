@@ -15,7 +15,7 @@ test('mobile public header allocates separate brand and action columns in all vi
 
 test('mobile header uses updated PWA cache without forcing open pages to reload',()=>{
   assert.match(sw,/CACHE_NAME = 'nisti-id-v40'/);
-  assert.doesNotMatch(sw,/client\\.navigate\\(/);
+  assert.equal(sw.includes('client.navigate('),false);
 });
 
 test('latest public header override is not scoped only to the scanner viewport',()=>{
