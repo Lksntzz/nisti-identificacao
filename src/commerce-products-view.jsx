@@ -82,6 +82,36 @@ function ProductCoverage({ marketplaceCodes = [], compact = false }) {
   );
 }
 
+function SalesPlanningCard({ report, loading, error }) {
+  if (loading) return <div className="nisti-product-planning is-loading">Consultando vendas importadas…</div>;
+  if (error) return <div className="nisti-product-planning unavailable" title={error}>Indicadores temporariamente indisponíveis.</div>;
+  if (!report) return <div className="nisti-product-planning unavailable">Sem dados de planejamento.</div>;
+  const hasCurrent = report.month_units !== null && report.month_units !== undefined;
+  const importedHistory = Number(report.historic_months_imported || 0);
+  const format = number => commerceFormatNumber(Number(number || 0));
+  const history = Array.isArray(report.history) ? report.history : [];
+  return (
+    <div className="nisti-product-planning">
+      <div className="nisti-product-planning-metrics">
+        <div><span>Vendas do mês</span><strong>{hasCurrent ? format(report.month_units) + ' un.' : 'Sem importação'}</strong></div>
+        <div><span>Saída diária</span><strong>{hasCurrent && report.daily_average != null ? Number(report.daily_average).toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' un.' : '—'}</strong></div>
+        <div><span>Projeção do mês</span><strong>{report.month_projection != null ? format(report.month_projection) + ' un.' : '—'}</strong></div>
+        <div><span>Média histórica</span><strong>{importedHistory && report.historic_monthly_average != null ? Number(report.historic_monthly_average).toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' un.' : '—'}</strong></div>
+      </div>
+      {history.length ? (
+        <div className="nisti-product-planning-history" aria-label="Histórico mensal de unidades vendidas">
+          {history.map(item => (
+            <div key={item.month}><span>{String(item.month).slice(5)}/{String(item.month).slice(2,4)}</span><strong>{format(item.units)}</strong></div>
+          ))}
+        </div>
+      ) : <small>Sem histórico de vendas importado.</small>}
+      <small>{hasCurrent
+        ? `Dados importados até ${String(report.recorded_until || '').split('-').reverse().join('/')}. Projeção estimada, não representa vendas realizadas.`
+        : 'Mês atual sem dados importados; não é possível projetar a saída.'}</small>
+    </div>
+  );
+}
+
 function ProductStateEditor({ product, busy, onClose, onSave }) {
   const [internalStatus, setInternalStatus] = useState(product.internal_status || 'DRAFT');
   const marketplaceCodes = Array.isArray(product.marketplace_codes) ? product.marketplace_codes : [];
@@ -276,6 +306,11 @@ export default function CommerceProductsView() {
   const [search, setSearch] = useState('');
   const [marketplace, setMarketplace] = useState('');
   const [status, setStatus] = useState('');
+  const [presence, setPresence] = useState('ALL');
+  const [historyMonths, setHistoryMonths] = useState(3);
+  const [salesPlanning, setSalesPlanning] = useState({});
+  const [planningBusy, setPlanningBusy] = useState(false);
+  const [planningError, setPlanningError] = useState('');
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState({ items: [], pagination: { total: 0 } });
   const [loading, setLoading] = useState(true);
@@ -296,6 +331,7 @@ export default function CommerceProductsView() {
     if (search.trim()) params.set('search', search.trim());
     if (marketplace) params.set('marketplace', marketplace);
     if (status) params.set('status', status);
+    if (presence !== 'ALL') params.set('presence', presence);
     try {
       const result = await commerceApi(`/api/admin/commerce/products?${params}`);
       setData(result || { items: [], pagination: { total: 0 } });
@@ -307,7 +343,25 @@ export default function CommerceProductsView() {
     }
   }
 
-  useEffect(() => { load(0); }, [marketplace, status]);
+  useEffect(() => { load(0); }, [marketplace, status, presence]);
+
+  useEffect(() => {
+    const ids = (data.items || []).map(item => Number(item.product_id)).filter(Number.isSafeInteger);
+    if (!ids.length) { setSalesPlanning({}); setPlanningError(''); return; }
+    let cancelled = false;
+    setPlanningBusy(true);
+    setPlanningError('');
+    const params = new URLSearchParams({ids:ids.join(','),platform:marketplace || 'TODAS',months:String(historyMonths)});
+    commerceApi('/api/admin/commerce/products/sales-planning?' + params)
+      .then(result => {
+        if (cancelled) return;
+        const reports = Object.fromEntries((result.items || []).map(item => [item.product_id,item]));
+        setSalesPlanning(reports);
+      })
+      .catch(error => { if (!cancelled) { setPlanningError(error.message || 'Falha ao consultar vendas.'); setSalesPlanning({}); } })
+      .finally(() => { if (!cancelled) setPlanningBusy(false); });
+    return () => { cancelled = true; };
+  }, [data.items, marketplace, historyMonths]);
 
   async function openProductDetail(product) {
     const productId = Number(product?.product_id || 0);
@@ -374,6 +428,16 @@ export default function CommerceProductsView() {
           <select value={marketplace} onChange={event => setMarketplace(event.target.value)}>
             {COMMERCE_MARKETPLACES.map(([code, label]) => <option key={code || 'all'} value={code}>{label}</option>)}
           </select>
+          <select value={presence} onChange={event => setPresence(event.target.value)} aria-label="Exclusividade dos anúncios">
+            <option value="ALL">Todos os anúncios</option>
+            <option value="EXCLUSIVE">Exclusivos de uma plataforma</option>
+            <option value="SHARED">Anunciados em várias plataformas</option>
+          </select>
+          <select value={historyMonths} onChange={event => setHistoryMonths(Number(event.target.value))} aria-label="Período de planejamento">
+            <option value={3}>Histórico de 3 meses</option>
+            <option value={6}>Histórico de 6 meses</option>
+            <option value={12}>Histórico de 12 meses</option>
+          </select>
           <select value={status} onChange={event => setStatus(event.target.value)}>
             <option value="">Todos os estados</option>
             <option value="ACTIVE">Ativos</option>
@@ -411,6 +475,8 @@ export default function CommerceProductsView() {
                     </div>
 
                     <ProductCoverage marketplaceCodes={marketplaceCodes} />
+
+                    <SalesPlanningCard report={salesPlanning[productId]} loading={planningBusy} error={planningError} />
 
                     <div className="commerce-product-card-meta">
                       <span>{product.category_name || 'Sem categoria'}</span>
