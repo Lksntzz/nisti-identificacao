@@ -111,6 +111,36 @@ function CatalogPlatformTags({ product }) {
   );
 }
 
+function SalesTrendChart({ history, mode = 'bars' }) {
+  const values = Array.isArray(history) ? history : [];
+  if (!values.length) return <p className="nisti-sales-empty-chart">Nenhum mês importado neste intervalo.</p>;
+  const max = Math.max(1, ...values.map(row => Number(row.units) || 0));
+  const width=680, height=210, left=40, top=20, right=18, bottom=38;
+  const innerWidth=width-left-right, innerHeight=height-top-bottom;
+  const points=values.map((row,index)=>({
+    x:left+(index+.5)*innerWidth/values.length,
+    y:top+innerHeight-(Number(row.units)||0)/max*innerHeight,
+    count:Number(row.units)||0,
+    label:String(row.month||'').slice(5)+'/'+String(row.month||'').slice(2,4)
+  }));
+  return <svg className="nisti-sales-trend-chart" viewBox={`0 0 ${width} ${height}`} role="img"
+    aria-label={`Vendas mensais: ${points.map(item=>item.label+': '+item.count+' unidades').join(', ')}`}>
+    {[0,.5,1].map(fraction=><g key={fraction}>
+      <line x1={left} x2={width-right} y1={top+innerHeight*(1-fraction)} y2={top+innerHeight*(1-fraction)} stroke="#e2e8f0" />
+      <text x={left-9} y={top+innerHeight*(1-fraction)+4} textAnchor="end" fill="#64748b" fontSize="11">{Math.round(max*fraction)}</text>
+    </g>)}
+    {mode==='line' && <polyline fill="none" stroke="#2563eb" strokeWidth="3" strokeLinejoin="round"
+      points={points.map(p=>`${p.x},${p.y}`).join(' ')} />}
+    {points.map((point,index)=><g key={index}>
+      {mode==='bars' ? <rect x={point.x-Math.min(24,innerWidth/values.length*.33)} y={point.y}
+        width={Math.min(48,innerWidth/values.length*.66)} height={Math.max(0,top+innerHeight-point.y)}
+        rx="5" fill="#2563eb" /> : <circle cx={point.x} cy={point.y} r="5" fill="#2563eb" stroke="white" strokeWidth="2" />}
+      <text x={point.x} y={Math.max(12,point.y-9)} textAnchor="middle" fill="#1e40af" fontSize="12" fontWeight="600">{point.count}</text>
+      <text x={point.x} y={height-13} textAnchor="middle" fill="#64748b" fontSize="11">{point.label}</text>
+    </g>)}
+  </svg>;
+}
+
 export function CatalogView({
   products,
   highlightedProductIds = [],
@@ -129,6 +159,9 @@ export function CatalogView({
   const [planningLoading, setPlanningLoading] = useState(false);
   const [planningError, setPlanningError] = useState('');
   const [salesProduct, setSalesProduct] = useState(null);
+  const [salesPlatform, setSalesPlatform] = useState('TODAS');
+  const [salesMonths, setSalesMonths] = useState(6);
+  const [salesChartType, setSalesChartType] = useState('bars');
   const [onlyWithoutEan, setOnlyWithoutEan] = useState(false);
   const [page, setPage] = useState(1);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -183,24 +216,24 @@ export function CatalogView({
   }, [page, pages]);
 
   const slice = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const visibleIds = slice.map(p => Number(p.id)).filter(Number.isSafeInteger).join(',');
   useEffect(() => {
-    if (!visibleIds) { setPlanning({}); setPlanningError(''); return; }
-    let cancelled = false;
+    if (!salesProduct?.id) return;
+    const id=Number(salesProduct.id);
+    let cancelled=false;
     setPlanningLoading(true);
     setPlanningError('');
-    const params = new URLSearchParams({ids:visibleIds,platform:platformFilter || 'TODAS',months:String(historyMonths)});
-    fetch('/api/admin/commerce/products/nisti-sales-planning?' + params,{credentials:'same-origin'})
-      .then(async response => {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result?.error || 'Falha ao consultar vendas.');
-        return result;
+    const params=new URLSearchParams({ids:String(id),platform:salesPlatform,months:String(salesMonths)});
+    fetch('/api/admin/commerce/products/nisti-sales-planning?'+params,{credentials:'same-origin'})
+      .then(async response=>{
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok) throw new Error(data?.error || `Erro ${response.status} ao consultar vendas`);
+        return data;
       })
-      .then(result => { if (!cancelled) setPlanning(Object.fromEntries((result.items || []).map(item => [item.nisti_product_id,item]))); })
-      .catch(error => { if (!cancelled) { setPlanningError(error.message); setPlanning({}); } })
-      .finally(() => { if (!cancelled) setPlanningLoading(false); });
-    return () => { cancelled = true; };
-  }, [visibleIds,platformFilter,historyMonths]);
+      .then(data=>{if(!cancelled)setPlanning({[id]:(data.items||[]).find(item=>Number(item.nisti_product_id)===id)});})
+      .catch(error=>{if(!cancelled){setPlanningError(error.message);setPlanning({});}})
+      .finally(()=>{if(!cancelled)setPlanningLoading(false);});
+    return ()=>{cancelled=true;};
+  },[salesProduct?.id,salesPlatform,salesMonths]);
   const selectedPlatformLabel = platforms.find(item => item.code === platformFilter)?.label || platformFilter;
   const pageDirection = page >= previousPageRef.current ? 'forward' : 'backward';
   const tableMotionKey = `${search.trim()}|${platformFilter}|${onlyWithoutEan ? '1' : '0'}|${page}`;
@@ -434,7 +467,7 @@ export function CatalogView({
                           className="action-icon-btn"
                           title="Ver vendas e projeção"
                           aria-label={`Ver vendas e projeção de ${product.nome || product.sku}`}
-                          onClick={() => setSalesProduct(product)}
+                          onClick={() => { setSalesPlatform('TODAS'); setSalesMonths(6); setSalesChartType('bars'); setSalesProduct(product); }}
                         >
                           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 3v18h18" />
@@ -489,14 +522,29 @@ export function CatalogView({
               <button type="button" onClick={() => setSalesProduct(null)} aria-label="Fechar detalhes de vendas">Fechar</button>
             </header>
             <div className="nisti-sales-modal-filters">
-              <label>Período histórico
-                <select value={historyMonths} onChange={event=>setHistoryMonths(Number(event.target.value))}>
-                  <option value={3}>3 meses</option>
-                  <option value={6}>6 meses</option>
-                  <option value={12}>12 meses</option>
+              <label>Plataforma
+                <select value={salesPlatform} onChange={event=>setSalesPlatform(event.target.value)}>
+                  <option value="TODAS">Todas as plataformas</option>
+                  <option value="SHOPEE">Shopee</option>
+                  <option value="MERCADO_LIVRE">Mercado Livre (ambas as contas)</option>
+                  <option value="ML_NOVO">Mercado Livre · novo</option>
+                  <option value="ML_ANTIGO">Mercado Livre · antigo</option>
                 </select>
               </label>
-              <span>Plataforma: {selectedPlatformLabel || 'Todas'}</span>
+              <label>Período histórico
+                <select value={salesMonths} onChange={event=>setSalesMonths(Number(event.target.value))}>
+                  <option value={1}>Último mês</option>
+                  <option value={3}>Últimos 3 meses</option>
+                  <option value={6}>Últimos 6 meses</option>
+                  <option value={12}>Últimos 12 meses</option>
+                </select>
+              </label>
+              <label>Visualização
+                <select value={salesChartType} onChange={event=>setSalesChartType(event.target.value)}>
+                  <option value="bars">Gráfico de colunas</option>
+                  <option value="line">Gráfico de linha</option>
+                </select>
+              </label>
             </div>
             {planningLoading ? <p>Consultando vendas importadas…</p> : planningError ? (
               <p role="alert">Não foi possível consultar as vendas: {planningError}</p>
@@ -512,14 +560,17 @@ export function CatalogView({
                   <div><span>Projeção do mês</span><strong>{report.month_projection == null ? '—' : display(report.month_projection)+' un.'}</strong></div>
                   <div><span>Média mensal histórica</span><strong>{report.historic_monthly_average == null ? '—' : display(report.historic_monthly_average)+' un.'}</strong></div>
                 </div>
-                <h4>Histórico mensal de vendas</h4>
-                {history.length ? <div className="nisti-sales-history">
-                  {history.map(row => <div className="nisti-sales-history-row" key={row.month}>
+                <div className="nisti-sales-chart-heading">
+                  <div><h4>Evolução das vendas</h4><small>Unidades por mês com dados importados</small></div>
+                  {history.length>1 && <span>{history[history.length-1].month} · {display(history[history.length-1].units)} un.</span>}
+                </div>
+                <SalesTrendChart history={history} mode={salesChartType} />
+                <div className="nisti-sales-monthly-table">
+                  {history.map(row=><div key={row.month}>
                     <span>{row.month.slice(5)}/{row.month.slice(0,4)}</span>
-                    <div className="nisti-sales-history-track"><div style={{width:`${Math.max(0,Number(row.units)||0)/max*100}%`}} /></div>
                     <strong>{display(row.units)} un.</strong>
                   </div>)}
-                </div> : <p>Não há histórico de vendas importado para o período.</p>}
+                </div>
                 <p className="nisti-sales-modal-note">{report.month_units == null
                   ? 'O mês atual ainda não possui dados importados. Nenhuma projeção foi calculada.'
                   : `Vendas registradas até ${String(report.recorded_until || '').split('-').reverse().join('/')}. A projeção é uma estimativa, não uma venda realizada.`}</p>
