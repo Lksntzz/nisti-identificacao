@@ -20,7 +20,7 @@ test('sales action opens a dialog with detailed monthly metrics and history',()=
   assert.match(view,/Saída por dia/);
   assert.match(view,/Projeção do mês/);
   assert.match(view,/Média mensal histórica/);
-  assert.match(view,/Histórico mensal de vendas/);
+  assert.match(view,/Evolução das vendas/);
   assert.match(view,/report\.history/);
   assert.match(view,/planningError/);
   assert.match(view,/setSalesProduct\(null\)/);
