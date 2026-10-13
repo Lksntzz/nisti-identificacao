@@ -231,15 +231,22 @@ function sameOriginMutationAllowed(request) {
   const requestUrl = new URL(request.url);
   const origin = String(request.headers.get('origin') || '').trim();
   const fetchSite = String(request.headers.get('sec-fetch-site') || '').trim().toLowerCase();
-  if (origin === 'null') return false;
-  const isOfficialLogin = requestUrl.pathname === '/admin-login' && request.method === 'POST';
-  const trustedOfficialOrigin = isOfficialLogin
-    && OFFICIAL_NISTI_ORIGINS.has(requestUrl.origin)
-    && OFFICIAL_NISTI_ORIGINS.has(origin);
-  if (origin && origin !== requestUrl.origin && !trustedOfficialOrigin) return false;
-  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') {
-    if (!(trustedOfficialOrigin && fetchSite === 'same-site')) return false;
+  if (origin === 'null' || fetchSite === 'cross-site') return false;
+
+  // Some browsers/proxies report same-site for the official admin login.
+  // Trust this case only for the login form and only for known NISTI origins.
+  const officialLogin = requestUrl.pathname === '/admin-login'
+    && request.method === 'POST'
+    && OFFICIAL_NISTI_ORIGINS.has(requestUrl.origin);
+  if (officialLogin) {
+    if (origin && !OFFICIAL_NISTI_ORIGINS.has(origin)) return false;
+    if (fetchSite && !['same-origin','same-site','none'].includes(fetchSite)) return false;
+    return true;
   }
+
+  // All API mutations continue to require exact same origin, not same-site.
+  if (origin && origin !== requestUrl.origin) return false;
+  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') return false;
   return true;
 }
 

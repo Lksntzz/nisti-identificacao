@@ -288,3 +288,31 @@ test('operator and unrelated hosts do not redirect scanner homepage to admin', a
   );
   assert.notEqual(response.status,302);
 });
+
+test('official admin form tolerates same-site fetch metadata even when Origin is omitted', async () => {
+  const response=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/admin-login',{
+    method:'POST',
+    headers:{'sec-fetch-site':'same-site','content-type':'application/x-www-form-urlencoded'},
+    body:'password=incorrect'
+  }),{ADMIN_PASSWORD:'the-real-password'},{});
+  assert.equal(response.status,401);
+  assert.match(await response.text(),/Senha incorreta/);
+});
+
+test('official admin login blocks cross-site requests even if Origin is spoofed', async () => {
+  const response=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/admin-login',{
+    method:'POST',
+    headers:{origin:'https://admin.sistemanistiid.online','sec-fetch-site':'cross-site','content-type':'application/x-www-form-urlencoded'},
+    body:'password=incorrect'
+  }),{ADMIN_PASSWORD:'the-real-password'},{});
+  assert.equal(response.status,403);
+});
+
+test('login on unrelated domains does not gain the official same-site exception', async () => {
+  const response=await edgeRouter.fetch(new Request('https://attacker.example/admin-login',{
+    method:'POST',
+    headers:{'sec-fetch-site':'same-site','content-type':'application/x-www-form-urlencoded'},
+    body:'password=incorrect'
+  }),{ADMIN_PASSWORD:'the-real-password'},{});
+  assert.equal(response.status,403);
+});
