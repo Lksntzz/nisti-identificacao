@@ -293,6 +293,13 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
+    // Root of the dedicated administrative hostname must never serve the operator scanner.
+    // Reuse the existing protected /admin route for authentication and session handling.
+    if (request.method === 'GET' && (pathname === '/' || pathname === '/index.html')
+      && url.hostname === 'admin.sistemanistiid.online') {
+      return withSecurityHeaders(Response.redirect(new URL(ADMIN_APP_PATH, url), 302));
+    }
+
     if ((pathname === ADMIN_APP_PATH || pathname === COMMERCE_ADMIN_APP_PATH) && request.method === 'GET') {
       return serveProtectedAdminApp(request, env, url);
     }
