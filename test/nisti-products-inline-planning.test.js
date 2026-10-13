@@ -21,3 +21,9 @@ test('NISTI product ids use explicit commerce links and server-authenticated end
   assert.match(sql,/commerce_product_sales_planning_v1/);
   assert.match(sql,/grant execute.*to service_role/i);
 });
+test('NISTI planning uses the direct Supabase RPC instead of the commerce-only prefix validator',()=>{
+  const store=fs.readFileSync(new URL('../src/commerce-supabase-store.js',import.meta.url),'utf8');
+  assert.match(store,/import \{ supabaseRpc as directSupabaseRpc \} from '\.\/supabase-read-store\.js'/);
+  assert.match(store,/directSupabaseRpc\(env,'nisti_products_sales_planning_v1'/);
+  assert.doesNotMatch(store,/return await supabaseRpc\(env,'nisti_products_sales_planning_v1'/);
+});
