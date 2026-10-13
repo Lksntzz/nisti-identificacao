@@ -25,3 +25,15 @@ test('sales action opens a dialog with detailed monthly metrics and history',()=
   assert.match(view,/planningError/);
   assert.match(view,/setSalesProduct\(null\)/);
 });
+
+test('sales dialog includes platform-specific filters and selectable chart modes',()=>{
+  assert.match(view,/setSalesPlatform/);
+  assert.match(view,/value="MERCADO_LIVRE"/);
+  assert.match(view,/value="ML_NOVO"/);
+  assert.match(view,/value="ML_ANTIGO"/);
+  assert.match(view,/setSalesMonths/);
+  assert.match(view,/setSalesChartType/);
+  assert.match(view,/SalesTrendChart history=\{history\} mode=\{salesChartType\}/);
+  assert.match(view,/role="img"/);
+  assert.match(view,/ids:String\(id\)/);
+});
