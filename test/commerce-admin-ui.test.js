@@ -44,10 +44,10 @@ test('rota do Catálogo Comercial reutiliza a sessão administrativa', () => {
   assert.equal(edge.includes("pathname.startsWith('/api/admin/')"), true);
 });
 
-test('UI comercial usa somente Catálogo e Pendências no menu', () => {
+test('UI comercial mantém Catálogo e Pendências e expõe Planejamento de Produtos', () => {
   const shell = read('src/commerce-admin-app-v2.jsx');
 
-  for (const label of ['Catálogo', 'Pendências']) {
+  for (const label of ['Catálogo', 'Pendências', 'Planejamento de Produtos']) {
     assert.equal(shell.includes(`label: '${label}'`), true, `${label} deve existir`);
   }
 
@@ -56,7 +56,7 @@ test('UI comercial usa somente Catálogo e Pendências no menu', () => {
   }
 
   assert.equal(shell.includes('CommerceManagementView'), true);
-  assert.equal(shell.includes('CommerceProductsView'), false);
+  assert.equal(shell.includes('CommerceProductsView'), true);
   assert.equal(shell.includes('CommerceListingsView'), false);
   assert.equal(shell.includes('mode="catalog"'), true);
   assert.equal(shell.includes('mode="pending"'), true);
