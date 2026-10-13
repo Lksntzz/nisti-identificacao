@@ -246,7 +246,7 @@ test('forged requests without matching CSRF cookie cannot log into admin', async
     method:'POST',body:'password=secret-password',headers:{origin:'https://attacker.example','sec-fetch-site':'cross-site'}
   }),{ADMIN_PASSWORD:'secret-password'},{});
   assert.equal(result.status,403);
-  assert.match(result.headers.get('content-type')||'',/text\\/html/);
+  assert.ok((result.headers.get('content-type')||'').includes('text/html'));
   assert.match(await result.text(),/Sessão de login expirada/);
 });
 
