@@ -534,6 +534,7 @@ function PublicIdentificationApp() {
         setPublicView('mural');
       }
     };
+    handleHash(); // Honor PWA shortcut/deep links when the app first opens.
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
