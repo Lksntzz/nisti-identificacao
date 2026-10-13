@@ -227,3 +227,39 @@ test('production gates audit runtime dependencies and critical findings', () => 
     assert.match(workflow,/persist-credentials: false/);
   }
 });
+
+test('admin login accepts only explicitly trusted NISTI sibling origins', async () => {
+  const request=new Request('https://admin.sistemanistiid.online/admin-login',{
+    method:'POST',
+    headers:{
+      origin:'https://sistemanistiid.online',
+      'sec-fetch-site':'same-site',
+      'content-type':'application/x-www-form-urlencoded'
+    },
+    body:'password=not-the-password'
+  });
+  const result=await edgeRouter.fetch(request,{ADMIN_PASSWORD:'secret-password'},{});
+  assert.equal(result.status,401);
+  assert.match(await result.text(),/Senha incorreta/);
+});
+
+test('untrusted login origins return usable HTML without granting access', async () => {
+  const result=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/admin-login',{
+    method:'POST',
+    headers:{origin:'https://attacker.example','sec-fetch-site':'cross-site'},
+    body:'password=secret-password'
+  }),{ADMIN_PASSWORD:'secret-password'},{});
+  assert.equal(result.status,403);
+  assert.match(result.headers.get('content-type')||'',/text\/html/);
+  assert.match(await result.text(),/origem não autorizada/);
+});
+
+test('cross-origin API requests remain forbidden even from NISTI sibling domain', async () => {
+  const result=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/api/admin/mural/posts',{
+    method:'POST',
+    headers:{origin:'https://sistemanistiid.online','sec-fetch-site':'same-site'},
+    body:'{}'
+  }),{ADMIN_PASSWORD:'secret-password'},{});
+  assert.equal(result.status,403);
+  assert.deepEqual(await result.json(),{error:'Origem da solicitação não autorizada.'});
+});
