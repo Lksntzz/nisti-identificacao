@@ -263,3 +263,28 @@ test('cross-origin API requests remain forbidden even from NISTI sibling domain'
   assert.equal(result.status,403);
   assert.deepEqual(await result.json(),{error:'Origem da solicitação não autorizada.'});
 });
+
+test('admin hostname root redirects into the protected admin route', async () => {
+  for (const pathname of ['/', '/index.html']) {
+    const result=await edgeRouter.fetch(
+      new Request('https://admin.sistemanistiid.online'+pathname),
+      {ADMIN_PASSWORD:'test-password'},{}
+    );
+    assert.equal(result.status,302);
+    assert.equal(result.headers.get('location'),'https://admin.sistemanistiid.online/admin');
+  }
+  const protectedResult=await edgeRouter.fetch(
+    new Request('https://admin.sistemanistiid.online/admin'),
+    {ADMIN_PASSWORD:'test-password'},{}
+  );
+  assert.equal(protectedResult.status,302);
+  assert.equal(protectedResult.headers.get('location'),'https://admin.sistemanistiid.online/admin-login');
+});
+
+test('operator and unrelated hosts do not redirect scanner homepage to admin', async () => {
+  const stubAssets={fetch:async()=>new Response('<html>scanner</html>',{headers:{'content-type':'text/html'}})};
+  const response=await edgeRouter.fetch(
+    new Request('https://sistemanistiid.online/'),{ASSETS:stubAssets},{}
+  );
+  assert.notEqual(response.status,302);
+});
