@@ -8,6 +8,7 @@ import { handleMuralRequest } from './mural-router.js';
 import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
+const LOGIN_CSRF_COOKIE = '__Host-nisti_login_csrf';
 const SESSION_SECONDS = 60 * 60 * 12;
 const ADMIN_APP_PATH = '/admin';
 const COMMERCE_ADMIN_APP_PATH = '/admin-commerce';
@@ -161,9 +162,32 @@ function attachOperatorCookie(response,setCookie) {
   return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
 
-function loginPage(message = '') {
+function loginPage(message = '', csrfToken = '') {
   const safe = String(message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>NISTI ID · Administração</title><style>*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f3f4f6;color:#111827;min-height:100vh;display:grid;place-items:center;padding:20px}.card{width:min(420px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:22px;padding:28px;box-shadow:0 18px 50px rgba(17,24,39,.10)}.brand{font-size:11px;font-weight:900;letter-spacing:.16em;color:#6b7280;margin:0 0 8px}h1{font-size:28px;margin:0 0 8px}p{color:#6b7280;line-height:1.5;margin:0 0 20px}label{display:grid;gap:8px;font-size:13px;font-weight:800}input{width:100%;padding:14px 15px;border:1px solid #d1d5db;border-radius:12px;font:inherit}button{width:100%;margin-top:14px;border:0;border-radius:12px;padding:14px 16px;font:inherit;font-weight:900;background:#111827;color:#fff}.error{padding:11px 12px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;margin-bottom:16px;font-size:13px}.back{display:block;text-align:center;margin-top:16px;color:#6b7280;text-decoration:none;font-size:13px}</style></head><body><main class="card"><p class="brand">NISTI ID</p><h1>Área administrativa</h1><p>Acesso restrito. Somente pessoas autorizadas podem abrir o painel administrativo.</p>${safe ? `<div class="error">${safe}</div>` : ''}<form method="post" action="/admin-login"><label>Senha administrativa<input type="password" name="password" required autofocus autocomplete="current-password"></label><button type="submit">Entrar na administração</button></form><a class="back" href="/">Voltar ao Painel Geral</a></main></body></html>`;
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>NISTI ID · Administração</title><style>*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f3f4f6;color:#111827;min-height:100vh;display:grid;place-items:center;padding:20px}.card{width:min(420px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:22px;padding:28px;box-shadow:0 18px 50px rgba(17,24,39,.10)}.brand{font-size:11px;font-weight:900;letter-spacing:.16em;color:#6b7280;margin:0 0 8px}h1{font-size:28px;margin:0 0 8px}p{color:#6b7280;line-height:1.5;margin:0 0 20px}label{display:grid;gap:8px;font-size:13px;font-weight:800}input{width:100%;padding:14px 15px;border:1px solid #d1d5db;border-radius:12px;font:inherit}button{width:100%;margin-top:14px;border:0;border-radius:12px;padding:14px 16px;font:inherit;font-weight:900;background:#111827;color:#fff}.error{padding:11px 12px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;margin-bottom:16px;font-size:13px}.back{display:block;text-align:center;margin-top:16px;color:#6b7280;text-decoration:none;font-size:13px}</style></head><body><main class="card"><p class="brand">NISTI ID</p><h1>Área administrativa</h1><p>Acesso restrito. Somente pessoas autorizadas podem abrir o painel administrativo.</p>${safe ? `<div class="error">${safe}</div>` : ''}<form method="post" action="/admin-login"><input type="hidden" name="csrf_token" value="${csrfToken}"><label>Senha administrativa<input type="password" name="password" required autofocus autocomplete="current-password"></label><button type="submit">Entrar na administração</button></form><a class="back" href="/">Voltar ao Painel Geral</a></main></body></html>`;
+}
+
+function newLoginCsrfToken() {
+  return base64url(crypto.getRandomValues(new Uint8Array(32)));
+}
+function loginCsrfCookie(token) {
+  return `${LOGIN_CSRF_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=900`;
+}
+function loginCsrfTokenFromCookie(request) {
+  const token=readCookie(request,LOGIN_CSRF_COOKIE)||'';
+  return /^[A-Za-z0-9_-]{43}$/.test(token) ? token : '';
+}
+async function validLoginCsrf(request) {
+  const cookie=loginCsrfTokenFromCookie(request);
+  if(!cookie) return false;
+  const form=await request.clone().formData().catch(()=>null);
+  return Boolean(form && await secureEqualText(String(form.get('csrf_token')||''),cookie));
+}
+function loginHtml(request,message='',status=200) {
+  const token=loginCsrfTokenFromCookie(request)||newLoginCsrfToken();
+  const response=html(loginPage(message,token),status);
+  response.headers.append('set-cookie',loginCsrfCookie(token));
+  return withSecurityHeaders(response);
 }
 
 function html(body, status = 200) {
@@ -276,8 +300,8 @@ function withSecurityHeaders(response) {
   });
 }
 
-function delayedLoginFailure(message, status = 401) {
-  return new Promise(resolve => setTimeout(() => resolve(withSecurityHeaders(html(loginPage(message), status))), LOGIN_FAILURE_DELAY_MS));
+function delayedLoginFailure(request, message, status = 401) {
+  return new Promise(resolve => setTimeout(() => resolve(loginHtml(request,message,status)), LOGIN_FAILURE_DELAY_MS));
 }
 
 function isProtectedApi(pathname) {
@@ -311,10 +335,13 @@ export default {
       return serveProtectedAdminApp(request, env, url);
     }
 
-    if ((pathname === '/admin-login' || pathname.startsWith('/api/')) && !sameOriginMutationAllowed(request)) {
-      if (pathname === '/admin-login') {
-        return withSecurityHeaders(html(loginPage('A solicitação de login veio de uma origem não autorizada. Abra diretamente o endereço oficial do painel.'),403));
+    // The admin login relies on a host-only CSRF cookie and hidden form token.
+    // Only API requests use strict Origin / Fetch Metadata verification.
+    if (pathname === '/admin-login' && request.method === 'POST') {
+      if (!(await validLoginCsrf(request))) {
+        return loginHtml(request,'Sessão de login expirada. Atualize a página e tente novamente.',403);
       }
+    } else if ((pathname === '/admin-login' || pathname.startsWith('/api/')) && !sameOriginMutationAllowed(request)) {
       return withSecurityHeaders(json({ error:'Origem da solicitação não autorizada.' },403));
     }
 
@@ -323,15 +350,15 @@ export default {
 
     if (pathname === '/admin-login' && request.method === 'GET') {
       if (await validSession(request, env)) return withSecurityHeaders(Response.redirect(new URL(ADMIN_APP_PATH, url), 302));
-      return withSecurityHeaders(html(loginPage(env.ADMIN_PASSWORD ? '' : 'A administração ainda não foi ativada. Configure o segredo ADMIN_PASSWORD no Cloudflare.')));
+      return loginHtml(request,env.ADMIN_PASSWORD ? '' : 'A administração ainda não foi ativada. Configure o segredo ADMIN_PASSWORD no Cloudflare.');
     }
 
     if (pathname === '/admin-login' && request.method === 'POST') {
       const configured = String(env.ADMIN_PASSWORD || '');
-      if (!configured) return withSecurityHeaders(html(loginPage('A administração está bloqueada até o segredo ADMIN_PASSWORD ser configurado no Cloudflare.'), 503));
+      if (!configured) return loginHtml(request,'A administração está bloqueada até o segredo ADMIN_PASSWORD ser configurado no Cloudflare.',503);
       const form = await request.formData();
       const supplied = String(form.get('password') || '');
-      if (!supplied || !(await secureEqualText(supplied, configured))) return delayedLoginFailure('Senha incorreta.', 401);
+      if (!supplied || !(await secureEqualText(supplied, configured))) return delayedLoginFailure(request,'Senha incorreta.',401);
       const token = await createSession(sessionSigningSecret(env));
       return withSecurityHeaders(new Response(null, { status: 302, headers: { location: ADMIN_APP_PATH, 'set-cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`, 'cache-control': 'no-store' } }));
     }

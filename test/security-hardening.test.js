@@ -7,6 +7,19 @@ import { safePushEndpoint } from '../src/web-push.js';
 import { safeCanvaDownloadUrl } from '../src/canva-product-cutout.js';
 import { safeCanvaPageUrl } from '../src/canva-image-router.js';
 
+async function loginFormRequest(url, env, password, headers={}) {
+  const page=await edgeRouter.fetch(new Request(url),env,{});
+  const html=await page.text();
+  const token=html.match(/name="csrf_token" value="([^"]+)"/)?.[1];
+  assert.ok(token,'login page must issue CSRF field');
+  const csrfCookie=page.headers.get('set-cookie')?.split(';')[0];
+  assert.match(csrfCookie||'',/^__Host-nisti_login_csrf=/);
+  const form=new FormData();
+  form.append('password',password);
+  form.append('csrf_token',token);
+  return new Request(url,{method:'POST',body:form,headers:{cookie:csrfCookie,...headers}});
+}
+
 test('cross-site mutations are rejected before application routing', async () => {
   const response=await edgeRouter.fetch(new Request('https://nisti.example/api/admin/mural/posts',{
     method:'POST',
@@ -33,11 +46,8 @@ test('Cloudflare rate limit blocks abusive API and login bursts', async () => {
   assert.equal(apiResponse.status, 429);
   assert.equal(apiResponse.headers.get('retry-after'), '60');
 
-  const loginResponse = await edgeRouter.fetch(new Request('https://nisti.example/admin-login', {
-    method: 'POST',
-    headers: { 'origin': 'https://nisti.example', 'content-type': 'application/x-www-form-urlencoded' },
-    body: 'password=wrong'
-  }), limitedEnv, {});
+  const loginRequest=await loginFormRequest('https://nisti.example/admin-login',limitedEnv,'wrong',{origin:'https://nisti.example'});
+  const loginResponse = await edgeRouter.fetch(loginRequest,limitedEnv,{});
   assert.equal(loginResponse.status, 429);
 });
 
@@ -86,16 +96,9 @@ test('admin login response carries browser security headers and strict CSP', asy
 });
 
 test('admin session cookie is HttpOnly Secure Strict and can use a dedicated signing secret', async () => {
-  const form=new FormData();
-  form.append('password','a-strong-test-password');
-  const response=await edgeRouter.fetch(
-    new Request('https://nisti.example/admin-login',{method:'POST',body:form}),
-    {
-      ADMIN_PASSWORD:'a-strong-test-password',
-      ADMIN_SESSION_SECRET:'separate-signing-secret-for-tests'
-    },
-    {}
-  );
+  const env={ADMIN_PASSWORD:'a-strong-test-password',ADMIN_SESSION_SECRET:'separate-signing-secret-for-tests'};
+  const req=await loginFormRequest('https://nisti.example/admin-login',env,'a-strong-test-password');
+  const response=await edgeRouter.fetch(req,env,{});
   assert.equal(response.status,302);
   const cookie=response.headers.get('set-cookie')||'';
   assert.match(cookie,/nisti_admin_session=/);
@@ -228,30 +231,23 @@ test('production gates audit runtime dependencies and critical findings', () => 
   }
 });
 
-test('admin login accepts only explicitly trusted NISTI sibling origins', async () => {
-  const request=new Request('https://admin.sistemanistiid.online/admin-login',{
-    method:'POST',
-    headers:{
-      origin:'https://sistemanistiid.online',
-      'sec-fetch-site':'same-site',
-      'content-type':'application/x-www-form-urlencoded'
-    },
-    body:'password=not-the-password'
+test('admin login succeeds with its form token despite unusual fetch metadata', async () => {
+  const env={ADMIN_PASSWORD:'secret-password'};
+  const req=await loginFormRequest('https://admin.sistemanistiid.online/admin-login',env,'not-the-password',{
+    origin:'https://sistemanistiid.online','sec-fetch-site':'same-site'
   });
-  const result=await edgeRouter.fetch(request,{ADMIN_PASSWORD:'secret-password'},{});
+  const result=await edgeRouter.fetch(req,env,{});
   assert.equal(result.status,401);
   assert.match(await result.text(),/Senha incorreta/);
 });
 
-test('untrusted login origins return usable HTML without granting access', async () => {
+test('forged requests without matching CSRF cookie cannot log into admin', async () => {
   const result=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/admin-login',{
-    method:'POST',
-    headers:{origin:'https://attacker.example','sec-fetch-site':'cross-site'},
-    body:'password=secret-password'
+    method:'POST',body:'password=secret-password',headers:{origin:'https://attacker.example','sec-fetch-site':'cross-site'}
   }),{ADMIN_PASSWORD:'secret-password'},{});
   assert.equal(result.status,403);
-  assert.match(result.headers.get('content-type')||'',/text\/html/);
-  assert.match(await result.text(),/origem não autorizada/);
+  assert.ok((result.headers.get('content-type')||'').includes('text/html'));
+  assert.match(await result.text(),/Sessão de login expirada/);
 });
 
 test('cross-origin API requests remain forbidden even from NISTI sibling domain', async () => {
@@ -289,30 +285,18 @@ test('operator and unrelated hosts do not redirect scanner homepage to admin', a
   assert.notEqual(response.status,302);
 });
 
-test('official admin form tolerates same-site fetch metadata even when Origin is omitted', async () => {
-  const response=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/admin-login',{
-    method:'POST',
-    headers:{'sec-fetch-site':'same-site','content-type':'application/x-www-form-urlencoded'},
-    body:'password=incorrect'
-  }),{ADMIN_PASSWORD:'the-real-password'},{});
+test('login accepts a valid CSRF token with missing Origin and cross-site metadata',async()=>{
+  const env={ADMIN_PASSWORD:'the-real-password'};
+  const req=await loginFormRequest('https://admin.sistemanistiid.online/admin-login',env,'incorrect',{'sec-fetch-site':'cross-site'});
+  const response=await edgeRouter.fetch(req,env,{});
   assert.equal(response.status,401);
-  assert.match(await response.text(),/Senha incorreta/);
 });
 
-test('official admin login blocks cross-site requests even if Origin is spoofed', async () => {
-  const response=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/admin-login',{
-    method:'POST',
-    headers:{origin:'https://admin.sistemanistiid.online','sec-fetch-site':'cross-site','content-type':'application/x-www-form-urlencoded'},
-    body:'password=incorrect'
-  }),{ADMIN_PASSWORD:'the-real-password'},{});
-  assert.equal(response.status,403);
-});
-
-test('login on unrelated domains does not gain the official same-site exception', async () => {
-  const response=await edgeRouter.fetch(new Request('https://attacker.example/admin-login',{
-    method:'POST',
-    headers:{'sec-fetch-site':'same-site','content-type':'application/x-www-form-urlencoded'},
-    body:'password=incorrect'
-  }),{ADMIN_PASSWORD:'the-real-password'},{});
+test('tampered CSRF token never creates an admin session',async()=>{
+  const env={ADMIN_PASSWORD:'the-real-password'};
+  const req=await loginFormRequest('https://admin.sistemanistiid.online/admin-login',env,'the-real-password');
+  const form=await req.formData();
+  form.set('csrf_token','invalid');
+  const response=await edgeRouter.fetch(new Request(req.url,{method:'POST',body:form,headers:{cookie:req.headers.get('cookie')}}),env,{});
   assert.equal(response.status,403);
 });
