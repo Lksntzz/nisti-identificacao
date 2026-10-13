@@ -17,8 +17,8 @@
     "read-excel-file": "9.3.10"
   },
   "devDependencies": {
-    "vite": "^6.2.0",
-    "wrangler": "4.148.0"
+    "vite": "^8.3.4",
+    "wrangler": "4.149.0"
   },
   "overrides": {
     "sharp": "0.35.5"
