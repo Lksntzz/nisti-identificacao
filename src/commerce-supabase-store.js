@@ -1,4 +1,5 @@
 import { commerceRpc as supabaseRpc } from './commerce-rpc.js';
+import { supabaseRpc as directSupabaseRpc } from './supabase-read-store.js';
 
 function cleanText(value) {
   const text = String(value ?? '').trim();
@@ -62,7 +63,7 @@ export async function nistiProductsSalesPlanning(env, filters = {}) {
   const ids = [...new Set((Array.isArray(filters.productIds) ? filters.productIds : [])
     .map(cleanId).filter(Boolean))].slice(0,100);
   if (!ids.length) return { items: [] };
-  return await supabaseRpc(env,'nisti_products_sales_planning_v1',{
+  return await directSupabaseRpc(env,'nisti_products_sales_planning_v1',{
     p_nisti_ids:ids,
     p_platform:cleanText(filters.platform)||'TODAS',
     p_months:Math.max(1,Math.min(12,Number(filters.months)||3))
