@@ -6,7 +6,8 @@ const router=fs.readFileSync(new URL('../src/commerce-admin-router.js',import.me
 const sql=fs.readFileSync(new URL('../supabase/migrations/20261013150000_nisti_products_sales_planning_v1.sql',import.meta.url),'utf8');
 test('real NISTI products panel renders planning metrics rather than hidden commercial view',()=>{
   assert.match(catalog,/products\/nisti-sales-planning/);
-  assert.match(catalog,/VENDAS E PROJEÇÃO/);
+  assert.match(catalog,/title="Ver vendas e projeção"/);
+  assert.doesNotMatch(catalog,/<th>VENDAS E PROJEÇÃO<\/th>/);
   assert.match(catalog,/report\.month_units/);
   assert.match(catalog,/report\.daily_average/);
   assert.match(catalog,/report\.month_projection/);

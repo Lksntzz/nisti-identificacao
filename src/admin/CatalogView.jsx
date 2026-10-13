@@ -128,6 +128,7 @@ export function CatalogView({
   const [planning, setPlanning] = useState({});
   const [planningLoading, setPlanningLoading] = useState(false);
   const [planningError, setPlanningError] = useState('');
+  const [salesProduct, setSalesProduct] = useState(null);
   const [onlyWithoutEan, setOnlyWithoutEan] = useState(false);
   const [page, setPage] = useState(1);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -341,7 +342,6 @@ export function CatalogView({
               <th style={{ width: '130px' }}>CAPA CODE</th>
               <th>PRODUTO</th>
               <th style={{ width: '160px' }}>PLATAFORMA</th>
-              <th>VENDAS E PROJEÇÃO</th>
               <th style={{ width: '150px' }}>CADASTRADO EM</th>
               <th style={{ width: '180px' }}>STATUS</th>
               <th style={{ width: '120px', textAlign: 'right' }}>AÇÕES</th>
@@ -350,7 +350,7 @@ export function CatalogView({
           <tbody key={tableMotionKey} className={`nisti-table-swap ${pageDirection}`}>
             {slice.length === 0 ? (
               <tr>
-                <td colSpan="7" className="table-empty-row nisti-state-cell">
+                <td colSpan="6" className="table-empty-row nisti-state-cell">
                   <AdminState
                     tone="empty"
                     compact
@@ -402,24 +402,6 @@ export function CatalogView({
                     </td>
 
                     <td>
-                      <div className="nisti-product-sales-cell">
-                        {planningLoading ? <small>Consultando vendas…</small> : planningError ? <small title={planningError}>Vendas indisponíveis</small> : !planning[product.id] ? <small>Sem vínculo comercial</small> : (() => {
-                          const report = planning[product.id];
-                          const hasMonth = report.month_units != null;
-                          const number = v => Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
-                          return <>
-                            <strong>Mês: {hasMonth ? number(report.month_units) + ' un.' : 'sem importação'}</strong>
-                            <small>Saída/dia: {report.daily_average == null ? '—' : number(report.daily_average)}</small>
-                            <small>Projeção: {report.month_projection == null ? '—' : number(report.month_projection) + ' un.'}</small>
-                            <small>Média histórica: {report.historic_monthly_average == null ? '—' : number(report.historic_monthly_average) + ' un.'}</small>
-                            <small title={(report.history || []).map(x=>x.month+': '+x.units+' un.').join(' | ')}>
-                              {(report.history || []).map(x=>x.month.slice(5)+'/'+x.month.slice(2,4)+': '+x.units).join(' · ') || 'Sem histórico'}
-                            </small>
-                          </>;
-                        })()}
-                      </div>
-                    </td>
-                    <td>
                       <div className="datetime-cell">
                         <span>{dateInfo.date}</span>
                         <small>{dateInfo.time}</small>
@@ -445,6 +427,19 @@ export function CatalogView({
                           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                             <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="action-icon-btn"
+                          title="Ver vendas e projeção"
+                          aria-label={`Ver vendas e projeção de ${product.nome || product.sku}`}
+                          onClick={() => setSalesProduct(product)}
+                        >
+                          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="m7 16 4-5 3 3 5-7" />
+                            <path d="M17 7h2v2" />
                           </svg>
                         </button>
                         <button
@@ -479,6 +474,60 @@ export function CatalogView({
           </tbody>
         </table>
       </div>
+
+      {salesProduct && (
+        <div className="nisti-sales-modal-backdrop" onMouseDown={event => {
+          if (event.target === event.currentTarget) setSalesProduct(null);
+        }}>
+          <section className="nisti-sales-modal" role="dialog" aria-modal="true" aria-label={`Vendas de ${salesProduct.nome || salesProduct.sku}`}>
+            <header className="nisti-sales-modal-header">
+              <div>
+                <span>Planejamento de vendas · NISTI</span>
+                <h3>{salesProduct.nome || 'Produto NISTI'}</h3>
+                <code>{salesProduct.sku || 'SKU não informado'}</code>
+              </div>
+              <button type="button" onClick={() => setSalesProduct(null)} aria-label="Fechar detalhes de vendas">Fechar</button>
+            </header>
+            <div className="nisti-sales-modal-filters">
+              <label>Período histórico
+                <select value={historyMonths} onChange={event=>setHistoryMonths(Number(event.target.value))}>
+                  <option value={3}>3 meses</option>
+                  <option value={6}>6 meses</option>
+                  <option value={12}>12 meses</option>
+                </select>
+              </label>
+              <span>Plataforma: {selectedPlatformLabel || 'Todas'}</span>
+            </div>
+            {planningLoading ? <p>Consultando vendas importadas…</p> : planningError ? (
+              <p role="alert">Não foi possível consultar as vendas: {planningError}</p>
+            ) : !planning[salesProduct.id] ? <p>Este produto não possui vínculo comercial para consultar as vendas.</p> : (() => {
+              const report=planning[salesProduct.id];
+              const display = value => value == null ? '—' : Number(value).toLocaleString('pt-BR',{maximumFractionDigits:2});
+              const history=Array.isArray(report.history) ? report.history : [];
+              const max=Math.max(1,...history.map(x=>Number(x.units)||0));
+              return <>
+                <div className="nisti-sales-modal-metrics">
+                  <div><span>Vendas do mês</span><strong>{report.month_units == null ? 'Sem importação' : display(report.month_units)+' un.'}</strong></div>
+                  <div><span>Saída por dia</span><strong>{report.daily_average == null ? '—' : display(report.daily_average)+' un.'}</strong></div>
+                  <div><span>Projeção do mês</span><strong>{report.month_projection == null ? '—' : display(report.month_projection)+' un.'}</strong></div>
+                  <div><span>Média mensal histórica</span><strong>{report.historic_monthly_average == null ? '—' : display(report.historic_monthly_average)+' un.'}</strong></div>
+                </div>
+                <h4>Histórico mensal de vendas</h4>
+                {history.length ? <div className="nisti-sales-history">
+                  {history.map(row => <div className="nisti-sales-history-row" key={row.month}>
+                    <span>{row.month.slice(5)}/{row.month.slice(0,4)}</span>
+                    <div className="nisti-sales-history-track"><div style={{width:`${Math.max(0,Number(row.units)||0)/max*100}%`}} /></div>
+                    <strong>{display(row.units)} un.</strong>
+                  </div>)}
+                </div> : <p>Não há histórico de vendas importado para o período.</p>}
+                <p className="nisti-sales-modal-note">{report.month_units == null
+                  ? 'O mês atual ainda não possui dados importados. Nenhuma projeção foi calculada.'
+                  : `Vendas registradas até ${String(report.recorded_until || '').split('-').reverse().join('/')}. A projeção é uma estimativa, não uma venda realizada.`}</p>
+              </>;
+            })()}
+          </section>
+        </div>
+      )}
 
       <div className="table-card-footer">
         <span className="showing-entries-txt">
