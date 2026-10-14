@@ -285,3 +285,23 @@
   font-size:11px;
   line-height:1.35;
 }
+
+
+/* Complete listing register: includes unlinked and inactive marketplace ads. */
+.commerce-listing-history-head,
+.commerce-listing-history-filters,
+.commerce-listing-history-pagination {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+}
+.commerce-listing-history-head { justify-content: space-between; }
+.commerce-listing-history-head > div { display: flex; flex-direction: column; gap: 5px; }
+.commerce-listing-history-head small { opacity: .75; }
+.commerce-listing-history-filters { margin-top: 16px; margin-bottom: 12px; }
+.commerce-listing-history-filters button.active { font-weight: 700; outline: 2px solid currentColor; }
+.commerce-listing-history-table-wrap { width: 100%; overflow-x: auto; }
+.commerce-listing-history-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.commerce-listing-history-table td,
+.commerce-listing-history-table th { padding: 11px 10px; border-bottom: 1px solid var(--border-color, #dce1e7); vertical-align: top; }
+.commerce-listing-history-table td:nth-child(3) { min-width: 180px; }
+.commerce-listing-history-pagination { justify-content: flex-end; margin-top: 12px; }
+.commerce-listing-history-pagination span { margin-right: auto; }
