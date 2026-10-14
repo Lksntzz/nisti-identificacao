@@ -71,6 +71,20 @@ function aliasIndex(row, aliases) {
   return -1;
 }
 
+function resolveShopeeSalesColumns(header, headingRow) {
+  // Never use the total order value as item revenue. The Shopee export has
+  // separate columns for variation SKU, primary SKU and product subtotal.
+  const normalized = headingRow.map(normalizedHeader);
+  const exact = label => normalized.indexOf(normalizedHeader(label));
+  const sku = exact('Número de referência SKU');
+  const primary = exact('Nº de referência do SKU principal');
+  const subtotal = exact('Subtotal do produto');
+  if (sku < 0 || subtotal < 0) {
+    throw new Error('Relatório Shopee incompleto: faltam Número de referência SKU ou Subtotal do produto.');
+  }
+  return { ...header, columns: { ...header.columns, sku, sku_primary: primary, revenue: subtotal } };
+}
+
 function detectHeader(data) {
   let best = null;
   for (let rowIndex = 0; rowIndex < Math.min(40, data.length); rowIndex += 1) {
@@ -212,6 +226,8 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     } catch {
       continue;
     }
+
+    if (platformCode === 'SHOPEE') header = resolveShopeeSalesColumns(header, data[header.rowIndex]);
 
     let accepted = 0;
     let ignored = 0;
@@ -383,6 +399,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
 
 export const commerceSalesImportInternals = Object.freeze({
   detectHeader,
+  resolveShopeeSalesColumns,
   numberValue,
   parseDateValue,
   normalizeSku,
