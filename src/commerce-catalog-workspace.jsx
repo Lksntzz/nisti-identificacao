@@ -7,7 +7,7 @@ import './commerce-catalog-workspace.css';
 const STATUS_OPTIONS = [
   ['ACTIVE', 'Ativo'],
   ['PAUSED', 'Pausado'],
-  ['INACTIVE', 'Inativo'],
+  ['INACTIVE', 'Desativado'],
   ['REMOVED', 'Removido'],
   ['UNKNOWN', 'Não verificado']
 ];
@@ -550,6 +550,7 @@ export default function CommerceCatalogWorkspace({
   const [categoryFilter, setCategoryFilter] = useState('');
   const [yearFilter, setYearFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [statusGroup, setStatusGroup] = useState('ALL');
   const [notice, setNotice] = useState(null);
 
   useEffect(() => {
@@ -586,8 +587,26 @@ export default function CommerceCatalogWorkspace({
     const listings = collectListings(card);
     if (platformFilter && !listings.some(row => row.platform_code === platformFilter)) return false;
     if (statusFilter && !listings.some(row => String(row.listing_status || 'UNKNOWN') === statusFilter)) return false;
+    if (statusGroup === 'ACTIVE' && !listings.some(row => row.listing_status === 'ACTIVE')) return false;
+    if (statusGroup === 'INACTIVE' && !listings.some(row => ['INACTIVE', 'PAUSED', 'REMOVED'].includes(row.listing_status))) return false;
     return true;
-  }), [items, platformFilter, categoryFilter, yearFilter, statusFilter]);
+  }), [items, platformFilter, categoryFilter, yearFilter, statusFilter, statusGroup]);
+
+  const listingStatusTotals = useMemo(() => {
+    const known = new Map();
+    for (const card of items) {
+      for (const listing of collectListings(card)) {
+        const key = listing.listing_id ? `id:${listing.listing_id}` : `legacy:${listing.platform_code}:${listing.source_row_id || listing.listing_url || listing.sku}`;
+        known.set(key, listing.listing_status || 'UNKNOWN');
+      }
+    }
+    const values = [...known.values()];
+    return {
+      all: values.length,
+      active: values.filter(status => status === 'ACTIVE').length,
+      inactive: values.filter(status => ['INACTIVE','PAUSED','REMOVED'].includes(status)).length
+    };
+  }, [items]);
 
   const selectedCards = items.filter(card => selectedKeys.has(card.card_key));
   const selectedListingCount = useMemo(() => {
@@ -655,16 +674,22 @@ export default function CommerceCatalogWorkspace({
             <option value="">Ano</option>
             {filterOptions.years.map(value => <option key={value}>{value}</option>)}
           </select>
-          <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
-            <option value="">Status</option>
+          <select value={statusGroup} onChange={event => { setStatusGroup(event.target.value); setStatusFilter(''); }} aria-label="Situação dos anúncios">
+            <option value="ALL">Todos ({listingStatusTotals.all})</option>
+            <option value="ACTIVE">Ativos ({listingStatusTotals.active})</option>
+            <option value="INACTIVE">Desativados ({listingStatusTotals.inactive})</option>
+          </select>
+          <select value={statusFilter} onChange={event => { setStatusFilter(event.target.value); setStatusGroup('ALL'); }}>
+            <option value="">Status detalhado</option>
             {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          {(platformFilter || categoryFilter || yearFilter || statusFilter || submittedSearch) ? (
+          {(platformFilter || categoryFilter || yearFilter || statusFilter || statusGroup !== 'ALL' || submittedSearch) ? (
             <button type="button" className="clear" onClick={() => {
               setPlatformFilter('');
               setCategoryFilter('');
               setYearFilter('');
               setStatusFilter('');
+              setStatusGroup('ALL');
               setSearch('');
               setSubmittedSearch('');
             }}>Limpar</button>
