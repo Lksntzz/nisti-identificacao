@@ -12,3 +12,11 @@ test('ML bulk export ignores metadata and parent row but reads variation SKU and
  assert.ok(item.issues.includes('verify_listing_active'));
  assert.equal(normalizeCommerceImportRow({marketplace:'MERCADO_LIVRE',sheetName:'Ajuda',row:child,rowNumber:8}).status,'INVALID');
 });
+test('inactive Mercado Livre parent listing blocks all of its variation SKUs',()=>{
+ const row=['','MLB4028562870','178695790630','178695790630','PB26_CACTUS_PXP',0,'CAPA 01'];
+ const common={marketplace:'MERCADO_LIVRE',sheetName:'Anúncios',row,rowNumber:8};
+ assert.equal(normalizeCommerceImportRow({...common,listingStatus:'INACTIVE'}),null);
+ const active=normalizeCommerceImportRow({...common,listingStatus:'ACTIVE'});
+ assert.equal(active.normalized.source_listing_status,'ACTIVE');
+ assert.equal(active.normalized.external_listing_id,'MLB4028562870');
+});
