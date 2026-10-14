@@ -251,3 +251,15 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   onProgress({ phase: 'done', completed, total: rows.length, batchId });
   return { batchId, result };
 }
+
+export async function getCommerceCatalogYearTargets(batchId) {
+  return requestJson(`${API_BASE}/imports/${Number(batchId)}/year-targets`);
+}
+
+export async function decideCommerceCatalogYear(rowId, action) {
+  if (!['REGISTER_PENDING', 'CONFIRM_PLATFORM'].includes(action)) throw new Error('Ação PB27 inválida.');
+  return requestJson(`${API_BASE}/import-rows/${Number(rowId)}/year-decision`, {
+    method: 'POST',
+    body: JSON.stringify({ action })
+  });
+}
