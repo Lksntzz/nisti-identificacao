@@ -6,6 +6,8 @@ import {
   decideCommerceImportRow,
   getCommerceImport,
   getCommerceImportRows,
+  getCommerceCatalogYearTargets,
+  decideCommerceCatalogYear,
   listCommerceImports,
   listCommerceSalesImports,
   stageCommerceSalesWorkbook,
@@ -288,7 +290,7 @@ function ImportSummary({ mode, history, batch }) {
   );
 }
 
-function CatalogBatchReview({ batch, rows, busy, page, onPageChange, onDecision, onApproveProbable, onApproveNew, onCommit }) {
+function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit }) {
   const unresolved = Number(batch?.unresolved_count || 0);
   const totalPages = Math.max(1, Math.ceil(Number(batch?.row_count || 0) / 20));
   const rowCount = Number(batch?.row_count || 0);
@@ -335,6 +337,7 @@ function CatalogBatchReview({ batch, rows, busy, page, onPageChange, onDecision,
               <tbody>
                 {rows.map(row => {
                   const payload = row.normalized_payload || {};
+                  const year = yearTargets[row.id];
                   const candidates = Array.isArray(row.candidates) ? row.candidates : [];
                   return (
                     <tr key={row.id}>
@@ -342,7 +345,15 @@ function CatalogBatchReview({ batch, rows, busy, page, onPageChange, onDecision,
                         <strong>{payload.product_name || 'Produto sem nome'}</strong>
                         <small>{row.sheet_name} · linha {row.row_number}</small>
                       </td>
-                      <td><code>{payload.sku_primary || payload.sku_secondary || '—'}</code></td>
+                      <td>
+                        <code>{payload.sku_primary || payload.sku_secondary || '—'}</code>
+                        {year?.suggested_sku && <small className="import-center-pb27-target">NISTI 2027: <code>{year.suggested_sku}</code></small>}
+                        {year?.match_state === 'VERIFIED_TARGET' && <small>Correspondência validada no catálogo</small>}
+                        {['TARGET_NOT_FOUND','AMBIGUOUS','MANUAL_REVIEW'].includes(year?.match_state) &&
+                          <small className="import-center-pb27-warning">PB27: requer revisão de identidade e acessórios</small>}
+                        {year?.platform_status === 'PENDING_PLATFORM' && <small className="import-center-pb27-warning">Aguardando alteração manual na plataforma</small>}
+                        {year?.platform_status === 'CONFIRMED_MANUALLY' && <small className="import-center-pb27-target">Alteração declarada como concluída</small>}
+                      </td>
                       <td><StatusPill value={row.status} /></td>
                       <td>
                         <div className="import-center-row-actions">
@@ -363,6 +374,12 @@ function CatalogBatchReview({ batch, rows, busy, page, onPageChange, onDecision,
                           )}
                           {!['MATCHED', 'COMMITTED', 'IGNORED'].includes(row.status) && (
                             <button type="button" className="danger" disabled={busy} onClick={() => onDecision(row.id, 'IGNORE')}>Ignorar</button>
+                          )}
+                          {batch.status === 'COMMITTED' && year?.match_state === 'VERIFIED_TARGET' && year?.platform_status === 'NOT_REGISTERED' && (
+                            <button type="button" disabled={busy} onClick={() => onYearDecision(row.id,'REGISTER_PENDING')}>Registrar PB27 pendente</button>
+                          )}
+                          {batch.status === 'COMMITTED' && year?.platform_status === 'PENDING_PLATFORM' && (
+                            <button type="button" disabled={busy} onClick={() => onYearDecision(row.id,'CONFIRM_PLATFORM')}>Confirmei na plataforma</button>
                           )}
                           {['MATCHED', 'COMMITTED'].includes(row.status) && <span className="import-center-row-done">—</span>}
                         </div>
@@ -429,6 +446,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
   const [catalogHistoryLoading, setCatalogHistoryLoading] = useState(false);
   const [catalogBatch, setCatalogBatch] = useState(null);
   const [catalogRows, setCatalogRows] = useState([]);
+  const [catalogYearTargets, setCatalogYearTargets] = useState({});
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogBusy, setCatalogBusy] = useState(false);
 
@@ -473,10 +491,12 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     setCatalogBusy(true);
     setError('');
     try {
-      const [batch, rowsResult] = await Promise.all([
+      const [batch, rowsResult, targetResult] = await Promise.all([
         getCommerceImport(batchId),
-        getCommerceImportRows(batchId, { limit: 20, offset: (page - 1) * 20 })
+        getCommerceImportRows(batchId, { limit: 20, offset: (page - 1) * 20 }),
+        getCommerceCatalogYearTargets(batchId)
       ]);
+      setCatalogYearTargets(Object.fromEntries((targetResult?.items || []).map(item => [item.import_row_id, item])));
       setCatalogPage(page);
       setCatalogBatch(batch);
       setCatalogRows(Array.isArray(rowsResult?.items) ? rowsResult.items : []);
@@ -498,6 +518,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     setCatalogParsed(null);
     setCatalogBatch(null);
     setCatalogRows([]);
+    setCatalogYearTargets({});
     setCatalogPage(1);
     setCatalogProgress(null);
     setError('');
@@ -539,6 +560,23 @@ export default function CommerceImportCenter({ onSalesChanged }) {
       await Promise.all([openCatalogBatch(catalogBatch.id), refreshCatalogHistory()]);
     } catch (err) {
       setError(err.message || 'Não foi possível registrar a decisão.');
+    } finally {
+      setCatalogBusy(false);
+    }
+  }
+
+  async function handleCatalogYearDecision(rowId, action) {
+    if (!catalogBatch?.id) return;
+    setCatalogBusy(true);
+    setError('');
+    try {
+      await decideCommerceCatalogYear(rowId, action);
+      await openCatalogBatch(catalogBatch.id, catalogPage);
+      setMessage(action === 'REGISTER_PENDING'
+        ? 'SKU PB27 registrado como meta interna. Atualize o anúncio manualmente na plataforma.'
+        : 'Atualização manual declarada como concluída. O NISTI não altera a plataforma automaticamente.');
+    } catch (err) {
+      setError(err.message || 'Não foi possível registrar a decisão de atualização.');
     } finally {
       setCatalogBusy(false);
     }
@@ -733,10 +771,12 @@ export default function CommerceImportCenter({ onSalesChanged }) {
               <CatalogBatchReview
                 batch={catalogBatch}
                 rows={catalogRows}
+                yearTargets={catalogYearTargets}
                 busy={catalogBusy}
                 page={catalogPage}
                 onPageChange={nextPage => openCatalogBatch(catalogBatch.id, nextPage)}
                 onDecision={handleCatalogDecision}
+                onYearDecision={handleCatalogYearDecision}
                 onApproveProbable={handleApproveProbable}
                 onApproveNew={handleApproveNew}
                 onCommit={handleCatalogCommit}
