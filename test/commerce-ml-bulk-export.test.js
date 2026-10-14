@@ -20,3 +20,10 @@ test('inactive Mercado Livre parent listing blocks all of its variation SKUs',()
  assert.equal(active.normalized.source_listing_status,'ACTIVE');
  assert.equal(active.normalized.external_listing_id,'MLB4028562870');
 });
+
+test('variation inherits real parent title for safe matching',()=>{
+ const row=['','MLB4028562870','178695790630','178695790630','PB26_CACTUS_PXP','0.0','Capa 01'];
+ const v=normalizeCommerceImportRow({marketplace:'MERCADO_LIVRE',sheetName:'Anúncios',row,rowNumber:8,listingStatus:'ACTIVE',listingTitle:'Agenda Planner Capa Dura'});
+ assert.equal(v.normalized.product_name,'Agenda Planner Capa Dura');
+ assert.equal(v.normalized.source_variation,'Capa 01');
+});
