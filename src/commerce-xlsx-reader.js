@@ -116,6 +116,19 @@ export async function readCommerceXlsx(file, marketplace) {
       throw new Error(`O arquivo excede o limite operacional de ${COMMERCE_XLSX_MAX_ROWS.toLocaleString('pt-BR')} linhas.`);
     }
 
+    // Official Mercado Livre bulk workbook stores STATUS on the parent listing row.
+    // Variation rows repeat ITEM_ID but contain a numeric placeholder in STATUS.
+    const listingStatusById = new Map();
+    if (market === 'MERCADO_LIVRE' && sheetName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'anuncios') {
+      for (const raw of data.slice(6)) {
+        const id = String(raw?.[1] ?? '').trim().toUpperCase();
+        const status = String(raw?.[29] ?? '').trim().toLowerCase();
+        if (!/^MLB\d+$/.test(id)) continue;
+        if (status === 'ativo') listingStatusById.set(id, 'ACTIVE');
+        else if (status === 'inativo') listingStatusById.set(id, 'INACTIVE');
+      }
+    }
+
     let acceptedRows = 0;
     let invalidRows = 0;
     let reviewRows = 0;
@@ -132,7 +145,8 @@ export async function readCommerceXlsx(file, marketplace) {
         marketplace: market,
         sheetName,
         row: normalizedInput,
-        rowNumber: index + 1
+        rowNumber: index + 1,
+        listingStatus: listingStatusById.get(String(normalizedInput?.[1] ?? '').trim().toUpperCase()) || null
       });
       if (!result) return;
 
