@@ -36,7 +36,7 @@ test('API e UI exigem confirmação explícita antes da aprovação em lote', ()
 
   assert.equal(router.includes('/approve-probable'), true);
   assert.equal(store.includes("commerce_approve_probable_rows_v1"), true);
-  assert.equal(store.includes("commerce_import_batch_v2"), true);
+  assert.equal(store.includes("commerce_import_batch_account_v1"), true);
   assert.equal(client.includes('/approve-probable'), true);
   assert.equal(view.includes('window.confirm'), true);
   assert.equal(view.includes('approvable_probable_count'), true);
