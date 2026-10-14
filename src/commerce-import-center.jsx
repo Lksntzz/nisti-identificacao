@@ -600,12 +600,18 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     setMessage('');
     try {
       const result = await stageCommerceSalesWorkbook(salesParsed, setSalesProgress);
-      setMessage(`Vendas importadas. Snapshot #${result?.result?.snapshot_id || '—'} atualizado.`);
+      const outcome = result?.result || {};
+      if (outcome.status === 'WAITING_PARTS') {
+        const missing = Array.isArray(outcome.missing_parts) ? outcome.missing_parts.join(', ') : '';
+        setMessage(`Parte recebida (${outcome.parts_received || '?'} de ${outcome.parts_expected || '?'}). Aguardando as demais partes${missing ? ': ' + missing : ''}. Nenhuma venda foi consolidada ainda.`);
+      } else {
+        setMessage(`Vendas importadas. Snapshot #${outcome.snapshot_id || '—'} atualizado.`);
+        onSalesChanged?.();
+      }
       setSalesFile(null);
       setSalesParsed(null);
       setSalesProgress(null);
       await refreshSalesHistory();
-      onSalesChanged?.();
     } catch (err) {
       setError(err.message || 'Falha ao importar as vendas.');
     } finally {

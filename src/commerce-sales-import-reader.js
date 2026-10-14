@@ -255,9 +255,17 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
 
   if (!raw.length) throw new Error('Nenhuma venda válida foi encontrada no arquivo.');
 
-  const latestSaleDate = maxDate(raw.map(item => item.sale_date));
+  // Track coverage separately for each month. A combined multi-month export
+  // must not make an earlier partial month appear complete.
+  const latestSaleDateByMonth = new Map();
+  for (const item of raw) {
+    const current = latestSaleDateByMonth.get(item.month_key);
+    if (!current || item.sale_date > current) {
+      latestSaleDateByMonth.set(item.month_key, item.sale_date);
+    }
+  }
   const periodMap = new Map(
-    [...new Set(raw.map(item => item.month_key))].map(monthKey => [
+    [...latestSaleDateByMonth].map(([monthKey, latestSaleDate]) => [
       monthKey,
       periodBoundsForImport(monthKey, latestSaleDate)
     ])
