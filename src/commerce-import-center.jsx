@@ -11,7 +11,8 @@ import {
   listCommerceImports,
   listCommerceSalesImports,
   stageCommerceSalesWorkbook,
-  stageCommerceWorkbook
+  stageCommerceWorkbook,
+  syncCommerceListingStatuses
 } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
 import { readCommerceXlsx } from './commerce-xlsx-reader.js';
@@ -290,7 +291,7 @@ function ImportSummary({ mode, history, batch }) {
   );
 }
 
-function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit }) {
+function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit, onSyncStatuses }) {
   const unresolved = Number(batch?.unresolved_count || 0);
   const totalPages = Math.max(1, Math.ceil(Number(batch?.row_count || 0) / 20));
   const rowCount = Number(batch?.row_count || 0);
@@ -427,6 +428,12 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                 </button>
               )}
             </div>
+            {batch.marketplace_code === 'MERCADO_LIVRE' && ['REVIEW', 'PARSED', 'COMMITTED'].includes(batch.status) && (
+              <button type="button" disabled={busy} onClick={onSyncStatuses}
+                title="Aplica apenas os status explicitamente informados no Excel. Não altera SKUs nem vínculos e não desativa anúncios ausentes.">
+                Atualizar status dos anúncios
+              </button>
+            )}
             <button
               type="button"
               className="import-center-primary compact"
@@ -612,6 +619,21 @@ export default function CommerceImportCenter({ onSalesChanged }) {
       await Promise.all([openCatalogBatch(catalogBatch.id), refreshCatalogHistory()]);
     } catch (err) {
       setError(err.message || 'Não foi possível aprovar os produtos novos.');
+    } finally {
+      setCatalogBusy(false);
+    }
+  }
+
+  async function handleCatalogStatusSync() {
+    if (!catalogBatch?.id || catalogBatch.marketplace_code !== 'MERCADO_LIVRE') return;
+    setCatalogBusy(true);
+    setError('');
+    try {
+      const result = await syncCommerceListingStatuses(catalogBatch.id);
+      setMessage(`Status sincronizados: ${brNumber(result.observed_listings)} anúncios verificados; ${brNumber(result.created)} novos registros, ${brNumber(result.status_changed)} alterações de status. Nenhum SKU foi modificado.`);
+      await Promise.all([openCatalogBatch(catalogBatch.id), refreshCatalogHistory()]);
+    } catch (err) {
+      setError(err.message || 'Não foi possível atualizar os status dos anúncios.');
     } finally {
       setCatalogBusy(false);
     }
