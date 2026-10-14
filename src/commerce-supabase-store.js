@@ -112,6 +112,17 @@ export async function commerceProductDetail(env, productId) {
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
+export async function commerceListingHistory(env, { group = 'ALL', limit = 30, offset = 0 } = {}) {
+  const normalizedGroup = String(group || 'ALL').toUpperCase();
+  if (!['ALL', 'ACTIVE', 'DEACTIVATED', 'UNKNOWN'].includes(normalizedGroup)) throw new Error('Filtro de anúncios inválido.');
+  const result = await supabaseRpc(env, 'commerce_listing_history_v1', {
+    p_group: normalizedGroup,
+    p_limit: cleanPageSize(limit, 30),
+    p_offset: cleanOffset(offset)
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
 export async function commerceListings(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);
