@@ -234,6 +234,9 @@ export function normalizeCommerceImportRow({ marketplace, sheetName, row, rowNum
   const market = normalizeMarketplace(marketplace);
   if (!Array.isArray(row) || !row.some(value => text(value))) return null;
   if (market === 'MERCADO_LIVRE' && normalizedSheetKey(sheetName) === 'anuncios') return normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus, listingTitle);
+  // Official Mercado Livre bulk exports contain Ajuda, instructions and dictionary sheets.
+  // These are metadata and must never become catalog import rows.
+  if (market === 'MERCADO_LIVRE' && !profileFor(market, sheetName)) return null;
   if (looksLikeHeader(row)) return null;
 
   const profile = profileFor(market, sheetName);
