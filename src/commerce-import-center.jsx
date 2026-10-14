@@ -734,6 +734,8 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                 batch={catalogBatch}
                 rows={catalogRows}
                 busy={catalogBusy}
+                page={catalogPage}
+                onPageChange={nextPage => openCatalogBatch(catalogBatch.id, nextPage)}
                 onDecision={handleCatalogDecision}
                 onApproveProbable={handleApproveProbable}
                 onApproveNew={handleApproveNew}
