@@ -524,6 +524,91 @@ function ProductDrawer({ card, onClose, onEdit, onReload, onMessage }) {
   );
 }
 
+function ListingHistorySection() {
+  const [expanded, setExpanded] = useState(false);
+  const [group, setGroup] = useState('ALL');
+  const [offset, setOffset] = useState(0);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [result, setResult] = useState({ items: [], counts: {}, total: 0 });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const limit = 30;
+
+  useEffect(() => {
+    if (!expanded) return;
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    const params = new URLSearchParams({ group, limit: String(limit), offset: String(offset) });
+    commerceApi('/api/admin/commerce/listings/history?' + params)
+      .then(value => { if (!cancelled) setResult(value || { items: [], counts: {}, total: 0 }); })
+      .catch(err => { if (!cancelled) setError(err.message || 'Não foi possível consultar anúncios.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [expanded, group, offset, refreshToken]);
+
+  const counts = result.counts || {};
+  return (
+    <section className="commerce-catalog-panel commerce-listing-history-panel">
+      <div className="commerce-listing-history-head">
+        <div>
+          <strong>Todos os anúncios por ID</strong>
+          <small>Inclui anúncios desativados e anúncios ainda sem vínculo com um produto NISTI.</small>
+        </div>
+        <button type="button" onClick={() => setExpanded(value => !value)}>
+          {expanded ? 'Ocultar anúncios' : 'Consultar anúncios'}
+        </button>
+      </div>
+      {expanded && (
+        <>
+          <div className="commerce-listing-history-filters">
+            {[
+              ['ALL', 'Todos', counts.all],
+              ['ACTIVE', 'Ativos', counts.active],
+              ['DEACTIVATED', 'Desativados', counts.deactivated],
+              ['UNKNOWN', 'Não verificados', counts.unknown]
+            ].map(([value, label, count]) => (
+              <button type="button" key={value} className={group === value ? 'active' : ''}
+                onClick={() => { setGroup(value); setOffset(0); }}>
+                {label} ({commerceFormatNumber(count || 0)})
+              </button>
+            ))}
+            <button type="button" onClick={() => setRefreshToken(value => value + 1)}>Atualizar listagem</button>
+          </div>
+          {error && <p role="alert">{error}</p>}
+          {loading && <p>Consultando anúncios…</p>}
+          {!loading && !error && (
+            <>
+              <div className="commerce-listing-history-table-wrap">
+                <table className="commerce-listing-history-table">
+                  <thead><tr><th>Plataforma</th><th>ID do anúncio</th><th>Anúncio</th><th>Situação</th><th>Acesso</th></tr></thead>
+                  <tbody>
+                    {result.items.map(item => (
+                      <tr key={item.id}>
+                        <td>{item.marketplace_name || item.marketplace_code}</td>
+                        <td><code>{item.external_listing_id || `#${item.id}`}</code></td>
+                        <td>{item.title || 'Título não informado'}</td>
+                        <td><span className={'commerce-listing-status ' + String(item.status || 'UNKNOWN').toLowerCase()}>{statusLabel(item.status)}</span></td>
+                        <td>{item.url?.startsWith('https://') ? <a href={item.url} target="_blank" rel="noreferrer">Abrir</a> : '—'}</td>
+                      </tr>
+                    ))}
+                    {!result.items.length && <tr><td colSpan={5}>Nenhum anúncio neste filtro.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              <div className="commerce-listing-history-pagination">
+                <span>{commerceFormatNumber(result.total || 0)} anúncios neste filtro</span>
+                <button type="button" disabled={offset === 0} onClick={() => setOffset(value => Math.max(0, value - limit))}>Anterior</button>
+                <button type="button" disabled={offset + limit >= Number(result.total || 0)} onClick={() => setOffset(value => value + limit)}>Próxima</button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function CommerceCatalogWorkspace({
   items,
   summary,
@@ -655,6 +740,8 @@ export default function CommerceCatalogWorkspace({
         <article><span>Uma plataforma</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.exclusive || 0)}</strong><small>Produtos exclusivos</small></article>
         <article><span>Sem NISTI</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.nisti_pending || 0)}</strong><small>Aguardando correspondência</small></article>
       </section>
+
+      <ListingHistorySection />
 
       <section className="commerce-catalog-panel">
         <div className="commerce-catalog-controls">
