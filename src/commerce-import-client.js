@@ -114,9 +114,19 @@ export async function stageCommerceWorkbook(parsedWorkbook, onProgress = () => {
       body: '{}'
     });
   } catch (error) {
-    if (!error?.retryable) throw error;
-    const recovered = await recoverBatchAfterRetryableError(batchId, ['PARSED', 'REVIEW', 'COMMITTED'], error);
-    finalized = { recovered_after_timeout: true, batch: recovered };
+    if (!error?.retryable) {
+      error.batchId = batchId;
+      error.stage = 'finalize';
+      throw error;
+    }
+    try {
+      const recovered = await recoverBatchAfterRetryableError(batchId, ['PARSED', 'REVIEW', 'COMMITTED'], error);
+      finalized = { recovered_after_timeout: true, batch: recovered };
+    } catch (recoveryError) {
+      recoveryError.batchId = batchId;
+      recoveryError.stage = 'finalize';
+      throw recoveryError;
+    }
   }
 
   onProgress({ phase: 'reconcile', completed, total: rows.length, batchId });
@@ -127,13 +137,31 @@ export async function stageCommerceWorkbook(parsedWorkbook, onProgress = () => {
       body: '{}'
     });
   } catch (error) {
-    if (!error?.retryable) throw error;
-    const recovered = await recoverBatchAfterRetryableError(batchId, ['REVIEW', 'COMMITTED'], error);
-    reconciled = { recovered_after_timeout: true, batch: recovered };
+    if (!error?.retryable) {
+      error.batchId = batchId;
+      error.stage = 'reconcile';
+      throw error;
+    }
+    try {
+      const recovered = await recoverBatchAfterRetryableError(batchId, ['REVIEW', 'COMMITTED'], error);
+      reconciled = { recovered_after_timeout: true, batch: recovered };
+    } catch (recoveryError) {
+      recoveryError.batchId = batchId;
+      recoveryError.stage = 'reconcile';
+      throw recoveryError;
+    }
   }
 
   onProgress({ phase: 'done', completed, total: rows.length, batchId });
   return { batchId, finalized, reconciled };
+}
+
+export async function retryCommerceImportReconciliation(batchId) {
+  const id = Number(batchId);
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Lote inválido para retomar.');
+  return requestJson(`${API_BASE}/imports/${id}/reconcile`, {
+    method: 'POST', body: '{}'
+  });
 }
 
 export async function decideCommerceImportRow(rowId, action, productId = null) {

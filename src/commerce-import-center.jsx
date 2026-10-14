@@ -12,6 +12,7 @@ import {
   listCommerceSalesImports,
   stageCommerceSalesWorkbook,
   stageCommerceWorkbook,
+  retryCommerceImportReconciliation,
   syncCommerceListingStatuses
 } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
@@ -187,7 +188,9 @@ function ProgressBlock({ progress, text, disabledText = 'Aguardando arquivo…' 
   const completed = Number(progress?.completed || 0);
   let percent = total > 0 ? Math.round((completed / total) * 100) : 0;
   if (progress?.phase === 'done') percent = 100;
-  if (progress?.phase === 'reconcile' || progress?.phase === 'commit') percent = Math.max(percent, 90);
+  if (progress?.phase === 'reconcile') percent = Math.min(95, Math.max(percent, 90));
+  if (progress?.phase === 'commit') percent = Math.max(percent, 90);
+  if (progress?.phase === 'failed') percent = 0;
   if (progress?.phase === 'finalize' || progress?.phase === 'summary') percent = Math.max(percent, 75);
 
   return (
@@ -291,7 +294,7 @@ function ImportSummary({ mode, history, batch }) {
   );
 }
 
-function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit, onSyncStatuses }) {
+function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit, onSyncStatuses, onRetryReconcile }) {
   const unresolved = Number(batch?.unresolved_count || 0);
   const totalPages = Math.max(1, Math.ceil(Number(batch?.row_count || 0) / 20));
   const rowCount = Number(batch?.row_count || 0);
@@ -417,6 +420,13 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
           )}
           <div className="import-center-review-footer">
             <div>
+              {['PARSED', 'REVIEW'].includes(batch.status) && Number(batch.pending_count || 0) > 0 && (
+                <button type="button" className="import-center-primary compact" disabled={busy}
+                  onClick={onRetryReconcile}
+                  title="Retoma a reconciliação do lote já enviado, sem duplicar registros e sem publicar anúncios.">
+                  Retomar comparação ({brNumber(batch.pending_count)} linhas)
+                </button>
+              )}
               {Number(batch.approvable_probable_count || 0) > 0 && (
                 <button type="button" disabled={busy} onClick={onApproveProbable}>
                   Aprovar prováveis ({brNumber(batch.approvable_probable_count)})
@@ -566,9 +576,31 @@ export default function CommerceImportCenter({ onSalesChanged }) {
       setMessage(`Lote #${result.batchId} preparado. O catálogo só será alterado após a confirmação final.`);
       await Promise.all([refreshCatalogHistory(), openCatalogBatch(result.batchId, 1)]);
     } catch (err) {
-      setError(err.message || 'Falha ao preparar a importação do catálogo.');
+      setCatalogProgress({ phase: 'failed', completed: 0, total: catalogParsed?.rows?.length || 1 });
+      if (err.batchId) {
+        await Promise.all([refreshCatalogHistory(), openCatalogBatch(err.batchId, 1)]);
+        setError(`A comparação do lote #${err.batchId} não terminou. O arquivo continua salvo. Abra o lote no histórico e clique em Retomar comparação. Nenhum anúncio foi alterado.`);
+      } else {
+        setError(err.message || 'Falha ao preparar a importação do catálogo.');
+      }
     } finally {
       setCatalogImporting(false);
+    }
+  }
+
+  async function handleCatalogRetryReconcile() {
+    if (!catalogBatch?.id || !['PARSED', 'REVIEW'].includes(catalogBatch.status)) return;
+    setCatalogBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const result = await retryCommerceImportReconciliation(catalogBatch.id);
+      setMessage(`Lote #${catalogBatch.id} comparado. ${brNumber(result.matched)} vínculos diretos; os demais continuam em revisão. Nenhum anúncio foi publicado.`);
+      await Promise.all([refreshCatalogHistory(), openCatalogBatch(catalogBatch.id, 1)]);
+    } catch (err) {
+      setError(`Não foi possível retomar o lote #${catalogBatch.id}. Os dados enviados permanecem salvos e os anúncios não foram modificados.`);
+    } finally {
+      setCatalogBusy(false);
     }
   }
 
@@ -711,6 +743,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
       upload: 'Enviando dados',
       finalize: 'Validando arquivo',
       reconcile: 'Comparando com o catálogo',
+      failed: 'Comparação interrompida; lote salvo para retomada',
       done: 'Pronto para revisão'
     };
     return labels[catalogProgress.phase] || 'Processando';
@@ -838,6 +871,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                 onApproveNew={handleApproveNew}
                 onCommit={handleCatalogCommit}
                 onSyncStatuses={handleCatalogStatusSync}
+                onRetryReconcile={handleCatalogRetryReconcile}
               />
             </>
           ) : (
