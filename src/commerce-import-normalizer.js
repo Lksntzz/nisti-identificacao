@@ -203,7 +203,7 @@ function validateNormalized(row) {
   return issues;
 }
 
-function normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus = null) {
+function normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus = null, listingTitle = null) {
   // Mercado Livre bulk edit export: technical columns, then six metadata rows.
   if (rowNumber <= 6) return null;
   const listingId = valueAt(row, 1).toUpperCase();
@@ -216,7 +216,7 @@ function normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus = null) {
   // Do not create a product from a parent row with no SKU.
   if (!sku || sku === '-') return null;
   if (listingStatus === 'INACTIVE') return null;
-  const productName = title && title !== '0' ? title : (variation && variation !== '-' ? variation : 'Variação de anúncio');
+  const productName = title && title !== '0' && title !== '0.0' ? title : (listingTitle || 'Anúncio sem título');
   const normalized = {
     source_sheet: 'Anúncios', source_row_number: rowNumber, marketplace: 'MERCADO_LIVRE',
     sku_primary: sku, sku_secondary: null, product_name: productName,
@@ -230,10 +230,10 @@ function normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus = null) {
   return { status: 'REVIEW', issues: ['verify_listing_active','verify_product_identity'], normalized, original: row };
 }
 
-export function normalizeCommerceImportRow({ marketplace, sheetName, row, rowNumber, listingStatus = null }) {
+export function normalizeCommerceImportRow({ marketplace, sheetName, row, rowNumber, listingStatus = null, listingTitle = null }) {
   const market = normalizeMarketplace(marketplace);
   if (!Array.isArray(row) || !row.some(value => text(value))) return null;
-  if (market === 'MERCADO_LIVRE' && normalizedSheetKey(sheetName) === 'anuncios') return normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus);
+  if (market === 'MERCADO_LIVRE' && normalizedSheetKey(sheetName) === 'anuncios') return normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus, listingTitle);
   if (looksLikeHeader(row)) return null;
 
   const profile = profileFor(market, sheetName);
