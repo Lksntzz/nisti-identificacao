@@ -6,6 +6,7 @@ import {
   commerceCommitImportBatch,
   commerceSyncImportListingStates,
   commerceCreateImportBatch,
+  commerceDeleteImportBatch,
   commerceDashboard,
   commerceDecideImportRow,
   commerceFinalizeImportBatch,
@@ -469,6 +470,17 @@ export async function handleCommerceAdminRequest(request, env) {
     }
 
     const importBatchMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)$/);
+    if (method === 'DELETE' && importBatchMatch) {
+      const batchId = positiveId(importBatchMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      if (!commerceCommitEnabled(env)) return json({ error: 'Alterações comerciais desabilitadas.' }, 409);
+      const batch = await commerceImportBatch(env, batchId);
+      if (!batch) return json({ error: 'Importação não encontrada.' }, 404);
+      if (batch.status === 'COMMITTED') {
+        return json({ error: 'Importação já confirmada. O histórico não pode ser apagado por esta ação.' }, 409);
+      }
+      return json(await commerceDeleteImportBatch(env, batchId));
+    }
     if (method === 'GET' && importBatchMatch) {
       const batchId = positiveId(importBatchMatch[1]);
       if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
