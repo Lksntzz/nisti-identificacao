@@ -220,10 +220,33 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   }
 
   onProgress({ phase: 'commit', completed, total: rows.length, batchId });
-  const result = await requestJson(`${API_BASE}/sales/imports/${batchId}/commit`, {
-    method: 'POST',
-    body: '{}'
-  });
+  let result;
+  try {
+    result = await requestJson(`${API_BASE}/sales/imports/${batchId}/commit`, {
+      method: 'POST',
+      body: '{}'
+    });
+  } catch (error) {
+    if (!error?.retryable) throw error;
+    // A timeout can happen after the transaction commits. Read the saved
+    // batch status before deciding to retry; never blindly commit twice.
+    let recovered = null;
+    for (const delay of [250, 750, 1500, 2500]) {
+      await wait(delay);
+      try {
+        const history = await listCommerceSalesImports({ limit: 100 });
+        const batch = history.items?.find(item => Number(item.id) === batchId);
+        if (batch?.status === 'COMMITTED') {
+          recovered = batch;
+          break;
+        }
+      } catch {
+        // Preserve the original error if the confirmation read also fails.
+      }
+    }
+    if (!recovered) throw error;
+    result = { recovered_after_timeout: true, snapshot_id: recovered.snapshot_id };
+  }
 
   onProgress({ phase: 'done', completed, total: rows.length, batchId });
   return { batchId, result };
