@@ -10,7 +10,8 @@ const HEADER_ALIASES = Object.freeze({
   order_id: ['id do pedido','numero do pedido','número do pedido','pedido','order id','order_id'],
   revenue: ['faturamento','receita do produto','valor do produto','valor total','total do produto','preco total','preço total','receita','subtotal'],
   date: ['data do pedido','data da venda','data de criacao','data de criação','created at','data','horario do pedido','horário do pedido'],
-  status: ['status do pedido','situacao do pedido','situação do pedido','status','estado do pedido']
+  status: ['status do pedido','situacao do pedido','situação do pedido','status','estado do pedido'],
+  paid_at: ['hora do pagamento do pedido','data de pagamento','data do pagamento','payment time','payment date','paid at']
 });
 
 const CANCEL_TOKENS = ['cancel', 'cancelado', 'cancelada', 'canceled', 'cancelled', 'reembols', 'refunded', 'devolvid'];
@@ -25,6 +26,13 @@ function fold(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ')
     .toLowerCase();
+}
+
+function isConfirmedShopeeOrder(status, paymentTime) {
+  const normalized = fold(status);
+  if (!text(paymentTime) || !normalized || isCancelled(normalized)) return false;
+  return ['concluido','entregue','enviado','a enviar','pedido recebido'].includes(normalized)
+    || normalized.startsWith('o comprador pode pedir uma devolucao ate ');
 }
 
 function cleanPlatform(value) {
@@ -210,7 +218,15 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     for (let rowIndex = header.rowIndex + 1; rowIndex < data.length; rowIndex += 1) {
       const row = Array.isArray(data[rowIndex]) ? data[rowIndex] : [];
       if (!row.some(value => text(value))) continue;
-      if (header.columns.status >= 0 && isCancelled(cell(row, header.columns.status))) {
+      if (platformCode === 'SHOPEE') {
+        if (header.columns.status < 0 || header.columns.paid_at < 0) {
+          throw new Error('Relatório Shopee incompleto: é obrigatório informar Status do pedido e Hora do pagamento do pedido.');
+        }
+        if (!isConfirmedShopeeOrder(cell(row, header.columns.status), cell(row, header.columns.paid_at))) {
+          ignored += 1;
+          continue;
+        }
+      } else if (header.columns.status >= 0 && isCancelled(cell(row, header.columns.status))) {
         ignored += 1;
         continue;
       }
@@ -371,5 +387,6 @@ export const commerceSalesImportInternals = Object.freeze({
   parseDateValue,
   normalizeSku,
   isCancelled,
+  isConfirmedShopeeOrder,
   monthBounds
 });
