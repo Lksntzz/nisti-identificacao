@@ -34,6 +34,8 @@ import {
   commerceCommitSalesImport,
   commerceReconciliationQueue,
   commerceReconcileImportBatch,
+  commerceCatalogYearTargets,
+  commerceCatalogYearDecision,
   commerceResolveReconciliationListing
 } from './commerce-supabase-store.js';
 
@@ -432,6 +434,23 @@ export async function handleCommerceAdminRequest(request, env) {
         createdBy: operatorName(request)
       });
       return json({ batch_id: batchId }, 201);
+    }
+
+    const yearTargetsMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/year-targets$/);
+    if (method === 'GET' && yearTargetsMatch) {
+      const batchId = positiveId(yearTargetsMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      return json(await commerceCatalogYearTargets(env, batchId));
+    }
+
+    const yearDecisionMatch = pathname.match(/^\/api\/admin\/commerce\/import-rows\/(\d+)\/year-decision$/);
+    if (method === 'POST' && yearDecisionMatch) {
+      const rowId = positiveId(yearDecisionMatch[1]);
+      const body = await bodyJson(request);
+      if (!rowId || !['REGISTER_PENDING','CONFIRM_PLATFORM'].includes(body?.action)) {
+        return json({ error: 'Ação de atualização PB27 inválida.' }, 400);
+      }
+      return json(await commerceCatalogYearDecision(env, rowId, body.action, operatorName(request)));
     }
 
     const importBatchMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)$/);
