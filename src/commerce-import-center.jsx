@@ -811,6 +811,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                 onApproveProbable={handleApproveProbable}
                 onApproveNew={handleApproveNew}
                 onCommit={handleCatalogCommit}
+                onSyncStatuses={handleCatalogStatusSync}
               />
             </>
           ) : (
