@@ -38,7 +38,7 @@ test('quando há família de SKU inequívoca ela suprime candidatos só por nome
 
 test('reconciliação administrativa usa v8 mantendo o passe de sugestões v5', () => {
   const store = read('src/commerce-supabase-store.js');
-  assert.equal(store.includes("'commerce_reconcile_import_batch_v8'"), true);
+  assert.equal(store.includes("'commerce_reconcile_import_batch_account_v1'"), true);
 });
 
 test('RPCs de sugestão são clonadas no sandbox e restritas à service role', () => {

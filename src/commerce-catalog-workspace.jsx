@@ -527,6 +527,7 @@ function ProductDrawer({ card, onClose, onEdit, onReload, onMessage }) {
 function ListingHistorySection() {
   const [expanded, setExpanded] = useState(false);
   const [group, setGroup] = useState('ALL');
+  const [account, setAccount] = useState('ALL');
   const [offset, setOffset] = useState(0);
   const [refreshToken, setRefreshToken] = useState(0);
   const [result, setResult] = useState({ items: [], counts: {}, total: 0 });
@@ -539,13 +540,13 @@ function ListingHistorySection() {
     let cancelled = false;
     setLoading(true);
     setError('');
-    const params = new URLSearchParams({ group, limit: String(limit), offset: String(offset) });
+    const params = new URLSearchParams({ group, account_code: account, limit: String(limit), offset: String(offset) });
     commerceApi('/api/admin/commerce/listings/history?' + params)
       .then(value => { if (!cancelled) setResult(value || { items: [], counts: {}, total: 0 }); })
       .catch(err => { if (!cancelled) setError(err.message || 'Não foi possível consultar anúncios.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [expanded, group, offset, refreshToken]);
+  }, [expanded, group, account, offset, refreshToken]);
 
   const counts = result.counts || {};
   return (
@@ -562,6 +563,13 @@ function ListingHistorySection() {
       {expanded && (
         <>
           <div className="commerce-listing-history-filters">
+            <label htmlFor="commerce-ml-account-history">Conta</label>
+            <select id="commerce-ml-account-history" value={account} onChange={event => { setAccount(event.target.value); setOffset(0); }}>
+              <option value="ALL">Todas as plataformas e contas</option>
+              <option value="ANTIGO">Mercado Livre — Conta Antiga</option>
+              <option value="NOVO">Mercado Livre — Conta Nova</option>
+              <option value="UNASSIGNED">Mercado Livre — Conta não identificada</option>
+            </select>
             {[
               ['ALL', 'Todos', counts.all],
               ['ACTIVE', 'Ativos', counts.active],
@@ -581,18 +589,19 @@ function ListingHistorySection() {
             <>
               <div className="commerce-listing-history-table-wrap">
                 <table className="commerce-listing-history-table">
-                  <thead><tr><th>Plataforma</th><th>ID do anúncio</th><th>Anúncio</th><th>Situação</th><th>Acesso</th></tr></thead>
+                  <thead><tr><th>Plataforma</th><th>Conta</th><th>ID do anúncio</th><th>Anúncio</th><th>Situação</th><th>Acesso</th></tr></thead>
                   <tbody>
                     {result.items.map(item => (
                       <tr key={item.id}>
                         <td>{item.marketplace_name || item.marketplace_code}</td>
+                        <td>{item.account_label || '—'}</td>
                         <td><code>{item.external_listing_id || `#${item.id}`}</code></td>
                         <td>{item.title || 'Título não informado'}</td>
                         <td><span className={'commerce-listing-status ' + String(item.status || 'UNKNOWN').toLowerCase()}>{statusLabel(item.status)}</span></td>
                         <td>{item.url?.startsWith('https://') ? <a href={item.url} target="_blank" rel="noreferrer">Abrir</a> : '—'}</td>
                       </tr>
                     ))}
-                    {!result.items.length && <tr><td colSpan={5}>Nenhum anúncio neste filtro.</td></tr>}
+                    {!result.items.length && <tr><td colSpan={6}>Nenhum anúncio neste filtro.</td></tr>}
                   </tbody>
                 </table>
               </div>

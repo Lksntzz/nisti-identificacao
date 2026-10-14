@@ -87,8 +87,15 @@ export async function sha256Hex(arrayBuffer) {
   return bytesToHex(await globalThis.crypto.subtle.digest('SHA-256', arrayBuffer));
 }
 
-export async function readCommerceXlsx(file, marketplace) {
+export async function readCommerceXlsx(file, marketplace, accountCode = null) {
   const market = cleanMarketplace(marketplace);
+  const account = String(accountCode || '').trim().toUpperCase() || null;
+  if (market === 'MERCADO_LIVRE' && !['ANTIGO','NOVO'].includes(account)) {
+    throw new Error('Selecione a conta do Mercado Livre antes de importar a planilha.');
+  }
+  if (market !== 'MERCADO_LIVRE' && account !== null) {
+    throw new Error('Conta de vendedor não aplicável a esta plataforma.');
+  }
   const filename = validateFile(file);
   const buffer = await file.arrayBuffer();
   const [sha256, workbook, workbookHyperlinks] = await Promise.all([
@@ -188,6 +195,7 @@ export async function readCommerceXlsx(file, marketplace) {
   return {
     filename,
     marketplace: market,
+    account_code: account,
     sha256,
     size_bytes: file.size,
     sheets,

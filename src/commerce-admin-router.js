@@ -349,6 +349,7 @@ export async function handleCommerceAdminRequest(request, env) {
     if (method === 'GET' && pathname === `${BASE_PATH}/listings/history`) {
       return json(await commerceListingHistory(env, {
         group: query(url, 'group') || 'ALL',
+        accountCode: query(url, 'account_code') || 'ALL',
         limit: query(url, 'limit') || '30',
         offset: query(url, 'offset') || '0'
       }));
@@ -437,10 +438,14 @@ export async function handleCommerceAdminRequest(request, env) {
       if (sha256 && !/^[0-9a-f]{64}$/i.test(sha256)) {
         return json({ error: 'sha256 inválido.' }, 400);
       }
+      if (marketplace.toUpperCase() === 'MERCADO_LIVRE' && !['ANTIGO','NOVO'].includes(String(body?.account_code || '').toUpperCase())) {
+        return json({ error: 'Selecione Conta Antiga ou Conta Nova para o Mercado Livre.' }, 400);
+      }
       const batchId = await commerceCreateImportBatch(env, {
         marketplace,
         filename,
         sha256,
+        accountCode: body?.account_code,
         createdBy: operatorName(request)
       });
       return json({ batch_id: batchId }, 201);

@@ -308,7 +308,7 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
           <span className="import-center-step-index">{batch ? '5' : '5'}</span>
           <div>
             <h3>Revisão do lote</h3>
-            <p>{batch ? `Lote #${batch.id} · ${batch.marketplace_name} · ${batch.source_filename}` : 'Confira os itens que precisam de atenção antes de gravar no catálogo.'}</p>
+            <p>{batch ? `Lote #${batch.id} · ${batch.marketplace_name}${batch.account_code === 'ANTIGO' ? ' — Conta Antiga' : batch.account_code === 'NOVO' ? ' — Conta Nova' : ''} · ${batch.source_filename}` : 'Confira os itens que precisam de atenção antes de gravar no catálogo.'}</p>
           </div>
         </div>
         {batch && (
@@ -453,6 +453,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
   const [mode, setMode] = useState('catalog');
 
   const [catalogPlatform, setCatalogPlatform] = useState('SHOPEE');
+  const [catalogAccount, setCatalogAccount] = useState('');
   const [catalogFile, setCatalogFile] = useState(null);
   const [catalogParsed, setCatalogParsed] = useState(null);
   const [catalogReading, setCatalogReading] = useState(false);
@@ -543,7 +544,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
 
     setCatalogReading(true);
     try {
-      setCatalogParsed(await readCommerceXlsx(file, catalogPlatform));
+      setCatalogParsed(await readCommerceXlsx(file, catalogPlatform, catalogPlatform === 'MERCADO_LIVRE' ? catalogAccount : null));
     } catch (err) {
       setError(err.message || 'Não foi possível validar a planilha.');
     } finally {
@@ -553,6 +554,10 @@ export default function CommerceImportCenter({ onSalesChanged }) {
 
   async function handleCatalogImport() {
     if (!catalogParsed) return;
+    if (catalogParsed.marketplace === 'MERCADO_LIVRE' && !['ANTIGO','NOVO'].includes(catalogParsed.account_code)) {
+      setError('Selecione a conta de origem antes de preparar a importação.');
+      return;
+    }
     setCatalogImporting(true);
     setError('');
     setMessage('');
@@ -630,7 +635,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     setError('');
     try {
       const result = await syncCommerceListingStatuses(catalogBatch.id);
-      setMessage(`Status sincronizados: ${brNumber(result.observed_listings)} anúncios verificados; ${brNumber(result.created)} novos registros, ${brNumber(result.status_changed)} alterações de status. Nenhum SKU foi modificado.`);
+      setMessage(`Conta ${result.account_code === 'ANTIGO' ? 'Antiga' : 'Nova'}: ${brNumber(result.observed_listings)} anúncios observados; ${brNumber(result.created)} registros criados, ${brNumber(result.status_changed)} status atualizados.${result.ambiguous_unassigned ? ' ' + brNumber(result.ambiguous_unassigned) + ' anúncio(s) aguardam revisão de conta.' : ''} Nenhum SKU foi modificado.`);
       await Promise.all([openCatalogBatch(catalogBatch.id), refreshCatalogHistory()]);
     } catch (err) {
       setError(err.message || 'Não foi possível atualizar os status dos anúncios.');
@@ -755,6 +760,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                   disabled={catalogReading || catalogImporting}
                   onChange={event => {
                     setCatalogPlatform(event.target.value);
+                    setCatalogAccount('');
                     setCatalogFile(null);
                     setCatalogParsed(null);
                     setCatalogBatch(null);
@@ -764,13 +770,33 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                 >
                   {CATALOG_PLATFORMS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
+                {catalogPlatform === 'MERCADO_LIVRE' && (
+                  <div className="import-center-account-select">
+                    <label htmlFor="ml-import-account">Conta do Mercado Livre</label>
+                    <select id="ml-import-account" className="import-center-select" value={catalogAccount}
+                      disabled={catalogReading || catalogImporting}
+                      onChange={event => {
+                        setCatalogAccount(event.target.value);
+                        setCatalogFile(null);
+                        setCatalogParsed(null);
+                        setCatalogBatch(null);
+                        setCatalogRows([]);
+                        setCatalogProgress(null);
+                      }}>
+                      <option value="">Selecione a conta antes de enviar</option>
+                      <option value="ANTIGO">Mercado Livre — Conta Antiga</option>
+                      <option value="NOVO">Mercado Livre — Conta Nova</option>
+                    </select>
+                    <small>Os IDs e os status serão atualizados somente na conta selecionada.</small>
+                  </div>
+                )}
               </Step>
 
               <Step number="2" title="Selecione a planilha" complete={Boolean(catalogFile)}>
                 <FileDrop
                   file={catalogFile}
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                  disabled={catalogReading || catalogImporting}
+                  disabled={catalogReading || catalogImporting || (catalogPlatform === 'MERCADO_LIVRE' && !catalogAccount)}
                   onChange={handleCatalogFile}
                   hint="Aceita planilhas .xlsx exportadas da plataforma"
                 />
