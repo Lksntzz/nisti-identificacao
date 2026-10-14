@@ -119,13 +119,17 @@ export async function readCommerceXlsx(file, marketplace) {
     // Official Mercado Livre bulk workbook stores STATUS on the parent listing row.
     // Variation rows repeat ITEM_ID but contain a numeric placeholder in STATUS.
     const listingStatusById = new Map();
+    const listingTitleById = new Map();
     if (market === 'MERCADO_LIVRE' && sheetName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'anuncios') {
       for (const raw of data.slice(6)) {
         const id = String(raw?.[1] ?? '').trim().toUpperCase();
         const status = String(raw?.[29] ?? '').trim().toLowerCase();
         if (!/^MLB\d+$/.test(id)) continue;
-        if (status === 'ativo') listingStatusById.set(id, 'ACTIVE');
-        else if (status === 'inativo') listingStatusById.set(id, 'INACTIVE');
+        if (status === 'ativo' || status === 'inativo') {
+          listingStatusById.set(id, status === 'ativo' ? 'ACTIVE' : 'INACTIVE');
+          const title = String(raw?.[5] ?? '').trim();
+          if (title && title !== '0.0') listingTitleById.set(id, title);
+        }
       }
     }
 
@@ -146,7 +150,8 @@ export async function readCommerceXlsx(file, marketplace) {
         sheetName,
         row: normalizedInput,
         rowNumber: index + 1,
-        listingStatus: listingStatusById.get(String(normalizedInput?.[1] ?? '').trim().toUpperCase()) || null
+        listingStatus: listingStatusById.get(String(normalizedInput?.[1] ?? '').trim().toUpperCase()) || null,
+        listingTitle: listingTitleById.get(String(normalizedInput?.[1] ?? '').trim().toUpperCase()) || null
       });
       if (!result) return;
 
