@@ -349,8 +349,6 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                         <code>{payload.sku_primary || payload.sku_secondary || '—'}</code>
                         {year?.suggested_sku && <small className="import-center-pb27-target">NISTI 2027: <code>{year.suggested_sku}</code></small>}
                         {year?.match_state === 'VERIFIED_TARGET' && <small>Correspondência validada no catálogo</small>}
-                        {['TARGET_NOT_FOUND','AMBIGUOUS','MANUAL_REVIEW'].includes(year?.match_state) &&
-                          <small className="import-center-pb27-warning">PB27: requer revisão de identidade e acessórios</small>}
                         {year?.platform_status === 'PENDING_PLATFORM' && <small className="import-center-pb27-warning">Aguardando alteração manual na plataforma</small>}
                         {year?.platform_status === 'CONFIRMED_MANUALLY' && <small className="import-center-pb27-target">Alteração declarada como concluída</small>}
                       </td>
