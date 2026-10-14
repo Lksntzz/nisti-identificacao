@@ -77,11 +77,16 @@ export async function stageCommerceWorkbook(parsedWorkbook, onProgress = () => {
     throw new Error('Workbook normalizado incompleto.');
   }
 
+  if (parsedWorkbook.marketplace === 'MERCADO_LIVRE' && !['ANTIGO','NOVO'].includes(parsedWorkbook.account_code)) {
+    throw new Error('Conta do Mercado Livre não selecionada.');
+  }
+
   onProgress({ phase: 'create', completed: 0, total: rows.length });
   const created = await requestJson(`${API_BASE}/imports`, {
     method: 'POST',
     body: JSON.stringify({
       marketplace: parsedWorkbook.marketplace,
+      account_code: parsedWorkbook.account_code || null,
       filename: parsedWorkbook.filename,
       sha256: parsedWorkbook.sha256
     })
