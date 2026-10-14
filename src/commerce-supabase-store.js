@@ -452,3 +452,20 @@ export async function commerceCommitSalesImport(env, batchId) {
   }, { timeoutMs: 20000 });
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
+
+export async function commerceCatalogYearTargets(env, batchId) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  const rows = await supabaseRpc(env, 'commerce_catalog_year_targets_v1', { p_batch_id: id });
+  return { items: Array.isArray(rows) ? rows : [] };
+}
+
+export async function commerceCatalogYearDecision(env, rowId, action, actor) {
+  const id = cleanId(rowId);
+  if (!id || !['REGISTER_PENDING','CONFIRM_PLATFORM'].includes(action)) throw new Error('Decisão PB27 inválida.');
+  return supabaseRpc(env, 'commerce_catalog_year_decision_v1', {
+    p_import_row_id: id,
+    p_action: action,
+    p_actor: cleanText(actor)
+  });
+}
