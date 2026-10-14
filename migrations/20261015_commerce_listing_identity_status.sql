@@ -458,3 +458,54 @@ grant execute on function public.commerce_reconcile_import_batch_v7(bigint) to s
 grant execute on function public.commerce_reconcile_import_batch_v8(bigint) to service_role;
 grant execute on function public.commerce_commit_import_batch_v4(bigint) to service_role;
 grant execute on function public.commerce_sync_import_listing_states_v1(bigint) to service_role;
+
+-- Complete catalog listing history, including records not yet linked to a master product.
+CREATE OR REPLACE FUNCTION public.commerce_listing_history_v1(p_group text DEFAULT 'ALL'::text, p_limit integer DEFAULT 30, p_offset integer DEFAULT 0)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_group text := upper(btrim(coalesce(p_group,'ALL')));
+  v_result jsonb;
+begin
+  if v_group not in ('ALL','ACTIVE','DEACTIVATED','UNKNOWN') then
+    raise exception 'listing_history_group_invalid' using errcode='22023';
+  end if;
+  if p_limit is null or p_limit < 1 or p_limit > 100 or p_offset is null or p_offset < 0 then
+    raise exception 'listing_history_page_invalid' using errcode='22023';
+  end if;
+  with filtered as (
+    select l.id,l.external_listing_id,l.title,l.listing_status,l.canonical_url,
+           l.updated_at,l.last_checked_at,m.code marketplace_code,m.name marketplace_name
+    from public.commerce_listings l
+    join public.commerce_marketplaces m on m.id=l.marketplace_id
+    where v_group='ALL'
+      or (v_group='ACTIVE' and l.listing_status='ACTIVE')
+      or (v_group='DEACTIVATED' and l.listing_status in ('PAUSED','INACTIVE','REMOVED'))
+      or (v_group='UNKNOWN' and l.listing_status='UNKNOWN')
+  ), paged as (
+    select * from filtered order by updated_at desc,id desc limit p_limit offset p_offset
+  ), totals as (
+    select count(*) all_count,
+           count(*) filter(where listing_status='ACTIVE') active_count,
+           count(*) filter(where listing_status in ('PAUSED','INACTIVE','REMOVED')) deactivated_count,
+           count(*) filter(where listing_status='UNKNOWN') unknown_count
+    from public.commerce_listings
+  )
+  select jsonb_build_object(
+    'total',(select count(*) from filtered),
+    'counts',jsonb_build_object('all',all_count,'active',active_count,
+                               'deactivated',deactivated_count,'unknown',unknown_count),
+    'items',coalesce((select jsonb_agg(jsonb_build_object(
+      'id',p.id,'external_listing_id',p.external_listing_id,'title',p.title,
+      'status',p.listing_status,'url',p.canonical_url,'updated_at',p.updated_at,
+      'marketplace_code',p.marketplace_code,'marketplace_name',p.marketplace_name)
+      order by p.updated_at desc,p.id desc) from paged p),'[]'::jsonb)
+  ) into v_result from totals;
+  return v_result;
+end $function$
+
+revoke execute on function public.commerce_listing_history_v1(text,integer,integer) from public,anon,authenticated;
+grant execute on function public.commerce_listing_history_v1(text,integer,integer) to service_role;
