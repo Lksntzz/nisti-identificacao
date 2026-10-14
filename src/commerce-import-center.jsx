@@ -11,7 +11,8 @@ import {
   listCommerceImports,
   listCommerceSalesImports,
   stageCommerceSalesWorkbook,
-  stageCommerceWorkbook
+  stageCommerceWorkbook,
+  syncCommerceListingStatuses
 } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
 import { readCommerceXlsx } from './commerce-xlsx-reader.js';
@@ -290,13 +291,15 @@ function ImportSummary({ mode, history, batch }) {
   );
 }
 
-function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit }) {
+function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit, onSyncStatuses }) {
   const unresolved = Number(batch?.unresolved_count || 0);
   const totalPages = Math.max(1, Math.ceil(Number(batch?.row_count || 0) / 20));
   const rowCount = Number(batch?.row_count || 0);
   const matched = Number(batch?.matched_count || 0);
   const probable = Number(batch?.probable_count || 0);
   const invalid = Number(batch?.invalid_count || 0);
+  const ignored = Number(batch?.ignored_count || 0);
+  const reviewCount = Math.max(0, rowCount - matched - invalid - ignored);
 
   return (
     <section className={`import-center-review-card ${batch ? '' : 'empty'}`}>
@@ -312,7 +315,7 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
           <div className="import-center-review-totals">
             <span>{brNumber(rowCount)} itens</span>
             <small className="green">Prontas: {brNumber(matched)}</small>
-            <small className="amber">Revisar: {brNumber(probable + unresolved)}</small>
+            <small className="amber">Revisar: {brNumber(reviewCount)}</small>
             <small className="red">Inválidas: {brNumber(invalid)}</small>
           </div>
         )}
@@ -339,11 +342,16 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                   const payload = row.normalized_payload || {};
                   const year = yearTargets[row.id];
                   const candidates = Array.isArray(row.candidates) ? row.candidates : [];
+                  const duplicateSku = row.status === 'CONFLICT' && row.error_code === 'duplicate_sku_in_batch';
+                  const variation = payload.source_variation || '';
+                  const variationId = payload.source_variation_id || '';
                   return (
                     <tr key={row.id}>
                       <td>
                         <strong>{payload.product_name || 'Produto sem nome'}</strong>
                         <small>{row.sheet_name} · linha {row.row_number}</small>
+                        {(variation || variationId) && <small>Variação: {variation || 'sem nome'}{variationId ? ` · ID ${variationId}` : ''}</small>}
+                        {payload.external_listing_id && <small>Anúncio: {payload.external_listing_id}</small>}
                       </td>
                       <td>
                         <code>{payload.sku_primary || payload.sku_secondary || '—'}</code>
@@ -352,7 +360,11 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                         {year?.platform_status === 'PENDING_PLATFORM' && <small className="import-center-pb27-warning">Aguardando alteração manual na plataforma</small>}
                         {year?.platform_status === 'CONFIRMED_MANUALLY' && <small className="import-center-pb27-target">Alteração declarada como concluída</small>}
                       </td>
-                      <td><StatusPill value={row.status} /></td>
+                      <td>
+                        <StatusPill value={row.status} />
+                        {duplicateSku && <small title="SKU compartilhado por linhas da mesma importação; a capa/variação precisa ser conferida antes do vínculo.">SKU repetido no lote. Conferir capa e variação.</small>}
+                        {row.status === 'CONFLICT' && !duplicateSku && row.error_code && <small>Motivo: {row.error_code}</small>}
+                      </td>
                       <td>
                         <div className="import-center-row-actions">
                           {['PROBABLE', 'CONFLICT'].includes(row.status) && candidates.slice(0, 1).map(candidate => (
@@ -361,10 +373,10 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                               className="primary"
                               key={candidate.product_id}
                               disabled={busy}
-                              title={candidate.product_name || ''}
+                              title={`Confirmar manualmente vínculo com ${candidate.product_name || `produto #${candidate.product_id}`}`}
                               onClick={() => onDecision(row.id, 'CONFIRM_PRODUCT', candidate.product_id)}
                             >
-                              Vincular
+                              Conferir vínculo
                             </button>
                           ))}
                           {['NEW_PRODUCT', 'PROBABLE'].includes(row.status) && (
@@ -416,6 +428,12 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                 </button>
               )}
             </div>
+            {batch.marketplace_code === 'MERCADO_LIVRE' && ['REVIEW', 'PARSED', 'COMMITTED'].includes(batch.status) && (
+              <button type="button" disabled={busy} onClick={onSyncStatuses}
+                title="Aplica apenas os status explicitamente informados no Excel. Não altera SKUs nem vínculos e não desativa anúncios ausentes.">
+                Atualizar status dos anúncios
+              </button>
+            )}
             <button
               type="button"
               className="import-center-primary compact"
@@ -606,6 +624,21 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     }
   }
 
+  async function handleCatalogStatusSync() {
+    if (!catalogBatch?.id || catalogBatch.marketplace_code !== 'MERCADO_LIVRE') return;
+    setCatalogBusy(true);
+    setError('');
+    try {
+      const result = await syncCommerceListingStatuses(catalogBatch.id);
+      setMessage(`Status sincronizados: ${brNumber(result.observed_listings)} anúncios verificados; ${brNumber(result.created)} novos registros, ${brNumber(result.status_changed)} alterações de status. Nenhum SKU foi modificado.`);
+      await Promise.all([openCatalogBatch(catalogBatch.id), refreshCatalogHistory()]);
+    } catch (err) {
+      setError(err.message || 'Não foi possível atualizar os status dos anúncios.');
+    } finally {
+      setCatalogBusy(false);
+    }
+  }
+
   async function handleCatalogCommit() {
     if (!catalogBatch?.id || !catalogBatch.can_commit) return;
     setCatalogBusy(true);
@@ -778,6 +811,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                 onApproveProbable={handleApproveProbable}
                 onApproveNew={handleApproveNew}
                 onCommit={handleCatalogCommit}
+                onSyncStatuses={handleCatalogStatusSync}
               />
             </>
           ) : (

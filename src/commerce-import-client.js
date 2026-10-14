@@ -152,6 +152,13 @@ export async function approveCommerceProbableRows(batchId) {
   });
 }
 
+export async function syncCommerceListingStatuses(batchId) {
+  return requestJson(`${API_BASE}/imports/${Number(batchId)}/sync-listing-statuses`, {
+    method: 'POST',
+    body: '{}'
+  });
+}
+
 export async function commitCommerceImport(batchId) {
   try {
     return await requestJson(`${API_BASE}/imports/${Number(batchId)}/commit`, {

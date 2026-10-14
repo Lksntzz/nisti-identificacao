@@ -212,14 +212,15 @@ function normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus = null, list
   const variationId = valueAt(row, 3);
   const title = valueAt(row, 5);
   const variation = valueAt(row, 6);
-  // Parent rows describe the advertisement; child rows carry individual SKUs.
-  // Do not create a product from a parent row with no SKU.
-  if (!sku || sku === '-') return null;
-  if (listingStatus === 'INACTIVE') return null;
-  const productName = title && title !== '0' && title !== '0.0' ? title : (listingTitle || 'Anúncio sem título');
+  // A parent row without SKU still carries the authoritative listing state.
+  // Keep it as a listing-only observation; never invent a product or SKU.
+  const statusOnly = !sku || sku === '-';
+  if (statusOnly && !['ACTIVE', 'INACTIVE', 'PAUSED', 'REMOVED'].includes(listingStatus)) return null;
+  const productName = title && title !== '0' && title !== '0.0' ? title : (listingTitle || `Anúncio ${listingId}`);
   const normalized = {
     source_sheet: 'Anúncios', source_row_number: rowNumber, marketplace: 'MERCADO_LIVRE',
-    sku_primary: sku, sku_secondary: null, product_name: productName,
+    sku_primary: statusOnly ? null : sku, sku_secondary: null, product_name: productName,
+    status_only: statusOnly,
     category: 'Outros', update_hint: 'UNKNOWN', source_update_hint: 'UNKNOWN',
     listing_presence_hint: listingStatus === 'ACTIVE' ? 'LISTED' : 'UNKNOWN',
     source_listing_status: listingStatus || 'UNKNOWN', video_status: 'UNKNOWN',
@@ -227,7 +228,7 @@ function normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus = null, list
     source_variation_id: variationId || null, source_variation: variation || null,
     observed_year: extractObservedYear(sku, productName), notes: []
   };
-  return { status: 'REVIEW', issues: ['verify_listing_active','verify_product_identity'], normalized, original: row };
+  return { status: 'REVIEW', issues: statusOnly ? ['listing_status_only'] : [...(listingStatus ? [] : ['verify_listing_active']), 'verify_product_identity'], normalized, original: row };
 }
 
 export function normalizeCommerceImportRow({ marketplace, sheetName, row, rowNumber, listingStatus = null, listingTitle = null }) {

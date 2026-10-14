@@ -7,7 +7,7 @@ import './commerce-catalog-workspace.css';
 const STATUS_OPTIONS = [
   ['ACTIVE', 'Ativo'],
   ['PAUSED', 'Pausado'],
-  ['INACTIVE', 'Inativo'],
+  ['INACTIVE', 'Desativado'],
   ['REMOVED', 'Removido'],
   ['UNKNOWN', 'Não verificado']
 ];
@@ -524,6 +524,91 @@ function ProductDrawer({ card, onClose, onEdit, onReload, onMessage }) {
   );
 }
 
+function ListingHistorySection() {
+  const [expanded, setExpanded] = useState(false);
+  const [group, setGroup] = useState('ALL');
+  const [offset, setOffset] = useState(0);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [result, setResult] = useState({ items: [], counts: {}, total: 0 });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const limit = 30;
+
+  useEffect(() => {
+    if (!expanded) return;
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    const params = new URLSearchParams({ group, limit: String(limit), offset: String(offset) });
+    commerceApi('/api/admin/commerce/listings/history?' + params)
+      .then(value => { if (!cancelled) setResult(value || { items: [], counts: {}, total: 0 }); })
+      .catch(err => { if (!cancelled) setError(err.message || 'Não foi possível consultar anúncios.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [expanded, group, offset, refreshToken]);
+
+  const counts = result.counts || {};
+  return (
+    <section className="commerce-catalog-panel commerce-listing-history-panel">
+      <div className="commerce-listing-history-head">
+        <div>
+          <strong>Todos os anúncios por ID</strong>
+          <small>Inclui anúncios desativados e anúncios ainda sem vínculo com um produto NISTI.</small>
+        </div>
+        <button type="button" onClick={() => setExpanded(value => !value)}>
+          {expanded ? 'Ocultar anúncios' : 'Consultar anúncios'}
+        </button>
+      </div>
+      {expanded && (
+        <>
+          <div className="commerce-listing-history-filters">
+            {[
+              ['ALL', 'Todos', counts.all],
+              ['ACTIVE', 'Ativos', counts.active],
+              ['DEACTIVATED', 'Desativados', counts.deactivated],
+              ['UNKNOWN', 'Não verificados', counts.unknown]
+            ].map(([value, label, count]) => (
+              <button type="button" key={value} className={group === value ? 'active' : ''}
+                onClick={() => { setGroup(value); setOffset(0); }}>
+                {label} ({commerceFormatNumber(count || 0)})
+              </button>
+            ))}
+            <button type="button" onClick={() => setRefreshToken(value => value + 1)}>Atualizar listagem</button>
+          </div>
+          {error && <p role="alert">{error}</p>}
+          {loading && <p>Consultando anúncios…</p>}
+          {!loading && !error && (
+            <>
+              <div className="commerce-listing-history-table-wrap">
+                <table className="commerce-listing-history-table">
+                  <thead><tr><th>Plataforma</th><th>ID do anúncio</th><th>Anúncio</th><th>Situação</th><th>Acesso</th></tr></thead>
+                  <tbody>
+                    {result.items.map(item => (
+                      <tr key={item.id}>
+                        <td>{item.marketplace_name || item.marketplace_code}</td>
+                        <td><code>{item.external_listing_id || `#${item.id}`}</code></td>
+                        <td>{item.title || 'Título não informado'}</td>
+                        <td><span className={'commerce-listing-status ' + String(item.status || 'UNKNOWN').toLowerCase()}>{statusLabel(item.status)}</span></td>
+                        <td>{item.url?.startsWith('https://') ? <a href={item.url} target="_blank" rel="noreferrer">Abrir</a> : '—'}</td>
+                      </tr>
+                    ))}
+                    {!result.items.length && <tr><td colSpan={5}>Nenhum anúncio neste filtro.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              <div className="commerce-listing-history-pagination">
+                <span>{commerceFormatNumber(result.total || 0)} anúncios neste filtro</span>
+                <button type="button" disabled={offset === 0} onClick={() => setOffset(value => Math.max(0, value - limit))}>Anterior</button>
+                <button type="button" disabled={offset + limit >= Number(result.total || 0)} onClick={() => setOffset(value => value + limit)}>Próxima</button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function CommerceCatalogWorkspace({
   items,
   summary,
@@ -550,6 +635,7 @@ export default function CommerceCatalogWorkspace({
   const [categoryFilter, setCategoryFilter] = useState('');
   const [yearFilter, setYearFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [statusGroup, setStatusGroup] = useState('ALL');
   const [notice, setNotice] = useState(null);
 
   useEffect(() => {
@@ -586,8 +672,26 @@ export default function CommerceCatalogWorkspace({
     const listings = collectListings(card);
     if (platformFilter && !listings.some(row => row.platform_code === platformFilter)) return false;
     if (statusFilter && !listings.some(row => String(row.listing_status || 'UNKNOWN') === statusFilter)) return false;
+    if (statusGroup === 'ACTIVE' && !listings.some(row => row.listing_status === 'ACTIVE')) return false;
+    if (statusGroup === 'INACTIVE' && !listings.some(row => ['INACTIVE', 'PAUSED', 'REMOVED'].includes(row.listing_status))) return false;
     return true;
-  }), [items, platformFilter, categoryFilter, yearFilter, statusFilter]);
+  }), [items, platformFilter, categoryFilter, yearFilter, statusFilter, statusGroup]);
+
+  const listingStatusTotals = useMemo(() => {
+    const known = new Map();
+    for (const card of items) {
+      for (const listing of collectListings(card)) {
+        const key = listing.listing_id ? `id:${listing.listing_id}` : `legacy:${listing.platform_code}:${listing.source_row_id || listing.listing_url || listing.sku}`;
+        known.set(key, listing.listing_status || 'UNKNOWN');
+      }
+    }
+    const values = [...known.values()];
+    return {
+      all: values.length,
+      active: values.filter(status => status === 'ACTIVE').length,
+      inactive: values.filter(status => ['INACTIVE','PAUSED','REMOVED'].includes(status)).length
+    };
+  }, [items]);
 
   const selectedCards = items.filter(card => selectedKeys.has(card.card_key));
   const selectedListingCount = useMemo(() => {
@@ -637,6 +741,8 @@ export default function CommerceCatalogWorkspace({
         <article><span>Sem NISTI</span><strong>{summaryLoading ? '…' : commerceFormatNumber(summary?.nisti_pending || 0)}</strong><small>Aguardando correspondência</small></article>
       </section>
 
+      <ListingHistorySection />
+
       <section className="commerce-catalog-panel">
         <div className="commerce-catalog-controls">
           <form onSubmit={event => { event.preventDefault(); setSubmittedSearch(search.trim()); }}>
@@ -655,16 +761,22 @@ export default function CommerceCatalogWorkspace({
             <option value="">Ano</option>
             {filterOptions.years.map(value => <option key={value}>{value}</option>)}
           </select>
-          <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
-            <option value="">Status</option>
+          <select value={statusGroup} onChange={event => { setStatusGroup(event.target.value); setStatusFilter(''); }} aria-label="Situação dos anúncios">
+            <option value="ALL">Todos ({listingStatusTotals.all})</option>
+            <option value="ACTIVE">Ativos ({listingStatusTotals.active})</option>
+            <option value="INACTIVE">Desativados ({listingStatusTotals.inactive})</option>
+          </select>
+          <select value={statusFilter} onChange={event => { setStatusFilter(event.target.value); setStatusGroup('ALL'); }}>
+            <option value="">Status detalhado</option>
             {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          {(platformFilter || categoryFilter || yearFilter || statusFilter || submittedSearch) ? (
+          {(platformFilter || categoryFilter || yearFilter || statusFilter || statusGroup !== 'ALL' || submittedSearch) ? (
             <button type="button" className="clear" onClick={() => {
               setPlatformFilter('');
               setCategoryFilter('');
               setYearFilter('');
               setStatusFilter('');
+              setStatusGroup('ALL');
               setSearch('');
               setSubmittedSearch('');
             }}>Limpar</button>

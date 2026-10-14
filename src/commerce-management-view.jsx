@@ -24,7 +24,7 @@ const VIDEO_LABELS = Object.freeze({
 const LISTING_LABELS = Object.freeze({
   ACTIVE: 'Ativo',
   PAUSED: 'Pausado',
-  INACTIVE: 'Inativo',
+  INACTIVE: 'Desativado',
   REMOVED: 'Removido',
   NO_LISTING: 'Sem anúncio',
   UNVERIFIED: 'Não verificado',

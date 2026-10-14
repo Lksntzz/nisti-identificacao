@@ -4,6 +4,7 @@ import {
   commerceApproveNewRows,
   commerceApproveProbableRows,
   commerceCommitImportBatch,
+  commerceSyncImportListingStates,
   commerceCreateImportBatch,
   commerceDashboard,
   commerceDecideImportRow,
@@ -12,6 +13,7 @@ import {
   commerceImportBatches,
   commerceImportRows,
   commerceListings,
+  commerceListingHistory,
   commerceManagement,
   commerceManagementProducts,
   commerceManagementProductSummary,
@@ -344,6 +346,14 @@ export async function handleCommerceAdminRequest(request, env) {
       return json(await commerceProductDetail(env, productId));
     }
 
+    if (method === 'GET' && pathname === `${BASE_PATH}/listings/history`) {
+      return json(await commerceListingHistory(env, {
+        group: query(url, 'group') || 'ALL',
+        limit: query(url, 'limit') || '30',
+        offset: query(url, 'offset') || '0'
+      }));
+    }
+
     if (method === 'GET' && pathname === `${BASE_PATH}/listings`) {
       const result = await commerceListings(env, {
         search: query(url, 'search'),
@@ -512,6 +522,14 @@ export async function handleCommerceAdminRequest(request, env) {
       const batchId = positiveId(importApproveProbableMatch[1]);
       if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
       return json(await commerceApproveProbableRows(env, batchId));
+    }
+
+    const importStatesMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/sync-listing-statuses$/);
+    if (method === 'POST' && importStatesMatch) {
+      const batchId = positiveId(importStatesMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      if (!commerceCommitEnabled(env)) return json({ error: 'Atualizações comerciais desabilitadas.' }, 409);
+      return json(await commerceSyncImportListingStates(env, batchId));
     }
 
     const importCommitMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/commit$/);

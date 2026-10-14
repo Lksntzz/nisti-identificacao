@@ -123,10 +123,11 @@ export async function readCommerceXlsx(file, marketplace) {
     if (market === 'MERCADO_LIVRE' && sheetName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'anuncios') {
       for (const raw of data.slice(6)) {
         const id = String(raw?.[1] ?? '').trim().toUpperCase();
-        const status = String(raw?.[29] ?? '').trim().toLowerCase();
+        const status = String(raw?.[29] ?? '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         if (!/^MLB\d+$/.test(id)) continue;
-        if (status === 'ativo' || status === 'inativo') {
-          listingStatusById.set(id, status === 'ativo' ? 'ACTIVE' : 'INACTIVE');
+        const statusMap = { ativo: 'ACTIVE', inativo: 'INACTIVE', pausado: 'PAUSED', finalizado: 'REMOVED', encerrado: 'REMOVED' };
+        if (statusMap[status]) {
+          listingStatusById.set(id, statusMap[status]);
           const title = String(raw?.[5] ?? '').trim();
           if (title && title !== '0.0') listingTitleById.set(id, title);
         }

@@ -112,6 +112,17 @@ export async function commerceProductDetail(env, productId) {
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
+export async function commerceListingHistory(env, { group = 'ALL', limit = 30, offset = 0 } = {}) {
+  const normalizedGroup = String(group || 'ALL').toUpperCase();
+  if (!['ALL', 'ACTIVE', 'DEACTIVATED', 'UNKNOWN'].includes(normalizedGroup)) throw new Error('Filtro de anúncios inválido.');
+  const result = await supabaseRpc(env, 'commerce_listing_history_v1', {
+    p_group: normalizedGroup,
+    p_limit: cleanPageSize(limit, 30),
+    p_offset: cleanOffset(offset)
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+}
+
 export async function commerceListings(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);
@@ -292,7 +303,7 @@ export async function commerceImportBatch(env, batchId) {
 export async function commerceReconcileImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  return await supabaseRpc(env, 'commerce_reconcile_import_batch_v5', { p_batch_id: id });
+  return await supabaseRpc(env, 'commerce_reconcile_import_batch_v8', { p_batch_id: id });
 }
 
 export async function commerceImportRows(env, batchId, filters = {}) {
@@ -338,10 +349,16 @@ export async function commerceApproveProbableRows(env, batchId) {
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
+export async function commerceSyncImportListingStates(env, batchId) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  return await supabaseRpc(env, 'commerce_sync_import_listing_states_v1', { p_batch_id: id });
+}
+
 export async function commerceCommitImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  return await supabaseRpc(env, 'commerce_commit_import_batch_v3', { p_batch_id: id });
+  return await supabaseRpc(env, 'commerce_commit_import_batch_v4', { p_batch_id: id });
 }
 
 
