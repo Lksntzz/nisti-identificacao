@@ -112,11 +112,14 @@ export async function commerceProductDetail(env, productId) {
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
-export async function commerceListingHistory(env, { group = 'ALL', limit = 30, offset = 0 } = {}) {
+export async function commerceListingHistory(env, { group = 'ALL', accountCode = 'ALL', limit = 30, offset = 0 } = {}) {
   const normalizedGroup = String(group || 'ALL').toUpperCase();
   if (!['ALL', 'ACTIVE', 'DEACTIVATED', 'UNKNOWN'].includes(normalizedGroup)) throw new Error('Filtro de anúncios inválido.');
-  const result = await supabaseRpc(env, 'commerce_listing_history_v1', {
+  const normalizedAccount = String(accountCode || 'ALL').toUpperCase();
+  if (!['ALL', 'ANTIGO', 'NOVO', 'UNASSIGNED'].includes(normalizedAccount)) throw new Error('Conta de anúncios inválida.');
+  const result = await supabaseRpc(env, 'commerce_listing_history_account_v1', {
     p_group: normalizedGroup,
+    p_account_code: normalizedAccount,
     p_limit: cleanPageSize(limit, 30),
     p_offset: cleanOffset(offset)
   });
@@ -264,11 +267,12 @@ export async function commerceImportBatches(env, filters = {}) {
 }
 
 export async function commerceCreateImportBatch(env, input = {}) {
-  const batchId = await supabaseRpc(env, 'commerce_create_import_batch_v1', {
+  const batchId = await supabaseRpc(env, 'commerce_create_import_batch_v2', {
     p_marketplace_code: cleanText(input.marketplace),
     p_source_filename: cleanText(input.filename),
     p_source_sha256: cleanText(input.sha256),
-    p_created_by: cleanText(input.createdBy)
+    p_created_by: cleanText(input.createdBy),
+    p_account_code: cleanText(input.accountCode)
   });
   const id = Number(batchId || 0);
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Supabase não retornou um batch_id válido.');
@@ -297,13 +301,13 @@ export async function commerceFinalizeImportBatch(env, batchId) {
 export async function commerceImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  return await supabaseRpc(env, 'commerce_import_batch_v2', { p_batch_id: id });
+  return await supabaseRpc(env, 'commerce_import_batch_account_v1', { p_batch_id: id });
 }
 
 export async function commerceReconcileImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  return await supabaseRpc(env, 'commerce_reconcile_import_batch_v8', { p_batch_id: id });
+  return await supabaseRpc(env, 'commerce_reconcile_import_batch_account_v1', { p_batch_id: id });
 }
 
 export async function commerceImportRows(env, batchId, filters = {}) {
@@ -352,13 +356,13 @@ export async function commerceApproveProbableRows(env, batchId) {
 export async function commerceSyncImportListingStates(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  return await supabaseRpc(env, 'commerce_sync_import_listing_states_v1', { p_batch_id: id });
+  return await supabaseRpc(env, 'commerce_sync_import_listing_states_account_v1', { p_batch_id: id });
 }
 
 export async function commerceCommitImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  return await supabaseRpc(env, 'commerce_commit_import_batch_v4', { p_batch_id: id });
+  return await supabaseRpc(env, 'commerce_commit_import_batch_account_v4', { p_batch_id: id });
 }
 
 
