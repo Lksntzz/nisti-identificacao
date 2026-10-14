@@ -269,8 +269,7 @@ begin
     'linked_products', v_linked_products
   );
 end;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.commerce_commit_import_batch_account_v2(p_batch_id bigint)
  RETURNS jsonb
@@ -366,8 +365,7 @@ begin
     'linked_products',v_linked_products+coalesce((v_base_result->>'linked_products')::integer,0),
     'product_only_rows',v_product_only_rows);
 end;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.commerce_commit_import_batch_account_v3(p_batch_id bigint)
  RETURNS jsonb
@@ -460,8 +458,7 @@ begin
     )
   );
 end;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.commerce_commit_import_batch_account_v4(p_batch_id bigint)
  RETURNS jsonb
@@ -663,8 +660,7 @@ begin
     'status_only_observations',v_status_only_count,
     'listings_with_explicit_status',v_status_count,
     'verified_variations',v_variation_count);
-end $function$
-
+end $function$;
 
 CREATE OR REPLACE FUNCTION public.commerce_reconcile_import_batch_account_v1(p_batch_id bigint)
  RETURNS jsonb
