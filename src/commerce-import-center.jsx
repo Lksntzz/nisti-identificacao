@@ -4,6 +4,7 @@ import {
   approveCommerceProbableRows,
   commitCommerceImport,
   decideCommerceImportRow,
+  deleteCommerceImport,
   getCommerceImport,
   getCommerceImportRows,
   getCommerceCatalogYearTargets,
@@ -206,7 +207,7 @@ function ProgressBlock({ progress, text, disabledText = 'Aguardando arquivo…' 
   );
 }
 
-function ImportHistory({ mode, items, loading, onOpen, onRefresh }) {
+function ImportHistory({ mode, items, loading, onOpen, onRefresh, onDelete, deletingId }) {
   return (
     <section className="import-center-side-card import-center-history">
       <div className="import-center-side-head">
@@ -233,14 +234,22 @@ function ImportHistory({ mode, items, loading, onOpen, onRefresh }) {
             );
 
             return mode === 'catalog' ? (
-              <button
-                type="button"
-                key={item.id}
-                className="import-center-history-row"
-                onClick={() => onOpen?.(item)}
-              >
-                {content}
-              </button>
+              <div key={item.id} className="import-center-history-row import-center-history-actions">
+                <button type="button" className="import-center-history-open"
+                  disabled={Boolean(deletingId)} onClick={() => onOpen?.(item)}
+                  aria-label={`Abrir lote #${item.id}`}>
+                  {content}
+                </button>
+                {item.status !== 'COMMITTED' && (
+                  <button type="button" className="import-center-delete-btn"
+                    disabled={Boolean(deletingId)}
+                    aria-label={`Apagar importação #${item.id}`}
+                    title="Apagar somente o lote de importação, sem excluir produtos ou anúncios"
+                    onClick={() => onDelete?.(item)}>
+                    {deletingId === item.id ? 'Apagando…' : 'Apagar'}
+                  </button>
+                )}
+              </div>
             ) : (
               <div key={item.id} className="import-center-history-row static">
                 {content}
@@ -476,6 +485,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
   const [catalogYearTargets, setCatalogYearTargets] = useState({});
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogBusy, setCatalogBusy] = useState(false);
+  const [deletingCatalogId, setDeletingCatalogId] = useState(null);
 
   const [salesPlatform, setSalesPlatform] = useState('SHOPEE');
   const [salesMonth, setSalesMonth] = useState('');
@@ -499,6 +509,33 @@ export default function CommerceImportCenter({ onSalesChanged }) {
       setError(err.message || 'Não foi possível carregar o histórico do catálogo.');
     } finally {
       setCatalogHistoryLoading(false);
+    }
+  }
+
+  async function handleDeleteCatalogImport(item) {
+    if (!item?.id || deletingCatalogId || item.status === 'COMMITTED') return;
+    const confirmed = window.confirm(
+      `Apagar a importação #${item.id} (${item.source_filename || 'sem nome'})?\n\n` +
+      'Serão excluídos somente o lote e suas linhas de revisão. Produtos, anúncios e vendas não serão apagados. Esta ação não pode ser desfeita.'
+    );
+    if (!confirmed) return;
+    setDeletingCatalogId(item.id);
+    setError('');
+    setMessage('');
+    try {
+      await deleteCommerceImport(item.id);
+      if (Number(catalogBatch?.id) === Number(item.id)) {
+        setCatalogBatch(null);
+        setCatalogRows([]);
+        setCatalogYearTargets({});
+        setCatalogPage(1);
+      }
+      await refreshCatalogHistory();
+      setMessage(`Importação #${item.id} apagada. Os produtos e anúncios foram preservados.`);
+    } catch (err) {
+      setError(err.message || 'Não foi possível apagar a importação.');
+    } finally {
+      setDeletingCatalogId(null);
     }
   }
 
@@ -954,6 +991,8 @@ export default function CommerceImportCenter({ onSalesChanged }) {
             loading={historyLoading}
             onOpen={item => openCatalogBatch(item.id, 1)}
             onRefresh={mode === 'catalog' ? refreshCatalogHistory : refreshSalesHistory}
+            onDelete={handleDeleteCatalogImport}
+            deletingId={deletingCatalogId}
           />
           <ImportSummary
             mode={mode}

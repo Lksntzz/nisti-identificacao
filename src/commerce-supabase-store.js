@@ -279,6 +279,12 @@ export async function commerceCreateImportBatch(env, input = {}) {
   return id;
 }
 
+export async function commerceDeleteImportBatch(env, batchId) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  return await supabaseRpc(env, 'commerce_delete_import_batch_v1', { p_batch_id: id });
+}
+
 export async function commerceAppendImportRows(env, batchId, rows = []) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');

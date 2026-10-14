@@ -61,6 +61,10 @@ export async function listCommerceImports({ limit = 30, offset = 0 } = {}) {
   return requestJson(`${API_BASE}/imports?${params}`);
 }
 
+export async function deleteCommerceImport(batchId) {
+  return requestJson(`${API_BASE}/imports/${Number(batchId)}`, { method: 'DELETE' });
+}
+
 export async function getCommerceImport(batchId) {
   return requestJson(`${API_BASE}/imports/${Number(batchId)}`);
 }
