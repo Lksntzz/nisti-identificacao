@@ -288,8 +288,9 @@ function ImportSummary({ mode, history, batch }) {
   );
 }
 
-function CatalogBatchReview({ batch, rows, busy, onDecision, onApproveProbable, onApproveNew, onCommit }) {
+function CatalogBatchReview({ batch, rows, busy, page, onPageChange, onDecision, onApproveProbable, onApproveNew, onCommit }) {
   const unresolved = Number(batch?.unresolved_count || 0);
+  const totalPages = Math.max(1, Math.ceil(Number(batch?.row_count || 0) / 20));
   const rowCount = Number(batch?.row_count || 0);
   const matched = Number(batch?.matched_count || 0);
   const probable = Number(batch?.probable_count || 0);
@@ -332,7 +333,7 @@ function CatalogBatchReview({ batch, rows, busy, onDecision, onApproveProbable, 
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 20).map(row => {
+                {rows.map(row => {
                   const payload = row.normalized_payload || {};
                   const candidates = Array.isArray(row.candidates) ? row.candidates : [];
                   return (
@@ -380,6 +381,13 @@ function CatalogBatchReview({ batch, rows, busy, onDecision, onApproveProbable, 
             </table>
           </div>
 
+          {totalPages > 1 && (
+            <nav className="import-center-review-pages" aria-label="Páginas da revisão">
+              <button type="button" disabled={busy || page <= 1} onClick={() => onPageChange(page - 1)}>Anterior</button>
+              <span>Página {page} de {totalPages} · {rowCount.toLocaleString('pt-BR')} itens</span>
+              <button type="button" disabled={busy || page >= totalPages} onClick={() => onPageChange(page + 1)}>Próxima</button>
+            </nav>
+          )}
           <div className="import-center-review-footer">
             <div>
               {Number(batch.approvable_probable_count || 0) > 0 && (
@@ -421,6 +429,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
   const [catalogHistoryLoading, setCatalogHistoryLoading] = useState(false);
   const [catalogBatch, setCatalogBatch] = useState(null);
   const [catalogRows, setCatalogRows] = useState([]);
+  const [catalogPage, setCatalogPage] = useState(1);
   const [catalogBusy, setCatalogBusy] = useState(false);
 
   const [salesPlatform, setSalesPlatform] = useState('SHOPEE');
@@ -460,14 +469,15 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     }
   }
 
-  async function openCatalogBatch(batchId) {
+  async function openCatalogBatch(batchId, page = catalogPage) {
     setCatalogBusy(true);
     setError('');
     try {
       const [batch, rowsResult] = await Promise.all([
         getCommerceImport(batchId),
-        getCommerceImportRows(batchId, { limit: 50, offset: 0 })
+        getCommerceImportRows(batchId, { limit: 20, offset: (page - 1) * 20 })
       ]);
+      setCatalogPage(page);
       setCatalogBatch(batch);
       setCatalogRows(Array.isArray(rowsResult?.items) ? rowsResult.items : []);
     } catch (err) {
@@ -488,6 +498,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     setCatalogParsed(null);
     setCatalogBatch(null);
     setCatalogRows([]);
+    setCatalogPage(1);
     setCatalogProgress(null);
     setError('');
     setMessage('');
@@ -511,7 +522,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     try {
       const result = await stageCommerceWorkbook(catalogParsed, setCatalogProgress);
       setMessage(`Lote #${result.batchId} preparado. O catálogo só será alterado após a confirmação final.`);
-      await Promise.all([refreshCatalogHistory(), openCatalogBatch(result.batchId)]);
+      await Promise.all([refreshCatalogHistory(), openCatalogBatch(result.batchId, 1)]);
     } catch (err) {
       setError(err.message || 'Falha ao preparar a importação do catálogo.');
     } finally {
@@ -723,6 +734,8 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                 batch={catalogBatch}
                 rows={catalogRows}
                 busy={catalogBusy}
+                page={catalogPage}
+                onPageChange={nextPage => openCatalogBatch(catalogBatch.id, nextPage)}
                 onDecision={handleCatalogDecision}
                 onApproveProbable={handleApproveProbable}
                 onApproveNew={handleApproveNew}
@@ -807,7 +820,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
             mode={mode}
             items={history}
             loading={historyLoading}
-            onOpen={item => openCatalogBatch(item.id)}
+            onOpen={item => openCatalogBatch(item.id, 1)}
             onRefresh={mode === 'catalog' ? refreshCatalogHistory : refreshSalesHistory}
           />
           <ImportSummary
