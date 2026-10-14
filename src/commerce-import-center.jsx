@@ -991,6 +991,8 @@ export default function CommerceImportCenter({ onSalesChanged }) {
             loading={historyLoading}
             onOpen={item => openCatalogBatch(item.id, 1)}
             onRefresh={mode === 'catalog' ? refreshCatalogHistory : refreshSalesHistory}
+            onDelete={handleDeleteCatalogImport}
+            deletingId={deletingCatalogId}
           />
           <ImportSummary
             mode={mode}
