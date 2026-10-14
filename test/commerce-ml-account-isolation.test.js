@@ -35,7 +35,8 @@ test('Account-safe commits reject ambiguity before product writes', () => {
   assert.match(sql, /commerce_commit_import_batch_account_v4/);
   assert.match(sql, /legacy_listing_account_requires_review/);
   assert.match(sql, /l.account_code is not distinct from v_batch.account_code/);
-  assert.match(sql, /commerce_reconcile_import_batch_account_v2/);
+  assert.match(sql, /commerce_reconcile_import_batch_account_v1/);
+  assert.match(read('supabase/migrations/20261014_commerce_bulk_reconciliation_fast_v2.sql'), /commerce_reconcile_import_batch_account_v2/);
   const fix = read('supabase/migrations/20261014_ml_variation_reimport_idempotence.sql');
   assert.match(fix, /source_variation_id/);
   assert.match(fix, /not exists/);
