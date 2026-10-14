@@ -228,7 +228,7 @@ function normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus = null, list
     source_variation_id: variationId || null, source_variation: variation || null,
     observed_year: extractObservedYear(sku, productName), notes: []
   };
-  return { status: 'REVIEW', issues: statusOnly ? ['listing_status_only'] : ['verify_product_identity'], normalized, original: row };
+  return { status: 'REVIEW', issues: statusOnly ? ['listing_status_only'] : [...(listingStatus ? [] : ['verify_listing_active']), 'verify_product_identity'], normalized, original: row };
 }
 
 export function normalizeCommerceImportRow({ marketplace, sheetName, row, rowNumber, listingStatus = null, listingTitle = null }) {
