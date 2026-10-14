@@ -723,7 +723,7 @@ begin
  return coalesce(v_result,'{}'::jsonb) || jsonb_build_object(
    'listing_only_observations',v_count,'matched',v_matched,'probable',v_probable,
    'new_products',v_new,'conflicts',v_conflict,'invalid',v_invalid);
-end $function$
+end $function$;
 
 
 revoke execute on function public.commerce_commit_import_batch_account_v1(bigint) from public,anon,authenticated;
