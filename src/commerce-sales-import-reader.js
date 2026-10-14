@@ -213,6 +213,23 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
       continue;
     }
 
+    if (platformCode === 'SHOPEE') {
+      // Shopee exports contain both "Valor Total" (order value) and
+      // "Subtotal do produto" (item revenue). Likewise, variation SKU
+      // is different from the often-empty primary SKU.
+      const normalized = data[header.rowIndex].map(normalizedHeader);
+      const exact = label => normalized.indexOf(normalizedHeader(label));
+      const sku = exact('Número de referência SKU');
+      const primary = exact('Nº de referência do SKU principal');
+      const subtotal = exact('Subtotal do produto');
+      if (sku < 0 || subtotal < 0) {
+        throw new Error('Relatório Shopee incompleto: faltam Número de referência SKU ou Subtotal do produto.');
+      }
+      header.columns.sku = sku;
+      header.columns.sku_primary = primary;
+      header.columns.revenue = subtotal;
+    }
+
     let accepted = 0;
     let ignored = 0;
     for (let rowIndex = header.rowIndex + 1; rowIndex < data.length; rowIndex += 1) {
