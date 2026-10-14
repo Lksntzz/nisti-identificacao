@@ -4,6 +4,7 @@ import {
   commerceApproveNewRows,
   commerceApproveProbableRows,
   commerceCommitImportBatch,
+  commerceSyncImportListingStates,
   commerceCreateImportBatch,
   commerceDashboard,
   commerceDecideImportRow,
@@ -512,6 +513,14 @@ export async function handleCommerceAdminRequest(request, env) {
       const batchId = positiveId(importApproveProbableMatch[1]);
       if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
       return json(await commerceApproveProbableRows(env, batchId));
+    }
+
+    const importStatesMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/sync-listing-statuses$/);
+    if (method === 'POST' && importStatesMatch) {
+      const batchId = positiveId(importStatesMatch[1]);
+      if (!batchId) return json({ error: 'batch_id inválido.' }, 400);
+      if (!commerceCommitEnabled(env)) return json({ error: 'Atualizações comerciais desabilitadas.' }, 409);
+      return json(await commerceSyncImportListingStates(env, batchId));
     }
 
     const importCommitMatch = pathname.match(/^\/api\/admin\/commerce\/imports\/(\d+)\/commit$/);
