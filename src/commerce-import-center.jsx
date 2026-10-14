@@ -297,6 +297,8 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
   const matched = Number(batch?.matched_count || 0);
   const probable = Number(batch?.probable_count || 0);
   const invalid = Number(batch?.invalid_count || 0);
+  const ignored = Number(batch?.ignored_count || 0);
+  const reviewCount = Math.max(0, rowCount - matched - invalid - ignored);
 
   return (
     <section className={`import-center-review-card ${batch ? '' : 'empty'}`}>
@@ -312,7 +314,7 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
           <div className="import-center-review-totals">
             <span>{brNumber(rowCount)} itens</span>
             <small className="green">Prontas: {brNumber(matched)}</small>
-            <small className="amber">Revisar: {brNumber(probable + unresolved)}</small>
+            <small className="amber">Revisar: {brNumber(reviewCount)}</small>
             <small className="red">Inválidas: {brNumber(invalid)}</small>
           </div>
         )}
@@ -339,11 +341,16 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                   const payload = row.normalized_payload || {};
                   const year = yearTargets[row.id];
                   const candidates = Array.isArray(row.candidates) ? row.candidates : [];
+                  const duplicateSku = row.status === 'CONFLICT' && row.error_code === 'duplicate_sku_in_batch';
+                  const variation = payload.source_variation || '';
+                  const variationId = payload.source_variation_id || '';
                   return (
                     <tr key={row.id}>
                       <td>
                         <strong>{payload.product_name || 'Produto sem nome'}</strong>
                         <small>{row.sheet_name} · linha {row.row_number}</small>
+                        {(variation || variationId) && <small>Variação: {variation || 'sem nome'}{variationId ? ` · ID ${variationId}` : ''}</small>}
+                        {payload.external_listing_id && <small>Anúncio: {payload.external_listing_id}</small>}
                       </td>
                       <td>
                         <code>{payload.sku_primary || payload.sku_secondary || '—'}</code>
@@ -352,7 +359,11 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                         {year?.platform_status === 'PENDING_PLATFORM' && <small className="import-center-pb27-warning">Aguardando alteração manual na plataforma</small>}
                         {year?.platform_status === 'CONFIRMED_MANUALLY' && <small className="import-center-pb27-target">Alteração declarada como concluída</small>}
                       </td>
-                      <td><StatusPill value={row.status} /></td>
+                      <td>
+                        <StatusPill value={row.status} />
+                        {duplicateSku && <small title="SKU compartilhado por linhas da mesma importação; a capa/variação precisa ser conferida antes do vínculo.">SKU repetido no lote. Conferir capa e variação.</small>}
+                        {row.status === 'CONFLICT' && !duplicateSku && row.error_code && <small>Motivo: {row.error_code}</small>}
+                      </td>
                       <td>
                         <div className="import-center-row-actions">
                           {['PROBABLE', 'CONFLICT'].includes(row.status) && candidates.slice(0, 1).map(candidate => (
@@ -361,10 +372,10 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                               className="primary"
                               key={candidate.product_id}
                               disabled={busy}
-                              title={candidate.product_name || ''}
+                              title={`Confirmar manualmente vínculo com ${candidate.product_name || `produto #${candidate.product_id}`}`}
                               onClick={() => onDecision(row.id, 'CONFIRM_PRODUCT', candidate.product_id)}
                             >
-                              Vincular
+                              Conferir vínculo
                             </button>
                           ))}
                           {['NEW_PRODUCT', 'PROBABLE'].includes(row.status) && (
