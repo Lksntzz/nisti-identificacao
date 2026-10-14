@@ -578,8 +578,8 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     } catch (err) {
       setCatalogProgress({ phase: 'failed', completed: 0, total: catalogParsed?.rows?.length || 1 });
       if (err.batchId) {
-        setError(`A comparação do lote #${err.batchId} não terminou. O arquivo continua salvo. Abra o lote no histórico e clique em Retomar comparação. Nenhum anúncio foi alterado.`);
         await Promise.all([refreshCatalogHistory(), openCatalogBatch(err.batchId, 1)]);
+        setError(`A comparação do lote #${err.batchId} não terminou. O arquivo continua salvo. Abra o lote no histórico e clique em Retomar comparação. Nenhum anúncio foi alterado.`);
       } else {
         setError(err.message || 'Falha ao preparar a importação do catálogo.');
       }
