@@ -13,6 +13,7 @@ import {
   commerceImportBatches,
   commerceImportRows,
   commerceListings,
+  commerceListingHistory,
   commerceManagement,
   commerceManagementProducts,
   commerceManagementProductSummary,
@@ -343,6 +344,14 @@ export async function handleCommerceAdminRequest(request, env) {
       const productId = positiveId(productDetailMatch[1]);
       if (!productId) return json({ error: 'product_id inválido.' }, 400);
       return json(await commerceProductDetail(env, productId));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/listings/history`) {
+      return json(await commerceListingHistory(env, {
+        group: query(url, 'group') || 'ALL',
+        limit: query(url, 'limit') || '30',
+        offset: query(url, 'offset') || '0'
+      }));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/listings`) {
