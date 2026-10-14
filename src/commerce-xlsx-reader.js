@@ -38,6 +38,46 @@ function bytesToHex(bytes) {
   return [...new Uint8Array(bytes)].map(value => value.toString(16).padStart(2, '0')).join('');
 }
 
+function mlBulkEditRows(data) {
+  const header = Array.isArray(data?.[0]) ? data[0].map(value => String(value || '').trim().toUpperCase()) : [];
+  if (!header.includes('ITEM_ID') || !header.includes('VARIATION_ID') || !header.includes('SKU')) return null;
+  const at = name => header.indexOf(name);
+  const idx = { item: at('ITEM_ID'), variation: at('VARIATION_ID'), sku: at('SKU'), title: at('TITLE'), variations: at('VARIATIONS') };
+  const output = [];
+  const seen = new Set();
+  let parentTitle = '';
+  for (let i = 6; i < data.length; i += 1) {
+    const cells = Array.isArray(data[i]) ? data[i] : [];
+    const itemId = String(cells[idx.item] ?? '').trim();
+    if (!/^MLB\d+$/i.test(itemId)) continue;
+    const title = String(cells[idx.title] ?? '').trim();
+    if (title && title !== '0') parentTitle = title;
+    const sku = String(cells[idx.sku] ?? '').trim();
+    const variation = String(cells[idx.variation] ?? '').trim();
+    if (!sku || sku === '0') continue; // Parent listing without a SKU is not a sellable variation.
+    const identity = [itemId.toUpperCase(), variation || sku].join(':');
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    const listingUrl = 'https://produto.mercadolivre.com.br/' + itemId.toUpperCase();
+    const productName = title && title !== '0' ? title : parentTitle;
+    output.push({
+      rowNumber: i + 1,
+      normalized: {
+        source_sheet: 'Anúncios', source_row_number: i + 1,
+        marketplace: 'MERCADO_LIVRE', sku_primary: sku, sku_secondary: null,
+        product_name: productName || 'Anúncio ' + itemId,
+        category: null, update_raw: null, source_update_hint: 'UNKNOWN', update_hint: 'REVIEW',
+        listing_presence_hint: 'UNKNOWN', video_raw: null, video_status: 'UNKNOWN',
+        listing_ref: listingUrl, listing_url: listingUrl, external_listing_id: itemId.toUpperCase(),
+        external_variation_id: variation || null, observed_year: null,
+        notes: ['Importação de planilha ML: anúncio ativo não confirmado; verificar status na plataforma',
+          String(cells[idx.variations] ?? '').trim()].filter(Boolean)
+      }
+    });
+  }
+  return output;
+}
+
 function stableCell(value) {
   if (value instanceof Date) return value.toISOString();
   if (value == null) return null;
@@ -114,6 +154,22 @@ export async function readCommerceXlsx(file, marketplace) {
     physicalRows += data.length;
     if (physicalRows > COMMERCE_XLSX_MAX_ROWS) {
       throw new Error(`O arquivo excede o limite operacional de ${COMMERCE_XLSX_MAX_ROWS.toLocaleString('pt-BR')} linhas.`);
+    }
+
+    const bulkEdit = market === 'MERCADO_LIVRE' && sheetName === 'Anúncios' ? mlBulkEditRows(data) : null;
+    if (bulkEdit) {
+      for (const item of bulkEdit) {
+        rows.push(stagingRow({
+          status: 'REVIEW', issues: ['marketplace_active_status_unverified'],
+          original: stableRow(data[item.rowNumber - 1]), normalized: item.normalized
+        }, sheetName, item.rowNumber));
+      }
+      sheets.push({ name: sheetName, physical_rows: data.length, accepted_rows: bulkEdit.length,
+        invalid_rows: 0, review_rows: bulkEdit.length, workbook_hyperlinks: 0, recovered_hyperlinks: 0 });
+      continue;
+    }
+    if (market === 'MERCADO_LIVRE' && ['Ajuda','hidden','dropdown_options_hidden'].includes(sheetName)) {
+      continue;
     }
 
     let acceptedRows = 0;
