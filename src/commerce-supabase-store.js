@@ -338,6 +338,12 @@ export async function commerceApproveProbableRows(env, batchId) {
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
+export async function commerceSyncImportListingStates(env, batchId) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  return await supabaseRpc(env, 'commerce_sync_import_listing_states_v1', { p_batch_id: id });
+}
+
 export async function commerceCommitImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
