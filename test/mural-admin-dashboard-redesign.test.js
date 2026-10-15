@@ -52,10 +52,10 @@ test('dashboard paginates publications and allows page-size selection', () => {
   assert.ok(css.includes('.mural-admin-pagination'));
 });
 
-test('collection thumbnails are exposed for the admin dashboard and public gate stays closed', () => {
+test('collection thumbnails are exposed for the admin dashboard and public gate is released for operators', () => {
   assert.ok(router.includes('mc.image_key AS collection_image_key'));
   assert.ok(router.includes('collection_image_url:row.collection_id && row.collection_image_key'));
-  assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
+  assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
 });
 
 test('dashboard visual is responsive', () => {
