@@ -25,7 +25,7 @@ test('Mural keeps only operational tools after overview removal',()=>{
 
 test('Mural restores private test-area launch without reintroducing the QA tool',()=>{
   assert.ok(admin.includes('Área de teste'));
-  assert.ok(admin.includes("window.location.assign('/?mural=qa')"));
+  assert.ok(admin.includes("window.location.assign('/admin?mural=qa#admin/mural-nisti')"));
   assert.equal(admin.includes("qa:{title:'QA de liberação'"),false);
 });
 
