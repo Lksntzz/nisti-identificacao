@@ -452,9 +452,6 @@ function InstallApp({ compact = false }) {
 }
 
 function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpenOperatorModal, showInstall = false, muralUnread = 0, muralReleased = false, activeView = 'scanner', onOpenScanner, onOpenMural }) {
-  const initials = operatorName
-    ? operatorName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase()
-    : 'OP';
   const inMural = activeView === 'mural';
 
   const identity = (
@@ -482,17 +479,7 @@ function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpe
         <div className="brand-identity">{identity}</div>
       )}
       <div className="header-actions">
-        <button
-          type="button"
-          className="operator-profile-pill"
-          onClick={onOpenOperatorModal}
-          title="Editar perfil do operador"
-        >
-          <span className="operator-avatar-mini">{initials}</span>
-          <span className="operator-name-label">{operatorName || 'Operador'}</span>
-        </button>
-        {showInstall && <InstallApp compact />}
-        {!inMural && onOpenMural && onOpenScanner && (
+         {!inMural && onOpenMural && onOpenScanner && (
           <button
             type="button"
             className={`mural-nav-btn mural-nav-btn-spotlight${muralReleased ? '' : ' is-coming-soon'}`}
@@ -500,8 +487,8 @@ function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpe
             aria-label={muralReleased ? `Abrir Mural NISTI (${muralUnread} não lidos)` : 'Conheça o Mural NISTI, em breve'}
             title={muralReleased ? 'Abrir Mural NISTI' : 'Mural NISTI — novidades em breve'}
           >
-            <span className="mural-nav-glow" aria-hidden="true">✦</span>
-            <span>Mural</span>
+            <span className="mural-nav-glow" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 1.8 6.2L20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8L12 3ZM19.5 17l.6 1.9L22 19.5l-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6.6-1.9Z"/></svg></span>
+            <span className="mural-nav-label"><strong>Mural</strong><small>Novidades</small></span>
             {!muralReleased ? <span className="mural-nav-teaser" aria-hidden="true">NOVO</span> : muralUnread > 0 ? <span className="mural-nav-count">{muralUnread > 9 ? '9+' : muralUnread}</span> : null}
           </button>
         )}
@@ -637,6 +624,16 @@ function PublicIdentificationApp() {
           </div>
         </section>
       )}
+
+      <div className="operator-floating-dock">
+        {publicView === 'scanner' && <button type="button" className="operator-floating-profile"
+          onClick={() => setOperatorModalOpen(true)} title={`Perfil: ${operatorName || 'Operador'}`}
+          aria-label={`Abrir perfil do operador ${operatorName || ''}`.trim()}>
+          <span className="operator-floating-avatar">{operatorName ? operatorName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0,2).toUpperCase() : 'OP'}</span>
+          <span className="operator-floating-name">{operatorName || 'Operador'}</span>
+        </button>}
+        <InstallApp compact />
+      </div>
 
       <NotificationsModal
         isOpen={notificationsOpen}

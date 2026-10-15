@@ -7578,3 +7578,32 @@ button.kpi-box:active {
 .admin-mural-qa-header button{padding:10px 15px;border:1px solid #bcd0f4;border-radius:9px;background:#eef4ff;color:#1d4ed8;font-weight:750;cursor:pointer;white-space:nowrap}
 .admin-mural-qa-view>.mural-nisti,.admin-mural-qa-view>.mural-root{min-width:0}
 @media(max-width:720px){.admin-mural-qa-header{align-items:stretch;flex-direction:column}}
+
+
+/* Scanner header: the operator profile lives in its own bottom-corner dock. */
+.app.general .brand-topbar .header-actions{gap:12px}
+.app.general .operator-floating-dock{
+  position:fixed;right:max(14px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));
+  z-index:38;display:flex;align-items:center;gap:8px;max-width:calc(100vw - 28px);
+}
+.app.general .operator-floating-profile{
+  display:flex;align-items:center;gap:9px;min-height:46px;min-width:0;
+  padding:5px 13px 5px 5px;border:1px solid #d5deeb;border-radius:999px;
+  background:rgba(255,255,255,.96);color:#182641;
+  box-shadow:0 10px 28px rgba(21,34,66,.18);cursor:pointer;
+  font:inherit;font-weight:800;font-size:12px;
+  backdrop-filter:blur(12px);
+}
+.app.general .operator-floating-avatar{
+  flex:0 0 35px;display:grid;place-items:center;width:35px;height:35px;
+  border-radius:50%;background:linear-gradient(145deg,#236bfa,#13c0ca);color:white;
+  font-size:12px;font-weight:900;
+}
+.app.general .operator-floating-name{display:block;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app.general .operator-floating-profile:focus-visible{outline:3px solid #2b78ff;outline-offset:3px}
+@media(max-width:460px){
+  .app.general .operator-floating-dock{right:max(10px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom))}
+  .app.general .operator-floating-profile{min-height:43px;padding-right:10px;gap:7px}
+  .app.general .operator-floating-avatar{flex-basis:32px;width:32px;height:32px}
+  .app.general .operator-floating-name{max-width:68px}
+}
