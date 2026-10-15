@@ -127,6 +127,18 @@ export async function commerceListingHistory(env, { group = 'ALL', accountCode =
 }
 
 // One NISTI SKU per Catalog row. Marketplace listings remain separate child records.
+// The Catalog is based on ACTIVE seller advertisements, regardless of Scanner synchronization.
+export async function commerceActiveProductCatalog(env, filters = {}) {
+  const data = await supabaseRpc(env, 'commerce_active_product_catalog_v1', {
+    p_search: cleanText(filters.search),
+    p_marketplace_code: cleanText(filters.marketplace),
+    p_limit: cleanPageSize(filters.limit, 25),
+    p_offset: cleanOffset(filters.offset)
+  });
+  return data && typeof data === 'object' && !Array.isArray(data)
+    ? data : { items: [], total: 0, active_ads: 0 };
+}
+
 export async function commerceSkuListingGroups(env, filters = {}) {
   const data = await supabaseRpc(env, 'commerce_sku_listing_groups_v1', {
     p_search: cleanText(filters.search),
