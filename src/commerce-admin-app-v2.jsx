@@ -3,6 +3,7 @@ import './app.css';
 import './commerce-admin.css';
 import LOGO from './assets/logo.png';
 import CommerceManagementView from './commerce-management-view.jsx';
+import CommerceListingsView from './commerce-listings-view.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
 import CommerceImportCenter from './commerce-import-center.jsx';
@@ -24,7 +25,7 @@ const VIEW_TITLES = Object.freeze({
 });
 
 const VIEW_DESCRIPTIONS = Object.freeze({
-  catalog: 'Produto Mestre, imagens e anúncios de todas as plataformas em uma única visão.',
+  catalog: 'Somente anúncios ativos das plataformas, com todas as variações agrupadas abaixo de cada anúncio.',
   planning: 'Vendas do mês, saída diária, projeção, histórico e anúncios exclusivos por plataforma.',
   sales: 'Pedidos, unidades, faturamento e itens sem venda por plataforma, período e SKU.',
   'import-center': 'Nova área para importar catálogo e vendas com validação separada antes de gravar.',
@@ -230,7 +231,7 @@ export default function CommerceAdminAppV2() {
               </div>
             </div>
 
-            {activeView === 'catalog' && <CommerceManagementView mode="catalog" />}
+            {activeView === 'catalog' && <CommerceListingsView catalogMode />}
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
             {activeView === 'import-center' && <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />}
