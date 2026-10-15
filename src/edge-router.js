@@ -330,7 +330,7 @@ export default {
       if (pathname.startsWith('/api/')) {
         const muralApi = pathname === '/api/mural' || pathname.startsWith('/api/mural/');
         const publicImage = request.method === 'GET' && (
-          /^\\/api\\/images\\/\\d+(?:\\/.*)?$/.test(pathname)
+          pathname.startsWith('/api/images/')
           || pathname.startsWith('/api/reference-images/')
         );
         if (!muralApi && !publicImage) {
