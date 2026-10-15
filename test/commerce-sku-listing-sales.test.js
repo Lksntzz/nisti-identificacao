@@ -73,3 +73,25 @@ test('sales quantity entry stays accessible in expanded listing details only', (
   assert.ok(collapsePos >= 0 && salesPos > collapsePos);
   assert.match(grouped,/commerce-sku-manual-sale/);
 });
+
+test('one + button is placed at the end of each product card, not beside each listing ID', () => {
+  assert.match(grouped,/const isExpanded = expanded\.has\(product\.product_id\)/);
+  assert.match(grouped,/onClick=\{\(\) => toggleProduct\(product\.product_id\)\}/);
+  assert.equal(grouped.split('className="commerce-sku-expand"').length - 1, 1);
+  assert.equal(grouped.split('className="commerce-sku-id-link"').length - 1, 1);
+  const listingLoop = grouped.indexOf('listings.map(listing => (');
+  const expandButton = grouped.indexOf('className="commerce-sku-expand"');
+  const metadata = grouped.indexOf('className="commerce-sku-identifiers"');
+  assert.ok(listingLoop > 0 && expandButton > listingLoop && metadata > expandButton);
+  assert.ok(grouped.lastIndexOf('</div>', expandButton) > listingLoop, 'listing IDs finish before product expansion');
+  assert.match(compactCss,/\.commerce-sku-product-summary\{display:grid;/);
+  assert.match(compactCss,/\.commerce-sku-expand\{[^}]*justify-self:end;/);
+});
+
+test('shared SKU and EAN render once for product; sales stay separate per listing ID', () => {
+  assert.equal(grouped.split("<span>SKU</span>").length - 1, 1);
+  assert.equal(grouped.split("<span>EAN</span>").length - 1, 1);
+  assert.match(grouped,/commerce-sku-sales-list/);
+  assert.match(grouped,/listings\.map\(listing => \{/);
+  assert.match(grouped,/product\.product_id \+ ':' \+ listing\.listing_id/);
+});

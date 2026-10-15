@@ -80,11 +80,11 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
   const total = Number(data.total || 0);
   const pages = Math.max(1,Math.ceil(total / limit));
   const page = Math.floor(offset / limit) + 1;
-  function toggleListing(key) {
+  function toggleProduct(productId) {
     setExpanded(previous => {
       const next = new Set(previous);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
       return next;
     });
   }
@@ -123,74 +123,84 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
           {items.map(product => {
             const listings = Array.isArray(product.listings) ? product.listings : [];
             const eans = Array.isArray(product.eans) ? product.eans : [];
+            const isExpanded = expanded.has(product.product_id);
+            const detailId = 'commerce-sku-details-' + product.product_id;
             return (
               <article key={product.product_id} className="commerce-sku-product">
-                <ProductCutoutImage
-                  src={product.image_url}
-                  alt={product.product_name || product.sku}
-                  className="commerce-sku-product-thumb"
-                  fallback={<span className="commerce-sku-product-thumb missing">Sem foto</span>}
-                />
-                <div className="commerce-sku-product-main">
-                  <strong className="commerce-sku-product-name">{product.product_name || 'Produto NISTI'}</strong>
-                  <div className="commerce-sku-listings">
-                    {listings.map(listing => {
-                      const key = product.product_id + ':' + listing.listing_id;
-                      const isExpanded = expanded.has(key);
-                      const value = edits[key] ?? (listing.manual_units ?? '');
-                      return (
+                <div className="commerce-sku-product-summary">
+                  <ProductCutoutImage
+                    src={product.image_url}
+                    alt={product.product_name || product.sku}
+                    className="commerce-sku-product-thumb"
+                    fallback={<span className="commerce-sku-product-thumb missing">Sem foto</span>}
+                  />
+                  <div className="commerce-sku-product-main">
+                    <strong className="commerce-sku-product-name">{product.product_name || 'Produto NISTI'}</strong>
+                    <div className="commerce-sku-listings">
+                      {listings.map(listing => (
                         <div key={listing.listing_id} className="commerce-sku-listing">
-                          <div className="commerce-sku-listing-main">
-                            {listing.url ? (
-                              <a className="commerce-sku-id-link" href={listing.url}
-                                target="_blank" rel="noopener noreferrer"
-                                title={'Abrir anúncio ' + listing.external_listing_id}>
-                                {listing.external_listing_id}
-                                <span aria-hidden="true">↗</span>
-                              </a>
-                            ) : (
-                              <span className="commerce-sku-id-unlinked">{listing.external_listing_id || 'ID indisponível'}</span>
-                            )}
-                            <button type="button" className="commerce-sku-expand"
-                              onClick={() => toggleListing(key)}
-                              aria-expanded={isExpanded}
-                              aria-controls={'commerce-sku-details-' + key}
-                              aria-label={(isExpanded ? 'Ocultar' : 'Mostrar') + ' SKU e EAN do anúncio ' + listing.external_listing_id}>
-                              {isExpanded ? '−' : '+'}
-                            </button>
-                          </div>
-                          {isExpanded && (
-                            <div className="commerce-sku-details" id={'commerce-sku-details-' + key}>
-                              <div><span>SKU</span><code>{product.sku || 'Não informado'}</code></div>
-                              <div><span>EAN</span>
-                                {eans.length ? (
-                                  <div className="commerce-sku-eans">
-                                    {eans.map(ean => <code key={ean}>{ean}</code>)}
-                                  </div>
-                                ) : <em>Não cadastrado</em>}
-                              </div>
-                              {salesMode && (
-                                <div className="commerce-sku-manual-sale">
-                                  <label htmlFor={'listing-units-' + key}>Unidades no mês</label>
-                                  <div>
-                                    <input id={'listing-units-' + key} inputMode="numeric"
-                                      type="number" min="0" step="1" max="100000000"
-                                      value={value} placeholder="Não informado"
-                                      onChange={e => setEdits(current => ({...current,[key]:e.target.value}))}/>
-                                    <button type="button" disabled={saving !== ''}
-                                      onClick={() => save(product,listing)}>
-                                      {saving === key ? 'Salvando…' : 'Salvar'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                          {listing.url ? (
+                            <a className="commerce-sku-id-link" href={listing.url}
+                              target="_blank" rel="noopener noreferrer"
+                              title={'Abrir anúncio ' + listing.external_listing_id}>
+                              {listing.external_listing_id}
+                              <span aria-hidden="true">↗</span>
+                            </a>
+                          ) : (
+                            <span className="commerce-sku-id-unlinked">{listing.external_listing_id || 'ID indisponível'}</span>
                           )}
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
+                  <button type="button" className="commerce-sku-expand"
+                    onClick={() => toggleProduct(product.product_id)}
+                    aria-expanded={isExpanded}
+                    aria-controls={detailId}
+                    aria-label={(isExpanded ? 'Ocultar' : 'Mostrar') + ' SKU e EAN de ' + (product.product_name || product.sku)}>
+                    {isExpanded ? '−' : '+'}
+                  </button>
                 </div>
+                {isExpanded && (
+                  <div className="commerce-sku-details" id={detailId}>
+                    <div className="commerce-sku-identifiers">
+                      <div><span>SKU</span><code>{product.sku || 'Não informado'}</code></div>
+                      <div><span>EAN</span>
+                        {eans.length ? (
+                          <div className="commerce-sku-eans">
+                            {eans.map(ean => <code key={ean}>{ean}</code>)}
+                          </div>
+                        ) : <em>Não cadastrado</em>}
+                      </div>
+                    </div>
+                    {salesMode && (
+                      <div className="commerce-sku-sales-list">
+                        {listings.map(listing => {
+                          const key = product.product_id + ':' + listing.listing_id;
+                          const value = edits[key] ?? (listing.manual_units ?? '');
+                          return (
+                            <div key={listing.listing_id} className="commerce-sku-sale-row">
+                              <span className="commerce-sku-sale-id">{listing.external_listing_id}</span>
+                              <div className="commerce-sku-manual-sale">
+                                <label htmlFor={'listing-units-' + key}>Unidades no mês</label>
+                                <div>
+                                  <input id={'listing-units-' + key} inputMode="numeric"
+                                    type="number" min="0" step="1" max="100000000"
+                                    value={value} placeholder="Não informado"
+                                    onChange={e => setEdits(current => ({...current,[key]:e.target.value}))}/>
+                                  <button type="button" disabled={saving !== ''}
+                                    onClick={() => save(product,listing)}>
+                                    {saving === key ? 'Salvando…' : 'Salvar'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </article>
             );
           })}
