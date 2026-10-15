@@ -1532,12 +1532,13 @@ function PublishPreviewCard({ activeKind, form, product, collection, selectedPro
   );
 }
 
-function MuralPublishWorkspace({ item, products = [], onClose, onSaved }) {
+function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenExistingCollection }) {
   const sourceItem = item && item.mode === 'new' ? null : item;
   const isEditingCollection = Boolean(sourceItem && (sourceItem.kind === 'collection' || sourceItem.product_ids !== undefined));
   const presetKind = sourceItem?.kind || (isEditingCollection ? 'collection' : (item?.mode === 'new' ? item?.kind || null : null));
 
   const [activeKind, setActiveKind] = useState(presetKind || 'product');
+  const [collectionConflict, setCollectionConflict] = useState(null);
   const [form, setForm] = useState(() => postForm(sourceItem || (presetKind ? { ...EMPTY_POST, kind: presetKind } : null)));
   const [collectionForm, setCollectionForm] = useState(() => ({
     name: (isEditingCollection ? sourceItem?.name : '') || '',
@@ -1732,6 +1733,7 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved }) {
 
   const save = async (publish = false) => {
     setError('');
+    setCollectionConflict(null);
     setBusy(true);
     try {
       if (activeKind === 'collection') {
@@ -1841,7 +1843,15 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved }) {
       await onSaved();
       onClose();
     } catch (err) {
-      setError(err.message);
+      if (activeKind === 'collection' && !isEditingCollection && /Já existe uma coleção com esse slug/i.test(err.message || '')) {
+        const existingSlug = String(collectionForm.slug?.trim() || collectionForm.name?.trim() || form.title?.trim() || '')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+        setCollectionConflict({ slug: existingSlug, name: collectionForm.name?.trim() || form.title?.trim() || 'Coleção' });
+        setError('Esta coleção já está cadastrada. Abra o registro existente para concluir a publicação, sem criar uma duplicata.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setBusy(false);
     }
@@ -2406,7 +2416,15 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved }) {
             </div>
           </section>
 
-          {error && <div className="mural-admin-error mural-publish-v2-error">{error}</div>}
+          {error && <div className="mural-admin-error mural-publish-v2-error" role="alert">
+            {error}
+            {collectionConflict && onOpenExistingCollection && (
+              <button type="button" className="mural-open-existing-collection"
+                onClick={() => onOpenExistingCollection(collectionConflict.slug)}>
+                Abrir coleção existente
+              </button>
+            )}
+          </div>}
         </form>
 
         {/* Prévia Interativa em Tempo Real */}
@@ -2538,6 +2556,14 @@ export default function MuralNistiAdminView({ activeSection = 'dashboard', onSec
       products={products}
       onClose={()=>setCollectionEditor(null)}
       onSaved={load}
+      onOpenExistingCollection={async slug => {
+        try {
+          const result = await request('/api/admin/mural/collections');
+          const existing = (result?.items || []).find(row => row.slug === slug);
+          if (!existing) { setError('A coleção existente não foi encontrada na listagem. Atualize o painel.'); return; }
+          setCollectionEditor(existing);
+        } catch (err) { setError(err.message); }
+      }}
       onSwitchKind={kind=>{setCollectionEditor(null);setEditor({mode:'new',kind})}}
     />;
   }
@@ -2556,6 +2582,15 @@ export default function MuralNistiAdminView({ activeSection = 'dashboard', onSec
       item={{mode:'new'}}
       onClose={()=>onSectionChange?.('dashboard')}
       onSaved={load}
+      onOpenExistingCollection={async slug => {
+        try {
+          const result = await request('/api/admin/mural/collections');
+          const existing = (result?.items || []).find(row => row.slug === slug);
+          if (!existing) { setError('A coleção existente não foi encontrada.'); return; }
+          setEditor(null);
+          setCollectionEditor(existing);
+        } catch (err) { setError(err.message); }
+      }}
       onCreateCollection={()=>setCollectionEditor({mode:'new'})}
     />;
   }
