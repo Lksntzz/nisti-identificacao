@@ -126,7 +126,7 @@ export async function readCommerceXlsx(file, marketplace, accountCode = null) {
     // Only explicit ACTIVE seller listings enter the active catalog.
     // All child variation rows inherit their parent's authoritative status.
     const isMlBulk = market === 'MERCADO_LIVRE'
-      && sheetName.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase() === 'anuncios';
+      && sheetName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'anuncios';
     const mlIndex = isMlBulk ? indexMercadoLivreBulkStatus(data) : null;
     const listingStatusById = mlIndex?.statuses || new Map();
     const listingTitleById = mlIndex?.titles || new Map();
