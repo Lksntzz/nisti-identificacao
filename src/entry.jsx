@@ -16,6 +16,11 @@ function registerNistiServiceWorker() {
 registerNistiServiceWorker();
 
 function getInitialRoute() {
+  // Dedicated URL: never load the Scanner or admin bundles on the Mural host.
+  if (window.location.hostname === 'mural.sistemanistiid.online'
+    || window.location.pathname === '/mural') {
+    return 'mural';
+  }
   if (window.location.pathname === '/admin-commerce') {
     return 'commerce';
   }
@@ -30,6 +35,7 @@ function RootApp() {
   const [AdminComponent, setAdminComponent] = useState(null);
   const [CommerceComponent, setCommerceComponent] = useState(null);
   const [PublicComponent, setPublicComponent] = useState(null);
+  const [MuralComponent, setMuralComponent] = useState(null);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -52,12 +58,16 @@ function RootApp() {
       import('./main.jsx').then(mod => {
         setAdminComponent(() => mod.default || mod.AdminApp);
       });
+    } else if (route === 'mural' && !MuralComponent) {
+      import('./mural-standalone.jsx').then(mod => {
+        setMuralComponent(() => mod.default);
+      });
     } else if (route === 'public' && !PublicComponent) {
       import('./public-main.jsx').then(publicMod => {
         setPublicComponent(() => publicMod.default || publicMod.PublicIdentificationApp);
       });
     }
-  }, [route, AdminComponent, CommerceComponent, PublicComponent]);
+  }, [route, AdminComponent, CommerceComponent, PublicComponent, MuralComponent]);
 
   if (route === 'commerce') {
     if (!CommerceComponent) {
@@ -81,6 +91,17 @@ function RootApp() {
     }
     const Comp = AdminComponent;
     return <Comp />;
+  }
+
+  if (route === 'mural') {
+    if (!MuralComponent) {
+      return (
+        <div style={{ display:'grid', placeItems:'center', minHeight:'100dvh', fontFamily:'sans-serif' }}>
+          <span>Carregando Mural NISTI…</span>
+        </div>
+      );
+    }
+    return <MuralComponent />;
   }
 
   if (!PublicComponent) {

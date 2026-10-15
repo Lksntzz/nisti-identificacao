@@ -324,6 +324,39 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
+    // Mural's public hostname is a distinct application surface, not a second
+    // URL that exposes the Scanner or protected administration endpoints.
+    if (url.hostname === 'mural.sistemanistiid.online') {
+      if (pathname.startsWith('/api/')) {
+        const muralApi = pathname === '/api/mural' || pathname.startsWith('/api/mural/');
+        const publicImage = request.method === 'GET' && (
+          pathname.startsWith('/api/images/')
+          || pathname.startsWith('/api/reference-images/')
+        );
+        if (!muralApi && !publicImage) {
+          return withSecurityHeaders(json({error:'Esta URL é exclusiva do Mural NISTI.'},404));
+        }
+      }
+      if (pathname === '/admin' || pathname.startsWith('/admin/')
+        || pathname === '/admin-login' || pathname === '/admin-logout'
+        || pathname === '/admin-commerce' || pathname.startsWith('/admin-commerce/')) {
+        return withSecurityHeaders(json({error:'Esta URL é exclusiva do Mural NISTI.'},404));
+      }
+      if (request.method === 'GET' && (pathname === '/mural' || pathname === '/index.html')) {
+        return withSecurityHeaders(await env.ASSETS.fetch(new Request(new URL('/',url),{
+          headers:request.headers
+        })));
+      }
+    }
+
+    // Opening the bookmarked /mural address on the primary operator hostname
+    // must also mount the Mural-only frontend instead of returning an asset 404.
+    if (request.method === 'GET' && pathname === '/mural') {
+      return withSecurityHeaders(await env.ASSETS.fetch(new Request(new URL('/',url),{
+        headers:request.headers
+      })));
+    }
+
     // Root of the dedicated administrative hostname must never serve the operator scanner.
     // Reuse the existing protected /admin route for authentication and session handling.
     if (request.method === 'GET' && (pathname === '/' || pathname === '/index.html')
