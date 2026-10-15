@@ -246,7 +246,7 @@ export function indexMercadoLivreBulkStatus(rows) {
   const statusMap = { ativo: 'ACTIVE', inativo: 'INACTIVE', pausado: 'PAUSED', finalizado: 'REMOVED', encerrado: 'REMOVED' };
   for (const row of (rows || []).slice(6)) {
     const id = text(row?.[idIndex]).toUpperCase();
-    if (!/^MLB\\d{6,}$/.test(id)) continue;
+    if (!/^MLB\d{6,}$/.test(id)) continue;
     const status = statusMap[fold(row?.[statusIndex])];
     if (!status) continue; // Child variation rows contain numeric placeholders.
     if (statuses.has(id) && statuses.get(id) !== status) {
