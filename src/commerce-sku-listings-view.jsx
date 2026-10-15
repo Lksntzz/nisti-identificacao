@@ -8,7 +8,7 @@ function localMonth() {
   return new Date().toLocaleDateString('sv-SE', {timeZone:'America/Sao_Paulo'}).slice(0,7);
 }
 
-export default function CommerceSkuListingsView({ salesMode = false }) {
+export default function CommerceSkuListingsView({ salesMode = false, catalogMode = false }) {
   const [search,setSearch] = useState('');
   const [appliedSearch,setAppliedSearch] = useState('');
   const [platform,setPlatform] = useState('');
@@ -32,7 +32,9 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
     });
     if (appliedSearch) params.set('search',appliedSearch);
     try {
-      const result = await commerceApi('/api/admin/commerce/sku-listings?' + params);
+      const result = await commerceApi((catalogMode
+        ? '/api/admin/commerce/catalog/active-products?'
+        : '/api/admin/commerce/sku-listings?') + params);
       setData(result && typeof result === 'object' ? result : {items:[],total:0});
       setOffset(nextOffset);
       setEdits({});
@@ -43,7 +45,7 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
     }
   }
 
-  useEffect(() => { load(0); }, [platform,month,appliedSearch,salesMode]);
+  useEffect(() => { load(0); }, [platform,month,appliedSearch,salesMode,catalogMode]);
 
   async function save(product,listing) {
     const key = product.product_id + ':' + listing.listing_id;
@@ -93,7 +95,9 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
     <section className="commerce-sku-panel">
       <div className="commerce-sku-header">
         <h2>{salesMode ? 'Vendas por anúncio' : 'Catálogo de produtos ativos'}</h2>
-        <small>{commerceFormatNumber(total)} produtos</small>
+        <small>{catalogMode
+          ? `${commerceFormatNumber(data.active_ads || 0)} anúncios ativos · ${commerceFormatNumber(total)} grupos de produtos`
+          : `${commerceFormatNumber(total)} produtos`}</small>
       </div>
 
       <div className="commerce-sku-filters">
@@ -116,17 +120,20 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
       {error && <p className="commerce-sku-error" role="alert">{error}</p>}
       {notice && <p className="commerce-sku-success" role="status">{notice}</p>}
       {loading && <p className="commerce-sku-empty">Carregando produtos e anúncios…</p>}
-      {!loading && !items.length && <p className="commerce-sku-empty">Nenhum produto vinculado a anúncio ativo neste filtro. Consulte Pendências para anúncios ainda não identificados.</p>}
+      {!loading && !items.length && <p className="commerce-sku-empty">{catalogMode
+        ? 'Nenhum anúncio ativo encontrado neste filtro.'
+        : 'Nenhum produto vinculado a anúncio ativo neste filtro. Consulte Pendências para anúncios ainda não identificados.'}</p>}
 
       {!loading && items.length > 0 && (
         <div className="commerce-sku-products">
           {items.map(product => {
             const listings = Array.isArray(product.listings) ? product.listings : [];
             const eans = Array.isArray(product.eans) ? product.eans : [];
-            const isExpanded = expanded.has(product.product_id);
-            const detailId = 'commerce-sku-details-' + product.product_id;
+            const productKey = product.key || product.product_id;
+            const isExpanded = expanded.has(productKey);
+            const detailId = 'commerce-sku-details-' + String(productKey).replace(/[^a-zA-Z0-9_-]/g, '-');
             return (
-              <article key={product.product_id} className="commerce-sku-product">
+              <article key={productKey} className="commerce-sku-product">
                 <div className="commerce-sku-product-summary">
                   <ProductCutoutImage
                     src={product.image_url}
@@ -149,12 +156,26 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
                           ) : (
                             <span className="commerce-sku-id-unlinked">{listing.external_listing_id || 'ID indisponível'}</span>
                           )}
+                          {catalogMode && Array.isArray(listing.variations) && listing.variations.length > 0 && (
+                            <div className="commerce-sku-variations">
+                              {listing.variations.map(variation => (
+                                <span className="commerce-sku-variation" key={variation.id || variation.sku}>
+                                  {variation.image_url && (
+                                    <img src={variation.image_url} loading="lazy"
+                                      alt={variation.name || 'Variação'} />
+                                  )}
+                                  <span>{variation.name || 'Variação'}</span>
+                                  <code>{variation.current_sku || variation.sku || 'SKU não informado'}</code>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
                   <button type="button" className="commerce-sku-expand"
-                    onClick={() => toggleProduct(product.product_id)}
+                    onClick={() => toggleProduct(productKey)}
                     aria-expanded={isExpanded}
                     aria-controls={detailId}
                     aria-label={(isExpanded ? 'Ocultar' : 'Mostrar') + ' SKU e EAN de ' + (product.product_name || product.sku)}>
@@ -164,7 +185,7 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
                 {isExpanded && (
                   <div className="commerce-sku-details" id={detailId}>
                     <div className="commerce-sku-identifiers">
-                      <div><span>SKU</span><code>{product.sku || 'Não informado'}</code></div>
+                      <div><span>SKU</span><code>{product.sku || 'Consulte as variações abaixo'}</code></div>
                       <div><span>EAN</span>
                         {eans.length ? (
                           <div className="commerce-sku-eans">
@@ -208,7 +229,7 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
       )}
 
       <div className="commerce-sku-pagination">
-        <span>Página {page} de {pages} · {commerceFormatNumber(total)} produtos</span>
+        <span>Página {page} de {pages} · {commerceFormatNumber(total)} {catalogMode ? 'grupos de produtos' : 'produtos'}</span>
         <div>
           <button disabled={loading || offset===0} onClick={()=>load(Math.max(0,offset-limit))}>Anterior</button>
           <button disabled={loading || offset+limit>=total} onClick={()=>load(offset+limit)}>Próxima</button>
