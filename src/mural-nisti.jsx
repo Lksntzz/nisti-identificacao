@@ -376,7 +376,11 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
       onClick={() => onOpen?.(item)}
     >
       {isNotice ? (
-        <span className={`mural-card-media mural-notice-visual ${item.notice_level || 'info'}`}><MuralIcon name="megaphone" size={38} /></span>
+        <span className={`mural-card-media mural-notice-visual mural-notice-visual-vibrant ${item.notice_level || 'info'}`}>
+          <span className="mural-notice-icon-emblem" aria-hidden="true"><MuralIcon name="megaphone" size={40} /></span>
+          <span className="mural-notice-accent-star star-top" aria-hidden="true"><MuralIcon name="sparkles" size={16} /></span>
+          <span className="mural-notice-accent-star star-bottom" aria-hidden="true"><MuralIcon name="sparkles" size={12} /></span>
+        </span>
       ) : (
         <span className="mural-card-media"><MuralImage item={item} eager={eager} className="mural-card-image" /></span>
       )}
@@ -384,7 +388,7 @@ export function MuralCard({ item, onOpen, eager = false, index = 0 }) {
       <span className="mural-card-content">
         <span className="mural-card-topline">
           <span className="mural-card-badges">
-            {!item.is_read && <span className="mural-card-new-pill">NOVO</span>}
+            {!item.is_read && <span className="mural-card-new-pill">{isNotice ? 'NOVIDADE' : 'NOVO'}</span>}
             {isNotice && (
               <span className={`mural-card-notice-pill${item.notice_level === 'important' ? ' is-important' : ''}`}>
                 <i />{item.notice_level === 'important' ? 'IMPORTANTE' : 'AVISO'}
