@@ -34,7 +34,7 @@ test('product focus respects reduced motion', () => {
   assert.ok(css.includes('transition:none!important'));
 });
 
-test('public Em breve gate remains closed', () => {
-  assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
+test('released operator Mural gate remains closed', () => {
+  assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
   assert.ok(publicMain.includes('<h2>Em breve</h2>'));
 });
