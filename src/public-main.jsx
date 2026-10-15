@@ -451,7 +451,7 @@ function InstallApp({ compact = false }) {
   );
 }
 
-function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpenOperatorModal, showInstall = false, muralUnread = 0, activeView = 'scanner', onOpenScanner, onOpenMural }) {
+function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpenOperatorModal, showInstall = false, muralUnread = 0, muralReleased = false, activeView = 'scanner', onOpenScanner, onOpenMural }) {
   const initials = operatorName
     ? operatorName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase()
     : 'OP';
@@ -495,12 +495,14 @@ function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpe
         {!inMural && onOpenMural && onOpenScanner && (
           <button
             type="button"
-            className="mural-nav-btn"
+            className={`mural-nav-btn mural-nav-btn-spotlight${muralReleased ? '' : ' is-coming-soon'}`}
             onClick={onOpenMural}
-            aria-label={`Abrir Mural NISTI (${muralUnread} não lidos)`}
+            aria-label={muralReleased ? `Abrir Mural NISTI (${muralUnread} não lidos)` : 'Conheça o Mural NISTI, em breve'}
+            title={muralReleased ? 'Abrir Mural NISTI' : 'Mural NISTI — novidades em breve'}
           >
+            <span className="mural-nav-glow" aria-hidden="true">✦</span>
             <span>Mural</span>
-            {muralUnread > 0 && <span className="mural-nav-count">{muralUnread > 9 ? '9+' : muralUnread}</span>}
+            {!muralReleased ? <span className="mural-nav-teaser" aria-hidden="true">NOVO</span> : muralUnread > 0 ? <span className="mural-nav-count">{muralUnread > 9 ? '9+' : muralUnread}</span> : null}
           </button>
         )}
         <BellIcon unreadCount={unreadCount} onClick={onOpenNotifications} />
@@ -516,6 +518,7 @@ function PublicIdentificationApp() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [muralUnread, setMuralUnread] = useState(0);
   const [muralAccess, setMuralAccess] = useState(false);
+  const [muralReleaseConfirmed, setMuralReleaseConfirmed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [publicView, setPublicView] = useState('scanner');
 
@@ -566,16 +569,14 @@ function PublicIdentificationApp() {
         if (!active) return;
         const allowed = Boolean(data?.released || (qaRequested && data?.qa));
         setMuralAccess(allowed);
+        setMuralReleaseConfirmed(Boolean(data?.released));
         if (allowed && qaRequested) setPublicView('mural');
       })
       .catch(() => {
         if (!active) return;
-        if (qaRequested) {
-          setMuralAccess(true);
-          setPublicView('mural');
-        } else {
-          setMuralAccess(false);
-        }
+        // Never infer authorization from a failed access check.
+        setMuralAccess(false);
+        setMuralReleaseConfirmed(false);
       });
     return () => { active = false; };
   }, []);
@@ -608,6 +609,7 @@ function PublicIdentificationApp() {
         onOpenOperatorModal={() => setOperatorModalOpen(true)}
         showInstall
         muralUnread={muralUnread}
+        muralReleased={muralReleaseConfirmed}
         activeView={publicView}
         onOpenScanner={() => setPublicView('scanner')}
         onOpenMural={() => setPublicView('mural')}
@@ -630,22 +632,7 @@ function PublicIdentificationApp() {
             <p>Estamos preparando este espaço para você.</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '14px' }}>
               <button type="button" onClick={() => setPublicView('scanner')}>Voltar ao Scanner</button>
-              <button
-                type="button"
-                style={{
-                  background: 'transparent',
-                  border: '1px dashed #cbd5e1',
-                  color: '#2563eb',
-                  borderRadius: '12px',
-                  padding: '10px 14px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-                onClick={() => { setMuralAccess(true); setPublicView('mural'); }}
-              >
-                ✦ Abrir Demonstração do Mural (QA)
-              </button>
+
             </div>
           </div>
         </section>
