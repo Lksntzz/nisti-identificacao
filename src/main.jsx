@@ -1948,7 +1948,7 @@ function AdminApp() {
 
             {activeView === 'commerce' && (
               <div className="commerce-admin-inline-view">
-                {commerceSection === 'catalog' && <CommerceSkuListingsView />}
+                {commerceSection === 'catalog' && <CommerceSkuListingsView catalogMode />}
                 {commerceSection === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
                 {commerceSection === 'import-center' && (
                   <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />
