@@ -20,8 +20,8 @@ test('Mural drafts are created only through the explicit admin publication flow'
   assert.ok(mural.includes("payload.published_at,payload.expires_at,'admin'"));
 });
 
-test('Mural push is gated until operator release and supports three publication types',()=>{
-  assert.ok(mural.includes("const MURAL_PUBLIC_RELEASED = false"));
+test('Mural push is released and supports three publication types',()=>{
+  assert.ok(mural.includes("const MURAL_PUBLIC_RELEASED = true"));
   assert.ok(mural.includes("if (!MURAL_PUBLIC_RELEASED) {"));
   assert.ok(mural.includes("['collection','product','notice'].includes(post.kind)"));
   assert.ok(mural.includes("post.status !== 'published'"));
