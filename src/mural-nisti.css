@@ -4125,3 +4125,70 @@
   .mural-notice-icon-emblem svg {width:36px;height:36px}
   .mural-notice-accent-star.star-top {right:7px;top:7px}
 }
+
+
+/* iOS PWA recovery: browser image data must never stay transparent when a
+   resumed WebKit page misses the native img load event. */
+.mural-shell .mural-image-media,
+.mural-shell .mural-image-media.is-loaded {
+  opacity:1;
+  filter:none;
+}
+
+/* Premium banners are self-describing even while their editorial image is
+   delayed or unavailable. The original art remains unchanged once ready. */
+.mural-launch-hero.has-banner:not(.is-image-ready) {
+  background:linear-gradient(125deg,#fff2f9 0%,#f1ecff 50%,#e6f6ff 100%);
+}
+.mural-launch-banner-fallback {
+  position:absolute;
+  z-index:2;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:9px;
+  padding:54px 64px 24px 23px;
+  background:linear-gradient(125deg,#fff2f9 0%,#f1ecff 50%,#e6f6ff 100%);
+  color:#13244e;
+  pointer-events:none;
+}
+.mural-launch-banner-fallback strong {
+  font-size:clamp(22px,5vw,33px);
+  line-height:1.1;
+  font-weight:950;
+  letter-spacing:-.035em;
+}
+.mural-launch-banner-fallback>span {
+  display:-webkit-box;
+  overflow:hidden;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  line-height:1.4;
+  font-size:12px;
+  font-weight:650;
+  color:#51617f;
+}
+.mural-launch-hero.has-banner.is-image-ready .mural-launch-banner-fallback {display:none}
+.mural-collection-launch-card.has-editorial-banner:not(.is-image-ready) .mural-collection-launch-copy {
+  position:absolute;
+  z-index:2;
+  inset:0;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:20px 64px 20px 24px;
+  background:linear-gradient(125deg,#fff2f9 0%,#f3f0ff 50%,#e9f8ff 100%);
+}
+.mural-collection-launch-card.has-editorial-banner:not(.is-image-ready) .mural-collection-launch-copy>strong {
+  font-size:clamp(20px,4.5vw,28px);
+  line-height:1.1;
+}
+.mural-collection-launch-card.has-editorial-banner:not(.is-image-ready) .mural-collection-launch-copy>span {
+  max-width:100%;
+}
+@media(max-width:390px){
+  .mural-launch-banner-fallback{padding-left:17px;padding-right:56px}
+  .mural-collection-launch-card.has-editorial-banner:not(.is-image-ready) .mural-collection-launch-copy{padding-left:18px;padding-right:54px}
+}

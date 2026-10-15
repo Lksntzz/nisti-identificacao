@@ -25,7 +25,7 @@ test('part 7 makes the collection look curated with collage, principal cover and
 
 test('part 7 keeps broken collection product images resilient', () => {
   assert.ok(mural.includes('function CollectionProductImage'));
-  assert.ok(mural.includes('onError={() => setFailed(true)}'));
+  assert.match(mural,/onError=\{\(\) => \{\s*setFailed\(true\);/);
   assert.ok(mural.includes('<KindIcon kind="product" />'));
 });
 
