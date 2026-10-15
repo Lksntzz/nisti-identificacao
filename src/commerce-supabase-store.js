@@ -131,7 +131,7 @@ export async function commerceSkuListingGroups(env, filters = {}) {
   const data = await supabaseRpc(env, 'commerce_sku_listing_groups_v1', {
     p_search: cleanText(filters.search),
     p_marketplace_code: cleanText(filters.marketplace),
-    p_period_month: cleanText(filters.periodMonth) || null,
+    p_period_month: cleanText(filters.periodMonth) ? cleanText(filters.periodMonth) + '-01' : null,
     p_limit: cleanPageSize(filters.limit, 25),
     p_offset: cleanOffset(filters.offset)
   });
