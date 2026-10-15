@@ -12,7 +12,7 @@ test('legacy reserve backfill stays recovery-only while gated Mural notification
   assert.match(backfill,/mural_post_reads/);
   assert.match(router,/async scheduled\(_event, env, ctx\)/);
   assert.match(router,/dispatchScheduledMuralNotifications\(env\)/);
-  assert.match(fs.readFileSync('src/mural-router.js','utf8'),/const MURAL_PUBLIC_RELEASED = false/);
+  assert.match(fs.readFileSync('src/mural-router.js','utf8'),/const MURAL_PUBLIC_RELEASED = true/);
   assert.doesNotMatch(router,/runReferenceReindex/);
   assert.doesNotMatch(router,/runReserveBackfill/);
   assert.doesNotMatch(router,/supabase-reserve-backfill/);
