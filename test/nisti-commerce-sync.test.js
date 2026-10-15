@@ -43,14 +43,16 @@ test('cadastro, edição, imagem e lote do NISTI ID acionam a sincronização', 
   assert.equal(core.includes("/api/admin/commerce-sync/nisti-products"), true);
 });
 
-test('reconciliação inicial usa o banco operacional do NISTI ID e não o mirror antigo', () => {
+test('Scanner mantém os dados próprios, mas não recria o Catálogo vazio ao abrir o admin', () => {
   const helper = read('src/nisti-commerce-sync.js');
   const main = read('src/main.jsx');
 
   assert.equal(helper.includes("FROM products p"), true);
   assert.equal(helper.includes("SELECT COUNT(*) AS total FROM products"), true);
-  assert.equal(main.includes("/api/admin/commerce-sync/nisti-products"), true);
-  assert.equal(main.includes("nisti_commerce_initial_sync_v1"), true);
+  assert.equal(helper.includes("commerce_has_marketplace_import_v1"), true);
+  assert.equal(helper.includes("catalog_not_imported"), true);
+  assert.equal(main.includes("nisti_commerce_initial_sync_v1"), false);
+  assert.equal(main.includes("api('/api/admin/commerce-sync/nisti-products', { method: 'POST' })"), false);
 });
 
 test('preview não escreve no catálogo live', () => {

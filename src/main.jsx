@@ -4,7 +4,7 @@ import LOGO from './assets/logo.png';
 import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';
 import SystemHealthView from './system-health-view.jsx';
 import ExpeditionDashboard from './admin/ExpeditionDashboard.jsx';
-import CatalogView from './admin/CatalogView.jsx';
+import CatalogView, { CatalogPlatformTags } from './admin/CatalogView.jsx';
 import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
@@ -686,31 +686,6 @@ function WelcomeDateBanner() {
       </div>
     </div>
   );
-}
-
-/* =========================================================================
-   PLATFORM BADGE
-   ========================================================================= */
-function PlatformTag({ platform }) {
-  const p = String(platform || '').toUpperCase();
-  let className = 'platform-pill-default';
-  let label = platform || 'Geral';
-
-  if (p.includes('MERCADO') || p.includes('ML')) {
-    className = 'platform-pill-ml';
-    label = 'Mercado Livre';
-  } else if (p.includes('SHOPEE')) {
-    className = 'platform-pill-shopee';
-    label = 'Shopee';
-  } else if (p.includes('AMAZON')) {
-    className = 'platform-pill-amazon';
-    label = 'Amazon';
-  } else if (p.includes('MAGALU')) {
-    className = 'platform-pill-magalu';
-    label = 'Magalu';
-  }
-
-  return <span className={`platform-pill ${className}`}>{label}</span>;
 }
 
 /* =========================================================================
@@ -1504,7 +1479,7 @@ function ViewProductModal({ product, isOpen, onClose, onEdit, onSyncComplete }) 
           <div className="view-modal-info-col">
             <div className="view-badge-row">
               <span className="capa-code-pill-lg">{product.capa_code}</span>
-              <PlatformTag platform={product.platform} />
+              <CatalogPlatformTags product={{ ...product, commerce_sync: syncState }} />
               <span className="status-pill active">• Ativo</span>
               <CommerceSyncBadge sync={syncState} />
             </div>
@@ -1850,21 +1825,11 @@ function AdminApp() {
   useEffect(() => {
     let cancelled = false;
 
-    refreshAll()
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      })
-      .then(async () => {
-        try {
-          const syncKey = 'nisti_commerce_initial_sync_v1';
-          if (window.sessionStorage.getItem(syncKey) === '1') return;
-          const result = await api('/api/admin/commerce-sync/nisti-products', { method: 'POST' });
-          window.sessionStorage.setItem(syncKey, '1');
-          console.info('[NISTI→Commerce] Reconciliação concluída', result);
-        } catch (error) {
-          console.warn('[NISTI→Commerce] Reconciliação inicial pendente', error);
-        }
-      });
+    // Opening the Scanner admin panel is strictly read-only for Commerce.
+    // Imports are the source of marketplace badges; do not auto-seed catalogs.
+    refreshAll().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
 
     const refreshMetricsIfVisible = () => {
       if (document.visibilityState === 'visible') refreshMetrics();
