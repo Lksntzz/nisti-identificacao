@@ -357,6 +357,45 @@ async function listMuralFeed(request, url, env) {
   });
 }
 
+async function getMuralNotificationPost(postId, request, env) {
+  const userId = cleanUserId(request);
+  if (!userId) return json({ error: 'Sessão do operador inválida.' }, 401);
+  const row = await preferSupabaseRead(
+    env,
+    () => supabaseRpc(env, 'nisti_mural_notification_post_v1', {
+      p_post_id: postId, p_user_id: userId
+    }),
+    async () => env.DB.prepare(`
+      SELECT mp.id,mp.kind,mp.title,mp.subtitle,mp.body,mp.badge,mp.badge_tone,
+        mp.featured,mp.priority,mp.published_at,mp.expires_at,mp.image_key,mp.notice_level,
+        p.id AS product_id,p.sku,p.miolo_code,p.nome AS product_name,p.wireo_code,
+        p.tassel_code,p.elastico_code,p.image_key AS product_image_key,
+        mpi.status AS mural_image_status,mpi.reviewed_by AS mural_image_reviewed_by,
+        mpi.source_image_key AS mural_source_image_key,
+        mpi.processed_image_key AS mural_processed_image_key,
+        mpi.processor_version AS mural_image_processor_version,
+        mc.id AS collection_id,mc.slug AS collection_slug,mc.name AS collection_name,
+        mc.year AS collection_year,mc.show_year AS collection_show_year,
+        mc.hero_message AS collection_hero_message,mc.visual_direction AS collection_visual_direction,
+        mc.theme_notes AS collection_theme_notes,mc.description AS collection_description,
+        mc.image_key AS collection_image_key,
+        CASE WHEN mr.post_id IS NULL THEN 0 ELSE 1 END AS is_read
+      FROM mural_posts mp
+      LEFT JOIN products p ON p.id=mp.product_id
+      LEFT JOIN mural_product_images mpi ON mpi.product_id=p.id
+      LEFT JOIN mural_collections mc ON mc.id=mp.collection_id
+      LEFT JOIN mural_post_reads mr ON mr.post_id=mp.id AND mr.user_id=?
+      WHERE mp.id=? AND mp.status='published' AND mp.published_at IS NOT NULL
+        AND datetime(mp.published_at)<=CURRENT_TIMESTAMP
+        AND (mp.expires_at IS NULL OR datetime(mp.expires_at)>CURRENT_TIMESTAMP)
+      LIMIT 1
+    `).bind(userId,postId).first(),
+    'mural:notification-post'
+  );
+  if (!row) return json({ error: 'Publicação indisponível.' }, 404);
+  return json({ item: mapFeedRow(row) });
+}
+
 async function markRead(postId, userId, env) {
   if (supabasePrimaryWritesRequested(env)) {
     const result = await mirrorSupabaseRpc(
@@ -1413,6 +1452,11 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
       const userId=cleanUserId(request);
       if(!userId)return json({error:'Sessão do operador inválida.'},401);
       return json({ unread_count: await unreadCount(userId, env) });
+    }
+
+    const notificationPost = path.match(/^\\/api\\/mural\\/posts\\/(\\d+)$/);
+    if (notificationPost && request.method === 'GET') {
+      return getMuralNotificationPost(Number(notificationPost[1]), request, env);
     }
 
     const read = path.match(/^\/api\/mural\/(\d+)\/read$/);
