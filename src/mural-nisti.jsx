@@ -145,7 +145,7 @@ function MuralImage({ item, eager = false, className = '', onMediaReady }) {
     };
     document.addEventListener('visibilitychange', recover);
     window.addEventListener('online', recover);
-    const timeout = window.setTimeout(() => {
+    const timeout = (eager || failed) ? window.setTimeout(() => {
       const current = imageRef.current;
       if (current?.complete && current.naturalWidth > 0) {
         setLoaded(true);
@@ -157,13 +157,13 @@ function MuralImage({ item, eager = false, className = '', onMediaReady }) {
         setFailed(true);
         onMediaReady?.(false);
       }
-    }, attempt === 0 ? 5500 : 8000);
+    }, attempt === 0 ? 5500 : 8000) : 0;
     return () => {
       window.clearTimeout(timeout);
       document.removeEventListener('visibilitychange', recover);
       window.removeEventListener('online', recover);
     };
-  }, [displaySrc, attempt, failed, loaded]);
+  }, [displaySrc, attempt, failed, loaded, eager]);
 
   if (!displaySrc || failed) {
     return <div className={`mural-image-placeholder ${className}`}><KindIcon kind={item?.kind} /></div>;
