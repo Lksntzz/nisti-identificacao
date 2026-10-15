@@ -48,3 +48,12 @@
 .commerce-sku-pagination{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid #e2e8f0;padding:12px 20px;font-size:11px;color:#64748b}
 .commerce-sku-pagination>div{display:flex;gap:7px}
 @media(max-width:650px){.commerce-sku-header{padding:13px 15px}.commerce-sku-products{padding:10px;gap:8px}.commerce-sku-product-summary{grid-template-columns:52px minmax(0,1fr) 34px;padding:11px;gap:10px}.commerce-sku-product-thumb{width:52px;height:66px}.commerce-sku-product-name{font-size:12px}.commerce-sku-filters{padding:11px}.commerce-sku-listings{gap:6px}.commerce-sku-pagination{align-items:flex-start;flex-direction:column}.commerce-sku-details{margin:0 10px 10px;padding:10px}.commerce-sku-sale-row{align-items:flex-start;flex-wrap:wrap}}
+
+/* Marketplace variations belong to their parent advertisement; never counted as standalone ads. */
+.commerce-sku-variations{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;max-width:690px}
+.commerce-sku-variation{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;font-size:10px;color:#475569;max-width:100%}
+.commerce-sku-variation img{width:26px;height:30px;object-fit:contain;flex-shrink:0}
+.commerce-sku-variation code{font-size:10px;color:#334155;font-weight:700;overflow-wrap:anywhere}
+.commerce-sku-variation>span{white-space:nowrap}
+.commerce-sku-header small{white-space:normal;text-align:right}
+@media(max-width:650px){.commerce-sku-header{align-items:flex-start}.commerce-sku-header small{max-width:140px}.commerce-sku-variations{max-width:100%}.commerce-sku-variation{flex-wrap:wrap}}
