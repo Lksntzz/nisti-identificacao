@@ -137,11 +137,34 @@ export async function commerceListings(env, filters = {}) {
     p_offset: offset
   });
 
-  return {
-    items: Array.isArray(rows) ? rows : [],
-    limit,
-    offset
-  };
+  const items = Array.isArray(rows) ? rows : [];
+  // The active Catalog is listing-centric. Fetch child variants by the
+  // marketplace variation ID, including items not linked to a Scanner SKU yet.
+  if (cleanText(filters.status) === 'ACTIVE' && items.length) {
+    const listingIds = items
+      .map(item => cleanId(item.listing_id))
+      .filter(Boolean);
+    const sourceVariations = listingIds.length
+      ? await supabaseRpc(env, 'commerce_catalog_listing_variations_v1', {
+          p_listing_ids: listingIds
+        })
+      : [];
+    const byListingId = new Map(
+      (Array.isArray(sourceVariations) ? sourceVariations : [])
+        .map(row => [Number(row.listing_id), Array.isArray(row.variations) ? row.variations : []])
+    );
+    return {
+      items: items.map(item => ({
+        ...item,
+        catalog_variations: byListingId.get(Number(item.listing_id))
+          || (Array.isArray(item.variation_options) ? item.variation_options : [])
+      })),
+      limit,
+      offset
+    };
+  }
+
+  return { items, limit, offset };
 }
 
 export async function commerceManagementProducts(env, filters = {}) {
