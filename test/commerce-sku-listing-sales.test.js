@@ -52,7 +52,7 @@ test('compact catalog shows only product photo, name and clickable listing IDs u
   assert.match(grouped,/className="commerce-sku-expand"/);
   assert.match(grouped,/aria-expanded=\{isExpanded\}/);
   assert.match(grouped,/isExpanded && \(/);
-  assert.match(grouped,/\{product\.sku \|\| 'Não informado'\}/);
+  assert.match(grouped,/\{product\.sku \|\| 'Consulte as variações abaixo'\}/);
   assert.match(grouped,/Array\.isArray\(product\.eans\)/);
   assert.match(grouped,/eans\.map\(ean =>/);
   assert.doesNotMatch(grouped,/\{listing\.title \|\| 'Anúncio sem título'\}/);
@@ -75,8 +75,8 @@ test('sales quantity entry stays accessible in expanded listing details only', (
 });
 
 test('one + button is placed at the end of each product card, not beside each listing ID', () => {
-  assert.match(grouped,/const isExpanded = expanded\.has\(product\.product_id\)/);
-  assert.match(grouped,/onClick=\{\(\) => toggleProduct\(product\.product_id\)\}/);
+  assert.match(grouped,/const isExpanded = expanded\.has\(productKey\)/);
+  assert.match(grouped,/onClick=\{\(\) => toggleProduct\(productKey\)\}/);
   assert.equal(grouped.split('className="commerce-sku-expand"').length - 1, 1);
   assert.equal(grouped.split('className="commerce-sku-id-link"').length - 1, 1);
   const listingLoop = grouped.indexOf('listings.map(listing => (');
