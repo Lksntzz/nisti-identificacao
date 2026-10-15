@@ -107,32 +107,86 @@ function KindIcon({ kind }) {
   return <span className="mural-kind-icon" aria-hidden="true"><MuralIcon name={name} size={24} /></span>;
 }
 
-function MuralImage({ item, eager = false, className = '' }) {
+function MuralImage({ item, eager = false, className = '', onMediaReady }) {
   const src = item?.image_url || '';
   const isProductAsset = item?.kind === 'product' && String(item?.image_source || '').startsWith('product');
   const shouldRemoveBackground = item?.kind === 'product' && item?.image_source === 'product';
   const displaySrc = useTreatedProductImage(src, shouldRemoveBackground);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const imageRef = useRef(null);
 
   useEffect(() => {
     setFailed(false);
     setLoaded(false);
+    setAttempt(0);
+    onMediaReady?.(false);
   }, [displaySrc]);
+
+  // iOS installed PWAs can resume with a completed cached image without
+  // delivering an onLoad event. Never leave it hidden until the app reopens.
+  useEffect(() => {
+    if (!displaySrc || loaded) return undefined;
+    const image = imageRef.current;
+    if (image?.complete && image.naturalWidth > 0) {
+      setLoaded(true);
+      setFailed(false);
+      onMediaReady?.(true);
+      return undefined;
+    }
+    const recover = () => {
+      if (document.visibilityState !== 'visible' || attempt >= 3) return;
+      const current = imageRef.current;
+      if (!current || failed || (current.complete && current.naturalWidth === 0)) {
+        setFailed(false);
+        setAttempt(value => value + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', recover);
+    window.addEventListener('online', recover);
+    const timeout = window.setTimeout(() => {
+      const current = imageRef.current;
+      if (current?.complete && current.naturalWidth > 0) {
+        setLoaded(true);
+        onMediaReady?.(true);
+      } else if (attempt < 2) {
+        setFailed(false);
+        setAttempt(value => value + 1);
+      } else {
+        setFailed(true);
+        onMediaReady?.(false);
+      }
+    }, attempt === 0 ? 5500 : 8000);
+    return () => {
+      window.clearTimeout(timeout);
+      document.removeEventListener('visibilitychange', recover);
+      window.removeEventListener('online', recover);
+    };
+  }, [displaySrc, attempt, failed, loaded]);
 
   if (!displaySrc || failed) {
     return <div className={`mural-image-placeholder ${className}`}><KindIcon kind={item?.kind} /></div>;
   }
   return (
     <img
+      key={attempt}
+      ref={imageRef}
       className={`${className} mural-image-media${isProductAsset ? ' mural-product-transparent' : ''}${loaded ? ' is-loaded' : ''}`.trim()}
       src={displaySrc}
       alt={item.kind === 'product' ? `${item.product?.type || item.title} ${item.product?.sku || ''}`.trim() : item.title}
       loading={eager ? 'eager' : 'lazy'}
       fetchPriority={eager ? 'high' : 'auto'}
       decoding="async"
-      onLoad={() => setLoaded(true)}
-      onError={() => setFailed(true)}
+      onLoad={() => {
+        setLoaded(true);
+        setFailed(false);
+        onMediaReady?.(true);
+      }}
+      onError={() => {
+        setFailed(true);
+        onMediaReady?.(false);
+      }}
     />
   );
 }
@@ -247,20 +301,25 @@ function HeroScene({ item, collectionPreviews }) {
 export function CollectionLaunchHero({ item, onOpen }) {
   const previews = item.collection?.preview_products || [];
   const hasBanner = Boolean(item.image_url);
+  const [bannerReady, setBannerReady] = useState(false);
   const title = formatCollectionTitle(item.collection) || item.title;
   const supporting = item.collection?.hero_message || item.collection?.description || item.subtitle || item.body || 'Uma nova coleção chegou ao Mural NISTI.';
 
   return (
     <button
       type="button"
-      className={`mural-launch-hero mural-hero-enter${hasBanner ? ' has-banner' : ' is-composed'}`}
+      className={`mural-launch-hero mural-hero-enter${hasBanner ? ' has-banner' : ' is-composed'}${bannerReady ? ' is-image-ready' : ''}`}
       onClick={() => onOpen?.(item)}
       aria-label={`Abrir coleção ${title}`}
     >
       {hasBanner ? (
         <>
-          <MuralImage item={item} eager className="mural-launch-hero-banner" />
+          <MuralImage item={item} eager className="mural-launch-hero-banner" onMediaReady={setBannerReady} />
           <span className="mural-launch-banner-shade" aria-hidden="true" />
+          <span className="mural-launch-banner-fallback">
+            <strong>{title}</strong>
+            <span>{supporting}</span>
+          </span>
           <span className="mural-launch-system-badge">NOVA COLEÇÃO</span>
           <span className="mural-launch-banner-arrow" aria-hidden="true"><MuralIcon name="chevron" size={22} /></span>
         </>
@@ -317,6 +376,7 @@ export function Hero({ item, onOpen }) {
 export function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 }) {
   const previews = item.collection?.preview_products || [];
   const hasBanner = Boolean(item.image_url);
+  const [bannerReady, setBannerReady] = useState(false);
   const title = formatCollectionTitle(item.collection) || item.title;
   const supporting = item.collection?.hero_message || item.collection?.description || item.subtitle || item.body || 'Conheça os produtos desta nova coleção.';
   const tone = Number(item.collection?.id || item.id || index) % 4;
@@ -325,7 +385,7 @@ export function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 })
   return (
     <button
       type="button"
-      className={`mural-collection-launch-card mural-collection-tone-${tone} mural-reveal${hasBanner ? ' has-editorial-banner' : ''}`}
+      className={`mural-collection-launch-card mural-collection-tone-${tone} mural-reveal${hasBanner ? ' has-editorial-banner' : ''}${bannerReady ? ' is-image-ready' : ''}`}
       style={revealStyle}
       data-mural-reveal
       onClick={() => onOpen?.(item)}
@@ -333,7 +393,7 @@ export function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 })
     >
       {hasBanner && (
         <span className="mural-collection-secondary-banner" aria-hidden="true">
-          <MuralImage item={item} eager={eager} className="mural-collection-secondary-banner-image" />
+          <MuralImage item={item} eager={eager} className="mural-collection-secondary-banner-image" onMediaReady={setBannerReady} />
         </span>
       )}
       <span className="mural-collection-launch-copy">
