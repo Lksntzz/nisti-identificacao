@@ -1454,7 +1454,7 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
       return json({ unread_count: await unreadCount(userId, env) });
     }
 
-    const notificationPost = path.match(/^\\/api\\/mural\\/posts\\/(\\d+)$/);
+    const notificationPost = path.match(/^\/api\/mural\/posts\/(\d+)$/);
     if (notificationPost && request.method === 'GET') {
       return getMuralNotificationPost(Number(notificationPost[1]), request, env);
     }
