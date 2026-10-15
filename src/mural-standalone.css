@@ -1,5 +1,5 @@
 /* Standalone Mural uses the existing published feed and its mobile-sized editorial layout. */
-.mural-standalone{max-width:780px;width:min(100%,780px);padding-inline:12px}
+.app.general.mural-standalone{max-width:780px;width:min(100%,780px);padding-inline:12px}
 .mural-standalone .mural-standalone-header{
   display:flex;align-items:center;justify-content:space-between;
   padding:12px 12px 14px;
@@ -19,7 +19,7 @@
 .mural-standalone-status p{font-size:13px;color:#52607c;line-height:1.5;margin:0}
 .mural-standalone-status button{margin-top:16px;border:0;border-radius:10px;background:#6930b7;color:white;padding:11px 18px;font-weight:750}
 @media(max-width:540px){
- .mural-standalone{padding-inline:0}
+ .app.general.mural-standalone{padding-inline:0}
  .mural-standalone .mural-standalone-header{padding:10px 14px 13px}
  .mural-standalone .mural-shell{border-radius:0}
 }
