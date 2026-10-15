@@ -9,7 +9,8 @@ const publicMain = fs.readFileSync(new URL('../src/public-main.jsx', import.meta
 
 test('motion part 3 progressively reveals loaded Mural images', () => {
   assert.ok(mural.includes('const [loaded, setLoaded] = useState(false)'));
-  assert.ok(mural.includes('onLoad={() => setLoaded(true)}'));
+  assert.match(mural,/onLoad=\{\(\) => \{\s*setLoaded\(true\);/);
+  assert.match(mural,/image\?\.complete && image\.naturalWidth > 0/);
   assert.ok(mural.includes("mural-image-media${isProductAsset ? ' mural-product-transparent' : ''}${loaded ? ' is-loaded' : ''}"));
   assert.ok(css.includes('.mural-image-media.is-loaded'));
   assert.ok(css.includes('opacity:1'));
