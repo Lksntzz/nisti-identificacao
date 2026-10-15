@@ -610,7 +610,9 @@ export default function CommerceImportCenter({ onSalesChanged }) {
     setMessage('');
     try {
       const result = await stageCommerceWorkbook(catalogParsed, setCatalogProgress);
-      setMessage(`Lote #${result.batchId} preparado. O catálogo só será alterado após a confirmação final.`);
+      setMessage(result?.reconciled?.automatic_sync && !result.reconciled.automatic_sync.skipped
+        ? `Conta ${catalogParsed.account_code === 'ANTIGO' ? 'Antiga' : 'Nova'}: ${brNumber(result.reconciled.automatic_sync.observed_listings || 0)} anúncios ativos sincronizados automaticamente; ${brNumber(result.reconciled.automatic_sync.linked_variation_rows || 0)} vínculos verificados com o Scanner NISTI. SKUs sem identidade segura permanecem sem vínculo, mas visíveis como anúncios ativos.`
+        : `Lote #${result.batchId} comparado. Confira o resultado no catálogo.`);
       await Promise.all([refreshCatalogHistory(), openCatalogBatch(result.batchId, 1)]);
     } catch (err) {
       setCatalogProgress({ phase: 'failed', completed: 0, total: catalogParsed?.rows?.length || 1 });

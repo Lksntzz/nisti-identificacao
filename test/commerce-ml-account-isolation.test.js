@@ -18,7 +18,7 @@ test('Mercado Livre import requires explicit seller account at every boundary', 
   assert.match(api, /Selecione Conta Antiga ou Conta Nova/);
   assert.match(store, /commerce_create_import_batch_v2/);
   assert.match(store, /commerce_commit_import_batch_account_v4/);
-  assert.match(store, /commerce_reconcile_import_batch_account_v2/);
+  assert.match(store, /commerce_reconcile_import_batch_auto_v1/);
   assert.match(store, /commerce_sync_import_listing_states_account_v1/);
 });
 

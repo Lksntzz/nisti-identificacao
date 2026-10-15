@@ -28,6 +28,6 @@ test('Importing UI recovers a saved failed batch without re-upload and displays 
   assert.match(view, /retryCommerceImportReconciliation\(catalogBatch\.id\)/);
   assert.match(view, /phase === 'failed'/);
   assert.match(view, /phase === 'reconcile'\) percent = Math\.min\(95/);
-  assert.match(store, /commerce_reconcile_import_batch_account_v2/);
-  assert.match(store, /timeoutMs: 15000/);
+  assert.match(store, /commerce_reconcile_import_batch_auto_v1/);
+  assert.match(store, /timeoutMs: 30000/);
 });

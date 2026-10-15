@@ -1,5 +1,5 @@
 import readExcelFile from 'read-excel-file/browser';
-import { normalizeCommerceImportRow } from './commerce-import-normalizer.js';
+import { normalizeCommerceImportRow, indexMercadoLivreBulkStatus } from './commerce-import-normalizer.js';
 import { extractCommerceXlsxHyperlinks, hyperlinksForRow } from './commerce-xlsx-hyperlinks.js';
 
 export const COMMERCE_XLSX_MAX_BYTES = 25 * 1024 * 1024;
@@ -123,23 +123,13 @@ export async function readCommerceXlsx(file, marketplace, accountCode = null) {
       throw new Error(`O arquivo excede o limite operacional de ${COMMERCE_XLSX_MAX_ROWS.toLocaleString('pt-BR')} linhas.`);
     }
 
-    // Official Mercado Livre bulk workbook stores STATUS on the parent listing row.
-    // Variation rows repeat ITEM_ID but contain a numeric placeholder in STATUS.
-    const listingStatusById = new Map();
-    const listingTitleById = new Map();
-    if (market === 'MERCADO_LIVRE' && sheetName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'anuncios') {
-      for (const raw of data.slice(6)) {
-        const id = String(raw?.[1] ?? '').trim().toUpperCase();
-        const status = String(raw?.[29] ?? '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-        if (!/^MLB\d+$/.test(id)) continue;
-        const statusMap = { ativo: 'ACTIVE', inativo: 'INACTIVE', pausado: 'PAUSED', finalizado: 'REMOVED', encerrado: 'REMOVED' };
-        if (statusMap[status]) {
-          listingStatusById.set(id, statusMap[status]);
-          const title = String(raw?.[5] ?? '').trim();
-          if (title && title !== '0.0') listingTitleById.set(id, title);
-        }
-      }
-    }
+    // Only explicit ACTIVE seller listings enter the active catalog.
+    // All child variation rows inherit their parent's authoritative status.
+    const isMlBulk = market === 'MERCADO_LIVRE'
+      && sheetName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'anuncios';
+    const mlIndex = isMlBulk ? indexMercadoLivreBulkStatus(data) : null;
+    const listingStatusById = mlIndex?.statuses || new Map();
+    const listingTitleById = mlIndex?.titles || new Map();
 
     let acceptedRows = 0;
     let invalidRows = 0;
@@ -149,6 +139,7 @@ export async function readCommerceXlsx(file, marketplace, accountCode = null) {
 
     data.forEach((rawRow, index) => {
       const row = stableRow(rawRow);
+      if (isMlBulk && listingStatusById.get(String(row?.[1] ?? '').trim().toUpperCase()) !== 'ACTIVE') return;
       const hyperlinks = hyperlinksForRow(sheetLinks, index + 1);
       const hyperlinkCount = Object.keys(hyperlinks).length;
       const recoveredCount = countRecoveredHyperlinks(row, hyperlinks);
