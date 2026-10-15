@@ -16,7 +16,7 @@ test('linhas explicitamente não cadastradas são reconciliadas sem fabricar an�
 
 test('store administrativo encadeia reconcile v8, approve v2 e commit v4', () => {
   const source = read('src/commerce-supabase-store.js');
-  assert.equal(source.includes("'commerce_reconcile_import_batch_account_v2'"), true);
+  assert.equal(source.includes("'commerce_reconcile_import_batch_auto_v1'"), true);
   assert.equal(source.includes("'commerce_approve_new_rows_v2'"), true);
   assert.equal(source.includes("'commerce_commit_import_batch_account_v4'"), true);
 });
