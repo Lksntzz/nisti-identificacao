@@ -7613,8 +7613,3 @@ button.kpi-box:active {
 .app.general .operator-floating-profile{width:48px;height:48px;min-width:48px;min-height:48px;padding:5px;justify-content:center;border-radius:999px;}
 .app.general .operator-floating-avatar{width:36px;height:36px;flex:0 0 36px;}
 @media(max-width:460px){.app.general .operator-floating-dock{right:auto;left:max(10px,env(safe-area-inset-left));}.app.general .operator-floating-profile{width:46px;height:46px;min-width:46px;min-height:46px;padding:5px;}.app.general .operator-floating-avatar{width:34px;height:34px;flex:0 0 34px;}}
-
-.push-test-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.push-test-device-btn{padding:7px 10px;border:1px solid #c7c5fe;border-radius:8px;background:white;color:#4338ca;font-size:11px;font-weight:800;cursor:pointer}
-.push-test-device-btn:disabled{opacity:.6}
-.push-test-device-message{padding:9px 20px;background:#f5f3ff;color:#47309a;font-size:11px}
