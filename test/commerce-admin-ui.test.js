@@ -58,7 +58,7 @@ test('UI comercial mantém Catálogo e Pendências e expõe Planejamento de Prod
   assert.equal(shell.includes('CommerceManagementView'), true);
   assert.equal(shell.includes('CommerceProductsView'), true);
   assert.equal(shell.includes('CommerceSkuListingsView'), true);
-  assert.equal(shell.includes('<CommerceSkuListingsView />'), true);
+  assert.equal(shell.includes('<CommerceSkuListingsView catalogMode />'), true);
   assert.equal(shell.includes('mode="pending"'), true);
 
   assert.equal(fs.existsSync('src/commerce-products-view.jsx'), true);
