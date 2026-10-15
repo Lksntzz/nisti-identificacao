@@ -14,6 +14,7 @@ import {
   commerceImportBatches,
   commerceImportRows,
   commerceListings,
+  commerceActiveProductCatalog,
   commerceSkuListingGroups,
   commerceSaveListingSales,
   commerceListingHistory,
