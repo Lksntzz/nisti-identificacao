@@ -2602,7 +2602,7 @@ export default function MuralNistiAdminView({ activeSection = 'dashboard', onSec
         <span><small className="mural-admin-section-eyebrow">{currentSection.eyebrow}</small><h2>{currentSection.title}</h2><p>{currentSection.description}</p></span>
       </div>
       <div className="mural-admin-dashboard-actions">
-        <button type="button" className="qa" onClick={()=>window.location.assign('/?mural=qa')}>Área de teste</button>
+        <button type="button" className="qa" onClick={()=>window.location.assign('/admin?mural=qa#admin/mural-nisti')}>Área de teste</button>
       </div>
     </header>
 
