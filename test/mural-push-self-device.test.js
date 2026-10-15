@@ -7,7 +7,9 @@ const backend=get('src/core-router.js'),push=get('src/web-push.js'),ui=get('src/
 assert.match(backend,/sendMuralPushSelfTest\(env,userId,body\?\.endpoint\)/);
 assert.match(push,/getOperatorPushDevice\(env, userId, rawEndpoint\)/);
 assert.match(push,/nisti_claim_operator_push_self_test_v1/);
-assert.match(ui,/Testar neste celular/);
+assert.match(ui,/Testar push/);
+assert.match(ui,/Testar exibição/);
+assert.match(ui,/\/api\/push\/test-result/);
 assert.match(ui,/persistPushSubscription\(subscription\)/);
 assert.match(get('src/mural-router.js'),/MURAL_PUBLIC_RELEASED = false/);
 });

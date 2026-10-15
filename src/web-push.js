@@ -331,10 +331,17 @@ export async function sendMuralPushSelfTest(env, userId, rawEndpoint) {
   if (!health.ready) return { ok:false, sent:0, reason:health.code };
   const claim = await supabaseRpc(env, 'nisti_claim_operator_push_self_test_v1', { p_user_id:userId });
   if (claim?.status !== 'ready') return { ok:false, sent:0, reason:claim?.status || 'cooldown' };
+  // A gateway HTTP 201 does not prove that the device decrypted the payload.
+  // Correlate the SW acknowledgement with this exact authenticated device test.
+  const testId = crypto.randomUUID();
+  const opened = await supabaseRpc(env, 'nisti_open_operator_push_test_v1', {
+    p_test_id:testId, p_user_id:userId
+  });
+  if (!opened) return {ok:false,sent:0,reason:'test_receipt_unavailable'};
   let response;
   try {
     response = await sendWebPushNotification(env, device, {
-      channel:'mural', mural_kind:'test',
+      channel:'mural', mural_kind:'test', push_test_id:testId,
       title:'Teste · Mural NISTI',
       body:'Esta notificação de teste foi enviada para este celular. O Mural continua em breve.',
       url:'/#scanner'
@@ -349,6 +356,7 @@ export async function sendMuralPushSelfTest(env, userId, rawEndpoint) {
   return {
     ok:Boolean(response.ok),
     sent:response.ok ? 1 : 0,
+    test_id:testId,
     status_code:response.status,
     reason:response.ok ? 'accepted_by_push_service' :
       (response.status === 404 || response.status === 410 ? 'subscription_expired' : 'push_service_rejected')

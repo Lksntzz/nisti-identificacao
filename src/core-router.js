@@ -930,6 +930,33 @@ export default {
         return json({ok:true,registered:Boolean(device),vapid_ready:vapid.ready,vapid_code:vapid.code},200,{'cache-control':'no-store'});
       }
 
+      // Verified operator session: the SW can only acknowledge a test sent to
+      // this operator, never a different user's device or an arbitrary post.
+      if (url.pathname === '/api/push/test-receipt' && request.method === 'POST') {
+        const userId=verifiedOperatorId(request);
+        if (!userId) return json({error:'Sessão do operador inválida.'},401);
+        const body=await request.json().catch(()=>({}));
+        const id=String(body?.test_id||'');
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+          || !['shown','failed'].includes(body?.display_status)) {
+          return json({error:'Confirmação de notificação inválida.'},400);
+        }
+        const acknowledged=await supabaseRpc(env,'nisti_ack_operator_push_test_v1',{
+          p_test_id:id,p_user_id:userId,p_status:body.display_status
+        });
+        return json({ok:Boolean(acknowledged)},acknowledged?200:404,{'cache-control':'no-store'});
+      }
+      if (url.pathname === '/api/push/test-result' && request.method === 'GET') {
+        const userId=verifiedOperatorId(request);
+        if (!userId) return json({error:'Sessão do operador inválida.'},401);
+        const id=String(url.searchParams.get('test_id')||'');
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          return json({error:'Identificador de teste inválido.'},400);
+        }
+        const result=await supabaseRpc(env,'nisti_get_operator_push_test_v1',{p_test_id:id,p_user_id:userId});
+        return json(result||{display_status:'unavailable',acknowledged:false},200,{'cache-control':'no-store'});
+      }
+
       if (url.pathname === '/api/push/test-my-device' && request.method === 'POST') {
         const userId = verifiedOperatorId(request);
         if (!userId) return json({error:'Sessão do operador inválida.'},401);
@@ -946,6 +973,7 @@ export default {
           vapid_sign_error:'Falha na configuração de assinatura das notificações.',
           subscription_expired:'Assinatura expirada. Atualize o aplicativo e ative as notificações novamente.',
           push_send_failed:'Erro de envio no servidor. Verifique os logs antes de repetir.',
+          test_receipt_unavailable:'Não foi possível preparar a confirmação de entrega.' ,
           push_service_rejected:'O serviço de push recusou esta assinatura.'
         };
         return json({error:messages[result.reason] || 'Não foi possível enviar a notificação de teste.',
