@@ -246,11 +246,55 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
         headers: {'content-type':'application/json'},
         body: JSON.stringify({endpoint:subscription.endpoint})
       });
-      setPushTestMessage(result.sent === 1
-        ? 'O serviço push aceitou o teste para ESTE aparelho. Confira as notificações do celular.'
-        : 'O serviço não confirmou o envio.');
+      if (result.sent !== 1 || !result.test_id) {
+        setPushTestMessage('O serviço de push não confirmou o envio.');
+        return;
+      }
+      setPushTestMessage('Serviço push aceitou. Aguardando confirmação do aplicativo no celular…');
+      let displayStatus = 'pending';
+      for (const delay of [3000, 5000, 6000]) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        const receipt = await api(`/api/push/test-result?test_id=${encodeURIComponent(result.test_id)}`);
+        displayStatus = receipt?.display_status || 'pending';
+        if (displayStatus !== 'pending') break;
+      }
+      setPushTestMessage(displayStatus === 'shown'
+        ? 'O aplicativo confirmou que solicitou a exibição da notificação. Se não apareceu na tela, verifique a Central de Notificações e o modo Foco do celular.'
+        : displayStatus === 'failed'
+        ? 'A notificação chegou ao aplicativo, mas o sistema do celular recusou exibi-la. Verifique as permissões do NISTI.'
+        : 'O serviço de push aceitou a mensagem, mas o aplicativo não confirmou o recebimento. Tente o teste de exibição local para identificar a origem.');
     } catch(error) {
       setPushTestMessage(error?.message || 'Falha ao testar as notificações neste celular.');
+    } finally {
+      setPushTesting(false);
+    }
+  };
+
+  const testLocalNotification = async () => {
+    if (pushTesting) return;
+    setPushTesting(true);
+    setPushTestMessage('');
+    try {
+      if (Notification.permission !== 'granted') {
+        throw new Error('O aparelho não concedeu permissão para notificações do NISTI.');
+      }
+      const registration = await navigator.serviceWorker.ready;
+      if (!registration.active) throw new Error('O serviço de notificações ainda não está ativo.');
+      const channel = new MessageChannel();
+      const result = await new Promise(resolve => {
+        const timer = setTimeout(() => resolve({ok:false,error:'O celular não respondeu ao teste local.'}), 8000);
+        channel.port1.onmessage = event => {
+          clearTimeout(timer);
+          resolve(event.data);
+        };
+        registration.active.postMessage({type:'nisti-local-notification-test'},[channel.port2]);
+      });
+      channel.port1.close();
+      setPushTestMessage(result?.ok
+        ? 'O aplicativo conseguiu solicitar uma notificação local. Confira a Central de Notificações; se ela não aparecer, verifique as configurações do celular.'
+        : result?.error || 'O celular não permitiu exibir a notificação local.');
+    } catch (error) {
+      setPushTestMessage(error?.message || 'Falha ao executar o teste local neste aparelho.');
     } finally {
       setPushTesting(false);
     }
@@ -329,7 +373,11 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
               <span className="push-status-badge">Ativo</span>
               <button type="button" className="push-test-device-btn"
                 onClick={testThisDevicePush} disabled={pushTesting}>
-                {pushTesting ? 'Enviando…' : 'Testar neste celular'}
+                {pushTesting ? 'Testando…' : 'Testar push'}
+              </button>
+              <button type="button" className="push-test-device-btn"
+                onClick={testLocalNotification} disabled={pushTesting}>
+                Testar exibição
               </button>
             </div>
           )}
