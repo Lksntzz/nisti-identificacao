@@ -7568,3 +7568,13 @@ button.kpi-box:active {
 .notification-thumb.notification-thumb-error { background:#fee2e2; color:#b91c1c; }
 .notification-thumb svg {display:block;width:30px;height:30px;flex-shrink:0;}
 .notification-card.read .notification-thumb {opacity:.85;}
+
+
+/* Authenticated Mural QA uses the operator preview without leaving admin. */
+.admin-mural-qa-view{min-width:0;display:grid;gap:14px}
+.admin-mural-qa-header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:15px 20px;background:#fff;border:1px solid #dbe4f0;border-radius:14px}
+.admin-mural-qa-header strong{font-size:16px;color:#172033}
+.admin-mural-qa-header p{margin:4px 0 0;font-size:12px;color:#64748b}
+.admin-mural-qa-header button{padding:10px 15px;border:1px solid #bcd0f4;border-radius:9px;background:#eef4ff;color:#1d4ed8;font-weight:750;cursor:pointer;white-space:nowrap}
+.admin-mural-qa-view>.mural-nisti,.admin-mural-qa-view>.mural-root{min-width:0}
+@media(max-width:720px){.admin-mural-qa-header{align-items:stretch;flex-direction:column}}
