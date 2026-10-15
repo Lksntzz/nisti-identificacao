@@ -2495,6 +2495,8 @@ export default function MuralNistiAdminView({ activeSection = 'dashboard', onSec
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [metrics,setMetrics]=useState(null);
+  const [muralPushTestBusy,setMuralPushTestBusy]=useState(false);
+  const [muralPushTestResult,setMuralPushTestResult]=useState('');
 
   const load=async()=>{
     setLoading(true);setError('');
@@ -2516,6 +2518,24 @@ export default function MuralNistiAdminView({ activeSection = 'dashboard', onSec
   const sendPush=async row=>{
     if(!window.confirm(`Enviar notificação deste conteúdo para os dispositivos inscritos?\n\n${row.title}`))return;
     try{setError('');const result=await request(`/api/admin/mural/posts/${row.id}/push`,{method:'POST'});window.alert(`Notificação processada: ${result.sent||0} enviada(s), ${result.failed||0} falha(s).`)}catch(err){setError(err.message)}
+  };
+
+  const testAdmLukasMuralPush=async()=>{
+    if (muralPushTestBusy) return;
+    if (!window.confirm('Enviar UMA notificação de teste do Mural somente ao dispositivo cadastrado de ADM Lukas?\\n\\nO Mural continuará bloqueado para operadores.')) return;
+    setMuralPushTestBusy(true);
+    setMuralPushTestResult('');
+    setError('');
+    try {
+      const result=await request('/api/admin/mural/push/test-adm-lukas',{method:'POST'});
+      setMuralPushTestResult(result.sent === 1
+        ? 'Serviço push aceitou o envio para ADM Lukas. Confira o celular para confirmar o recebimento.'
+        : 'Nenhuma notificação foi enviada.');
+    } catch(err) {
+      setError(err.message || 'Falha ao enviar o teste para ADM Lukas.');
+    } finally {
+      setMuralPushTestBusy(false);
+    }
   };
 
   const deletePost=async row=>{
@@ -2602,6 +2622,10 @@ export default function MuralNistiAdminView({ activeSection = 'dashboard', onSec
         <span><small className="mural-admin-section-eyebrow">{currentSection.eyebrow}</small><h2>{currentSection.title}</h2><p>{currentSection.description}</p></span>
       </div>
       <div className="mural-admin-dashboard-actions">
+        <button type="button" className="mural-adm-test-push" disabled={muralPushTestBusy} onClick={testAdmLukasMuralPush}>
+          <AdminMuralIcon name="bell" size={16}/>
+          {muralPushTestBusy ? 'Enviando teste…' : 'Testar push · ADM Lukas'}
+        </button>
         <button type="button" className="qa" onClick={()=>window.location.assign('/admin?mural=qa#admin/mural-nisti')}>Área de teste</button>
       </div>
     </header>
@@ -2609,6 +2633,7 @@ export default function MuralNistiAdminView({ activeSection = 'dashboard', onSec
     <div className="mural-admin-workspace mural-admin-workspace-single">
       <main className="mural-admin-workspace-content">
         {error&&<div className="mural-admin-error">{error}</div>}
+        {muralPushTestResult&&<div className="mural-push-test-result" role="status">{muralPushTestResult}</div>}
 
         {section==='dashboard'&&<MuralPublicationsDashboard
           posts={posts}
