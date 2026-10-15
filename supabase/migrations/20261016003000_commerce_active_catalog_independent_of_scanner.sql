@@ -115,7 +115,8 @@ with inputs as (
   select a.group_key,
     min(coalesce(a.nisti_name,a.title)) as product_name,
     max(a.nisti_product_id) as product_id,
-    coalesce(max(a.nisti_sku),max(a.source_sku)) as sku,
+    case when bool_or(a.has_variations) or max(a.sku_count)>1 then null
+      else coalesce(max(a.nisti_sku),max(a.source_sku)) end as sku,
     max(a.image_url) as image_url,
     jsonb_agg(jsonb_build_object(
       'listing_id',a.listing_id,
