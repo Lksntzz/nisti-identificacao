@@ -47,4 +47,4 @@ SUPABASE_CUTOVER_WRITE_FREEZE = "0"
 
 
 [triggers]
-crons = ["*/30 * * * *"]
+crons = ["*/5 * * * *"]

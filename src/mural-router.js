@@ -29,6 +29,38 @@ async function notifyMuralAfterPublication(env, postId) {
 }
 
 
+// Cron fallback for scheduled publications and bounded transient delivery failures.
+// Never read recipient subscriptions or dispatch when the operator Mural is locked.
+export async function dispatchScheduledMuralNotifications(env) {
+  if (!MURAL_PUBLIC_RELEASED) {
+    return { skipped:true, reason:'mural_not_released', sent:0, failed:0 };
+  }
+  const pending = await supabaseRpc(env,'nisti_list_mural_push_ready_v1',{p_limit:20});
+  const ids = Array.isArray(pending) ? pending : [];
+  let sent=0;
+  let failed=0;
+  // Bounded concurrency avoids an unbounded request spike in cron.
+  for (let offset=0;offset<ids.length;offset+=3) {
+    const batch=ids.slice(offset,offset+3);
+    const results=await Promise.all(batch.map(async id=>{
+      try {
+        return await broadcastMuralPush(env,{postId:Number(id),released:MURAL_PUBLIC_RELEASED});
+      } catch (error) {
+        console.error('[Mural Push Cron] Não foi possível processar a publicação', {
+          postId:id,message:error?.message || String(error)
+        });
+        return {sent:0,failed:1};
+      }
+    }));
+    for (const result of results) {
+      sent+=Number(result?.sent||0);
+      failed+=Number(result?.failed||0);
+    }
+  }
+  return { skipped:false, posts:ids.length, sent, failed };
+}
+
+
 const TAB_KIND = Object.freeze({
   all: null,
   products: 'product',
