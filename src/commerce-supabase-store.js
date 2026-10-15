@@ -126,6 +126,37 @@ export async function commerceListingHistory(env, { group = 'ALL', accountCode =
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
+// One NISTI SKU per Catalog row. Marketplace listings remain separate child records.
+export async function commerceSkuListingGroups(env, filters = {}) {
+  const data = await supabaseRpc(env, 'commerce_sku_listing_groups_v1', {
+    p_search: cleanText(filters.search),
+    p_marketplace_code: cleanText(filters.marketplace),
+    p_period_month: cleanText(filters.periodMonth) ? cleanText(filters.periodMonth) + '-01' : null,
+    p_limit: cleanPageSize(filters.limit, 25),
+    p_offset: cleanOffset(filters.offset)
+  });
+  return data && typeof data === 'object' && !Array.isArray(data)
+    ? data : { items: [], total: 0 };
+}
+
+export async function commerceSaveListingSales(env, input = {}, operator = 'Administrador') {
+  const listingId = cleanId(input.listingId);
+  const productId = cleanId(input.productId);
+  const units = Number(input.units);
+  const month = String(input.periodMonth || '').trim();
+  if (!listingId || !productId || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)
+    || !Number.isSafeInteger(units) || units < 0 || units > 100000000) {
+    throw new Error('Dados de vendas por anúncio inválidos.');
+  }
+  return await supabaseRpc(env, 'commerce_save_listing_sales_v1', {
+    p_listing_id: listingId,
+    p_nisti_product_id: productId,
+    p_period_month: month + '-01',
+    p_units: units,
+    p_actor: String(operator || 'Administrador').slice(0,120)
+  });
+}
+
 export async function commerceListings(env, filters = {}) {
   const limit = cleanPageSize(filters.limit);
   const offset = cleanOffset(filters.offset);

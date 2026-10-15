@@ -14,6 +14,8 @@ import {
   commerceImportBatches,
   commerceImportRows,
   commerceListings,
+  commerceSkuListingGroups,
+  commerceSaveListingSales,
   commerceListingHistory,
   commerceManagement,
   commerceManagementProducts,
@@ -167,6 +169,31 @@ export async function handleCommerceAdminRequest(request, env) {
 
     if (method === 'GET' && pathname === `${BASE_PATH}/management/product-summary`) {
       return json(await commerceManagementProductSummary(env));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/sku-listings`) {
+      return json(await commerceSkuListingGroups(env, {
+        search: query(url,'search'),
+        marketplace: query(url,'marketplace'),
+        periodMonth: query(url,'month'),
+        limit: query(url,'limit'),
+        offset: query(url,'offset')
+      }));
+    }
+
+    if (method === 'POST' && pathname === `${BASE_PATH}/sales/manual-listing`) {
+      const body = await bodyJson(request);
+      if (!body || !positiveId(body.listing_id) || !positiveId(body.product_id)
+        || !/^\d{4}-(0[1-9]|1[0-2])$/.test(String(body.month || ''))
+        || !Number.isSafeInteger(body.units) || body.units < 0 || body.units > 100000000) {
+        return json({error:'Informe anúncio, produto, mês e unidades válidos.'},400);
+      }
+      return json(await commerceSaveListingSales(env, {
+        listingId:body.listing_id,
+        productId:body.product_id,
+        periodMonth:body.month,
+        units:body.units
+      },operatorName(request)));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/sales/dashboard`) {

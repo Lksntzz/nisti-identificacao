@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CommerceSalesProductPerformance from './commerce-sales-product-performance.jsx';
+import CommerceSkuListingsView from './commerce-sku-listings-view.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import './commerce-sales-dashboard.css';
 
@@ -1022,6 +1023,7 @@ export default function CommerceSalesDashboard() {
         </div>
       </section>
       </>)}
+      <CommerceSkuListingsView salesMode />
     </div>
   );
 }

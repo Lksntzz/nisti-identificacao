@@ -11,7 +11,7 @@ import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import MuralNisti from './mural-nisti.jsx';
 import CommerceManagementView from './commerce-management-view.jsx';
-import CommerceListingsView from './commerce-listings-view.jsx';
+import CommerceSkuListingsView from './commerce-sku-listings-view.jsx';
 import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import './commerce-admin.css';
@@ -1948,7 +1948,7 @@ function AdminApp() {
 
             {activeView === 'commerce' && (
               <div className="commerce-admin-inline-view">
-                {commerceSection === 'catalog' && <CommerceListingsView catalogMode />}
+                {commerceSection === 'catalog' && <CommerceSkuListingsView />}
                 {commerceSection === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
                 {commerceSection === 'import-center' && (
                   <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />
