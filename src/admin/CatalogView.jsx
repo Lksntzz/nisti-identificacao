@@ -77,7 +77,7 @@ export function CatalogPlatformTags({ product }) {
   const hidden = platforms.slice(2);
 
   if (!platforms.length) {
-    return <span className="catalog-platform-empty">Sem anúncio no Catálogo</span>;
+    return <span className="catalog-platform-empty">Sem anúncio no catálogo</span>;
   }
 
   return (
