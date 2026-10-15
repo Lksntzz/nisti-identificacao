@@ -15,6 +15,20 @@ import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-wr
 
 const MURAL_PUBLIC_RELEASED = false;
 
+// This is the same release gate that protects the operator Mural.
+// Preparing and publishing content in admin never sends push before release.
+async function notifyMuralAfterPublication(env, postId) {
+  if (!MURAL_PUBLIC_RELEASED) return;
+  try {
+    await broadcastMuralPush(env, { postId, released: MURAL_PUBLIC_RELEASED });
+  } catch (error) {
+    console.error('[Mural Push] Publicação salva, mas envio falhou', {
+      postId, message: error?.message || String(error)
+    });
+  }
+}
+
+
 const TAB_KIND = Object.freeze({
   all: null,
   products: 'product',
@@ -700,6 +714,7 @@ async function adminPublishPost(id, request, env) {
     const value=result?.value || {};
     if(value.status==='not_found') return json({error:'Publicação não encontrada.'},404);
     if(value.status==='invalid_expiration') return json({error:'A expiração deve ser posterior à data de publicação.'},422);
+    await notifyMuralAfterPublication(env, id);
     return json({ok:true,id,status:'published',published_at:value.published_at || publishedAt});
   }
   const current = await env.DB.prepare('SELECT * FROM mural_posts WHERE id=?').bind(id).first();
@@ -713,6 +728,7 @@ async function adminPublishPost(id, request, env) {
   }
   await env.DB.prepare("UPDATE mural_posts SET status='published',published_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
     .bind(publishedAt,id).run();
+  await notifyMuralAfterPublication(env,id);
   return json({ ok: true, id, status: 'published', published_at: publishedAt });
 }
 
@@ -1046,6 +1062,7 @@ async function adminPublishCollection(id, env) {
     if(value.status==='inactive') return json({error:'Ative a coleção antes de publicar no Mural.'},422);
     if(value.status==='empty') return json({error:'Adicione pelo menos um produto à coleção antes de publicar.'},422);
     if(value.status!=='ok') return json({error:'Não foi possível publicar a coleção.'},422);
+    await notifyMuralAfterPublication(env, Number(value.id));
     return json({
       ok:true,id:Number(value.id),collection_id:Number(value.collection_id),
       status:'published',featured:true,badge:'NOVA COLEÇÃO',
@@ -1127,6 +1144,7 @@ async function adminPublishCollection(id, env) {
     postId = Number(result.meta.last_row_id);
   }
 
+  await notifyMuralAfterPublication(env, postId);
   return json({
     ok:true,
     id:postId,
@@ -1360,15 +1378,17 @@ async function removeMuralProductImage(productId, env) {
 
 
 async function adminSendPush(id, env) {
+  // Even administrators cannot send operator push during the private QA phase.
+  if (!MURAL_PUBLIC_RELEASED) {
+    return json({ error: 'As notificações push do Mural estarão disponíveis apenas após a liberação aos operadores.' }, 409);
+  }
   const post = supabasePrimaryWritesRequested(env)
     ? await supabaseRpc(env,'nisti_admin_mural_post_v1',{p_id:id})
-    : await env.DB.prepare(`SELECT mp.id,mp.kind,mp.status,mp.title,mp.subtitle,mp.notice_level,mp.product_id,p.sku FROM mural_posts mp LEFT JOIN products p ON p.id=mp.product_id WHERE mp.id=?`).bind(id).first();
-  if (post?.product_sku && !post.sku) post.sku=post.product_sku;
+    : await env.DB.prepare('SELECT id,kind,status,published_at,expires_at FROM mural_posts WHERE id=?').bind(id).first();
   if (!post) return json({error:'Publicação não encontrada.'},404);
-  if (post.status !== 'published') return json({error:'Publique o conteúdo antes de enviar a notificação.'},409);
-  const eligible = (post.kind === 'notice' && post.notice_level === 'important') || post.kind === 'product';
-  if (!eligible) return json({error:'Push permitido somente para Aviso Importante ou lançamento de produto selecionado.'},422);
-  const result = await broadcastMuralPush(env,{ postId:Number(post.id),title:post.title,body:post.subtitle || (post.kind==='notice'?'Aviso importante no Mural NISTI':post.sku || 'Novo produto no Mural NISTI') });
+  if (post.status !== 'published') return json({error:'Publique o conteúdo antes de notificar.'},409);
+  if (!['collection','product','notice'].includes(post.kind)) return json({error:'Tipo de publicação não suportado.'},422);
+  const result = await broadcastMuralPush(env,{postId:Number(post.id),released:MURAL_PUBLIC_RELEASED});
   return json({ok:true,...result});
 }
 
