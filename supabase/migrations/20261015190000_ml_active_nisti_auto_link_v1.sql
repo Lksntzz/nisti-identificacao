@@ -41,7 +41,7 @@ begin
   ) then
     return jsonb_build_object('skipped',true,'reason','not_official_ml_export');
   end if;
-  if v_batch.account_code not in ('ANTIGO','NOVO')
+  if coalesce(v_batch.account_code,'') not in ('ANTIGO','NOVO')
      or v_batch.status not in ('REVIEW','PARSED','COMMITTED') then
     raise exception 'ml_auto_sync_batch_not_ready' using errcode='22023';
   end if;
@@ -100,11 +100,11 @@ begin
       -- Never infer identity from just a name, year or approximate spelling.
       select count(*),min(p.id) into v_count,v_product_id
       from public.products p
-      cross join lateral public.commerce_sku_pattern_v1(p.sku) pat
-      where pat->>'signature'=v_source_pattern->>'signature'
-        and pat->>'finish'=v_source_pattern->>'finish'
-        and coalesce(pat->>'year','') ~ '^20[0-9]{2}$'
-        and (pat->>'year')::integer>(v_source_pattern->>'year')::integer;
+      cross join lateral (select public.commerce_sku_pattern_v1(p.sku) as value) pat
+      where pat.value->>'signature'=v_source_pattern->>'signature'
+        and pat.value->>'finish'=v_source_pattern->>'finish'
+        and coalesce(pat.value->>'year','') ~ '^20[0-9]{2}$'
+        and (pat.value->>'year')::integer>(v_source_pattern->>'year')::integer;
       v_method:='NISTI_FAMILY_YEAR';
     end if;
     if v_count=0 then v_missing:=v_missing+1; continue; end if;
