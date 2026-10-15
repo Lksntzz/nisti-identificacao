@@ -144,7 +144,7 @@ export async function commerceSaveListingSales(env, input = {}, operator = 'Admi
   const productId = cleanId(input.productId);
   const units = Number(input.units);
   const month = String(input.periodMonth || '').trim();
-  if (!listingId || !productId || !/^\\d{4}-(0[1-9]|1[0-2])$/.test(month)
+  if (!listingId || !productId || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)
     || !Number.isSafeInteger(units) || units < 0 || units > 100000000) {
     throw new Error('Dados de vendas por anúncio inválidos.');
   }
