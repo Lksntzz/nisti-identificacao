@@ -4048,3 +4048,80 @@
   .app.general .mural-nav-label strong{font-size:11px}
   .app.general .mural-nav-label small{font-size:7px}
 }
+
+
+/* Mural NISTI — vibrant editorial notice tile (only Avisos; products/collections unchanged). */
+.mural-card-reference.mural-card-notice {
+  border-color:#e9def6;
+  box-shadow:0 8px 25px rgba(69,33,128,.09);
+}
+.mural-card-reference.mural-card-notice.unread {
+  border-color:#d7b9f3;
+}
+.mural-card-reference .mural-card-media.mural-notice-visual-vibrant,
+.mural-card-reference .mural-card-media.mural-notice-visual-vibrant.info,
+.mural-card-reference .mural-card-media.mural-notice-visual-vibrant.attention,
+.mural-card-reference .mural-card-media.mural-notice-visual-vibrant.important {
+  isolation:isolate;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:18px;
+  color:#ffe28c;
+  background:linear-gradient(140deg,#4b279a 0%,#6930b7 52%,#9634b1 100%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.19),0 5px 16px rgba(77,40,149,.2);
+}
+.mural-notice-visual-vibrant::before {
+  content:"";
+  position:absolute;
+  z-index:0;
+  width:104px;
+  height:104px;
+  right:-52px;
+  top:-49px;
+  border-radius:50%;
+  background:rgba(255,255,255,.10);
+}
+.mural-notice-icon-emblem {
+  position:relative;
+  z-index:1;
+  display:grid;
+  place-items:center;
+  width:67px;
+  height:67px;
+  border-radius:19px;
+  background:rgba(255,255,255,.095);
+  border:1px solid rgba(255,229,149,.38);
+  box-shadow:0 5px 16px rgba(30,13,83,.18),inset 0 1px 0 rgba(255,255,255,.14);
+}
+.mural-notice-icon-emblem svg {
+  display:block;
+  stroke-width:2.45;
+  filter:drop-shadow(0 1px 2px rgba(28,15,80,.18));
+}
+.mural-notice-accent-star {
+  position:absolute;
+  z-index:2;
+  display:grid;
+  place-items:center;
+  color:#ffdc75;
+  pointer-events:none;
+}
+.mural-notice-accent-star.star-top {right:9px;top:8px}
+.mural-notice-accent-star.star-bottom {left:9px;bottom:8px;opacity:.83}
+.mural-card-reference.mural-card-notice .mural-card-new-pill {
+  background:#fae6ff;
+  color:#7c269c;
+  border:1px solid #e8bef4;
+}
+.mural-card-reference.mural-card-notice .mural-card-notice-pill:not(.is-important) {
+  background:#f8e8ff;
+  color:#812bb0;
+}
+.mural-card-reference.mural-card-notice .mural-card-title-row strong {
+  color:#291747;
+}
+@media (max-width:390px) {
+  .mural-notice-icon-emblem {width:61px;height:61px;border-radius:17px}
+  .mural-notice-icon-emblem svg {width:36px;height:36px}
+  .mural-notice-accent-star.star-top {right:7px;top:7px}
+}
