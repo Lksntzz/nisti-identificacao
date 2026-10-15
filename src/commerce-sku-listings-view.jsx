@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { commerceApi } from './commerce-admin-api.js';
 import { COMMERCE_MARKETPLACES, commerceFormatNumber } from './commerce-admin-shared.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
@@ -6,22 +6,6 @@ import './commerce-sku-listings.css';
 
 function localMonth() {
   return new Date().toLocaleDateString('sv-SE', {timeZone:'America/Sao_Paulo'}).slice(0,7);
-}
-
-function listingPlatform(item) {
-  if (item.marketplace_code === 'MERCADO_LIVRE') {
-    return 'Mercado Livre' + (item.account_code ? ' · ' + item.account_code : '');
-  }
-  return item.marketplace_name || item.marketplace_code || 'Plataforma';
-}
-
-function monthTotal(listings) {
-  const known = listings.filter(item => item.manual_units !== null && item.manual_units !== undefined);
-  return {
-    units: known.reduce((sum,item) => sum + Number(item.manual_units || 0),0),
-    recorded: known.length,
-    pending: listings.length - known.length
-  };
 }
 
 export default function CommerceSkuListingsView({ salesMode = false }) {
@@ -36,6 +20,7 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
   const [notice,setNotice] = useState('');
   const [edits,setEdits] = useState({});
   const [saving,setSaving] = useState('');
+  const [expanded,setExpanded] = useState(new Set());
   const limit = 25;
 
   async function load(nextOffset = offset) {
@@ -95,28 +80,21 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
   const total = Number(data.total || 0);
   const pages = Math.max(1,Math.ceil(total / limit));
   const page = Math.floor(offset / limit) + 1;
-  const allListings = useMemo(() => items.reduce((sum,p) => sum + (p.listings?.length || 0),0), [items]);
+  function toggleListing(key) {
+    setExpanded(previous => {
+      const next = new Set(previous);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   return (
     <section className="commerce-sku-panel">
       <div className="commerce-sku-header">
-        <div>
-          <h2>{salesMode ? 'Vendas por anúncio e SKU' : 'Catálogo de produtos ativos'}</h2>
-          <p>{salesMode
-            ? 'Cada produto aparece uma vez; cada ID de anúncio tem sua quantidade de vendas individual por mês.'
-            : 'Um SKU por produto, independentemente de quantos anúncios ativos existem nas plataformas.'}</p>
-        </div>
-        <div className="commerce-sku-counter">
-          <strong>{commerceFormatNumber(total)}</strong>
-          <small>produtos com anúncio ativo e vínculo confirmado</small>
-        </div>
+        <h2>{salesMode ? 'Vendas por anúncio' : 'Catálogo de produtos ativos'}</h2>
+        <small>{commerceFormatNumber(total)} produtos</small>
       </div>
-
-      {salesMode ? (
-        <p className="commerce-sku-explainer">Registro manual separado das importações oficiais: os números aqui não são somados ao faturamento nem aos pedidos importados. Anúncios sem vínculo seguro são tratados em Pendências.</p>
-      ) : (
-        <p className="commerce-sku-explainer">Somente SKUs do Scanner com vínculo confirmado a anúncio ativo. Anúncios ainda não identificados ficam na ferramenta Pendências, sem criar produtos duplicados.</p>
-      )}
 
       <div className="commerce-sku-filters">
         <form onSubmit={e=>{e.preventDefault();setAppliedSearch(search.trim());}}>
@@ -142,73 +120,77 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
 
       {!loading && items.length > 0 && (
         <div className="commerce-sku-products">
-          {items.map(product=>{
+          {items.map(product => {
             const listings = Array.isArray(product.listings) ? product.listings : [];
-            const sums = monthTotal(listings);
+            const eans = Array.isArray(product.eans) ? product.eans : [];
             return (
               <article key={product.product_id} className="commerce-sku-product">
-                <div className="commerce-sku-product-title">
-                  <ProductCutoutImage
-                    src={product.image_url}
-                    alt={product.product_name || product.sku}
-                    className="commerce-sku-product-thumb"
-                    fallback={<span className="commerce-sku-product-thumb missing">Sem foto</span>}
-                  />
-                  <div>
-                    <strong>{product.product_name || 'Produto NISTI'}</strong>
-                    <code>{product.sku}</code>
-                    {product.variation && <small>{product.variation}</small>}
-                  </div>
-                  <div className="commerce-sku-product-count">
-                    <b>{listings.length}</b>
-                    <span>{listings.length === 1 ? 'anúncio ativo' : 'anúncios ativos'}</span>
-                  </div>
-                </div>
-
-                <div className="commerce-sku-listings">
-                  {listings.map(listing=>{
-                    const key = product.product_id + ':' + listing.listing_id;
-                    const value = edits[key] ?? (listing.manual_units ?? '');
-                    return (
-                      <div key={listing.listing_id} className="commerce-sku-listing">
-                        <div className="commerce-sku-listing-identity">
-                          <strong>{listingPlatform(listing)}</strong>
-                          <span>{listing.title || 'Anúncio sem título'}</span>
-                          <div className="commerce-sku-listing-details">
-                            <code>ID: {listing.external_listing_id}</code>
-                            {listing.platform_sku && listing.platform_sku !== product.sku &&
-                              <small>SKU original: {listing.platform_sku}</small>}
-                            {listing.variation_id && <small>Variação: {listing.variation_name || listing.variation_id}</small>}
-                            {listing.url && <a href={listing.url} target="_blank" rel="noreferrer">Abrir anúncio</a>}
+                <ProductCutoutImage
+                  src={product.image_url}
+                  alt={product.product_name || product.sku}
+                  className="commerce-sku-product-thumb"
+                  fallback={<span className="commerce-sku-product-thumb missing">Sem foto</span>}
+                />
+                <div className="commerce-sku-product-main">
+                  <strong className="commerce-sku-product-name">{product.product_name || 'Produto NISTI'}</strong>
+                  <div className="commerce-sku-listings">
+                    {listings.map(listing => {
+                      const key = product.product_id + ':' + listing.listing_id;
+                      const isExpanded = expanded.has(key);
+                      const value = edits[key] ?? (listing.manual_units ?? '');
+                      return (
+                        <div key={listing.listing_id} className="commerce-sku-listing">
+                          <div className="commerce-sku-listing-main">
+                            {listing.url ? (
+                              <a className="commerce-sku-id-link" href={listing.url}
+                                target="_blank" rel="noopener noreferrer"
+                                title={'Abrir anúncio ' + listing.external_listing_id}>
+                                {listing.external_listing_id}
+                                <span aria-hidden="true">↗</span>
+                              </a>
+                            ) : (
+                              <span className="commerce-sku-id-unlinked">{listing.external_listing_id || 'ID indisponível'}</span>
+                            )}
+                            <button type="button" className="commerce-sku-expand"
+                              onClick={() => toggleListing(key)}
+                              aria-expanded={isExpanded}
+                              aria-controls={'commerce-sku-details-' + key}
+                              aria-label={(isExpanded ? 'Ocultar' : 'Mostrar') + ' SKU e EAN do anúncio ' + listing.external_listing_id}>
+                              {isExpanded ? '−' : '+'}
+                            </button>
                           </div>
-                        </div>
-                        {salesMode ? (
-                          <div className="commerce-sku-manual-sale">
-                            <label htmlFor={'listing-units-'+key}>Unidades no mês</label>
-                            <div>
-                              <input id={'listing-units-'+key} inputMode="numeric"
-                                type="number" min="0" step="1" max="100000000"
-                                value={value} placeholder="Não informado"
-                                onChange={e=>setEdits(cur=>({...cur,[key]:e.target.value}))}/>
-                              <button type="button" disabled={saving!==''}
-                                onClick={()=>save(product,listing)}>
-                                {saving===key ? 'Salvando…' : 'Salvar'}
-                              </button>
+                          {isExpanded && (
+                            <div className="commerce-sku-details" id={'commerce-sku-details-' + key}>
+                              <div><span>SKU</span><code>{product.sku || 'Não informado'}</code></div>
+                              <div><span>EAN</span>
+                                {eans.length ? (
+                                  <div className="commerce-sku-eans">
+                                    {eans.map(ean => <code key={ean}>{ean}</code>)}
+                                  </div>
+                                ) : <em>Não cadastrado</em>}
+                              </div>
+                              {salesMode && (
+                                <div className="commerce-sku-manual-sale">
+                                  <label htmlFor={'listing-units-' + key}>Unidades no mês</label>
+                                  <div>
+                                    <input id={'listing-units-' + key} inputMode="numeric"
+                                      type="number" min="0" step="1" max="100000000"
+                                      value={value} placeholder="Não informado"
+                                      onChange={e => setEdits(current => ({...current,[key]:e.target.value}))}/>
+                                    <button type="button" disabled={saving !== ''}
+                                      onClick={() => save(product,listing)}>
+                                      {saving === key ? 'Salvando…' : 'Salvar'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ) : (
-                          <span className="commerce-sku-active">Ativo</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {salesMode && (
-                  <div className="commerce-sku-sales-subtotal">
-                    <span>Total registrado para este SKU no mês: <b>{commerceFormatNumber(sums.units)} unidades</b></span>
-                    {sums.pending > 0 && <small>{sums.pending} anúncio(s) ainda sem quantidade informada</small>}
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
               </article>
             );
           })}
@@ -216,7 +198,7 @@ export default function CommerceSkuListingsView({ salesMode = false }) {
       )}
 
       <div className="commerce-sku-pagination">
-        <span>Página {page} de {pages} · {commerceFormatNumber(total)} produtos · {allListings} vínculos nesta página</span>
+        <span>Página {page} de {pages} · {commerceFormatNumber(total)} produtos</span>
         <div>
           <button disabled={loading || offset===0} onClick={()=>load(Math.max(0,offset-limit))}>Anterior</button>
           <button disabled={loading || offset+limit>=total} onClick={()=>load(offset+limit)}>Próxima</button>
