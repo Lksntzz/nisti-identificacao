@@ -20,25 +20,27 @@ test('Mural drafts are created only through the explicit admin publication flow'
   assert.ok(mural.includes("payload.published_at,payload.expires_at,'admin'"));
 });
 
-test('phase 5 push is explicit and restricted to important notices or selected products',()=>{
-  assert.ok(mural.includes("post.kind === 'notice' && post.notice_level === 'important'"));
-  assert.ok(mural.includes("|| post.kind === 'product'"));
+test('Mural push is gated until operator release and supports three publication types',()=>{
+  assert.ok(mural.includes("const MURAL_PUBLIC_RELEASED = false"));
+  assert.ok(mural.includes("if (!MURAL_PUBLIC_RELEASED) {"));
+  assert.ok(mural.includes("['collection','product','notice'].includes(post.kind)"));
   assert.ok(mural.includes("post.status !== 'published'"));
   assert.ok(mural.includes('/push$/'));
   assert.ok(admin.includes('Enviar notificação'));
   assert.ok(admin.includes('window.confirm'));
 });
 
-test('phase 5 reuses Supabase VAPID subscriptions and cleans dead endpoints',()=>{
+test('Mural uses dedicated Supabase push claims and cleans dead endpoints',()=>{
   assert.ok(push.includes('export async function broadcastMuralPush'));
-  assert.ok(push.includes('nisti_list_push_subscriptions_v1'));
-  assert.ok(push.includes('sendWebPushNotification(env,sub,payload)'));
-  assert.ok(push.includes('res.status===404||res.status===410'));
-  assert.ok(push.includes('removePushSubscription(env,endpoint)'));
+  assert.ok(push.includes('nisti_claim_mural_push_targets_v1'));
+  assert.ok(push.includes('sendWebPushNotification(env, target, payload)'));
+  assert.ok(push.includes('res.status === 404 || res.status === 410'));
+  assert.ok(push.includes('removePushSubscription(env, target.endpoint)'));
+  assert.ok(push.includes('nisti_complete_mural_push_delivery_v1'));
   assert.equal(push.includes('env.DB'),false);
 });
 
-test('publishing the feed never dispatches mural push automatically',()=>{
+test('publishing Mural does not broadcast directly or bypass its release guard',()=>{
   const publishStart=mural.indexOf('async function adminPublishPost');
   const pushStart=mural.indexOf('async function adminSendPush');
   assert.ok(publishStart>=0);
