@@ -316,6 +316,7 @@ export function Hero({ item, onOpen }) {
 
 export function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 }) {
   const previews = item.collection?.preview_products || [];
+  const hasBanner = Boolean(item.image_url);
   const title = formatCollectionTitle(item.collection) || item.title;
   const supporting = item.collection?.hero_message || item.collection?.description || item.subtitle || item.body || 'Conheça os produtos desta nova coleção.';
   const tone = Number(item.collection?.id || item.id || index) % 4;
@@ -324,12 +325,17 @@ export function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 })
   return (
     <button
       type="button"
-      className={`mural-collection-launch-card mural-collection-tone-${tone} mural-reveal`}
+      className={`mural-collection-launch-card mural-collection-tone-${tone} mural-reveal${hasBanner ? ' has-editorial-banner' : ''}`}
       style={revealStyle}
       data-mural-reveal
       onClick={() => onOpen?.(item)}
       aria-label={`Abrir coleção ${title}`}
     >
+      {hasBanner && (
+        <span className="mural-collection-secondary-banner" aria-hidden="true">
+          <MuralImage item={item} eager={eager} className="mural-collection-secondary-banner-image" />
+        </span>
+      )}
       <span className="mural-collection-launch-copy">
         <span className="mural-collection-topline">
           <span className="mural-card-editorial-pill is-collection">{item.badge || 'NOVA COLEÇÃO'}</span>
@@ -338,7 +344,7 @@ export function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 })
         <strong>{title}</strong>
         <span>{supporting}</span>
       </span>
-      <span className="mural-collection-launch-products" aria-hidden="true">
+      {!hasBanner && <span className="mural-collection-launch-products" aria-hidden="true">
         {previews.length ? previews.slice(0, 3).map((product, productIndex) => (
           <span className={`mural-collection-launch-product product-${productIndex + 1}`} key={product.id}>
             <CollectionProductImage product={product} eager={eager && productIndex === 0} />
@@ -346,7 +352,7 @@ export function CollectionLaunchCard({ item, onOpen, eager = false, index = 0 })
         )) : (
           <MuralImage item={item} eager={eager} className="mural-collection-launch-fallback" />
         )}
-      </span>
+      </span>}
       <span className="mural-collection-launch-arrow" aria-hidden="true"><MuralIcon name="chevron" size={22} /></span>
     </button>
   );
