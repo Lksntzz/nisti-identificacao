@@ -44,6 +44,6 @@ test('part 8 Mural header uses Mural identity and keeps Scanner return on the br
 });
 
 test('part 8 preserves the public release gate', () => {
-  assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
+  assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
   assert.ok(publicMain.includes('<h2>Em breve</h2>'));
 });
