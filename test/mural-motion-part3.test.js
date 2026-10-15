@@ -35,9 +35,9 @@ test('motion part 3 adds one-shot unread emphasis and premium hover without loop
   assert.equal(part3.includes('infinite'), false);
 });
 
-test('motion part 3 preserves reduced-motion and the public Em breve gate', () => {
+test('motion part 3 preserves reduced-motion and the released operator Mural gate', () => {
   assert.ok(css.includes('.mural-reveal.is-visible .mural-badge-motion'));
   assert.ok(css.includes('animation:none!important'));
-  assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
+  assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
   assert.ok(publicMain.includes('<h2>Em breve</h2>'));
 });

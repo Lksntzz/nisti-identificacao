@@ -28,10 +28,10 @@ test('returning to embedded Scanner attempts to start camera again after remount
   assert.match(scanner,/startCamera\(\)/);
 });
 
-test('Mural has a direct path back to Scanner and QA access stays server-gated',()=>{
+test('Mural has a direct path back to Scanner and retains QA-specific safeguards',()=>{
   assert.match(publicMain,/onOpenScanner=\{\(\) => setPublicView\('scanner'\)\}/);
   assert.match(publicMain,/onOpenMural=\{\(\) => setPublicView\('mural'\)\}/);
-  assert.match(router,/const MURAL_PUBLIC_RELEASED = false/);
+  assert.match(router,/const MURAL_PUBLIC_RELEASED = true/);
   assert.match(router,/!MURAL_PUBLIC_RELEASED && !qaAuthorized/);
 });
 

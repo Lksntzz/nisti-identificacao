@@ -30,9 +30,9 @@ test('motion part 4 closes consistently from escape, backdrop and close button',
   assert.ok(mural.includes('onClick={requestClose}'));
 });
 
-test('motion part 4 respects reduced motion and preserves the public Em breve gate', () => {
+test('motion part 4 respects reduced motion and preserves the released operator Mural gate', () => {
   assert.ok(css.includes('.mural-modal-backdrop.is-closing,'));
   assert.ok(css.includes('animation:none!important'));
-  assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
+  assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
   assert.ok(publicMain.includes('<h2>Em breve</h2>'));
 });

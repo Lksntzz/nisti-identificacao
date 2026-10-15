@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('Mural push is disabled until the operator-release switch is enabled', () => {
+test('Mural push is enabled exclusively for released operator content', () => {
   const router = read('src/mural-router.js');
   const push = read('src/web-push.js');
-  assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
+  assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
   assert.match(router, /if \(!MURAL_PUBLIC_RELEASED\) return/);
   assert.match(router, /if \(!MURAL_PUBLIC_RELEASED\) \{/);
   assert.match(push, /if \(!released\) return \{ sent: 0, failed: 0, skipped: true, reason: 'mural_not_released' \}/);

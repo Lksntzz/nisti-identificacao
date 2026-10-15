@@ -132,51 +132,7 @@ self.addEventListener('push', event => {
     }
   };
 
-  event.waitUntil((async () => {
-    let displayStatus = 'failed';
-    try {
-      await self.registration.showNotification(title, options);
-      displayStatus = 'shown';
-    } catch (error) {
-      console.error('[Push] O dispositivo recusou exibir a notificação:', error?.message || String(error));
-    }
-    // Acknowledgement is only sent for an explicit single-device QA test.
-    // It never enables the public Mural or marks a publication as read.
-    if (data.channel === 'mural' && data.mural_kind === 'test'
-      && /^[0-9a-f-]{36}$/i.test(String(data.push_test_id || ''))) {
-      try {
-        await fetch('/api/push/test-receipt', {
-          method:'POST', credentials:'same-origin',
-          headers:{'content-type':'application/json'},
-          body:JSON.stringify({test_id:data.push_test_id,display_status:displayStatus})
-        });
-      } catch (error) {
-        console.warn('[Push QA] Confirmação de exibição indisponível', error?.message || String(error));
-      }
-    }
-  })());
-});
-
-// Local presentation check: no server push, no account broadcast and no
-// sensitive data. Lets operators distinguish OS permissions from gateway issues.
-self.addEventListener('message', event => {
-  if (event.data?.type !== 'nisti-local-notification-test') return;
-  const port = event.ports?.[0];
-  event.waitUntil((async () => {
-    try {
-      await self.registration.showNotification('Teste local · NISTI', {
-        body:'Seu celular consegue exibir notificações do aplicativo NISTI.',
-        icon:new URL('/nisti-logo.png',self.location.origin).href,
-        badge:new URL('/nisti-logo.png',self.location.origin).href,
-        tag:'nisti-local-test',
-        renotify:true,
-        data:{url:'/#scanner'}
-      });
-      port?.postMessage({ok:true});
-    } catch (error) {
-      port?.postMessage({ok:false,error:'O celular não permitiu exibir a notificação.'});
-    }
-  })());
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 function safeNotificationTarget(value) {
