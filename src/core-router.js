@@ -14,7 +14,8 @@ import {
   removePushSubscription,
   broadcastNewCoverPush,
   pushVapidHealth,
-  getOperatorPushDevice
+  getOperatorPushDevice,
+  sendMuralPushSelfTest
 } from './web-push.js';
 import {
   supabaseReserveProducts,
@@ -927,6 +928,30 @@ export default {
         const vapid=await pushVapidHealth(env);
         const device=await getOperatorPushDevice(env,userId,body?.endpoint);
         return json({ok:true,registered:Boolean(device),vapid_ready:vapid.ready,vapid_code:vapid.code},200,{'cache-control':'no-store'});
+      }
+
+      if (url.pathname === '/api/push/test-my-device' && request.method === 'POST') {
+        const userId = verifiedOperatorId(request);
+        if (!userId) return json({error:'Sessão do operador inválida.'},401);
+        const body = await request.json().catch(()=>({}));
+        const result = await sendMuralPushSelfTest(env,userId,body?.endpoint);
+        if (result.ok) return json(result,200,{'cache-control':'no-store'});
+        const messages = {
+          operator_session_invalid:'Sessão inválida. Atualize o aplicativo.',
+          device_not_registered:'Este celular não está cadastrado nesta sessão. Reative as notificações no aparelho.',
+          cooldown:'Aguarde 90 segundos antes de enviar outro teste.',
+          vapid_private_missing:'Servidor push sem chave de envio.',
+          vapid_keys_mismatch:'As chaves de notificação do servidor não coincidem.',
+          vapid_public_invalid:'A chave pública do servidor está inválida.',
+          vapid_sign_error:'Falha na configuração de assinatura das notificações.',
+          subscription_expired:'Assinatura expirada. Atualize o aplicativo e ative as notificações novamente.',
+          push_send_failed:'Erro de envio no servidor. Verifique os logs antes de repetir.',
+          push_service_rejected:'O serviço de push recusou esta assinatura.'
+        };
+        return json({error:messages[result.reason] || 'Não foi possível enviar a notificação de teste.',
+          status_code:result.status_code || null},
+          result.reason==='cooldown' ? 429 : result.reason==='device_not_registered' || result.reason==='subscription_expired' ? 409 : 503,
+          {'cache-control':'no-store'});
       }
 
       if (url.pathname === '/api/push/public-key' && request.method === 'GET') {
