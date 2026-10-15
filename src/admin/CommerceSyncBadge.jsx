@@ -36,6 +36,14 @@ export function commerceSyncMeta(sync) {
     };
   }
 
+  if (status === 'SKIPPED' && sync?.reason === 'catalog_not_imported') {
+    return {
+      state: 'not-linked',
+      label: 'Aguardando Catálogo',
+      detail: 'Os anúncios ainda não foram importados para o Catálogo comercial.'
+    };
+  }
+
   if (status === 'NOT_LINKED') {
     return {
       state: 'not-linked',
