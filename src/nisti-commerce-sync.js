@@ -107,6 +107,14 @@ export async function syncNistiProductsToCommerce(env, ids = null) {
     return { skipped: true, reason: 'preview_scope', total: 0, created: 0, linked: 0, updated: 0, conflicts: 0, results: [] };
   }
 
+  // Never reconstruct a freshly cleared Commerce catalog just because a
+  // Scanner product is edited or a Scanner administrator opens the panel.
+  // Only real imported marketplace rows enable the Commerce bridge.
+  const importedCatalogAvailable = await supabaseRpc(env, 'commerce_has_marketplace_import_v1', {});
+  if (importedCatalogAvailable !== true) {
+    return { skipped: true, reason: 'catalog_not_imported', total: 0, created: 0, linked: 0, updated: 0, conflicts: 0, results: [] };
+  }
+
   const products = await loadNistiProducts(env, ids);
   const summary = { total: 0, created: 0, linked: 0, updated: 0, conflicts: 0, results: [] };
 
