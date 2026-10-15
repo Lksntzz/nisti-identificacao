@@ -34,7 +34,7 @@ test('Scanner panel list and details reuse badges only from linked imported Comm
   assert.match(catalog,/export function CatalogPlatformTags/);
   assert.match(catalog,/syncStatus === 'SYNCED' && Number\(product\?\.commerce_sync\?\.commerce_product_id\) > 0/);
   assert.match(catalog,/confirmedCatalogLink \? catalogPlatforms\(product\) : \[\]/);
-  assert.match(catalog,/Sem anúncio no Catálogo/);
+  assert.match(catalog,/Sem anúncio no catálogo/);
   assert.match(admin,/import CatalogView, \{ CatalogPlatformTags \}/);
   assert.match(admin,/<CatalogPlatformTags product=\{\{ \.\.\.product, commerce_sync: syncState \}\} \/>/);
   assert.doesNotMatch(admin,/<PlatformTag platform=\{product.platform\} \/>/);
