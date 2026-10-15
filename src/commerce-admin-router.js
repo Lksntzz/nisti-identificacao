@@ -14,6 +14,7 @@ import {
   commerceImportBatches,
   commerceImportRows,
   commerceListings,
+  commerceActiveProductCatalog,
   commerceSkuListingGroups,
   commerceSaveListingSales,
   commerceListingHistory,
@@ -169,6 +170,15 @@ export async function handleCommerceAdminRequest(request, env) {
 
     if (method === 'GET' && pathname === `${BASE_PATH}/management/product-summary`) {
       return json(await commerceManagementProductSummary(env));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/catalog/active-products`) {
+      return json(await commerceActiveProductCatalog(env, {
+        search: query(url, 'search'),
+        marketplace: query(url, 'marketplace'),
+        limit: query(url, 'limit'),
+        offset: query(url, 'offset')
+      }));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/sku-listings`) {
