@@ -318,6 +318,43 @@ export async function sendWebPushNotification(env, subscription, payload) {
   };
 }
 
+// Push QA sent to the exact device belonging to the authenticated operator.
+// The caller supplies the current subscription endpoint, not a display name.
+// Does not unlock the Mural or notify any other operator.
+export async function sendMuralPushSelfTest(env, userId, rawEndpoint) {
+  if (!/^op_[0-9a-f-]{36}$/i.test(String(userId || ''))) {
+    return { ok:false, sent:0, reason:'operator_session_invalid' };
+  }
+  const device = await getOperatorPushDevice(env, userId, rawEndpoint);
+  if (!device) return { ok:false, sent:0, reason:'device_not_registered' };
+  const health = await pushVapidHealth(env);
+  if (!health.ready) return { ok:false, sent:0, reason:health.code };
+  const claim = await supabaseRpc(env, 'nisti_claim_operator_push_self_test_v1', { p_user_id:userId });
+  if (claim?.status !== 'ready') return { ok:false, sent:0, reason:claim?.status || 'cooldown' };
+  let response;
+  try {
+    response = await sendWebPushNotification(env, device, {
+      channel:'mural', mural_kind:'test',
+      title:'Teste · Mural NISTI',
+      body:'Esta notificação de teste foi enviada para este celular. O Mural continua em breve.',
+      url:'/#scanner'
+    });
+  } catch (error) {
+    console.error('[Mural QA push] Falha ao enviar para sessão autenticada', {message:error?.message || String(error)});
+    return {ok:false,sent:0,reason:'push_send_failed'};
+  }
+  if (response.status === 404 || response.status === 410) {
+    await removePushSubscription(env, device.endpoint).catch(() => {});
+  }
+  return {
+    ok:Boolean(response.ok),
+    sent:response.ok ? 1 : 0,
+    status_code:response.status,
+    reason:response.ok ? 'accepted_by_push_service' :
+      (response.status === 404 || response.status === 410 ? 'subscription_expired' : 'push_service_rejected')
+  };
+}
+
 // Administrative one-device QA test. Never sends a published Mural post,
 // never broadcasts to other operators, and never changes the release switch.
 export async function sendAdmLukasMuralTestPush(env) {
