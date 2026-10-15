@@ -7553,3 +7553,18 @@ button.kpi-box:active {
 .nisti-sales-monthly-table span{color:#64748b}
 @media(max-width:650px){.nisti-sales-modal{padding:17px}.nisti-sales-modal-filters{grid-template-columns:1fr 1fr}.nisti-sales-modal-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:390px){.nisti-sales-modal-filters{grid-template-columns:1fr}}
+
+/* Admin activity cards: one coherent visual icon for each notification source. */
+.notification-thumb.notification-thumb-images { background:#ede9fe; color:#6d28d9; }
+.notification-thumb.notification-thumb-admin { background:#e8efff; color:#285bd3; }
+.notification-thumb.notification-thumb-scanner { background:#e2f4ff; color:#0369a1; }
+.notification-thumb.notification-thumb-catalog { background:#ecfdf5; color:#047857; }
+.notification-thumb.notification-thumb-mural { background:#fce7f3; color:#be185d; }
+.notification-thumb.notification-thumb-commerce { background:#fef3c7; color:#a16207; }
+.notification-thumb.notification-thumb-operators { background:#e0f2fe; color:#0369a1; }
+.notification-thumb.notification-thumb-security { background:#e0f2f1; color:#0f766e; }
+.notification-thumb.notification-thumb-system { background:#edf2f7; color:#475569; }
+.notification-thumb.notification-thumb-warning { background:#fff4da; color:#b45309; }
+.notification-thumb.notification-thumb-error { background:#fee2e2; color:#b91c1c; }
+.notification-thumb svg {display:block;width:30px;height:30px;flex-shrink:0;}
+.notification-card.read .notification-thumb {opacity:.85;}
