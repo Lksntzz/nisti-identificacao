@@ -134,8 +134,6 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   const [markingAll, setMarkingAll] = useState(false);
   const [pushStatus, setPushStatus] = useState('unknown');
   const [pushError, setPushError] = useState('');
-  const [pushTesting, setPushTesting] = useState(false);
-  const [pushTestMessage, setPushTestMessage] = useState('');
   const load = async () => {
     setLoading(true);
     try {
@@ -232,74 +230,6 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
     }
   };
 
-  const testThisDevicePush = async () => {
-    if (pushTesting) return;
-    setPushTesting(true);
-    setPushTestMessage('');
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const subscription = await reg.pushManager.getSubscription();
-      if (!subscription) throw new Error('O celular não possui assinatura push ativa. Ative as notificações novamente.');
-      await persistPushSubscription(subscription);
-      const result = await api('/api/push/test-my-device', {
-        method: 'POST',
-        headers: {'content-type':'application/json'},
-        body: JSON.stringify({endpoint:subscription.endpoint})
-      });
-      if (result.sent !== 1 || !result.test_id) {
-        setPushTestMessage('O serviço de push não confirmou o envio.');
-        return;
-      }
-      setPushTestMessage('Serviço push aceitou. Aguardando confirmação do aplicativo no celular…');
-      let displayStatus = 'pending';
-      for (const delay of [3000, 5000, 6000]) {
-        await new Promise(resolve => setTimeout(resolve, delay));
-        const receipt = await api(`/api/push/test-result?test_id=${encodeURIComponent(result.test_id)}`);
-        displayStatus = receipt?.display_status || 'pending';
-        if (displayStatus !== 'pending') break;
-      }
-      setPushTestMessage(displayStatus === 'shown'
-        ? 'O aplicativo confirmou que solicitou a exibição da notificação. Se não apareceu na tela, verifique a Central de Notificações e o modo Foco do celular.'
-        : displayStatus === 'failed'
-        ? 'A notificação chegou ao aplicativo, mas o sistema do celular recusou exibi-la. Verifique as permissões do NISTI.'
-        : 'O serviço de push aceitou a mensagem, mas o aplicativo não confirmou o recebimento. Tente o teste de exibição local para identificar a origem.');
-    } catch(error) {
-      setPushTestMessage(error?.message || 'Falha ao testar as notificações neste celular.');
-    } finally {
-      setPushTesting(false);
-    }
-  };
-
-  const testLocalNotification = async () => {
-    if (pushTesting) return;
-    setPushTesting(true);
-    setPushTestMessage('');
-    try {
-      if (Notification.permission !== 'granted') {
-        throw new Error('O aparelho não concedeu permissão para notificações do NISTI.');
-      }
-      const registration = await navigator.serviceWorker.ready;
-      if (!registration.active) throw new Error('O serviço de notificações ainda não está ativo.');
-      const channel = new MessageChannel();
-      const result = await new Promise(resolve => {
-        const timer = setTimeout(() => resolve({ok:false,error:'O celular não respondeu ao teste local.'}), 8000);
-        channel.port1.onmessage = event => {
-          clearTimeout(timer);
-          resolve(event.data);
-        };
-        registration.active.postMessage({type:'nisti-local-notification-test'},[channel.port2]);
-      });
-      channel.port1.close();
-      setPushTestMessage(result?.ok
-        ? 'O aplicativo conseguiu solicitar uma notificação local. Confira a Central de Notificações; se ela não aparecer, verifique as configurações do celular.'
-        : result?.error || 'O celular não permitiu exibir a notificação local.');
-    } catch (error) {
-      setPushTestMessage(error?.message || 'Falha ao executar o teste local neste aparelho.');
-    } finally {
-      setPushTesting(false);
-    }
-  };
-
   const markOne = async (id) => {
     try {
       await api(`/api/notifications/${id}/read`, { method: 'POST' });
@@ -369,20 +299,9 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
             </button>
           )}
           {pushStatus === 'granted' && (
-            <div className="push-test-controls">
-              <span className="push-status-badge">Ativo</span>
-              <button type="button" className="push-test-device-btn"
-                onClick={testThisDevicePush} disabled={pushTesting}>
-                {pushTesting ? 'Testando…' : 'Testar push'}
-              </button>
-              <button type="button" className="push-test-device-btn"
-                onClick={testLocalNotification} disabled={pushTesting}>
-                Testar exibição
-              </button>
-            </div>
+            <span className="push-status-badge">Ativo</span>
           )}
         </div>
-        {pushTestMessage && <div className="push-test-device-message" role="status">{pushTestMessage}</div>}
 
         <div className="notifications-body">
           {loading && <div className="notifications-loading">Carregando novidades…</div>}
