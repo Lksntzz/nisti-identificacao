@@ -318,6 +318,35 @@ export async function sendWebPushNotification(env, subscription, payload) {
   };
 }
 
+// Administrative one-device QA test. Never sends a published Mural post,
+// never broadcasts to other operators, and never changes the release switch.
+export async function sendAdmLukasMuralTestPush(env) {
+  if (!getVapidPrivateKey(env)) {
+    return { ok: false, sent: 0, reason: 'vapid_not_configured' };
+  }
+  const claim = await supabaseRpc(env, 'nisti_claim_adm_lukas_mural_push_test_v1', {});
+  if (claim?.status !== 'ready') {
+    return { ok: false, sent: 0, reason: claim?.status || 'device_unavailable' };
+  }
+  const payload = {
+    channel: 'mural',
+    mural_kind: 'test',
+    title: 'Teste de notificação · Mural NISTI',
+    body: 'ADM Lukas, esta é uma notificação de teste. O Mural continua em breve.',
+    url: '/#scanner'
+  };
+  const response = await sendWebPushNotification(env, claim.subscription, payload);
+  if (response.status === 404 || response.status === 410) {
+    await removePushSubscription(env, claim.subscription.endpoint).catch(() => {});
+  }
+  return {
+    ok: Boolean(response.ok),
+    sent: response.ok ? 1 : 0,
+    status_code: response.status,
+    reason: response.ok ? 'accepted_by_push_service' : 'push_service_rejected'
+  };
+}
+
 async function loadPushSubscriptions(env) {
   const rows = await supabaseRpc(env,'nisti_list_push_subscriptions_v1',{});
   return Array.isArray(rows) ? rows : [];

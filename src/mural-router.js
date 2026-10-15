@@ -1,7 +1,7 @@
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 import { productTypeLabel } from './product-display.js';
 import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
-import { broadcastMuralPush } from './web-push.js';
+import { broadcastMuralPush, sendAdmLukasMuralTestPush } from './web-push.js';
 import {
   preferSupabaseRead,
   supabaseRpc,
@@ -1555,6 +1555,21 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     if (archive && request.method === 'POST') return adminArchivePost(Number(archive[1]), env);
     const duplicate = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/duplicate$/);
     if (duplicate && request.method === 'POST') return adminDuplicatePost(Number(duplicate[1]), env);
+    if (path === '/api/admin/mural/push/test-adm-lukas' && request.method === 'POST') {
+      const result = await sendAdmLukasMuralTestPush(env);
+      if (result.ok) return json(result);
+      const messages = {
+        cooldown: 'Aguarde 90 segundos antes de repetir o teste.',
+        not_registered: 'Nenhum aparelho com push cadastrado foi encontrado para ADM Lukas.',
+        ambiguous_operator: 'Há mais de um perfil de ADM Lukas com push ativo. Revise os aparelhos antes de enviar.',
+        vapid_not_configured: 'As credenciais de push ainda não estão configuradas.',
+        push_service_rejected: 'O serviço de push recusou a mensagem. Revise a assinatura no celular.',
+        device_unavailable: 'O dispositivo de ADM Lukas não está disponível para teste.'
+      };
+      return json({ error: messages[result.reason] || 'Não foi possível enviar a notificação de teste.', sent: 0 },
+        result.reason === 'cooldown' ? 429 : result.reason === 'not_registered' ? 404 :
+          result.reason === 'ambiguous_operator' ? 409 : 503);
+    }
     const postPush = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/push$/);
     if (postPush && request.method === 'POST') return adminSendPush(Number(postPush[1]), env);
     const postUpload = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/image$/);

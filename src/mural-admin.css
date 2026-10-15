@@ -4891,3 +4891,18 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
 .mural-open-existing-collection{display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin-left:12px;padding:0 12px;border:1px solid #b91c1c;border-radius:8px;background:#fff;color:#991b1b;font-size:12px;font-weight:750;cursor:pointer}
 .mural-open-existing-collection:hover{background:#fff1f2}
 @media(max-width:680px){.mural-open-existing-collection{display:flex;margin:10px 0 0}}
+
+
+/* Explicit admin-only QA action: never unlocks the operator Mural. */
+.mural-admin-dashboard-actions .mural-adm-test-push {
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:38px;padding:8px 13px;border:1px solid #d8c3ff;border-radius:10px;
+  background:#f3edff;color:#6226ac;font-size:12px;font-weight:800;cursor:pointer;
+}
+.mural-admin-dashboard-actions .mural-adm-test-push:hover:not(:disabled){background:#e9dcff}
+.mural-admin-dashboard-actions .mural-adm-test-push:disabled{cursor:wait;opacity:.65}
+.mural-admin-dashboard-actions .mural-adm-test-push:focus-visible{outline:3px solid #7c3aed;outline-offset:2px}
+.mural-push-test-result{
+  padding:12px 15px;border:1px solid #b9d7ff;border-radius:10px;
+  background:#eff6ff;color:#184f92;font-weight:650;font-size:12px;
+}
