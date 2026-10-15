@@ -2,6 +2,7 @@ import app from './platform-runtime-router.js';
 import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
 import { SupabasePrimaryWriteError } from './supabase-write-store.js';
 import { recordAdminActivityFromResponse } from './system-notifications.js';
+import { dispatchScheduledMuralNotifications } from './mural-router.js';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -94,5 +95,11 @@ export default {
     return response;
   },
 
-  async scheduled() {}
+  async scheduled(_event, env, ctx) {
+    const task=dispatchScheduledMuralNotifications(env).catch(error=>{
+      console.error('[Mural Push Cron] Falha na rotina agendada',error?.message || String(error));
+    });
+    if (ctx?.waitUntil) ctx.waitUntil(task);
+    else await task;
+  }
 };
