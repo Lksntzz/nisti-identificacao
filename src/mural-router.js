@@ -1,7 +1,7 @@
 import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
 import { productTypeLabel } from './product-display.js';
 import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
-import { broadcastMuralPush } from './web-push.js';
+import { broadcastMuralPush, sendAdmLukasMuralTestPush } from './web-push.js';
 import {
   preferSupabaseRead,
   supabaseRpc,
@@ -1555,6 +1555,10 @@ export async function handleMuralRequest(request, env, { qaAuthorized = false } 
     if (archive && request.method === 'POST') return adminArchivePost(Number(archive[1]), env);
     const duplicate = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/duplicate$/);
     if (duplicate && request.method === 'POST') return adminDuplicatePost(Number(duplicate[1]), env);
+    if (path === '/api/admin/mural/push/test-adm-lukas' && request.method === 'POST') {
+      const result = await sendAdmLukasMuralTestPush(env);
+      return json(result, result.ok ? 200 : result.reason === 'cooldown' ? 429 : result.reason === 'not_registered' ? 404 : 503);
+    }
     const postPush = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/push$/);
     if (postPush && request.method === 'POST') return adminSendPush(Number(postPush[1]), env);
     const postUpload = path.match(/^\/api\/admin\/mural\/posts\/(\d+)\/image$/);
