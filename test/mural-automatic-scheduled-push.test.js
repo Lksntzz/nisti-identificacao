@@ -5,9 +5,12 @@ import { dispatchScheduledMuralNotifications } from '../src/mural-router.js';
 
 const read = path => fs.readFileSync(new URL('../' + path,import.meta.url),'utf8');
 
-test('scheduled Mural push refuses to access recipients while not released', async () => {
-  const result = await dispatchScheduledMuralNotifications({});
-  assert.deepEqual(result, {skipped:true,reason:'mural_not_released',sent:0,failed:0});
+test('scheduled Mural push is enabled only for operator-visible content', () => {
+  const router=read('src/mural-router.js');
+  assert.match(router,/const MURAL_PUBLIC_RELEASED = true;/);
+  assert.match(router,/if \(!MURAL_PUBLIC_RELEASED\) \{/);
+  assert.match(router,/nisti_list_mural_push_ready_v1/);
+  assert.match(router,/broadcastMuralPush\(env,\{postId:Number\(id\),released:MURAL_PUBLIC_RELEASED\}\)/);
 });
 
 test('automatic Mural notices cover collection, product and notice after publish', () => {
@@ -37,5 +40,9 @@ test('database jobs only include recent published, unexpired material, retry fai
   assert.match(sql,/interval '10 minutes'/);
   assert.match(sql,/TO service_role/);
   assert.match(read('wrangler.toml'),/crons = \["\*\/5 \* \* \* \*"\]/);
-  assert.match(read('src/mural-router.js'),/const MURAL_PUBLIC_RELEASED = false;/);
+  assert.match(read('src/mural-router.js'),/const MURAL_PUBLIC_RELEASED = true;/);
+  const release=read('supabase/migrations/20261015_mural_public_release_cutoff_v1.sql');
+  assert.match(release,/CREATE TABLE IF NOT EXISTS public.mural_push_release_gate/);
+  assert.match(release,/p.published_at>=GREATEST/);
+  assert.match(release,/SELECT released_at FROM public.mural_push_release_gate/);
 });
