@@ -29,10 +29,10 @@ test('collection products keep staggered reveal after part 7', () => {
   assert.ok(css.includes('.mural-collection-product[data-collection-reveal].is-visible'));
 });
 
-test('motion part 6 respects reduced motion and keeps operators on Em breve', () => {
+test('motion part 6 respects reduced motion and keeps the published Mural available to operators', () => {
   assert.ok(mural.includes("if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return"));
   assert.ok(css.includes('.mural-collection-progress{'));
   assert.ok(css.includes('animation:none!important'));
-  assert.match(router, /const MURAL_PUBLIC_RELEASED = false/);
+  assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
   assert.ok(publicMain.includes('<h2>Em breve</h2>'));
 });
