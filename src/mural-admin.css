@@ -4885,3 +4885,9 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
   }
 }
 
+
+
+/* Existing collection conflict: offer a safe path to edit instead of duplicating. */
+.mural-open-existing-collection{display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin-left:12px;padding:0 12px;border:1px solid #b91c1c;border-radius:8px;background:#fff;color:#991b1b;font-size:12px;font-weight:750;cursor:pointer}
+.mural-open-existing-collection:hover{background:#fff1f2}
+@media(max-width:680px){.mural-open-existing-collection{display:flex;margin:10px 0 0}}
