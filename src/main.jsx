@@ -9,6 +9,7 @@ import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
+import MuralNisti from './mural-nisti.jsx';
 import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
 import CommerceImportCenter from './commerce-import-center.jsx';
@@ -1702,6 +1703,9 @@ function ImportCsvModal({ isOpen, onClose, onImported }) {
    MAIN ADMIN APP ROOT
    ========================================================================= */
 function AdminApp() {
+  const muralQaMode = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('mural') === 'qa';
+  const exitMuralQa = () => window.location.assign('/admin#admin/mural-nisti');
   const desktopPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('desktop') === '1';
 
@@ -1966,7 +1970,15 @@ function AdminApp() {
               </>
             )}
 
-            {activeView === 'mural-nisti' && <MuralNistiAdminView activeSection={muralSection} onSectionChange={setMuralSection} />}
+            {activeView === 'mural-nisti' && (muralQaMode ? (
+              <section className="admin-mural-qa-view" aria-label="Área de teste do Mural NISTI">
+                <header className="admin-mural-qa-header">
+                  <div><strong>Área de teste — Mural NISTI</strong><p>Prévia administrativa do aplicativo dos operadores. Não libera o Mural em produção.</p></div>
+                  <button type="button" onClick={exitMuralQa}>Voltar ao painel</button>
+                </header>
+                <MuralNisti />
+              </section>
+            ) : <MuralNistiAdminView activeSection={muralSection} onSectionChange={setMuralSection} />)}
 
             {activeView === 'commerce' && (
               <div className="commerce-admin-inline-view">
