@@ -1034,6 +1034,27 @@ export default function MuralNisti({ onUnreadChange }) {
     }
   };
 
+  // Mobile push opens the actual published card, not just the generic feed.
+  useEffect(() => {
+    let active = true;
+    const openPushTarget = async () => {
+      const match = window.location.hash.match(/^#\/mural\/post\/(\d+)$/);
+      if (!match) return;
+      try {
+        const data = await muralApi(`/api/mural/posts/${match[1]}`);
+        if (active && data?.item) await openItem(data.item);
+      } catch (error) {
+        if (active) setError('A publicação desta notificação não está disponível.');
+      }
+    };
+    void openPushTarget();
+    window.addEventListener('hashchange', openPushTarget);
+    return () => {
+      active = false;
+      window.removeEventListener('hashchange', openPushTarget);
+    };
+  }, []);
+
   const handleScroll = event => {
     if (reducedMotionRef.current) return;
     const node = event.currentTarget;

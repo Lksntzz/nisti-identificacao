@@ -126,7 +126,9 @@ self.addEventListener('push', event => {
     data: {
       url: data.url || '/',
       capa_code: data.capa_code,
-      mural_post_id: data.mural_post_id
+      mural_post_id: data.mural_post_id,
+      channel: data.channel === 'mural' ? 'mural' : 'scanner',
+      mural_kind: data.mural_kind
     }
   };
 

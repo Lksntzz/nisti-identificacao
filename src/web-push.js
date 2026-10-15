@@ -369,13 +369,57 @@ export async function broadcastNewCoverPush(env, {
   return {sent,failed,skipped:false};
 }
 
-export async function broadcastMuralPush(env,{postId,title,body}) {
-  const privateKey=getVapidPrivateKey(env);
-  if(!privateKey) return {sent:0,failed:0,skipped:true};
-  const subscriptions=await loadPushSubscriptions(env);
-  let sent=0;let failed=0;const dead=[];
-  const payload={title:String(title||'Mural NISTI').slice(0,90),body:String(body||'Nova publicação no Mural NISTI').slice(0,180),url:'/#mural',mural_post_id:Number(postId)};
-  await Promise.all(subscriptions.map(async sub=>{try{const res=await sendWebPushNotification(env,sub,payload);if(res.ok)sent+=1;else failed+=1;if(res.status===404||res.status===410)dead.push(sub.endpoint)}catch(error){failed+=1;console.error('[Push Mural] Falha de envio',{postId:Number(postId),subscriptionId:sub.id,message:error?.message||String(error)})}}));
-  for(const endpoint of dead) await removePushSubscription(env,endpoint).catch(()=>{});
-  return {sent,failed,skipped:false};
+// Dedicated Mural channel: always gated at caller and here, with atomic
+// per-operator delivery claims. The Scanner cover-notification channel is separate.
+export async function broadcastMuralPush(env, { postId, released = false } = {}) {
+  if (!released) return { sent: 0, failed: 0, skipped: true, reason: 'mural_not_released' };
+  const id = Number(postId);
+  if (!Number.isSafeInteger(id) || id <= 0) return { sent: 0, failed: 0, skipped: true, reason: 'invalid_post_id' };
+  if (!getVapidPrivateKey(env)) return { sent: 0, failed: 0, skipped: true, reason: 'vapid_private_missing' };
+
+  // The database validates published/active/eligible content and claims
+  // one target device per operator. Re-publish/manual retry never duplicates push.
+  const claim = await supabaseRpc(env, 'nisti_claim_mural_push_targets_v1', { p_post_id: id });
+  if (!claim?.eligible) return { sent: 0, failed: 0, skipped: true, reason: 'post_not_eligible' };
+  const subscriptions = Array.isArray(claim.targets) ? claim.targets : [];
+  if (!subscriptions.length) return { sent: 0, failed: 0, skipped: true, reason: 'no_new_targets' };
+
+  const kind = claim.kind;
+  const category = kind === 'collection' ? 'Nova coleção' : kind === 'product' ? 'Novo produto' : 'Novo aviso';
+  const summary = String(claim.title || '').trim().slice(0, 110);
+  const message = kind === 'notice'
+    ? String(claim.body || claim.subtitle || summary || 'Novo comunicado').slice(0, 180)
+    : summary || 'Conheça a novidade no Mural NISTI';
+  const payload = {
+    channel: 'mural',
+    mural_kind: kind,
+    mural_post_id: id,
+    title: `${category} · Mural NISTI`,
+    body: message,
+    url: `/#/mural/post/${id}`
+  };
+
+  let sent = 0;
+  let failed = 0;
+  await Promise.all(subscriptions.map(async target => {
+    let ok = false;
+    try {
+      const res = await sendWebPushNotification(env, target, payload);
+      ok = Boolean(res.ok);
+      if (res.status === 404 || res.status === 410) {
+        await removePushSubscription(env, target.endpoint).catch(() => {});
+      }
+    } catch (error) {
+      console.error('[Push Mural] Falha no envio', { postId: id, message: error?.message || String(error) });
+    } finally {
+      if (ok) sent += 1;
+      else failed += 1;
+      await supabaseRpc(env, 'nisti_complete_mural_push_delivery_v1', {
+        p_post_id: id,
+        p_operator_user_id: target.operator_user_id,
+        p_sent: ok
+      }).catch(error => console.error('[Push Mural] Falha no registro de entrega', { postId: id, message: error?.message || String(error) }));
+    }
+  }));
+  return { sent, failed, skipped: false };
 }
