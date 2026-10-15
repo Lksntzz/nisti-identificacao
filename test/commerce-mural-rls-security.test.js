@@ -24,7 +24,8 @@ test('RLS is active on every server-only commerce and Mural table',()=>{
 });
 
 test('the RLS migration never deletes records, changes scanner data, or opens public policies',()=>{
-  assert.doesNotMatch(sql,/\b(?:TRUNCATE|DELETE FROM|DROP TABLE|DROP POLICY|DISABLE ROW LEVEL SECURITY|CREATE POLICY)\b/i);
+  const statements=sql.replace(/^--.*$/gm,'');
+  assert.doesNotMatch(statements,/\b(?:TRUNCATE|DELETE FROM|DROP TABLE|DROP POLICY|DISABLE ROW LEVEL SECURITY|CREATE POLICY)\b/i);
   assert.doesNotMatch(sql,/\bpublic\.(?:products|product_gtins|gtin_scan_events|product_platforms|mural_posts|mural_collections)\b/i);
   assert.match(sql,/BEGIN;/);
   assert.match(sql,/COMMIT;/);
