@@ -231,6 +231,34 @@ function normalizeMercadoLivreBulkRow(row, rowNumber, listingStatus = null, list
   return { status: 'REVIEW', issues: statusOnly ? ['listing_status_only'] : [...(listingStatus ? [] : ['verify_listing_active']), 'verify_product_identity'], normalized, original: row };
 }
 
+// The first row of the official Mercado Livre workbook defines the technical
+// columns. Never infer STATUS from a positional guess (AB, not AD in 2026).
+export function indexMercadoLivreBulkStatus(rows) {
+  const header = (rows || []).find(row =>
+    Array.isArray(row) && row.includes('ITEM_ID') && row.includes('STATUS')
+  );
+  if (!header) throw new Error('Exportação do Mercado Livre sem as colunas ITEM_ID e STATUS.');
+  const idIndex = header.indexOf('ITEM_ID');
+  const statusIndex = header.indexOf('STATUS');
+  const titleIndex = header.indexOf('TITLE');
+  const statuses = new Map();
+  const titles = new Map();
+  const statusMap = { ativo: 'ACTIVE', inativo: 'INACTIVE', pausado: 'PAUSED', finalizado: 'REMOVED', encerrado: 'REMOVED' };
+  for (const row of (rows || []).slice(6)) {
+    const id = text(row?.[idIndex]).toUpperCase();
+    if (!/^MLB\\d{6,}$/.test(id)) continue;
+    const status = statusMap[fold(row?.[statusIndex])];
+    if (!status) continue; // Child variation rows contain numeric placeholders.
+    if (statuses.has(id) && statuses.get(id) !== status) {
+      throw new Error(`Status conflitante no anúncio ${id}.`);
+    }
+    statuses.set(id, status);
+    const title = text(row?.[titleIndex]);
+    if (title && title !== '0' && title !== '0.0') titles.set(id, title);
+  }
+  return { statuses, titles };
+}
+
 export function normalizeCommerceImportRow({ marketplace, sheetName, row, rowNumber, listingStatus = null, listingTitle = null }) {
   const market = normalizeMarketplace(marketplace);
   if (!Array.isArray(row) || !row.some(value => text(value))) return null;
