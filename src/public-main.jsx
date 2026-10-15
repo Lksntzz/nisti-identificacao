@@ -632,7 +632,7 @@ function PublicIdentificationApp() {
           <span className="operator-floating-avatar">{operatorName ? operatorName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0,2).toUpperCase() : 'OP'}</span>
           <span className="operator-floating-name">{operatorName || 'Operador'}</span>
         </button>}
-        {showInstall && <InstallApp compact />}
+        <InstallApp compact />
       </div>
 
       <NotificationsModal
