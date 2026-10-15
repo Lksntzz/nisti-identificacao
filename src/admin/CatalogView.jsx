@@ -67,18 +67,17 @@ function catalogPlatforms(product) {
     : [];
 }
 
-function CatalogPlatformTags({ product }) {
-  const platforms = catalogPlatforms(product);
+export function CatalogPlatformTags({ product }) {
+  const syncStatus = String(product?.commerce_sync?.sync_status || product?.commerce_sync?.status || '').toUpperCase();
+  // Do not use product.platform / product_platforms: those belong to Scanner
+  // identification and may survive a full Commerce import reset.
+  const confirmedCatalogLink = syncStatus === 'SYNCED' && Number(product?.commerce_sync?.commerce_product_id) > 0;
+  const platforms = confirmedCatalogLink ? catalogPlatforms(product) : [];
   const visible = platforms.slice(0, 2);
   const hidden = platforms.slice(2);
-  const syncStatus = String(product?.commerce_sync?.sync_status || '').toUpperCase();
 
   if (!platforms.length) {
-    return (
-      <span className="catalog-platform-empty">
-        {syncStatus === 'SYNCED' ? 'Sem anúncio no catálogo' : 'Sem vínculo'}
-      </span>
-    );
+    return <span className="catalog-platform-empty">Sem anúncio no Catálogo</span>;
   }
 
   return (
