@@ -4029,3 +4029,22 @@
 @media (prefers-reduced-motion:reduce) {
   .app.general .mural-nav-btn.mural-nav-btn-spotlight {transition:none}
 }
+
+
+/* Premium teaser CTA: independent of unread push notifications or operator release. */
+.app.general .mural-nav-btn.mural-nav-btn-spotlight{
+  min-height:47px;min-width:104px;padding:7px 13px 7px 10px;
+  gap:7px;border:1px solid rgba(255,255,255,.7);
+  border-radius:17px;background:linear-gradient(115deg,#5733e3 0%,#8631d5 48%,#e2389a 100%);
+  box-shadow:0 6px 18px rgba(105,51,205,.26),inset 0 1px rgba(255,255,255,.32);
+}
+.app.general .mural-nav-label{display:flex;flex-direction:column;align-items:flex-start;line-height:1.06;white-space:nowrap}
+.app.general .mural-nav-label strong{font-size:12px;letter-spacing:.01em}
+.app.general .mural-nav-label small{font-size:8px;font-weight:750;opacity:.9;letter-spacing:.02em;margin-top:3px}
+.app.general .mural-nav-glow{display:grid;place-items:center;color:#ffe482}
+.app.general .mural-nav-teaser{right:-5px;top:-9px}
+@media(max-width:390px){
+  .app.general .mural-nav-btn.mural-nav-btn-spotlight{min-width:91px;min-height:40px;padding:5px 8px;gap:5px;border-radius:14px}
+  .app.general .mural-nav-label strong{font-size:11px}
+  .app.general .mural-nav-label small{font-size:7px}
+}
