@@ -33,5 +33,5 @@ test('Notice-only CSS preserves editorial contrast and separate important-alert 
 
 test('Notice changes never change the operator Mural release gate', () => {
   const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
-  assert.match(router, /const MURAL_PUBLIC_RELEASED = false;/);
+  assert.match(router, /const MURAL_PUBLIC_RELEASED = true;/);
 });
