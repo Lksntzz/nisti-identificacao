@@ -231,7 +231,7 @@ export default function CommerceAdminAppV2() {
               </div>
             </div>
 
-            {activeView === 'catalog' && <CommerceSkuListingsView />}
+            {activeView === 'catalog' && <CommerceSkuListingsView catalogMode />}
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
             {activeView === 'import-center' && <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />}
