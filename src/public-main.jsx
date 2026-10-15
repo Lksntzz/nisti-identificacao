@@ -630,7 +630,6 @@ function PublicIdentificationApp() {
           onClick={() => setOperatorModalOpen(true)} title={`Perfil: ${operatorName || 'Operador'}`}
           aria-label={`Abrir perfil do operador ${operatorName || ''}`.trim()}>
           <span className="operator-floating-avatar">{operatorName ? operatorName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0,2).toUpperCase() : 'OP'}</span>
-          <span className="operator-floating-name">{operatorName || 'Operador'}</span>
         </button>}
         <InstallApp compact />
       </div>
