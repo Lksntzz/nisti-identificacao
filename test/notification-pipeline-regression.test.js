@@ -51,10 +51,11 @@ test('operator push status verifies server registration and correct VAPID pairin
   assert.doesNotMatch(operatorApp, /Testar envio|testPushDelivery|testingPush|pushTestStatus/);
 });
 
-test('manual push test is retired without affecting push registration and automatic delivery', () => {
+test('legacy bulk/manual push test is retired; only verified personal self-test is allowed', () => {
   const webPush = read('../src/web-push.js');
   const activities = read('../src/system-notifications.js');
-  assert.doesNotMatch(core, /\/api\/push\/test|\/api\/admin\/notifications\/test|\/api\/admin\/push\/six-covers/);
+  assert.doesNotMatch(core, /\/api\/push\/test(?:\/|['"`])|\/api\/admin\/notifications\/test|\/api\/admin\/push\/six-covers/);
+  assert.match(core, /sendMuralPushSelfTest\(env,userId,body\?\.endpoint\)/);
   assert.doesNotMatch(webPush, /sendOperatorDevicePushTest|Teste de notificação · NISTI ID/);
   assert.doesNotMatch(activities, /\/api\/push\/test/);
   assert.match(core, /\/api\/push\/subscribe/);

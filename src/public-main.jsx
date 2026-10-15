@@ -134,6 +134,8 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   const [markingAll, setMarkingAll] = useState(false);
   const [pushStatus, setPushStatus] = useState('unknown');
   const [pushError, setPushError] = useState('');
+  const [pushTesting, setPushTesting] = useState(false);
+  const [pushTestMessage, setPushTestMessage] = useState('');
   const load = async () => {
     setLoading(true);
     try {
@@ -230,6 +232,30 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
     }
   };
 
+  const testThisDevicePush = async () => {
+    if (pushTesting) return;
+    setPushTesting(true);
+    setPushTestMessage('');
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.getSubscription();
+      if (!subscription) throw new Error('O celular não possui assinatura push ativa. Ative as notificações novamente.');
+      await persistPushSubscription(subscription);
+      const result = await api('/api/push/test-my-device', {
+        method: 'POST',
+        headers: {'content-type':'application/json'},
+        body: JSON.stringify({endpoint:subscription.endpoint})
+      });
+      setPushTestMessage(result.sent === 1
+        ? 'O serviço push aceitou o teste para ESTE aparelho. Confira as notificações do celular.'
+        : 'O serviço não confirmou o envio.');
+    } catch(error) {
+      setPushTestMessage(error?.message || 'Falha ao testar as notificações neste celular.');
+    } finally {
+      setPushTesting(false);
+    }
+  };
+
   const markOne = async (id) => {
     try {
       await api(`/api/notifications/${id}/read`, { method: 'POST' });
@@ -299,9 +325,16 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
             </button>
           )}
           {pushStatus === 'granted' && (
-            <span className="push-status-badge">Ativo</span>
+            <div className="push-test-controls">
+              <span className="push-status-badge">Ativo</span>
+              <button type="button" className="push-test-device-btn"
+                onClick={testThisDevicePush} disabled={pushTesting}>
+                {pushTesting ? 'Enviando…' : 'Testar neste celular'}
+              </button>
+            </div>
           )}
         </div>
+        {pushTestMessage && <div className="push-test-device-message" role="status">{pushTestMessage}</div>}
 
         <div className="notifications-body">
           {loading && <div className="notifications-loading">Carregando novidades…</div>}
