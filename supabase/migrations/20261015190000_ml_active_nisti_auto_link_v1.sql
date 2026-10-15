@@ -180,7 +180,7 @@ begin
 
     update public.commerce_import_rows r
     set matched_product_id=v_product_id,matched_listing_id=v_listing_id,
-        status='MATCHED',match_method=v_method,error_code=null,match_score=100
+        status='MATCHED',match_method=v_method,error_code=null,match_score=1.0
     where r.id=v_row.id and r.status<>'COMMITTED';
     v_linked:=v_linked+1;
   end loop;
