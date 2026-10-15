@@ -7607,3 +7607,9 @@ button.kpi-box:active {
   .app.general .operator-floating-avatar{flex-basis:32px;width:32px;height:32px}
   .app.general .operator-floating-name{max-width:68px}
 }
+
+/* Scanner operator identity: compact avatar only, bottom-left. */
+.app.general .operator-floating-dock{right:auto;left:max(14px,env(safe-area-inset-left));}
+.app.general .operator-floating-profile{width:48px;height:48px;min-width:48px;min-height:48px;padding:5px;justify-content:center;border-radius:999px;}
+.app.general .operator-floating-avatar{width:36px;height:36px;flex:0 0 36px;}
+@media(max-width:460px){.app.general .operator-floating-dock{right:auto;left:max(10px,env(safe-area-inset-left));}.app.general .operator-floating-profile{width:46px;height:46px;min-width:46px;min-height:46px;padding:5px;}.app.general .operator-floating-avatar{width:34px;height:34px;flex:0 0 34px;}}
