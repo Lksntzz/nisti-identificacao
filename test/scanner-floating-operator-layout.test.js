@@ -14,6 +14,8 @@ test('scanner moves operator identity below, retaining profile editing and top n
   assert.match(jsx,/onClick=\{\(\) => setOperatorModalOpen\(true\)\}/);
   assert.match(css,/\.app\.general \.operator-floating-dock/);
   assert.match(css,/position:fixed;right:/);
+  assert.match(css,/\.app\.general \.operator-floating-dock\{right:auto;left:/);
+  assert.doesNotMatch(jsx,/className="operator-floating-name"/);
 });
 
 test('Mural teaser stays separate from notification count and unauthorized preview',()=>{
