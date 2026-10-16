@@ -66,7 +66,7 @@ create or replace function public.commerce_shopee_confirm_sku_alias_v1(
 declare v_sku text;v_target record;v_existing record;v_source_count integer;v_target_count integer;
 begin
   v_sku:=public.commerce_nisti_sku_norm_v1(p_source_sku);
-  if not p_confirmed or nullif(v_sku,'') is null or length(v_sku)>160
+  if p_confirmed is distinct from true or nullif(v_sku,'') is null or length(v_sku)>160
      or p_listing_product_id is null or p_listing_product_id<=0
      or length(btrim(coalesce(p_evidence,''))) not between 8 and 500
   then raise exception 'É necessário confirmar um SKU, a variação e a justificativa.';end if;
