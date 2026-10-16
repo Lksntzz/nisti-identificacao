@@ -154,6 +154,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         <div className="nim-detail-section-title"><h4>Evolução de vendas</h4><small>Histórico mensal do anúncio</small></div>
         {error?<p className="nim-error" role="alert">{error}</p>:months===null?
           <p className="nim-subtle">Consultando histórico…</p>:<MonthBars months={months} basis="REVENUE"/>}
+        {months?.some(m=>m.partial)&&<p className="nim-detail-hint">Histórico parcial: apenas vendas com SKU exclusivo associado ao anúncio atual. Não representa todas as vendas.</p>}
         {months?.length>0&&<div className="nim-month-values">
           {months.slice(-4).reverse().map(m=><div key={m.period}>
             <span>{labelMonth(m.period)}</span><strong>{num(m.units)} un. · {money(m.revenue)}</strong>
@@ -384,7 +385,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <span><small>Unidades</small><strong>{num(data.imported_month.units)}</strong></span>
         <span><small>Subtotal dos produtos</small><strong>{money(data.imported_month.revenue)}</strong></span>
       </div>
-      <p className="nim-imported-month-warning">As vendas mensais ainda não estão vinculadas aos IDs de anúncio. Os filtros Com vendas e Sem vendas, as curvas ABC e as quantidades por variação exigem dados diários confiáveis e permanecem pendentes.</p>
+      <p className="nim-imported-month-warning">{hasMonthPartial
+        ?'Vendas identificadas por SKU exclusivo: '+num(kpi.month_linked_units)+' unidades. Outras '+num(Math.max(0,Number(data.imported_month.units||0)-Number(kpi.month_linked_units||0)))+' unidades permanecem sem vínculo exclusivo. Sem vendas e Curva ABC continuam indisponíveis sem histórico completo por anúncio.'
+        :'Sem vínculos diários confiáveis por anúncio, as quantidades individuais e a Curva ABC permanecem pendentes.'}</p>
     </section>}
     {days===0&&month&&!data?.imported_month&&!loading&&!error&&<p className="nim-no-imported-month">
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.
@@ -401,6 +404,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         {monthlyOpen&&<div className="nim-month-summary">
           <h4>Evolução mensal · anúncios atualmente ativos</h4>
           <MonthBars months={monthly?.months} basis={basis}/>
+          {monthly?.months?.some(m=>m.partial)&&<p className="nim-detail-hint">Somente vendas identificadas por SKU exclusivo, sem ratear pedidos entre anúncios. Totais parciais.</p>}
         </div>}
         <div className="nim-table-scroll">
           <table className="nim-ad-table"><thead><tr>
@@ -435,6 +439,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </section>
       {selected&&<ListingDetail key={selected.id} item={selected} days={days} month={month} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
-    <p className="nim-footnote">Valores por ID real do anúncio e conta da plataforma. O filtro Sem vendas inclui variações sem vendas quando há dados confiáveis. Variações não identificadas não são classificadas como sem vendas. Nenhum dado do Scanner é alterado.</p>
+    <p className="nim-footnote">O símbolo ≥ indica vendas mínimas identificadas por SKU exclusivo, não faturamento total do anúncio. Sem vendas e Curva ABC só são calculados quando existem dados diários completos por anúncio. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
