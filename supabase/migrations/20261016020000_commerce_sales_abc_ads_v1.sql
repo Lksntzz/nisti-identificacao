@@ -24,11 +24,15 @@ with inputs as (
 abc as (
   select public.commerce_sales_abc_v1(p_platform,p_period_start,p_period_end,p_basis) result
 ), eligible as (
-  select a.row_number::integer priority,a.sku_norm,a.class_code,a.units,a.revenue
+  select a.priority::integer priority,
+    a.value->>'sku_norm' sku_norm,
+    a.value->>'class' class_code,
+    (a.value->>'units')::bigint units,
+    (a.value->>'revenue')::numeric revenue
   from abc t
-  cross join lateral jsonb_to_recordset(coalesce(t.result->'items','[]'::jsonb))
-    with ordinality as a(sku_norm text,class_code text,units bigint,revenue numeric,row_number bigint)
-  where a.class_code=(select curve from inputs)
+  cross join lateral jsonb_array_elements(coalesce(t.result->'items','[]'::jsonb))
+    with ordinality as a(value,priority)
+  where a.value->>'class'=(select curve from inputs)
 ), numbered as (
   select e.*,count(*) over() total_count from eligible e
 ), page as (
