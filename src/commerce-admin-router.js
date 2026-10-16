@@ -508,7 +508,7 @@ export async function handleCommerceAdminRequest(request, env) {
       const body=await bodyJson(request);
       if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
         return json({error:'Lote financeiro diário Shopee inválido.'},400);
-      return json({accepted_rows:await commerceAppendShopeeFinanceDaily(env,id,body.rows)});
+      return json({accepted_rows:await commerceAppendShopeeFinanceDaily(env,id,body.rows,body.sha256)});
     }
     const financeMonthMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/finance-month$/);
     if(method==='POST'&&financeMonthMatch){
@@ -516,7 +516,7 @@ export async function handleCommerceAdminRequest(request, env) {
       const body=await bodyJson(request);
       if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
         return json({error:'Lote financeiro mensal Shopee inválido.'},400);
-      return json({accepted_rows:await commerceAppendShopeeFinanceMonth(env,id,body.rows)});
+      return json({accepted_rows:await commerceAppendShopeeFinanceMonth(env,id,body.rows,body.sha256)});
     }
     const salesImportSummaryMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/summary$/);
     if (method === 'POST' && salesImportSummaryMatch) {
