@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listCommerceSalesImports, stageCommerceSalesWorkbook } from './commerce-import-client.js';
+import { listCommerceSalesImports, stageCommerceSalesWorkbook, reprocessShopeeSalesFinance } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
 
 function brNumber(value) {
@@ -153,6 +153,25 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     } finally {
       setImporting(false);
     }
+  }
+
+  async function handleFinanceReprocess(){
+    if(!parsed||parsed.platform_code!=='SHOPEE')return;
+    setImporting(true);setError('');setMessage('');
+    try{
+      const response=await reprocessShopeeSalesFinance(parsed,setProgress);
+      const result=response.result||{};
+      if(result.status==='WAITING_PARTS'){
+        setMessage('Taxas da primeira parte recebidas. Envie também a(s) outra(s) parte(s) original(is) do mesmo mês, sem reimportar as vendas.');
+      }else if(result.status==='COMMITTED'){
+        setMessage('Informações financeiras da Shopee recuperadas para '+
+          Number(result.finance_months||0)+' mês(es). Os produtos e totais de vendas não foram alterados.');
+        onSalesChanged?.();
+      }else throw new Error('Resposta inesperada ao ativar o histórico financeiro.');
+      setFile(null);setParsed(null);setProgress(null);
+    }catch(err){
+      setError(err.message||'Não foi possível recuperar as taxas da planilha.');
+    }finally{setImporting(false);}
   }
 
   function changePlatform(event) {
