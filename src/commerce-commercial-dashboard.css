@@ -118,3 +118,49 @@
 .nisti-com-imports .nisti-com-section-heading p{line-height:1.5}
 .nisti-com-analytics{align-items:stretch}
 .nisti-com-products{min-width:0}
+
+
+/* Compact commercial overview: retain the user's desktop layout on mobile. */
+.nisti-com-dashboard{gap:10px}
+.nisti-com-section{padding:12px 13px;border-radius:12px}
+.nisti-com-section-heading{margin-bottom:9px}
+.nisti-com-section h3{font-size:14px}
+.nisti-com-heading{gap:9px}
+.nisti-com-symbol{width:35px;height:35px;border-radius:10px;font-size:19px}
+.nisti-com-heading h2{font-size:18px}
+.nisti-com-heading p{font-size:10px}
+.nisti-com-metrics{gap:8px}
+.nisti-com-metric{min-height:84px;padding:11px 12px;gap:7px;border-radius:10px}
+.nisti-com-metric>div:first-child{gap:3px;grid-template-rows:auto auto auto;align-content:center}
+.nisti-com-metric span:first-child{font-size:10px}
+.nisti-com-metric strong{font-size:18px}
+.nisti-com-metric small{font-size:9px}
+.nisti-com-metric-icon{width:30px;height:30px;flex-basis:30px;font-size:12px}
+.nisti-com-global-filters{display:grid;grid-template-columns:minmax(145px,1.2fr) minmax(125px,.85fr) minmax(133px,.85fr) minmax(180px,1.5fr) auto;gap:8px;align-items:end;background:#fff;border:1px solid #e6eaf0;border-radius:12px;padding:11px 13px}
+.nisti-com-global-filters label{display:grid;gap:4px;min-width:0;color:#617087;font-weight:750;font-size:10px}
+.nisti-com-global-filters select,.nisti-com-global-filters input{border:1px solid #dde4ed;border-radius:8px;min-width:0;width:100%;height:35px;background:#fff;padding:0 9px;color:#29374e;font-size:11px}
+.nisti-com-global-filters .nisti-com-light-button{height:35px;min-height:35px;padding:7px 10px}
+.nisti-com-global-caption{grid-column:1/-1;font-size:9px;color:#748199;line-height:1.4}
+.nisti-com-abc-cards{gap:8px}
+.nisti-com-abc-card{min-height:110px;grid-template-columns:34px minmax(0,1fr);grid-template-rows:auto auto;gap:7px 9px;padding:11px 12px;border-radius:10px}
+.nisti-com-abc-flag{width:34px;height:34px;font-size:18px!important;border-radius:8px}
+.nisti-com-abc-card>div:nth-child(2)>strong{font-size:12px}
+.nisti-com-abc-numbers{gap:9px;margin-top:0;align-self:center}
+.nisti-com-abc-donut{width:52px;height:52px;flex-basis:52px}
+.nisti-com-abc-donut:before{inset:10px}
+.nisti-com-abc-donut b{font-size:10px}
+.nisti-com-abc-numbers strong,.nisti-com-abc-numbers b{font-size:11px}
+.nisti-com-abc-numbers>div:last-child{gap:3px}
+.nisti-com-imports .nisti-com-section-heading{margin:0}
+.nisti-com-imports .import-center{margin-top:10px}
+.nisti-com-analytics>.nisti-com-section{min-height:160px}
+.nisti-com-chart{height:120px}
+.nisti-com-placeholder{min-height:90px}
+.nisti-com-big-donut{width:110px;height:110px;flex-basis:110px}
+.nisti-com-big-donut>span{width:78px;height:78px}
+.nisti-com-big-donut b{font-size:18px}
+.nisti-com-participation-inner{padding:8px 2px}
+.nisti-com-products-title{padding:8px 0}
+.nisti-com-deep-dive>button{padding:11px 13px}
+@media(max-width:980px){.nisti-com-global-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.nisti-com-global-search{grid-column:span 2}}
+/* No new mobile-specific one-column layout: keep the existing desktop framing. */
