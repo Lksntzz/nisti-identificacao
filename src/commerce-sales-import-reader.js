@@ -283,7 +283,17 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
         variation: text(cell(row, header.columns.variation)) || null,
         units,
         order_id: orderId,
-        product_revenue: Math.max(0, numberValue(cell(row, header.columns.revenue)))
+        product_revenue: Math.max(0, numberValue(cell(row, header.columns.revenue))),
+        finance:financeColumns?{
+          seller_discount:cell(row,financeColumns.seller_discount)==null?NaN:
+            numberValue(cell(row,financeColumns.seller_discount)),
+          transaction_fee:cell(row,financeColumns.transaction_fee)==null?NaN:
+            numberValue(cell(row,financeColumns.transaction_fee)),
+          commission_net:cell(row,financeColumns.commission_net)==null?NaN:
+            numberValue(cell(row,financeColumns.commission_net)),
+          service_net:cell(row,financeColumns.service_net)==null?NaN:
+            numberValue(cell(row,financeColumns.service_net))
+        }:null
       });
       accepted += 1;
     }
