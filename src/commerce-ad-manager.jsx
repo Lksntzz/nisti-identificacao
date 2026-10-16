@@ -165,7 +165,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
           <DetailRow label="Subtotal dos produtos" value={pending?'—':money(detail.revenue)}
             description="Receita dos produtos no período selecionado"/>
           <DetailRow label="Descontos do vendedor" value="—"/>
-          <DetailRow label="Comissões Shopee" value="—"/>
+          <DetailRow label={item.source==='SHOPEE'?"Comissões Shopee":"Comissões da plataforma"} value="—"/>
           <DetailRow label="Taxas de serviço" value="—"/>
           <DetailRow label="Receita após taxas identificadas" value="—"/>
         </div>
