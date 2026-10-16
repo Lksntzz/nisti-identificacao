@@ -951,7 +951,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   disabled={catalogReading || catalogImporting || (catalogPlatform === 'MERCADO_LIVRE' && !catalogAccount)}
                   onChange={handleCatalogFile}
-                  onClear={() => {setCatalogFile(null);setCatalogParsed(null);setCatalogProgress(null);setError('');}}
+                  onClear={() => {setCatalogFile(null);setCatalogParsed(null);setShopeeActiveConfirmed(false);setCatalogProgress(null);setError('');}}
                   hint="Aceita planilhas .xlsx exportadas da plataforma"
                 />
                 {catalogReading && <div className="import-center-loading">Lendo e validando a planilha…</div>}
