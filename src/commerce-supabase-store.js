@@ -42,6 +42,19 @@ export async function commerceSalesDashboard(env, filters = {}) {
 // Ranking ABC uses imported sales only; does not attribute SKU-level sales to individual ads.
 // Time-window sales insights require daily coverage. Missing data is never shown as zero sales.
 export async function commerceListingManager(env, filters = {}) {
+  if (Number(filters.days)===0 && cleanText(filters.month) && cleanText(filters.platform)==='SHOPEE') {
+    const monthData=await supabaseRpc(env,'commerce_listing_manager_month_sku_v1',{
+      p_platform:'SHOPEE',
+      p_month:cleanText(filters.month),
+      p_search:cleanText(filters.search),
+      p_status:cleanText(filters.status)||'ALL',
+      p_curve:cleanText(filters.curve)||'ALL',
+      p_limit:cleanPageSize(filters.limit,20),
+      p_offset:cleanOffset(filters.offset)
+    });
+    return monthData && typeof monthData==='object' && !Array.isArray(monthData)
+      ?monthData:{items:[],total:0,kpis:{}};
+  }
   const data = await supabaseRpc(env, 'commerce_listing_manager_v1', {
     p_platform: cleanText(filters.platform) || 'TODAS',
     p_days: [0,7,30,60,90].includes(Number(filters.days)) ? Number(filters.days) : 30,
