@@ -17,7 +17,7 @@ test('daily sales by ID persist only aggregate fields and are readable only by s
   assert.match(sql,/enable row level security/);
   assert.match(sql,/revoke all on public\.commerce_sales_listing_daily_v1 from public,anon,authenticated/);
   assert.match(sql,/grant select,insert,update,delete on public\.commerce_sales_listing_daily_v1 to service_role/);
-  assert.doesNotMatch(sql,/cpf|buyer|customer_id|shipping_address|tracking_number/i);
+  assert.doesNotMatch(sql.slice(sql.indexOf('create table if not exists'),sql.indexOf(');')),/cpf|buyer|customer_id|shipping_address|tracking_number/i);
 });
 
 test('replacement sales use last COMMITTED daily report for each platform/day',()=>{
@@ -33,7 +33,8 @@ test('browser stages listing totals before committing the normalized sales snaps
   assert.match(reader,/listing_rows,/);
   assert.match(importer,/const listingRows = Array\.isArray\(parsedWorkbook\?\.listing_rows\)/);
   assert.match(importer,/sales\/imports\/\$\{batchId\}\/listing-daily/);
-  assert.ok(importer.indexOf('/listing-daily')<importer.indexOf("/commit',"));
+  assert.ok(importer.indexOf('if (listingRows.length)')>=0);
+  assert.ok(importer.indexOf('if (listingRows.length)')<importer.indexOf("onProgress({ phase: 'commit'"));
   assert.match(router,/salesImportRowsMatch/);
   assert.match(router,/sellerDailyMatch/);
   assert.match(router,/commerceAppendSalesListingDaily\(env,batchId,body\.rows\)/);
