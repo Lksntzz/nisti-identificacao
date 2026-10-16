@@ -57,11 +57,12 @@ export async function aggregateShopeeFinance(raw=[]){
   const daily=new Map(),months=new Map();
   for(const order of groups.values()){
     const month=months.get(order.month)||{
-      month_start:order.month,orders:0,units:0,product_revenue:0,
+      month_start:order.month,data_through:order.date,orders:0,units:0,product_revenue:0,
       seller_discount:0,commission_net:0,service_net:0,transaction_fee:0,
       fee_orders:0,single_sku_fee_orders:0,unallocated_orders:0,
       unallocated_units:0,unallocated_revenue:0
     };
+    if(order.date>month.data_through)month.data_through=order.date;
     month.orders++;
     month.units+=order.units;
     month.product_revenue+=order.revenue;
