@@ -115,6 +115,7 @@ with args as (
     coalesce(s.previous_units,0) previous_units,
     coalesce(s.current_revenue,0) revenue
   from catalog_known c full outer join sales_by_sku s on s.sku_norm=c.sku_norm
+  where c.sku_norm is not null or coalesce(s.current_units,0)>0
 ), benchmark as (
   select avg(units)::numeric average_sold from all_products where units>0
 ), classified as (
