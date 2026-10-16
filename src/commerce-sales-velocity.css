@@ -40,3 +40,27 @@
 .nisti-vl-empty{padding:12px;min-height:45px}
 .nisti-vl-product-head{min-height:65px}
 .nisti-vl-product-info strong{font-size:11px}
+
+
+/* Summary never expands into a full product catalogue. Product details are a separate,
+   explicitly opened panel AFTER Curva ABC. The mobile desktop framing is untouched. */
+.nisti-vl-summary{align-content:start;gap:9px}
+.nisti-vl-summary .nisti-vl-metric{min-height:86px;gap:3px}
+.nisti-vl-metric-action{display:flex;justify-content:space-between;align-items:center;gap:7px;
+  font-size:9px!important;font-weight:700;color:#66758b!important}
+.nisti-vl-metric-action span{font-size:13px;color:#5271a9}
+.nisti-vl-summary-loading{font-size:10px;color:#6b7990}
+.nisti-vl-details{gap:11px;min-width:0}
+.nisti-vl-details-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nisti-vl-details-header>div{display:grid;gap:4px;min-width:0}
+.nisti-vl-details-header h3{margin:0;font-size:14px;font-weight:800;color:#16233c}
+.nisti-vl-details-header small{font-size:10px;color:#738198}
+.nisti-vl-close{border:1px solid #dde4ed;background:#f8fafc;border-radius:8px;
+  padding:7px 11px;color:#4b607c;font-size:11px;font-weight:750;cursor:pointer;white-space:nowrap}
+.nisti-vl-close:hover{background:#eff3f8}
+.nisti-vl-close:focus-visible{outline:2px solid #2e66d2;outline-offset:2px}
+.nisti-vl-details .nisti-vl-list-heading{padding-top:9px}
+.nisti-vl-details .nisti-vl-product-head{min-height:62px;padding:9px 12px}
+.nisti-vl-details .nisti-vl-image{height:52px;width:43px}
+.nisti-vl-details .nisti-vl-product-info{gap:3px}
+.nisti-vl-details .nisti-vl-ads{padding:6px 12px}

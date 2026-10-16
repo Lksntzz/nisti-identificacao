@@ -13,8 +13,8 @@ test('four actionable performance categories share universal 7/30/60/90-day filt
   for(const day of [7,30,60,90])assert.match(dashboard,new RegExp('\\b'+day+'\\b'));
   for(const label of ['Com vendas','Sem vendas','Poucas vendas','Em crescimento'])
     assert.ok(view.includes(label),label);
-  assert.match(view,/setActiveStatus\(metric\.code\)/);
-  assert.match(view,/activeStatus===metric\.code/);
+  assert.match(view,/onSelectStatus\?\.\(isSelected\?'':metric\.code\)/);
+  assert.match(view,/selectedStatus===metric\.code/);
   assert.match(view,/setOffset\(v=>v\+15\)/);
   assert.match(dashboard,/type="month" value=\{referenceMonth\}/);
   assert.match(dashboard,/nisti-com-global-filters/);
@@ -44,7 +44,7 @@ test('no-sales denominator only contains ACTIVE catalog SKUs from fully imported
   assert.match(sql,/PARTIAL_PLATFORMS/);
   assert.match(sql,/sources_missing/);
   assert.doesNotMatch(sql,/insert into public\.products|update public\.products|delete from public\.products/);
-  assert.match(view,/Cobertura de dados insuficiente/);
+  assert.match(view,/Cobertura parcial/);
 });
 
 test('performance rules compare matching window lengths and report true growth',()=>{

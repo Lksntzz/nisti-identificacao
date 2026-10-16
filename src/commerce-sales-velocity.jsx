@@ -11,8 +11,10 @@ const METRICS=[
 const count=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
 
-export default function CommerceSalesVelocity({platform='TODAS',days=30,month='',refresh=0}) {
-  const [activeStatus,setActiveStatus]=useState('SOLD');
+export default function CommerceSalesVelocity({
+  platform='TODAS',days=30,month='',refresh=0,
+  mode='summary',activeStatus='SOLD',selectedStatus='',onSelectStatus,onClose
+}) {
   const [offset,setOffset]=useState(0);
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -54,46 +56,53 @@ export default function CommerceSalesVelocity({platform='TODAS',days=30,month=''
   const page=Math.floor(offset/15)+1;
   const caveat=data?.status&&data.status!=='READY'?statusMap[data.status]||'Dados insuficientes.':'';
 
-  return <section className="nisti-vl-section nisti-com-section">
-    <header className="nisti-vl-head">
-      <div>
+
+  if(mode === 'summary') {
+    return <section className="nisti-vl-section nisti-vl-summary nisti-com-section">
+      <header className="nisti-vl-head">
         <h3>Desempenho dos produtos</h3>
-
+        <small className="nisti-vl-shared-filter">{days} dias · filtro geral</small>
+      </header>
+      <div className="nisti-vl-metrics">
+        {METRICS.map(metric=>{
+          const value=metrics[metric.key];
+          const isAvailable=metric.code==='RISING'?ready&&prevReady:ready;
+          const isSelected=selectedStatus===metric.code;
+          return <button key={metric.code} type="button"
+            className={'nisti-vl-metric metric-'+metric.key+(isSelected?' selected':'')}
+            onClick={()=>onSelectStatus?.(isSelected?'':metric.code)}
+            aria-pressed={isSelected}
+            aria-label={metric.label+': '+(isAvailable&&value!=null?count(value):'aguardando dados')}
+            title={isSelected?'Ocultar produtos':'Ver produtos: '+metric.label}>
+            <div className="nisti-vl-metric-top">
+              <strong>{metric.label}</strong><span aria-hidden="true">{metric.icon}</span>
+            </div>
+            <div className="nisti-vl-metric-count">{isAvailable&&value!=null?count(value):'—'}</div>
+            <small className="nisti-vl-metric-action">{isSelected?'Ocultar lista':'Ver produtos'} <span aria-hidden="true">{isSelected?'−':'→'}</span></small>
+          </button>;
+        })}
       </div>
-      <small className="nisti-vl-shared-filter">{days} dias · período do filtro geral</small>
-    </header>
-    <div className="nisti-vl-metrics">
-      {METRICS.map(metric=>{
-        const value=metrics[metric.key];
-        const isAvailable=metric.code==='RISING'?ready&&prevReady:ready;
-        return <button key={metric.code} type="button"
-          className={'nisti-vl-metric metric-'+metric.key+(activeStatus===metric.code?' selected':'')}
-          onClick={()=>setActiveStatus(metric.code)}
-          aria-pressed={activeStatus===metric.code}
-          aria-label={metric.label+': '+(isAvailable&&value!=null?count(value):'aguardando dados')}>
-          <div className="nisti-vl-metric-top"><strong>{metric.label}</strong><span aria-hidden="true">{metric.icon}</span></div>
-          <div className="nisti-vl-metric-count">{isAvailable&&value!=null?count(value):'—'}</div>
-  
-        </button>;
-      })}
-    </div>
+      {caveat&&<div className="nisti-vl-caveat" role="status">
+        <strong>{data?.status==='NO_IMPORT'?'Sem dados':'Cobertura parcial'}</strong>
+        <span>{caveat}</span>
+      </div>}
+      {error&&<p role="alert" className="nisti-vl-error">{error}</p>}
+      {loading&&<small className="nisti-vl-summary-loading">Atualizando indicadores…</small>}
+      {data?.catalog_unidentified>0&&<small className="nisti-vl-summary-loading">
+        {count(data.catalog_unidentified)} anúncios sem SKU identificável.
+      </small>}
+    </section>;
+  }
 
-    {caveat&&<div className="nisti-vl-caveat" role="status">
-      <strong>{data?.status==='NO_IMPORT'?'Sem dados de vendas':'Cobertura de dados insuficiente'}</strong>
-      <span>{caveat}</span>
-
-    </div>}
-    {false&&ready&&<p className="nisti-vl-criteria">
-      Produtos com poucas vendas: unidades positivas abaixo da média do período.
-      Em crescimento: pelo menos 3 unidades e aumento de 20% ou mais contra os {days} dias anteriores;
-      de zero para 3+ unidades também conta como crescimento.
-      Os números pertencem ao produto/SKU, não a cada ID de anúncio.
-    </p>}
-    {data?.catalog_unidentified>0&&<p className="nisti-vl-unknown">
-      {count(data.catalog_unidentified)} grupos de anúncios sem SKU identificável não entram nos indicadores até serem relacionados corretamente.
-    </p>}
-
-    <div className="nisti-vl-list-heading">
+  return <section id="nisti-vl-detail" className="nisti-vl-section nisti-vl-details nisti-com-section">
+    <header className="nisti-vl-details-header">
+      <div>
+        <h3>Desempenho · {METRICS.find(m=>m.code===activeStatus)?.label}</h3>
+        <small>{days} dias · produtos e anúncios com vendas reais</small>
+      </div>
+      <button type="button" className="nisti-vl-close" onClick={()=>onClose?.()}
+        aria-label="Fechar lista de desempenho">Fechar <span aria-hidden="true">×</span></button>
+    </header>    <div className="nisti-vl-list-heading">
       <strong>{METRICS.find(m=>m.code===activeStatus)?.label} — produtos e anúncios</strong>
       {ready&&<span>{count(total)} produtos identificados</span>}
     </div>

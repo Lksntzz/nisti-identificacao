@@ -13,7 +13,7 @@ const adSql=read('supabase/migrations/20261016020000_commerce_sales_abc_ads_v1.s
 const catalogSql=read('supabase/migrations/20261016021000_catalog_normalized_sku_search_from_abc.sql');
 
 test('clicking A/B/C opens a functional detailed seller-ad list under the curve cards',()=>{
-  assert.match(dashboard,/onClick=\{\(\)=>setActiveCurve\(v=>v===curve\.code\?'':curve\.code\)\}/);
+  assert.match(dashboard,/setActiveCurve\(v=>v===curve\.code\?'':curve\.code\)/);
   assert.match(dashboard,/activeCurve && \(/);
   assert.match(dashboard,/CommerceAbcAdPerformance/);
   assert.match(dashboard,/curve=\{activeCurve\}/);
