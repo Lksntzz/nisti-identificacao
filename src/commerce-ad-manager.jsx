@@ -246,13 +246,33 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{periodLabel(detailDays,month)}</small></div>
         <div className="nim-detail-data-list">
           <DetailRow label="Subtotal dos produtos" value={partialLinked?'≥ '+money(partialRevenue):pending?'—':money(detail.revenue)}
-            description={partialLinked?'Subtotal identificado por SKU · parcial':'Receita dos produtos no período selecionado'}/>
-          <DetailRow label="Descontos do vendedor" value="—"/>
-          <DetailRow label={item.source==='SHOPEE'?"Comissões Shopee":"Comissões da plataforma"} value="—"/>
-          <DetailRow label="Taxas de serviço" value="—"/>
-          <DetailRow label="Receita após taxas identificadas" value="—"/>
+            description={partialLinked?'Produtos vinculados por SKU · pode haver outras vendas':'Receita dos produtos no período selecionado'}/>
+          {item.source==='SHOPEE'&&finance?.has_finance_data&&<>
+            <DetailRow label="Subtotal com taxas verificadas" value={money(finance.fee_reconciled_subtotal)}
+              description={num(finance.orders_with_verified_fees)+' pedidos de SKU único com taxas informadas'}/>
+            <DetailRow label="Descontos do vendedor" value={money(finance.seller_discount_already_in_subtotal)}
+              description="Informativos: já refletidos no subtotal, não descontados novamente"/>
+            <DetailRow label="Comissões Shopee (líquidas)" value={money(finance.commission_net)}/>
+            <DetailRow label="Taxas de serviço (líquidas)" value={money(finance.service_net)}/>
+            <DetailRow label="Taxa de transação" value={money(finance.transaction_fee)}/>
+            <DetailRow label="Após taxas identificadas · estimativa" value={money(finance.after_identified_fees)}
+              description="Somente pedidos com taxas verificadas e um único SKU"/>
+          </>}
+          {item.source!=='SHOPEE'&&<>
+            <DetailRow label="Descontos do vendedor" value="—"/>
+            <DetailRow label="Comissões da plataforma" value="—"/>
+            <DetailRow label="Taxas de serviço" value="—"/>
+            <DetailRow label="Receita após taxas identificadas" value="—"/>
+          </>}
         </div>
-        <p className="nim-detail-hint">Os descontos e as taxas ainda não foram conciliados por anúncio. O subtotal não representa repasse ou lucro líquido.</p>
+        {item.source==='SHOPEE'&&financeLoading&&<p className="nim-detail-hint" role="status">Conferindo taxas do relatório Shopee…</p>}
+        {item.source==='SHOPEE'&&financeError&&<p className="nim-detail-hint" role="alert">{financeError}</p>}
+        {item.source==='SHOPEE'&&!financeLoading&&!financeError&&!finance?.has_finance_data&&
+          <p className="nim-detail-hint">As vendas e os SKUs foram importados, mas as taxas não foram preservadas nas importações anteriores. Reimporte o Excel original da Shopee após a atualização do importador para conciliar comissões e descontos sem alterar o histórico de produtos.</p>}
+        {item.source==='SHOPEE'&&finance?.has_finance_data&&<p className="nim-detail-hint">
+          Valores financeiros verificados apenas em pedidos com um único SKU. Comissões repetidas nas linhas do Excel são contadas uma vez por pedido; pedidos com vários SKUs não têm taxas rateadas artificialmente. Descontos do vendedor já podem estar incluídos no preço do produto. O resultado é uma estimativa após taxas identificadas, não o repasse oficial nem lucro líquido.
+        </p>}
+        {item.source!=='SHOPEE'&&<p className="nim-detail-hint">Descontos e taxas não foram conciliados por anúncio. O subtotal não representa repasse ou lucro líquido.</p>}
       </>}
       {activeTab==='variations'&&<>
         <div className="nim-detail-section-title">
