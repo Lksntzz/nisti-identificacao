@@ -71,7 +71,7 @@ test('ABC drill-down preserves original catalog with SKU normalized search and n
 
 test('no import results in a clear empty state, not invented sales or disabled ABC controls',()=>{
   assert.match(detail,/Ainda não há vendas importadas/);
-  assert.match(detail,/Utilize a Central de Importações/);
+  assert.match(detail,/Utilize o card Importar arquivos neste Painel Comercial/);
   assert.match(detail,/payload\?\.has_sales===false/);
   assert.match(detail,/Nenhum SKU pertence a esta curva/);
 });
