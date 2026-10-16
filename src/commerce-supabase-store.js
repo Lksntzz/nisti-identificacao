@@ -71,6 +71,13 @@ export async function commerceListingManager(env, filters = {}) {
 }
 
 export async function commerceListingManagerMonthly(env, platform='TODAS') {
+  if (cleanText(platform)==='SHOPEE') {
+    const linked=await supabaseRpc(env,'commerce_listing_manager_monthly_sku_v1',{
+      p_platform:'SHOPEE'
+    });
+    return linked && typeof linked==='object' && !Array.isArray(linked)
+      ?linked:{months:[]};
+  }
   const data = await supabaseRpc(env,'commerce_listing_manager_monthly_v1',{
     p_platform:cleanText(platform)||'TODAS'
   });
