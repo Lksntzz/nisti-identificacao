@@ -39,6 +39,17 @@ export async function commerceSalesDashboard(env, filters = {}) {
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
+// Ranking ABC uses imported sales only; does not attribute SKU-level sales to individual ads.
+export async function commerceSalesAbc(env, filters = {}) {
+  const value = await supabaseRpc(env, 'commerce_sales_abc_v1', {
+    p_platform: cleanText(filters.platform) || 'TODAS',
+    p_period_start: cleanText(filters.periodStart),
+    p_period_end: cleanText(filters.periodEnd),
+    p_basis: cleanText(filters.basis) || 'REVENUE'
+  });
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
 export async function commerceSalesProductPerformance(env, filters = {}) {
   const limit = Math.max(1, Math.min(250, Number(filters.limit || 100) || 100));
   const offset = cleanOffset(filters.offset);
