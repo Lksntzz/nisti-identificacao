@@ -357,9 +357,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         {status==='ZERO'&&<span className="nim-filter-panel-note">Inclui anúncios com variações sem vendas</span>}
       </div>
     </section>
-    {days===0&&data?.imported_month&&platform!=='TODAS'&&!search&&<section className="nim-imported-month-summary" aria-label="Totais de vendas importadas da plataforma">
+    {days===0&&data?.imported_month&&!search&&<section className="nim-imported-month-summary" aria-label="Totais de vendas importadas da plataforma">
       <div><strong>Vendas importadas · {periodLabel(days,month)}</strong>
-        <p>Totais da plataforma {PLATFORMS.find(p=>p[0]===platform)?.[1]||platform}; não correspondem necessariamente aos anúncios atualmente ativos.</p></div>
+        <p>Totais {platform==='TODAS'?'das plataformas selecionadas':'da plataforma '+(PLATFORMS.find(p=>p[0]===platform)?.[1]||platform)}; não correspondem necessariamente aos anúncios atualmente ativos.</p></div>
       <div className="nim-imported-month-stats">
         <span><small>Pedidos</small><strong>{num(data.imported_month.orders)}</strong></span>
         <span><small>Unidades</small><strong>{num(data.imported_month.units)}</strong></span>
@@ -367,7 +367,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </div>
       <p className="nim-imported-month-warning">As vendas mensais ainda não estão vinculadas aos IDs de anúncio. Os filtros Com vendas e Sem vendas, as curvas ABC e as quantidades por variação exigem dados diários confiáveis e permanecem pendentes.</p>
     </section>}
-    {days===0&&month&&!data?.imported_month&&!loading&&!error&&platform!=='TODAS'&&<p className="nim-no-imported-month">
+    {days===0&&month&&!data?.imported_month&&!loading&&!error&&<p className="nim-no-imported-month">
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.
     </p>}
     {error&&<div className="nim-error" role="alert">{error}
