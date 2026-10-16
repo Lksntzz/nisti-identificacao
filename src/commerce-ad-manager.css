@@ -55,6 +55,8 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-money{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:10px;font-weight:760}
 .nim-variations-cell{display:grid;gap:4px;min-width:100px;font-size:10px}
 .nim-variations-cell small{font-size:9px;color:#ca4961;line-height:1.3}
+.nim-variations-cell .nim-variation-identification{color:#227b5a;font-weight:750}
+.nim-variations-cell .nim-variation-awaiting{color:#7d8ba0}
 .nim-curve{display:grid;place-items:center;font-size:10px;font-weight:850;border-radius:6px;width:25px;height:25px}
 .nim-curve.badge-a{background:#22b880;color:white}.nim-curve.badge-b{background:#f7c83c;color:#584000}.nim-curve.badge-c{background:#fa5c7b;color:#fff}
 .nim-status{display:inline-block;padding:6px 9px;border-radius:999px;font-size:9px;font-weight:790;white-space:nowrap}
@@ -234,6 +236,11 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   padding:3px 7px;color:#98651d;font-size:10px;font-weight:700
 }
 .nim-filter-panel-note{font-size:10px;color:#718099}
+.nim-filter-panel-identified,.nim-filter-panel-unclassified{font-size:10px;font-weight:700;line-height:1.45}
+.nim-filter-panel-identified{color:#247d5f}
+.nim-filter-panel-unclassified{color:#856b47}
+.nim-var-totals{font-size:11px;color:#3c5d76;font-weight:750;margin:9px 0}
+
 @media(max-width:1180px){
   .nim-filter-top{grid-template-columns:minmax(155px,1fr) minmax(155px,1fr) minmax(140px,.9fr)}
   .nim-filter-search{grid-column:span 2}
