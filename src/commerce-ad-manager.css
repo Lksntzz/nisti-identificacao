@@ -66,6 +66,10 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-status.zero{background:#ffe5e8;color:#c42341}
 .nim-status.pending{background:#eef0f3;color:#5a6b81}
 .nim-status.partial{background:#fff2d8;color:#8f621a}
+.nim-status-stack{display:grid;justify-items:start;gap:5px}
+.nim-trend-hint{font-size:10px;font-weight:780;line-height:1.2;font-variant-numeric:tabular-nums}
+.nim-trend-hint.up{color:#177d59}
+.nim-trend-hint.down{color:#b34e40}
 .nim-table-empty{text-align:center!important;color:#718096!important;padding:28px!important;font-size:12px}
 .nim-list-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border-top:1px solid #e9edf4;color:#687a91;font-size:10px}
 .nim-list-footer>label{display:flex;align-items:center;gap:6px}
@@ -216,6 +220,10 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   background:#2465eb;border-color:#2465eb;color:#fff;box-shadow:0 3px 9px #2465eb24
 }
 .nim-abc-group{border-left:1px solid #e7ebf2;padding-left:24px}
+.nim-filter-panel-body.nim-has-trend{grid-template-columns:minmax(235px,1fr) auto minmax(166px,180px);gap:16px}
+.nim-trend-group{border-left:1px solid #e7ebf2;padding-left:16px;min-width:0}
+.nim-trend-group select{width:100%;min-width:0;height:36px;padding:0 8px;border:1px solid #dce5ef;border-radius:8px;background:#fff;color:#536780;font-family:inherit;font-size:11px;font-weight:750}
+.nim-trend-group select:focus-visible{outline:2px solid #a3c3ff;outline-offset:1px}
 .nim-abc-controls{display:flex;align-items:center;gap:12px;min-width:0}
 .nim-filter-panel .nim-curve-tabs{flex-wrap:nowrap}
 .nim-filter-panel .nim-curve-tabs button{min-width:36px;padding:0 11px}
@@ -248,10 +256,16 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   .nim-filter-period-group{grid-column:span 2}
   .nim-filter-reset{max-width:170px;justify-self:end}
 }
+@media(max-width:1150px){
+  .nim-filter-panel-body.nim-has-trend{grid-template-columns:minmax(260px,1fr) auto}
+  .nim-filter-panel-body.nim-has-trend>.nim-trend-group{grid-column:1/-1;border-left:0;border-top:1px solid #e7ebf2;padding:10px 0 0}
+  .nim-filter-panel-body.nim-has-trend>.nim-trend-group select{max-width:240px}
+}
 @media(max-width:920px){
-  .nim-filter-panel-body{grid-template-columns:1fr;gap:14px;align-items:start}
+  .nim-filter-panel-body,.nim-filter-panel-body.nim-has-trend{grid-template-columns:1fr;gap:14px;align-items:start}
   .nim-abc-group{border-left:0;border-top:1px solid #e7ebf2;padding:13px 0 0}
   .nim-abc-controls{flex-wrap:wrap}
+  .nim-filter-panel-body.nim-has-trend>.nim-trend-group{grid-column:auto}
 }
 @media(max-width:880px){
   .nim-filter-top{padding:13px 14px}
