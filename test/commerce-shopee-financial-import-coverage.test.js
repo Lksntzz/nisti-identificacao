@@ -112,7 +112,7 @@ test('financial database validates months and preserves service-only access',()=
   assert.match(sql,/commerce_shopee_finance_stage_month_v1/);
   assert.match(sql,/commerce_shopee_finance_current_month_v1/);
   assert.match(sql,/commerce_shopee_listing_finance_v1/);
-  assert.match(sql,/v_snapshot.*COMMITTED/);
+  assert.match(sql,/where id=p_batch_id and platform_code='SHOPEE' and status='COMMITTED'/);
   assert.match(sql,/i\.units<>s\.units/);
   assert.match(sql,/coalesce\(a\.units,0\)\+i\.unallocated_units<>i\.units/);
   assert.match(sql,/v_batch_ids/);
@@ -127,8 +127,8 @@ test('finance panel does not present estimates as official seller payout',()=>{
   const panel=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
   assert.match(panel,/Taxa de transação/);
   assert.match(panel,/Descontos do vendedor/);
-  assert.match(panel,/finance\\.fee_reconciled_subtotal/);
-  assert.match(panel,/finance\\.after_identified_fees/);
+  assert.match(panel,/finance\.fee_reconciled_subtotal/);
+  assert.match(panel,/finance\.after_identified_fees/);
   assert.match(panel,/não o repasse oficial nem lucro líquido/);
   assert.match(panel,/shopeeMonthlyImportCoverage\(data\)/);
   assert.match(panel,/A cobertura global não comprova ausência de vendas em cada variação/);
