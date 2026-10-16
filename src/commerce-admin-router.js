@@ -33,6 +33,7 @@ import {
   commerceShopeeSnapshot,
   commerceSalesAbcAds,
   commerceListingManager,
+  commerceListingManagerMonthly,
   commerceListingManagerMonths,
   commerceSalesVelocity,
   commerceSalesAbcWindow,
