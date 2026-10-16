@@ -10,11 +10,11 @@ test('Catálogo é a visão principal e Pendências reutiliza a mesma gestão', 
   const shell = read('src/commerce-admin-app-v2.jsx');
   const view = read('src/commerce-management-view.jsx');
 
-  assert.equal(shell.includes("id: 'catalog', label: 'Catálogo'"), true);
+  assert.equal(shell.includes("id: 'catalog', label: 'Painel Comercial'"), true);
   assert.equal(shell.includes("id: 'pending', label: 'Pendências'"), true);
   assert.equal(shell.includes("useState('catalog')"), true);
-  assert.equal(shell.includes('<CommerceSkuListingsView catalogMode />'), true);
-  assert.equal(read('src/main.jsx').includes("commerceSection === 'catalog' && <CommerceSkuListingsView catalogMode />"), true);
+  assert.equal(shell.includes('<CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />'), true);
+  assert.equal(read('src/main.jsx').includes("commerceSection === 'catalog' || commerceSection === 'sales'"), true);
   assert.equal(shell.includes('<CommerceManagementView mode="pending" />'), true);
   assert.equal(view.includes("mode === 'pending' ? 'UNLINKED' : 'LINKED'"), true);
 });
