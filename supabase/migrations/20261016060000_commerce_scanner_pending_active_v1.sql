@@ -35,7 +35,7 @@ with args as (
     nullif(btrim(coalesce(nullif(v.value->>'sku',''),nullif(v.value->>'current_sku',''))),'') sku,
     nullif(public.commerce_nisti_sku_norm_v1(
       coalesce(nullif(v.value->>'sku',''),nullif(v.value->>'current_sku',''))),'') normalized_sku,
-    nullif(btrim(v.value->>'variation_id'),'') variation_id
+    nullif(btrim(v.value->>'id'),'') variation_id
   from groups g
   cross join lateral jsonb_array_elements(coalesce(g.record->'listings','[]'::jsonb)) ad(value)
   cross join lateral jsonb_array_elements(coalesce(ad.value->'variations','[]'::jsonb)) v(value)
