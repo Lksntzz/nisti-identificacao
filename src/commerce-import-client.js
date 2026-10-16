@@ -232,6 +232,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
   const listingRows = Array.isArray(parsedWorkbook?.listing_rows) ? parsedWorkbook.listing_rows : [];
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
+  const financeDaily=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
+  const financeMonths=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
   const financeDailyRows = Array.isArray(parsedWorkbook?.finance_daily_rows) ? parsedWorkbook.finance_daily_rows : [];
   const financeMonthRows = Array.isArray(parsedWorkbook?.finance_month_rows) ? parsedWorkbook.finance_month_rows : [];
   const financeOrderRows = Array.isArray(parsedWorkbook?.finance_order_rows) ? parsedWorkbook.finance_order_rows : [];
@@ -349,6 +351,25 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
           method:'POST',body:JSON.stringify({kind,rows:chunk}),retryRateLimit:true
         });
       }
+    }
+  }
+  if(parsedWorkbook.platform_code==='SHOPEE'&&financeMonths.length){
+    // Sidecar finance is auditable and tied to a committed sales batch.
+    // It never changes the canonical sale snapshot or Scanner catalog.
+    onProgress({phase:'finance',completed,total:rows.length,batchId});
+    for(const chunk of chunks(financeMonths)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/shopee-finance`,{
+        method:'POST',
+        body:JSON.stringify({mode:'MONTH',rows:chunk}),
+        retryRateLimit:true
+      });
+    }
+    for(const chunk of chunks(financeDaily)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/shopee-finance`,{
+        method:'POST',
+        body:JSON.stringify({mode:'SKU_DAILY',rows:chunk}),
+        retryRateLimit:true
+      });
     }
   }
   onProgress({ phase: 'commit', completed, total: rows.length, batchId });
