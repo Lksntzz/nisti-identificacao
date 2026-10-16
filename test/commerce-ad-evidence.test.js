@@ -83,10 +83,10 @@ test('UI apresenta claramente os dados parciais, por variação e a última data
   assert.match(jsx,/identifiedVariationCoverage\(item,days\)/);
   assert.match(jsx,/identifiedVariationCoverage\(detail,detailDays\)/);
   assert.match(jsx,/com vendas identificadas/);
-  assert.match(jsx,/sem classificação confiável/);
+  assert.match(jsx,/sem vendas vinculadas; não significa zero/);
   assert.match(jsx,/importedWindowDescription\(data,days,periodDate\)/);
   assert.match(jsx,/dias · dados importados/);
-  assert.match(jsx,/partialVars\.map\(\(v,i\)=>/);
-  assert.match(jsx,/v\.units==null\?'—':'≥ '\+num\(v\.units\)/);
+  assert.match(jsx,/partialRelevant\.map\(\(v,i\)=>/);
+  assert.match(jsx,/v\.units==null\?'Não identificada':'≥ '\+num\(v\.units\)/);
   assert.doesNotMatch(jsx,/Quantidade não identificada/);
 });
