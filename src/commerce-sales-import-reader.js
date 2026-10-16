@@ -285,13 +285,13 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
         order_id: orderId,
         product_revenue: Math.max(0, numberValue(cell(row, header.columns.revenue))),
         finance:financeColumns?{
-          seller_discount:cell(row,financeColumns.seller_discount)==null?NaN:
+          seller_discount:!text(cell(row,financeColumns.seller_discount))?NaN:
             numberValue(cell(row,financeColumns.seller_discount)),
-          transaction_fee:cell(row,financeColumns.transaction_fee)==null?NaN:
+          transaction_fee:!text(cell(row,financeColumns.transaction_fee))?NaN:
             numberValue(cell(row,financeColumns.transaction_fee)),
-          commission_net:cell(row,financeColumns.commission_net)==null?NaN:
+          commission_net:!text(cell(row,financeColumns.commission_net))?NaN:
             numberValue(cell(row,financeColumns.commission_net)),
-          service_net:cell(row,financeColumns.service_net)==null?NaN:
+          service_net:!text(cell(row,financeColumns.service_net))?NaN:
             numberValue(cell(row,financeColumns.service_net))
         }:null
       });
