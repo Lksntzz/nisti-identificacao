@@ -2,7 +2,6 @@ import React, {useEffect,useState} from 'react';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import './commerce-sales-velocity.css';
 
-const PERIODS=[7,30,60,90];
 const METRICS=[
   {code:'SOLD',key:'sold',label:'Com vendas',desc:'Produtos com pelo menos uma unidade vendida',icon:'↗'},
   {code:'ZERO',key:'zero',label:'Sem vendas',desc:'Produtos sem unidades vendidas no período',icon:'○'},
@@ -11,20 +10,18 @@ const METRICS=[
 ];
 const count=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
-const shortDate=d=>/^\d{4}-\d{2}-\d{2}$/.test(String(d||''))?String(d).split('-').reverse().join('/'):d;
 
-export default function CommerceSalesVelocity({platform='TODAS',refresh=0}) {
-  const [days,setDays]=useState(30);
-  const [month,setMonth]=useState('');
+export default function CommerceSalesVelocity({platform='TODAS',days=30,month='',refresh=0}) {
   const [activeStatus,setActiveStatus]=useState('SOLD');
   const [offset,setOffset]=useState(0);
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const statusMap={
-    NO_IMPORT:'Aguardando importação de vendas.',
-    DAILY_DATA_REQUIRED:'As importações atuais não fornecem dias completos para esse período. Importe vendas detalhadas por dia para ativar este cálculo.',
-    GROWTH_HISTORY_REQUIRED:'Os resultados do período estão disponíveis, mas falta o período anterior completo para identificar crescimento.',
+    NO_IMPORT:'Sem importação de vendas.',
+    DAILY_DATA_REQUIRED:'Sem cobertura diária suficiente neste período e plataforma.',
+    GROWTH_HISTORY_REQUIRED:'Faltam dados do período anterior para medir crescimento.',
+    PARTIAL_PLATFORMS:'Resultados apenas das plataformas com dados diários completos.',
     READY:''
   };
 
@@ -55,31 +52,16 @@ export default function CommerceSalesVelocity({platform='TODAS',refresh=0}) {
   const total=Number(data?.total||0);
   const pages=Math.max(1,Math.ceil(total/15));
   const page=Math.floor(offset/15)+1;
-  const periodLabel=data?.current_start&&data?.current_end
-    ?shortDate(data.current_start)+' a '+shortDate(data.current_end):'—';
   const caveat=data?.status&&data.status!=='READY'?statusMap[data.status]||'Dados insuficientes.':'';
 
   return <section className="nisti-vl-section nisti-com-section">
     <header className="nisti-vl-head">
       <div>
         <h3>Desempenho dos produtos</h3>
-        <p>Vendas por SKU, anúncios associados e tendências reais</p>
-      </div>
-      <div className="nisti-vl-period" aria-label="Período de desempenho">
-        {PERIODS.map(n=><button type="button" key={n}
-          className={days===n?'selected':''}
-          onClick={()=>setDays(n)} aria-pressed={days===n}>{n} dias</button>)}
-      </div>
-    </header>
-    <div className="nisti-vl-controls">
-      <label>Mês de referência
-        <input type="month" value={month} onChange={e=>setMonth(e.target.value)}
-          aria-label="Mês de referência para os períodos de vendas"/>
-      </label>
-      <button type="button" className="nisti-vl-clear" onClick={()=>{setMonth('');setDays(30);}}>Período atual</button>
-      <span>{periodLabel}</span>
-    </div>
 
+      </div>
+      <small className="nisti-vl-shared-filter">{days} dias · período do filtro geral</small>
+    </header>
     <div className="nisti-vl-metrics">
       {METRICS.map(metric=>{
         const value=metrics[metric.key];
@@ -99,11 +81,9 @@ export default function CommerceSalesVelocity({platform='TODAS',refresh=0}) {
     {caveat&&<div className="nisti-vl-caveat" role="status">
       <strong>{data?.status==='NO_IMPORT'?'Sem dados de vendas':'Cobertura de dados insuficiente'}</strong>
       <span>{caveat}</span>
-      {data?.status==='DAILY_DATA_REQUIRED'&&<small>
-        Os relatórios mensais não permitem calcular corretamente 7, 30, 60 ou 90 dias. Produtos sem dados não são classificados como “sem vendas”.
-      </small>}
+
     </div>}
-    {ready&&<p className="nisti-vl-criteria">
+    {false&&ready&&<p className="nisti-vl-criteria">
       Produtos com poucas vendas: unidades positivas abaixo da média do período.
       Em crescimento: pelo menos 3 unidades e aumento de 20% ou mais contra os {days} dias anteriores;
       de zero para 3+ unidades também conta como crescimento.
@@ -120,7 +100,7 @@ export default function CommerceSalesVelocity({platform='TODAS',refresh=0}) {
     {error&&<p role="alert" className="nisti-vl-error">{error}</p>}
     {loading&&<div className="nisti-vl-empty">Consultando desempenho e anúncios…</div>}
     {!loading&&!error&&!ready&&<div className="nisti-vl-empty">
-      O detalhamento ficará disponível quando houver vendas com datas suficientes para esse filtro.
+      Sem vendas diárias suficientes para este filtro.
     </div>}
     {!loading&&!error&&ready&&activeStatus==='RISING'&&!prevReady&&
       <div className="nisti-vl-empty">O crescimento exige dados completos dos {days} dias anteriores.</div>}
