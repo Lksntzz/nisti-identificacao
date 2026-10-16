@@ -546,9 +546,19 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <span><small>Unidades</small><strong>{num(data.imported_month.units)}</strong></span>
         <span><small>Subtotal dos produtos</small><strong>{money(data.imported_month.revenue)}</strong></span>
       </div>
-      <p className="nim-imported-month-warning">{hasMonthPartial
-        ?'Vendas identificadas por SKU exclusivo: '+num(kpi.month_linked_units)+' unidades. Outras '+num(Math.max(0,Number(data.imported_month.units||0)-Number(kpi.month_linked_units||0)))+' unidades permanecem sem vínculo exclusivo. Sem vendas identificadas e Curva ABC indicativa são análises parciais, não classificação definitiva.'
-        :'Sem vínculos diários confiáveis por anúncio, as quantidades individuais e a Curva ABC permanecem pendentes.'}</p>
+      <p className="nim-imported-month-warning">{monthCoverage
+        ?'Cobertura do mês: '+coverageText+' das unidades importadas com SKU vinculado a anúncio ativo ('+
+          num(monthCoverage.matchedUnits)+' de '+num(monthCoverage.importedUnits)+'). '+
+          (monthCoverage.remainingUnits>0
+            ?num(monthCoverage.remainingUnits)+' unidade(s), '+money(monthCoverage.remainingRevenue)+
+              ', sem anúncio ativo correspondente. '
+            :'Todas as unidades do mês foram vinculadas. ')+
+          'Importação até '+periodDate(monthCoverage.importedThrough)+
+          '. A cobertura global não comprova ausência de vendas em cada variação.'
+        :hasMonthPartial
+          ?'Vendas identificadas por SKU exclusivo: '+num(kpi.month_linked_units)+
+            ' unidades. Não confundir ausência de vínculo com zero vendas.'
+          :'Sem vínculos diários confiáveis por anúncio, as quantidades individuais e a Curva ABC permanecem pendentes.'}</p>
     </section>}
     {days===0&&month&&!data?.imported_month&&!loading&&!error&&<p className="nim-no-imported-month">
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.
