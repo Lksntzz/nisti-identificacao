@@ -42,7 +42,7 @@ export async function commerceSalesDashboard(env, filters = {}) {
 // Ranking ABC uses imported sales only; does not attribute SKU-level sales to individual ads.
 // Time-window sales insights require daily coverage. Missing data is never shown as zero sales.
 export async function commerceSalesVelocity(env, filters = {}) {
-  const value = await supabaseRpc(env, 'commerce_sales_velocity_v1', {
+  const value = await supabaseRpc(env, 'commerce_sales_velocity_v2', {
     p_days: Number(filters.days) || 30,
     p_platform: cleanText(filters.platform) || 'TODAS',
     p_reference_month: cleanText(filters.month),
