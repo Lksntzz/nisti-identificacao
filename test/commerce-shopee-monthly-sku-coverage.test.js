@@ -27,18 +27,18 @@ test('os zeros e a Curva ABC permanecem pendentes sem vendas diárias',()=>{
   assert.match(month,/month_linked_units>0/);
   assert.match(month,/'ready',false/);
   assert.match(month,/'variation_data_complete',false/);
-  assert.match(ui,/hasMonthPartial&&code==='ZERO'/);
-  assert.match(ui,/hasMonthPartial&&code!=='ALL'/);
+  assert.match(ui,/hasShopeePartial&&code==='ZERO'/);
+  assert.match(ui,/hasShopeePartial&&code!=='ALL'/);
   assert.match(css,/\.nim-status\.partial\{/);
   assert.match(css,/nim-status-tabs button:disabled/);
 });
 
 test('vendas parciais aparecem na tabela, nos indicadores e nos detalhes, sem valores presumidos',()=>{
-  assert.match(ui,/hasMonthPartial\?'≥ '\+num\(kpi\.month_linked_units\)/);
-  assert.match(ui,/hasMonthPartial\?'≥ '\+money\(kpi\.month_linked_revenue\)/);
-  assert.match(ui,/hasMonthPartial&&Number\(item\.month_linked_units\)>0/);
-  assert.match(ui,/monthLinked\?'≥ '\+num\(detail\.month_linked_units\)/);
-  assert.match(ui,/monthVars\.map\(\(v,i\)=>/);
+  assert.match(ui,/hasShopeePartial&&data\?'≥ '\+num\(partialUnits\)/);
+  assert.match(ui,/hasShopeePartial&&data\?'≥ '\+money\(partialRevenue\)/);
+  assert.match(ui,/hasShopeePartial&&Number\(item\.month_linked_units\|\|item\.identified_units\)>0/);
+  assert.match(ui,/partialLinked\?'≥ '\+num\(partialUnits\)/);
+  assert.match(ui,/partialVars\.map\(\(v,i\)=>/);
   assert.match(ui,/v\.units==null\?'—':'≥ '\+num\(v\.units\)/);
   assert.match(ui,/Vendas identificadas/);
   assert.match(ui,/outras .*unidades/i);

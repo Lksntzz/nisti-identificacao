@@ -674,6 +674,15 @@ export async function commerceAppendSalesListingDaily(env, batchId, rows = []) {
   }, { timeoutMs:8000 }) || 0);
 }
 
+export async function commerceAppendShopeeDailySku(env, batchId, rows = []) {
+  const id = cleanId(batchId);
+  if (!id || !Array.isArray(rows) || !rows.length || rows.length > 100)
+    throw new Error('Lote diário Shopee inválido.');
+  return Number(await supabaseRpc(env, 'commerce_append_shopee_sku_daily_v1', {
+    p_batch_id:id, p_rows:rows
+  }, { timeoutMs: 8000 }) || 0);
+}
+
 export async function commerceAppendSalesImportSummary(env, batchId, rows = []) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id de vendas inválido.');

@@ -231,6 +231,7 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const rows = Array.isArray(parsedWorkbook?.rows) ? parsedWorkbook.rows : [];
   const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
   const listingRows = Array.isArray(parsedWorkbook?.listing_rows) ? parsedWorkbook.listing_rows : [];
+  const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
   if (!parsedWorkbook?.platform_code || !parsedWorkbook?.filename || !parsedWorkbook?.sha256 || !rows.length) {
     throw new Error('Arquivo de vendas normalizado incompleto.');
   }
@@ -287,6 +288,19 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
         method:'POST',
         body:JSON.stringify({rows:chunk}),
       retryRateLimit: true
+      });
+    }
+  }
+
+  // Shopee has no listing ID in its orders report. Stage dated SKU totals,
+  // and let the database resolve only unique active SKU owners.
+  if (parsedWorkbook.platform_code === 'SHOPEE' && dailySkuRows.length) {
+    onProgress({phase:'daily-sku',completed,total:rows.length,batchId});
+    for (const chunk of chunks(dailySkuRows)) {
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/sku-daily`, {
+        method:'POST',
+        body:JSON.stringify({rows:chunk}),
+        retryRateLimit:true
       });
     }
   }

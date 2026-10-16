@@ -31,8 +31,8 @@ test('períodos do detalhe consultam ID real sem redefinir filtros da listagem',
 });
 
 test('indicadores ausentes nunca são fabricados a partir de vendas ou reembolsos',()=>{
-  assert.match(details,/monthLinked\?'≥ '\+num\(detail\.month_linked_units\):pending\?'—':num\(detail\.units\)/);
-  assert.match(details,/monthLinked\?'≥ '\+money\(detail\.month_linked_revenue\):pending\?'—':money\(detail\.revenue\)/);
+  assert.match(details,/partialLinked\?'≥ '\+num\(partialUnits\):pending\?'—':num\(detail\.units\)/);
+  assert.match(details,/partialLinked\?'≥ '\+money\(partialRevenue\):pending\?'—':money\(detail\.revenue\)/);
   assert.match(details,/label="Pedidos" value="—"/);
   assert.match(details,/label="Ticket médio" value="—"/);
   assert.match(details,/label="Descontos do vendedor" value="—"/);
