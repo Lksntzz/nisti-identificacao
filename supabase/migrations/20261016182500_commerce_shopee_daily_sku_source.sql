@@ -88,7 +88,7 @@ with base_days as (
 ), current_sku as (
   select s.sale_date,s.sku_norm,sum(s.units)::integer units,
     sum(s.orders_with_item)::integer orders_with_item,
-    round(sum(s.product_revenue),2) product_revenue
+    round(sum(s.product_revenue),2)::numeric(14,2) product_revenue
   from sku_source s join most_recent v
     on v.sale_date=s.sale_date and v.snapshot_id=s.snapshot_id
   group by s.sale_date,s.sku_norm
