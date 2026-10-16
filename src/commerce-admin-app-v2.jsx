@@ -3,7 +3,7 @@ import './app.css';
 import './commerce-admin.css';
 import LOGO from './assets/logo.png';
 import CommerceManagementView from './commerce-management-view.jsx';
-import CommerceCommercialDashboard from './commerce-commercial-dashboard.jsx';
+import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 
 const NAV_ITEMS = Object.freeze([

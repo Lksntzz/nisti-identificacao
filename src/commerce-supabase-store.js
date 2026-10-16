@@ -41,6 +41,37 @@ export async function commerceSalesDashboard(env, filters = {}) {
 
 // Ranking ABC uses imported sales only; does not attribute SKU-level sales to individual ads.
 // Time-window sales insights require daily coverage. Missing data is never shown as zero sales.
+export async function commerceListingManager(env, filters = {}) {
+  const data = await supabaseRpc(env, 'commerce_listing_manager_v1', {
+    p_platform: cleanText(filters.platform) || 'TODAS',
+    p_days: Number(filters.days) || 30,
+    p_reference_month: cleanText(filters.month),
+    p_search: cleanText(filters.search),
+    p_status: cleanText(filters.status) || 'ALL',
+    p_curve: cleanText(filters.curve) || 'ALL',
+    p_basis: cleanText(filters.basis) || 'REVENUE',
+    p_limit: cleanPageSize(filters.limit, 20),
+    p_offset: cleanOffset(filters.offset)
+  });
+  return data && typeof data === 'object' && !Array.isArray(data)
+    ? data : { items: [], total: 0, kpis: {} };
+}
+
+export async function commerceListingManagerMonthly(env, platform='TODAS') {
+  const data = await supabaseRpc(env,'commerce_listing_manager_monthly_v1',{
+    p_platform:cleanText(platform)||'TODAS'
+  });
+  return data && typeof data === 'object' && !Array.isArray(data) ? data : {months:[]};
+}
+
+export async function commerceListingManagerMonths(env, listingId) {
+  const id = Number(listingId);
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('ID do anúncio inválido.');
+  const data = await supabaseRpc(env, 'commerce_listing_manager_months_v1', {p_listing_id:id});
+  return data && typeof data === 'object' && !Array.isArray(data)
+    ? data : {listing_id:id,months:[]};
+}
+
 export async function commerceSalesVelocity(env, filters = {}) {
   const value = await supabaseRpc(env, 'commerce_sales_velocity_v2', {
     p_days: Number(filters.days) || 30,

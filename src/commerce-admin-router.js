@@ -32,6 +32,9 @@ import {
   commerceProductDetail,
   commerceShopeeSnapshot,
   commerceSalesAbcAds,
+  commerceListingManager,
+  commerceListingManagerMonthly,
+  commerceListingManagerMonths,
   commerceSalesVelocity,
   commerceSalesAbcWindow,
   commerceSalesAbcAdsWindow,
@@ -257,6 +260,39 @@ export async function handleCommerceAdminRequest(request, env) {
         days,basis,curve,month,platform:query(url,'platform')||'TODAS',
         limit:query(url,'limit'),offset:query(url,'offset')
       }));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager`) {
+      const days = Number(query(url,'days') || 30);
+      const status = String(query(url,'status') || 'ALL').toUpperCase();
+      const platform = String(query(url,'platform') || 'TODAS').toUpperCase();
+      const curve = String(query(url,'curve') || 'ALL').toUpperCase();
+      const basis = String(query(url,'basis') || 'REVENUE').toUpperCase();
+      const month = query(url,'month') || '';
+      if (![7,30,60,90].includes(days)
+        || !['ALL','SOLD','ZERO','LOW','RISING','PENDING'].includes(status)
+        || !['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE','AMAZON','TIKTOK'].includes(platform)
+        || !['ALL','A','B','C'].includes(curve)
+        || !['REVENUE','UNITS'].includes(basis)
+        || (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
+        || String(query(url,'search')||'').length>150) {
+        return json({error:'Filtros do Gestor de Anúncios inválidos.'},400);
+      }
+      return json(await commerceListingManager(env,{
+        days,status,platform,curve,basis,month,search:query(url,'search'),
+        limit:query(url,'limit'),offset:query(url,'offset')
+      }));
+    }
+    if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager/monthly`) {
+      const platform = String(query(url,'platform') || 'TODAS').toUpperCase();
+      if (!['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE','AMAZON','TIKTOK'].includes(platform)) {
+        return json({error:'Plataforma inválida.'},400);
+      }
+      return json(await commerceListingManagerMonthly(env,platform));
+    }
+    const listingMonths = pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/months$/);
+    if (method === 'GET' && listingMonths) {
+      return json(await commerceListingManagerMonths(env, listingMonths[1]));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/sales/velocity`) {
