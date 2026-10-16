@@ -310,7 +310,13 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
         <label className="nim-filter-field nim-filter-platform">Plataforma
-          <select value={platform} onChange={e=>change(setPlatform,e.target.value)}>
+          <select value={platform} onChange={e=>{
+            if(days===0 && e.target.value==='SHOPEE'){
+              setCurve('ALL');
+              if(status==='ZERO')setStatus('ALL');
+            }
+            change(setPlatform,e.target.value);
+          }}>
             {PLATFORMS.map(([id,name])=><option key={id} value={id}>{name}</option>)}
           </select>
         </label>
@@ -324,6 +330,10 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
               onChange={e=>{
                 const choice=e.target.value;
                 if(choice!=='MONTH')setMonth('');
+                if(choice==='MONTH'&&platform==='SHOPEE'){
+                  setCurve('ALL');
+                  if(status==='ZERO')setStatus('ALL');
+                }
                 change(setDays,choice==='MONTH'?0:Number(choice));
               }}>
               {PERIODS.map(n=><option key={n} value={n}>Últimos {n} dias</option>)}
@@ -356,7 +366,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             <div className="nim-curve-tabs" role="group" aria-label="Filtrar anúncios por Curva ABC">
               {['ALL','A','B','C'].map(code=><button type="button" key={code}
                 className={curve===code?'active':''} aria-pressed={curve===code}
-                onClick={()=>change(setCurve,code)}>{code==='ALL'?'Todas':code}</button>)}
+                onClick={()=>change(setCurve,code)}
+                disabled={hasMonthPartial&&code!=='ALL'}
+                title={hasMonthPartial&&code!=='ALL'?'Curva ABC requer vendas completas por anúncio':undefined}>{code==='ALL'?'Todas':code}</button>)}
             </div>
             <label className="nim-abc-basis-label">
               <span>Classificar por</span>
