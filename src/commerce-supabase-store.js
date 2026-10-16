@@ -130,7 +130,7 @@ export async function commerceListingManager(env, filters = {}) {
       p_limit:cleanPageSize(filters.limit,20),
       p_offset:cleanOffset(filters.offset),
       p_basis:cleanText(filters.basis)==='UNITS'?'UNITS':'REVENUE'
-    });
+    }, {timeoutMs:9000});
     return monthData && typeof monthData==='object' && !Array.isArray(monthData)
       ?monthData:{items:[],total:0,kpis:{}};
   }
@@ -144,7 +144,7 @@ export async function commerceListingManager(env, filters = {}) {
     p_basis: cleanText(filters.basis) || 'REVENUE',
     p_limit: cleanPageSize(filters.limit, 20),
     p_offset: cleanOffset(filters.offset)
-  });
+  }, {timeoutMs:9000});
   return data && typeof data === 'object' && !Array.isArray(data)
     ? data : { items: [], total: 0, kpis: {} };
 }
