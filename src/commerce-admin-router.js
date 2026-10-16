@@ -56,6 +56,8 @@ import {
   commerceAppendShopeeFinanceDaily,
   commerceAppendShopeeFinanceMonth,
   commerceShopeeListingFinance,
+  commerceShopeeFinanceBackfillSource,
+  commerceShopeeFinanceBackfillActivate,
   commerceAppendSalesImportRows,
   commerceAppendSalesImportSummary,
   commerceCommitSalesImport,
@@ -437,6 +439,22 @@ export async function handleCommerceAdminRequest(request, env) {
         search: query(url, 'search'),
         limit: query(url, 'limit'),
         offset: query(url, 'offset')
+      }));
+    }
+
+    if(method==='POST'&&pathname===`${BASE_PATH}/sales/finance/source`){
+      const body=await bodyJson(request);
+      if(!body?.filename||!body?.sha256)return json({error:'Identificação do XLSX é obrigatória.'},400);
+      return json(await commerceShopeeFinanceBackfillSource(env,{
+        filename:body.filename,sha256:body.sha256
+      }));
+    }
+    if(method==='POST'&&pathname===`${BASE_PATH}/sales/finance/activate`){
+      const body=await bodyJson(request);
+      if(!positiveId(body?.batch_id)||!body?.sha256)
+        return json({error:'Confirme o lote e o hash do arquivo de origem.'},400);
+      return json(await commerceShopeeFinanceBackfillActivate(env,{
+        batchId:body.batch_id,sha256:body.sha256
       }));
     }
 
