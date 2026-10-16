@@ -11,8 +11,8 @@ const router = read('src/commerce-admin-router.js');
 const store = read('src/commerce-supabase-store.js');
 
 test('Catálogo is backed by ALL ACTIVE listing IDs, not only linked Scanner products', () => {
-  assert.match(main,/commerceSection === 'catalog' && <CommerceSkuListingsView catalogMode/);
-  assert.match(commerce,/activeView === 'catalog' && <CommerceSkuListingsView catalogMode/);
+  assert.match(main,/commerceSection === 'catalog' \|\| commerceSection === 'sales'\) && <CommerceCommercialDashboard/);
+  assert.match(commerce,/activeView === 'catalog' \|\| activeView === 'sales'\) && <CommerceCommercialDashboard/);
   assert.match(router,/\/catalog\/active-products/);
   assert.match(store,/commerce_active_product_catalog_v1/);
   assert.match(view,/catalogMode\s*\?\s*'\/api\/admin\/commerce\/catalog\/active-products\?'/);
