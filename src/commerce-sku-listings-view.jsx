@@ -22,15 +22,17 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
   const [saving,setSaving] = useState('');
   const [expanded,setExpanded] = useState(new Set());
   const limit = 25;
+  const activeSearch = embedded ? String(externalSearch || '').trim() : appliedSearch;
+  const activePlatform = embedded ? externalPlatform : platform;
 
   async function load(nextOffset = offset) {
     setLoading(true);
     setError('');
     const params = new URLSearchParams({
       limit:String(limit),offset:String(nextOffset),
-      month,marketplace:platform
+      month,marketplace:activePlatform
     });
-    if (appliedSearch) params.set('search',appliedSearch);
+    if (activeSearch) params.set('search',activeSearch);
     try {
       const result = await commerceApi((catalogMode
         ? '/api/admin/commerce/catalog/active-products?'
@@ -45,13 +47,7 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
     }
   }
 
-  useEffect(() => { load(0); }, [platform,month,appliedSearch,salesMode,catalogMode]);
-  useEffect(() => {
-    if (embedded) { setAppliedSearch(externalSearch.trim()); setSearch(externalSearch); }
-  }, [embedded,externalSearch]);
-  useEffect(() => {
-    if (embedded) setPlatform(externalPlatform);
-  }, [embedded,externalPlatform]);
+  useEffect(() => { load(0); }, [activePlatform,month,activeSearch,salesMode,catalogMode]);
 
   async function save(product,listing) {
     const key = product.product_id + ':' + listing.listing_id;
