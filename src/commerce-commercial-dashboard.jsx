@@ -66,6 +66,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
   const [search,setSearch] = useState('');
   const [debouncedSearch,setDebouncedSearch] = useState('');
   const [activeCurve,setActiveCurve] = useState('');
+  const [activePerformance,setActivePerformance] = useState('');
   const [details,setDetails] = useState(false);
   const [refresh,setRefresh] = useState(0);
   const [abc,setAbc] = useState(null);
@@ -102,7 +103,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
   const abcBySku=useMemo(()=>Object.fromEntries(rankings.map(r=>[String(r.sku_norm||'').toUpperCase(),r])),[abc]);
   const hasSnapshot=Boolean(abc?.has_snapshot);
   const hasSales=Boolean(abc?.has_sales);
-  const reset=()=>{setSearch('');setPlatform('TODAS');setDays(30);setReferenceMonth('');setActiveCurve('');};
+  const reset=()=>{setSearch('');setPlatform('TODAS');setDays(30);setReferenceMonth('');setActiveCurve('');setActivePerformance('');};
   const percentByCount=classes.map(x=>Number(x.products)||0);
   const countSum=percentByCount.reduce((a,b)=>a+b,0);
   const shares=countSum?percentByCount.map(x=>x/countSum*100):[0,0,0];
@@ -166,7 +167,10 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
         onCatalogChanged={()=>setRefresh(value=>value+1)} />}
     </section>
 
-    <CommerceSalesVelocity platform={platform} days={days} month={referenceMonth} refresh={refresh+salesRevision}/>
+    <CommerceSalesVelocity platform={platform} days={days} month={referenceMonth}
+      refresh={refresh+salesRevision} mode="summary"
+      selectedStatus={activePerformance}
+      onSelectStatus={status=>{setActivePerformance(status);if(status)setActiveCurve('');}}/>
 
     <section className="nisti-com-section nisti-com-abc">
       <div className="nisti-com-section-heading">
@@ -181,7 +185,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
           const row=classMap[curve.code]||{};
           return <button type="button" key={curve.code}
             className={'nisti-com-abc-card class-'+curve.code.toLowerCase()+(activeCurve===curve.code?' active':'')}
-            onClick={()=>setActiveCurve(v=>v===curve.code?'':curve.code)}
+            onClick={()=>{setActiveCurve(v=>v===curve.code?'':curve.code);setActivePerformance('');}}
             aria-pressed={activeCurve===curve.code}>
             <span className="nisti-com-abc-flag">{curve.code}</span>
             <div><strong>{curve.title}</strong></div>
@@ -214,6 +218,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
         />
       )}
     </section>
+
+    {activePerformance&&<CommerceSalesVelocity key={activePerformance}
+      mode="details" activeStatus={activePerformance} platform={platform}
+      days={days} month={referenceMonth} refresh={refresh+salesRevision}
+      onClose={()=>setActivePerformance('')}/>}
 
     <div className="nisti-com-analytics">
       <section className="nisti-com-section nisti-com-evolution">
