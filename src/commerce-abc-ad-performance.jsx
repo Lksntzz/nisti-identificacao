@@ -9,13 +9,12 @@ const fmtMoney=value=>BR_MONEY.format(Number(value)||0);
 const PAGE_SIZE=15;
 const CLASS_NAMES={A:'Maior impacto',B:'Desempenho intermediário',C:'Menor impacto'};
 
-async function loadCurveAds({curve,platform,basis,periodStart,periodEnd,offset}) {
+async function loadCurveAds({curve,platform,basis,days,month,offset}) {
   const params=new URLSearchParams({
-    curve,platform,basis,limit:String(PAGE_SIZE),offset:String(offset)
+    curve,platform,basis,days:String(days),limit:String(PAGE_SIZE),offset:String(offset)
   });
-  if(periodStart)params.set('period_start',periodStart);
-  if(periodEnd)params.set('period_end',periodEnd);
-  const response=await fetch('/api/admin/commerce/sales/abc/advertisements?'+params,{
+  if(month)params.set('month',month);
+  const response=await fetch('/api/admin/commerce/sales/abc/advertisements/window?'+params,{
     credentials:'same-origin',cache:'no-store'
   });
   const data=await response.json().catch(()=>({}));
@@ -52,24 +51,24 @@ function AdRecord({item}) {
 
 export default function CommerceAbcAdPerformance({
   curve,platform='TODAS',basis='REVENUE',
-  periodStart='',periodEnd='',refresh=0,onShowInCatalog
+  days=30,month='',refresh=0,onShowInCatalog
 }) {
   const [offset,setOffset]=useState(0);
   const [payload,setPayload]=useState(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
 
-  useEffect(()=>{setOffset(0);},[curve,platform,basis,periodStart,periodEnd]);
+  useEffect(()=>{setOffset(0);},[curve,platform,basis,days,month]);
 
   useEffect(()=>{
     let ignore=false;
     setLoading(true);setError('');
-    loadCurveAds({curve,platform,basis,periodStart,periodEnd,offset})
+    loadCurveAds({curve,platform,basis,days,month,offset})
       .then(data=>{if(!ignore)setPayload(data);})
       .catch(err=>{if(!ignore){setPayload(null);setError(err.message||'Erro ao carregar anúncios.');}})
       .finally(()=>{if(!ignore)setLoading(false);});
     return()=>{ignore=true;};
-  },[curve,platform,basis,periodStart,periodEnd,offset,refresh]);
+  },[curve,platform,basis,days,month,offset,refresh]);
 
   const rows=Array.isArray(payload?.items)?payload.items:[];
   const total=Number(payload?.total)||0;
@@ -87,9 +86,7 @@ export default function CommerceAbcAdPerformance({
     </div>
 
     <div className="nisti-abc-ad-explanation">
-      <strong>Como ler o desempenho:</strong> unidades e faturamento importados pertencem ao <b>SKU</b>.
-      Cada anúncio é listado com seu ID real. Vendas individuais aparecem apenas quando registradas especificamente por anúncio.
-      Registros manuais não são somados ao faturamento importado.
+      <strong>Vendas por SKU:</strong> os IDs de anúncios mostram somente vendas realmente vinculadas; registros manuais ficam separados.
     </div>
 
     {error&&<p role="alert" className="nisti-abc-ad-error">{error}</p>}
