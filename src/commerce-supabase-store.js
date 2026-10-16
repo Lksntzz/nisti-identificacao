@@ -50,6 +50,21 @@ export async function commerceSalesAbc(env, filters = {}) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
+// Paginated ABC drilldown: SKU totals plus its actual active marketplace advertisements.
+export async function commerceSalesAbcAds(env, filters = {}) {
+  const result = await supabaseRpc(env, 'commerce_sales_abc_ads_v1', {
+    p_platform: cleanText(filters.platform) || 'TODAS',
+    p_period_start: cleanText(filters.periodStart),
+    p_period_end: cleanText(filters.periodEnd),
+    p_basis: cleanText(filters.basis) || 'REVENUE',
+    p_class: cleanText(filters.curve) || 'A',
+    p_limit: cleanPageSize(filters.limit, 15),
+    p_offset: cleanOffset(filters.offset)
+  });
+  return result && typeof result === 'object' && !Array.isArray(result)
+    ? result : {items:[],total:0,has_sales:false};
+}
+
 export async function commerceSalesProductPerformance(env, filters = {}) {
   const limit = Math.max(1, Math.min(250, Number(filters.limit || 100) || 100));
   const offset = cleanOffset(filters.offset);
