@@ -7,6 +7,7 @@ const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
 const SALES_FILTERS=[['ALL','Todos'],['SOLD','Com vendas'],['ZERO','Sem vendas']];
 const PERIODS=[7,30,60,90];
+const periodLabel=(days,month)=>days===0?(month?'Mês '+month.split('-').reverse().join('/'):'Mês personalizado'):days+' dias';
 const num=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
 const labelMonth=s=>/^\d{4}-\d{2}$/.test(String(s||''))?new Date(s+'-02T12:00:00').toLocaleDateString('pt-BR',{month:'short',year:'numeric'}):s;
@@ -87,7 +88,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       days:String(detailDays),status:'ALL',curve:'ALL',basis:'REVENUE',
       search:String(item.external_listing_id||''),limit:'50',offset:'0'
     });
-    if(month)params.set('month',month);
+    if(detailDays===0 && month)params.set('month',month);
     readJson(API+'?'+params).then(data=>{
       if(cancelled)return;
       const found=Array.isArray(data?.items)?data.items.find(x=>String(x.id)===String(item.id)):null;
@@ -125,14 +126,14 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         </div>
       </div>
       <div className="nim-detail-metrics">
-        <DetailMetric label="Unidades vendidas" value={pending?'—':num(detail.units)} description={detailDays+' dias'}/>
-        <DetailMetric label="Faturamento" value={pending?'—':money(detail.revenue)} description={detailDays+' dias · produtos'}/>
+        <DetailMetric label="Unidades vendidas" value={pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
+        <DetailMetric label="Faturamento" value={pending?'—':money(detail.revenue)} description={periodLabel(detailDays,month)+' · produtos'}/>
         <DetailMetric label="Pedidos" value="—" description="Aguardando vínculo por anúncio"/>
         <DetailMetric label="Ticket médio" value="—" description="Aguardando pedidos identificados"/>
       </div>
-      {periodLoading&&<p className="nim-detail-pending" role="status">Consultando dados de {detailDays} dias…</p>}
+      {periodLoading&&<p className="nim-detail-pending" role="status">Consultando dados: {periodLabel(detailDays,month)}…</p>}
       {periodError&&<p className="nim-detail-pending nim-detail-period-error" role="alert">{periodError}</p>}
-      {pending&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para os {detailDays} dias. Valores desconhecidos não são zero.</p>}
+      {pending&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para {periodLabel(detailDays,month)}. Valores desconhecidos não são zero.</p>}
     </section>
     <div className="nim-detail-tab-list" role="tablist" aria-label="Informações do anúncio">
       {DETAIL_TABS.map(([code,label])=><button
@@ -160,7 +161,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
           <p className="nim-subtle">As vendas individuais das variações só serão exibidas após vinculação confiável dos SKUs.</p>}
       </>}
       {activeTab==='finance'&&<>
-        <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{detailDays} dias</small></div>
+        <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{periodLabel(detailDays,month)}</small></div>
         <div className="nim-detail-data-list">
           <DetailRow label="Subtotal dos produtos" value={pending?'—':money(detail.revenue)}
             description="Receita dos produtos no período selecionado"/>
@@ -198,7 +199,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
             'Os nomes das variações estarão disponíveis aqui quando o vínculo entre SKU e anúncio for confirmado.'}</p>}
       </>}
       {activeTab==='aftercare'&&<>
-        <div className="nim-detail-section-title"><h4>Pós-venda e logística</h4><small>{detailDays} dias</small></div>
+        <div className="nim-detail-section-title"><h4>Pós-venda e logística</h4><small>{periodLabel(detailDays,month)}</small></div>
         <div className="nim-detail-data-list">
           <DetailRow label="Pedidos cancelados" value="—"/>
           <DetailRow label="Devoluções e reembolsos" value="—"/>
@@ -240,8 +241,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     let cancelled=false;setLoading(true);setError('');
     const params=new URLSearchParams({platform,days:String(days),status,curve,basis,
       limit:String(size),offset:String(offset)});
-    if(month)params.set('month',month);
+    if(days===0 && month)params.set('month',month);
     if(search)params.set('search',search);
+    if(days===0&&!month){setData(null);setLoading(false);return ()=>{cancelled=true;};}
     readJson(API+'?'+params).then(x=>{if(!cancelled)setData(x);})
       .catch(e=>{if(!cancelled){setData(null);setError(e.message);}})
       .finally(()=>{if(!cancelled)setLoading(false);});
@@ -281,8 +283,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
       <Kpi tone="rose" label="Sem vendas" value={data?num(kpi.zero_ads):'—'} description="Anúncios ou variações" selected={status==='ZERO'}
         onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
-      <Kpi tone="sand" label="Unidades vendidas" value={data?num(kpi.units):'—'} description={days+' dias · anúncios ativos'}/>
-      <Kpi tone="green" label="Faturamento" value={data?money(kpi.revenue):'—'} description={days+' dias · anúncios ativos'}/>
+      <Kpi tone="sand" label="Unidades vendidas" value={data?num(kpi.units):'—'} description={periodLabel(days,month)+' · anúncios ativos'}/>
+      <Kpi tone="green" label="Faturamento" value={data?money(kpi.revenue):'—'} description={periodLabel(days,month)+' · anúncios ativos'}/>
     </div>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
@@ -359,7 +361,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </div>}
         <div className="nim-table-scroll">
           <table className="nim-ad-table"><thead><tr>
-            <th>Plataforma</th><th>Nome e ID do anúncio</th><th>Unid. {days} dias</th>
+            <th>Plataforma</th><th>Nome e ID do anúncio</th><th>Unid. {periodLabel(days,month)}</th>
             <th>Variações</th><th>Faturamento</th><th>ABC</th><th>Vendas</th>
           </tr></thead><tbody>
             {!loading&&rows.map(item=><tr key={item.id} className={selectedId===item.id?'selected':''}
