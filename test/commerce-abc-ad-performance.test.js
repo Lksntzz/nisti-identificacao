@@ -18,7 +18,7 @@ test('clicking A/B/C opens a functional detailed seller-ad list under the curve 
   assert.match(dashboard,/CommerceAbcAdPerformance/);
   assert.match(dashboard,/curve=\{activeCurve\}/);
   assert.doesNotMatch(dashboard,/disabled=\{!hasSales\}/);
-  assert.match(detail,/\/sales\/abc\/advertisements\?/);
+  assert.match(detail,/\/sales\/abc\/advertisements\/window\?/);
   assert.match(detail,/Anúncios da Curva \{curve\}/);
   assert.match(detail,/setOffset\(v=>v\+PAGE_SIZE\)/);
   assert.match(detail,/setOffset\(v=>Math\.max\(0,v-PAGE_SIZE\)\)/);
@@ -31,7 +31,7 @@ test('SKU total shows actual imported units and revenue without duplicating acro
   assert.match(detail,/item\.url/);
   assert.match(detail,/item\.id/);
   assert.match(detail,/registro manual/i);
-  assert.match(detail,/Registros manuais não são somados ao faturamento importado/);
+  assert.match(detail,/registros manuais ficam separados/);
   assert.match(detail,/Venda importada por anúncio não disponível/);
   assert.match(adSql,/commerce_sales_abc_v1\(p_platform,p_period_start,p_period_end,p_basis\)/);
   assert.match(adSql,/coalesce\(a\.advertisements,'\[\]'::jsonb\)/);
