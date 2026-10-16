@@ -423,6 +423,8 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     skus_with_sales: summary.skus.size
   })).sort((a, b) => a.period_start.localeCompare(b.period_start));
 
+  const finance=platformCode==='SHOPEE'?aggregateShopeeFinance(raw):
+    {finance_daily_rows:[],finance_month_rows:[],finance_summary:null};
   return {
     filename,
     sha256,
@@ -431,6 +433,9 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     rows,
     summaries,
     sku_daily_rows,
+    finance_daily_rows:finance.finance_daily_rows,
+    finance_month_rows:finance.finance_month_rows,
+    finance_summary:finance.finance_summary,
     sheets: sheetInfo,
     data_through: maxDate(summaries.map(item => item.period_end)),
     summary: {
