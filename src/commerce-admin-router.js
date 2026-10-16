@@ -53,6 +53,9 @@ import {
   commerceCreateSalesImport,
   commerceAppendSalesListingDaily,
   commerceAppendShopeeDailySku,
+  commerceAppendShopeeFinance,
+  commerceActivateShopeeFinance,
+  commerceShopeeFinanceListing,
   commerceAppendShopeeFinanceDaily,
   commerceAppendShopeeFinanceMonth,
   commerceShopeeListingFinance,
@@ -535,6 +538,31 @@ export async function handleCommerceAdminRequest(request, env) {
       if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
         return json({error:'Lote financeiro mensal Shopee inválido.'},400);
       return json({accepted_rows:await commerceAppendShopeeFinanceMonth(env,id,body.rows,body.sha256)});
+    }
+    const shopeeFinanceStageMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/finance$/);
+    if(method==='POST'&&shopeeFinanceStageMatch){
+      const batchId=positiveId(shopeeFinanceStageMatch[1]);
+      const body=await bodyJson(request);
+      if(!batchId||!['MONTH','DAILY'].includes(body?.kind)
+        ||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
+        return json({error:'Lote financeiro Shopee inválido.'},400);
+      const accepted=await commerceAppendShopeeFinance(env,batchId,body.kind,body.rows);
+      return json({batch_id:batchId,accepted_rows:accepted});
+    }
+    const shopeeFinanceActivateMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/finance\/activate$/);
+    if(method==='POST'&&shopeeFinanceActivateMatch){
+      const batchId=positiveId(shopeeFinanceActivateMatch[1]);
+      if(!batchId)return json({error:'Lote financeiro inválido.'},400);
+      return json(await commerceActivateShopeeFinance(env,batchId));
+    }
+    if(method==='GET'&&pathname===`${BASE_PATH}/listings/manager/shopee/finance`){
+      const listingId=positiveId(query(url,'listing_id'));
+      const from=String(query(url,'start')||'');
+      const to=String(query(url,'end')||'');
+      if(!listingId||!/^20\d{2}-\d{2}-\d{2}$/.test(from)
+        ||!/^20\d{2}-\d{2}-\d{2}$/.test(to))
+        return json({error:'Parâmetros financeiros inválidos.'},400);
+      return json(await commerceShopeeFinanceListing(env,listingId,from,to));
     }
     const salesImportSummaryMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/summary$/);
     if (method === 'POST' && salesImportSummaryMatch) {
