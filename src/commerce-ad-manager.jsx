@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
+import ShopeeSkuReconciliation from './commerce-shopee-reconciliation.jsx';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
 import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription } from './commerce-ad-evidence.js';
@@ -281,6 +282,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [error,setError]=useState('');
   const [importOpen,setImportOpen]=useState(false);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
+  const [reconciliationOpen,setReconciliationOpen]=useState(false);
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
   useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
   useEffect(()=>{
@@ -443,14 +445,24 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     {days===0&&month&&!data?.imported_month&&!loading&&!error&&<p className="nim-no-imported-month">
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.
     </p>}
+    {platform==='SHOPEE'&&reconciliationOpen&&
+      <ShopeeSkuReconciliation onClose={()=>setReconciliationOpen(false)}
+        onChanged={()=>setRefresh(v=>v+1)}/>}
     {error&&<div className="nim-error" role="alert">{error}
       <button type="button" onClick={()=>setRefresh(v=>v+1)}>Tentar novamente</button></div>}
     <div className={'nim-content '+(selected?'has-detail':'')}>
       <section className="nim-list-panel">
         <div className="nim-list-header">
           <div><h3>Lista de anúncios</h3><small>{loading?'Consultando anúncios…':num(total)+' anúncios encontrados'}</small></div>
-          <button type="button" className="nim-soft-button" onClick={()=>setMonthlyOpen(v=>!v)}
-            aria-expanded={monthlyOpen}>{monthlyOpen?'Ocultar evolução mensal':'Analisar vendas mensais'} <span aria-hidden="true">{monthlyOpen?'−':'↗'}</span></button>
+          <div className="nim-list-actions">
+            {platform==='SHOPEE'&&<button type="button"
+              className={'nim-soft-button'+(reconciliationOpen?' active':'')}
+              onClick={()=>setReconciliationOpen(v=>!v)} aria-expanded={reconciliationOpen}>
+              {reconciliationOpen?'Fechar conciliação':'Conciliar SKUs Shopee'}
+            </button>}
+            <button type="button" className="nim-soft-button" onClick={()=>setMonthlyOpen(v=>!v)}
+              aria-expanded={monthlyOpen}>{monthlyOpen?'Ocultar evolução mensal':'Analisar vendas mensais'} <span aria-hidden="true">{monthlyOpen?'−':'↗'}</span></button>
+          </div>
         </div>
         {monthlyOpen&&<div className="nim-month-summary">
           <h4>Evolução mensal · anúncios atualmente ativos</h4>
