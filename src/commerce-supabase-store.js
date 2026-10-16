@@ -765,6 +765,36 @@ export async function commerceAppendShopeeDailySku(env, batchId, rows = []) {
   }, { timeoutMs: 8000 }) || 0);
 }
 
+export async function commerceAppendShopeeFinanceDaily(env,batchId,rows=[]) {
+  const id=cleanId(batchId);
+  if(!id||!Array.isArray(rows)||rows.length<1||rows.length>100)
+    throw new Error('Envie de 1 a 100 registros financeiros Shopee por lote.');
+  return Number(await supabaseRpc(env,'commerce_append_shopee_finance_daily_v1',{
+    p_batch_id:id,p_rows:rows
+  },{timeoutMs:10000})||0);
+}
+
+export async function commerceAppendShopeeFinanceMonth(env,batchId,rows=[]) {
+  const id=cleanId(batchId);
+  if(!id||!Array.isArray(rows)||rows.length<1||rows.length>100)
+    throw new Error('Envie de 1 a 100 meses financeiros Shopee por lote.');
+  return Number(await supabaseRpc(env,'commerce_append_shopee_finance_month_v1',{
+    p_batch_id:id,p_rows:rows
+  },{timeoutMs:10000})||0);
+}
+
+export async function commerceShopeeListingFinance(env,listingId,{days=30,month=null}={}) {
+  const id=cleanId(listingId);
+  if(!id)throw new Error('ID do anúncio inválido.');
+  const period=String(month||'').trim();
+  if(period&&!/^20\d{2}-(0[1-9]|1[0-2])$/.test(period))
+    throw new Error('Mês de análise inválido.');
+  return await supabaseRpc(env,'commerce_shopee_listing_finance_v1',{
+    p_listing_id:id,p_days:[7,30,60,90].includes(Number(days))?Number(days):30,
+    p_month:period||null
+  },{timeoutMs:10000});
+}
+
 export async function commerceAppendSalesImportSummary(env, batchId, rows = []) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id de vendas inválido.');
@@ -785,6 +815,19 @@ export async function commerceCommitSalesImport(env, batchId) {
   }, { timeoutMs: 20000 });
   if (String(result?.status||'').toUpperCase()==='COMMITTED') {
     await refreshShopeeYearAliases(env);
+    try {
+      const finance=await supabaseRpc(env,'commerce_activate_shopee_finance_v1',{
+        p_batch_id:id
+      },{timeoutMs:15000});
+      result.finance_status=finance?.status||'UNKNOWN';
+      result.finance_months=Number(finance?.finance_months||0);
+    } catch(error) {
+      // Sales were already committed. Do not retry the sales transaction or
+      // report a false sales import failure if only the optional fees failed.
+      console.error('[Commerce] Financial Shopee activation pending:',
+        String(error?.message||error));
+      result.finance_status='NEEDS_REVIEW';
+    }
   }
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
