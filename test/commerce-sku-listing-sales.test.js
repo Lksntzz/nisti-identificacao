@@ -11,8 +11,8 @@ const store = fs.readFileSync('src/commerce-supabase-store.js','utf8');
 const sql = fs.readFileSync('supabase/migrations/20261015234500_commerce_sku_listing_manual_sales.sql','utf8');
 
 test('the existing Admin and Commerce Catalog show one product per canonical SKU', () => {
-  assert.match(shell,/commerceSection === 'catalog' && <CommerceSkuListingsView/);
-  assert.match(separate,/activeView === 'catalog' && <CommerceSkuListingsView/);
+  assert.match(shell,/commerceSection === 'catalog' \|\| commerceSection === 'sales'\) && <CommerceCommercialDashboard/);
+  assert.match(separate,/activeView === 'catalog' \|\| activeView === 'sales'\) && <CommerceCommercialDashboard/);
   assert.match(grouped,/items\.map\(product\s*=>/);
   assert.match(grouped,/listings\.map\(listing\s*=>/);
   assert.match(sql,/select distinct on \(p\.id,l\.id\)/);
