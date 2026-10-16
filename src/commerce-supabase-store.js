@@ -707,6 +707,52 @@ export async function commerceShopeeSnapshot(env, filters = {}) {
 }
 
 
+// Supplementary, non-destructive Shopee finance import. The uploaded
+// aggregates contain no buyer name, address or order identifier.
+export async function commerceShopeeFinanceBegin(env,input={},actor='Administrador'){
+  const sha256=cleanText(input.sha256).toLowerCase();
+  const filename=cleanText(input.filename);
+  if(!/^[0-9a-f]{64}$/.test(sha256)||!filename||filename.length>250)
+    throw new Error('Arquivo de conciliação financeira inválido.');
+  return await supabaseRpc(env,'commerce_shopee_finance_begin_v1',{
+    p_sha256:sha256,p_filename:filename,p_actor:String(actor).slice(0,120)
+  },{timeoutMs:8000});
+}
+export async function commerceShopeeFinanceMonths(env,id,rows){
+  const batch=cleanId(id);
+  if(!batch||!Array.isArray(rows)||rows.length<1||rows.length>15)
+    throw new Error('Resumos financeiros inválidos.');
+  return Number(await supabaseRpc(env,'commerce_shopee_finance_append_month_v1',{
+    p_import_id:batch,p_rows:rows
+  },{timeoutMs:8000})||0);
+}
+export async function commerceShopeeFinanceDaily(env,id,rows){
+  const batch=cleanId(id);
+  if(!batch||!Array.isArray(rows)||rows.length<1||rows.length>100)
+    throw new Error('Linhas financeiras por SKU inválidas.');
+  return Number(await supabaseRpc(env,'commerce_shopee_finance_append_daily_v1',{
+    p_import_id:batch,p_rows:rows
+  },{timeoutMs:8000})||0);
+}
+export async function commerceShopeeFinanceApply(env,id){
+  const batch=cleanId(id);
+  if(!batch)throw new Error('Lote financeiro inválido.');
+  return await supabaseRpc(env,'commerce_shopee_finance_apply_v1',{
+    p_import_id:batch
+  },{timeoutMs:12000});
+}
+export async function commerceShopeeListingFinance(env,params={}){
+  const listing=cleanText(params.listing);
+  const start=cleanText(params.start),end=cleanText(params.end);
+  if(!/^\d{6,24}$/.test(listing)||
+    !/^20\d\d-\d\d-\d\d$/.test(start)||
+    !/^20\d\d-\d\d-\d\d$/.test(end)||end<start)
+    throw new Error('Período ou anúncio inválido para conciliação financeira.');
+  return await supabaseRpc(env,'commerce_shopee_listing_finance_v1',{
+    p_external_listing_id:listing,p_period_start:start,p_period_end:end
+  },{timeoutMs:8000});
+}
+
 export async function commerceSalesImportBatches(env, filters = {}) {
   const limit = cleanPageSize(filters.limit, 30);
   const offset = cleanOffset(filters.offset);
