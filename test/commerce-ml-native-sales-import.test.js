@@ -71,6 +71,13 @@ test('parent package is not double-counted; item revenue is reconstructed from v
   assert.equal(d.summary.product_revenue,174.5);
   assert.equal(d.summary.net_orders,3);
   assert.equal(d.summary.period_count,2);
+  assert.equal(d.listing_rows.length,3);
+  assert.deepEqual(
+    d.listing_rows.filter(r=>r.sale_date==='2026-10-15').map(r=>r.external_listing_id),
+    ['MLB1','MLB2']
+  );
+  assert.equal(d.listing_rows.find(r=>r.external_listing_id==='MLB1').units,3);
+  assert.equal(d.listing_rows.find(r=>r.external_listing_id==='MLB1').product_revenue,104.7);
   assert.equal(d.data_through,'2026-10-15');
   assert.equal(d.summaries.find(x=>x.period_key==='2026-10-15').net_orders,2);
   assert.equal(d.summaries.find(x=>x.period_key==='2026-10-15').product_revenue,139.6);
