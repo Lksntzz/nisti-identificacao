@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=path=>fs.readFileSync(path,'utf8');
 const ui=read('src/commerce-ad-manager.jsx');
+const evidence=read('src/commerce-ad-evidence.js');
 const styles=read('src/commerce-ad-manager.css');
 const sql=read('supabase/migrations/20261016152000_commerce_listing_manager_v1.sql');
 
@@ -31,9 +32,10 @@ test('filter status, ABC curve and ABC basis keep their existing actions and sel
 });
 
 test('analysis dates appear as understated footer rather than detached paragraph',()=>{
-  assert.match(ui,/Período analisado: /);
-  assert.match(ui,/periodDate\(data\.period_start\)/);
-  assert.match(ui,/periodDate\(data\.period_end\)/);
+  assert.match(ui,/importedWindowDescription\(data,days,periodDate\)/);
+  assert.match(evidence,/Período analisado: /);
+  assert.match(evidence,/formatDate\(data\.period_start\)/);
+  assert.match(evidence,/formatDate\(data\.period_end\)/);
   assert.match(ui,/nim-filter-panel-warning/);
   assert.match(ui,/Inclui anúncios com variações sem vendas/);
   assert.doesNotMatch(ui,/<p className="nim-coverage">/);
