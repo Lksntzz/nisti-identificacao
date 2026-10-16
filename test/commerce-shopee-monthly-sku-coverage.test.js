@@ -1,0 +1,66 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
+const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const month=fs.readFileSync('supabase/migrations/20261016174500_commerce_listing_manager_month_sku_v1.sql','utf8');
+const evolution=fs.readFileSync('supabase/migrations/20261016175000_commerce_shopee_monthly_evolution_sku_v1.sql','utf8');
+
+test('consulta mensal exclusiva da Shopee nunca estima vendas por nome, ID inventado ou SKU ambíguo',()=>{
+  assert.match(store,/Number\(filters\.days\)===0 && cleanText\(filters\.month\) && cleanText\(filters\.platform\)==='SHOPEE'/);
+  assert.match(store,/commerce_listing_manager_month_sku_v1/);
+  assert.match(month,/from public\.commerce_sales_rows r/);
+  assert.match(month,/join public\.commerce_sales_snapshots sn on sn\.id=r\.snapshot_id and sn\.is_current/);
+  assert.match(month,/u\.source=r\.platform_code/);
+  assert.match(month,/having count\(\*\)=1/);
+  assert.match(month,/where p_month ~ /);
+  assert.match(month,/and a\.month_linked_units>0/);
+  assert.doesNotMatch(month,/insert into public\.products|update public\.products|delete from public\.products/);
+});
+
+test('os zeros e a Curva ABC permanecem pendentes sem vendas diárias',()=>{
+  assert.match(month,/0::int covered_ads,0::int sold_ads,0::int zero_ads/);
+  assert.match(month,/and i\.selected_curve='ALL'/);
+  assert.match(month,/i\.selected_status='ALL' or/);
+  assert.match(month,/month_linked_units>0/);
+  assert.match(month,/'ready',false/);
+  assert.match(month,/'variation_data_complete',false/);
+  assert.match(ui,/hasMonthPartial&&code==='ZERO'/);
+  assert.match(ui,/hasMonthPartial&&code!=='ALL'/);
+  assert.match(css,/\.nim-status\.partial\{/);
+  assert.match(css,/nim-status-tabs button:disabled/);
+});
+
+test('vendas parciais aparecem na tabela, nos indicadores e nos detalhes, sem valores presumidos',()=>{
+  assert.match(ui,/hasMonthPartial\?'≥ '\+num\(kpi\.month_linked_units\)/);
+  assert.match(ui,/hasMonthPartial\?'≥ '\+money\(kpi\.month_linked_revenue\)/);
+  assert.match(ui,/hasMonthPartial&&Number\(item\.month_linked_units\)>0/);
+  assert.match(ui,/monthLinked\?'≥ '\+num\(detail\.month_linked_units\)/);
+  assert.match(ui,/monthVars\.map\(\(v,i\)=>/);
+  assert.match(ui,/v\.units==null\?'—':'≥ '\+num\(v\.units\)/);
+  assert.match(ui,/Vendas identificadas/);
+  assert.match(ui,/outras .*unidades/i);
+});
+
+test('histórico mensal do anúncio e da plataforma usam apenas SKUs exclusivos',()=>{
+  assert.match(evolution,/create or replace function public\.commerce_listing_manager_months_v1/);
+  assert.match(evolution,/min\(l\.id\) listing_id,count\(\*\) n/);
+  assert.match(evolution,/u\.listing_id=c\.id and u\.n=1/);
+  assert.match(evolution,/where not exists \(select 1 from daily d where d\.period=m\.period\)/);
+  assert.match(evolution,/commerce_listing_manager_monthly_sku_v1/);
+  assert.match(evolution,/o\.uses=1/);
+  assert.match(store,/commerce_listing_manager_monthly_sku_v1/);
+  assert.match(ui,/months\?\.some\(m=>m\.partial\)/);
+  assert.match(ui,/monthly\?\.months\?\.some\(m=>m\.partial\)/);
+});
+
+test('novas funções SQL não são expostas ao público',()=>{
+  assert.match(month,/security invoker set search_path=public/);
+  assert.match(month,/from public,anon,authenticated/);
+  assert.match(month,/to service_role/);
+  assert.match(evolution,/security invoker set search_path=public/);
+  assert.match(evolution,/from public,anon,authenticated/);
+  assert.match(evolution,/to service_role/);
+});

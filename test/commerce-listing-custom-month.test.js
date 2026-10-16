@@ -44,7 +44,8 @@ test('totais mensais não são usados para fabricar vendas individuais de anúnc
   assert.match(sql,/'imported_month'/);
   assert.match(sql,/d\.external_listing_id=l\.external_listing_id and d\.platform_code=l\.source_code/);
   assert.match(jsx,/data\?\.imported_month/);
-  assert.match(jsx,/ainda não estão vinculadas aos IDs de anúncio/);
+  assert.match(jsx,/Sem vendas e Curva ABC continuam indisponíveis sem histórico completo por anúncio/);
+  assert.match(jsx,/Vendas identificadas por SKU exclusivo/);
   assert.doesNotMatch(sql,/insert into public\.products|update public\.products|delete from public\.products/);
 });
 
