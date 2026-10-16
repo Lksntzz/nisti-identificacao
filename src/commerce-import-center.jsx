@@ -832,15 +832,15 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
           disabled={catalogImporting || salesImporting || catalogReading || salesReading}
           onClick={() => { setMode('catalog'); setError(''); setMessage(''); }}>
           <span className="import-center-mode-icon"><ModeIcon type="catalog" /></span>
-          <strong>Importar catálogo</strong>
-          <small>Produtos e anúncios ativos</small>
+          <strong>Produtos e anúncios</strong>
+          <small>Importar catálogo de anúncios ativos</small>
         </button>
         <button type="button" className={mode === 'sales' ? 'active' : ''}
           disabled={catalogImporting || salesImporting || catalogReading || salesReading}
           onClick={() => { setMode('sales'); setError(''); setMessage(''); }}>
           <span className="import-center-mode-icon"><ModeIcon type="sales" /></span>
-          <strong>Importar vendas</strong>
-          <small>Pedidos, unidades e faturamento</small>
+          <strong>Vendas</strong>
+          <small>Importar vendas, pedidos e faturamento</small>
         </button>
       </div>
 
