@@ -13,8 +13,8 @@ test('four actionable performance categories share universal 7/30/60/90-day filt
   for(const day of [7,30,60,90])assert.match(dashboard,new RegExp('\\b'+day+'\\b'));
   for(const label of ['Com vendas','Sem vendas','Poucas vendas','Em crescimento'])
     assert.ok(view.includes(label),label);
-  assert.match(view,/setActiveStatus\(metric\.code\)/);
-  assert.match(view,/activeStatus===metric\.code/);
+  assert.match(view,/onSelectStatus\?\.\(isSelected\?'':metric\.code\)/);
+  assert.match(view,/selectedStatus===metric\.code/);
   assert.match(view,/setOffset\(v=>v\+15\)/);
   assert.match(dashboard,/type="month" value=\{referenceMonth\}/);
   assert.match(dashboard,/nisti-com-global-filters/);
