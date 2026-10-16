@@ -141,7 +141,7 @@ export default function ShopeeSkuReconciliation({onChanged,onClose}){
       <div><small>Possíveis códigos atualizados</small><strong>{data?fmt(data.candidate_skus):'—'}</strong></div>
       <div><small>Vínculos aplicados</small><strong>{data?fmt(data.approved_skus):'—'}</strong></div>
     </div>
-    <p className="nsr-note">PB, PLAN e AGMT com ano 26 → 27, restante integral do SKU idêntico e uma única variação ativa são vinculados automaticamente. Diferenças no miolo, capa ou acessórios, códigos duplicados e outras famílias continuam para revisão. Nenhum SKU original, pedido ou produto do Scanner é modificado. Todos os vínculos podem ser revogados.</p>
+    <p className="nsr-note">PB, PLAN, AGMT, CONFIN, VACMNO e VACMNA com ano 26 → 27, restante integral do SKU idêntico e uma única variação ativa são vinculados automaticamente. VACMNO e VACMNA sem ano usam correspondência direta pelo SKU completo. Diferenças no miolo, capa ou acessórios, códigos duplicados e outras famílias continuam para revisão. Nenhum SKU original, pedido ou produto do Scanner é modificado. Todos os vínculos podem ser revogados.</p>
     <div className="nsr-toolbar">
       <div role="group" aria-label="Situação dos SKUs" className="nsr-tabs">
         <button type="button" className={state==='PENDING'?'active':''}
