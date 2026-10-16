@@ -179,7 +179,16 @@ function SalesPreview({ parsed }) {
       <StatCard label="Pedidos líquidos" value={parsed ? brNumber(s.net_orders) : '—'} tone="blue" />
       <StatCard label="Unidades" value={parsed ? brNumber(s.units) : '—'} tone="green" />
       <StatCard label="Faturamento" value={parsed ? brCurrency(s.product_revenue) : '—'} tone="amber" />
-      <StatCard label="Períodos" value={parsed ? brNumber(s.period_count) : '—'} tone="purple" />
+      <StatCard label={s.package_items_recovered != null ? 'Dias com vendas' : 'Períodos'}
+        value={parsed ? brNumber(s.period_count) : '—'} tone="purple" />
+      {s.package_items_recovered != null && (
+        <div className="import-center-sales-validation" role="status">
+          <strong>Relatório oficial do Mercado Livre reconhecido.</strong>
+          <span>{brNumber(s.accepted_sales_rows)} itens válidos · {brNumber(s.package_summaries)} pacotes conferidos · {brNumber(s.package_items_recovered)} itens com receita recuperada pelo preço unitário.</span>
+          <small>Faturamento bruto de produtos (sem tarifas de envio ou venda). Cancelamentos, reembolsos e linhas de resumo de pacotes não são contabilizados em duplicidade.</small>
+          {s.source_warning && <small>O arquivo contém aviso de dados indisponíveis do Mercado Livre. Confira o total antes de confirmar a importação.</small>}
+        </div>
+      )}
     </div>
   );
 }
