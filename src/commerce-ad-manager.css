@@ -1,0 +1,119 @@
+.nim-manager{display:grid;gap:14px;color:#182641;font-family:inherit;width:100%;max-width:1700px;margin:0 auto;--nim-border:#e5eaf2;--nim-muted:#667793;--nim-blue:#2369e8}
+.nim-manager *{box-sizing:border-box}
+.nim-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:2px 0}
+.nim-heading h2{font-size:25px;line-height:1.2;font-weight:850;margin:0;letter-spacing:-.65px;color:#15243f}
+.nim-heading p{font-size:11px;color:#75859b;margin:5px 0 0}
+.nim-header-actions{display:flex;align-items:center;gap:9px}
+.nim-primary-button,.nim-soft-button,.nim-clear{border:1px solid #dce5f2;border-radius:9px;padding:10px 15px;font-size:11px;font-weight:750;cursor:pointer;white-space:nowrap;font-family:inherit}
+.nim-primary-button{background:#2563eb;color:#fff;box-shadow:0 3px 9px #2563eb25;border-color:#2563eb}
+.nim-primary-button:hover{background:#1e53cd}
+.nim-soft-button,.nim-clear{background:#fff;color:#536680}
+.nim-soft-button:hover,.nim-clear:hover{background:#f5f8ff}
+.nim-import-panel{background:#fff;border:1px solid var(--nim-border);border-radius:12px;padding:16px;min-width:0}
+.nim-filterbar{display:grid;grid-template-columns:minmax(165px,1.1fr) minmax(145px,.85fr) minmax(145px,.85fr) minmax(200px,1.5fr) auto;gap:11px;align-items:end;background:#fff;border:1px solid var(--nim-border);padding:15px;border-radius:13px;box-shadow:0 2px 12px #17283d08}
+.nim-filterbar>label{display:grid;gap:6px;color:#53647c;font-size:11px;font-weight:750;min-width:0}
+.nim-filterbar select,.nim-filterbar input{width:100%;height:37px;border-radius:8px;border:1px solid #dce4ee;padding:0 10px;font:inherit;font-size:11px;color:#283750;min-width:0;background:#fff}
+.nim-filterbar select:focus,.nim-filterbar input:focus{outline:2px solid #a3c3ff;outline-offset:1px}
+.nim-filterbar>.nim-soft-button{height:37px;min-height:37px}
+.nim-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.nim-kpi{display:grid;text-align:left;align-content:center;justify-items:start;gap:7px;padding:16px 17px;min-height:112px;border-radius:12px;border:1px solid var(--nim-border);font:inherit;background:#fff;min-width:0;box-shadow:0 2px 12px #152a3d09}
+button.nim-kpi{cursor:pointer}
+button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
+.nim-kpi.selected{outline:2px solid #638bea;outline-offset:0}
+.nim-kpi.blue{background:#f1f5ff}.nim-kpi.mint{background:#f0fbf7}.nim-kpi.rose{background:#fff3f6}.nim-kpi.sand{background:#fff9ed}.nim-kpi.green{background:#f1fcf6}
+.nim-kpi small{font-size:11px;font-weight:720;color:#52647d}
+.nim-kpi strong{font-size:23px;letter-spacing:-.5px;font-weight:850;color:#142239;line-height:1.15;overflow-wrap:anywhere;max-width:100%}
+.nim-kpi span{font-size:10px;color:#7b899c;line-height:1.4}
+.nim-tabs-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.nim-status-tabs,.nim-curve-tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.nim-status-tabs button,.nim-curve-tabs button,.nim-curve-tabs select{border:1px solid #dce5ef;background:#fff;padding:9px 13px;border-radius:8px;font:inherit;font-size:11px;font-weight:750;color:#546783;cursor:pointer;white-space:nowrap}
+.nim-status-tabs button.active,.nim-curve-tabs button.active{background:#2563eb;border-color:#2563eb;color:#fff;box-shadow:0 3px 11px #2563eb1d}
+.nim-curve-tabs>span{font-weight:750;color:#41536e;font-size:11px;white-space:nowrap}
+.nim-curve-tabs select{max-width:130px}
+.nim-coverage{font-size:10px;color:#748299;margin:-4px 0 0;line-height:1.5}
+.nim-error{display:flex;justify-content:space-between;gap:12px;background:#fff1f3;color:#a12b48;border:1px solid #f9d9e0;border-radius:10px;padding:12px;font-size:11px}
+.nim-error button{border:0;background:transparent;color:inherit;cursor:pointer;font-weight:800}
+.nim-content{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:12px;min-width:0}
+.nim-content.has-detail{grid-template-columns:minmax(0,1fr) minmax(315px,365px)}
+.nim-list-panel,.nim-detail{background:#fff;border:1px solid var(--nim-border);border-radius:13px;box-shadow:0 2px 12px #17283d09;min-width:0;overflow:hidden}
+.nim-list-header{padding:14px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nim-list-header h3{margin:0;font-size:15px;font-weight:850;line-height:1.3;color:#1a2942}
+.nim-list-header small{display:block;font-size:10px;color:#77869a;margin-top:3px}
+.nim-list-header .nim-soft-button{font-size:10px;min-height:31px;padding:8px 10px}
+.nim-month-summary{padding:12px 15px;border-top:1px solid #edf0f5;background:#fafcff}
+.nim-month-summary h4{font-size:12px;margin:0 0 12px;color:#3b506e}
+.nim-table-scroll{width:100%;overflow-x:auto;border-top:1px solid #e7ebf2}
+.nim-ad-table{width:100%;border-collapse:collapse;font-size:11px;text-align:left;min-width:790px;table-layout:auto}
+.nim-ad-table th{padding:11px 12px;background:#f7f9fd;border-bottom:1px solid #e6eaf2;font-size:10px;font-weight:800;color:#52637b;white-space:nowrap}
+.nim-ad-table td{padding:11px 12px;border-bottom:1px solid #edf0f5;vertical-align:middle;color:#314058}
+.nim-ad-table tbody tr:not(:has(.nim-table-empty)){cursor:pointer}
+.nim-ad-table tbody tr:not(:has(.nim-table-empty)):hover{background:#f6faff}
+.nim-ad-table tbody tr.selected{background:#eef5ff}
+.nim-ad-table tbody tr:last-child td{border-bottom:0}
+.nim-ad-name{display:block;color:#263854;font-size:11px;line-height:1.42;max-width:320px;min-width:105px;font-weight:750}
+.nim-ad-id{display:block;font-size:10px;color:#8a98ab;margin-top:5px;white-space:nowrap}
+.nim-platform{display:inline-flex;align-items:center;gap:7px;min-width:0;max-width:145px;font-size:10px;line-height:1.4}
+.nim-platform>span:last-child{min-width:0}
+.nim-platform-icon{display:inline-grid;place-items:center;border-radius:6px;min-width:25px;width:25px;height:25px;font-size:10px;font-weight:850;flex-shrink:0}
+.nim-platform-icon.ml{background:#ffe660;color:#3f4900}.nim-platform-icon.shopee{background:#ff6c26;color:#fff}.nim-platform-icon.amazon{background:#222c3c;color:#fff}.nim-platform-icon.tiktok{background:#111529;color:#fff}
+.nim-units{text-align:right;font-variant-numeric:tabular-nums;font-weight:800;white-space:nowrap}
+.nim-money{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:10px;font-weight:760}
+.nim-variations-cell{display:grid;gap:4px;min-width:100px;font-size:10px}
+.nim-variations-cell small{font-size:9px;color:#ca4961;line-height:1.3}
+.nim-curve{display:grid;place-items:center;font-size:10px;font-weight:850;border-radius:6px;width:25px;height:25px}
+.nim-curve.badge-a{background:#22b880;color:white}.nim-curve.badge-b{background:#f7c83c;color:#584000}.nim-curve.badge-c{background:#fa5c7b;color:#fff}
+.nim-status{display:inline-block;padding:6px 9px;border-radius:999px;font-size:9px;font-weight:790;white-space:nowrap}
+.nim-status.sold{background:#dcf8eb;color:#157346}.nim-status.rising{background:#e3f0ff;color:#2a65c0}
+.nim-status.zero{background:#ffe5e8;color:#c42341}.nim-status.partial{background:#fff0e4;color:#a55a15}
+.nim-status.pending{background:#eef0f3;color:#5a6b81}.nim-status.low{background:#fff5da;color:#a77511}
+.nim-table-empty{text-align:center!important;color:#718096!important;padding:28px!important;font-size:12px}
+.nim-list-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border-top:1px solid #e9edf4;color:#687a91;font-size:10px}
+.nim-list-footer>label{display:flex;align-items:center;gap:6px}
+.nim-list-footer select{font-size:10px;background:#fff;border:1px solid #e3e9f2;padding:6px;border-radius:7px}
+.nim-list-footer>div{display:flex;gap:6px}
+.nim-list-footer button{border:1px solid #dce5ed;background:#fff;color:#486180;padding:7px 10px;border-radius:7px;font-size:10px;font-weight:750;cursor:pointer}
+.nim-list-footer button:disabled{cursor:default;opacity:.4}
+.nim-detail{padding:0 15px 16px;position:sticky;top:10px;max-height:calc(100vh - 20px);overflow-y:auto;align-self:start}
+.nim-detail-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:16px 0 12px;border-bottom:1px solid #edf0f5}
+.nim-detail-header h3{font-size:15px;font-weight:850;line-height:1.35;margin:0 0 9px;color:#192943}
+.nim-detail-header .nim-platform{max-width:unset}
+.nim-close{flex:0 0 28px;width:28px;height:28px;display:grid;place-items:center;border:1px solid #e2e9f2;border-radius:8px;background:#fff;color:#66768b;font-size:18px;cursor:pointer}
+.nim-detail-meta{display:grid;grid-template-columns:1.6fr .6fr;gap:9px;padding:15px 0 8px}
+.nim-detail-meta>div,.nim-detail-kpis>div{display:grid;gap:7px;min-width:0}
+.nim-detail-meta small,.nim-detail-kpis small,.nim-four-periods small{font-size:10px;color:#7c899e}
+.nim-detail-meta strong{font-size:12px;color:#23334e;overflow-wrap:anywhere}
+.nim-detail-kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:13px 0;border-bottom:1px solid #edf0f5}
+.nim-detail-kpis strong{font-size:17px;font-weight:850;line-height:1.2}
+.nim-four-periods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:13px 0}
+.nim-four-periods>div{background:#f5f7fb;border-radius:8px;display:grid;justify-items:center;gap:7px;padding:10px 4px}
+.nim-four-periods strong{font-size:13px}
+.nim-detail-section{border-top:1px solid #e9edf3;padding:14px 0}
+.nim-detail-section h4{font-size:12px;font-weight:850;margin:0 0 9px;color:#1d2f4a}
+.nim-detail-section-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.nim-detail-section-title small{font-size:10px;color:#8290a4}
+.nim-detail-table-scroll{max-height:260px;overflow:auto}
+.nim-detail-table-scroll table{width:100%;border-collapse:collapse;text-align:left;font-size:10px}
+.nim-detail-table-scroll th{background:#f7f9fc;padding:9px 7px;color:#607088;font-size:9px}
+.nim-detail-table-scroll td{padding:9px 7px;border-bottom:1px solid #edf0f4}
+.nim-detail-table-scroll td:first-child{min-width:120px}
+.nim-detail-table-scroll td strong{display:block;font-size:10px;color:#2b3b54}
+.nim-detail-table-scroll td small{display:block;color:#8a98a9;font-size:9px;margin-top:4px}
+.nim-var-zero{background:#fff6f7}
+.nim-var-totals{margin:0 0 10px;font-size:10px;color:#61748e}
+.nim-var-toggle{display:flex;align-items:center;gap:7px;font-size:10px;color:#476286;margin-bottom:10px;cursor:pointer}
+.nim-subtle{color:#7c899e;font-size:10px;line-height:1.55;margin:8px 0}
+.nim-advice{background:#fffaf0;color:#956823;padding:10px;border:1px solid #f3e5c4;border-radius:9px;font-size:10px;line-height:1.6}
+.nim-month-bars{display:flex;align-items:end;gap:8px;height:135px;padding:8px 2px;min-width:0;overflow-x:auto}
+.nim-month-col{height:100%;flex:1 0 22px;display:flex;flex-direction:column;justify-content:end;gap:6px;text-align:center}
+.nim-month-track{height:calc(100% - 22px);min-height:40px;display:flex;align-items:end;justify-content:center;background:repeating-linear-gradient(to top,#fff 0,#fff 29px,#edf1f6 30px);border-bottom:1px solid #e4e8ee}
+.nim-month-bar{width:70%;background:linear-gradient(180deg,#73a6ff,#2870e8);border-radius:4px 4px 0 0;min-height:1px}
+.nim-month-col small{font-size:8px;color:#8391a5;white-space:nowrap}
+.nim-month-values{display:grid;gap:7px}
+.nim-month-values>div{display:flex;justify-content:space-between;gap:8px;font-size:9px;color:#66768f}
+.nim-month-values strong{font-size:9px;color:#293d58;text-align:right}
+.nim-detail-buttons{display:flex;gap:7px;margin-top:7px}
+.nim-detail-buttons a,.nim-detail-buttons button{flex:1;text-align:center;text-decoration:none;background:#f1f5ff;border:1px solid #e2e8f9;border-radius:8px;padding:10px 6px;color:#3562ad;font-size:10px;font-weight:780;cursor:pointer}
+.nim-footnote{font-size:10px;color:#8795a6;line-height:1.6;margin:0;padding:0 2px}
+.nim-manager button:focus-visible,.nim-manager a:focus-visible{outline:2px solid #2f75e8;outline-offset:2px}
+@media(max-width:1100px){.nim-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}.nim-filterbar{grid-template-columns:repeat(4,minmax(0,1fr))}.nim-filterbar .nim-soft-button{grid-column:4}.nim-content.has-detail{grid-template-columns:minmax(0,1fr) minmax(300px,350px)}}
+@media(max-width:880px){.nim-manager{min-width:780px}.nim-heading h2{font-size:20px}.nim-kpi{min-height:95px;padding:11px 12px}.nim-kpi strong{font-size:18px}.nim-content.has-detail{grid-template-columns:minmax(0,1fr)}.nim-detail{position:relative;max-height:none}.nim-tabs-row{flex-wrap:wrap}}
