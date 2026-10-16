@@ -231,12 +231,12 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
             num(partialEmptyCount)+' sem vendas identificadas'}
           {Number(detail?.identifiable_variations||0)<Number(item.total_variations)&&
             ' · '+num(Number(item.total_variations)-Number(detail?.identifiable_variations||0))+' sem SKU exclusivo'}
-        </p>
+        </p>}
         {item.total_variations>0&&complete&&
           <p className="nim-var-totals">{num(detail.sold_variations)} com vendas · {num(detail.zero_variations)} sem vendas</p>}
         {zeroFilter&&item.total_variations>0&&
           <label className="nim-var-toggle"><input type="checkbox" checked={showAll}
-            onChange={e=>setShowAll(e.target.checked)}/> Mostrar todas as variações</label>
+            onChange={e=>setShowAll(e.target.checked)}/> Mostrar todas as variações</label>}
         {!complete&&partialVars.length>0&&<div className="nim-detail-table-scroll">
           <table><thead><tr><th>Variação / SKU</th><th>Unid. identificadas</th><th>Receita identificada</th></tr></thead>
             <tbody>{partialRelevant.map((v,i)=><tr key={String(v.id||i)}>
