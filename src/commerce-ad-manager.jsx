@@ -177,7 +177,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         </div>
         {item.total_variations===0&&<p className="nim-subtle">Anúncio sem variações cadastradas.</p>}
         {item.total_variations>0&&!complete&&
-          <p className="nim-advice">Ainda não é possível atribuir quantidades e receitas a todas as variações com segurança. Não mostramos zeros presumidos.</p>}
+          <p className="nim-advice">Ainda não é possível atribuir quantidades e receitas a todas as variações com segurança; não mostramos zeros presumidos.</p>}
         {item.total_variations>0&&complete&&
           <p className="nim-var-totals">{num(detail.sold_variations)} com vendas · {num(detail.zero_variations)} sem vendas</p>}
         {zeroFilter&&complete&&item.total_variations>0&&
