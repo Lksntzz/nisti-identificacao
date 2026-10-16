@@ -237,6 +237,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     }
 
     if (platformCode === 'SHOPEE') header = resolveShopeeSalesColumns(header, data[header.rowIndex]);
+    const financeColumns=platformCode==='SHOPEE'?shopeeFinanceColumns(data[header.rowIndex]):null;
 
     let accepted = 0;
     let ignored = 0;
