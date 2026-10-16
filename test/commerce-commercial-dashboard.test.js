@@ -60,8 +60,12 @@ test('old detailed sales dashboard stays available inside the unified panel', ()
   assert.match(css,/@media\(max-width:680px\)/);
 });
 
-test('SKU ABC ranking click searches marketplace catalog instead of faking individual ad sales', () => {
-  assert.match(view,/setSearch\(item\.sku_norm\)/);
+test('ABC card click opens seller-ad performance panel without invented listing sales', () => {
+  assert.match(view,/CommerceAbcAdPerformance/);
+  assert.match(view,/activeCurve && \(/);
+  assert.match(view,/curve={activeCurve}/);
+  assert.match(view,/onShowInCatalog={sku=>/);
+  assert.match(view,/setSearch\(sku\)/);
   assert.match(view,/setActiveCurve\(''\)/);
   assert.doesNotMatch(view,/listing\.manual_units\+/);
   assert.match(view,/Aguardando importação das vendas/);
