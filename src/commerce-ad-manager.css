@@ -35,6 +35,8 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-list-header h3{margin:0;font-size:15px;font-weight:850;line-height:1.3;color:#1a2942}
 .nim-list-header small{display:block;font-size:10px;color:#77869a;margin-top:3px}
 .nim-list-header .nim-soft-button{font-size:10px;min-height:31px;padding:8px 10px}
+.nim-list-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.nim-list-actions .nim-soft-button.active{border-color:#91b7f6;color:#1c62d4;background:#f2f7ff}
 .nim-month-summary{padding:12px 15px;border-top:1px solid #edf0f5;background:#fafcff}
 .nim-month-summary h4{font-size:12px;margin:0 0 12px;color:#3b506e}
 .nim-table-scroll{width:100%;overflow-x:auto;border-top:1px solid #e7ebf2}
