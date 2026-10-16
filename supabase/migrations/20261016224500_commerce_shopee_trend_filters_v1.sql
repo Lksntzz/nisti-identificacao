@@ -265,7 +265,7 @@ with input as (
         and c.identified_trend='FALLING')
       or (b.selected_status='PENDING' and not c.ready))
 ), page as (
-  select c.* from filtered c
+  select c.* from filtered c cross join bounds b
   order by
     case when b.selected_status='RISING' and c.source_code='SHOPEE'
       then (c.identified_units-c.identified_prev_units)::numeric/nullif(c.identified_prev_units,0)
