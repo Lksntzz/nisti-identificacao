@@ -227,7 +227,7 @@ export default function CommerceAdminAppV2() {
 
             {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
             {activeView === 'planning' && <CommerceProductsView />}
-            {activeView === 'pending' && <CommerceManagementView mode="pending" />}
+            {activeView === 'pending' && <CommerceManagementView mode="pending" onCreateScanner={() => window.location.assign('/admin?new-scanner-product=1')} />}
           </div>
         </main>
 
