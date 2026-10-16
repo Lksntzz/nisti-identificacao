@@ -12,3 +12,7 @@
 .sales-import-periods span{font-size:9.5px;color:#64748b}
 @media(max-width:1100px){.sales-import-uploader{grid-template-columns:1fr 1fr}.sales-import-uploader>.commerce-import-primary{grid-column:1/-1}}
 @media(max-width:760px){.commerce-import-mode-switch{grid-template-columns:1fr}.sales-import-uploader{grid-template-columns:1fr}}
+
+.commerce-import-finance-only{border:1px solid #c7d7ea;background:#f2f7ff;color:#22589c;border-radius:9px;padding:11px 14px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.commerce-import-finance-only:disabled{opacity:.48;cursor:not-allowed}
+.commerce-import-finance-hint{font-size:11px;line-height:1.5;color:#687b94;margin:6px 0 15px}
