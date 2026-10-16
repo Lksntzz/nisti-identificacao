@@ -193,7 +193,9 @@ export default function ShopeeSkuReconciliation({onChanged,onClose}){
         </>:
         <>
           <label className="nsr-search-label">Pesquisar anúncio ativo ou SKU atual
-            <input type="search" value={targetText} onChange={e=>setTargetText(e.target.value)}
+            <input type="search" value={targetText} onChange={e=>{
+              setTargetText(e.target.value);setVariation(null);setConfirmed(false);
+            }}
               placeholder="ID, nome ou SKU da variação" maxLength={120}/>
           </label>
           {targetsLoading&&<small className="nsr-muted">Procurando variações…</small>}
