@@ -18,6 +18,7 @@ import {
 } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
 import { readCommerceXlsx } from './commerce-xlsx-reader.js';
+import { attestShopeeActiveExport } from './commerce-shopee-sales-info.js';
 import './commerce-import-center.css';
 
 const CATALOG_PLATFORMS = [
@@ -187,6 +188,11 @@ function CatalogPreview({ parsed }) {
       <StatCard label="Prontas" value={parsed ? brNumber(s.ready_rows) : '—'} tone="green" />
       <StatCard label="Revisar" value={parsed ? brNumber(s.review_rows) : '—'} tone="amber" />
       <StatCard label="Inválidas" value={parsed ? brNumber(s.invalid_rows) : '—'} tone="red" />
+      {parsed?.format === 'SHOPEE_SALES_INFO' && <div className="import-center-shopee-stats">
+        <strong>Exportação oficial Shopee reconhecida</strong>
+        <span>{brNumber(s.listing_count)} anúncios · {brNumber(s.variation_count)} registros de variações</span>
+        <small>{brNumber(s.missing_sku_rows)} registros sem SKU seguro. Serão apresentados para revisão, sem vínculo automático.</small>
+      </div>}
     </div>
   );
 }
@@ -514,6 +520,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
   const [catalogAccount, setCatalogAccount] = useState('');
   const [catalogFile, setCatalogFile] = useState(null);
   const [catalogParsed, setCatalogParsed] = useState(null);
+  const [shopeeActiveConfirmed, setShopeeActiveConfirmed] = useState(false);
   const [catalogReading, setCatalogReading] = useState(false);
   const [catalogImporting, setCatalogImporting] = useState(false);
   const [catalogProgress, setCatalogProgress] = useState(null);
@@ -621,6 +628,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
     const file = event.target.files?.[0] || null;
     setCatalogFile(file);
     setCatalogParsed(null);
+    setShopeeActiveConfirmed(false);
     setCatalogBatch(null);
     setCatalogRows([]);
     setCatalogYearTargets({});
@@ -642,6 +650,10 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
 
   async function handleCatalogImport() {
     if (!catalogParsed) return;
+    if (catalogParsed.format === 'SHOPEE_SALES_INFO' && !shopeeActiveConfirmed) {
+      setError('Confirme que a exportação da Shopee contém somente os anúncios ativos.');
+      return;
+    }
     if (catalogParsed.marketplace === 'MERCADO_LIVRE' && !['ANTIGO','NOVO'].includes(catalogParsed.account_code)) {
       setError('Selecione a conta de origem antes de preparar a importação.');
       return;
@@ -650,7 +662,9 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
     setError('');
     setMessage('');
     try {
-      const result = await stageCommerceWorkbook(catalogParsed, setCatalogProgress);
+      const source = catalogParsed.format === 'SHOPEE_SALES_INFO'
+        ? attestShopeeActiveExport(catalogParsed) : catalogParsed;
+      const result = await stageCommerceWorkbook(source, setCatalogProgress);
       setMessage(result?.reconciled?.automatic_sync && !result.reconciled.automatic_sync.skipped
         ? `Conta ${catalogParsed.account_code === 'ANTIGO' ? 'Antiga' : 'Nova'}: ${brNumber(result.reconciled.automatic_sync.observed_listings || 0)} anúncios ativos sincronizados automaticamente; ${brNumber(result.reconciled.automatic_sync.linked_variation_rows || 0)} vínculos verificados com o Scanner NISTI. SKUs sem identidade segura permanecem sem vínculo, mas visíveis como anúncios ativos.`
         : `Lote #${result.batchId} comparado. Confira o resultado no catálogo.`);
@@ -899,6 +913,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                     setCatalogAccount('');
                     setCatalogFile(null);
                     setCatalogParsed(null);
+                    setShopeeActiveConfirmed(false);
                     setCatalogBatch(null);
                     setCatalogRows([]);
                     setCatalogProgress(null);
@@ -916,6 +931,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                         setCatalogAccount(event.target.value);
                         setCatalogFile(null);
                         setCatalogParsed(null);
+                        setShopeeActiveConfirmed(false);
                         setCatalogBatch(null);
                         setCatalogRows([]);
                         setCatalogProgress(null);
@@ -935,7 +951,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   disabled={catalogReading || catalogImporting || (catalogPlatform === 'MERCADO_LIVRE' && !catalogAccount)}
                   onChange={handleCatalogFile}
-                  onClear={() => {setCatalogFile(null);setCatalogParsed(null);setCatalogProgress(null);setError('');}}
+                  onClear={() => {setCatalogFile(null);setCatalogParsed(null);setShopeeActiveConfirmed(false);setCatalogProgress(null);setError('');}}
                   hint="Aceita planilhas .xlsx exportadas da plataforma"
                 />
                 {catalogReading && <div className="import-center-loading">Lendo e validando a planilha…</div>}
@@ -943,6 +959,14 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
 
               {(!embedded || catalogParsed) && <Step number="3" title="Conferência antes de enviar" className="import-center-step-review" complete={Boolean(catalogParsed)}>
                 <CatalogPreview parsed={catalogParsed} />
+                {catalogParsed?.format === 'SHOPEE_SALES_INFO' && <label className="import-center-shopee-confirm">
+                  <input type="checkbox" checked={shopeeActiveConfirmed}
+                    disabled={catalogImporting || catalogReading}
+                    onChange={event => setShopeeActiveConfirmed(event.target.checked)}/>
+                  <span><strong>Confirmo que exportei somente anúncios ativos na Shopee.</strong>
+                    <small>Esta planilha não informa o status. Anúncios ausentes não serão desativados, e nenhum produto do Scanner será modificado.</small>
+                  </span>
+                </label>}
               </Step>}
 
               {(!embedded || catalogParsed) && <Step
@@ -955,7 +979,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                   <button
                     type="button"
                     className="import-center-primary"
-                    disabled={!catalogParsed || catalogReading || catalogImporting}
+                    disabled={!catalogParsed || catalogReading || catalogImporting || (catalogParsed.format === 'SHOPEE_SALES_INFO' && !shopeeActiveConfirmed)}
                     onClick={handleCatalogImport}
                   >
                     {catalogImporting ? 'Preparando…' : 'Preparar e comparar com o catálogo'}

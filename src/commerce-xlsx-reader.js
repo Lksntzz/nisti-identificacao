@@ -1,6 +1,7 @@
 import readExcelFile from 'read-excel-file/browser';
 import { normalizeCommerceImportRow, indexMercadoLivreBulkStatus } from './commerce-import-normalizer.js';
 import { extractCommerceXlsxHyperlinks, hyperlinksForRow } from './commerce-xlsx-hyperlinks.js';
+import { looksLikeShopeeSalesInfo, parseShopeeSalesInfo } from './commerce-shopee-sales-info.js';
 
 export const COMMERCE_XLSX_MAX_BYTES = 25 * 1024 * 1024;
 export const COMMERCE_XLSX_MAX_ROWS = 50000;
@@ -113,6 +114,7 @@ export async function readCommerceXlsx(file, marketplace, accountCode = null) {
   let physicalRows = 0;
   let workbookHyperlinkCount = 0;
   let recoveredHyperlinks = 0;
+  let officialShopee = null;
 
   for (const sheet of workbook) {
     const sheetName = String(sheet?.sheet || '').trim() || 'Sem nome';
@@ -121,6 +123,30 @@ export async function readCommerceXlsx(file, marketplace, accountCode = null) {
     physicalRows += data.length;
     if (physicalRows > COMMERCE_XLSX_MAX_ROWS) {
       throw new Error(`O arquivo excede o limite operacional de ${COMMERCE_XLSX_MAX_ROWS.toLocaleString('pt-BR')} linhas.`);
+    }
+
+    if (looksLikeShopeeSalesInfo(data)) {
+      if (market !== 'SHOPEE') {
+        throw new Error('Esta planilha pertence à Shopee. Selecione Shopee como plataforma.');
+      }
+      if (officialShopee || rows.length) {
+        throw new Error('Não misture layouts diferentes de importação Shopee no mesmo arquivo.');
+      }
+      officialShopee = parseShopeeSalesInfo(data, sheetName);
+      rows.push(...officialShopee.rows);
+      sheets.push({
+        name: sheetName,
+        physical_rows: data.length,
+        accepted_rows: officialShopee.rows.length,
+        invalid_rows: officialShopee.rows.filter(item => item.parser_status === 'INVALID').length,
+        review_rows: 0,
+        workbook_hyperlinks: 0,
+        recovered_hyperlinks: 0
+      });
+      continue;
+    }
+    if (officialShopee && data.some(row => Array.isArray(row) && row.some(value => String(value ?? '').trim()))) {
+      throw new Error('A exportação sales_info da Shopee deve ser importada sem outras planilhas de produtos.');
     }
 
     // Only explicit ACTIVE seller listings enter the active catalog.
@@ -189,9 +215,11 @@ export async function readCommerceXlsx(file, marketplace, accountCode = null) {
     account_code: account,
     sha256,
     size_bytes: file.size,
+    ...(officialShopee ? { format: officialShopee.format, source_account_id: officialShopee.source_account_id } : {}),
     sheets,
     rows,
     summary: {
+      ...(officialShopee ? officialShopee.summary : {}),
       sheet_count: sheets.length,
       physical_rows: physicalRows,
       accepted_rows: rows.length,

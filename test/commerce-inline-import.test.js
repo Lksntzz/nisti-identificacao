@@ -36,7 +36,8 @@ test('operator chooses type first; relevant platform, account and file field the
 });
 
 test('existing catalog staging, conflict review, decisions, status sync and history remain functional in same view',()=>{
-  assert.match(importView,/stageCommerceWorkbook\(catalogParsed, setCatalogProgress\)/);
+  assert.match(importView,/stageCommerceWorkbook\(source, setCatalogProgress\)/);
+  assert.match(importView,/attestShopeeActiveExport\(catalogParsed\)/);
   assert.match(importView,/CatalogBatchReview/);
   assert.match(importView,/onYearDecision=\{handleCatalogYearDecision\}/);
   assert.match(importView,/onCommit=\{handleCatalogCommit\}/);
@@ -66,7 +67,7 @@ test('sales formats are not falsely advertised as supported; account distinction
 });
 
 test('catalog upload and sales upload are distinct and only activate after preview validation',()=>{
-  assert.match(importView,/disabled=\{!catalogParsed \|\| catalogReading \|\| catalogImporting\}/);
+  assert.match(importView,/disabled=\{!catalogParsed \|\| catalogReading \|\| catalogImporting \|\| \(catalogParsed\.format === 'SHOPEE_SALES_INFO' && !shopeeActiveConfirmed\)\}/);
   assert.match(importView,/disabled=\{!salesParsed \|\| salesReading \|\| salesImporting\}/);
   assert.match(importView,/stageCommerceSalesWorkbook\(salesParsed, setSalesProgress\)/);
   assert.match(importView,/if \(outcome\.status === 'WAITING_PARTS'\)/);
