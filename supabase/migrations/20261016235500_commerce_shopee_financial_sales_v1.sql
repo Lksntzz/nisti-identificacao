@@ -172,18 +172,23 @@ begin
  -- fees remain visible only at the month level, never allocated to one SKU.
  if exists(
    with incoming as (
-    select month_start,sum(units) units,sum(product_revenue) revenue
+    select month_start,sum(units) units,sum(product_revenue) revenue,
+      sum(unallocated_units) unallocated_units,
+      sum(unallocated_revenue) unallocated_revenue,
+      sum(single_sku_fee_orders) allocated_orders
     from public.commerce_shopee_finance_stage_month_v1
     where batch_id=any(v_batch_ids) group by month_start
    ), alloc as (
     select date_trunc('month',sale_date)::date month_start,
-      sum(units) units,sum(product_revenue) revenue
+      sum(units) units,sum(product_revenue) revenue,sum(orders) orders
     from public.commerce_shopee_finance_stage_daily_v1
     where batch_id=any(v_batch_ids) group by 1
    )
-   select 1 from alloc a join incoming i using(month_start)
-   where a.units>i.units or a.revenue>i.revenue+0.01
- ) then raise exception 'Atribuição financeira excede vendas do mês.';end if;
+   select 1 from incoming i left join alloc a using(month_start)
+   where coalesce(a.units,0)+i.unallocated_units<>i.units
+     or abs(coalesce(a.revenue,0)+i.unallocated_revenue-i.revenue)>0.01
+     or coalesce(a.orders,0)<>i.allocated_orders
+ ) then raise exception 'Atribuição financeira não reconcilia com os pedidos do mês.';end if;
  delete from public.commerce_shopee_finance_month_v1
  where month_start in (select distinct month_start
   from public.commerce_shopee_finance_stage_month_v1
