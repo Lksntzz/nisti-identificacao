@@ -11,7 +11,7 @@ import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import MuralNisti from './mural-nisti.jsx';
 import CommerceManagementView from './commerce-management-view.jsx';
-import CommerceCommercialDashboard from './commerce-commercial-dashboard.jsx';
+import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
 import './commerce-admin.css';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import ProductImageTreatmentWorker from './product-image-treatment-worker.jsx';
