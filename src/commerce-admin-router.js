@@ -322,6 +322,17 @@ export async function handleCommerceAdminRequest(request, env) {
       return json({ batch_id: batchId, accepted_rows: accepted });
     }
 
+    const sellerDailyMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/listing-daily$/);
+    if (method === 'POST' && sellerDailyMatch) {
+      const batchId = positiveId(sellerDailyMatch[1]);
+      const body = await bodyJson(request);
+      if (!batchId || !Array.isArray(body?.rows) || body.rows.length < 1 || body.rows.length > 100) {
+        return json({error:'Lote de vendas por anúncio inválido.'},400);
+      }
+      const saved = await commerceAppendSalesListingDaily(env,batchId,body.rows);
+      return json({batch_id:batchId,accepted_rows:saved});
+    }
+
     const salesImportSummaryMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/summary$/);
     if (method === 'POST' && salesImportSummaryMatch) {
       const batchId = positiveId(salesImportSummaryMatch[1]);
