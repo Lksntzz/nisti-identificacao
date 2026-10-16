@@ -177,49 +177,53 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <Kpi tone="green" label="Faturamento" value={data?money(kpi.revenue):'—'} description={days+' dias · anúncios ativos'}/>
     </div>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
-      <div className="nim-filterbar nim-filterbar-integrated">
-        <label>Plataforma<select value={platform} onChange={e=>change(setPlatform,e.target.value)}>
-          {PLATFORMS.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
-        <label className="nim-filter-search">Buscar anúncio ou ID
+      <div className="nim-filter-top">
+        <label className="nim-filter-field nim-filter-platform">Plataforma
+          <select value={platform} onChange={e=>change(setPlatform,e.target.value)}>
+            {PLATFORMS.map(([id,name])=><option key={id} value={id}>{name}</option>)}
+          </select>
+        </label>
+        <label className="nim-filter-field nim-filter-search">Buscar anúncio ou ID
           <input type="search" value={query} onChange={e=>setQuery(e.target.value)}
-            placeholder="Nome ou ID do anúncio" maxLength={150}/></label>
-        <button type="button" className="nim-soft-button" onClick={clear}>Limpar filtros</button>
+            placeholder="Nome ou ID do anúncio" maxLength={150}/>
+        </label>
+        <label className="nim-filter-field nim-filter-period">Período
+          <select value={days} onChange={e=>change(setDays,Number(e.target.value))}>
+            {PERIODS.map(n=><option key={n} value={n}>Últimos {n} dias</option>)}
+          </select>
+        </label>
+        <label className="nim-filter-field nim-filter-month">Mês de referência
+          <input type="month" value={month} onChange={e=>change(setMonth,e.target.value)}
+            aria-label="Mês de referência; em branco usa o último disponível"/>
+        </label>
+        <button type="button" className="nim-soft-button nim-filter-reset" onClick={clear}>Limpar filtros</button>
       </div>
       <div className="nim-filter-panel-body">
         <div className="nim-filter-group nim-performance-group">
-          <div className="nim-performance-line nim-period-line">
-            <span className="nim-filter-group-label">Período e vendas</span>
-            <div className="nim-unified-period-controls">
-              <label>Período<select value={days} onChange={e=>change(setDays,Number(e.target.value))}>
-                {PERIODS.map(n=><option key={n} value={n}>Últimos {n} dias</option>)}</select></label>
-              <label>Mês de referência<input type="month" value={month} onChange={e=>change(setMonth,e.target.value)}
-                aria-label="Mês de referência; em branco usa o último disponível"/></label>
-            </div>
-          </div>
-          <div className="nim-performance-line">
-            <span className="nim-filter-group-label">Situação de vendas</span>
-            <div className="nim-status-tabs" role="group" aria-label="Filtrar anúncios por situação de vendas">
-              {SALES_FILTERS.map(([code,label])=><button type="button" key={code}
-                className={status===code?'active':''} aria-pressed={status===code}
-                onClick={()=>change(setStatus,code)}>
-                {label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
-              </button>)}
-            </div>
+          <span className="nim-filter-group-label">Situação de vendas</span>
+          <div className="nim-status-tabs" role="group" aria-label="Filtrar anúncios por situação de vendas">
+            {SALES_FILTERS.map(([code,label])=><button type="button" key={code}
+              className={status===code?'active':''} aria-pressed={status===code}
+              onClick={()=>change(setStatus,code)}>
+              {label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
+            </button>)}
           </div>
         </div>
         <div className="nim-filter-group nim-abc-group">
           <span className="nim-filter-group-label">Curva ABC</span>
-          <div className="nim-curve-tabs" role="group" aria-label="Filtrar anúncios por Curva ABC">
-            {['ALL','A','B','C'].map(code=><button type="button" key={code}
-              className={curve===code?'active':''} aria-pressed={curve===code}
-              onClick={()=>change(setCurve,code)}>{code==='ALL'?'Todas':code}</button>)}
+          <div className="nim-abc-controls">
+            <div className="nim-curve-tabs" role="group" aria-label="Filtrar anúncios por Curva ABC">
+              {['ALL','A','B','C'].map(code=><button type="button" key={code}
+                className={curve===code?'active':''} aria-pressed={curve===code}
+                onClick={()=>change(setCurve,code)}>{code==='ALL'?'Todas':code}</button>)}
+            </div>
+            <label className="nim-abc-basis-label">
+              <span>Classificar por</span>
+              <select aria-label="Critério ABC" value={basis} onChange={e=>change(setBasis,e.target.value)}>
+                <option value="REVENUE">Faturamento</option><option value="UNITS">Unidades vendidas</option>
+              </select>
+            </label>
           </div>
-          <label className="nim-abc-basis-label">
-            <span>Classificar por</span>
-            <select aria-label="Critério ABC" value={basis} onChange={e=>change(setBasis,e.target.value)}>
-              <option value="REVENUE">Faturamento</option><option value="UNITS">Unidades vendidas</option>
-            </select>
-          </label>
         </div>
       </div>
       <div className="nim-filter-panel-footer">
