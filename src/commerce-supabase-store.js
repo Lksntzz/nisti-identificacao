@@ -783,6 +783,24 @@ export async function commerceAppendShopeeFinanceMonth(env,batchId,rows=[],sourc
   },{timeoutMs:10000})||0);
 }
 
+export async function commerceShopeeFinanceBackfillSource(env,{filename,sha256}={}) {
+  const name=cleanText(filename),sha=cleanText(sha256);
+  if(!name||name.length>255||!/^\w*[0-9a-f]{64}$/i.test(sha))
+    throw new Error('Nome e SHA-256 do arquivo financeiro são obrigatórios.');
+  return await supabaseRpc(env,'commerce_shopee_finance_backfill_source_v1',{
+    p_filename:name,p_sha256:sha
+  });
+}
+
+export async function commerceShopeeFinanceBackfillActivate(env,{batchId,sha256}={}) {
+  const id=cleanId(batchId),sha=cleanText(sha256);
+  if(!id||!/^[0-9a-f]{64}$/i.test(sha))
+    throw new Error('Lote e SHA-256 do arquivo financeiro inválidos.');
+  return await supabaseRpc(env,'commerce_shopee_finance_backfill_activate_v1',{
+    p_batch_id:id,p_source_sha256:sha
+  },{timeoutMs:18000});
+}
+
 export async function commerceShopeeListingFinance(env,listingId,{days=30,month=null}={}) {
   const id=cleanId(listingId);
   if(!id)throw new Error('ID do anúncio inválido.');
