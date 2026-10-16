@@ -19,6 +19,8 @@ import {
   commerceSaveListingSales,
   commerceListingHistory,
   commerceManagement,
+  commerceScannerPendingActive,
+  commerceLinkActiveAdScanner,
   commerceManagementProducts,
   commerceManagementProductSummary,
   commerceManagementDetail,
@@ -182,6 +184,24 @@ export async function handleCommerceAdminRequest(request, env) {
         marketplace: query(url, 'marketplace'),
         limit: query(url, 'limit'),
         offset: query(url, 'offset')
+      }));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/scanner-pending`) {
+      return json(await commerceScannerPendingActive(env,{
+        search:query(url,'search'),
+        limit:query(url,'limit'),
+        offset:query(url,'offset')
+      }));
+    }
+    if (method === 'POST' && pathname === `${BASE_PATH}/scanner-pending/link`) {
+      const body = await bodyJson(request);
+      if (!positiveId(body?.listing_id) || !positiveId(body?.scanner_product_id)
+        || typeof body?.sku!=='string' || !body.sku.trim() || body.sku.length>120) {
+        return json({error:'Selecione anúncio, produto Scanner e SKU válidos.'},400);
+      }
+      return json(await commerceLinkActiveAdScanner(env,{
+        listingId:body.listing_id,scannerProductId:body.scanner_product_id,sku:body.sku
       }));
     }
 

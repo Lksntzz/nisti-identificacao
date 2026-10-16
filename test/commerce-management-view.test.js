@@ -15,7 +15,7 @@ test('Catálogo é a visão principal e Pendências reutiliza a mesma gestão', 
   assert.equal(shell.includes("useState('catalog')"), true);
   assert.equal(shell.includes('<CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />'), true);
   assert.equal(read('src/main.jsx').includes("commerceSection === 'catalog' || commerceSection === 'sales'"), true);
-  assert.equal(shell.includes('<CommerceManagementView mode="pending" />'), true);
+  assert.equal(shell.includes('<CommerceManagementView mode="pending" onCreateScanner='), true);
   assert.equal(view.includes("mode === 'pending' ? 'UNLINKED' : 'LINKED'"), true);
 });
 
