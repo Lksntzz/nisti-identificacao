@@ -30,6 +30,8 @@ function PlatformLabel({item}){
 function Situation({item}){
   if(!item.ready&&(Number(item.month_linked_units)>0||Number(item.identified_units)>0))
     return <span className="nim-status partial">Vendas identificadas</span>;
+  if(item.source==='SHOPEE'&&!item.ready)
+    return <span className="nim-status pending">Sem vendas identificadas</span>;
   const situation=listingSalesSituation(item);
   if(situation==='PENDING')return <span className="nim-status pending">Dados pendentes</span>;
   if(situation==='ZERO')return <span className="nim-status zero">Sem vendas</span>;
@@ -39,9 +41,11 @@ function VariationSalesEvidence({item,days,partial}){
   if (!Number(item?.total_variations)) return null;
   if (partial) {
     const evidence=identifiedVariationCoverage(item,days);
-    if (evidence.identified>0)
+    const empty=Number(item.identified_empty_variations||0);
+    if (evidence.identified>0||empty>0)
       return <small className="nim-variation-identification">
-        {num(evidence.identified)} de {num(evidence.total)} com vendas identificadas
+        {num(evidence.identified)} com vendas identificadas
+        {empty>0?' · '+num(empty)+' sem vendas identificadas':''}
       </small>;
     return <small className="nim-variation-awaiting">Vendas por variação sem vínculo confirmado</small>;
   }
@@ -131,6 +135,12 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const partialRevenue=monthLinked?detail?.month_linked_revenue:detail?.identified_revenue;
   const variationEvidence=identifiedVariationCoverage(detail,detailDays);
   const partialVars=item.source==='SHOPEE'&&!complete?variationEvidence.variations:[];
+  const partialRelevant=zeroFilter&&!showAll
+    ?partialVars.filter(v=>v.units==null||Number(v.units)===0):partialVars;
+  const partialEmptyCount=Number(detail?.identified_empty_variations||0);
+  const trendPct=detail?.identified_growth_pct;
+  const trendLabel=trendPct==null?'Sem base comparável':
+    (Number(trendPct)>0?'+':'')+num(Number(trendPct))+'%';
   return <aside className="nim-detail" aria-label={'Detalhes do anúncio '+item.external_listing_id}>
     <header className="nim-detail-header">
       <div className="nim-detail-title"><h3>{item.title}</h3>
@@ -142,7 +152,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
     </header>
     <div className="nim-detail-identity">
       <div><small>ID do anúncio</small><strong>{item.external_listing_id}</strong></div>
-      <div><small>Curva ABC</small><strong>{item.curve||'—'}</strong></div>
+      <div><small>{item.curve_partial?'Curva ABC · indicativa':'Curva ABC'}</small>
+        <strong>{item.curve||'—'}</strong></div>
     </div>
     <section className="nim-detail-performance" aria-label="Desempenho do anúncio">
       <div className="nim-detail-section-title nim-detail-performance-title">
@@ -157,7 +168,10 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       <div className="nim-detail-metrics">
         <DetailMetric label="Unidades vendidas"  value={partialLinked?'≥ '+num(partialUnits):pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
         <DetailMetric label="Faturamento"  value={partialLinked?'≥ '+money(partialRevenue):pending?'—':money(detail.revenue)} description={periodLabel(detailDays,month)+' · produtos'}/>
-        <DetailMetric label="Pedidos" value="—" description="Aguardando vínculo por anúncio"/>
+        {item.source==='SHOPEE'&&detailDays!==0?
+          <DetailMetric label="Tendência identificada" value={trendLabel}
+            description="Comparação com igual período anterior · vendas vinculadas"/>:
+          <DetailMetric label="Pedidos" value="—" description="Aguardando vínculo por anúncio"/>}
         <DetailMetric label="Ticket médio" value="—" description="Aguardando pedidos identificados"/>
       </div>
       {periodLoading&&<p className="nim-detail-pending" role="status">Consultando dados: {periodLabel(detailDays,month)}…</p>}
@@ -211,26 +225,28 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         </div>
         {item.total_variations===0&&<p className="nim-subtle">Anúncio sem variações cadastradas.</p>}
         {item.total_variations>0&&!complete&&
-          <p className="nim-advice">Quantidades e receitas identificadas por SKU exclusivo são parciais; não mostramos zeros presumidos.</p>}
+          <p className="nim-advice">Quantidades e receitas identificadas por SKU exclusivo são parciais; não mostramos zeros presumidos. Variações sem vendas identificadas podem ter vendas ainda não vinculadas.</p>}
         {!complete&&partialVars.length>0&&<p className="nim-var-totals">
-          {variationEvidence.identified>0
-            ?num(variationEvidence.identified)+' de '+num(item.total_variations)+' variações com vendas identificadas'
-            :'Nenhuma variação com quantidade vinculada neste período — isso não significa ausência de vendas'}
-        </p>}
+          {num(variationEvidence.identified)+' variações com vendas identificadas · '+
+            num(partialEmptyCount)+' sem vendas identificadas'}
+          {Number(detail?.identifiable_variations||0)<Number(item.total_variations)&&
+            ' · '+num(Number(item.total_variations)-Number(detail?.identifiable_variations||0))+' sem SKU exclusivo'}
+        </p>
         {item.total_variations>0&&complete&&
           <p className="nim-var-totals">{num(detail.sold_variations)} com vendas · {num(detail.zero_variations)} sem vendas</p>}
-        {zeroFilter&&complete&&item.total_variations>0&&
+        {zeroFilter&&item.total_variations>0&&
           <label className="nim-var-toggle"><input type="checkbox" checked={showAll}
-            onChange={e=>setShowAll(e.target.checked)}/> Mostrar todas as variações</label>}
+            onChange={e=>setShowAll(e.target.checked)}/> Mostrar todas as variações</label>
         {!complete&&partialVars.length>0&&<div className="nim-detail-table-scroll">
           <table><thead><tr><th>Variação / SKU</th><th>Unid. identificadas</th><th>Receita identificada</th></tr></thead>
-            <tbody>{partialVars.map((v,i)=><tr key={String(v.id||i)}>
+            <tbody>{partialRelevant.map((v,i)=><tr key={String(v.id||i)}>
               <td><strong>{v.name}</strong><small>{v.sku||'SKU não informado'}</small></td>
-              <td>{v.units==null?'—':'≥ '+num(v.units)}</td>
+              <td>{v.units==null?'Não identificada':'≥ '+num(v.units)}</td>
               <td>{v.revenue==null?'—':'≥ '+money(v.revenue)}</td>
             </tr>)}</tbody>
           </table>
-        </div>}
+          {partialRelevant.length===0&&<p className="nim-subtle">Nenhuma variação sem vendas identificadas neste anúncio.</p>}
+        </div>
         {relevant.length>0&&<div className="nim-detail-table-scroll">
           <table><thead><tr><th>Variação / SKU</th><th>Unid.</th><th>Receita</th></tr></thead>
             <tbody>{relevant.map((v,i)=><tr key={String(v.id||v.sku||i)} className={v.units===0?'nim-var-zero':''}>
