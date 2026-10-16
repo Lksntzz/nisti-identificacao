@@ -30,6 +30,7 @@ import {
   commerceProductDetail,
   commerceShopeeSnapshot,
   commerceSalesAbcAds,
+  commerceSalesVelocity,
   commerceSalesAbc,
   commerceSalesDashboard,
   commerceSalesProductPerformance,
@@ -206,6 +207,24 @@ export async function handleCommerceAdminRequest(request, env) {
         periodMonth:body.month,
         units:body.units
       },operatorName(request)));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/sales/velocity`) {
+      const days = Number(query(url,'days') || 30);
+      const status = String(query(url,'status') || 'ALL').toUpperCase();
+      const platform = String(query(url,'platform') || 'TODAS').toUpperCase();
+      const month = query(url,'month') || '';
+      if (![7,30,60,90].includes(days) ||
+        !['ALL','SOLD','ZERO','LOW','RISING'].includes(status) ||
+        !['TODAS','MERCADO_LIVRE','SHOPEE','AMAZON','ML_NOVO','ML_ANTIGO'].includes(platform) ||
+        (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))) {
+        return json({error:'Filtros de desempenho inválidos.'},400);
+      }
+      return json(await commerceSalesVelocity(env,{
+        days,status,platform,month,
+        limit:query(url,'limit'),
+        offset:query(url,'offset')
+      }));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/sales/abc/advertisements`) {

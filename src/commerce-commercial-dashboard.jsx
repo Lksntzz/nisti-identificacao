@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import CommerceSkuListingsView from './commerce-sku-listings-view.jsx';
 import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
 import CommerceAbcAdPerformance from './commerce-abc-ad-performance.jsx';
+import CommerceSalesVelocity from './commerce-sales-velocity.jsx';
 import './commerce-commercial-dashboard.css';
 
 const PLATFORM_OPTIONS = [
@@ -130,6 +131,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
       <Metric label="Faturamento" value={hasSnapshot?money(abc.total_revenue):'—'}
         foot={hasSnapshot?'Pedidos: '+number(abc.net_orders):'Aguardando importação'} icon="R$" tone="green"/>
     </div>
+
+    <CommerceSalesVelocity platform={platform} refresh={refresh+salesRevision}/>
 
     <section className="nisti-com-section nisti-com-abc">
       <div className="nisti-com-section-heading">
