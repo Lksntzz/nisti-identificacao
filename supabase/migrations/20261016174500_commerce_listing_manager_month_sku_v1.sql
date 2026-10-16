@@ -31,7 +31,8 @@ with input as (
 ), variants as (
  select a.id listing_id,a.source,lp.variation_id,
  coalesce(nullif(lp.variation_name,''),nullif(lp.platform_sku,''),'Variação sem nome') name,
- public.commerce_nisti_sku_norm_v1(lp.platform_sku) sku
+ public.commerce_nisti_sku_norm_v1(lp.platform_sku) sku,
+ lp.platform_sku display_sku
  from ads a join public.commerce_listing_products lp on lp.listing_id=a.id
  where lp.relation_status<>'REMOVED' and nullif(lp.variation_id,'') is not null
 ), unique_owner as (
@@ -52,7 +53,7 @@ with input as (
  from known group by listing_id
 ), grouped_variations as (
  select v.listing_id,count(*)::int total_variations,
- jsonb_agg(jsonb_build_object('id',v.variation_id,'name',v.name,'sku',v.sku,
+ jsonb_agg(jsonb_build_object('id',v.variation_id,'name',v.name,'sku',v.display_sku,
  'units',k.units,'revenue',k.revenue,'partial',true)
  order by v.name,v.variation_id) month_variations
  from variants v left join known k on k.listing_id=v.listing_id and k.variation_id=v.variation_id
