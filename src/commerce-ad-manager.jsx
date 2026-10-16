@@ -48,10 +48,25 @@ function MonthBars({months,basis}){
     </div>)}
   </div>;
 }
-function ListingDetail({item,days,zeroFilter,onClose}){
+const DETAIL_TABS=[['summary','Resumo'],['finance','Financeiro'],['variations','Variações'],['aftercare','Pós-venda']];
+
+function DetailMetric({label,value,description}){
+  return <div className="nim-detail-metric">
+    <small>{label}</small><strong>{value}</strong>
+    {description&&<span>{description}</span>}
+  </div>;
+}
+function DetailRow({label,value,description}){
+  return <div className="nim-detail-data-row">
+    <div><span>{label}</span>{description&&<small>{description}</small>}</div>
+    <strong>{value}</strong>
+  </div>;
+}
+function ListingDetail({item,days,zeroFilter,onClose,onDaysChange}){
   const [months,setMonths]=useState(null);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
+  const [activeTab,setActiveTab]=useState('summary');
   useEffect(()=>{
     let cancelled=false;setMonths(null);setError('');setShowAll(false);
     readJson(API+'/'+encodeURIComponent(item.id)+'/months')
@@ -61,50 +76,116 @@ function ListingDetail({item,days,zeroFilter,onClose}){
   },[item.id]);
   const variations=Array.isArray(item.variations)?item.variations:[];
   const relevant=zeroFilter&&!showAll?variations.filter(v=>v.units===0):variations;
-  const complete=item.ready&&item.variation_data_complete;
+  const complete=Boolean(item.ready&&item.variation_data_complete);
+  const pending=!item.ready;
   return <aside className="nim-detail" aria-label={'Detalhes do anúncio '+item.external_listing_id}>
-    <header className="nim-detail-header"><div><h3>{item.title}</h3><PlatformLabel item={item}/></div>
-      <button type="button" className="nim-close" aria-label="Fechar detalhes" onClick={onClose}>×</button></header>
-    <div className="nim-detail-meta">
+    <header className="nim-detail-header">
+      <div className="nim-detail-title"><h3>{item.title}</h3>
+        <div className="nim-detail-title-line"><PlatformLabel item={item}/>
+          <span className="nim-detail-active">Anúncio ativo</span>
+        </div>
+      </div>
+      <button type="button" className="nim-close" aria-label="Fechar detalhes" onClick={onClose}>×</button>
+    </header>
+    <div className="nim-detail-identity">
       <div><small>ID do anúncio</small><strong>{item.external_listing_id}</strong></div>
       <div><small>Curva ABC</small><strong>{item.curve||'—'}</strong></div>
     </div>
-    <div className="nim-detail-kpis">
-      <div><small>Unidades · {days} dias</small><strong>{item.ready?num(item.units):'—'}</strong></div>
-      <div><small>Faturamento · {days} dias</small><strong>{item.ready?money(item.revenue):'—'}</strong></div>
-    </div>
-    <div className="nim-four-periods">{PERIODS.map(p=><div key={p}><small>{p} dias</small>
-      <strong>{item['units_'+p]==null?'—':num(item['units_'+p])}</strong></div>)}</div>
-    <section className="nim-detail-section">
-      <div className="nim-detail-section-title"><h4>Variações do anúncio</h4><small>{num(item.total_variations)} variações</small></div>
-      {item.total_variations===0&&<p className="nim-subtle">Anúncio sem variações cadastradas.</p>}
-      {item.total_variations>0&&!complete&&<p className="nim-advice">Variações sem quantidade individual confiável. O arquivo de vendas não permite atribuir todos os SKUs com segurança; não mostramos zeros presumidos.</p>}
-      {item.total_variations>0&&complete&&<>
-        <p className="nim-var-totals">{num(item.sold_variations)} com vendas · {num(item.zero_variations)} sem vendas</p>
-        {zeroFilter&&<label className="nim-var-toggle"><input type="checkbox" checked={showAll}
-          onChange={e=>setShowAll(e.target.checked)}/> Mostrar todas as variações</label>}
-        <div className="nim-detail-table-scroll">
-          <table><thead><tr><th>Variação</th><th>Unid.</th><th>Receita</th></tr></thead><tbody>
-            {relevant.map((v,i)=><tr key={String(v.id||v.sku||i)} className={v.units===0?'nim-var-zero':''}>
-              <td><strong>{v.name}</strong><small>{v.sku||'SKU não informado'}</small></td>
-              <td>{num(v.units)}</td><td>{money(v.revenue)}</td>
-            </tr>)}
-          </tbody></table>
-          {!relevant.length&&<p className="nim-subtle">Nenhuma variação sem vendas neste anúncio.</p>}
+    <section className="nim-detail-performance" aria-label="Desempenho do anúncio">
+      <div className="nim-detail-section-title nim-detail-performance-title">
+        <h4>Desempenho</h4>
+        <div className="nim-detail-periods" role="group" aria-label="Período de análise do anúncio">
+          {PERIODS.map(p=><button type="button" key={p} aria-pressed={days===p}
+            className={days===p?'active':''} onClick={()=>onDaysChange(p)}>{p}d</button>)}
         </div>
+      </div>
+      <div className="nim-detail-metrics">
+        <DetailMetric label="Unidades vendidas" value={pending?'—':num(item.units)} description={days+' dias'}/>
+        <DetailMetric label="Faturamento" value={pending?'—':money(item.revenue)} description={days+' dias · produtos'}/>
+        <DetailMetric label="Pedidos" value="—" description="Aguardando vínculo por anúncio"/>
+        <DetailMetric label="Ticket médio" value="—" description="Aguardando pedidos identificados"/>
+      </div>
+      {pending&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para os {days} dias. Valores desconhecidos não são zero.</p>}
+    </section>
+    <div className="nim-detail-tab-list" role="tablist" aria-label="Informações do anúncio">
+      {DETAIL_TABS.map(([code,label])=><button
+        key={code} id={'nim-detail-tab-'+code} type="button" role="tab"
+        aria-selected={activeTab===code} aria-controls={'nim-detail-panel-'+code}
+        className={activeTab===code?'active':''} onClick={()=>setActiveTab(code)}>{label}</button>)}
+    </div>
+    <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
+      aria-labelledby={'nim-detail-tab-'+activeTab}>
+      {activeTab==='summary'&&<>
+        <div className="nim-detail-section-title"><h4>Evolução de vendas</h4><small>Histórico mensal do anúncio</small></div>
+        {error?<p className="nim-error" role="alert">{error}</p>:months===null?
+          <p className="nim-subtle">Consultando histórico…</p>:<MonthBars months={months} basis="REVENUE"/>}
+        {months?.length>0&&<div className="nim-month-values">
+          {months.slice(-4).reverse().map(m=><div key={m.period}>
+            <span>{labelMonth(m.period)}</span><strong>{num(m.units)} un. · {money(m.revenue)}</strong>
+          </div>)}
+        </div>}
+        <div className="nim-detail-summary-footer">
+          <div><strong>Variações cadastradas</strong>
+            <span>{num(item.total_variations)} variações</span></div>
+          <button type="button" onClick={()=>setActiveTab('variations')}>Ver variações →</button>
+        </div>
+        {!complete&&item.total_variations>0&&
+          <p className="nim-subtle">As vendas individuais das variações só serão exibidas após vinculação confiável dos SKUs.</p>}
+      </>}
+      {activeTab==='finance'&&<>
+        <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{days} dias</small></div>
+        <div className="nim-detail-data-list">
+          <DetailRow label="Subtotal dos produtos" value={pending?'—':money(item.revenue)}
+            description="Receita dos produtos no período selecionado"/>
+          <DetailRow label="Descontos do vendedor" value="—"/>
+          <DetailRow label="Comissões Shopee" value="—"/>
+          <DetailRow label="Taxas de serviço" value="—"/>
+          <DetailRow label="Receita após taxas identificadas" value="—"/>
+        </div>
+        <p className="nim-detail-hint">Os descontos e as taxas ainda não foram conciliados por anúncio. O subtotal não representa repasse ou lucro líquido.</p>
+      </>}
+      {activeTab==='variations'&&<>
+        <div className="nim-detail-section-title">
+          <h4>Desempenho por variação</h4><small>{num(item.total_variations)} variações</small>
+        </div>
+        {item.total_variations===0&&<p className="nim-subtle">Anúncio sem variações cadastradas.</p>}
+        {item.total_variations>0&&!complete&&
+          <p className="nim-advice">Ainda não é possível atribuir quantidades e receitas a todas as variações com segurança. Não mostramos zeros presumidos.</p>}
+        {item.total_variations>0&&complete&&
+          <p className="nim-var-totals">{num(item.sold_variations)} com vendas · {num(item.zero_variations)} sem vendas</p>}
+        {zeroFilter&&complete&&item.total_variations>0&&
+          <label className="nim-var-toggle"><input type="checkbox" checked={showAll}
+            onChange={e=>setShowAll(e.target.checked)}/> Mostrar todas as variações</label>}
+        {relevant.length>0&&<div className="nim-detail-table-scroll">
+          <table><thead><tr><th>Variação / SKU</th><th>Unid.</th><th>Receita</th></tr></thead>
+            <tbody>{relevant.map((v,i)=><tr key={String(v.id||v.sku||i)} className={v.units===0?'nim-var-zero':''}>
+              <td><strong>{v.name}</strong><small>{v.sku||'SKU não informado'}</small></td>
+              <td>{v.units==null?'—':num(v.units)}</td>
+              <td>{v.revenue==null?'—':money(v.revenue)}</td>
+            </tr>)}</tbody>
+          </table>
+          {!relevant.length&&<p className="nim-subtle">Nenhuma variação sem vendas neste anúncio.</p>}
+        </div>}
+        {item.total_variations>0&&!relevant.length&&
+          <p className="nim-subtle">{complete?'Nenhuma variação corresponde ao filtro selecionado.':
+            'Os nomes das variações estarão disponíveis aqui quando o vínculo entre SKU e anúncio for confirmado.'}</p>}
+      </>}
+      {activeTab==='aftercare'&&<>
+        <div className="nim-detail-section-title"><h4>Pós-venda e logística</h4><small>{days} dias</small></div>
+        <div className="nim-detail-data-list">
+          <DetailRow label="Pedidos cancelados" value="—"/>
+          <DetailRow label="Devoluções e reembolsos" value="—"/>
+          <DetailRow label="Taxa de cancelamento" value="—"/>
+          <DetailRow label="Prazo médio de envio" value="—"/>
+          <DetailRow label="Principal região compradora" value="—"/>
+        </div>
+        <p className="nim-detail-hint">Indicadores indisponíveis até a conciliação dos pedidos e dos eventos pós-venda por anúncio. Solicitações de reembolso não são tratadas como estorno confirmado.</p>
       </>}
     </section>
-    <section className="nim-detail-section">
-      <h4>Evolução mensal do anúncio</h4>
-      {error?<p className="nim-error" role="alert">{error}</p>:months===null?
-        <p className="nim-subtle">Consultando histórico…</p>:<MonthBars months={months} basis="REVENUE"/>}
-      {months?.length>0&&<div className="nim-month-values">{months.slice(-4).reverse().map(m=>
-        <div key={m.period}><span>{labelMonth(m.period)}</span><strong>{num(m.units)} un. · {money(m.revenue)}</strong></div>)}</div>}
-    </section>
-    <div className="nim-detail-buttons">
+    <footer className="nim-detail-buttons">
       {item.url&&<a href={item.url} target="_blank" rel="noopener noreferrer">Ver no marketplace ↗</a>}
       <button type="button" onClick={()=>navigator.clipboard?.writeText?.(item.external_listing_id)}>Copiar ID</button>
-    </div>
+    </footer>
   </aside>;
 }
 export default function CommerceCommercialDashboard({salesRevision=0}){
@@ -127,7 +208,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [importOpen,setImportOpen]=useState(false);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
-  useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
+  useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,month,search,status,curve,basis,size]);
   useEffect(()=>{
     let cancelled=false;setLoading(true);setError('');
     const params=new URLSearchParams({platform,days:String(days),status,curve,basis,
@@ -280,7 +361,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             <button type="button" disabled={loading||offset+size>=total} onClick={()=>setOffset(v=>v+size)}>Próxima</button></div>
         </footer>
       </section>
-      {selected&&<ListingDetail key={selected.id} item={selected} days={days} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
+      {selected&&<ListingDetail key={selected.id} item={selected} days={days} zeroFilter={status==='ZERO'} onDaysChange={value=>{setDays(value);setOffset(0);}} onClose={()=>setSelectedId(null)}/>}
     </div>
     <p className="nim-footnote">Valores por ID real do anúncio e conta da plataforma. O filtro Sem vendas inclui variações sem vendas quando há dados confiáveis. Variações não identificadas não são classificadas como sem vendas. Nenhum dado do Scanner é alterado.</p>
   </section>;
