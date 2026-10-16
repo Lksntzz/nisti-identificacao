@@ -13,7 +13,7 @@ const digits = value => /^\d+$/.test(clean(value));
 
 export function looksLikeShopeeSalesInfo(data) {
   const head = Array.isArray(data?.[0]) ? data[0].map(clean) : [];
-  return head.includes('et_title_product_id') || head.includes('et_title_variation_id');
+  return head.some(value => value.startsWith('et_title_') || value === 'ps_gtin_code');
 }
 
 export function detectShopeeSalesInfo(data) {
