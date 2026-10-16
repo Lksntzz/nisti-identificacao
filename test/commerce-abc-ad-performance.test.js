@@ -58,7 +58,7 @@ test('advertisement matching is grounded in the current import and listing IDs, 
 });
 
 test('ABC drill-down preserves original catalog with SKU normalized search and no destructive writes',()=>{
-  assert.match(dashboard,/CommerceSkuListingsView key=\{salesRevision\} catalogMode embedded/);
+  assert.match(dashboard,/CommerceSkuListingsView key=\{salesRevision\+'-'\+refresh\} catalogMode embedded/);
   assert.match(dashboard,/onShowInCatalog=\{sku=>/);
   assert.match(dashboard,/setSearch\(sku\)/);
   assert.match(catalogSql,/commerce_nisti_sku_norm_v1\(k\.source_sku\)=public\.commerce_nisti_sku_norm_v1\(i\.q\)/);
