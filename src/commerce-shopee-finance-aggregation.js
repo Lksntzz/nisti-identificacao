@@ -66,7 +66,11 @@ export async function aggregateShopeeFinance(raw=[]){
     month.orders++;
     month.units+=order.units;
     month.product_revenue+=order.revenue;
-    const verified=Boolean(order.fees&&!order.conflicting);
+    // Shopee repeats order fees on each product row; even equal values can be
+    // either repeated charges or genuine line amounts. Until proven otherwise,
+    // recognize fees only for single-line orders; leave all multi-line orders
+    // without an assigned fee and expose this explicitly as incomplete coverage.
+    const verified=Boolean(order.fees&&!order.conflicting&&order.sourceRows===1);
     if(verified){
       month.fee_orders++;
       month.seller_discount+=order.discount;
