@@ -10,11 +10,6 @@
 .nim-soft-button,.nim-clear{background:#fff;color:#536680}
 .nim-soft-button:hover,.nim-clear:hover{background:#f5f8ff}
 .nim-import-panel{background:#fff;border:1px solid var(--nim-border);border-radius:12px;padding:16px;min-width:0}
-.nim-filterbar{display:grid;grid-template-columns:minmax(165px,1.1fr) minmax(145px,.85fr) minmax(145px,.85fr) minmax(200px,1.5fr) auto;gap:11px;align-items:end;background:#fff;border:1px solid var(--nim-border);padding:15px;border-radius:13px;box-shadow:0 2px 12px #17283d08}
-.nim-filterbar>label{display:grid;gap:6px;color:#53647c;font-size:11px;font-weight:750;min-width:0}
-.nim-filterbar select,.nim-filterbar input{width:100%;height:37px;border-radius:8px;border:1px solid #dce4ee;padding:0 10px;font:inherit;font-size:11px;color:#283750;min-width:0;background:#fff}
-.nim-filterbar select:focus,.nim-filterbar input:focus{outline:2px solid #a3c3ff;outline-offset:1px}
-.nim-filterbar>.nim-soft-button{height:37px;min-height:37px}
 .nim-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .nim-kpi{display:grid;text-align:left;align-content:center;justify-items:start;gap:7px;padding:16px 17px;min-height:112px;border-radius:12px;border:1px solid var(--nim-border);font:inherit;background:#fff;min-width:0;box-shadow:0 2px 12px #152a3d09}
 button.nim-kpi{cursor:pointer}
@@ -115,36 +110,45 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-detail-buttons a,.nim-detail-buttons button{flex:1;text-align:center;text-decoration:none;background:#f1f5ff;border:1px solid #e2e8f9;border-radius:8px;padding:10px 6px;color:#3562ad;font-size:10px;font-weight:780;cursor:pointer}
 .nim-footnote{font-size:10px;color:#8795a6;line-height:1.6;margin:0;padding:0 2px}
 .nim-manager button:focus-visible,.nim-manager a:focus-visible{outline:2px solid #2f75e8;outline-offset:2px}
-@media(max-width:1100px){.nim-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}.nim-filterbar{grid-template-columns:repeat(4,minmax(0,1fr))}.nim-filterbar .nim-soft-button{grid-column:4}.nim-content.has-detail{grid-template-columns:minmax(0,1fr) minmax(300px,350px)}}
+@media(max-width:1100px){.nim-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}.nim-content.has-detail{grid-template-columns:minmax(0,1fr) minmax(300px,350px)}}
 @media(max-width:880px){.nim-manager{min-width:780px}.nim-heading h2{font-size:20px}.nim-kpi{min-height:95px;padding:11px 12px}.nim-kpi strong{font-size:18px}.nim-content.has-detail{grid-template-columns:minmax(0,1fr)}.nim-detail{position:relative;max-height:none}.nim-tabs-row{flex-wrap:wrap}}
 
 
-/* Gestor de anúncios: filtro de desempenho e ABC em um único painel com hierarquia.
-   Não modifica visualização desktop no celular nem cálculos de anúncios/vendas. */
+/* Gestor de Anúncios — painel de filtros compacto, com uma única hierarquia. */
 .nim-filter-panel{
-  min-width:0;display:grid;gap:0;background:#fff;border:1px solid var(--nim-border);
+  min-width:0;display:grid;background:#fff;border:1px solid var(--nim-border);
   border-radius:13px;box-shadow:0 2px 12px #17283d09;overflow:hidden
 }
+.nim-filter-top{
+  display:grid;
+  grid-template-columns:minmax(165px,1.08fr) minmax(240px,1.65fr) minmax(130px,.76fr) minmax(155px,.9fr) 130px;
+  gap:12px;align-items:end;min-width:0;padding:16px 18px 14px
+}
+.nim-filter-field{display:grid;gap:7px;min-width:0;color:#53647c;font-size:11px;font-weight:750}
+.nim-filter-field select,.nim-filter-field input{
+  display:block;width:100%;min-width:0;height:38px;border:1px solid #dce4ee;border-radius:8px;
+  padding:0 11px;background:#fff;color:#283750;font:inherit;font-size:11px
+}
+.nim-filter-field select:focus-visible,.nim-filter-field input:focus-visible{
+  outline:2px solid #a3c3ff;outline-offset:1px
+}
+.nim-filter-reset{height:38px;min-height:38px;width:100%;padding:0 12px}
 .nim-filter-panel-body{
-  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;
-  padding:15px 18px;align-items:start;min-width:0
+  display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:24px;align-items:end;
+  min-width:0;padding:14px 18px;border-top:1px solid #edf0f5;background:#fbfcff
 }
-.nim-filter-group{display:grid;align-content:start;gap:9px;min-width:0}
-.nim-filter-group-label{
-  color:#51617a;font-size:10px;font-weight:800;line-height:1.25;
-  letter-spacing:.025em
+.nim-filter-group{display:grid;gap:9px;align-content:start;min-width:0}
+.nim-filter-group-label{color:#51617a;font-size:10px;font-weight:800;line-height:1.25;letter-spacing:.015em}
+.nim-performance-group{min-width:0}
+.nim-filter-panel .nim-status-tabs,.nim-filter-panel .nim-curve-tabs{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap
 }
-.nim-performance-group{min-width:0;gap:12px}
-.nim-performance-line{display:grid;grid-template-columns:125px minmax(0,1fr);gap:12px;align-items:center;min-width:0}
-.nim-performance-line>.nim-filter-group-label{max-width:125px}
-.nim-performance-group .nim-status-tabs{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.nim-filter-panel .nim-status-tabs button,
-.nim-filter-panel .nim-curve-tabs button{
+.nim-filter-panel .nim-status-tabs button,.nim-filter-panel .nim-curve-tabs button{
   display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid #dce5ef;background:#fff;border-radius:8px;
-  height:35px;min-height:35px;padding:0 12px;color:#536780;
-  font-family:inherit;font-size:11px;font-weight:750;
-  white-space:nowrap;cursor:pointer;box-shadow:none;transition:background .12s,border-color .12s
+  height:36px;min-height:36px;padding:0 13px;border:1px solid #dce5ef;
+  background:#fff;border-radius:8px;color:#536780;font-family:inherit;
+  font-size:11px;font-weight:750;white-space:nowrap;cursor:pointer;box-shadow:none;
+  transition:background .12s,border-color .12s
 }
 .nim-filter-panel .nim-status-tabs button:hover:not(.active),
 .nim-filter-panel .nim-curve-tabs button:hover:not(.active){background:#f3f7ff;border-color:#b8c8e3}
@@ -152,23 +156,22 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-filter-panel .nim-curve-tabs button.active{
   background:#2465eb;border-color:#2465eb;color:#fff;box-shadow:0 3px 9px #2465eb24
 }
-.nim-abc-group{
-  border-left:1px solid #e7ebf2;padding-left:22px;
-  grid-template-columns:auto auto;gap:9px 11px;min-width:0
+.nim-abc-group{border-left:1px solid #e7ebf2;padding-left:24px}
+.nim-abc-controls{display:flex;align-items:center;gap:12px;min-width:0}
+.nim-filter-panel .nim-curve-tabs{flex-wrap:nowrap}
+.nim-filter-panel .nim-curve-tabs button{min-width:36px;padding:0 11px}
+.nim-abc-basis-label{display:grid;min-width:153px}
+.nim-abc-basis-label>span{
+  position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap
 }
-.nim-abc-group>.nim-filter-group-label{grid-column:1/-1}
-.nim-filter-panel .nim-curve-tabs{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
-.nim-filter-panel .nim-curve-tabs button{min-width:35px;padding:0 11px}
-.nim-abc-basis-label{display:grid;gap:0;min-width:130px}
-.nim-abc-basis-label>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 .nim-filter-panel .nim-abc-basis-label select{
-  height:35px;border:1px solid #dce5ef;border-radius:8px;
-  padding:0 30px 0 10px;background:#fff;color:#536780;
-  font-family:inherit;font-size:11px;font-weight:750;min-width:130px;max-width:190px
+  height:36px;border:1px solid #dce5ef;border-radius:8px;padding:0 28px 0 10px;
+  background:#fff;color:#536780;font-family:inherit;font-size:11px;font-weight:750;
+  min-width:153px
 }
 .nim-filter-panel-footer{
-  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  padding:10px 18px;min-height:35px;background:#fbfcff;border-top:1px solid #edf0f5
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 18px;
+  min-height:34px;border-top:1px solid #edf0f5;background:#fff
 }
 .nim-filter-panel .nim-coverage{display:inline-flex;margin:0;color:#72829a;font-size:10px;line-height:1.4}
 .nim-filter-panel-warning{
@@ -176,26 +179,18 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   padding:3px 7px;color:#98651d;font-size:10px;font-weight:700
 }
 .nim-filter-panel-note{font-size:10px;color:#718099}
-@media(max-width:1250px){
-  .nim-filter-panel-body{grid-template-columns:1fr;gap:14px}
-  .nim-abc-group{border-left:0;border-top:1px solid #edf0f5;padding-left:0;padding-top:13px;
-    grid-template-columns:auto 1fr;align-items:center}
-  .nim-abc-group>.nim-filter-group-label{grid-column:1/-1}
-  .nim-abc-basis-label{justify-self:end}
+@media(max-width:1180px){
+  .nim-filter-top{grid-template-columns:minmax(155px,1fr) minmax(155px,1fr) minmax(140px,.9fr)}
+  .nim-filter-search{grid-column:span 2}
+  .nim-filter-reset{max-width:170px;justify-self:end}
+}
+@media(max-width:920px){
+  .nim-filter-panel-body{grid-template-columns:1fr;gap:14px;align-items:start}
+  .nim-abc-group{border-left:0;border-top:1px solid #e7ebf2;padding:13px 0 0}
+  .nim-abc-controls{flex-wrap:wrap}
 }
 @media(max-width:880px){
-  .nim-performance-line{grid-template-columns:1fr;gap:7px}
-  .nim-filter-panel-body{padding:12px 14px}
+  .nim-filter-top{padding:13px 14px}
+  .nim-filter-panel-body{padding:13px 14px}
   .nim-filter-panel-footer{padding:9px 14px}
 }
-
-/* Período, mês e situação no mesmo grupo de filtros. */
-.nim-unified-period-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap;min-width:0}
-.nim-unified-period-controls label{display:grid;gap:5px;font-size:10px;font-weight:700;color:#63718a;min-width:155px}
-.nim-unified-period-controls select,.nim-unified-period-controls input{width:100%;min-height:34px;border:1px solid #dce3ee;border-radius:8px;background:#fff;color:#25344b;padding:5px 9px;font:inherit;font-size:12px}
-.nim-period-line{align-items:start}
-@media(max-width:880px){.nim-unified-period-controls{width:100%}.nim-unified-period-controls label{flex:1 1 155px}}
-
-/* Uma única área de filtros, com busca e plataforma no topo. */
-.nim-filter-panel .nim-filterbar-integrated{margin:0;padding:12px 14px;border-bottom:1px solid #e7ebf2;background:transparent;border-radius:0;box-shadow:none}
-.nim-filter-panel .nim-filterbar-integrated .nim-filter-search{flex:1 1 220px}

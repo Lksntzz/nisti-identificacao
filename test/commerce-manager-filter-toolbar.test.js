@@ -6,14 +6,14 @@ const ui=read('src/commerce-ad-manager.jsx');
 const styles=read('src/commerce-ad-manager.css');
 const sql=read('supabase/migrations/20261016152000_commerce_listing_manager_v1.sql');
 
-test('performance and ABC controls share a single aligned filter panel',()=>{
+test('sales and ABC controls share a compact, aligned filter panel',()=>{
   assert.match(ui,/<section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">/);
   assert.match(ui,/nim-filter-panel-body/);
   assert.match(ui,/nim-performance-group/);
   assert.match(ui,/nim-abc-group/);
   assert.match(ui,/nim-filter-panel-footer/);
-  assert.match(styles,/\.nim-filter-panel-body\{\s*display:grid;grid-template-columns:minmax\(0,1fr\) auto/);
-  assert.match(styles,/\.nim-abc-group\{\s*border-left:1px solid/);
+  assert.match(styles,/\.nim-filter-panel-body\{\s*display:grid;grid-template-columns:minmax\(260px,1fr\) auto/);
+  assert.match(styles,/\.nim-abc-group\{border-left:1px solid/);
   assert.match(styles,/\.nim-filter-panel-footer\{/);
 });
 
@@ -64,9 +64,31 @@ test('a tabela tem sete colunas e o filtro sem vendas preserva variações sem s
   assert.match(sql,/b.selected_status='ZERO' and c.ready and \(c.units=0 or c.zero_variations>0\)/);
 });
 
-test('plataforma, busca e limpar filtros pertencem ao painel único',()=>{
-  assert.match(ui,/<section className="nim-filter-panel"[\s\S]*?<div className="nim-filterbar nim-filterbar-integrated">/);
-  assert.match(ui,/nim-filterbar-integrated[\s\S]*?Plataforma<select[\s\S]*?Buscar anúncio ou ID[\s\S]*?Limpar filtros/);
-  assert.equal((ui.match(/className="nim-filterbar nim-filterbar-integrated"/g)||[]).length,1);
-  assert.match(styles,/\.nim-filter-panel \.nim-filterbar-integrated/);
+test('todos os filtros aparecem uma única vez no painel compacto',()=>{
+  const start=ui.indexOf('<section className="nim-filter-panel"');
+  const end=ui.indexOf('{error&&<div className="nim-error"',start);
+  const panel=ui.slice(start,end);
+  assert.match(panel,/<div className="nim-filter-top">/);
+  assert.match(panel,/<div className="nim-filter-panel-body">/);
+  assert.match(panel,/<div className="nim-filter-panel-footer">/);
+  const sections=['Plataforma','Buscar anúncio ou ID','Período','Mês de referência','Limpar filtros','Situação de vendas','Curva ABC'];
+  for(const label of sections){
+    assert.ok(panel.includes(label),label+' deve aparecer no painel');
+  }
+  assert.equal((ui.match(/onClick=\{clear\}/g)||[]).length,1);
+  assert.equal((panel.match(/className="nim-filter-field/g)||[]).length,4);
+  assert.equal((panel.match(/className="nim-filter-reset"/g)||[]).length,0);
+  assert.match(panel,/className="nim-soft-button nim-filter-reset" onClick=\{clear\}/);
+  assert.ok(panel.indexOf('nim-filter-top')<panel.indexOf('nim-filter-panel-body'));
+  assert.doesNotMatch(ui,/nim-filterbar-integrated|nim-unified-period-controls|nim-performance-line/);
+  assert.doesNotMatch(styles,/\.nim-filterbar|\.nim-unified-period-controls|\.nim-performance-line/);
+});
+
+test('a grade organiza filtros sem grandes vazios e preserva disposição responsiva',()=>{
+  assert.match(styles,/\.nim-filter-top\{\s*display:grid;/);
+  assert.match(styles,/grid-template-columns:minmax\(165px,1\.08fr\)/);
+  assert.match(styles,/@media\(max-width:1180px\)/);
+  assert.match(styles,/@media\(max-width:920px\)/);
+  assert.match(styles,/\.nim-filter-search\{grid-column:span 2\}/);
+  assert.match(styles,/\.nim-abc-controls\{display:flex/);
 });
