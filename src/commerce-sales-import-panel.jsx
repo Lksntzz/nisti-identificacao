@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { listCommerceSalesImports, stageCommerceSalesWorkbook, reprocessShopeeSalesFinance } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
+import {recoverMultipleShopeeFinances} from './commerce-finance-bulk-recovery.js';
 
 function brNumber(value) {
   return new Intl.NumberFormat('pt-BR').format(Number(value || 0));
@@ -80,6 +81,8 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
   const [platform, setPlatform] = useState('SHOPEE');
   const [fallbackPeriod, setFallbackPeriod] = useState('');
   const [file, setFile] = useState(null);
+  const [financeFiles,setFinanceFiles]=useState([]);
+  const [bulkFinanceResult,setBulkFinanceResult]=useState(null);
   const [parsed, setParsed] = useState(null);
   const [reading, setReading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -155,6 +158,30 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     }
   }
 
+  async function handleBulkFinanceReprocess(){
+    if(platform!=='SHOPEE'||!financeFiles.length||importing||reading)return;
+    setImporting(true);setError('');setMessage('');setBulkFinanceResult(null);
+    try{
+      const report=await recoverMultipleShopeeFinances(financeFiles,{
+        parse:readCommerceSalesXlsx,
+        recover:reprocessShopeeSalesFinance,
+        onProgress:setProgress
+      });
+      setBulkFinanceResult(report);
+      setMessage(
+        'Recuperação financeira: '+report.recoveredMonths+' mês(es) ativado(s); '+
+        report.successful+' arquivo(s) concluído(s) e '+
+        report.failures.length+' com erro. As vendas originais não foram reimportadas.'
+      );
+      if(report.recoveredMonths>0)onSalesChanged?.();
+      await refreshHistory();
+    }catch(err){
+      setError(err.message||'Não foi possível iniciar a recuperação financeira.');
+    }finally{
+      setImporting(false);setProgress(null);
+    }
+  }
+
   async function handleFinanceReprocess(){
     if(!parsed||parsed.platform_code!=='SHOPEE')return;
     setImporting(true);setError('');setMessage('');
@@ -178,6 +205,8 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     setPlatform(event.target.value);
     setFile(null);
     setParsed(null);
+    setFinanceFiles([]);
+    setBulkFinanceResult(null);
     setError('');
     setMessage('');
   }
