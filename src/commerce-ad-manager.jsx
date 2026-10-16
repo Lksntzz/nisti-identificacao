@@ -167,14 +167,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     {importOpen&&<div className="nim-import-panel"><CommerceImportCenter embedded
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/></div>}
-    <div className="nim-filterbar">
-      <label>Plataforma<select value={platform} onChange={e=>change(setPlatform,e.target.value)}>
-        {PLATFORMS.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
-      <label className="nim-filter-search">Buscar anúncio ou ID
-        <input type="search" value={query} onChange={e=>setQuery(e.target.value)}
-          placeholder="Nome ou ID do anúncio" maxLength={150}/></label>
-      <button type="button" className="nim-soft-button" onClick={clear}>Limpar filtros</button>
-    </div>
     <div className="nim-kpis">
       <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Por plataforma"/>
       <Kpi tone="mint" label="Com vendas" value={data?num(kpi.sold_ads):'—'} description="No período" selected={status==='SOLD'}
@@ -184,7 +176,15 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <Kpi tone="sand" label="Unidades vendidas" value={data?num(kpi.units):'—'} description={days+' dias · anúncios ativos'}/>
       <Kpi tone="green" label="Faturamento" value={data?money(kpi.revenue):'—'} description={days+' dias · anúncios ativos'}/>
     </div>
-    <section className="nim-filter-panel" aria-label="Filtros de vendas e Curva ABC">
+    <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
+      <div className="nim-filterbar nim-filterbar-integrated">
+        <label>Plataforma<select value={platform} onChange={e=>change(setPlatform,e.target.value)}>
+          {PLATFORMS.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
+        <label className="nim-filter-search">Buscar anúncio ou ID
+          <input type="search" value={query} onChange={e=>setQuery(e.target.value)}
+            placeholder="Nome ou ID do anúncio" maxLength={150}/></label>
+        <button type="button" className="nim-soft-button" onClick={clear}>Limpar filtros</button>
+      </div>
       <div className="nim-filter-panel-body">
         <div className="nim-filter-group nim-performance-group">
           <div className="nim-performance-line nim-period-line">
