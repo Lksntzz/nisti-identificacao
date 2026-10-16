@@ -44,8 +44,8 @@ export async function commerceSalesDashboard(env, filters = {}) {
 export async function commerceListingManager(env, filters = {}) {
   const data = await supabaseRpc(env, 'commerce_listing_manager_v1', {
     p_platform: cleanText(filters.platform) || 'TODAS',
-    p_days: Number(filters.days) || 30,
-    p_reference_month: cleanText(filters.month),
+    p_days: [0,7,30,60,90].includes(Number(filters.days)) ? Number(filters.days) : 30,
+    p_reference_month: Number(filters.days)===0 ? cleanText(filters.month) : null,
     p_search: cleanText(filters.search),
     p_status: cleanText(filters.status) || 'ALL',
     p_curve: cleanText(filters.curve) || 'ALL',

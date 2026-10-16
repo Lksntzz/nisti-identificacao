@@ -28,6 +28,8 @@ test('the default list shows all active ads and supports shared filters and real
   assert.match(ui,/useState\(30\)/);
   assert.match(ui,/Últimos \{n\} dias/);
   assert.match(ui,/value=\{month\}/);
+  assert.match(ui,/<option value="MONTH">Personalizado · escolher mês<\/option>/);
+  assert.doesNotMatch(ui,/Mês de referência/);
   assert.match(ui,/placeholder="Nome ou ID do anúncio"/);
   assert.match(ui,/Analisar vendas mensais/);
   assert.match(ui,/MonthBars months=\{monthly\?\.months\}/);
@@ -86,7 +88,7 @@ test('endpoints are authenticated admin routes and RPCs restrict direct public a
   assert.match(router,/commerceListingManager\(env/);
   assert.match(router,/commerceListingManagerMonthly\(env/);
   assert.match(router,/commerceListingManagerMonths\(env/);
-  assert.match(router,/\[7,30,60,90\]\.includes\(days\)/);
+  assert.match(router,/\[0,7,30,60,90\]\.includes\(days\)/);
   assert.match(router,/\['ALL','SOLD','ZERO','LOW','RISING','PENDING'\]\.includes\(status\)/);
   assert.match(store,/commerce_listing_manager_v1/);
   assert.match(store,/commerce_listing_manager_months_v1/);

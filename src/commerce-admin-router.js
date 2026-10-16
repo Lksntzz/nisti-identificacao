@@ -263,18 +263,19 @@ export async function handleCommerceAdminRequest(request, env) {
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager`) {
-      const days = Number(query(url,'days') || 30);
+      const days = Number(query(url,'days') ?? 30);
       const status = String(query(url,'status') || 'ALL').toUpperCase();
       const platform = String(query(url,'platform') || 'TODAS').toUpperCase();
       const curve = String(query(url,'curve') || 'ALL').toUpperCase();
       const basis = String(query(url,'basis') || 'REVENUE').toUpperCase();
       const month = query(url,'month') || '';
-      if (![7,30,60,90].includes(days)
+      if (![0,7,30,60,90].includes(days)
         || !['ALL','SOLD','ZERO','LOW','RISING','PENDING'].includes(status)
         || !['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE','AMAZON','TIKTOK'].includes(platform)
         || !['ALL','A','B','C'].includes(curve)
         || !['REVENUE','UNITS'].includes(basis)
-        || (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
+        || (days===0 && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
+         || (days!==0 && Boolean(month))
         || String(query(url,'search')||'').length>150) {
         return json({error:'Filtros do Gestor de Anúncios inválidos.'},400);
       }

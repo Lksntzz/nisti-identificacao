@@ -71,7 +71,7 @@ test('todos os filtros aparecem uma única vez no painel compacto',()=>{
   assert.match(panel,/<div className="nim-filter-top">/);
   assert.match(panel,/<div className="nim-filter-panel-body">/);
   assert.match(panel,/<div className="nim-filter-panel-footer">/);
-  const sections=['Plataforma','Buscar anúncio ou ID','Período','Mês de referência','Limpar filtros','Situação de vendas','Curva ABC'];
+  const sections=['Plataforma','Buscar anúncio ou ID','Período','Mês personalizado','Limpar filtros','Situação de vendas','Curva ABC'];
   for(const label of sections){
     assert.ok(panel.includes(label),label+' deve aparecer no painel');
   }
@@ -86,7 +86,7 @@ test('todos os filtros aparecem uma única vez no painel compacto',()=>{
 
 test('a grade organiza filtros sem grandes vazios e preserva disposição responsiva',()=>{
   assert.match(styles,/\.nim-filter-top\{\s*display:grid;/);
-  assert.match(styles,/grid-template-columns:minmax\(165px,1\.08fr\)/);
+  assert.match(styles,/grid-template-columns:minmax\(165px,1fr\)/);
   assert.match(styles,/@media\(max-width:1180px\)/);
   assert.match(styles,/@media\(max-width:920px\)/);
   assert.match(styles,/\.nim-filter-search\{grid-column:span 2\}/);
