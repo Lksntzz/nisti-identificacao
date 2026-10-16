@@ -147,7 +147,8 @@ function FileDrop({ file, accept, disabled, onChange, hint, onClear }) {
     <div className="import-center-file-wrapper">
       <label className={`import-center-file ${disabled ? 'disabled' : ''}`}
         title={file?.name || 'Selecionar planilha'}>
-        <input type="file" accept={accept} disabled={disabled} onChange={onChange}
+        <input type="file" accept={accept} disabled={disabled}
+          onChange={event => { onChange(event); event.target.value = ''; }}
           aria-label={file ? 'Trocar arquivo ' + file.name : 'Selecionar planilha'} />
         <span className="import-center-file-icon">
           <svg viewBox="0 0 24 24" aria-hidden="true">
