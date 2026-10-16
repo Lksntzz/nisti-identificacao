@@ -4,7 +4,7 @@ import ShopeeSkuReconciliation from './commerce-shopee-reconciliation.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
-import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription } from './commerce-ad-evidence.js';
+import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription, shopeeMonthlyImportCoverage } from './commerce-ad-evidence.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -104,6 +104,9 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
   const [activeTab,setActiveTab]=useState('summary');
+  const [finance,setFinance]=useState(null);
+  const [financeLoading,setFinanceLoading]=useState(false);
+  const [financeError,setFinanceError]=useState('');
   const [requestedDetailDays,setDetailDays]=useState(days);
   const detailDays=days===0?0:requestedDetailDays;
   const [periodResult,setPeriodResult]=useState(null);
@@ -135,6 +138,19 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       .finally(()=>{if(!cancelled)setPeriodLoading(false);});
     return ()=>{cancelled=true;};
   },[detailDays,days,month,item.id,item.source,item.platform,item.external_listing_id]);
+  useEffect(()=>{
+    if(activeTab!=='finance'||item.source!=='SHOPEE')return;
+    let cancelled=false;
+    setFinance(null);setFinanceError('');setFinanceLoading(true);
+    const params=new URLSearchParams({days:String(detailDays)});
+    if(detailDays===0&&month)params.set('month',month);
+    readJson(API+'/'+encodeURIComponent(item.id)+'/finance?'+params)
+      .then(x=>{if(!cancelled)setFinance(x);})
+      .catch(e=>{if(!cancelled)setFinanceError(e.message);})
+      .finally(()=>{if(!cancelled)setFinanceLoading(false);});
+    return ()=>{cancelled=true;};
+  },[activeTab,item.id,item.source,detailDays,month]);
+
   const detail=detailDays===days?item:
     periodResult?.days===detailDays?periodResult.item:null;
   const variations=Array.isArray(detail?.variations)?detail.variations:[];
@@ -230,13 +246,33 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{periodLabel(detailDays,month)}</small></div>
         <div className="nim-detail-data-list">
           <DetailRow label="Subtotal dos produtos" value={partialLinked?'≥ '+money(partialRevenue):pending?'—':money(detail.revenue)}
-            description={partialLinked?'Subtotal identificado por SKU · parcial':'Receita dos produtos no período selecionado'}/>
-          <DetailRow label="Descontos do vendedor" value="—"/>
-          <DetailRow label={item.source==='SHOPEE'?"Comissões Shopee":"Comissões da plataforma"} value="—"/>
-          <DetailRow label="Taxas de serviço" value="—"/>
-          <DetailRow label="Receita após taxas identificadas" value="—"/>
+            description={partialLinked?'Produtos vinculados por SKU · pode haver outras vendas':'Receita dos produtos no período selecionado'}/>
+          {item.source==='SHOPEE'&&finance?.has_finance_data&&<>
+            <DetailRow label="Subtotal com taxas verificadas" value={money(finance.fee_reconciled_subtotal)}
+              description={num(finance.orders_with_verified_fees)+' pedidos de SKU único com taxas informadas'}/>
+            <DetailRow label="Descontos do vendedor" value={money(finance.seller_discount_already_in_subtotal)}
+              description="Informativos: já refletidos no subtotal, não descontados novamente"/>
+            <DetailRow label="Comissões Shopee (líquidas)" value={money(finance.commission_net)}/>
+            <DetailRow label="Taxas de serviço (líquidas)" value={money(finance.service_net)}/>
+            <DetailRow label="Taxa de transação" value={money(finance.transaction_fee)}/>
+            <DetailRow label="Após taxas identificadas · estimativa" value={money(finance.after_identified_fees)}
+              description="Somente pedidos com taxas verificadas e um único SKU"/>
+          </>}
+          {item.source!=='SHOPEE'&&<>
+            <DetailRow label="Descontos do vendedor" value="—"/>
+            <DetailRow label="Comissões da plataforma" value="—"/>
+            <DetailRow label="Taxas de serviço" value="—"/>
+            <DetailRow label="Receita após taxas identificadas" value="—"/>
+          </>}
         </div>
-        <p className="nim-detail-hint">Os descontos e as taxas ainda não foram conciliados por anúncio. O subtotal não representa repasse ou lucro líquido.</p>
+        {item.source==='SHOPEE'&&financeLoading&&<p className="nim-detail-hint" role="status">Conferindo taxas do relatório Shopee…</p>}
+        {item.source==='SHOPEE'&&financeError&&<p className="nim-detail-hint" role="alert">{financeError}</p>}
+        {item.source==='SHOPEE'&&!financeLoading&&!financeError&&!finance?.has_finance_data&&
+          <p className="nim-detail-hint">As vendas e os SKUs foram importados, mas as taxas não foram preservadas nas importações anteriores. Reimporte o Excel original da Shopee após a atualização do importador para conciliar comissões e descontos sem alterar o histórico de produtos.</p>}
+        {item.source==='SHOPEE'&&finance?.has_finance_data&&<p className="nim-detail-hint">
+          Valores financeiros verificados apenas em pedidos com um único SKU. Comissões repetidas nas linhas do Excel são contadas uma vez por pedido; pedidos com vários SKUs não têm taxas rateadas artificialmente. Descontos do vendedor já podem estar incluídos no preço do produto. O resultado é uma estimativa após taxas identificadas, não o repasse oficial nem lucro líquido.
+        </p>}
+        {item.source!=='SHOPEE'&&<p className="nim-detail-hint">Descontos e taxas não foram conciliados por anúncio. O subtotal não representa repasse ou lucro líquido.</p>}
       </>}
       {activeTab==='variations'&&<>
         <div className="nim-detail-section-title">
@@ -356,6 +392,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const hasDailyPartial=data?.source_kind==='DAILY_SKU_PARTIAL';
   const hasShopeePartial=hasMonthPartial||hasDailyPartial||platform==='SHOPEE';
   const classified=listingClassificationCoverage(kpi,days);
+  const monthCoverage=shopeeMonthlyImportCoverage(data);
+  const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
+    {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
   const partialAds=hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0);
   const partialUnits=hasMonthPartial?Number(kpi.month_linked_units||0):Number(kpi.identified_units||0);
   const partialRevenue=hasMonthPartial?Number(kpi.month_linked_revenue||0):Number(kpi.identified_revenue||0);
@@ -394,8 +433,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         value={hasShopeePartial&&data?num(emptyIdentifiedAds):hasReliableSales?num(kpi.zero_ads):'—'}
         description={hasShopeePartial?'Anúncios ou variações · indicativo':'Anúncios ou variações'}
         selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
-      <Kpi tone="sand" label={hasShopeePartial?'Unidades identificadas':'Unidades vendidas'} value={hasShopeePartial&&data?'≥ '+num(partialUnits):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?'SKU único · parcial':salesCoverageLabel}/>
-      <Kpi tone="green" label={hasShopeePartial?'Faturamento identificado':'Faturamento'} value={hasShopeePartial&&data?'≥ '+money(partialRevenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?'SKU único · parcial':salesCoverageLabel}/>
+      <Kpi tone="sand" label={hasShopeePartial?'Unidades identificadas':'Unidades vendidas'} value={hasShopeePartial&&data?'≥ '+num(partialUnits):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?(coverageText?'Cobertura do mês: '+coverageText:'SKU exclusivo · cobertura não integral'):salesCoverageLabel}/>
+      <Kpi tone="green" label={hasShopeePartial?'Faturamento identificado':'Faturamento'} value={hasShopeePartial&&data?'≥ '+money(partialRevenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?(coverageText?'Cobertura do mês: '+coverageText:'SKU exclusivo · cobertura não integral'):salesCoverageLabel}/>
     </div>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
@@ -507,9 +546,19 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <span><small>Unidades</small><strong>{num(data.imported_month.units)}</strong></span>
         <span><small>Subtotal dos produtos</small><strong>{money(data.imported_month.revenue)}</strong></span>
       </div>
-      <p className="nim-imported-month-warning">{hasMonthPartial
-        ?'Vendas identificadas por SKU exclusivo: '+num(kpi.month_linked_units)+' unidades. Outras '+num(Math.max(0,Number(data.imported_month.units||0)-Number(kpi.month_linked_units||0)))+' unidades permanecem sem vínculo exclusivo. Sem vendas identificadas e Curva ABC indicativa são análises parciais, não classificação definitiva.'
-        :'Sem vínculos diários confiáveis por anúncio, as quantidades individuais e a Curva ABC permanecem pendentes.'}</p>
+      <p className="nim-imported-month-warning">{monthCoverage
+        ?'Cobertura do mês: '+coverageText+' das unidades importadas com SKU vinculado a anúncio ativo ('+
+          num(monthCoverage.matchedUnits)+' de '+num(monthCoverage.importedUnits)+'). '+
+          (monthCoverage.remainingUnits>0
+            ?num(monthCoverage.remainingUnits)+' unidade(s), '+money(monthCoverage.remainingRevenue)+
+              ', sem anúncio ativo correspondente. '
+            :'Todas as unidades do mês foram vinculadas. ')+
+          'Importação até '+periodDate(monthCoverage.importedThrough)+
+          '. A cobertura global não comprova ausência de vendas em cada variação.'
+        :hasMonthPartial
+          ?'Vendas identificadas por SKU exclusivo: '+num(kpi.month_linked_units)+
+            ' unidades. Não confundir ausência de vínculo com zero vendas.'
+          :'Sem vínculos diários confiáveis por anúncio, as quantidades individuais e a Curva ABC permanecem pendentes.'}</p>
     </section>}
     {days===0&&month&&!data?.imported_month&&!loading&&!error&&<p className="nim-no-imported-month">
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.

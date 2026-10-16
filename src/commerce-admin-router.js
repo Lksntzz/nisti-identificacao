@@ -53,6 +53,11 @@ import {
   commerceCreateSalesImport,
   commerceAppendSalesListingDaily,
   commerceAppendShopeeDailySku,
+  commerceAppendShopeeFinanceDaily,
+  commerceAppendShopeeFinanceMonth,
+  commerceShopeeListingFinance,
+  commerceShopeeFinanceBackfillSource,
+  commerceShopeeFinanceBackfillActivate,
   commerceAppendSalesImportRows,
   commerceAppendSalesImportSummary,
   commerceCommitSalesImport,
@@ -321,6 +326,17 @@ export async function handleCommerceAdminRequest(request, env) {
       return json(await commerceShopeeSkuRevoke(env,sku,operatorName(request)));
     }
 
+    const financeDetailMatch=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/(\d+)\/finance$/);
+    if(method==='GET'&&financeDetailMatch){
+      const listingId=positiveId(financeDetailMatch[1]);
+      const days=Number(query(url,'days')??30);
+      const month=query(url,'month')||'';
+      if(!listingId||![0,7,30,60,90].includes(days)||
+        (days===0&&!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))||
+        (days!==0&&Boolean(month)))
+        return json({error:'Filtros financeiros inválidos.'},400);
+      return json(await commerceShopeeListingFinance(env,listingId,{days,month}));
+    }
     if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager`) {
       const days = Number(query(url,'days') ?? 30);
       const status = String(query(url,'status') || 'ALL').toUpperCase();
@@ -426,6 +442,22 @@ export async function handleCommerceAdminRequest(request, env) {
       }));
     }
 
+    if(method==='POST'&&pathname===`${BASE_PATH}/sales/finance/source`){
+      const body=await bodyJson(request);
+      if(!body?.filename||!body?.sha256)return json({error:'Identificação do XLSX é obrigatória.'},400);
+      return json(await commerceShopeeFinanceBackfillSource(env,{
+        filename:body.filename,sha256:body.sha256
+      }));
+    }
+    if(method==='POST'&&pathname===`${BASE_PATH}/sales/finance/activate`){
+      const body=await bodyJson(request);
+      if(!positiveId(body?.batch_id)||!body?.sha256)
+        return json({error:'Confirme o lote e o hash do arquivo de origem.'},400);
+      return json(await commerceShopeeFinanceBackfillActivate(env,{
+        batchId:body.batch_id,sha256:body.sha256
+      }));
+    }
+
     if (method === 'GET' && pathname === `${BASE_PATH}/sales/imports`) {
       const result = await commerceSalesImportBatches(env, {
         limit: query(url, 'limit'),
@@ -488,6 +520,22 @@ export async function handleCommerceAdminRequest(request, env) {
       return json({batch_id:batchId,accepted_rows:saved});
     }
 
+    const financeDailyMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/finance-daily$/);
+    if(method==='POST'&&financeDailyMatch){
+      const id=positiveId(financeDailyMatch[1]);
+      const body=await bodyJson(request);
+      if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
+        return json({error:'Lote financeiro diário Shopee inválido.'},400);
+      return json({accepted_rows:await commerceAppendShopeeFinanceDaily(env,id,body.rows,body.sha256)});
+    }
+    const financeMonthMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/finance-month$/);
+    if(method==='POST'&&financeMonthMatch){
+      const id=positiveId(financeMonthMatch[1]);
+      const body=await bodyJson(request);
+      if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
+        return json({error:'Lote financeiro mensal Shopee inválido.'},400);
+      return json({accepted_rows:await commerceAppendShopeeFinanceMonth(env,id,body.rows,body.sha256)});
+    }
     const salesImportSummaryMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/summary$/);
     if (method === 'POST' && salesImportSummaryMatch) {
       const batchId = positiveId(salesImportSummaryMatch[1]);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listCommerceSalesImports, stageCommerceSalesWorkbook } from './commerce-import-client.js';
+import { listCommerceSalesImports, stageCommerceSalesWorkbook, reprocessShopeeSalesFinance } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
 
 function brNumber(value) {
@@ -140,7 +140,7 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
       } else {
         const mergedParts = Number(commitResult?.merged_parts || 1);
         setMessage(
-          `Vendas consolidadas com sucesso. Snapshot #${commitResult?.snapshot_id || '—'} · ${brNumber(commitResult?.rows || 0)} linhas na base atual.${mergedParts > 1 ? ` ${mergedParts} partes foram unidas automaticamente.` : ''}${replacedMonths.length ? ` Mês(es) atualizado(s): ${replacedMonths.join(', ')}.` : ''}`
+          `Vendas consolidadas com sucesso. Snapshot #${commitResult?.snapshot_id || '—'} · ${brNumber(commitResult?.rows || 0)} linhas na base atual.${mergedParts > 1 ? ` ${mergedParts} partes foram unidas automaticamente.` : ''}${replacedMonths.length ? ` Mês(es) atualizado(s): ${replacedMonths.join(', ')}.` : ''}${commitResult.finance_status==='COMMITTED'?' Taxas Shopee conciliadas por pedido.':commitResult.finance_status==='NEEDS_REVIEW'?' Taxas financeiras requerem revisão; vendas preservadas.': ''}`
         );
       }
       setFile(null);
@@ -155,6 +155,25 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     }
   }
 
+  async function handleFinanceReprocess(){
+    if(!parsed||parsed.platform_code!=='SHOPEE')return;
+    setImporting(true);setError('');setMessage('');
+    try{
+      const response=await reprocessShopeeSalesFinance(parsed,setProgress);
+      const result=response.result||{};
+      if(result.status==='WAITING_PARTS'){
+        setMessage('Taxas da primeira parte recebidas. Envie também a(s) outra(s) parte(s) original(is) do mesmo mês, sem reimportar as vendas.');
+      }else if(result.status==='COMMITTED'){
+        setMessage('Informações financeiras da Shopee recuperadas para '+
+          Number(result.finance_months||0)+' mês(es). Os produtos e totais de vendas não foram alterados.');
+        onSalesChanged?.();
+      }else throw new Error('Resposta inesperada ao ativar o histórico financeiro.');
+      setFile(null);setParsed(null);setProgress(null);
+    }catch(err){
+      setError(err.message||'Não foi possível recuperar as taxas da planilha.');
+    }finally{setImporting(false);}
+  }
+
   function changePlatform(event) {
     setPlatform(event.target.value);
     setFile(null);
@@ -167,6 +186,7 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     create: 'Criando lote',
     upload: 'Enviando vendas',
     summary: 'Gravando resumo mensal',
+    finance: 'Conferindo descontos e taxas por pedido',
     commit: 'Atualizando Painel de Vendas',
     done: 'Concluído'
   }[progress?.phase] || '';
@@ -226,7 +246,19 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
           >
             {importing ? 'Importando…' : 'Importar vendas'}
           </button>
+          {platform==='SHOPEE'&&
+            <button type="button" className="commerce-import-finance-only"
+              disabled={!parsed||reading||importing||!parsed?.finance_month_rows?.length}
+              onClick={handleFinanceReprocess}
+              title="Reprocessa taxas do mesmo arquivo já importado, sem modificar unidades nem pedidos">
+              Recuperar só taxas
+            </button>}
         </div>
+        {platform==='SHOPEE'&&<p className="commerce-import-finance-hint">
+          Os relatórios Shopee já possuem comissões, descontos e taxas. Use “Recuperar só taxas”
+          com os arquivos originais previamente importados; isso não substitui as vendas.
+          Se o relatório veio dividido em duas partes, envie ambas novamente.
+        </p>}
 
         {reading && <div className="commerce-import-reading">Lendo vendas e identificando as colunas…</div>}
         {progress && phaseLabel && (

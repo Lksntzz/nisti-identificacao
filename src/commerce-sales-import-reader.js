@@ -1,4 +1,5 @@
 import readExcelFile from 'read-excel-file/browser';
+import {aggregateShopeeFinance,shopeeFinanceColumns} from './commerce-shopee-finance-aggregation.js';
 import { detectMercadoLivreVendasBrHeader, parseMercadoLivreVendasBr } from './commerce-ml-native-sales-reader.js';
 import { sha256Hex, COMMERCE_XLSX_MAX_BYTES, COMMERCE_XLSX_MAX_ROWS } from './commerce-xlsx-reader.js';
 
@@ -236,6 +237,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     }
 
     if (platformCode === 'SHOPEE') header = resolveShopeeSalesColumns(header, data[header.rowIndex]);
+    const financeColumns=platformCode==='SHOPEE'?shopeeFinanceColumns(data[header.rowIndex]):null;
 
     let accepted = 0;
     let ignored = 0;
@@ -281,7 +283,17 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
         variation: text(cell(row, header.columns.variation)) || null,
         units,
         order_id: orderId,
-        product_revenue: Math.max(0, numberValue(cell(row, header.columns.revenue)))
+        product_revenue: Math.max(0, numberValue(cell(row, header.columns.revenue))),
+        finance:financeColumns?{
+          seller_discount:!text(cell(row,financeColumns.seller_discount))?NaN:
+            numberValue(cell(row,financeColumns.seller_discount)),
+          transaction_fee:!text(cell(row,financeColumns.transaction_fee))?NaN:
+            numberValue(cell(row,financeColumns.transaction_fee)),
+          commission_net:!text(cell(row,financeColumns.commission_net))?NaN:
+            numberValue(cell(row,financeColumns.commission_net)),
+          service_net:!text(cell(row,financeColumns.service_net))?NaN:
+            numberValue(cell(row,financeColumns.service_net))
+        }:null
       });
       accepted += 1;
     }
@@ -411,6 +423,8 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     skus_with_sales: summary.skus.size
   })).sort((a, b) => a.period_start.localeCompare(b.period_start));
 
+  const finance=platformCode==='SHOPEE'?aggregateShopeeFinance(raw):
+    {finance_daily_rows:[],finance_month_rows:[],finance_summary:null};
   return {
     filename,
     sha256,
@@ -419,6 +433,9 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     rows,
     summaries,
     sku_daily_rows,
+    finance_daily_rows:finance.finance_daily_rows,
+    finance_month_rows:finance.finance_month_rows,
+    finance_summary:finance.finance_summary,
     sheets: sheetInfo,
     data_through: maxDate(summaries.map(item => item.period_end)),
     summary: {

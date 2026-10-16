@@ -46,7 +46,7 @@ test('vendas parciais aparecem na tabela, nos indicadores e nos detalhes, sem va
   assert.match(ui,/partialRelevant\.map\(\(v,i\)=>/);
   assert.match(ui,/v\.units==null\?'Não identificada':'≥ '\+num\(v\.units\)/);
   assert.match(ui,/Vendas identificadas/);
-  assert.match(ui,/outras .*unidades/i);
+  assert.match(ui,/sem anúncio ativo correspondente/);
 });
 
 test('histórico mensal do anúncio e da plataforma usam apenas SKUs exclusivos',()=>{

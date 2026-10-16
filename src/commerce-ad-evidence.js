@@ -38,3 +38,25 @@ export function importedWindowDescription(data, days, formatDate) {
   }
   return 'Período analisado: ' + start + ' a ' + end;
 }
+
+export function shopeeMonthlyImportCoverage(data){
+  if(!data?.imported_month||data?.source_kind!=='MONTHLY_SKU_PARTIAL')return null;
+  const importedUnits=Number(data.imported_month.units);
+  const importedRevenue=Number(data.imported_month.revenue);
+  const identifiedUnits=Number(data?.kpis?.month_linked_units);
+  const identifiedRevenue=Number(data?.kpis?.month_linked_revenue);
+  if(!Number.isFinite(importedUnits)||importedUnits<=0||
+     !Number.isFinite(identifiedUnits)||identifiedUnits<0||
+     !Number.isFinite(importedRevenue)||!Number.isFinite(identifiedRevenue))return null;
+  const matchedUnits=Math.min(importedUnits,identifiedUnits);
+  const remainingUnits=Math.max(0,importedUnits-matchedUnits);
+  const percentage=Math.min(100,Math.max(0,matchedUnits/importedUnits*100));
+  return {
+    importedUnits,matchedUnits,remainingUnits,percentage,
+    importedRevenue,identifiedRevenue,
+    remainingRevenue:Math.max(0,Math.round((importedRevenue-identifiedRevenue)*100)/100),
+    importedThrough:data.imported_month.period_end||null,
+    // A month-level coverage ratio never certifies each individual listing.
+    perListingComplete:false
+  };
+}
