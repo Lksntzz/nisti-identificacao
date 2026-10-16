@@ -12,7 +12,6 @@ import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import MuralNisti from './mural-nisti.jsx';
 import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceCommercialDashboard from './commerce-commercial-dashboard.jsx';
-import CommerceImportCenter from './commerce-import-center.jsx';
 import './commerce-admin.css';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import ProductImageTreatmentWorker from './product-image-treatment-worker.jsx';
@@ -571,7 +570,6 @@ function AdminTopbar({ onToggleSidebar, unreadCount, activeView, activeCommerceS
   const commerceTitle = ({
     catalog: 'Painel Comercial',
     sales: 'Painel Comercial',
-    'import-center': 'Central de Importações',
     pending: 'Pendências'
   })[activeCommerceSection] || 'Painel Comercial';
   const pageTitle = activeView === 'catalogo' ? 'Produtos NISTI'
@@ -1948,9 +1946,6 @@ function AdminApp() {
             {activeView === 'commerce' && (
               <div className="commerce-admin-inline-view">
                 {(commerceSection === 'catalog' || commerceSection === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
-                {commerceSection === 'import-center' && (
-                  <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />
-                )}
                 {commerceSection === 'pending' && <CommerceManagementView mode="pending" />}
               </div>
             )}
