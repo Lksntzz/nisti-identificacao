@@ -16,3 +16,18 @@
 .commerce-import-finance-only{border:1px solid #c7d7ea;background:#f2f7ff;color:#22589c;border-radius:9px;padding:11px 14px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .commerce-import-finance-only:disabled{opacity:.48;cursor:not-allowed}
 .commerce-import-finance-hint{font-size:11px;line-height:1.5;color:#687b94;margin:6px 0 15px}
+
+/* Finance-only bulk recovery keeps old sales snapshots untouched. */
+.commerce-finance-bulk{margin:8px 22px 20px;padding:16px;border:1px solid #d6e3f4;border-radius:13px;background:#f8fbff;display:flex;gap:14px;align-items:end;flex-wrap:wrap}
+.commerce-finance-bulk-copy{display:grid;gap:5px;flex:1 1 250px;min-width:0}
+.commerce-finance-bulk-copy strong{color:#18375d;font-size:12px}
+.commerce-finance-bulk-copy span{color:#62758c;font-size:10.5px;line-height:1.5}
+.commerce-finance-bulk-picker{display:grid;gap:5px;min-width:210px;flex:1 1 230px}
+.commerce-finance-bulk-picker>span{color:#445975;font-size:10px;font-weight:800}
+.commerce-finance-bulk-picker input{width:100%;max-width:100%;font-size:11px}
+.commerce-finance-bulk-picker small{font-size:10px;color:#64748b}
+.commerce-finance-bulk>.commerce-import-finance-only{min-height:38px}
+.commerce-finance-bulk-progress,.commerce-finance-bulk-report{flex-basis:100%;margin:0;font-size:11px;color:#305c90}
+.commerce-finance-bulk-report{display:grid;gap:5px;background:#fff;border-radius:9px;padding:10px;color:#234f78}
+.commerce-finance-bulk-report p{margin:0;overflow-wrap:anywhere;color:#ad3535}
+@media(max-width:760px){.commerce-finance-bulk{margin:8px 12px 16px}.commerce-finance-bulk>.commerce-import-finance-only{width:100%}}
