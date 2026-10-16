@@ -25,7 +25,8 @@ async function loadCurveAds({curve,platform,basis,periodStart,periodEnd,offset})
 
 function AdRecord({item}) {
   const variations=Array.isArray(item.variations)?item.variations:[];
-  const hasIndividualUnits=item.manual_units!==null&&item.manual_units!==undefined;
+  const hasImportedUnits=item.imported_units!==null&&item.imported_units!==undefined;
+  const hasManualUnits=item.manual_units!==null&&item.manual_units!==undefined;
   return <div className="nisti-abc-ad-entry">
     <div className="nisti-abc-ad-entry-main">
       <div className="nisti-abc-ad-id">
@@ -41,9 +42,10 @@ function AdRecord({item}) {
       </div>}
     </div>
     <div className="nisti-abc-ad-individual">
-      {hasIndividualUnits
-        ? <><strong>{fmtNumber(item.manual_units)} un.</strong><small>Registro manual por anúncio</small></>
-        : <small>Venda individual não disponível</small>}
+      {hasImportedUnits
+        ? <><strong>{fmtNumber(item.imported_units)} un. · {fmtMoney(item.imported_revenue)}</strong><small>Vendas importadas por ID de anúncio</small></>
+        : <small>Venda importada por anúncio não disponível</small>}
+      {hasManualUnits&&<small>{fmtNumber(item.manual_units)} un. · registro manual separado</small>}
     </div>
   </div>;
 }
