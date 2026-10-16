@@ -324,6 +324,17 @@ export async function handleCommerceAdminRequest(request, env) {
       return json(await commerceShopeeSkuRevoke(env,sku,operatorName(request)));
     }
 
+    const financeDetailMatch=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/(\d+)\/finance$/);
+    if(method==='GET'&&financeDetailMatch){
+      const listingId=positiveId(financeDetailMatch[1]);
+      const days=Number(query(url,'days')??30);
+      const month=query(url,'month')||'';
+      if(!listingId||![0,7,30,60,90].includes(days)||
+        (days===0&&!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))||
+        (days!==0&&Boolean(month)))
+        return json({error:'Filtros financeiros inválidos.'},400);
+      return json(await commerceShopeeListingFinance(env,listingId,{days,month}));
+    }
     if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager`) {
       const days = Number(query(url,'days') ?? 30);
       const status = String(query(url,'status') || 'ALL').toUpperCase();
