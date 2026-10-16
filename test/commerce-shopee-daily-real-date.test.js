@@ -69,7 +69,7 @@ test('UI identifies minimum values without false zeros, ranking or fabricated ti
   assert.match(ui,/hasShopeePartial&&code==='ZERO'/);
   assert.match(ui,/hasShopeePartial&&code!=='ALL'/);
   assert.match(ui,/const dailyLinked=detailDays!==0&&Number\(detail\?\.identified_units\)>0/);
-  assert.match(ui,/const partialVars=monthLinked\?monthVars:dailyLinked\?dailyVars:\[\]/);
+  assert.match(ui,/const partialVars=item\.source==='SHOPEE'&&!complete\?variationEvidence\.variations:\[\]/);
   assert.match(ui,/label="Pedidos" value="—"/);
   assert.match(ui,/label="Ticket médio" value="—"/);
 });

@@ -42,7 +42,7 @@ test('one zero-sales filter includes unpurchased variations even if other variat
   assert.match(ui,/\['ZERO','Sem vendas'\]/);
   assert.doesNotMatch(ui,/Anúncios sem vendas.*Variações sem vendas/);
   assert.match(sql,/b.selected_status='ZERO' and c.ready and \(c.units=0 or c.zero_variations>0\)/);
-  assert.match(ui,/item.zero_variations>0/);
+  assert.match(ui,/Number\(item.zero_variations\)>0/);
   assert.match(ui,/zeroFilter&&!showAll\?variations.filter\(v=>v.units===0\)/);
   assert.match(ui,/Mostrar todas as variações/);
   assert.match(ui,/Sem vendas/);
