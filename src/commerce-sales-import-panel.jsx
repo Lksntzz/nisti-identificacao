@@ -246,7 +246,19 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
           >
             {importing ? 'Importando…' : 'Importar vendas'}
           </button>
+          {platform==='SHOPEE'&&
+            <button type="button" className="commerce-import-finance-only"
+              disabled={!parsed||reading||importing||!parsed?.finance_month_rows?.length}
+              onClick={handleFinanceReprocess}
+              title="Reprocessa taxas do mesmo arquivo já importado, sem modificar unidades nem pedidos">
+              Recuperar só taxas
+            </button>}
         </div>
+        {platform==='SHOPEE'&&<p className="commerce-import-finance-hint">
+          Os relatórios Shopee já possuem comissões, descontos e taxas. Use “Recuperar só taxas”
+          com os arquivos originais previamente importados; isso não substitui as vendas.
+          Se o relatório veio dividido em duas partes, envie ambas novamente.
+        </p>}
 
         {reading && <div className="commerce-import-reading">Lendo vendas e identificando as colunas…</div>}
         {progress && phaseLabel && (
