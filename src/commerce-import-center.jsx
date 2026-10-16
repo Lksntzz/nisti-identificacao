@@ -477,8 +477,9 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
   );
 }
 
-export default function CommerceImportCenter({ onSalesChanged }) {
-  const [mode, setMode] = useState('catalog');
+export default function CommerceImportCenter({ embedded = false, onSalesChanged, onCatalogChanged }) {
+  const [mode, setMode] = useState(embedded ? '' : 'catalog');
+  const [showHistory, setShowHistory] = useState(false);
 
   const [catalogPlatform, setCatalogPlatform] = useState('SHOPEE');
   const [catalogAccount, setCatalogAccount] = useState('');
@@ -581,9 +582,11 @@ export default function CommerceImportCenter({ onSalesChanged }) {
   }
 
   useEffect(() => {
-    refreshCatalogHistory();
-    refreshSalesHistory();
-  }, []);
+    if (!embedded || showHistory) {
+      refreshCatalogHistory();
+      refreshSalesHistory();
+    }
+  }, [embedded, showHistory]);
 
   async function handleCatalogFile(event) {
     const file = event.target.files?.[0] || null;
@@ -623,6 +626,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
         ? `Conta ${catalogParsed.account_code === 'ANTIGO' ? 'Antiga' : 'Nova'}: ${brNumber(result.reconciled.automatic_sync.observed_listings || 0)} anúncios ativos sincronizados automaticamente; ${brNumber(result.reconciled.automatic_sync.linked_variation_rows || 0)} vínculos verificados com o Scanner NISTI. SKUs sem identidade segura permanecem sem vínculo, mas visíveis como anúncios ativos.`
         : `Lote #${result.batchId} comparado. Confira o resultado no catálogo.`);
       await Promise.all([refreshCatalogHistory(), openCatalogBatch(result.batchId, 1)]);
+      onCatalogChanged?.();
     } catch (err) {
       setCatalogProgress({ phase: 'failed', completed: 0, total: catalogParsed?.rows?.length || 1 });
       if (err.batchId) {
@@ -717,6 +721,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
       const result = await syncCommerceListingStatuses(catalogBatch.id);
       setMessage(`Conta ${result.account_code === 'ANTIGO' ? 'Antiga' : 'Nova'}: ${brNumber(result.observed_listings)} anúncios observados; ${brNumber(result.created)} registros criados, ${brNumber(result.status_changed)} status atualizados.${result.ambiguous_unassigned ? ' ' + brNumber(result.ambiguous_unassigned) + ' anúncio(s) aguardam revisão de conta.' : ''} Nenhum SKU foi modificado.`);
       await Promise.all([openCatalogBatch(catalogBatch.id), refreshCatalogHistory()]);
+      onCatalogChanged?.();
     } catch (err) {
       setError(err.message || 'Não foi possível atualizar os status dos anúncios.');
     } finally {
@@ -732,6 +737,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
       const result = await commitCommerceImport(catalogBatch.id);
       setMessage(`Lote #${catalogBatch.id} concluído com ${brNumber(result?.committed_rows || result?.batch?.committed_row_count || 0)} linha(s).`);
       await Promise.all([openCatalogBatch(catalogBatch.id), refreshCatalogHistory()]);
+      onCatalogChanged?.();
     } catch (err) {
       setError(err.message || 'Não foi possível confirmar a importação.');
     } finally {
@@ -803,6 +809,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
       create: 'Criando lote',
       upload: 'Enviando vendas',
       summary: 'Consolidando períodos',
+      listings: 'Conferindo vendas por ID de anúncio',
       commit: 'Atualizando painel',
       done: 'Concluído'
     };
@@ -813,12 +820,13 @@ export default function CommerceImportCenter({ onSalesChanged }) {
   const historyLoading = mode === 'catalog' ? catalogHistoryLoading : salesHistoryLoading;
 
   return (
-    <div className="import-center">
-      <div className="import-center-mode-grid">
+    <div className={`import-center${embedded ? ' import-center-embedded' : ''}`}>
+      {embedded && <p className="import-center-embedded-intro">Selecione primeiro o tipo de relatório. Depois escolha a plataforma e envie a planilha exportada.</p>}
+      <div className="import-center-mode-grid" aria-label="Tipo de importação">
         <button type="button" className={mode === 'catalog' ? 'active' : ''} onClick={() => setMode('catalog')}>
           <span className="import-center-mode-icon"><ModeIcon type="catalog" /></span>
           <strong>Importar catálogo</strong>
-          <small>Produtos, SKUs, anúncios e vínculos</small>
+          <small>Produtos e anúncios ativos</small>
         </button>
         <button type="button" className={mode === 'sales' ? 'active' : ''} onClick={() => setMode('sales')}>
           <span className="import-center-mode-icon"><ModeIcon type="sales" /></span>
@@ -830,7 +838,8 @@ export default function CommerceImportCenter({ onSalesChanged }) {
       {error && <div className="import-center-alert error">{error}</div>}
       {message && <div className="import-center-alert success">{message}</div>}
 
-      <div className="import-center-layout">
+      {embedded && mode && <button type="button" className="import-center-history-toggle" aria-expanded={showHistory} onClick={() => setShowHistory(value => !value)}>{showHistory ? 'Ocultar histórico e resumo' : 'Ver histórico de importações e resumo'}</button>}
+      {(!embedded || mode) && <div className="import-center-layout">
         <div className="import-center-flow">
           {mode === 'catalog' ? (
             <>
@@ -884,11 +893,11 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                 {catalogReading && <div className="import-center-loading">Lendo e validando a planilha…</div>}
               </Step>
 
-              <Step number="3" title="Conferência antes de enviar" complete={Boolean(catalogParsed)}>
+              {(!embedded || catalogParsed) && <Step number="3" title="Conferência antes de enviar" complete={Boolean(catalogParsed)}>
                 <CatalogPreview parsed={catalogParsed} />
-              </Step>
+              </Step>}
 
-              <Step
+              {(!embedded || catalogParsed) && <Step
                 number="4"
                 title="Importação"
                 subtitle="O arquivo será validado antes de alterar os dados."
@@ -904,9 +913,9 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                   </button>
                   <ProgressBlock progress={catalogProgress} text={catalogProgressText} />
                 </div>
-              </Step>
+              </Step>}
 
-              <CatalogBatchReview
+              {(!embedded || catalogBatch) && <CatalogBatchReview
                 batch={catalogBatch}
                 rows={catalogRows}
                 yearTargets={catalogYearTargets}
@@ -920,7 +929,7 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                 onCommit={handleCatalogCommit}
                 onSyncStatuses={handleCatalogStatusSync}
                 onRetryReconcile={handleCatalogRetryReconcile}
-              />
+              />}
             </>
           ) : (
             <>
@@ -970,11 +979,11 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                 {salesReading && <div className="import-center-loading">Lendo vendas e identificando colunas…</div>}
               </Step>
 
-              <Step number="3" title="Conferência antes de enviar" complete={Boolean(salesParsed)}>
+              {(!embedded || salesParsed) && <Step number="3" title="Conferência antes de enviar" complete={Boolean(salesParsed)}>
                 <SalesPreview parsed={salesParsed} />
-              </Step>
+              </Step>}
 
-              <Step
+              {(!embedded || salesParsed) && <Step
                 number="4"
                 title="Importação"
                 subtitle="Os períodos do arquivo serão consolidados antes de atualizar o painel."
@@ -990,12 +999,12 @@ export default function CommerceImportCenter({ onSalesChanged }) {
                   </button>
                   <ProgressBlock progress={salesProgress} text={salesProgressText} />
                 </div>
-              </Step>
+              </Step>}
             </>
           )}
         </div>
 
-        <aside className="import-center-sidebar">
+        {(!embedded || showHistory) && <aside className="import-center-sidebar">
           <ImportHistory
             mode={mode}
             items={history}
@@ -1010,8 +1019,8 @@ export default function CommerceImportCenter({ onSalesChanged }) {
             history={history}
             batch={mode === 'catalog' ? catalogBatch : null}
           />
-        </aside>
-      </div>
+        </aside>}
+      </div>}
     </div>
   );
 }
