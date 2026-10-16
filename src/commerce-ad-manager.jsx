@@ -510,7 +510,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
               <td><Situation item={item}/></td>
             </tr>)}
             {loading&&<tr><td colSpan={7} className="nim-table-empty">Carregando anúncios…</td></tr>}
-            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">Nenhum anúncio encontrado para o filtro. {hasShopeePartial&&'A ausência de vendas vinculadas não comprova venda zero.'}</td></tr>
+            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">Nenhum anúncio encontrado para o filtro. {hasShopeePartial&&'A ausência de vendas vinculadas não comprova venda zero.'}</td></tr>}
           </tbody></table>
         </div>
         <footer className="nim-list-footer">
