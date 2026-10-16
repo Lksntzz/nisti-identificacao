@@ -356,6 +356,42 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   return { batchId, result };
 }
 
+// Recover financial columns from an *identical* previously imported XLSX.
+// This path never creates a sales snapshot or rewrites item quantities.
+export async function reprocessShopeeSalesFinance(parsedWorkbook,onProgress=()=>{}){
+  const months=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
+  const daily=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
+  if(parsedWorkbook?.platform_code!=='SHOPEE'||!months.length)
+    throw new Error('O arquivo não contém taxas Shopee verificáveis para reprocessar.');
+  const sha=String(parsedWorkbook.sha256||'');
+  const source=await requestJson(`${API_BASE}/sales/finance/source`,{
+    method:'POST',body:JSON.stringify({
+      filename:parsedWorkbook.filename,sha256:sha
+    })
+  });
+  const id=Number(source?.batch_id||0);
+  if(!Number.isSafeInteger(id)||id<=0)
+    throw new Error('Este arquivo não coincide com o Excel original de uma importação confirmada.');
+  onProgress({phase:'finance',completed:0,total:daily.length,batchId:id});
+  for(const chunk of chunks(months)){
+    await requestJson(`${API_BASE}/sales/imports/${id}/finance-month`,{
+      method:'POST',body:JSON.stringify({rows:chunk,sha256:sha}),retryRateLimit:true
+    });
+  }
+  let completed=0;
+  for(const chunk of chunks(daily)){
+    await requestJson(`${API_BASE}/sales/imports/${id}/finance-daily`,{
+      method:'POST',body:JSON.stringify({rows:chunk,sha256:sha}),retryRateLimit:true
+    });
+    completed+=chunk.length;
+    onProgress({phase:'finance',completed,total:daily.length,batchId:id});
+  }
+  const result=await requestJson(`${API_BASE}/sales/finance/activate`,{
+    method:'POST',body:JSON.stringify({batch_id:id,sha256:sha})
+  });
+  return {batchId:id,result};
+}
+
 export async function getCommerceCatalogYearTargets(batchId) {
   return requestJson(`${API_BASE}/imports/${Number(batchId)}/year-targets`);
 }
