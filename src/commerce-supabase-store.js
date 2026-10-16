@@ -250,6 +250,31 @@ export async function commerceListings(env, filters = {}) {
   return { items, limit, offset };
 }
 
+// All active advertisements missing a confirmed Scanner link; independent of Commerce master counts.
+export async function commerceScannerPendingActive(env, filters = {}) {
+  const result = await supabaseRpc(env,'commerce_scanner_pending_active_v1',{
+    p_search:cleanText(filters.search),
+    p_limit:cleanPageSize(filters.limit,15),
+    p_offset:cleanOffset(filters.offset)
+  });
+  return result && typeof result==='object' && !Array.isArray(result)
+    ? result : {items:[],total:0,limit:15,offset:0};
+}
+
+export async function commerceLinkActiveAdScanner(env, input = {}) {
+  const listingId=cleanId(input.listingId);
+  const scannerId=cleanId(input.scannerProductId);
+  const sku=cleanText(input.sku);
+  if(!listingId || !scannerId || !sku || sku.length>120){
+    throw new Error('Informe anúncio, produto Scanner e SKU válidos.');
+  }
+  return await supabaseRpc(env,'commerce_link_active_ad_scanner_v1',{
+    p_listing_id:listingId,
+    p_nisti_product_id:scannerId,
+    p_sku:sku
+  });
+}
+
 export async function commerceManagementProducts(env, filters = {}) {
   const limit = cleanPageSize(filters.limit, 24);
   const offset = cleanOffset(filters.offset);
