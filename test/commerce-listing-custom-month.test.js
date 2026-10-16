@@ -21,7 +21,9 @@ test('janelas móveis limpam a seleção de mês e não cruzam filtros',()=>{
   assert.match(jsx,/if\(choice!=='MONTH'\)setMonth\(''\);/);
   assert.match(jsx,/change\(setDays,choice==='MONTH'\?0:Number\(choice\)\)/);
   assert.match(jsx,/if\(days===0 && month\)params\.set\('month',month\)/);
-  assert.match(jsx,/if\(days===0&&!month\)\{setData\(null\);setLoading\(false\)/);
+  assert.match(jsx,/if\(days===0&&!month\)\{/);
+  assert.match(jsx,/lastSuccessfulRequest\.current=null/);
+  assert.match(jsx,/setData\(null\);setLoading\(false\)/);
   assert.match(router,/!\[0,7,30,60,90\]\.includes\(days\)/);
   assert.match(router,/days===0 && !\/\^\\d\{4\}-/);
   assert.match(router,/days!==0 && Boolean\(month\)/);

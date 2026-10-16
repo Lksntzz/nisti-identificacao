@@ -1,6 +1,7 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import ShopeeSkuReconciliation from './commerce-shopee-reconciliation.jsx';
+import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
 import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription } from './commerce-ad-evidence.js';
@@ -304,6 +305,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [refresh,setRefresh]=useState(0);
   const [selectedId,setSelectedId]=useState(null);
   const [data,setData]=useState(null);
+  const lastSuccessfulRequest=useRef(null);
   const [monthly,setMonthly]=useState(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
@@ -313,16 +315,27 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
   useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
   useEffect(()=>{
-    let cancelled=false;setLoading(true);setError('');
+    let cancelled=false;const controller=new AbortController();
+    setLoading(true);setError('');
     const params=new URLSearchParams({platform,days:String(days),status,curve,basis,
       limit:String(size),offset:String(offset)});
     if(days===0 && month)params.set('month',month);
     if(search)params.set('search',search);
-    if(days===0&&!month){setData(null);setLoading(false);return ()=>{cancelled=true;};}
-    readJson(API+'?'+params).then(x=>{if(!cancelled)setData(x);})
-      .catch(e=>{if(!cancelled){setData(null);setError(e.message);}})
+    const requestKey=params.toString();
+    // Never display results from a different filter while a new request is pending.
+    // On refresh of the SAME filters, keep the last successful data visible.
+    const matchingPrevious=lastSuccessfulRequest.current===requestKey;
+    if(!matchingPrevious)setData(null);
+    if(days===0&&!month){
+      lastSuccessfulRequest.current=null;
+      setData(null);setLoading(false);
+      return ()=>{cancelled=true;controller.abort();};
+    }
+    fetchCommercialManager(API+'?'+params,{signal:controller.signal})
+      .then(x=>{if(!cancelled){lastSuccessfulRequest.current=requestKey;setData(x);}})
+      .catch(e=>{if(!cancelled)setError(e.message);})
       .finally(()=>{if(!cancelled)setLoading(false);});
-    return ()=>{cancelled=true;};
+    return ()=>{cancelled=true;controller.abort();};
   },[platform,days,month,search,status,curve,basis,size,offset,refresh,salesRevision]);
   useEffect(()=>{
     let cancelled=false;setMonthly(null);
@@ -498,6 +511,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <ShopeeSkuReconciliation onClose={()=>setReconciliationOpen(false)}
         onChanged={()=>setRefresh(v=>v+1)}/>}
     {error&&<div className="nim-error" role="alert">{error}
+      {data&&<small>Exibindo o último resultado confirmado para estes filtros.</small>}
       <button type="button" onClick={()=>setRefresh(v=>v+1)}>Tentar novamente</button></div>}
     <div className={'nim-content '+(selected?'has-detail':'')}>
       <section className="nim-list-panel">
