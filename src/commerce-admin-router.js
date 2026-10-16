@@ -19,6 +19,8 @@ import {
   commerceSaveListingSales,
   commerceListingHistory,
   commerceManagement,
+  commerceScannerPendingActive,
+  commerceLinkActiveAdScanner,
   commerceManagementProducts,
   commerceManagementProductSummary,
   commerceManagementDetail,
