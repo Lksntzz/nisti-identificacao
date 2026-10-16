@@ -19,7 +19,9 @@ function Description({item}){
   if(item.status==='DUPLICATE_SKU')
     return <span className="nsr-status nsr-status-conflict">SKU repetido · sem atribuição segura</span>;
   if(item.status==='APPROVED')
-    return <span className="nsr-status nsr-status-approved">Vínculo confirmado</span>;
+    return <span className="nsr-status nsr-status-approved">
+      {item.approved_by==='NISTI_AUTO_YEAR_26_27'?'Ano 26 → 27 · automático':'Vínculo confirmado manualmente'}
+    </span>;
   if(item.suggested_variation_id)
     return <span className="nsr-status nsr-status-suggestion">Possível SKU antigo</span>;
   return <span className="nsr-status nsr-status-unmatched">Sem anúncio ativo correspondente</span>;
@@ -137,9 +139,9 @@ export default function ShopeeSkuReconciliation({onChanged,onClose}){
       <div><small>SKUs aguardando revisão</small><strong>{data?fmt(data.pending_skus):'—'}</strong></div>
       <div><small>Unidades ainda sem vínculo</small><strong>{data?fmt(data.pending_units):'—'}</strong></div>
       <div><small>Possíveis códigos atualizados</small><strong>{data?fmt(data.candidate_skus):'—'}</strong></div>
-      <div><small>Vínculos confirmados</small><strong>{data?fmt(data.approved_skus):'—'}</strong></div>
+      <div><small>Vínculos aplicados</small><strong>{data?fmt(data.approved_skus):'—'}</strong></div>
     </div>
-    <p className="nsr-note">A sugestão por mudança de ano é apenas uma pista. Confirmar não altera o SKU na Shopee ou no Scanner, nem modifica pedidos; somente registra uma associação auditável e reversível para os indicadores de vendas.</p>
+    <p className="nsr-note">PB, PLAN e AGMT com ano 26 → 27, restante integral do SKU idêntico e uma única variação ativa são vinculados automaticamente. Diferenças no miolo, capa ou acessórios, códigos duplicados e outras famílias continuam para revisão. Nenhum SKU original, pedido ou produto do Scanner é modificado. Todos os vínculos podem ser revogados.</p>
     <div className="nsr-toolbar">
       <div role="group" aria-label="Situação dos SKUs" className="nsr-tabs">
         <button type="button" className={state==='PENDING'?'active':''}
