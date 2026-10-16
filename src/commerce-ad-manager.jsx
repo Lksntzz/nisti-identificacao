@@ -28,14 +28,25 @@ function PlatformLabel({item}){
   </span><span>{name}</span></span>;
 }
 function Situation({item}){
-  if(!item.ready&&(Number(item.month_linked_units)>0||Number(item.identified_units)>0))
-    return <span className="nim-status partial">Vendas identificadas</span>;
-  if(item.source==='SHOPEE'&&!item.ready)
-    return <span className="nim-status pending">Sem vendas identificadas</span>;
-  const situation=listingSalesSituation(item);
-  if(situation==='PENDING')return <span className="nim-status pending">Dados pendentes</span>;
-  if(situation==='ZERO')return <span className="nim-status zero">Sem vendas</span>;
-  return <span className="nim-status sold">Com vendas</span>;
+  const status=(!item.ready&&(Number(item.month_linked_units)>0||Number(item.identified_units)>0))
+    ?<span className="nim-status partial">Vendas identificadas</span>
+    :item.source==='SHOPEE'&&!item.ready
+      ?<span className="nim-status pending">Sem vendas identificadas</span>
+      :listingSalesSituation(item)==='PENDING'
+        ?<span className="nim-status pending">Dados pendentes</span>
+        :listingSalesSituation(item)==='ZERO'
+          ?<span className="nim-status zero">Sem vendas</span>
+          :<span className="nim-status sold">Com vendas</span>;
+  const trend=item.source==='SHOPEE'&&
+    ['RISING','FALLING'].includes(item.identified_trend) &&
+    Number.isFinite(Number(item.identified_growth_pct))?
+      <small className={'nim-trend-hint '+(item.identified_trend==='RISING'?'up':'down')}
+        title="Variação nas unidades vinculadas em janelas iguais; análise indicativa">
+        {item.identified_trend==='RISING'?'↑ ':'↓ '}
+        {Number(item.identified_growth_pct)>0?'+':''}
+        {new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1}).format(Number(item.identified_growth_pct))}%
+      </small>:null;
+  return <span className="nim-status-stack">{status}{trend}</span>;
 }
 function VariationSalesEvidence({item,days,partial}){
   if (!Number(item?.total_variations)) return null;
@@ -331,6 +342,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
   const emptyIdentifiedAds=Number(kpi.identified_empty_ads||0);
   const emptyIdentifiedVars=Number(kpi.identified_empty_variations||0);
+  const trendSelected=['RISING','FALLING'].includes(status)?status:'ALL';
+  const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0;
   const salesCoverageLabel=Number(kpi.pending_ads||0)>0
     ?periodLabel(days,month)+' · dados parciais':periodLabel(days,month)+' · anúncios ativos';
   const rows=Array.isArray(data?.items)?data.items:[];
@@ -372,6 +385,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
               setCurve('ALL');
               // Na Shopee, preservar o filtro exploratório sem vendas identificadas.
             }
+            if(['RISING','FALLING'].includes(status))setStatus('ALL');
             change(setPlatform,e.target.value);
           }}>
             {PLATFORMS.map(([id,name])=><option key={id} value={id}>{name}</option>)}
@@ -391,6 +405,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                   setCurve('ALL');
                   // Na Shopee, preservar o filtro exploratório sem vendas identificadas.
                 }
+                if(choice==='MONTH'&&['RISING','FALLING'].includes(status))setStatus('ALL');
                 change(setDays,choice==='MONTH'?0:Number(choice));
               }}>
               {PERIODS.map(n=><option key={n} value={n}>
@@ -407,7 +422,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </div>
         <button type="button" className="nim-soft-button nim-filter-reset" onClick={clear}>Limpar filtros</button>
       </div>
-      <div className="nim-filter-panel-body">
+      <div className={'nim-filter-panel-body'+(shopeeTrendAvailable?' nim-has-trend':'')}>
         <div className="nim-filter-group nim-performance-group">
           <span className="nim-filter-group-label">Situação de vendas</span>
           <div className="nim-status-tabs" role="group" aria-label="Filtrar anúncios por situação de vendas">
@@ -436,6 +451,16 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             </label>
           </div>
         </div>
+        {shopeeTrendAvailable&&<label className="nim-filter-group nim-trend-group">
+          <span className="nim-filter-group-label">Tendência identificada</span>
+          <select aria-label="Filtrar anúncios por tendência identificada" value={trendSelected}
+            title="Substitui o filtro de situação de vendas. Base: ao menos 3 unidades anteriores."
+            onChange={e=>change(setStatus,e.target.value)}>
+            <option value="ALL">Todas as tendências</option>
+            <option value="RISING">Em alta ({data?num(kpi.growing_identified_ads):'—'})</option>
+            <option value="FALLING">Em queda ({data?num(kpi.falling_identified_ads):'—'})</option>
+          </select>
+        </label>}
       </div>
       <div className="nim-filter-panel-footer">
         <span className="nim-coverage">
@@ -449,6 +474,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         {status==='ZERO'&&<span className="nim-filter-panel-note">{hasShopeePartial
           ?num(emptyIdentifiedVars)+' variações sem vendas identificadas · ausência não comprovada'
           :'Inclui anúncios com variações sem vendas'}</span>}
+        {['RISING','FALLING'].includes(status)&&<span className="nim-filter-panel-note">
+          Comparação com período anterior de mesma duração · variação de 20% ou mais · mínimo de 3 unidades anteriores · dados parciais
+        </span>}
       </div>
     </section>
     {days===0&&data?.imported_month&&!search&&<section className="nim-imported-month-summary" aria-label="Totais de vendas importadas da plataforma">
@@ -523,6 +551,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </section>
       {selected&&<ListingDetail key={selected.id} item={selected} days={days} month={month} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
-    <p className="nim-footnote">O símbolo ≥ indica vendas mínimas identificadas por SKU exclusivo. Na Shopee, “Sem vendas identificadas” é um filtro exploratório, não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Crescimento compara períodos equivalentes com vendas identificadas e exige base anterior maior que zero. Nenhum dado do Scanner é alterado.</p>
+    <p className="nim-footnote">O símbolo ≥ indica vendas mínimas identificadas por SKU exclusivo. Na Shopee, “Sem vendas identificadas” é um filtro exploratório, não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Tendência compara períodos equivalentes apenas com vendas identificadas, exige pelo menos 3 unidades anteriores e não presume vendas zero. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
