@@ -38,6 +38,11 @@ const SALES_PLATFORMS = [
   ['ML_ANTIGO', 'Mercado Livre Antigo']
 ];
 
+const PENDING_SALES_PLATFORMS = [
+  ['AMAZON', 'Amazon — aguardando modelo de relatório'],
+  ['TIKTOK', 'TikTok Shop — aguardando modelo de relatório']
+];
+
 const STATUS_LABELS = {
   UPLOADED: 'Enviado',
   STAGED: 'Preparado',
@@ -823,12 +828,16 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
     <div className={`import-center${embedded ? ' import-center-embedded' : ''}`}>
       {embedded && <p className="import-center-embedded-intro">Selecione primeiro o tipo de relatório. Depois escolha a plataforma e envie a planilha exportada.</p>}
       <div className="import-center-mode-grid" aria-label="Tipo de importação">
-        <button type="button" className={mode === 'catalog' ? 'active' : ''} onClick={() => setMode('catalog')}>
+        <button type="button" className={mode === 'catalog' ? 'active' : ''}
+          disabled={catalogImporting || salesImporting || catalogReading || salesReading}
+          onClick={() => { setMode('catalog'); setError(''); setMessage(''); }}>
           <span className="import-center-mode-icon"><ModeIcon type="catalog" /></span>
           <strong>Importar catálogo</strong>
           <small>Produtos e anúncios ativos</small>
         </button>
-        <button type="button" className={mode === 'sales' ? 'active' : ''} onClick={() => setMode('sales')}>
+        <button type="button" className={mode === 'sales' ? 'active' : ''}
+          disabled={catalogImporting || salesImporting || catalogReading || salesReading}
+          onClick={() => { setMode('sales'); setError(''); setMessage(''); }}>
           <span className="import-center-mode-icon"><ModeIcon type="sales" /></span>
           <strong>Importar vendas</strong>
           <small>Pedidos, unidades e faturamento</small>
@@ -860,6 +869,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                 >
                   {CATALOG_PLATFORMS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
+                {['AMAZON','TIKTOK'].includes(catalogPlatform) && <p className="import-center-sales-limits">O arquivo de produtos será validado pelo leitor do catálogo. Se o layout de exportação desta plataforma for incompatível, o NISTI bloqueará a importação e indicará a necessidade de adaptar as colunas.</p>}
                 {catalogPlatform === 'MERCADO_LIVRE' && (
                   <div className="import-center-account-select">
                     <label htmlFor="ml-import-account">Conta do Mercado Livre</label>
@@ -949,6 +959,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                       }}
                     >
                       {SALES_PLATFORMS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      {PENDING_SALES_PLATFORMS.map(([value, label]) => <option key={value} value={value} disabled>{label}</option>)}
                     </select>
                   </label>
                   <label>
@@ -966,6 +977,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                     />
                   </label>
                 </div>
+                <p className="import-center-sales-limits">Vendas: Shopee e Mercado Livre (Antigo/Novo) possuem leitores ativos. Amazon e TikTok exigem um exemplo do relatório para configurar o extrator sem atribuir dados incorretos.</p>
               </Step>
 
               <Step number="2" title="Selecione o relatório" complete={Boolean(salesFile)}>
