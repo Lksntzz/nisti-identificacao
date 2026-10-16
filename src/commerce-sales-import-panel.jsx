@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { listCommerceSalesImports, stageCommerceSalesWorkbook, reprocessShopeeSalesFinance } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
+import {recoverMultipleShopeeFinances} from './commerce-finance-bulk-recovery.js';
 
 function brNumber(value) {
   return new Intl.NumberFormat('pt-BR').format(Number(value || 0));
@@ -80,6 +81,8 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
   const [platform, setPlatform] = useState('SHOPEE');
   const [fallbackPeriod, setFallbackPeriod] = useState('');
   const [file, setFile] = useState(null);
+  const [financeFiles,setFinanceFiles]=useState([]);
+  const [bulkFinanceResult,setBulkFinanceResult]=useState(null);
   const [parsed, setParsed] = useState(null);
   const [reading, setReading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -155,6 +158,30 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     }
   }
 
+  async function handleBulkFinanceReprocess(){
+    if(platform!=='SHOPEE'||!financeFiles.length||importing||reading)return;
+    setImporting(true);setError('');setMessage('');setBulkFinanceResult(null);
+    try{
+      const report=await recoverMultipleShopeeFinances(financeFiles,{
+        parse:readCommerceSalesXlsx,
+        recover:reprocessShopeeSalesFinance,
+        onProgress:setProgress
+      });
+      setBulkFinanceResult(report);
+      setMessage(
+        'Recuperação financeira: '+report.recoveredMonths+' mês(es) ativado(s); '+
+        report.successful+' arquivo(s) concluído(s) e '+
+        report.failures.length+' com erro. As vendas originais não foram reimportadas.'
+      );
+      if(report.recoveredMonths>0)onSalesChanged?.();
+      await refreshHistory();
+    }catch(err){
+      setError(err.message||'Não foi possível iniciar a recuperação financeira.');
+    }finally{
+      setImporting(false);setProgress(null);
+    }
+  }
+
   async function handleFinanceReprocess(){
     if(!parsed||parsed.platform_code!=='SHOPEE')return;
     setImporting(true);setError('');setMessage('');
@@ -178,6 +205,8 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     setPlatform(event.target.value);
     setFile(null);
     setParsed(null);
+    setFinanceFiles([]);
+    setBulkFinanceResult(null);
     setError('');
     setMessage('');
   }
@@ -260,6 +289,41 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
           Se o relatório veio dividido em duas partes, envie ambas novamente.
         </p>}
 
+        {platform==='SHOPEE'&&<div className="commerce-finance-bulk">
+          <div className="commerce-finance-bulk-copy">
+            <strong>Recuperação financeira em lote</strong>
+            <span>Selecione os Excel originais de vários meses ou partes para recuperar somente as taxas. Nenhuma venda será reimportada. Extraia arquivos ZIP antes de selecionar.</span>
+          </div>
+          <label className="commerce-finance-bulk-picker">
+            <span>Planilhas Shopee anteriores (.xlsx)</span>
+            <input aria-label="Selecionar várias planilhas Shopee para recuperar somente taxas"
+              type="file" multiple
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              disabled={reading||importing}
+              onChange={e=>{
+                setFinanceFiles(Array.from(e.target.files||[]));
+                setBulkFinanceResult(null);
+                setError('');setMessage('');
+              }}/>
+            <small>{financeFiles.length
+              ?financeFiles.length+' arquivo(s) selecionado(s)'
+              :'Selecione todas as partes de cada mês (máximo 24 arquivos)'}</small>
+          </label>
+          <button className="commerce-import-finance-only" type="button"
+            disabled={reading||importing||!financeFiles.length}
+            onClick={handleBulkFinanceReprocess}>Recuperar taxas em lote</button>
+          {progress?.fileCount>0&&<p className="commerce-finance-bulk-progress" role="status">
+            Processando {progress.fileIndex} de {progress.fileCount}: {progress.filename}
+          </p>}
+          {bulkFinanceResult&&<div className="commerce-finance-bulk-report">
+            <strong>Resumo: {bulkFinanceResult.recoveredMonths} mês(es) recuperado(s)</strong>
+            {bulkFinanceResult.awaitingParts.length>0&&
+              <span>Algumas partes aguardaram complementação. Confira se todos os arquivos do mês foram enviados.</span>}
+            {bulkFinanceResult.failures.map((entry,i)=><p key={i} role="alert">
+              {entry.filename}: {entry.error}
+            </p>)}
+          </div>}
+        </div>}
         {reading && <div className="commerce-import-reading">Lendo vendas e identificando as colunas…</div>}
         {progress && phaseLabel && (
           <div className="commerce-import-reading">
