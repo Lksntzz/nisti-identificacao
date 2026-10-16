@@ -259,6 +259,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     return ()=>{cancelled=true;};
   },[platform,refresh,salesRevision]);
   const kpi=data?.kpis||{};
+  const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
+  const salesCoverageLabel=Number(kpi.pending_ads||0)>0
+    ?periodLabel(days,month)+' · dados parciais':periodLabel(days,month)+' · anúncios ativos';
   const rows=Array.isArray(data?.items)?data.items:[];
   const total=Number(data?.total||0);
   const pages=Math.max(1,Math.ceil(total/size));
@@ -281,12 +284,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       onCatalogChanged={()=>setRefresh(v=>v+1)}/></div>}
     <div className="nim-kpis">
       <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Por plataforma"/>
-      <Kpi tone="mint" label="Com vendas" value={data?num(kpi.sold_ads):'—'} description="No período" selected={status==='SOLD'}
+      <Kpi tone="mint" label="Com vendas" value={hasReliableSales?num(kpi.sold_ads):'—'} description="No período" selected={status==='SOLD'}
         onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
-      <Kpi tone="rose" label="Sem vendas" value={data?num(kpi.zero_ads):'—'} description="Anúncios ou variações" selected={status==='ZERO'}
+      <Kpi tone="rose" label="Sem vendas" value={hasReliableSales?num(kpi.zero_ads):'—'} description="Anúncios ou variações" selected={status==='ZERO'}
         onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
-      <Kpi tone="sand" label="Unidades vendidas" value={data?num(kpi.units):'—'} description={periodLabel(days,month)+' · anúncios ativos'}/>
-      <Kpi tone="green" label="Faturamento" value={data?money(kpi.revenue):'—'} description={periodLabel(days,month)+' · anúncios ativos'}/>
+      <Kpi tone="sand" label="Unidades vendidas" value={hasReliableSales?num(kpi.units):'—'} description={salesCoverageLabel}/>
+      <Kpi tone="green" label="Faturamento" value={hasReliableSales?money(kpi.revenue):'—'} description={salesCoverageLabel}/>
     </div>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
@@ -403,7 +406,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
               <td><Situation item={item}/></td>
             </tr>)}
             {loading&&<tr><td colSpan={7} className="nim-table-empty">Carregando anúncios…</td></tr>}
-            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">Nenhum anúncio encontrado para o filtro.</td></tr>}
+            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">{data&&Number(kpi.pending_ads||0)>0&&status!=='ALL'? 'Não é possível classificar anúncios por vendas sem histórico diário vinculado. Selecione Todos para ver os anúncios.' : 'Nenhum anúncio encontrado para o filtro.'}</td></tr>}
           </tbody></table>
         </div>
         <footer className="nim-list-footer">
