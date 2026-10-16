@@ -61,6 +61,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-status.sold{background:#dcf8eb;color:#157346}
 .nim-status.zero{background:#ffe5e8;color:#c42341}
 .nim-status.pending{background:#eef0f3;color:#5a6b81}
+.nim-status.partial{background:#fff2d8;color:#8f621a}
 .nim-table-empty{text-align:center!important;color:#718096!important;padding:28px!important;font-size:12px}
 .nim-list-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border-top:1px solid #e9edf4;color:#687a91;font-size:10px}
 .nim-list-footer>label{display:flex;align-items:center;gap:6px}
@@ -268,3 +269,6 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   .nim-filter-reset{grid-column:1/-1;max-width:none;width:100%;justify-self:stretch}
   .nim-imported-month-stats{grid-template-columns:1fr}
 }
+
+/* Na análise mensal Shopee, não permitir zeros nem ABC não comprovados. */
+.nim-filter-panel .nim-status-tabs button:disabled,.nim-filter-panel .nim-curve-tabs button:disabled{opacity:.48;cursor:not-allowed;background:#f5f6f8;color:#8995a6;border-color:#e3e7ec;box-shadow:none}
