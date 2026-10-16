@@ -35,6 +35,18 @@ const PLATFORM_LABELS = {
 function SalesPreview({ parsed }) {
   if (!parsed) return null;
   const s = parsed.summary || {};
+  const daily = s.package_items_recovered != null;
+  const monthSummaries = daily
+    ? Object.values((parsed.summaries || []).reduce((acc,row) => {
+        const month = String(row.period_start || '').slice(0,7);
+        const group = acc[month] || {period_key:month,net_orders:0,units:0,product_revenue:0};
+        group.net_orders += Number(row.net_orders || 0);
+        group.units += Number(row.units || 0);
+        group.product_revenue += Number(row.product_revenue || 0);
+        acc[month] = group;
+        return acc;
+      }, {})).sort((a,b)=>a.period_key.localeCompare(b.period_key))
+    : (parsed.summaries || []);
   return (
     <div className="commerce-import-preview sales-import-preview">
       <div className="commerce-import-preview-head">
@@ -48,8 +60,12 @@ function SalesPreview({ parsed }) {
           <span><strong>{brCurrency(s.product_revenue)}</strong> faturamento</span>
         </div>
       </div>
+      {daily && <p className="sales-import-ml-note" role="status">
+        {brNumber(s.period_count)} dias reconhecidos · {brNumber(s.package_summaries || 0)} pacotes conferidos · {brNumber(s.package_items_recovered || 0)} itens recuperados.
+        {s.source_warning ? ' Atenção: o arquivo contém um aviso de dados indisponíveis; confira os valores antes de importar.' : ''}
+      </p>}
       <div className="sales-import-periods">
-        {(parsed.summaries || []).map(item => (
+        {monthSummaries.map(item => (
           <div key={item.period_key}>
             <strong>{item.period_key}</strong>
             <span>{brNumber(item.net_orders)} pedidos · {brNumber(item.units)} un. · {brCurrency(item.product_revenue)}</span>
