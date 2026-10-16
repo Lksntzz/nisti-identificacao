@@ -4,7 +4,7 @@ import ShopeeSkuReconciliation from './commerce-shopee-reconciliation.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
-import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription } from './commerce-ad-evidence.js';
+import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription, shopeeMonthlyImportCoverage } from './commerce-ad-evidence.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -392,6 +392,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const hasDailyPartial=data?.source_kind==='DAILY_SKU_PARTIAL';
   const hasShopeePartial=hasMonthPartial||hasDailyPartial||platform==='SHOPEE';
   const classified=listingClassificationCoverage(kpi,days);
+  const monthCoverage=shopeeMonthlyImportCoverage(data);
+  const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
+    {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
   const partialAds=hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0);
   const partialUnits=hasMonthPartial?Number(kpi.month_linked_units||0):Number(kpi.identified_units||0);
   const partialRevenue=hasMonthPartial?Number(kpi.month_linked_revenue||0):Number(kpi.identified_revenue||0);
@@ -430,8 +433,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         value={hasShopeePartial&&data?num(emptyIdentifiedAds):hasReliableSales?num(kpi.zero_ads):'—'}
         description={hasShopeePartial?'Anúncios ou variações · indicativo':'Anúncios ou variações'}
         selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
-      <Kpi tone="sand" label={hasShopeePartial?'Unidades identificadas':'Unidades vendidas'} value={hasShopeePartial&&data?'≥ '+num(partialUnits):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?'SKU único · parcial':salesCoverageLabel}/>
-      <Kpi tone="green" label={hasShopeePartial?'Faturamento identificado':'Faturamento'} value={hasShopeePartial&&data?'≥ '+money(partialRevenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?'SKU único · parcial':salesCoverageLabel}/>
+      <Kpi tone="sand" label={hasShopeePartial?'Unidades identificadas':'Unidades vendidas'} value={hasShopeePartial&&data?'≥ '+num(partialUnits):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?(coverageText?'Cobertura do mês: '+coverageText:'SKU exclusivo · cobertura não integral'):salesCoverageLabel}/>
+      <Kpi tone="green" label={hasShopeePartial?'Faturamento identificado':'Faturamento'} value={hasShopeePartial&&data?'≥ '+money(partialRevenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?(coverageText?'Cobertura do mês: '+coverageText:'SKU exclusivo · cobertura não integral'):salesCoverageLabel}/>
     </div>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
