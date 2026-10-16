@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
+import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription } from './commerce-ad-evidence.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -32,6 +33,22 @@ function Situation({item}){
   if(situation==='PENDING')return <span className="nim-status pending">Dados pendentes</span>;
   if(situation==='ZERO')return <span className="nim-status zero">Sem vendas</span>;
   return <span className="nim-status sold">Com vendas</span>;
+}
+function VariationSalesEvidence({item,days,partial}){
+  if (!Number(item?.total_variations)) return null;
+  if (partial) {
+    const evidence=identifiedVariationCoverage(item,days);
+    if (evidence.identified>0)
+      return <small className="nim-variation-identification">
+        {num(evidence.identified)} de {num(evidence.total)} com vendas identificadas
+      </small>;
+    return <small className="nim-variation-awaiting">Vendas por variação sem vínculo confirmado</small>;
+  }
+  if (item.ready&&Number(item.zero_variations)>0)
+    return <small>{num(item.zero_variations)} sem vendas</small>;
+  if (!item.ready||!item.variation_data_complete)
+    return <small className="nim-variation-awaiting">Vendas por variação pendentes</small>;
+  return null;
 }
 function Kpi({label,value,description,tone,onClick,selected}){
   const child=<><small>{label}</small><strong>{value}</strong>{description&&<span>{description}</span>}</>;
@@ -113,7 +130,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const partialRevenue=monthLinked?detail?.month_linked_revenue:detail?.identified_revenue;
   const monthVars=Array.isArray(detail?.month_variations)?detail.month_variations:[];
   const dailyVars=Array.isArray(detail?.identified_variations)?detail.identified_variations:[];
-  const partialVars=monthLinked?monthVars:dailyLinked?dailyVars:[];
+  const variationEvidence=identifiedVariationCoverage(detail,detailDays);
+  const partialVars=item.source==='SHOPEE'&&!complete?variationEvidence.variations:[];
   return <aside className="nim-detail" aria-label={'Detalhes do anúncio '+item.external_listing_id}>
     <header className="nim-detail-header">
       <div className="nim-detail-title"><h3>{item.title}</h3>
@@ -172,7 +190,9 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
           <button type="button" onClick={()=>setActiveTab('variations')}>Ver variações →</button>
         </div>
         {!complete&&item.total_variations>0&&
-          <p className="nim-subtle">As vendas individuais das variações só serão exibidas após vinculação confiável dos SKUs.</p>}
+          <p className="nim-subtle">{variationEvidence.identified>0
+            ?num(variationEvidence.identified)+' de '+num(item.total_variations)+' variações com unidades identificadas. Consulte a aba Variações para ver cada quantidade.'
+            :'Ainda não há vendas individuais vinculadas com segurança para este período; a ausência de vínculo não significa zero vendas.'}</p>}
       </>}
       {activeTab==='finance'&&<>
         <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{periodLabel(detailDays,month)}</small></div>
@@ -192,7 +212,12 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         </div>
         {item.total_variations===0&&<p className="nim-subtle">Anúncio sem variações cadastradas.</p>}
         {item.total_variations>0&&!complete&&
-          <p className="nim-advice">Ainda não é possível atribuir quantidades e receitas a todas as variações com segurança; não mostramos zeros presumidos.</p>}
+          <p className="nim-advice">Quantidades e receitas identificadas por SKU exclusivo são parciais; não mostramos zeros presumidos.</p>}
+        {!complete&&partialVars.length>0&&<p className="nim-var-totals">
+          {variationEvidence.identified>0
+            ?num(variationEvidence.identified)+' de '+num(item.total_variations)+' variações com vendas identificadas'
+            :'Nenhuma variação com quantidade vinculada neste período — isso não significa ausência de vendas'}
+        </p>}
         {item.total_variations>0&&complete&&
           <p className="nim-var-totals">{num(detail.sold_variations)} com vendas · {num(detail.zero_variations)} sem vendas</p>}
         {zeroFilter&&complete&&item.total_variations>0&&
@@ -283,6 +308,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const hasMonthPartial=data?.source_kind==='MONTHLY_SKU_PARTIAL';
   const hasDailyPartial=data?.source_kind==='DAILY_SKU_PARTIAL';
   const hasShopeePartial=hasMonthPartial||hasDailyPartial||platform==='SHOPEE';
+  const classified=listingClassificationCoverage(kpi,days);
   const partialAds=hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0);
   const partialUnits=hasMonthPartial?Number(kpi.month_linked_units||0):Number(kpi.identified_units||0);
   const partialRevenue=hasMonthPartial?Number(kpi.month_linked_revenue||0):Number(kpi.identified_revenue||0);
@@ -347,7 +373,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                 }
                 change(setDays,choice==='MONTH'?0:Number(choice));
               }}>
-              {PERIODS.map(n=><option key={n} value={n}>Últimos {n} dias</option>)}
+              {PERIODS.map(n=><option key={n} value={n}>
+                {platform==='SHOPEE'?<>{n} dias · dados importados</>:<>Últimos {n} dias</>}
+              </option>)}
               <option value="MONTH">Personalizado · escolher mês</option>
             </select>
           </label>
@@ -392,11 +420,13 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </div>
       <div className="nim-filter-panel-footer">
         <span className="nim-coverage">
-          {days===0&&!month?'Selecione o mês no período personalizado.':data?.period_start
-            ? 'Período analisado: '+periodDate(data.period_start)+' a '+periodDate(data.period_end)
-            : 'Período de vendas conforme os filtros selecionados'}
+          {days===0&&!month?'Selecione o mês no período personalizado.':
+            importedWindowDescription(data,days,periodDate)}
         </span>
-        {Number(kpi.pending_ads)>0&&<span className="nim-filter-panel-warning">{num(kpi.pending_ads)} anúncio(s) com dados pendentes</span>}
+        {hasShopeePartial&&data?<>
+          <span className="nim-filter-panel-identified">{num(classified.identified)} anúncios com vendas identificadas</span>
+          <span className="nim-filter-panel-unclassified">{num(classified.unclassified)} anúncios ainda sem classificação confiável</span>
+        </>:Number(kpi.pending_ads)>0&&<span className="nim-filter-panel-warning">{num(kpi.pending_ads)} anúncio(s) com dados pendentes</span>}
         {status==='ZERO'&&<span className="nim-filter-panel-note">Inclui anúncios com variações sem vendas</span>}
       </div>
     </section>
@@ -441,8 +471,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                 <small className="nim-ad-id">{item.external_listing_id}</small></td>
               <td className="nim-units">{item.ready?num(item.units):hasShopeePartial&&Number(item.month_linked_units||item.identified_units)>0?'≥ '+num(item.month_linked_units||item.identified_units):'—'}</td>
               <td><span className="nim-variations-cell">{item.total_variations?num(item.total_variations)+' variações':'Sem variações'}
-                {item.ready&&item.zero_variations>0&&<small>{num(item.zero_variations)} sem vendas</small>}
-                {item.total_variations>0&&(!item.ready||!item.variation_data_complete)&&<small>Quantidade não identificada</small>}
+                <VariationSalesEvidence item={item} days={days} partial={hasShopeePartial}/>
               </span></td>
               <td className="nim-money">{item.ready?money(item.revenue):hasShopeePartial&&Number(item.month_linked_units||item.identified_units)>0?'≥ '+money(item.month_linked_revenue||item.identified_revenue):'—'}</td>
               <td>{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}>{item.curve}</span>:'—'}</td>
