@@ -113,11 +113,11 @@ test('Catálogo exposes commercial tools as an expandable submenu', () => {
   assert.equal(catalog.href, undefined);
   assert.deepEqual(
     catalog.children.map(item => item.id),
-    ['catalog','import-center','pending']
+    ['catalog','pending']
   );
   assert.deepEqual(
     catalog.children.map(item => item.label),
-    ['Painel Comercial','Central de Importações','Pendências']
+    ['Painel Comercial','Pendências']
   );
 });
 

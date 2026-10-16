@@ -4,13 +4,14 @@ import fs from 'node:fs';
 
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('Catálogo Comercial usa a nova Central de Importações', () => {
+test('Painel Comercial incorpora a importação e remove a ferramenta duplicada do menu', () => {
   const app = read('src/commerce-admin-app-v2.jsx');
-  assert.equal(app.includes("CommerceImportCenter"), true);
-  assert.equal(app.includes("Central de Importações"), true);
-  assert.equal(app.includes("<CommerceUnifiedImportView"), false);
-  assert.equal(app.includes("id: 'imports'"), false);
-  assert.equal(app.includes("id: 'import-center'"), true);
+  const dashboard = read('src/commerce-commercial-dashboard.jsx');
+  assert.equal(app.includes('CommerceCommercialDashboard'), true);
+  assert.equal(app.includes("id: 'import-center'"), false);
+  assert.equal(dashboard.includes('CommerceImportCenter embedded'), true);
+  assert.equal(dashboard.includes('onSalesChanged'), true);
+  assert.equal(dashboard.includes('onCatalogChanged'), true);
 });
 
 test('Central de Importações é um componente próprio e separado da tela antiga', () => {

@@ -8,8 +8,8 @@ test('Catálogo Comercial usa a nova Central de Importações para Catálogo e V
   const app = read('src/commerce-admin-app-v2.jsx');
   const center = read('src/commerce-import-center.jsx');
 
-  assert.equal(app.includes("{ id: 'import-center', label: 'Central de Importações', icon: 'upload' }"), true);
-  assert.equal(app.includes('<CommerceImportCenter'), true);
+  assert.equal(app.includes("{ id: 'import-center', label: 'Central de Importações', icon: 'upload' }"), false);
+  assert.equal(read('src/commerce-commercial-dashboard.jsx').includes('<CommerceImportCenter embedded'), true);
   assert.equal(center.includes('Importar catálogo'), true);
   assert.equal(center.includes('Importar vendas'), true);
   assert.equal(center.includes('Últimas importações'), true);

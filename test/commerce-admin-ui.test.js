@@ -11,7 +11,7 @@ test('menu administrativo expõe o Catálogo como árvore de ferramentas no pain
   assert.equal(nav.includes("title: 'COMERCIAL'"), true);
   assert.equal(nav.includes("label: 'Painel Comercial'"), true);
   assert.equal(nav.includes("id: 'sales'"), false);
-  assert.equal(nav.includes("id: 'import-center'"), true);
+  assert.equal(nav.includes("id: 'import-center'"), false);
   assert.equal(nav.includes("id: 'pending'"), true);
   assert.equal(nav.includes("href: '/admin-commerce'"), false);
 });
@@ -22,7 +22,7 @@ test('menu principal mantém as ferramentas comerciais dentro de /admin', () => 
   assert.equal(main.includes("activeView === 'commerce'"), true);
   assert.equal(main.includes("commerceSection === 'catalog'"), true);
   assert.equal(main.includes("commerceSection === 'sales'"), true);
-  assert.equal(main.includes("commerceSection === 'import-center'"), true);
+  assert.equal(main.includes("commerceSection === 'import-center'"), false);
   assert.equal(main.includes("commerceSection === 'pending'"), true);
 });
 

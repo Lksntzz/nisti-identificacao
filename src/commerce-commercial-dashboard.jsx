@@ -3,6 +3,7 @@ import CommerceSkuListingsView from './commerce-sku-listings-view.jsx';
 import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
 import CommerceAbcAdPerformance from './commerce-abc-ad-performance.jsx';
 import CommerceSalesVelocity from './commerce-sales-velocity.jsx';
+import CommerceImportCenter from './commerce-import-center.jsx';
 import './commerce-commercial-dashboard.css';
 
 const PLATFORM_OPTIONS = [
@@ -132,6 +133,13 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
         foot={hasSnapshot?'Pedidos: '+number(abc.net_orders):'Aguardando importação'} icon="R$" tone="green"/>
     </div>
 
+    <section className="nisti-com-section nisti-com-imports">
+      <div className="nisti-com-section-heading"><div><h3>Importar arquivos</h3><p>Vendas ou anúncios de produtos, na mesma tela do Painel Comercial</p></div></div>
+      <CommerceImportCenter embedded
+        onSalesChanged={()=>setRefresh(value=>value+1)}
+        onCatalogChanged={()=>setRefresh(value=>value+1)} />
+    </section>
+
     <CommerceSalesVelocity platform={platform} refresh={refresh+salesRevision}/>
 
     <section className="nisti-com-section nisti-com-abc">
@@ -233,7 +241,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
         {catalog&&<small>{number(catalog.active_ads)} anúncios ativos</small>}
       </div>
 
-      <CommerceSkuListingsView key={salesRevision} catalogMode embedded
+      <CommerceSkuListingsView key={salesRevision+'-'+refresh} catalogMode embedded
         externalSearch={debouncedSearch} externalPlatform={catalogPlatform}
         abcBySku={abcBySku}/>
     </section>
@@ -245,7 +253,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
       </button>
       {details&&<div className="nisti-com-deep-dive-content">
         <p>Histórico, filtros de vendas, exportação e registros manuais por anúncio continuam disponíveis nesta mesma ferramenta.</p>
-        <CommerceSalesDashboard key={'detail-'+salesRevision}/>
+        <CommerceSalesDashboard key={'detail-'+salesRevision+'-'+refresh}/>
       </div>}
     </div>
   </section>;
