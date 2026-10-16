@@ -43,7 +43,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-month-summary{padding:12px 15px;border-top:1px solid #edf0f5;background:#fafcff}
 .nim-month-summary h4{font-size:12px;margin:0 0 12px;color:#3b506e}
 .nim-table-scroll{width:100%;overflow-x:auto;border-top:1px solid #e7ebf2}
-.nim-ad-table{width:100%;border-collapse:collapse;font-size:11px;text-align:left;min-width:790px;table-layout:auto}
+.nim-ad-table{width:100%;border-collapse:collapse;font-size:11px;text-align:left;min-width:920px;table-layout:auto}
 .nim-ad-table th{padding:11px 12px;background:#f7f9fd;border-bottom:1px solid #e6eaf2;font-size:10px;font-weight:800;color:#52637b;white-space:nowrap}
 .nim-ad-table td{padding:11px 12px;border-bottom:1px solid #edf0f5;vertical-align:middle;color:#314058}
 .nim-ad-table tbody tr:not(:has(.nim-table-empty)){cursor:pointer}
@@ -66,6 +66,9 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-status.sold{background:#dcf8eb;color:#157346}.nim-status.rising{background:#e3f0ff;color:#2a65c0}
 .nim-status.zero{background:#ffe5e8;color:#c42341}.nim-status.partial{background:#fff0e4;color:#a55a15}
 .nim-status.pending{background:#eef0f3;color:#5a6b81}.nim-status.low{background:#fff5da;color:#a77511}
+.nim-indicators{display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-width:125px}
+.nim-indicators .nim-status{padding:5px 7px}
+.nim-indicators-empty{color:#99a5b8;font-size:11px}
 .nim-table-empty{text-align:center!important;color:#718096!important;padding:28px!important;font-size:12px}
 .nim-list-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border-top:1px solid #e9edf4;color:#687a91;font-size:10px}
 .nim-list-footer>label{display:flex;align-items:center;gap:6px}
@@ -82,6 +85,9 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-detail-meta>div,.nim-detail-kpis>div{display:grid;gap:7px;min-width:0}
 .nim-detail-meta small,.nim-detail-kpis small,.nim-four-periods small{font-size:10px;color:#7c899e}
 .nim-detail-meta strong{font-size:12px;color:#23334e;overflow-wrap:anywhere}
+.nim-detail-classification{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 0 14px}
+.nim-detail-classification>div{display:grid;justify-items:start;align-content:start;gap:6px;min-width:0}
+.nim-detail-classification small{font-size:10px;color:#7c899e}
 .nim-detail-kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:13px 0;border-bottom:1px solid #edf0f5}
 .nim-detail-kpis strong{font-size:17px;font-weight:850;line-height:1.2}
 .nim-four-periods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:13px 0}
@@ -134,7 +140,9 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   color:#51617a;font-size:10px;font-weight:800;line-height:1.25;
   letter-spacing:.025em
 }
-.nim-performance-group{min-width:0}
+.nim-performance-group{min-width:0;gap:12px}
+.nim-performance-line{display:grid;grid-template-columns:125px minmax(0,1fr);gap:12px;align-items:center;min-width:0}
+.nim-performance-line>.nim-filter-group-label{max-width:125px}
 .nim-performance-group .nim-status-tabs{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .nim-filter-panel .nim-status-tabs button,
 .nim-filter-panel .nim-curve-tabs button{
@@ -182,6 +190,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   .nim-abc-basis-label{justify-self:end}
 }
 @media(max-width:880px){
+  .nim-performance-line{grid-template-columns:1fr;gap:7px}
   .nim-filter-panel-body{padding:12px 14px}
   .nim-filter-panel-footer{padding:9px 14px}
 }
