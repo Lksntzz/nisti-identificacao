@@ -765,21 +765,21 @@ export async function commerceAppendShopeeDailySku(env, batchId, rows = []) {
   }, { timeoutMs: 8000 }) || 0);
 }
 
-export async function commerceAppendShopeeFinanceDaily(env,batchId,rows=[]) {
+export async function commerceAppendShopeeFinanceDaily(env,batchId,rows=[],sourceSha='') {
   const id=cleanId(batchId);
   if(!id||!Array.isArray(rows)||rows.length<1||rows.length>100)
     throw new Error('Envie de 1 a 100 registros financeiros Shopee por lote.');
   return Number(await supabaseRpc(env,'commerce_append_shopee_finance_daily_v1',{
-    p_batch_id:id,p_rows:rows
+    p_batch_id:id,p_rows:rows,p_source_sha256:cleanText(sourceSha)||null
   },{timeoutMs:10000})||0);
 }
 
-export async function commerceAppendShopeeFinanceMonth(env,batchId,rows=[]) {
+export async function commerceAppendShopeeFinanceMonth(env,batchId,rows=[],sourceSha='') {
   const id=cleanId(batchId);
   if(!id||!Array.isArray(rows)||rows.length<1||rows.length>100)
     throw new Error('Envie de 1 a 100 meses financeiros Shopee por lote.');
   return Number(await supabaseRpc(env,'commerce_append_shopee_finance_month_v1',{
-    p_batch_id:id,p_rows:rows
+    p_batch_id:id,p_rows:rows,p_source_sha256:cleanText(sourceSha)||null
   },{timeoutMs:10000})||0);
 }
 
