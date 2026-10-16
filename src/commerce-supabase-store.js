@@ -813,6 +813,36 @@ export async function commerceShopeeListingFinance(env,listingId,{days=30,month=
   },{timeoutMs:10000});
 }
 
+export async function commerceAppendShopeeFinance(env,batchId,input={}){
+  const id=cleanId(batchId);
+  const kind=String(input.kind||'').toUpperCase();
+  const rows=input.rows;
+  if(!id||!['MONTH','DAILY'].includes(kind)||!Array.isArray(rows)
+    ||rows.length<1||rows.length>100)throw new Error('Lote financeiro Shopee inválido.');
+  return Number(await supabaseRpc(env,'commerce_append_shopee_finance_v1',{
+    p_batch_id:id,p_kind:kind,p_rows:rows
+  },{timeoutMs:8000})||0);
+}
+
+export async function commerceShopeeMonthCoverage(env,month){
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(String(month||'')))
+    throw new Error('Mês comercial inválido.');
+  return await supabaseRpc(env,'commerce_shopee_month_coverage_v1',{
+    p_month:month
+  },{timeoutMs:9000});
+}
+
+export async function commerceShopeeListingFinance(env,listingId,options={}){
+  const id=cleanId(listingId);
+  const month=options.month||null;
+  if(!id||month&&!/^20\d{2}-(0[1-9]|1[0-2])$/.test(String(month))
+   ||!month&&![7,30,60,90].includes(Number(options.days)))
+    throw new Error('Anúncio ou período financeiro inválido.');
+  return await supabaseRpc(env,'commerce_shopee_listing_finance_v1',{
+    p_listing_id:id,p_days:month?30:Number(options.days),p_month:month
+  },{timeoutMs:9000});
+}
+
 export async function commerceAppendSalesImportSummary(env, batchId, rows = []) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id de vendas inválido.');
