@@ -141,6 +141,10 @@ begin
   join public.commerce_import_batches b on b.id=r.batch_id
   where b.marketplace_id=v_listing.marketplace_id
     and b.account_code is not distinct from v_listing.account_code
+    and b.id=(select bx.id from public.commerce_import_batches bx
+      where bx.marketplace_id=v_listing.marketplace_id
+        and bx.account_code is not distinct from v_listing.account_code
+      order by bx.created_at desc,bx.id desc limit 1)
     and r.normalized_payload->>'external_listing_id'=v_listing.external_listing_id
     and r.normalized_payload->>'source_listing_status'='ACTIVE'
     and (public.commerce_nisti_sku_norm_v1(r.normalized_payload->>'sku_primary')=v_sku_norm
@@ -155,6 +159,10 @@ begin
   join public.commerce_import_batches b on b.id=r.batch_id
   where b.marketplace_id=v_listing.marketplace_id
     and b.account_code is not distinct from v_listing.account_code
+    and b.id=(select bx.id from public.commerce_import_batches bx
+      where bx.marketplace_id=v_listing.marketplace_id
+        and bx.account_code is not distinct from v_listing.account_code
+      order by bx.created_at desc,bx.id desc limit 1)
     and r.normalized_payload->>'external_listing_id'=v_listing.external_listing_id
     and r.normalized_payload->>'source_listing_status'='ACTIVE'
     and (public.commerce_nisti_sku_norm_v1(r.normalized_payload->>'sku_primary')=v_sku_norm
