@@ -59,3 +59,49 @@
  .import-center-embedded .import-center-mode-grid{grid-template-columns:minmax(0,1fr)}
  .import-center-embedded .import-center-mode-grid>button{min-height:52px}
 }
+
+
+/* Comercial: hierarquia consistente sem alterar o enquadramento desktop usado no celular. */
+.import-center-embedded .import-center-flow{align-items:start;gap:14px}
+.import-center-embedded .import-center-step{grid-template-columns:30px minmax(0,1fr);gap:11px;padding:16px;height:100%;border-color:#e4eaf2;background:#fff}
+.import-center-embedded .import-center-step>.import-center-step-index{display:grid;place-items:center;width:29px;height:29px;background:#eef3fb;color:#42618c;border-radius:9px;font-size:11px}
+.import-center-embedded .import-center-step.complete>.import-center-step-index{background:#e1f8ec;color:#1c9b64}
+.import-center-embedded .import-center-step-heading{margin:0 0 11px}
+.import-center-embedded .import-center-step-heading h3{font-size:13px;line-height:1.4}
+.import-center-embedded .import-center-step-review,.import-center-embedded .import-center-step-submit{grid-column:1 / -1;height:auto}
+.import-center-embedded .import-center-step-review{background:#fcfdff}
+.import-center-embedded .import-center-preview{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.import-center-embedded .import-center-stat{padding:13px 10px;gap:10px;background:#fff;align-items:center}
+.import-center-embedded .import-center-stat strong{font-size:15px}
+.import-center-embedded .import-center-stat span:last-child{font-size:11px}
+.import-center-embedded .import-center-action-line{grid-template-columns:minmax(180px,240px) minmax(0,1fr);gap:22px}
+.import-center-embedded .import-center-primary{min-height:43px}
+.import-center-embedded .import-center-step-submit .import-center-step-body{display:grid;gap:10px}
+.import-center-file-wrapper{display:grid;gap:8px;min-width:0}
+.import-center-embedded .import-center-file{min-height:114px;max-width:100%;min-width:0;padding:12px;background:#f8faff}
+.import-center-file-icon{flex-shrink:0}
+.import-center-filename{display:block;max-width:100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5}
+.import-center-file small{display:block;max-width:100%;line-height:1.5;overflow-wrap:anywhere}
+.import-center-file-remove{justify-self:end;background:none;border:0;color:#b14154;font-size:10px;font-weight:750;padding:4px 7px;cursor:pointer}
+.import-center-file-remove:hover{text-decoration:underline}
+.import-center-file-remove:disabled{opacity:.5;cursor:default}
+.import-center-alert{display:flex;align-items:center;gap:10px;min-height:43px;padding:9px 12px;line-height:1.4}
+.import-center-alert-icon{width:22px;height:22px;flex:0 0 22px;display:grid;place-items:center;background:#fee2e2;border-radius:50%;font-size:12px;color:#be123c}
+.import-center-alert-text{display:grid;gap:2px;min-width:0;flex:1;font-size:11px;overflow-wrap:anywhere}
+.import-center-alert-text strong{font-size:11px;font-weight:800}
+.import-center-alert-text small{font-size:10px;font-weight:500}
+.import-center-alert-dismiss{align-self:center;background:transparent;border:0;cursor:pointer;color:inherit;font-size:10px;font-weight:800;padding:5px 8px;white-space:nowrap}
+.import-center-alert-dismiss:hover{text-decoration:underline}
+.import-center-sales-validation{grid-column:1 / -1;display:grid;gap:7px;border:1px solid #dce9f3;background:#f7fbff;border-radius:9px;padding:10px 13px;min-width:0}
+.import-center-validation-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.import-center-validation-head strong{font-size:11px;color:#23446d}
+.import-center-validation-head span{font-size:10px;color:#627791}
+.import-center-validation-warning{font-size:10px!important;line-height:1.5!important;color:#956129!important;margin:0!important}
+.import-center-validation-details{min-width:0;border-top:1px solid #e1ecf5;padding-top:7px}
+.import-center-validation-details summary{font-size:10px;color:#326cb7;font-weight:750;cursor:pointer}
+.import-center-validation-details>div{display:grid;gap:4px;margin-top:8px}
+.import-center-validation-details p{font-size:10px!important;line-height:1.5!important;color:#65758c!important;margin:0!important}
+.import-center-mode-grid>button{min-width:0}
+.import-center-embedded .import-center-mode-grid>button{border-radius:11px;padding:13px}
+.import-center-embedded .import-center-mode-grid>button.active{background:#f2f7ff;border-color:#5586e7;box-shadow:inset 0 0 0 1px #4d7bda}
+.import-center-embedded .import-center-step-body,.import-center-embedded .import-center-inline-fields{min-width:0}
