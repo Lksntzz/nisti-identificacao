@@ -26,6 +26,8 @@ function PlatformLabel({item}){
   </span><span>{name}</span></span>;
 }
 function Situation({item}){
+  if(!item.ready&&Number(item.month_linked_units)>0)
+    return <span className="nim-status partial">Vendas identificadas</span>;
   const situation=listingSalesSituation(item);
   if(situation==='PENDING')return <span className="nim-status pending">Dados pendentes</span>;
   if(situation==='ZERO')return <span className="nim-status zero">Sem vendas</span>;
@@ -104,6 +106,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const relevant=zeroFilter&&!showAll?variations.filter(v=>v.units===0):variations;
   const complete=Boolean(detail?.ready&&detail?.variation_data_complete);
   const pending=!detail?.ready;
+  const monthLinked=detailDays===0&&Number(detail?.month_linked_units)>0;
+  const monthVars=Array.isArray(detail?.month_variations)?detail.month_variations:[];
   return <aside className="nim-detail" aria-label={'Detalhes do anúncio '+item.external_listing_id}>
     <header className="nim-detail-header">
       <div className="nim-detail-title"><h3>{item.title}</h3>
@@ -128,14 +132,15 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         </div>
       </div>
       <div className="nim-detail-metrics">
-        <DetailMetric label="Unidades vendidas" value={pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
-        <DetailMetric label="Faturamento" value={pending?'—':money(detail.revenue)} description={periodLabel(detailDays,month)+' · produtos'}/>
+        <DetailMetric label="Unidades vendidas"  value={monthLinked?'≥ '+num(detail.month_linked_units):pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
+        <DetailMetric label="Faturamento"  value={monthLinked?'≥ '+money(detail.month_linked_revenue):pending?'—':money(detail.revenue)} description={periodLabel(detailDays,month)+' · produtos'}/>
         <DetailMetric label="Pedidos" value="—" description="Aguardando vínculo por anúncio"/>
         <DetailMetric label="Ticket médio" value="—" description="Aguardando pedidos identificados"/>
       </div>
       {periodLoading&&<p className="nim-detail-pending" role="status">Consultando dados: {periodLabel(detailDays,month)}…</p>}
       {periodError&&<p className="nim-detail-pending nim-detail-period-error" role="alert">{periodError}</p>}
-      {pending&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para {periodLabel(detailDays,month)}. Valores desconhecidos não são zero.</p>}
+      {pending&&!monthLinked&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para {periodLabel(detailDays,month)}. Valores desconhecidos não são zero.</p>}
+      {monthLinked&&<p className="nim-detail-pending">Valores mínimos identificados por SKU exclusivo; podem existir outras vendas não vinculadas a este anúncio.</p>}
     </section>
     <div className="nim-detail-tab-list" role="tablist" aria-label="Informações do anúncio">
       {DETAIL_TABS.map(([code,label])=><button
@@ -165,8 +170,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       {activeTab==='finance'&&<>
         <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{periodLabel(detailDays,month)}</small></div>
         <div className="nim-detail-data-list">
-          <DetailRow label="Subtotal dos produtos" value={pending?'—':money(detail.revenue)}
-            description="Receita dos produtos no período selecionado"/>
+          <DetailRow label="Subtotal dos produtos" value={monthLinked?'≥ '+money(detail.month_linked_revenue):pending?'—':money(detail.revenue)}
+            description={monthLinked?'Subtotal identificado por SKU · parcial':'Receita dos produtos no período selecionado'}/>
           <DetailRow label="Descontos do vendedor" value="—"/>
           <DetailRow label={item.source==='SHOPEE'?"Comissões Shopee":"Comissões da plataforma"} value="—"/>
           <DetailRow label="Taxas de serviço" value="—"/>
@@ -186,6 +191,15 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         {zeroFilter&&complete&&item.total_variations>0&&
           <label className="nim-var-toggle"><input type="checkbox" checked={showAll}
             onChange={e=>setShowAll(e.target.checked)}/> Mostrar todas as variações</label>}
+        {!complete&&monthVars.length>0&&<div className="nim-detail-table-scroll">
+          <table><thead><tr><th>Variação / SKU</th><th>Unid. identificadas</th><th>Receita identificada</th></tr></thead>
+            <tbody>{monthVars.map((v,i)=><tr key={String(v.id||i)}>
+              <td><strong>{v.name}</strong><small>{v.sku||'SKU não informado'}</small></td>
+              <td>{v.units==null?'—':'≥ '+num(v.units)}</td>
+              <td>{v.revenue==null?'—':'≥ '+money(v.revenue)}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>}
         {relevant.length>0&&<div className="nim-detail-table-scroll">
           <table><thead><tr><th>Variação / SKU</th><th>Unid.</th><th>Receita</th></tr></thead>
             <tbody>{relevant.map((v,i)=><tr key={String(v.id||v.sku||i)} className={v.units===0?'nim-var-zero':''}>
@@ -196,7 +210,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
           </table>
           {!relevant.length&&<p className="nim-subtle">Nenhuma variação sem vendas neste anúncio.</p>}
         </div>}
-        {item.total_variations>0&&!relevant.length&&
+        {item.total_variations>0&&!relevant.length&&monthVars.length===0&&
           <p className="nim-subtle">{complete?'Nenhuma variação corresponde ao filtro selecionado.':
             'Os nomes das variações estarão disponíveis aqui quando o vínculo entre SKU e anúncio for confirmado.'}</p>}
       </>}
@@ -259,6 +273,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     return ()=>{cancelled=true;};
   },[platform,refresh,salesRevision]);
   const kpi=data?.kpis||{};
+  const hasMonthPartial=data?.source_kind==='MONTHLY_SKU_PARTIAL';
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
   const salesCoverageLabel=Number(kpi.pending_ads||0)>0
     ?periodLabel(days,month)+' · dados parciais':periodLabel(days,month)+' · anúncios ativos';
@@ -284,12 +299,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       onCatalogChanged={()=>setRefresh(v=>v+1)}/></div>}
     <div className="nim-kpis">
       <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Por plataforma"/>
-      <Kpi tone="mint" label="Com vendas" value={hasReliableSales?num(kpi.sold_ads):'—'} description="No período" selected={status==='SOLD'}
+      <Kpi tone="mint" label={hasMonthPartial?'Com vendas identificadas':'Com vendas'} value={hasMonthPartial?num(kpi.month_linked_ads):hasReliableSales?num(kpi.sold_ads):'—'} description={hasMonthPartial?'Correspondência exclusiva de SKU':'No período'} selected={status==='SOLD'}
         onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
-      <Kpi tone="rose" label="Sem vendas" value={hasReliableSales?num(kpi.zero_ads):'—'} description="Anúncios ou variações" selected={status==='ZERO'}
-        onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
-      <Kpi tone="sand" label="Unidades vendidas" value={hasReliableSales?num(kpi.units):'—'} description={salesCoverageLabel}/>
-      <Kpi tone="green" label="Faturamento" value={hasReliableSales?money(kpi.revenue):'—'} description={salesCoverageLabel}/>
+      <Kpi tone="rose" label="Sem vendas" value={hasMonthPartial?'—':hasReliableSales?num(kpi.zero_ads):'—'} description={hasMonthPartial?'Sem dados para confirmar zero':'Anúncios ou variações'} selected={status==='ZERO'}
+        onClick={hasMonthPartial?undefined:()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
+      <Kpi tone="sand" label={hasMonthPartial?'Unidades identificadas':'Unidades vendidas'} value={hasMonthPartial?'≥ '+num(kpi.month_linked_units):hasReliableSales?num(kpi.units):'—'} description={hasMonthPartial?'SKU único · parcial':salesCoverageLabel}/>
+      <Kpi tone="green" label={hasMonthPartial?'Faturamento identificado':'Faturamento'} value={hasMonthPartial?'≥ '+money(kpi.month_linked_revenue):hasReliableSales?money(kpi.revenue):'—'} description={hasMonthPartial?'SKU único · parcial':salesCoverageLabel}/>
     </div>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
@@ -328,7 +343,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           <div className="nim-status-tabs" role="group" aria-label="Filtrar anúncios por situação de vendas">
             {SALES_FILTERS.map(([code,label])=><button type="button" key={code}
               className={status===code?'active':''} aria-pressed={status===code}
-              onClick={()=>change(setStatus,code)}>
+              onClick={()=>change(setStatus,code)} disabled={hasMonthPartial&&code==='ZERO'}
+              title={hasMonthPartial&&code==='ZERO'?'Sem vendas não pode ser confirmado por dados mensais de SKU':undefined}>
               {label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
             </button>)}
           </div>
@@ -396,12 +412,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
               <td><PlatformLabel item={item}/></td>
               <td><strong className="nim-ad-name">{item.title}</strong>
                 <small className="nim-ad-id">{item.external_listing_id}</small></td>
-              <td className="nim-units">{item.ready?num(item.units):'—'}</td>
+              <td className="nim-units">{item.ready?num(item.units):hasMonthPartial&&Number(item.month_linked_units)>0?'≥ '+num(item.month_linked_units):'—'}</td>
               <td><span className="nim-variations-cell">{item.total_variations?num(item.total_variations)+' variações':'Sem variações'}
                 {item.ready&&item.zero_variations>0&&<small>{num(item.zero_variations)} sem vendas</small>}
                 {item.total_variations>0&&(!item.ready||!item.variation_data_complete)&&<small>Quantidade não identificada</small>}
               </span></td>
-              <td className="nim-money">{item.ready?money(item.revenue):'—'}</td>
+              <td className="nim-money">{item.ready?money(item.revenue):hasMonthPartial&&Number(item.month_linked_units)>0?'≥ '+money(item.month_linked_revenue):'—'}</td>
               <td>{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}>{item.curve}</span>:'—'}</td>
               <td><Situation item={item}/></td>
             </tr>)}
