@@ -104,7 +104,7 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
         <small>{catalogMode
           ? `${commerceFormatNumber(data.active_ads || 0)} anúncios ativos · ${commerceFormatNumber(total)} grupos de produtos`
           : `${commerceFormatNumber(total)} produtos`}</small>
-      </div>
+      </div>}
 
       {!embedded && <div className="commerce-sku-filters">
         <form onSubmit={e=>{e.preventDefault();setAppliedSearch(search.trim());}}>
