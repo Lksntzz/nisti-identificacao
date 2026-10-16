@@ -121,6 +121,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       <div className="nim-detail-section-title nim-detail-performance-title">
         <h4>Desempenho</h4>
         <div className="nim-detail-periods" role="group" aria-label="Período de análise do anúncio">
+          {days===0&&<button type="button" aria-pressed={detailDays===0}
+            className={detailDays===0?'active':''} onClick={()=>setDetailDays(0)}>Mês</button>}
           {PERIODS.map(p=><button type="button" key={p} aria-pressed={detailDays===p}
             className={detailDays===p?'active':''} onClick={()=>setDetailDays(p)}>{p}d</button>)}
         </div>
@@ -297,15 +299,24 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           <input type="search" value={query} onChange={e=>setQuery(e.target.value)}
             placeholder="Nome ou ID do anúncio" maxLength={150}/>
         </label>
-        <label className="nim-filter-field nim-filter-period">Período
-          <select value={days} onChange={e=>change(setDays,Number(e.target.value))}>
-            {PERIODS.map(n=><option key={n} value={n}>Últimos {n} dias</option>)}
-          </select>
-        </label>
-        <label className="nim-filter-field nim-filter-month">Mês de referência
-          <input type="month" value={month} onChange={e=>change(setMonth,e.target.value)}
-            aria-label="Mês de referência; em branco usa o último disponível"/>
-        </label>
+        <div className="nim-filter-period-group">
+          <label className="nim-filter-field nim-filter-period">Período
+            <select value={days===0?'MONTH':String(days)}
+              onChange={e=>{
+                const choice=e.target.value;
+                if(choice!=='MONTH')setMonth('');
+                change(setDays,choice==='MONTH'?0:Number(choice));
+              }}>
+              {PERIODS.map(n=><option key={n} value={n}>Últimos {n} dias</option>)}
+              <option value="MONTH">Personalizado · escolher mês</option>
+            </select>
+          </label>
+          {days===0&&<label className="nim-filter-field nim-filter-custom-month">Mês personalizado
+            <input type="month" value={month} max={new Date().toISOString().slice(0,7)}
+              onChange={e=>change(setMonth,e.target.value)}
+              aria-label="Selecionar mês para análise personalizada"/>
+          </label>}
+        </div>
         <button type="button" className="nim-soft-button nim-filter-reset" onClick={clear}>Limpar filtros</button>
       </div>
       <div className="nim-filter-panel-body">
@@ -338,7 +349,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </div>
       <div className="nim-filter-panel-footer">
         <span className="nim-coverage">
-          {data?.period_start
+          {days===0&&!month?'Selecione o mês no período personalizado.':data?.period_start
             ? 'Período analisado: '+periodDate(data.period_start)+' a '+periodDate(data.period_end)
             : 'Período de vendas conforme os filtros selecionados'}
         </span>
