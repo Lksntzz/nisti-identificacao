@@ -175,7 +175,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 }
 .nim-filter-top{
   display:grid;
-  grid-template-columns:minmax(165px,1.08fr) minmax(240px,1.65fr) minmax(130px,.76fr) minmax(155px,.9fr) 130px;
+  grid-template-columns:minmax(165px,1fr) minmax(210px,1.3fr) minmax(310px,1.9fr) 140px;
   gap:12px;align-items:end;min-width:0;padding:16px 18px 14px
 }
 .nim-filter-field{display:grid;gap:7px;min-width:0;color:#53647c;font-size:11px;font-weight:750}
@@ -236,6 +236,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 @media(max-width:1180px){
   .nim-filter-top{grid-template-columns:minmax(155px,1fr) minmax(155px,1fr) minmax(140px,.9fr)}
   .nim-filter-search{grid-column:span 2}
+  .nim-filter-period-group{grid-column:span 2}
   .nim-filter-reset{max-width:170px;justify-self:end}
 }
 @media(max-width:920px){
@@ -247,4 +248,23 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   .nim-filter-top{padding:13px 14px}
   .nim-filter-panel-body{padding:13px 14px}
   .nim-filter-panel-footer{padding:9px 14px}
+}
+
+/* Personalizado pertence ao mesmo filtro de período, sem campo de mês paralelo. */
+.nim-filter-period-group{display:grid;grid-template-columns:minmax(140px,1.15fr) minmax(140px,1fr);gap:10px;align-items:end;min-width:0}
+.nim-filter-period-group>.nim-filter-period:only-child{grid-column:1/-1}
+.nim-filter-period-group .nim-filter-field{min-width:0}
+.nim-imported-month-summary{display:grid;gap:11px;padding:15px 17px;border:1px solid #cfe0fc;border-radius:12px;background:#f7faff;color:#283e5e;min-width:0}
+.nim-imported-month-summary>div:first-child strong{font-size:13px;font-weight:850}
+.nim-imported-month-summary>div:first-child p{font-size:10px;margin:5px 0 0;color:#57708d;line-height:1.55}
+.nim-imported-month-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nim-imported-month-stats>span{display:grid;gap:5px;padding:10px 12px;background:#fff;border:1px solid #e1e9f7;border-radius:9px;min-width:0}
+.nim-imported-month-stats small{font-size:10px;color:#647895}
+.nim-imported-month-stats strong{font-size:15px;font-weight:850;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.nim-imported-month-warning{font-size:10px;line-height:1.6;color:#806121;margin:0;border-top:1px solid #e5ebf5;padding-top:9px}
+.nim-no-imported-month{padding:11px 13px;margin:0;border:1px solid #e4eaf3;border-radius:10px;background:#f8fafc;color:#63748c;font-size:11px}
+@media(max-width:600px){
+  .nim-filter-period-group{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .nim-filter-reset{grid-column:1/-1;max-width:none;width:100%;justify-self:stretch}
+  .nim-imported-month-stats{grid-template-columns:1fr}
 }
