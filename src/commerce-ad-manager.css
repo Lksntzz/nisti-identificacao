@@ -294,3 +294,6 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 
 /* Na análise mensal Shopee, não permitir zeros nem ABC não comprovados. */
 .nim-filter-panel .nim-status-tabs button:disabled,.nim-filter-panel .nim-curve-tabs button:disabled{opacity:.48;cursor:not-allowed;background:#f5f6f8;color:#8995a6;border-color:#e3e7ec;box-shadow:none}
+
+.nim-detail-period-locked{display:inline-flex;align-items:center;min-height:29px;border:1px solid #dce5f1;border-radius:7px;background:#eef4ff;color:#265eb7;font-size:10px;font-weight:800;padding:5px 10px}
+.nim-detail-period-note{font-size:10px;line-height:1.5;color:#697d98;margin:0 0 10px}

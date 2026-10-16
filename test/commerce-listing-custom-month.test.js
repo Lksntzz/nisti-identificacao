@@ -51,9 +51,21 @@ test('totais mensais não são usados para fabricar vendas individuais de anúnc
   assert.doesNotMatch(sql,/insert into public\.products|update public\.products|delete from public\.products/);
 });
 
-test('detalhes do anúncio permitem voltar ao mês, mantendo períodos independentes',()=>{
-  assert.match(jsx,/days===0&&<button type="button" aria-pressed=\{detailDays===0\}/);
+test('detalhes com filtro mensal nunca trocam outubro por janela de 60 dias',()=>{
+  assert.match(jsx,/const detailDays=days===0\?0:requestedDetailDays/);
+  assert.match(jsx,/days===0\?\s*<span className="nim-detail-period-locked"/);
+  assert.match(jsx,/Período fixado pelo mês personalizado/);
+  assert.doesNotMatch(jsx,/days===0&&<button type="button" aria-pressed=\{detailDays===0\}/);
+  assert.match(jsx,/Esta ficha segue apenas \{periodLabel\(0,month\)\}/);
+  assert.match(jsx,/if\(detailDays===days\)\{setPeriodError\(''\);setPeriodLoading\(false\);return;\}/);
   assert.match(jsx,/if\(detailDays===0 && month\)params\.set\('month',month\)/);
-  assert.match(jsx,/setDetailDays\(p\)/);
   assert.match(jsx,/const detail=detailDays===days\?item/);
+  assert.match(jsx,/key=\{\[selected\.id,days,month\]\.join\(':'\)\}/);
+});
+
+test('comparações de 7, 30, 60 e 90 dias continuam disponíveis fora do mês personalizado',()=>{
+  assert.match(jsx,/const \[requestedDetailDays,setDetailDays\]=useState\(days\)/);
+  assert.match(jsx,/PERIODS\.map\(p=><button type="button" key=\{p\}/);
+  assert.match(jsx,/setDetailDays\(p\)/);
+  assert.match(jsx,/search:String\(item\.external_listing_id\|\|''\)/);
 });

@@ -104,7 +104,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
   const [activeTab,setActiveTab]=useState('summary');
-  const [detailDays,setDetailDays]=useState(days);
+  const [requestedDetailDays,setDetailDays]=useState(days);
+  const detailDays=days===0?0:requestedDetailDays;
   const [periodResult,setPeriodResult]=useState(null);
   const [periodLoading,setPeriodLoading]=useState(false);
   const [periodError,setPeriodError]=useState('');
@@ -170,13 +171,19 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
     <section className="nim-detail-performance" aria-label="Desempenho do anúncio">
       <div className="nim-detail-section-title nim-detail-performance-title">
         <h4>Desempenho</h4>
-        <div className="nim-detail-periods" role="group" aria-label="Período de análise do anúncio">
-          {days===0&&<button type="button" aria-pressed={detailDays===0}
-            className={detailDays===0?'active':''} onClick={()=>setDetailDays(0)}>Mês</button>}
-          {PERIODS.map(p=><button type="button" key={p} aria-pressed={detailDays===p}
-            className={detailDays===p?'active':''} onClick={()=>setDetailDays(p)}>{p}d</button>)}
-        </div>
+        {days===0?
+          <span className="nim-detail-period-locked" aria-label="Período fixado pelo mês personalizado">
+            Mês {month?month.split('-').reverse().join('/'):'personalizado'}
+          </span>:
+          <div className="nim-detail-periods" role="group" aria-label="Comparar períodos de vendas identificadas">
+            {PERIODS.map(p=><button type="button" key={p} aria-pressed={detailDays===p}
+              className={detailDays===p?'active':''} onClick={()=>setDetailDays(p)}>{p}d</button>)}
+          </div>}
       </div>
+      {days===0&&<p className="nim-detail-period-note">
+        Esta ficha segue apenas {periodLabel(0,month)}. Para comparar 7, 30, 60 ou 90 dias,
+        altere o período no filtro principal.
+      </p>}
       <div className="nim-detail-metrics">
         <DetailMetric label="Unidades vendidas"  value={partialLinked?'≥ '+num(partialUnits):pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
         <DetailMetric label="Faturamento"  value={partialLinked?'≥ '+money(partialRevenue):pending?'—':money(detail.revenue)} description={periodLabel(detailDays,month)+' · produtos'}/>
@@ -563,7 +570,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             <button type="button" disabled={loading||offset+size>=total} onClick={()=>setOffset(v=>v+size)}>Próxima</button></div>
         </footer>
       </section>
-      {selected&&<ListingDetail key={selected.id} item={selected} days={days} month={month} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
+      {selected&&<ListingDetail key={[selected.id,days,month].join(':')} item={selected} days={days} month={month} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
     <p className="nim-footnote">O símbolo ≥ indica vendas mínimas identificadas por SKU exclusivo. Na Shopee, “Sem vendas identificadas” é um filtro exploratório, não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Tendência compara períodos equivalentes apenas com vendas identificadas, exige pelo menos 3 unidades anteriores e não presume vendas zero. Nenhum dado do Scanner é alterado.</p>
   </section>;
