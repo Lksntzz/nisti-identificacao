@@ -24,7 +24,7 @@ function validFee(x){
     .every(key=>Number.isFinite(x[key])&&Math.abs(x[key])<=10000000);
 }
 
-export function aggregateShopeeFinance(raw=[]){
+export async function aggregateShopeeFinance(raw=[]){
   const groups=new Map();
   for(const row of raw){
     if(!row?.order_id||!row?.sale_date||!row?.sku_norm)continue;
@@ -32,7 +32,7 @@ export function aggregateShopeeFinance(raw=[]){
     const key=month+'\x1f'+row.order_id;
     let group=groups.get(key);
     if(!group){
-      group={month,date:row.sale_date,skus:new Set(),units:0,revenue:0,
+      group={orderKey:key,month,date:row.sale_date,skus:new Set(),units:0,revenue:0,
         discount:0,fees:null,conflicting:false,sourceRows:0};
       groups.set(key,group);
     }
@@ -105,7 +105,27 @@ export function aggregateShopeeFinance(raw=[]){
     for(const key of financialColumns)if(key in record)record[key]=amount(record[key]);
     return record;
   };
+  // Stable pseudonymous key deduplicates an order across split Shopee files.
+  // Raw order IDs, buyer details and delivery data never leave the browser.
+  const finance_order_rows=[];
+  for(const order of groups.values()){
+    const digest=await globalThis.crypto.subtle.digest('SHA-256',
+      new TextEncoder().encode('NISTI_SHOPEE_FINANCE_V1|'+order.orderKey));
+    const order_hash=[...new Uint8Array(digest)].map(n=>n.toString(16).padStart(2,'0')).join('');
+    finance_order_rows.push({
+      order_hash,month_start:order.month,sale_date:order.date,
+      sku_norm:order.skus.size===1?[...order.skus][0]:null,
+      sku_count:order.skus.size,source_rows:order.sourceRows,
+      units:order.units,product_revenue:amount(order.revenue),
+      seller_discount:amount(order.discount),
+      fee_valid:Boolean(order.fees&&!order.conflicting),
+      transaction_fee:order.fees?amount(order.fees.transaction):null,
+      commission_net:order.fees?amount(order.fees.commission):null,
+      service_net:order.fees?amount(order.fees.service):null
+    });
+  }
   return {
+    finance_order_rows,
     finance_daily_rows:[...daily.values()].map(normalize).sort((a,b)=>
       a.sale_date.localeCompare(b.sale_date)||a.sku_norm.localeCompare(b.sku_norm)),
     finance_month_rows:[...months.values()].filter(m=>m.fee_orders>0).map(normalize).sort((a,b)=>
