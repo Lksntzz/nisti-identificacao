@@ -283,6 +283,13 @@ export async function handleCommerceAdminRequest(request, env) {
         limit:query(url,'limit'),offset:query(url,'offset')
       }));
     }
+    if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager/monthly`) {
+      const platform = String(query(url,'platform') || 'TODAS').toUpperCase();
+      if (!['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE','AMAZON','TIKTOK'].includes(platform)) {
+        return json({error:'Plataforma inválida.'},400);
+      }
+      return json(await commerceListingManagerMonthly(env,platform));
+    }
     const listingMonths = pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/months$/);
     if (method === 'GET' && listingMonths) {
       return json(await commerceListingManagerMonths(env, listingMonths[1]));
