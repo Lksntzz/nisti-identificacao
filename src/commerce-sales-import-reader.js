@@ -1,4 +1,5 @@
 import readExcelFile from 'read-excel-file/browser';
+import {aggregateShopeeFinance,shopeeFinanceColumns} from './commerce-shopee-finance-aggregation.js';
 import { detectMercadoLivreVendasBrHeader, parseMercadoLivreVendasBr } from './commerce-ml-native-sales-reader.js';
 import { sha256Hex, COMMERCE_XLSX_MAX_BYTES, COMMERCE_XLSX_MAX_ROWS } from './commerce-xlsx-reader.js';
 
