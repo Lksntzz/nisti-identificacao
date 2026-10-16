@@ -246,7 +246,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
             </tr>)}</tbody>
           </table>
           {partialRelevant.length===0&&<p className="nim-subtle">Nenhuma variação sem vendas identificadas neste anúncio.</p>}
-        </div>
+        </div>}
         {relevant.length>0&&<div className="nim-detail-table-scroll">
           <table><thead><tr><th>Variação / SKU</th><th>Unid.</th><th>Receita</th></tr></thead>
             <tbody>{relevant.map((v,i)=><tr key={String(v.id||v.sku||i)} className={v.units===0?'nim-var-zero':''}>
