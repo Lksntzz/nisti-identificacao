@@ -38,6 +38,7 @@ import {
   nistiProductsSalesPlanning,
   commerceSalesImportBatches,
   commerceCreateSalesImport,
+  commerceAppendSalesListingDaily,
   commerceAppendSalesImportRows,
   commerceAppendSalesImportSummary,
   commerceCommitSalesImport,
