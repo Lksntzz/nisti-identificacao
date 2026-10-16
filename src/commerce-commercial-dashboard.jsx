@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import CommerceSkuListingsView from './commerce-sku-listings-view.jsx';
 import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
+import CommerceAbcAdPerformance from './commerce-abc-ad-performance.jsx';
 import './commerce-commercial-dashboard.css';
 
 const PLATFORM_OPTIONS = [
@@ -96,11 +97,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
   const classMap=Object.fromEntries(classes.map(r=>[r.class,r]));
   const rankings=Array.isArray(abc?.items)?abc.items:[];
   const abcBySku=useMemo(()=>Object.fromEntries(rankings.map(r=>[String(r.sku_norm||'').toUpperCase(),r])),[abc]);
-  const selectedRankings=activeCurve?rankings.filter(r=>r.class===activeCurve):[];
   const periods=Array.isArray(abc?.periods)?abc.periods:[];
   const hasSnapshot=Boolean(abc?.has_snapshot);
   const hasSales=Boolean(abc?.has_sales);
-  const selectedRange=periodStart||periodEnd;
   const reset=()=>{setSearch('');setPlatform('TODAS');setPeriodStart('');setPeriodEnd('');setActiveCurve('');};
   const percentByCount=classes.map(x=>Number(x.products)||0);
   const countSum=percentByCount.reduce((a,b)=>a+b,0);
@@ -146,7 +145,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
           return <button type="button" key={curve.code}
             className={'nisti-com-abc-card class-'+curve.code.toLowerCase()+(activeCurve===curve.code?' active':'')}
             onClick={()=>setActiveCurve(v=>v===curve.code?'':curve.code)}
-            disabled={!hasSales} aria-pressed={activeCurve===curve.code}>
+            aria-pressed={activeCurve===curve.code}>
             <span className="nisti-com-abc-flag">{curve.code}</span>
             <div><strong>{curve.title}</strong><small>{curve.subtitle}</small></div>
             <div className="nisti-com-abc-numbers">
@@ -163,6 +162,21 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
         })}
       </div>
       {detailMessage && <p className="nisti-com-data-note">{detailMessage}</p>}
+      {activeCurve && (
+        <CommerceAbcAdPerformance
+          key={activeCurve}
+          curve={activeCurve}
+          platform={platform}
+          basis={basis}
+          periodStart={periodStart}
+          periodEnd={periodEnd}
+          refresh={refresh+salesRevision}
+          onShowInCatalog={sku=>{
+            setSearch(sku);
+            setActiveCurve('');
+          }}
+        />
+      )}
     </section>
 
     <div className="nisti-com-analytics">
@@ -210,31 +224,15 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
       </div>
 
       <div className="nisti-com-products-title">
-        <div><h3>{activeCurve?'Produtos da Curva '+activeCurve:'Produtos e anúncios'}</h3>
-          <p>{activeCurve
-            ? 'Ranking por SKU das vendas importadas. Selecione um SKU para localizar seus anúncios.'
-            : 'Todos os anúncios ativos, mesmo sem vínculo com o Scanner.'}</p></div>
+        <div><h3>Produtos e anúncios</h3>
+          <p>Todos os anúncios ativos, mesmo sem vínculo com o Scanner.</p></div>
         {loading&&<small>Atualizando…</small>}
-        {!activeCurve&&catalog&&<small>{number(catalog.active_ads)} anúncios ativos</small>}
+        {catalog&&<small>{number(catalog.active_ads)} anúncios ativos</small>}
       </div>
 
-      {activeCurve&&hasSales?(
-        <div className="nisti-com-rankings">
-          {selectedRankings.map((item,index)=><button key={item.sku_norm} type="button"
-            onClick={()=>{setSearch(item.sku_norm);setActiveCurve('');}}>
-            <span className="nisti-com-rank">{index+1}</span>
-            <code>{item.sku_norm}</code>
-            <span>{number(item.units)} un.</span>
-            <strong>{money(item.revenue)}</strong>
-            <span aria-hidden="true">↗</span>
-          </button>)}
-          {!selectedRankings.length&&<div className="nisti-com-placeholder">Nenhum produto nesta curva.</div>}
-        </div>
-      ):(
-        <CommerceSkuListingsView key={salesRevision} catalogMode embedded
-          externalSearch={debouncedSearch} externalPlatform={catalogPlatform}
-          abcBySku={abcBySku}/>
-      )}
+      <CommerceSkuListingsView key={salesRevision} catalogMode embedded
+        externalSearch={debouncedSearch} externalPlatform={catalogPlatform}
+        abcBySku={abcBySku}/>
     </section>
 
     <div className="nisti-com-deep-dive">

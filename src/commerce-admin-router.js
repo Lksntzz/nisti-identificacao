@@ -29,6 +29,7 @@ import {
   commerceProducts,
   commerceProductDetail,
   commerceShopeeSnapshot,
+  commerceSalesAbcAds,
   commerceSalesAbc,
   commerceSalesDashboard,
   commerceSalesProductPerformance,
@@ -205,6 +206,22 @@ export async function handleCommerceAdminRequest(request, env) {
         periodMonth:body.month,
         units:body.units
       },operatorName(request)));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/sales/abc/advertisements`) {
+      const curve = String(query(url, 'curve') || 'A').toUpperCase();
+      const basis = String(query(url, 'basis') || 'REVENUE').toUpperCase();
+      if (!['A','B','C'].includes(curve) || !['REVENUE','UNITS'].includes(basis)) {
+        return json({error:'Curva ou métrica ABC inválida.'},400);
+      }
+      return json(await commerceSalesAbcAds(env, {
+        platform: query(url,'platform') || 'TODAS',
+        periodStart: query(url,'period_start'),
+        periodEnd: query(url,'period_end'),
+        basis,curve,
+        limit: query(url,'limit'),
+        offset: query(url,'offset')
+      }));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/sales/abc`) {
