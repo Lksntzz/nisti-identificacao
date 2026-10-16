@@ -41,8 +41,21 @@ export async function commerceSalesDashboard(env, filters = {}) {
 
 // Ranking ABC uses imported sales only; does not attribute SKU-level sales to individual ads.
 // Time-window sales insights require daily coverage. Missing data is never shown as zero sales.
-// Shopee historical SKU reconciliation is manual and auditable. It never edits
-// product/scanner SKUs and cannot allocate ambiguous source sales by title.
+// Shopee SKU aliases remain auditable and reversible. Only the 26->27
+// year swap for PB/PLAN/AGMT with identical remaining SKU is automatic.
+// Neither path modifies product or Scanner SKUs or raw sale rows.
+async function refreshShopeeYearAliases(env) {
+  try {
+    return await supabaseRpc(env,'commerce_shopee_auto_link_year26_v1',{},
+      {timeoutMs:15000});
+  } catch (error) {
+    // A completed import must never be reported as failed by a later,
+    // independently repeatable sales-SKU reconciliation step.
+    console.error('[Commerce] Não foi possível atualizar os vínculos anuais Shopee.',
+      String(error?.message||error));
+    return null;
+  }
+}
 export async function commerceShopeeSkuReconciliationQueue(env, filters = {}) {
   const value = await supabaseRpc(env,'commerce_shopee_sku_reconciliation_queue_v1',{
     p_search:cleanText(filters.search),
@@ -617,7 +630,10 @@ export async function commerceSyncImportListingStates(env, batchId) {
 export async function commerceCommitImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  return await supabaseRpc(env, 'commerce_commit_import_batch_account_v4', { p_batch_id: id });
+  const result=await supabaseRpc(env, 'commerce_commit_import_batch_account_v4', { p_batch_id: id });
+  // New active SKU owners can become available when the catalogue is imported.
+  await refreshShopeeYearAliases(env);
+  return result;
 }
 
 
@@ -746,6 +762,9 @@ export async function commerceCommitSalesImport(env, batchId) {
   const result = await supabaseRpc(env, 'commerce_commit_sales_import_v1', {
     p_batch_id: id
   }, { timeoutMs: 20000 });
+  if (String(result?.status||'').toUpperCase()==='COMMITTED') {
+    await refreshShopeeYearAliases(env);
+  }
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
