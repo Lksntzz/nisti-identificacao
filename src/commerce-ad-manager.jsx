@@ -170,10 +170,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     <div className="nim-filterbar">
       <label>Plataforma<select value={platform} onChange={e=>change(setPlatform,e.target.value)}>
         {PLATFORMS.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
-      <label>Período de análise<select value={days} onChange={e=>change(setDays,Number(e.target.value))}>
-        {PERIODS.map(n=><option key={n} value={n}>Últimos {n} dias</option>)}</select></label>
-      <label>Mês de referência<input type="month" value={month} onChange={e=>change(setMonth,e.target.value)}
-        aria-label="Mês de referência; em branco usa o último disponível"/></label>
       <label className="nim-filter-search">Buscar anúncio ou ID
         <input type="search" value={query} onChange={e=>setQuery(e.target.value)}
           placeholder="Nome ou ID do anúncio" maxLength={150}/></label>
@@ -191,6 +187,15 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     <section className="nim-filter-panel" aria-label="Filtros de vendas e Curva ABC">
       <div className="nim-filter-panel-body">
         <div className="nim-filter-group nim-performance-group">
+          <div className="nim-performance-line nim-period-line">
+            <span className="nim-filter-group-label">Período e vendas</span>
+            <div className="nim-unified-period-controls">
+              <label>Período<select value={days} onChange={e=>change(setDays,Number(e.target.value))}>
+                {PERIODS.map(n=><option key={n} value={n}>Últimos {n} dias</option>)}</select></label>
+              <label>Mês de referência<input type="month" value={month} onChange={e=>change(setMonth,e.target.value)}
+                aria-label="Mês de referência; em branco usa o último disponível"/></label>
+            </div>
+          </div>
           <div className="nim-performance-line">
             <span className="nim-filter-group-label">Situação de vendas</span>
             <div className="nim-status-tabs" role="group" aria-label="Filtrar anúncios por situação de vendas">

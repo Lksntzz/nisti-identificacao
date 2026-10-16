@@ -188,3 +188,10 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   .nim-filter-panel-body{padding:12px 14px}
   .nim-filter-panel-footer{padding:9px 14px}
 }
+
+/* Período, mês e situação no mesmo grupo de filtros. */
+.nim-unified-period-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap;min-width:0}
+.nim-unified-period-controls label{display:grid;gap:5px;font-size:10px;font-weight:700;color:#63718a;min-width:155px}
+.nim-unified-period-controls select,.nim-unified-period-controls input{width:100%;min-height:34px;border:1px solid #dce3ee;border-radius:8px;background:#fff;color:#25344b;padding:5px 9px;font:inherit;font-size:12px}
+.nim-period-line{align-items:start}
+@media(max-width:880px){.nim-unified-period-controls{width:100%}.nim-unified-period-controls label{flex:1 1 155px}}
