@@ -96,7 +96,7 @@ export default function CommerceAbcAdPerformance({
     {loading&&<div className="nisti-abc-ad-loading">Consultando produtos, anúncios e resultados…</div>}
     {!loading&&!error&&rows.length===0&&<div className="nisti-abc-ad-empty">
       {payload?.has_sales===false
-        ? 'Ainda não há vendas importadas para classificar anúncios nesta curva. Utilize a Central de Importações.'
+        ? 'Ainda não há vendas importadas para classificar anúncios nesta curva. Utilize o card Importar arquivos neste Painel Comercial.'
         : 'Nenhum SKU pertence a esta curva nos filtros selecionados.'}
     </div>}
     {!loading&&!error&&rows.length>0&&<div className="nisti-abc-ad-products">
