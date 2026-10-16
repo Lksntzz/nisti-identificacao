@@ -232,6 +232,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
   const listingRows = Array.isArray(parsedWorkbook?.listing_rows) ? parsedWorkbook.listing_rows : [];
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
+  const financeDailyRows=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
+  const financeMonthRows=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
   const financeDaily=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
   const financeMonths=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
   const financeDailyRows = Array.isArray(parsedWorkbook?.finance_daily_rows) ? parsedWorkbook.finance_daily_rows : [];
@@ -372,6 +374,22 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
       });
     }
   }
+  // Financial rows contain only aggregate figures, never order IDs or buyer PII.
+  // Stage before the sales snapshot commits. Multipart files are activated
+  // together only after all their parts have become COMMITTED.
+  if(parsedWorkbook.platform_code==='SHOPEE'&&financeMonthRows.some(m=>m.fee_orders>0)){
+    onProgress({phase:'finance',completed,total:rows.length,batchId});
+    for(const chunk of chunks(financeMonthRows)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/finance`,{
+        method:'POST',body:JSON.stringify({kind:'MONTH',rows:chunk}),retryRateLimit:true
+      });
+    }
+    for(const chunk of chunks(financeDailyRows)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/finance`,{
+        method:'POST',body:JSON.stringify({kind:'DAILY',rows:chunk}),retryRateLimit:true
+      });
+    }
+  }
   onProgress({ phase: 'commit', completed, total: rows.length, batchId });
   let result;
   try {
@@ -401,6 +419,18 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
     result = { recovered_after_timeout: true, snapshot_id: recovered.snapshot_id };
   }
 
+  if(String(result?.status||'').toUpperCase()==='COMMITTED'
+    &&parsedWorkbook.platform_code==='SHOPEE'&&financeMonthRows.some(m=>m.fee_orders>0)){
+    try{
+      result.finance=await requestJson(`${API_BASE}/sales/imports/${batchId}/finance/activate`,{
+        method:'POST',body:'{}',retryRateLimit:true
+      });
+    }catch(e){
+      // The sales commit has succeeded: never tell users to re-import a
+      // whole month's orders merely because a financial activation failed.
+      result.finance_warning='Vendas importadas. Conciliação financeira pendente: '+e.message;
+    }
+  }
   onProgress({ phase: 'done', completed, total: rows.length, batchId });
   return { batchId, result };
 }
