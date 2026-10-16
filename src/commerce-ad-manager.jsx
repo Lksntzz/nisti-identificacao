@@ -104,6 +104,9 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
   const [activeTab,setActiveTab]=useState('summary');
+  const [finance,setFinance]=useState(null);
+  const [financeLoading,setFinanceLoading]=useState(false);
+  const [financeError,setFinanceError]=useState('');
   const [requestedDetailDays,setDetailDays]=useState(days);
   const detailDays=days===0?0:requestedDetailDays;
   const [periodResult,setPeriodResult]=useState(null);
@@ -135,6 +138,19 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       .finally(()=>{if(!cancelled)setPeriodLoading(false);});
     return ()=>{cancelled=true;};
   },[detailDays,days,month,item.id,item.source,item.platform,item.external_listing_id]);
+  useEffect(()=>{
+    if(activeTab!=='finance'||item.source!=='SHOPEE')return;
+    let cancelled=false;
+    setFinance(null);setFinanceError('');setFinanceLoading(true);
+    const params=new URLSearchParams({days:String(detailDays)});
+    if(detailDays===0&&month)params.set('month',month);
+    readJson(API+'/'+encodeURIComponent(item.id)+'/finance?'+params)
+      .then(x=>{if(!cancelled)setFinance(x);})
+      .catch(e=>{if(!cancelled)setFinanceError(e.message);})
+      .finally(()=>{if(!cancelled)setFinanceLoading(false);});
+    return ()=>{cancelled=true;};
+  },[activeTab,item.id,item.source,detailDays,month]);
+
   const detail=detailDays===days?item:
     periodResult?.days===detailDays?periodResult.item:null;
   const variations=Array.isArray(detail?.variations)?detail.variations:[];
