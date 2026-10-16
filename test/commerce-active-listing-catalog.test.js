@@ -8,7 +8,7 @@ const store = fs.readFileSync('src/commerce-supabase-store.js','utf8');
 const sql = fs.readFileSync('supabase/migrations/20261015231000_catalog_active_listing_variations.sql','utf8');
 
 test('Catálogo displays only ACTIVE seller listings, including those without Scanner links', () => {
-  assert.match(app,/CommerceSkuListingsView/);
+  assert.match(app,/CommerceCommercialDashboard/);
   assert.match(view,/if \(catalogMode\) params\.set\('status', 'ACTIVE'\)/);
   assert.match(view,/catalogMode \? 'ACTIVE' : ''/);
   assert.match(view,/catalogMode \? 'anúncios ativos'/);

@@ -6,9 +6,9 @@ const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'ut
 
 test('Painel de Vendas está disponível na navegação comercial', () => {
   const app = read('src/commerce-admin-app-v2.jsx');
-  assert.equal(app.includes("{ id: 'sales', label: 'Vendas', icon: 'chart' }"), true);
-  assert.equal(app.includes("<CommerceSalesDashboard key={salesRevision} />"), true);
-  assert.equal(app.includes("sales: 'Painel de Vendas'"), true);
+  assert.equal(app.includes("{ id: 'catalog', label: 'Painel Comercial', icon: 'grid' }"), true);
+  assert.equal(read('src/commerce-commercial-dashboard.jsx').includes("<CommerceSalesDashboard key={'detail-'+salesRevision}/>"), true);
+  assert.equal(app.includes("catalog: 'Painel Comercial'"), true);
 });
 
 test('Painel de Vendas usa o layout comercial aprovado', () => {

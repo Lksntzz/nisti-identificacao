@@ -9,8 +9,8 @@ function read(path) {
 test('menu administrativo expõe o Catálogo como árvore de ferramentas no painel principal', () => {
   const nav = read('src/admin-navigation.js');
   assert.equal(nav.includes("title: 'COMERCIAL'"), true);
-  assert.equal(nav.includes("label: 'Catálogo'"), true);
-  assert.equal(nav.includes("id: 'sales'"), true);
+  assert.equal(nav.includes("label: 'Painel Comercial'"), true);
+  assert.equal(nav.includes("id: 'sales'"), false);
   assert.equal(nav.includes("id: 'import-center'"), true);
   assert.equal(nav.includes("id: 'pending'"), true);
   assert.equal(nav.includes("href: '/admin-commerce'"), false);
@@ -47,7 +47,7 @@ test('rota do Catálogo Comercial reutiliza a sessão administrativa', () => {
 test('UI comercial mantém Catálogo e Pendências e expõe Planejamento de Produtos', () => {
   const shell = read('src/commerce-admin-app-v2.jsx');
 
-  for (const label of ['Catálogo', 'Pendências', 'Planejamento de Produtos']) {
+  for (const label of ['Painel Comercial', 'Pendências', 'Planejamento de Produtos']) {
     assert.equal(shell.includes(`label: '${label}'`), true, `${label} deve existir`);
   }
 
@@ -57,8 +57,8 @@ test('UI comercial mantém Catálogo e Pendências e expõe Planejamento de Prod
 
   assert.equal(shell.includes('CommerceManagementView'), true);
   assert.equal(shell.includes('CommerceProductsView'), true);
-  assert.equal(shell.includes('CommerceSkuListingsView'), true);
-  assert.equal(shell.includes('<CommerceSkuListingsView catalogMode />'), true);
+  assert.equal(shell.includes('CommerceCommercialDashboard'), true);
+  assert.equal(shell.includes('<CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />'), true);
   assert.equal(shell.includes('mode="pending"'), true);
 
   assert.equal(fs.existsSync('src/commerce-products-view.jsx'), true);

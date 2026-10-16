@@ -8,7 +8,7 @@ function localMonth() {
   return new Date().toLocaleDateString('sv-SE', {timeZone:'America/Sao_Paulo'}).slice(0,7);
 }
 
-export default function CommerceSkuListingsView({ salesMode = false, catalogMode = false }) {
+export default function CommerceSkuListingsView({ salesMode = false, catalogMode = false, embedded = false, externalSearch = '', externalPlatform = '', abcBySku = {} }) {
   const [search,setSearch] = useState('');
   const [appliedSearch,setAppliedSearch] = useState('');
   const [platform,setPlatform] = useState('');
@@ -22,15 +22,17 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
   const [saving,setSaving] = useState('');
   const [expanded,setExpanded] = useState(new Set());
   const limit = 25;
+  const activeSearch = embedded ? String(externalSearch || '').trim() : appliedSearch;
+  const activePlatform = embedded ? externalPlatform : platform;
 
   async function load(nextOffset = offset) {
     setLoading(true);
     setError('');
     const params = new URLSearchParams({
       limit:String(limit),offset:String(nextOffset),
-      month,marketplace:platform
+      month,marketplace:activePlatform
     });
-    if (appliedSearch) params.set('search',appliedSearch);
+    if (activeSearch) params.set('search',activeSearch);
     try {
       const result = await commerceApi((catalogMode
         ? '/api/admin/commerce/catalog/active-products?'
@@ -45,7 +47,7 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
     }
   }
 
-  useEffect(() => { load(0); }, [platform,month,appliedSearch,salesMode,catalogMode]);
+  useEffect(() => { load(0); }, [activePlatform,month,activeSearch,salesMode,catalogMode]);
 
   async function save(product,listing) {
     const key = product.product_id + ':' + listing.listing_id;
@@ -93,14 +95,14 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
 
   return (
     <section className="commerce-sku-panel">
-      <div className="commerce-sku-header">
+      {!embedded && <div className="commerce-sku-header">
         <h2>{salesMode ? 'Vendas por anúncio' : 'Catálogo de produtos ativos'}</h2>
         <small>{catalogMode
           ? `${commerceFormatNumber(data.active_ads || 0)} anúncios ativos · ${commerceFormatNumber(total)} grupos de produtos`
           : `${commerceFormatNumber(total)} produtos`}</small>
-      </div>
+      </div>}
 
-      <div className="commerce-sku-filters">
+      {!embedded && <div className="commerce-sku-filters">
         <form onSubmit={e=>{e.preventDefault();setAppliedSearch(search.trim());}}>
           <input value={search} onChange={e=>setSearch(e.target.value)}
             placeholder="Buscar SKU, produto ou ID do anúncio" aria-label="Buscar produto"/>
@@ -115,7 +117,7 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
           </label>
         )}
         <button type="button" onClick={()=>load(offset)} disabled={loading}>Atualizar</button>
-      </div>
+      </div>}
 
       {error && <p className="commerce-sku-error" role="alert">{error}</p>}
       {notice && <p className="commerce-sku-success" role="status">{notice}</p>}
@@ -129,6 +131,7 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
           {items.map(product => {
             const listings = Array.isArray(product.listings) ? product.listings : [];
             const eans = Array.isArray(product.eans) ? product.eans : [];
+            const abc = abcBySku[String(product.sku_norm || product.sku || '').trim().toUpperCase()] || null;
             const productKey = product.key || product.product_id;
             const isExpanded = expanded.has(productKey);
             const detailId = 'commerce-sku-details-' + String(productKey).replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -142,7 +145,10 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
                     fallback={<span className="commerce-sku-product-thumb missing">Sem foto</span>}
                   />
                   <div className="commerce-sku-product-main">
-                    <strong className="commerce-sku-product-name">{product.product_name || 'Produto NISTI'}</strong>
+                    <div className="commerce-sku-name-line">
+                      <strong className="commerce-sku-product-name">{product.product_name || 'Produto NISTI'}</strong>
+                      {abc && <span className={'commerce-sku-abc-tag class-'+abc.class.toLowerCase()}>Curva {abc.class}</span>}
+                    </div>
                     <div className="commerce-sku-listings">
                       {listings.map(listing => (
                         <div key={listing.listing_id} className="commerce-sku-listing">
@@ -173,6 +179,9 @@ export default function CommerceSkuListingsView({ salesMode = false, catalogMode
                         </div>
                       ))}
                     </div>
+                    {abc && <div className="commerce-sku-abc-recap">
+                      {Number(abc.units).toLocaleString('pt-BR')} unidades · {Number(abc.revenue).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} no período
+                    </div>}
                   </div>
                   <button type="button" className="commerce-sku-expand"
                     onClick={() => toggleProduct(productKey)}

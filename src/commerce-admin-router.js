@@ -29,6 +29,7 @@ import {
   commerceProducts,
   commerceProductDetail,
   commerceShopeeSnapshot,
+  commerceSalesAbc,
   commerceSalesDashboard,
   commerceSalesProductPerformance,
   commerceProductSalesPlanning,
@@ -204,6 +205,19 @@ export async function handleCommerceAdminRequest(request, env) {
         periodMonth:body.month,
         units:body.units
       },operatorName(request)));
+    }
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/sales/abc`) {
+      const basis = query(url, 'basis') || 'REVENUE';
+      if (!['REVENUE','UNITS'].includes(basis)) {
+        return json({ error: 'Métrica ABC inválida.' }, 400);
+      }
+      return json(await commerceSalesAbc(env, {
+        platform: query(url, 'platform') || 'TODAS',
+        periodStart: query(url, 'period_start'),
+        periodEnd: query(url, 'period_end'),
+        basis
+      }));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/sales/dashboard`) {

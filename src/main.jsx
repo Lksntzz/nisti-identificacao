@@ -11,8 +11,7 @@ import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import MuralNisti from './mural-nisti.jsx';
 import CommerceManagementView from './commerce-management-view.jsx';
-import CommerceSkuListingsView from './commerce-sku-listings-view.jsx';
-import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
+import CommerceCommercialDashboard from './commerce-commercial-dashboard.jsx';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import './commerce-admin.css';
 import ProductCutoutImage from './product-cutout-image.jsx';
@@ -570,11 +569,11 @@ function AdminNotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount 
 
 function AdminTopbar({ onToggleSidebar, unreadCount, activeView, activeCommerceSection = 'catalog', onOpenNotifications, desktopPreview, onToggleDesktopPreview }) {
   const commerceTitle = ({
-    catalog: 'Catálogo',
-    sales: 'Vendas',
+    catalog: 'Painel Comercial',
+    sales: 'Painel Comercial',
     'import-center': 'Central de Importações',
     pending: 'Pendências'
-  })[activeCommerceSection] || 'Catálogo';
+  })[activeCommerceSection] || 'Painel Comercial';
   const pageTitle = activeView === 'catalogo' ? 'Produtos NISTI'
     : activeView === 'mural-nisti' ? 'Mural NISTI'
     : activeView === 'commerce' ? commerceTitle
@@ -1948,8 +1947,7 @@ function AdminApp() {
 
             {activeView === 'commerce' && (
               <div className="commerce-admin-inline-view">
-                {commerceSection === 'catalog' && <CommerceSkuListingsView catalogMode />}
-                {commerceSection === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
+                {(commerceSection === 'catalog' || commerceSection === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
                 {commerceSection === 'import-center' && (
                   <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />
                 )}

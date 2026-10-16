@@ -51,7 +51,7 @@ test('Admin navigation keeps catalog, barcode generator, commerce, operations an
   for (const expected of [
     'Produtos NISTI',
     'Gerador de Barras',
-    'Catálogo',
+    'Painel Comercial',
     'Histórico de Bipagens',
     'EAN não Cadastrados',
     'Saúde & Logs'
@@ -113,11 +113,11 @@ test('Catálogo exposes commercial tools as an expandable submenu', () => {
   assert.equal(catalog.href, undefined);
   assert.deepEqual(
     catalog.children.map(item => item.id),
-    ['catalog','sales','import-center','pending']
+    ['catalog','import-center','pending']
   );
   assert.deepEqual(
     catalog.children.map(item => item.label),
-    ['Catálogo','Vendas','Central de Importações','Pendências']
+    ['Painel Comercial','Central de Importações','Pendências']
   );
 });
 

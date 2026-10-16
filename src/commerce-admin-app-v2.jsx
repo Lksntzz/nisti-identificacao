@@ -3,29 +3,27 @@ import './app.css';
 import './commerce-admin.css';
 import LOGO from './assets/logo.png';
 import CommerceManagementView from './commerce-management-view.jsx';
-import CommerceSkuListingsView from './commerce-sku-listings-view.jsx';
+import CommerceCommercialDashboard from './commerce-commercial-dashboard.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
-import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
 import CommerceImportCenter from './commerce-import-center.jsx';
 
 const NAV_ITEMS = Object.freeze([
-  { id: 'catalog', label: 'Catálogo', icon: 'grid' },
+  { id: 'catalog', label: 'Painel Comercial', icon: 'grid' },
   { id: 'planning', label: 'Planejamento de Produtos', icon: 'package' },
-  { id: 'sales', label: 'Vendas', icon: 'chart' },
   { id: 'import-center', label: 'Central de Importações', icon: 'upload' },
   { id: 'pending', label: 'Pendências', icon: 'list' }
 ]);
 
 const VIEW_TITLES = Object.freeze({
-  catalog: 'Catálogo',
+  catalog: 'Painel Comercial',
   planning: 'Planejamento de Produtos NISTI',
-  sales: 'Painel de Vendas',
+  sales: 'Painel Comercial',
   'import-center': 'Central de Importações',
   pending: 'Pendências'
 });
 
 const VIEW_DESCRIPTIONS = Object.freeze({
-  catalog: 'Um SKU por produto ativo, com todos os anúncios das plataformas reunidos sem duplicidade.',
+  catalog: 'Catálogo ativo e indicadores de vendas no mesmo painel, com Curva ABC e análise detalhada.',
   planning: 'Vendas do mês, saída diária, projeção, histórico e anúncios exclusivos por plataforma.',
   sales: 'Pedidos, unidades, faturamento e itens sem venda por plataforma, período e SKU.',
   'import-center': 'Nova área para importar catálogo e vendas com validação separada antes de gravar.',
@@ -231,9 +229,8 @@ export default function CommerceAdminAppV2() {
               </div>
             </div>
 
-            {activeView === 'catalog' && <CommerceSkuListingsView catalogMode />}
+            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
             {activeView === 'planning' && <CommerceProductsView />}
-            {activeView === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
             {activeView === 'import-center' && <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />}
             {activeView === 'pending' && <CommerceManagementView mode="pending" />}
           </div>
