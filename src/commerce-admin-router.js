@@ -502,6 +502,14 @@ export async function handleCommerceAdminRequest(request, env) {
       return json({batch_id:batchId,accepted_rows:saved});
     }
 
+    const financeDailyMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/finance-daily$/);
+    if(method==='POST'&&financeDailyMatch){
+      const id=positiveId(financeDailyMatch[1]);
+      const body=await bodyJson(request);
+      if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
+        return json({error:'Lote financeiro diário Shopee inválido.'},400);
+      return json({accepted_rows:await commerceAppendShopeeFinanceDaily(env,id,body.rows)});
+    }
     const salesImportSummaryMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/summary$/);
     if (method === 'POST' && salesImportSummaryMatch) {
       const batchId = positiveId(salesImportSummaryMatch[1]);
