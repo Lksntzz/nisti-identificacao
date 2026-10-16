@@ -189,28 +189,43 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <Kpi tone="sand" label="Unidades vendidas" value={data?num(kpi.units):'—'} description={days+' dias · anúncios ativos'}/>
       <Kpi tone="green" label="Faturamento" value={data?money(kpi.revenue):'—'} description={days+' dias · anúncios ativos'}/>
     </div>
-    <div className="nim-tabs-row">
-      <div className="nim-status-tabs" role="group" aria-label="Filtros de desempenho">
-        {STATUSES.map(([code,label])=><button type="button" key={code}
-          className={status===code?'active':''} aria-pressed={status===code}
-          onClick={()=>change(setStatus,code)}>
-          {label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
-        </button>)}
+    <section className="nim-filter-panel" aria-label="Filtros de desempenho e Curva ABC">
+      <div className="nim-filter-panel-body">
+        <div className="nim-filter-group nim-performance-group">
+          <span className="nim-filter-group-label">Desempenho</span>
+          <div className="nim-status-tabs" role="group" aria-label="Filtrar anúncios por desempenho">
+            {STATUSES.map(([code,label])=><button type="button" key={code}
+              className={status===code?'active':''} aria-pressed={status===code}
+              onClick={()=>change(setStatus,code)}>
+              {label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
+            </button>)}
+          </div>
+        </div>
+        <div className="nim-filter-group nim-abc-group">
+          <span className="nim-filter-group-label">Curva ABC</span>
+          <div className="nim-curve-tabs" role="group" aria-label="Filtrar anúncios por Curva ABC">
+            {['ALL','A','B','C'].map(code=><button type="button" key={code}
+              className={curve===code?'active':''} aria-pressed={curve===code}
+              onClick={()=>change(setCurve,code)}>{code==='ALL'?'Todas':code}</button>)}
+          </div>
+          <label className="nim-abc-basis-label">
+            <span>Classificar por</span>
+            <select aria-label="Critério ABC" value={basis} onChange={e=>change(setBasis,e.target.value)}>
+              <option value="REVENUE">Faturamento</option><option value="UNITS">Unidades vendidas</option>
+            </select>
+          </label>
+        </div>
       </div>
-      <div className="nim-curve-tabs"><span>Curva ABC:</span>
-        {['ALL','A','B','C'].map(code=><button type="button" key={code}
-          className={curve===code?'active':''} aria-pressed={curve===code}
-          onClick={()=>change(setCurve,code)}>{code==='ALL'?'Todas':code}</button>)}
-        <select aria-label="Critério ABC" value={basis} onChange={e=>change(setBasis,e.target.value)}>
-          <option value="REVENUE">Faturamento</option><option value="UNITS">Unidades</option>
-        </select>
+      <div className="nim-filter-panel-footer">
+        <span className="nim-coverage">
+          {data?.period_start
+            ? 'Período analisado: '+periodDate(data.period_start)+' a '+periodDate(data.period_end)
+            : 'Período de vendas conforme os filtros selecionados'}
+        </span>
+        {Number(kpi.pending_ads)>0&&<span className="nim-filter-panel-warning">{num(kpi.pending_ads)} anúncio(s) com dados pendentes</span>}
+        {status==='ZERO'&&<span className="nim-filter-panel-note">Inclui variações sem vendas</span>}
       </div>
-    </div>
-    {data?.period_start&&<p className="nim-coverage">
-      Vendas de {periodDate(data.period_start)} a {periodDate(data.period_end)}.
-      {Number(kpi.pending_ads)>0&&' '+num(kpi.pending_ads)+' anúncios com dados pendentes.'}
-      {status==='ZERO'&&' Inclui anúncios com variações sem vendas.'}
-    </p>}
+    </section>
     {error&&<div className="nim-error" role="alert">{error}
       <button type="button" onClick={()=>setRefresh(v=>v+1)}>Tentar novamente</button></div>}
     <div className={'nim-content '+(selected?'has-detail':'')}>
