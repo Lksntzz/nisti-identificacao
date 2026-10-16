@@ -34,6 +34,24 @@ with inputs as (
       or (i.platform='ML_ANTIGO' and r.platform_code='ML_ANTIGO')
       or (i.platform='SHOPEE' and r.platform_code='SHOPEE')
     )
+), summary_filtered as (
+  select sr.period_start,sr.net_orders,sr.units,sr.product_revenue
+  from public.commerce_sales_summary_rows sr
+  join current_snapshot cs on cs.id=sr.snapshot_id
+  cross join inputs i
+  where (i.month_start is null or sr.period_start>=i.month_start)
+    and (i.month_end_exclusive is null or sr.period_start<i.month_end_exclusive)
+    and (
+      i.platform='TODAS'
+      or (i.platform='MERCADO_LIVRE' and sr.platform_code in ('ML_NOVO','ML_ANTIGO'))
+      or sr.platform_code=i.platform
+    )
+), monthly as (
+  select to_char(date_trunc('month',sr.period_start),'YYYY-MM') period_key,
+    sum(sr.net_orders)::bigint net_orders,
+    sum(sr.units)::bigint units,
+    round(sum(sr.product_revenue),2) revenue
+  from summary_filtered sr group by date_trunc('month',sr.period_start)
 ), by_sku as (
   select sku_norm, sum(units)::bigint units,round(sum(revenue),2) revenue
   from filtered
@@ -68,6 +86,18 @@ select jsonb_build_object(
   'has_sales',exists(select 1 from ranked),
   'basis',(select basis from inputs),
   'data_through',(select data_through from current_snapshot),
+  'net_orders',coalesce((select sum(net_orders) from summary_filtered),0),
+  'periods',coalesce((
+    select jsonb_agg(period_key order by period_key) from (
+      select distinct to_char(date_trunc('month',sr.period_start),'YYYY-MM') period_key
+      from public.commerce_sales_summary_rows sr
+      join current_snapshot cs on cs.id=sr.snapshot_id
+    ) t),'[]'::jsonb),
+  'history',coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'period_key',m.period_key,'net_orders',m.net_orders,
+      'units',m.units,'product_revenue',m.revenue
+    ) order by m.period_key) from monthly m),'[]'::jsonb),
   'sku_count',(select count(*) from by_sku),
   'total_revenue',coalesce((select round(sum(revenue),2) from by_sku),0),
   'total_units',coalesce((select sum(units) from by_sku),0),
