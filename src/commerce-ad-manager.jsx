@@ -128,8 +128,6 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const partialLinked=monthLinked||dailyLinked;
   const partialUnits=monthLinked?detail?.month_linked_units:detail?.identified_units;
   const partialRevenue=monthLinked?detail?.month_linked_revenue:detail?.identified_revenue;
-  const monthVars=Array.isArray(detail?.month_variations)?detail.month_variations:[];
-  const dailyVars=Array.isArray(detail?.identified_variations)?detail.identified_variations:[];
   const variationEvidence=identifiedVariationCoverage(detail,detailDays);
   const partialVars=item.source==='SHOPEE'&&!complete?variationEvidence.variations:[];
   return <aside className="nim-detail" aria-label={'Detalhes do anúncio '+item.external_listing_id}>
