@@ -232,6 +232,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
   const listingRows = Array.isArray(parsedWorkbook?.listing_rows) ? parsedWorkbook.listing_rows : [];
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
+  const financeDaily=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
+  const financeMonths=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
   if (!parsedWorkbook?.platform_code || !parsedWorkbook?.filename || !parsedWorkbook?.sha256 || !rows.length) {
     throw new Error('Arquivo de vendas normalizado incompleto.');
   }
@@ -301,6 +303,22 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
         method:'POST',
         body:JSON.stringify({rows:chunk}),
         retryRateLimit:true
+      });
+    }
+  }
+
+  // Import only aggregated finances: no buyer data or order identifiers leave
+  // the browser, and no per-variation fees are allocated for multi-SKU orders.
+  if(parsedWorkbook.platform_code==='SHOPEE'&&financeMonths.length){
+    onProgress({phase:'finance',completed,total:rows.length,batchId});
+    for(const chunk of chunks(financeMonths)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/finance-month`,{
+        method:'POST',body:JSON.stringify({rows:chunk}),retryRateLimit:true
+      });
+    }
+    for(const chunk of chunks(financeDaily)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/finance-daily`,{
+        method:'POST',body:JSON.stringify({rows:chunk}),retryRateLimit:true
       });
     }
   }
