@@ -433,6 +433,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     rows,
     summaries,
     sku_daily_rows,
+    finance_order_rows:finance.finance_order_rows,
     finance_daily_rows:finance.finance_daily_rows,
     finance_month_rows:finance.finance_month_rows,
     finance_summary:finance.finance_summary,
