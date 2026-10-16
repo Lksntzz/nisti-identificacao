@@ -19,7 +19,7 @@ with args as (
 ), groups as (
   select p.value record
   from pages a cross join lateral jsonb_array_elements(coalesce(a.items,'[]'::jsonb)) p(value)
-), references as (
+), sku_references as (
   select g.record,
     ad.value ad,
     nullif(btrim(g.record->>'sku'),'') sku,
@@ -63,7 +63,7 @@ with args as (
     (select min(p.id) from public.products p
      where r.normalized_sku is not null
        and public.commerce_nisti_sku_norm_v1(p.sku)=r.normalized_sku) scanner_product_id
-  from references r
+  from sku_references r
 ), pending as (
   select * from ready where not confirmed
   and ( (select q from args) is null
