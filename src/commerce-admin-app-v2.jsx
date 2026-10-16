@@ -5,7 +5,6 @@ import LOGO from './assets/logo.png';
 import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceCommercialDashboard from './commerce-commercial-dashboard.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
-import CommerceSalesDashboard from './commerce-sales-dashboard.jsx';
 import CommerceImportCenter from './commerce-import-center.jsx';
 
 const NAV_ITEMS = Object.freeze([
@@ -18,7 +17,7 @@ const NAV_ITEMS = Object.freeze([
 const VIEW_TITLES = Object.freeze({
   catalog: 'Painel Comercial',
   planning: 'Planejamento de Produtos NISTI',
-  sales: 'Painel de Vendas',
+  sales: 'Painel Comercial',
   'import-center': 'Central de Importações',
   pending: 'Pendências'
 });
@@ -230,9 +229,8 @@ export default function CommerceAdminAppV2() {
               </div>
             </div>
 
-            {activeView === 'catalog' && <CommerceSkuListingsView catalogMode />}
+            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
             {activeView === 'planning' && <CommerceProductsView />}
-            {activeView === 'sales' && <CommerceSalesDashboard key={salesRevision} />}
             {activeView === 'import-center' && <CommerceImportCenter onSalesChanged={() => setSalesRevision(value => value + 1)} />}
             {activeView === 'pending' && <CommerceManagementView mode="pending" />}
           </div>
