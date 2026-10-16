@@ -785,7 +785,7 @@ export async function commerceAppendShopeeFinanceMonth(env,batchId,rows=[],sourc
 
 export async function commerceShopeeFinanceBackfillSource(env,{filename,sha256}={}) {
   const name=cleanText(filename),sha=cleanText(sha256);
-  if(!name||name.length>255||!/^\w*[0-9a-f]{64}$/i.test(sha))
+  if(!name||name.length>255||!/^[0-9a-f]{64}$/i.test(sha))
     throw new Error('Nome e SHA-256 do arquivo financeiro são obrigatórios.');
   return await supabaseRpc(env,'commerce_shopee_finance_backfill_source_v1',{
     p_filename:name,p_sha256:sha
