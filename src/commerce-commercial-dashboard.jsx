@@ -107,8 +107,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
   const countSum=percentByCount.reduce((a,b)=>a+b,0);
   const shares=countSum?percentByCount.map(x=>x/countSum*100):[0,0,0];
   const detailMessage = !hasSnapshot
-    ? 'Não existem vendas importadas na base atual. Os anúncios permanecem visíveis abaixo.'
-    : !hasSales ? 'Nenhuma venda registrada para os filtros selecionados.' : '';
+    ? 'Ainda não há vendas importadas.'
+    : !hasSales ? 'Sem vendas disponíveis neste período.' : '';
 
   return <section className="nisti-com-dashboard">
     <header className="nisti-com-heading">
