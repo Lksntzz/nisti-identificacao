@@ -1,4 +1,5 @@
 import readExcelFile from 'read-excel-file/browser';
+import { detectMercadoLivreVendasBrHeader, parseMercadoLivreVendasBr } from './commerce-ml-native-sales-reader.js';
 import { sha256Hex, COMMERCE_XLSX_MAX_BYTES, COMMERCE_XLSX_MAX_ROWS } from './commerce-xlsx-reader.js';
 
 const HEADER_ALIASES = Object.freeze({
@@ -207,6 +208,13 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
   const buffer = await file.arrayBuffer();
   const [sha256, workbook] = await Promise.all([sha256Hex(buffer), readExcelFile(buffer)]);
   if (!Array.isArray(workbook) || !workbook.length) throw new Error('O arquivo não possui planilhas legíveis.');
+
+  // Official Mercado Livre Vendas BR report has 6 metadata rows, sales columns
+  // on row 7, Brazilian dates and extra package-summary rows.
+  if (['ML_NOVO','ML_ANTIGO'].includes(platformCode)
+    &&workbook.some(sheet=>detectMercadoLivreVendasBrHeader(sheet?.data))) {
+    return parseMercadoLivreVendasBr(workbook,platformCode,filename,sha256,file.size);
+  }
 
   const raw = [];
   const sheetInfo = [];
