@@ -42,7 +42,7 @@ export async function commerceSalesDashboard(env, filters = {}) {
 // Ranking ABC uses imported sales only; does not attribute SKU-level sales to individual ads.
 // Time-window sales insights require daily coverage. Missing data is never shown as zero sales.
 export async function commerceSalesVelocity(env, filters = {}) {
-  const value = await supabaseRpc(env, 'commerce_sales_velocity_v1', {
+  const value = await supabaseRpc(env, 'commerce_sales_velocity_v2', {
     p_days: Number(filters.days) || 30,
     p_platform: cleanText(filters.platform) || 'TODAS',
     p_reference_month: cleanText(filters.month),
@@ -52,6 +52,28 @@ export async function commerceSalesVelocity(env, filters = {}) {
   });
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value : {items:[],status:'NO_IMPORT',metrics:{sold:null,zero:null,low:null,rising:null}};
+}
+
+
+export async function commerceSalesAbcWindow(env, filters = {}) {
+  return await supabaseRpc(env,'commerce_sales_abc_window_v1',{
+    p_platform:cleanText(filters.platform)||'TODAS',
+    p_days:Number(filters.days)||30,
+    p_reference_month:cleanText(filters.month),
+    p_basis:cleanText(filters.basis)||'REVENUE'
+  });
+}
+
+export async function commerceSalesAbcAdsWindow(env, filters = {}) {
+  return await supabaseRpc(env,'commerce_sales_abc_ads_window_v1',{
+    p_platform:cleanText(filters.platform)||'TODAS',
+    p_days:Number(filters.days)||30,
+    p_reference_month:cleanText(filters.month),
+    p_basis:cleanText(filters.basis)||'REVENUE',
+    p_class:cleanText(filters.curve)||'A',
+    p_limit:cleanPageSize(filters.limit,15),
+    p_offset:cleanOffset(filters.offset)
+  });
 }
 
 export async function commerceSalesAbc(env, filters = {}) {

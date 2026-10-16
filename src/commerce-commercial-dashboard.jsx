@@ -10,7 +10,8 @@ const PLATFORM_OPTIONS = [
   ['TODAS','Todas as plataformas'],
   ['MERCADO_LIVRE','Mercado Livre'],
   ['SHOPEE','Shopee'],
-  ['AMAZON','Amazon']
+  ['AMAZON','Amazon'],
+  ['TIKTOK','TikTok']
 ];
 const CURVES = [
   {code:'A',title:'Curva A',subtitle:'Maior impacto nas vendas',cutoff:'Primeiros 80%'},
@@ -59,8 +60,9 @@ function SalesHistoryChart({history,basis}) {
 export default function CommerceCommercialDashboard({salesRevision=0}) {
   const [platform,setPlatform] = useState('TODAS');
   const [basis,setBasis] = useState('REVENUE');
-  const [periodStart,setPeriodStart] = useState('');
-  const [periodEnd,setPeriodEnd] = useState('');
+  const [days,setDays] = useState(30);
+  const [referenceMonth,setReferenceMonth] = useState('');
+  const [importOpen,setImportOpen] = useState(false);
   const [search,setSearch] = useState('');
   const [debouncedSearch,setDebouncedSearch] = useState('');
   const [activeCurve,setActiveCurve] = useState('');
@@ -80,71 +82,95 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
   useEffect(()=>{
     let cancelled=false;
     setLoading(true);setError('');
-    const p=new URLSearchParams({platform,basis});
-    if(periodStart)p.set('period_start',periodStart);
-    if(periodEnd)p.set('period_end',periodEnd);
+    const p=new URLSearchParams({platform,basis,days:String(days)});
+    if(referenceMonth)p.set('month',referenceMonth);
     const cp=new URLSearchParams({limit:'1',offset:'0'});
     if(catalogPlatform)cp.set('marketplace',catalogPlatform);
     Promise.all([
-      fetchJson('/api/admin/commerce/sales/abc?'+p),
+      fetchJson('/api/admin/commerce/sales/abc/window?'+p),
       fetchJson('/api/admin/commerce/catalog/active-products?'+cp)
     ]).then(([a,b])=>{
       if(!cancelled){setAbc(a);setCatalog(b);}
     }).catch(e=>{if(!cancelled)setError(e.message||'Falha ao carregar o Painel Comercial.');})
       .finally(()=>{if(!cancelled)setLoading(false);});
     return ()=>{cancelled=true;};
-  },[platform,basis,periodStart,periodEnd,refresh,salesRevision]);
+  },[platform,basis,days,referenceMonth,refresh,salesRevision]);
 
   const classes=Array.isArray(abc?.classes)?abc.classes:[];
   const classMap=Object.fromEntries(classes.map(r=>[r.class,r]));
   const rankings=Array.isArray(abc?.items)?abc.items:[];
   const abcBySku=useMemo(()=>Object.fromEntries(rankings.map(r=>[String(r.sku_norm||'').toUpperCase(),r])),[abc]);
-  const periods=Array.isArray(abc?.periods)?abc.periods:[];
   const hasSnapshot=Boolean(abc?.has_snapshot);
   const hasSales=Boolean(abc?.has_sales);
-  const reset=()=>{setSearch('');setPlatform('TODAS');setPeriodStart('');setPeriodEnd('');setActiveCurve('');};
+  const reset=()=>{setSearch('');setPlatform('TODAS');setDays(30);setReferenceMonth('');setActiveCurve('');};
   const percentByCount=classes.map(x=>Number(x.products)||0);
   const countSum=percentByCount.reduce((a,b)=>a+b,0);
   const shares=countSum?percentByCount.map(x=>x/countSum*100):[0,0,0];
   const detailMessage = !hasSnapshot
-    ? 'Não existem vendas importadas na base atual. Os anúncios permanecem visíveis abaixo.'
-    : !hasSales ? 'Nenhuma venda registrada para os filtros selecionados.' : '';
+    ? 'Ainda não há vendas importadas.'
+    : !hasSales ? 'Sem vendas disponíveis neste período.' : '';
 
   return <section className="nisti-com-dashboard">
     <header className="nisti-com-heading">
       <div className="nisti-com-symbol" aria-hidden="true">▣</div>
       <div>
         <h2>Painel Comercial</h2>
-        <p>Catálogo + Vendas em um só lugar</p>
+        <p>Produtos, anúncios e vendas</p>
       </div>
       <button className="nisti-com-light-button nisti-com-reload" type="button" onClick={()=>setRefresh(v=>v+1)}>Atualizar dados</button>
     </header>
 
     {error && <p role="alert" className="nisti-com-error">{error}</p>}
+    <div className="nisti-com-global-filters" aria-label="Filtros universais">
+      <label>Plataforma
+        <select value={platform} onChange={e=>{setPlatform(e.target.value);setActiveCurve('');}}>
+          {PLATFORM_OPTIONS.map(([value,label])=><option key={value} value={value}>{label}</option>)}
+        </select>
+      </label>
+      <label>Período
+        <select value={days} onChange={e=>{setDays(Number(e.target.value));setActiveCurve('');}}>
+          {[7,30,60,90].map(n=><option key={n} value={n}>Últimos {n} dias</option>)}
+        </select>
+      </label>
+      <label>Referência
+        <input type="month" value={referenceMonth} aria-label="Mês de referência"
+          onChange={e=>{setReferenceMonth(e.target.value);setActiveCurve('');}}/>
+      </label>
+      <label className="nisti-com-global-search">Buscar no catálogo
+        <input type="search" value={search}
+          onChange={e=>{setSearch(e.target.value);setActiveCurve('');}} placeholder="SKU, produto ou ID"/>
+      </label>
+      <button className="nisti-com-light-button" type="button" onClick={reset}>Limpar</button>
+      <small className="nisti-com-global-caption">As vendas e a Curva ABC seguem o período selecionado. Anúncios ativos refletem o catálogo atual.</small>
+    </div>
 
     <div className="nisti-com-metrics">
       <Metric label="Anúncios ativos" value={catalog?number(catalog.active_ads):'—'}
-        foot="Independente da sincronização" icon="▣" tone="pink"/>
+        foot="Atuais" icon="▣" tone="pink"/>
       <Metric label="Grupos de produtos" value={catalog?number(catalog.total):'—'}
-        foot="Anúncios repetidos agrupados" icon="◈" tone="gold"/>
+        foot="Agrupados" icon="◈" tone="gold"/>
       <Metric label="Unidades vendidas" value={hasSnapshot?number(abc.total_units):'—'}
-        foot={hasSnapshot?'Período selecionado':'Aguardando importação'} icon="↗" tone="blue"/>
+        foot={hasSnapshot?days+' dias':'Sem importação'} icon="↗" tone="blue"/>
       <Metric label="Faturamento" value={hasSnapshot?money(abc.total_revenue):'—'}
-        foot={hasSnapshot?'Pedidos: '+number(abc.net_orders):'Aguardando importação'} icon="R$" tone="green"/>
+        foot={hasSnapshot?days+' dias':'Sem importação'} icon="R$" tone="green"/>
     </div>
 
     <section className="nisti-com-section nisti-com-imports">
-      <div className="nisti-com-section-heading"><div><h3>Importar arquivos</h3><p>Vendas ou anúncios de produtos, na mesma tela do Painel Comercial</p></div></div>
-      <CommerceImportCenter embedded
+      <div className="nisti-com-section-heading">
+        <h3>Importar arquivos</h3>
+        <button type="button" className="nisti-com-light-button" aria-expanded={importOpen}
+          onClick={()=>setImportOpen(v=>!v)}>{importOpen?'Fechar':'Selecionar planilha +'}</button>
+      </div>
+      {importOpen&&<CommerceImportCenter embedded
         onSalesChanged={()=>setRefresh(value=>value+1)}
-        onCatalogChanged={()=>setRefresh(value=>value+1)} />
+        onCatalogChanged={()=>setRefresh(value=>value+1)} />}
     </section>
 
-    <CommerceSalesVelocity platform={platform} refresh={refresh+salesRevision}/>
+    <CommerceSalesVelocity platform={platform} days={days} month={referenceMonth} refresh={refresh+salesRevision}/>
 
     <section className="nisti-com-section nisti-com-abc">
       <div className="nisti-com-section-heading">
-        <div><h3>Curva ABC de Vendas</h3><p>Classificação por contribuição acumulada no período</p></div>
+        <h3>Curva ABC de Vendas</h3>
         <div className="nisti-com-segment" aria-label="Critério da Curva ABC">
           <button type="button" className={basis==='REVENUE'?'selected':''} onClick={()=>{setBasis('REVENUE');setActiveCurve('');}}>Por faturamento</button>
           <button type="button" className={basis==='UNITS'?'selected':''} onClick={()=>{setBasis('UNITS');setActiveCurve('');}}>Por unidades</button>
@@ -158,7 +184,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
             onClick={()=>setActiveCurve(v=>v===curve.code?'':curve.code)}
             aria-pressed={activeCurve===curve.code}>
             <span className="nisti-com-abc-flag">{curve.code}</span>
-            <div><strong>{curve.title}</strong><small>{curve.subtitle}</small></div>
+            <div><strong>{curve.title}</strong></div>
             <div className="nisti-com-abc-numbers">
               <span className="nisti-com-abc-donut" style={{'--abc-share':Math.max(0,Math.min(100,Number(row.percentage||0)))+'%'}}>
                 <b>{hasSales?number(row.percentage)+'%':'—'}</b>
@@ -166,7 +192,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
               <div>
                 <strong>{hasSales?number(row.products)+' produtos':'Aguardando vendas'}</strong>
                 <b>{hasSales?basis==='UNITS'?number(row.units)+' un.':money(row.revenue):'—'}</b>
-                <small>{curve.cutoff}</small>
               </div>
             </div>
           </button>;
@@ -179,8 +204,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
           curve={activeCurve}
           platform={platform}
           basis={basis}
-          periodStart={periodStart}
-          periodEnd={periodEnd}
+          days={days}
+          month={referenceMonth}
           refresh={refresh+salesRevision}
           onShowInCatalog={sku=>{
             setSearch(sku);
@@ -192,7 +217,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
 
     <div className="nisti-com-analytics">
       <section className="nisti-com-section nisti-com-evolution">
-        <div className="nisti-com-section-heading"><div><h3>Evolução de vendas</h3><p>{basis==='UNITS'?'Unidades vendidas':'Faturamento'} por mês</p></div></div>
+        <div className="nisti-com-section-heading"><h3>Evolução de vendas</h3></div>
         <SalesHistoryChart history={abc?.history} basis={basis}/>
       </section>
       <section className="nisti-com-section nisti-com-participation">
@@ -209,34 +234,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
     </div>
 
     <section className="nisti-com-section nisti-com-products">
-      <div className="nisti-com-products-filters">
-        <label className="nisti-com-search-label"><span>Buscar produto, SKU ou ID</span>
-          <input type="search" value={search} onChange={e=>{setSearch(e.target.value);setActiveCurve('');}}
-            placeholder="Buscar produto, SKU ou ID do anúncio..." />
-        </label>
-        <label>Plataforma
-          <select value={platform} onChange={e=>{setPlatform(e.target.value);setActiveCurve('');}}>
-            {PLATFORM_OPTIONS.map(([value,label])=><option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label>De
-          <select value={periodStart} onChange={e=>setPeriodStart(e.target.value)}>
-            <option value="">Todo o histórico</option>
-            {periods.map(p=><option key={p} value={p}>{monthLabel(p)}</option>)}
-          </select>
-        </label>
-        <label>Até
-          <select value={periodEnd} onChange={e=>setPeriodEnd(e.target.value)}>
-            <option value="">Último disponível</option>
-            {periods.map(p=><option key={p} value={p}>{monthLabel(p)}</option>)}
-          </select>
-        </label>
-        <button className="nisti-com-light-button" type="button" onClick={reset}>Limpar filtros</button>
-      </div>
 
       <div className="nisti-com-products-title">
-        <div><h3>Produtos e anúncios</h3>
-          <p>Todos os anúncios ativos, mesmo sem vínculo com o Scanner.</p></div>
+        <h3>Produtos e anúncios</h3>
         {loading&&<small>Atualizando…</small>}
         {catalog&&<small>{number(catalog.active_ads)} anúncios ativos</small>}
       </div>
@@ -252,7 +252,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
         <span aria-hidden="true">{details?'−':'+'}</span>
       </button>
       {details&&<div className="nisti-com-deep-dive-content">
-        <p>Histórico, filtros de vendas, exportação e registros manuais por anúncio continuam disponíveis nesta mesma ferramenta.</p>
         <CommerceSalesDashboard key={'detail-'+salesRevision+'-'+refresh}/>
       </div>}
     </div>

@@ -33,6 +33,8 @@ import {
   commerceShopeeSnapshot,
   commerceSalesAbcAds,
   commerceSalesVelocity,
+  commerceSalesAbcWindow,
+  commerceSalesAbcAdsWindow,
   commerceSalesAbc,
   commerceSalesDashboard,
   commerceSalesProductPerformance,
@@ -228,6 +230,33 @@ export async function handleCommerceAdminRequest(request, env) {
         periodMonth:body.month,
         units:body.units
       },operatorName(request)));
+    }
+
+
+    if (method === 'GET' && pathname === `${BASE_PATH}/sales/abc/window`) {
+      const days=Number(query(url,'days')||30);
+      const basis=query(url,'basis')||'REVENUE';
+      const month=query(url,'month')||'';
+      if(![7,30,60,90].includes(days)||!['REVENUE','UNITS'].includes(basis)
+        ||(month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)))
+        return json({error:'Filtro de vendas inválido.'},400);
+      return json(await commerceSalesAbcWindow(env,{
+        days,basis,month,platform:query(url,'platform')||'TODAS'
+      }));
+    }
+    if (method === 'GET' && pathname === `${BASE_PATH}/sales/abc/advertisements/window`) {
+      const days=Number(query(url,'days')||30);
+      const basis=query(url,'basis')||'REVENUE';
+      const curve=query(url,'curve')||'A';
+      const month=query(url,'month')||'';
+      if(![7,30,60,90].includes(days)||!['REVENUE','UNITS'].includes(basis)
+        ||!['A','B','C'].includes(curve)
+        ||(month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)))
+        return json({error:'Filtro da Curva ABC inválido.'},400);
+      return json(await commerceSalesAbcAdsWindow(env,{
+        days,basis,curve,month,platform:query(url,'platform')||'TODAS',
+        limit:query(url,'limit'),offset:query(url,'offset')
+      }));
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/sales/velocity`) {
