@@ -29,7 +29,7 @@ async function requestJson(path, options = {}) {
       continue;
     }
     if (!response.ok) {
-      const error = new Error(data?.error || \`Erro \${response.status}\`);
+      const error = new Error(data?.error || `Erro ${response.status}`);
       error.status = response.status;
       error.technicalError = data?.technical_error || null;
       error.retryable = Boolean(data?.retryable);
