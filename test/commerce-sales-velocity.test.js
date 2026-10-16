@@ -44,7 +44,7 @@ test('no-sales denominator only contains ACTIVE catalog SKUs from fully imported
   assert.match(sql,/PARTIAL_PLATFORMS/);
   assert.match(sql,/sources_missing/);
   assert.doesNotMatch(sql,/insert into public\.products|update public\.products|delete from public\.products/);
-  assert.match(view,/Cobertura de dados insuficiente/);
+  assert.match(view,/Cobertura parcial/);
 });
 
 test('performance rules compare matching window lengths and report true growth',()=>{
