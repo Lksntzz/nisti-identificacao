@@ -18,6 +18,7 @@ import {
 } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
 import { readCommerceXlsx } from './commerce-xlsx-reader.js';
+import { attestShopeeActiveExport } from './commerce-shopee-sales-info.js';
 import './commerce-import-center.css';
 
 const CATALOG_PLATFORMS = [
