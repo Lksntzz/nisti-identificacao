@@ -121,14 +121,15 @@ export async function commerceShopeeSkuRevoke(env,sku,actor='Administrador') {
 
 export async function commerceListingManager(env, filters = {}) {
   if (Number(filters.days)===0 && cleanText(filters.month) && cleanText(filters.platform)==='SHOPEE') {
-    const monthData=await supabaseRpc(env,'commerce_listing_manager_month_sku_v1',{
+    const monthData=await supabaseRpc(env,'commerce_listing_manager_month_sku_v2',{
       p_platform:'SHOPEE',
       p_month:cleanText(filters.month),
       p_search:cleanText(filters.search),
       p_status:cleanText(filters.status)||'ALL',
       p_curve:cleanText(filters.curve)||'ALL',
       p_limit:cleanPageSize(filters.limit,20),
-      p_offset:cleanOffset(filters.offset)
+      p_offset:cleanOffset(filters.offset),
+      p_basis:cleanText(filters.basis)==='UNITS'?'UNITS':'REVENUE'
     });
     return monthData && typeof monthData==='object' && !Array.isArray(monthData)
       ?monthData:{items:[],total:0,kpis:{}};
