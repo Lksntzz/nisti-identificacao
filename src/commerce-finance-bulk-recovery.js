@@ -69,7 +69,7 @@ export async function recoverMultipleShopeeFinances(files,{
   return {
     total:results.length,
     successful:results.filter(x=>x.status==='COMMITTED').length,
-    recoveredMonths:results.reduce((n,x)=>n+x.finance_months,0),
+    recoveredMonths:results.reduce((n,x)=>n+Number(x.finance_months||0),0),
     failures:results.filter(x=>x.status==='ERROR'),
     awaitingParts:results.filter(x=>x.status==='WAITING_PARTS'&&
       !completedGroups.has(groupKey(x.filename))),
