@@ -218,6 +218,7 @@ export async function listCommerceSalesImports({ limit = 30, offset = 0 } = {}) 
 export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = () => {}) {
   const rows = Array.isArray(parsedWorkbook?.rows) ? parsedWorkbook.rows : [];
   const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
+  const listingRows = Array.isArray(parsedWorkbook?.listing_rows) ? parsedWorkbook.listing_rows : [];
   if (!parsedWorkbook?.platform_code || !parsedWorkbook?.filename || !parsedWorkbook?.sha256 || !rows.length) {
     throw new Error('Arquivo de vendas normalizado incompleto.');
   }
@@ -259,6 +260,18 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
       await requestJson(`${API_BASE}/sales/imports/${batchId}/summary`, {
         method: 'POST',
         body: JSON.stringify({ rows: chunk })
+      });
+    }
+  }
+
+  // Save true listing-ID performance before activating the snapshot. Never
+  // infer individual advertisement sales from SKU-level totals.
+  if (listingRows.length) {
+    onProgress({phase:'listings',completed,total:rows.length,batchId});
+    for (const chunk of chunks(listingRows)) {
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/listing-daily`, {
+        method:'POST',
+        body:JSON.stringify({rows:chunk})
       });
     }
   }
