@@ -117,3 +117,71 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-manager button:focus-visible,.nim-manager a:focus-visible{outline:2px solid #2f75e8;outline-offset:2px}
 @media(max-width:1100px){.nim-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}.nim-filterbar{grid-template-columns:repeat(4,minmax(0,1fr))}.nim-filterbar .nim-soft-button{grid-column:4}.nim-content.has-detail{grid-template-columns:minmax(0,1fr) minmax(300px,350px)}}
 @media(max-width:880px){.nim-manager{min-width:780px}.nim-heading h2{font-size:20px}.nim-kpi{min-height:95px;padding:11px 12px}.nim-kpi strong{font-size:18px}.nim-content.has-detail{grid-template-columns:minmax(0,1fr)}.nim-detail{position:relative;max-height:none}.nim-tabs-row{flex-wrap:wrap}}
+
+
+/* Gestor de anúncios: filtro de desempenho e ABC em um único painel com hierarquia.
+   Não modifica visualização desktop no celular nem cálculos de anúncios/vendas. */
+.nim-filter-panel{
+  min-width:0;display:grid;gap:0;background:#fff;border:1px solid var(--nim-border);
+  border-radius:13px;box-shadow:0 2px 12px #17283d09;overflow:hidden
+}
+.nim-filter-panel-body{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;
+  padding:15px 18px;align-items:start;min-width:0
+}
+.nim-filter-group{display:grid;align-content:start;gap:9px;min-width:0}
+.nim-filter-group-label{
+  color:#51617a;font-size:10px;font-weight:800;line-height:1.25;
+  letter-spacing:.025em
+}
+.nim-performance-group{min-width:0}
+.nim-performance-group .nim-status-tabs{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.nim-filter-panel .nim-status-tabs button,
+.nim-filter-panel .nim-curve-tabs button{
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid #dce5ef;background:#fff;border-radius:8px;
+  height:35px;min-height:35px;padding:0 12px;color:#536780;
+  font-family:inherit;font-size:11px;font-weight:750;
+  white-space:nowrap;cursor:pointer;box-shadow:none;transition:background .12s,border-color .12s
+}
+.nim-filter-panel .nim-status-tabs button:hover:not(.active),
+.nim-filter-panel .nim-curve-tabs button:hover:not(.active){background:#f3f7ff;border-color:#b8c8e3}
+.nim-filter-panel .nim-status-tabs button.active,
+.nim-filter-panel .nim-curve-tabs button.active{
+  background:#2465eb;border-color:#2465eb;color:#fff;box-shadow:0 3px 9px #2465eb24
+}
+.nim-abc-group{
+  border-left:1px solid #e7ebf2;padding-left:22px;
+  grid-template-columns:auto auto;gap:9px 11px;min-width:0
+}
+.nim-abc-group>.nim-filter-group-label{grid-column:1/-1}
+.nim-filter-panel .nim-curve-tabs{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
+.nim-filter-panel .nim-curve-tabs button{min-width:35px;padding:0 11px}
+.nim-abc-basis-label{display:grid;gap:0;min-width:130px}
+.nim-abc-basis-label>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.nim-filter-panel .nim-abc-basis-label select{
+  height:35px;border:1px solid #dce5ef;border-radius:8px;
+  padding:0 30px 0 10px;background:#fff;color:#536780;
+  font-family:inherit;font-size:11px;font-weight:750;min-width:130px;max-width:190px
+}
+.nim-filter-panel-footer{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 18px;min-height:35px;background:#fbfcff;border-top:1px solid #edf0f5
+}
+.nim-filter-panel .nim-coverage{display:inline-flex;margin:0;color:#72829a;font-size:10px;line-height:1.4}
+.nim-filter-panel-warning{
+  display:inline-flex;border-radius:6px;background:#fff4df;
+  padding:3px 7px;color:#98651d;font-size:10px;font-weight:700
+}
+.nim-filter-panel-note{font-size:10px;color:#718099}
+@media(max-width:1250px){
+  .nim-filter-panel-body{grid-template-columns:1fr;gap:14px}
+  .nim-abc-group{border-left:0;border-top:1px solid #edf0f5;padding-left:0;padding-top:13px;
+    grid-template-columns:auto 1fr;align-items:center}
+  .nim-abc-group>.nim-filter-group-label{grid-column:1/-1}
+  .nim-abc-basis-label{justify-self:end}
+}
+@media(max-width:880px){
+  .nim-filter-panel-body{padding:12px 14px}
+  .nim-filter-panel-footer{padding:9px 14px}
+}
