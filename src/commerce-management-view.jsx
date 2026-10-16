@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { commerceApi } from './commerce-admin-api.js';
 import { CommerceLoadingBlock, commerceFormatNumber } from './commerce-admin-shared.jsx';
 import CommerceCatalogWorkspace from './commerce-catalog-workspace.jsx';
+import CommerceScannerPending from './commerce-scanner-pending.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import './commerce-management.css';
 
@@ -362,7 +363,7 @@ function LinkReviewDrawer({ review, loading, error, saving, onClose, onResolve }
   );
 }
 
-export default function CommerceManagementView({ mode = 'catalog' }) {
+export default function CommerceManagementView({ mode = 'catalog', onCreateScanner }) {
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [presence, setPresence] = useState(mode === 'pending' ? 'UNLINKED' : 'LINKED');
@@ -504,6 +505,7 @@ export default function CommerceManagementView({ mode = 'catalog' }) {
 
   return (
     <div className="commerce-management-page">
+      {mode === 'pending' && <CommerceScannerPending onCreateScanner={onCreateScanner} />}
       <section className="commerce-panel commerce-management-hero">
         <div className="commerce-panel-header commerce-panel-header-stack">
           <div>
