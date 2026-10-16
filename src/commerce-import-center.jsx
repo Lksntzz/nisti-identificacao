@@ -188,6 +188,11 @@ function CatalogPreview({ parsed }) {
       <StatCard label="Prontas" value={parsed ? brNumber(s.ready_rows) : '—'} tone="green" />
       <StatCard label="Revisar" value={parsed ? brNumber(s.review_rows) : '—'} tone="amber" />
       <StatCard label="Inválidas" value={parsed ? brNumber(s.invalid_rows) : '—'} tone="red" />
+      {parsed?.format === 'SHOPEE_SALES_INFO' && <div className="import-center-shopee-stats">
+        <strong>Exportação oficial Shopee reconhecida</strong>
+        <span>{brNumber(s.listing_count)} anúncios · {brNumber(s.variation_count)} registros de variações</span>
+        <small>{brNumber(s.missing_sku_rows)} registros sem SKU seguro. Serão apresentados para revisão, sem vínculo automático.</small>
+      </div>}
     </div>
   );
 }
