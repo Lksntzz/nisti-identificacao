@@ -273,6 +273,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
         source_row_number: rowIndex + 1,
         month_key: bounds.period_key,
         sale_date: bounds.sale_date,
+        sale_date_verified: Boolean(date),
         sku_primary: skuPrimary,
         sku,
         sku_norm: normalizeSku(sku),
@@ -310,6 +311,32 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
       periodBoundsForImport(monthKey, latestSaleDate)
     ])
   );
+
+  // Daily Shopee SKU totals keep the real order date. Listing IDs are absent
+  // from this export, so the database will join only unique active SKU owners.
+  // We never assign a fabricated date or inferred advertisement ID.
+  const dailySku = new Map();
+  if (platformCode === 'SHOPEE') {
+    for (const item of raw) {
+      if (!item.sale_date_verified || !item.sku_norm) continue;
+      const key = item.sale_date + '|' + item.sku_norm;
+      const group = dailySku.get(key) || {
+        sale_date: item.sale_date, sku_norm: item.sku_norm,
+        units: 0, orders: new Set(), product_revenue: 0
+      };
+      group.units += item.units;
+      group.orders.add(item.order_id);
+      group.product_revenue += item.product_revenue;
+      dailySku.set(key, group);
+    }
+  }
+  const sku_daily_rows = [...dailySku.values()].map(group => ({
+    sale_date: group.sale_date,
+    sku_norm: group.sku_norm,
+    units: group.units,
+    orders_with_item: group.orders.size,
+    product_revenue: Number(group.product_revenue.toFixed(2))
+  }));
 
   const grouped = new Map();
   for (const item of raw) {
@@ -391,6 +418,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     platform_code: platformCode,
     rows,
     summaries,
+    sku_daily_rows,
     sheets: sheetInfo,
     data_through: maxDate(summaries.map(item => item.period_end)),
     summary: {
