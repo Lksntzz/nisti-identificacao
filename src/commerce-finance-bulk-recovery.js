@@ -62,12 +62,17 @@ export async function recoverMultipleShopeeFinances(files,{
   }
   // WAITING_PARTS is not an error if the other half arrived later and
   // completed the same export. The final count is based on activations only.
+  const groupKey=name=>String(name||'').replace(
+    /_part_[0-9]+_of_[0-9]+[.]xlsx$/i,'.xlsx').toLowerCase();
+  const completedGroups=new Set(results.filter(x=>x.status==='COMMITTED')
+    .map(x=>groupKey(x.filename)));
   return {
     total:results.length,
     successful:results.filter(x=>x.status==='COMMITTED').length,
     recoveredMonths:results.reduce((n,x)=>n+x.finance_months,0),
     failures:results.filter(x=>x.status==='ERROR'),
-    awaitingParts:results.filter(x=>x.status==='WAITING_PARTS'),
+    awaitingParts:results.filter(x=>x.status==='WAITING_PARTS'&&
+      !completedGroups.has(groupKey(x.filename))),
     results
   };
 }
