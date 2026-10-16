@@ -41,6 +41,51 @@ export async function commerceSalesDashboard(env, filters = {}) {
 
 // Ranking ABC uses imported sales only; does not attribute SKU-level sales to individual ads.
 // Time-window sales insights require daily coverage. Missing data is never shown as zero sales.
+// Shopee historical SKU reconciliation is manual and auditable. It never edits
+// product/scanner SKUs and cannot allocate ambiguous source sales by title.
+export async function commerceShopeeSkuReconciliationQueue(env, filters = {}) {
+  const value = await supabaseRpc(env,'commerce_shopee_sku_reconciliation_queue_v1',{
+    p_search:cleanText(filters.search),
+    p_state:filters.state==='APPROVED'?'APPROVED':'PENDING',
+    p_limit:cleanPageSize(filters.limit,20),
+    p_offset:cleanOffset(filters.offset)
+  });
+  return value && typeof value==='object' && !Array.isArray(value)
+    ?value:{items:[],total:0};
+}
+
+export async function commerceShopeeSkuCandidates(env, search) {
+  const q=cleanText(search);
+  if (!q || q.length<2 || q.length>120)
+    throw new Error('Informe pelo menos dois caracteres para buscar uma variação.');
+  const value=await supabaseRpc(env,'commerce_shopee_sku_candidate_search_v1',{
+    p_search:q,p_limit:20
+  });
+  return {items:Array.isArray(value)?value:[]};
+}
+
+export async function commerceShopeeSkuConfirm(env,input={},actor='Administrador') {
+  const sku=cleanText(input.sku);
+  const variationId=cleanId(input.variation_id);
+  const evidence=cleanText(input.evidence);
+  if (!sku || sku.length>160 || !variationId || !evidence
+    || evidence.length<8 || evidence.length>500 || input.confirmed!==true)
+    throw new Error('Confirme o SKU, a variação e uma justificativa verificável.');
+  return await supabaseRpc(env,'commerce_shopee_confirm_sku_alias_v1',{
+    p_source_sku:sku,p_listing_product_id:variationId,
+    p_evidence:evidence,p_actor:String(actor||'Administrador').slice(0,120),
+    p_confirmed:true
+  });
+}
+
+export async function commerceShopeeSkuRevoke(env,sku,actor='Administrador') {
+  const source=cleanText(sku);
+  if (!source || source.length>160)throw new Error('SKU Shopee inválido.');
+  return await supabaseRpc(env,'commerce_shopee_revoke_sku_alias_v1',{
+    p_source_sku:source,p_actor:String(actor||'Administrador').slice(0,120)
+  });
+}
+
 export async function commerceListingManager(env, filters = {}) {
   if (Number(filters.days)===0 && cleanText(filters.month) && cleanText(filters.platform)==='SHOPEE') {
     const monthData=await supabaseRpc(env,'commerce_listing_manager_month_sku_v1',{
