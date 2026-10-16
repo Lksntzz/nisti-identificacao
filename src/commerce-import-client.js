@@ -234,6 +234,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
   const financeDailyRows=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
   const financeMonthRows=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
+  const financeDailyRows=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
+  const financeMonthRows=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
   const financeDaily=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
   const financeMonths=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
   const financeDailyRows = Array.isArray(parsedWorkbook?.finance_daily_rows) ? parsedWorkbook.finance_daily_rows : [];
@@ -388,6 +390,24 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
       await requestJson(`${API_BASE}/sales/imports/${batchId}/finance`,{
         method:'POST',body:JSON.stringify({kind:'DAILY',rows:chunk}),retryRateLimit:true
       });
+    }
+  }
+  // Upload reconciled financial evidence BEFORE commit; an unfinished batch
+  // is invisible to the reporting RPCs. Do not alter historical sales rows.
+  if(parsedWorkbook.platform_code==='SHOPEE'&&financeMonthRows.length){
+    onProgress({phase:'finance-month',completed,total:rows.length,batchId});
+    for(const chunk of chunks(financeMonthRows)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/finance-month`,{
+        method:'POST',body:JSON.stringify({rows:chunk}),retryRateLimit:true
+      });
+    }
+    if(financeDailyRows.length){
+      onProgress({phase:'finance-daily',completed,total:rows.length,batchId});
+      for(const chunk of chunks(financeDailyRows)){
+        await requestJson(`${API_BASE}/sales/imports/${batchId}/finance-daily`,{
+          method:'POST',body:JSON.stringify({rows:chunk}),retryRateLimit:true
+        });
+      }
     }
   }
   onProgress({ phase: 'commit', completed, total: rows.length, batchId });
