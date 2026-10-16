@@ -60,7 +60,7 @@ do $rls$ declare t text;begin
 end $rls$;
 
 create or replace function public.commerce_append_shopee_finance_daily_v1(
- p_batch_id bigint,p_rows jsonb)
+ p_batch_id bigint,p_rows jsonb,p_source_sha256 text default null)
 returns integer language plpgsql security invoker set search_path=public as $fn$
 declare v_count integer;
 begin
@@ -69,7 +69,9 @@ begin
  then raise exception 'finance_daily_rows deve conter 1 a 100 linhas.';end if;
  if not exists(select 1 from public.commerce_sales_import_batches b
    where b.id=p_batch_id and b.platform_code='SHOPEE'
-   and b.status in ('UPLOADED','STAGED'))
+   and (b.status in ('UPLOADED','STAGED')
+     or (b.status='COMMITTED' and length(coalesce(p_source_sha256,''))=64
+       and lower(b.source_sha256)=lower(p_source_sha256))))
  then raise exception 'Lote de vendas Shopee inválido ou fechado.';end if;
  if exists(select 1 from jsonb_array_elements(p_rows) r where
    (r->>'sale_date') !~ '^20[0-9]{2}-[0-9]{2}-[0-9]{2}$'
@@ -96,7 +98,7 @@ begin
 end $fn$;
 
 create or replace function public.commerce_append_shopee_finance_month_v1(
- p_batch_id bigint,p_rows jsonb)
+ p_batch_id bigint,p_rows jsonb,p_source_sha256 text default null)
 returns integer language plpgsql security invoker set search_path=public as $fn$
 declare v_count integer;
 begin
@@ -105,7 +107,9 @@ begin
  then raise exception 'finance_month_rows deve conter 1 a 100 linhas.';end if;
  if not exists(select 1 from public.commerce_sales_import_batches b
   where b.id=p_batch_id and b.platform_code='SHOPEE'
-  and b.status in ('UPLOADED','STAGED'))
+  and (b.status in ('UPLOADED','STAGED')
+    or (b.status='COMMITTED' and length(coalesce(p_source_sha256,''))=64
+      and lower(b.source_sha256)=lower(p_source_sha256))))
  then raise exception 'Lote financeiro não pode receber novos dados.';end if;
  insert into public.commerce_shopee_finance_stage_month_v1(
  batch_id,month_start,orders,units,product_revenue,seller_discount,
@@ -300,8 +304,8 @@ select jsonb_build_object(
 $fn$;
 do $access$ declare signature text;begin
  foreach signature in array array[
- 'commerce_append_shopee_finance_daily_v1(bigint,jsonb)',
- 'commerce_append_shopee_finance_month_v1(bigint,jsonb)',
+ 'commerce_append_shopee_finance_daily_v1(bigint,jsonb,text)',
+ 'commerce_append_shopee_finance_month_v1(bigint,jsonb,text)',
  'commerce_activate_shopee_finance_v1(bigint)',
  'commerce_shopee_listing_finance_v1(bigint,integer,text)'
  ] loop
