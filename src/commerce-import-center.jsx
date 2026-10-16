@@ -645,6 +645,10 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
 
   async function handleCatalogImport() {
     if (!catalogParsed) return;
+    if (catalogParsed.format === 'SHOPEE_SALES_INFO' && !shopeeActiveConfirmed) {
+      setError('Confirme que a exportação da Shopee contém somente os anúncios ativos.');
+      return;
+    }
     if (catalogParsed.marketplace === 'MERCADO_LIVRE' && !['ANTIGO','NOVO'].includes(catalogParsed.account_code)) {
       setError('Selecione a conta de origem antes de preparar a importação.');
       return;
@@ -653,7 +657,9 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
     setError('');
     setMessage('');
     try {
-      const result = await stageCommerceWorkbook(catalogParsed, setCatalogProgress);
+      const source = catalogParsed.format === 'SHOPEE_SALES_INFO'
+        ? attestShopeeActiveExport(catalogParsed) : catalogParsed;
+      const result = await stageCommerceWorkbook(source, setCatalogProgress);
       setMessage(result?.reconciled?.automatic_sync && !result.reconciled.automatic_sync.skipped
         ? `Conta ${catalogParsed.account_code === 'ANTIGO' ? 'Antiga' : 'Nova'}: ${brNumber(result.reconciled.automatic_sync.observed_listings || 0)} anúncios ativos sincronizados automaticamente; ${brNumber(result.reconciled.automatic_sync.linked_variation_rows || 0)} vínculos verificados com o Scanner NISTI. SKUs sem identidade segura permanecem sem vínculo, mas visíveis como anúncios ativos.`
         : `Lote #${result.batchId} comparado. Confira o resultado no catálogo.`);
