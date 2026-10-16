@@ -37,6 +37,8 @@ import {
   commerceShopeeSkuCandidates,
   commerceShopeeSkuConfirm,
   commerceShopeeSkuRevoke,
+  commerceShopeeReviewUnlinkedHistory,
+  commerceShopeeReopenUnlinkedHistory,
   commerceListingManagerMonthly,
   commerceListingManagerMonths,
   commerceSalesVelocity,
@@ -270,12 +272,28 @@ export async function handleCommerceAdminRequest(request, env) {
     // All routes remain behind the existing administrator gateway.
     if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager/shopee/reconciliation`) {
       const state=String(query(url,'state')||'PENDING').toUpperCase();
-      if (!['PENDING','APPROVED'].includes(state)
+      if (!['PENDING','APPROVED','REVIEWED'].includes(state)
         || String(query(url,'search')||'').length>120)
         return json({error:'Filtros de conciliação inválidos.'},400);
       return json(await commerceShopeeSkuReconciliationQueue(env,{
         state,search:query(url,'search'),limit:query(url,'limit'),offset:query(url,'offset')
       }));
+    }
+    if (method === 'POST' && pathname === `${BASE_PATH}/listings/manager/shopee/reconciliation/history/approve`) {
+      const body=await bodyJson(request);
+      const evidence=String(body?.evidence||'').trim();
+      if (body?.confirmed!==true||evidence.length<8||evidence.length>500)
+        return json({error:'Confirme a revisão do histórico sem anunciar vendas indevidas.'},400);
+      return json(await commerceShopeeReviewUnlinkedHistory(env,{
+        evidence,confirmed:true
+      },operatorName(request)));
+    }
+    if (method === 'POST' && pathname === `${BASE_PATH}/listings/manager/shopee/reconciliation/history/reopen`) {
+      const body=await bodyJson(request);
+      const sku=String(body?.sku||'').trim();
+      if (!sku||sku.length>160||body?.confirmed!==true)
+        return json({error:'Confirme o SKU a reabrir para revisão.'},400);
+      return json(await commerceShopeeReopenUnlinkedHistory(env,sku,operatorName(request)));
     }
     if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager/shopee/reconciliation/candidates`) {
       const search=String(query(url,'search')||'').trim();
