@@ -515,6 +515,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
   const [catalogAccount, setCatalogAccount] = useState('');
   const [catalogFile, setCatalogFile] = useState(null);
   const [catalogParsed, setCatalogParsed] = useState(null);
+  const [shopeeActiveConfirmed, setShopeeActiveConfirmed] = useState(false);
   const [catalogReading, setCatalogReading] = useState(false);
   const [catalogImporting, setCatalogImporting] = useState(false);
   const [catalogProgress, setCatalogProgress] = useState(null);
@@ -622,6 +623,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
     const file = event.target.files?.[0] || null;
     setCatalogFile(file);
     setCatalogParsed(null);
+    setShopeeActiveConfirmed(false);
     setCatalogBatch(null);
     setCatalogRows([]);
     setCatalogYearTargets({});
@@ -900,6 +902,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                     setCatalogAccount('');
                     setCatalogFile(null);
                     setCatalogParsed(null);
+                    setShopeeActiveConfirmed(false);
                     setCatalogBatch(null);
                     setCatalogRows([]);
                     setCatalogProgress(null);
@@ -917,6 +920,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                         setCatalogAccount(event.target.value);
                         setCatalogFile(null);
                         setCatalogParsed(null);
+                        setShopeeActiveConfirmed(false);
                         setCatalogBatch(null);
                         setCatalogRows([]);
                         setCatalogProgress(null);
