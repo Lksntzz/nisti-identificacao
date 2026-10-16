@@ -29,6 +29,7 @@ import {
   commerceProducts,
   commerceProductDetail,
   commerceShopeeSnapshot,
+  commerceSalesAbcAds,
   commerceSalesAbc,
   commerceSalesDashboard,
   commerceSalesProductPerformance,
