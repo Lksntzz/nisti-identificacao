@@ -83,7 +83,7 @@ test('o Gestor exibe ferramenta contextual Shopee com paginação e revogação'
   assert.match(form,/const PAGE_SIZE=15/);
   assert.match(form,/aria-label="Situação dos SKUs"/);
   assert.match(form,/Pendentes/);
-  assert.match(form,/Confirmados/);
+  assert.match(form,/Vinculados/);
   assert.match(form,/Pesquisar anúncio ativo ou SKU atual/);
   assert.match(form,/onChanged\?\.\(\)/);
   assert.match(form,/Confirmar revogação/);

@@ -16,6 +16,10 @@ async function api(path,options){
   return data;
 }
 function Description({item}){
+  if(item.status==='HISTORICAL_APPROVED')
+    return <span className="nsr-status nsr-status-history">Histórico validado · sem anúncio ativo</span>;
+  if(item.status==='DUPLICATE_REVIEWED')
+    return <span className="nsr-status nsr-status-history">Histórico validado · SKU duplicado</span>;
   if(item.status==='DUPLICATE_SKU')
     return <span className="nsr-status nsr-status-conflict">SKU repetido · sem atribuição segura</span>;
   if(item.status==='APPROVED')
@@ -121,7 +125,10 @@ export default function ShopeeSkuReconciliation({onChanged,onClose}){
     if(!revoking||saving)return;
     setSaving(true);setConfirmationError('');
     try{
-      await api('/revoke',{method:'POST',body:JSON.stringify({sku:revoking,confirmed:true})});
+      const historical=active?.status==='HISTORICAL_APPROVED'||active?.status==='DUPLICATE_REVIEWED';
+      await api(historical?'/history/reopen':'/revoke',{
+        method:'POST',body:JSON.stringify({sku:revoking,confirmed:true})
+      });
       complete();
     }catch(e){setConfirmationError(e.message)}
     finally{setSaving(false)}
@@ -129,6 +136,7 @@ export default function ShopeeSkuReconciliation({onChanged,onClose}){
   const total=Number(data?.total||0);
   const count=Array.isArray(data?.items)?data.items.length:0;
   const maxPage=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  const historical=active?.status==='HISTORICAL_APPROVED'||active?.status==='DUPLICATE_REVIEWED';
   return <section className="nsr-panel" aria-label="Conciliação de SKUs das vendas Shopee">
     <div className="nsr-heading">
       <div><h3>Conciliação de vendas · Shopee</h3>
@@ -137,17 +145,19 @@ export default function ShopeeSkuReconciliation({onChanged,onClose}){
     </div>
     <div className="nsr-metrics">
       <div><small>SKUs aguardando revisão</small><strong>{data?fmt(data.pending_skus):'—'}</strong></div>
-      <div><small>Unidades ainda sem vínculo</small><strong>{data?fmt(data.pending_units):'—'}</strong></div>
-      <div><small>Possíveis códigos atualizados</small><strong>{data?fmt(data.candidate_skus):'—'}</strong></div>
-      <div><small>Vínculos aplicados</small><strong>{data?fmt(data.approved_skus):'—'}</strong></div>
+      <div><small>Unidades aguardando revisão</small><strong>{data?fmt(data.pending_units):'—'}</strong></div>
+      <div><small>Histórico validado sem vínculo</small><strong>{data?fmt(data.reviewed_units):'—'}</strong></div>
+      <div><small>SKUs vinculados a anúncios</small><strong>{data?fmt(data.approved_skus):'—'}</strong></div>
     </div>
-    <p className="nsr-note">PB, PLAN, AGMT, CONFIN, VACMNO e VACMNA com ano 26 → 27, restante integral do SKU idêntico e uma única variação ativa são vinculados automaticamente. VACMNO e VACMNA sem ano usam correspondência direta pelo SKU completo. Diferenças no miolo, capa ou acessórios, códigos duplicados e outras famílias continuam para revisão. Nenhum SKU original, pedido ou produto do Scanner é modificado. Todos os vínculos podem ser revogados.</p>
+    <p className="nsr-note">PB, PLAN, AGMT, CONFIN, VACMNO e VACMNA com ano 26 → 27, restante integral do SKU idêntico e uma única variação ativa são vinculados automaticamente. VACMNO e VACMNA sem ano usam correspondência direta pelo SKU completo. Diferenças no miolo, capa ou acessórios, códigos duplicados e outras famílias continuam para revisão. Nenhum SKU original, pedido ou produto do Scanner é modificado. Vínculos a anúncios podem ser revogados e validações de histórico podem ser reabertas. Histórico validado sem vínculo não comprova vendas por anúncio, ausência de vendas ou Curva ABC.</p>
     <div className="nsr-toolbar">
       <div role="group" aria-label="Situação dos SKUs" className="nsr-tabs">
         <button type="button" className={state==='PENDING'?'active':''}
           aria-pressed={state==='PENDING'} onClick={()=>switchState('PENDING')}>Pendentes</button>
         <button type="button" className={state==='APPROVED'?'active':''}
-          aria-pressed={state==='APPROVED'} onClick={()=>switchState('APPROVED')}>Confirmados</button>
+          aria-pressed={state==='APPROVED'} onClick={()=>switchState('APPROVED')}>Vinculados</button>
+        <button type="button" className={state==='REVIEWED'?'active':''}
+          aria-pressed={state==='REVIEWED'} onClick={()=>switchState('REVIEWED')}>Histórico validado</button>
       </div>
       <input type="search" value={searchDraft} onChange={e=>setSearchDraft(e.target.value)}
         placeholder="Pesquisar SKU ou nome do produto" aria-label="Pesquisar SKUs da Shopee" maxLength={120}/>
@@ -170,10 +180,10 @@ export default function ShopeeSkuReconciliation({onChanged,onClose}){
         </div>
         {item.status==='DUPLICATE_SKU'
           ?<span className="nsr-row-hint">Requer ID de variação na origem</span>
-          :item.status==='APPROVED'
+          :['APPROVED','HISTORICAL_APPROVED','DUPLICATE_REVIEWED'].includes(item.status)
             ?<button type="button" className="nsr-link" onClick={()=>{
               clearReview();setActive(item);setRevoking(item.sku);
-            }}>Revisar / revogar</button>
+            }}>{item.status==='APPROVED'?'Revisar / revogar':'Reabrir análise'}</button>
             :<button type="button" className="nsr-action" onClick={()=>review(item)}>Revisar vínculo</button>}
       </div>)}
     </div>
@@ -184,14 +194,16 @@ export default function ShopeeSkuReconciliation({onChanged,onClose}){
           onClick={()=>{clearReview();setPage(p=>p+1);}}>Próxima</button></div>
     </div>
     {active&&<div className="nsr-review" aria-label={'Revisar SKU '+active.sku}>
-      <div className="nsr-review-title"><strong>{revoking?'Revogar vínculo':'Confirmar vínculo de SKU antigo'}</strong>
+      <div className="nsr-review-title"><strong>{revoking?(historical?'Reabrir revisão histórica':'Revogar vínculo'):'Confirmar vínculo de SKU antigo'}</strong>
         <button type="button" onClick={clearReview} aria-label="Fechar revisão">×</button></div>
       <p><strong>SKU das vendas: {active.sku}</strong> · {active.title}</p>
       {revoking?
         <>
-          <p className="nsr-note">O vínculo será desativado e as unidades voltarão para a fila de conciliação. Os pedidos originais permanecem inalterados.</p>
+          <p className="nsr-note">{historical
+            ?'A aprovação deste histórico será reaberta. As vendas originais e os indicadores de anúncios permanecerão inalterados.'
+            :'O vínculo será desativado e as unidades voltarão para a fila de conciliação. Os pedidos originais permanecem inalterados.'}</p>
           <button type="button" disabled={saving} className="nsr-danger" onClick={revoke}>
-            {saving?'Revogando…':'Confirmar revogação'}</button>
+            {saving?'Salvando…':historical?'Confirmar reabertura':'Confirmar revogação'}</button>
         </>:
         <>
           <label className="nsr-search-label">Pesquisar anúncio ativo ou SKU atual

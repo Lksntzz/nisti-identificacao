@@ -33,6 +33,8 @@
 .nsr-status-unmatched{background:#f0f2f6;color:#617188}
 .nsr-status-suggestion{background:#fff4e0;color:#976d25}
 .nsr-status-approved{background:#ebf8f0;color:#277c50}
+.nsr-status-history{background:#ebeffc;color:#4263a2}
+.nsr-tabs{flex-wrap:wrap}
 .nsr-pagination{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:10px;color:#7a899e;flex-wrap:wrap}
 .nsr-pagination>div{display:flex;gap:6px}
 .nsr-pagination button:disabled,.nsr-row button:disabled,.nsr-save:disabled,.nsr-danger:disabled{opacity:.44;cursor:not-allowed}

@@ -56,6 +56,6 @@ test('the operator sees explicitly which associations were automatic and can rev
   assert.match(ui,/item\.approved_by==='NISTI_AUTO_YEAR_26_27'/);
   assert.match(ui,/Ano 26 → 27 · automático/);
   assert.match(ui,/PB, PLAN, AGMT, CONFIN, VACMNO e VACMNA com ano 26 → 27/);
-  assert.match(ui,/Todos os vínculos podem ser revogados/);
+  assert.match(ui,/Vínculos a anúncios podem ser revogados e validações de histórico podem ser reabertas/);
   assert.match(ui,/Confirmar revogação/);
 });
