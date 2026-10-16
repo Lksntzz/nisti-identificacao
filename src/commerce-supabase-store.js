@@ -57,6 +57,13 @@ export async function commerceListingManager(env, filters = {}) {
     ? data : { items: [], total: 0, kpis: {} };
 }
 
+export async function commerceListingManagerMonthly(env, platform='TODAS') {
+  const data = await supabaseRpc(env,'commerce_listing_manager_monthly_v1',{
+    p_platform:cleanText(platform)||'TODAS'
+  });
+  return data && typeof data === 'object' && !Array.isArray(data) ? data : {months:[]};
+}
+
 export async function commerceListingManagerMonths(env, listingId) {
   const id = Number(listingId);
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error('ID do anúncio inválido.');
