@@ -46,7 +46,7 @@ test('ABC rankings use current imported sales only, not manual quantities or moc
   assert.doesNotMatch(abc,/insert into|update public\.commerce_sales/i);
   assert.match(router,/\/sales\/abc/);
   assert.match(store,/commerce_sales_abc_v1/);
-  assert.match(view,/Aguardando importação/);
+  assert.match(view,/Ainda não há vendas importadas/);
   assert.match(view,/!hasSales/);
   assert.match(view,/basis==='UNITS'/);
 });
@@ -69,5 +69,5 @@ test('ABC card click opens seller-ad performance panel without invented listing 
   assert.match(view,/setSearch\(sku\)/);
   assert.match(view,/setActiveCurve\(''\)/);
   assert.doesNotMatch(view,/listing\.manual_units\+/);
-  assert.match(view,/Aguardando importação das vendas/);
+  assert.match(view,/Ainda não há vendas importadas/);
 });
