@@ -1,14 +1,6 @@
-// Situação de vendas e indicadores são dimensões independentes.
-// Um anúncio pode ter vendas e estar em crescimento ou com baixo volume.
+// A situação de vendas não depende de tendência ou quantidade relativa de vendas.
+// Sem cobertura confiável, preservamos o estado pendente (nunca presumimos zero).
 export function listingSalesSituation(item) {
   if (!item?.ready) return 'PENDING';
   return Number(item.units) > 0 ? 'SOLD' : 'ZERO';
-}
-
-export function listingPerformanceIndicators(item) {
-  if (listingSalesSituation(item) !== 'SOLD') return [];
-  const indicators = [];
-  if (item.growing === true) indicators.push('RISING');
-  if (item.low_sales === true) indicators.push('LOW');
-  return indicators;
 }

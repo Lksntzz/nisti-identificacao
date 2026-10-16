@@ -1,12 +1,11 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import './commerce-ad-manager.css';
-import { listingSalesSituation, listingPerformanceIndicators } from './commerce-listing-classification.js';
+import { listingSalesSituation } from './commerce-listing-classification.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
-const SALES_FILTERS=[['ALL','Todos'],['SOLD','Com vendas'],['ZERO','Sem vendas'],['PENDING','Dados pendentes']];
-const PERFORMANCE_FILTERS=[['RISING','Em crescimento'],['LOW','Poucas vendas']];
+const SALES_FILTERS=[['ALL','Todos'],['SOLD','Com vendas'],['ZERO','Sem vendas']];
 const PERIODS=[7,30,60,90];
 const num=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
@@ -30,14 +29,6 @@ function Situation({item}){
   if(situation==='PENDING')return <span className="nim-status pending">Dados pendentes</span>;
   if(situation==='ZERO')return <span className="nim-status zero">Sem vendas</span>;
   return <span className="nim-status sold">Com vendas</span>;
-}
-function Indicators({item}){
-  const indicators=listingPerformanceIndicators(item);
-  if(!indicators.length)return <span className="nim-indicators-empty">—</span>;
-  return <span className="nim-indicators">{indicators.map(code=>
-    <span key={code} className={'nim-status '+(code==='RISING'?'rising':'low')}>
-      {code==='RISING'?'Em crescimento':'Poucas vendas'}
-    </span>)}</span>;
 }
 function Kpi({label,value,description,tone,onClick,selected}){
   const child=<><small>{label}</small><strong>{value}</strong>{description&&<span>{description}</span>}</>;
@@ -77,10 +68,6 @@ function ListingDetail({item,days,zeroFilter,onClose}){
     <div className="nim-detail-meta">
       <div><small>ID do anúncio</small><strong>{item.external_listing_id}</strong></div>
       <div><small>Curva ABC</small><strong>{item.curve||'—'}</strong></div>
-    </div>
-    <div className="nim-detail-classification">
-      <div><small>Situação de vendas</small><Situation item={item}/></div>
-      <div><small>Indicadores</small><Indicators item={item}/></div>
     </div>
     <div className="nim-detail-kpis">
       <div><small>Unidades · {days} dias</small><strong>{item.ready?num(item.units):'—'}</strong></div>
@@ -201,7 +188,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <Kpi tone="sand" label="Unidades vendidas" value={data?num(kpi.units):'—'} description={days+' dias · anúncios ativos'}/>
       <Kpi tone="green" label="Faturamento" value={data?money(kpi.revenue):'—'} description={days+' dias · anúncios ativos'}/>
     </div>
-    <section className="nim-filter-panel" aria-label="Filtros de situação de vendas, indicadores e Curva ABC">
+    <section className="nim-filter-panel" aria-label="Filtros de vendas e Curva ABC">
       <div className="nim-filter-panel-body">
         <div className="nim-filter-group nim-performance-group">
           <div className="nim-performance-line">
@@ -212,14 +199,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                 onClick={()=>change(setStatus,code)}>
                 {label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
               </button>)}
-            </div>
-          </div>
-          <div className="nim-performance-line">
-            <span className="nim-filter-group-label">Indicadores</span>
-            <div className="nim-status-tabs" role="group" aria-label="Filtrar anúncios por indicador de desempenho">
-              {PERFORMANCE_FILTERS.map(([code,label])=><button type="button" key={code}
-                className={status===code?'active':''} aria-pressed={status===code}
-                onClick={()=>change(setStatus,code)}>{label}</button>)}
             </div>
           </div>
         </div>
@@ -246,7 +225,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </span>
         {Number(kpi.pending_ads)>0&&<span className="nim-filter-panel-warning">{num(kpi.pending_ads)} anúncio(s) com dados pendentes</span>}
         {status==='ZERO'&&<span className="nim-filter-panel-note">Inclui anúncios com variações sem vendas</span>}
-        {status==='SOLD'&&<span className="nim-filter-panel-note">Inclui anúncios em crescimento ou com poucas vendas</span>}
       </div>
     </section>
     {error&&<div className="nim-error" role="alert">{error}
@@ -265,7 +243,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <div className="nim-table-scroll">
           <table className="nim-ad-table"><thead><tr>
             <th>Plataforma</th><th>Nome e ID do anúncio</th><th>Unid. {days} dias</th>
-            <th>Variações</th><th>Faturamento</th><th>ABC</th><th>Vendas</th><th>Indicadores</th>
+            <th>Variações</th><th>Faturamento</th><th>ABC</th><th>Vendas</th>
           </tr></thead><tbody>
             {!loading&&rows.map(item=><tr key={item.id} className={selectedId===item.id?'selected':''}
               onClick={()=>setSelectedId(item.id)} title="Ver anúncio e suas variações">
@@ -280,10 +258,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
               <td className="nim-money">{item.ready?money(item.revenue):'—'}</td>
               <td>{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}>{item.curve}</span>:'—'}</td>
               <td><Situation item={item}/></td>
-              <td><Indicators item={item}/></td>
             </tr>)}
-            {loading&&<tr><td colSpan={8} className="nim-table-empty">Carregando anúncios…</td></tr>}
-            {!loading&&!error&&rows.length===0&&<tr><td colSpan={8} className="nim-table-empty">Nenhum anúncio encontrado para o filtro.</td></tr>}
+            {loading&&<tr><td colSpan={7} className="nim-table-empty">Carregando anúncios…</td></tr>}
+            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">Nenhum anúncio encontrado para o filtro.</td></tr>}
           </tbody></table>
         </div>
         <footer className="nim-list-footer">
@@ -296,6 +273,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </section>
       {selected&&<ListingDetail key={selected.id} item={selected} days={days} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
-    <p className="nim-footnote">Valores por ID real do anúncio e conta da plataforma. Situação de vendas e indicadores são independentes. Variações não identificadas não são classificadas como sem vendas. Nenhum dado do Scanner é alterado.</p>
+    <p className="nim-footnote">Valores por ID real do anúncio e conta da plataforma. O filtro Sem vendas inclui variações sem vendas quando há dados confiáveis. Variações não identificadas não são classificadas como sem vendas. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
