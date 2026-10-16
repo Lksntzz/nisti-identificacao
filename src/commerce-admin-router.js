@@ -30,6 +30,7 @@ import {
   commerceProductDetail,
   commerceShopeeSnapshot,
   commerceSalesAbcAds,
+  commerceSalesVelocity,
   commerceSalesAbc,
   commerceSalesDashboard,
   commerceSalesProductPerformance,
