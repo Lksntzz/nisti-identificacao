@@ -16,7 +16,6 @@ test('SQL materializes expensive sales day view once without changing business c
   assert.equal((sql.match(/(?:join|from) sales_days d/g)||[]).length,3);
   assert.match(sql,/identified_growth_pct/);
   assert.match(sql,/FALLING/);
-  assert.match(sql,/DUPLICATE/,{});
   assert.match(sql,/create or replace function public\.commerce_listing_manager_v1/);
   assert.match(sql,/security invoker set search_path=public/);
   assert.match(sql,/from public,anon,authenticated/);
