@@ -329,6 +329,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const partialUnits=hasMonthPartial?Number(kpi.month_linked_units||0):Number(kpi.identified_units||0);
   const partialRevenue=hasMonthPartial?Number(kpi.month_linked_revenue||0):Number(kpi.identified_revenue||0);
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
+  const emptyIdentifiedAds=Number(kpi.identified_empty_ads||0);
+  const emptyIdentifiedVars=Number(kpi.identified_empty_variations||0);
   const salesCoverageLabel=Number(kpi.pending_ads||0)>0
     ?periodLabel(days,month)+' · dados parciais':periodLabel(days,month)+' · anúncios ativos';
   const rows=Array.isArray(data?.items)?data.items:[];
@@ -355,8 +357,10 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Por plataforma"/>
       <Kpi tone="mint" label={hasShopeePartial?'Com vendas identificadas':'Com vendas'} value={hasShopeePartial&&data?num(partialAds):hasReliableSales?num(kpi.sold_ads):'—'} description={hasShopeePartial?'SKU exclusivo · dados parciais':'No período'} selected={status==='SOLD'}
         onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
-      <Kpi tone="rose" label="Sem vendas" value={hasShopeePartial?'—':hasReliableSales?num(kpi.zero_ads):'—'} description={hasShopeePartial?'Sem dados para confirmar zero':'Anúncios ou variações'} selected={status==='ZERO'}
-        onClick={hasShopeePartial?undefined:()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
+      <Kpi tone="rose" label={hasShopeePartial?'Sem vendas identificadas':'Sem vendas'}
+        value={hasShopeePartial&&data?num(emptyIdentifiedAds):hasReliableSales?num(kpi.zero_ads):'—'}
+        description={hasShopeePartial?'Anúncios ou variações · indicativo':'Anúncios ou variações'}
+        selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
       <Kpi tone="sand" label={hasShopeePartial?'Unidades identificadas':'Unidades vendidas'} value={hasShopeePartial&&data?'≥ '+num(partialUnits):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?'SKU único · parcial':salesCoverageLabel}/>
       <Kpi tone="green" label={hasShopeePartial?'Faturamento identificado':'Faturamento'} value={hasShopeePartial&&data?'≥ '+money(partialRevenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?'SKU único · parcial':salesCoverageLabel}/>
     </div>
@@ -366,7 +370,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           <select value={platform} onChange={e=>{
             if(e.target.value==='SHOPEE'){
               setCurve('ALL');
-              if(status==='ZERO')setStatus('ALL');
+              // Na Shopee, preservar o filtro exploratório sem vendas identificadas.
             }
             change(setPlatform,e.target.value);
           }}>
@@ -385,7 +389,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                 if(choice!=='MONTH')setMonth('');
                 if(platform==='SHOPEE'){
                   setCurve('ALL');
-                  if(status==='ZERO')setStatus('ALL');
+                  // Na Shopee, preservar o filtro exploratório sem vendas identificadas.
                 }
                 change(setDays,choice==='MONTH'?0:Number(choice));
               }}>
@@ -409,21 +413,20 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           <div className="nim-status-tabs" role="group" aria-label="Filtrar anúncios por situação de vendas">
             {SALES_FILTERS.map(([code,label])=><button type="button" key={code}
               className={status===code?'active':''} aria-pressed={status===code}
-              onClick={()=>change(setStatus,code)} disabled={hasShopeePartial&&code==='ZERO'}
-              title={hasShopeePartial&&code==='ZERO'?'Sem vendas não pode ser confirmado por dados mensais de SKU':undefined}>
-              {label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
+              onClick={()=>change(setStatus,code)}
+              title={hasShopeePartial&&code==='ZERO'?'Filtro exploratório: anúncios ou variações sem vendas vinculadas; não é zero comprovado':undefined}>
+              {hasShopeePartial&&code==='ZERO'?'Sem vendas identificadas':label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
             </button>)}
           </div>
         </div>
         <div className="nim-filter-group nim-abc-group">
-          <span className="nim-filter-group-label">Curva ABC</span>
+          <span className="nim-filter-group-label">Curva ABC{hasShopeePartial?' · indicativa':''}</span>
           <div className="nim-abc-controls">
             <div className="nim-curve-tabs" role="group" aria-label="Filtrar anúncios por Curva ABC">
               {['ALL','A','B','C'].map(code=><button type="button" key={code}
                 className={curve===code?'active':''} aria-pressed={curve===code}
                 onClick={()=>change(setCurve,code)}
-                disabled={hasShopeePartial&&code!=='ALL'}
-                title={hasShopeePartial&&code!=='ALL'?'Curva ABC requer vendas completas por anúncio':undefined}>{code==='ALL'?'Todas':code}</button>)}
+                title={hasShopeePartial&&code!=='ALL'?'Ranking provisório apenas das vendas identificadas, sem assumir vendas zero':undefined}>{code==='ALL'?'Todas':code}</button>)}
             </div>
             <label className="nim-abc-basis-label">
               <span>Classificar por</span>
@@ -441,9 +444,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </span>
         {hasShopeePartial&&data?<>
           <span className="nim-filter-panel-identified">{num(classified.identified)} anúncios com vendas identificadas</span>
-          <span className="nim-filter-panel-unclassified">{num(classified.unclassified)} anúncios ainda sem classificação confiável</span>
+          <span className="nim-filter-panel-unclassified">{num(classified.unclassified)} anúncios sem vendas vinculadas; não significa zero</span>
         </>:Number(kpi.pending_ads)>0&&<span className="nim-filter-panel-warning">{num(kpi.pending_ads)} anúncio(s) com dados pendentes</span>}
-        {status==='ZERO'&&<span className="nim-filter-panel-note">Inclui anúncios com variações sem vendas</span>}
+        {status==='ZERO'&&<span className="nim-filter-panel-note">{hasShopeePartial
+          ?num(emptyIdentifiedVars)+' variações sem vendas identificadas · ausência não comprovada'
+          :'Inclui anúncios com variações sem vendas'}</span>}
       </div>
     </section>
     {days===0&&data?.imported_month&&!search&&<section className="nim-imported-month-summary" aria-label="Totais de vendas importadas da plataforma">
@@ -455,7 +460,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <span><small>Subtotal dos produtos</small><strong>{money(data.imported_month.revenue)}</strong></span>
       </div>
       <p className="nim-imported-month-warning">{hasMonthPartial
-        ?'Vendas identificadas por SKU exclusivo: '+num(kpi.month_linked_units)+' unidades. Outras '+num(Math.max(0,Number(data.imported_month.units||0)-Number(kpi.month_linked_units||0)))+' unidades permanecem sem vínculo exclusivo. Sem vendas e Curva ABC continuam indisponíveis sem histórico completo por anúncio.'
+        ?'Vendas identificadas por SKU exclusivo: '+num(kpi.month_linked_units)+' unidades. Outras '+num(Math.max(0,Number(data.imported_month.units||0)-Number(kpi.month_linked_units||0)))+' unidades permanecem sem vínculo exclusivo. Sem vendas identificadas e Curva ABC indicativa são análises parciais, não classificação definitiva.'
         :'Sem vínculos diários confiáveis por anúncio, as quantidades individuais e a Curva ABC permanecem pendentes.'}</p>
     </section>}
     {days===0&&month&&!data?.imported_month&&!loading&&!error&&<p className="nim-no-imported-month">
@@ -500,11 +505,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                 <VariationSalesEvidence item={item} days={days} partial={hasShopeePartial}/>
               </span></td>
               <td className="nim-money">{item.ready?money(item.revenue):hasShopeePartial&&Number(item.month_linked_units||item.identified_units)>0?'≥ '+money(item.month_linked_revenue||item.identified_revenue):'—'}</td>
-              <td>{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}>{item.curve}</span>:'—'}</td>
+              <td>{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}
+                title={item.curve_partial?'ABC indicativa: calculada apenas com vendas identificadas':'Curva ABC por vendas consolidadas'}>{item.curve}{item.curve_partial?'*':''}</span>:'—'}</td>
               <td><Situation item={item}/></td>
             </tr>)}
             {loading&&<tr><td colSpan={7} className="nim-table-empty">Carregando anúncios…</td></tr>}
-            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">{data&&Number(kpi.pending_ads||0)>0&&status!=='ALL'? 'Não é possível classificar anúncios por vendas sem histórico diário vinculado. Selecione Todos para ver os anúncios.' : 'Nenhum anúncio encontrado para o filtro.'}</td></tr>}
+            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">Nenhum anúncio encontrado para o filtro. {hasShopeePartial&&'A ausência de vendas vinculadas não comprova venda zero.'}</td></tr>
           </tbody></table>
         </div>
         <footer className="nim-list-footer">
@@ -517,6 +523,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </section>
       {selected&&<ListingDetail key={selected.id} item={selected} days={days} month={month} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
-    <p className="nim-footnote">O símbolo ≥ indica vendas mínimas identificadas por SKU exclusivo, não faturamento total do anúncio. Sem vendas e Curva ABC só são calculados quando há associação completa e confiável dos pedidos a cada anúncio. Nenhum dado do Scanner é alterado.</p>
+    <p className="nim-footnote">O símbolo ≥ indica vendas mínimas identificadas por SKU exclusivo. Na Shopee, “Sem vendas identificadas” é um filtro exploratório, não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Crescimento compara períodos equivalentes com vendas identificadas e exige base anterior maior que zero. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
