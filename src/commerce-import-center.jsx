@@ -959,6 +959,14 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
 
               {(!embedded || catalogParsed) && <Step number="3" title="Conferência antes de enviar" className="import-center-step-review" complete={Boolean(catalogParsed)}>
                 <CatalogPreview parsed={catalogParsed} />
+                {catalogParsed?.format === 'SHOPEE_SALES_INFO' && <label className="import-center-shopee-confirm">
+                  <input type="checkbox" checked={shopeeActiveConfirmed}
+                    disabled={catalogImporting || catalogReading}
+                    onChange={event => setShopeeActiveConfirmed(event.target.checked)}/>
+                  <span><strong>Confirmo que exportei somente anúncios ativos na Shopee.</strong>
+                    <small>Esta planilha não informa o status. Anúncios ausentes não serão desativados, e nenhum produto do Scanner será modificado.</small>
+                  </span>
+                </label>}
               </Step>}
 
               {(!embedded || catalogParsed) && <Step
@@ -971,7 +979,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                   <button
                     type="button"
                     className="import-center-primary"
-                    disabled={!catalogParsed || catalogReading || catalogImporting}
+                    disabled={!catalogParsed || catalogReading || catalogImporting || (catalogParsed.format === 'SHOPEE_SALES_INFO' && !shopeeActiveConfirmed)}
                     onClick={handleCatalogImport}
                   >
                     {catalogImporting ? 'Preparando…' : 'Preparar e comparar com o catálogo'}
