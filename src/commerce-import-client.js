@@ -1,31 +1,42 @@
 const API_BASE = '/api/admin/commerce';
 const CHUNK_SIZE = 100;
 
+// Replays only idempotent staging inserts after HTTP 429; finalization is never retried.
 async function requestJson(path, options = {}) {
-  const response = await fetch(path, {
-    credentials: 'same-origin',
-    headers: {
-      'content-type': 'application/json',
-      ...(options.headers || {})
-    },
-    ...options
-  });
-
-  const type = response.headers.get('content-type') || '';
-  const data = type.includes('application/json') ? await response.json() : null;
-
-  if (response.status === 401) {
-    window.location.href = '/admin-login';
-    throw new Error('Sessão administrativa expirada.');
+  const { retryRateLimit = false, ...fetchOptions } = options;
+  const maxRetries = retryRateLimit ? 4 : 0;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const response = await fetch(path, {
+      credentials: 'same-origin',
+      headers: {
+        'content-type': 'application/json',
+        ...(fetchOptions.headers || {})
+      },
+      ...fetchOptions
+    });
+    const type = response.headers.get('content-type') || '';
+    const data = type.includes('application/json') ? await response.json() : null;
+    if (response.status === 401) {
+      window.location.href = '/admin-login';
+      throw new Error('Sessão administrativa expirada.');
+    }
+    if (response.status === 429 && attempt < maxRetries) {
+      const retrySeconds = Number(response.headers.get('retry-after'));
+      const delay = Number.isFinite(retrySeconds) && retrySeconds > 0
+        ? Math.min(60000, Math.ceil(retrySeconds * 1000))
+        : [2000, 5000, 12000, 25000][attempt];
+      await wait(delay);
+      continue;
+    }
+    if (!response.ok) {
+      const error = new Error(data?.error || `Erro ${response.status}`);
+      error.status = response.status;
+      error.technicalError = data?.technical_error || null;
+      error.retryable = Boolean(data?.retryable);
+      throw error;
+    }
+    return data;
   }
-  if (!response.ok) {
-    const error = new Error(data?.error || `Erro ${response.status}`);
-    error.status = response.status;
-    error.technicalError = data?.technical_error || null;
-    error.retryable = Boolean(data?.retryable);
-    throw error;
-  }
-  return data;
 }
 
 function chunks(rows, size = CHUNK_SIZE) {
@@ -105,7 +116,8 @@ export async function stageCommerceWorkbook(parsedWorkbook, onProgress = () => {
     onProgress({ phase: 'upload', completed, total: rows.length, chunk: index + 1, chunks: rowChunks.length, batchId });
     await requestJson(`${API_BASE}/imports/${batchId}/rows`, {
       method: 'POST',
-      body: JSON.stringify({ rows: chunk })
+      body: JSON.stringify({ rows: chunk }),
+      retryRateLimit: true
     });
     completed += chunk.length;
   }
@@ -249,7 +261,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
     });
     await requestJson(`${API_BASE}/sales/imports/${batchId}/rows`, {
       method: 'POST',
-      body: JSON.stringify({ rows: chunk })
+      body: JSON.stringify({ rows: chunk }),
+      retryRateLimit: true
     });
     completed += chunk.length;
   }
@@ -259,7 +272,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
     for (const chunk of chunks(summaries)) {
       await requestJson(`${API_BASE}/sales/imports/${batchId}/summary`, {
         method: 'POST',
-        body: JSON.stringify({ rows: chunk })
+        body: JSON.stringify({ rows: chunk }),
+      retryRateLimit: true
       });
     }
   }
@@ -271,7 +285,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
     for (const chunk of chunks(listingRows)) {
       await requestJson(`${API_BASE}/sales/imports/${batchId}/listing-daily`, {
         method:'POST',
-        body:JSON.stringify({rows:chunk})
+        body:JSON.stringify({rows:chunk}),
+      retryRateLimit: true
       });
     }
   }

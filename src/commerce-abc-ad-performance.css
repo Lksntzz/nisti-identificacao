@@ -48,3 +48,16 @@
 .nisti-abc-ad-pagination button{border:1px solid #dfe5ee;border-radius:7px;background:#fff;padding:7px 11px;color:#44526c;font-size:11px;cursor:pointer}
 .nisti-abc-ad-pagination button:disabled{opacity:.4;cursor:default}
 @media(max-width:760px){.nisti-abc-ad-product-main{flex-wrap:wrap;gap:9px}.nisti-abc-ad-product-kpis{width:100%;padding-left:21px}.nisti-abc-ad-product-kpis>div{flex:1}.nisti-abc-ad-entry{padding-left:13px;align-items:flex-start;flex-direction:column;gap:6px}.nisti-abc-ad-individual{text-align:left}.nisti-abc-ad-panel-intro{align-items:flex-start}.nisti-abc-ad-total{font-size:10px}.nisti-abc-ad-pagination{align-items:flex-start;flex-direction:column}}
+
+
+/* Match the drill-down product cards to the main commercial design. */
+.nisti-abc-ad-panel-intro{gap:13px;padding:13px 15px}
+.nisti-abc-ad-product{border-radius:12px;box-shadow:0 1px 7px #23304a0b}
+.nisti-abc-ad-product-main{gap:13px;padding:15px}
+.nisti-abc-ad-product-kpis{align-items:stretch}
+.nisti-abc-ad-product-kpis>div{min-width:118px}
+.nisti-abc-ad-product-info{gap:6px}
+.nisti-abc-ad-explanation{line-height:1.65}
+.nisti-abc-ad-list{border-top-color:#e7ebf2}
+.nisti-abc-ad-entry{min-height:63px}
+.nisti-abc-ad-product-footer button:focus-visible{outline:2px solid #3467d0;outline-offset:2px}

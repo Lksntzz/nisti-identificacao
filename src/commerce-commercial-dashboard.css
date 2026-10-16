@@ -87,3 +87,34 @@
 .nisti-com-error{padding:11px 14px;background:#fff1f2;border:1px solid #fecdd3;border-radius:9px;font-size:12px;color:#991b1b}
 @media(max-width:1050px){.nisti-com-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.nisti-com-abc-cards{gap:8px}.nisti-com-abc-card{padding:12px 10px}.nisti-com-analytics{grid-template-columns:1fr}}
 @media(max-width:680px){.nisti-com-heading h2{font-size:18px}.nisti-com-heading p{font-size:10px}.nisti-com-metrics{gap:8px}.nisti-com-metric{padding:12px;min-height:104px}.nisti-com-metric strong{font-size:20px}.nisti-com-metric-icon{width:30px;height:30px;font-size:12px}.nisti-com-metric small{font-size:9px}.nisti-com-section{padding:12px}.nisti-com-abc-cards{grid-template-columns:1fr}.nisti-com-abc-card{grid-template-columns:44px 1fr}.nisti-com-abc-numbers{grid-column:2;margin:2px 0}.nisti-com-abc-donut{width:55px;height:55px;flex-basis:55px}.nisti-com-abc-donut:before{inset:10px}.nisti-com-abc-donut b{font-size:10px}.nisti-com-abc-flag{width:40px;height:40px;font-size:20px!important}.nisti-com-section-heading{flex-direction:column;align-items:flex-start}.nisti-com-products-filters label{flex:1 1 115px}.nisti-com-participation-inner{gap:12px}.nisti-com-big-donut{width:120px;height:120px;flex-basis:120px}.nisti-com-big-donut>span{width:80px;height:80px}.nisti-com-rankings>button{flex-wrap:wrap}.nisti-com-reload{font-size:10px;padding:8px}.nisti-com-header{gap:7px}}
+
+
+/* Visual hierarchy only. Keep the existing desktop-in-mobile layout and breakpoints untouched. */
+.nisti-com-dashboard{gap:18px}
+.nisti-com-section{border-color:#e6eaf0;border-radius:14px;box-shadow:0 2px 9px rgba(15,23,42,.035)}
+.nisti-com-section-heading{margin-bottom:15px}
+.nisti-com-section h3{line-height:1.4}
+.nisti-com-metrics{align-items:stretch}
+.nisti-com-metric{min-height:123px;align-items:stretch;padding:16px 17px;gap:14px;box-shadow:0 1px 8px #1522380c}
+.nisti-com-metric>div:first-child{grid-template-rows:auto 1fr auto;align-content:start;gap:6px}
+.nisti-com-metric strong{align-self:center;line-height:1.2;letter-spacing:-.4px}
+.nisti-com-metric small{line-height:1.5}
+.nisti-com-metric-icon{margin-left:auto}
+.nisti-com-abc-cards{align-items:stretch;gap:12px}
+.nisti-com-abc-card{min-height:170px;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto 1fr;align-content:start;align-items:center;gap:10px 13px;padding:17px;box-shadow:inset 0 1px 0 #ffffff99}
+.nisti-com-abc-card>div:nth-child(2){align-self:center}
+.nisti-com-abc-card>div:nth-child(2)>strong{font-size:14px}
+.nisti-com-abc-card>div:nth-child(2)>small{line-height:1.5}
+.nisti-com-abc-numbers{margin-top:3px;align-self:end;gap:14px}
+.nisti-com-abc-numbers>div:last-child{gap:6px}
+.nisti-com-abc-numbers strong,.nisti-com-abc-numbers b{font-size:13px;line-height:1.25}
+.nisti-com-abc-numbers small{font-size:10px;line-height:1.3}
+.nisti-com-abc-card.active{outline-color:#7e8da7;box-shadow:0 3px 12px #22354a14}
+.nisti-com-abc-card:hover{border-color:#bfcbda}
+.nisti-com-abc-card:focus-visible,.nisti-com-light-button:focus-visible{outline:2px solid #3467d0;outline-offset:3px}
+.nisti-com-data-note{margin-top:12px!important;padding:9px 0 0!important;font-size:11px;line-height:1.5}
+.nisti-com-imports .import-center-embedded{margin:0}
+.nisti-com-imports .nisti-com-section-heading{margin-bottom:12px}
+.nisti-com-imports .nisti-com-section-heading p{line-height:1.5}
+.nisti-com-analytics{align-items:stretch}
+.nisti-com-products{min-width:0}

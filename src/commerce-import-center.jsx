@@ -136,22 +136,36 @@ function Step({ number, title, subtitle, children, complete = false, className =
   );
 }
 
-function FileDrop({ file, accept, disabled, onChange, hint }) {
+function FileDrop({ file, accept, disabled, onChange, hint, onClear }) {
+  const shortName = file?.name && file.name.length > 44
+    ? file.name.slice(0, 27) + '…' + file.name.slice(-14)
+    : file?.name;
+  const sizeText = file ? (file.size / 1024 / 1024 >= 1
+    ? (file.size / 1024 / 1024).toFixed(1) + ' MB'
+    : Math.max(1, Math.ceil(file.size / 1024)) + ' KB') : '';
   return (
-    <label className={`import-center-file ${disabled ? 'disabled' : ''}`}>
-      <input type="file" accept={accept} disabled={disabled} onChange={onChange} />
-      <span className="import-center-file-icon">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 16V4" />
-          <path d="m7 9 5-5 5 5" />
-          <path d="M5 20h14" />
-        </svg>
-      </span>
-      <strong>{file ? file.name : 'Clique para selecionar o arquivo'}</strong>
-      <small>{file ? 'Clique novamente para trocar o arquivo.' : hint}</small>
-    </label>
+    <div className="import-center-file-wrapper">
+      <label className={`import-center-file ${disabled ? 'disabled' : ''}`}
+        title={file?.name || 'Selecionar planilha'}>
+        <input type="file" accept={accept} disabled={disabled}
+          onChange={event => { onChange(event); event.target.value = ''; }}
+          aria-label={file ? 'Trocar arquivo ' + file.name : 'Selecionar planilha'} />
+        <span className="import-center-file-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 16V4" />
+            <path d="m7 9 5-5 5 5" />
+            <path d="M5 20h14" />
+          </svg>
+        </span>
+        <strong className="import-center-filename">{shortName || 'Selecionar planilha .xlsx'}</strong>
+        <small>{file ? sizeText + ' · Clique para trocar o arquivo' : hint}</small>
+      </label>
+      {file && onClear && <button type="button" className="import-center-file-remove"
+        disabled={disabled} onClick={onClear}>Remover arquivo</button>}
+    </div>
   );
 }
+
 
 function StatCard({ label, value, tone = 'blue' }) {
   return (
@@ -188,10 +202,20 @@ function SalesPreview({ parsed }) {
         value={parsed ? brNumber(s.period_count) : '—'} tone="purple" />
       {s.package_items_recovered != null && (
         <div className="import-center-sales-validation" role="status">
-          <strong>Relatório oficial do Mercado Livre reconhecido.</strong>
-          <span>{brNumber(s.accepted_sales_rows)} itens válidos · {brNumber(s.package_summaries)} pacotes conferidos · {brNumber(s.package_items_recovered)} itens com receita recuperada pelo preço unitário.</span>
-          <small>Faturamento bruto de produtos (sem tarifas de envio ou venda). Cancelamentos, reembolsos e linhas de resumo de pacotes não são contabilizados em duplicidade.</small>
-          {s.source_warning && <small>O arquivo contém aviso de dados indisponíveis do Mercado Livre. Confira o total antes de confirmar a importação.</small>}
+          <div className="import-center-validation-head">
+            <strong>Relatório Mercado Livre validado</strong>
+            <span>{brNumber(s.accepted_sales_rows)} itens · {brNumber(s.package_summaries)} pacotes conferidos</span>
+          </div>
+          {s.source_warning && <p className="import-center-validation-warning">
+            Aviso do Mercado Livre: alguns dados podem estar indisponíveis. Confira os totais antes de importar.
+          </p>}
+          <details className="import-center-validation-details">
+            <summary>Ver critérios de validação</summary>
+            <div>
+              <p>{brNumber(s.package_items_recovered)} itens tiveram a receita recuperada pelo preço unitário verificado.</p>
+              <p>Receita bruta dos produtos, sem frete e tarifas. Resumos de pacotes, cancelamentos e reembolsos não são somados duas vezes.</p>
+            </div>
+          </details>
         </div>
       )}
     </div>
@@ -789,7 +813,10 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
       setSalesProgress(null);
       await refreshSalesHistory();
     } catch (err) {
-      setError(err.message || 'Falha ao importar as vendas.');
+      setSalesProgress(current => current ? {...current, phase: 'failed'} : null);
+      setError(err?.status === 429
+        ? 'O servidor limitou as requisições. Aguarde alguns instantes; a importação não foi confirmada.'
+        : err.message || 'Falha ao importar as vendas.');
     } finally {
       setSalesImporting(false);
     }
@@ -816,6 +843,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
       summary: 'Consolidando períodos',
       listings: 'Conferindo vendas por ID de anúncio',
       commit: 'Atualizando painel',
+      failed: 'Importação interrompida · não confirmada',
       done: 'Concluído'
     };
     return labels[salesProgress.phase] || 'Processando';
@@ -844,8 +872,17 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
         </button>
       </div>
 
-      {error && <div className="import-center-alert error">{error}</div>}
-      {message && <div className="import-center-alert success">{message}</div>}
+      {error && <div className="import-center-alert error" role="alert">
+        <span className="import-center-alert-icon" aria-hidden="true">!</span>
+        <span className="import-center-alert-text"><strong>Não foi possível concluir a operação</strong><small>{error}</small></span>
+        <button type="button" className="import-center-alert-dismiss"
+          aria-label="Fechar aviso de erro" onClick={() => setError('')}>Fechar</button>
+      </div>}
+      {message && <div className="import-center-alert success" role="status">
+        <span className="import-center-alert-text">{message}</span>
+        <button type="button" className="import-center-alert-dismiss"
+          aria-label="Fechar mensagem" onClick={() => setMessage('')}>Fechar</button>
+      </div>}
 
       {embedded && mode && <button type="button" className="import-center-history-toggle" aria-expanded={showHistory} onClick={() => setShowHistory(value => !value)}>{showHistory ? 'Ocultar histórico e resumo' : 'Ver histórico de importações e resumo'}</button>}
       {(!embedded || mode) && <div className="import-center-layout">
@@ -898,18 +935,20 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   disabled={catalogReading || catalogImporting || (catalogPlatform === 'MERCADO_LIVRE' && !catalogAccount)}
                   onChange={handleCatalogFile}
+                  onClear={() => {setCatalogFile(null);setCatalogParsed(null);setCatalogProgress(null);setError('');}}
                   hint="Aceita planilhas .xlsx exportadas da plataforma"
                 />
                 {catalogReading && <div className="import-center-loading">Lendo e validando a planilha…</div>}
               </Step>
 
-              {(!embedded || catalogParsed) && <Step number="3" title="Conferência antes de enviar" complete={Boolean(catalogParsed)}>
+              {(!embedded || catalogParsed) && <Step number="3" title="Conferência antes de enviar" className="import-center-step-review" complete={Boolean(catalogParsed)}>
                 <CatalogPreview parsed={catalogParsed} />
               </Step>}
 
               {(!embedded || catalogParsed) && <Step
                 number="4"
                 title="Importação"
+                className="import-center-step-submit"
                 subtitle="O arquivo será validado antes de alterar os dados."
               >
                 <div className="import-center-action-line">
@@ -986,18 +1025,20 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   disabled={salesReading || salesImporting}
                   onChange={handleSalesFile}
+                  onClear={() => {setSalesFile(null);setSalesParsed(null);setSalesProgress(null);setError('');}}
                   hint="Aceita relatórios .xlsx exportados da plataforma"
                 />
                 {salesReading && <div className="import-center-loading">Lendo vendas e identificando colunas…</div>}
               </Step>
 
-              {(!embedded || salesParsed) && <Step number="3" title="Conferência antes de enviar" complete={Boolean(salesParsed)}>
+              {(!embedded || salesParsed) && <Step number="3" title="Conferência antes de enviar" className="import-center-step-review" complete={Boolean(salesParsed)}>
                 <SalesPreview parsed={salesParsed} />
               </Step>}
 
               {(!embedded || salesParsed) && <Step
                 number="4"
                 title="Importação"
+                className="import-center-step-submit"
                 subtitle="Os períodos do arquivo serão consolidados antes de atualizar o painel."
               >
                 <div className="import-center-action-line">
