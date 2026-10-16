@@ -180,6 +180,10 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
               className={detailDays===p?'active':''} onClick={()=>setDetailDays(p)}>{p}d</button>)}
           </div>}
       </div>
+      {days===0&&<p className="nim-detail-period-note">
+        Esta ficha segue apenas {periodLabel(0,month)}. Para comparar 7, 30, 60 ou 90 dias,
+        altere o período no filtro principal.
+      </p>}
       <div className="nim-detail-metrics">
         <DetailMetric label="Unidades vendidas"  value={partialLinked?'≥ '+num(partialUnits):pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
         <DetailMetric label="Faturamento"  value={partialLinked?'≥ '+money(partialRevenue):pending?'—':money(detail.revenue)} description={periodLabel(detailDays,month)+' · produtos'}/>
