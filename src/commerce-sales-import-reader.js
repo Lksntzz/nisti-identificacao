@@ -424,7 +424,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
   })).sort((a, b) => a.period_start.localeCompare(b.period_start));
 
   const finance=platformCode==='SHOPEE'?await aggregateShopeeFinance(raw):
-    {finance_daily_rows:[],finance_month_rows:[],finance_summary:null};
+    {finance_order_rows:[],finance_daily_rows:[],finance_month_rows:[],finance_summary:null};
   return {
     filename,
     sha256,
