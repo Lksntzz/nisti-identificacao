@@ -71,7 +71,7 @@ test('todos os filtros aparecem uma única vez no painel compacto',()=>{
   const end=ui.indexOf('{error&&<div className="nim-error"',start);
   const panel=ui.slice(start,end);
   assert.match(panel,/<div className="nim-filter-top">/);
-  assert.match(panel,/<div className="nim-filter-panel-body">/);
+  assert.match(panel,/nim-filter-panel-body'\+\(shopeeTrendAvailable\?' nim-has-trend':''\)/);
   assert.match(panel,/<div className="nim-filter-panel-footer">/);
   const sections=['Plataforma','Buscar anúncio ou ID','Período','Mês personalizado','Limpar filtros','Situação de vendas','Curva ABC'];
   for(const label of sections){
