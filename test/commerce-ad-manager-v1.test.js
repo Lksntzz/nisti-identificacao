@@ -89,7 +89,7 @@ test('endpoints are authenticated admin routes and RPCs restrict direct public a
   assert.match(router,/commerceListingManagerMonthly\(env/);
   assert.match(router,/commerceListingManagerMonths\(env/);
   assert.match(router,/\[0,7,30,60,90\]\.includes\(days\)/);
-  assert.match(router,/\['ALL','SOLD','ZERO','LOW','RISING','PENDING'\]\.includes\(status\)/);
+  assert.match(router,/\['ALL','SOLD','ZERO','LOW','RISING','FALLING','PENDING'\]\.includes\(status\)/);
   assert.match(store,/commerce_listing_manager_v1/);
   assert.match(store,/commerce_listing_manager_months_v1/);
   assert.match(store,/commerce_listing_manager_monthly_v1/);
