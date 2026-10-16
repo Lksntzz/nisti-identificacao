@@ -232,6 +232,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
   const listingRows = Array.isArray(parsedWorkbook?.listing_rows) ? parsedWorkbook.listing_rows : [];
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
+  const financeDailyRows = Array.isArray(parsedWorkbook?.finance_daily_rows) ? parsedWorkbook.finance_daily_rows : [];
+  const financeMonthRows = Array.isArray(parsedWorkbook?.finance_month_rows) ? parsedWorkbook.finance_month_rows : [];
   const financeOrderRows = Array.isArray(parsedWorkbook?.finance_order_rows) ? parsedWorkbook.finance_order_rows : [];
   const financeDaily=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
   const financeMonths=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
@@ -335,6 +337,20 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
     }
   }
 
+  // Persist financial evidence BEFORE commit. The finance RPC rejects
+  // requests after commit, preventing edits to historical settled batches.
+  if(parsedWorkbook.platform_code==='SHOPEE'){
+    for(const kind of ['MONTH','DAILY']){
+      const financeRows=kind==='MONTH'?financeMonthRows:financeDailyRows;
+      if(financeRows.length)onProgress({phase:kind==='MONTH'?'finance-month':'finance-daily',
+        completed,total:rows.length,batchId});
+      for(const chunk of chunks(financeRows)){
+        await requestJson(`${API_BASE}/sales/imports/${batchId}/shopee-finance`,{
+          method:'POST',body:JSON.stringify({kind,rows:chunk}),retryRateLimit:true
+        });
+      }
+    }
+  }
   onProgress({ phase: 'commit', completed, total: rows.length, batchId });
   let result;
   try {
