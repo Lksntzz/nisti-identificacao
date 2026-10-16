@@ -7,7 +7,7 @@ const styles=read('src/commerce-ad-manager.css');
 const sql=read('supabase/migrations/20261016152000_commerce_listing_manager_v1.sql');
 
 test('performance and ABC controls share a single aligned filter panel',()=>{
-  assert.match(ui,/<section className="nim-filter-panel" aria-label="Filtros de situação de vendas, indicadores e Curva ABC">/);
+  assert.match(ui,/<section className="nim-filter-panel" aria-label="Filtros de vendas e Curva ABC">/);
   assert.match(ui,/nim-filter-panel-body/);
   assert.match(ui,/nim-performance-group/);
   assert.match(ui,/nim-abc-group/);
@@ -19,7 +19,8 @@ test('performance and ABC controls share a single aligned filter panel',()=>{
 
 test('filter status, ABC curve and ABC basis keep their existing actions and selections',()=>{
   assert.match(ui,/SALES_FILTERS\.map\(\(\[code,label\]\)=>/);
-  assert.match(ui,/PERFORMANCE_FILTERS\.map\(\(\[code,label\]\)=>/);
+  assert.match(ui,/const SALES_FILTERS=\[\['ALL','Todos'\],\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];/);
+  assert.doesNotMatch(ui,/PERFORMANCE_FILTERS|listingPerformanceIndicators/);
   assert.match(ui,/onClick=\{\(\)=>change\(setStatus,code\)\}/);
   assert.match(ui,/aria-pressed=\{status===code\}/);
   assert.match(ui,/onClick=\{\(\)=>change\(setCurve,code\)\}/);
@@ -46,10 +47,19 @@ test('visual change never modifies zero-variation semantics, listing IDs or scan
   assert.match(styles,/@media\(max-width:880px\)/);
 });
 
-test('sales status and performance indicators are displayed separately',()=>{
-  assert.match(ui,/<th>Vendas<\/th><th>Indicadores<\/th>/);
+test('o Gestor exibe apenas Todos, Com vendas e Sem vendas, sem indicadores',()=>{
+  assert.match(ui,/const SALES_FILTERS=\[\['ALL','Todos'\],\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];/);
+  assert.match(ui,/<th>Vendas<\/th>/);
   assert.match(ui,/<td><Situation item=\{item\}\/><\/td>/);
-  assert.match(ui,/<td><Indicators item=\{item\}\/><\/td>/);
   assert.match(ui,/listingSalesSituation\(item\)/);
-  assert.match(ui,/listingPerformanceIndicators\(item\)/);
+  assert.doesNotMatch(ui,/<th>Indicadores<\/th>|<Indicators|PERFORMANCE_FILTERS|listingPerformanceIndicators|Em crescimento|Poucas vendas/);
+  assert.doesNotMatch(styles,/\.nim-indicators|\.nim-status\.rising|\.nim-status\.low/);
+});
+
+test('a tabela tem sete colunas e o filtro sem vendas preserva variações sem saída',()=>{
+  assert.match(ui,/colSpan=\{7\}/);
+  assert.doesNotMatch(ui,/colSpan=\{8\}/);
+  assert.match(ui,/zeroFilter=\{status==='ZERO'\}/);
+  assert.match(ui,/variations\.filter\(v=>v\.units===0\)/);
+  assert.match(sql,/b.selected_status='ZERO' and c.ready and \(c.units=0 or c.zero_variations>0\)/);
 });
