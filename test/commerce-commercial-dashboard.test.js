@@ -13,11 +13,12 @@ const independent = read('src/commerce-sku-listings-view.jsx');
 const abc = read('supabase/migrations/20261016010000_commerce_sales_abc_v1.sql');
 const cat = read('supabase/migrations/20261016011000_commerce_catalog_abc_sku_normalization.sql');
 
-test('Painel Comercial is a single menu entry; Imports and Pendências remain separate', () => {
+test('Painel Comercial is a single menu entry with embedded imports; Pendências remain separate', () => {
   assert.match(nav,/label: 'Painel Comercial'/);
   assert.match(nav,/id: 'catalog', label: 'Painel Comercial'/);
   assert.doesNotMatch(nav,/id: 'sales', label: 'Vendas'/);
-  assert.match(nav,/id: 'import-center', label: 'Central de Importações'/);
+  assert.doesNotMatch(nav,/id: 'import-center'/);
+  assert.match(view,/CommerceImportCenter embedded/);
   assert.match(nav,/id: 'pending', label: 'Pendências'/);
   assert.match(main,/CommerceCommercialDashboard/);
 });
