@@ -1,0 +1,50 @@
+.nisti-abc-ad-panel{--curve:#27ad75;--pale:#eaf9f1;display:grid;gap:12px;margin-top:12px}
+.nisti-abc-ad-panel.class-b{--curve:#ca9212;--pale:#fff9e7}
+.nisti-abc-ad-panel.class-c{--curve:#e94962;--pale:#fff0f3}
+.nisti-abc-ad-panel-intro{display:flex;gap:10px;align-items:center;border:1px solid #e5e9f1;background:var(--pale);border-radius:12px;padding:12px 14px}
+.nisti-abc-ad-panel-class{display:grid;place-items:center;flex-shrink:0;width:39px;height:39px;border-radius:10px;background:var(--curve);color:#fff;font-size:22px;font-weight:850}
+.nisti-abc-ad-panel-intro h4{font-size:14px;line-height:1.3;margin:0;font-weight:850;color:#192740}
+.nisti-abc-ad-panel-intro p{margin:3px 0 0!important;font-size:11px;color:#627088}
+.nisti-abc-ad-total{margin-left:auto;white-space:nowrap;font-size:11px;font-weight:750;color:#40536e}
+.nisti-abc-ad-explanation{border:1px solid #e5e9f1;background:#f8faff;border-radius:10px;padding:10px 12px;color:#637087;font-size:11px;line-height:1.55}
+.nisti-abc-ad-explanation strong{color:#33435d}
+.nisti-abc-ad-products{display:grid;gap:10px}
+.nisti-abc-ad-product{background:#fff;border:1px solid #e4e9f0;border-radius:13px;overflow:hidden;min-width:0}
+.nisti-abc-ad-product-main{display:flex;gap:11px;align-items:center;padding:13px;min-width:0}
+.nisti-abc-ad-product-index{font-size:11px;font-weight:850;color:#96a2b2;min-width:17px;text-align:center}
+.nisti-abc-ad-thumb{width:58px;height:70px;border-radius:9px;background:#f6f8fb;object-fit:contain;flex:0 0 58px}
+.nisti-abc-ad-thumb.missing{display:flex;align-items:center;justify-content:center;border:1px solid #e5e9f0;font-size:9px;color:#8d9aae}
+.nisti-abc-ad-product-info{display:grid;gap:4px;flex:1;min-width:0}
+.nisti-abc-ad-product-info strong{font-size:12px;font-weight:800;color:#1d2b44;overflow-wrap:anywhere}
+.nisti-abc-ad-product-info code{font-size:11px;color:#62718a;overflow-wrap:anywhere}
+.nisti-abc-ad-product-info small{font-size:10px;color:#8590a1}
+.nisti-abc-ad-product-kpis{display:flex;gap:8px}
+.nisti-abc-ad-product-kpis>div{min-width:112px;border-left:1px solid #e9edf2;padding:6px 0 6px 12px;display:grid;gap:5px}
+.nisti-abc-ad-product-kpis span{font-size:10px;color:#7a8799}
+.nisti-abc-ad-product-kpis strong{font-size:15px;font-weight:850;color:#26344a;white-space:nowrap}
+.nisti-abc-ad-list{display:grid;gap:0;border-top:1px solid #edf0f5}
+.nisti-abc-ad-entry{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:10px 15px 10px 34px;min-width:0;border-top:1px solid #f2f3f7}
+.nisti-abc-ad-entry:first-child{border-top:0}
+.nisti-abc-ad-entry-main{display:grid;gap:4px;min-width:0;flex:1}
+.nisti-abc-ad-id{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px}
+.nisti-abc-ad-id a{font-size:11px;color:#235bc3;text-decoration:none;font-weight:800}
+.nisti-abc-ad-id a:hover{text-decoration:underline}
+.nisti-abc-ad-id strong{font-size:11px;color:#57657d}
+.nisti-abc-ad-platform{font-size:9px;color:#738196;background:#f0f3f8;border-radius:16px;padding:3px 7px}
+.nisti-abc-ad-title{font-size:10px;color:#718096;overflow-wrap:anywhere}
+.nisti-abc-ad-variations{display:flex;gap:5px;flex-wrap:wrap}
+.nisti-abc-ad-variations span{font-size:9px;color:#596c86;border:1px solid #e1e8f1;background:#f7fafc;border-radius:6px;padding:4px 6px}
+.nisti-abc-ad-individual{display:grid;gap:2px;min-width:130px;text-align:right}
+.nisti-abc-ad-individual strong{font-size:12px;color:#344660}
+.nisti-abc-ad-individual small{font-size:9px;color:#8792a2}
+.nisti-abc-ad-product-footer{display:flex;justify-content:flex-end;background:#fcfcfe;border-top:1px solid #f1f3f6;padding:7px 12px}
+.nisti-abc-ad-product-footer button{border:0;background:transparent;color:#305cb1;font-size:10px;font-weight:750;cursor:pointer;padding:5px}
+.nisti-abc-ad-product-footer button:hover{text-decoration:underline}
+.nisti-abc-ad-missing{font-size:11px;color:#986c44;padding:11px 16px;background:#fff9ee;border-top:1px solid #f4e7d5}
+.nisti-abc-ad-empty,.nisti-abc-ad-loading{border:1px dashed #d7dfeb;background:#fbfcfe;border-radius:11px;padding:25px;color:#6d7b91;font-size:12px;text-align:center}
+.nisti-abc-ad-error{padding:12px;border-radius:10px;background:#fff0f2;color:#a11b37;font-size:12px}
+.nisti-abc-ad-pagination{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#758196;font-size:11px}
+.nisti-abc-ad-pagination>div{display:flex;gap:7px}
+.nisti-abc-ad-pagination button{border:1px solid #dfe5ee;border-radius:7px;background:#fff;padding:7px 11px;color:#44526c;font-size:11px;cursor:pointer}
+.nisti-abc-ad-pagination button:disabled{opacity:.4;cursor:default}
+@media(max-width:760px){.nisti-abc-ad-product-main{flex-wrap:wrap;gap:9px}.nisti-abc-ad-product-kpis{width:100%;padding-left:21px}.nisti-abc-ad-product-kpis>div{flex:1}.nisti-abc-ad-entry{padding-left:13px;align-items:flex-start;flex-direction:column;gap:6px}.nisti-abc-ad-individual{text-align:left}.nisti-abc-ad-panel-intro{align-items:flex-start}.nisti-abc-ad-total{font-size:10px}.nisti-abc-ad-pagination{align-items:flex-start;flex-direction:column}}
