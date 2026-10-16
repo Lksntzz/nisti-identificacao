@@ -569,11 +569,11 @@ function AdminNotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount 
 
 function AdminTopbar({ onToggleSidebar, unreadCount, activeView, activeCommerceSection = 'catalog', onOpenNotifications, desktopPreview, onToggleDesktopPreview }) {
   const commerceTitle = ({
-    catalog: 'Catálogo',
-    sales: 'Vendas',
+    catalog: 'Painel Comercial',
+    sales: 'Painel Comercial',
     'import-center': 'Central de Importações',
     pending: 'Pendências'
-  })[activeCommerceSection] || 'Catálogo';
+  })[activeCommerceSection] || 'Painel Comercial';
   const pageTitle = activeView === 'catalogo' ? 'Produtos NISTI'
     : activeView === 'mural-nisti' ? 'Mural NISTI'
     : activeView === 'commerce' ? commerceTitle
