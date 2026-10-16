@@ -25,7 +25,6 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
         icon: 'grid',
         children: Object.freeze([
           { id: 'catalog', label: 'Painel Comercial' },
-          { id: 'import-center', label: 'Central de Importações' },
           { id: 'pending', label: 'Pendências' }
         ])
       }
