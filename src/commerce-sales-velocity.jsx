@@ -73,7 +73,7 @@ export default function CommerceSalesVelocity({platform='TODAS',days=30,month=''
           aria-label={metric.label+': '+(isAvailable&&value!=null?count(value):'aguardando dados')}>
           <div className="nisti-vl-metric-top"><strong>{metric.label}</strong><span aria-hidden="true">{metric.icon}</span></div>
           <div className="nisti-vl-metric-count">{isAvailable&&value!=null?count(value):'—'}</div>
-          <small>{metric.desc}</small>
+  
         </button>;
       })}
     </div>
