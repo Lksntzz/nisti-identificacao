@@ -140,7 +140,7 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
       } else {
         const mergedParts = Number(commitResult?.merged_parts || 1);
         setMessage(
-          `Vendas consolidadas com sucesso. Snapshot #${commitResult?.snapshot_id || '—'} · ${brNumber(commitResult?.rows || 0)} linhas na base atual.${mergedParts > 1 ? ` ${mergedParts} partes foram unidas automaticamente.` : ''}${replacedMonths.length ? ` Mês(es) atualizado(s): ${replacedMonths.join(', ')}.` : ''}`
+          `Vendas consolidadas com sucesso. Snapshot #${commitResult?.snapshot_id || '—'} · ${brNumber(commitResult?.rows || 0)} linhas na base atual.${mergedParts > 1 ? ` ${mergedParts} partes foram unidas automaticamente.` : ''}${replacedMonths.length ? ` Mês(es) atualizado(s): ${replacedMonths.join(', ')}.` : ''}${commitResult.finance_status==='COMMITTED'?' Taxas Shopee conciliadas por pedido.':commitResult.finance_status==='NEEDS_REVIEW'?' Taxas financeiras requerem revisão; vendas preservadas.': ''}`
         );
       }
       setFile(null);
@@ -167,6 +167,7 @@ export default function CommerceSalesImportPanel({ onSalesChanged }) {
     create: 'Criando lote',
     upload: 'Enviando vendas',
     summary: 'Gravando resumo mensal',
+    finance: 'Conferindo descontos e taxas por pedido',
     commit: 'Atualizando Painel de Vendas',
     done: 'Concluído'
   }[progress?.phase] || '';
