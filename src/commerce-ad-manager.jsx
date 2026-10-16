@@ -171,12 +171,14 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
     <section className="nim-detail-performance" aria-label="Desempenho do anúncio">
       <div className="nim-detail-section-title nim-detail-performance-title">
         <h4>Desempenho</h4>
-        <div className="nim-detail-periods" role="group" aria-label="Período de análise do anúncio">
-          {days===0&&<button type="button" aria-pressed={detailDays===0}
-            className={detailDays===0?'active':''} onClick={()=>setDetailDays(0)}>Mês</button>}
-          {PERIODS.map(p=><button type="button" key={p} aria-pressed={detailDays===p}
-            className={detailDays===p?'active':''} onClick={()=>setDetailDays(p)}>{p}d</button>)}
-        </div>
+        {days===0?
+          <span className="nim-detail-period-locked" aria-label="Período fixado pelo mês personalizado">
+            Mês {month?month.split('-').reverse().join('/'):'personalizado'}
+          </span>:
+          <div className="nim-detail-periods" role="group" aria-label="Comparar períodos de vendas identificadas">
+            {PERIODS.map(p=><button type="button" key={p} aria-pressed={detailDays===p}
+              className={detailDays===p?'active':''} onClick={()=>setDetailDays(p)}>{p}d</button>)}
+          </div>}
       </div>
       <div className="nim-detail-metrics">
         <DetailMetric label="Unidades vendidas"  value={partialLinked?'≥ '+num(partialUnits):pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
