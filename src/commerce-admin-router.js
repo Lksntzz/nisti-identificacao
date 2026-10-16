@@ -46,6 +46,7 @@ import {
   commerceSalesImportBatches,
   commerceCreateSalesImport,
   commerceAppendSalesListingDaily,
+  commerceAppendShopeeDailySku,
   commerceAppendSalesImportRows,
   commerceAppendSalesImportSummary,
   commerceCommitSalesImport,
@@ -416,6 +417,16 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Lote de vendas por anúncio inválido.'},400);
       }
       const saved = await commerceAppendSalesListingDaily(env,batchId,body.rows);
+      return json({batch_id:batchId,accepted_rows:saved});
+    }
+
+    const shopeeSkuDailyMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/sku-daily$/);
+    if (method === 'POST' && shopeeSkuDailyMatch) {
+      const batchId = positiveId(shopeeSkuDailyMatch[1]);
+      const body = await bodyJson(request);
+      if (!batchId || !Array.isArray(body?.rows) || body.rows.length < 1 || body.rows.length > 100)
+        return json({error:'Lote diário Shopee inválido.'},400);
+      const saved = await commerceAppendShopeeDailySku(env,batchId,body.rows);
       return json({batch_id:batchId,accepted_rows:saved});
     }
 
