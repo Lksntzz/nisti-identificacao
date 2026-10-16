@@ -126,7 +126,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-detail-table-scroll td strong{display:block;font-size:10px;color:#2b3b54}
 .nim-detail-table-scroll td small{display:block;color:#8a98a9;font-size:9px;margin-top:4px}
 .nim-var-zero{background:#fff6f7}
-.nim-var-totals{margin:0 0 10px;font-size:10px;color:#61748e}
+.nim-var-totals{margin:9px 0 10px;font-size:11px;font-weight:750;color:#3c5d76}
 .nim-var-toggle{display:flex;align-items:center;gap:7px;font-size:10px;color:#476286;margin-bottom:10px;cursor:pointer}
 .nim-subtle{color:#7c899e;font-size:10px;line-height:1.55;margin:8px 0}
 .nim-advice{background:#fffaf0;color:#956823;padding:10px;border:1px solid #f3e5c4;border-radius:9px;font-size:10px;line-height:1.6}
@@ -239,7 +239,6 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-filter-panel-identified,.nim-filter-panel-unclassified{font-size:10px;font-weight:700;line-height:1.45}
 .nim-filter-panel-identified{color:#247d5f}
 .nim-filter-panel-unclassified{color:#856b47}
-.nim-var-totals{font-size:11px;color:#3c5d76;font-weight:750;margin:9px 0}
 
 @media(max-width:1180px){
   .nim-filter-top{grid-template-columns:minmax(155px,1fr) minmax(155px,1fr) minmax(140px,.9fr)}
