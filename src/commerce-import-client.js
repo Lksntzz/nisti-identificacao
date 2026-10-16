@@ -232,6 +232,7 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
   const listingRows = Array.isArray(parsedWorkbook?.listing_rows) ? parsedWorkbook.listing_rows : [];
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
+  const financeOrderRows = Array.isArray(parsedWorkbook?.finance_order_rows) ? parsedWorkbook.finance_order_rows : [];
   const financeDaily=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
   const financeMonths=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
   if (!parsedWorkbook?.platform_code || !parsedWorkbook?.filename || !parsedWorkbook?.sha256 || !rows.length) {
@@ -318,6 +319,17 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
     }
     for(const chunk of chunks(financeDaily)){
       await requestJson(`${API_BASE}/sales/imports/${batchId}/finance-daily`,{
+        method:'POST',body:JSON.stringify({rows:chunk}),retryRateLimit:true
+      });
+    }
+  }
+
+  // Upload pseudonymous, deduplicated Shopee orders before activating the
+  // associated sales snapshot. No buyer/order IDs are sent.
+  if(parsedWorkbook.platform_code==='SHOPEE'&&financeOrderRows.length){
+    onProgress({phase:'finance',completed,total:rows.length,batchId});
+    for(const chunk of chunks(financeOrderRows)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/finance-orders`,{
         method:'POST',body:JSON.stringify({rows:chunk}),retryRateLimit:true
       });
     }
