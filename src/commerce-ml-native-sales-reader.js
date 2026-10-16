@@ -144,6 +144,27 @@ export function parseMercadoLivreVendasBr(workbook,platformCode,filename,sha256,
     d.orders.add(e.order);d.units+=e.units;d.revenueCents+=e.revenueCents;
     d.listings.add(e.listing);d.skus.add(e.sku_norm);rawDayCount.add(e.day);
   }
+  // Preserve genuine marketplace listing IDs before grouping sales by SKU for the
+  // existing commercial dashboard. These are daily aggregates, not raw buyer data.
+  const listingGroups=new Map();
+  for(const e of entries){
+    const key=[e.day,e.listing,e.sku_norm].join('|');
+    if(!listingGroups.has(key))listingGroups.set(key,{
+      sale_date:e.day,external_listing_id:e.listing,sku_norm:e.sku_norm,
+      units:0,revenueCents:0,orders:new Set()
+    });
+    const row=listingGroups.get(key);
+    row.units+=e.units;row.revenueCents+=e.revenueCents;row.orders.add(e.order);
+  }
+  const listing_rows=[...listingGroups.values()].sort((a,b)=>
+      a.sale_date.localeCompare(b.sale_date)||
+      a.external_listing_id.localeCompare(b.external_listing_id)||
+      a.sku_norm.localeCompare(b.sku_norm))
+    .map(row=>({
+      sale_date:row.sale_date,external_listing_id:row.external_listing_id,
+      sku_norm:row.sku_norm,units:row.units,
+      orders_with_item:row.orders.size,product_revenue:money(row.revenueCents)
+    }));
   const rows=[...groups.values()].sort((a,b)=>a.day.localeCompare(b.day)||a.sku_norm.localeCompare(b.sku_norm))
     .map((g,i)=>({
       source_row_number:i+1,period_key:g.day,period_start:g.day,period_end:g.day,
@@ -170,7 +191,7 @@ export function parseMercadoLivreVendasBr(workbook,platformCode,filename,sha256,
   };
   return {
     filename,sha256,size_bytes:sizeBytes,platform_code:platformCode,
-    rows,summaries,
+    rows,summaries,listing_rows,
     data_through:summaries[summaries.length-1].period_end,
     sheets:[{name:str(sheet.sheet)||'Vendas BR',physical_rows:data.length,
       accepted_rows:entries.length,ignored_rows:ignored}],
