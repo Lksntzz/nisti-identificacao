@@ -1721,7 +1721,15 @@ function AdminApp() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('new-scanner-product'));
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('new-scanner-product')) {
+      url.searchParams.delete('new-scanner-product');
+      window.history.replaceState(window.history.state,'',url.toString());
+    }
+  }, []);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [viewProduct, setViewProduct] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
@@ -1946,7 +1954,7 @@ function AdminApp() {
             {activeView === 'commerce' && (
               <div className="commerce-admin-inline-view">
                 {(commerceSection === 'catalog' || commerceSection === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
-                {commerceSection === 'pending' && <CommerceManagementView mode="pending" />}
+                {commerceSection === 'pending' && <CommerceManagementView mode="pending" onCreateScanner={() => { setActiveView('catalogo'); setCreateModalOpen(true); }} />}
               </div>
             )}
 
