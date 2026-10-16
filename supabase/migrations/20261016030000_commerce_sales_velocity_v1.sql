@@ -97,16 +97,34 @@ with params as (
       or (b.platform='ML_ANTIGO' and sr.platform_code='ML_ANTIGO')
       or sr.platform_code=b.platform
     )
-), coverage as (
-  select count(distinct s.period_start) filter (
-    where s.period_start between b.current_start and b.current_end
-      and s.period_start=s.period_end)::int current_days,
+), expected_platforms as (
+  select distinct
+    case when m.code='MERCADO_LIVRE'
+      then case upper(coalesce(l.account_code,'')) when 'NOVO' then 'ML_NOVO' else 'ML_ANTIGO' end
+      else m.code end source_code
+  from public.commerce_listings l
+  join public.commerce_marketplaces m on m.id=l.marketplace_id
+  cross join bounds b
+  where l.listing_status='ACTIVE'
+    and (b.platform='TODAS' or b.platform=m.code
+      or (b.platform in ('ML_NOVO','ML_ANTIGO') and m.code='MERCADO_LIVRE'
+        and upper(coalesce(l.account_code,''))=case when b.platform='ML_NOVO' then 'NOVO' else 'ANTIGO' end))
+), source_coverage as (
+  select e.source_code,
     count(distinct s.period_start) filter (
-    where s.period_start between b.previous_start and b.previous_end
-      and s.period_start=s.period_end)::int previous_days,
+      where s.period_start between b.current_start and b.current_end
+        and s.period_start=s.period_end)::int current_days,
+    count(distinct s.period_start) filter (
+      where s.period_start between b.previous_start and b.previous_end
+        and s.period_start=s.period_end)::int previous_days
+  from expected_platforms e cross join bounds b
+  left join summaries s on s.platform_code=e.source_code
+  group by e.source_code
+), coverage as (
+  select coalesce(min(current_days),0)::int current_days,
+    coalesce(min(previous_days),0)::int previous_days,
     exists(select 1 from snap) has_snapshot
-  from bounds b left join summaries s on true
-  group by b.current_start,b.current_end,b.previous_start,b.previous_end
+  from source_coverage
 ), daily_rows as (
   select public.commerce_nisti_sku_norm_v1(coalesce(nullif(r.sku,''),r.sku_primary,r.sku_norm)) sku_norm,
     r.period_start,coalesce(r.units,0)::bigint units,
