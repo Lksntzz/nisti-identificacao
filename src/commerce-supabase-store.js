@@ -59,12 +59,32 @@ async function refreshShopeeYearAliases(env) {
 export async function commerceShopeeSkuReconciliationQueue(env, filters = {}) {
   const value = await supabaseRpc(env,'commerce_shopee_sku_reconciliation_queue_v1',{
     p_search:cleanText(filters.search),
-    p_state:filters.state==='APPROVED'?'APPROVED':'PENDING',
+    p_state:['PENDING','APPROVED','REVIEWED'].includes(filters.state)?filters.state:'PENDING',
     p_limit:cleanPageSize(filters.limit,20),
     p_offset:cleanOffset(filters.offset)
   });
   return value && typeof value==='object' && !Array.isArray(value)
     ?value:{items:[],total:0};
+}
+
+// Historical review accepts real sales without inventing a listing/variation owner.
+export async function commerceShopeeReviewUnlinkedHistory(env,input={},actor='Administrador') {
+  const evidence=cleanText(input.evidence);
+  if (input.confirmed!==true||!evidence||evidence.length<8||evidence.length>500)
+    throw new Error('Confirme a validação do histórico sem vínculo e sua justificativa.');
+  return await supabaseRpc(env,'commerce_shopee_review_unlinked_history_v1',{
+    p_actor:String(actor||'Administrador').slice(0,120),
+    p_evidence:evidence,p_confirmed:true
+  },{timeoutMs:15000});
+}
+
+export async function commerceShopeeReopenUnlinkedHistory(env,sku,actor='Administrador') {
+  const source=cleanText(sku);
+  if(!source||source.length>160)throw new Error('SKU inválido.');
+  return await supabaseRpc(env,'commerce_shopee_reopen_unlinked_history_v1',{
+    p_source_sku:source,
+    p_actor:String(actor||'Administrador').slice(0,120)
+  });
 }
 
 export async function commerceShopeeSkuCandidates(env, search) {
