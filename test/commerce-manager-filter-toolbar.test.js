@@ -7,7 +7,7 @@ const styles=read('src/commerce-ad-manager.css');
 const sql=read('supabase/migrations/20261016152000_commerce_listing_manager_v1.sql');
 
 test('performance and ABC controls share a single aligned filter panel',()=>{
-  assert.match(ui,/<section className="nim-filter-panel" aria-label="Filtros de vendas e Curva ABC">/);
+  assert.match(ui,/<section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">/);
   assert.match(ui,/nim-filter-panel-body/);
   assert.match(ui,/nim-performance-group/);
   assert.match(ui,/nim-abc-group/);
@@ -62,4 +62,11 @@ test('a tabela tem sete colunas e o filtro sem vendas preserva variações sem s
   assert.match(ui,/zeroFilter=\{status==='ZERO'\}/);
   assert.match(ui,/variations\.filter\(v=>v\.units===0\)/);
   assert.match(sql,/b.selected_status='ZERO' and c.ready and \(c.units=0 or c.zero_variations>0\)/);
+});
+
+test('plataforma, busca e limpar filtros pertencem ao painel único',()=>{
+  assert.match(ui,/<section className="nim-filter-panel"[\s\S]*?<div className="nim-filterbar nim-filterbar-integrated">/);
+  assert.match(ui,/nim-filterbar-integrated[\s\S]*?Plataforma<select[\s\S]*?Buscar anúncio ou ID[\s\S]*?Limpar filtros/);
+  assert.equal((ui.match(/className="nim-filterbar nim-filterbar-integrated"/g)||[]).length,1);
+  assert.match(styles,/\.nim-filter-panel \.nim-filterbar-integrated/);
 });
