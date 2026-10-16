@@ -104,7 +104,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
   const [activeTab,setActiveTab]=useState('summary');
-  const [detailDays,setDetailDays]=useState(days);
+  const [requestedDetailDays,setDetailDays]=useState(days);
+  const detailDays=days===0?0:requestedDetailDays;
   const [periodResult,setPeriodResult]=useState(null);
   const [periodLoading,setPeriodLoading]=useState(false);
   const [periodError,setPeriodError]=useState('');
