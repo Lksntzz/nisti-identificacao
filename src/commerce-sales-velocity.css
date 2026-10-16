@@ -22,3 +22,21 @@
 .nisti-vl-list-heading{padding-top:13px}
 .nisti-vl-empty{padding:19px;min-height:64px;display:grid;place-items:center;line-height:1.5}
 .nisti-vl-product-head{min-height:86px}
+
+
+/* Dense, unified performance cards. */
+.nisti-vl-section{gap:9px}
+.nisti-vl-head h3{font-size:14px}
+.nisti-vl-shared-filter{font-size:10px;color:#6c7a8f;font-weight:650}
+.nisti-vl-metrics{gap:8px}
+.nisti-vl-metric{min-height:92px;padding:11px 12px;gap:4px}
+.nisti-vl-metric-top{min-height:15px}
+.nisti-vl-metric-top strong{font-size:11px}
+.nisti-vl-metric-top span{font-size:15px}
+.nisti-vl-metric-count{font-size:23px;margin:0}
+.nisti-vl-metric small{font-size:9px}
+.nisti-vl-caveat{min-height:36px;padding:8px 11px;margin:0}
+.nisti-vl-list-heading{padding-top:9px}
+.nisti-vl-empty{padding:12px;min-height:45px}
+.nisti-vl-product-head{min-height:65px}
+.nisti-vl-product-info strong{font-size:11px}
