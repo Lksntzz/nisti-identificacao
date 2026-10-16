@@ -55,7 +55,7 @@ test('future sales and catalog imports reconcile on successful commits without d
 test('the operator sees explicitly which associations were automatic and can revoke them',()=>{
   assert.match(ui,/item\.approved_by==='NISTI_AUTO_YEAR_26_27'/);
   assert.match(ui,/Ano 26 → 27 · automático/);
-  assert.match(ui,/PB, PLAN e AGMT com ano 26 → 27/);
+  assert.match(ui,/PB, PLAN, AGMT, CONFIN, VACMNO e VACMNA com ano 26 → 27/);
   assert.match(ui,/Todos os vínculos podem ser revogados/);
   assert.match(ui,/Confirmar revogação/);
 });
