@@ -47,7 +47,7 @@ test('a aba de variações conserva zeros apenas com cobertura confiável',()=>{
   assert.match(details,/zeroFilter&&!showAll\?variations\.filter\(v=>v\.units===0\):variations/);
   assert.match(details,/v\.units==null\?'—':num\(v\.units\)/);
   assert.match(details,/v\.revenue==null\?'—':money\(v\.revenue\)/);
-  assert.match(details,/Não mostramos zeros presumidos/);
+  assert.match(details,/não mostramos zeros presumidos/);
   assert.match(sql,/dc\.current_days>=b\.days/);
   assert.match(sql,/variation_data_complete/);
 });
