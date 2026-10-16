@@ -108,7 +108,7 @@ export function aggregateShopeeFinance(raw=[]){
   return {
     finance_daily_rows:[...daily.values()].map(normalize).sort((a,b)=>
       a.sale_date.localeCompare(b.sale_date)||a.sku_norm.localeCompare(b.sku_norm)),
-    finance_month_rows:[...months.values()].map(normalize).sort((a,b)=>
+    finance_month_rows:[...months.values()].filter(m=>m.fee_orders>0).map(normalize).sort((a,b)=>
       a.month_start.localeCompare(b.month_start)),
     finance_summary:{
       orders:groups.size,fee_orders:[...months.values()].reduce((n,m)=>n+m.fee_orders,0),
