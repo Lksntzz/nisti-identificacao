@@ -32,7 +32,7 @@ test('SKU total shows actual imported units and revenue without duplicating acro
   assert.match(detail,/item\.id/);
   assert.match(detail,/registro manual/i);
   assert.match(detail,/Registros manuais não são somados ao faturamento importado/);
-  assert.match(detail,/Venda individual não disponível/);
+  assert.match(detail,/Venda importada por anúncio não disponível/);
   assert.match(adSql,/commerce_sales_abc_v1\(p_platform,p_period_start,p_period_end,p_basis\)/);
   assert.match(adSql,/coalesce\(a\.advertisements,'\[\]'::jsonb\)/);
   assert.match(adSql,/'units',r\.units/);
