@@ -935,6 +935,35 @@ export async function commerceShopeeFinanceListing(env,listingId,start,end){
   },{timeoutMs:9000});
 }
 
+export async function commerceAppendShopeeFinance(env,batchId,kind,rows=[]){
+  const id=cleanId(batchId);
+  if(!id||!['MONTH','SKU_DAILY'].includes(kind)||!Array.isArray(rows)||
+    rows.length<1||rows.length>100)throw new Error('Lote financeiro Shopee inválido.');
+  return Number(await supabaseRpc(env,'commerce_append_shopee_finance_v1',{
+    p_batch_id:id,p_kind:kind,p_rows:rows
+  },{timeoutMs:8000})||0);
+}
+
+export async function commerceShopeeMonthCoverageFinance(env,month){
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(String(month||'')))
+    throw new Error('Mês Shopee inválido.');
+  return await supabaseRpc(env,'commerce_shopee_month_coverage_finance_v1',{
+    p_month:String(month)
+  },{timeoutMs:9000});
+}
+
+export async function commerceShopeeListingFinance(env,listingId,month,days){
+  const id=cleanId(listingId);
+  if(!id)throw new Error('Anúncio Shopee inválido.');
+  const m=month==null||month===''?null:String(month);
+  if(m&&!/^20\d{2}-(0[1-9]|1[0-2])$/.test(m))
+    throw new Error('Mês financeiro inválido.');
+  const d=[7,30,60,90].includes(Number(days))?Number(days):30;
+  return await supabaseRpc(env,'commerce_shopee_listing_finance_v1',{
+    p_listing_id:id,p_month:m,p_days:d
+  },{timeoutMs:9000});
+}
+
 export async function commerceAppendSalesImportSummary(env, batchId, rows = []) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id de vendas inválido.');
