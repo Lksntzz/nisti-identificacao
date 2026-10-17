@@ -232,6 +232,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
   const listingRows = Array.isArray(parsedWorkbook?.listing_rows) ? parsedWorkbook.listing_rows : [];
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
+  const financeMonths = Array.isArray(parsedWorkbook?.finance_month_rows) ? parsedWorkbook.finance_month_rows : [];
+  const financeDaily = Array.isArray(parsedWorkbook?.finance_daily_rows) ? parsedWorkbook.finance_daily_rows : [];
   const financeDailyRows=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
   const financeMonthRows=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
   const financeDailyRows=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
@@ -410,6 +412,19 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
       }
     }
   }
+  // Finance is stored with the same sales batch, before its COMMITTED status.
+  // Only dedicated order/SKU aggregates are sent: no buyers or order IDs.
+  if (parsedWorkbook.platform_code === 'SHOPEE' && Number(parsedWorkbook?.finance_summary?.fee_orders)>0) {
+    for(const [kind,financialRows] of [['MONTH',financeMonths],['SKU_DAILY',financeDaily]]) {
+      for(const chunk of chunks(financialRows)) {
+        onProgress({phase:'finance',completed,total:rows.length,batchId});
+        await requestJson(`${API_BASE}/sales/imports/${batchId}/finance`,{
+          method:'POST',body:JSON.stringify({kind,rows:chunk}),retryRateLimit:true
+        });
+      }
+    }
+  }
+
   onProgress({ phase: 'commit', completed, total: rows.length, batchId });
   let result;
   try {
