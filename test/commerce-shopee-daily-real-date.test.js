@@ -62,10 +62,10 @@ test('rolling 7/30/60/90 periods are actual dated sales; zero and ABC require fu
   assert.doesNotMatch(manager,/insert into public\.products|update public\.products|delete from public\.products/);
 });
 
-test('UI identifies minimum values without false zeros, ranking or fabricated ticket totals',()=>{
+test('UI distinguishes linked values from gross totals without false zeros or fabricated tickets',()=>{
   assert.match(ui,/const hasDailyPartial=data\?\.source_kind==='DAILY_SKU_PARTIAL'/);
-  assert.match(ui,/hasShopeePartial&&data\?'≥ '\+num\(partialUnits\)/);
-  assert.match(ui,/hasShopeePartial&&data\?'≥ '\+money\(partialRevenue\)/);
+  assert.match(ui,/shopeeTotals\?\.units!=null\?num\(shopeeTotals\.units\)/);
+  assert.match(ui,/shopeeTotals\?\.revenue!=null\?money\(shopeeTotals\.revenue\)/);
   assert.match(ui,/hasShopeePartial&&code==='ZERO'/);
   assert.match(ui,/hasShopeePartial&&code!=='ALL'/);
   assert.match(ui,/const dailyLinked=detailDays!==0&&Number\(detail\?\.identified_units\)>0/);
