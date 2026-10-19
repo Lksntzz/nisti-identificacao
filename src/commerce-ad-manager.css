@@ -336,3 +336,34 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 
 .nim-detail-period-locked{display:inline-flex;align-items:center;min-height:29px;border:1px solid #dce5f1;border-radius:7px;background:#eef4ff;color:#265eb7;font-size:10px;font-weight:800;padding:5px 10px}
 .nim-detail-period-note{font-size:10px;line-height:1.5;color:#697d98;margin:0 0 10px}
+
+
+/* Read-only imported sales cards: neutral presentation consistent with ad list. */
+.nim-sales-without-ad{margin-top:14px;min-width:0}
+.nim-sales-without-ad .nim-list-header{gap:16px}
+.nim-sales-without-ad .nim-list-header h3{font-size:14px}
+.nim-sales-without-ad .nim-list-header small{display:block;margin-top:5px;line-height:1.5}
+.nim-sales-without-ad .nim-unlinked-summary{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:#283e5e;font-size:12px}
+.nim-model-sales-period{font-size:10px;line-height:1.5;color:#62758d;margin:10px 18px 0}
+.nim-model-sales-loading,.nim-sales-without-ad .nim-unlinked-error{margin:18px;color:#62758d;font-size:11px}
+.nim-model-sales-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:12px;padding:15px 18px 18px}
+.nim-model-sale-card{display:flex;flex-direction:column;gap:13px;min-width:0;padding:15px;
+  border:1px solid #e3e9f2;border-radius:10px;background:#fff}
+.nim-model-sale-title{display:grid;gap:7px}
+.nim-model-sale-title strong{color:#253954;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.nim-model-sale-title span{font-size:11px;color:#64758f;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.nim-model-sale-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.nim-model-sale-metrics>div{display:grid;gap:5px;background:#f8faff;border:1px solid #edf0f7;
+  border-radius:8px;padding:10px}
+.nim-model-sale-metrics small{color:#697d96;font-size:10px}
+.nim-model-sale-metrics strong{color:#243955;font-size:13px;overflow-wrap:anywhere}
+.nim-model-sale-history{border-top:1px solid #edf0f7;padding-top:10px;font-size:11px}
+.nim-model-sale-history summary{cursor:pointer;color:#295da1;font-weight:750}
+.nim-model-sale-months{display:grid;gap:8px;margin-top:12px}
+.nim-model-sale-months>div{display:flex;align-items:center;justify-content:space-between;
+  gap:7px;font-size:10px;color:#65758d}
+.nim-model-sale-months strong{font-size:10px;color:#283e5e;font-variant-numeric:tabular-nums}
+.nim-model-sale-history p{font-size:10px;line-height:1.6;color:#67798f;margin:12px 0 0}
+@media(max-width:600px){.nim-model-sales-grid{grid-template-columns:1fr;padding:12px}
+  .nim-sales-without-ad .nim-list-header{flex-wrap:wrap}}
