@@ -15,8 +15,8 @@ const num=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
 const labelMonth=s=>/^\d{4}-\d{2}$/.test(String(s||''))?new Date(s+'-02T12:00:00').toLocaleDateString('pt-BR',{month:'short',year:'numeric'}):s;
 const periodDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))?s.split('-').reverse().join('/'):'—';
-async function readJson(url){
-  const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+async function readJson(url,options={}){
+  const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:options.signal});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data?.error||'Falha ao consultar o Gestor de Anúncios.');
   return data;
@@ -489,9 +489,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     </div>
     <div className="nim-order-strip" aria-label="Pedidos e ticket médio">
       <div><small>{days===0?'Pedidos distintos importados':'Ocorrências de pedido com item'}</small>
-        <strong>{ordersSummary?.platform?
-          num(days===0?ordersSummary.platform.orders:ordersSummary.platform.order_item_incidents)
-          : '—'}</strong>
+        <strong>{ordersSummary?.platform&&
+          (days===0?ordersSummary.platform.orders:
+            ordersSummary.platform.order_item_incidents)!=null
+          ?num(days===0?ordersSummary.platform.orders:
+            ordersSummary.platform.order_item_incidents):'—'}</strong>
       </div>
       <div><small>{days===0?'Ticket médio bruto':'Receita por pedido com item'}</small>
         <strong>{ordersSummary?.platform&&(
