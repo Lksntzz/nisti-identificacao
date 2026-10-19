@@ -225,7 +225,13 @@ async function enforceRateLimit(env, request, pathname) {
       ? 'CANVA_ART_RATE_LIMITER'
       : 'GLOBAL_RATE_LIMITER';
   const binding = env?.[bindingName];
-  if (!binding || typeof binding.limit !== 'function') return null;
+  // A production login must never become unlimited when its rate-limit binding
+  // is accidentally missing. Other APIs keep their existing availability policy.
+  if (!binding || typeof binding.limit !== 'function') {
+    return loginRequest && String(env?.APP_ENV||'').trim().toLowerCase()==='production'
+      ? withSecurityHeaders(json({error:'Login temporariamente indisponível.'},503))
+      : null;
+  }
 
   const scope = loginRequest ? 'admin-login' : canvaArtCreateRequest ? 'canva-art-create' : 'api';
   try {
@@ -241,6 +247,7 @@ async function enforceRateLimit(env, request, pathname) {
     }
   } catch (error) {
     console.error('[Rate limit] Falha ao consultar binding do Cloudflare', error?.message || error);
+    if(loginRequest)return withSecurityHeaders(json({error:'Login temporariamente indisponível.'},503));
   }
   return null;
 }
@@ -374,7 +381,7 @@ export default {
       if (!(await validLoginCsrf(request))) {
         return loginHtml(request,'Sessão de login expirada. Atualize a página e tente novamente.',403);
       }
-    } else if ((pathname === '/admin-login' || pathname.startsWith('/api/')) && !sameOriginMutationAllowed(request)) {
+    } else if ((pathname === '/admin-login' || pathname === '/admin-logout' || pathname.startsWith('/api/')) && !sameOriginMutationAllowed(request)) {
       return withSecurityHeaders(json({ error:'Origem da solicitação não autorizada.' },403));
     }
 
@@ -397,7 +404,12 @@ export default {
     }
 
     if (pathname === '/admin-logout') {
-      return withSecurityHeaders(new Response(null, { status: 302, headers: { location: '/', 'set-cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`, 'cache-control': 'no-store' } }));
+      // State-changing logout is POST-only. GET navigation (including external
+      // links and prefetch) must never clear an HttpOnly admin session.
+      if(request.method!=='POST'){
+        return withSecurityHeaders(json({error:'Use o botão Sair para encerrar a sessão.'},405,{'allow':'POST'}));
+      }
+      return withSecurityHeaders(new Response(null, { status: 303, headers: { location: '/', 'set-cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`, 'cache-control': 'no-store' } }));
     }
 
     if (isProtectedApi(pathname) && !(await validSession(request, env))) {
