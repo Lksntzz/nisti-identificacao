@@ -33,14 +33,12 @@ test('mudança de ano e acabamento apenas sugere anúncio ativo para revisão',(
   assert.doesNotMatch(candidate,/update public\.commerce_listing_products|update public\.commerce_sales_rows/);
 });
 
-test('admin confirma histórico com SKU original e justificativa explícita',()=>{
-  assert.match(panel,/SKU antigo · associação pendente/);
-  assert.match(panel,/Revisar associação/);
-  assert.match(panel,/possible_variation_id/);
-  assert.match(panel,/variation_id:Number\(review\.possible_variation_id\)/);
-  assert.match(panel,/reconciliation\/approve/);
-  assert.match(panel,/evidence\.trim\(\)\.length<8/);
-  assert.match(panel,/confirmed:true/);
-  assert.match(panel,/onChanged\?\.\(\)/);
-  assert.match(manager,/onChanged=\{\(\)=>setRefresh\(v=>v\+1\)\}/);
+test('dados aparecem sem pedir confirmação manual de SKU',()=>{
+  assert.match(panel,/Vendas importadas pelo SKU/);
+  assert.match(panel,/history_months/);
+  assert.match(panel,/Histórico mensal/);
+  assert.match(panel,/sku_norm/);
+  assert.match(manager,/ShopeeUnlinkedSales days=\{days\}/);
+  assert.doesNotMatch(panel,/variation_id:Number\(review\.possible_variation_id\)/);
+  assert.doesNotMatch(manager,/reconciliationOpen|Conciliar SKUs Shopee/);
 });
