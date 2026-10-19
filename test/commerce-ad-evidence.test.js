@@ -87,6 +87,6 @@ test('UI apresenta claramente os dados parciais, por variação e a última data
   assert.match(jsx,/importedWindowDescription\(data,days,periodDate\)/);
   assert.match(jsx,/dias · dados importados/);
   assert.match(jsx,/partialRelevant\.map\(\(v,i\)=>/);
-  assert.match(jsx,/v\.units==null\?'Não identificada':'≥ '\+num\(v\.units\)/);
+  assert.match(jsx,/v\.units==null\?'Não identificada':num\(v\.units\)/);
   assert.doesNotMatch(jsx,/Quantidade não identificada/);
 });
