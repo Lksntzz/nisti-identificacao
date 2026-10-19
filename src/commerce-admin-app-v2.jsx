@@ -141,14 +141,14 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
         </nav>
 
         <div className="sidebar-footer">
-          <a href="/admin-logout" className="sidebar-logout-btn">
+          <form method="POST" action="/admin-logout" className="nim-logout-form"><button type="submit" className="sidebar-logout-btn">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" />
               <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
             <span>Encerrar Sessão</span>
-          </a>
+          </button></form>
         </div>
       </aside>
     </>
@@ -203,9 +203,9 @@ export default function CommerceAdminAppV2() {
             >
               Atualizar
             </button>
-            <a href="/admin-logout" className="topbar-logout-btn">
+            <form method="POST" action="/admin-logout" className="nim-logout-form"><button type="submit" className="topbar-logout-btn">
               <span>Sair</span>
-            </a>
+            </button></form>
           </div>
         </header>
 
