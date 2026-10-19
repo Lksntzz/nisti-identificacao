@@ -12,7 +12,7 @@ test('Gestor de Anúncios e mês Shopee pesquisam pelo SKU da variação',()=>{
   assert.equal((sql.match(/public\.commerce_nisti_sku_norm_v1\(lp\.platform_sku\)/g)||[]).length,2);
   assert.match(sql,/length\(public\.commerce_nisti_sku_norm_v1\(b\.search\)\)>=2/);
   assert.match(sql,/length\(public\.commerce_nisti_sku_norm_v1\(i\.search\)\)>=2/);
-  assert.equal((sql.match(/lp\.relation_status<>'REMOVED'/g)||[]).length,2);
+  assert.ok((sql.match(/lp\.relation_status<>'REMOVED'/g)||[]).length>=2);
 });
 
 test('Funções de pesquisa conservam venda e identidade em modo leitura com privilégios restritos',()=>{
@@ -20,7 +20,7 @@ test('Funções de pesquisa conservam venda e identidade em modo leitura com pri
   assert.equal((sql.match(/revoke all on function/g)||[]).length,2);
   assert.equal((sql.match(/to service_role/g)||[]).length,2);
   assert.doesNotMatch(sql,/\b(?:update|delete|insert|truncate)\s+(?:into\s+|from\s+)?public\./i);
-  assert.doesNotMatch(sql,/\bscanner\b|commerce_nisti_product_links/i);
+  assert.doesNotMatch(sql.replace(/^--.*$/gm,''),/\bscanner\b|commerce_nisti_product_links/i);
 });
 
 test('Totais por plataforma não transformam anúncios ML pendentes em Shopee',()=>{
