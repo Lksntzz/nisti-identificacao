@@ -346,7 +346,7 @@ function NotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount }) {
   );
 }
 
-function OperatorProfileModal({ isOpen, onClose, currentName, onSave }) {
+function OperatorProfileModal({ isOpen, onClose, currentName, onSave, locked=false }) {
   const [name, setName] = useState(currentName || '');
 
   useEffect(() => {
@@ -382,17 +382,19 @@ function OperatorProfileModal({ isOpen, onClose, currentName, onSave }) {
               placeholder="Ex: Carlos (Expedição), Lucas, etc."
               value={name}
               onChange={e => setName(e.target.value)}
+              disabled={locked}
               autoFocus
               required
             />
             <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px' }}>
-              Este nome será gravado em cada identificação e exibido no histórico do painel administrativo.
+              {locked ? 'Nome autenticado pelo PIN e verificado no servidor.'
+                : 'Este nome será gravado em cada identificação e exibido no histórico do painel administrativo.'}
             </small>
           </div>
 
           <div className="admin-modal-foot">
             <button type="button" className="btn-cancel" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn-submit-rainbow">Salvar Perfil</button>
+            {!locked&&<button type="submit" className="btn-submit-rainbow">Salvar Perfil</button>}
           </div>
         </form>
       </div>
@@ -499,8 +501,14 @@ function BrandHeader({ unreadCount = 0, onOpenNotifications, operatorName, onOpe
 }
 
 
-function PublicIdentificationApp() {
-  const [operatorName, setOperatorNameState] = useState(() => getOperatorName());
+function PublicIdentificationApp({pinUser=null}) {
+  const [operatorName, setOperatorNameState] = useState(() => pinUser?.name||getOperatorName());
+  useEffect(()=>{
+    if(pinUser?.name){
+      setOperatorName(pinUser.name);
+      setOperatorNameState(pinUser.name);
+    }
+  },[pinUser?.name]);
   const [operatorModalOpen, setOperatorModalOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [muralUnread, setMuralUnread] = useState(0);
@@ -645,6 +653,7 @@ function PublicIdentificationApp() {
         isOpen={operatorModalOpen}
         onClose={() => setOperatorModalOpen(false)}
         currentName={operatorName}
+        locked={Boolean(pinUser)}
         onSave={newName => {
           setOperatorName(newName);
           setOperatorNameState(newName);
