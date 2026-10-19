@@ -42,6 +42,7 @@ import {
   commerceShopeeReopenUnlinkedHistory,
   commerceListingManagerMonthly,
   commerceListingManagerMonths,
+  commerceOrderMetrics,
   commerceSalesVelocity,
   commerceSalesAbcWindow,
   commerceSalesAbcAdsWindow,
@@ -379,6 +380,20 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Plataforma inválida.'},400);
       }
       return json(await commerceListingManagerMonthly(env,platform));
+    }
+    const orderMetricsPath=pathname.match(/^\/api\/admin\/commerce\/listings\/manager(?:\/([0-9]+))?\/orders$/);
+    if(method==='GET'&&orderMetricsPath){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      const days=Number(query(url,'days')??30);
+      const month=String(query(url,'month')||'');
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO','MERCADO_LIVRE','AMAZON','TIKTOK'].includes(platform)
+        ||![0,7,30,60,90].includes(days)
+        ||(days===0&&!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))
+        ||(days!==0&&Boolean(month)))
+        return json({error:'Filtro inválido para pedidos e ticket médio.'},400);
+      return json(await commerceOrderMetrics(env,{
+        platform,days,month,listingId:orderMetricsPath[1]||null
+      }));
     }
     const listingMonths = pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/months$/);
     if (method === 'GET' && listingMonths) {
