@@ -290,6 +290,8 @@ with input as (
   limit (select page_size from bounds) offset (select page_offset from bounds)
 ), kpis as (
   select count(*)::int active_ads,
+    count(*) filter(where source_code='SHOPEE')::int shopee_active_ads,
+    count(*) filter(where source_code like 'ML_%')::int marketplace_active_ads,
     count(*) filter(where ready)::int covered_ads,
     count(*) filter(where ready and units>0)::int sold_ads,
     count(*) filter(where identified_units>0)::int identified_ads,
