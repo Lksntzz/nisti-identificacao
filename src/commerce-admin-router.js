@@ -43,6 +43,7 @@ import {
   commerceListingManagerMonthly,
   commerceListingManagerMonths,
   commerceOrderMetrics,
+  commerceImportedSalesTotals,
   commerceSalesVelocity,
   commerceSalesAbcWindow,
   commerceSalesAbcAdsWindow,
@@ -380,6 +381,22 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Plataforma inválida.'},400);
       }
       return json(await commerceListingManagerMonthly(env,platform));
+    }
+    // Source-complete sales totals (all imported SKUs and listing IDs).
+    if(method==='GET'&&pathname===`${BASE_PATH}/listings/manager/imported-totals`){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      const start=String(query(url,'start')||'');
+      const end=String(query(url,'end')||'');
+      const monthly=String(query(url,'monthly')||'0')==='1';
+      const validDate=s=>/^20\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(s)
+        &&!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
+      const diff=validDate(start)&&validDate(end)
+        ?(Date.parse(end)-Date.parse(start))/86400000:NaN;
+      if(!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','AMAZON','TIKTOK'].includes(platform)
+        ||!Number.isFinite(diff)||diff<0||diff>90
+        ||(monthly&&(start.slice(0,7)!==end.slice(0,7)||!start.endsWith('-01'))))
+        return json({error:'Período de vendas importadas inválido.'},400);
+      return json(await commerceImportedSalesTotals(env,{platform,start,end,monthly}));
     }
     const orderMetricsPath=pathname.match(/^\/api\/admin\/commerce\/listings\/manager(?:\/([0-9]+))?\/orders$/);
     if(method==='GET'&&orderMetricsPath){
