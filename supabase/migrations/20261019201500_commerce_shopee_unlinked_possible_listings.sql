@@ -1,4 +1,4 @@
--- Advisory candidates only. No sale or catalog data are modified.
+-- Advisory listing candidate data; never auto-attribute changed accessories.
 -- Read-only Shopee sales with no uniquely confirmed active advertisement.
 -- Preserves SKU text from the imported monthly spreadsheet. Daily rows only
 -- store normalized SKUs, so use the matching monthly text when it exists.
@@ -94,12 +94,10 @@ with inputs as (
     and nullif(lp.variation_id,'') is not null
   group by public.commerce_nisti_sku_norm_v1(lp.platform_sku)
 ), possible_active as (
-  -- No automatic attribution: the original suffix changed.
-  select s.norm sku,
-    min(l.id) possible_listing_id,
+  -- Advisory only: same model stem but changed year/binding is not verified.
+  select s.norm sku,min(l.id) possible_listing_id,
     min(l.external_listing_id) possible_external_listing_id,
-    min(l.title) possible_listing_title,
-    min(lp.platform_sku) possible_sku
+    min(l.title) possible_listing_title,min(lp.platform_sku) possible_sku
   from source_groups s
   join public.commerce_listing_products lp on true
   join public.commerce_listings l on l.id=lp.listing_id
@@ -107,7 +105,18 @@ with inputs as (
   where m.code='SHOPEE' and l.listing_status='ACTIVE'
     and lp.relation_status<>'REMOVED'
     and nullif(lp.variation_id,'') is not null
-    and s.norm ~ '^AGMT(25|26|27)[A-Z0-9]+(BB|BXB)
+    and s.norm ~ '^AGMT(25|26|27)[A-Z0-9]+(BB|BXB)$'
+    and public.commerce_nisti_sku_norm_v1(lp.platform_sku)
+      ~ '^AGMT(25|26|27)[A-Z0-9]+(BB|BXB)$'
+    and public.commerce_nisti_sku_norm_v1(lp.platform_sku)<>s.norm
+    and regexp_replace(regexp_replace(s.norm,
+      '^AGMT(25|26|27)','AGMT'),'(BB|BXB)$','')
+      =regexp_replace(regexp_replace(
+        public.commerce_nisti_sku_norm_v1(lp.platform_sku),
+        '^AGMT(25|26|27)','AGMT'),'(BB|BXB)$','')
+  group by s.norm
+  having count(*)=1
+), unlinked as (
   select s.norm sku_norm,
     coalesce(nullif(o.original_sku,''),s.norm,'SKU não informado') sku,
     o.product_name title,o.variation,
@@ -122,172 +131,6 @@ with inputs as (
   left join original_labels o on o.norm=s.norm
   left join owners v on v.norm=s.norm
   left join possible_active p on p.sku=s.norm
-  where not exists (select 1 from public.commerce_shopee_sku_owner_reviewed_v1 mapped
-    where mapped.source_sku_norm=s.norm)
-), searched as (
-  select u.* from unlinked u cross join bounds b
-  where b.search is null or u.sku ilike '%'||b.search||'%'
-    or u.sku_norm ilike '%'||b.search||'%'
-    or u.title ilike '%'||b.search||'%'
-), page as (
-  select * from searched order by units desc,sku
-  limit (select lim from bounds) offset (select offs from bounds)
-)
-select jsonb_build_object(
-  'period_start',(select period_start from bounds),
-  'period_end',(select period_end from bounds),
-  'source_kind',case when (select days from bounds)=0
-    then 'MONTHLY_SKU_ORIGINAL' else 'DAILY_SKU_WITH_ORIGINAL_REFERENCE' end,
-  'total',(select count(*) from searched),
-  'units',(select coalesce(sum(units),0) from searched),
-  'revenue',(select coalesce(round(sum(revenue),2),0) from searched),
-  'items',coalesce((select jsonb_agg(to_jsonb(p) order by p.units desc,p.sku)
-    from page p),'[]'::jsonb)
-);
-$fn$;
-revoke all on function public.commerce_shopee_unlinked_sales_v1(integer,text,text,integer,integer)
-  from public,anon,authenticated;
-grant execute on function public.commerce_shopee_unlinked_sales_v1(integer,text,text,integer,integer)
-  to service_role;
-
-    and public.commerce_nisti_sku_norm_v1(lp.platform_sku)
-      ~ '^AGMT(25|26|27)[A-Z0-9]+(BB|BXB)
-  select s.norm sku_norm,
-    coalesce(nullif(o.original_sku,''),s.norm,'SKU não informado') sku,
-    o.product_name title,o.variation,
-    s.units,s.revenue,
-    case when coalesce(v.uses,0)>1 then 'SKU_DUPLICADO'
-      when coalesce(v.uses,0)=1 then 'VINCULO_NAO_CONFIRMADO'
-      else 'SEM_ANUNCIO_ATIVO' end status,
-    (o.original_sku is not null) original_available
-  from source_groups s
-  left join original_labels o on o.norm=s.norm
-  left join owners v on v.norm=s.norm
-  where not exists (select 1 from public.commerce_shopee_sku_owner_reviewed_v1 mapped
-    where mapped.source_sku_norm=s.norm)
-), searched as (
-  select u.* from unlinked u cross join bounds b
-  where b.search is null or u.sku ilike '%'||b.search||'%'
-    or u.sku_norm ilike '%'||b.search||'%'
-    or u.title ilike '%'||b.search||'%'
-), page as (
-  select * from searched order by units desc,sku
-  limit (select lim from bounds) offset (select offs from bounds)
-)
-select jsonb_build_object(
-  'period_start',(select period_start from bounds),
-  'period_end',(select period_end from bounds),
-  'source_kind',case when (select days from bounds)=0
-    then 'MONTHLY_SKU_ORIGINAL' else 'DAILY_SKU_WITH_ORIGINAL_REFERENCE' end,
-  'total',(select count(*) from searched),
-  'units',(select coalesce(sum(units),0) from searched),
-  'revenue',(select coalesce(round(sum(revenue),2),0) from searched),
-  'items',coalesce((select jsonb_agg(to_jsonb(p) order by p.units desc,p.sku)
-    from page p),'[]'::jsonb)
-);
-$fn$;
-revoke all on function public.commerce_shopee_unlinked_sales_v1(integer,text,text,integer,integer)
-  from public,anon,authenticated;
-grant execute on function public.commerce_shopee_unlinked_sales_v1(integer,text,text,integer,integer)
-  to service_role;
-
-    and public.commerce_nisti_sku_norm_v1(lp.platform_sku)<>s.norm
-    and regexp_replace(regexp_replace(s.norm,'^AGMT(25|26|27)','AGMT'),'(BB|BXB)
-  select s.norm sku_norm,
-    coalesce(nullif(o.original_sku,''),s.norm,'SKU não informado') sku,
-    o.product_name title,o.variation,
-    s.units,s.revenue,
-    case when coalesce(v.uses,0)>1 then 'SKU_DUPLICADO'
-      when coalesce(v.uses,0)=1 then 'VINCULO_NAO_CONFIRMADO'
-      else 'SEM_ANUNCIO_ATIVO' end status,
-    (o.original_sku is not null) original_available
-  from source_groups s
-  left join original_labels o on o.norm=s.norm
-  left join owners v on v.norm=s.norm
-  where not exists (select 1 from public.commerce_shopee_sku_owner_reviewed_v1 mapped
-    where mapped.source_sku_norm=s.norm)
-), searched as (
-  select u.* from unlinked u cross join bounds b
-  where b.search is null or u.sku ilike '%'||b.search||'%'
-    or u.sku_norm ilike '%'||b.search||'%'
-    or u.title ilike '%'||b.search||'%'
-), page as (
-  select * from searched order by units desc,sku
-  limit (select lim from bounds) offset (select offs from bounds)
-)
-select jsonb_build_object(
-  'period_start',(select period_start from bounds),
-  'period_end',(select period_end from bounds),
-  'source_kind',case when (select days from bounds)=0
-    then 'MONTHLY_SKU_ORIGINAL' else 'DAILY_SKU_WITH_ORIGINAL_REFERENCE' end,
-  'total',(select count(*) from searched),
-  'units',(select coalesce(sum(units),0) from searched),
-  'revenue',(select coalesce(round(sum(revenue),2),0) from searched),
-  'items',coalesce((select jsonb_agg(to_jsonb(p) order by p.units desc,p.sku)
-    from page p),'[]'::jsonb)
-);
-$fn$;
-revoke all on function public.commerce_shopee_unlinked_sales_v1(integer,text,text,integer,integer)
-  from public,anon,authenticated;
-grant execute on function public.commerce_shopee_unlinked_sales_v1(integer,text,text,integer,integer)
-  to service_role;
-,'')
-      =regexp_replace(regexp_replace(
-        public.commerce_nisti_sku_norm_v1(lp.platform_sku),
-        '^AGMT(25|26|27)','AGMT'),'(BB|BXB)
-  select s.norm sku_norm,
-    coalesce(nullif(o.original_sku,''),s.norm,'SKU não informado') sku,
-    o.product_name title,o.variation,
-    s.units,s.revenue,
-    case when coalesce(v.uses,0)>1 then 'SKU_DUPLICADO'
-      when coalesce(v.uses,0)=1 then 'VINCULO_NAO_CONFIRMADO'
-      else 'SEM_ANUNCIO_ATIVO' end status,
-    (o.original_sku is not null) original_available
-  from source_groups s
-  left join original_labels o on o.norm=s.norm
-  left join owners v on v.norm=s.norm
-  where not exists (select 1 from public.commerce_shopee_sku_owner_reviewed_v1 mapped
-    where mapped.source_sku_norm=s.norm)
-), searched as (
-  select u.* from unlinked u cross join bounds b
-  where b.search is null or u.sku ilike '%'||b.search||'%'
-    or u.sku_norm ilike '%'||b.search||'%'
-    or u.title ilike '%'||b.search||'%'
-), page as (
-  select * from searched order by units desc,sku
-  limit (select lim from bounds) offset (select offs from bounds)
-)
-select jsonb_build_object(
-  'period_start',(select period_start from bounds),
-  'period_end',(select period_end from bounds),
-  'source_kind',case when (select days from bounds)=0
-    then 'MONTHLY_SKU_ORIGINAL' else 'DAILY_SKU_WITH_ORIGINAL_REFERENCE' end,
-  'total',(select count(*) from searched),
-  'units',(select coalesce(sum(units),0) from searched),
-  'revenue',(select coalesce(round(sum(revenue),2),0) from searched),
-  'items',coalesce((select jsonb_agg(to_jsonb(p) order by p.units desc,p.sku)
-    from page p),'[]'::jsonb)
-);
-$fn$;
-revoke all on function public.commerce_shopee_unlinked_sales_v1(integer,text,text,integer,integer)
-  from public,anon,authenticated;
-grant execute on function public.commerce_shopee_unlinked_sales_v1(integer,text,text,integer,integer)
-  to service_role;
-,'')
-  group by s.norm
-  having count(*)=1
-), unlinked as (
-  select s.norm sku_norm,
-    coalesce(nullif(o.original_sku,''),s.norm,'SKU não informado') sku,
-    o.product_name title,o.variation,
-    s.units,s.revenue,
-    case when coalesce(v.uses,0)>1 then 'SKU_DUPLICADO'
-      when coalesce(v.uses,0)=1 then 'VINCULO_NAO_CONFIRMADO'
-      else 'SEM_ANUNCIO_ATIVO' end status,
-    (o.original_sku is not null) original_available
-  from source_groups s
-  left join original_labels o on o.norm=s.norm
-  left join owners v on v.norm=s.norm
   where not exists (select 1 from public.commerce_shopee_sku_owner_reviewed_v1 mapped
     where mapped.source_sku_norm=s.norm)
 ), searched as (
