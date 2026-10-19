@@ -55,6 +55,12 @@ export async function aggregateShopeeFinance(raw=[]){
     }
   }
   const daily=new Map(),months=new Map();
+  const itemDiscounts=new Map();
+  for(const line of raw){
+    if(!line?.sale_date||!line?.sku_norm||!Number.isFinite(line.finance?.seller_discount))continue;
+    const key=line.sale_date+'\x1f'+line.sku_norm;
+    itemDiscounts.set(key,(itemDiscounts.get(key)||0)+moneyCents(line.finance.seller_discount));
+  }
   for(const order of groups.values()){
     const month=months.get(order.month)||{
       month_start:order.month,data_through:order.date,orders:0,units:0,product_revenue:0,
@@ -73,7 +79,6 @@ export async function aggregateShopeeFinance(raw=[]){
     const verified=Boolean(order.fees&&!order.conflicting&&order.sourceRows===1);
     if(verified){
       month.fee_orders++;
-      month.seller_discount+=order.discount;
       month.commission_net+=order.fees.commission;
       month.service_net+=order.fees.service;
       month.transaction_fee+=order.fees.transaction;
@@ -89,7 +94,7 @@ export async function aggregateShopeeFinance(raw=[]){
       entry.orders++;
       entry.units+=order.units;
       entry.product_revenue+=order.revenue;
-      entry.seller_discount+=order.discount;
+      entry.seller_discount+=0;
       entry.commission_net+=order.fees.commission;
       entry.service_net+=order.fees.service;
       entry.transaction_fee+=order.fees.transaction;
@@ -102,6 +107,15 @@ export async function aggregateShopeeFinance(raw=[]){
       month.unallocated_revenue+=order.revenue;
     }
     months.set(order.month,month);
+  }
+  for(const [key,cents] of itemDiscounts){
+    const [sale_date,sku_norm]=key.split('\x1f');
+    const rec=daily.get(key)||{sale_date,sku_norm,orders:0,units:0,product_revenue:0,
+      seller_discount:0,commission_net:0,service_net:0,transaction_fee:0};
+    rec.seller_discount=cents;
+    daily.set(key,rec);
+    const month=months.get(sale_date.slice(0,7)+'-01');
+    if(month)month.seller_discount+=cents;
   }
   const financialColumns=['product_revenue','seller_discount','commission_net','service_net',
     'transaction_fee','unallocated_revenue'];
