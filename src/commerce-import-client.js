@@ -232,6 +232,8 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const summaries = Array.isArray(parsedWorkbook?.summaries) ? parsedWorkbook.summaries : [];
   const listingRows = Array.isArray(parsedWorkbook?.listing_rows) ? parsedWorkbook.listing_rows : [];
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
+  const financeDailyRows = Array.isArray(parsedWorkbook?.finance_daily_rows) ? parsedWorkbook.finance_daily_rows : [];
+  const financeMonthRows = Array.isArray(parsedWorkbook?.finance_month_rows) ? parsedWorkbook.finance_month_rows : [];
   const financeMonths = Array.isArray(parsedWorkbook?.finance_month_rows) ? parsedWorkbook.finance_month_rows : [];
   const financeDaily = Array.isArray(parsedWorkbook?.finance_daily_rows) ? parsedWorkbook.finance_daily_rows : [];
   const financeDailyRows=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
@@ -425,6 +427,20 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
     }
   }
 
+  if (parsedWorkbook.platform_code === 'SHOPEE') {
+    for(const [kind,list] of [['MONTH',financeMonthRows],['SKU_DAY',financeDailyRows]]){
+      if(!list.length)continue;
+      onProgress({phase:kind==='MONTH'?'finance-month':'finance-sku',
+        completed,total:rows.length,batchId});
+      for(const chunk of chunks(list)){
+        await requestJson(`${API_BASE}/sales/imports/${batchId}/shopee-finance`,{
+          method:'POST',
+          body:JSON.stringify({kind,rows:chunk}),
+          retryRateLimit:true
+        });
+      }
+    }
+  }
   onProgress({ phase: 'commit', completed, total: rows.length, batchId });
   let result;
   try {
