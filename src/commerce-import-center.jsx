@@ -893,6 +893,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
       summary: 'Consolidando períodos',
       listings: 'Conferindo vendas por ID de anúncio',
       'daily-sku': 'Salvando datas reais e SKUs dos pedidos Shopee',
+      finance: 'Conferindo descontos e taxas por pedido, sem alterar vendas',
       commit: 'Atualizando painel',
       failed: 'Importação interrompida · não confirmada',
       done: 'Concluído'
