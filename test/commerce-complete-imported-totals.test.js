@@ -23,8 +23,11 @@ test('painel principal apresenta bruto, inclusive SKU ou anúncio inativo',()=>{
   assert.match(ui,/fullImportedAvailable\?num\(importedTotals.units\)/);
   assert.match(ui,/fullImportedAvailable\?money\(importedTotals.revenue\)/);
   assert.match(ui,/Totais completos não disponíveis nesta consulta/);
-  assert.match(ui,/Nem todas têm um anúncio ativo identificado/);
-  assert.match(ui,/importedTotals.sources/);
+  assert.match(ui,/Todas as unidades importadas no período, inclusive sem anúncio ativo/);
+  assert.doesNotMatch(ui,/nim-total-source-row|importedTotals\.sources/);
+  assert.doesNotMatch(ui,/nim-order-strip/);
+  assert.match(ui,/label=\{fullImportedAvailable\?'Unidades vendidas'/);
+  assert.match(ui,/label=\{fullImportedAvailable\?'Faturamento bruto importado'/);
   assert.match(ui,/data.period_start,end:data.period_end/);
   assert.match(ui,/monthly:days===0\?'1':'0'/);
 });

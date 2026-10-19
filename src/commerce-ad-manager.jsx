@@ -387,8 +387,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [data,setData]=useState(null);
   const lastSuccessfulRequest=useRef(null);
   const [monthly,setMonthly]=useState(null);
-  const [ordersSummary,setOrdersSummary]=useState(null);
-  const [ordersSummaryError,setOrdersSummaryError]=useState('');
   const [importedTotals,setImportedTotals]=useState(null);
   const [importedTotalsError,setImportedTotalsError]=useState('');
   const [loading,setLoading]=useState(true);
@@ -428,17 +426,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       .catch(()=>{if(!cancelled)setMonthly({months:[]});});
     return ()=>{cancelled=true;};
   },[platform,refresh,salesRevision]);
-  useEffect(()=>{
-    const controller=new AbortController();
-    setOrdersSummary(null);setOrdersSummaryError('');
-    if(days===0&&!month)return ()=>controller.abort();
-    const params=new URLSearchParams({platform,days:String(days)});
-    if(days===0&&month)params.set('month',month);
-    readJson(API+'/orders?'+params,{signal:controller.signal})
-      .then(x=>{if(!controller.signal.aborted)setOrdersSummary(x);})
-      .catch(e=>{if(!controller.signal.aborted)setOrdersSummaryError(e.message);});
-    return ()=>controller.abort();
-  },[platform,days,month,refresh,salesRevision]);
   useEffect(()=>{
     const controller=new AbortController();
     setImportedTotals(null);setImportedTotalsError('');
@@ -522,36 +509,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         description={fullImportedAvailable?'Total dos produtos vendidos, com e sem vínculo de anúncio':
           hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
     </div>
-    {fullImportedAvailable&&<div className="nim-total-source-row" aria-label="Todas as vendas importadas por plataforma">
-      {(importedTotals.sources||[]).map(source=><span key={source.source}>
-        <strong>{PLATFORMS.find(p=>p[0]===source.source)?.[1]||source.source}:</strong>
-        {' '}{num(source.units)} un. · {money(source.revenue)}
-      </span>)}
-      <small>Somatório das vendas importadas. Nem todas têm um anúncio ativo identificado.</small>
-    </div>}
     {importedTotalsError&&<p className="nim-coverage" role="status">
       Totais completos não disponíveis nesta consulta; exibindo somente dados identificados.
     </p>}
-    <div className="nim-order-strip" aria-label="Pedidos e ticket médio">
-      <div><small>{days===0?'Pedidos distintos importados':'Ocorrências de pedido com item'}</small>
-        <strong>{ordersSummary?.platform&&
-          (days===0?ordersSummary.platform.orders:
-            ordersSummary.platform.order_item_incidents)!=null
-          ?num(days===0?ordersSummary.platform.orders:
-            ordersSummary.platform.order_item_incidents):'—'}</strong>
-      </div>
-      <div><small>{days===0?'Ticket médio bruto':'Receita por pedido com item'}</small>
-        <strong>{ordersSummary?.platform&&(
-          days===0?ordersSummary.platform.ticket_average:
-            ordersSummary.platform.reference_per_item_order
-        )!=null?money(days===0?ordersSummary.platform.ticket_average:
-          ordersSummary.platform.reference_per_item_order):'—'}</strong>
-      </div>
-      <p>{days===0
-        ?'Pedidos únicos do resumo mensal importado · ticket = faturamento dos produtos ÷ pedidos. Não é lucro nem valor líquido.'
-        :'Janelas de 7/30/60/90 dias: soma de ocorrências de pedido por item, não contagem exata de pedidos únicos. O ticket médio exato depende dos IDs de pedido, não preservados no agregado diário.'}
-        {ordersSummaryError&&' Consulta de pedidos indisponível: '+ordersSummaryError}</p>
-    </div>
     <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
       <button type="button" className={commercialView==='LISTINGS'?'active':''}
         aria-current={commercialView==='LISTINGS'?'page':undefined}
