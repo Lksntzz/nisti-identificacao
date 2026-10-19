@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
+import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
@@ -394,6 +395,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [error,setError]=useState('');
   const [importOpen,setImportOpen]=useState(false);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
+  const [commercialView,setCommercialView]=useState('LISTINGS');
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
   useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
   useEffect(()=>{
@@ -550,6 +552,18 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         :'Janelas de 7/30/60/90 dias: soma de ocorrências de pedido por item, não contagem exata de pedidos únicos. O ticket médio exato depende dos IDs de pedido, não preservados no agregado diário.'}
         {ordersSummaryError&&' Consulta de pedidos indisponível: '+ordersSummaryError}</p>
     </div>
+    <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
+      <button type="button" className={commercialView==='LISTINGS'?'active':''}
+        aria-current={commercialView==='LISTINGS'?'page':undefined}
+        onClick={()=>setCommercialView('LISTINGS')}>Anúncios</button>
+      <button type="button" className={commercialView==='EVOLUTION'?'active':''}
+        aria-current={commercialView==='EVOLUTION'?'page':undefined}
+        onClick={()=>setCommercialView('EVOLUTION')}>Evolução de vendas</button>
+    </nav>
+    {commercialView==='EVOLUTION'?
+      <CommerceSalesEvolution platform={platform} onPlatformChange={setPlatform}
+        revision={refresh} salesRevision={salesRevision}/>:
+      <>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
         <label className="nim-filter-field nim-filter-platform">Plataforma
@@ -732,6 +746,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <ShopeeUnlinkedSales days={days} month={month}
         importedThrough={data?.imported_month?.period_end}
         search={search} revision={refresh} salesRevision={salesRevision}/>}
+    </>}
     <p className="nim-footnote">Na Shopee, o faturamento bruto mensal é o total conferido nas importações; os valores individuais são subtotais vinculados por SKU, não necessariamente o total do anúncio. Nos períodos de 7/30/60/90 dias, os KPIs mostram somente vendas vinculadas, sem presumir cobertura completa. “Sem vendas identificadas” não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Tendência compara períodos equivalentes apenas com vendas identificadas, exige pelo menos 3 unidades anteriores e não presume vendas zero. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
