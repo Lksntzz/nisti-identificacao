@@ -108,6 +108,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const [finance,setFinance]=useState(null);
   const [financeLoading,setFinanceLoading]=useState(false);
   const [financeError,setFinanceError]=useState('');
+  const [ordersMetrics,setOrdersMetrics]=useState(null);
+  const [ordersError,setOrdersError]=useState('');
   const [requestedDetailDays,setDetailDays]=useState(days);
   const detailDays=days===0?0:requestedDetailDays;
   const [periodResult,setPeriodResult]=useState(null);
@@ -151,6 +153,19 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       .finally(()=>{if(!cancelled)setFinanceLoading(false);});
     return ()=>{cancelled=true;};
   },[activeTab,item.id,item.source,detailDays,month]);
+
+  useEffect(()=>{
+    const controller=new AbortController();
+    const params=new URLSearchParams({
+      platform:item.source||item.platform||'TODAS',days:String(detailDays)
+    });
+    if(detailDays===0&&month)params.set('month',month);
+    setOrdersMetrics(null);setOrdersError('');
+    readJson(API+'/'+encodeURIComponent(item.id)+'/orders?'+params,{signal:controller.signal})
+      .then(x=>{if(!controller.signal.aborted)setOrdersMetrics(x);})
+      .catch(e=>{if(!controller.signal.aborted)setOrdersError(e.message);});
+    return ()=>controller.abort();
+  },[item.id,item.source,item.platform,detailDays,month]);
 
   const detail=detailDays===days?item:
     periodResult?.days===detailDays?periodResult.item:null;
@@ -210,9 +225,12 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         {item.source==='SHOPEE'&&detailDays!==0?
           <DetailMetric label="Tendência identificada" value={trendLabel}
             description="Comparação com igual período anterior · vendas vinculadas"/>:
-          <DetailMetric label="Pedidos" value="—" description="Aguardando vínculo por anúncio"/>}
-        <DetailMetric label="Ticket médio" value="—" description="Aguardando pedidos identificados"/>
+          <DetailMetric label="Pedidos com item" value={ordersMetrics?.listing?.order_item_incidents==null?'—':num(ordersMetrics.listing.order_item_incidents)}
+            description="Ocorrências de pedido com produto vinculado; pedidos com vários SKUs podem contar mais de uma vez"/>}
+        <DetailMetric label="Receita por pedido com item" value={ordersMetrics?.listing?.reference_per_item_order==null?'—':money(ordersMetrics.listing.reference_per_item_order)}
+          description="Referência por ocorrência de pedido com item, não ticket médio exato do anúncio"/>
       </div>
+      {ordersError&&<p className="nim-detail-pending nim-detail-period-error" role="alert">Não foi possível consultar pedidos: {ordersError}</p>}
       {periodLoading&&<p className="nim-detail-pending" role="status">Consultando dados: {periodLabel(detailDays,month)}…</p>}
       {periodError&&<p className="nim-detail-pending nim-detail-period-error" role="alert">{periodError}</p>}
       {pending&&!partialLinked&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para {periodLabel(detailDays,month)}. Valores desconhecidos não são zero.</p>}
@@ -330,13 +348,20 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       {activeTab==='aftercare'&&<>
         <div className="nim-detail-section-title"><h4>Pós-venda e logística</h4><small>{periodLabel(detailDays,month)}</small></div>
         <div className="nim-detail-data-list">
-          <DetailRow label="Pedidos cancelados" value="—"/>
-          <DetailRow label="Devoluções e reembolsos" value="—"/>
-          <DetailRow label="Taxa de cancelamento" value="—"/>
-          <DetailRow label="Prazo médio de envio" value="—"/>
-          <DetailRow label="Principal região compradora" value="—"/>
+          <DetailRow label="Cancelamentos confirmados" value="Não importado"
+            description="As planilhas de vendas atuais descartam pedidos cancelados, sem registrar eventos de pós-venda"/>
+          <DetailRow label="Devoluções confirmadas" value="Não importado"
+            description="Não há relatórios de devolução registrados nesta plataforma"/>
+          <DetailRow label="Reembolsos realizados" value="Não importado"
+            description="Solicitação de reembolso não comprova pagamento do estorno"/>
+          <DetailRow label="Taxa de cancelamento" value="—"
+            description="Exige total de pedidos e cancelamentos do mesmo período"/>
+          <DetailRow label="Prazo de envio / entrega" value="Não importado"/>
+          <DetailRow label="Região compradora" value="Não importado"/>
         </div>
-        <p className="nim-detail-hint">Indicadores indisponíveis até a conciliação dos pedidos e dos eventos pós-venda por anúncio. Solicitações de reembolso não são tratadas como estorno confirmado.</p>
+        <p className="nim-detail-hint">Cobertura de pós-venda indisponível nesta importação.
+          Não exibimos zero para cancelamentos ou devoluções sem relatório dos eventos reais,
+          nem inferimos reembolsos a partir de status genéricos.</p>
       </>}
     </section>
     <footer className="nim-detail-buttons">
@@ -361,6 +386,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [data,setData]=useState(null);
   const lastSuccessfulRequest=useRef(null);
   const [monthly,setMonthly]=useState(null);
+  const [ordersSummary,setOrdersSummary]=useState(null);
+  const [ordersSummaryError,setOrdersSummaryError]=useState('');
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [importOpen,setImportOpen]=useState(false);
@@ -397,6 +424,17 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       .catch(()=>{if(!cancelled)setMonthly({months:[]});});
     return ()=>{cancelled=true;};
   },[platform,refresh,salesRevision]);
+  useEffect(()=>{
+    const controller=new AbortController();
+    setOrdersSummary(null);setOrdersSummaryError('');
+    if(days===0&&!month)return ()=>controller.abort();
+    const params=new URLSearchParams({platform,days:String(days)});
+    if(days===0&&month)params.set('month',month);
+    readJson(API+'/orders?'+params,{signal:controller.signal})
+      .then(x=>{if(!controller.signal.aborted)setOrdersSummary(x);})
+      .catch(e=>{if(!controller.signal.aborted)setOrdersSummaryError(e.message);});
+    return ()=>controller.abort();
+  },[platform,days,month,refresh,salesRevision]);
   const kpi=data?.kpis||{};
   const hasMonthPartial=data?.source_kind==='MONTHLY_SKU_PARTIAL';
   const hasDailyPartial=data?.source_kind==='DAILY_SKU_PARTIAL';
@@ -448,6 +486,24 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
       <Kpi tone="sand" label={hasShopeePartial?(importedMonthTotal?'Unidades vendidas':'Unidades vinculadas'):'Unidades vendidas'} value={shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
       <Kpi tone="green" label={hasShopeePartial?(importedMonthTotal?'Faturamento bruto importado':'Faturamento vinculado'):'Faturamento'} value={shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+    </div>
+    <div className="nim-order-strip" aria-label="Pedidos e ticket médio">
+      <div><small>{days===0?'Pedidos distintos importados':'Ocorrências de pedido com item'}</small>
+        <strong>{ordersSummary?.platform?
+          num(days===0?ordersSummary.platform.orders:ordersSummary.platform.order_item_incidents)
+          : '—'}</strong>
+      </div>
+      <div><small>{days===0?'Ticket médio bruto':'Receita por pedido com item'}</small>
+        <strong>{ordersSummary?.platform&&(
+          days===0?ordersSummary.platform.ticket_average:
+            ordersSummary.platform.reference_per_item_order
+        )!=null?money(days===0?ordersSummary.platform.ticket_average:
+          ordersSummary.platform.reference_per_item_order):'—'}</strong>
+      </div>
+      <p>{days===0
+        ?'Pedidos únicos do resumo mensal importado · ticket = faturamento dos produtos ÷ pedidos. Não é lucro nem valor líquido.'
+        :'Janelas de 7/30/60/90 dias: soma de ocorrências de pedido por item, não contagem exata de pedidos únicos. O ticket médio exato depende dos IDs de pedido, não preservados no agregado diário.'}
+        {ordersSummaryError&&' Consulta de pedidos indisponível: '+ordersSummaryError}</p>
     </div>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
