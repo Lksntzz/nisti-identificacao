@@ -69,7 +69,7 @@ export function shopeeSalesTotals(data,days){
     units:hasImportedTotal?importedUnits:coveredUnits,
     revenue:hasImportedTotal?importedRevenue:coveredRevenue,
     linkedUnits,linkedRevenue,
-    verifiedUnits,verifiedRevenue
+    ...(mixed?{verifiedUnits,verifiedRevenue}:{})
   };
 }
 
