@@ -505,11 +505,13 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Por plataforma"/>
       <Kpi tone="mint" label={hasShopeePartial?'Com vendas identificadas':'Com vendas'} value={hasShopeePartial&&data?num(partialAds):hasReliableSales?num(kpi.sold_ads):'—'} description={hasMixedPartial?'Mercado Livre + Shopee identificados':hasShopeePartial?'SKU identificado · dados parciais':'No período'} selected={status==='SOLD'}
         onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
-      <Kpi tone="rose" label={hasShopeePartial?'Sem vendas identificadas':'Sem vendas'}
+      <Kpi tone="rose" label={hasMixedPartial&&sourceBreakdown?.marketplacePending>0
+        ?'Sem vendas identificadas / pendentes':hasShopeePartial?'Sem vendas identificadas':'Sem vendas'}
         value={hasShopeePartial&&data?num(emptyIdentifiedAds):
            hasReliableSales?num(Math.max(0,Number(kpi.covered_ads||0)-Number(kpi.sold_ads||0))):'—'}
         description={hasMixedPartial
            ?num(sourceBreakdown.marketplaceWithoutSales)+' ML sem vendas · '+
+            (sourceBreakdown.marketplacePending>0?num(sourceBreakdown.marketplacePending)+' ML pendentes · ':'')+
             num(sourceBreakdown.shopeeWithoutLink)+' Shopee sem venda identificada por SKU'
            :hasShopeePartial?'Sem venda identificada por SKU no período':'Anúncios sem vendas; filtro também inclui variações'}
         selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
@@ -633,7 +635,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           <span className="nim-filter-panel-identified">{num(classified.identified)} anúncios com vendas identificadas ({num(sourceBreakdown.marketplaceWithSales)} ML + {num(sourceBreakdown.shopeeWithSales)} Shopee)</span>
           <span className="nim-filter-panel-unclassified"
             title="São anúncios sem vendas identificadas pelos SKUs conhecidos nas planilhas importadas do período; não são SKUs sem vínculo. Pedidos não importados ou códigos antigos ainda desconhecidos podem existir.">
-            {num(sourceBreakdown.marketplaceWithoutSales)} anúncios ML sem vendas no período · {num(sourceBreakdown.shopeeWithoutLink)} anúncios Shopee sem vendas identificadas por SKU no período
+            {num(sourceBreakdown.marketplaceWithoutSales)} anúncios ML sem vendas no período ·
+            {sourceBreakdown.marketplacePending>0?' '+num(sourceBreakdown.marketplacePending)+' ML sem cobertura de vendas no período · ':' '}
+            {num(sourceBreakdown.shopeeWithoutLink)} anúncios Shopee sem vendas identificadas por SKU no período
           </span>
         </>:<>
           <span className="nim-filter-panel-identified">{num(classified.identified)} anúncios com vendas identificadas</span>
