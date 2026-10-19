@@ -747,6 +747,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         importedThrough={data?.imported_month?.period_end}
         search={search} revision={refresh} salesRevision={salesRevision}/>}
     </>}
-    <p className="nim-footnote">Na Shopee, o faturamento bruto mensal é o total conferido nas importações; os valores individuais são subtotais vinculados por SKU, não necessariamente o total do anúncio. Nos períodos de 7/30/60/90 dias, os KPIs mostram somente vendas vinculadas, sem presumir cobertura completa. “Sem vendas identificadas” não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Tendência compara períodos equivalentes apenas com vendas identificadas, exige pelo menos 3 unidades anteriores e não presume vendas zero. Nenhum dado do Scanner é alterado.</p>
+    <p className="nim-footnote">Os KPIs de unidades e faturamento usam todas as vendas importadas da plataforma no período quando a origem completa está disponível, inclusive SKUs sem anúncio ativo. A lista de anúncios atribui vendas apenas a vínculos identificáveis: no caso da Shopee, esses subtotais podem ser parciais. A aba Evolução de vendas compara produtos por SKU/modelo entre períodos iguais, sem presumir que o total do produto pertence ao anúncio atual. “Sem vendas registradas” refere-se ao SKU/modelo conhecido, não comprova necessariamente zero no anúncio quando o código mudou. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
