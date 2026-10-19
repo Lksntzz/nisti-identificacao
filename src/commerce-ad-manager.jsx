@@ -1,6 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
-import ShopeeSkuReconciliation from './commerce-shopee-reconciliation.jsx';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
@@ -366,8 +365,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [error,setError]=useState('');
   const [importOpen,setImportOpen]=useState(false);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
-  const [reconciliationOpen,setReconciliationOpen]=useState(false);
-  const [unlinkedOpen,setUnlinkedOpen]=useState(false);
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
   useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
   useEffect(()=>{
@@ -579,12 +576,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     {days===0&&month&&!data?.imported_month&&!loading&&!error&&<p className="nim-no-imported-month">
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.
     </p>}
-    {platform==='SHOPEE'&&unlinkedOpen&&(days!==0||Boolean(month))&&
-      <ShopeeUnlinkedSales days={days} month={month} importedThrough={data?.imported_month?.period_end} revision={refresh} salesRevision={salesRevision} onChanged={()=>setRefresh(v=>v+1)}
-        onClose={()=>setUnlinkedOpen(false)}/>}
-    {platform==='SHOPEE'&&reconciliationOpen&&
-      <ShopeeSkuReconciliation onClose={()=>setReconciliationOpen(false)}
-        onChanged={()=>setRefresh(v=>v+1)}/>}
     {error&&<div className="nim-error" role="alert">{error}
       {data&&<small>Exibindo o último resultado confirmado para estes filtros.</small>}
       <button type="button" onClick={()=>setRefresh(v=>v+1)}>Tentar novamente</button></div>}
@@ -593,17 +584,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <div className="nim-list-header">
           <div><h3>Lista de anúncios</h3><small>{loading?'Consultando anúncios…':num(total)+' anúncios encontrados'}</small></div>
           <div className="nim-list-actions">
-            {platform==='SHOPEE'&&<button type="button"
-              className={'nim-soft-button'+(unlinkedOpen?' active':'')}
-              onClick={()=>setUnlinkedOpen(v=>!v)} aria-expanded={unlinkedOpen}
-              aria-controls="nim-unlinked-sales">
-              {unlinkedOpen?'Ocultar vendas sem vínculo':'Ver vendas sem vínculo'}
-            </button>}
-            {platform==='SHOPEE'&&<button type="button"
-              className={'nim-soft-button'+(reconciliationOpen?' active':'')}
-              onClick={()=>setReconciliationOpen(v=>!v)} aria-expanded={reconciliationOpen}>
-              {reconciliationOpen?'Fechar conciliação':'Conciliar SKUs Shopee'}
-            </button>}
             <button type="button" className="nim-soft-button" onClick={()=>setMonthlyOpen(v=>!v)}
               aria-expanded={monthlyOpen}>{monthlyOpen?'Ocultar evolução mensal':'Analisar vendas mensais'} <span aria-hidden="true">{monthlyOpen?'−':'↗'}</span></button>
           </div>
@@ -646,6 +626,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </section>
       {selected&&<ListingDetail key={[selected.id,days,month].join(':')} item={selected} days={days} month={month} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
+    {platform==='SHOPEE'&&(days!==0||Boolean(month))&&
+      ['ALL','SOLD'].includes(status)&&curve==='ALL'&&
+      <ShopeeUnlinkedSales days={days} month={month}
+        importedThrough={data?.imported_month?.period_end}
+        search={search} revision={refresh} salesRevision={salesRevision}/>}
     <p className="nim-footnote">Na Shopee, o faturamento bruto mensal é o total conferido nas importações; os valores individuais são subtotais vinculados por SKU, não necessariamente o total do anúncio. Nos períodos de 7/30/60/90 dias, os KPIs mostram somente vendas vinculadas, sem presumir cobertura completa. “Sem vendas identificadas” não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Tendência compara períodos equivalentes apenas com vendas identificadas, exige pelo menos 3 unidades anteriores e não presume vendas zero. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
