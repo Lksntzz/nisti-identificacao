@@ -12,7 +12,7 @@ function statusLabel(status){
   return 'Sem anúncio ativo correspondente';
 }
 
-export default function ShopeeUnlinkedSales({days,month,revision,salesRevision,onClose}){
+export default function ShopeeUnlinkedSales({days,month,importedThrough,revision,salesRevision,onClose}){
   const [draft,setDraft]=useState('');
   const [search,setSearch]=useState('');
   const [page,setPage]=useState(0);
@@ -62,7 +62,7 @@ export default function ShopeeUnlinkedSales({days,month,revision,salesRevision,o
       <span><strong>{data?number(total):'—'}</strong> SKUs com vendas sem vínculo</span>
       <span><strong>{data?number(data.units):'—'}</strong> unidades</span>
       <span><strong>{data?money(data.revenue):'—'}</strong> faturamento de produtos</span>
-      {data&&<span>{date(data.period_start)} a {date(data.period_end)}</span>}
+      {data&&<span>{date(data.period_start)} a {date(days===0&&importedThrough?importedThrough:data.period_end)}</span>}
     </div>
     <input className="nim-unlinked-search" type="search" value={draft}
       onChange={e=>setDraft(e.target.value)}
