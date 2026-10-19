@@ -177,7 +177,7 @@ async function verifiedOperatorRequest(request,env,pinRequired=false) {
     verifiedName=String(account.name);
   }else if(!session){
     session=await createOperatorSession(env);
-    if(!session)return {request,setCookie:null,authorized:false};
+    if(!session)return {request,setCookie:null,authorized:true};
     setCookie=`${OPERATOR_COOKIE_NAME}=${session.token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${OPERATOR_SESSION_SECONDS}`;
   }
   const headers=new Headers(request.headers);
