@@ -12,18 +12,47 @@ function statusLabel(status){
   return 'Sem anúncio ativo correspondente';
 }
 
-export default function ShopeeUnlinkedSales({days,month,importedThrough,revision,salesRevision,onClose}){
+export default function ShopeeUnlinkedSales({days,month,importedThrough,revision,salesRevision,onChanged,onClose}){
   const [draft,setDraft]=useState('');
   const [search,setSearch]=useState('');
   const [page,setPage]=useState(0);
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
+  const [review,setReview]=useState(null);
+  const [evidence,setEvidence]=useState('');
+  const [confirmed,setConfirmed]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [reviewError,setReviewError]=useState('');
+  const [localRevision,setLocalRevision]=useState(0);
+  const closeReview=()=>{
+    setReview(null);setEvidence('');setConfirmed(false);setReviewError('');
+  };
+  const approve=async()=>{
+    if(!review||saving||!confirmed||evidence.trim().length<8)return;
+    setSaving(true);setReviewError('');
+    try{
+      const response=await fetch(
+        '/api/admin/commerce/listings/manager/shopee/reconciliation/approve',{
+          method:'POST',credentials:'same-origin',cache:'no-store',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({sku:review.sku,
+            variation_id:Number(review.possible_variation_id),
+            evidence:evidence.trim(),confirmed:true})
+        });
+      const body=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(body?.error||'Não foi possível confirmar o vínculo.');
+      closeReview();
+      setLocalRevision(v=>v+1);
+      onChanged?.();
+    }catch(err){setReviewError(err.message);}
+    finally{setSaving(false);}
+  };
   useEffect(()=>{
     const timer=setTimeout(()=>{setSearch(draft.trim());setPage(0);},300);
     return ()=>clearTimeout(timer);
   },[draft]);
-  useEffect(()=>{setPage(0);},[days,month]);
+  useEffect(()=>{setPage(0);closeReview();},[days,month]);
   useEffect(()=>{
     const controller=new AbortController();
     const params=new URLSearchParams({days:String(days),limit:String(PAGE_SIZE),
@@ -41,7 +70,7 @@ export default function ShopeeUnlinkedSales({days,month,importedThrough,revision
       .catch(e=>{if(!controller.signal.aborted)setError(e.message);})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return ()=>controller.abort();
-  },[days,month,page,search,revision,salesRevision]);
+  },[days,month,page,search,revision,salesRevision,localRevision]);
 
   const total=Number(data?.total||0);
   const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
@@ -84,11 +113,40 @@ export default function ShopeeUnlinkedSales({days,month,importedThrough,revision
               {item.variation&&<small>{item.variation}</small>}</td>
             <td className="nim-unlinked-number">{number(item.units)}</td>
             <td className="nim-unlinked-number">{money(item.revenue)}</td>
-            <td>{statusLabel(item.status)}</td>
+            <td>{statusLabel(item.status)}
+              {item.possible_external_listing_id&&<>
+                <small className="nim-unlinked-match">Possível anúncio ativo: {item.possible_external_listing_id}</small>
+                <small>{item.possible_listing_title}</small>
+                <small>SKU atual: {item.possible_sku}</small>
+                <button className="nim-unlinked-review-button" type="button"
+                  onClick={()=>{setReview(item);setEvidence('');setConfirmed(false);setReviewError('');}}>
+                  Revisar associação
+                </button>
+              </>}</td>
           </tr>)}
         </tbody>
       </table>
     </div>
+    {review&&<div className="nim-unlinked-review" aria-label="Revisar vínculo com anúncio ativo">
+      <div className="nim-unlinked-head"><strong>Confirmar correspondência do SKU antigo</strong>
+        <button type="button" onClick={closeReview} disabled={saving}>Fechar</button></div>
+      <p>SKU da venda: <strong>{review.sku}</strong></p>
+      <p>Anúncio ativo encontrado: <strong>{review.possible_external_listing_id}</strong> · {review.possible_listing_title}</p>
+      <p>SKU do anúncio: <strong>{review.possible_sku}</strong></p>
+      <p className="nim-unlinked-note">A referência do modelo é semelhante, mas o ano e o sufixo do SKU mudaram.
+        Confira capa, elástico, material e produto antes de associar todo o histórico deste SKU.</p>
+      <label>Justificativa da correspondência
+        <textarea value={evidence} onChange={e=>setEvidence(e.target.value)}
+          rows={2} maxLength={500} placeholder="Descreva como confirmou que é o mesmo produto"/></label>
+      <label className="nim-unlinked-check"><input type="checkbox" checked={confirmed}
+        onChange={e=>setConfirmed(e.target.checked)}/>
+        Confirmo que a venda antiga e a variação atual são o mesmo produto.</label>
+      {reviewError&&<p role="alert" className="nim-unlinked-error">{reviewError}</p>}
+      <button type="button" className="nim-primary-button" onClick={approve}
+        disabled={!confirmed||evidence.trim().length<8||saving}>
+        {saving?'Confirmando…':'Confirmar vínculo auditável'}
+      </button>
+    </div>}
     <div className="nim-unlinked-actions">
       <small>{loading?'Consultando…':number(total)+' SKUs · página '+(page+1)+' de '+pages}</small>
       <div><button type="button" disabled={loading||page===0} onClick={()=>setPage(p=>Math.max(0,p-1))}>Anterior</button>
