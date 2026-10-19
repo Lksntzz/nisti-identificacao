@@ -5,7 +5,7 @@ import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
-import { identifiedVariationCoverage, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
+import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -29,8 +29,9 @@ function PlatformLabel({item}){
     {source.startsWith('ML_')?'ML':source==='SHOPEE'?'S':source==='AMAZON'?'a':source==='TIKTOK'?'T':'·'}
   </span><span>{name}</span></span>;
 }
-function Situation({item}){
-  const status=(!item.ready&&(Number(item.month_linked_units)>0||Number(item.identified_units)>0))
+function Situation({item,days}){
+  const linked=listingLinkedSalesForPeriod(item,days);
+  const status=(!item.ready&&linked.hasSales)
     ?<span className="nim-status partial">Vendas identificadas</span>
     :item.source==='SHOPEE'&&!item.ready
       ?<span className="nim-status pending">Sem vendas identificadas</span>
@@ -100,7 +101,7 @@ function DetailRow({label,value,description}){
     <strong>{value}</strong>
   </div>;
 }
-function ListingDetail({item,days,month,zeroFilter,onClose}){
+function ListingDetail({item,days,month,periodStart,periodEnd,zeroFilter,onClose}){
   const [months,setMonths]=useState(null);
   const [modelHistory,setModelHistory]=useState(null);
   const [error,setError]=useState('');
@@ -137,7 +138,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       if(cancelled)return;
       const found=Array.isArray(data?.items)?data.items.find(x=>String(x.id)===String(item.id)):null;
       if(!found)throw new Error('Não foi possível confirmar os dados deste anúncio no período.');
-      setPeriodResult({days:detailDays,item:found});
+      setPeriodResult({days:detailDays,item:found,periodStart:data?.period_start,periodEnd:data?.period_end});
     }).catch(e=>{if(!cancelled)setPeriodError(e.message);})
       .finally(()=>{if(!cancelled)setPeriodLoading(false);});
     return ()=>{cancelled=true;};
@@ -174,11 +175,14 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const relevant=zeroFilter&&!showAll?variations.filter(v=>v.units===0):variations;
   const complete=Boolean(detail?.ready&&detail?.variation_data_complete);
   const pending=!detail?.ready;
-  const monthLinked=detailDays===0&&Number(detail?.month_linked_units)>0;
-  const dailyLinked=detailDays!==0&&Number(detail?.identified_units)>0;
-  const partialLinked=monthLinked||dailyLinked;
-  const partialUnits=monthLinked?detail?.month_linked_units:detail?.identified_units;
-  const partialRevenue=monthLinked?detail?.month_linked_revenue:detail?.identified_revenue;
+  const linkedEvidence=listingLinkedSalesForPeriod(detail,detailDays);
+  const partialLinked=linkedEvidence.hasSales;
+  const partialUnits=linkedEvidence.units;
+  const partialRevenue=linkedEvidence.revenue;
+  const selectedPeriodStart=detailDays===days?periodStart:periodResult?.periodStart;
+  const selectedPeriodEnd=detailDays===days?periodEnd:periodResult?.periodEnd;
+  const verifiedPeriod=selectedPeriodStart&&selectedPeriodEnd
+    ?periodDate(selectedPeriodStart)+' a '+periodDate(selectedPeriodEnd):null;
   const variationEvidence=identifiedVariationCoverage(detail,detailDays);
   const partialVars=item.source==='SHOPEE'&&!complete?variationEvidence.variations:[];
   const partialRelevant=zeroFilter&&!showAll
@@ -219,6 +223,9 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       {days===0&&<p className="nim-detail-period-note">
         Esta ficha segue apenas {periodLabel(0,month)}. Para comparar 7, 30, 60 ou 90 dias,
         altere o período no filtro principal.
+      </p>}
+      {verifiedPeriod&&<p className="nim-detail-period-note">
+        Vendas consultadas de {verifiedPeriod}{detailDays!==days?' · período independente do filtro principal':''}.
       </p>}
       <div className="nim-detail-metrics">
         <DetailMetric label={item.source==='SHOPEE'&&!complete?'Unidades vinculadas':'Unidades vendidas'} value={partialLinked?num(partialUnits):pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
@@ -690,20 +697,23 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             <th>Plataforma</th><th>Nome e ID do anúncio</th><th>{hasMixedPartial?'Unid. identificadas':hasShopeePartial?'Unid. vinculadas':'Unid.'} {periodLabel(days,month)}</th>
             <th>Variações</th><th>{hasMixedPartial?'Faturamento identificado':hasShopeePartial?'Faturamento vinculado':'Faturamento'}</th><th>ABC</th><th>Vendas</th>
           </tr></thead><tbody>
-            {!loading&&rows.map(item=><tr key={item.id} className={selectedId===item.id?'selected':''}
+            {!loading&&rows.map(item=>{
+              const linked=listingLinkedSalesForPeriod(item,days);
+              return <tr key={item.id} className={selectedId===item.id?'selected':''}
               onClick={()=>setSelectedId(item.id)} title="Ver anúncio e suas variações">
               <td><PlatformLabel item={item}/></td>
               <td><strong className="nim-ad-name">{item.title}</strong>
                 <small className="nim-ad-id">{item.external_listing_id}</small></td>
-              <td className="nim-units">{item.ready?num(item.units):item.source==='SHOPEE'&&Number(item.month_linked_units||item.identified_units)>0?num(item.month_linked_units||item.identified_units):'—'}</td>
+              <td className="nim-units">{item.ready?num(item.units):linked.hasSales?num(linked.units):'—'}</td>
               <td><span className="nim-variations-cell">{item.total_variations?num(item.total_variations)+' variações':'Sem variações'}
                 <VariationSalesEvidence item={item} days={days} partial={hasShopeePartial&&item.source==='SHOPEE'}/>
               </span></td>
-              <td className="nim-money">{item.ready?money(item.revenue):item.source==='SHOPEE'&&Number(item.month_linked_units||item.identified_units)>0?money(item.month_linked_revenue||item.identified_revenue):'—'}</td>
+              <td className="nim-money">{item.ready?money(item.revenue):linked.hasSales?money(linked.revenue):'—'}</td>
               <td>{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}
                 title={item.curve_partial?'ABC indicativa: calculada apenas com vendas identificadas':'Curva ABC por vendas consolidadas'}>{item.curve}{item.curve_partial?'*':''}</span>:'—'}</td>
-              <td><Situation item={item}/></td>
-            </tr>)}
+              <td><Situation item={item} days={days}/></td>
+            </tr>;
+            })}
             {loading&&<tr><td colSpan={7} className="nim-table-empty">Carregando anúncios…</td></tr>}
             {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">Nenhum anúncio encontrado para o filtro. {hasShopeePartial&&'A ausência de vendas vinculadas não comprova venda zero.'}</td></tr>}
           </tbody></table>
@@ -716,7 +726,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             <button type="button" disabled={loading||offset+size>=total} onClick={()=>setOffset(v=>v+size)}>Próxima</button></div>
         </footer>
       </section>
-      {selected&&<ListingDetail key={[selected.id,days,month].join(':')} item={selected} days={days} month={month} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
+      {selected&&<ListingDetail key={[selected.id,days,month].join(':')} item={selected} days={days} month={month}
+        periodStart={data?.period_start} periodEnd={data?.period_end}
+        zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
     {platform==='SHOPEE'&&(days!==0||Boolean(month))&&
       ['ALL','SOLD'].includes(status)&&curve==='ALL'&&
