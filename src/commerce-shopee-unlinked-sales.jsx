@@ -113,7 +113,7 @@ export default function ShopeeUnlinkedSales({days,month,importedThrough,revision
               {item.variation&&<small>{item.variation}</small>}</td>
             <td className="nim-unlinked-number">{number(item.units)}</td>
             <td className="nim-unlinked-number">{money(item.revenue)}</td>
-            <td>{statusLabel(item.status)}
+            <td>{item.possible_external_listing_id?'SKU antigo · associação pendente':statusLabel(item.status)}
               {item.possible_external_listing_id&&<>
                 <small className="nim-unlinked-match">Possível anúncio ativo: {item.possible_external_listing_id}</small>
                 <small>{item.possible_listing_title}</small>
