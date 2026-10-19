@@ -24,6 +24,9 @@ const OPERATOR_PIN_SESSION_PATH = '/api/operator/session';
 const OPERATOR_PIN_LOGOUT_PATH = '/api/operator/logout';
 let operatorPinPolicyCache={expires:0,required:null};
 async function currentOperatorPinRequired(env){
+  // Unit tests/local development without Supabase do not require PIN until configured.
+  // Production must always obtain an authoritative answer from the database.
+  if(!env?.SUPABASE_URL&&String(env?.APP_ENV||'')!=='production')return false;
   if(Date.now()<operatorPinPolicyCache.expires&&operatorPinPolicyCache.required!==null)
     return operatorPinPolicyCache.required;
   const required=await operatorPinRequired(env);
