@@ -12,6 +12,7 @@ import {
   listCommerceImports,
   listCommerceSalesImports,
   stageCommerceSalesWorkbook,
+  reprocessShopeeSalesFinance,
   stageCommerceWorkbook,
   retryCommerceImportReconciliation,
   syncCommerceListingStatuses
