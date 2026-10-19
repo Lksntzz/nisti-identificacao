@@ -163,6 +163,26 @@ export async function commerceListingManager(env, filters = {}) {
     ? data : { items: [], total: 0, kpis: {} };
 }
 
+// Actionable product trends from complete dated Shopee SKU + ML item imports.
+// Comparisons use equal windows, avoid fake zeros when day coverage is absent.
+export async function commerceSalesEvolution(env, filters={}) {
+  const platform=cleanText(filters.platform)||'TODAS';
+  const days=Number(filters.days);
+  const status=cleanText(filters.status)||'ALL';
+  const search=cleanText(filters.search)||null;
+  if(!['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE'].includes(platform)
+    ||![7,30,60,90].includes(days)
+    ||!['ALL','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT'].includes(status)
+    ||(search&&search.length>120))throw new Error('Filtros de evolução inválidos.');
+  const result=await supabaseRpc(env,'commerce_sales_evolution_v1',{
+    p_platform:platform,p_days:days,p_status:status,p_search:search,
+    p_limit:cleanPageSize(filters.limit,25),
+    p_offset:cleanOffset(filters.offset)
+  },{timeoutMs:15000});
+  return result&&typeof result==='object'&&!Array.isArray(result)
+    ?result:{items:[],total:0,kpis:{},coverage:[]};
+}
+
 export async function commerceListingManagerMonthly(env, platform='TODAS') {
   if (cleanText(platform)==='SHOPEE') {
     const linked=await supabaseRpc(env,'commerce_listing_manager_monthly_sku_v1',{
