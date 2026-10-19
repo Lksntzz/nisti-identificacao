@@ -1,6 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
-import ShopeeSkuReconciliation from './commerce-shopee-reconciliation.jsx';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
@@ -102,6 +101,7 @@ function DetailRow({label,value,description}){
 }
 function ListingDetail({item,days,month,zeroFilter,onClose}){
   const [months,setMonths]=useState(null);
+  const [modelHistory,setModelHistory]=useState(null);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
   const [activeTab,setActiveTab]=useState('summary');
@@ -114,9 +114,9 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const [periodLoading,setPeriodLoading]=useState(false);
   const [periodError,setPeriodError]=useState('');
   useEffect(()=>{
-    let cancelled=false;setMonths(null);setError('');setShowAll(false);
+    let cancelled=false;setMonths(null);setModelHistory(null);setError('');setShowAll(false);
     readJson(API+'/'+encodeURIComponent(item.id)+'/months')
-      .then(x=>{if(!cancelled)setMonths(x.months||[]);})
+      .then(x=>{if(!cancelled){setMonths(x.months||[]);setModelHistory(x.model_history||null);}})
       .catch(e=>{if(!cancelled)setError(e.message);});
     return ()=>{cancelled=true;};
   },[item.id]);
@@ -168,6 +168,9 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const partialRelevant=zeroFilter&&!showAll
     ?partialVars.filter(v=>v.units==null||Number(v.units)===0):partialVars;
   const partialEmptyCount=Number(detail?.identified_empty_variations||0);
+  const historicalMonths=item.source==='SHOPEE'&&modelHistory?.has_versioned_model&&modelHistory?.months?.length
+    ?modelHistory.months:months;
+  const historicalByModel=item.source==='SHOPEE'&&Boolean(modelHistory?.has_versioned_model)&&Boolean(modelHistory?.months?.length);
   const trendPct=detail?.identified_growth_pct;
   const trendLabel=trendPct==null?'Sem base comparável':
     (Number(trendPct)>0?'+':'')+num(Number(trendPct))+'%';
@@ -224,12 +227,19 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
     <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
       aria-labelledby={'nim-detail-tab-'+activeTab}>
       {activeTab==='summary'&&<>
-        <div className="nim-detail-section-title"><h4>Evolução de vendas</h4><small>Histórico mensal do anúncio</small></div>
+        <div className="nim-detail-section-title"><h4>Evolução de vendas</h4>
+          <small>{historicalByModel?'Histórico mensal do modelo':'Histórico mensal das vendas identificadas'}</small></div>
         {error?<p className="nim-error" role="alert">{error}</p>:months===null?
-          <p className="nim-subtle">Consultando histórico…</p>:<MonthBars months={months} basis="REVENUE"/>}
-        {months?.some(m=>m.partial)&&<p className="nim-detail-hint">Histórico parcial: apenas vendas com SKU exclusivo associado ao anúncio atual. Não representa todas as vendas.</p>}
-        {months?.length>0&&<div className="nim-month-values">
-          {months.slice(-4).reverse().map(m=><div key={m.period}>
+          <p className="nim-subtle">Consultando histórico…</p>:<MonthBars months={historicalMonths} basis="REVENUE"/>}
+        {historicalByModel?<p className="nim-detail-hint">
+          Histórico automático pelo código do modelo, incluindo SKUs antigos e atualizados importados.
+          É um agrupamento de vendas do produto, não prova que todos os pedidos vieram deste ID de anúncio.
+          Nenhum SKU precisa ser associado manualmente.
+        </p>:months?.some(m=>m.partial)&&<p className="nim-detail-hint">
+          Histórico das vendas identificadas. Outras vendas do produto podem estar fora do anúncio atual.
+        </p>}
+        {historicalMonths?.length>0&&<div className="nim-month-values">
+          {historicalMonths.slice(-6).reverse().map(m=><div key={m.period}>
             <span>{labelMonth(m.period)}</span><strong>{num(m.units)} un. · {money(m.revenue)}</strong>
           </div>)}
         </div>}
@@ -355,8 +365,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [error,setError]=useState('');
   const [importOpen,setImportOpen]=useState(false);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
-  const [reconciliationOpen,setReconciliationOpen]=useState(false);
-  const [unlinkedOpen,setUnlinkedOpen]=useState(false);
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
   useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
   useEffect(()=>{
@@ -568,12 +576,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     {days===0&&month&&!data?.imported_month&&!loading&&!error&&<p className="nim-no-imported-month">
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.
     </p>}
-    {platform==='SHOPEE'&&unlinkedOpen&&(days!==0||Boolean(month))&&
-      <ShopeeUnlinkedSales days={days} month={month} importedThrough={data?.imported_month?.period_end} revision={refresh} salesRevision={salesRevision} onChanged={()=>setRefresh(v=>v+1)}
-        onClose={()=>setUnlinkedOpen(false)}/>}
-    {platform==='SHOPEE'&&reconciliationOpen&&
-      <ShopeeSkuReconciliation onClose={()=>setReconciliationOpen(false)}
-        onChanged={()=>setRefresh(v=>v+1)}/>}
     {error&&<div className="nim-error" role="alert">{error}
       {data&&<small>Exibindo o último resultado confirmado para estes filtros.</small>}
       <button type="button" onClick={()=>setRefresh(v=>v+1)}>Tentar novamente</button></div>}
@@ -582,17 +584,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <div className="nim-list-header">
           <div><h3>Lista de anúncios</h3><small>{loading?'Consultando anúncios…':num(total)+' anúncios encontrados'}</small></div>
           <div className="nim-list-actions">
-            {platform==='SHOPEE'&&<button type="button"
-              className={'nim-soft-button'+(unlinkedOpen?' active':'')}
-              onClick={()=>setUnlinkedOpen(v=>!v)} aria-expanded={unlinkedOpen}
-              aria-controls="nim-unlinked-sales">
-              {unlinkedOpen?'Ocultar vendas sem vínculo':'Ver vendas sem vínculo'}
-            </button>}
-            {platform==='SHOPEE'&&<button type="button"
-              className={'nim-soft-button'+(reconciliationOpen?' active':'')}
-              onClick={()=>setReconciliationOpen(v=>!v)} aria-expanded={reconciliationOpen}>
-              {reconciliationOpen?'Fechar conciliação':'Conciliar SKUs Shopee'}
-            </button>}
             <button type="button" className="nim-soft-button" onClick={()=>setMonthlyOpen(v=>!v)}
               aria-expanded={monthlyOpen}>{monthlyOpen?'Ocultar evolução mensal':'Analisar vendas mensais'} <span aria-hidden="true">{monthlyOpen?'−':'↗'}</span></button>
           </div>
@@ -635,6 +626,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </section>
       {selected&&<ListingDetail key={[selected.id,days,month].join(':')} item={selected} days={days} month={month} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
+    {platform==='SHOPEE'&&(days!==0||Boolean(month))&&
+      ['ALL','SOLD'].includes(status)&&curve==='ALL'&&
+      <ShopeeUnlinkedSales days={days} month={month}
+        importedThrough={data?.imported_month?.period_end}
+        search={search} revision={refresh} salesRevision={salesRevision}/>}
     <p className="nim-footnote">Na Shopee, o faturamento bruto mensal é o total conferido nas importações; os valores individuais são subtotais vinculados por SKU, não necessariamente o total do anúncio. Nos períodos de 7/30/60/90 dias, os KPIs mostram somente vendas vinculadas, sem presumir cobertura completa. “Sem vendas identificadas” não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Tendência compara períodos equivalentes apenas com vendas identificadas, exige pelo menos 3 unidades anteriores e não presume vendas zero. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }

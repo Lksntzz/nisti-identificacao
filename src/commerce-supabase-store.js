@@ -181,8 +181,14 @@ export async function commerceListingManagerMonths(env, listingId) {
   const id = Number(listingId);
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error('ID do anúncio inválido.');
   const data = await supabaseRpc(env, 'commerce_listing_manager_months_v1', {p_listing_id:id});
-  return data && typeof data === 'object' && !Array.isArray(data)
-    ? data : {listing_id:id,months:[]};
+  // Additional READ-ONLY model-level history: the original and updated
+  // SKUs remain separate, and no order is assigned to an invented ad ID.
+  const model = await supabaseRpc(env,'commerce_shopee_model_sales_history_v1',{
+    p_listing_id:id
+  }).catch(()=>null);
+  const result=data && typeof data==='object' && !Array.isArray(data)
+    ?data:{listing_id:id,months:[]};
+  return {...result,model_history:model?.months?.length?model:null};
 }
 
 export async function commerceSalesVelocity(env, filters = {}) {
