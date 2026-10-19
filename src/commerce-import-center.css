@@ -115,3 +115,17 @@
 .import-center-shopee-confirm>span{display:grid;gap:5px;min-width:0}
 .import-center-shopee-confirm strong{font-size:11px;color:#523b11;line-height:1.4}
 .import-center-shopee-confirm small{font-size:10px;line-height:1.5;color:#826a42}
+
+/* Financial-only recovery belongs to the active commercial import center. */
+.import-center-finance-recovery{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 14px;border:1px solid #d7e7fb;background:#f5f9ff;border-radius:10px;min-width:0}
+.import-center-finance-recovery-copy{display:grid;gap:5px;min-width:0}
+.import-center-finance-recovery-copy strong{font-size:12px;color:#1e456e}
+.import-center-finance-recovery-copy small{font-size:10px;line-height:1.5;color:#596d85}
+.import-center-finance-recovery-warning{color:#a36a24!important}
+.import-center-finance-only{min-height:36px;padding:8px 12px;border:1px solid #90b6ed;
+  border-radius:8px;background:#fff;color:#225bb2;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer}
+.import-center-finance-only:not(:disabled):hover{background:#edf5ff}
+.import-center-finance-only:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:650px){.import-center-finance-recovery{align-items:stretch;flex-direction:column}
+  .import-center-finance-only{align-self:stretch}}

@@ -12,6 +12,7 @@ import {
   listCommerceImports,
   listCommerceSalesImports,
   stageCommerceSalesWorkbook,
+  reprocessShopeeSalesFinance,
   stageCommerceWorkbook,
   retryCommerceImportReconciliation,
   syncCommerceListingStatuses
@@ -836,6 +837,41 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
     }
   }
 
+  async function handleSalesFinanceOnly() {
+    // This operation never stages or commits product sales. It only restores
+    // verified Shopee order fees from the EXACT already-imported workbook.
+    if (salesPlatform !== 'SHOPEE' || salesImporting || salesReading) return;
+    if (!salesParsed || !Array.isArray(salesParsed.finance_month_rows)
+      || !salesParsed.finance_month_rows.length) {
+      setError('Este Excel não possui comissões e taxas Shopee reconhecíveis. Selecione o arquivo original já importado.');
+      return;
+    }
+    setSalesImporting(true);
+    setError('');
+    setMessage('');
+    setSalesProgress(null);
+    try {
+      const response = await reprocessShopeeSalesFinance(salesParsed,setSalesProgress);
+      const result = response?.result || {};
+      if (result.status === 'WAITING_PARTS') {
+        setMessage('Taxas recebidas. Este relatório pertence a uma exportação dividida: selecione também as demais partes originais para concluir a conciliação, sem reimportar vendas.');
+      } else if (result.status === 'COMMITTED') {
+        setMessage('Taxas recuperadas em '+Number(result.finance_months || 0)+' mês(es). Os pedidos, produtos do Scanner e valores de vendas permanecem inalterados.');
+        onSalesChanged?.();
+      } else {
+        throw new Error('O banco não confirmou a conciliação financeira.');
+      }
+      setSalesFile(null);
+      setSalesParsed(null);
+      setSalesProgress(null);
+    } catch (err) {
+      setSalesProgress(current => current ? {...current, phase:'failed'} : null);
+      setError(err.message || 'Não foi possível recuperar as taxas da Shopee.');
+    } finally {
+      setSalesImporting(false);
+    }
+  }
+
   const catalogProgressText = useMemo(() => {
     if (!catalogProgress) return '';
     const labels = {
@@ -857,6 +893,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
       summary: 'Consolidando períodos',
       listings: 'Conferindo vendas por ID de anúncio',
       'daily-sku': 'Salvando datas reais e SKUs dos pedidos Shopee',
+      finance: 'Conferindo descontos e taxas por pedido, sem alterar vendas',
       commit: 'Atualizando painel',
       failed: 'Importação interrompida · não confirmada',
       done: 'Concluído'
@@ -1053,6 +1090,22 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                   onClear={() => {setSalesFile(null);setSalesParsed(null);setSalesProgress(null);setError('');}}
                   hint="Aceita relatórios .xlsx exportados da plataforma"
                 />
+                {salesPlatform==='SHOPEE'&&<div className="import-center-finance-recovery">
+                  <div className="import-center-finance-recovery-copy">
+                    <strong>Recuperação financeira da Shopee</strong>
+                    <small>Selecione o mesmo arquivo Excel já importado para recuperar comissões, descontos e taxas, sem substituir pedidos, unidades ou faturamento.</small>
+                    {salesParsed&&!salesParsed.finance_month_rows?.length&&
+                      <small className="import-center-finance-recovery-warning">
+                        Este arquivo não possui taxas reconhecidas. Confira se é o relatório original de pedidos da Shopee.
+                      </small>}
+                  </div>
+                  <button type="button" className="import-center-finance-only"
+                    disabled={salesReading||salesImporting||!salesParsed?.finance_month_rows?.length}
+                    onClick={handleSalesFinanceOnly}
+                    title="Recupera somente informações financeiras de um Excel da Shopee já importado">
+                    {salesImporting?'Conferindo taxas…':'Recuperar só taxas'}
+                  </button>
+                </div>}
                 {salesReading && <div className="import-center-loading">Lendo vendas e identificando colunas…</div>}
               </Step>
 
