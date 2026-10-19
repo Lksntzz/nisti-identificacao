@@ -83,7 +83,11 @@ test('UI apresenta claramente os dados parciais, por variação e a última data
   assert.match(jsx,/identifiedVariationCoverage\(item,days\)/);
   assert.match(jsx,/identifiedVariationCoverage\(detail,detailDays\)/);
   assert.match(jsx,/com vendas identificadas/);
-  assert.match(jsx,/sem vendas vinculadas; não significa zero/);
+  assert.match(jsx,/anúncios Shopee sem vendas identificadas por SKU no período/);
+  assert.match(jsx,/anúncios sem vendas identificadas por SKU no período/);
+  assert.match(jsx,/não são SKUs sem vínculo/);
+  assert.match(jsx,/Pedid(?:os|o) não importados/);
+  assert.doesNotMatch(jsx,/anúncios Shopee sem vendas vinculadas; não significa zero/);
   assert.match(jsx,/importedWindowDescription\(data,days,periodDate\)/);
   assert.match(jsx,/dias · dados importados/);
   assert.match(jsx,/partialRelevant\.map\(\(v,i\)=>/);
