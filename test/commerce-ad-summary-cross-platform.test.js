@@ -60,7 +60,8 @@ test('UI mostra distribuição verificável e não rotula variação vazia como 
   assert.match(ui,/sourceBreakdown\.marketplaceWithoutSales/);
   assert.match(ui,/sourceBreakdown\.shopeeWithoutLink/);
   assert.match(ui,/anúncios ML sem vendas no período/);
-  assert.match(ui,/anúncios Shopee sem vendas vinculadas; não significa zero/);
+  assert.match(ui,/anúncios Shopee sem vendas identificadas por SKU no período/);
+  assert.doesNotMatch(ui,/anúncios Shopee sem vendas vinculadas; não significa zero/);
   assert.match(ui,/sourceBreakdown\?\.withoutIdentified\?\?0/);
   assert.match(ui,/Math\.max\(0,Number\(kpi\.covered_ads\|\|0\)-Number\(kpi\.sold_ads\|\|0\)\)/);
   assert.doesNotMatch(ui,/emptyIdentifiedAds=Number\(kpi\.identified_empty_ads/);
