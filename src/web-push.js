@@ -316,6 +316,8 @@ export async function sendWebPushNotification(env, subscription, payload) {
 
   const response = await fetch(endpoint, {
     method: 'POST',
+    // Never follow an untrusted push service redirect to another destination.
+    redirect: 'manual',
     headers: {
       'Authorization': `vapid t=${jwt},k=${publicKey}`,
       'Content-Encoding': 'aes128gcm',
