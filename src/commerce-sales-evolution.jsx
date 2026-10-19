@@ -65,7 +65,9 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
     ['STABLE','Estáveis','steady'],['ZERO','Sem vendas registradas','zero']];
   const rows=Array.isArray(data?.items)?data.items:[];
   const total=Number(data?.total||0);
-  const incomplete=(data?.coverage||[]).filter(v=>!v.current_complete||!v.previous_complete);
+  const incomplete=(data?.coverage||[]).filter(v=>
+    (!v.current_complete||!v.previous_complete)&&
+    (v.current_days>0||v.previous_days>0||source===v.source));
   return <section className="nim-evolution" aria-label="Análise de evolução de vendas">
     <header className="nim-evolution-heading"><div>
       <h3>Evolução de Vendas</h3>
@@ -115,8 +117,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
         const growth=item.growth_pct==null?'—':
           (Number(item.growth_pct)>0?'+':'')+
           new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1}).format(Number(item.growth_pct))+'%';
-        const modelHistory=String(item.model_key||'').startsWith('AGMT')
-          &&Number(item.distinct_skus||0)>1;
+        const modelHistory=Number(item.distinct_skus||0)>1;
         return <article className="nim-evolution-product" key={item.source+':'+item.model_key}>
           <header className="nim-evolution-product-head">
             <div className="nim-evolution-name">
