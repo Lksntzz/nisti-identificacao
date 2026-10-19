@@ -33,6 +33,7 @@ import {
   commerceShopeeSnapshot,
   commerceSalesAbcAds,
   commerceListingManager,
+  commerceShopeeUnlinkedSales,
   commerceShopeeSkuReconciliationQueue,
   commerceShopeeSkuCandidates,
   commerceShopeeSkuConfirm,
@@ -274,6 +275,19 @@ export async function handleCommerceAdminRequest(request, env) {
       }));
     }
 
+    // Read-only sales without a confirmed active listing. Admin gateway required.
+    if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager/shopee/unlinked-sales`) {
+      const days=Number(query(url,'days')??30);
+      const month=query(url,'month')||'';
+      const search=String(query(url,'search')||'');
+      if(![0,7,30,60,90].includes(days)
+        ||(days===0&&!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))
+        ||(days!==0&&Boolean(month))||search.length>120)
+        return json({error:'Período ou pesquisa das vendas sem vínculo inválidos.'},400);
+      return json(await commerceShopeeUnlinkedSales(env,{
+        days,month,search,limit:query(url,'limit'),offset:query(url,'offset')
+      }));
+    }
     // All routes remain behind the existing administrator gateway.
     if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager/shopee/reconciliation`) {
       const state=String(query(url,'state')||'PENDING').toUpperCase();
