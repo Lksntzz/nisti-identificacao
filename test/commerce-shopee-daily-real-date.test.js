@@ -70,8 +70,11 @@ test('UI distinguishes linked values from gross totals without false zeros or fa
   assert.match(ui,/hasShopeePartial&&code!=='ALL'/);
   assert.match(ui,/const dailyLinked=detailDays!==0&&Number\(detail\?\.identified_units\)>0/);
   assert.match(ui,/const partialVars=item\.source==='SHOPEE'&&!complete\?variationEvidence\.variations:\[\]/);
-  assert.match(ui,/label="Pedidos" value="—"/);
-  assert.match(ui,/label="Ticket médio" value="—"/);
+  assert.match(ui,/label="Pedidos com item"/);
+  assert.match(ui,/order_item_incidents==null\?'—':num\(ordersMetrics\.listing\.order_item_incidents\)/);
+  assert.match(ui,/label="Receita por pedido com item"/);
+  assert.match(ui,/reference_per_item_order==null\?'—':money\(ordersMetrics\.listing\.reference_per_item_order\)/);
+  assert.match(ui,/não ticket médio exato do anúncio/);
 });
 
 test('monthly history flags real-date Shopee SKU associations as partial',()=>{
