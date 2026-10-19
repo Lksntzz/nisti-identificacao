@@ -276,6 +276,20 @@ export async function savePushSubscription(env, userId, subscription) {
   return result?.value?.status === 'ok';
 }
 
+// Requests from a device must use the verified server-side operator session.
+export async function removeOwnPushSubscription(env, userId, endpoint) {
+  const id=String(userId||'').trim();
+  const cleanEndpoint=safePushEndpoint(endpoint);
+  if(!/^op_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !cleanEndpoint)
+    return false;
+  const result=await mirrorSupabaseRpc(env,'nisti_delete_operator_push_subscription_v1',{
+    p_user_id:id,
+    p_endpoint:cleanEndpoint
+  },'remove operator-owned push subscription');
+  return result?.value===true;
+}
+
+// Internal notification cleanup only (push provider returned HTTP 404/410).
 export async function removePushSubscription(env, endpoint) {
   const cleanEndpoint = safePushEndpoint(endpoint);
   if (!cleanEndpoint) return false;
