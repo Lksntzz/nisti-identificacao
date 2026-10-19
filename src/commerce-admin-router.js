@@ -33,6 +33,7 @@ import {
   commerceShopeeSnapshot,
   commerceSalesAbcAds,
   commerceListingManager,
+  commerceSalesEvolution,
   commerceShopeeUnlinkedSales,
   commerceShopeeSkuReconciliationQueue,
   commerceShopeeSkuCandidates,
@@ -372,6 +373,21 @@ export async function handleCommerceAdminRequest(request, env) {
       }
       return json(await commerceListingManager(env,{
         days,status,platform,curve,basis,month,search:query(url,'search'),
+        limit:query(url,'limit'),offset:query(url,'offset')
+      }));
+    }
+    if(method==='GET'&&pathname===`${BASE_PATH}/listings/manager/evolution`){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      const days=Number(query(url,'days')??30);
+      const status=String(query(url,'status')||'ALL').toUpperCase();
+      const search=String(query(url,'search')||'');
+      if(!['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE'].includes(platform)
+        ||![7,30,60,90].includes(days)
+        ||!['ALL','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT'].includes(status)
+        ||search.length>120)
+        return json({error:'Filtros de evolução de vendas inválidos.'},400);
+      return json(await commerceSalesEvolution(env,{
+        platform,days,status,search,
         limit:query(url,'limit'),offset:query(url,'offset')
       }));
     }
