@@ -19,8 +19,9 @@ $privileges$;
 -- Stop newly created public sequences from inheriting the same broad grants.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE ALL ON SEQUENCES FROM anon, authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
-  REVOKE ALL ON SEQUENCES FROM anon, authenticated;
+-- Migration operator postgres cannot alter defaults owned by supabase_admin.
+-- Its future sequence ACLs require an authorized supabase_admin maintenance action.
+-- This is tracked as an outstanding item; do not pretend it is hardened here.
 
 -- Only internal service_role can use existing sequences via Worker Supabase RPC.
 -- Leave the explicit pre-existing service_role permissions untouched.
