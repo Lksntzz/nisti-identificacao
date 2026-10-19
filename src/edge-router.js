@@ -504,9 +504,19 @@ export default {
 
     let operatorContext;
     try{
-      const required=operatorApiNeedsPin(pathname)
+      const operatorApi=operatorApiNeedsPin(pathname);
+      const muralPreviewCandidate=pathname.startsWith('/api/mural')
+        && (request.headers.get('x-mural-qa')==='1'
+            || /^\/api\/mural\/images\/\d+$/.test(pathname)
+            || /^\/api\/mural\/collections\/[^/]+\/image$/.test(pathname));
+      // A signed administrative session may inspect the private Mural QA
+      // without entering a second operator PIN; public operator APIs may not.
+      const adminQaAuthorized=muralPreviewCandidate&&await validSession(request,env);
+      const required=operatorApi&&!adminQaAuthorized
         ?await currentOperatorPinRequired(env):false;
-      operatorContext=await verifiedOperatorRequest(request,env,required);
+      operatorContext=operatorApi
+        ?await verifiedOperatorRequest(request,env,required)
+        :{request,setCookie:null,authorized:true};
       if(!operatorContext.authorized)
         return withSecurityHeaders(json({error:'Informe o PIN do operador para continuar.',code:'operator_pin_required'},401));
     }catch(error){
