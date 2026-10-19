@@ -1,0 +1,19 @@
+.nisti-pin-admin{display:grid;gap:18px;max-width:940px;margin:0 auto;color:#24334e;font-family:Inter,system-ui,sans-serif}
+.nisti-pin-admin-head,.nisti-pin-activate,.nisti-pin-create,.nisti-pin-accounts,.nisti-pin-one-time{border:1px solid #dfe7f1;background:#fff;border-radius:14px;padding:20px}
+.nisti-pin-admin-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.nisti-pin-admin h2{font-size:20px;margin:0 0 6px}.nisti-pin-admin p{color:#607188;font-size:12px;line-height:1.55}
+.nisti-pin-status{font-size:11px;font-weight:750;color:#755a2a;background:#fff8eb;border-radius:99px;padding:7px 12px}
+.nisti-pin-status.active{background:#ecf7ef;color:#237340}
+.nisti-pin-activate{display:flex;gap:20px;align-items:center;justify-content:space-between}
+.nisti-pin-admin button{background:#f0f4fb;border:1px solid #d5e0ed;color:#183e6d;border-radius:9px;padding:10px 14px;font-size:12px;font-weight:750;cursor:pointer}
+.nisti-pin-admin button:disabled{opacity:.5;cursor:not-allowed}
+.nisti-pin-activate>button,.nisti-pin-create button{background:#1e477d;color:#fff}
+.nisti-pin-create{display:grid;gap:8px}.nisti-pin-create label{font-size:12px;font-weight:750}
+.nisti-pin-create>div{display:flex;gap:8px}.nisti-pin-create input{flex:1;min-width:0;border:1px solid #cfdbea;border-radius:8px;padding:12px}
+.nisti-pin-one-time{border-color:#b8d5c4;background:#f4fbf5}.nisti-pin-digits{font-size:30px!important;font-weight:800;color:#114d32!important;letter-spacing:.2em}
+.nisti-pin-one-time button+button{margin-left:9px}
+.nisti-pin-error{color:#a82525!important}.nisti-pin-message{color:#216545!important}
+.nisti-pin-list{display:grid;gap:5px}.nisti-pin-item{display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid #edf0f5;padding:12px 0}
+.nisti-pin-item strong,.nisti-pin-item small{display:block}.nisti-pin-item small{margin-top:4px;color:#718098}
+.nisti-pin-item button+button{margin-left:7px}
+@media(max-width:640px){.nisti-pin-admin-head,.nisti-pin-activate,.nisti-pin-item{align-items:stretch;flex-direction:column}.nisti-pin-create>div{flex-direction:column}}

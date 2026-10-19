@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import OperatorPinGate from './operator-pin-gate.jsx';
 
 function registerNistiServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
@@ -101,7 +102,7 @@ function RootApp() {
         </div>
       );
     }
-    return <MuralComponent />;
+    return <OperatorPinGate><MuralComponent /></OperatorPinGate>;
   }
 
   if (!PublicComponent) {
@@ -113,7 +114,7 @@ function RootApp() {
   }
 
   const PubComp = PublicComponent;
-  return <PubComp />;
+  return <OperatorPinGate><PubComp /></OperatorPinGate>;
 }
 
 const rootElement = document.getElementById('root');

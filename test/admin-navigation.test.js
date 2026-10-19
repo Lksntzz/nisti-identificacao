@@ -22,7 +22,8 @@ test('Admin navigation exposes only operationally useful tools', () => {
     'commerce',
     'historico-ean',
     'ean-nao-cadastrados',
-    'logs'
+    'logs',
+    'operadores-pin'
   ]);
   assert.equal(new Set(ids).size, ids.length);
 });

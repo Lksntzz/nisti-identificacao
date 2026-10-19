@@ -1,0 +1,14 @@
+.operator-pin-page{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px;background:#f5f7fb;color:#14213c;font-family:Inter,system-ui,sans-serif}
+.operator-pin-card{width:min(380px,100%);padding:32px 28px;background:white;border:1px solid #e0e6ee;border-radius:16px;box-shadow:0 14px 40px #14213c0d}
+.operator-pin-eyebrow{font-size:11px;letter-spacing:.1em;font-weight:800;color:#476693;text-transform:uppercase}
+.operator-pin-card h1{margin:10px 0;font-size:26px}
+.operator-pin-card p{font-size:13px;line-height:1.6;color:#65748a}
+.operator-pin-card form{display:grid;gap:12px;margin:24px 0 14px}
+.operator-pin-card label{font-size:12px;font-weight:750}
+.operator-pin-card input{width:100%;font-size:28px;letter-spacing:.3em;border:1px solid #cbd5e1;border-radius:10px;padding:13px}
+.operator-pin-card form button{background:#173e7a;color:white;border:0;border-radius:10px;font-size:14px;font-weight:750;padding:14px;cursor:pointer}
+.operator-pin-card form button:disabled{opacity:.55;cursor:default}
+.operator-pin-card small{display:block;color:#7c8ba1;font-size:11px}
+.operator-pin-error{color:#b42318!important}
+.operator-pin-retry{background:none;border:0;color:#173e7a;margin-top:16px;text-decoration:underline;cursor:pointer}
+.operator-pin-logout{position:fixed;z-index:50;right:10px;bottom:10px;padding:8px 12px;border-radius:10px;border:1px solid #d8e0ec;background:#fff;color:#324e76;font-size:11px;box-shadow:0 4px 14px #14213c15;cursor:pointer}

@@ -85,8 +85,11 @@ function cleanEventText(value, maxLength = 80) {
 
 function eventOperator(request, body = {}) {
   const operatorHeader = request.headers.get('x-operator-name');
-  let operatorName = cleanEventText(body?.operator_name);
-  if (!operatorName && operatorHeader) {
+  // PIN-verified operator identity comes exclusively from the edge; JSON
+  // operator_name is untrusted and must never override it.
+  const verifiedPin=request.headers.get('x-operator-verified')==='pin';
+  let operatorName = verifiedPin ? null : cleanEventText(body?.operator_name);
+  if ((verifiedPin || !operatorName) && operatorHeader) {
     try { operatorName = cleanEventText(decodeURIComponent(operatorHeader)); }
     catch { operatorName = cleanEventText(operatorHeader); }
   }
