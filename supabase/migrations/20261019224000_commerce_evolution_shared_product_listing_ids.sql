@@ -212,8 +212,8 @@ with inp as (
       or coalesce(s.title,'') ilike '%'||i.searched||'%'
       or coalesce(s.sample_sku,'') ilike '%'||i.searched||'%'
       or coalesce(s.listing_id,'') ilike '%'||i.searched||'%'
-      or exists(select 1 from unnest(coalesce(s.listing_ids,array[]::text[])) listing_ref
-          where listing_ref ilike '%'||i.searched||'%')
+      or exists(select 1 from unnest(coalesce(s.listing_ids,array[]::text[])) AS listing_ref(id)
+          where listing_ref.id ilike '%'||i.searched||'%')
       or (nullif(public.commerce_nisti_sku_norm_v1(i.searched),'') is not null
         and s.model_key ilike '%'||public.commerce_nisti_sku_norm_v1(i.searched)||'%'))
 ), paged as (
