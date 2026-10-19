@@ -45,8 +45,8 @@ export function shopeeSalesTotals(data,days){
   const mixed=data?.source_kind==='MIXED_LISTING_SKU_PARTIAL';
   if(!mixed&&!['MONTHLY_SKU_PARTIAL','DAILY_SKU_PARTIAL'].includes(data?.source_kind))return null;
   const monthly=days===0?data.imported_month:null;
-  const rawUnits=days===0?data.kpis?.month_linked_units:data.kpis?.identified_units;
-  const rawRevenue=days===0?data.kpis?.month_linked_revenue:data.kpis?.identified_revenue;
+  const rawUnits=days===0&&!mixed?data.kpis?.month_linked_units:data.kpis?.identified_units;
+  const rawRevenue=days===0&&!mixed?data.kpis?.month_linked_revenue:data.kpis?.identified_revenue;
   if(rawUnits==null||rawRevenue==null)return null;
   const linkedUnits=Number(rawUnits),linkedRevenue=Number(rawRevenue);
   if(!Number.isFinite(linkedUnits)||!Number.isFinite(linkedRevenue)||
