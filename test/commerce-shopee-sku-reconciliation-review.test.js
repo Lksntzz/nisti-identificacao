@@ -76,17 +76,13 @@ test('controle de banco isola a conciliação do usuário anônimo',()=>{
   assert.match(migration,/to service_role/);
 });
 
-test('o Gestor exibe ferramenta contextual Shopee com paginação e revogação',()=>{
-  assert.match(manager,/import ShopeeSkuReconciliation from/);
-  assert.match(manager,/platform==='SHOPEE'&&reconciliationOpen/);
-  assert.match(manager,/Conciliar SKUs Shopee/);
+test('o Gestor exibe vendas automaticamente sem formulário de conciliação',()=>{
+  assert.match(manager,/import ShopeeUnlinkedSales from/);
+  assert.match(manager,/ShopeeUnlinkedSales days=\{days\}/);
+  assert.doesNotMatch(manager,/import ShopeeSkuReconciliation|Conciliar SKUs Shopee|reconciliationOpen/);
+  // The legacy audited reviewer remains available in source for rollback,
+  // but is not mounted in the commercial dashboard.
   assert.match(form,/const PAGE_SIZE=15/);
-  assert.match(form,/aria-label="Situação dos SKUs"/);
-  assert.match(form,/Pendentes/);
-  assert.match(form,/Vinculados/);
-  assert.match(form,/Pesquisar anúncio ativo ou SKU atual/);
-  assert.match(form,/onChanged\?\.\(\)/);
   assert.match(form,/Confirmar revogação/);
   assert.match(css,/@media\(max-width:800px\)/);
-  assert.match(css,/@media\(max-width:520px\)/);
 });
