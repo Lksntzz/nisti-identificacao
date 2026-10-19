@@ -18,7 +18,7 @@ test('uma chave SKU agrupa todos os IDs de anúncios ativos sem contar vendas du
 
 test('busca do produto funciona por SKU com separadores ou por qualquer ID do anúncio',()=>{
   assert.match(sql,/unnest\(coalesce\(s\.listing_ids,array\[\]::text\[\]\)\)/);
-  assert.match(sql,/listing_ref ilike/);
+  assert.match(sql,/listing_ref\.id ilike/);
   assert.match(sql,/commerce_nisti_sku_norm_v1\(i\.searched\)/);
 });
 
