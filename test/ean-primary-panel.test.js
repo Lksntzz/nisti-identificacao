@@ -9,7 +9,7 @@ const scannerStyles = fs.readFileSync(new URL('../src/gtin-scanner.css', import.
 const indexSource = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 test('public application uses the embedded EAN scanner as its primary panel', () => {
-  const primaryApp = publicSource.slice(publicSource.indexOf('function PublicIdentificationApp()'));
+  const primaryApp = publicSource.slice(publicSource.indexOf('function PublicIdentificationApp('));
 
   assert.match(primaryApp, /<GtinScannerOverlay embedded \/>/);
   assert.doesNotMatch(primaryApp, /type="file"/);
