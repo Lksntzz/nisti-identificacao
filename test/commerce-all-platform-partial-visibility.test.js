@@ -37,7 +37,7 @@ test('nunca transforma valor ausente em venda zero nem mistura valores dos anún
   assert.equal(shopeeSalesTotals(base,7).units,4);
   assert.equal(shopeeSalesTotals({...base,kpis:{identified_units:5,identified_revenue:100,units:-1,revenue:0}},7),null);
   assert.equal(shopeeSalesTotals({...base,kpis:{identified_units:null,identified_revenue:null,units:2,revenue:99}},7),null);
-  assert.match(ui,/item\.source==='SHOPEE'&&Number\(item\.month_linked_units\|\|item\.identified_units\)>0/);
+  assert.match(ui,/linked\.hasSales\?num\(linked\.units\)/);
   assert.match(ui,/item\.ready\?num\(item\.units\)/);
   assert.match(ui,/partial=\{hasShopeePartial&&item\.source==='SHOPEE'\}/);
 });

@@ -25,7 +25,8 @@ test('períodos do detalhe consultam ID real sem redefinir filtros da listagem',
   assert.match(details,/search:String\(item\.external_listing_id\|\|''\)/);
   assert.match(details,/String\(x\.id\)===String\(item\.id\)/);
   assert.match(details,/if\(detailDays===0 && month\)params\.set\('month',month\)/);
-  assert.match(jsx,/month=\{month\} zeroFilter=\{status==='ZERO'\}/);
+  assert.match(jsx,/periodStart=\{data\?\.period_start\} periodEnd=\{data\?\.period_end\}/);
+  assert.match(jsx,/zeroFilter=\{status==='ZERO'\}/);
   assert.match(jsx,/useEffect\(\(\)=>\{setOffset\(0\);setSelectedId\(null\);\},\[platform,days,month,search,status,curve,basis,size\]\)/);
   assert.doesNotMatch(details,/onDaysChange/);
 });

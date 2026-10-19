@@ -68,7 +68,7 @@ test('UI distinguishes linked values from gross totals without false zeros or fa
   assert.match(ui,/shopeeTotals\?\.revenue!=null\?money\(shopeeTotals\.revenue\)/);
   assert.match(ui,/hasShopeePartial&&code==='ZERO'/);
   assert.match(ui,/hasShopeePartial&&code!=='ALL'/);
-  assert.match(ui,/const dailyLinked=detailDays!==0&&Number\(detail\?\.identified_units\)>0/);
+  assert.match(ui,/const linkedEvidence=listingLinkedSalesForPeriod\(detail,detailDays\)/);
   assert.match(ui,/const partialVars=item\.source==='SHOPEE'&&!complete\?variationEvidence\.variations:\[\]/);
   assert.match(ui,/label="Pedidos com item"/);
   assert.match(ui,/order_item_incidents==null\?'—':num\(ordersMetrics\.listing\.order_item_incidents\)/);

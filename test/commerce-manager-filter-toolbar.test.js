@@ -52,7 +52,7 @@ test('visual change never modifies zero-variation semantics, listing IDs or scan
 test('o Gestor exibe apenas Todos, Com vendas e Sem vendas, sem indicadores',()=>{
   assert.match(ui,/const SALES_FILTERS=\[\['ALL','Todos'\],\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];/);
   assert.match(ui,/<th>Vendas<\/th>/);
-  assert.match(ui,/<td><Situation item=\{item\}\/><\/td>/);
+  assert.match(ui,/<td><Situation item=\{item\} days=\{days\}\/><\/td>/);
   assert.match(ui,/listingSalesSituation\(item\)/);
   assert.doesNotMatch(ui,/<th>Indicadores<\/th>|<Indicators|PERFORMANCE_FILTERS|listingPerformanceIndicators|Em crescimento|Poucas vendas/);
   assert.doesNotMatch(styles,/\.nim-indicators|\.nim-status\.rising|\.nim-status\.low/);

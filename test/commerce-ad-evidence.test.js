@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   identifiedVariationCoverage,
+  listingLinkedSalesForPeriod,
   listingClassificationCoverage,
   importedWindowDescription
 } from '../src/commerce-ad-evidence.js';
@@ -93,4 +94,35 @@ test('UI apresenta claramente os dados parciais, por variação e a última data
   assert.match(jsx,/partialRelevant\.map\(\(v,i\)=>/);
   assert.match(jsx,/v\.units==null\?'Não identificada':num\(v\.units\)/);
   assert.doesNotMatch(jsx,/Quantidade não identificada/);
+});
+
+test('mensal Shopee nunca herda as vendas de uma janela móvel',()=>{
+  const item={source:'SHOPEE',month_linked_units:0,month_linked_revenue:0,
+    identified_units:78,identified_revenue:3400};
+  assert.deepEqual(listingLinkedSalesForPeriod(item,0),
+    {hasSales:false,units:null,revenue:null});
+  assert.deepEqual(listingLinkedSalesForPeriod(item,30),
+    {hasSales:true,units:78,revenue:3400});
+});
+
+test('origem mista mensal usa somente vendas identificadas no próprio recorte',()=>{
+  const item={source:'SHOPEE',identified_units:6,identified_revenue:219.90};
+  assert.deepEqual(listingLinkedSalesForPeriod(item,0),
+    {hasSales:true,units:6,revenue:219.90});
+  const specific={...item,month_linked_units:4,month_linked_revenue:119.90};
+  assert.deepEqual(listingLinkedSalesForPeriod(specific,0),
+    {hasSales:true,units:4,revenue:119.90});
+  assert.deepEqual(listingLinkedSalesForPeriod({source:'SHOPEE',identified_units:null},30),
+    {hasSales:false,units:null,revenue:null});
+  assert.deepEqual(listingLinkedSalesForPeriod({source:'ML_NOVO',units:5},30),
+    {hasSales:false,units:null,revenue:null});
+});
+
+test('ficha do anúncio mostra datas reais quando selecionado outro período',()=>{
+  const jsx=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+  assert.match(jsx,/setPeriodResult\(\{days:detailDays,item:found,periodStart:/);
+  assert.match(jsx,/período independente do filtro principal/);
+  assert.match(jsx,/const linkedEvidence=listingLinkedSalesForPeriod\(detail,detailDays\)/);
+  assert.match(jsx,/const linked=listingLinkedSalesForPeriod\(item,days\)/);
+  assert.doesNotMatch(jsx,/month_linked_units\|\|item\.identified_units/);
 });

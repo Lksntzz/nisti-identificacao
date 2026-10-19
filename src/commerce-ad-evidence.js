@@ -1,3 +1,17 @@
+// Nunca misturar a janela mensal Shopee com janelas móveis de 7/30/60/90 dias.
+// Zero sem vínculo exclusivo é ausência de identificação, não venda zero comprovada.
+export function listingLinkedSalesForPeriod(item,days) {
+  if(item?.source!=='SHOPEE')return {hasSales:false,units:null,revenue:null};
+  const useMonth=days===0&&item?.month_linked_units!=null;
+  const sourceUnits=useMonth?item.month_linked_units:item?.identified_units;
+  const sourceRevenue=useMonth?item.month_linked_revenue:item?.identified_revenue;
+  const units=sourceUnits==null?NaN:Number(sourceUnits);
+  const revenue=sourceRevenue==null?NaN:Number(sourceRevenue);
+  if(!Number.isFinite(units)||units<=0||!Number.isFinite(revenue)||revenue<0)
+    return {hasSales:false,units:null,revenue:null};
+  return {hasSales:true,units,revenue};
+}
+
 // Dados com vínculo exclusivo não comprovam ausência de vendas nas demais variações.
 export function identifiedVariationCoverage(item, days) {
   const source = days === 0 ? item?.month_variations : item?.identified_variations;
@@ -36,7 +50,15 @@ export function listingPlatformSalesBreakdown(kpis, days, sourceKind) {
   const covered=Math.min(active,Math.max(0,Number(kpis?.covered_ads)||0));
   const marketplaceWithSales=mixed
     ?Math.min(covered,Math.max(0,Number(kpis?.sold_ads)||0)):0;
-  const shopeeActive=partial?(mixed?active-covered:active):0;
+  const knownShopee=kpis?.shopee_active_ads==null?NaN:Number(kpis.shopee_active_ads);
+  const knownMarketplace=kpis?.marketplace_active_ads==null?NaN:Number(kpis.marketplace_active_ads);
+  const shopeeActive=partial
+    ?Math.min(active,Number.isFinite(knownShopee)&&knownShopee>=0
+      ?knownShopee:mixed?active-covered:active):0;
+  const marketplaceActive=mixed
+    ?Math.min(active,Number.isFinite(knownMarketplace)&&knownMarketplace>=0
+      ?knownMarketplace:covered):0;
+  const marketplacePending=mixed?Math.max(0,marketplaceActive-covered):0;
   const sourceSales=days===0&&sourceKind==='MONTHLY_SKU_PARTIAL'
     ?kpis?.month_linked_ads:kpis?.identified_ads;
   const shopeeWithSales=partial
@@ -47,7 +69,7 @@ export function listingPlatformSalesBreakdown(kpis, days, sourceKind) {
   const marketplaceWithoutSales=mixed?covered-marketplaceWithSales:0;
   const shopeeWithoutLink=partial?shopeeActive-shopeeWithSales:0;
   return {active,identified,withoutIdentified:active-identified,
-    marketplaceWithSales,marketplaceWithoutSales,
+    marketplaceWithSales,marketplaceWithoutSales,marketplacePending,
     shopeeWithSales,shopeeWithoutLink};
 }
 
