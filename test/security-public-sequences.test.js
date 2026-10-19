@@ -10,10 +10,11 @@ test('sequences are no longer exposed to anon and authenticated',()=>{
   assert.match(sql,/REVOKE ALL PRIVILEGES ON SEQUENCE public\.%I FROM anon, authenticated/);
 });
 
-test('future sequences inherit restricted defaults for both database owner roles',()=>{
+test('postgres-created future sequences inherit restricted ACL; supabase_admin requires owner action',()=>{
   assert.match(sql,/ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public/);
-  assert.match(sql,/ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public/);
-  assert.equal((sql.match(/REVOKE ALL ON SEQUENCES FROM anon, authenticated/g)||[]).length,2);
+  assert.doesNotMatch(sql,/^ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin/m);
+  assert.match(sql,/authorized supabase_admin maintenance action/);
+  assert.equal((sql.match(/REVOKE ALL ON SEQUENCES FROM anon, authenticated/g)||[]).length,1);
 });
 
 test('security migration does not mutate scanner/commerce tables or remove service_role grants',()=>{
