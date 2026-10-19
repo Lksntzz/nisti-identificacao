@@ -4,7 +4,7 @@ const API='/api/admin/commerce/listings/manager/evolution';
 const PAGE=25;
 const platforms=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['MERCADO_LIVRE','Mercado Livre'],
   ['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo']];
-const statuses=[['ALL','Todos'],['FALLING','Em queda'],['ZERO','Sem vendas'],['RISING','Em crescimento'],
+const statuses=[['ALL','Todos'],['FALLING','Em queda'],['ZERO','SKU/modelo sem vendas'],['RISING','Em crescimento'],
   ['NEW','Novas vendas'],['STABLE','Estáveis'],['LOW_VOLUME','Baixo volume'],['INSUFFICIENT','Dados insuficientes']];
 const labels=Object.fromEntries(statuses);
 const num=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
@@ -22,8 +22,8 @@ const actions={
 function advice(item){
   if(item.trend!=='ZERO')return actions[item.trend]||actions.INSUFFICIENT;
   return Number(item.previous_units)>0
-    ?'As vendas cessaram após um período com pedidos. Verificar disponibilidade, anúncio, preço e oferta.'
-    :'Nenhuma venda registrada nos dois períodos. Revisar título, fotos, preço e distribuição antes de investir em divulgação.';
+    ?'O SKU/modelo vendeu anteriormente e agora não teve vendas identificadas. Confira também as outras variações antes de avaliar o anúncio.'
+    :'Não houve vendas identificadas neste SKU/modelo nos dois períodos. Confira outras variações e possíveis mudanças de código antes de concluir que o anúncio parou.';
 }
 function Bars({item}){
   const prev=Number(item.previous_units||0),cur=Number(item.current_units||0);
@@ -61,8 +61,6 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
   const counts=data?.kpis||{};
   const countFor=s=>counts[s==='NEW'?'new':s==='LOW_VOLUME'?'low_volume':
     s==='INSUFFICIENT'?'insufficient':s.toLowerCase()];
-  const cards=[['RISING','Em crescimento','up'],['FALLING','Em queda','down'],
-    ['STABLE','Estáveis','steady'],['ZERO','Sem vendas registradas','zero']];
   const rows=Array.isArray(data?.items)?data.items:[];
   const total=Number(data?.total||0);
   const incomplete=(data?.coverage||[]).filter(v=>
@@ -76,12 +74,6 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
       <strong>{data?date(data.period_start)+' a '+date(data.period_end):'Período de '+days+' dias'}</strong>
       {data&&<small>Anterior: {date(data.previous_start)} a {date(data.previous_end)}</small>}
     </div></header>
-    <div className="nim-evolution-summary">{cards.map(([code,label,tone])=>
-      <button key={code} type="button" aria-pressed={status===code}
-        className={'nim-evolution-kpi '+tone+(status===code?' selected':'')}
-        onClick={()=>setStatus(v=>v===code?'ALL':code)}>
-        <small>{label}</small><strong>{data?num(countFor(code)):'—'}</strong>
-      </button>)}</div>
     <div className="nim-evolution-controls">
       <label>Plataforma<select value={source} onChange={e=>onPlatformChange(e.target.value)}>
         {platforms.map(([code,label])=><option value={code} key={code}>{label}</option>)}
@@ -89,14 +81,14 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
       <label>Comparar períodos<select value={days} onChange={e=>setDays(Number(e.target.value))}>
         {[7,30,60,90].map(n=><option value={n} key={n}>{n} dias × {n} anteriores</option>)}
       </select></label>
+      <label>Situação das vendas<select value={status} onChange={e=>setStatus(e.target.value)}
+        aria-label="Filtrar evolução pela situação das vendas">
+        {statuses.map(([code,label])=><option value={code} key={code}>
+          {label}{data&&code!=='ALL'?' ('+num(countFor(code))+')':''}
+        </option>)}
+      </select></label>
       <label>Pesquisar produto ou SKU<input type="search" value={draft} maxLength={120}
         onChange={e=>setDraft(e.target.value)} placeholder="Nome, SKU ou anúncio"/></label>
-    </div>
-    <div className="nim-evolution-statuses" aria-label="Filtro de tendências">
-      {statuses.map(([code,label])=><button type="button" key={code}
-        className={status===code?'active':''} aria-pressed={status===code}
-        onClick={()=>setStatus(code)}>
-        {label}{data&&code!=='ALL'?' ('+num(countFor(code))+')':''}</button>)}
     </div>
     <p className="nim-evolution-method">Crescimento e queda exigem variação de pelo menos 20%,
       mínimo de 3 unidades no período anterior e diferença de 2 unidades.
@@ -109,7 +101,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
     {loading&&<p className="nim-evolution-state">Consultando vendas importadas…</p>}
     {!loading&&!error&&<>
       <div className="nim-evolution-results-head">
-        <strong>{num(total)} produto(s) no filtro</strong>
+        <strong>{num(total)} SKU(s)/modelo(s) no filtro</strong>
         <span>Unidades e faturamento bruto dos produtos, não lucro</span>
       </div>
       {rows.length===0&&<p className="nim-evolution-state">Nenhum produto encontrado no filtro.</p>}

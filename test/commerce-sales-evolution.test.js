@@ -15,8 +15,23 @@ test('painel comercial possui duas visões, sem remover os anúncios existentes'
   assert.match(app,/CommerceSalesEvolution/);
   assert.match(app,/commercialView==='LISTINGS'/);
   assert.match(app,/Lista de anúncios/);
-  assert.match(css,/nim-evolution-summary/);
+  assert.match(css,/nim-evolution-controls/);
   assert.match(css,/max-width:550px/);
+});
+
+test('evolução usa somente um seletor para todas as situações, sem botões duplicados',()=>{
+  assert.match(panel,/Situação das vendas<select value=\{status\} onChange=\{e=>setStatus\(e.target.value\)\}/);
+  assert.match(panel,/statuses\.map\(\(\[code,label\]\)=><option value=\{code\}/);
+  for(const state of ['ALL','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT']){
+    assert.match(panel,new RegExp("'"+state+"'"));
+  }
+  assert.doesNotMatch(panel,/nim-evolution-summary|nim-evolution-statuses|nim-evolution-kpi/);
+  assert.doesNotMatch(css,/\.nim-evolution-summary|\.nim-evolution-statuses|\.nim-evolution-kpi/);
+  assert.match(panel,/\[7,30,60,90\]\.map/);
+  assert.match(panel,/onPlatformChange\(e.target.value\)/);
+  assert.match(panel,/setDraft\(e.target.value\)/);
+  assert.match(panel,/SKU\(s\)\/modelo\(s\) no filtro/);
+  assert.match(panel,/SKU\/modelo sem vendas/);
 });
 
 test('trends comparam períodos idênticos e respeitam cobertura diária real',()=>{
