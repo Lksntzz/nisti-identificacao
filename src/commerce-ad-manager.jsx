@@ -569,7 +569,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.
     </p>}
     {platform==='SHOPEE'&&unlinkedOpen&&(days!==0||Boolean(month))&&
-      <ShopeeUnlinkedSales days={days} month={month} importedThrough={data?.imported_month?.period_end} revision={refresh} salesRevision={salesRevision}
+      <ShopeeUnlinkedSales days={days} month={month} importedThrough={data?.imported_month?.period_end} revision={refresh} salesRevision={salesRevision} onChanged={()=>setRefresh(v=>v+1)}
         onClose={()=>setUnlinkedOpen(false)}/>}
     {platform==='SHOPEE'&&reconciliationOpen&&
       <ShopeeSkuReconciliation onClose={()=>setReconciliationOpen(false)}
