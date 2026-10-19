@@ -4,7 +4,7 @@ import ShopeeSkuReconciliation from './commerce-shopee-reconciliation.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
-import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription, shopeeMonthlyImportCoverage } from './commerce-ad-evidence.js';
+import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -201,8 +201,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
         altere o período no filtro principal.
       </p>}
       <div className="nim-detail-metrics">
-        <DetailMetric label="Unidades vendidas"  value={partialLinked?'≥ '+num(partialUnits):pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
-        <DetailMetric label="Faturamento"  value={partialLinked?'≥ '+money(partialRevenue):pending?'—':money(detail.revenue)} description={periodLabel(detailDays,month)+' · produtos'}/>
+        <DetailMetric label={item.source==='SHOPEE'&&!complete?'Unidades vinculadas':'Unidades vendidas'} value={partialLinked?num(partialUnits):pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
+        <DetailMetric label={item.source==='SHOPEE'&&!complete?'Faturamento vinculado':'Faturamento'} value={partialLinked?money(partialRevenue):pending?'—':money(detail.revenue)} description={periodLabel(detailDays,month)+' · produtos'}/>
         {item.source==='SHOPEE'&&detailDays!==0?
           <DetailMetric label="Tendência identificada" value={trendLabel}
             description="Comparação com igual período anterior · vendas vinculadas"/>:
@@ -212,7 +212,7 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       {periodLoading&&<p className="nim-detail-pending" role="status">Consultando dados: {periodLabel(detailDays,month)}…</p>}
       {periodError&&<p className="nim-detail-pending nim-detail-period-error" role="alert">{periodError}</p>}
       {pending&&!partialLinked&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para {periodLabel(detailDays,month)}. Valores desconhecidos não são zero.</p>}
-      {partialLinked&&<p className="nim-detail-pending">Valores mínimos identificados por SKU exclusivo; podem existir outras vendas não vinculadas a este anúncio.</p>}
+      {partialLinked&&<p className="nim-detail-pending">Valores comprovadamente vinculados a este anúncio. Outros registros históricos podem permanecer sem associação; esse subtotal não comprova o faturamento total.</p>}
     </section>
     <div className="nim-detail-tab-list" role="tablist" aria-label="Informações do anúncio">
       {DETAIL_TABS.map(([code,label])=><button
@@ -245,8 +245,8 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
       {activeTab==='finance'&&<>
         <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{periodLabel(detailDays,month)}</small></div>
         <div className="nim-detail-data-list">
-          <DetailRow label="Subtotal dos produtos" value={partialLinked?'≥ '+money(partialRevenue):pending?'—':money(detail.revenue)}
-            description={partialLinked?'Produtos vinculados por SKU · pode haver outras vendas':'Receita dos produtos no período selecionado'}/>
+          <DetailRow label="Subtotal dos produtos" value={partialLinked?money(partialRevenue):pending?'—':money(detail.revenue)}
+            description={partialLinked?'Subtotal das vendas vinculadas por SKU · não necessariamente o total':'Receita dos produtos no período selecionado'}/>
           {item.source==='SHOPEE'&&finance?.has_finance_data&&<>
             <DetailRow label="Subtotal com taxas verificadas" value={money(finance.fee_reconciled_subtotal)}
               description={num(finance.orders_with_verified_fees)+' pedidos de SKU único com taxas informadas'}/>
@@ -293,11 +293,11 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
           <label className="nim-var-toggle"><input type="checkbox" checked={showAll}
             onChange={e=>setShowAll(e.target.checked)}/> Mostrar todas as variações</label>}
         {!complete&&partialVars.length>0&&<div className="nim-detail-table-scroll">
-          <table><thead><tr><th>Variação / SKU</th><th>Unid. identificadas</th><th>Receita identificada</th></tr></thead>
+          <table><thead><tr><th>Variação / SKU</th><th>Unid. vinculadas</th><th>Receita vinculada</th></tr></thead>
             <tbody>{partialRelevant.map((v,i)=><tr key={String(v.id||i)}>
               <td><strong>{v.name}</strong><small>{v.sku||'SKU não informado'}</small></td>
-              <td>{v.units==null?'Não identificada':'≥ '+num(v.units)}</td>
-              <td>{v.revenue==null?'—':'≥ '+money(v.revenue)}</td>
+              <td>{v.units==null?'Não identificada':num(v.units)}</td>
+              <td>{v.revenue==null?'—':money(v.revenue)}</td>
             </tr>)}</tbody>
           </table>
           {partialRelevant.length===0&&<p className="nim-subtle">Nenhuma variação sem vendas identificadas neste anúncio.</p>}
@@ -398,6 +398,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const partialAds=hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0);
   const partialUnits=hasMonthPartial?Number(kpi.month_linked_units||0):Number(kpi.identified_units||0);
   const partialRevenue=hasMonthPartial?Number(kpi.month_linked_revenue||0):Number(kpi.identified_revenue||0);
+  const shopeeTotals=shopeeSalesTotals(data,days);
+  const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
+  const linkedSalesDescription=importedMonthTotal
+    ?num(shopeeTotals.linkedUnits)+' de '+num(shopeeTotals.units)+' unidades vinculadas aos anúncios'
+    :'Somente vendas vinculadas por SKU · total da plataforma não confirmado nesta janela';
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
   const emptyIdentifiedAds=Number(kpi.identified_empty_ads||0);
   const emptyIdentifiedVars=Number(kpi.identified_empty_variations||0);
@@ -433,8 +438,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         value={hasShopeePartial&&data?num(emptyIdentifiedAds):hasReliableSales?num(kpi.zero_ads):'—'}
         description={hasShopeePartial?'Anúncios ou variações · indicativo':'Anúncios ou variações'}
         selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
-      <Kpi tone="sand" label={hasShopeePartial?'Unidades identificadas':'Unidades vendidas'} value={hasShopeePartial&&data?'≥ '+num(partialUnits):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?(coverageText?'Cobertura do mês: '+coverageText:'SKU exclusivo · cobertura não integral'):salesCoverageLabel}/>
-      <Kpi tone="green" label={hasShopeePartial?'Faturamento identificado':'Faturamento'} value={hasShopeePartial&&data?'≥ '+money(partialRevenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?(coverageText?'Cobertura do mês: '+coverageText:'SKU exclusivo · cobertura não integral'):salesCoverageLabel}/>
+      <Kpi tone="sand" label={hasShopeePartial?(importedMonthTotal?'Unidades vendidas':'Unidades vinculadas'):'Unidades vendidas'} value={shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+      <Kpi tone="green" label={hasShopeePartial?(importedMonthTotal?'Faturamento bruto importado':'Faturamento vinculado'):'Faturamento'} value={shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
     </div>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
@@ -590,19 +595,19 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </div>}
         <div className="nim-table-scroll">
           <table className="nim-ad-table"><thead><tr>
-            <th>Plataforma</th><th>Nome e ID do anúncio</th><th>Unid. {periodLabel(days,month)}</th>
-            <th>Variações</th><th>Faturamento</th><th>ABC</th><th>Vendas</th>
+            <th>Plataforma</th><th>Nome e ID do anúncio</th><th>{hasShopeePartial?'Unid. vinculadas':'Unid.'} {periodLabel(days,month)}</th>
+            <th>Variações</th><th>{hasShopeePartial?'Faturamento vinculado':'Faturamento'}</th><th>ABC</th><th>Vendas</th>
           </tr></thead><tbody>
             {!loading&&rows.map(item=><tr key={item.id} className={selectedId===item.id?'selected':''}
               onClick={()=>setSelectedId(item.id)} title="Ver anúncio e suas variações">
               <td><PlatformLabel item={item}/></td>
               <td><strong className="nim-ad-name">{item.title}</strong>
                 <small className="nim-ad-id">{item.external_listing_id}</small></td>
-              <td className="nim-units">{item.ready?num(item.units):hasShopeePartial&&Number(item.month_linked_units||item.identified_units)>0?'≥ '+num(item.month_linked_units||item.identified_units):'—'}</td>
+              <td className="nim-units">{item.ready?num(item.units):hasShopeePartial&&Number(item.month_linked_units||item.identified_units)>0?num(item.month_linked_units||item.identified_units):'—'}</td>
               <td><span className="nim-variations-cell">{item.total_variations?num(item.total_variations)+' variações':'Sem variações'}
                 <VariationSalesEvidence item={item} days={days} partial={hasShopeePartial}/>
               </span></td>
-              <td className="nim-money">{item.ready?money(item.revenue):hasShopeePartial&&Number(item.month_linked_units||item.identified_units)>0?'≥ '+money(item.month_linked_revenue||item.identified_revenue):'—'}</td>
+              <td className="nim-money">{item.ready?money(item.revenue):hasShopeePartial&&Number(item.month_linked_units||item.identified_units)>0?money(item.month_linked_revenue||item.identified_revenue):'—'}</td>
               <td>{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}
                 title={item.curve_partial?'ABC indicativa: calculada apenas com vendas identificadas':'Curva ABC por vendas consolidadas'}>{item.curve}{item.curve_partial?'*':''}</span>:'—'}</td>
               <td><Situation item={item}/></td>
@@ -621,6 +626,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </section>
       {selected&&<ListingDetail key={[selected.id,days,month].join(':')} item={selected} days={days} month={month} zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
-    <p className="nim-footnote">O símbolo ≥ indica vendas mínimas identificadas por SKU exclusivo. Na Shopee, “Sem vendas identificadas” é um filtro exploratório, não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Tendência compara períodos equivalentes apenas com vendas identificadas, exige pelo menos 3 unidades anteriores e não presume vendas zero. Nenhum dado do Scanner é alterado.</p>
+    <p className="nim-footnote">Na Shopee, o faturamento bruto mensal é o total conferido nas importações; os valores individuais são subtotais vinculados por SKU, não necessariamente o total do anúncio. Nos períodos de 7/30/60/90 dias, os KPIs mostram somente vendas vinculadas, sem presumir cobertura completa. “Sem vendas identificadas” não comprova zero real; ABC* é indicativa e considera somente vendas vinculadas ao anúncio. Tendência compara períodos equivalentes apenas com vendas identificadas, exige pelo menos 3 unidades anteriores e não presume vendas zero. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
