@@ -50,7 +50,15 @@ export function listingPlatformSalesBreakdown(kpis, days, sourceKind) {
   const covered=Math.min(active,Math.max(0,Number(kpis?.covered_ads)||0));
   const marketplaceWithSales=mixed
     ?Math.min(covered,Math.max(0,Number(kpis?.sold_ads)||0)):0;
-  const shopeeActive=partial?(mixed?active-covered:active):0;
+  const knownShopee=kpis?.shopee_active_ads==null?NaN:Number(kpis.shopee_active_ads);
+  const knownMarketplace=kpis?.marketplace_active_ads==null?NaN:Number(kpis.marketplace_active_ads);
+  const shopeeActive=partial
+    ?Math.min(active,Number.isFinite(knownShopee)&&knownShopee>=0
+      ?knownShopee:mixed?active-covered:active):0;
+  const marketplaceActive=mixed
+    ?Math.min(active,Number.isFinite(knownMarketplace)&&knownMarketplace>=0
+      ?knownMarketplace:covered):0;
+  const marketplacePending=mixed?Math.max(0,marketplaceActive-covered):0;
   const sourceSales=days===0&&sourceKind==='MONTHLY_SKU_PARTIAL'
     ?kpis?.month_linked_ads:kpis?.identified_ads;
   const shopeeWithSales=partial
@@ -61,7 +69,7 @@ export function listingPlatformSalesBreakdown(kpis, days, sourceKind) {
   const marketplaceWithoutSales=mixed?covered-marketplaceWithSales:0;
   const shopeeWithoutLink=partial?shopeeActive-shopeeWithSales:0;
   return {active,identified,withoutIdentified:active-identified,
-    marketplaceWithSales,marketplaceWithoutSales,
+    marketplaceWithSales,marketplaceWithoutSales,marketplacePending,
     shopeeWithSales,shopeeWithoutLink};
 }
 
