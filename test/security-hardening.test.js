@@ -354,3 +354,19 @@ test('falha ou ausência do rate limiter não libera tentativa ilimitada de logi
   });
   assert.equal((await edgeRouter.fetch(req,errEnv,{})).status,503);
 });
+
+test('health and other public routes do not mint unnecessary operator sessions',async()=>{
+  const health=await edgeRouter.fetch(new Request('https://sistemanistiid.online/api/health'),{},{});
+  assert.equal(health.status,200);
+  assert.equal(health.headers.get('set-cookie'),null);
+  const access=await edgeRouter.fetch(new Request('https://sistemanistiid.online/api/mural/access'),{},{});
+  assert.equal(access.headers.get('set-cookie'),null);
+});
+
+test('admin Mural QA keeps signed admin-preview privilege independent of operator PIN',()=>{
+  const edge=fs.readFileSync('src/edge-router.js','utf8');
+  assert.match(edge,/const adminQaAuthorized=muralPreviewCandidate&&await validSession\(request,env\)/);
+  assert.match(edge,/operatorApi&&!adminQaAuthorized/);
+  assert.match(edge,/operatorApi\s*\?await verifiedOperatorRequest/);
+  assert.match(edge,/\{request,setCookie:null,authorized:true\}/);
+});
