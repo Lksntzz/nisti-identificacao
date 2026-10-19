@@ -11,7 +11,7 @@ import {
 import {
   getVapidPublicKey,
   savePushSubscription,
-  removePushSubscription,
+  removeOwnPushSubscription,
   broadcastNewCoverPush,
   pushVapidHealth,
   getOperatorPushDevice
@@ -21,7 +21,8 @@ import {
   supabaseProductImageContext,
   supabaseRpc,
   supabaseProductTreatmentSummary,
-  supabaseProductTreatmentQueue
+  supabaseProductTreatmentQueue,
+  SupabaseReadError
 } from './supabase-read-store.js';
 import { mirrorSupabaseRpc } from './supabase-write-store.js';
 import {
@@ -945,20 +946,30 @@ export default {
       }
 
       if (url.pathname === '/api/push/unsubscribe' && request.method === 'POST') {
-        const body = await request.json().catch(() => ({}));
-        const success = await removePushSubscription(env, body?.endpoint);
-        return json({ ok: success });
+        const userId=verifiedOperatorId(request);
+        if(!userId) return json({error:'Sessão do operador inválida.'},401);
+        const body=await request.json().catch(()=>({}));
+        const success=await removeOwnPushSubscription(env,userId,body?.endpoint);
+        return json({ok:success});
       }
 
       if (env.ASSETS) return env.ASSETS.fetch(request);
       return json({ error: 'Not found' }, 404);
     } catch (error) {
-      const message = error?.message || 'Erro interno';
-      const status = /UNIQUE constraint/i.test(message) ? 409
-        : /não encontrado|não encontrada/i.test(message) ? 404
-          : /máximo|imagem|arquivo|referência|CAPA_CODE/i.test(message) ? 400
-            : 400;
-      return json({ error: message }, status);
+      // API responses must not disclose upstream SQL/RPC details, provider URLs,
+      // credentials, stack traces or internal configuration errors.
+      const message=String(error?.message||'');
+      if(error instanceof SupabaseReadError
+        || /(?:^D1_ERROR|^SQLITE_|^PGRST|supabase|postgres|SQLSTATE|\\bSQL\\b|fetch failed)/i.test(message)){
+        console.error('[NISTI API] Falha de infraestrutura',error?.code||error?.name||'upstream_error');
+        return json({error:'Serviço temporariamente indisponível.'},502);
+      }
+      if(/UNIQUE constraint/i.test(message)) return json({error:'Registro já existente.'},409);
+      if(/não encontrado|não encontrada/i.test(message)) return json({error:message},404);
+      if(/máximo|imagem|arquivo|referência|CAPA_CODE|EAN|GTIN|SKU|inválido|obrigatório|limite/i.test(message))
+        return json({error:message.slice(0,250)},400);
+      console.error('[NISTI API] Erro interno não previsto',error?.code||error?.name||'error');
+      return json({error:'Erro interno ao processar solicitação.'},500);
     }
   }
 };
