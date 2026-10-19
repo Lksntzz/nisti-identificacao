@@ -12,7 +12,7 @@ test('TODAS 30 dias: soma Shopee e Mercado Livre sem confundir venda ausente com
   },30,'MIXED_LISTING_SKU_PARTIAL');
   assert.deepEqual(r,{
     active:552,identified:248,withoutIdentified:304,
-    marketplaceWithSales:109,marketplaceWithoutSales:127,
+    marketplaceWithSales:109,marketplaceWithoutSales:127,marketplacePending:0,
     shopeeWithSales:139,shopeeWithoutLink:177
   });
 });
@@ -65,4 +65,19 @@ test('UI mostra distribuição verificável e não rotula variação vazia como 
   assert.match(ui,/sourceBreakdown\?\.withoutIdentified\?\?0/);
   assert.match(ui,/Math\.max\(0,Number\(kpi\.covered_ads\|\|0\)-Number\(kpi\.sold_ads\|\|0\)\)/);
   assert.doesNotMatch(ui,/emptyIdentifiedAds=Number\(kpi\.identified_empty_ads/);
+});
+
+test('TODAS em mês incompleto não classifica Mercado Livre pendente como Shopee',()=>{
+  const result=listingPlatformSalesBreakdown({
+    active_ads:535,shopee_active_ads:299,marketplace_active_ads:236,
+    covered_ads:0,sold_ads:0,identified_ads:122
+  },0,'MIXED_LISTING_SKU_PARTIAL');
+  assert.equal(result.active,535);
+  assert.equal(result.marketplacePending,236);
+  assert.equal(result.marketplaceWithoutSales,0);
+  assert.equal(result.shopeeWithSales,122);
+  assert.equal(result.shopeeWithoutLink,177);
+  assert.equal(result.identified,122);
+  assert.equal(result.withoutIdentified,413);
+  assert.match(ui,/ML sem cobertura de vendas no período/);
 });
