@@ -300,3 +300,57 @@ test('tampered CSRF token never creates an admin session',async()=>{
   const response=await edgeRouter.fetch(new Request(req.url,{method:'POST',body:form,headers:{cookie:req.headers.get('cookie')}}),env,{});
   assert.equal(response.status,403);
 });
+
+test('GET logout nunca encerra uma sessão HttpOnly; apenas POST do próprio site pode fazê-lo',async()=>{
+  const env={ADMIN_PASSWORD:'strong-test-secret',LOGIN_RATE_LIMITER:{limit:async()=>({success:true})}};
+  const login=await loginFormRequest('https://admin.sistemanistiid.online/admin-login',env,env.ADMIN_PASSWORD,{
+    origin:'https://admin.sistemanistiid.online','sec-fetch-site':'same-origin'
+  });
+  const signed=await edgeRouter.fetch(login,env,{});
+  assert.equal(signed.status,302);
+  const sessionCookie=signed.headers.get('set-cookie')?.split(';')[0];
+  assert.match(sessionCookie||'',/^nisti_admin_session=/);
+
+  const get=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/admin-logout',{
+    headers:{cookie:sessionCookie,'sec-fetch-site':'cross-site'}
+  }),env,{});
+  assert.equal(get.status,405);
+  assert.equal(get.headers.get('allow'),'POST');
+  assert.equal(get.headers.get('set-cookie'),null);
+
+  const attacker=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/admin-logout',{
+    method:'POST',headers:{cookie:sessionCookie,origin:'https://attacker.invalid','sec-fetch-site':'cross-site'}
+  }),env,{});
+  assert.equal(attacker.status,403);
+  assert.equal(attacker.headers.get('set-cookie'),null);
+
+  const logout=await edgeRouter.fetch(new Request('https://admin.sistemanistiid.online/admin-logout',{
+    method:'POST',headers:{cookie:sessionCookie,origin:'https://admin.sistemanistiid.online','sec-fetch-site':'same-origin'}
+  }),env,{});
+  assert.equal(logout.status,303);
+  assert.match(logout.headers.get('set-cookie')||'',/nisti_admin_session=;/);
+  assert.match(logout.headers.get('set-cookie')||'',/Max-Age=0/);
+});
+
+test('botões Sair usam POST e não tentam apagar cookie HttpOnly no cliente',()=>{
+  for(const file of ['../src/main.jsx','../src/commerce-admin-app-v2.jsx']){
+    const code=fs.readFileSync(new URL(file,import.meta.url),'utf8');
+    assert.doesNotMatch(code,/href="\/admin-logout"/);
+    assert.doesNotMatch(code,/document\.cookie\s*=\s*'nisti_admin_session=/);
+    assert.match(code,/<form method="POST" action="\/admin-logout"/);
+  }
+});
+
+test('falha ou ausência do rate limiter não libera tentativa ilimitada de login em produção',async()=>{
+  const env={APP_ENV:'production',ADMIN_PASSWORD:'a-strong-test-password'};
+  const unbound=await loginFormRequest('https://admin.sistemanistiid.online/admin-login',env,env.ADMIN_PASSWORD,{
+    origin:'https://admin.sistemanistiid.online'
+  });
+  const result=await edgeRouter.fetch(unbound,env,{});
+  assert.equal(result.status,503);
+  const errEnv={...env,LOGIN_RATE_LIMITER:{limit:async()=>{throw Error('limiter down')}}};
+  const req=await loginFormRequest('https://admin.sistemanistiid.online/admin-login',errEnv,errEnv.ADMIN_PASSWORD,{
+    origin:'https://admin.sistemanistiid.online'
+  });
+  assert.equal((await edgeRouter.fetch(req,errEnv,{})).status,503);
+});
