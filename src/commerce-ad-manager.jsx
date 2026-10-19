@@ -101,7 +101,7 @@ function DetailRow({label,value,description}){
     <strong>{value}</strong>
   </div>;
 }
-function ListingDetail({item,days,month,periodStart,periodEnd,zeroFilter,onClose}){
+function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,zeroFilter,onClose}){
   const [months,setMonths]=useState(null);
   const [modelHistory,setModelHistory]=useState(null);
   const [error,setError]=useState('');
@@ -224,8 +224,13 @@ function ListingDetail({item,days,month,periodStart,periodEnd,zeroFilter,onClose
         Esta ficha segue apenas {periodLabel(0,month)}. Para comparar 7, 30, 60 ou 90 dias,
         altere o período no filtro principal.
       </p>}
-      {verifiedPeriod&&<p className="nim-detail-period-note">
-        Vendas consultadas de {verifiedPeriod}{detailDays!==days?' · período independente do filtro principal':''}.
+      {(verifiedPeriod||detailDays===0)&&<p className="nim-detail-period-note">
+        {detailDays===0
+          ?'Mês selecionado: '+(month||'personalizado')+
+            (importedThrough?' · vendas importadas até '+periodDate(importedThrough):' · sem data final de importação confirmada')+
+            '. O último dia do calendário não comprova cobertura do mês inteiro.'
+          :'Vendas consultadas de '+verifiedPeriod+
+            (detailDays!==days?' · período independente do filtro principal':'')+'.'}
       </p>}
       <div className="nim-detail-metrics">
         <DetailMetric label={item.source==='SHOPEE'&&!complete?'Unidades vinculadas':'Unidades vendidas'} value={partialLinked?num(partialUnits):pending?'—':num(detail.units)} description={periodLabel(detailDays,month)}/>
@@ -732,6 +737,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </section>
       {selected&&<ListingDetail key={[selected.id,days,month].join(':')} item={selected} days={days} month={month}
         periodStart={data?.period_start} periodEnd={data?.period_end}
+        importedThrough={data?.imported_month?.period_end||data?.data_through}
         zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
     {platform==='SHOPEE'&&(days!==0||Boolean(month))&&
