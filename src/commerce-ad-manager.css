@@ -318,6 +318,19 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-unlinked-error{color:#a22d40;font-size:11px}
 @media(max-width:600px){.nim-unlinked-panel{padding:12px}.nim-unlinked-head{flex-wrap:wrap}}
 
+.nim-unlinked-match{color:#216f53!important;font-weight:800}
+.nim-unlinked-review-button{display:block;margin-top:8px;background:#eef4ff;border:1px solid #cfdcf4;
+  border-radius:7px;padding:7px 9px;font:inherit;font-size:10px;font-weight:750;color:#1f5db0;cursor:pointer}
+.nim-unlinked-review{display:grid;gap:9px;padding:13px 15px;background:#f7faff;
+  border:1px solid #c9d8f5;border-radius:10px;font-size:11px;color:#354963}
+.nim-unlinked-review p{margin:0;line-height:1.6}
+.nim-unlinked-review>label:not(.nim-unlinked-check){display:grid;gap:6px;font-weight:750}
+.nim-unlinked-review textarea{padding:10px;border:1px solid #dce5ef;border-radius:7px;
+  font:inherit;font-size:11px;resize:vertical}
+.nim-unlinked-check{display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+.nim-unlinked-review .nim-primary-button{justify-self:start}
+.nim-unlinked-review button:disabled{opacity:.5;cursor:not-allowed}
+
 /* Na análise mensal Shopee, não permitir zeros nem ABC não comprovados. */
 .nim-filter-panel .nim-status-tabs button:disabled,.nim-filter-panel .nim-curve-tabs button:disabled{opacity:.48;cursor:not-allowed;background:#f5f6f8;color:#8995a6;border-color:#e3e7ec;box-shadow:none}
 
