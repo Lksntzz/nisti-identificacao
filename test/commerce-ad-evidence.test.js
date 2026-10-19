@@ -126,3 +126,12 @@ test('ficha do anúncio mostra datas reais quando selecionado outro período',()
   assert.match(jsx,/const linked=listingLinkedSalesForPeriod\(item,days\)/);
   assert.doesNotMatch(jsx,/month_linked_units\|\|item\.identified_units/);
 });
+
+test('mês personalizado mostra a data importada, não o último dia do calendário como venda analisada',()=>{
+  const jsx=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+  assert.match(jsx,/importedThrough=\{data\?\.imported_month\?\.period_end\|\|data\?\.data_through\}/);
+  assert.match(jsx,/detailDays===0\s*\?/);
+  assert.match(jsx,/vendas importadas até/);
+  assert.match(jsx,/O último dia do calendário não comprova cobertura do mês inteiro/);
+  assert.match(jsx,/Vendas consultadas de/);
+});
