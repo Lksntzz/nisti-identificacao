@@ -25,6 +25,32 @@ export function listingClassificationCoverage(kpis, days) {
   };
 }
 
+// Summary of active listings, not of variations. Marketplace sales tied to a
+// listing ID and Shopee sales identified through SKU are disjoint groups.
+// Shopee without a reliable link is UNKNOWN, never a proven zero.
+export function listingPlatformSalesBreakdown(kpis, days, sourceKind) {
+  const active=Math.max(0,Number(kpis?.active_ads)||0);
+  const mixed=sourceKind==='MIXED_LISTING_SKU_PARTIAL';
+  const partial=mixed||sourceKind==='MONTHLY_SKU_PARTIAL'||
+    sourceKind==='DAILY_SKU_PARTIAL';
+  const covered=Math.min(active,Math.max(0,Number(kpis?.covered_ads)||0));
+  const marketplaceWithSales=mixed
+    ?Math.min(covered,Math.max(0,Number(kpis?.sold_ads)||0)):0;
+  const shopeeActive=partial?(mixed?active-covered:active):0;
+  const sourceSales=days===0&&sourceKind==='MONTHLY_SKU_PARTIAL'
+    ?kpis?.month_linked_ads:kpis?.identified_ads;
+  const shopeeWithSales=partial
+    ?Math.min(shopeeActive,Math.max(0,Number(sourceSales)||0)):0;
+  const identified=partial
+    ?Math.min(active,marketplaceWithSales+shopeeWithSales)
+    :Math.min(active,Math.max(0,Number(kpis?.sold_ads)||0));
+  const marketplaceWithoutSales=mixed?covered-marketplaceWithSales:0;
+  const shopeeWithoutLink=partial?shopeeActive-shopeeWithSales:0;
+  return {active,identified,withoutIdentified:active-identified,
+    marketplaceWithSales,marketplaceWithoutSales,
+    shopeeWithSales,shopeeWithoutLink};
+}
+
 // Janelas móveis do Gestor usam o último dia importado, não a data de hoje.
 // Evita rotular a consulta como "últimos 30 dias corridos" quando faltam vendas recentes.
 export function importedWindowDescription(data, days, formatDate) {
