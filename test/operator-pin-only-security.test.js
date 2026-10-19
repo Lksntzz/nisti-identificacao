@@ -101,3 +101,12 @@ test('PIN de operador autentica no servidor e impede falsificação do x-user-id
     assert.match(logout.headers.get('set-cookie'),/Max-Age=0/);
   }finally{globalThis.fetch=original}
 });
+
+test('bipagens com PIN ignoram nome livre do JSON e verificam o marcador de sessão',()=>{
+  const gtin=fs.readFileSync('src/gtin-router.js','utf8');
+  assert.match(edge,/headers\.delete\('x-operator-verified'\)/);
+  assert.match(edge,/headers\.set\('x-operator-verified','pin'\)/);
+  assert.match(gtin,/request\.headers\.get\('x-operator-verified'\)==='pin'/);
+  assert.match(gtin,/verifiedPin \? null : cleanEventText\(body\?\.operator_name\)/);
+  assert.match(gtin,/verifiedPin \|\| !operatorName/);
+});
