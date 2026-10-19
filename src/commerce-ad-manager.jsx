@@ -398,8 +398,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
     {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
   const partialAds=hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0);
-  const partialUnits=hasMonthPartial?Number(kpi.month_linked_units||0):Number(kpi.identified_units||0);
-  const partialRevenue=hasMonthPartial?Number(kpi.month_linked_revenue||0):Number(kpi.identified_revenue||0);
   const shopeeTotals=shopeeSalesTotals(data,days);
   const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
   const linkedSalesDescription=importedMonthTotal
@@ -571,7 +569,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.
     </p>}
     {platform==='SHOPEE'&&unlinkedOpen&&(days!==0||Boolean(month))&&
-      <ShopeeUnlinkedSales days={days} month={month} revision={refresh} salesRevision={salesRevision}
+      <ShopeeUnlinkedSales days={days} month={month} importedThrough={data?.imported_month?.period_end} revision={refresh} salesRevision={salesRevision}
         onClose={()=>setUnlinkedOpen(false)}/>}
     {platform==='SHOPEE'&&reconciliationOpen&&
       <ShopeeSkuReconciliation onClose={()=>setReconciliationOpen(false)}
