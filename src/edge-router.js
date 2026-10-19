@@ -183,7 +183,12 @@ async function verifiedOperatorRequest(request,env,pinRequired=false) {
   const headers=new Headers(request.headers);
   if(session?.id)headers.set('x-user-id',session.id);
   else headers.delete('x-user-id');
-  if(verifiedName)headers.set('x-operator-name',encodeURIComponent(verifiedName));
+  // A client cannot set the trust marker; only this edge verifies PIN sessions.
+  headers.delete('x-operator-verified');
+  if(verifiedName){
+    headers.set('x-operator-name',encodeURIComponent(verifiedName));
+    headers.set('x-operator-verified','pin');
+  }
   const secured=new Request(request,{headers});
   return {request:secured,setCookie,authorized:true};
 }
