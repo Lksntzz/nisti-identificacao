@@ -631,7 +631,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </>:Number(kpi.pending_ads)>0&&<span className="nim-filter-panel-warning">{num(kpi.pending_ads)} anúncio(s) com dados pendentes</span>}
         {status==='ZERO'&&<span className="nim-filter-panel-note">{hasShopeePartial
           ?num(emptyIdentifiedVars)+' variações sem vendas identificadas · o filtro inclui anúncios que venderam outras variações; ausência não comprovada'
-          :'O filtro também inclui anúncios com alguma variação sem vendas, mesmo quando outras variações venderam'}</span>}
+          :'Inclui anúncios com variações sem vendas, mesmo quando outras variações venderam'}</span>}
         {['RISING','FALLING'].includes(status)&&<span className="nim-filter-panel-note">
           Comparação com período anterior de mesma duração · variação de 20% ou mais · mínimo de 3 unidades anteriores · dados parciais
         </span>}
