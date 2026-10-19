@@ -55,7 +55,7 @@ with inp as (
     and d.sale_date between w.previous_start and w.latest
   group by d.sale_date
 ), raw as (
-  select d.platform_code source,d.sale_date day,
+  select d.platform_code source,d.sale_date sale_date,
     public.commerce_nisti_sku_norm_v1(d.sku_norm) norm,
     d.external_listing_id external_id,d.units,d.product_revenue revenue
   from public.commerce_current_sales_listing_daily_v1 d
@@ -63,7 +63,7 @@ with inp as (
   where d.platform_code in (select code from source_selection where code like 'ML_%')
     and d.sale_date between w.previous_start and w.latest
   union all
-  select 'SHOPEE'::text source,d.sale_date day,
+  select 'SHOPEE'::text source,d.sale_date sale_date,
     public.commerce_nisti_sku_norm_v1(d.sku_norm) norm,
     null::text external_id,d.units,d.product_revenue revenue
   from public.commerce_shopee_sales_sku_daily_v1 d
@@ -72,8 +72,8 @@ with inp as (
   join chosen_shopee_day latest on latest.sale_date=d.sale_date
     and latest.snapshot_id=b.snapshot_id
 ), observed as (
-  select source,count(distinct day) filter(where day between w.current_start and w.latest) current_days,
-    count(distinct day) filter(where day between w.previous_start and w.previous_end) previous_days
+  select source,count(distinct sale_date) filter(where sale_date between w.current_start and w.latest) current_days,
+    count(distinct sale_date) filter(where sale_date between w.previous_start and w.previous_end) previous_days
   from raw cross join windows w group by source
 ), coverage as (
   select s.code source,coalesce(o.current_days,0) current_days,
@@ -90,10 +90,10 @@ with inp as (
   from raw r
 ), summed as (
   select r.source,r.model_key,
-    sum(r.units) filter(where r.day between w.current_start and w.latest)::bigint current_units,
-    round(sum(r.revenue) filter(where r.day between w.current_start and w.latest),2)::numeric current_revenue,
-    sum(r.units) filter(where r.day between w.previous_start and w.previous_end)::bigint previous_units,
-    round(sum(r.revenue) filter(where r.day between w.previous_start and w.previous_end),2)::numeric previous_revenue,
+    sum(r.units) filter(where r.sale_date between w.current_start and w.latest)::bigint current_units,
+    round(sum(r.revenue) filter(where r.sale_date between w.current_start and w.latest),2)::numeric current_revenue,
+    sum(r.units) filter(where r.sale_date between w.previous_start and w.previous_end)::bigint previous_units,
+    round(sum(r.revenue) filter(where r.sale_date between w.previous_start and w.previous_end),2)::numeric previous_revenue,
     min(nullif(r.norm,'')) sample_sku,
     min(nullif(r.external_id,'')) source_listing_id,
     count(distinct nullif(r.norm,'')) distinct_skus
