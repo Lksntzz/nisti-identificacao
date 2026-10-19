@@ -37,5 +37,9 @@ test('painel é separado de anúncios sem vendas e preserva SKU de venda',()=>{
   assert.match(panel,/Não representam todos os anúncios sem vendas vinculadas/);
   assert.match(panel,/original_available/);
   assert.match(panel,/money\(item\.revenue\)/);
-  assert.doesNotMatch(panel,/aprovar|confirmar vínculo/i);
+  // O relatório só permite vincular após ação do administrador, justificativa e confirmação.
+  assert.match(panel,/reconciliation\/approve/);
+  assert.match(panel,/evidence\.trim\(\)\.length<8/);
+  assert.match(panel,/confirmed:true/);
+  assert.match(panel,/possible_variation_id/);
 });
