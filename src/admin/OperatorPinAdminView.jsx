@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useState} from 'react';
-import './operator-pin-admin.css';
+import '../operator-pin-admin.css';
 
 async function requestPinApi(path,body){
   const response=await fetch(path,{
