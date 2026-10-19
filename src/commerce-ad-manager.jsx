@@ -388,6 +388,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [monthly,setMonthly]=useState(null);
   const [ordersSummary,setOrdersSummary]=useState(null);
   const [ordersSummaryError,setOrdersSummaryError]=useState('');
+  const [importedTotals,setImportedTotals]=useState(null);
+  const [importedTotalsError,setImportedTotalsError]=useState('');
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [importOpen,setImportOpen]=useState(false);
@@ -435,6 +437,19 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       .catch(e=>{if(!controller.signal.aborted)setOrdersSummaryError(e.message);});
     return ()=>controller.abort();
   },[platform,days,month,refresh,salesRevision]);
+  useEffect(()=>{
+    const controller=new AbortController();
+    setImportedTotals(null);setImportedTotalsError('');
+    if(!data?.period_start||!data?.period_end)return ()=>controller.abort();
+    const params=new URLSearchParams({
+      platform,start:data.period_start,end:data.period_end,monthly:days===0?'1':'0'
+    });
+    readJson(API+'/imported-totals?'+params,{signal:controller.signal})
+      .then(result=>{if(!controller.signal.aborted)setImportedTotals(result);})
+      .catch(err=>{if(!controller.signal.aborted)setImportedTotalsError(err.message);});
+    return ()=>controller.abort();
+  },[data?.period_start,data?.period_end,platform,days,refresh,salesRevision]);
+
   const kpi=data?.kpis||{};
   const hasMonthPartial=data?.source_kind==='MONTHLY_SKU_PARTIAL';
   const hasDailyPartial=data?.source_kind==='DAILY_SKU_PARTIAL';
@@ -448,6 +463,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     (hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0));
   const shopeeTotals=shopeeSalesTotals(data,days);
   const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
+  const fullImportedAvailable=importedTotals?.available===true
+    &&importedTotals.units!=null&&importedTotals.revenue!=null;
   const linkedSalesDescription=hasMixedPartial
     ?(importedMonthTotal
       ?num(shopeeTotals.verifiedUnits)+' unidades por ID no Mercado Livre + '+
@@ -492,9 +509,27 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         value={hasShopeePartial&&data?num(emptyIdentifiedAds):hasReliableSales?num(kpi.zero_ads):'—'}
         description={hasShopeePartial?'Anúncios ou variações · indicativo':'Anúncios ou variações'}
         selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
-      <Kpi tone="sand" label={hasShopeePartial?(importedMonthTotal?'Unidades vendidas':hasMixedPartial?'Unidades identificadas':'Unidades vinculadas'):'Unidades vendidas'} value={shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
-      <Kpi tone="green" label={hasShopeePartial?(importedMonthTotal?'Faturamento bruto importado':hasMixedPartial?'Faturamento identificado':'Faturamento vinculado'):'Faturamento'} value={shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+      <Kpi tone="sand" label={fullImportedAvailable?'Unidades vendidas':hasShopeePartial?'Unidades identificadas':'Unidades vendidas'}
+        value={fullImportedAvailable?num(importedTotals.units):
+          shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'}
+        description={fullImportedAvailable?'Todas as unidades importadas no período, inclusive sem anúncio ativo':
+          hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+      <Kpi tone="green" label={fullImportedAvailable?'Faturamento bruto importado':hasShopeePartial?'Faturamento identificado':'Faturamento'}
+        value={fullImportedAvailable?money(importedTotals.revenue):
+          shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'}
+        description={fullImportedAvailable?'Total dos produtos vendidos, com e sem vínculo de anúncio':
+          hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
     </div>
+    {fullImportedAvailable&&<div className="nim-total-source-row" aria-label="Todas as vendas importadas por plataforma">
+      {(importedTotals.sources||[]).map(source=><span key={source.source}>
+        <strong>{PLATFORMS.find(p=>p[0]===source.source)?.[1]||source.source}:</strong>
+        {' '}{num(source.units)} un. · {money(source.revenue)}
+      </span>)}
+      <small>Somatório das vendas importadas. Nem todas têm um anúncio ativo identificado.</small>
+    </div>}
+    {importedTotalsError&&<p className="nim-coverage" role="status">
+      Totais completos não disponíveis nesta consulta; exibindo somente dados identificados.
+    </p>}
     <div className="nim-order-strip" aria-label="Pedidos e ticket médio">
       <div><small>{days===0?'Pedidos distintos importados':'Ocorrências de pedido com item'}</small>
         <strong>{ordersSummary?.platform&&
