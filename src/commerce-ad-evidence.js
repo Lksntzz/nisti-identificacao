@@ -1,3 +1,17 @@
+// Nunca misturar a janela mensal Shopee com janelas móveis de 7/30/60/90 dias.
+// Zero sem vínculo exclusivo é ausência de identificação, não venda zero comprovada.
+export function listingLinkedSalesForPeriod(item,days) {
+  if(item?.source!=='SHOPEE')return {hasSales:false,units:null,revenue:null};
+  const useMonth=days===0&&item?.month_linked_units!=null;
+  const sourceUnits=useMonth?item.month_linked_units:item?.identified_units;
+  const sourceRevenue=useMonth?item.month_linked_revenue:item?.identified_revenue;
+  const units=sourceUnits==null?NaN:Number(sourceUnits);
+  const revenue=sourceRevenue==null?NaN:Number(sourceRevenue);
+  if(!Number.isFinite(units)||units<=0||!Number.isFinite(revenue)||revenue<0)
+    return {hasSales:false,units:null,revenue:null};
+  return {hasSales:true,units,revenue};
+}
+
 // Dados com vínculo exclusivo não comprovam ausência de vendas nas demais variações.
 export function identifiedVariationCoverage(item, days) {
   const source = days === 0 ? item?.month_variations : item?.identified_variations;
