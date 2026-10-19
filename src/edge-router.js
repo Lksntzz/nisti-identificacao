@@ -22,16 +22,12 @@ const OPERATOR_SESSION_SECONDS = 60 * 60 * 12;
 const OPERATOR_PIN_LOGIN_PATH = '/api/operator/login';
 const OPERATOR_PIN_SESSION_PATH = '/api/operator/session';
 const OPERATOR_PIN_LOGOUT_PATH = '/api/operator/logout';
-let operatorPinPolicyCache={expires:0,required:null};
 async function currentOperatorPinRequired(env){
-  // Unit tests/local development without Supabase do not require PIN until configured.
-  // Production must always obtain an authoritative answer from the database.
+  // Read authoritative PIN policy on every protected request. This guarantees
+  // activation/revocation takes effect immediately, with no stale cache window.
+  // Tests/local development without Supabase retain the legacy unconfigured mode.
   if(!env?.SUPABASE_URL&&String(env?.APP_ENV||'')!=='production')return false;
-  if(Date.now()<operatorPinPolicyCache.expires&&operatorPinPolicyCache.required!==null)
-    return operatorPinPolicyCache.required;
-  const required=await operatorPinRequired(env);
-  operatorPinPolicyCache={expires:Date.now()+3000,required};
-  return required;
+  return operatorPinRequired(env);
 }
 function operatorApiNeedsPin(path){
   if(!path.startsWith('/api/')||path.startsWith('/api/admin/'))return false;
