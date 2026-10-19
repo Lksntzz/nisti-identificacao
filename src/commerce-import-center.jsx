@@ -1089,6 +1089,22 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
                   onClear={() => {setSalesFile(null);setSalesParsed(null);setSalesProgress(null);setError('');}}
                   hint="Aceita relatórios .xlsx exportados da plataforma"
                 />
+                {salesPlatform==='SHOPEE'&&<div className="import-center-finance-recovery">
+                  <div className="import-center-finance-recovery-copy">
+                    <strong>Recuperação financeira da Shopee</strong>
+                    <small>Selecione o mesmo arquivo Excel já importado para recuperar comissões, descontos e taxas, sem substituir pedidos, unidades ou faturamento.</small>
+                    {salesParsed&&!salesParsed.finance_month_rows?.length&&
+                      <small className="import-center-finance-recovery-warning">
+                        Este arquivo não possui taxas reconhecidas. Confira se é o relatório original de pedidos da Shopee.
+                      </small>}
+                  </div>
+                  <button type="button" className="import-center-finance-only"
+                    disabled={salesReading||salesImporting||!salesParsed?.finance_month_rows?.length}
+                    onClick={handleSalesFinanceOnly}
+                    title="Recupera somente informações financeiras de um Excel da Shopee já importado">
+                    {salesImporting?'Conferindo taxas…':'Recuperar só taxas'}
+                  </button>
+                </div>}
                 {salesReading && <div className="import-center-loading">Lendo vendas e identificando colunas…</div>}
               </Step>
 
