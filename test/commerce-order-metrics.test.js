@@ -54,11 +54,12 @@ test('API tem autenticação administrativa existente e recusa filtros inválido
   assert.doesNotMatch(sql,/(?:insert|update|delete)\s+(?:into\s+|from\s+)?public\.commerce_sales_/i);
 });
 
-test('dashboard distingue o ticket do mês e referência provisória das janelas',()=>{
-  assert.match(ui,/Pedidos distintos importados/);
-  assert.match(ui,/Ticket médio bruto/);
-  assert.match(ui,/Ocorrências de pedido com item/);
-  assert.match(ui,/reference_per_item_order/);
-  assert.match(ui,/ordersSummary\.platform\.orders/);
-  assert.match(ui,/!=null/);
+test('painel mantém dados de pedidos no detalhe sem bloco redundante no topo',()=>{
+  assert.match(ui,/label="Pedidos com item"/);
+  assert.match(ui,/label="Receita por pedido com item"/);
+  assert.match(ui,/ordersMetrics\.listing\.order_item_incidents/);
+  assert.match(ui,/ordersMetrics\.listing\.reference_per_item_order/);
+  assert.doesNotMatch(ui,/nim-order-strip|ordersSummary|setOrdersSummary/);
+  assert.doesNotMatch(ui,/Ocorrências de pedido com item/);
+  assert.doesNotMatch(ui,/Pedidos distintos importados/);
 });
