@@ -33,12 +33,16 @@ test('períodos do detalhe consultam ID real sem redefinir filtros da listagem',
 test('indicadores ausentes nunca são fabricados a partir de vendas ou reembolsos',()=>{
   assert.match(details,/partialLinked\?num\(partialUnits\):pending\?'—':num\(detail\.units\)/);
   assert.match(details,/partialLinked\?money\(partialRevenue\):pending\?'—':money\(detail\.revenue\)/);
-  assert.match(details,/label="Pedidos" value="—"/);
-  assert.match(details,/label="Ticket médio" value="—"/);
+  assert.match(details,/label="Pedidos com item"/);
+  assert.match(details,/order_item_incidents==null\?'—':num\(ordersMetrics\.listing\.order_item_incidents\)/);
+  assert.match(details,/label="Receita por pedido com item"/);
+  assert.match(details,/reference_per_item_order==null\?'—':money\(ordersMetrics\.listing\.reference_per_item_order\)/);
+  assert.match(details,/não ticket médio exato do anúncio/);
   assert.match(details,/label="Descontos do vendedor" value="—"/);
   assert.match(details,/label="Taxas de serviço" value="—"/);
-  assert.match(details,/label="Devoluções e reembolsos" value="—"/);
-  assert.match(details,/Solicitações de reembolso não são tratadas como estorno confirmado/);
+  assert.match(details,/label="Devoluções confirmadas" value="Não importado"/);
+  assert.match(details,/label="Reembolsos realizados" value="Não importado"/);
+  assert.match(details,/Não exibimos zero para cancelamentos ou devoluções sem relatório/);
   assert.match(details,/não representa repasse ou lucro líquido/);
 });
 

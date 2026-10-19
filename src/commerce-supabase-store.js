@@ -177,6 +177,24 @@ export async function commerceListingManagerMonthly(env, platform='TODAS') {
   return data && typeof data === 'object' && !Array.isArray(data) ? data : {months:[]};
 }
 
+// Summary of distinct imported orders by platform / monthly period; detailed
+// advertisement-level order incidence is NOT a distinct order count.
+export async function commerceOrderMetrics(env,filters={}) {
+  const days=Number(filters.days);
+  const platform=cleanText(filters.platform)||'TODAS';
+  const month=cleanText(filters.month)||null;
+  const listingId=filters.listingId==null?null:Number(filters.listingId);
+  if(![0,7,30,60,90].includes(days)
+    ||(days===0&&!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month||''))
+    ||(days!==0&&month)
+    ||(listingId!==null&&(!Number.isSafeInteger(listingId)||listingId<=0)))
+    throw new Error('Período ou anúncio inválido.');
+  const result=await supabaseRpc(env,'commerce_order_metrics_v1',{
+    p_platform:platform,p_days:days,p_month:month,p_listing_id:listingId
+  },{timeoutMs:12000});
+  return result&&typeof result==='object'&&!Array.isArray(result)?result:{};
+}
+
 export async function commerceListingManagerMonths(env, listingId) {
   const id = Number(listingId);
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error('ID do anúncio inválido.');
