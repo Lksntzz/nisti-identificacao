@@ -9,6 +9,7 @@ import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
+import OperatorPinAdminView from './admin/OperatorPinAdminView.jsx';
 import MuralNisti from './mural-nisti.jsx';
 import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
@@ -568,6 +569,7 @@ function AdminTopbar({ onToggleSidebar, unreadCount, activeView, activeCommerceS
     : activeView === 'historico-ean' ? 'Histórico de Bipagens'
     : activeView === 'ean-nao-cadastrados' ? 'EAN não Cadastrados'
     : activeView === 'produtos-sem-ean' ? 'Produtos sem EAN'
+    : activeView === 'operadores-pin' ? 'PIN dos Operadores'
     : activeView === 'logs' ? 'Saúde & Logs'
     : 'Painel Administrativo';
 
@@ -1905,7 +1907,7 @@ function AdminApp() {
 
         <main className="admin-page-content">
           <div key={activeView} className="admin-view-transition">
-            {activeView !== 'mural-nisti' && activeView !== 'commerce' && (
+            {!['mural-nisti','commerce','operadores-pin'].includes(activeView) && (
               <>
                 <WelcomeDateBanner />
                 {/* Dashboard de Produtividade da Expedição & KPIs */}
@@ -1975,6 +1977,8 @@ function AdminApp() {
                 onBack={() => setActiveView('catalogo')}
               />
             )}
+
+            {activeView === 'operadores-pin' && <OperatorPinAdminView />}
 
             {activeView === 'logs' && (
               <SystemHealthView
