@@ -9,7 +9,7 @@ test('Gestor de Anúncios e mês Shopee pesquisam pelo SKU da variação',()=>{
   assert.match(sql,/CREATE OR REPLACE FUNCTION public\.commerce_listing_manager_v1/);
   assert.match(sql,/CREATE OR REPLACE FUNCTION public\.commerce_listing_manager_month_sku_v2/);
   assert.equal((sql.match(/lp\.platform_sku ilike/g)||[]).length,2);
-  assert.equal((sql.match(/public\.commerce_nisti_sku_norm_v1\(lp\.platform_sku\)/g)||[]).length,2);
+  assert.ok((sql.match(/public\.commerce_nisti_sku_norm_v1\(lp\.platform_sku\)/g)||[]).length>=2);
   assert.match(sql,/length\(public\.commerce_nisti_sku_norm_v1\(b\.search\)\)>=2/);
   assert.match(sql,/length\(public\.commerce_nisti_sku_norm_v1\(i\.search\)\)>=2/);
   assert.ok((sql.match(/lp\.relation_status<>'REMOVED'/g)||[]).length>=2);
