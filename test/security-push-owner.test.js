@@ -30,3 +30,16 @@ test('automatic removal of dead subscriptions remains separate from operator uns
   assert.match(push,/nisti_delete_push_subscription/);
   assert.match(push,/removePushSubscription\(env, target\.endpoint\)/);
 });
+
+test('push transport never follows a redirect outside the trusted push host',()=>{
+  assert.match(push,/await fetch\(endpoint, \{[\s\S]*?method: 'POST',[\s\S]*?redirect: 'manual'/);
+});
+
+test('public core API does not echo database/RPC errors to unauthenticated callers',async()=>{
+  const {default:core}=await import('../src/core-router.js');
+  const result=await core.fetch(new Request('https://sistemanistiid.online/api/products'),{}, {});
+  assert.equal(result.status,502);
+  const payload=await result.json();
+  assert.equal(payload.error,'Serviço temporariamente indisponível.');
+  assert.doesNotMatch(JSON.stringify(payload),/supabase|RPC|SUPABASE_URL|SQLSTATE/i);
+});
