@@ -292,6 +292,32 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   .nim-imported-month-stats{grid-template-columns:1fr}
 }
 
+.nim-unlinked-panel{display:grid;gap:12px;padding:15px 17px;background:#fff;
+  border:1px solid #d8e3f2;border-radius:12px;box-shadow:0 2px 12px #17283d08;min-width:0}
+.nim-unlinked-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.nim-unlinked-head h3{margin:0;font-size:14px;font-weight:850;color:#233651}
+.nim-unlinked-head p,.nim-unlinked-note{font-size:10px;line-height:1.6;color:#62758d;margin:5px 0 0}
+.nim-unlinked-summary{display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:11px;color:#61718a}
+.nim-unlinked-summary strong{color:#243957;font-size:14px;font-variant-numeric:tabular-nums}
+.nim-unlinked-search{width:min(360px,100%);height:36px;border:1px solid #dce5ef;
+  border-radius:8px;background:#fff;padding:0 11px;font:inherit;font-size:11px;color:#2c4059}
+.nim-unlinked-scroll{max-width:100%;overflow:auto;border:1px solid #e9edf4;border-radius:9px}
+.nim-unlinked-table{border-collapse:collapse;min-width:690px;width:100%;font-size:11px}
+.nim-unlinked-table th{text-align:left;background:#f8faff;color:#667a94;font-size:10px;font-weight:800}
+.nim-unlinked-table th,.nim-unlinked-table td{padding:11px 12px;border-bottom:1px solid #edf0f4}
+.nim-unlinked-table tr:last-child td{border-bottom:none}
+.nim-unlinked-table td{color:#354963;vertical-align:middle}
+.nim-unlinked-table td strong{display:block;color:#203b61;overflow-wrap:anywhere}
+.nim-unlinked-table td small{display:block;margin-top:4px;color:#8594a7}
+.nim-unlinked-number{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.nim-unlinked-table th.nim-unlinked-number{text-align:right}
+.nim-unlinked-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between}
+.nim-unlinked-actions button{font:inherit;font-size:11px;padding:7px 11px;
+  border:1px solid #dce5ef;border-radius:8px;background:#fff;color:#536780;cursor:pointer}
+.nim-unlinked-actions button:disabled{cursor:not-allowed;opacity:.45}
+.nim-unlinked-error{color:#a22d40;font-size:11px}
+@media(max-width:600px){.nim-unlinked-panel{padding:12px}.nim-unlinked-head{flex-wrap:wrap}}
+
 /* Na análise mensal Shopee, não permitir zeros nem ABC não comprovados. */
 .nim-filter-panel .nim-status-tabs button:disabled,.nim-filter-panel .nim-curve-tabs button:disabled{opacity:.48;cursor:not-allowed;background:#f5f6f8;color:#8995a6;border-color:#e3e7ec;box-shadow:none}
 
