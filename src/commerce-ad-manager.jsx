@@ -452,9 +452,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const monthCoverage=shopeeMonthlyImportCoverage(data);
   const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
     {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
-  const partialAds=hasMixedPartial
-    ?Math.max(0,Number(kpi.sold_ads||0))+Math.max(0,Number(kpi.identified_ads||0))
-    :(hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0));
+  const partialAds=sourceBreakdown?.identified??0;
   const shopeeTotals=shopeeSalesTotals(data,days);
   const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
   const fullImportedAvailable=importedTotals?.available===true
@@ -501,11 +499,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <Kpi tone="mint" label={hasShopeePartial?'Com vendas identificadas':'Com vendas'} value={hasShopeePartial&&data?num(partialAds):hasReliableSales?num(kpi.sold_ads):'—'} description={hasMixedPartial?'Mercado Livre + Shopee identificados':hasShopeePartial?'SKU identificado · dados parciais':'No período'} selected={status==='SOLD'}
         onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
       <Kpi tone="rose" label={hasShopeePartial?'Sem vendas identificadas':'Sem vendas'}
-        value={hasShopeePartial&&data?num(emptyIdentifiedAds):hasReliableSales?num(kpi.zero_ads):'—'}
+        value={hasShopeePartial&&data?num(emptyIdentifiedAds):
+           hasReliableSales?num(Math.max(0,Number(kpi.covered_ads||0)-Number(kpi.sold_ads||0))):'—'}
         description={hasMixedPartial
            ?num(sourceBreakdown.marketplaceWithoutSales)+' ML sem vendas · '+
             num(sourceBreakdown.shopeeWithoutLink)+' Shopee sem vínculo'
-           :hasShopeePartial?'Anúncios sem vínculo comprovado':'Anúncios ou variações'}
+           :hasShopeePartial?'Anúncios sem vínculo comprovado':'Anúncios sem vendas; filtro também inclui variações'}
         selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
       <Kpi tone="sand" label={fullImportedAvailable?'Unidades vendidas':hasShopeePartial?'Unidades identificadas':'Unidades vendidas'}
         value={fullImportedAvailable?num(importedTotals.units):
