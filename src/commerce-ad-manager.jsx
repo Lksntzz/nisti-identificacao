@@ -168,9 +168,9 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const partialRelevant=zeroFilter&&!showAll
     ?partialVars.filter(v=>v.units==null||Number(v.units)===0):partialVars;
   const partialEmptyCount=Number(detail?.identified_empty_variations||0);
-  const historicalMonths=item.source==='SHOPEE'&&modelHistory?.months?.length
+  const historicalMonths=item.source==='SHOPEE'&&modelHistory?.has_versioned_model&&modelHistory?.months?.length
     ?modelHistory.months:months;
-  const historicalByModel=item.source==='SHOPEE'&&Boolean(modelHistory?.months?.length);
+  const historicalByModel=item.source==='SHOPEE'&&Boolean(modelHistory?.has_versioned_model)&&Boolean(modelHistory?.months?.length);
   const trendPct=detail?.identified_growth_pct;
   const trendLabel=trendPct==null?'Sem base comparável':
     (Number(trendPct)>0?'+':'')+num(Number(trendPct))+'%';
