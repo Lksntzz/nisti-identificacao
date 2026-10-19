@@ -29,17 +29,16 @@ test('filtros mensal e diários usam origem correta e excluem snapshot anterior'
   assert.match(router,/listings\/manager\/shopee\/unlinked-sales/);
   assert.match(router,/\[0,7,30,60,90\]\.includes\(days\)/);
 });
-test('painel é separado de anúncios sem vendas e preserva SKU de venda',()=>{
-  assert.match(manager,/Ver vendas sem vínculo/);
-  assert.match(manager,/ShopeeUnlinkedSales/);
-  assert.match(panel,/SKU da venda/);
-  assert.match(panel,/SKU original não é alterado/);
-  assert.match(panel,/Não representam todos os anúncios sem vendas vinculadas/);
-  assert.match(panel,/original_available/);
+test('cards de vendas aparecem automaticamente, sem associação de SKU',()=>{
+  assert.match(manager,/ShopeeUnlinkedSales days=\{days\}/);
+  assert.match(manager,/platform==='SHOPEE'/);
+  assert.doesNotMatch(manager,/Conciliar SKUs Shopee|reconciliationOpen|unlinkedOpen/);
+  assert.match(panel,/Vendas importadas pelo SKU/);
+  assert.match(panel,/nim-model-sale-card/);
+  assert.match(panel,/item\.sku\|\|item\.sku_norm/);
+  assert.match(panel,/number\(item\.units\)/);
   assert.match(panel,/money\(item\.revenue\)/);
-  // O relatório só permite vincular após ação do administrador, justificativa e confirmação.
-  assert.match(panel,/reconciliation\/approve/);
-  assert.match(panel,/evidence\.trim\(\)\.length<8/);
-  assert.match(panel,/confirmed:true/);
-  assert.match(panel,/possible_variation_id/);
+  assert.match(panel,/history_months/);
+  assert.match(panel,/history\.map\(m=>/);
+  assert.doesNotMatch(panel,/reconciliation\/approve|confirmed:true|Revisar associação/);
 });
