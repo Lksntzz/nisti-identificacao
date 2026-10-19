@@ -42,23 +42,34 @@ export function importedWindowDescription(data, days, formatDate) {
 // Distingue total bruto importado no mês dos subtotais associados a anúncios.
 // Janelas móveis não presumem cobertura global quando ela não foi comprovada.
 export function shopeeSalesTotals(data,days){
-  if(!['MONTHLY_SKU_PARTIAL','DAILY_SKU_PARTIAL'].includes(data?.source_kind))return null;
-  const monthly=days===0&&data.source_kind==='MONTHLY_SKU_PARTIAL'?data.imported_month:null;
-  const rawUnits=days===0?data.kpis?.month_linked_units:data.kpis?.identified_units;
-  const rawRevenue=days===0?data.kpis?.month_linked_revenue:data.kpis?.identified_revenue;
+  const mixed=data?.source_kind==='MIXED_LISTING_SKU_PARTIAL';
+  if(!mixed&&!['MONTHLY_SKU_PARTIAL','DAILY_SKU_PARTIAL'].includes(data?.source_kind))return null;
+  const monthly=days===0?data.imported_month:null;
+  const rawUnits=days===0&&!mixed?data.kpis?.month_linked_units:data.kpis?.identified_units;
+  const rawRevenue=days===0&&!mixed?data.kpis?.month_linked_revenue:data.kpis?.identified_revenue;
   if(rawUnits==null||rawRevenue==null)return null;
   const linkedUnits=Number(rawUnits),linkedRevenue=Number(rawRevenue);
   if(!Number.isFinite(linkedUnits)||!Number.isFinite(linkedRevenue)||
     linkedUnits<0||linkedRevenue<0)return null;
+  // Combined platform views have two disjoint, verified components:
+  // ML sales identified by real listing ID, and Shopee sales identified
+  // by SKU. Neither component is a proof of all Shopee sales.
+  const verifiedUnits=mixed?Number(data.kpis?.units):0;
+  const verifiedRevenue=mixed?Number(data.kpis?.revenue):0;
+  if(!Number.isFinite(verifiedUnits)||!Number.isFinite(verifiedRevenue)||
+     verifiedUnits<0||verifiedRevenue<0)return null;
+  const coveredUnits=linkedUnits+verifiedUnits;
+  const coveredRevenue=Math.round((linkedRevenue+verifiedRevenue)*100)/100;
   const importedUnits=monthly?.units==null?NaN:Number(monthly.units);
   const importedRevenue=monthly?.revenue==null?NaN:Number(monthly.revenue);
   const hasImportedTotal=Number.isFinite(importedUnits)&&Number.isFinite(importedRevenue)&&
-    importedUnits>=linkedUnits&&importedRevenue>=linkedRevenue-0.01;
+    importedUnits>=coveredUnits&&importedRevenue>=coveredRevenue-0.01;
   return {
     hasImportedTotal,
-    units:hasImportedTotal?importedUnits:linkedUnits,
-    revenue:hasImportedTotal?importedRevenue:linkedRevenue,
-    linkedUnits,linkedRevenue
+    units:hasImportedTotal?importedUnits:coveredUnits,
+    revenue:hasImportedTotal?importedRevenue:coveredRevenue,
+    linkedUnits,linkedRevenue,
+    ...(mixed?{verifiedUnits,verifiedRevenue}:{})
   };
 }
 

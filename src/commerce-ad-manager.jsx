@@ -438,19 +438,27 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const kpi=data?.kpis||{};
   const hasMonthPartial=data?.source_kind==='MONTHLY_SKU_PARTIAL';
   const hasDailyPartial=data?.source_kind==='DAILY_SKU_PARTIAL';
-  const hasShopeePartial=hasMonthPartial||hasDailyPartial||platform==='SHOPEE';
+  const hasMixedPartial=data?.source_kind==='MIXED_LISTING_SKU_PARTIAL';
+  const hasShopeePartial=hasMonthPartial||hasDailyPartial||hasMixedPartial||platform==='SHOPEE';
   const classified=listingClassificationCoverage(kpi,days);
   const monthCoverage=shopeeMonthlyImportCoverage(data);
   const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
     {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
-  const partialAds=hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0);
+  const partialAds=(hasMixedPartial?Number(kpi.sold_ads||0):0)+
+    (hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0));
   const shopeeTotals=shopeeSalesTotals(data,days);
   const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
-  const linkedSalesDescription=importedMonthTotal
-    ?num(shopeeTotals.linkedUnits)+' de '+num(shopeeTotals.units)+' unidades vinculadas aos anúncios'
-    :'Somente vendas vinculadas por SKU · total da plataforma não confirmado nesta janela';
+  const linkedSalesDescription=hasMixedPartial
+    ?(importedMonthTotal
+      ?num(shopeeTotals.verifiedUnits)+' unidades por ID no Mercado Livre + '+
+        num(shopeeTotals.linkedUnits)+' identificadas na Shopee; total bruto importado exibido'
+      :'Mercado Livre por ID de anúncio + Shopee por SKU identificado; dados parciais')
+    :importedMonthTotal
+      ?num(shopeeTotals.linkedUnits)+' de '+num(shopeeTotals.units)+' unidades vinculadas aos anúncios'
+      :'Somente vendas vinculadas por SKU · total da plataforma não confirmado nesta janela';
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
-  const emptyIdentifiedAds=Number(kpi.identified_empty_ads||0);
+  const emptyIdentifiedAds=Number(kpi.identified_empty_ads||0)+
+    (hasMixedPartial?Number(kpi.zero_ads||0):0);
   const emptyIdentifiedVars=Number(kpi.identified_empty_variations||0);
   const trendSelected=['RISING','FALLING'].includes(status)?status:'ALL';
   const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0;
@@ -478,14 +486,14 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       onCatalogChanged={()=>setRefresh(v=>v+1)}/></div>}
     <div className="nim-kpis">
       <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Por plataforma"/>
-      <Kpi tone="mint" label={hasShopeePartial?'Com vendas identificadas':'Com vendas'} value={hasShopeePartial&&data?num(partialAds):hasReliableSales?num(kpi.sold_ads):'—'} description={hasShopeePartial?'SKU exclusivo · dados parciais':'No período'} selected={status==='SOLD'}
+      <Kpi tone="mint" label={hasShopeePartial?'Com vendas identificadas':'Com vendas'} value={hasShopeePartial&&data?num(partialAds):hasReliableSales?num(kpi.sold_ads):'—'} description={hasMixedPartial?'Mercado Livre + Shopee identificados':hasShopeePartial?'SKU identificado · dados parciais':'No período'} selected={status==='SOLD'}
         onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
       <Kpi tone="rose" label={hasShopeePartial?'Sem vendas identificadas':'Sem vendas'}
         value={hasShopeePartial&&data?num(emptyIdentifiedAds):hasReliableSales?num(kpi.zero_ads):'—'}
         description={hasShopeePartial?'Anúncios ou variações · indicativo':'Anúncios ou variações'}
         selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
-      <Kpi tone="sand" label={hasShopeePartial?(importedMonthTotal?'Unidades vendidas':'Unidades vinculadas'):'Unidades vendidas'} value={shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
-      <Kpi tone="green" label={hasShopeePartial?(importedMonthTotal?'Faturamento bruto importado':'Faturamento vinculado'):'Faturamento'} value={shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+      <Kpi tone="sand" label={hasShopeePartial?(importedMonthTotal?'Unidades vendidas':hasMixedPartial?'Unidades identificadas':'Unidades vinculadas'):'Unidades vendidas'} value={shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+      <Kpi tone="green" label={hasShopeePartial?(importedMonthTotal?'Faturamento bruto importado':hasMixedPartial?'Faturamento identificado':'Faturamento vinculado'):'Faturamento'} value={shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'} description={hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
     </div>
     <div className="nim-order-strip" aria-label="Pedidos e ticket médio">
       <div><small>{days===0?'Pedidos distintos importados':'Ocorrências de pedido com item'}</small>
@@ -653,19 +661,19 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </div>}
         <div className="nim-table-scroll">
           <table className="nim-ad-table"><thead><tr>
-            <th>Plataforma</th><th>Nome e ID do anúncio</th><th>{hasShopeePartial?'Unid. vinculadas':'Unid.'} {periodLabel(days,month)}</th>
-            <th>Variações</th><th>{hasShopeePartial?'Faturamento vinculado':'Faturamento'}</th><th>ABC</th><th>Vendas</th>
+            <th>Plataforma</th><th>Nome e ID do anúncio</th><th>{hasMixedPartial?'Unid. identificadas':hasShopeePartial?'Unid. vinculadas':'Unid.'} {periodLabel(days,month)}</th>
+            <th>Variações</th><th>{hasMixedPartial?'Faturamento identificado':hasShopeePartial?'Faturamento vinculado':'Faturamento'}</th><th>ABC</th><th>Vendas</th>
           </tr></thead><tbody>
             {!loading&&rows.map(item=><tr key={item.id} className={selectedId===item.id?'selected':''}
               onClick={()=>setSelectedId(item.id)} title="Ver anúncio e suas variações">
               <td><PlatformLabel item={item}/></td>
               <td><strong className="nim-ad-name">{item.title}</strong>
                 <small className="nim-ad-id">{item.external_listing_id}</small></td>
-              <td className="nim-units">{item.ready?num(item.units):hasShopeePartial&&Number(item.month_linked_units||item.identified_units)>0?num(item.month_linked_units||item.identified_units):'—'}</td>
+              <td className="nim-units">{item.ready?num(item.units):item.source==='SHOPEE'&&Number(item.month_linked_units||item.identified_units)>0?num(item.month_linked_units||item.identified_units):'—'}</td>
               <td><span className="nim-variations-cell">{item.total_variations?num(item.total_variations)+' variações':'Sem variações'}
-                <VariationSalesEvidence item={item} days={days} partial={hasShopeePartial}/>
+                <VariationSalesEvidence item={item} days={days} partial={hasShopeePartial&&item.source==='SHOPEE'}/>
               </span></td>
-              <td className="nim-money">{item.ready?money(item.revenue):hasShopeePartial&&Number(item.month_linked_units||item.identified_units)>0?money(item.month_linked_revenue||item.identified_revenue):'—'}</td>
+              <td className="nim-money">{item.ready?money(item.revenue):item.source==='SHOPEE'&&Number(item.month_linked_units||item.identified_units)>0?money(item.month_linked_revenue||item.identified_revenue):'—'}</td>
               <td>{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}
                 title={item.curve_partial?'ABC indicativa: calculada apenas com vendas identificadas':'Curva ABC por vendas consolidadas'}>{item.curve}{item.curve_partial?'*':''}</span>:'—'}</td>
               <td><Situation item={item}/></td>

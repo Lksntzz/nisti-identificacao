@@ -41,7 +41,7 @@ test('API original continua sem zero definitivo; v2 permite apenas zero identifi
 test('vendas parciais aparecem na tabela, nos indicadores e nos detalhes, sem valores presumidos',()=>{
   assert.match(ui,/shopeeTotals\?\.units!=null\?num\(shopeeTotals\.units\)/);
   assert.match(ui,/shopeeTotals\?\.revenue!=null\?money\(shopeeTotals\.revenue\)/);
-  assert.match(ui,/hasShopeePartial&&Number\(item\.month_linked_units\|\|item\.identified_units\)>0/);
+  assert.match(ui,/item\.source==='SHOPEE'&&Number\(item\.month_linked_units\|\|item\.identified_units\)>0/);
   assert.match(ui,/partialLinked\?num\(partialUnits\)/);
   assert.match(ui,/partialRelevant\.map\(\(v,i\)=>/);
   assert.match(ui,/v\.units==null\?'Não identificada':num\(v\.units\)/);
