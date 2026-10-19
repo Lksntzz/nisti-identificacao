@@ -25,7 +25,7 @@ test('não troca os aliases confirmados de outras famílias por histórico exato
   assert.match(store,/commerce_shopee_model_sales_history_v1/);
   assert.match(manager,/modelHistory\?\.has_versioned_model/);
   assert.match(manager,/historicalMonths\.slice\(-6\)/);
-  assert.match(manager,/Não é uma confirmação do ID do anúncio/);
+  assert.match(panel,/Não é uma confirmação do ID do anúncio/);
 });
 test('SKU sem anúncio segue visível com unidades, receita e meses sem associação manual',()=>{
   assert.match(raw,/historic_rows as/);
