@@ -179,6 +179,23 @@ export async function commerceListingManagerMonthly(env, platform='TODAS') {
 
 // Summary of distinct imported orders by platform / monthly period; detailed
 // advertisement-level order incidence is NOT a distinct order count.
+// Source-of-truth totals for ALL imported sales: include SKU/unlisted orders.
+// Scope matches the manager's displayed date range; no SKU alias is required.
+export async function commerceImportedSalesTotals(env,filters={}) {
+  const platform=cleanText(filters.platform)||'TODAS';
+  const start=cleanText(filters.start),end=cleanText(filters.end);
+  if(!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','AMAZON','TIKTOK'].includes(platform)
+    ||!/^20\d{2}-\d{2}-\d{2}$/.test(start||'')
+    ||!/^20\d{2}-\d{2}-\d{2}$/.test(end||'')
+    ||start>end)
+    throw new Error('Plataforma ou intervalo de vendas inválido.');
+  const result=await supabaseRpc(env,'commerce_imported_sales_totals_v1',{
+    p_platform:platform,p_start:start,p_end:end,p_monthly:Boolean(filters.monthly)
+  },{timeoutMs:12000});
+  return result&&typeof result==='object'&&!Array.isArray(result)
+    ?result:{available:false,sources:[],units:null,revenue:null};
+}
+
 export async function commerceOrderMetrics(env,filters={}) {
   const days=Number(filters.days);
   const platform=cleanText(filters.platform)||'TODAS';
