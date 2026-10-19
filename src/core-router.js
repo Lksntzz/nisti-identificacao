@@ -11,7 +11,7 @@ import {
 import {
   getVapidPublicKey,
   savePushSubscription,
-  removePushSubscription,
+  removeOwnPushSubscription,
   broadcastNewCoverPush,
   pushVapidHealth,
   getOperatorPushDevice
@@ -945,9 +945,11 @@ export default {
       }
 
       if (url.pathname === '/api/push/unsubscribe' && request.method === 'POST') {
-        const body = await request.json().catch(() => ({}));
-        const success = await removePushSubscription(env, body?.endpoint);
-        return json({ ok: success });
+        const userId=verifiedOperatorId(request);
+        if(!userId) return json({error:'Sessão do operador inválida.'},401);
+        const body=await request.json().catch(()=>({}));
+        const success=await removeOwnPushSubscription(env,userId,body?.endpoint);
+        return json({ok:success});
       }
 
       if (env.ASSETS) return env.ASSETS.fetch(request);
