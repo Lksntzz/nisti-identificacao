@@ -102,6 +102,7 @@ function DetailRow({label,value,description}){
 }
 function ListingDetail({item,days,month,zeroFilter,onClose}){
   const [months,setMonths]=useState(null);
+  const [modelHistory,setModelHistory]=useState(null);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
   const [activeTab,setActiveTab]=useState('summary');
@@ -114,9 +115,9 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const [periodLoading,setPeriodLoading]=useState(false);
   const [periodError,setPeriodError]=useState('');
   useEffect(()=>{
-    let cancelled=false;setMonths(null);setError('');setShowAll(false);
+    let cancelled=false;setMonths(null);setModelHistory(null);setError('');setShowAll(false);
     readJson(API+'/'+encodeURIComponent(item.id)+'/months')
-      .then(x=>{if(!cancelled)setMonths(x.months||[]);})
+      .then(x=>{if(!cancelled){setMonths(x.months||[]);setModelHistory(x.model_history||null);}})
       .catch(e=>{if(!cancelled)setError(e.message);});
     return ()=>{cancelled=true;};
   },[item.id]);
@@ -168,6 +169,9 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
   const partialRelevant=zeroFilter&&!showAll
     ?partialVars.filter(v=>v.units==null||Number(v.units)===0):partialVars;
   const partialEmptyCount=Number(detail?.identified_empty_variations||0);
+  const historicalMonths=item.source==='SHOPEE'&&modelHistory?.months?.length
+    ?modelHistory.months:months;
+  const historicalByModel=item.source==='SHOPEE'&&Boolean(modelHistory?.months?.length);
   const trendPct=detail?.identified_growth_pct;
   const trendLabel=trendPct==null?'Sem base comparável':
     (Number(trendPct)>0?'+':'')+num(Number(trendPct))+'%';
@@ -224,12 +228,19 @@ function ListingDetail({item,days,month,zeroFilter,onClose}){
     <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
       aria-labelledby={'nim-detail-tab-'+activeTab}>
       {activeTab==='summary'&&<>
-        <div className="nim-detail-section-title"><h4>Evolução de vendas</h4><small>Histórico mensal do anúncio</small></div>
+        <div className="nim-detail-section-title"><h4>Evolução de vendas</h4>
+          <small>{historicalByModel?'Histórico mensal do modelo':'Histórico mensal das vendas identificadas'}</small></div>
         {error?<p className="nim-error" role="alert">{error}</p>:months===null?
-          <p className="nim-subtle">Consultando histórico…</p>:<MonthBars months={months} basis="REVENUE"/>}
-        {months?.some(m=>m.partial)&&<p className="nim-detail-hint">Histórico parcial: apenas vendas com SKU exclusivo associado ao anúncio atual. Não representa todas as vendas.</p>}
-        {months?.length>0&&<div className="nim-month-values">
-          {months.slice(-4).reverse().map(m=><div key={m.period}>
+          <p className="nim-subtle">Consultando histórico…</p>:<MonthBars months={historicalMonths} basis="REVENUE"/>}
+        {historicalByModel?<p className="nim-detail-hint">
+          Histórico automático pelo código do modelo, incluindo SKUs antigos e atualizados importados.
+          É um agrupamento de vendas do produto, não prova que todos os pedidos vieram deste ID de anúncio.
+          Nenhum SKU precisa ser associado manualmente.
+        </p>:months?.some(m=>m.partial)&&<p className="nim-detail-hint">
+          Histórico das vendas identificadas. Outras vendas do produto podem estar fora do anúncio atual.
+        </p>}
+        {historicalMonths?.length>0&&<div className="nim-month-values">
+          {historicalMonths.slice(-6).reverse().map(m=><div key={m.period}>
             <span>{labelMonth(m.period)}</span><strong>{num(m.units)} un. · {money(m.revenue)}</strong>
           </div>)}
         </div>}
