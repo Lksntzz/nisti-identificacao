@@ -5,7 +5,7 @@ import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
-import { identifiedVariationCoverage, listingClassificationCoverage, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
+import { identifiedVariationCoverage, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -444,12 +444,15 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const hasDailyPartial=data?.source_kind==='DAILY_SKU_PARTIAL';
   const hasMixedPartial=data?.source_kind==='MIXED_LISTING_SKU_PARTIAL';
   const hasShopeePartial=hasMonthPartial||hasDailyPartial||hasMixedPartial||platform==='SHOPEE';
-  const classified=listingClassificationCoverage(kpi,days);
+  const classified=hasMixedPartial
+    ?listingPlatformSalesBreakdown(kpi,days,data?.source_kind)
+    :listingClassificationCoverage(kpi,days);
+  const sourceBreakdown=hasShopeePartial
+    ?listingPlatformSalesBreakdown(kpi,days,data?.source_kind):null;
   const monthCoverage=shopeeMonthlyImportCoverage(data);
   const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
     {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
-  const partialAds=(hasMixedPartial?Number(kpi.sold_ads||0):0)+
-    (hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0));
+  const partialAds=sourceBreakdown?.identified??0;
   const shopeeTotals=shopeeSalesTotals(data,days);
   const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
   const fullImportedAvailable=importedTotals?.available===true
@@ -463,8 +466,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       ?num(shopeeTotals.linkedUnits)+' de '+num(shopeeTotals.units)+' unidades vinculadas aos anúncios'
       :'Somente vendas vinculadas por SKU · total da plataforma não confirmado nesta janela';
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
-  const emptyIdentifiedAds=Number(kpi.identified_empty_ads||0)+
-    (hasMixedPartial?Number(kpi.zero_ads||0):0);
+  // This KPI counts listings only; variation-level gaps belong in the
+  // expanded listing and must never inflate the count of unsold ads.
+  const emptyIdentifiedAds=sourceBreakdown?.withoutIdentified??0;
   const emptyIdentifiedVars=Number(kpi.identified_empty_variations||0);
   const trendSelected=['RISING','FALLING'].includes(status)?status:'ALL';
   const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0;
@@ -495,8 +499,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <Kpi tone="mint" label={hasShopeePartial?'Com vendas identificadas':'Com vendas'} value={hasShopeePartial&&data?num(partialAds):hasReliableSales?num(kpi.sold_ads):'—'} description={hasMixedPartial?'Mercado Livre + Shopee identificados':hasShopeePartial?'SKU identificado · dados parciais':'No período'} selected={status==='SOLD'}
         onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
       <Kpi tone="rose" label={hasShopeePartial?'Sem vendas identificadas':'Sem vendas'}
-        value={hasShopeePartial&&data?num(emptyIdentifiedAds):hasReliableSales?num(kpi.zero_ads):'—'}
-        description={hasShopeePartial?'Anúncios ou variações · indicativo':'Anúncios ou variações'}
+        value={hasShopeePartial&&data?num(emptyIdentifiedAds):
+           hasReliableSales?num(Math.max(0,Number(kpi.covered_ads||0)-Number(kpi.sold_ads||0))):'—'}
+        description={hasMixedPartial
+           ?num(sourceBreakdown.marketplaceWithoutSales)+' ML sem vendas · '+
+            num(sourceBreakdown.shopeeWithoutLink)+' Shopee sem vínculo'
+           :hasShopeePartial?'Anúncios sem vínculo comprovado':'Anúncios sem vendas; filtro também inclui variações'}
         selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
       <Kpi tone="sand" label={fullImportedAvailable?'Unidades vendidas':hasShopeePartial?'Unidades identificadas':'Unidades vendidas'}
         value={fullImportedAvailable?num(importedTotals.units):
@@ -614,13 +622,16 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           {days===0&&!month?'Selecione o mês no período personalizado.':
             importedWindowDescription(data,days,periodDate)}
         </span>
-        {hasShopeePartial&&data?<>
+        {hasShopeePartial&&data?hasMixedPartial?<>
+          <span className="nim-filter-panel-identified">{num(classified.identified)} anúncios com vendas identificadas ({num(sourceBreakdown.marketplaceWithSales)} ML + {num(sourceBreakdown.shopeeWithSales)} Shopee)</span>
+          <span className="nim-filter-panel-unclassified">{num(sourceBreakdown.marketplaceWithoutSales)} anúncios ML sem vendas no período · {num(sourceBreakdown.shopeeWithoutLink)} anúncios Shopee sem vendas vinculadas; não significa zero</span>
+        </>:<>
           <span className="nim-filter-panel-identified">{num(classified.identified)} anúncios com vendas identificadas</span>
           <span className="nim-filter-panel-unclassified">{num(classified.unclassified)} anúncios sem vendas vinculadas; não significa zero</span>
         </>:Number(kpi.pending_ads)>0&&<span className="nim-filter-panel-warning">{num(kpi.pending_ads)} anúncio(s) com dados pendentes</span>}
         {status==='ZERO'&&<span className="nim-filter-panel-note">{hasShopeePartial
-          ?num(emptyIdentifiedVars)+' variações sem vendas identificadas · ausência não comprovada'
-          :'Inclui anúncios com variações sem vendas'}</span>}
+          ?num(emptyIdentifiedVars)+' variações sem vendas identificadas · o filtro inclui anúncios que venderam outras variações; ausência não comprovada'
+          :'Inclui anúncios com variações sem vendas, mesmo quando outras variações venderam'}</span>}
         {['RISING','FALLING'].includes(status)&&<span className="nim-filter-panel-note">
           Comparação com período anterior de mesma duração · variação de 20% ou mais · mínimo de 3 unidades anteriores · dados parciais
         </span>}

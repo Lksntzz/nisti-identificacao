@@ -56,7 +56,9 @@ test('Gestor diferencia vendas identificadas de total bruto e permite ver varia√
   assert.match(ui,/hasMixedPartial=data\?\.source_kind==='MIXED_LISTING_SKU_PARTIAL'/);
   assert.match(ui,/Faturamento identificado/);
   assert.match(ui,/Unidades identificadas/);
-  assert.match(ui,/hasMixedPartial\?Number\(kpi\.sold_ads\|\|0\):0/);
+  assert.match(ui,/const partialAds=sourceBreakdown\?\.identified\?\?0/);
+  assert.match(ui,/sourceBreakdown\.marketplaceWithSales/);
+  assert.match(ui,/sourceBreakdown\.shopeeWithSales/);
   assert.match(ui,/num\(shopeeTotals\.units\)/);
   assert.match(ui,/money\(shopeeTotals\.revenue\)/);
 });
