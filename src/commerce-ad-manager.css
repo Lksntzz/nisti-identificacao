@@ -419,6 +419,11 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-evolution-bar-track span{display:block;height:100%;border-radius:9px}
 .nim-evolution-bar-track span.previous{background:#b2c1d7}
 .nim-evolution-bar-track span.current{background:#4587e5}
+.nim-evolution-shared-sku{display:grid;gap:6px;padding:11px 12px;border:1px solid #d9e4f4;
+  border-radius:8px;background:#f7faff;color:#344b6b}
+.nim-evolution-shared-sku strong{font-size:11px;font-weight:850}
+.nim-evolution-shared-sku span{font-size:11px;line-height:1.5}
+.nim-evolution-shared-sku small{font-size:10px;line-height:1.55;color:#637690}
 .nim-evolution-advice{border-top:1px solid #eef1f6;padding-top:11px;display:grid;gap:5px}
 .nim-evolution-advice strong{font-size:11px;color:#314a6b}
 .nim-evolution-advice p,.nim-evolution-info{font-size:10px;color:#647790;line-height:1.65;margin:0}

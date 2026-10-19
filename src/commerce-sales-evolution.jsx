@@ -110,12 +110,15 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
           (Number(item.growth_pct)>0?'+':'')+
           new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1}).format(Number(item.growth_pct))+'%';
         const modelHistory=Number(item.distinct_skus||0)>1;
+        const listingIds=Array.isArray(item.listing_ids)?item.listing_ids.filter(Boolean):[];
+        const sharedSku=item.source==='SHOPEE'&&listingIds.length>1;
         return <article className="nim-evolution-product" key={item.source+':'+item.model_key}>
           <header className="nim-evolution-product-head">
             <div className="nim-evolution-name">
               <strong>{item.title||'Produto vendido na plataforma'}</strong>
               <small>{platformName(item.source)} · SKU {item.sku||item.sample_sku||item.model_key}</small>
-              {item.listing_id?<small>Anúncio {item.listing_id}</small>:
+              {sharedSku?<small>IDs dos anúncios: {listingIds.join(' · ')}</small>:
+                item.listing_id?<small>Anúncio {item.listing_id}</small>:
                 <small>Sem ID exclusivo de anúncio identificado</small>}
             </div>
             <span className={'nim-evolution-tag '+String(item.trend||'').toLowerCase()}>
@@ -133,6 +136,15 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
             </div>
           </div>
           <Bars item={item}/>
+          {sharedSku&&<div className="nim-evolution-shared-sku" role="note">
+            <strong>{item.shared_product?'Mesmo produto em '+num(listingIds.length)+' anúncios':
+              'SKU compartilhado por '+num(listingIds.length)+' anúncios'}</strong>
+            <span>Quantidade de vendas do SKU: <b>{num(item.current_units)} unidade(s) identificada(s)</b> neste período.</span>
+            <small>Os IDs estão agrupados, e cada unidade vendida é contada uma única vez.
+              O relatório de pedidos não permite dividir essas vendas por anúncio.
+              {Number(item.current_units)===0&&
+                ' Nenhuma venda deste SKU foi identificada no período; isso não comprova vendas zero em cada anúncio.'}</small>
+          </div>}
           <div className="nim-evolution-advice"><strong>Ação comercial sugerida</strong>
             <p>{advice(item)}</p></div>
           {modelHistory&&<p className="nim-evolution-info">
@@ -153,6 +165,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
     <p className="nim-evolution-legal">Base: todas as vendas diárias importadas da
       Shopee e do Mercado Livre, inclusive SKUs sem vínculo com anúncios ativos.
       Um SKU sem venda não comprova ausência de pedidos no anúncio quando houve mudança
-      de código. O histórico de modelos AGMT reúne versões de SKU sem atribuir pedidos a outro ID.</p>
+      de código. SKUs compartilhados por vários IDs têm vendas exibidas uma única vez,
+      sem rateio por anúncio. O histórico de modelos AGMT reúne versões sem inventar vendas.</p>
   </section>;
 }
