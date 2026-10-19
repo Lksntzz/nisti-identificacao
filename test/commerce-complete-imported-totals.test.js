@@ -23,7 +23,7 @@ test('painel principal apresenta bruto, inclusive SKU ou anúncio inativo',()=>{
   assert.match(ui,/fullImportedAvailable\?num\(importedTotals.units\)/);
   assert.match(ui,/fullImportedAvailable\?money\(importedTotals.revenue\)/);
   assert.match(ui,/Totais completos não disponíveis nesta consulta/);
-  assert.match(ui,/Nem todas têm um anúncio ativo identificado/);
+  assert.match(ui,/Todas as unidades importadas no período, inclusive sem anúncio ativo/);
   assert.doesNotMatch(ui,/nim-total-source-row|importedTotals\.sources/);
   assert.doesNotMatch(ui,/nim-order-strip/);
   assert.match(ui,/label=\{fullImportedAvailable\?'Unidades vendidas'/);
