@@ -15,7 +15,7 @@ test('daily zero filter includes variations without confirmed linked sales insid
   assert.match(ui,/partialRelevant=zeroFilter&&!showAll/);
   assert.match(ui,/partialVars\.filter\(v=>v\.units==null\|\|Number\(v\.units\)===0\)/);
   assert.match(ui,/partialRelevant\.map\(\(v,i\)=>/);
-  assert.match(ui,/v\.units==null\?'Não identificada':'≥ '\+num\(v\.units\)/);
+  assert.match(ui,/v\.units==null\?'Não identificada':num\(v\.units\)/);
   assert.match(ui,/Nenhuma variação sem vendas identificadas neste anúncio/);
 });
 
