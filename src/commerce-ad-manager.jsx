@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import ShopeeSkuReconciliation from './commerce-shopee-reconciliation.jsx';
+import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
@@ -355,6 +356,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [importOpen,setImportOpen]=useState(false);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
   const [reconciliationOpen,setReconciliationOpen]=useState(false);
+  const [unlinkedOpen,setUnlinkedOpen]=useState(false);
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
   useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
   useEffect(()=>{
@@ -396,8 +398,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
     {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
   const partialAds=hasMonthPartial?Number(kpi.month_linked_ads||0):Number(kpi.identified_ads||0);
-  const partialUnits=hasMonthPartial?Number(kpi.month_linked_units||0):Number(kpi.identified_units||0);
-  const partialRevenue=hasMonthPartial?Number(kpi.month_linked_revenue||0):Number(kpi.identified_revenue||0);
   const shopeeTotals=shopeeSalesTotals(data,days);
   const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
   const linkedSalesDescription=importedMonthTotal
@@ -568,6 +568,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     {days===0&&month&&!data?.imported_month&&!loading&&!error&&<p className="nim-no-imported-month">
       Nenhuma venda mensal importada para {periodLabel(days,month)} na plataforma selecionada.
     </p>}
+    {platform==='SHOPEE'&&unlinkedOpen&&(days!==0||Boolean(month))&&
+      <ShopeeUnlinkedSales days={days} month={month} importedThrough={data?.imported_month?.period_end} revision={refresh} salesRevision={salesRevision}
+        onClose={()=>setUnlinkedOpen(false)}/>}
     {platform==='SHOPEE'&&reconciliationOpen&&
       <ShopeeSkuReconciliation onClose={()=>setReconciliationOpen(false)}
         onChanged={()=>setRefresh(v=>v+1)}/>}
@@ -579,6 +582,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <div className="nim-list-header">
           <div><h3>Lista de anúncios</h3><small>{loading?'Consultando anúncios…':num(total)+' anúncios encontrados'}</small></div>
           <div className="nim-list-actions">
+            {platform==='SHOPEE'&&<button type="button"
+              className={'nim-soft-button'+(unlinkedOpen?' active':'')}
+              onClick={()=>setUnlinkedOpen(v=>!v)} aria-expanded={unlinkedOpen}
+              aria-controls="nim-unlinked-sales">
+              {unlinkedOpen?'Ocultar vendas sem vínculo':'Ver vendas sem vínculo'}
+            </button>}
             {platform==='SHOPEE'&&<button type="button"
               className={'nim-soft-button'+(reconciliationOpen?' active':'')}
               onClick={()=>setReconciliationOpen(v=>!v)} aria-expanded={reconciliationOpen}>

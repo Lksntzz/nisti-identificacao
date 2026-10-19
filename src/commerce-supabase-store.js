@@ -56,6 +56,20 @@ async function refreshShopeeYearAliases(env) {
     return null;
   }
 }
+// Relatório somente de leitura: vendeu na Shopee, mas o SKU da venda
+// não possui anúncio/variação ativa exclusivamente comprovados.
+export async function commerceShopeeUnlinkedSales(env, filters = {}) {
+  const days=[0,7,30,60,90].includes(Number(filters.days))?Number(filters.days):30;
+  const data=await supabaseRpc(env,'commerce_shopee_unlinked_sales_v1',{
+    p_days:days,p_month:days===0?cleanText(filters.month):null,
+    p_search:cleanText(filters.search),
+    p_limit:cleanPageSize(filters.limit,20),
+    p_offset:cleanOffset(filters.offset)
+  },{timeoutMs:9000});
+  return data && typeof data==='object' && !Array.isArray(data)
+    ?data:{items:[],total:0,units:0,revenue:0};
+}
+
 export async function commerceShopeeSkuReconciliationQueue(env, filters = {}) {
   const value = await supabaseRpc(env,'commerce_shopee_sku_reconciliation_queue_v1',{
     p_search:cleanText(filters.search),
