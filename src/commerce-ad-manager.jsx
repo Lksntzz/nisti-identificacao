@@ -266,6 +266,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
       {pending&&!partialLinked&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para {periodLabel(detailDays,month)}. Valores desconhecidos não são zero.</p>}
       {partialLinked&&<p className="nim-detail-pending">Valores comprovadamente vinculados a este anúncio. Outros registros históricos podem permanecer sem associação; esse subtotal não comprova o faturamento total.</p>}
     </section>
+    {item.source==='SHOPEE'&&<CommerceShopeeAdsSummary listingId={item.id}/>}
     <div className="nim-detail-tab-list" role="tablist" aria-label="Informações do anúncio">
       {DETAIL_TABS.map(([code,label])=><button
         key={code} id={'nim-detail-tab-'+code} type="button" role="tab"
@@ -300,7 +301,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
           <p className="nim-subtle">{variationEvidence.identified>0
             ?num(variationEvidence.identified)+' de '+num(item.total_variations)+' variações com unidades identificadas. Consulte a aba Variações para ver cada quantidade.'
             :'Ainda não há vendas individuais vinculadas com segurança para este período; a ausência de vínculo não significa zero vendas.'}</p>}
-        {item.source==='SHOPEE'&&<CommerceShopeeAdsSummary listingId={item.id}/>}
+
         <div className="nim-detail-traffic-collapsed">
           <button type="button" aria-expanded={trafficOpen}
             aria-controls="nim-detail-traffic-metrics"
@@ -792,12 +793,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             {!loading&&rows.map((item,index)=>{
               const linked=listingLinkedSalesForPeriod(item,days);
               return <tr key={item.id} data-nim-row style={{'--nim-order':Math.min(index,6)}} className={selectedId===item.id?'selected':''}
-              onClick={()=>setSelectedId(item.id)} title="Abrir diagnóstico e informações do anúncio">
+              onClick={()=>setSelectedId(item.id)} title="Abrir detalhes do anúncio">
               <td data-label="Plataforma"><PlatformLabel item={item}/></td>
               <td data-label="Anúncio"><strong className="nim-ad-name">{item.title}</strong>
                 <small className="nim-ad-id">{item.external_listing_id}</small>
-                <button type="button" className="nim-row-open" aria-label={'Abrir diagnóstico do anúncio '+item.external_listing_id}
-                  onClick={event=>{event.stopPropagation();setSelectedId(item.id);}}>Ver diagnóstico →</button></td>
+                <button type="button" className="nim-row-open" aria-label={'Abrir detalhes do anúncio '+item.external_listing_id}
+                  onClick={event=>{event.stopPropagation();setSelectedId(item.id);}}>Ver detalhes →</button></td>
               <td data-label="Unidades" className="nim-units">{item.ready?num(item.units):linked.hasSales?num(linked.units):'—'}</td>
               <td data-label="Variações"><span className="nim-variations-cell">{item.total_variations?num(item.total_variations)+' variações':'Sem variações'}
                 <VariationSalesEvidence item={item} days={days} partial={hasShopeePartial&&item.source==='SHOPEE'}/>
