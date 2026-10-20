@@ -65,7 +65,7 @@ export default function CommerceImportModal({mode,onClose,onChooseAnother,onSale
         <div className="nim-import-dialog-subhead">
           <div><strong>Tipo selecionado:</strong> {choice.fileType}</div>
           <button type="button" onClick={onChooseAnother}>
-            <CommercialIcon name="chevron-left" size={14}/> Alterar tipo
+            <span aria-hidden="true">←</span> Alterar tipo
           </button>
         </div>
         <main className="nim-import-dialog-body">
