@@ -8,6 +8,9 @@ import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import './nisti-reactbits-adaptations.css';
 import './commerce-approved-layout.css';
+import './commerce-reactbits-lucide.css';
+import GlareHover from './vendor/react-bits/GlareHover.jsx';
+import CommercialIcon from './vendor/CommercialIcon.jsx';
 import { listingSalesSituation } from './commerce-listing-classification.js';
 import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
 
@@ -74,18 +77,18 @@ function VariationSalesEvidence({item,days,partial}){
   return null;
 }
 function Kpi({label,value,description,tone,onClick,selected}){
-  const glyphs={
-    blue:<><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9h8M8 13h5"/></>,
-    mint:<><path d="M5 7l3 12h11l2-12H5ZM3 4h3"/><path d="M10 16h7"/></>,
-    rose:<><circle cx="12" cy="12" r="8"/><path d="M12 7v6m0 3v.5"/></>,
-    rising:<><path d="M4 17 11 10l4 4 5-7"/><path d="M15 7h5v5"/></>,
-    falling:<><path d="m4 7 7 7 4-4 5 7"/><path d="M15 17h5v-5"/></>,
-  };
-  const child=<>
-    <span className="nim-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{glyphs[tone]||glyphs.blue}</svg></span>
-    <span className="nim-kpi-content"><small>{label}</small><strong>{value}</strong>{description&&<span>{description}</span>}</span>
-  </>;
+  const icon={blue:'megaphone',mint:'shopping-cart',rose:'circle-alert',
+    rising:'trending-up',falling:'trending-down',sand:'package',green:'shopping-cart'}[tone]||'package';
+  const child=<GlareHover className="nim-kpi-glare" width="100%" height="100%"
+    borderRadius="13px" glareColor="#b4d0ff" glareOpacity={0.13}
+    glareSize={22} transitionDuration={420} rimGlint={false} playOnce={false}>
+      <span className="nim-kpi-icon" aria-hidden="true"><CommercialIcon name={icon} size={21}/></span>
+      <span className="nim-kpi-content">
+        <small title={label}>{label}</small>
+        <strong>{value}</strong>
+        {description&&<span title={description}>{description}</span>}
+      </span>
+    </GlareHover>;
   return onClick?<button type="button" className={'nim-kpi '+tone+(selected?' selected':'')}
     aria-pressed={Boolean(selected)} onClick={onClick}>{child}</button>
     :<div className={'nim-kpi '+tone}>{child}</div>;
@@ -561,9 +564,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     <header className="nim-heading">
       <div><h2>Gestor de Anúncios</h2><p>Anúncios ativos, vendas e desempenho por plataforma</p></div>
       <div className="nim-header-actions">
-        <button type="button" className="nim-soft-button" onClick={()=>setRefresh(v=>v+1)}>↻ Atualizar</button>
+        <button type="button" className="nim-soft-button" onClick={()=>setRefresh(v=>v+1)}>
+          <CommercialIcon name="refresh-cw" size={16}/> Atualizar</button>
         <button type="button" className="nim-primary-button" onClick={()=>setImportOpen(v=>!v)}
-          aria-expanded={importOpen}>{importOpen?'Fechar importação':'↑ Importar arquivos'}</button>
+          aria-expanded={importOpen}><CommercialIcon name="upload" size={16}/>
+          {importOpen?'Fechar importação':'Importar arquivos'}</button>
       </div>
     </header>
     {importOpen&&<div className="nim-import-panel"><CommerceImportCenter embedded
@@ -595,10 +600,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
       <button type="button" className={commercialView==='LISTINGS'?'active':''}
         aria-current={commercialView==='LISTINGS'?'page':undefined}
-        onClick={()=>setCommercialView('LISTINGS')}>Anúncios</button>
+        onClick={()=>setCommercialView('LISTINGS')}><CommercialIcon name="layout-list" size={16}/> Anúncios</button>
       <button type="button" className={commercialView==='EVOLUTION'?'active':''}
         aria-current={commercialView==='EVOLUTION'?'page':undefined}
-        onClick={()=>{setTrendRequest(null);setCommercialView('EVOLUTION');}}>Evolução de vendas</button>
+        onClick={()=>{setTrendRequest(null);setCommercialView('EVOLUTION');}}>
+        <CommercialIcon name="chart-no-axes-column-increasing" size={16}/> Evolução de vendas</button>
     </nav>
     {commercialView==='LISTINGS'&&<section className="nim-finance-disclosure" aria-label="Conciliação de vendas importadas">
       <button type="button" className="nim-finance-toggle" aria-expanded={financialOpen}
