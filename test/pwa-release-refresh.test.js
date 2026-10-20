@@ -5,7 +5,7 @@ import test from 'node:test';
 const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
 
 test('service worker activates without interrupting scans or unsaved forms',()=>{
-  assert.match(sw,/nisti-id-v40/);
+  assert.match(sw,/nisti-id-v41/);
   assert.match(sw,/self\.clients\.claim\(\)/);
   assert.doesNotMatch(sw,/client\.navigate\(/);
 });
