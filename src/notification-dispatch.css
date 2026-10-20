@@ -271,3 +271,21 @@
 @media(max-width:760px){.nid-admin-v5 .nid-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.nid-admin-v5 .nid-dashboard-header{flex-direction:column;align-items:flex-start}.nid-side-column{grid-template-columns:1fr}.nid-custom-workspace{grid-template-columns:1fr}.nid-custom-channels{border-right:0;border-bottom:1px solid #edf0f4;grid-template-columns:repeat(2,minmax(0,1fr));padding-right:0;padding-bottom:9px;max-height:none}.nid-send-footer{flex-wrap:wrap}.nid-send-footer .nid-send{width:100%}.nid-monitor-v5 .nid-monitor-topright{align-items:flex-end;gap:7px}.nid-monitor-v5 .nid-monitor-connection{padding:6px 9px}.nid-monitor-footer-v5{align-items:flex-start}.nid-monitor-v5 .nid-live-v5{padding:20px 0}.nid-monitor-v5 .nid-live-message-card{width:100%}}
 @media(max-width:480px){.nid-admin-v5 .nid-platform-picker{grid-template-columns:1fr 1fr}.nid-admin-v5 .nid-platform-chip{gap:6px;padding:8px}.nid-admin-v5 .nid-panel{padding:15px}.nid-admin-v5 .nid-mode-item{grid-template-columns:1fr}.nid-admin-v5 .nid-send-panel .nid-kpi{padding:11px}.nid-views{width:100%}.nid-custom-channels{grid-template-columns:1fr}.nid-monitor-v5 .nid-monitor-top{align-items:start}.nid-monitor-v5 .nid-monitor-topright{gap:5px}.nid-monitor-v5 .nid-monitor-connection{font-size:8px}.nid-monitor-v5 .nid-brand-block>small{display:none}}
 @media(prefers-reduced-motion:reduce){.nid-admin-v5 *, .nid-monitor-v5 *{animation:none!important;transition:none!important;scroll-behavior:auto!important}.nid-admin-v5 .nid-kpi{animation:none}}
+
+/* Logos reais das plataformas — cópias SVG locais e fallback sem requisições externas. */
+.nid-platform-logo{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;isolation:isolate;overflow:hidden}
+.nid-platform-logo img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;pointer-events:none;user-select:none}
+.nid-platform-logo-fallback{display:grid;place-items:center;width:100%;height:100%;font-weight:1000;letter-spacing:-.06em}
+.nid-admin-v5 .nid-channel-mark.nid-platform-logo{background:#fff;color:#213149;border:1px solid #e1e7ee;padding:3px;width:38px;height:38px;border-radius:10px}
+.nid-admin-v5 .nid-platform-chip .nid-channel-mark.nid-platform-logo{width:38px;height:38px}
+.nid-admin-v5 .nid-preview-queue-row .nid-channel-mark.nid-platform-logo{width:34px;height:34px;padding:3px;border-radius:9px}
+.nid-admin-v5 .nid-custom-channel .nid-channel-mark.nid-platform-logo{width:30px;height:30px;padding:3px;border-radius:8px}
+.nid-admin-v5 .nid-custom-editor-heading .nid-platform-logo{width:45px;height:45px;border-radius:11px}
+.nid-admin-v5 .nid-history-row .nid-platform-logo{width:41px;height:41px}
+.nid-monitor-v5 .nid-channel-emblem,
+.nid-monitor-v5 .nid-channel-emblem.shopee,
+.nid-monitor-v5 .nid-channel-emblem.ml,
+.nid-monitor-v5 .nid-channel-emblem.amazon{width:clamp(92px,10vw,158px);height:clamp(92px,10vw,158px);padding:clamp(10px,1.25vw,18px);background:#fff;color:#15243c;border:1px solid #ffffff80;border-radius:clamp(19px,2vw,30px);box-shadow:0 20px 45px #00000036,0 0 0 5px #ffffff0a}
+.nid-monitor-v5 .nid-channel-emblem .nid-platform-logo-large{width:100%;height:100%;border-radius:6px}
+.nid-monitor-v5 .nid-channel-emblem .nid-platform-logo-fallback{font-size:clamp(34px,5vw,67px)}
+@media(max-width:760px){.nid-monitor-v5 .nid-channel-emblem,.nid-monitor-v5 .nid-channel-emblem.shopee,.nid-monitor-v5 .nid-channel-emblem.ml,.nid-monitor-v5 .nid-channel-emblem.amazon{width:clamp(76px,13vw,112px);height:clamp(76px,13vw,112px);padding:10px}}
