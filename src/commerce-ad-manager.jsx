@@ -324,7 +324,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
       {periodLoading&&<p className="nim-detail-pending" role="status">Consultando dados: {periodLabel(detailDays,month)}…</p>}
       {periodError&&<p className="nim-detail-pending nim-detail-period-error" role="alert">{periodError}</p>}
       {pending&&!partialLinked&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para {periodLabel(detailDays,month)}. Valores desconhecidos não são zero.</p>}
-      {partialLinked&&<p className="nim-detail-pending">Valores comprovadamente vinculados a este anúncio. Outros registros históricos podem permanecer sem associação; esse subtotal não comprova o faturamento total.</p>}
+      {partialLinked&&!complete&&<p className="nim-detail-pending">Valores associados a este anúncio por SKU nos relatórios disponíveis. Outros registros podem permanecer sem associação.</p>}
     </section>
         <div className="nim-detail-overview" aria-label="Resumo das ferramentas do anúncio">
           <button type="button" className="nim-detail-overview-item"
@@ -440,7 +440,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
         </div>
         {item.total_variations===0&&<p className="nim-subtle">Anúncio sem variações cadastradas.</p>}
         {item.total_variations>0&&!complete&&
-          <p className="nim-advice">Quantidades e receitas identificadas por SKU exclusivo são parciais; não mostramos zeros presumidos. Variações sem vendas identificadas podem ter vendas ainda não vinculadas.</p>}
+          <p className="nim-advice">As variações deste anúncio ainda precisam de conciliação de SKU ou de cobertura do período; zeros não são presumidos.</p>}
         {!complete&&partialVars.length>0&&<p className="nim-var-totals">
           {num(variationEvidence.identified)+' variações com vendas identificadas · '+
             num(partialEmptyCount)+' sem vendas identificadas'}
