@@ -67,3 +67,15 @@
 .nid-pairing-card input{width:100%;background:#101b32;border:1px solid #46546d;color:#fff;padding:14px;border-radius:10px;font:inherit}
 .nid-monitor-error{color:#ffc9ca}
 @media(max-width:760px){.nid-admin-grid{grid-template-columns:1fr}.nid-admin-heading{align-items:start;flex-direction:column}.nid-panel{padding:17px}.nid-history-row{gap:7px;flex-wrap:wrap}.nid-history-tag{min-width:90px}.nid-monitor{padding:18px}.nid-monitor-topright{gap:10px;flex-direction:column;align-items:end}.nid-live-request{padding:3vh 0}.nid-live-request h2{border-radius:12px;padding:20px}.nid-monitor-bottom{align-items:start;gap:10px;flex-direction:column}.nid-pairing-card{padding:22px}}
+/* Mensagem individual e múltipla seleção por plataforma */
+.nid-platform-group{border:1px solid #e5eaf2;border-radius:13px;background:#f7f9fc;overflow:hidden}
+.nid-platform-group.active{border-color:#94a6c4;background:#f5f8fd}
+.nid-platform-group .nid-platform-option{border:0;border-radius:0;background:transparent;cursor:pointer;margin:0}
+.nid-platform-option input[type="checkbox"]{width:18px;height:18px;accent-color:#284c79;flex:0 0 auto;cursor:pointer}
+.nid-platform-detail{padding:0 15px 14px;display:grid;gap:7px}
+.nid-platform-detail label{color:#4d607c;font-size:12px;font-weight:800}
+.nid-platform-detail textarea{width:100%;min-height:66px;resize:vertical;border:1px solid #d3dce9;border-radius:9px;padding:11px 12px;background:#fff;color:#1c293e;font:inherit;font-size:14px;line-height:1.4}
+.nid-platform-detail textarea:focus{outline:2px solid #6f9fce;outline-offset:1px}
+.nid-platform-detail small{text-align:right}
+.nid-live-request h2{overflow-wrap:anywhere;max-width:min(95vw,1450px);white-space:normal}
+.nid-history-row strong{overflow-wrap:anywhere}
