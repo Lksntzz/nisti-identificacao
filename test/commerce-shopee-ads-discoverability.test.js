@@ -52,7 +52,7 @@ test('coverage RPC excludes unlinked campaigns and non-Shopee ads and is admin-o
   assert.match(migration,/r\.external_product_id=l\.external_listing_id/);
   assert.match(migration,/m\.code='SHOPEE'/);
   assert.match(migration,/security invoker set search_path=public/);
-  assert.match(migration,/revoke all .* from public,anon,authenticated/s);
+  assert.match(migration,/revoke all [\s\S]*from public,anon,authenticated/);
   assert.match(migration,/to service_role/);
   assert.match(store,/commerceShopeeAdsCoverage/);
   assert.match(router,/\/listings\/manager\/shopee-ads\/coverage/);
