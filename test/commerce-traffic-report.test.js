@@ -5,7 +5,6 @@ import {analyzeTrafficWindow,trafficDerivedRates} from '../src/commerce-traffic-
 const sql=fs.readFileSync('supabase/migrations/20261020095000_commerce_listing_traffic_reports_v1.sql','utf8');
 const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
 const route=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const tab=fs.readFileSync('src/commerce-listing-diagnosis-panel.jsx','utf8');
 const listing=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
 const panel=fs.readFileSync('src/commerce-traffic-metrics.jsx','utf8');
 
@@ -45,7 +44,7 @@ test('traffic entry remains admin-only, validated and tied to real listing id',(
   assert.match(store,/commerce_save_listing_traffic_v1/);
   assert.match(store,/commerce_listing_traffic_window_v1/);
   assert.match(store,/validateTrafficBounds/);
-  assert.match(tab,/CommerceTrafficMetrics listingId=\{item\.id\} start=\{start\} end=\{end\}/);
+  assert.match(listing,/CommerceTrafficMetrics listingId=\{item\.id\}/);
   assert.match(listing,/start=\{selectedPeriodStart\} end=\{selectedPeriodEnd\}/);
   assert.match(panel,/source:source\.trim\(\)/);
   assert.match(panel,/A origem informada não foi verificada automaticamente/);
