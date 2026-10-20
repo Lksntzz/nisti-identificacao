@@ -40,8 +40,11 @@ function cookie(value,age){
 // Nenhuma chave privada é exposta em HTML, scripts ou nas respostas.
 export async function activateDispatchSenderLink(request,env){
   const url=new URL(request.url);
-  if(request.method!=='GET'||url.pathname!=='/painel-expedicao'||!url.searchParams.has('acesso'))return null;
-  const key=url.searchParams.get('acesso')||'';
+  if(request.method!=='GET')return null;
+  const invitation=url.pathname.match(/^\/convite-expedicao\/([0-9a-f]{64})$/);
+  const queryLink=url.pathname==='/painel-expedicao'&&url.searchParams.has('acesso');
+  if(!invitation&&!queryLink)return null;
+  const key=invitation?.[1]||url.searchParams.get('acesso')||'';
   const headers=new Headers({
     'cache-control':'no-store, private',
     'referrer-policy':'no-referrer',
