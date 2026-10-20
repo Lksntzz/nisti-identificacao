@@ -1,0 +1,22 @@
+name: Smoke test monitor NISTI
+on:
+  push:
+    branches:
+      - fix/dispatch-monitor-blank-screen
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save playwright@1.56.1
+      - name: Testar a tela de produção no navegador
+        run: node scripts/monitor-live-smoke.mjs
