@@ -11,6 +11,7 @@ import './nisti-reactbits-adaptations.css';
 import './commerce-approved-layout.css';
 import './commerce-reactbits-lucide.css';
 import './commerce-view-specific-kpis.css';
+import './commerce-zero-sales-filters.css';
 import GlareHover from './vendor/react-bits/GlareHover.jsx';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
 import { listingSalesSituation } from './commerce-listing-classification.js';
