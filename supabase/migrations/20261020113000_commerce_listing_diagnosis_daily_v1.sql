@@ -18,7 +18,7 @@ with params as (
   join public.commerce_marketplaces m on m.id=l.marketplace_id
   join params p on p.id=l.id
 ), dates as (
-  select generate_series(p.first_day,p.last_day,interval '1 day')::date day
+  select generate_series(p.first_day,p.last_day,interval '1 day')::date AS sale_day
   from params p
 ), known_sales as (
   select v.sale_date, sum(v.units)::bigint units,round(sum(v.product_revenue),2) revenue
@@ -27,7 +27,7 @@ with params as (
   join params p on v.sale_date between p.first_day and p.last_day
   group by v.sale_date
 ), known_visits as (
-  select r.period_start day,r.visits,r.impressions,r.clicks
+  select r.period_start AS sale_day,r.visits,r.impressions,r.clicks
   from public.commerce_listing_traffic_reports_v1 r
   join params p on p.id=r.listing_id and p.scope=r.traffic_scope
   where r.period_start=r.period_end and r.period_start between p.first_day and p.last_day
@@ -39,13 +39,13 @@ select jsonb_build_object(
     else 'Somente vendas associadas ao ID do anúncio na origem importada' end,
   'items',coalesce((
     select jsonb_agg(jsonb_build_object(
-      'date',dt.day,
+      'date',dt.sale_day,
       'units',s.units,'revenue',s.revenue,
       'visits',v.visits,'impressions',v.impressions,'clicks',v.clicks
-    ) order by dt.day)
+    ) order by dt.sale_day)
     from dates dt
-    left join known_sales s on s.sale_date=dt.day
-    left join known_visits v on v.day=dt.day
+    left join known_sales s on s.sale_date=dt.sale_day
+    left join known_visits v on v.sale_day=dt.sale_day
   ),'[]'::jsonb)
 );
 $function$;
