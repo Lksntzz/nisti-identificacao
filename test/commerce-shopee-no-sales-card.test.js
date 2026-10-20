@@ -2,32 +2,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const sql=fs.readFileSync('supabase/migrations/20261020232000_commerce_listing_manager_strict_zero_windows_v1.sql','utf8');
+const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const sql=fs.readFileSync('supabase/migrations/20261020235000_commerce_shopee_two_filters_reconciled_v1.sql','utf8');
 
-test('Shopee sem vendas identificadas maps the primary card and tab to UNLINKED',()=>{
-  assert.match(manager,/const shopeeUnlinkedView=platform==='SHOPEE'&&days!==0/);
-  assert.match(manager,/const noSalesStatus=shopeeUnlinkedView\?'UNLINKED':'ZERO'/);
-  assert.match(manager,/const noSalesLabel=shopeeUnlinkedView\?'Sem vendas identificadas':'Sem vendas'/);
-  assert.match(manager,/const noSalesValue=shopeeUnlinkedView\?kpi\.unlinked_shopee_ads:kpi\.zero_ads/);
-  assert.match(manager,/onClick=\{\(\)=>code==='ZERO'\?changeNoSales\(\):change\(setStatus,code\)\}/);
-  assert.match(manager,/const changeNoSales=\(\)=>change\(setStatus,status===noSalesStatus\?'ALL':noSalesStatus\)/);
-  assert.match(manager,/status==='ZERO'&&days!==0\)setStatus\('UNLINKED'\)/);
-  assert.match(manager,/Somente anúncios com zero unidades|Anúncios com zero unidades/);
-  assert.match(manager,/ausência de vínculo NÃO comprova ausência de pedidos/);
+test('Shopee exposes only two sale statuses and does not claim unmatched SKU as zero',()=>{
+  assert.match(ui,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\]/);
+  assert.match(ui,/const noSalesStatus='ZERO'/);
+  assert.match(ui,/const noSalesValue=kpi\.zero_ads/);
+  assert.doesNotMatch(ui,/const shopeeUnlinkedView|Sem vínculo \(Shopee\)\s*<\/button>/);
+  assert.match(ui,/Se um vínculo estiver ambíguo/);
 });
-
-test('No sales evidence remains explicitly separate from verified zero and unsold variations',()=>{
+test('certified no-sales require import coverage and every variation reviewed',()=>{
+  assert.match(sql,/shopee_sku_ownership as \(/);
+  assert.match(sql,/owner\.listing_product_id=v\.id/);
+  assert.match(sql,/so\.total=so\.verified/);
+  assert.match(sql,/sw\.sales_days>=b\.days and sw\.report_days>=b\.days/);
   assert.match(sql,/selected_status='ZERO' and c\.ready and c\.units=0/);
-  assert.match(sql,/selected_status='UNLINKED' and c\.source_code='SHOPEE'/);
-  assert.match(sql,/selected_status='VAR_ZERO' and c\.ready and c\.units>0/);
-  assert.doesNotMatch(sql,/selected_status='ZERO' and c\.source_code='SHOPEE'/);
-  assert.match(manager,/A Shopee não está incluída nessa contagem/);
-  assert.match(manager,/status==='VAR_ZERO'/);
+  assert.match(sql,/shopee_unclassified_ads/);
+  assert.match(sql,/revoke all on function public\.commerce_listing_manager_v1/);
+  assert.match(sql,/to service_role/);
 });
-
-test('Shopee month does not claim full daily proof',()=>{
-  assert.match(manager,/disabled=\{code==='ZERO'&&days===0&&platform==='SHOPEE'\}/);
-  assert.match(manager,/onClick=\{platform==='SHOPEE'&&days===0\?undefined:changeNoSales\}/);
-  assert.match(manager,/days===0&&next==='SHOPEE'&&status==='ZERO'/);
+test('Shopee monthly period cannot be claimed as verified zero',()=>{
+  assert.match(ui,/disabled=\{code==='ZERO'&&days===0&&platform==='SHOPEE'\}/);
+  assert.match(ui,/onClick=\{platform==='SHOPEE'&&days===0\?undefined:changeNoSales\}/);
 });
