@@ -9,7 +9,7 @@
 .nim-primary-button:hover{background:#1e53cd}
 .nim-soft-button,.nim-clear{background:#fff;color:#536680}
 .nim-soft-button:hover,.nim-clear:hover{background:#f5f8ff}
-.nim-import-panel{background:#fff;border:1px solid var(--nim-border);border-radius:12px;padding:16px;min-width:0}
+
 .nim-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .nim-kpi{display:grid;text-align:left;align-content:center;justify-items:start;gap:7px;padding:16px 17px;min-height:112px;border-radius:12px;border:1px solid var(--nim-border);font:inherit;background:#fff;min-width:0;box-shadow:0 2px 12px #152a3d09}
 button.nim-kpi{cursor:pointer}
@@ -515,3 +515,18 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
  .nim-detail-overview-item>strong{font-size:11px}
  .nim-detail-overview-item>small{font-size:9px}
 }
+
+/* Import selector belongs to the main header: no large in-page card grid. */
+.nim-import-dropdown{position:relative;flex:0 0 auto;z-index:40}
+.nim-import-dropdown>.nim-primary-button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.nim-import-options{position:absolute;right:0;top:calc(100% + 9px);width:min(360px,calc(100vw - 30px));max-height:min(440px,calc(100dvh - 100px));overflow:auto;z-index:100;padding:7px;background:#fff;color:#253958;border:1px solid #dce5f0;border-radius:12px;box-shadow:0 16px 45px rgba(25,47,79,.18)}
+.nim-import-options>button{display:flex;width:100%;align-items:center;gap:11px;padding:11px 10px;text-align:left;background:transparent;color:#263d5d;border:0;border-radius:8px;font:inherit;cursor:pointer}
+.nim-import-options>button:hover,.nim-import-options>button:focus-visible{background:#f1f6ff;outline:none}
+.nim-import-option-icon{display:grid;place-items:center;width:36px;height:36px;flex:0 0 36px;background:#f0f4fa;border-radius:9px;color:#50729e}
+.nim-import-options>button:hover .nim-import-option-icon{background:#e5efff;color:#2563eb}
+.nim-import-option-copy{flex:1;display:grid;gap:4px;min-width:0}
+.nim-import-option-copy strong{font-size:12px;font-weight:800;line-height:1.2;color:#233552}
+.nim-import-option-copy small{font-size:10px;color:#8190a4;line-height:1.4;white-space:normal}
+.nim-import-option-arrow{flex:0 0 auto;color:#9daec3;font-size:20px;line-height:1}
+.nim-import-trigger-arrow{font-size:12px;line-height:1;margin-left:3px}
+@media(max-width:600px){.nim-import-dropdown{max-width:100%}.nim-import-options{right:0;width:min(342px,calc(100vw - 26px))}}

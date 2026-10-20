@@ -515,8 +515,9 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
   );
 }
 
-export default function CommerceImportCenter({ embedded = false, onSalesChanged, onCatalogChanged }) {
-  const [mode, setMode] = useState(embedded ? '' : 'catalog');
+const IMPORT_MODES=['catalog','sales','ads','aftercare'];
+export default function CommerceImportCenter({ embedded = false, initialMode = null, hideModeSelector = false, onSalesChanged, onCatalogChanged }) {
+  const [mode, setMode] = useState(IMPORT_MODES.includes(initialMode) ? initialMode : embedded ? '' : 'catalog');
   const [showHistory, setShowHistory] = useState(false);
 
   const [catalogPlatform, setCatalogPlatform] = useState('SHOPEE');
@@ -908,8 +909,8 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
 
   return (
     <div className={`import-center${embedded ? ' import-center-embedded' : ''}`}>
-      {embedded && <p className="import-center-embedded-intro">Selecione primeiro o tipo de relatório. Depois escolha a plataforma e envie a planilha exportada.</p>}
-      <div className="import-center-mode-grid" aria-label="Tipo de importação">
+      {embedded && !hideModeSelector && <p className="import-center-embedded-intro">Selecione primeiro o tipo de relatório. Depois escolha a plataforma e envie a planilha exportada.</p>}
+      {!hideModeSelector && <div className="import-center-mode-grid" aria-label="Tipo de importação">
         <button type="button" className={mode === 'catalog' ? 'active' : ''}
           disabled={catalogImporting || salesImporting || catalogReading || salesReading}
           onClick={() => { setMode('catalog'); setError(''); setMessage(''); }}>
@@ -938,7 +939,7 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
           <strong>Pós-venda Shopee</strong>
           <small>Devoluções e reembolsos por SKU</small>
         </button>
-      </div>
+      </div>}
       {mode==='ads'&&<CommerceShopeeAdsImport/>}
       {mode==='aftercare'&&<CommerceShopeeAftercareImport/>}
 

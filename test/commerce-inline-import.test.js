@@ -22,7 +22,7 @@ test('import is a compact card in the commercial dashboard, not a second sidebar
 });
 
 test('operator chooses type first; relevant platform, account and file field then appear in one card',()=>{
-  assert.match(importView,/useState\(embedded \? '' : 'catalog'\)/);
+  assert.match(importView,/useState\(IMPORT_MODES\.includes\(initialMode\) \? initialMode : embedded \? '' : 'catalog'\)/);
   assert.match(importView,/\(!embedded \|\| mode\) && <div className="import-center-layout">/);
   assert.match(importView,/>Produtos e anúncios<\/strong>/);
   assert.match(importView,/>Vendas<\/strong>/);

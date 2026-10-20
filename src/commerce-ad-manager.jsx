@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import CommerceImportCenter from './commerce-import-center.jsx';
+import CommerceImportModal from './commerce-import-modal.jsx';
+import {COMMERCE_IMPORT_OPTIONS} from './commerce-import-options.js';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
 import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
@@ -521,7 +522,10 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [monthly,setMonthly]=useState(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
-  const [importOpen,setImportOpen]=useState(false);
+  const [importMenuOpen,setImportMenuOpen]=useState(false);
+  const [selectedImportMode,setSelectedImportMode]=useState(null);
+  const importMenuRef=useRef(null);
+  const importTriggerRef=useRef(null);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
   const [commercialView,setCommercialView]=useState('LISTINGS');
   const [financialOpen,setFinancialOpen]=useState(false);
@@ -529,6 +533,29 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [importedTotalsError,setImportedTotalsError]=useState('');
   const [evolutionStatus,setEvolutionStatus]=useState('ALL');
   const [evolutionSummary,setEvolutionSummary]=useState(null);
+  useEffect(()=>{
+    if(!importMenuOpen)return;
+    function handleOutside(event){
+      if(!importMenuRef.current?.contains(event.target))setImportMenuOpen(false);
+    }
+    function handleEscape(event){
+      if(event.key==='Escape'){
+        setImportMenuOpen(false);
+        importTriggerRef.current?.focus();
+      }
+    }
+    document.addEventListener('pointerdown',handleOutside);
+    document.addEventListener('keydown',handleEscape);
+    return ()=>{
+      document.removeEventListener('pointerdown',handleOutside);
+      document.removeEventListener('keydown',handleEscape);
+    };
+  },[importMenuOpen]);
+  const openImportType=mode=>{
+    if(!COMMERCE_IMPORT_OPTIONS.some(option=>option.mode===mode))return;
+    setImportMenuOpen(false);
+    setSelectedImportMode(mode);
+  };
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
   useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
   useEffect(()=>{
@@ -652,14 +679,37 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <div className="nim-header-actions">
         <button type="button" className="nim-soft-button" onClick={()=>setRefresh(v=>v+1)}>
           <CommercialIcon name="refresh-cw" size={16}/> Atualizar</button>
-        <button type="button" className="nim-primary-button" onClick={()=>setImportOpen(v=>!v)}
-          aria-expanded={importOpen}><CommercialIcon name="upload" size={16}/>
-          {importOpen?'Fechar importação':'Importar arquivos'}</button>
+        <div className="nim-import-dropdown" ref={importMenuRef}>
+          <button type="button" className="nim-primary-button" ref={importTriggerRef}
+            onClick={()=>setImportMenuOpen(open=>!open)} aria-haspopup="menu"
+            aria-controls="nim-import-options" aria-expanded={importMenuOpen}>
+            <CommercialIcon name="upload" size={16}/> Importar arquivo
+            <span className="nim-import-trigger-arrow" aria-hidden="true">▾</span>
+          </button>
+          {importMenuOpen&&<div id="nim-import-options" className="nim-import-options"
+            role="menu" aria-label="Escolher tipo de relatório">
+            {COMMERCE_IMPORT_OPTIONS.map(option=><button type="button" role="menuitem"
+              key={option.mode} onClick={()=>openImportType(option.mode)}>
+              <span className="nim-import-option-icon" aria-hidden="true">
+                <CommercialIcon name={option.icon} size={18}/>
+              </span>
+              <span className="nim-import-option-copy">
+                <strong>{option.label}</strong>
+                <small>{option.description}</small>
+              </span>
+              <span className="nim-import-option-arrow" aria-hidden="true">›</span>
+            </button>)}
+          </div>}
+        </div>
       </div>
     </header>
-    {importOpen&&<div className="nim-import-panel"><CommerceImportCenter embedded
+    {selectedImportMode&&<CommerceImportModal mode={selectedImportMode}
+      returnFocusRef={importTriggerRef}
+      onClose={()=>setSelectedImportMode(null)}
+      onChooseAnother={()=>{setSelectedImportMode(null);setImportMenuOpen(true);}}
       onSalesChanged={()=>setRefresh(v=>v+1)}
-      onCatalogChanged={()=>setRefresh(v=>v+1)}/></div>}
+      onCatalogChanged={()=>setRefresh(v=>v+1)}/>}
+
     {commercialView==='LISTINGS'?
       <div className="nim-kpis nim-kpis-listings" aria-label="Indicadores de anúncios">
         <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'}
