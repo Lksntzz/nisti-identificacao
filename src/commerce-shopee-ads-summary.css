@@ -13,3 +13,9 @@
 .nim-ads-evidence-kpis small{font-size:9px;color:#71819a;line-height:1.4}
 .nim-ads-evidence-kpis strong{font-size:12px;font-weight:800;color:#253e5d;overflow-wrap:anywhere}
 @media(max-width:550px){.nim-ads-evidence-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Make the imported Shopee Ads report easy to find next to the sales KPIs. */
+.nim-detail>.nim-ads-evidence{margin:5px 0 11px;border-color:#bbcef1;background:#f8fbff}
+.nim-detail>.nim-ads-evidence>summary{padding:12px 11px;color:#2059aa;background:#eff5ff;font-size:11px}
+.nim-ads-evidence-summary-label{display:grid;gap:3px}
+.nim-ads-evidence-summary-label small{display:block;font-size:9px;font-weight:500;color:#617c9c}
