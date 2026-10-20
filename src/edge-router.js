@@ -263,7 +263,7 @@ function loginPage(message = '', csrfToken = '') {
       .intro-brand-subtitle{display:block;margin-top:4px;color:#bed0e9;font-size:10px;
         font-weight:650;letter-spacing:.065em}
       .intro-eyebrow{display:block;color:#bed4f5;font-size:10px;letter-spacing:.15em;font-weight:800}
-      .intro-copy h2{max-width:340px;margin:14px 0 14px;font-size:clamp(26px,3vw,32px);
+      .intro-copy .intro-headline{max-width:340px;margin:14px 0 14px;font-size:clamp(26px,3vw,32px);
         letter-spacing:-.035em;line-height:1.22;font-weight:800}
       .intro-copy p{max-width:295px;margin:0;font-size:13px;line-height:1.75;color:#d1ddee}
       .intro-footer{display:flex;align-items:center;gap:10px;color:#b8c9e0;font-size:11px;line-height:1.45}
@@ -305,7 +305,7 @@ function loginPage(message = '', csrfToken = '') {
       </div>
       <div class="intro-copy">
         <span class="intro-eyebrow">AMBIENTE ADMINISTRATIVO</span>
-        <h2>Gestão e operação em um só lugar.</h2>
+        <p class="intro-headline">Gestão e operação em um só lugar.</p>
         <p>Identificação de produtos, catálogo e acompanhamento comercial em uma plataforma integrada.</p>
       </div>
       <div class="intro-footer">Acesso reservado a administradores</div>
