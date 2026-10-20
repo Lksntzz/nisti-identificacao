@@ -29,7 +29,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-error{display:flex;justify-content:space-between;gap:12px;background:#fff1f3;color:#a12b48;border:1px solid #f9d9e0;border-radius:10px;padding:12px;font-size:11px}
 .nim-error button{border:0;background:transparent;color:inherit;cursor:pointer;font-weight:800}
 .nim-content{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:12px;min-width:0}
-.nim-content.has-detail{grid-template-columns:minmax(0,1fr) minmax(460px,570px)}
+.nim-content.has-detail{grid-template-columns:minmax(0,1fr) minmax(390px,490px)}
 .nim-list-panel,.nim-detail{background:#fff;border:1px solid var(--nim-border);border-radius:13px;box-shadow:0 2px 12px #17283d09;min-width:0;overflow:hidden}
 .nim-list-header{padding:14px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .nim-list-header h3{margin:0;font-size:15px;font-weight:850;line-height:1.3;color:#1a2942}
@@ -77,39 +77,39 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-list-footer>div{display:flex;gap:6px}
 .nim-list-footer button{border:1px solid #dce5ed;background:#fff;color:#486180;padding:7px 10px;border-radius:7px;font-size:10px;font-weight:750;cursor:pointer}
 .nim-list-footer button:disabled{cursor:default;opacity:.4}
-.nim-detail{padding:0 18px 15px;position:sticky;top:10px;max-height:calc(100vh - 20px);overflow-y:auto;align-self:start;scrollbar-width:thin;scrollbar-color:#ccd6e5 transparent}
-.nim-detail-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:17px 0 13px}
+.nim-detail{padding:0 13px 12px;position:sticky;top:10px;max-height:calc(100vh - 20px);overflow-y:auto;align-self:start;scrollbar-width:thin;scrollbar-color:#ccd6e5 transparent}
+.nim-detail-header{display:flex;justify-content:space-between;align-items:flex-start;gap:9px;padding:12px 0 10px}
 .nim-detail-title{min-width:0;flex:1}
-.nim-detail-header h3{font-size:15px;font-weight:850;line-height:1.4;margin:0 0 11px;color:#192943}
+.nim-detail-header h3{font-size:13px;font-weight:800;line-height:1.4;margin:0 0 7px;color:#192943}
 .nim-detail-title-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .nim-detail-header .nim-platform{max-width:none}
 .nim-detail-active{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid #d8eddd;border-radius:999px;background:#f1fbf5;color:#348452;font-size:10px;font-weight:750}
 .nim-close{flex:0 0 30px;width:30px;height:30px;display:grid;place-items:center;border:1px solid #e2e9f2;border-radius:9px;background:#fff;color:#66768b;font-size:19px;cursor:pointer}
 .nim-close:hover{background:#f5f8fd;color:#314967}
-.nim-detail-identity{display:flex;align-items:center;justify-content:space-between;gap:15px;border-top:1px solid #edf0f5;padding:11px 0 14px}
+.nim-detail-identity{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #edf0f5;padding:8px 0 10px}
 .nim-detail-identity>div{display:grid;gap:4px;min-width:0}
 .nim-detail-identity small{font-size:10px;color:#7c899e}
 .nim-detail-identity strong{font-size:12px;color:#243752;overflow-wrap:anywhere}
-.nim-detail-performance{padding:0 0 13px}
+.nim-detail-performance{padding:0 0 9px}
 .nim-detail-section-title{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
 .nim-detail-section-title h4{font-size:12px;font-weight:850;margin:0;color:#1d2f4a}
 .nim-detail-section-title small{font-size:10px;color:#8290a4}
-.nim-detail-performance-title{margin-bottom:12px;flex-wrap:wrap}
+.nim-detail-performance-title{margin-bottom:8px;flex-wrap:wrap}
 .nim-detail-periods{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .nim-detail-periods button{min-width:42px;min-height:29px;border:1px solid #dce5f1;border-radius:7px;background:#fff;color:#60738c;font-size:10px;font-weight:800;cursor:pointer}
 .nim-detail-periods button:hover:not(.active){background:#f4f8ff}
 .nim-detail-periods button.active{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 2px 7px #2563eb20}
-.nim-detail-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.nim-detail-metric{display:grid;align-content:start;gap:6px;padding:12px 13px;min-width:0;min-height:94px;background:#f5f7fb;border:1px solid #eef1f6;border-radius:10px}
+.nim-detail-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.nim-detail-metric{display:grid;align-content:start;gap:4px;padding:9px 10px;min-width:0;min-height:74px;background:#f5f7fb;border:1px solid #eef1f6;border-radius:10px}
 .nim-detail-metric small{font-size:10px;line-height:1.4;color:#65758e}
-.nim-detail-metric strong{font-size:18px;font-weight:850;line-height:1.18;color:#1e3150;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.nim-detail-metric strong{font-size:15px;font-weight:850;line-height:1.18;color:#1e3150;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .nim-detail-metric span{font-size:9px;line-height:1.4;color:#8a97aa}
 .nim-detail-pending{font-size:10px;line-height:1.55;margin:9px 0 0;color:#7f8898}
-.nim-detail-tab-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;padding:5px;background:#f5f7fb;border-radius:9px;border:1px solid #edf1f7}
-.nim-detail-tab-list button{min-height:36px;border:1px solid transparent;border-radius:7px;padding:7px 4px;background:transparent;color:#62728b;font-size:10px;font-family:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
+.nim-detail-tab-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;padding:4px;background:#f5f7fb;border-radius:9px;border:1px solid #edf1f7}
+.nim-detail-tab-list button{min-height:32px;border:1px solid transparent;border-radius:7px;padding:7px 4px;background:transparent;color:#62728b;font-size:10px;font-family:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
 .nim-detail-tab-list button:hover:not(.active){color:#285cb4;background:#ecf2fb}
 .nim-detail-tab-list button.active{border-color:#dce6fa;color:#215bc4;background:#fff;box-shadow:0 1px 4px #1d315314}
-.nim-detail-tab-panel{padding:16px 0 13px;min-height:210px}
+.nim-detail-tab-panel{padding:11px 0 10px;min-height:160px}
 .nim-detail-tab-panel>.nim-detail-section-title{margin-bottom:12px}
 .nim-detail-summary-footer{margin-top:13px;padding-top:11px;border-top:1px solid #edf0f5;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .nim-detail-summary-footer>div{display:grid;gap:4px}
@@ -117,7 +117,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-detail-summary-footer span{font-size:10px;color:#8390a3}
 .nim-detail-summary-footer button{border:0;background:transparent;color:#2465cf;font-size:10px;font-weight:800;cursor:pointer;padding:6px}
 .nim-detail-data-list{display:grid;border:1px solid #e8edf4;border-radius:9px;overflow:hidden}
-.nim-detail-data-row{padding:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border-bottom:1px solid #eef1f5;font-size:11px}
+.nim-detail-data-row{padding:9px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border-bottom:1px solid #eef1f5;font-size:11px}
 .nim-detail-data-row:last-child{border-bottom:0;background:#f8faff}
 .nim-detail-data-row>div{min-width:0;display:grid;gap:3px}
 .nim-detail-data-row span{font-size:11px;color:#40536e}
@@ -126,8 +126,8 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-detail-hint{font-size:10px;line-height:1.7;margin:12px 0 0;color:#7b8aa0}
 .nim-detail-table-scroll{max-height:260px;overflow:auto}
 .nim-detail-table-scroll table{width:100%;border-collapse:collapse;text-align:left;font-size:10px}
-.nim-detail-table-scroll th{background:#f7f9fc;padding:9px 7px;color:#607088;font-size:9px}
-.nim-detail-table-scroll td{padding:9px 7px;border-bottom:1px solid #edf0f4}
+.nim-detail-table-scroll th{background:#f7f9fc;padding:7px 6px;color:#607088;font-size:9px}
+.nim-detail-table-scroll td{padding:7px 6px;border-bottom:1px solid #edf0f4}
 .nim-detail-table-scroll td:first-child{min-width:120px}
 .nim-detail-table-scroll td strong{display:block;font-size:10px;color:#2b3b54}
 .nim-detail-table-scroll td small{display:block;color:#8a98a9;font-size:9px;margin-top:4px}
@@ -169,8 +169,8 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
   .nim-filter-reset{grid-column:1/-1;max-width:none;justify-self:stretch}
   .nim-filter-panel .nim-status-tabs button{padding:0 10px}
   .nim-detail{padding:0 12px 14px}
-  .nim-detail-metric{min-height:93px;padding:11px}
-  .nim-detail-metric strong{font-size:16px}
+  .nim-detail-metric{min-height:72px;padding:9px}
+  .nim-detail-metric strong{font-size:14px}
   .nim-detail-tab-list button{font-size:9px}
   .nim-list-header{align-items:flex-start;flex-wrap:wrap}
   .nim-list-footer{flex-wrap:wrap}
@@ -466,3 +466,11 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
  .nim-evolution-product[open]>.nim-evolution-shared-sku,
  .nim-evolution-product[open]>.nim-evolution-advice,
  .nim-evolution-product[open]>.nim-evolution-info{margin:0 9px 10px}}
+
+/* Compact, optional traffic details: no permanent diagnostic block in the sidebar. */
+.nim-detail-traffic-collapsed{margin-top:10px;border:1px solid #e7ebf2;border-radius:8px;overflow:hidden}
+.nim-detail-traffic-collapsed>button{width:100%;display:flex;align-items:center;justify-content:space-between;background:#f7f9fc;border:0;color:#3a506e;padding:9px 10px;font-size:10px;font-weight:750;font-family:inherit;cursor:pointer;text-align:left}
+.nim-detail-traffic-collapsed>button:focus-visible{outline:2px solid #2563eb;outline-offset:-2px}
+.nim-detail-traffic-collapsed>button span{font-size:15px;font-weight:500}
+.nim-detail-traffic-collapsed>div{padding:9px}
+.nim-detail-traffic-collapsed .nim-traffic{padding:8px}
