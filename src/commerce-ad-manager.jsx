@@ -127,6 +127,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
   const [showAll,setShowAll]=useState(false);
   const [activeTab,setActiveTab]=useState(initialTab);
   const [trafficOpen,setTrafficOpen]=useState(false);
+  const [adsOverview,setAdsOverview]=useState({loading:false,items:[],error:''});
   const [finance,setFinance]=useState(null);
   const [financeLoading,setFinanceLoading]=useState(false);
   const [financeError,setFinanceError]=useState('');
@@ -164,7 +165,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
     return ()=>{cancelled=true;};
   },[detailDays,days,month,item.id,item.source,item.platform,item.external_listing_id]);
   useEffect(()=>{
-    if(activeTab!=='finance'||item.source!=='SHOPEE')return;
+    if(!['finance','summary'].includes(activeTab)||item.source!=='SHOPEE')return;
     let cancelled=false;
     setFinance(null);setFinanceError('');setFinanceLoading(true);
     const params=new URLSearchParams({days:String(detailDays)});
@@ -188,6 +189,20 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
       .catch(e=>{if(!controller.signal.aborted)setOrdersError(e.message);});
     return ()=>controller.abort();
   },[item.id,item.source,item.platform,detailDays,month]);
+
+  useEffect(()=>{
+    if(activeTab!=='summary'||!hasShopeeAds||item.source!=='SHOPEE')return;
+    const controller=new AbortController();
+    setAdsOverview({loading:true,items:[],error:''});
+    readJson(API+'/'+encodeURIComponent(item.id)+'/shopee-ads',{signal:controller.signal})
+      .then(result=>{if(!controller.signal.aborted)setAdsOverview({
+        loading:false,items:Array.isArray(result?.items)?result.items:[],error:''
+      });})
+      .catch(()=>{if(!controller.signal.aborted)setAdsOverview({
+        loading:false,items:[],error:'Não foi possível consultar publicidade'
+      });});
+    return ()=>controller.abort();
+  },[activeTab,item.id,item.source,hasShopeeAds]);
 
   const detail=detailDays===days?item:
     periodResult?.days===detailDays?periodResult.item:null;
@@ -214,6 +229,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
   const trendPct=detail?.identified_growth_pct;
   const trendLabel=trendPct==null?'Sem base comparável':
     (Number(trendPct)>0?'+':'')+num(Number(trendPct))+'%';
+  const latestAds=(adsOverview.items.find(row=>row.report_kind==='GENERAL')||adsOverview.items[0]||null);
   const detailTabs=hasShopeeAds&&item.source==='SHOPEE'
     ?[...DETAIL_TABS,['shopee_ads','Shopee Ads']]:DETAIL_TABS;
   return <aside className="nim-detail" aria-label={'Detalhes do anúncio '+item.external_listing_id}>
@@ -230,6 +246,30 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
       <div><small>{item.curve_partial?'Curva ABC · indicativa':'Curva ABC'}</small>
         <strong>{item.curve||'—'}</strong></div>
     </div>
+    <div className={'nim-detail-tab-list'+(hasShopeeAds&&item.source==='SHOPEE'?' has-shopee-ads':'')}
+      role="tablist" aria-label="Informações do anúncio">
+      {detailTabs.map(([code,label])=><button
+        key={code} id={'nim-detail-tab-'+code} type="button" role="tab"
+        aria-selected={activeTab===code} aria-controls={'nim-detail-panel-'+code}
+        className={activeTab===code?'active':''} onClick={()=>setActiveTab(code)}>{label}</button>)}
+    </div>
+    <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
+      aria-labelledby={'nim-detail-tab-'+activeTab}>
+      {activeTab==='shopee_ads'&&hasShopeeAds&&item.source==='SHOPEE'&&<>
+        <CommerceShopeeAdsSummary listingId={item.id}/>
+        <div className="nim-detail-traffic-collapsed">
+          <button type="button" aria-expanded={trafficOpen}
+            aria-controls="nim-detail-shopee-ads-traffic"
+            onClick={()=>setTrafficOpen(open=>!open)}>
+            Métricas adicionais de tráfego <span aria-hidden="true">{trafficOpen?'−':'+'}</span>
+          </button>
+          {trafficOpen&&<div id="nim-detail-shopee-ads-traffic">
+            <p className="nim-detail-hint">Dados de outros relatórios por janela exata. Os anúncios CPC importados não informam visitas orgânicas e não são rateados por período.</p>
+            <CommerceTrafficMetrics listingId={item.id} start={selectedPeriodStart} end={selectedPeriodEnd}/>
+          </div>}
+        </div>
+      </>}
+      {activeTab==='summary'&&<>
     <section className="nim-detail-performance" aria-label="Desempenho do anúncio">
       <div className="nim-detail-section-title nim-detail-performance-title">
         <h4>Desempenho</h4>
@@ -271,30 +311,44 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
       {pending&&!partialLinked&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para {periodLabel(detailDays,month)}. Valores desconhecidos não são zero.</p>}
       {partialLinked&&<p className="nim-detail-pending">Valores comprovadamente vinculados a este anúncio. Outros registros históricos podem permanecer sem associação; esse subtotal não comprova o faturamento total.</p>}
     </section>
-    <div className={'nim-detail-tab-list'+(hasShopeeAds&&item.source==='SHOPEE'?' has-shopee-ads':'')}
-      role="tablist" aria-label="Informações do anúncio">
-      {detailTabs.map(([code,label])=><button
-        key={code} id={'nim-detail-tab-'+code} type="button" role="tab"
-        aria-selected={activeTab===code} aria-controls={'nim-detail-panel-'+code}
-        className={activeTab===code?'active':''} onClick={()=>setActiveTab(code)}>{label}</button>)}
-    </div>
-    <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
-      aria-labelledby={'nim-detail-tab-'+activeTab}>
-      {activeTab==='shopee_ads'&&hasShopeeAds&&item.source==='SHOPEE'&&<>
-        <CommerceShopeeAdsSummary listingId={item.id}/>
-        <div className="nim-detail-traffic-collapsed">
-          <button type="button" aria-expanded={trafficOpen}
-            aria-controls="nim-detail-shopee-ads-traffic"
-            onClick={()=>setTrafficOpen(open=>!open)}>
-            Métricas adicionais de tráfego <span aria-hidden="true">{trafficOpen?'−':'+'}</span>
+        <div className="nim-detail-overview" aria-label="Resumo das ferramentas do anúncio">
+          <button type="button" className="nim-detail-overview-item"
+            onClick={()=>setActiveTab('finance')} aria-label="Abrir detalhes financeiros">
+            <span>Financeiro <b aria-hidden="true">↗</b></span>
+            <strong>{partialLinked?money(partialRevenue):pending?'—':money(detail?.revenue)}</strong>
+            <small>{item.source==='SHOPEE'&&finance?.has_finance_data
+              ?'Subtotal bruto · taxas disponíveis em Financeiro'
+              :item.source==='SHOPEE'&&financeLoading?'Subtotal bruto · conferindo taxas'
+              :'Subtotal dos produtos · taxas não conciliadas'}</small>
           </button>
-          {trafficOpen&&<div id="nim-detail-shopee-ads-traffic">
-            <p className="nim-detail-hint">Dados de outros relatórios por janela exata. Os anúncios CPC importados não informam visitas orgânicas e não são rateados por período.</p>
-            <CommerceTrafficMetrics listingId={item.id} start={selectedPeriodStart} end={selectedPeriodEnd}/>
-          </div>}
+          <button type="button" className="nim-detail-overview-item"
+            onClick={()=>setActiveTab('variations')} aria-label="Abrir detalhes das variações">
+            <span>Variações <b aria-hidden="true">↗</b></span>
+            <strong>{num(item.total_variations)} cadastradas</strong>
+            <small>{complete
+              ?num(detail?.sold_variations)+' com vendas · '+num(detail?.zero_variations)+' sem vendas'
+              :num(variationEvidence.identified)+' com vendas identificadas · vínculo parcial'}</small>
+          </button>
+          <button type="button" className="nim-detail-overview-item"
+            onClick={()=>setActiveTab('aftercare')} aria-label="Abrir detalhes de pós-venda">
+            <span>Pós-venda <b aria-hidden="true">↗</b></span>
+            <strong>Não importado</strong>
+            <small>Cancelamentos, devoluções e reembolsos sem relatório</small>
+          </button>
+          {hasShopeeAds&&item.source==='SHOPEE'&&<button type="button"
+            className="nim-detail-overview-item" onClick={()=>setActiveTab('shopee_ads')}
+            aria-label="Abrir métricas de Shopee Ads">
+            <span>Shopee Ads <b aria-hidden="true">↗</b></span>
+            <strong>{adsOverview.loading?'Consultando…':latestAds?.clicks==null?'—':num(latestAds.clicks)+' cliques'}</strong>
+            <small>{latestAds?.ctr_pct!=null
+              ?'CTR '+new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2}).format(Number(latestAds.ctr_pct))+
+                '% · período '+periodDate(latestAds.start)+' a '+periodDate(latestAds.end)
+              :adsOverview.error||'Publicidade acumulada · período do relatório'}</small>
+          </button>}
         </div>
-      </>}
-      {activeTab==='summary'&&<>
+        <details className="nim-detail-history">
+          <summary>Histórico mensal de vendas <span aria-hidden="true">▾</span></summary>
+          <div className="nim-detail-history-body">
         <div className="nim-detail-section-title"><h4>Evolução de vendas</h4>
           <small>{historicalByModel?'Histórico mensal do modelo':'Histórico mensal das vendas identificadas'}</small></div>
         {error?<p className="nim-error" role="alert">{error}</p>:months===null?
@@ -311,16 +365,13 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
             <span>{labelMonth(m.period)}</span><strong>{num(m.units)} un. · {money(m.revenue)}</strong>
           </div>)}
         </div>}
-        <div className="nim-detail-summary-footer">
-          <div><strong>Variações cadastradas</strong>
-            <span>{num(item.total_variations)} variações</span></div>
-          <button type="button" onClick={()=>setActiveTab('variations')}>Ver variações →</button>
-        </div>
         {!complete&&item.total_variations>0&&
           <p className="nim-subtle">{variationEvidence.identified>0
             ?num(variationEvidence.identified)+' de '+num(item.total_variations)+' variações com unidades identificadas. Consulte a aba Variações para ver cada quantidade.'
             :'Ainda não há vendas individuais vinculadas com segurança para este período; a ausência de vínculo não significa zero vendas.'}</p>}
 
+          </div>
+        </details>
         {!(hasShopeeAds&&item.source==='SHOPEE')&&<div className="nim-detail-traffic-collapsed">
           <button type="button" aria-expanded={trafficOpen}
             aria-controls="nim-detail-traffic-metrics"
