@@ -527,5 +527,6 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-import-option-copy{flex:1;display:grid;gap:4px;min-width:0}
 .nim-import-option-copy strong{font-size:12px;font-weight:800;line-height:1.2;color:#233552}
 .nim-import-option-copy small{font-size:10px;color:#8190a4;line-height:1.4;white-space:normal}
-.nim-import-options>button>svg:last-child{flex:0 0 auto;color:#9daec3}
+.nim-import-option-arrow{flex:0 0 auto;color:#9daec3;font-size:20px;line-height:1}
+.nim-import-trigger-arrow{font-size:12px;line-height:1;margin-left:3px}
 @media(max-width:600px){.nim-import-dropdown{max-width:100%}.nim-import-options{right:0;width:min(342px,calc(100vw - 26px))}}
