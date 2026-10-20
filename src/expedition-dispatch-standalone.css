@@ -1,0 +1,18 @@
+/* Shell exclusiva do painel de expedição; não carrega o CSS volumoso do ADM. */
+html:has(.nid-expedition-standalone),body:has(.nid-expedition-standalone),#root:has(.nid-expedition-standalone){min-height:100%;margin:0;padding:0}
+body:has(.nid-expedition-standalone){background:#f3f6fb;color:#152238}
+.nid-expedition-standalone,.nid-expedition-standalone *, .nid-expedition-standalone *::before,.nid-expedition-standalone *::after{box-sizing:border-box}
+.nid-expedition-standalone{min-height:100dvh;font-family:'Plus Jakarta Sans',Inter,system-ui,-apple-system,'Segoe UI',sans-serif}
+.nid-expedition-standalone button,.nid-expedition-standalone input,.nid-expedition-standalone textarea,.nid-expedition-standalone select{font-family:inherit}
+.nid-expedition-topbar{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:15px clamp(16px,3.2vw,44px);border-bottom:1px solid #e1e7f0;background:#fff}
+.nid-expedition-brand{display:flex;align-items:center;gap:12px;min-width:0}
+.nid-expedition-brandmark{display:grid;place-items:center;flex:none;width:39px;height:39px;border-radius:11px;background:#182c4b;color:#fff;font-weight:900;font-size:20px}
+.nid-expedition-brand strong{display:block;font-size:15px;color:#1b2f4b;letter-spacing:-.025em}
+.nid-expedition-brand small{display:block;font-size:10px;color:#75839a;letter-spacing:.12em;font-weight:800}
+.nid-expedition-links{display:flex;align-items:center;gap:clamp(7px,1.6vw,22px);flex-wrap:wrap}
+.nid-expedition-links a,.nid-expedition-links button{font-size:12px;font-weight:800;color:#37536d;text-decoration:none;background:transparent;border:0;cursor:pointer;padding:9px 4px}
+.nid-expedition-links a:hover,.nid-expedition-links button:hover{text-decoration:underline}
+.nid-expedition-links form{margin:0}
+.nid-expedition-main{max-width:1600px;margin:0 auto;padding:clamp(16px,2.6vw,36px)}
+.nid-expedition-main .nid-admin{max-width:100%;min-width:0}
+@media(max-width:650px){.nid-expedition-topbar{align-items:flex-start;flex-direction:column;gap:9px}.nid-expedition-main{padding:16px 12px}.nid-expedition-links{width:100%;justify-content:space-between;gap:9px}}

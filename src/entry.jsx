@@ -30,6 +30,9 @@ function getInitialRoute() {
   if (window.location.pathname === '/monitor-notificacoes') {
     return 'dispatch';
   }
+  if (window.location.pathname === '/painel-expedicao') {
+    return 'dispatch-admin';
+  }
   if (window.location.pathname === '/admin-commerce') {
     return 'commerce';
   }
@@ -50,6 +53,7 @@ function RootApp() {
   const [PublicComponent, setPublicComponent] = useState(null);
   const [MuralComponent, setMuralComponent] = useState(null);
   const [DispatchComponent,setDispatchComponent] = useState(null);
+  const [DispatchAdminComponent,setDispatchAdminComponent] = useState(null);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -78,12 +82,14 @@ function RootApp() {
       });
     } else if (route === 'dispatch' && !DispatchComponent) {
       import('./notification-monitor.jsx').then(mod=>setDispatchComponent(()=>mod.default));
+    } else if (route === 'dispatch-admin' && !DispatchAdminComponent) {
+      import('./expedition-dispatch-standalone.jsx').then(mod=>setDispatchAdminComponent(()=>mod.default));
     } else if (route === 'public' && !PublicComponent) {
       import('./public-main.jsx').then(publicMod => {
         setPublicComponent(() => publicMod.default || publicMod.PublicIdentificationApp);
       });
     }
-  }, [route, AdminComponent, CommerceComponent, PublicComponent, MuralComponent, DispatchComponent]);
+  }, [route, AdminComponent, CommerceComponent, PublicComponent, MuralComponent, DispatchComponent, DispatchAdminComponent]);
 
   if (route === 'commerce') {
     if (!CommerceComponent) {
@@ -112,6 +118,11 @@ function RootApp() {
   if (route === 'dispatch') {
     if (!DispatchComponent) return <main style={{minHeight:'100dvh',display:'grid',placeItems:'center',background:'#0b1326',color:'#fff'}}>Carregando monitor NISTI…</main>;
     return <DispatchComponent />;
+  }
+
+  if (route === 'dispatch-admin') {
+    if (!DispatchAdminComponent) return <main style={{minHeight:'100dvh',display:'grid',placeItems:'center',fontFamily:'system-ui'}}>Carregando painel de expedição…</main>;
+    return <DispatchAdminComponent />;
   }
 
   if (route === 'mural') {
