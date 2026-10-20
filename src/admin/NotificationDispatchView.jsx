@@ -49,6 +49,8 @@ export default function NotificationDispatchView({senderMode=false}) {
   const [sending,setSending]=useState(false);
   const [pairing,setPairing]=useState(false);
   const [pendingMonitors,setPendingMonitors]=useState([]);
+  const [permanentLink,setPermanentLink]=useState('');
+  const [linkCopied,setLinkCopied]=useState(false);
   useEffect(()=>{
     let canceled=false;
     request(endpoints.options).then(result=>{
@@ -132,6 +134,25 @@ export default function NotificationDispatchView({senderMode=false}) {
       await refresh();
     }catch(e){setError(e.message+' Você pode reenviar sem duplicar a solicitação.');}
     finally{setSending(false)}
+  }
+  async function createPermanentMonitorLink(){
+    if(senderMode||pairing)return;
+    if(state?.monitor_paired&&!window.confirm('Gerar um novo link desconectará o monitor atualmente autorizado. Deseja continuar?'))return;
+    setPairing(true);setPermanentLink('');setLinkCopied(false);setError('');setSuccess('');
+    try{
+      const data=await request('/api/admin/dispatch/monitor-key',{method:'POST'});
+      const url=new URL('/monitor-notificacoes',window.location.origin);
+      url.hash='acesso='+data.key;
+      setPermanentLink(url.toString());
+      setSuccess('Link do monitor criado. Configure esse endereço como URL inicial do Edge no notebook.');
+      await refresh();
+    }catch(error){setError(error.message)}
+    finally{setPairing(false)}
+  }
+  async function copyPermanentMonitorLink(){
+    if(!permanentLink)return;
+    try{await navigator.clipboard.writeText(permanentLink);setLinkCopied(true)}
+    catch{setError('Não foi possível copiar automaticamente. Selecione e copie o link abaixo.')}
   }
   async function approvePair(id,code){
     if(senderMode||pairing)return;
@@ -360,7 +381,24 @@ export default function NotificationDispatchView({senderMode=false}) {
           <span className={'nid-live-dot '+(monitorOnline?'online':'')}/>
           <strong>{monitorOnline?'Monitor conectado':state?.monitor_paired?'Monitor offline':'Monitor não ativado'}</strong>
         </div>
-        <p className="nid-muted">Abra o monitor no notebook e aguarde aparecer o código de autorização. Confira o mesmo código abaixo antes de aprovar. Nenhuma chave precisa ser digitada no notebook.</p>
+        <p className="nid-muted">Para deixar a tela sempre liberada, gere um link privado e configure-o uma única vez como URL inicial do Modo Quiosque. O Edge reconhecerá o monitor automaticamente após cada reinício.</p>
+        <div className="nid-panel nid-monitor-persistent-link">
+          <strong>Link permanente do monitor</strong>
+          <p className="nid-muted">Este link permite apenas visualizar as notificações da expedição, nunca administrar o sistema. Mantenha-o privado. Gerar outro link revoga o anterior.</p>
+          <button type="button" className="nid-secondary" disabled={pairing} onClick={createPermanentMonitorLink}>
+            <DispatchIcon name="link" size={17}/>{pairing?'Gerando…':'Gerar link privado permanente'}
+          </button>
+          {permanentLink&&<div className="nid-key-view" role="status">
+            <label className="nid-input-label" htmlFor="nid-monitor-permanent-link">Link privado — exibido somente agora</label>
+            <input id="nid-monitor-permanent-link" type="text" value={permanentLink} readOnly spellCheck={false}
+              onFocus={event=>event.currentTarget.select()} />
+            <button type="button" className="nid-secondary" onClick={copyPermanentMonitorLink}>
+              <DispatchIcon name="copy" size={17}/>{linkCopied?'Link copiado':'Copiar link'}
+            </button>
+            <small>Substitua a URL atual do Quiosque por esta URL completa, incluindo #acesso=. Não compartilhe o endereço.</small>
+          </div>}
+        </div>
+        <p className="nid-muted">Alternativa para navegadores comuns: abra o monitor no notebook, confira o código de autorização e aprove abaixo.</p>
         <div className="nid-panel-title-row">
           <strong>Notebooks aguardando autorização</strong>
           <button type="button" className="nid-secondary" onClick={refresh}>
