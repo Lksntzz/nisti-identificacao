@@ -79,3 +79,6 @@
 .nid-platform-detail small{text-align:right}
 .nid-live-request h2{overflow-wrap:anywhere;max-width:min(95vw,1450px);white-space:normal}
 .nid-history-row strong{overflow-wrap:anywhere}
+
+.nid-platform-group.ml .nid-platform-indicator{background:#e4b000}
+.nid-platform-group.amazon .nid-platform-indicator{background:#27374d}
