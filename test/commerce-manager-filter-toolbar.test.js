@@ -20,10 +20,10 @@ test('sales and ABC controls share a compact, aligned filter panel',()=>{
 
 test('filter status, ABC curve and ABC basis keep their existing actions and selections',()=>{
   assert.match(ui,/SALES_FILTERS\.map\(\(\[code,label\]\)=>/);
-  assert.match(ui,/const SALES_FILTERS=\[\['ALL','Todos'\],\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];/);
+  assert.match(ui,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];);
   assert.doesNotMatch(ui,/PERFORMANCE_FILTERS|listingPerformanceIndicators/);
-  assert.match(ui,/onClick=\{\(\)=>code==='ZERO'\?changeNoSales\(\):change\(setStatus,code\)\}/);
-  assert.match(ui,/aria-pressed=\{code==='ZERO'\?status===noSalesStatus:status===code\}/);
+  assert.match(ui,/onClick=\{\(\)=>change\(setStatus,status===code\?'ALL':code\)\}/);
+  assert.match(ui,/aria-pressed=\{status===code\}/);
   assert.match(ui,/onClick=\{\(\)=>change\(setCurve,code\)\}/);
   assert.match(ui,/aria-pressed=\{curve===code\}/);
   assert.match(ui,/value=\{basis\} onChange=\{e=>change\(setBasis,e.target.value\)\}/);
@@ -37,7 +37,7 @@ test('analysis dates appear as understated footer rather than detached paragraph
   assert.match(evidence,/formatDate\(data\.period_start\)/);
   assert.match(evidence,/formatDate\(data\.period_end\)/);
   assert.match(ui,/nim-filter-panel-warning/);
-  assert.match(ui,/Anúncios que venderam, mas têm variações verificadas sem vendas/);
+  assert.match(ui,/SKUs conferidos/);
   assert.doesNotMatch(ui,/<p className="nim-coverage">/);
 });
 
@@ -50,7 +50,7 @@ test('visual change never modifies zero-variation semantics, listing IDs or scan
 });
 
 test('o Gestor exibe apenas Todos, Com vendas e Sem vendas, sem indicadores',()=>{
-  assert.match(ui,/const SALES_FILTERS=\[\['ALL','Todos'\],\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];/);
+  assert.match(ui,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];);
   assert.match(ui,/<th>Vendas<\/th>/);
   assert.match(ui,/<td data-label="Situação"><Situation item=\{item\} days=\{days\}\/><\/td>/);
   assert.match(ui,/listingSalesSituation\(item\)/);
@@ -61,7 +61,7 @@ test('o Gestor exibe apenas Todos, Com vendas e Sem vendas, sem indicadores',()=
 test('a tabela tem sete colunas e o filtro sem vendas preserva variações sem saída',()=>{
   assert.match(ui,/colSpan=\{7\}/);
   assert.doesNotMatch(ui,/colSpan=\{8\}/);
-  assert.match(ui,/zeroFilter=\{status==='VAR_ZERO'\}/);
+  assert.match(ui,/zeroFilter=\{false\}/);
   assert.match(ui,/variations\.filter\(v=>v\.units===0\)/);
   assert.match(sql,/b.selected_status='ZERO' and c.ready and \(c.units=0 or c.zero_variations>0\)/);
 });
