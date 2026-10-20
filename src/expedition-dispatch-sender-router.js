@@ -40,8 +40,11 @@ function cookie(value,age){
 // Nenhuma chave privada é exposta em HTML, scripts ou nas respostas.
 export async function activateDispatchSenderLink(request,env){
   const url=new URL(request.url);
-  if(request.method!=='GET'||url.pathname!=='/painel-expedicao'||!url.searchParams.has('acesso'))return null;
-  const key=url.searchParams.get('acesso')||'';
+  if(request.method!=='GET')return null;
+  const invitation=url.pathname.match(/^\/convite-expedicao\/([0-9a-f]{64})$/);
+  const queryLink=url.pathname==='/painel-expedicao'&&url.searchParams.has('acesso');
+  if(!invitation&&!queryLink)return null;
+  const key=invitation?.[1]||url.searchParams.get('acesso')||'';
   const headers=new Headers({
     'cache-control':'no-store, private',
     'referrer-policy':'no-referrer',
@@ -53,9 +56,21 @@ export async function activateDispatchSenderLink(request,env){
       'x-robots-tag':'noindex, nofollow'
     });
   }
-  headers.set('location','/painel-expedicao');
+  // Uma página de transição no próprio domínio garante que o navegador
+  // finalize a gravação do cookie SameSite=Strict antes de ir ao painel.
+  // Redirecionamentos de um clique em outros aplicativos podem preservar
+  // o contexto cross-site e ocultar cookies Strict no primeiro carregamento.
+  headers.set('content-type','text/html; charset=utf-8');
   headers.set('set-cookie',cookie(key,COOKIE_AGE));
-  return new Response(null,{status:303,headers});
+  return new Response(
+    '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'+
+    '<meta name="referrer" content="no-referrer">'+
+    '<meta http-equiv="refresh" content="0;url=/painel-expedicao">'+
+    '<title>Abrindo painel NISTI</title></head><body>'+
+    '<p>Abrindo Central de Notificações da Expedição… '+
+    '<a href="/painel-expedicao">Continuar</a></p></body></html>',
+    {status:200,headers}
+  );
 }
 
 export async function handleDispatchSenderRequest(request,env){

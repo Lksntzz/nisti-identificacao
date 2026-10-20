@@ -100,8 +100,10 @@ test('standalone sender is free of monitor/ADM links and settings',()=>{
 
 test('private URL authorizes a fresh browser with a redirect and an HttpOnly cookie',async()=>{
   const response=await query('/painel-expedicao?acesso='+token+'&utm_source=chatgpt.com');
-  assert.equal(response.status,303);
-  assert.equal(response.headers.get('location'),'/painel-expedicao');
+  assert.equal(response.status,200);
+  const transition=await response.text();
+  assert.match(transition,/http-equiv="refresh" content="0;url=\/painel-expedicao"/);
+  assert.doesNotMatch(transition,/acesso=[0-9a-f]{64}/);
   assert.equal(response.headers.get('referrer-policy'),'no-referrer');
   assert.match(response.headers.get('set-cookie')||'',/HttpOnly; Secure; SameSite=Strict/);
   const cookie=response.headers.get('set-cookie').split(';')[0];
@@ -116,4 +118,30 @@ test('incomplete sender link cannot grant access',async()=>{
   const plain=await query('/painel-expedicao?utm_source=chatgpt.com');
   assert.equal(plain.status,200);
   assert.equal(plain.headers.get('set-cookie'),null);
+});
+
+
+test('private invitation path authorizes another PC with no admin session or query',async()=>{
+  const invite=await query('/convite-expedicao/'+token+'?utm_source=chatgpt.com');
+  assert.equal(invite.status,200);
+  assert.match(invite.headers.get('set-cookie')||'',/HttpOnly; Secure; SameSite=Strict/);
+  assert.match(invite.headers.get('cache-control')||'',/no-store/);
+  const inviteHtml=await invite.text();
+  assert.match(inviteHtml,/url=\/painel-expedicao/);
+  assert.doesNotMatch(inviteHtml,new RegExp(token));
+  const cookie=invite.headers.get('set-cookie').split(';')[0];
+  const session=await query('/api/expedition-panel/session',{headers:{cookie}});
+  assert.deepEqual(await session.json(),{authorized:true});
+  const page=await query('/painel-expedicao',{headers:{cookie}});
+  assert.equal(page.status,200);
+  const admin=await query('/api/admin/dispatch',{headers:{cookie}});
+  assert.equal(admin.status,401);
+});
+
+test('private invitation rejects wrong token and mural hostname',async()=>{
+  const bad=await query('/convite-expedicao/'+'f'.repeat(64));
+  assert.equal(bad.status,403);
+  assert.equal(bad.headers.get('set-cookie'),null);
+  const mural=await edgeRouter.fetch(new Request('https://mural.sistemanistiid.online/convite-expedicao/'+token),env,{});
+  assert.equal(mural.status,404);
 });
