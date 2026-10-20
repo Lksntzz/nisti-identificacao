@@ -850,7 +850,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           <span className="nim-filter-group-label">Situação de vendas</span>
           <div className="nim-status-tabs" role="group" aria-label="Filtrar anúncios por situação de vendas">
             {SALES_FILTERS.map(([code,label])=><button type="button" key={code}
-              className={status===code?'active':''} aria-pressed={status===code}
               onClick={()=>code==='ZERO'?changeNoSales():change(setStatus,code)}
               title={code==='ZERO'?(shopeeUnlinkedView
                 ?'Sem vendas vinculadas ao SKU por anúncio nesta janela. NÃO significa zero pedidos.'
