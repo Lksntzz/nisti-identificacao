@@ -28,7 +28,7 @@ test('API original continua sem zero definitivo; v2 permite apenas zero identifi
   assert.match(month,/month_linked_units>0/);
   assert.match(month,/'ready',false/);
   assert.match(month,/'variation_data_complete',false/);
-  assert.match(ui,/hasShopeePartial&&code==='ZERO'/);
+  assert.match(ui,/disabled=\{code==='ZERO'&&days===0&&platform==='SHOPEE'\}/);
   assert.match(ui,/hasShopeePartial&&code!=='ALL'/);
   assert.match(monthlyExploration,/i.selected_status='ZERO'/);
   assert.match(monthlyExploration,/identified_empty_variations>0/);
