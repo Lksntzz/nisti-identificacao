@@ -21,7 +21,7 @@ test('image resolution is page-scoped and limited to unique exact SKU matches',(
   assert.match(sql,/l\.listing_status='ACTIVE'/);
   assert.match(sql,/p\.source='SHOPEE'/);
   assert.match(sql,/coalesce\(scanner\.image_url, master\.image_url, listing_image\.image_url\)/);
-  assert.match(sql,/'image_source'/);
+  assert.match(sql,/end image_source/);
   assert.doesNotMatch(sql,/similarity\(|levenshtein\(|to_tsvector\(|\binsert into public\.|\bupdate public\.|\bdelete from public\./i);
   assert.match(sql,/SECURITY INVOKER/);
   assert.match(sql,/grant execute on function public\.commerce_sales_evolution_v1/);
