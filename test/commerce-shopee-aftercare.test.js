@@ -50,7 +50,7 @@ test('never send buyer contact data, freeform observations or shipment tracking 
   const json=JSON.stringify(source);
   for(const sensitive of ['comprador','Rua privada','99999999999','Texto privado'])
     assert.ok(!json.includes(sensitive),sensitive);
-  assert.match(importUi,/Dados pessoais, endereços e observações livres/);
+  assert.match(fs.readFileSync('src/commerce-shopee-aftercare-reader.js','utf8'),/Dados pessoais, endereços e observações livres/);
 });
 test('isolated service-only tables and non-duplicating reports',()=>{
   assert.match(sql,/enable row level security/g);
@@ -59,7 +59,7 @@ test('isolated service-only tables and non-duplicating reports',()=>{
   assert.match(sql,/on conflict\(sha256\) do nothing/);
   assert.match(sql,/distinct on \(r\.return_id\)/);
   assert.match(sql,/having count\(distinct lp\.listing_id\)=1/);
-  assert.match(sql,/when own_items=all_items/);
+  assert.match(sql,/and own_items=all_items/);
   assert.doesNotMatch(sql,/update public\.commerce_sales|insert into public\.commerce_sales/);
   assert.match(store,/commerce_shopee_aftercare_import_v1/);
   assert.match(store,/commerce_shopee_aftercare_listing_v1/);
@@ -71,7 +71,7 @@ test('Shopee aftercare tab and compact summary show real imported information',(
   assert.match(side,/aftercareOverview\.counts\.requests/);
   assert.match(ui,/Solicitações identificadas/);
   assert.match(ui,/Valores aprovados atribuíveis/);
-  assert.match(ui,/aprovação não comprova/i);
+  assert.match(ui,/valor aprovado não comprova/i);
   assert.doesNotMatch(ui,/quantidade de pedidos cancelados confirmados/);
   assert.match(importUi,/readShopeeAftercareFile/);
 });
