@@ -29,7 +29,7 @@ test('resumo enxuto traz links e informações fundamentadas de todas as outras 
   assert.match(summary,/hasShopeeAds&&item\.source==='SHOPEE'/);
   assert.match(summary,/latestAds\?\.clicks/);
   assert.match(summary,/CTR /);
-  assert.match(summary,/Não importado/);
+  assert.match(summary,/Sem relatório vinculado/);
   assert.match(summary,/vínculo parcial/);
   assert.match(summary,/taxas não conciliadas/);
   assert.match(summary,/Subtotal dos produtos/);

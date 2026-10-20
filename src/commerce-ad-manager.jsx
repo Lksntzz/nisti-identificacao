@@ -4,6 +4,7 @@ import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
 import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
 import CommerceShopeeAdsSummary from './commerce-shopee-ads-summary.jsx';
+import CommerceShopeeAftercare from './commerce-shopee-aftercare.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import './nisti-reactbits-adaptations.css';
@@ -129,6 +130,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
   const [activeTab,setActiveTab]=useState(initialTab);
   const [trafficOpen,setTrafficOpen]=useState(false);
   const [adsOverview,setAdsOverview]=useState({loading:false,items:[],error:''});
+  const [aftercareOverview,setAftercareOverview]=useState(null);
   const [finance,setFinance]=useState(null);
   const [financeLoading,setFinanceLoading]=useState(false);
   const [financeError,setFinanceError]=useState('');
@@ -204,6 +206,16 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
       });});
     return ()=>controller.abort();
   },[activeTab,item.id,item.source,hasShopeeAds]);
+
+  useEffect(()=>{
+    if(item.source!=='SHOPEE'||activeTab!=='summary')return;
+    const ctrl=new AbortController();
+    setAftercareOverview(null);
+    readJson(API+'/'+encodeURIComponent(item.id)+'/aftercare',{signal:ctrl.signal})
+      .then(data=>{if(!ctrl.signal.aborted)setAftercareOverview(data);})
+      .catch(()=>{if(!ctrl.signal.aborted)setAftercareOverview(null);});
+    return ()=>ctrl.abort();
+  },[item.id,item.source,activeTab]);
 
   const detail=detailDays===days?item:
     periodResult?.days===detailDays?periodResult.item:null;
@@ -333,8 +345,11 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
           <button type="button" className="nim-detail-overview-item"
             onClick={()=>setActiveTab('aftercare')} aria-label="Abrir detalhes de pós-venda">
             <span>Pós-venda <b aria-hidden="true">↗</b></span>
-            <strong>Não importado</strong>
-            <small>Cancelamentos, devoluções e reembolsos sem relatório</small>
+            <strong>{item.source==='SHOPEE'&&Number(aftercareOverview?.counts?.requests)>0
+              ?num(aftercareOverview.counts.requests)+' solicitações':'Sem relatório vinculado'}</strong>
+            <small>{item.source==='SHOPEE'&&Number(aftercareOverview?.counts?.requests)>0
+              ?num(aftercareOverview.counts.approved)+' aprovadas · '+num(aftercareOverview.counts.withdrawn)+' retiradas pelo comprador'
+              :'Cancelamentos de pedidos e estornos pagos não confirmados'}</small>
           </button>
           {hasShopeeAds&&item.source==='SHOPEE'&&<button type="button"
             className="nim-detail-overview-item" onClick={()=>setActiveTab('shopee_ads')}
@@ -460,6 +475,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
             'Os nomes das variações estarão disponíveis aqui quando o vínculo entre SKU e anúncio for confirmado.'}</p>}
       </>}
       {activeTab==='aftercare'&&<>
+        {item.source==='SHOPEE'?<CommerceShopeeAftercare listingId={item.id}/>:<>
         <div className="nim-detail-section-title"><h4>Pós-venda e logística</h4><small>{periodLabel(detailDays,month)}</small></div>
         <div className="nim-detail-data-list">
           <DetailRow label="Cancelamentos confirmados" value="Não importado"
@@ -476,6 +492,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
         <p className="nim-detail-hint">Cobertura de pós-venda indisponível nesta importação.
           Não exibimos zero para cancelamentos ou devoluções sem relatório dos eventos reais,
           nem inferimos reembolsos a partir de status genéricos.</p>
+        </>}
       </>}
     </section>
     <footer className="nim-detail-buttons">

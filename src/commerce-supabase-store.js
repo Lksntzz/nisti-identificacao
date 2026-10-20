@@ -235,6 +235,26 @@ export async function commerceImportShopeeAdsReport(env,input={}) {
     p_report:report,p_rows:rows
   },{timeoutMs:20000});
 }
+// Return/refund events are separate records; never mutate sales totals.
+export async function commerceImportShopeeAftercare(env,input={}) {
+  const report=input?.report,requests=input?.requests;
+  if(!report||!Array.isArray(requests)||requests.length<1||requests.length>3000
+    ||!/^[a-f0-9]{64}$/.test(String(report.sha256||''))
+    ||!validReportDate(report.start)||!validReportDate(report.end))
+    throw new Error('Planilha de pós-venda inválida.');
+  return await supabaseRpc(env,'commerce_shopee_aftercare_import_v1',{
+    p_report:report,p_requests:requests
+  },{timeoutMs:30000});
+}
+export async function commerceShopeeAftercareListing(env,listingId) {
+  const id=cleanId(listingId);
+  if(!id)throw new Error('Anúncio inválido.');
+  const data=await supabaseRpc(env,'commerce_shopee_aftercare_listing_v1',{
+    p_listing_id:id
+  },{timeoutMs:10000});
+  return data && typeof data==='object'&&!Array.isArray(data)?data:{counts:null,items:[]};
+}
+
 export async function commerceShopeeAdsCoverage(env,ids=[]) {
   if(!Array.isArray(ids)||ids.length<1||ids.length>50||
     ids.some(id=>!Number.isSafeInteger(Number(id))||Number(id)<1)) {
