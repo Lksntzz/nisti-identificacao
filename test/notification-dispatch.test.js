@@ -5,7 +5,7 @@ import {handleNotificationDispatchRequest,DISPATCH_DURATION_SECONDS,DISPATCH_PLA
 
 test('the dispatch board uses 15 seconds and canonical platforms',()=>{
   assert.equal(DISPATCH_DURATION_SECONDS,15);
-  assert.deepEqual(DISPATCH_PLATFORMS,['SHOPEE','MERCADO LIVRE','AMAZON']);
+  assert.deepEqual(DISPATCH_PLATFORMS,['SHOPEE','MERCADO LIVRE ANTIGO','MERCADO LIVRE NOVO','MERCADO LIVRE','AMAZON','SHEIN','TIK TOK','MAGALU','KWAI','LOJA INTEGRADA']);
   const migration=fs.readFileSync(new URL('../supabase/migrations/20261021200000_nisti_dispatch_board_v1.sql',import.meta.url),'utf8');
   assert.match(migration,/interval '10 seconds'/);
   const v2=fs.readFileSync(new URL('../supabase/migrations/20261021210000_nisti_dispatch_15s_multi_messages_v2.sql',import.meta.url),'utf8');
@@ -34,7 +34,7 @@ test('a monitor cannot advance the queue without a paired cookie',async()=>{
 test('admin cannot enqueue unsupported actions or platforms',async()=>{
   const r=await handleNotificationDispatchRequest(new Request('https://example.com/api/admin/dispatch',{
     method:'POST',headers:{'content-type':'application/json'},
-    body:JSON.stringify({platform:'SHOPEE',action:'APAGAR_DADOS',request_key:crypto.randomUUID()})
+    body:JSON.stringify({platform:'SHOPEE',action:'ACAO_INVALIDA',request_key:crypto.randomUUID()})
   }),{});
   assert.equal(r.status,400);
 });
@@ -67,6 +67,6 @@ test('monitor shows message and uses duration-derived progress bar',()=>{
 test('multi-platform admin has independent message controls',()=>{
   const frontend=fs.readFileSync(new URL('../src/admin/NotificationDispatchView.jsx',import.meta.url),'utf8');
   assert.match(frontend,/type="checkbox"/);
-  assert.match(frontend,/nid-platform-detail/);
+  assert.match(frontend,/nid-selected-modes/);
   assert.match(frontend,/api\/admin\/dispatch\/batch/);
 });

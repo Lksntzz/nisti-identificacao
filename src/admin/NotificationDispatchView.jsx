@@ -1,7 +1,8 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import '../notification-dispatch.css';
 
-const PLATFORMS=['SHOPEE','MERCADO LIVRE','AMAZON'];
+import { DISPATCH_PLATFORMS,optionsForPlatform,validDispatchOption,platformColor } from '../notification-dispatch-options.js';
+const PLATFORMS=DISPATCH_PLATFORMS;
 const NAMES={'PENDING':'Na fila','SHOWING':'Em exibição','EXPIRED':'Exibida'};
 async function request(path,options={}) {
   const response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options});
@@ -10,8 +11,8 @@ async function request(path,options={}) {
   return data;
 }
 export default function NotificationDispatchView() {
-  const [selected,setSelected]=useState({'SHOPEE':true,'MERCADO LIVRE':false,'AMAZON':false});
-  const [messages,setMessages]=useState({'SHOPEE':'RETIRAR CAPA','MERCADO LIVRE':'RETIRAR CAPA','AMAZON':'RETIRAR CAPA'});
+  const [selected,setSelected]=useState({});
+  const [messages,setMessages]=useState({});
   const pendingBatch=useRef(null);
   const selectedPlatforms=PLATFORMS.filter(name=>selected[name]);
   function togglePlatform(name){
@@ -50,11 +51,8 @@ export default function NotificationDispatchView() {
     setSuccess('');setError('');
     const platforms=PLATFORMS.filter(name=>selected[name]);
     if(!platforms.length){setError('Selecione pelo menos uma plataforma.');return;}
-    if(platforms.some(name=>!(messages[name]||'').trim())){
-      setError('Escreva uma informação para cada plataforma selecionada.');return;
-    }
-    if(platforms.some(name=>messages[name].trim().length>120)){
-      setError('Cada mensagem pode ter no máximo 120 caracteres.');return;
+    if(platforms.some(name=>!validDispatchOption(name,messages[name]))){
+      setError('Selecione uma opção para cada plataforma marcada.');return;
     }
     setSending(true);
     try{
@@ -105,36 +103,44 @@ export default function NotificationDispatchView() {
     <div className="nid-admin-grid">
       <form className="nid-panel" onSubmit={send}>
         <span className="nid-section-eyebrow">NOVA CHAMADA</span>
-        <h3>Selecione uma ou mais plataformas</h3>
-        <p className="nid-muted">Marque as plataformas e escreva a informação de cada uma. O monitor exibirá uma de cada vez.</p>
-        <div className="nid-platform-list">
-          {PLATFORMS.map(name=><div key={name}
-            className={'nid-platform-group '+(selected[name]?'active ':'')+
-              (name==='SHOPEE'?'shopee':name==='AMAZON'?'amazon':'ml')}>
-            <label className="nid-platform-option">
-              <input type="checkbox" checked={!!selected[name]} onChange={()=>togglePlatform(name)}/>
-              <span className="nid-platform-indicator" aria-hidden="true"/>
-              <strong>{name}</strong>
-              <span className="nid-check">{selected[name]?'✓':''}</span>
-            </label>
-            {selected[name]&&<div className="nid-platform-detail">
-              <label htmlFor={'nid-message-'+name}>Informação para {name}</label>
-              <textarea id={'nid-message-'+name} maxLength={120} rows={2}
-                value={messages[name]} onChange={event=>changeMessage(name,event.target.value)}
-                placeholder="Ex.: Retirar capa, material pronto, buscar pacote…"/>
-              <small>{messages[name].length}/120 caracteres</small>
-            </div>}
-          </div>)}
+        <h3>1. Selecione as plataformas</h3>
+        <p className="nid-muted">Marque as plataformas e escolha uma modalidade para cada uma. O monitor exibirá uma por vez, durante 15 segundos.</p>
+        <div className="nid-platform-picker" role="group" aria-label="Selecionar plataformas">
+          {PLATFORMS.map(name=><label key={name}
+            className={'nid-platform-chip '+(selected[name]?'selected ':'')+platformColor(name)}>
+            <input type="checkbox" checked={!!selected[name]} onChange={()=>togglePlatform(name)}/>
+            <span className="nid-platform-indicator" aria-hidden="true"/>
+            <span>{name.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())}</span>
+            <span className="nid-chip-tick" aria-hidden="true">{selected[name]?'✓':'+'}</span>
+          </label>)}
+        </div>
+        <div className="nid-selected-modes">
+          <div className="nid-selected-heading">
+            <strong>2. Escolha a informação para cada plataforma</strong>
+            <small>{selectedPlatforms.length} selecionada(s)</small>
+          </div>
+          {selectedPlatforms.length===0
+            ? <div className="nid-modes-empty">Selecione uma plataforma acima para visualizar as modalidades disponíveis.</div>
+            :selectedPlatforms.map(platform=><div key={platform} className="nid-mode-item">
+              <label htmlFor={'nid-mode-'+platform}>{platform.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())}</label>
+              <select id={'nid-mode-'+platform} value={messages[platform]||''}
+                onChange={event=>changeMessage(platform,event.target.value)} required>
+                <option value="">Selecionar modalidade</option>
+                {optionsForPlatform(platform).map(group=><optgroup key={group.label} label={group.label}>
+                  {group.options.map(option=><option key={option} value={option}>{option}</option>)}
+                </optgroup>)}
+              </select>
+            </div>)}
         </div>
         <div className="nid-request-summary">
           <span>Resumo do envio</span><strong>{selectedPlatforms.length} plataforma(s) • 15s cada</strong>
         </div>
         <button type="submit" className="nid-send" disabled={sending||selectedPlatforms.length===0||
-          selectedPlatforms.some(name=>!(messages[name]||'').trim())}>
+          selectedPlatforms.some(name=>!validDispatchOption(name,messages[name]))}>
           {sending?'Enviando…':selectedPlatforms.length>1?'Enviar '+selectedPlatforms.length+' notificações':'Enviar notificação'}
           <span aria-hidden="true">→</span>
         </button>
-        <small>As mensagens entram na fila juntas, mas aparecem individualmente, sem confirmação manual.</small>
+        <small>Cada plataforma entra separadamente na fila, com som e 15 segundos de exibição.</small>
       </form>
       <div className="nid-panel nid-operations">
         <span className="nid-section-eyebrow">MONITOR DA EXPEDIÇÃO</span>
@@ -165,7 +171,7 @@ export default function NotificationDispatchView() {
       <div><span className="nid-section-eyebrow">ÚLTIMOS ENVIOS</span><h3>Histórico de chamadas</h3></div>
       {state?.recent?.length?<div className="nid-history-list">
         {state.recent.map(item=><div key={item.id} className="nid-history-row">
-          <span className={'nid-history-tag '+(item.platform==='SHOPEE'?'shopee':item.platform==='AMAZON'?'amazon':'ml')}>{item.platform}</span>
+          <span className={'nid-history-tag '+platformColor(item.platform)}>{item.platform}</span>
           <strong>{item.message||'RETIRAR CAPA'}</strong>
           <span className="nid-muted">{new Date(item.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
           <span className="nid-status">{NAMES[item.status]||item.status}</span>

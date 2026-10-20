@@ -1,8 +1,14 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import './notification-dispatch.css';
+import { DISPATCH_PLATFORMS,platformColor } from './notification-dispatch-options.js';
 
-const LABELS={'SHOPEE':'Shopee','MERCADO LIVRE':'Mercado Livre','AMAZON':'Amazon'};
-const TONES={'SHOPEE':[790,980],'MERCADO LIVRE':[630,790],'AMAZON':[520,710]};
+const LABELS=Object.fromEntries(DISPATCH_PLATFORMS.map(name=>[name,name.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())]));
+const TONES={
+  'SHOPEE':[790,980], 'MERCADO LIVRE ANTIGO':[630,760],
+  'MERCADO LIVRE NOVO':[700,820], 'MERCADO LIVRE':[630,790],
+  'AMAZON':[520,710], 'SHEIN':[660,880], 'TIK TOK':[610,920],
+  'MAGALU':[725,910], 'KWAI':[570,845], 'LOJA INTEGRADA':[650,950]
+};
 async function post(url,body){
   const response=await fetch(url,{
     method:'POST',credentials:'same-origin',cache:'no-store',
@@ -109,7 +115,7 @@ export default function NotificationMonitor(){
   useEffect(()=>()=>{audioRef.current?.close().catch(()=>{})},[]);
   const seconds=call?remainingSeconds(call.expires_at,offset,now):0;
   const current=seconds>0?call:null;
-  const color=current?.platform==='SHOPEE'?'shopee':current?.platform==='AMAZON'?'amazon':'ml';
+  const color=platformColor(current?.platform);
 
   if(paired===false)return <main className="nid-monitor nid-setup">
     <div className="nid-pairing-card">
@@ -139,7 +145,7 @@ export default function NotificationMonitor(){
     </header>
     {current?<section className={'nid-live-request '+color} aria-live="polite">
       <div className="nid-call-kicker">SOLICITAÇÃO DA ADMINISTRAÇÃO</div>
-      <h1>{LABELS[current.platform]||current.platform}</h1>
+      <h1 style={{fontSize:current.platform.length>18?'clamp(38px,6vw,96px)':undefined}}>{LABELS[current.platform]||current.platform}</h1>
       <h2 style={{fontSize:(current.message||'RETIRAR CAPA').length>90?'clamp(28px,3.2vw,58px)':(current.message||'RETIRAR CAPA').length>55?'clamp(32px,4.3vw,76px)':undefined}}>{current.message||'RETIRAR CAPA'}</h2>
       <div className="nid-display-progress">
         <div className="nid-progress-rail"><span style={{width:(Math.min(100,Math.max(0,seconds/duration*100)))+'%'}}/></div>

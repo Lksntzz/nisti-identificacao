@@ -82,3 +82,29 @@
 
 .nid-platform-group.ml .nid-platform-indicator{background:#e4b000}
 .nid-platform-group.amazon .nid-platform-indicator{background:#27374d}
+
+
+/* NISTI Notificações v3 — seleção de plataformas e opções por etapa. */
+.nid-platform-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.nid-platform-chip{display:flex;align-items:center;gap:9px;min-width:0;border:1px solid #e3e8f1;border-radius:12px;padding:12px 10px;background:#f8fafc;color:#263954;font-size:12px;font-weight:800;cursor:pointer;transition:border-color .12s,background .12s}
+.nid-platform-chip>span:nth-of-type(2){min-width:0;flex:1;line-height:1.3}
+.nid-platform-chip.selected{background:#eef5fc;border-color:#7399c7;box-shadow:0 0 0 2px #c8dbf060}
+.nid-platform-chip input[type=checkbox]{width:17px;height:17px;flex:0 0 17px;accent-color:#275581;cursor:pointer}
+.nid-platform-chip .nid-platform-indicator{flex:0 0 8px;width:8px;height:8px}
+.nid-platform-chip.ml .nid-platform-indicator{background:#e5b90c}
+.nid-platform-chip.amazon .nid-platform-indicator{background:#33485e}
+.nid-platform-chip.other .nid-platform-indicator{background:#8d6fc3}
+.nid-chip-tick{margin-left:auto;font-size:15px;color:#5379a9}
+.nid-selected-modes{display:grid;gap:10px;border-top:1px solid #edf1f5;padding-top:16px}
+.nid-selected-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
+.nid-selected-heading small{white-space:nowrap}
+.nid-modes-empty{border:1px dashed #cbd5e1;border-radius:12px;padding:20px;color:#8190a5;font-size:13px;line-height:1.5;text-align:center}
+.nid-mode-item{display:grid;grid-template-columns:minmax(110px,1fr) minmax(0,1.8fr);gap:12px;align-items:center;border:1px solid #e4eaf2;border-radius:10px;padding:11px 12px;background:#fbfcff}
+.nid-mode-item label{font-size:12px;font-weight:800;color:#263b55;line-height:1.35}
+.nid-mode-item select{width:100%;min-width:0;min-height:42px;border:1px solid #ced8e6;border-radius:9px;background:#fff;padding:8px 10px;font-size:13px;color:#24364c;font-family:inherit}
+.nid-mode-item select:focus{outline:2px solid #77a7cf;outline-offset:1px}
+.nid-history-tag.other{background:#f0eafa;color:#73539b}
+.nid-monitor-other{background:radial-gradient(circle at 50% 42%,#405b80,#101a2b 95%)}
+.nid-monitor h1{overflow-wrap:anywhere}
+@media(max-width:950px){.nid-platform-picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.nid-platform-picker{grid-template-columns:1fr}.nid-mode-item{grid-template-columns:1fr;gap:8px}}
