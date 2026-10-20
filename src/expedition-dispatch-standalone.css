@@ -186,6 +186,7 @@ body:has(.nid-expedition-standalone){background:#f3f6fb;color:#152238}
   }
   .nid-expedition-standalone .nid-side-column {
     display:grid;
+    grid-template-columns:minmax(0,1fr);
     grid-template-rows:minmax(0,1fr) auto;
     min-height:0;
     gap:10px;
