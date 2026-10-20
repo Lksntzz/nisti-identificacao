@@ -704,6 +704,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </div>
     </header>
     {selectedImportMode&&<CommerceImportModal mode={selectedImportMode}
+      returnFocusRef={importTriggerRef}
       onClose={()=>setSelectedImportMode(null)}
       onChooseAnother={()=>{setSelectedImportMode(null);setImportMenuOpen(true);}}
       onSalesChanged={()=>setRefresh(v=>v+1)}
