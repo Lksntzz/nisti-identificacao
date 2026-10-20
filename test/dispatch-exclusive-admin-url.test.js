@@ -1,81 +1,98 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import edgeRouter from '../src/edge-router.js';
 
 const origin='https://nisti-identificacao.lksntz1411.workers.dev';
+const token='b'.repeat(64);
 const env={
-  ADMIN_PASSWORD:'test-secret-for-administrators',
   APP_ENV:'test',
-  ASSETS:{fetch:async()=>new Response('<!doctype html><title>NISTI</title><div id="root"></div>',{
-    headers:{'content-type':'text/html; charset=utf-8'}
-  })}
+  ADMIN_PASSWORD:'test-admin-password',
+  DISPATCH_SENDER_TOKEN_SHA256:createHash('sha256').update(token).digest('hex'),
+  ASSETS:{fetch:async()=>new Response('<!doctype html><main id="root"></main>',{headers:{'content-type':'text/html'}})}
 };
-async function fetchApp(path,options={}){
-  return edgeRouter.fetch(new Request(origin+path,options),env,{});
-}
+function query(path,init={}){return edgeRouter.fetch(new Request(origin+path,init),env,{})}
 
-test('separate expedition panel is server-protected, not accessible with an operator PIN',async()=>{
-  const res=await fetchApp('/painel-expedicao');
-  assert.equal(res.status,302);
-  assert.equal(new URL(res.headers.get('location')).pathname,'/admin-login');
-  assert.equal(new URL(res.headers.get('location')).searchParams.get('return_to'),'/painel-expedicao');
-  assert.match(res.headers.get('x-frame-options')||'',/DENY/);
-  assert.equal(res.headers.get('set-cookie'),null);
+test('passwordless dispatch shell has no admin redirect and no privileged data',async()=>{
+  const resp=await query('/painel-expedicao');
+  assert.equal(resp.status,200);
+  assert.match(resp.headers.get('cache-control'),/no-store/);
+  assert.equal(resp.headers.get('x-robots-tag'),'noindex, nofollow');
+  assert.match(await resp.text(),/id="root"/);
+  const anonymous=await query('/api/expedition-panel');
+  assert.equal(anonymous.status,401);
+  const denied=await query('/api/expedition-panel/options');
+  assert.equal(denied.status,401);
 });
 
-test('administrative login returns to the protected expedition panel without revealing the rest of ADM',async()=>{
-  const page=await fetchApp('/admin-login?return_to=%2Fpainel-expedicao');
-  assert.equal(page.status,200);
-  const markup=await page.text();
-  assert.match(markup,/name="return_to" value="\/painel-expedicao"/);
-  const csrf=markup.match(/name="csrf_token" value="([^"]+)"/)?.[1];
-  const csrfCookie=page.headers.get('set-cookie')?.split(';')[0];
-  assert.ok(csrf&&csrfCookie);
-  const form=new FormData();
-  form.set('csrf_token',csrf);
-  form.set('password',env.ADMIN_PASSWORD);
-  form.set('return_to','/painel-expedicao');
-  const loggedIn=await fetchApp('/admin-login',{
-    method:'POST',
-    body:form,
-    headers:{cookie:csrfCookie,origin}
+test('private sender token grants persistent HttpOnly dispatch-only session',async()=>{
+  const activate=await query('/api/expedition-panel/activate',{
+    method:'POST',headers:{origin,'content-type':'application/json'},
+    body:JSON.stringify({token})
   });
-  assert.equal(loggedIn.status,302);
-  assert.equal(loggedIn.headers.get('location'),'/painel-expedicao');
-  const cookie=loggedIn.headers.get('set-cookie')?.split(';')[0];
-  assert.match(cookie||'',/^nisti_admin_session=/);
-  const panel=await fetchApp('/painel-expedicao',{headers:{cookie}});
-  assert.equal(panel.status,200);
-  assert.match(await panel.text(),/id="root"/);
-  assert.match(panel.headers.get('cache-control')||'',/no-store/);
-  assert.match(panel.headers.get('content-security-policy')||'',/frame-ancestors 'none'/);
-});
+  assert.equal(activate.status,200);
+  const cookie=activate.headers.get('set-cookie')||'';
+  assert.match(cookie,/__Host-nisti_dispatch_sender=/);
+  assert.match(cookie,/HttpOnly; Secure; SameSite=Strict/);
+  assert.match(cookie,/Max-Age=2592000/);
+  const session=await query('/api/expedition-panel/session',{headers:{cookie:cookie.split(';')[0]}});
+  assert.deepEqual(await session.json(),{authorized:true});
 
-test('login return targets are allowlisted to prevent open redirects',async()=>{
-  for(const untrusted of ['https://evil.example','//evil.example','/api/admin/products','/monitor-notificacoes']){
-    const login=await fetchApp('/admin-login?return_to='+encodeURIComponent(untrusted));
-    assert.equal(login.status,200);
-    const html=await login.text();
-    assert.match(html,/name="return_to" value="\/admin"/);
-    assert.doesNotMatch(html,/name="return_to" value="\/api\/admin/);
+  for(const [path,method] of [
+    ['/api/expedition-panel/monitor-key','POST'],
+    ['/api/expedition-panel/options','POST'],
+    ['/api/expedition-panel/bad-action','POST']
+  ]){
+    const response=await query(path,{
+      method,headers:{cookie:cookie.split(';')[0],origin},
+      body:'{}'
+    });
+    assert.equal(response.status,403,path);
   }
+  const admin=await query('/api/admin/dispatch');
+  assert.equal(admin.status,401,'senha administrativa continua protegida');
+  const logout=await query('/api/expedition-panel/logout',{
+    method:'POST',headers:{origin,cookie:cookie.split(';')[0]}
+  });
+  assert.equal(logout.status,200);
+  assert.match(logout.headers.get('set-cookie')||'',/Max-Age=0/);
 });
 
-test('expedition panel cannot load from mural-only hostname',async()=>{
+test('invalid and revoked links do not activate or reuse access',async()=>{
+  for(const input of [null,'12345','f'.repeat(64)]){
+    const r=await query('/api/expedition-panel/activate',{
+      method:'POST',headers:{origin,'content-type':'application/json'},
+      body:JSON.stringify({token:input})
+    });
+    assert.equal(r.status,401);
+    assert.equal(r.headers.get('set-cookie'),null);
+  }
+  const revoked=await edgeRouter.fetch(
+    new Request(origin+'/api/expedition-panel/session',{headers:{cookie:'__Host-nisti_dispatch_sender='+token}}),
+    {...env,DISPATCH_SENDER_TOKEN_SHA256:'c'.repeat(64)},{}
+  );
+  assert.deepEqual(await revoked.json(),{authorized:false});
+});
+
+test('authorization stays scoped to the sender URL and never runs on mural host',async()=>{
   const r=await edgeRouter.fetch(new Request('https://mural.sistemanistiid.online/painel-expedicao'),env,{});
   assert.equal(r.status,404);
+  const a=await query('/api/expedition-panel/batch',{method:'POST',headers:{origin},body:'{}'});
+  assert.equal(a.status,401);
+  const denied=await query('/api/expedition-panel/activate',{method:'POST',headers:{origin:'https://evil.example','content-type':'application/json'},body:JSON.stringify({token})});
+  assert.equal(denied.status,403);
 });
 
-test('standalone route lazy-loads only the dispatch admin module',()=>{
-  const entry=fs.readFileSync(new URL('../src/entry.jsx',import.meta.url),'utf8');
-  const standalone=fs.readFileSync(new URL('../src/expedition-dispatch-standalone.jsx',import.meta.url),'utf8');
-  const wrapper=fs.readFileSync(new URL('../src/expedition-dispatch-standalone.css',import.meta.url),'utf8');
-  assert.match(entry,/window\.location\.pathname === '\/painel-expedicao'/);
-  assert.match(entry,/import\('\.\/expedition-dispatch-standalone\.jsx'\)/);
-  assert.match(standalone,/NotificationDispatchView/);
-  assert.match(standalone,/\/monitor-notificacoes/);
-  assert.match(standalone,/\/admin-logout/);
-  assert.doesNotMatch(standalone,/\.\/main\.jsx|\.\/public-main\.jsx/);
-  assert.match(wrapper,/\.nid-expedition-main/);
+test('standalone sender is free of monitor/ADM links and settings',()=>{
+  const ui=fs.readFileSync(new URL('../src/expedition-dispatch-standalone.jsx',import.meta.url),'utf8');
+  const view=fs.readFileSync(new URL('../src/admin/NotificationDispatchView.jsx',import.meta.url),'utf8');
+  assert.match(ui,/NotificationDispatchView senderMode/);
+  assert.match(ui,/window\.location\.hash/);
+  assert.match(ui,/history\.replaceState/);
+  assert.doesNotMatch(ui,/href="\/admin"|href="\/monitor-notificacoes"/);
+  assert.match(view,/\.\.\.\(!senderMode\?/);
+  assert.match(view,/!senderMode&&tab==='settings'/);
+  assert.match(view,/\/api\/expedition-panel\/batch/);
+  assert.match(view,/\/api\/admin\/dispatch\/batch/);
 });

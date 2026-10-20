@@ -15,7 +15,12 @@ async function request(path,options={}) {
   if(!response.ok)throw Error(data.error||'Falha de comunicação com o servidor');
   return data;
 }
-export default function NotificationDispatchView() {
+const API_ENDPOINTS={
+  admin:{status:'/api/admin/dispatch',options:'/api/admin/dispatch/options',batch:'/api/admin/dispatch/batch',monitorKey:'/api/admin/dispatch/monitor-key'},
+  sender:{status:'/api/expedition-panel',options:'/api/expedition-panel/options',batch:'/api/expedition-panel/batch'}
+};
+export default function NotificationDispatchView({senderMode=false}) {
+  const endpoints=senderMode?API_ENDPOINTS.sender:API_ENDPOINTS.admin;
   const [selected,setSelected]=useState({});
   const [messages,setMessages]=useState({});
   const [config,setConfig]=useState(null);
@@ -47,7 +52,7 @@ export default function NotificationDispatchView() {
   const [copyMessage,setCopyMessage]=useState('');
   useEffect(()=>{
     let canceled=false;
-    request('/api/admin/dispatch/options').then(result=>{
+    request(endpoints.options).then(result=>{
       if(!canceled)setConfig(result.options||{});
     }).catch(error=>{if(!canceled)setError(error.message)});
     return ()=>{canceled=true};
@@ -69,7 +74,7 @@ export default function NotificationDispatchView() {
     setNewOption('');setError('');
   }
   async function saveOptions(){
-    if(savingOptions)return;
+    if(senderMode||savingOptions)return;
     setSavingOptions(true);setError('');setSuccess('');
     try{
       const data=await request('/api/admin/dispatch/options',{
@@ -89,7 +94,7 @@ export default function NotificationDispatchView() {
 
   const refresh=useCallback(async()=>{
     try {
-      const response=await request('/api/admin/dispatch');
+      const response=await request(endpoints.status);
       setState(response);setError('');
     }catch(e){setError(e.message)}
   },[]);
@@ -113,7 +118,7 @@ export default function NotificationDispatchView() {
       if(!pendingBatch.current)pendingBatch.current=platforms.map(name=>({
         platform:name,option:selectedOption(name),request_key:crypto.randomUUID()
       }));
-      const data=await request('/api/admin/dispatch/batch',{
+      const data=await request(endpoints.batch,{
         method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({calls:pendingBatch.current})
       });
@@ -125,13 +130,13 @@ export default function NotificationDispatchView() {
     finally{setSending(false)}
   }
   async function pair(){
-    if(pairing)return;
+    if(senderMode||pairing)return;
     if(state?.monitor_paired&&!window.confirm(
       'Gerar uma nova chave desconectará o monitor anterior até que a nova chave seja digitada. Continuar?'
     ))return;
     setPairing(true);setMonitorKey('');setCopyMessage('');setError('');
     try {
-      const result=await request('/api/admin/dispatch/monitor-key',{method:'POST'});
+      const result=await request(endpoints.monitorKey,{method:'POST'});
       setMonitorKey(result.key);await refresh();
     }catch(e){setError(e.message)}
     finally{setPairing(false)}
@@ -214,9 +219,9 @@ export default function NotificationDispatchView() {
         <span className={'nid-monitor-health '+(monitorOnline?'online':'offline')}>
           <span className="nid-live-dot"/>{monitorOnline?'Monitor conectado':'Monitor desconectado'}
         </span>
-        <a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">
+        {!senderMode&&<a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">
           <DispatchIcon name="monitor" size={17}/> Abrir monitor <DispatchIcon name="external-link" size={15}/>
-        </a>
+        </a>}
       </div>
     </header>
     {error&&<div className="nid-message nid-error" role="alert">{error}</div>}
@@ -236,7 +241,7 @@ export default function NotificationDispatchView() {
       {[
         {id:'send',label:'Enviar notificações',icon:'send'},
         {id:'history',label:'Fila e histórico',icon:'list-check'},
-        {id:'settings',label:'Personalizar informações',icon:'settings-2'}
+        ...(!senderMode?[{id:'settings',label:'Personalizar informações',icon:'settings-2'}]:[])
       ].map(entry=><button key={entry.id} type="button" aria-current={tab===entry.id?'page':undefined}
         className={'nid-tab '+(tab===entry.id?'active':'')} onClick={()=>setTab(entry.id)}>
         <DispatchIcon name={entry.icon} size={17}/>{entry.label}
@@ -343,7 +348,7 @@ export default function NotificationDispatchView() {
         </div>):<p className="nid-muted">Nenhuma chamada registrada ainda.</p>}
       </div>
     </div>}
-    {tab==='settings'&&<div className="nid-settings-grid">
+    {!senderMode&&tab==='settings'&&<div className="nid-settings-grid">
       {editor}
       <div className="nid-panel nid-monitor-setup-panel">
         <span className="nid-section-eyebrow">MONITOR DA EXPEDIÇÃO</span>

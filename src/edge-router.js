@@ -9,6 +9,7 @@ import { handleCommerceProductStateRequest } from './commerce-product-state-rout
 import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
 import { handleMuralRequest } from './mural-router.js';
 import { handleNotificationDispatchRequest } from './notification-dispatch-router.js';
+import { handleDispatchSenderRequest } from './expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
@@ -561,7 +562,15 @@ export default {
       return withSecurityHeaders(Response.redirect(new URL(ADMIN_APP_PATH, url), 302));
     }
 
-    if ((pathname === ADMIN_APP_PATH || pathname === COMMERCE_ADMIN_APP_PATH || pathname === EXPEDITION_DISPATCH_ADMIN_PATH) && request.method === 'GET') {
+    if (pathname === EXPEDITION_DISPATCH_ADMIN_PATH && request.method === 'GET') {
+      // Shell público sem dados; todas as operações exigem cookie do link privado.
+      const response=await env.ASSETS.fetch(new Request(new URL('/',url),{headers:request.headers}));
+      const headers=new Headers(response.headers);
+      headers.set('cache-control','no-store, private');
+      headers.set('x-robots-tag','noindex, nofollow');
+      return withSecurityHeaders(new Response(response.body,{status:response.status,statusText:response.statusText,headers}));
+    }
+    if ((pathname === ADMIN_APP_PATH || pathname === COMMERCE_ADMIN_APP_PATH) && request.method === 'GET') {
       return serveProtectedAdminApp(request, env, url);
     }
 
@@ -577,6 +586,11 @@ export default {
 
     const rateLimitResponse = await enforceRateLimit(env, request, pathname);
     if (rateLimitResponse) return rateLimitResponse;
+
+    // A permissão de expedição NÃO herda a sessão do admin nem o PIN de operador.
+    // É verificada no servidor e autoriza só leitura de fila, opções e envio.
+    const senderResponse=await handleDispatchSenderRequest(request,env);
+    if(senderResponse)return withSecurityHeaders(senderResponse);
 
     if (pathname === '/admin-login' && request.method === 'GET') {
       if (await validSession(request, env)) return withSecurityHeaders(Response.redirect(new URL(adminLoginTarget(url.searchParams.get('return_to')), url), 302));
