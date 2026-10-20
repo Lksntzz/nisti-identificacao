@@ -160,6 +160,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
           {sharedSku&&<div className="nim-evolution-shared-sku" role="note">
             <strong>{item.shared_product?'Mesmo produto em '+num(listingIds.length)+' anúncios':
               'SKU compartilhado por '+num(listingIds.length)+' anúncios'}</strong>
+            <span>IDs dos anúncios: {listingIds.join(' · ')}</span>
             <span>Quantidade de vendas do SKU: <b>{num(item.current_units)} unidade(s) identificada(s)</b> neste período.</span>
             <small>Os IDs estão agrupados, e cada unidade vendida é contada uma única vez.
               O relatório de pedidos não permite dividir essas vendas por anúncio.
