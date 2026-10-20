@@ -19,17 +19,20 @@ test('the dispatch board uses 15 seconds and canonical platforms',()=>{
   assert.match(migration,/REVOKE ALL ON FUNCTION public\.nisti_dispatch_next_v1/);
 });
 
-test('reject invalid anonymous activation without contacting Supabase',async()=>{
-  const res=await handleNotificationDispatchRequest(
-    new Request('https://example.com/api/dispatch/activate',{method:'POST',body:JSON.stringify({key:'1234'})}),{}
-  );
-  assert.equal(res.status,401);
+test('obsolete monitor activation and queue endpoints no longer authorize anyone',async()=>{
+  for(const path of ['/api/dispatch/activate','/api/dispatch/next','/api/dispatch/pair/status',
+    '/api/admin/dispatch/monitor-key','/api/admin/dispatch/pair/approve']){
+    const res=await handleNotificationDispatchRequest(
+      new Request('https://example.com'+path,{method:'POST'}),{}
+    );
+    assert.equal(res.status,405,path);
+  }
 });
-test('a monitor cannot advance the queue without a paired cookie',async()=>{
+test('public monitor view is POST-only without requiring a credential',async()=>{
   const res=await handleNotificationDispatchRequest(
-    new Request('https://example.com/api/dispatch/next',{method:'POST'}),{}
+    new Request('https://example.com/api/dispatch/view',{method:'GET'}),{}
   );
-  assert.equal(res.status,401);
+  assert.equal(res.status,405);
 });
 test('admin cannot enqueue unsupported actions or platforms',async()=>{
   const r=await handleNotificationDispatchRequest(new Request('https://example.com/api/admin/dispatch',{
