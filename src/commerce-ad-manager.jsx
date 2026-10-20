@@ -17,7 +17,7 @@ import './commerce-zero-sales-filters.css';
 import GlareHover from './vendor/react-bits/GlareHover.jsx';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
 import { listingSalesSituation } from './commerce-listing-classification.js';
-import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
+import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals, importedTotalsForExactWindow } from './commerce-ad-evidence.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -560,6 +560,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       document.removeEventListener('keydown',handleEscape);
     };
   },[importMenuOpen]);
+  useEffect(()=>{if(days===7&&commercialView==='LISTINGS')setFinancialOpen(true);},
+    [days,commercialView]);
   const openImportType=mode=>{
     if(!COMMERCE_IMPORT_OPTIONS.some(option=>option.mode===mode))return;
     setImportMenuOpen(false);
@@ -628,8 +630,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const partialAds=sourceBreakdown?.identified??0;
   const shopeeTotals=shopeeSalesTotals(data,days);
   const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
-  const fullImportedAvailable=importedTotals?.available===true
-    &&importedTotals.units!=null&&importedTotals.revenue!=null;
+  const verifiedImportedTotals=importedTotalsForExactWindow(
+    importedTotals,data?.period_start,data?.period_end);
+  const fullImportedAvailable=Boolean(verifiedImportedTotals);
   const linkedSalesDescription=hasMixedPartial
     ?(importedMonthTotal
       ?num(shopeeTotals.verifiedUnits)+' unidades por ID no Mercado Livre + '+
@@ -772,23 +775,30 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     {commercialView==='LISTINGS'&&<section className="nim-finance-disclosure" aria-label="Conciliação de vendas importadas">
       <button type="button" className="nim-finance-toggle" aria-expanded={financialOpen}
         onClick={()=>setFinancialOpen(previous=>!previous)}>
-        <span>Totais financeiros importados</span>
+        <span>Totais financeiros importados{days===7&&data?.period_start&&data?.period_end
+          ?' · '+periodDate(data.period_start)+' a '+periodDate(data.period_end):''}</span>
         <span aria-hidden="true">{financialOpen?'−':'+'}</span>
       </button>
       {financialOpen&&<div className="nim-finance-body">
-        <p className="nim-finance-note">Valores importados, inclusive produtos sem anúncio ativo. Totais vinculados a anúncios podem ser parciais.</p>
+        <p className="nim-finance-note">Período das vendas: {periodDate(data?.period_start)} a {periodDate(data?.period_end)}.
+          Total dos produtos nos arquivos importados, inclusive sem anúncio ativo. A publicidade Shopee Ads é calculada separadamente.</p>
         <div className="nim-finance-metrics">
           <Kpi tone="sand" label={fullImportedAvailable?'Unidades vendidas':hasShopeePartial?'Unidades identificadas':'Unidades vendidas'}
-            value={fullImportedAvailable?num(importedTotals.units):
+            value={fullImportedAvailable?num(verifiedImportedTotals.units):
               shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'}
             description={fullImportedAvailable?'Todas as unidades importadas no período, inclusive sem anúncio ativo':
               hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
           <Kpi tone="green" label={fullImportedAvailable?'Faturamento bruto importado':hasShopeePartial?'Faturamento identificado':'Faturamento'}
-            value={fullImportedAvailable?money(importedTotals.revenue):
+            value={fullImportedAvailable?money(verifiedImportedTotals.revenue):
               shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'}
             description={fullImportedAvailable?'Total dos produtos vendidos, com e sem vínculo de anúncio':
               hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
         </div>
+        {fullImportedAvailable&&days===7&&<p className="nim-finance-note">
+          Totais fechados do intervalo selecionado: 7 dias, de {periodDate(data?.period_start)} até {periodDate(data?.period_end)}.
+          {verifiedImportedTotals.sources.length>1&&
+            ' Todas as plataformas usam a mesma janela de comparação.'}
+        </p>}
         {importedTotalsError&&<p className="nim-coverage" role="status">
           Totais completos não disponíveis nesta consulta; exibindo somente dados identificados.
         </p>}
