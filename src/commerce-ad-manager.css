@@ -482,3 +482,37 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-row-ads:hover{border-color:#75a9f6;background:#e4f0ff}
 .nim-row-ads:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 @media(max-width:600px){.nim-detail-tab-list.has-shopee-ads button{font-size:9px;white-space:normal}}
+
+
+/* Detail panel: performance lives exclusively inside Resumo. Keep all tool
+   summaries small and make the monthly chart opt-in instead of always tall. */
+.nim-detail-tab-panel>.nim-detail-performance{padding-bottom:10px}
+.nim-detail-tab-panel>.nim-detail-performance .nim-detail-performance-title{margin-bottom:7px}
+.nim-detail-tab-panel>.nim-detail-performance .nim-detail-metrics{gap:6px}
+.nim-detail-tab-panel>.nim-detail-performance .nim-detail-metric{padding:8px 9px;min-height:67px;gap:3px;border-radius:8px}
+.nim-detail-tab-panel>.nim-detail-performance .nim-detail-metric strong{font-size:14px}
+.nim-detail-tab-panel>.nim-detail-performance .nim-detail-metric small{font-size:9px}
+.nim-detail-tab-panel>.nim-detail-performance .nim-detail-metric span{font-size:9px}
+.nim-detail-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:4px 0 10px}
+.nim-detail-overview-item{display:grid;align-content:start;gap:4px;min-width:0;min-height:75px;text-align:left;cursor:pointer;border:1px solid #e4ebf5;border-radius:8px;background:#fbfcff;color:#223855;padding:9px 10px;font-family:inherit}
+.nim-detail-overview-item:hover{border-color:#94b5ec;background:#f3f8ff}
+.nim-detail-overview-item:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+.nim-detail-overview-item>span{display:flex;justify-content:space-between;gap:6px;align-items:center;color:#61758f;font-size:10px;font-weight:800}
+.nim-detail-overview-item>span b{font-size:11px;color:#4773b2}
+.nim-detail-overview-item>strong{font-size:12px;line-height:1.3;font-weight:850;overflow-wrap:anywhere}
+.nim-detail-overview-item>small{font-size:9px;color:#7b8ba0;line-height:1.35;overflow-wrap:anywhere}
+.nim-detail-history{border:1px solid #e5ebf3;border-radius:8px;margin-top:5px;overflow:hidden}
+.nim-detail-history>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 11px;font-size:10px;font-weight:750;color:#45617e;background:#f8fafd;cursor:pointer;list-style:none}
+.nim-detail-history>summary::-webkit-details-marker{display:none}
+.nim-detail-history>summary:focus-visible{outline:2px solid #2563eb;outline-offset:-2px}
+.nim-detail-history>summary span{transition:transform .2s ease}
+.nim-detail-history[open]>summary span{transform:rotate(180deg)}
+.nim-detail-history-body{padding:12px 10px;display:grid;gap:8px}
+.nim-detail-history-body>.nim-detail-section-title{margin:0}
+.nim-detail-history-body>.nim-detail-hint,.nim-detail-history-body>.nim-subtle{margin:0}
+@media(max-width:600px){
+ .nim-detail-overview{gap:6px}
+ .nim-detail-overview-item{padding:8px;min-height:68px}
+ .nim-detail-overview-item>strong{font-size:11px}
+ .nim-detail-overview-item>small{font-size:9px}
+}
