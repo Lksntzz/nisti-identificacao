@@ -124,6 +124,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
         return <details className="nim-evolution-product" key={item.source+':'+item.model_key}>
           <summary className="nim-evolution-product-head" title="Abrir análise completa do produto">
             <div className="nim-evolution-primary">
+              <CommercialIcon name="chevron-right" size={16} className="nim-evolution-disclosure-arrow"/>
               <span className="nim-evolution-product-icon" aria-hidden="true">
                 <CommercialIcon name="notebook-tabs" size={23} strokeWidth={1.7}/>
               </span>
