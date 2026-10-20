@@ -90,7 +90,7 @@ test('UI apresenta claramente os dados parciais, por variação e a última data
   assert.match(jsx,/Pedid(?:os|o) não importados/);
   assert.doesNotMatch(jsx,/anúncios Shopee sem vendas vinculadas; não significa zero/);
   assert.match(jsx,/importedWindowDescription\(data,days,periodDate\)/);
-  assert.match(jsx,/dias · dados importados/);
+  assert.match(jsx,/dias · janela importada/);
   assert.match(jsx,/partialRelevant\.map\(\(v,i\)=>/);
   assert.match(jsx,/v\.units==null\?'Não identificada':num\(v\.units\)/);
   assert.doesNotMatch(jsx,/Quantidade não identificada/);
