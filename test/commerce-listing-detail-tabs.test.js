@@ -7,8 +7,8 @@ const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
 const details=jsx.slice(jsx.indexOf('const DETAIL_TABS='),jsx.indexOf('export default function CommerceCommercialDashboard'));
 const sql=fs.readFileSync('supabase/migrations/20261016152000_commerce_listing_manager_v1.sql','utf8');
 
-test('a ficha contém cinco abas acessíveis e todas mostram o mesmo anúncio',()=>{
-  assert.match(details,/const DETAIL_TABS=\[\['diagnosis','Diagnóstico'\],\['summary','Resumo'\],\['finance','Financeiro'\],\['variations','Variações'\],\['aftercare','Pós-venda'\]\]/);
+test('a ficha mantém quatro abas acessíveis e mostra o mesmo anúncio',()=>{
+  assert.match(details,/const DETAIL_TABS=\[\['summary','Resumo'\],\['finance','Financeiro'\],\['variations','Variações'\],\['aftercare','Pós-venda'\]\]/);
   assert.match(details,/role="tablist" aria-label="Informações do anúncio"/);
   assert.match(details,/role="tab"/);
   assert.match(details,/aria-selected=\{activeTab===code\}/);
@@ -58,10 +58,19 @@ test('a aba de variações conserva zeros apenas com cobertura confiável',()=>{
 });
 
 test('o layout usa painel amplo, cartões e hierarquia responsiva',()=>{
-  assert.match(css,/\.nim-content\.has-detail\{grid-template-columns:minmax\(0,1fr\) minmax\(460px,570px\)\}/);
+  assert.match(css,/\.nim-content\.has-detail\{grid-template-columns:minmax\(0,1fr\) minmax\(390px,490px\)\}/);
   assert.match(css,/\.nim-detail-metrics\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
-  assert.match(css,/\.nim-detail-tab-list\{display:grid;grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(css,/\.nim-detail-tab-list\{display:grid;grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
   assert.match(css,/@media\(max-width:1180px\)/);
   assert.match(css,/@media\(max-width:600px\)/);
   assert.doesNotMatch(css,/\.nim-four-periods|\.nim-detail-kpis|\.nim-detail-meta/);
+});
+
+test('detalhe compacto não inclui diagnóstico e oferece tráfego somente quando solicitado',()=>{
+  assert.doesNotMatch(details,/ListingDiagnosisPanel|activeTab==='diagnosis'|\['diagnosis','Diagnóstico'\]/);
+  assert.match(details,/useState\('summary'\)/);
+  assert.match(details,/aria-expanded=\{trafficOpen\}/);
+  assert.match(details,/trafficOpen&&<div id="nim-detail-traffic-metrics">/);
+  assert.match(details,/CommerceTrafficMetrics listingId=\{item\.id\}/);
+  assert.match(css,/\.nim-detail-metric\{[^\n]*min-height:74px/);
 });
