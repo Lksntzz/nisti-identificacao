@@ -20,9 +20,9 @@ test('painel comercial possui duas visões, sem remover os anúncios existentes'
 });
 
 test('evolução usa somente um seletor para todas as situações, sem botões duplicados',()=>{
-  assert.match(panel,/Situação das vendas<select value=\{status\} onChange=\{e=>setStatus\(e.target.value\)\}/);
+  assert.match(panel,/Situação das vendas<select value=\{status\} onChange=\{e=>onStatusChange\(e.target.value\)\}/);
   assert.match(panel,/statuses\.map\(\(\[code,label\]\)=><option value=\{code\}/);
-  for(const state of ['ALL','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT']){
+  for(const state of ['ALL','SOLD','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT']){
     assert.match(panel,new RegExp("'"+state+"'"));
   }
   assert.doesNotMatch(panel,/nim-evolution-summary|nim-evolution-statuses|nim-evolution-kpi/);
