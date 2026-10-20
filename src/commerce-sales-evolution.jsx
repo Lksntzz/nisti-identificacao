@@ -34,14 +34,15 @@ function Bars({item}){
         <span className={type} style={{width:(n/max*100)+'%'}}/></div><strong>{num(n)}</strong></div>)}
   </div>;
 }
-export default function CommerceSalesEvolution({platform='TODAS',onPlatformChange=()=>{},revision=0,salesRevision=0}){
+export default function CommerceSalesEvolution({platform='TODAS',onPlatformChange=()=>{},initialDays=30,onPeriodChange=()=>{},trendRequest=null,revision=0,salesRevision=0}){
   const source=platforms.some(([id])=>id===platform)?platform:'TODAS';
-  const [days,setDays]=useState(30),[status,setStatus]=useState('ALL'),[draft,setDraft]=useState('');
+  const [days,setDays]=useState([7,30,60,90].includes(initialDays)?initialDays:30),[status,setStatus]=useState('ALL'),[draft,setDraft]=useState('');
   const [search,setSearch]=useState(''),[offset,setOffset]=useState(0);
   const [data,setData]=useState(null),[loading,setLoading]=useState(true);
   const [error,setError]=useState(''),[retry,setRetry]=useState(0);
   useEffect(()=>{const timer=setTimeout(()=>setSearch(draft.trim()),300);return ()=>clearTimeout(timer);},[draft]);
   useEffect(()=>setOffset(0),[source,days,status,search]);
+  useEffect(()=>{if(trendRequest?.status)setStatus(trendRequest.status);},[trendRequest]);
   useEffect(()=>{
     const ctrl=new AbortController();
     const params=new URLSearchParams({platform:source,days:String(days),status,
@@ -67,6 +68,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
     (!v.current_complete||!v.previous_complete)&&
     (v.current_days>0||v.previous_days>0||source===v.source));
   return <section className="nim-evolution" aria-label="Análise de evolução de vendas">
+    <div className="nim-evolution-filter-panel">
     <header className="nim-evolution-heading"><div>
       <h3>Evolução de Vendas</h3>
       <p>Compare produtos em períodos equivalentes e identifique oportunidades comerciais.</p>
@@ -78,7 +80,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
       <label>Plataforma<select value={source} onChange={e=>onPlatformChange(e.target.value)}>
         {platforms.map(([code,label])=><option value={code} key={code}>{label}</option>)}
       </select></label>
-      <label>Comparar períodos<select value={days} onChange={e=>setDays(Number(e.target.value))}>
+      <label>Comparar períodos<select value={days} onChange={e=>{const selected=Number(e.target.value);setDays(selected);onPeriodChange(selected);}}>
         {[7,30,60,90].map(n=><option value={n} key={n}>{n} dias × {n} anteriores</option>)}
       </select></label>
       <label>Situação das vendas<select value={status} onChange={e=>setStatus(e.target.value)}
@@ -89,6 +91,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
       </select></label>
       <label>Pesquisar produto ou SKU<input type="search" value={draft} maxLength={120}
         onChange={e=>setDraft(e.target.value)} placeholder="Nome, SKU ou anúncio"/></label>
+    </div>
     </div>
     <p className="nim-evolution-method">Crescimento e queda exigem variação de pelo menos 20%,
       mínimo de 3 unidades no período anterior e diferença de 2 unidades.
@@ -105,6 +108,10 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
         <span>Unidades e faturamento bruto dos produtos, não lucro</span>
       </div>
       {rows.length===0&&<p className="nim-evolution-state">Nenhum produto encontrado no filtro.</p>}
+      <div className="nim-evolution-table-head" aria-hidden="true">
+        <span>Produto</span><span>Plataforma</span><span>SKU / Anúncio</span>
+        <span>Situação</span><span>Vendas no período</span><span>Variação</span>
+      </div>
       <div className="nim-evolution-grid">{rows.map(item=>{
         const growth=item.growth_pct==null?'—':
           (Number(item.growth_pct)>0?'+':'')+
@@ -113,17 +120,30 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
         const listingIds=Array.isArray(item.listing_ids)?item.listing_ids.filter(Boolean):[];
         const sharedSku=item.source==='SHOPEE'&&listingIds.length>1;
         return <details className="nim-evolution-product" key={item.source+':'+item.model_key}>
-          <summary className="nim-evolution-product-head">
-            <div className="nim-evolution-name">
-              <strong>{item.title||'Produto vendido na plataforma'}</strong>
-              <small>{platformName(item.source)} · SKU {item.sku||item.sample_sku||item.model_key}</small>
-              {sharedSku?<small>IDs dos anúncios: {listingIds.join(' · ')}</small>:
-                item.listing_id?<small>Anúncio {item.listing_id}</small>:
-                <small>Sem ID exclusivo de anúncio identificado</small>}
+          <summary className="nim-evolution-product-head" title="Abrir análise completa do produto">
+            <div className="nim-evolution-primary">
+              <span className="nim-evolution-product-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <rect x="5" y="3" width="14" height="18" rx="2"/>
+                  <path d="M9 3v18M12 9h4M12 12h4"/>
+                </svg>
+              </span>
+              <div className="nim-evolution-name">
+                <strong title={item.title||'Produto vendido na plataforma'}>{item.title||'Produto vendido na plataforma'}</strong>
+                <small>{modelHistory?'Histórico de versões de SKU':'Análise por SKU/modelo'}</small>
+              </div>
             </div>
+            <span className="nim-evolution-platform">{platformName(item.source)}</span>
+            <span className="nim-evolution-identification">
+              <strong>SKU {item.sku||item.sample_sku||item.model_key}</strong>
+              <small>{sharedSku?'Vinculado a '+num(listingIds.length)+' anúncios':
+                item.listing_id?'Anúncio '+item.listing_id:'Sem ID exclusivo de anúncio identificado'}</small>
+            </span>
             <span className={'nim-evolution-tag '+String(item.trend||'').toLowerCase()}>
               {labels[item.trend]||'Dados insuficientes'}</span>
-            <span className="nim-evolution-quick-stats"><b>{num(item.current_units)} un.</b><small>{growth}</small></span>
+            <span className="nim-evolution-quick-stats"><b>{num(item.current_units)} un.</b></span>
+            <span className={'nim-evolution-growth '+(item.trend==='RISING'?'positive':
+              item.trend==='FALLING'?'negative':'neutral')}>{growth}</span>
           </summary>
           <div className="nim-evolution-product-stats">
             <div><small>Unidades atuais</small><strong>{num(item.current_units)}</strong>
@@ -140,6 +160,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
           {sharedSku&&<div className="nim-evolution-shared-sku" role="note">
             <strong>{item.shared_product?'Mesmo produto em '+num(listingIds.length)+' anúncios':
               'SKU compartilhado por '+num(listingIds.length)+' anúncios'}</strong>
+            <span>IDs dos anúncios: {listingIds.join(' · ')}</span>
             <span>Quantidade de vendas do SKU: <b>{num(item.current_units)} unidade(s) identificada(s)</b> neste período.</span>
             <small>Os IDs estão agrupados, e cada unidade vendida é contada uma única vez.
               O relatório de pedidos não permite dividir essas vendas por anúncio.

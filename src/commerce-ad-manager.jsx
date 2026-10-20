@@ -6,6 +6,7 @@ import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import './nisti-reactbits-adaptations.css';
+import './commerce-approved-layout.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
 import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
 
@@ -72,8 +73,20 @@ function VariationSalesEvidence({item,days,partial}){
   return null;
 }
 function Kpi({label,value,description,tone,onClick,selected}){
-  const child=<><small>{label}</small><strong>{value}</strong>{description&&<span>{description}</span>}</>;
-  return onClick?<button type="button" className={'nim-kpi '+tone+(selected?' selected':'')} aria-pressed={Boolean(selected)} onClick={onClick}>{child}</button>
+  const glyphs={
+    blue:<><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9h8M8 13h5"/></>,
+    mint:<><path d="M5 7l3 12h11l2-12H5ZM3 4h3"/><path d="M10 16h7"/></>,
+    rose:<><circle cx="12" cy="12" r="8"/><path d="M12 7v6m0 3v.5"/></>,
+    rising:<><path d="M4 17 11 10l4 4 5-7"/><path d="M15 7h5v5"/></>,
+    falling:<><path d="m4 7 7 7 4-4 5 7"/><path d="M15 17h5v-5"/></>,
+  };
+  const child=<>
+    <span className="nim-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{glyphs[tone]||glyphs.blue}</svg></span>
+    <span className="nim-kpi-content"><small>{label}</small><strong>{value}</strong>{description&&<span>{description}</span>}</span>
+  </>;
+  return onClick?<button type="button" className={'nim-kpi '+tone+(selected?' selected':'')}
+    aria-pressed={Boolean(selected)} onClick={onClick}>{child}</button>
     :<div className={'nim-kpi '+tone}>{child}</div>;
 }
 function MonthBars({months,basis}){
@@ -413,13 +426,16 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [data,setData]=useState(null);
   const lastSuccessfulRequest=useRef(null);
   const [monthly,setMonthly]=useState(null);
-  const [importedTotals,setImportedTotals]=useState(null);
-  const [importedTotalsError,setImportedTotalsError]=useState('');
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [importOpen,setImportOpen]=useState(false);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
   const [commercialView,setCommercialView]=useState('LISTINGS');
+  const [financialOpen,setFinancialOpen]=useState(false);
+  const [importedTotals,setImportedTotals]=useState(null);
+  const [importedTotalsError,setImportedTotalsError]=useState('');
+  const [trendOverview,setTrendOverview]=useState(null);
+  const [trendRequest,setTrendRequest]=useState(null);
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
   useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
   useEffect(()=>{
@@ -452,10 +468,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       .catch(()=>{if(!cancelled)setMonthly({months:[]});});
     return ()=>{cancelled=true;};
   },[platform,refresh,salesRevision]);
+
+  // Total geral permanece disponível sob demanda, fora dos 5 cartões operacionais.
   useEffect(()=>{
     const controller=new AbortController();
     setImportedTotals(null);setImportedTotalsError('');
-    if(!data?.period_start||!data?.period_end)return ()=>controller.abort();
+    if(!financialOpen||!data?.period_start||!data?.period_end)return ()=>controller.abort();
     const params=new URLSearchParams({
       platform,start:data.period_start,end:data.period_end,monthly:days===0?'1':'0'
     });
@@ -463,7 +481,26 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       .then(result=>{if(!controller.signal.aborted)setImportedTotals(result);})
       .catch(err=>{if(!controller.signal.aborted)setImportedTotalsError(err.message);});
     return ()=>controller.abort();
-  },[data?.period_start,data?.period_end,platform,days,refresh,salesRevision]);
+  },[financialOpen,data?.period_start,data?.period_end,platform,days,refresh,salesRevision]);
+
+  // Trend counts are authoritative SKU/model classifications, not ad-level sales.
+  // Keep an independent read-only summary for the five-card commercial header.
+  useEffect(()=>{
+    const controller=new AbortController();
+    setTrendOverview(null);
+    if(days===0||!['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE'].includes(platform))
+      return ()=>controller.abort();
+    const params=new URLSearchParams({platform,days:String(days),status:'ALL',limit:'1',offset:'0'});
+    fetch(API+'/evolution?'+params,{credentials:'same-origin',cache:'no-store',signal:controller.signal})
+      .then(async response=>{
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(payload.error||'Tendências indisponíveis');
+        return payload;
+      })
+      .then(payload=>{if(!controller.signal.aborted)setTrendOverview(payload);})
+      .catch(()=>{if(!controller.signal.aborted)setTrendOverview(null);});
+    return ()=>controller.abort();
+  },[platform,days,refresh,salesRevision]);
 
   const kpi=data?.kpis||{};
   const hasMonthPartial=data?.source_kind==='MONTHLY_SKU_PARTIAL';
@@ -491,15 +528,24 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     :importedMonthTotal
       ?num(shopeeTotals.linkedUnits)+' de '+num(shopeeTotals.units)+' unidades vinculadas aos anúncios'
       :'Somente vendas vinculadas por SKU · total da plataforma não confirmado nesta janela';
+  const salesCoverageLabel=Number(kpi.pending_ads||0)>0
+    ?periodLabel(days,month)+' · dados parciais':periodLabel(days,month)+' · anúncios ativos';
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
   // This KPI counts listings only; variation-level gaps belong in the
   // expanded listing and must never inflate the count of unsold ads.
   const emptyIdentifiedAds=sourceBreakdown?.withoutIdentified??0;
   const emptyIdentifiedVars=Number(kpi.identified_empty_variations||0);
   const trendSelected=['RISING','FALLING'].includes(status)?status:'ALL';
+  const trendsSupported=days!==0&&['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE'].includes(platform);
+  const trendCounts=trendOverview?.kpis||{};
+  const trendAvailable=trendsSupported&&Number.isFinite(Number(trendCounts.rising))
+    &&Number.isFinite(Number(trendCounts.falling));
+  const trendScope=platform==='TODAS'?'SKU/modelos · ML e Shopee':'SKU/modelos · períodos iguais';
+  const showTrend=next=>{
+    setCommercialView('EVOLUTION');
+    setTrendRequest(previous=>({status:next,version:(previous?.version||0)+1}));
+  };
   const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0;
-  const salesCoverageLabel=Number(kpi.pending_ads||0)>0
-    ?periodLabel(days,month)+' · dados parciais':periodLabel(days,month)+' · anúncios ativos';
   const rows=Array.isArray(data?.items)?data.items:[];
   const total=Number(data?.total||0);
   const pages=Math.max(1,Math.ceil(total/size));
@@ -521,9 +567,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/></div>}
     <div className="nim-kpis">
-      <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Por plataforma"/>
+      <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Em monitoramento"/>
       <Kpi tone="mint" label={hasShopeePartial?'Com vendas identificadas':'Com vendas'} value={hasShopeePartial&&data?num(partialAds):hasReliableSales?num(kpi.sold_ads):'—'} description={hasMixedPartial?'Mercado Livre + Shopee identificados':hasShopeePartial?'SKU identificado · dados parciais':'No período'} selected={status==='SOLD'}
-        onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
+        onClick={()=>{change(setStatus,status==='SOLD'?'ALL':'SOLD');setCommercialView('LISTINGS');}}/>
       <Kpi tone="rose" label={hasMixedPartial&&sourceBreakdown?.marketplacePending>0
         ?'Sem vendas identificadas / pendentes':hasShopeePartial?'Sem vendas identificadas':'Sem vendas'}
         value={hasShopeePartial&&data?num(emptyIdentifiedAds):
@@ -533,32 +579,53 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             (sourceBreakdown.marketplacePending>0?num(sourceBreakdown.marketplacePending)+' ML pendentes · ':'')+
             num(sourceBreakdown.shopeeWithoutLink)+' Shopee sem venda identificada por SKU'
            :hasShopeePartial?'Sem venda identificada por SKU no período':'Anúncios sem vendas; filtro também inclui variações'}
-        selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
-      <Kpi tone="sand" label={fullImportedAvailable?'Unidades vendidas':hasShopeePartial?'Unidades identificadas':'Unidades vendidas'}
-        value={fullImportedAvailable?num(importedTotals.units):
-          shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'}
-        description={fullImportedAvailable?'Todas as unidades importadas no período, inclusive sem anúncio ativo':
-          hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
-      <Kpi tone="green" label={fullImportedAvailable?'Faturamento bruto importado':hasShopeePartial?'Faturamento identificado':'Faturamento'}
-        value={fullImportedAvailable?money(importedTotals.revenue):
-          shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'}
-        description={fullImportedAvailable?'Total dos produtos vendidos, com e sem vínculo de anúncio':
-          hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+        selected={status==='ZERO'} onClick={()=>{change(setStatus,status==='ZERO'?'ALL':'ZERO');setCommercialView('LISTINGS');}}/>
+      <Kpi tone="rising" label="Em alta"
+        value={trendAvailable?num(trendCounts.rising):'—'}
+        description={trendAvailable?trendScope:'Comparativo indisponível'}
+        onClick={trendAvailable?()=>showTrend('RISING'):undefined}/>
+      <Kpi tone="falling" label="Em queda"
+        value={trendAvailable?num(trendCounts.falling):'—'}
+        description={trendAvailable?trendScope:'Comparativo indisponível'}
+        onClick={trendAvailable?()=>showTrend('FALLING'):undefined}/>
     </div>
-    {importedTotalsError&&<p className="nim-coverage" role="status">
-      Totais completos não disponíveis nesta consulta; exibindo somente dados identificados.
-    </p>}
     <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
       <button type="button" className={commercialView==='LISTINGS'?'active':''}
         aria-current={commercialView==='LISTINGS'?'page':undefined}
         onClick={()=>setCommercialView('LISTINGS')}>Anúncios</button>
       <button type="button" className={commercialView==='EVOLUTION'?'active':''}
         aria-current={commercialView==='EVOLUTION'?'page':undefined}
-        onClick={()=>setCommercialView('EVOLUTION')}>Evolução de vendas</button>
+        onClick={()=>{setTrendRequest(null);setCommercialView('EVOLUTION');}}>Evolução de vendas</button>
     </nav>
+    {commercialView==='LISTINGS'&&<section className="nim-finance-disclosure" aria-label="Conciliação de vendas importadas">
+      <button type="button" className="nim-finance-toggle" aria-expanded={financialOpen}
+        onClick={()=>setFinancialOpen(previous=>!previous)}>
+        <span>Totais financeiros importados</span>
+        <span aria-hidden="true">{financialOpen?'−':'+'}</span>
+      </button>
+      {financialOpen&&<div className="nim-finance-body">
+        <p className="nim-finance-note">Valores importados, inclusive produtos sem anúncio ativo. Totais vinculados a anúncios podem ser parciais.</p>
+        <div className="nim-finance-metrics">
+          <Kpi tone="sand" label={fullImportedAvailable?'Unidades vendidas':hasShopeePartial?'Unidades identificadas':'Unidades vendidas'}
+            value={fullImportedAvailable?num(importedTotals.units):
+              shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'}
+            description={fullImportedAvailable?'Todas as unidades importadas no período, inclusive sem anúncio ativo':
+              hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+          <Kpi tone="green" label={fullImportedAvailable?'Faturamento bruto importado':hasShopeePartial?'Faturamento identificado':'Faturamento'}
+            value={fullImportedAvailable?money(importedTotals.revenue):
+              shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'}
+            description={fullImportedAvailable?'Total dos produtos vendidos, com e sem vínculo de anúncio':
+              hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+        </div>
+        {importedTotalsError&&<p className="nim-coverage" role="status">
+          Totais completos não disponíveis nesta consulta; exibindo somente dados identificados.
+        </p>}
+      </div>}
+    </section>}
     {commercialView==='EVOLUTION'?
       <CommerceSalesEvolution platform={platform} onPlatformChange={setPlatform}
-        revision={refresh} salesRevision={salesRevision}/>:
+        initialDays={PERIODS.includes(days)?days:30} onPeriodChange={setDays}
+        trendRequest={trendRequest} revision={refresh} salesRevision={salesRevision}/>:
       <>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
@@ -762,6 +829,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         importedThrough={data?.imported_month?.period_end}
         search={search} revision={refresh} salesRevision={salesRevision}/>}
     </>}
-    <p className="nim-footnote">Os KPIs de unidades e faturamento usam todas as vendas importadas da plataforma no período quando a origem completa está disponível, inclusive SKUs sem anúncio ativo. A lista de anúncios atribui vendas apenas a vínculos identificáveis: no caso da Shopee, esses subtotais podem ser parciais, não necessariamente o total do anúncio. A aba Evolução de vendas compara produtos por SKU/modelo entre períodos iguais, sem presumir que o total do produto pertence ao anúncio atual. “Sem vendas identificadas” não comprova zero real do anúncio quando o código mudou. “Sem vendas registradas” refere-se ao SKU/modelo conhecido, não ao anúncio inteiro. Nenhum dado do Scanner é alterado.</p>
+    <p className="nim-footnote">Os cards Em alta e Em queda contam SKU/modelos com comparação entre períodos completos de vendas importadas de Mercado Livre e Shopee, não anúncios individuais. Não são exibidos quando a plataforma ou o período não tem cálculo compatível. Os totais de unidades e faturamento importados continuam disponíveis nos relatórios próprios. A lista de anúncios atribui vendas apenas a vínculos identificáveis: no caso da Shopee, esses subtotais podem ser parciais, não necessariamente o total do anúncio. A aba Evolução de vendas compara produtos por SKU/modelo entre períodos iguais, sem presumir que o total do produto pertence ao anúncio atual. “Sem vendas identificadas” não comprova zero real do anúncio quando o código mudou. “Sem vendas registradas” refere-se ao SKU/modelo conhecido, não ao anúncio inteiro. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
