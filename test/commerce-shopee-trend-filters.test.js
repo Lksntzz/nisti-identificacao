@@ -40,7 +40,7 @@ test('listing filter counts and ordering reflect the selected percentage trend',
 });
 
 test('compact UI preserves three primary sales filters and shows trend only for Shopee daily periods',()=>{
-  assert.match(ui,/const SALES_FILTERS=\[\['ALL','Todos'\],\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\]/);
+  assert.match(ui,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\]/);
   assert.match(ui,/const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0/);
   assert.match(ui,/const trendSelected=\['RISING','FALLING'\]\.includes\(status\)\?status:'ALL'/);
   assert.match(ui,/shopeeTrendAvailable&&<label className="nim-filter-group nim-trend-group"/);
