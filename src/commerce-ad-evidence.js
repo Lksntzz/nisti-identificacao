@@ -1,3 +1,16 @@
+// Source-of-truth totals from the sales import must match the exact selected
+// interval. Prevent a prior filter response from being presented as "last 7d".
+export function importedTotalsForExactWindow(report,start,end){
+  if(report?.available!==true||report?.period_start!==start||
+    report?.period_end!==end||report?.units==null||report?.revenue==null||
+    !Array.isArray(report?.sources)||!report.sources.length)
+    return null;
+  const units=Number(report.units),revenue=Number(report.revenue);
+  if(!Number.isSafeInteger(units)||units<0||
+    !Number.isFinite(revenue)||revenue<0)return null;
+  return {units,revenue,sources:report.sources};
+}
+
 // Nunca misturar a janela mensal Shopee com janelas móveis de 7/30/60/90 dias.
 // Zero sem vínculo exclusivo é ausência de identificação, não venda zero comprovada.
 export function listingLinkedSalesForPeriod(item,days) {

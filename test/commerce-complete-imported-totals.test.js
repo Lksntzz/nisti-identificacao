@@ -19,9 +19,9 @@ test('totais diários somam pedidos importados ML e todos SKUs Shopee sem filtra
   assert.match(source,/where p.monthly and r.platform_code in/);
 });
 test('painel principal apresenta bruto, inclusive SKU ou anúncio inativo',()=>{
-  assert.match(ui,/fullImportedAvailable=importedTotals\?\.available===true/);
-  assert.match(ui,/fullImportedAvailable\?num\(importedTotals.units\)/);
-  assert.match(ui,/fullImportedAvailable\?money\(importedTotals.revenue\)/);
+  assert.match(ui,/fullImportedAvailable=Boolean\(verifiedImportedTotals\)/);
+  assert.match(ui,/fullImportedAvailable\?num\(verifiedImportedTotals.units\)/);
+  assert.match(ui,/fullImportedAvailable\?money\(verifiedImportedTotals.revenue\)/);
   assert.match(ui,/Totais completos não disponíveis nesta consulta/);
   assert.match(ui,/Todas as unidades importadas no período, inclusive sem anúncio ativo/);
   assert.doesNotMatch(ui,/nim-total-source-row|importedTotals\.sources/);
