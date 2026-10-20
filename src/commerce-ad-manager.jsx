@@ -684,7 +684,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             onClick={()=>setImportMenuOpen(open=>!open)} aria-haspopup="menu"
             aria-controls="nim-import-options" aria-expanded={importMenuOpen}>
             <CommercialIcon name="upload" size={16}/> Importar arquivo
-            <CommercialIcon name="chevron-down" size={14}/>
+            <span className="nim-import-trigger-arrow" aria-hidden="true">▾</span>
           </button>
           {importMenuOpen&&<div id="nim-import-options" className="nim-import-options"
             role="menu" aria-label="Escolher tipo de relatório">
@@ -697,7 +697,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                 <strong>{option.label}</strong>
                 <small>{option.description}</small>
               </span>
-              <CommercialIcon name="chevron-right" size={14}/>
+              <span className="nim-import-option-arrow" aria-hidden="true">›</span>
             </button>)}
           </div>}
         </div>
