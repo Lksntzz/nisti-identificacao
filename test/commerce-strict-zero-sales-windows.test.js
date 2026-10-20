@@ -28,13 +28,16 @@ test('variações que não venderam e Shopee sem atribuição não contaminam ze
 });
 
 test('a interface usa janela explícita de 60/90 dias e estado ZERO rigoroso',()=>{
-  assert.match(manager,/value=\{data\?\(platform==='SHOPEE'\?'—':num\(kpi\.zero_ads\)\)\:'—'\}/);
+  assert.match(manager,/const noSalesStatus=shopeeUnlinkedView\?'UNLINKED':'ZERO'/);
+  assert.match(manager,/const noSalesValue=shopeeUnlinkedView\?kpi\.unlinked_shopee_ads:kpi\.zero_ads/);
+  assert.match(manager,/status===noSalesStatus/);
+  assert.match(manager,/onClick=\{platform==='SHOPEE'&&days===0\?undefined:changeNoSales\}/);
   assert.match(manager,/\{n\} dias · janela importada/);
-  assert.match(manager,/onClick=\{\(\)=>change\(setStatus,status==='ZERO'\?'ALL':'ZERO'\)\}/);
+  assert.match(manager,/const changeNoSales=\(\)=>change\(setStatus,status===noSalesStatus\?'ALL':noSalesStatus\)/);
   assert.match(manager,/status==='VAR_ZERO'\?'ALL':'VAR_ZERO'/);
   assert.match(manager,/status==='UNLINKED'\?'ALL':'UNLINKED'/);
   assert.match(manager,/zeroFilter=\{status==='VAR_ZERO'\}/);
-  assert.match(manager,/A Shopee ainda não possui atribuição confiável/);
+  assert.match(manager,/A Shopee não está incluída nessa contagem/);
   assert.match(manager,/data\?\.period_start/);
   assert.match(evolution,/Este resultado não garante que o anúncio inteiro ficou sem vendas/);
 });

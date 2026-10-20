@@ -26,7 +26,7 @@ test('zero is never asserted as an established fact in Shopee without verified f
   assert.match(ui,/Sem vendas identificadas/);
   assert.match(ui,/não comprova zero real/);
   assert.match(ui,/não mostramos zeros presumidos/);
-  assert.match(ui,/Isso não comprova ausência de pedidos/);
+  assert.match(ui,/ausência de vínculo NÃO comprova ausência de pedidos/);
 });
 
 test('ABC on Shopee ranks only known lower-bound sales by revenue or units and labels provisional',()=>{

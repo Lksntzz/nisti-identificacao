@@ -22,8 +22,8 @@ test('filter status, ABC curve and ABC basis keep their existing actions and sel
   assert.match(ui,/SALES_FILTERS\.map\(\(\[code,label\]\)=>/);
   assert.match(ui,/const SALES_FILTERS=\[\['ALL','Todos'\],\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];/);
   assert.doesNotMatch(ui,/PERFORMANCE_FILTERS|listingPerformanceIndicators/);
-  assert.match(ui,/onClick=\{\(\)=>change\(setStatus,code\)\}/);
-  assert.match(ui,/aria-pressed=\{status===code\}/);
+  assert.match(ui,/onClick=\{\(\)=>code==='ZERO'\?changeNoSales\(\):change\(setStatus,code\)\}/);
+  assert.match(ui,/aria-pressed=\{code==='ZERO'\?status===noSalesStatus:status===code\}/);
   assert.match(ui,/onClick=\{\(\)=>change\(setCurve,code\)\}/);
   assert.match(ui,/aria-pressed=\{curve===code\}/);
   assert.match(ui,/value=\{basis\} onChange=\{e=>change\(setBasis,e.target.value\)\}/);
