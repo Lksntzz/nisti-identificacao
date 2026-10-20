@@ -7,7 +7,7 @@ import './commerce-import-modal.css';
 
 // Shared import workspace. Only the input/validation flow changes by report type.
 // Uses a portal so admin-panel stacking contexts cannot cover or crop the dialog.
-export default function CommerceImportModal({mode,onClose,onChooseAnother,onSalesChanged,onCatalogChanged}){
+export default function CommerceImportModal({mode,onClose,onChooseAnother,returnFocusRef,onSalesChanged,onCatalogChanged}){
   const dialogRef=useRef(null);
   const onCloseRef=useRef(onClose);
   onCloseRef.current=onClose;
@@ -42,6 +42,7 @@ export default function CommerceImportModal({mode,onClose,onChooseAnother,onSale
       document.removeEventListener('keydown',onKeyDown,true);
       document.body.style.overflow=previousOverflow;
       if(before&&typeof before.focus==='function'&&before.isConnected)before.focus();
+      else returnFocusRef?.current?.focus();
     };
   },[mode,choice?.mode]);
   if(!choice||typeof document==='undefined')return null;
