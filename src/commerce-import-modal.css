@@ -1,0 +1,45 @@
+/* Universal import workspace: single, consistent modal for all report types. */
+.nim-import-overlay{position:fixed;z-index:2147482000;inset:0;display:flex;justify-content:center;align-items:center;padding:22px;background:rgba(12,23,43,.68);backdrop-filter:blur(5px)}
+.nim-import-dialog{display:flex;flex-direction:column;width:min(1050px,100%);max-height:min(92dvh,1000px);border:1px solid #dae4f1;border-radius:17px;background:#f7f9fd;color:#162640;box-shadow:0 30px 100px rgba(6,22,47,.35);font-family:inherit;overflow:hidden}
+.nim-import-dialog:focus{outline:none}
+.nim-import-dialog-header{display:flex;align-items:flex-start;gap:14px;padding:21px 24px 18px;border-bottom:1px solid #e6ebf2;background:#fff}
+.nim-import-dialog-icon{display:grid;place-items:center;flex:0 0 auto;width:42px;height:42px;background:#ebf2ff;color:#2766dc;border-radius:12px}
+.nim-import-dialog-heading{min-width:0;flex:1}
+.nim-import-dialog-heading>span{display:block;margin-bottom:4px;font-size:10px;font-weight:750;color:#7587a1}
+.nim-import-dialog-divider{margin:0 7px;color:#a9b6c8}
+.nim-import-dialog-heading h2{font-size:21px;line-height:1.25;letter-spacing:-.035em;font-weight:850;margin:0;color:#162640}
+.nim-import-dialog-heading p{margin:5px 0 0;color:#74849c;font-size:12px;line-height:1.4}
+.nim-import-dialog-close{flex:0 0 auto;display:grid;place-items:center;border:1px solid #dce5f1;border-radius:9px;background:#fff;color:#556b8b;width:35px;height:35px;font-size:24px;line-height:1;cursor:pointer}
+.nim-import-dialog-close:hover{background:#f1f5fb;color:#17385f}
+.nim-import-dialog-subhead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 24px;border-bottom:1px solid #e8edf5;background:#fbfcff;font-size:11px;color:#60738d}
+.nim-import-dialog-subhead strong{color:#2a4367}
+.nim-import-dialog-subhead button{display:inline-flex;align-items:center;gap:5px;border:1px solid #dce6f2;background:#fff;border-radius:7px;cursor:pointer;color:#2e64aa;padding:8px 10px;font:inherit;font-weight:750;white-space:nowrap}
+.nim-import-dialog-subhead button:hover{background:#edf4ff;border-color:#a8c5f1}
+.nim-import-dialog-body{min-height:0;overflow:auto;overscroll-behavior:contain;flex:1;padding:18px 22px 28px}
+.nim-import-dialog-body>.import-center{max-width:100%;min-width:0}
+.nim-import-dialog-body>.import-center-embedded{gap:12px}
+.nim-import-dialog-body .import-center-layout{grid-template-columns:minmax(0,1fr);gap:12px}
+.nim-import-dialog-body .import-center-sidebar{display:grid;position:static;grid-template-columns:repeat(2,minmax(0,1fr))}
+.nim-import-dialog-body .import-center-embedded .import-center-flow{gap:12px}
+.nim-import-dialog-body .import-center-embedded .import-center-step{border-radius:10px;box-shadow:none}
+.nim-import-dialog-body .shopee-ads-import,.nim-import-dialog-body .shopee-aftercare-import{box-shadow:none;border-color:#e2eaf4;padding:17px;gap:14px}
+.nim-import-dialog-body .shopee-ads-import h3,.nim-import-dialog-body .shopee-aftercare-import h3{font-size:15px}
+.nim-import-dialog-footer{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:12px 22px;background:#fff;border-top:1px solid #e6ebf2}
+.nim-import-dialog-footer span{max-width:74ch;color:#8490a4;font-size:10px;line-height:1.5}
+.nim-import-dialog-footer button{min-height:34px;min-width:80px;border:1px solid #dce3ed;background:#fff;color:#536983;border-radius:8px;font:inherit;font-weight:750;font-size:11px;cursor:pointer}
+.nim-import-dialog button:focus-visible,.nim-import-dialog input:focus-visible,.nim-import-dialog select:focus-visible{outline:2px solid #3675e8;outline-offset:2px}
+@media(max-width:780px){
+ .nim-import-overlay{padding:0}
+ .nim-import-dialog{height:100dvh;max-height:100dvh;border:0;border-radius:0;width:100%}
+ .nim-import-dialog-header{padding:14px 15px 12px;gap:10px}
+ .nim-import-dialog-icon{width:34px;height:34px;border-radius:9px}
+ .nim-import-dialog-heading h2{font-size:18px}
+ .nim-import-dialog-heading p{font-size:11px}
+ .nim-import-dialog-subhead{padding:10px 15px;flex-wrap:wrap}
+ .nim-import-dialog-body{padding:12px 12px 20px}
+ .nim-import-dialog-body .import-center-layout{grid-template-columns:minmax(0,1fr)}
+ .nim-import-dialog-body .import-center-sidebar{grid-template-columns:minmax(0,1fr)}
+ .nim-import-dialog-footer{padding:10px 13px}
+ .nim-import-dialog-footer span{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.nim-import-overlay{backdrop-filter:none}}
