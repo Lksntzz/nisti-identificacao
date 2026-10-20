@@ -34,6 +34,30 @@ async function validToken(token,env){
 function cookie(value,age){
   return COOKIE+'='+value+'; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age='+age;
 }
+
+// Abre em qualquer PC sem senha: o Worker verifica a chave do link compartilhado,
+// cria cookie HttpOnly e redireciona imediatamente ao endereço sem chave.
+// Nenhuma chave privada é exposta em HTML, scripts ou nas respostas.
+export async function activateDispatchSenderLink(request,env){
+  const url=new URL(request.url);
+  if(request.method!=='GET'||url.pathname!=='/painel-expedicao'||!url.searchParams.has('acesso'))return null;
+  const key=url.searchParams.get('acesso')||'';
+  const headers=new Headers({
+    'cache-control':'no-store, private',
+    'referrer-policy':'no-referrer',
+    'x-robots-tag':'noindex, nofollow'
+  });
+  if(!(await validToken(key,env))){
+    return json({error:'Link privado inválido ou revogado. Solicite o endereço atualizado.'},403,{
+      'referrer-policy':'no-referrer',
+      'x-robots-tag':'noindex, nofollow'
+    });
+  }
+  headers.set('location','/painel-expedicao');
+  headers.set('set-cookie',cookie(key,COOKIE_AGE));
+  return new Response(null,{status:303,headers});
+}
+
 export async function handleDispatchSenderRequest(request,env){
   const url=new URL(request.url);
   const path=url.pathname;
