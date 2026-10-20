@@ -2,7 +2,6 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
-import CommerceAdDiagnosisWorkspace from './commerce-ad-diagnosis-workspace.jsx';
 import ListingDiagnosisPanel from './commerce-listing-diagnosis-panel.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
@@ -414,7 +413,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [error,setError]=useState('');
   const [importOpen,setImportOpen]=useState(false);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
-  const [commercialView,setCommercialView]=useState('DIAGNOSIS');
+  const [commercialView,setCommercialView]=useState('LISTINGS');
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
   useEffect(()=>{setOffset(0);setSelectedId(null);},[platform,days,month,search,status,curve,basis,size]);
   useEffect(()=>{
@@ -504,18 +503,18 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     setStatus('ALL');setCurve('ALL');setBasis('REVENUE');setOffset(0);setSelectedId(null);};
   const change=(setter,value)=>{setter(value);setOffset(0);setSelectedId(null);};
   return <section className="nim-manager">
-    {commercialView!=='DIAGNOSIS'&&<header className="nim-heading">
+    <header className="nim-heading">
       <div><h2>Gestor de Anúncios</h2><p>Anúncios ativos, vendas e desempenho por plataforma</p></div>
       <div className="nim-header-actions">
         <button type="button" className="nim-soft-button" onClick={()=>setRefresh(v=>v+1)}>↻ Atualizar</button>
         <button type="button" className="nim-primary-button" onClick={()=>setImportOpen(v=>!v)}
           aria-expanded={importOpen}>{importOpen?'Fechar importação':'↑ Importar arquivos'}</button>
       </div>
-    </header>}
+    </header>
     {importOpen&&<div className="nim-import-panel"><CommerceImportCenter embedded
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/></div>}
-    {commercialView!=='DIAGNOSIS'&&<div className="nim-kpis">
+    <div className="nim-kpis">
       <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Por plataforma"/>
       <Kpi tone="mint" label={hasShopeePartial?'Com vendas identificadas':'Com vendas'} value={hasShopeePartial&&data?num(partialAds):hasReliableSales?num(kpi.sold_ads):'—'} description={hasMixedPartial?'Mercado Livre + Shopee identificados':hasShopeePartial?'SKU identificado · dados parciais':'No período'} selected={status==='SOLD'}
         onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
@@ -539,14 +538,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'}
         description={fullImportedAvailable?'Total dos produtos vendidos, com e sem vínculo de anúncio':
           hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
-    </div>}
-    {importedTotalsError&&commercialView!=='DIAGNOSIS'&&<p className="nim-coverage" role="status">
+    </div>
+    {importedTotalsError&&<p className="nim-coverage" role="status">
       Totais completos não disponíveis nesta consulta; exibindo somente dados identificados.
     </p>}
     <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
-      <button type="button" className={commercialView==='DIAGNOSIS'?'active':''}
-        aria-current={commercialView==='DIAGNOSIS'?'page':undefined}
-        onClick={()=>setCommercialView('DIAGNOSIS')}>Evolução de Anúncios / Diagnóstico</button>
       <button type="button" className={commercialView==='LISTINGS'?'active':''}
         aria-current={commercialView==='LISTINGS'?'page':undefined}
         onClick={()=>setCommercialView('LISTINGS')}>Anúncios</button>
@@ -554,9 +550,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         aria-current={commercialView==='EVOLUTION'?'page':undefined}
         onClick={()=>setCommercialView('EVOLUTION')}>Evolução de vendas</button>
     </nav>
-    {commercialView==='DIAGNOSIS'?
-      <CommerceAdDiagnosisWorkspace revision={refresh} salesRevision={salesRevision}/>:
-    commercialView==='EVOLUTION'?
+    {commercialView==='EVOLUTION'?
       <CommerceSalesEvolution platform={platform} onPlatformChange={setPlatform}
         revision={refresh} salesRevision={salesRevision}/>:
       <>
