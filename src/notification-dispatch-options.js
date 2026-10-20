@@ -20,6 +20,7 @@ export function validDispatchOption(platform,message){
 return typeof message==='string' && optionsForPlatform(platform).some(group=>group.options.includes(message));
 }
 export function platformColor(platform){
+  if(typeof platform!=='string')return 'other';
 if(platform==='SHOPEE')return 'shopee';
 if(platform.startsWith('MERCADO LIVRE'))return 'ml';
 if(platform==='AMAZON')return 'amazon';

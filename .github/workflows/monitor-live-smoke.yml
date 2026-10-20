@@ -1,8 +1,5 @@
 name: Smoke test monitor NISTI
 on:
-  push:
-    branches:
-      - fix/dispatch-monitor-blank-screen
   workflow_dispatch:
 permissions:
   contents: read
