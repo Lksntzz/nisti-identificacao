@@ -217,3 +217,30 @@
   .nim-manager .nim-evolution-detail .nim-evolution-product-stats{grid-template-columns:minmax(0,1fr)}
   .nim-manager .nim-evolution-detail .nim-evolution-product-stats>div:last-child{grid-column:auto}
 }
+
+
+/* Genuine catalog/listing thumbnails. Never crop an agenda cover to fill the frame.
+ * The Lucide notebook remains visible until an image loads or if it fails.
+ */
+.nim-manager .nim-evolution-product-icon.nim-evolution-thumbnail{
+  position:relative;display:grid;place-items:center;flex:0 0 46px;
+  width:46px;height:56px;overflow:hidden;border:1px solid #dce6f3;
+  border-radius:8px;background:#fff;color:#6683af
+}
+.nim-manager .nim-evolution-thumbnail>svg{position:relative;z-index:0;flex:none}
+.nim-manager .nim-evolution-thumb-image{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+  object-fit:contain;object-position:center;background:#fff;
+  opacity:0;transition:opacity .12s ease
+}
+.nim-manager .nim-evolution-thumb-image.is-ready{opacity:1}
+.nim-manager .nim-evolution-primary{min-width:0;align-items:center}
+.nim-manager .nim-evolution-name{min-width:0}
+@media(max-width:700px){
+  .nim-manager .nim-evolution-product-icon.nim-evolution-thumbnail{
+    width:42px;height:53px;flex-basis:42px
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .nim-manager .nim-evolution-thumb-image{transition:none}
+}
