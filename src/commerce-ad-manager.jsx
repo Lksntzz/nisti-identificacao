@@ -8,7 +8,7 @@ import './commerce-ad-manager.css';
 import './nisti-reactbits-adaptations.css';
 import './commerce-approved-layout.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
-import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
+import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage } from './commerce-ad-evidence.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -426,8 +426,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [data,setData]=useState(null);
   const lastSuccessfulRequest=useRef(null);
   const [monthly,setMonthly]=useState(null);
-  const [importedTotals,setImportedTotals]=useState(null);
-  const [importedTotalsError,setImportedTotalsError]=useState('');
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [importOpen,setImportOpen]=useState(false);
@@ -467,18 +465,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       .catch(()=>{if(!cancelled)setMonthly({months:[]});});
     return ()=>{cancelled=true;};
   },[platform,refresh,salesRevision]);
-  useEffect(()=>{
-    const controller=new AbortController();
-    setImportedTotals(null);setImportedTotalsError('');
-    if(!data?.period_start||!data?.period_end)return ()=>controller.abort();
-    const params=new URLSearchParams({
-      platform,start:data.period_start,end:data.period_end,monthly:days===0?'1':'0'
-    });
-    readJson(API+'/imported-totals?'+params,{signal:controller.signal})
-      .then(result=>{if(!controller.signal.aborted)setImportedTotals(result);})
-      .catch(err=>{if(!controller.signal.aborted)setImportedTotalsError(err.message);});
-    return ()=>controller.abort();
-  },[data?.period_start,data?.period_end,platform,days,refresh,salesRevision]);
 
   // Trend counts are authoritative SKU/model classifications, not ad-level sales.
   // Keep an independent read-only summary for the five-card commercial header.
@@ -513,18 +499,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
     {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
   const partialAds=sourceBreakdown?.identified??0;
-  const shopeeTotals=shopeeSalesTotals(data,days);
-  const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
-  const fullImportedAvailable=importedTotals?.available===true
-    &&importedTotals.units!=null&&importedTotals.revenue!=null;
-  const linkedSalesDescription=hasMixedPartial
-    ?(importedMonthTotal
-      ?num(shopeeTotals.verifiedUnits)+' unidades por ID no Mercado Livre + '+
-        num(shopeeTotals.linkedUnits)+' identificadas na Shopee; total bruto importado exibido'
-      :'Mercado Livre por ID de anúncio + Shopee por SKU identificado; dados parciais')
-    :importedMonthTotal
-      ?num(shopeeTotals.linkedUnits)+' de '+num(shopeeTotals.units)+' unidades vinculadas aos anúncios'
-      :'Somente vendas vinculadas por SKU · total da plataforma não confirmado nesta janela';
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
   // This KPI counts listings only; variation-level gaps belong in the
   // expanded listing and must never inflate the count of unsold ads.
@@ -541,8 +515,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     setTrendRequest(previous=>({status:next,version:(previous?.version||0)+1}));
   };
   const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0;
-  const salesCoverageLabel=Number(kpi.pending_ads||0)>0
-    ?periodLabel(days,month)+' · dados parciais':periodLabel(days,month)+' · anúncios ativos';
   const rows=Array.isArray(data?.items)?data.items:[];
   const total=Number(data?.total||0);
   const pages=Math.max(1,Math.ceil(total/size));
@@ -566,7 +538,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     <div className="nim-kpis">
       <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'} description="Em monitoramento"/>
       <Kpi tone="mint" label={hasShopeePartial?'Com vendas identificadas':'Com vendas'} value={hasShopeePartial&&data?num(partialAds):hasReliableSales?num(kpi.sold_ads):'—'} description={hasMixedPartial?'Mercado Livre + Shopee identificados':hasShopeePartial?'SKU identificado · dados parciais':'No período'} selected={status==='SOLD'}
-        onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
+        onClick={()=>{change(setStatus,status==='SOLD'?'ALL':'SOLD');setCommercialView('LISTINGS');}}/>
       <Kpi tone="rose" label={hasMixedPartial&&sourceBreakdown?.marketplacePending>0
         ?'Sem vendas identificadas / pendentes':hasShopeePartial?'Sem vendas identificadas':'Sem vendas'}
         value={hasShopeePartial&&data?num(emptyIdentifiedAds):
@@ -576,7 +548,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             (sourceBreakdown.marketplacePending>0?num(sourceBreakdown.marketplacePending)+' ML pendentes · ':'')+
             num(sourceBreakdown.shopeeWithoutLink)+' Shopee sem venda identificada por SKU'
            :hasShopeePartial?'Sem venda identificada por SKU no período':'Anúncios sem vendas; filtro também inclui variações'}
-        selected={status==='ZERO'} onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
+        selected={status==='ZERO'} onClick={()=>{change(setStatus,status==='ZERO'?'ALL':'ZERO');setCommercialView('LISTINGS');}}/>
       <Kpi tone="rising" label="Em alta"
         value={trendAvailable?num(trendCounts.rising):'—'}
         description={trendAvailable?trendScope:'Comparativo indisponível'}
@@ -586,16 +558,13 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         description={trendAvailable?trendScope:'Comparativo indisponível'}
         onClick={trendAvailable?()=>showTrend('FALLING'):undefined}/>
     </div>
-    {importedTotalsError&&<p className="nim-coverage" role="status">
-      Totais completos não disponíveis nesta consulta; exibindo somente dados identificados.
-    </p>}
     <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
       <button type="button" className={commercialView==='LISTINGS'?'active':''}
         aria-current={commercialView==='LISTINGS'?'page':undefined}
         onClick={()=>setCommercialView('LISTINGS')}>Anúncios</button>
       <button type="button" className={commercialView==='EVOLUTION'?'active':''}
         aria-current={commercialView==='EVOLUTION'?'page':undefined}
-        onClick={()=>setCommercialView('EVOLUTION')}>Evolução de vendas</button>
+        onClick={()=>{setTrendRequest(null);setCommercialView('EVOLUTION');}}>Evolução de vendas</button>
     </nav>
     {commercialView==='EVOLUTION'?
       <CommerceSalesEvolution platform={platform} onPlatformChange={setPlatform}
@@ -804,6 +773,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         importedThrough={data?.imported_month?.period_end}
         search={search} revision={refresh} salesRevision={salesRevision}/>}
     </>}
-    <p className="nim-footnote">Os cards Em alta e Em queda contam SKU/modelos com comparação entre períodos completos de vendas importadas de Mercado Livre e Shopee, não anúncios individuais. Não são exibidos quando a plataforma ou o período não tem cálculo compatível. Os totais de unidades e faturamento importados continuam disponíveis nos relatórios próprios. A lista de anúncios permanece vinculada apenas às vendas comprovadas. A lista de anúncios atribui vendas apenas a vínculos identificáveis: no caso da Shopee, esses subtotais podem ser parciais, não necessariamente o total do anúncio. A aba Evolução de vendas compara produtos por SKU/modelo entre períodos iguais, sem presumir que o total do produto pertence ao anúncio atual. “Sem vendas identificadas” não comprova zero real do anúncio quando o código mudou. “Sem vendas registradas” refere-se ao SKU/modelo conhecido, não ao anúncio inteiro. Nenhum dado do Scanner é alterado.</p>
+    <p className="nim-footnote">Os cards Em alta e Em queda contam SKU/modelos com comparação entre períodos completos de vendas importadas de Mercado Livre e Shopee, não anúncios individuais. Não são exibidos quando a plataforma ou o período não tem cálculo compatível. Os totais de unidades e faturamento importados continuam disponíveis nos relatórios próprios. A lista de anúncios atribui vendas apenas a vínculos identificáveis: no caso da Shopee, esses subtotais podem ser parciais, não necessariamente o total do anúncio. A aba Evolução de vendas compara produtos por SKU/modelo entre períodos iguais, sem presumir que o total do produto pertence ao anúncio atual. “Sem vendas identificadas” não comprova zero real do anúncio quando o código mudou. “Sem vendas registradas” refere-se ao SKU/modelo conhecido, não ao anúncio inteiro. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
