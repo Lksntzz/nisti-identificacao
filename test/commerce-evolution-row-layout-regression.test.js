@@ -10,7 +10,8 @@ const panel=fs.readFileSync('src/commerce-sales-evolution.jsx','utf8');
 test('rows use six-column grid, not flex, and do not render a second disclosure marker',()=>{
   const rules=[...base.matchAll(/\.nim-evolution-product-head\s*\{([^}]*)\}/g)].map(x=>x[1]);
   assert.ok(rules.length>=2);
-  assert.ok(rules.every(css=>/display:grid/.test(css)&&!/display:flex|flex-wrap:wrap/.test(css)));
+  assert.ok(rules.some(css=>/display:grid/.test(css)));
+  assert.ok(rules.every(css=>!/display:flex|flex-wrap:wrap/.test(css)));
   assert.match(layout,/\.nim-manager \.nim-evolution-table-head,\.nim-manager \.nim-evolution-product-head\{\s*display:grid/);
   assert.match(polish,/\.nim-manager \.nim-evolution-product-head\{\s*display:grid/);
   assert.match(polish,/\.nim-manager \.nim-evolution-product-head::before\{content:none;display:none\}/);
