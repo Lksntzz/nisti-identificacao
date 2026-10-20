@@ -54,3 +54,20 @@ test('monitor has no manual key entry, and admin has explicit approval control',
   assert.match(admin,/item\.code/);
   assert.match(edge,/isProtectedApi\(pathname\)/);
 });
+
+
+test('kiosk uses a private revocable URL to activate its monitor session automatically',async()=>{
+  const monitor=source('../src/notification-monitor.jsx');
+  const admin=source('../src/admin/NotificationDispatchView.jsx');
+  assert.match(monitor, /#acesso=\(\[0-9a-f\]\{64\}\)/i);
+  assert.match(monitor, /window\.history\.replaceState/);
+  assert.match(monitor, /api\/dispatch\/activate/);
+  assert.match(monitor, /startupPendingRef\.current\|\|pollingRef\.current/);
+  assert.match(admin, /Gerar link privado permanente/);
+  assert.match(admin, /api\/admin\/dispatch\/monitor-key/);
+  assert.match(admin, /navigator\.clipboard\.writeText\(permanentLink\)/);
+  const response=await handleNotificationDispatchRequest(new Request('https://example.com/api/dispatch/activate',{
+    method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:'invalid'})
+  }),{});
+  assert.equal(response.status,401);
+});
