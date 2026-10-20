@@ -5,6 +5,7 @@ import CommerceAbcAdPerformance from './commerce-abc-ad-performance.jsx';
 import CommerceSalesVelocity from './commerce-sales-velocity.jsx';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import './commerce-commercial-dashboard.css';
+import './nisti-reactbits-adaptations.css';
 
 const PLATFORM_OPTIONS = [
   ['TODAS','Todas as plataformas'],
@@ -33,7 +34,7 @@ async function fetchJson(url) {
 }
 
 function Metric({label,value,foot,icon,tone}) {
-  return <article className="nisti-com-metric">
+  return <article className={"nisti-com-metric nisti-com-metric-"+tone}>
     <div><span>{label}</span><strong>{value}</strong><small>{foot}</small></div>
     <span className={'nisti-com-metric-icon '+tone} aria-hidden="true">{icon}</span>
   </article>;
@@ -176,8 +177,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}) {
       <div className="nisti-com-section-heading">
         <h3>Curva ABC de Vendas</h3>
         <div className="nisti-com-segment" aria-label="Critério da Curva ABC">
-          <button type="button" className={basis==='REVENUE'?'selected':''} onClick={()=>{setBasis('REVENUE');setActiveCurve('');}}>Por faturamento</button>
-          <button type="button" className={basis==='UNITS'?'selected':''} onClick={()=>{setBasis('UNITS');setActiveCurve('');}}>Por unidades</button>
+          <button type="button" className={basis==='REVENUE'?'selected':''} aria-pressed={basis==='REVENUE'} onClick={()=>{setBasis('REVENUE');setActiveCurve('');}}>Por faturamento</button>
+          <button type="button" className={basis==='UNITS'?'selected':''} aria-pressed={basis==='UNITS'} onClick={()=>{setBasis('UNITS');setActiveCurve('');}}>Por unidades</button>
         </div>
       </div>
       <div className="nisti-com-abc-cards">

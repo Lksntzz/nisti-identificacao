@@ -5,6 +5,7 @@ import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
 import ListingDiagnosisPanel from './commerce-listing-diagnosis-panel.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
+import './nisti-reactbits-adaptations.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
 import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
 
@@ -72,7 +73,7 @@ function VariationSalesEvidence({item,days,partial}){
 }
 function Kpi({label,value,description,tone,onClick,selected}){
   const child=<><small>{label}</small><strong>{value}</strong>{description&&<span>{description}</span>}</>;
-  return onClick?<button type="button" className={'nim-kpi '+tone+(selected?' selected':'')} onClick={onClick}>{child}</button>
+  return onClick?<button type="button" className={'nim-kpi '+tone+(selected?' selected':'')} aria-pressed={Boolean(selected)} onClick={onClick}>{child}</button>
     :<div className={'nim-kpi '+tone}>{child}</div>;
 }
 function MonthBars({months,basis}){
@@ -709,25 +710,27 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           {monthly?.months?.some(m=>m.partial)&&<p className="nim-detail-hint">Somente vendas identificadas por SKU exclusivo, sem ratear pedidos entre anúncios. Totais parciais.</p>}
         </div>}
         <div className="nim-table-scroll">
-          <table className="nim-ad-table"><thead><tr>
+          <table className="nim-ad-table" aria-label="Anúncios ativos e desempenho"><thead><tr>
             <th>Plataforma</th><th>Nome e ID do anúncio</th><th>{hasMixedPartial?'Unid. identificadas':hasShopeePartial?'Unid. vinculadas':'Unid.'} {periodLabel(days,month)}</th>
             <th>Variações</th><th>{hasMixedPartial?'Faturamento identificado':hasShopeePartial?'Faturamento vinculado':'Faturamento'}</th><th>ABC</th><th>Vendas</th>
           </tr></thead><tbody>
-            {!loading&&rows.map(item=>{
+            {!loading&&rows.map((item,index)=>{
               const linked=listingLinkedSalesForPeriod(item,days);
-              return <tr key={item.id} className={selectedId===item.id?'selected':''}
+              return <tr key={item.id} data-nim-row style={{'--nim-order':Math.min(index,6)}} className={selectedId===item.id?'selected':''}
               onClick={()=>setSelectedId(item.id)} title="Abrir diagnóstico e informações do anúncio">
-              <td><PlatformLabel item={item}/></td>
-              <td><strong className="nim-ad-name">{item.title}</strong>
-                <small className="nim-ad-id">{item.external_listing_id}</small></td>
-              <td className="nim-units">{item.ready?num(item.units):linked.hasSales?num(linked.units):'—'}</td>
-              <td><span className="nim-variations-cell">{item.total_variations?num(item.total_variations)+' variações':'Sem variações'}
+              <td data-label="Plataforma"><PlatformLabel item={item}/></td>
+              <td data-label="Anúncio"><strong className="nim-ad-name">{item.title}</strong>
+                <small className="nim-ad-id">{item.external_listing_id}</small>
+                <button type="button" className="nim-row-open" aria-label={'Abrir diagnóstico do anúncio '+item.external_listing_id}
+                  onClick={event=>{event.stopPropagation();setSelectedId(item.id);}}>Ver diagnóstico →</button></td>
+              <td data-label="Unidades" className="nim-units">{item.ready?num(item.units):linked.hasSales?num(linked.units):'—'}</td>
+              <td data-label="Variações"><span className="nim-variations-cell">{item.total_variations?num(item.total_variations)+' variações':'Sem variações'}
                 <VariationSalesEvidence item={item} days={days} partial={hasShopeePartial&&item.source==='SHOPEE'}/>
               </span></td>
-              <td className="nim-money">{item.ready?money(item.revenue):linked.hasSales?money(linked.revenue):'—'}</td>
-              <td>{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}
+              <td data-label="Faturamento" className="nim-money">{item.ready?money(item.revenue):linked.hasSales?money(linked.revenue):'—'}</td>
+              <td data-label="Curva ABC">{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}
                 title={item.curve_partial?'ABC indicativa: calculada apenas com vendas identificadas':'Curva ABC por vendas consolidadas'}>{item.curve}{item.curve_partial?'*':''}</span>:'—'}</td>
-              <td><Situation item={item} days={days}/></td>
+              <td data-label="Situação"><Situation item={item} days={days}/></td>
             </tr>;
             })}
             {loading&&<tr><td colSpan={7} className="nim-table-empty">Carregando anúncios…</td></tr>}

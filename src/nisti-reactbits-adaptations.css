@@ -1,0 +1,119 @@
+/*
+ * NISTI commercial UI — lightweight, original CSS adaptations of patterns
+ * explored on reactbits.dev (Bento cards, Pill Nav and Animated List).
+ * No third-party component source, runtime dependency or animation library.
+ * Retains server-side data, application state and existing filtering behavior.
+ */
+
+/* Bento: meaningful visual hierarchy without moving or animating numerical data. */
+.nim-manager .nim-kpis{grid-template-columns:repeat(12,minmax(0,1fr));gap:10px}
+.nim-manager .nim-kpis>.nim-kpi{grid-column:span 2;position:relative;isolation:isolate;overflow:hidden;
+  background:#fff;border-color:#e4eaf3;border-radius:15px;min-height:114px;padding:15px 16px;
+  box-shadow:0 3px 12px #162b4308;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){grid-column:span 3}
+.nim-manager .nim-kpi:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--nim-accent,#3278c8)}
+.nim-manager .nim-kpi.blue{--nim-accent:#518bed}
+.nim-manager .nim-kpi.mint{--nim-accent:#2caa7b}
+.nim-manager .nim-kpi.rose{--nim-accent:#db6882}
+.nim-manager .nim-kpi.sand{--nim-accent:#dca64b}
+.nim-manager .nim-kpi.green{--nim-accent:#328e63}
+.nim-manager .nim-kpi small{font-size:10px;line-height:1.35;color:#63738c}
+.nim-manager .nim-kpi strong{font-size:clamp(18px,1.8vw,25px);line-height:1.2;font-variant-numeric:tabular-nums}
+.nim-manager .nim-kpi span{font-size:10px;color:#73829a;overflow-wrap:anywhere}
+.nim-manager button.nim-kpi:hover{border-color:#b6c7e4;box-shadow:0 7px 18px #172e4d12;transform:translateY(-2px)}
+.nim-manager .nim-kpi.selected{outline:2px solid #447fea;outline-offset:-2px;background:#f5f9ff}
+.nim-manager .nim-kpis>.nim-kpi:focus-visible{outline:3px solid #2465eb;outline-offset:2px}
+
+/* Pill Nav: current state is obvious without competing with data cards. */
+.nim-manager .nim-commercial-views{width:max-content;max-width:100%;padding:4px;gap:3px;
+  border:1px solid #e4eaf3;border-radius:999px;background:#f2f5fa}
+.nim-manager .nim-commercial-views button{min-height:38px;padding:9px 17px;border:0;border-radius:999px;
+  background:transparent;color:#60728b;transition:background-color .16s ease,color .16s ease,box-shadow .16s ease}
+.nim-manager .nim-commercial-views button:hover:not(.active){background:#e7edf6;color:#344d72}
+.nim-manager .nim-commercial-views button.active{background:#fff;color:#205bbc;box-shadow:0 1px 5px #1e365c1c}
+.nim-manager .nim-filter-panel .nim-status-tabs,.nim-manager .nim-filter-panel .nim-curve-tabs{
+  gap:3px;flex-wrap:wrap;max-width:100%;padding:4px;background:#edf2f9;border:1px solid #e4eaf3;border-radius:12px}
+.nim-manager .nim-filter-panel .nim-status-tabs button,.nim-manager .nim-filter-panel .nim-curve-tabs button{
+  min-height:33px;height:auto;padding:7px 11px;border:0;border-radius:9px;background:transparent;
+  box-shadow:none;color:#5b6e87;transition:background-color .16s ease,color .16s ease,box-shadow .16s ease}
+.nim-manager .nim-filter-panel .nim-status-tabs button:hover:not(.active),
+.nim-manager .nim-filter-panel .nim-curve-tabs button:hover:not(.active){background:#e2eaf6;color:#315a97}
+.nim-manager .nim-filter-panel .nim-status-tabs button.active,
+.nim-manager .nim-filter-panel .nim-curve-tabs button.active{background:#fff;color:#205dbc;box-shadow:0 1px 5px #2339561c}
+.nim-manager .nim-filter-panel .nim-status-tabs button:focus-visible,
+.nim-manager .nim-filter-panel .nim-curve-tabs button:focus-visible{outline:2px solid #2465eb;outline-offset:2px}
+
+/* Animated List: one brief row entrance; never animate filters or values. */
+@keyframes nisti-commercial-row-enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.nim-manager .nim-ad-table tbody tr[data-nim-row]{
+  animation:nisti-commercial-row-enter .2s ease-out both;
+  animation-delay:calc(var(--nim-order,0)*22ms)}
+.nim-manager .nim-ad-table tbody tr[data-nim-row]:focus-within{background:#eef5ff}
+.nim-manager .nim-ad-name{font-size:12px;line-height:1.4}
+.nim-manager .nim-row-open{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:2px 0;
+  border:0;background:none;color:#2464bf;font:inherit;font-size:10px;font-weight:750;cursor:pointer}
+.nim-manager .nim-row-open:hover{text-decoration:underline}
+.nim-manager .nim-row-open:focus-visible{outline:2px solid #2465eb;outline-offset:2px}
+.nim-manager .nim-ad-table tbody tr.selected{box-shadow:inset 3px 0 #397be5}
+
+/* Related commercial overview: same visual vocabulary, no data-state changes. */
+.nisti-com-dashboard .nisti-com-metric{position:relative;overflow:hidden;isolation:isolate;
+  border-radius:15px;background:#fff;box-shadow:0 3px 12px #162b4308;
+  transition:box-shadow .18s ease,border-color .18s ease}
+.nisti-com-dashboard .nisti-com-metric:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--nisti-metric-accent,#518bed)}
+.nisti-com-dashboard .nisti-com-metric-pink{--nisti-metric-accent:#d95d99}
+.nisti-com-dashboard .nisti-com-metric-gold{--nisti-metric-accent:#d8a14d}
+.nisti-com-dashboard .nisti-com-metric-blue{--nisti-metric-accent:#518bed}
+.nisti-com-dashboard .nisti-com-metric-green{--nisti-metric-accent:#309f71}
+.nisti-com-dashboard .nisti-com-metric strong{font-variant-numeric:tabular-nums}
+.nisti-com-dashboard .nisti-com-metric:hover{border-color:#cbd8e9;box-shadow:0 6px 18px #142e4a12}
+.nisti-com-dashboard .nisti-com-segment{border-radius:999px}
+.nisti-com-dashboard .nisti-com-segment button{border-radius:999px}
+.nisti-com-dashboard .nisti-com-segment button:focus-visible{outline:2px solid #2465eb;outline-offset:2px}
+
+@media(max-width:1180px){
+  .nim-manager .nim-kpis{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .nim-manager .nim-kpis>.nim-kpi{grid-column:span 2}
+  .nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){grid-column:span 3}
+}
+@media(max-width:640px){
+  .nim-manager .nim-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .nim-manager .nim-kpis>.nim-kpi,.nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){grid-column:span 1}
+  .nim-manager .nim-kpis>.nim-kpi:first-child{grid-column:1/-1}
+  .nim-manager .nim-kpis>.nim-kpi{padding:12px;min-height:96px}
+  .nim-manager .nim-kpi strong{font-size:20px}
+  .nim-manager .nim-commercial-views{width:100%}
+  .nim-manager .nim-commercial-views button{flex:1;min-width:0;padding:9px 10px}
+  .nim-manager .nim-filter-panel .nim-status-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}
+  .nim-manager .nim-filter-panel .nim-status-tabs button{padding:8px 5px;white-space:normal;line-height:1.25;font-size:10px}
+  .nim-manager .nim-filter-panel .nim-curve-tabs{width:max-content;max-width:100%}
+  /* Table becomes a labeled, touch-friendly list without horizontal swiping. */
+  .nim-manager .nim-table-scroll{overflow:visible}
+  .nim-manager .nim-ad-table{display:block;min-width:0;width:100%}
+  .nim-manager .nim-ad-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+  .nim-manager .nim-ad-table tbody{display:grid;gap:9px;padding:10px}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:9px 12px;padding:12px;border:1px solid #e2e8f2;border-radius:12px;background:#fff;min-width:0}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row].selected{border-color:#8aafe8;box-shadow:inset 3px 0 #397be5}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] td{display:grid;align-content:start;justify-items:start;
+    gap:3px;padding:0;border:0;min-width:0;text-align:left;white-space:normal;overflow-wrap:anywhere}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] td:before{content:attr(data-label);color:#8794a5;font-size:9px;font-weight:700}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] td:nth-child(2){grid-column:1/-1;grid-row:1;
+    padding-bottom:9px;border-bottom:1px solid #edf1f7}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] td:nth-child(2):before{display:none}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] td:nth-child(1){grid-column:1/-1;grid-row:2}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] td:nth-child(7){grid-column:1/-1}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] .nim-ad-name{max-width:none;min-width:0;font-size:12px}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] .nim-ad-id{white-space:normal}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] .nim-money{white-space:normal}
+  .nim-manager .nim-ad-table tbody tr[data-nim-row] .nim-variations-cell{min-width:0}
+  .nim-manager .nim-ad-table tbody tr:not([data-nim-row]){display:block}
+  .nim-manager .nim-ad-table tbody tr:not([data-nim-row]) td{display:block;width:100%}
+  .nim-manager .nim-list-footer{gap:9px}
+}
+@media(prefers-reduced-motion:reduce){
+  .nim-manager .nim-ad-table tbody tr[data-nim-row]{animation:none!important}
+  .nim-manager .nim-kpi,.nim-manager .nim-commercial-views button,
+  .nim-manager .nim-filter-panel .nim-status-tabs button,.nim-manager .nim-filter-panel .nim-curve-tabs button,
+  .nisti-com-dashboard .nisti-com-metric{transition:none!important;transform:none!important}
+}
