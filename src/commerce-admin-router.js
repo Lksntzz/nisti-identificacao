@@ -436,7 +436,7 @@ export async function handleCommerceAdminRequest(request, env) {
       const basis = String(query(url,'basis') || 'REVENUE').toUpperCase();
       const month = query(url,'month') || '';
       if (![0,7,30,60,90].includes(days)
-        || !['ALL','SOLD','ZERO','LOW','RISING','FALLING','PENDING'].includes(status)
+        || !['ALL','SOLD','ZERO','VAR_ZERO','UNLINKED','LOW','RISING','FALLING','PENDING'].includes(status)
         || !['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE','AMAZON','TIKTOK'].includes(platform)
         || !['ALL','A','B','C'].includes(curve)
         || !['REVENUE','UNITS'].includes(basis)

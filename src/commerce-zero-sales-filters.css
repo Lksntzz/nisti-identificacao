@@ -1,0 +1,23 @@
+/* Distinguish verified zero-sales ads from variants and unmatched Shopee SKUs. */
+.nim-manager .nim-status-tabs .nim-filter-secondary{
+  font-size:10.5px;min-height:33px;border:1px solid #e0e8f5;padding:7px 10px;
+  background:#f9fbff;color:#567096;border-radius:9px;
+}
+.nim-manager .nim-status-tabs .nim-filter-secondary.active{
+  background:#edf4ff;color:#205abe;border-color:#8ab1f2;
+}
+.nim-manager .nim-filter-panel .nim-status-tabs button:disabled{
+  opacity:.45;cursor:not-allowed;
+}
+.nim-manager .nim-filter-panel-footer .nim-filter-panel-note{
+  line-height:1.65;color:#4c6487;overflow-wrap:anywhere;
+}
+@media(max-width:640px){
+  .nim-manager .nim-filter-panel .nim-status-tabs{
+    display:flex;flex-wrap:wrap;width:100%;gap:5px;
+  }
+  .nim-manager .nim-filter-panel .nim-status-tabs button,
+  .nim-manager .nim-filter-panel .nim-status-tabs .nim-filter-secondary{
+    flex:1 1 125px;min-width:0;white-space:normal;
+  }
+}

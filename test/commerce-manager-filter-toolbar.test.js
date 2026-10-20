@@ -37,7 +37,7 @@ test('analysis dates appear as understated footer rather than detached paragraph
   assert.match(evidence,/formatDate\(data\.period_start\)/);
   assert.match(evidence,/formatDate\(data\.period_end\)/);
   assert.match(ui,/nim-filter-panel-warning/);
-  assert.match(ui,/Inclui anúncios com variações sem vendas/);
+  assert.match(ui,/Anúncios que venderam, mas têm variações verificadas sem vendas/);
   assert.doesNotMatch(ui,/<p className="nim-coverage">/);
 });
 
@@ -61,7 +61,7 @@ test('o Gestor exibe apenas Todos, Com vendas e Sem vendas, sem indicadores',()=
 test('a tabela tem sete colunas e o filtro sem vendas preserva variações sem saída',()=>{
   assert.match(ui,/colSpan=\{7\}/);
   assert.doesNotMatch(ui,/colSpan=\{8\}/);
-  assert.match(ui,/zeroFilter=\{status==='ZERO'\}/);
+  assert.match(ui,/zeroFilter=\{status==='VAR_ZERO'\}/);
   assert.match(ui,/variations\.filter\(v=>v\.units===0\)/);
   assert.match(sql,/b.selected_status='ZERO' and c.ready and \(c.units=0 or c.zero_variations>0\)/);
 });

@@ -66,7 +66,7 @@ test('UI distinguishes linked values from gross totals without false zeros or fa
   assert.match(ui,/const hasDailyPartial=data\?\.source_kind==='DAILY_SKU_PARTIAL'/);
   assert.match(ui,/shopeeTotals\?\.units!=null\?num\(shopeeTotals\.units\)/);
   assert.match(ui,/shopeeTotals\?\.revenue!=null\?money\(shopeeTotals\.revenue\)/);
-  assert.match(ui,/hasShopeePartial&&code==='ZERO'/);
+  assert.match(ui,/disabled=\{code==='ZERO'&&days===0&&platform==='SHOPEE'\}/);
   assert.match(ui,/hasShopeePartial&&code!=='ALL'/);
   assert.match(ui,/const linkedEvidence=listingLinkedSalesForPeriod\(detail,detailDays\)/);
   assert.match(ui,/const partialVars=item\.source==='SHOPEE'&&!complete\?variationEvidence\.variations:\[\]/);

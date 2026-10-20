@@ -48,8 +48,8 @@ test('compact UI preserves three primary sales filters and shows trend only for 
   assert.match(ui,/<option value="RISING">Em alta/);
   assert.match(ui,/<option value="FALLING">Em queda/);
   assert.match(ui,/onChange=\{e=>change\(setStatus,e\.target\.value\)\}/);
-  assert.match(ui,/if\(choice==='MONTH'&&\['RISING','FALLING'\]\.includes\(status\)\)setStatus\('ALL'\)/);
-  assert.match(ui,/if\(\['RISING','FALLING'\]\.includes\(status\)\)setStatus\('ALL'\)/);
+  assert.match(ui,/if\(choice==='MONTH'&&\(\['RISING','FALLING','VAR_ZERO','UNLINKED'\]\.includes\(status\)/);
+  assert.match(ui,/if\(\['RISING','FALLING'\]\.includes\(status\) \|\|/);
   assert.match(ui,/<td data-label="Situação"><Situation item=\{item\} days=\{days\}\/><\/td>/);
   assert.match(ui,/nim-trend-hint/);
   assert.match(css,/\.nim-filter-panel-body\.nim-has-trend/);
@@ -59,7 +59,7 @@ test('compact UI preserves three primary sales filters and shows trend only for 
 });
 
 test('FALLING status remains behind authenticated manager route, and all new SQL is read-only',()=>{
-  assert.match(router,/\['ALL','SOLD','ZERO','LOW','RISING','FALLING','PENDING'\]\.includes\(status\)/);
+  assert.match(router,/\['ALL','SOLD','ZERO','VAR_ZERO','UNLINKED','LOW','RISING','FALLING','PENDING'\]\.includes\(status\)/);
   assert.match(daily,/security invoker set search_path=public/);
   assert.match(daily,/revoke all on function public\.commerce_listing_manager_v1/);
   assert.match(daily,/to service_role/);
