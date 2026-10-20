@@ -9,6 +9,8 @@ import './commerce-import-modal.css';
 // Uses a portal so admin-panel stacking contexts cannot cover or crop the dialog.
 export default function CommerceImportModal({mode,onClose,onChooseAnother,onSalesChanged,onCatalogChanged}){
   const dialogRef=useRef(null);
+  const onCloseRef=useRef(onClose);
+  onCloseRef.current=onClose;
   const choice=COMMERCE_IMPORT_OPTIONS.find(option=>option.mode===mode);
   useEffect(()=>{
     if(!choice)return;
@@ -21,7 +23,7 @@ export default function CommerceImportModal({mode,onClose,onChooseAnother,onSale
       if(event.key==='Escape'){
         event.preventDefault();
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
       }
       if(event.key!=='Tab'||!dialog)return;
       const all=[...dialog.querySelectorAll(
@@ -41,7 +43,7 @@ export default function CommerceImportModal({mode,onClose,onChooseAnother,onSale
       document.body.style.overflow=previousOverflow;
       if(before&&typeof before.focus==='function'&&before.isConnected)before.focus();
     };
-  },[mode,onClose,choice?.mode]);
+  },[mode,choice?.mode]);
   if(!choice||typeof document==='undefined')return null;
   return createPortal(
     <div className="nim-import-overlay">
