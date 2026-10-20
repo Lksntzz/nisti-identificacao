@@ -1,8 +1,9 @@
 import { supabaseRpc } from './supabase-read-store.js';
 import { normalizePlatform } from './platform-scope.js';
+import { DISPATCH_PLATFORMS,validDispatchOption } from './notification-dispatch-options.js';
 
 export const DISPATCH_DURATION_SECONDS=15;
-export const DISPATCH_PLATFORMS=Object.freeze(['SHOPEE','MERCADO LIVRE','AMAZON']);
+export { DISPATCH_PLATFORMS } from './notification-dispatch-options.js';
 export const DISPATCH_ACTION='RETIRAR_CAPA';
 const MONITOR_COOKIE='__Host-nisti_dispatch_monitor';
 const MONITOR_COOKIE_AGE=60*60*24*180;
@@ -60,15 +61,17 @@ export async function handleNotificationDispatchRequest(request,env) {
     if(path==='/api/admin/dispatch/batch'&&request.method==='POST') {
       const body=await request.json().catch(()=>null);
       const calls=body?.calls;
-      if(!Array.isArray(calls)||calls.length<1||calls.length>3)return json({error:'Selecione de uma a três plataformas.'},400);
+      if(!Array.isArray(calls)||calls.length<1||calls.length>DISPATCH_PLATFORMS.length)return json({error:'Selecione de uma a dez plataformas.'},400);
       const seen=new Set();
       const validated=[];
       for(const call of calls) {
-        const platform=normalizePlatform(call?.platform);
+        // Esta lista é exclusiva do monitor; não use normalizePlatform(),
+        // que agrupa Mercado Livre Antigo/Novo no catálogo comercial.
+        const platform=typeof call?.platform==='string'?call.platform.trim().toUpperCase():'';
         const message=typeof call?.message==='string'?call.message.trim():'';
-        if(!DISPATCH_PLATFORMS.includes(platform)||seen.has(platform)||!validRequestKey(call?.request_key)
-          ||message.length<1||message.length>120||/[\x00-\x1f\x7f]/.test(message))
-          return json({error:'Revise as plataformas e as mensagens (até 120 caracteres, sem quebras de linha).'},400);
+        if(!DISPATCH_PLATFORMS.includes(platform)||seen.has(platform)
+          ||!validRequestKey(call?.request_key)||!validDispatchOption(platform,message))
+          return json({error:'Escolha uma opção válida para cada plataforma selecionada.'},400);
         seen.add(platform);
         validated.push({platform,message,request_key:call.request_key});
       }
