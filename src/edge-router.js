@@ -8,7 +8,7 @@ import { handleCommerceListingStateRequest } from './commerce-listing-state-rout
 import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
 import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
 import { handleMuralRequest } from './mural-router.js';
-import { handleNotificationDispatchRequest, activateDispatchMonitorLink } from './notification-dispatch-router.js';
+import { handleNotificationDispatchRequest } from './notification-dispatch-router.js';
 import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
 
@@ -37,7 +37,7 @@ async function currentOperatorPinRequired(env){
   return operatorPinRequired(env);
 }
 function operatorApiNeedsPin(path){
-  // Monitor credentials are checked independently in the dispatch router.
+  // A consulta pública do monitor não exige PIN; operações administrativas continuam protegidas.
   if(path.startsWith('/api/dispatch/'))return false;
   if(!path.startsWith('/api/')||path.startsWith('/api/admin/'))return false;
   if(path==='/api/health'||path==='/api/platforms'
@@ -557,8 +557,14 @@ export default {
     }
 
     if(request.method==='GET' && pathname==='/monitor-notificacoes') {
-      const activation=await activateDispatchMonitorLink(request,env);
-      if(activation)return withSecurityHeaders(activation);
+      // Links antigos com ?acesso=... não são mais necessários.
+      // Redireciona para a URL limpa para evitar exposição do segredo.
+      if(url.searchParams.has('acesso')){
+        return withSecurityHeaders(new Response(null,{status:303,headers:{
+          location:'/monitor-notificacoes','cache-control':'no-store, private',
+          'referrer-policy':'no-referrer'
+        }}));
+      }
       const page=await env.ASSETS.fetch(new Request(new URL('/',url),{headers:request.headers}));
       const headers=new Headers(page.headers);
       headers.set('cache-control','no-store, private');
