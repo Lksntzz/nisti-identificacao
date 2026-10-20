@@ -16,7 +16,7 @@ export function safeEvolutionImageUrl(value){
   return null;
 }
 
-export default function CommerceEvolutionProductThumbnail({url,title,source}){
+export default function CommerceEvolutionProductThumbnail({url,source}){
   const safeUrl=safeEvolutionImageUrl(url);
   const [failed,setFailed]=useState(false);
   const [loaded,setLoaded]=useState(false);
