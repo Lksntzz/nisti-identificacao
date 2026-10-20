@@ -157,7 +157,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
                 <h4>{item.title||'Produto vendido na plataforma'}</h4>
                 <p>Comparação de {days} dias por SKU/modelo · {platformName(item.source)}</p>
               </div>
-              <span className="nim-evolution-detail-period">Períodos equivalentes</span>
+              <span className="nim-evolution-detail-period">Janela de {days} dias</span>
             </header>
             <div className="nim-evolution-detail-section-title">Indicadores de vendas</div>
           <div className="nim-evolution-product-stats">
