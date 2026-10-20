@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from 'react';
+import CommercialIcon from './vendor/CommercialIcon.jsx';
 
 const API='/api/admin/commerce/listings/manager/evolution';
 const PAGE=25;
@@ -70,26 +71,27 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
   return <section className="nim-evolution" aria-label="Análise de evolução de vendas">
     <div className="nim-evolution-filter-panel">
     <header className="nim-evolution-heading"><div>
-      <h3>Evolução de Vendas</h3>
+      <h3>Filtros e comparação</h3>
       <p>Compare produtos em períodos equivalentes e identifique oportunidades comerciais.</p>
     </div><div className="nim-evolution-interval">
-      <strong>{data?date(data.period_start)+' a '+date(data.period_end):'Período de '+days+' dias'}</strong>
+      <strong><CommercialIcon name="calendar-days" size={16}/>
+        {data?date(data.period_start)+' a '+date(data.period_end):'Período de '+days+' dias'}</strong>
       {data&&<small>Anterior: {date(data.previous_start)} a {date(data.previous_end)}</small>}
     </div></header>
     <div className="nim-evolution-controls">
-      <label>Plataforma<select value={source} onChange={e=>onPlatformChange(e.target.value)}>
+      <label><CommercialIcon name="package" size={17}/>Plataforma<select value={source} onChange={e=>onPlatformChange(e.target.value)}>
         {platforms.map(([code,label])=><option value={code} key={code}>{label}</option>)}
       </select></label>
-      <label>Comparar períodos<select value={days} onChange={e=>{const selected=Number(e.target.value);setDays(selected);onPeriodChange(selected);}}>
+      <label><CommercialIcon name="calendar-days" size={17}/>Comparar períodos<select value={days} onChange={e=>{const selected=Number(e.target.value);setDays(selected);onPeriodChange(selected);}}>
         {[7,30,60,90].map(n=><option value={n} key={n}>{n} dias × {n} anteriores</option>)}
       </select></label>
-      <label>Situação das vendas<select value={status} onChange={e=>setStatus(e.target.value)}
+      <label><CommercialIcon name="circle-alert" size={17}/>Situação das vendas<select value={status} onChange={e=>setStatus(e.target.value)}
         aria-label="Filtrar evolução pela situação das vendas">
         {statuses.map(([code,label])=><option value={code} key={code}>
           {label}{data&&code!=='ALL'?' ('+num(countFor(code))+')':''}
         </option>)}
       </select></label>
-      <label>Pesquisar produto ou SKU<input type="search" value={draft} maxLength={120}
+      <label><CommercialIcon name="search" size={17}/>Pesquisar produto ou SKU<input type="search" value={draft} maxLength={120}
         onChange={e=>setDraft(e.target.value)} placeholder="Nome, SKU ou anúncio"/></label>
     </div>
     </div>
@@ -123,10 +125,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
           <summary className="nim-evolution-product-head" title="Abrir análise completa do produto">
             <div className="nim-evolution-primary">
               <span className="nim-evolution-product-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                  <rect x="5" y="3" width="14" height="18" rx="2"/>
-                  <path d="M9 3v18M12 9h4M12 12h4"/>
-                </svg>
+                <CommercialIcon name="notebook-tabs" size={23} strokeWidth={1.7}/>
               </span>
               <div className="nim-evolution-name">
                 <strong title={item.title||'Produto vendido na plataforma'}>{item.title||'Produto vendido na plataforma'}</strong>
@@ -140,10 +139,15 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
                 item.listing_id?'Anúncio '+item.listing_id:'Sem ID exclusivo de anúncio identificado'}</small>
             </span>
             <span className={'nim-evolution-tag '+String(item.trend||'').toLowerCase()}>
+              {item.trend==='RISING'&&<CommercialIcon name="trending-up" size={14}/>}
+              {item.trend==='FALLING'&&<CommercialIcon name="trending-down" size={14}/>}
               {labels[item.trend]||'Dados insuficientes'}</span>
             <span className="nim-evolution-quick-stats"><b>{num(item.current_units)} un.</b></span>
             <span className={'nim-evolution-growth '+(item.trend==='RISING'?'positive':
-              item.trend==='FALLING'?'negative':'neutral')}>{growth}</span>
+              item.trend==='FALLING'?'negative':'neutral')}>
+              {item.trend==='RISING'&&<CommercialIcon name="trending-up" size={15}/>}
+              {item.trend==='FALLING'&&<CommercialIcon name="trending-down" size={15}/>}
+              {growth}</span>
           </summary>
           <div className="nim-evolution-product-stats">
             <div><small>Unidades atuais</small><strong>{num(item.current_units)}</strong>
