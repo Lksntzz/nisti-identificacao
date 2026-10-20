@@ -324,9 +324,9 @@ export default function NotificationDispatchView({senderMode=false}) {
             </div>
           </div>
           <p className="nid-muted">O painel permanece ativo na tela dedicada. Som e exibição são controlados pelo monitor.</p>
-          <button type="button" className="nid-secondary nid-pair-link" onClick={()=>setTab('settings')}>
+          {!senderMode&&<button type="button" className="nid-secondary nid-pair-link" onClick={()=>setTab('settings')}>
             <DispatchIcon name="settings-2" size={17}/> Configurar monitor
-          </button>
+          </button>}
         </div>
       </aside>
     </div>}
