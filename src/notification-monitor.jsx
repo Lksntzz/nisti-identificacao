@@ -6,6 +6,7 @@ import GradientText from './notification-ui/reactbits/GradientText.jsx';
 import PlatformLogo from './notification-ui/PlatformLogo.jsx';
 import { playNotificationSound } from './notification-platform-sounds.js';
 import { fetchPublishedMonitorBuild, shouldReloadMonitor, MONITOR_BUILD_CHECK_INTERVAL_MS } from './notification-monitor-updates.js';
+import { normalizeMonitorFeed } from './notification-monitor-data.js';
 
 
 const LABELS=Object.fromEntries(DISPATCH_PLATFORMS.map(name=>[name,name.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())]));
@@ -60,15 +61,17 @@ export default function NotificationMonitor(){
     pollingRef.current=true;
     try{
       const result=await post('/api/dispatch/view');
-      const incoming=result.call||null;
-      const queued=Number(result.pending||0);
+      const feed=normalizeMonitorFeed(result);
+      const incoming=feed.call;
+      const queued=feed.pending;
       const currentTime=Date.now();
       if(incoming||queued>0)lastDispatchActivityRef.current=currentTime;
-      setOffset(Date.parse(result.server_time)-Date.now());
+      setOffset(feed.offset);
       setCall(incoming);
       setPending(queued);
-      setDuration(result.duration_seconds||15);
-      setOnline(true);setError('');
+      setDuration(feed.duration);
+      setOnline(!feed.invalidCall);
+      setError(feed.invalidCall?'A notificação recebida está incompleta. Aguardando os próximos dados.':'');
       // Uma nova versão somente entra quando a fila estiver vazia e a tela ociosa.
       if(shouldReloadMonitor({
         updateReady:reloadPendingRef.current,online:true,paired:true,

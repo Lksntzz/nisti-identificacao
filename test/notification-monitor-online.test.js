@@ -79,3 +79,33 @@ test('Vite creates matching version in bundle and online monitor-build.json',()=
   assert.match(sw,/url\.pathname\.startsWith\('\/assets\/'\)/);
   assert.doesNotMatch(sw,/monitor-build\.json/);
 });
+
+
+test('monitor feed tolerates incomplete calls without rendering React objects or invalid dates',async()=>{
+  const {normalizeMonitorCall,normalizeMonitorFeed}=await import('../src/notification-monitor-data.js');
+  const feed=normalizeMonitorFeed({call:{id:53,platform:'SHOPEE',message:'RETIRAR CAPA',expires_at:'2026-10-20T21:00:00Z'},pending:2,duration_seconds:15,server_time:'2026-10-20T20:59:45Z'});
+  assert.equal(feed.call.platform,'SHOPEE');
+  assert.equal(feed.invalidCall,false);
+  for(const bad of [undefined,null,[],{}, {id:1,platform:undefined,expires_at:'2026-10-20T21:00:00Z'},
+    {id:1,platform:{name:'SHOPEE'},expires_at:'2026-10-20T21:00:00Z'},
+    {id:1,platform:'SHOPEE',expires_at:'not-date'}])assert.equal(normalizeMonitorCall(bad),null);
+  const bad=normalizeMonitorFeed({call:{id:1,platform:undefined},duration_seconds:'invalid',server_time:'wrong'});
+  assert.equal(bad.invalidCall,true);
+  assert.equal(bad.call,null);
+  assert.equal(bad.duration,15);
+  assert.equal(bad.offset,0);
+  assert.deepEqual(normalizeMonitorFeed({call:null,pending:0}).call,null);
+  assert.throws(()=>normalizeMonitorFeed(null),/Resposta inválida/);
+});
+
+test('kiosk screen reloads automatically after render failures with bounded retry delay',()=>{
+  const entry=fs.readFileSync(new URL('../src/entry.jsx',import.meta.url),'utf8');
+  assert.match(entry,/monitorRecoveryDelay/);
+  assert.match(entry,/this\.retryTimer=window\.setTimeout\(\(\)=>window\.location\.reload\(\),delay\)/);
+  assert.match(entry,/componentWillUnmount/);
+  assert.match(entry,/Math\.min\(5000\*\(2\*\*\(count-1\)\),60000\)/);
+  const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
+  assert.match(sw,/nisti-id-v41/);
+  const monitor=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
+  assert.match(monitor,/normalizeMonitorFeed\(result\)/);
+});
