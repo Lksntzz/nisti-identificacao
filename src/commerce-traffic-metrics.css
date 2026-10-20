@@ -1,0 +1,26 @@
+.nim-traffic{display:grid;gap:12px;padding:12px;border:1px solid #dae6f3;border-radius:10px;background:#f9fbff;color:#253955}
+.nim-traffic-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.nim-traffic-header h4{font-size:12px;margin:0 0 4px}
+.nim-traffic-header p,.nim-traffic-caution,.nim-traffic-entry p{font-size:10px;line-height:1.6;color:#6f7e96;margin:0}
+.nim-traffic-header label,.nim-traffic-entry label{display:grid;gap:5px;font-size:10px;color:#576d88;font-weight:750}
+.nim-traffic select,.nim-traffic input{border:1px solid #dbe4f0;border-radius:7px;background:white;color:#2b3e58;font:inherit;font-size:11px;height:35px;padding:7px;min-width:0;width:100%}
+.nim-traffic-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.nim-traffic-period{background:#fff;padding:11px;border:1px solid #e5ebf4;border-radius:9px;display:grid;gap:10px;min-width:0}
+.nim-traffic-period>strong{font-size:11px;line-height:1.5}
+.nim-traffic-numbers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.nim-traffic-numbers>div{display:grid;gap:3px}
+.nim-traffic-numbers small{font-size:9px;line-height:1.45;color:#7d8b9f}
+.nim-traffic-numbers b{font-size:13px;color:#2d405c}
+.nim-traffic-source{font-size:9px;line-height:1.5;color:#8290a6;overflow-wrap:anywhere}
+.nim-traffic-empty,.nim-traffic-error,.nim-traffic-success{font-size:10px;line-height:1.55;margin:0}
+.nim-traffic-error{color:#b63d50}.nim-traffic-success{color:#14784b}
+.nim-traffic-insights{display:grid;gap:8px;padding:10px 12px;border-radius:8px;background:#fff;border:1px solid #e3eaf5}
+.nim-traffic-insights>strong{font-size:11px}.nim-traffic-insights p{margin:0;font-size:10px;line-height:1.6;color:#627590}
+.nim-traffic-insights p.drop{color:#9d3e52}
+.nim-traffic-entry-toggle,.nim-traffic-entry>button{font:inherit;font-size:11px;color:#2055af;background:#eaf1ff;border:1px solid #cddbf5;border-radius:8px;padding:10px;cursor:pointer}
+.nim-traffic-entry-toggle{justify-self:start}
+.nim-traffic-entry{display:grid;gap:10px;padding:11px;background:#fff;border:1px solid #e1e8f3;border-radius:9px}
+.nim-traffic-entry-numbers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.nim-traffic-entry>button{justify-self:start;background:#245fe2;color:#fff}
+.nim-traffic-entry>button:disabled{opacity:.55;cursor:wait}
+@media(max-width:600px){.nim-traffic{padding:9px}.nim-traffic-compare{grid-template-columns:1fr}.nim-traffic-header label{width:100%}}

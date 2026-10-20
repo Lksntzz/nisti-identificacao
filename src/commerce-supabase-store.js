@@ -201,6 +201,51 @@ export async function commerceListingManagerMonthly(env, platform='TODAS') {
 // advertisement-level order incidence is NOT a distinct order count.
 // Source-of-truth totals for ALL imported sales: include SKU/unlisted orders.
 // Scope matches the manager's displayed date range; no SKU alias is required.
+// Métricas externas por anúncio, janela exata e origem de tráfego.
+const validReportDate = value => {
+  const s=String(value||'');
+  return /^20\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(s)
+    && !Number.isNaN(Date.parse(s)) && new Date(s).toISOString().slice(0,10)===s;
+};
+function validateTrafficBounds(start,end) {
+  if(!validReportDate(start)||!validReportDate(end))throw new Error('Datas de tráfego inválidas.');
+  const days=(Date.parse(end)-Date.parse(start))/86400000+1;
+  if(days<1||days>91)throw new Error('Intervalo de tráfego deve ter de 1 a 91 dias.');
+}
+function nullableMetric(value) {
+  if(value==null||value==='')return null;
+  if(typeof value!=='number'||!Number.isSafeInteger(value)||value<0||value>1e12)
+    throw new Error('Métrica de tráfego inválida.');
+  return value;
+}
+export async function commerceListingTrafficWindow(env,listingId,filters={}) {
+  const id=cleanId(listingId);
+  if(!id)throw new Error('Anúncio inválido.');
+  validateTrafficBounds(filters.start,filters.end);
+  return await supabaseRpc(env,'commerce_listing_traffic_window_v1',{
+    p_listing_id:id,p_period_start:filters.start,p_period_end:filters.end
+  },{timeoutMs:9000});
+}
+export async function commerceSaveListingTraffic(env,listingId,input={},actor='Administrador') {
+  const id=cleanId(listingId);
+  if(!id)throw new Error('Anúncio inválido.');
+  validateTrafficBounds(input.start,input.end);
+  const scope=String(input.scope||'').toUpperCase();
+  const label=String(input.source||'').trim();
+  if(!['ALL','ORGANIC','PAID'].includes(scope)||label.length<8||label.length>200)
+    throw new Error('Informe o tipo de tráfego e a referência do relatório.');
+  const visits=nullableMetric(input.visits),impressions=nullableMetric(input.impressions);
+  const clicks=nullableMetric(input.clicks),orders=nullableMetric(input.orders);
+  if([visits,impressions,clicks,orders].every(x=>x===null)
+    || (impressions!==null&&clicks!==null&&clicks>impressions))
+    throw new Error('Informe métricas válidas; cliques não podem superar impressões.');
+  return await supabaseRpc(env,'commerce_save_listing_traffic_v1',{
+    p_listing_id:id,p_period_start:input.start,p_period_end:input.end,
+    p_scope:scope,p_visits:visits,p_impressions:impressions,p_clicks:clicks,p_orders:orders,
+    p_source_label:label,p_actor:String(actor||'Administrador').slice(0,120)
+  },{timeoutMs:9000});
+}
+
 export async function commerceImportedSalesTotals(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const start=cleanText(filters.start),end=cleanText(filters.end);
