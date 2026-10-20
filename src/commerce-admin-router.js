@@ -35,6 +35,7 @@ import {
   commerceListingManager,
   commerceSalesEvolution,
   commerceListingTrafficWindow,
+  commerceListingDiagnosisDaily,
   commerceSaveListingTraffic,
   commerceShopeeUnlinkedSales,
   commerceShopeeSkuReconciliationQueue,
@@ -357,6 +358,18 @@ export async function handleCommerceAdminRequest(request, env) {
       return json(await commerceShopeeListingFinance(env,listingId,{days,month}));
     }
     // Protegido pela mesma autenticação administrativa do router comercial.
+    const listingDailyPath=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/daily$/);
+    if(method==='GET'&&listingDailyPath) {
+      const start=String(query(url,'start')||''),end=String(query(url,'end')||'');
+      const scope=String(query(url,'scope')||'ALL').toUpperCase();
+      const validDate=s=>/^20\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(s)
+        &&!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
+      const span=validDate(start)&&validDate(end)
+        ?(Date.parse(end)-Date.parse(start))/86400000+1:NaN;
+      if(!Number.isInteger(span)||span<1||span>90||!['ALL','ORGANIC','PAID'].includes(scope))
+        return json({error:'Período ou tipo de tráfego inválido.'},400);
+      return json(await commerceListingDiagnosisDaily(env,listingDailyPath[1],{start,end,scope}));
+    }
     const listingTrafficPath=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/traffic$/);
     if(listingTrafficPath&&method==='GET'){
       const start=String(query(url,'start')||''),end=String(query(url,'end')||'');
