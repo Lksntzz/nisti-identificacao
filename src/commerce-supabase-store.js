@@ -183,6 +183,24 @@ export async function commerceSalesEvolution(env, filters={}) {
     ?result:{items:[],total:0,kpis:{},coverage:[]};
 }
 
+export async function commerceListingManagerMonthly(env, platform='TODAS') {
+  if (cleanText(platform)==='SHOPEE') {
+    const linked=await supabaseRpc(env,'commerce_listing_manager_monthly_sku_v1',{
+      p_platform:'SHOPEE'
+    });
+    return linked && typeof linked==='object' && !Array.isArray(linked)
+      ?linked:{months:[]};
+  }
+  const data = await supabaseRpc(env,'commerce_listing_manager_monthly_v1',{
+    p_platform:cleanText(platform)||'TODAS'
+  });
+  return data && typeof data === 'object' && !Array.isArray(data) ? data : {months:[]};
+}
+
+// Summary of distinct imported orders by platform / monthly period; detailed
+// advertisement-level order incidence is NOT a distinct order count.
+// Source-of-truth totals for ALL imported sales: include SKU/unlisted orders.
+// Scope matches the manager's displayed date range; no SKU alias is required.
 // Métricas externas por anúncio, janela exata e origem de tráfego.
 const validReportDate = value => {
   const s=String(value||'');
@@ -228,24 +246,6 @@ export async function commerceSaveListingTraffic(env,listingId,input={},actor='A
   },{timeoutMs:9000});
 }
 
-export async function commerceListingManagerMonthly(env, platform='TODAS') {
-  if (cleanText(platform)==='SHOPEE') {
-    const linked=await supabaseRpc(env,'commerce_listing_manager_monthly_sku_v1',{
-      p_platform:'SHOPEE'
-    });
-    return linked && typeof linked==='object' && !Array.isArray(linked)
-      ?linked:{months:[]};
-  }
-  const data = await supabaseRpc(env,'commerce_listing_manager_monthly_v1',{
-    p_platform:cleanText(platform)||'TODAS'
-  });
-  return data && typeof data === 'object' && !Array.isArray(data) ? data : {months:[]};
-}
-
-// Summary of distinct imported orders by platform / monthly period; detailed
-// advertisement-level order incidence is NOT a distinct order count.
-// Source-of-truth totals for ALL imported sales: include SKU/unlisted orders.
-// Scope matches the manager's displayed date range; no SKU alias is required.
 export async function commerceImportedSalesTotals(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const start=cleanText(filters.start),end=cleanText(filters.end);
