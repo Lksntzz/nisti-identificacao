@@ -229,7 +229,7 @@
 @keyframes nid-row-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* Tela de expedição: movimento inspirado no React Bits, GradientText oficial instalado localmente. */
-.nid-monitor.nid-monitor-v5{position:relative;min-height:100dvh;padding:clamp(18px,3vw,48px) clamp(18px,4.5vw,75px) 25px;isolation:isolate;background:radial-gradient(ellipse at 50% 35%,#172b49 0%,#081527 56%,#06111f 100%);color:white;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.nid-monitor.nid-monitor-v5{position:relative;width:100%;height:100dvh;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;padding:clamp(9px,1.8dvh,20px) clamp(12px,3vw,45px) clamp(7px,1.4dvh,15px);isolation:isolate;background:radial-gradient(ellipse at 50% 35%,#172b49 0%,#081527 56%,#06111f 100%);color:white;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
 .nid-monitor-v5 .nid-stage-glow{position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.6;background:radial-gradient(circle at 50% 57%,#ff527018,transparent 49%)}
 .nid-monitor-v5 .nid-monitor-top{align-items:flex-start}
 .nid-brand-block{display:grid;gap:5px}.nid-brand-block>small{font-size:10px;letter-spacing:.21em;color:#748eaa;font-weight:800}
@@ -239,25 +239,25 @@
 .nid-connection-pulse{width:8px;height:8px;border-radius:50%;background:#e78080}
 .nid-monitor-connection.is-online .nid-connection-pulse{background:#39d59b;box-shadow:0 0 0 5px #36cb8e14;animation:nid-pulse 2.8s ease-in-out infinite}
 .nid-clock-block{display:grid;gap:4px;text-align:right}.nid-clock-block strong{font-size:clamp(22px,2.8vw,42px);letter-spacing:-.045em;font-variant-numeric:tabular-nums;line-height:1.05}.nid-clock-block small{font-size:clamp(10px,1vw,13px);color:#aab6ca;text-transform:capitalize}
-.nid-monitor-v5 .nid-live-v5{width:100%;gap:clamp(11px,1.8vh,24px);padding:clamp(14px,2.5vh,30px) 1vw;animation:nid-notification-in .53s cubic-bezier(.2,.86,.27,1) both}
-.nid-monitor-v5 .nid-call-kicker{margin:0;color:#b0c2d8;font-size:clamp(10px,1.1vw,14px);letter-spacing:.2em}
+.nid-monitor-v5 .nid-live-v5{min-height:0;width:100%;gap:clamp(5px,1.2dvh,16px);padding:clamp(4px,1dvh,12px) 1vw;animation:nid-notification-in .53s cubic-bezier(.2,.86,.27,1) both}
+.nid-monitor-v5 .nid-call-kicker{margin:0;color:#b0c2d8;font-size:clamp(10px,min(1.1vw,1.9dvh),14px);letter-spacing:.2em}
 .nid-kicker-spark{color:#f35a8c;font-size:9px;padding:0 5px}
 .nid-channel-emblem{display:grid;place-items:center;width:clamp(75px,7vw,115px);height:clamp(75px,7vw,115px);border-radius:25px;background:linear-gradient(155deg,#f04c89,#bb2057);box-shadow:0 18px 35px #0a112a4e}
 .nid-channel-emblem.shopee{background:linear-gradient(140deg,#ff7842,#e6461d)}
 .nid-channel-emblem.ml{background:linear-gradient(140deg,#ffe251,#d9a800);color:#172946}
 .nid-channel-emblem.amazon{background:linear-gradient(140deg,#244e77,#10283c)}
-.nid-monitor-v5 .nid-call-platform{font-size:clamp(24px,3.8vw,58px);font-weight:950;letter-spacing:-.045em;line-height:1.12;max-width:95%;overflow-wrap:anywhere}
-.nid-monitor-v5 .nid-live-message-card{width:min(1090px,94vw);padding:clamp(22px,4vh,53px) clamp(15px,4vw,55px);border-radius:clamp(18px,2.2vw,32px);background:linear-gradient(155deg,#ffffff,#f1f4fc);color:#12243d;display:grid;gap:clamp(7px,1.4vh,18px);box-shadow:0 26px 65px #00000030;animation:nid-message-pop .6s .06s cubic-bezier(.18,.88,.25,1.05) both}
-.nid-message-main{font-size:clamp(33px,5.3vw,90px);font-weight:1000;line-height:1.06;letter-spacing:-.055em;overflow-wrap:anywhere}
-.nid-message-mode{font-size:clamp(29px,4.5vw,76px);font-weight:1000;line-height:1.08;letter-spacing:-.055em;overflow-wrap:anywhere}
-.nid-monitor-v5 .nid-display-progress{width:min(980px,90vw);margin-top:clamp(6px,2vh,23px);gap:19px;font-size:clamp(20px,2.5vw,31px)}
+.nid-monitor-v5 .nid-call-platform{font-size:clamp(20px,min(3.8vw,5.3dvh),50px);font-weight:950;letter-spacing:-.045em;line-height:1.08;max-width:95%;overflow-wrap:anywhere}
+.nid-monitor-v5 .nid-live-message-card{min-width:0;width:min(1090px,100%);padding:clamp(9px,1.9dvh,26px) clamp(12px,3vw,42px);border-radius:clamp(13px,2vw,28px);background:linear-gradient(155deg,#ffffff,#f1f4fc);color:#12243d;display:grid;gap:clamp(4px,.8dvh,12px);box-shadow:0 26px 65px #00000030;animation:nid-message-pop .6s .06s cubic-bezier(.18,.88,.25,1.05) both}
+.nid-message-main{font-size:clamp(24px,min(5.3vw,7dvh),72px);font-weight:1000;line-height:1.06;letter-spacing:-.055em;overflow-wrap:anywhere}
+.nid-message-mode{font-size:clamp(22px,min(4.5vw,6dvh),64px);font-weight:1000;line-height:1.08;letter-spacing:-.055em;overflow-wrap:anywhere}
+.nid-monitor-v5 .nid-display-progress{width:min(980px,100%);margin-top:clamp(0px,.8dvh,12px);gap:clamp(8px,1.5vw,16px);font-size:clamp(16px,min(2.5vw,3.5dvh),30px)}
 .nid-monitor-v5 .nid-progress-rail{height:clamp(9px,1.4vh,16px);background:#334255}.nid-monitor-v5 .nid-progress-rail span{background:linear-gradient(90deg,#f34b85,#ffbf6f)}
-.nid-monitor-v5 .nid-idle-v5{gap:16px}
-.nid-idle-emblem{width:135px;height:135px;display:grid;place-items:center;color:#fb6d9a;border:1px solid #38506d;border-radius:34px;background:#ffffff08;animation:nid-breathe 3s ease-in-out infinite}
-.nid-monitor-v5 .nid-idle h1{margin:2px 0 0;font-size:clamp(32px,5.6vw,71px)}
+.nid-monitor-v5 .nid-idle-v5{min-height:0;gap:clamp(6px,1.4dvh,16px);padding:clamp(5px,1dvh,12px)}
+.nid-idle-emblem{width:clamp(60px,12dvh,125px);height:clamp(60px,12dvh,125px);display:grid;place-items:center;color:#fb6d9a;border:1px solid #38506d;border-radius:clamp(17px,2.8dvh,30px);background:#ffffff08;animation:nid-breathe 3s ease-in-out infinite}
+.nid-monitor-v5 .nid-idle h1{margin:2px 0 0;font-size:clamp(25px,min(5.6vw,7dvh),66px)}
 .nid-monitor-v5 .nid-idle p{max-width:650px;line-height:1.45}
 .nid-idle-waiting{padding:9px 14px;border:1px solid #2d6552;border-radius:30px;background:#21544020;color:#62ddae;font-size:11px;letter-spacing:.12em;font-weight:900;margin-top:7px}
-.nid-monitor-footer-v5{border-top:1px solid #ffffff1c;padding-top:18px;align-items:center}
+.nid-monitor-footer-v5{min-height:0;border-top:1px solid #ffffff1c;padding-top:clamp(5px,1.1dvh,15px);align-items:center}
 .nid-footer-queue{display:flex;align-items:center;gap:10px;color:#b5c3d5;font-size:clamp(12px,1.25vw,18px)}
 .nid-monitor-v5 .nid-monitor-actions{align-items:center;flex-wrap:wrap}.nid-monitor-v5 .nid-monitor-actions button{display:flex;align-items:center;gap:8px}
 .nid-monitor-v5 .nid-audio-indicator{display:flex;align-items:center;gap:7px;font-size:12px}
@@ -285,7 +285,10 @@
 .nid-monitor-v5 .nid-channel-emblem,
 .nid-monitor-v5 .nid-channel-emblem.shopee,
 .nid-monitor-v5 .nid-channel-emblem.ml,
-.nid-monitor-v5 .nid-channel-emblem.amazon{width:clamp(92px,10vw,158px);height:clamp(92px,10vw,158px);padding:clamp(10px,1.25vw,18px);background:#fff;color:#15243c;border:1px solid #ffffff80;border-radius:clamp(19px,2vw,30px);box-shadow:0 20px 45px #00000036,0 0 0 5px #ffffff0a}
+.nid-monitor-v5 .nid-channel-emblem.amazon{width:clamp(62px,12dvh,130px);height:clamp(62px,12dvh,130px);padding:clamp(6px,1dvh,14px);background:#fff;color:#15243c;border:1px solid #ffffff80;border-radius:clamp(19px,2vw,30px);box-shadow:0 20px 45px #00000036,0 0 0 5px #ffffff0a}
+.nid-monitor-v5 .nid-message-main-long{font-size:clamp(19px,min(3.8vw,5.2dvh),56px)}
+/* A altura do notebook governa o dimensionamento; não corta a mensagem para esconder a rolagem. */
+@media(max-height:650px){.nid-monitor-v5 .nid-brand{font-size:clamp(19px,3vw,27px)}.nid-monitor-v5 .nid-clock-block strong{font-size:clamp(19px,3vw,29px)}.nid-monitor-v5 .nid-monitor-connection{padding:6px 10px}.nid-monitor-v5 .nid-monitor-actions button{padding:6px 10px}.nid-monitor-v5 .nid-audio-indicator{font-size:11px}.nid-monitor-v5 .nid-idle p{font-size:clamp(13px,1.6vw,17px)}.nid-monitor-v5 .nid-idle-waiting{margin-top:0}}
 .nid-monitor-v5 .nid-channel-emblem .nid-platform-logo-large{width:100%;height:100%;border-radius:6px}
 .nid-monitor-v5 .nid-channel-emblem .nid-platform-logo-fallback{font-size:clamp(34px,5vw,67px)}
 @media(max-width:760px){.nid-monitor-v5 .nid-channel-emblem,.nid-monitor-v5 .nid-channel-emblem.shopee,.nid-monitor-v5 .nid-channel-emblem.ml,.nid-monitor-v5 .nid-channel-emblem.amazon{width:clamp(76px,13vw,112px);height:clamp(76px,13vw,112px);padding:10px}}

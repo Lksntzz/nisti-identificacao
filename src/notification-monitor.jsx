@@ -204,7 +204,7 @@ export default function NotificationMonitor(){
       <div className={'nid-channel-emblem '+color}><PlatformLogo platform={current.platform} size="large"/></div>
       <div className="nid-call-platform">{LABELS[current.platform]||current.platform}</div>
       <div className="nid-live-message-card">
-        <div className="nid-message-main" style={{fontSize:details.headline.length>45?'clamp(24px,4.5vw,64px)':undefined}}>{details.headline}</div>
+        <div className={'nid-message-main'+(details.headline.length>45?' nid-message-main-long':'')}>{details.headline}</div>
         {details.detail&&<div className="nid-message-mode"><GradientText colors={['#ff6b37','#f4387e','#ffc273']} animationSpeed={5} variant="linear" scale={2} glow={0.06}>{details.detail}</GradientText></div>}
       </div>
       <div className="nid-display-progress" aria-label={seconds+' segundos restantes'}>
