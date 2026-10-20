@@ -16,7 +16,7 @@ async function request(path,options={}) {
   return data;
 }
 const API_ENDPOINTS={
-  admin:{status:'/api/admin/dispatch',options:'/api/admin/dispatch/options',batch:'/api/admin/dispatch/batch',monitorKey:'/api/admin/dispatch/monitor-key'},
+  admin:{status:'/api/admin/dispatch',options:'/api/admin/dispatch/options',batch:'/api/admin/dispatch/batch'},
   sender:{status:'/api/expedition-panel',options:'/api/expedition-panel/options',batch:'/api/expedition-panel/batch'}
 };
 export default function NotificationDispatchView({senderMode=false}) {
@@ -47,10 +47,6 @@ export default function NotificationDispatchView({senderMode=false}) {
   const [error,setError]=useState('');
   const [success,setSuccess]=useState('');
   const [sending,setSending]=useState(false);
-  const [pairing,setPairing]=useState(false);
-  const [pendingMonitors,setPendingMonitors]=useState([]);
-  const [permanentLink,setPermanentLink]=useState('');
-  const [linkCopied,setLinkCopied]=useState(false);
   useEffect(()=>{
     let canceled=false;
     request(endpoints.options).then(result=>{
@@ -95,12 +91,8 @@ export default function NotificationDispatchView({senderMode=false}) {
 
   const refresh=useCallback(async()=>{
     try {
-      const [response,monitors]=await Promise.all([
-        request(endpoints.status),
-        senderMode?Promise.resolve(null):request('/api/admin/dispatch/pair/pending')
-      ]);
+      const response=await request(endpoints.status);
       setState(response);
-      if(monitors)setPendingMonitors(monitors.requests||[]);
       setError('');
     }catch(e){setError(e.message)}
   },[senderMode]);
@@ -134,41 +126,6 @@ export default function NotificationDispatchView({senderMode=false}) {
       await refresh();
     }catch(e){setError(e.message+' Você pode reenviar sem duplicar a solicitação.');}
     finally{setSending(false)}
-  }
-  async function createPermanentMonitorLink(){
-    if(senderMode||pairing)return;
-    if(state?.monitor_paired&&!window.confirm('Gerar um novo link desconectará o monitor atualmente autorizado. Deseja continuar?'))return;
-    setPairing(true);setPermanentLink('');setLinkCopied(false);setError('');setSuccess('');
-    try{
-      const data=await request('/api/admin/dispatch/monitor-key',{method:'POST'});
-      const url=new URL('/monitor-notificacoes',window.location.origin);
-      // Autorização validada no servidor antes de carregar o React, inclusive no Quiosque.
-      url.searchParams.set('acesso',data.key);
-      setPermanentLink(url.toString());
-      setSuccess('Link do monitor criado. Configure esse endereço como URL inicial do Edge no notebook.');
-      await refresh();
-    }catch(error){setError(error.message)}
-    finally{setPairing(false)}
-  }
-  async function copyPermanentMonitorLink(){
-    if(!permanentLink)return;
-    try{await navigator.clipboard.writeText(permanentLink);setLinkCopied(true)}
-    catch{setError('Não foi possível copiar automaticamente. Selecione e copie o link abaixo.')}
-  }
-  async function approvePair(id,code){
-    if(senderMode||pairing)return;
-    if(!window.confirm('Confirma que o código '+code+' aparece no notebook da expedição?'
-      +(state?.monitor_paired?' O monitor anterior será desconectado.':'')))return;
-    setPairing(true);setError('');setSuccess('');
-    try {
-      await request('/api/admin/dispatch/pair/approve',{
-        method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({id})
-      });
-      setSuccess('Monitor '+code+' autorizado. Aguarde a conexão no notebook.');
-      await refresh();
-    }catch(error){setError(error.message)}
-    finally{setPairing(false)}
   }
   const monitorOnline=state?.monitor_last_seen
     && Date.now()-Date.parse(state.monitor_last_seen)<15000;
@@ -344,14 +301,14 @@ export default function NotificationDispatchView({senderMode=false}) {
           </div><DispatchIcon name="monitor" size={21}/></div>
           <div className={'nid-monitor-inline-status '+(monitorOnline?'online':'offline')}>
             <span className="nid-live-dot"/><div>
-              <strong>{monitorOnline?'Monitor conectado':state?.monitor_paired?'Monitor offline':'Monitor não ativado'}</strong>
+              <strong>{monitorOnline?'Monitor conectado':'Monitor desconectado'}</strong>
               <small>{monitorOnline?'Recebendo notificações':'As chamadas ficam na fila enquanto o monitor está ausente.'}</small>
             </div>
           </div>
           <p className="nid-muted">O painel permanece ativo na tela dedicada. Som e exibição são controlados pelo monitor.</p>
-          {!senderMode&&<button type="button" className="nid-secondary nid-pair-link" onClick={()=>setTab('settings')}>
-            <DispatchIcon name="settings-2" size={17}/> Configurar monitor
-          </button>}
+          {!senderMode&&<a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">
+            <DispatchIcon name="monitor" size={17}/> Abrir monitor
+          </a>}
         </div>
       </aside>
     </div>}
@@ -377,47 +334,16 @@ export default function NotificationDispatchView({senderMode=false}) {
       {editor}
       {!senderMode&&<div className="nid-panel nid-monitor-setup-panel">
         <span className="nid-section-eyebrow">MONITOR DA EXPEDIÇÃO</span>
-        <h3>Conexão e ativação</h3>
+        <h3>Acesso direto ao monitor</h3>
         <div className="nid-monitor-inline-status">
           <span className={'nid-live-dot '+(monitorOnline?'online':'')}/>
-          <strong>{monitorOnline?'Monitor conectado':state?.monitor_paired?'Monitor offline':'Monitor não ativado'}</strong>
+          <strong>{monitorOnline?'Monitor conectado':'Monitor desconectado'}</strong>
         </div>
-        <p className="nid-muted">Para deixar a tela sempre liberada, gere um link privado e configure-o uma única vez como URL inicial do Modo Quiosque. O Edge reconhecerá o monitor automaticamente após cada reinício.</p>
-        <div className="nid-panel nid-monitor-persistent-link">
-          <strong>Link permanente do monitor</strong>
-          <p className="nid-muted">Este link permite apenas visualizar as notificações da expedição, nunca administrar o sistema. Mantenha-o privado. Gerar outro link revoga o anterior.</p>
-          <button type="button" className="nid-secondary" disabled={pairing} onClick={createPermanentMonitorLink}>
-            <DispatchIcon name="link" size={17}/>{pairing?'Gerando…':'Gerar link privado permanente'}
-          </button>
-          {permanentLink&&<div className="nid-key-view" role="status">
-            <label className="nid-input-label" htmlFor="nid-monitor-permanent-link">Link privado — exibido somente agora</label>
-            <input id="nid-monitor-permanent-link" type="text" value={permanentLink} readOnly spellCheck={false}
-              onFocus={event=>event.currentTarget.select()} />
-            <button type="button" className="nid-secondary" onClick={copyPermanentMonitorLink}>
-              <DispatchIcon name="copy" size={17}/>{linkCopied?'Link copiado':'Copiar link'}
-            </button>
-            <small>Substitua a URL atual do Quiosque por esta URL completa, incluindo ?acesso=. Não compartilhe o endereço.</small>
-          </div>}
-        </div>
-        <p className="nid-muted">Alternativa para navegadores comuns: abra o monitor no notebook, confira o código de autorização e aprove abaixo.</p>
-        <div className="nid-panel-title-row">
-          <strong>Notebooks aguardando autorização</strong>
-          <button type="button" className="nid-secondary" onClick={refresh}>
-            <DispatchIcon name="clock-3" size={16}/> Atualizar
-          </button>
-        </div>
-        {pendingMonitors.length===0?<p className="nid-muted" role="status">Nenhuma solicitação pendente. Abra a tela de notificações no notebook e aguarde alguns segundos.</p>
-          :<div className="nid-pending-monitor-list">{pendingMonitors.map(item=>
-            <div className="nid-pending-monitor" key={item.id}>
-              <div><small>CÓDIGO EXIBIDO NO NOTEBOOK</small><strong>{item.code}</strong>
-                <small>Expira em {new Date(item.expires_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</small>
-              </div>
-              <button type="button" className="nid-send" disabled={pairing}
-                onClick={()=>approvePair(item.id,item.code)}>
-                <DispatchIcon name="check" size={17}/>
-                {pairing?'Aguarde…':'Ativar monitor'}
-              </button>
-            </div>)}</div>}
+        <p className="nid-muted">A tela do monitor abre sem senha, chave, código ou autorização. Configure o endereço abaixo como URL inicial do Microsoft Edge no Modo Quiosque.</p>
+        <label className="nid-input-label" htmlFor="nid-monitor-public-url">URL fixa do monitor</label>
+        <input id="nid-monitor-public-url" type="text" value={window.location.origin+'/monitor-notificacoes'}
+          readOnly spellCheck={false} onFocus={event=>event.currentTarget.select()} />
+        <p className="nid-muted">Quem tiver este endereço poderá visualizar as notificações. Enviar chamadas e alterar configurações continuam exigindo acesso autorizado.</p>
         <a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">
           <DispatchIcon name="monitor" size={17}/> Abrir monitor <DispatchIcon name="external-link" size={14}/>
         </a>
