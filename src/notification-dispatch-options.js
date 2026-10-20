@@ -25,3 +25,26 @@ if(platform.startsWith('MERCADO LIVRE'))return 'ml';
 if(platform==='AMAZON')return 'amazon';
 return 'other';
 }
+
+
+// A mensagem comum sempre existe; as demais opções são mantidas por plataforma no Supabase.
+export const DISPATCH_UNIVERSAL_OPTION='RETIRAR CAPA';
+export function dispatchOptionGroups(platform,config={}){
+  if(!DISPATCH_PLATFORMS.includes(platform))return [];
+  const customized=Array.isArray(config[platform])?config[platform]
+    :optionsForPlatform(platform).flatMap(group=>group.options);
+  const extra=customized.filter(x=>typeof x==='string'&&x.trim()&&x!==DISPATCH_UNIVERSAL_OPTION);
+  return [
+    {label:'Comum',options:[DISPATCH_UNIVERSAL_OPTION]},
+    {label:'Modalidades da plataforma',options:extra}
+  ].filter(group=>group.options.length);
+}
+export function dispatchOptionValid(platform,option,config={}){
+  return dispatchOptionGroups(platform,config).some(group=>group.options.includes(option));
+}
+export function formatDispatchText(platform,option){
+  if(!DISPATCH_PLATFORMS.includes(platform)||typeof option!=='string')return '';
+  if(option===DISPATCH_UNIVERSAL_OPTION)return DISPATCH_UNIVERSAL_OPTION;
+  const suffix=/^Full(?:\s|$)/i.test(option)?'FULL':option.toUpperCase();
+  return platform+' RETIRAR CAPA '+suffix;
+}

@@ -112,3 +112,23 @@
 .nid-audio-indicator{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:9px 11px;border-radius:9px;background:#ffffff15;border:1px solid #ffffff2a}
 .nid-audio-indicator.active{color:#b6f5cd}
 .nid-audio-indicator.blocked{color:#ffd49b;background:#7f4b213a}
+
+/* NISTI Dispatch v4: personalização de modalidades por plataforma */
+.nid-option-with-preview{display:grid;gap:5px;min-width:0}
+.nid-option-with-preview select{width:100%}
+.nid-preview-line{color:#5a6d82;font-size:11px;line-height:1.35;overflow-wrap:anywhere}
+.nid-settings-section{display:grid;gap:11px;padding-top:18px;border-top:1px solid #e5eaf1}
+.nid-settings-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.nid-settings-title h3{font-size:16px;margin:4px 0 0}
+.nid-options-editor{display:grid;gap:12px;background:#f7f9fc;border:1px solid #e5eaf2;border-radius:12px;padding:14px}
+.nid-options-editor>label{font-size:12px;font-weight:800;color:#40536b}
+.nid-options-editor select,.nid-add-mode input{width:100%;min-width:0;padding:12px;border:1px solid #d5e0ed;border-radius:9px;background:white;color:#233852;font:inherit;font-size:13px}
+.nid-universal-fixed{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#eef8f3;border:1px solid #cde9d9;border-radius:9px;font-size:12px;font-weight:900;color:#1f6842}
+.nid-universal-fixed small{font-weight:600}
+.nid-edit-chips{display:flex;gap:7px;flex-wrap:wrap}
+.nid-edit-chip{display:inline-flex;align-items:center;gap:9px;background:white;border:1px solid #dce3ed;padding:6px 8px;border-radius:8px;max-width:100%;font-size:12px;color:#34485f}
+.nid-edit-chip span{overflow-wrap:anywhere}
+.nid-edit-chip button{border:none;background:#eef2f8;color:#536a86;border-radius:6px;cursor:pointer;font-size:20px;line-height:1;min-width:25px;min-height:26px}
+.nid-add-mode{display:flex;align-items:center;gap:8px}
+.nid-add-mode .nid-secondary{white-space:nowrap}
+@media(max-width:500px){.nid-add-mode{flex-direction:column;align-items:stretch}.nid-settings-title{align-items:start;flex-direction:column}}
