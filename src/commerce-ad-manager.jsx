@@ -8,7 +8,7 @@ import './commerce-ad-manager.css';
 import './nisti-reactbits-adaptations.css';
 import './commerce-approved-layout.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
-import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage } from './commerce-ad-evidence.js';
+import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals } from './commerce-ad-evidence.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -431,6 +431,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [importOpen,setImportOpen]=useState(false);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
   const [commercialView,setCommercialView]=useState('LISTINGS');
+  const [financialOpen,setFinancialOpen]=useState(false);
+  const [importedTotals,setImportedTotals]=useState(null);
+  const [importedTotalsError,setImportedTotalsError]=useState('');
   const [trendOverview,setTrendOverview]=useState(null);
   const [trendRequest,setTrendRequest]=useState(null);
   useEffect(()=>{const timer=setTimeout(()=>setSearch(query.trim()),320);return ()=>clearTimeout(timer);},[query]);
@@ -466,6 +469,20 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     return ()=>{cancelled=true;};
   },[platform,refresh,salesRevision]);
 
+  // Total geral permanece disponível sob demanda, fora dos 5 cartões operacionais.
+  useEffect(()=>{
+    const controller=new AbortController();
+    setImportedTotals(null);setImportedTotalsError('');
+    if(!financialOpen||!data?.period_start||!data?.period_end)return ()=>controller.abort();
+    const params=new URLSearchParams({
+      platform,start:data.period_start,end:data.period_end,monthly:days===0?'1':'0'
+    });
+    readJson(API+'/imported-totals?'+params,{signal:controller.signal})
+      .then(result=>{if(!controller.signal.aborted)setImportedTotals(result);})
+      .catch(err=>{if(!controller.signal.aborted)setImportedTotalsError(err.message);});
+    return ()=>controller.abort();
+  },[financialOpen,data?.period_start,data?.period_end,platform,days,refresh,salesRevision]);
+
   // Trend counts are authoritative SKU/model classifications, not ad-level sales.
   // Keep an independent read-only summary for the five-card commercial header.
   useEffect(()=>{
@@ -499,6 +516,20 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
     {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
   const partialAds=sourceBreakdown?.identified??0;
+  const shopeeTotals=shopeeSalesTotals(data,days);
+  const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
+  const fullImportedAvailable=importedTotals?.available===true
+    &&importedTotals.units!=null&&importedTotals.revenue!=null;
+  const linkedSalesDescription=hasMixedPartial
+    ?(importedMonthTotal
+      ?num(shopeeTotals.verifiedUnits)+' unidades por ID no Mercado Livre + '+
+        num(shopeeTotals.linkedUnits)+' identificadas na Shopee; total bruto importado exibido'
+      :'Mercado Livre por ID de anúncio + Shopee por SKU identificado; dados parciais')
+    :importedMonthTotal
+      ?num(shopeeTotals.linkedUnits)+' de '+num(shopeeTotals.units)+' unidades vinculadas aos anúncios'
+      :'Somente vendas vinculadas por SKU · total da plataforma não confirmado nesta janela';
+  const salesCoverageLabel=Number(kpi.pending_ads||0)>0
+    ?periodLabel(days,month)+' · dados parciais':periodLabel(days,month)+' · anúncios ativos';
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
   // This KPI counts listings only; variation-level gaps belong in the
   // expanded listing and must never inflate the count of unsold ads.
@@ -566,6 +597,31 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         aria-current={commercialView==='EVOLUTION'?'page':undefined}
         onClick={()=>{setTrendRequest(null);setCommercialView('EVOLUTION');}}>Evolução de vendas</button>
     </nav>
+    {commercialView==='LISTINGS'&&<section className="nim-finance-disclosure" aria-label="Conciliação de vendas importadas">
+      <button type="button" className="nim-finance-toggle" aria-expanded={financialOpen}
+        onClick={()=>setFinancialOpen(previous=>!previous)}>
+        <span>Totais financeiros importados</span>
+        <span aria-hidden="true">{financialOpen?'−':'+'}</span>
+      </button>
+      {financialOpen&&<div className="nim-finance-body">
+        <p className="nim-finance-note">Valores importados, inclusive produtos sem anúncio ativo. Totais vinculados a anúncios podem ser parciais.</p>
+        <div className="nim-finance-metrics">
+          <Kpi tone="sand" label={fullImportedAvailable?'Unidades vendidas':hasShopeePartial?'Unidades identificadas':'Unidades vendidas'}
+            value={fullImportedAvailable?num(importedTotals.units):
+              shopeeTotals?.units!=null?num(shopeeTotals.units):hasReliableSales?num(kpi.units):'—'}
+            description={fullImportedAvailable?'Todas as unidades importadas no período, inclusive sem anúncio ativo':
+              hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+          <Kpi tone="green" label={fullImportedAvailable?'Faturamento bruto importado':hasShopeePartial?'Faturamento identificado':'Faturamento'}
+            value={fullImportedAvailable?money(importedTotals.revenue):
+              shopeeTotals?.revenue!=null?money(shopeeTotals.revenue):hasReliableSales?money(kpi.revenue):'—'}
+            description={fullImportedAvailable?'Total dos produtos vendidos, com e sem vínculo de anúncio':
+              hasShopeePartial?linkedSalesDescription:salesCoverageLabel}/>
+        </div>
+        {importedTotalsError&&<p className="nim-coverage" role="status">
+          Totais completos não disponíveis nesta consulta; exibindo somente dados identificados.
+        </p>}
+      </div>}
+    </section>}
     {commercialView==='EVOLUTION'?
       <CommerceSalesEvolution platform={platform} onPlatformChange={setPlatform}
         initialDays={PERIODS.includes(days)?days:30} onPeriodChange={setDays}
