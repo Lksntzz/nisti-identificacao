@@ -7,10 +7,11 @@ https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes
 ## URLs separadas da operação
 
 - **Painel de envio sem senha:** abre diretamente pelo link privado
-  `https://nisti-identificacao.lksntz1411.workers.dev/painel-expedicao#acesso=CHAVE_PRIVADA`.
-  A chave deve ser entregue apenas à equipe autorizada. A primeira abertura troca
-  o fragmento da URL por um cookie HttpOnly Secure SameSite=Strict, válido por 30 dias,
-  e remove imediatamente o fragmento da barra de endereços. Quando expirar,
+  `https://nisti-identificacao.lksntz1411.workers.dev/convite-expedicao/CHAVE_PRIVADA`.
+  A chave deve ser entregue apenas à equipe autorizada. Na primeira abertura, o servidor valida a chave e devolve uma página de
+  transição no mesmo domínio, com cookie HttpOnly Secure SameSite=Strict
+  válido por 30 dias. Essa página abre automaticamente o endereço sem chave.
+  O token jamais aparece no HTML da resposta. Quando expirar,
   basta abrir novamente o link privado. Sem chave e sem cookie, o painel
   apresenta apenas uma mensagem de acesso restrito.
   Esta tela exibe **Enviar notificações** e **Fila e histórico**; não possui links
