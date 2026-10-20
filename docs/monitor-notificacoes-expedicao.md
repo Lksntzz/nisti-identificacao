@@ -14,12 +14,13 @@ https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes
   O token jamais aparece no HTML da resposta. Quando expirar,
   basta abrir novamente o link privado. Sem chave e sem cookie, o painel
   apresenta apenas uma mensagem de acesso restrito.
-  Esta tela exibe **Enviar notificações** e **Fila e histórico**; não possui links
-  para ADM/monitor e não permite trocar a chave do monitor, editar modalidades,
-  acessar outras APIs administrativas ou abrir o catálogo.
+  Esta tela exibe **Enviar notificações**, **Fila e histórico** e **Personalizar informações**.
+  Os responsáveis pelo envio podem adicionar, remover e salvar modalidades por plataforma,
+  sem acesso à chave ou autorização do monitor, demais APIs administrativas ou catálogo.
 - **Configurações da expedição (ADM):** continuam protegidas por senha administrativa,
-  em `/admin`, Comunicação → Notificações da Expedição. As modalidades de cada
-  canal e o pareamento do monitor são alterados somente nesta interface.
+  em `/admin`, Comunicação → Notificações da Expedição. A edição das modalidades
+  também está disponível no painel de envio; o pareamento e a gestão das credenciais
+  do monitor permanecem exclusivos do ADM.
 - **Monitor de exibição (notebook):**
   `https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes`
   Exibe notificações e reproduz os alertas. A autorização é feita no painel
@@ -151,8 +152,8 @@ não pode ser excluída. Selecionar MERCADO LIVRE + Full exibirá **MERCADO LIVR
 RETIRAR CAPA FULL**. O título da plataforma será menor, para não duplicar
 visualmente a chamada.
 
-No painel administrativo, clique em **Personalizar informações → Configurar**,
+Nos painéis administrativo e de envio, clique em **Personalizar informações**,
 escolha a plataforma e adicione/remova as modalidades que utiliza; salve.
 Full não precisa estar disponível em canais que não utilizam o serviço.
-As preferências ficam guardadas no Supabase para todos os administradores
-e não modificam o catálogo comercial. O histórico existente é preservado.
+As preferências ficam guardadas no Supabase e são compartilhadas entre o ADM e os
+responsáveis pelo envio. Não modificam o catálogo comercial. O histórico existente é preservado.
