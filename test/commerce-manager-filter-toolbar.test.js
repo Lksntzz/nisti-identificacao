@@ -20,7 +20,7 @@ test('sales and ABC controls share a compact, aligned filter panel',()=>{
 
 test('filter status, ABC curve and ABC basis keep their existing actions and selections',()=>{
   assert.match(ui,/SALES_FILTERS\.map\(\(\[code,label\]\)=>/);
-  assert.match(ui,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];);
+  assert.match(ui,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];/);
   assert.doesNotMatch(ui,/PERFORMANCE_FILTERS|listingPerformanceIndicators/);
   assert.match(ui,/onClick=\{\(\)=>change\(setStatus,status===code\?'ALL':code\)\}/);
   assert.match(ui,/aria-pressed=\{status===code\}/);
@@ -50,7 +50,7 @@ test('visual change never modifies zero-variation semantics, listing IDs or scan
 });
 
 test('o Gestor exibe apenas Todos, Com vendas e Sem vendas, sem indicadores',()=>{
-  assert.match(ui,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];);
+  assert.match(ui,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\];/);
   assert.match(ui,/<th>Vendas<\/th>/);
   assert.match(ui,/<td data-label="Situação"><Situation item=\{item\} days=\{days\}\/><\/td>/);
   assert.match(ui,/listingSalesSituation\(item\)/);
