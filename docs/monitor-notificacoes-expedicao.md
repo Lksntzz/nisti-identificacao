@@ -45,7 +45,15 @@ instalador Windows para este painel; ele é acessado pelo navegador.
 
 A solicitação expira após 10 minutos. Se não aparecer no painel, aguarde até oito segundos para a atualização ou clique em **Atualizar**. Solicitações não aprovadas não podem ler a fila.
 
-Para manter a autorização quando o Windows reiniciar, use `scripts/abrir-monitor-nisti.cmd` em um **perfil Edge dedicado e persistente**. O Modo Quiosque tradicional usa InPrivate e apaga o cookie ao fechar; nesse modo é preciso aprovar novamente pelo painel após cada reinício. Não habilite logon automático sem avaliar a segurança física.
+## Link privado permanente para Modo Quiosque do Edge
+
+O Modo Quiosque do Edge usa InPrivate e apaga os cookies a cada encerramento. Para manter o monitor autorizado **sem aprovação repetida no painel ADM**, abra **Comunicação → Notificações da Expedição → Personalizar informações → Conexão e ativação → Gerar link privado permanente**. Copie o endereço inteiro, inclusive `#acesso=...`, e cole **uma única vez** na URL inicial do Quiosque configurada no Windows.
+
+O segredo não é transmitido na URL HTTP porque fica no fragmento `#acesso=`. Ao abrir o monitor, o frontend lê o fragmento, remove-o da barra de endereço e envia a credencial por POST HTTPS para ativar um cookie de sessão. Quando o Edge reinicia, usa novamente a URL inicial que foi configurada no Windows e se autoriza sem intervenção. O monitor continua consultando a fila com credenciais próprias, sem compartilhar a sessão administrativa.
+
+**Segurança:** o link é uma credencial secreta de leitura, exibida só ao ser gerada. Quem obtiver o link poderá visualizar as notificações. Não cole em conversas públicas nem abra em computadores de terceiros. Gerar um novo link revoga o anterior e desconecta o monitor que o usava. Se a URL for perdida ou exposta, gere outra no ADM e atualize o endereço do Quiosque. O link não fornece acesso ao painel ADM nem à API de envio.
+
+Alternativa: use `scripts/abrir-monitor-nisti.cmd` com perfil Edge dedicado e persistente. Não habilite logon automático no Windows sem avaliar a segurança física.
 
 ## Som sem botão de ativação
 
