@@ -105,7 +105,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-detail-metric strong{font-size:18px;font-weight:850;line-height:1.18;color:#1e3150;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .nim-detail-metric span{font-size:9px;line-height:1.4;color:#8a97aa}
 .nim-detail-pending{font-size:10px;line-height:1.55;margin:9px 0 0;color:#7f8898}
-.nim-detail-tab-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;padding:5px;background:#f5f7fb;border-radius:9px;border:1px solid #edf1f7}
+.nim-detail-tab-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;padding:5px;background:#f5f7fb;border-radius:9px;border:1px solid #edf1f7}
 .nim-detail-tab-list button{min-height:36px;border:1px solid transparent;border-radius:7px;padding:7px 4px;background:transparent;color:#62728b;font-size:10px;font-family:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
 .nim-detail-tab-list button:hover:not(.active){color:#285cb4;background:#ecf2fb}
 .nim-detail-tab-list button.active{border-color:#dce6fa;color:#215bc4;background:#fff;box-shadow:0 1px 4px #1d315314}
