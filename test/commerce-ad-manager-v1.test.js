@@ -34,8 +34,8 @@ test('the default list shows all active ads and supports shared filters and real
   assert.match(ui,/Analisar vendas mensais/);
   assert.match(ui,/MonthBars months=\{monthly\?\.months\}/);
   assert.match(ui,/onClick=\{\(\)=>openListing\(item.id\)\}/);
-  assert.match(ui,/onClick=\{\(\)=>setImportOpen\(v=>!v\)\}/);
-  assert.match(ui,/CommerceImportCenter embedded/);
+  assert.match(ui,/setImportMenuOpen\(open=>!open\)/);
+  assert.match(ui,/<CommerceImportModal mode=\{selectedImportMode\}/);
 });
 
 test('one zero-sales filter includes unpurchased variations even if other variations sold',()=>{
