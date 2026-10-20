@@ -6,7 +6,7 @@ const API='/api/admin/commerce/listings/manager/evolution';
 const PAGE=25;
 const platforms=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['MERCADO_LIVRE','Mercado Livre'],
   ['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo']];
-const statuses=[['ALL','Todos'],['FALLING','Em queda'],['ZERO','SKU/modelo sem vendas'],['RISING','Em crescimento'],
+const statuses=[['ALL','Todos'],['FALLING','Em queda'],['ZERO','SKU/modelo sem vendas'],['SOLD','Com vendas'],['RISING','Em crescimento'],
   ['NEW','Novas vendas'],['STABLE','Estáveis'],['LOW_VOLUME','Baixo volume'],['INSUFFICIENT','Dados insuficientes']];
 const labels=Object.fromEntries(statuses);
 const num=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
@@ -36,33 +36,32 @@ function Bars({item}){
         <span className={type} style={{width:(n/max*100)+'%'}}/></div><strong>{num(n)}</strong></div>)}
   </div>;
 }
-export default function CommerceSalesEvolution({platform='TODAS',onPlatformChange=()=>{},initialDays=30,onPeriodChange=()=>{},trendRequest=null,revision=0,salesRevision=0}){
+export default function CommerceSalesEvolution({platform='TODAS',onPlatformChange=()=>{},initialDays=30,onPeriodChange=()=>{},status='ALL',onStatusChange=()=>{},onSummary=()=>{},revision=0,salesRevision=0}){
   const source=platforms.some(([id])=>id===platform)?platform:'TODAS';
-  const [days,setDays]=useState([7,30,60,90].includes(initialDays)?initialDays:30),[status,setStatus]=useState('ALL'),[draft,setDraft]=useState('');
+  const [days,setDays]=useState([7,30,60,90].includes(initialDays)?initialDays:30),[draft,setDraft]=useState('');
   const [search,setSearch]=useState(''),[offset,setOffset]=useState(0);
   const [data,setData]=useState(null),[loading,setLoading]=useState(true);
   const [error,setError]=useState(''),[retry,setRetry]=useState(0);
   useEffect(()=>{const timer=setTimeout(()=>setSearch(draft.trim()),300);return ()=>clearTimeout(timer);},[draft]);
   useEffect(()=>setOffset(0),[source,days,status,search]);
-  useEffect(()=>{if(trendRequest?.status)setStatus(trendRequest.status);},[trendRequest]);
   useEffect(()=>{
     const ctrl=new AbortController();
     const params=new URLSearchParams({platform:source,days:String(days),status,
       limit:String(PAGE),offset:String(offset)});
     if(search)params.set('search',search);
-    setData(null);setLoading(true);setError('');
+    setData(null);onSummary(null);setLoading(true);setError('');
     fetch(API+'?'+params,{credentials:'same-origin',cache:'no-store',signal:ctrl.signal})
       .then(async res=>{
         const body=await res.json().catch(()=>({}));
         if(!res.ok)throw new Error(body.error||'Falha ao analisar a evolução.');
         return body;
-      }).then(body=>{if(!ctrl.signal.aborted)setData(body);})
-      .catch(err=>{if(!ctrl.signal.aborted)setError(err.message);})
+      }).then(body=>{if(!ctrl.signal.aborted){setData(body);onSummary(body?.kpis||null);}})
+      .catch(err=>{if(!ctrl.signal.aborted){setError(err.message);onSummary(null);}})
       .finally(()=>{if(!ctrl.signal.aborted)setLoading(false);});
     return ()=>ctrl.abort();
-  },[source,days,status,search,offset,revision,salesRevision,retry]);
+  },[source,days,status,search,offset,revision,salesRevision,retry,onSummary]);
   const counts=data?.kpis||{};
-  const countFor=s=>counts[s==='NEW'?'new':s==='LOW_VOLUME'?'low_volume':
+  const countFor=s=>counts[s==='SOLD'?'sold':s==='NEW'?'new':s==='LOW_VOLUME'?'low_volume':
     s==='INSUFFICIENT'?'insufficient':s.toLowerCase()];
   const rows=Array.isArray(data?.items)?data.items:[];
   const total=Number(data?.total||0);
@@ -86,7 +85,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
       <label><CommercialIcon name="calendar-days" size={17}/>Comparar períodos<select value={days} onChange={e=>{const selected=Number(e.target.value);setDays(selected);onPeriodChange(selected);}}>
         {[7,30,60,90].map(n=><option value={n} key={n}>{n} dias × {n} anteriores</option>)}
       </select></label>
-      <label><CommercialIcon name="circle-alert" size={17}/>Situação das vendas<select value={status} onChange={e=>setStatus(e.target.value)}
+      <label><CommercialIcon name="circle-alert" size={17}/>Situação das vendas<select value={status} onChange={e=>onStatusChange(e.target.value)}
         aria-label="Filtrar evolução pela situação das vendas">
         {statuses.map(([code,label])=><option value={code} key={code}>
           {label}{data&&code!=='ALL'?' ('+num(countFor(code))+')':''}
