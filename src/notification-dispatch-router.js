@@ -1,6 +1,6 @@
 import { supabaseRpc } from './supabase-read-store.js';
 import { normalizePlatform } from './platform-scope.js';
-import { DISPATCH_PLATFORMS,validDispatchOption } from './notification-dispatch-options.js';
+import { DISPATCH_PLATFORMS,dispatchOptionValid } from './notification-dispatch-options.js';
 
 export const DISPATCH_DURATION_SECONDS=15;
 export { DISPATCH_PLATFORMS } from './notification-dispatch-options.js';
@@ -37,6 +37,8 @@ function errorResponse(error) {
   if(message.includes('dispatch_queue_full'))return json({error:'A fila atingiu 50 notificações pendentes.'},409);
   if(message.includes('dispatch_idempotency_conflict'))return json({error:'A solicitação foi alterada após o envio. Atualize antes de reenviar.'},409);
   if(message.includes('invalid_dispatch_batch'))return json({error:'Seleção ou mensagens inválidas.'},400);
+  if(message.includes('dispatch_option_not_allowed')||message.includes('dispatch_options_invalid'))
+    return json({error:'Modalidade inválida. Atualize a lista da plataforma.'},400);
   if(message.includes('monitor_unauthorized'))return json({error:'Monitor desconectado. Ative novamente.'},401);
   console.error('[NISTI Dispatch] Falha',error?.code||error?.name||'backend_error');
   return json({error:'Não foi possível acessar o serviço de notificações.'},503);
@@ -58,24 +60,42 @@ export async function handleNotificationDispatchRequest(request,env) {
       });
       return json({ok:true,call:item},201);
     }
+    if(path==='/api/admin/dispatch/options'&&request.method==='GET') {
+      return json({ok:true,options:await supabaseRpc(env,'nisti_dispatch_options_v4',{})});
+    }
+    if(path==='/api/admin/dispatch/options'&&request.method==='POST') {
+      const body=await request.json().catch(()=>null);
+      const platform=body?.platform;
+      const options=body?.options;
+      if(!DISPATCH_PLATFORMS.includes(platform)||!Array.isArray(options)||options.length>16
+         ||options.some(x=>typeof x!=='string'||x.trim()!==x||x.length<1||x.length>60
+             ||/[\x00-\x1f\x7f]/.test(x)||x.toUpperCase()==='RETIRAR CAPA')
+         ||new Set(options.map(x=>x.toLowerCase())).size!==options.length) {
+        return json({error:'Revise as modalidades: até 16 por plataforma e 60 caracteres por opção.'},400);
+      }
+      const saved=await supabaseRpc(env,'nisti_dispatch_save_options_v4',{
+        p_platform:platform,p_options:options
+      });
+      return json({ok:true,...saved});
+    }
     if(path==='/api/admin/dispatch/batch'&&request.method==='POST') {
       const body=await request.json().catch(()=>null);
       const calls=body?.calls;
       if(!Array.isArray(calls)||calls.length<1||calls.length>DISPATCH_PLATFORMS.length)return json({error:'Selecione de uma a dez plataformas.'},400);
+      const config=await supabaseRpc(env,'nisti_dispatch_options_v4',{});
       const seen=new Set();
       const validated=[];
-      for(const call of calls) {
-        // Esta lista é exclusiva do monitor; não use normalizePlatform(),
-        // que agrupa Mercado Livre Antigo/Novo no catálogo comercial.
+      for(const call of calls){
         const platform=typeof call?.platform==='string'?call.platform.trim().toUpperCase():'';
-        const message=typeof call?.message==='string'?call.message.trim():'';
+        const option=typeof call?.option==='string'?call.option.trim():'';
         if(!DISPATCH_PLATFORMS.includes(platform)||seen.has(platform)
-          ||!validRequestKey(call?.request_key)||!validDispatchOption(platform,message))
-          return json({error:'Escolha uma opção válida para cada plataforma selecionada.'},400);
+          ||!validRequestKey(call?.request_key)||!dispatchOptionValid(platform,option,config)){
+          return json({error:'Selecione uma modalidade válida para cada plataforma.'},400);
+        }
         seen.add(platform);
-        validated.push({platform,message,request_key:call.request_key});
+        validated.push({platform,option,request_key:call.request_key});
       }
-      const result=await supabaseRpc(env,'nisti_dispatch_enqueue_batch_v2',{p_calls:validated});
+      const result=await supabaseRpc(env,'nisti_dispatch_enqueue_batch_v4',{p_calls:validated});
       return json({ok:true,...result},201);
     }
     if(path==='/api/admin/dispatch/monitor-key'&&request.method==='POST') {

@@ -184,8 +184,8 @@ export default function NotificationMonitor(){
     </header>
     {current?<section className={'nid-live-request '+color} aria-live="polite">
       <div className="nid-call-kicker">SOLICITAÇÃO DA ADMINISTRAÇÃO</div>
-      <h1 style={{fontSize:current.platform.length>18?'clamp(38px,6vw,96px)':undefined}}>{LABELS[current.platform]||current.platform}</h1>
-      <h2 style={{fontSize:(current.message||'RETIRAR CAPA').length>90?'clamp(28px,3.2vw,58px)':(current.message||'RETIRAR CAPA').length>55?'clamp(32px,4.3vw,76px)':undefined}}>{current.message||'RETIRAR CAPA'}</h2>
+      <div className="nid-call-platform">{LABELS[current.platform]||current.platform}</div>
+      <h2 className="nid-dispatch-message" style={{fontSize:(current.message||'RETIRAR CAPA').length>90?'clamp(25px,3.2vw,58px)':(current.message||'RETIRAR CAPA').length>45?'clamp(30px,4vw,75px)':undefined}}>{current.message||'RETIRAR CAPA'}</h2>
       <div className="nid-display-progress">
         <div className="nid-progress-rail"><span style={{width:(Math.min(100,Math.max(0,seconds/duration*100)))+'%'}}/></div>
         <span>{seconds}s</span>

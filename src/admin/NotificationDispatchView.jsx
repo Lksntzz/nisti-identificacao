@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import '../notification-dispatch.css';
 
-import { DISPATCH_PLATFORMS,optionsForPlatform,validDispatchOption,platformColor } from '../notification-dispatch-options.js';
+import { DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText,platformColor } from '../notification-dispatch-options.js';
 const PLATFORMS=DISPATCH_PLATFORMS;
 const NAMES={'PENDING':'Na fila','SHOWING':'Em exibição','EXPIRED':'Exibida'};
 async function request(path,options={}) {
@@ -13,6 +13,13 @@ async function request(path,options={}) {
 export default function NotificationDispatchView() {
   const [selected,setSelected]=useState({});
   const [messages,setMessages]=useState({});
+  const [config,setConfig]=useState(null);
+  const [customOpen,setCustomOpen]=useState(false);
+  const [editPlatform,setEditPlatform]=useState('SHOPEE');
+  const [draftOptions,setDraftOptions]=useState([]);
+  const [newOption,setNewOption]=useState('');
+  const [savingOptions,setSavingOptions]=useState(false);
+  const selectedOption=name=>messages[name]||'RETIRAR CAPA';
   const pendingBatch=useRef(null);
   const selectedPlatforms=PLATFORMS.filter(name=>selected[name]);
   function togglePlatform(name){
@@ -32,6 +39,47 @@ export default function NotificationDispatchView() {
   const [pairing,setPairing]=useState(false);
   const [monitorKey,setMonitorKey]=useState('');
   const [copyMessage,setCopyMessage]=useState('');
+  useEffect(()=>{
+    let canceled=false;
+    request('/api/admin/dispatch/options').then(result=>{
+      if(!canceled)setConfig(result.options||{});
+    }).catch(error=>{if(!canceled)setError(error.message)});
+    return ()=>{canceled=true};
+  },[]);
+  useEffect(()=>{
+    if(config){
+      setDraftOptions([...(config[editPlatform]||[])]);
+      setNewOption('');
+    }
+  },[config,editPlatform]);
+  function addOption(){
+    const label=newOption.trim();
+    if(!label||label.length>60||/[\x00-\x1f\x7f]/.test(label)||label.toUpperCase()==='RETIRAR CAPA'
+      ||draftOptions.length>=16||draftOptions.some(x=>x.toLowerCase()===label.toLowerCase())){
+      setError('Digite uma opção diferente das existentes, com até 60 caracteres (máximo 16).');
+      return;
+    }
+    setDraftOptions(current=>[...current,label]);
+    setNewOption('');setError('');
+  }
+  async function saveOptions(){
+    if(savingOptions)return;
+    setSavingOptions(true);setError('');setSuccess('');
+    try{
+      const data=await request('/api/admin/dispatch/options',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({platform:editPlatform,options:draftOptions})
+      });
+      const next={...(config||{}),[editPlatform]:data.options};
+      setConfig(next);
+      if(!dispatchOptionValid(editPlatform,selectedOption(editPlatform),next)){
+        setMessages(old=>({...old,[editPlatform]:'RETIRAR CAPA'}));
+      }
+      pendingBatch.current=null;
+      setSuccess('Modalidades de '+editPlatform+' salvas no NISTI.');
+    }catch(error){setError(error.message)}
+    finally{setSavingOptions(false)}
+  }
 
   const refresh=useCallback(async()=>{
     try {
@@ -51,13 +99,13 @@ export default function NotificationDispatchView() {
     setSuccess('');setError('');
     const platforms=PLATFORMS.filter(name=>selected[name]);
     if(!platforms.length){setError('Selecione pelo menos uma plataforma.');return;}
-    if(platforms.some(name=>!validDispatchOption(name,messages[name]))){
+    if(!config||platforms.some(name=>!dispatchOptionValid(name,selectedOption(name),config))){
       setError('Selecione uma opção para cada plataforma marcada.');return;
     }
     setSending(true);
     try{
       if(!pendingBatch.current)pendingBatch.current=platforms.map(name=>({
-        platform:name,message:messages[name].trim(),request_key:crypto.randomUUID()
+        platform:name,option:selectedOption(name),request_key:crypto.randomUUID()
       }));
       const data=await request('/api/admin/dispatch/batch',{
         method:'POST',headers:{'content-type':'application/json'},
@@ -104,7 +152,7 @@ export default function NotificationDispatchView() {
       <form className="nid-panel" onSubmit={send}>
         <span className="nid-section-eyebrow">NOVA CHAMADA</span>
         <h3>1. Selecione as plataformas</h3>
-        <p className="nid-muted">Marque as plataformas e escolha uma modalidade para cada uma. O monitor exibirá uma por vez, durante 15 segundos.</p>
+        <p className="nid-muted">Marque as plataformas. A opção universal é <strong>RETIRAR CAPA</strong>; modalidades adicionais são individuais por plataforma.</p>
         <div className="nid-platform-picker" role="group" aria-label="Selecionar plataformas">
           {PLATFORMS.map(name=><label key={name}
             className={'nid-platform-chip '+(selected[name]?'selected ':'')+platformColor(name)}>
@@ -123,20 +171,22 @@ export default function NotificationDispatchView() {
             ? <div className="nid-modes-empty">Selecione uma plataforma acima para visualizar as modalidades disponíveis.</div>
             :selectedPlatforms.map(platform=><div key={platform} className="nid-mode-item">
               <label htmlFor={'nid-mode-'+platform}>{platform.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())}</label>
-              <select id={'nid-mode-'+platform} value={messages[platform]||''}
-                onChange={event=>changeMessage(platform,event.target.value)} required>
-                <option value="">Selecionar modalidade</option>
-                {optionsForPlatform(platform).map(group=><optgroup key={group.label} label={group.label}>
-                  {group.options.map(option=><option key={option} value={option}>{option}</option>)}
-                </optgroup>)}
-              </select>
+              <div className="nid-option-with-preview">
+                <select id={'nid-mode-'+platform} value={selectedOption(platform)}
+                  onChange={event=>changeMessage(platform,event.target.value)} required>
+                  {dispatchOptionGroups(platform,config||{}).map(group=><optgroup key={group.label} label={group.label}>
+                    {group.options.map(option=><option key={option} value={option}>{option}</option>)}
+                  </optgroup>)}
+                </select>
+                <small className="nid-preview-line">{formatDispatchText(platform,selectedOption(platform))}</small>
+              </div>
             </div>)}
         </div>
         <div className="nid-request-summary">
           <span>Resumo do envio</span><strong>{selectedPlatforms.length} plataforma(s) • 15s cada</strong>
         </div>
-        <button type="submit" className="nid-send" disabled={sending||selectedPlatforms.length===0||
-          selectedPlatforms.some(name=>!validDispatchOption(name,messages[name]))}>
+        <button type="submit" className="nid-send" disabled={sending||!config||selectedPlatforms.length===0||
+          selectedPlatforms.some(name=>!dispatchOptionValid(name,selectedOption(name),config))}>
           {sending?'Enviando…':selectedPlatforms.length>1?'Enviar '+selectedPlatforms.length+' notificações':'Enviar notificação'}
           <span aria-hidden="true">→</span>
         </button>
@@ -159,6 +209,45 @@ export default function NotificationDispatchView() {
         <button type="button" onClick={pair} disabled={pairing} className="nid-secondary">
           {pairing?'Gerando…':state?.monitor_paired?'Substituir chave do monitor':'Gerar chave de ativação'}
         </button>
+        <div className="nid-settings-section">
+          <div className="nid-settings-title">
+            <div>
+              <span className="nid-section-eyebrow">MODALIDADES POR PLATAFORMA</span>
+              <h3>Personalizar informações</h3>
+            </div>
+            <button type="button" className="nid-secondary" onClick={()=>setCustomOpen(v=>!v)}>
+              {customOpen?'Fechar':'Configurar'}
+            </button>
+          </div>
+          <p className="nid-muted">Full não fica disponível em todas as plataformas. Você pode acrescentar ou retirar modalidades próprias de cada canal.</p>
+          {customOpen&&<div className="nid-options-editor">
+            <label htmlFor="nid-edit-platform">Plataforma a configurar</label>
+            <select id="nid-edit-platform" value={editPlatform}
+              onChange={event=>setEditPlatform(event.target.value)}>
+              {PLATFORMS.map(name=><option key={name} value={name}>{name}</option>)}
+            </select>
+            <div className="nid-universal-fixed">RETIRAR CAPA <small>Universal · sempre disponível</small></div>
+            <div className="nid-edit-chips">
+              {draftOptions.length===0?<small>Nenhuma modalidade adicional.</small>
+                :draftOptions.map(option=><div className="nid-edit-chip" key={option}>
+                  <span>{option}</span>
+                  <button type="button" title={'Remover '+option} aria-label={'Remover '+option}
+                    onClick={()=>setDraftOptions(xs=>xs.filter(x=>x!==option))}>×</button>
+                </div>)}
+            </div>
+            <div className="nid-add-mode">
+              <input value={newOption} maxLength={60}
+                onChange={e=>setNewOption(e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addOption()}}}
+                placeholder="Nova modalidade, ex.: Coleta especial"/>
+              <button className="nid-secondary" type="button" onClick={addOption}>Adicionar</button>
+            </div>
+            <button className="nid-send" type="button" onClick={saveOptions}
+              disabled={savingOptions||!config}>
+              {savingOptions?'Salvando…':'Salvar modalidades da plataforma'}
+            </button>
+          </div>}
+        </div>
         {monitorKey&&<div className="nid-key-view" role="status">
           <strong>Chave de ativação — exibida apenas agora</strong>
           <code>{monitorKey}</code>
