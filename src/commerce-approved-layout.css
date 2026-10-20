@@ -150,3 +150,21 @@
 @media(prefers-reduced-motion:reduce){
  .nim-manager button.nim-kpi:hover{transform:none}
 }
+
+/* Preserved audit totals — only shown when the user requests financial details. */
+.nim-manager .nim-finance-disclosure{background:#fff;border:1px solid #e1e9f4;
+  border-radius:12px;overflow:hidden}
+.nim-manager .nim-finance-toggle{display:flex;align-items:center;justify-content:space-between;
+  width:100%;gap:12px;border:0;background:#fff;cursor:pointer;font-family:inherit;
+  font-size:11px;font-weight:760;color:#435a7b;text-align:left;padding:11px 15px}
+.nim-manager .nim-finance-toggle:hover{background:#f8faff}
+.nim-manager .nim-finance-toggle:focus-visible{outline:2px solid #397ce9;outline-offset:-2px}
+.nim-manager .nim-finance-toggle span:last-child{font-size:17px;font-weight:500}
+.nim-manager .nim-finance-body{display:grid;gap:12px;padding:0 15px 15px}
+.nim-manager .nim-finance-note{margin:0;font-size:10px;line-height:1.5;color:#7586a0}
+.nim-manager .nim-finance-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.nim-manager .nim-finance-metrics .nim-kpi{min-height:85px}
+.nim-manager .nim-finance-metrics .nim-kpi-content strong{font-size:20px}
+@media(max-width:600px){
+  .nim-manager .nim-finance-metrics{grid-template-columns:minmax(0,1fr)}
+}
