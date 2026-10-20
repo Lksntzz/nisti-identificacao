@@ -17,3 +17,228 @@ body:has(.nid-expedition-standalone){background:#f3f6fb;color:#152238}
 .nid-expedition-main{max-width:1600px;margin:0 auto;padding:clamp(16px,2.6vw,36px)}
 .nid-expedition-main .nid-admin{max-width:100%;min-width:0}
 @media(max-width:650px){.nid-expedition-topbar{align-items:flex-start;flex-direction:column;gap:9px}.nid-expedition-main{padding:16px 12px}}
+
+/*
+ * Painel exclusivo da produção: uma viewport, sem rolagem do documento.
+ * O painel ADM continua com layout próprio. Em janelas pequenas e com zoom
+ * elevado, a página volta a permitir scroll para não esconder ações.
+ */
+@media (min-width: 1024px) and (min-height: 650px) {
+  html:has(.nid-expedition-standalone),
+  body:has(.nid-expedition-standalone),
+  #root:has(.nid-expedition-standalone) {
+    width:100%;
+    height:100%;
+    min-height:0;
+    overflow:hidden;
+  }
+  .nid-expedition-standalone {
+    width:100%;
+    height:100dvh;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .nid-expedition-standalone .nid-expedition-topbar {
+    flex:0 0 auto;
+    min-height:54px;
+    padding:8px clamp(15px,2.5vw,34px);
+  }
+  .nid-expedition-standalone .nid-expedition-brandmark{width:33px;height:33px;font-size:18px}
+  .nid-expedition-standalone .nid-expedition-main {
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    max-width:1700px;
+    min-height:0;
+    padding:clamp(9px,1.35dvh,15px) clamp(14px,2.1vw,34px);
+    overflow:hidden;
+  }
+  .nid-expedition-standalone .nid-admin.nid-admin-v5 {
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    gap:clamp(6px,.95dvh,10px);
+    width:100%;
+    max-width:none;
+    min-height:0;
+    margin:0;
+    padding:0;
+    overflow:hidden;
+  }
+  .nid-expedition-standalone .nid-admin-v5 .nid-dashboard-header {
+    flex:0 0 auto;
+    margin:0;
+    min-height:0;
+  }
+  .nid-expedition-standalone .nid-admin-v5 .nid-dashboard-header h2 {
+    font-size:clamp(20px,2vw,26px);
+    margin:2px 0 0;
+    line-height:1.12;
+  }
+  .nid-expedition-standalone .nid-admin-v5 .nid-heading-copy p {display:none}
+  .nid-expedition-standalone .nid-monitor-health {padding:7px 11px}
+  .nid-expedition-standalone .nid-admin-v5 .nid-kpi-grid {flex:0 0 auto;gap:8px}
+  .nid-expedition-standalone .nid-kpi {padding:8px 12px;min-height:52px;gap:10px;border-radius:12px}
+  .nid-expedition-standalone .nid-kpi-icon{width:32px;height:32px;border-radius:9px}
+  .nid-expedition-standalone .nid-kpi-icon svg {width:18px;height:18px}
+  .nid-expedition-standalone .nid-kpi strong {font-size:22px}
+  .nid-expedition-standalone .nid-views {flex:0 0 auto;padding:2px}
+  .nid-expedition-standalone .nid-views .nid-tab{padding:7px 12px}
+  .nid-expedition-standalone .nid-admin-v5 .nid-main-grid {
+    flex:1 1 auto;
+    display:grid;
+    min-width:0;
+    min-height:0;
+    grid-template-columns:minmax(0,1.9fr) minmax(280px,.85fr);
+    align-items:stretch;
+    gap:10px;
+  }
+  .nid-expedition-standalone .nid-admin-v5 .nid-panel {
+    min-width:0;
+    min-height:0;
+    gap:7px;
+    padding:clamp(9px,1.25dvh,13px);
+    border-radius:13px;
+  }
+  .nid-expedition-standalone .nid-admin-v5 .nid-panel h3{font-size:15px;line-height:1.2}
+  .nid-expedition-standalone .nid-admin-v5 .nid-step-head{gap:8px;align-items:center}
+  .nid-expedition-standalone .nid-step-number{width:23px;height:23px;font-size:11px;border-radius:7px}
+  .nid-expedition-standalone .nid-step-head .nid-muted{display:none}
+  .nid-expedition-standalone .nid-send-panel {
+    display:grid;
+    grid-template-rows:auto auto minmax(0,1fr) auto;
+    align-content:stretch;
+    overflow:hidden;
+  }
+  .nid-expedition-standalone .nid-admin-v5 .nid-platform-picker {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:5px 7px;
+    min-height:0;
+  }
+  .nid-expedition-standalone .nid-admin-v5 .nid-platform-chip {
+    min-height:clamp(37px,4.8dvh,44px);
+    padding:3px 7px;
+    gap:7px;
+    border-radius:9px;
+    font-size:11px;
+  }
+  .nid-expedition-standalone .nid-admin-v5 .nid-platform-chip .nid-channel-mark.nid-platform-logo{
+    width:29px;height:29px;border-radius:7px;padding:2px;
+  }
+  .nid-expedition-standalone .nid-admin-v5 .nid-platform-chip .nid-chip-tick{
+    width:17px;height:17px;
+  }
+  .nid-expedition-standalone .nid-selected-modes{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:5px 7px;
+    align-content:start;
+    min-width:0;
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+    border-top:1px solid #e6ebf2;
+    margin:0;
+    padding-top:8px;
+  }
+  .nid-expedition-standalone .nid-selected-modes>.nid-step-head,
+  .nid-expedition-standalone .nid-selected-modes>.nid-modes-empty {
+    grid-column:1/-1;
+  }
+  .nid-expedition-standalone .nid-selected-modes>.nid-step-head{margin-bottom:2px}
+  .nid-expedition-standalone .nid-admin-v5 .nid-mode-item{
+    grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);
+    gap:5px;
+    min-width:0;
+    padding:5px 7px;
+    border-radius:8px;
+  }
+  .nid-expedition-standalone .nid-mode-channel{gap:5px}
+  .nid-expedition-standalone .nid-mode-channel .nid-channel-mark.nid-platform-logo{
+    width:25px;height:25px;border-radius:7px;padding:2px;
+  }
+  .nid-expedition-standalone .nid-mode-channel label{font-size:11px}
+  .nid-expedition-standalone .nid-admin-v5 .nid-mode-item select{
+    min-height:33px;
+    font-size:11px;
+    padding:5px 6px;
+  }
+  /* A mesma mensagem completa continua na prévia à direita, sem duplicação. */
+  .nid-expedition-standalone .nid-mode-item .nid-preview-line{display:none}
+  .nid-expedition-standalone .nid-modes-empty {padding:11px;min-height:38px}
+  .nid-expedition-standalone .nid-send-footer {
+    align-self:stretch;
+    min-width:0;
+    gap:8px;
+    padding-top:7px;
+    margin:0;
+    background:#fff;
+  }
+  .nid-expedition-standalone .nid-send-footer small{display:none}
+  .nid-expedition-standalone .nid-admin-v5 .nid-send{
+    min-height:40px;
+    padding:8px 13px;
+    font-size:12px;
+  }
+  .nid-expedition-standalone .nid-side-column {
+    display:grid;
+    grid-template-rows:minmax(0,1fr) auto;
+    min-height:0;
+    gap:10px;
+  }
+  .nid-expedition-standalone .nid-preview-panel{
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .nid-expedition-standalone .nid-preview-queue {
+    min-height:0;
+    flex:1 1 auto;
+    overflow-y:auto;
+    scrollbar-width:thin;
+  }
+  .nid-expedition-standalone .nid-preview-queue-row{padding:6px 0}
+  .nid-expedition-standalone .nid-preview-queue-row .nid-channel-mark.nid-platform-logo{width:26px;height:26px;padding:2px}
+  .nid-expedition-standalone .nid-preview-empty{
+    flex:1;
+    display:grid;
+    place-items:center;
+    min-height:0;
+    padding:12px;
+  }
+  .nid-expedition-standalone .nid-monitor-sidepanel{align-content:start}
+  .nid-expedition-standalone .nid-monitor-inline-status{padding:8px 10px}
+  .nid-expedition-standalone .nid-monitor-sidepanel>.nid-muted{display:none}
+  .nid-expedition-standalone .nid-history-v5 {
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    overflow:hidden;
+  }
+  .nid-expedition-standalone .nid-history-v5 .nid-history-list{
+    flex:1 1 auto;
+    min-height:0;
+    overflow:auto;
+    scrollbar-width:thin;
+  }
+  .nid-expedition-standalone .nid-admin-v5>.nid-message {
+    flex:0 0 auto;
+    max-height:76px;
+    overflow:auto;
+    padding:7px 12px;
+    font-size:12px;
+  }
+}
+/* Permite acesso a todos os controles caso o Windows tenha baixa resolução
+   efetiva ou o usuário amplie o zoom do navegador. */
+@media (min-width:1024px) and (min-height:650px) and (max-height:740px) {
+  .nid-expedition-standalone .nid-expedition-main{padding-top:7px;padding-bottom:7px}
+  .nid-expedition-standalone .nid-admin.nid-admin-v5{gap:5px}
+  .nid-expedition-standalone .nid-admin-v5 .nid-platform-chip{min-height:34px}
+  .nid-expedition-standalone .nid-admin-v5 .nid-platform-chip .nid-channel-mark.nid-platform-logo{width:26px;height:26px}
+}
