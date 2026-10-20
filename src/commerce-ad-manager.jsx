@@ -670,7 +670,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             hasShopeePartial?'SKU identificado · dados parciais':'No período'}
           selected={status==='SOLD'}
           onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
-        <Kpi tone="rose" label="Sem vendas" value={data?num(kpi.zero_ads):'—'}
+        <Kpi tone="rose" label="Sem vendas" value={data?(platform==='SHOPEE'?'—':num(kpi.zero_ads)):'—'}
           description={platform==='SHOPEE'?'Sem comprovação por anúncio nesta fonte':
             hasShopeePartial?'Zero vendas verificadas · Shopee não incluída':
             'Zero unidades na janela importada com cobertura completa'}
@@ -738,12 +738,13 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <div className="nim-filter-top">
         <label className="nim-filter-field nim-filter-platform">Plataforma
           <select value={platform} onChange={e=>{
-            if(e.target.value==='SHOPEE'){
-              setCurve('ALL');
-              // Shopee without a confirmed listing link is never proven zero.
-            }
-            if(['RISING','FALLING'].includes(status))setStatus('ALL');
-            change(setPlatform,e.target.value);
+            const next=e.target.value;
+            if(next==='SHOPEE')setCurve('ALL');
+            if(['RISING','FALLING'].includes(status) ||
+              (status==='UNLINKED'&&!['TODAS','SHOPEE'].includes(next)) ||
+              (status==='VAR_ZERO'&&['SHOPEE','AMAZON','TIKTOK'].includes(next)) ||
+              (days===0&&next==='SHOPEE'&&status==='ZERO'))setStatus('ALL');
+            change(setPlatform,next);
           }}>
             {PLATFORMS.map(([id,name])=><option key={id} value={id}>{name}</option>)}
           </select>
@@ -762,7 +763,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                   setCurve('ALL');
                   // Shopee without a confirmed listing link is never proven zero.
                 }
-                if(choice==='MONTH'&&['RISING','FALLING','VAR_ZERO','UNLINKED'].includes(status))setStatus('ALL');
+                if(choice==='MONTH'&&(['RISING','FALLING','VAR_ZERO','UNLINKED'].includes(status)
+                  ||(platform==='SHOPEE'&&status==='ZERO')))setStatus('ALL');
                 change(setDays,choice==='MONTH'?0:Number(choice));
               }}>
               {PERIODS.map(n=><option key={n} value={n}>
@@ -786,7 +788,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             {SALES_FILTERS.map(([code,label])=><button type="button" key={code}
               className={status===code?'active':''} aria-pressed={status===code}
               onClick={()=>change(setStatus,code)}
-              title={code==='ZERO'?'Zero unidades em todo o período, com cobertura diária completa por ID do anúncio; não inclui Shopee sem vínculo':undefined}>
+              title={code==='ZERO'?'Zero unidades em todo o período, com cobertura diária completa por ID do anúncio; não inclui Shopee sem vínculo':undefined}
+              disabled={code==='ZERO'&&days===0&&platform==='SHOPEE'}>
               {label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
             </button>)}
             {days!==0&&platform!=='SHOPEE'&&platform!=='AMAZON'&&platform!=='TIKTOK'&&
