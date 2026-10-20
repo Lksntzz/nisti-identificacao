@@ -6,21 +6,34 @@ https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes
 
 ## URLs separadas da operação
 
-- **Painel de controle (administrador):**
-  `https://nisti-identificacao.lksntz1411.workers.dev/painel-expedicao`
-  Acesso exclusivo com a mesma senha administrativa do NISTI; após login,
-  abre diretamente a área de envio, seleção de plataformas, fila, histórico
-  e personalização de informações. Não carrega as ferramentas do catálogo,
-  Mural ou scanner.
+- **Painel de envio sem senha:** abre diretamente pelo link privado
+  `https://nisti-identificacao.lksntz1411.workers.dev/painel-expedicao#acesso=CHAVE_PRIVADA`.
+  A chave deve ser entregue apenas à equipe autorizada. A primeira abertura troca
+  o fragmento da URL por um cookie HttpOnly Secure SameSite=Strict, válido por 30 dias,
+  e remove imediatamente o fragmento da barra de endereços. Quando expirar,
+  basta abrir novamente o link privado. Sem chave e sem cookie, o painel
+  apresenta apenas uma mensagem de acesso restrito.
+  Esta tela exibe **Enviar notificações** e **Fila e histórico**; não possui links
+  para ADM/monitor e não permite trocar a chave do monitor, editar modalidades,
+  acessar outras APIs administrativas ou abrir o catálogo.
+- **Configurações da expedição (ADM):** continuam protegidas por senha administrativa,
+  em `/admin`, Comunicação → Notificações da Expedição. As modalidades de cada
+  canal e o pareamento do monitor são alterados somente nesta interface.
 - **Monitor de exibição (notebook):**
   `https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes`
-  Exibe notificações e toca sons. Usa chave de ativação própria e não
-  compartilha a sessão administrativa do painel.
+  Exibe notificações e reproduz os alertas. Usa chave própria, sem compartilhar
+  a permissão de envio.
 
-O painel original continua disponível no menu **Comunicação → Notificações da
-Expedição** do ADM. Ambas as telas utilizam a **mesma fila no servidor**;
-não são sistemas ou bancos diferentes. Não abrir o painel administrativo
-na conta Windows dedicada ao monitor nem salvar nela a senha administrativa.
+A URL curta **/painel-expedicao** sozinha não concede acesso: precisa estar com
+a sessão ativada por link privado. O segredo no Cloudflare
+`DISPATCH_SENDER_TOKEN_SHA256` armazena somente o SHA-256 da chave aleatória de
+256 bits, não a chave. É necessário cadastrar esse segredo na Worker antes de
+usar em produção. Para revogar o link e todos os cookies associados, substitua
+o SHA-256 por outro gerado a partir de uma nova chave privada; o sistema passa
+a recusar os acessos anteriores imediatamente.
+
+Todas as telas compartilham a mesma fila no Supabase. Não há atualização do
+instalador Windows para este painel; ele é acessado pelo navegador.
 
 ## Primeiro uso (apenas uma vez)
 
