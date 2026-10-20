@@ -16,7 +16,7 @@ function dateValue(v){
   if(!match)throw new Error('Data inválida no arquivo Shopee.');
   const iso=match[1]+'-'+match[2]+'-'+match[3]+'T'+(match[4]||'00')+
     ':'+(match[5]||'00')+':'+(match[6]||'00')+'Z';
-  if(Number.isNaN(Date.parse(iso))||new Date(iso).toISOString()!==iso.replace('.000',''))
+  if(Number.isNaN(Date.parse(iso))||new Date(iso).toISOString().slice(0,19)!==iso.slice(0,19))
     throw new Error('Data inválida no arquivo Shopee.');
   return iso;
 }
