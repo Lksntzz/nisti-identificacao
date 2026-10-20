@@ -59,6 +59,7 @@ test('source and sales stay separate; deduplication and access are restricted',(
 });
 test('commercial view remains compact with no diagnosis tab and optional Shopee Ads',()=>{
  assert.match(ui,/CommerceShopeeAdsSummary listingId=\{item\.id\}/);
+ assert.match(ui,/onOnlySelectedPeriodChange=\{setAdsOnlySelectedPeriod\}/);
  assert.match(ui,/useState\('summary'\)/);
  assert.doesNotMatch(ui,/\['diagnosis','Diagnóstico'\]/);
  assert.match(imports,/mode === 'ads'/);
