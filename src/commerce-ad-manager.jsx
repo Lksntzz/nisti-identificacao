@@ -261,7 +261,8 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
       {activeTab==='diagnosis'&&(periodLoading
         ?<p className="nim-detail-pending" role="status">Consultando dados para o diagnóstico…</p>
         :periodError?<p className="nim-detail-pending nim-detail-period-error" role="alert">{periodError}</p>
-        :detail?<ListingDiagnosisPanel item={detail} days={detailDays}/>
+        :detail?<ListingDiagnosisPanel item={detail} days={detailDays}
+          start={selectedPeriodStart} end={selectedPeriodEnd}/>
         :<p className="nim-detail-pending">Informações de vendas indisponíveis para este período.</p>)}
       {activeTab==='summary'&&<>
         <div className="nim-detail-section-title"><h4>Evolução de vendas</h4>
