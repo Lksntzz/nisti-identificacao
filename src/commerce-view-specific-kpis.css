@@ -1,0 +1,42 @@
+/*
+ * NISTI commercial view-specific KPI grids.
+ * Listings count advertisement records; evolution counts SKU/model rows
+ * returned by the authenticated evolution RPC. Keep each view independent.
+ */
+.nim-manager .nim-kpis.nim-kpis-listings{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+}
+.nim-manager .nim-kpis.nim-kpis-evolution{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;
+}
+.nim-manager .nim-kpis.nim-kpis-listings>.nim-kpi,
+.nim-manager .nim-kpis.nim-kpis-evolution>.nim-kpi,
+.nim-manager .nim-kpis.nim-kpis-listings>.nim-kpi:nth-child(n+4),
+.nim-manager .nim-kpis.nim-kpis-evolution>.nim-kpi:nth-child(n+4){
+  grid-column:span 1;min-width:0;
+}
+.nim-manager .nim-kpis-evolution button.nim-kpi.selected{
+  border-color:#6596ed;outline:2px solid #447fe4;outline-offset:-2px;
+  background:#f6faff;
+}
+.nim-manager .nim-kpis-evolution .nim-kpi:focus-visible{
+  outline:3px solid #3576e7;outline-offset:2px;
+}
+.nim-manager .nim-kpis-evolution .nim-kpi-content>span{
+  max-width:100%;font-size:11px;line-height:1.5;
+}
+@media(max-width:1150px){
+  .nim-manager .nim-kpis.nim-kpis-listings,
+  .nim-manager .nim-kpis.nim-kpis-evolution{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  .nim-manager .nim-kpis.nim-kpis-listings,
+  .nim-manager .nim-kpis.nim-kpis-evolution{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .nim-manager .nim-kpis.nim-kpis-listings>.nim-kpi:first-child{grid-column:1/-1}
+  .nim-manager .nim-kpis.nim-kpis-evolution>.nim-kpi:first-child{grid-column:span 1}
+  .nim-manager .nim-kpis.nim-kpis-listings>.nim-kpi,
+  .nim-manager .nim-kpis.nim-kpis-evolution>.nim-kpi{min-height:105px;padding:11px}
+}
+@media(prefers-reduced-motion:reduce){
+ .nim-manager .nim-kpis-evolution button.nim-kpi{transition:none}
+}
