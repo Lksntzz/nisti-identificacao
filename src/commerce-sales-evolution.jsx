@@ -150,6 +150,16 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
               {item.trend==='FALLING'&&<CommercialIcon name="trending-down" size={15}/>}
               {growth}</span>
           </summary>
+          <div className="nim-evolution-detail">
+            <header className="nim-evolution-detail-heading">
+              <div>
+                <span className="nim-evolution-detail-eyebrow">DETALHAMENTO DO PRODUTO</span>
+                <h4>{item.title||'Produto vendido na plataforma'}</h4>
+                <p>Comparação de {days} dias por SKU/modelo · {platformName(item.source)}</p>
+              </div>
+              <span className="nim-evolution-detail-period">Janela de {days} dias</span>
+            </header>
+            <div className="nim-evolution-detail-section-title">Indicadores de vendas</div>
           <div className="nim-evolution-product-stats">
             <div><small>Unidades atuais</small><strong>{num(item.current_units)}</strong>
               <span>{money(item.current_revenue)}</span></div>
@@ -180,6 +190,8 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
           {item.source==='SHOPEE'&&item.trend==='ZERO'&&<p className="nim-evolution-info">
             Sem vendas registradas no SKU/modelo conhecido; uma mudança de código
             não identificada pode ocultar vendas do anúncio.</p>}
+
+          </div>
         </details>;
       })}</div>
       {total>PAGE&&<footer className="nim-list-footer nim-evolution-footer">

@@ -126,3 +126,94 @@
  .nim-manager .nim-evolution-disclosure-arrow{transition:none;}
  .nim-manager .nim-kpis>.nim-kpi{transition:none;transform:none!important;}
 }
+
+
+/* Product evolution — canonical grid and expanded details layout.
+   Legacy flex rows in commerce-ad-manager.css were removed: the six cells now
+   share identical tracks with the visible table header at desktop widths. */
+.nim-manager .nim-evolution-product-head{
+  display:grid;flex-wrap:nowrap;grid-auto-flow:row;min-width:0;
+  align-items:center;justify-content:stretch;
+}
+.nim-manager .nim-evolution-product-head::before{content:none;display:none}
+.nim-manager .nim-evolution-product-head::marker{content:""}
+.nim-manager .nim-evolution-product-head > *{min-width:0}
+.nim-manager .nim-evolution-primary{min-width:0}
+.nim-manager .nim-evolution-primary>.nim-evolution-name{min-width:0;flex:1 1 auto}
+.nim-manager .nim-evolution-identification strong{white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+.nim-manager .nim-evolution-quick-stats{display:block;min-width:0}
+.nim-manager .nim-evolution-growth{min-width:0;white-space:nowrap;font-variant-numeric:tabular-nums}
+.nim-manager .nim-evolution-product[open]{background:#fff}
+.nim-manager .nim-evolution-product[open]>.nim-evolution-product-head{
+  background:#eff5ff;box-shadow:inset 3px 0 #3978da
+}
+.nim-manager .nim-evolution-product[open] .nim-evolution-name strong{
+  -webkit-line-clamp:unset;display:block;white-space:normal;overflow-wrap:anywhere
+}
+.nim-manager .nim-evolution-detail{
+  display:grid;gap:15px;padding:19px 20px 20px;
+  border-top:1px solid #dae6f6;background:linear-gradient(180deg,#f9fbff,#fff 65%);
+}
+.nim-manager .nim-evolution-detail-heading{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.nim-manager .nim-evolution-detail-heading>div{min-width:0}
+.nim-manager .nim-evolution-detail-eyebrow{display:block;margin:0 0 5px;font-size:10px;
+  font-weight:820;letter-spacing:.09em;color:#6684b3}
+.nim-manager .nim-evolution-detail-heading h4{margin:0 0 5px;font-size:14px;
+  font-weight:800;line-height:1.4;color:#1c3457;overflow-wrap:anywhere}
+.nim-manager .nim-evolution-detail-heading p{margin:0;font-size:11px;line-height:1.5;color:#72849f}
+.nim-manager .nim-evolution-detail-period{flex:none;padding:7px 10px;border-radius:8px;
+  background:#eef4ff;color:#3c69a9;font-size:11px;font-weight:760}
+.nim-manager .nim-evolution-detail-section-title{color:#354e75;font-size:11px;font-weight:800}
+.nim-manager .nim-evolution-detail .nim-evolution-product-stats{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+}
+.nim-manager .nim-evolution-detail .nim-evolution-product-stats>div{
+  display:grid;gap:6px;align-content:start;min-width:0;
+  padding:13px 15px;background:#fff;border:1px solid #e0e8f4;border-radius:10px;
+}
+.nim-manager .nim-evolution-detail .nim-evolution-product-stats small{
+  font-size:11px;font-weight:730;color:#647a9a
+}
+.nim-manager .nim-evolution-detail .nim-evolution-product-stats strong{
+  font-size:21px;line-height:1.15;font-weight:840;letter-spacing:-.3px;
+  font-variant-numeric:tabular-nums;color:#243e62
+}
+.nim-manager .nim-evolution-detail .nim-evolution-product-stats strong.positive{color:#149064}
+.nim-manager .nim-evolution-detail .nim-evolution-product-stats strong.negative{color:#c44560}
+.nim-manager .nim-evolution-detail .nim-evolution-product-stats span{font-size:11px;color:#647996}
+.nim-manager .nim-evolution-detail .nim-evolution-bars{display:grid;gap:10px;
+  padding:12px 14px;background:#fff;border:1px solid #e3eaf4;border-radius:10px}
+.nim-manager .nim-evolution-detail .nim-evolution-bars>div{
+  grid-template-columns:60px minmax(0,1fr) 48px;gap:10px
+}
+.nim-manager .nim-evolution-detail .nim-evolution-bars>div>span{font-size:11px;font-weight:730}
+.nim-manager .nim-evolution-detail .nim-evolution-bars>div>strong{font-size:12px}
+.nim-manager .nim-evolution-detail .nim-evolution-bar-track{height:10px}
+.nim-manager .nim-evolution-detail .nim-evolution-advice{margin:0;padding:13px 15px;
+  border:1px solid #dce8f6;border-radius:10px;background:#f3f7fe;display:grid;gap:5px}
+.nim-manager .nim-evolution-detail .nim-evolution-advice strong{font-size:12px;color:#2f527f}
+.nim-manager .nim-evolution-detail .nim-evolution-advice p{font-size:11px;line-height:1.6;color:#496481}
+.nim-manager .nim-evolution-detail .nim-evolution-shared-sku{margin:0}
+.nim-manager .nim-evolution-detail .nim-evolution-info{margin:0;font-size:11px;line-height:1.6}
+@media(max-width:1050px){
+  .nim-manager .nim-evolution-detail{padding:16px}
+}
+@media(max-width:700px){
+  .nim-manager .nim-evolution-product-head{display:grid;grid-template-columns:minmax(0,1fr) auto}
+  .nim-manager .nim-evolution-primary{grid-column:1/-1;grid-row:1}
+  .nim-manager .nim-evolution-platform{grid-column:1;grid-row:2}
+  .nim-manager .nim-evolution-tag{grid-column:2;grid-row:2}
+  .nim-manager .nim-evolution-identification{grid-column:1/-1;grid-row:3}
+  .nim-manager .nim-evolution-quick-stats{grid-column:1;grid-row:4}
+  .nim-manager .nim-evolution-growth{grid-column:2;grid-row:4}
+  .nim-manager .nim-evolution-detail{padding:13px;gap:13px}
+  .nim-manager .nim-evolution-detail-heading{flex-wrap:wrap;gap:8px}
+  .nim-manager .nim-evolution-detail .nim-evolution-product-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .nim-manager .nim-evolution-detail .nim-evolution-product-stats>div:last-child{grid-column:1/-1}
+  .nim-manager .nim-evolution-detail .nim-evolution-product-stats>div{padding:11px}
+  .nim-manager .nim-evolution-detail .nim-evolution-product-stats strong{font-size:19px}
+}
+@media(max-width:370px){
+  .nim-manager .nim-evolution-detail .nim-evolution-product-stats{grid-template-columns:minmax(0,1fr)}
+  .nim-manager .nim-evolution-detail .nim-evolution-product-stats>div:last-child{grid-column:auto}
+}
