@@ -1,8 +1,9 @@
 import React from 'react';
 import { buildListingDiagnosis } from './commerce-listing-diagnostics.js';
+import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
 import './commerce-listing-diagnosis-panel.css';
 
-export default function ListingDiagnosisPanel({item,days}) {
+export default function ListingDiagnosisPanel({item,days,start,end}) {
   const report = buildListingDiagnosis(item,days);
   return <section className="nim-diagnosis" aria-label="Diagnóstico do anúncio">
     <div className={'nim-diagnosis-summary '+report.summary.tone}>
@@ -10,6 +11,7 @@ export default function ListingDiagnosisPanel({item,days}) {
       <h4>{report.summary.title}</h4>
       <p>{report.summary.detail}</p>
     </div>
+    <CommerceTrafficMetrics listingId={item.id} start={start} end={end}/>
     <div className="nim-diagnosis-section">
       <h4>O que os dados demonstram</h4>
       {report.signals.length===0
