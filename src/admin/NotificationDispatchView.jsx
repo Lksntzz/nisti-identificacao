@@ -75,10 +75,10 @@ export default function NotificationDispatchView({senderMode=false}) {
     setNewOption('');setError('');
   }
   async function saveOptions(){
-    if(senderMode||savingOptions)return;
+    if(savingOptions)return;
     setSavingOptions(true);setError('');setSuccess('');
     try{
-      const data=await request('/api/admin/dispatch/options',{
+      const data=await request(endpoints.options,{
         method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({platform:editPlatform,options:draftOptions})
       });
@@ -266,7 +266,7 @@ export default function NotificationDispatchView({senderMode=false}) {
       {[
         {id:'send',label:'Enviar notificações',icon:'send'},
         {id:'history',label:'Fila e histórico',icon:'list-check'},
-        ...(!senderMode?[{id:'settings',label:'Personalizar informações',icon:'settings-2'}]:[])
+        {id:'settings',label:'Personalizar informações',icon:'settings-2'}
       ].map(entry=><button key={entry.id} type="button" aria-current={tab===entry.id?'page':undefined}
         className={'nid-tab '+(tab===entry.id?'active':'')} onClick={()=>setTab(entry.id)}>
         <DispatchIcon name={entry.icon} size={17}/>{entry.label}
@@ -373,9 +373,9 @@ export default function NotificationDispatchView({senderMode=false}) {
         </div>):<p className="nid-muted">Nenhuma chamada registrada ainda.</p>}
       </div>
     </div>}
-    {!senderMode&&tab==='settings'&&<div className="nid-settings-grid">
+    {tab==='settings'&&<div className={'nid-settings-grid'+(senderMode?' nid-sender-settings':'')}>
       {editor}
-      <div className="nid-panel nid-monitor-setup-panel">
+      {!senderMode&&<div className="nid-panel nid-monitor-setup-panel">
         <span className="nid-section-eyebrow">MONITOR DA EXPEDIÇÃO</span>
         <h3>Conexão e ativação</h3>
         <div className="nid-monitor-inline-status">
@@ -421,7 +421,7 @@ export default function NotificationDispatchView({senderMode=false}) {
         <a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">
           <DispatchIcon name="monitor" size={17}/> Abrir monitor <DispatchIcon name="external-link" size={14}/>
         </a>
-      </div>
+      </div>}
     </div>}
   </section>;
 }

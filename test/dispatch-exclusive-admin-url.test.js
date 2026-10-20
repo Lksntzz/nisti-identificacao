@@ -41,7 +41,7 @@ test('private sender token grants persistent HttpOnly dispatch-only session',asy
 
   for(const [path,method] of [
     ['/api/expedition-panel/monitor-key','POST'],
-    ['/api/expedition-panel/options','POST'],
+    ['/api/expedition-panel/pair/approve','POST'],
     ['/api/expedition-panel/bad-action','POST']
   ]){
     const response=await query(path,{
@@ -84,15 +84,18 @@ test('authorization stays scoped to the sender URL and never runs on mural host'
   assert.equal(denied.status,403);
 });
 
-test('standalone sender is free of monitor/ADM links and settings',()=>{
+test('sender panel shows platform personalization but no monitor administration',()=>{
   const ui=fs.readFileSync(new URL('../src/expedition-dispatch-standalone.jsx',import.meta.url),'utf8');
   const view=fs.readFileSync(new URL('../src/admin/NotificationDispatchView.jsx',import.meta.url),'utf8');
   assert.match(ui,/NotificationDispatchView senderMode/);
   assert.match(ui,/window\.location\.hash/);
   assert.match(ui,/history\.replaceState/);
   assert.doesNotMatch(ui,/href="\/admin"|href="\/monitor-notificacoes"/);
-  assert.match(view,/\.\.\.\(!senderMode\?/);
-  assert.match(view,/!senderMode&&tab==='settings'/);
+  assert.match(view,/id:'settings',label:'Personalizar informações'/);
+  assert.match(view,/tab==='settings'&&<div/);
+  assert.match(view,/!senderMode&&<div className="nid-panel nid-monitor-setup-panel"/);
+  assert.match(view,/request\(endpoints\.options,\{/);
+  assert.doesNotMatch(view,/if\(senderMode\|\|savingOptions\)/);
   assert.match(view,/\/api\/expedition-panel\/batch/);
   assert.match(view,/\/api\/admin\/dispatch\/batch/);
 });
@@ -144,4 +147,34 @@ test('private invitation rejects wrong token and mural hostname',async()=>{
   assert.equal(bad.headers.get('set-cookie'),null);
   const mural=await edgeRouter.fetch(new Request('https://mural.sistemanistiid.online/convite-expedicao/'+token),env,{});
   assert.equal(mural.status,404);
+});
+
+
+test('sender may customize per-platform modes without admin or monitor privileges',async()=>{
+  const authorizedCookie='__Host-nisti_dispatch_sender='+token;
+  const headers={cookie:authorizedCookie,origin,'content-type':'application/json'};
+  // Authorized request reaches the shared validation rather than a sender 403.
+  for(const body of [
+    {platform:'SHOPEE',options:['RETIRAR CAPA']},
+    {platform:'SHOPEE',options:['Full','full']},
+    {platform:'INVALID',options:['Full']}
+  ]){
+    const response=await query('/api/expedition-panel/options',{
+      method:'POST',headers,body:JSON.stringify(body)
+    });
+    assert.equal(response.status,400,'invalid customization must be rejected by dispatch validation');
+  }
+  // The same endpoint is forbidden without a valid private sender session.
+  const anonymous=await query('/api/expedition-panel/options',{
+    method:'POST',headers:{origin,'content-type':'application/json'},
+    body:JSON.stringify({platform:'SHOPEE',options:['Full']})
+  });
+  assert.equal(anonymous.status,401);
+  for(const path of ['/api/expedition-panel/monitor-key','/api/expedition-panel/pair/approve',
+    '/api/expedition-panel/pair/pending']){
+    const response=await query(path,{method:'POST',headers,body:'{}'});
+    assert.equal(response.status,403,path);
+  }
+  const senderRoute=fs.readFileSync(new URL('../src/expedition-dispatch-sender-router.js',import.meta.url),'utf8');
+  assert.match(senderRoute,/path===API\+'\/options'&&\(request\.method==='GET'\|\|request\.method==='POST'\)/);
 });

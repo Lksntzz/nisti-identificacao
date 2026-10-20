@@ -243,3 +243,25 @@ body:has(.nid-expedition-standalone){background:#f3f6fb;color:#152238}
   .nid-expedition-standalone .nid-admin-v5 .nid-platform-chip{min-height:34px}
   .nid-expedition-standalone .nid-admin-v5 .nid-platform-chip .nid-channel-mark.nid-platform-logo{width:26px;height:26px}
 }
+
+/* Personalização da produção: somente o editor de modalidades, sem painel
+   administrativo do monitor. O scroll é local e mantém o topo fixo no desktop. */
+.nid-expedition-standalone .nid-sender-settings {
+  grid-template-columns:minmax(0,1fr);
+  min-width:0;
+}
+@media(min-width:1024px) and (min-height:650px) {
+  .nid-expedition-standalone .nid-sender-settings {
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    align-content:start;
+    padding:0 4px 10px 0;
+    scrollbar-width:thin;
+  }
+  .nid-expedition-standalone .nid-sender-settings>.nid-custom-panel {
+    align-self:start;
+    min-height:max-content;
+  }
+}

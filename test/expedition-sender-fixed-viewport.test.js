@@ -34,9 +34,11 @@ test('preview and history scroll internally only when there are too many rows',(
   assert.ok(legacy.includes('.nid-admin-v5 .nid-main-grid'));
 });
 
-test('sender does not show a monitor configuration button with no settings access',()=>{
+test('sender has personalization without monitor configuration or ADM navigation',()=>{
   assert.match(view,/!senderMode&&<button type="button" className="nid-secondary nid-pair-link"/);
-  assert.match(view,/!senderMode&&tab==='settings'/);
+  assert.match(view,/tab==='settings'&&<div/);
+  assert.match(view,/!senderMode&&<div className="nid-panel nid-monitor-setup-panel"/);
+  assert.match(css,/\.nid-expedition-standalone \.nid-sender-settings\s*\{[^}]*overflow-y:auto/s);
   assert.match(standalone,/NotificationDispatchView senderMode/);
   assert.doesNotMatch(standalone,/href="\/admin"|href="\/monitor-notificacoes"/);
 });

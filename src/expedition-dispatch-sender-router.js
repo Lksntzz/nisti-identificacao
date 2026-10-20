@@ -1,7 +1,7 @@
 import {handleNotificationDispatchRequest} from './notification-dispatch-router.js';
 
-// A URL privada dá apenas permissão de ENVIO e leitura da fila. Nenhum acesso
-// à administração, chave do monitor ou edição das modalidades é concedido.
+// A URL privada permite envio, consulta da fila e personalização das modalidades.
+// Nunca autoriza pareamento, chaves do monitor ou APIs administrativas gerais.
 const COOKIE='__Host-nisti_dispatch_sender';
 const COOKIE_AGE=60*60*24*30;
 const API='/api/expedition-panel';
@@ -94,7 +94,7 @@ export async function handleDispatchSenderRequest(request,env){
 
   // Lista EXAUSTIVA de permissões da URL privada.
   const dispatchPath=path===API&&request.method==='GET'?'/api/admin/dispatch'
-    :path===API+'/options'&&request.method==='GET'?'/api/admin/dispatch/options'
+    :path===API+'/options'&&(request.method==='GET'||request.method==='POST')?'/api/admin/dispatch/options'
     :path===API+'/batch'&&request.method==='POST'?'/api/admin/dispatch/batch'
     :null;
   if(!dispatchPath)return json({error:'Ação não autorizada nesta URL.'},403);
