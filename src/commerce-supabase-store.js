@@ -172,7 +172,7 @@ export async function commerceSalesEvolution(env, filters={}) {
   const search=cleanText(filters.search)||null;
   if(!['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE'].includes(platform)
     ||![7,30,60,90].includes(days)
-    ||!['ALL','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT'].includes(status)
+    ||!['ALL','SOLD','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT'].includes(status)
     ||(search&&search.length>120))throw new Error('Filtros de evolução inválidos.');
   const result=await supabaseRpc(env,'commerce_sales_evolution_v1',{
     p_platform:platform,p_days:days,p_status:status,p_search:search,
