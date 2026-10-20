@@ -35,6 +35,8 @@ import {
   commerceListingManager,
   commerceSalesEvolution,
   commerceListingTrafficWindow,
+  commerceImportShopeeAdsReport,
+  commerceShopeeAdsListing,
   commerceSaveListingTraffic,
   commerceShopeeUnlinkedSales,
   commerceShopeeSkuReconciliationQueue,
@@ -356,6 +358,23 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Filtros financeiros inválidos.'},400);
       return json(await commerceShopeeListingFinance(env,listingId,{days,month}));
     }
+    // Marketing attribution remains separate from imported order sales.
+    if(method==='POST'&&pathname===BASE_PATH+'/shopee-ads/reports') {
+      if(Number(request.headers.get('content-length')||0)>700000)
+        return json({error:'Arquivo processado grande demais (limite 700 KB).'},413);
+      const body=await bodyJson(request);
+      const report=body?.report,rows=body?.rows;
+      if(!report||!Array.isArray(rows)||rows.length<1||rows.length>1000)
+        return json({error:'Relatório Shopee Ads inválido.'},400);
+      const allowed=['GENERAL','TARGETING'].includes(report.kind)
+        &&/^[0-9]{3,24}$/.test(String(report.shop_id||''))
+        &&/^[a-f0-9]{64}$/.test(String(report.sha256||''));
+      if(!allowed)return json({error:'Origem Shopee Ads inválida.'},400);
+      return json(await commerceImportShopeeAdsReport(env,body));
+    }
+    const adsListing=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/shopee-ads$/);
+    if(method==='GET'&&adsListing)
+      return json(await commerceShopeeAdsListing(env,adsListing[1]));
     // Protegido pela mesma autenticação administrativa do router comercial.
     const listingTrafficPath=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/traffic$/);
     if(listingTrafficPath&&method==='GET'){
