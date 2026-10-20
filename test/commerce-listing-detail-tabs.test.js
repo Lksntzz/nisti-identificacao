@@ -26,7 +26,7 @@ test('períodos do detalhe consultam ID real sem redefinir filtros da listagem',
   assert.match(details,/String\(x\.id\)===String\(item\.id\)/);
   assert.match(details,/if\(detailDays===0 && month\)params\.set\('month',month\)/);
   assert.match(jsx,/periodStart=\{data\?\.period_start\} periodEnd=\{data\?\.period_end\}/);
-  assert.match(jsx,/zeroFilter=\{status==='VAR_ZERO'\}/);
+  assert.match(jsx,/zeroFilter=\{false\}/);
   assert.match(jsx,/useEffect\(\(\)=>\{setOffset\(0\);setSelectedId\(null\);\},\[platform,days,month,search,status,curve,basis,size\]\)/);
   assert.doesNotMatch(details,/onDaysChange/);
 });
@@ -52,7 +52,7 @@ test('a aba de variações conserva zeros apenas com cobertura confiável',()=>{
   assert.match(details,/zeroFilter&&!showAll\?variations\.filter\(v=>v\.units===0\):variations/);
   assert.match(details,/v\.units==null\?'—':num\(v\.units\)/);
   assert.match(details,/v\.revenue==null\?'—':money\(v\.revenue\)/);
-  assert.match(details,/não mostramos zeros presumidos/);
+  assert.match(details,/zeros não são presumidos/);
   assert.match(sql,/dc\.current_days>=b\.days/);
   assert.match(sql,/variation_data_complete/);
 });
