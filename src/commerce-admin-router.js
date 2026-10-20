@@ -36,6 +36,8 @@ import {
   commerceSalesEvolution,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
+  commerceImportShopeeAftercare,
+  commerceShopeeAftercareListing,
   commerceShopeeAdsListing,
   commerceShopeeAdsCoverage,
   commerceSaveListingTraffic,
@@ -359,6 +361,19 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Filtros financeiros inválidos.'},400);
       return json(await commerceShopeeListingFinance(env,listingId,{days,month}));
     }
+    // Shopee return/refund events only; no sales-import side effects.
+    if(method==='POST'&&pathname===BASE_PATH+'/shopee/aftercare/reports'){
+      if(Number(request.headers.get('content-length')||0)>1800000)
+        return json({error:'Arquivo de pós-venda excede 1,8 MB.'},413);
+      const input=await bodyJson(request);
+      if(!input||!Array.isArray(input.requests)||input.requests.length<1||
+          input.requests.length>3000)
+        return json({error:'Relatório de pós-venda inválido.'},400);
+      return json(await commerceImportShopeeAftercare(env,input));
+    }
+    const aftercareListing=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/aftercare$/);
+    if(method==='GET'&&aftercareListing)
+      return json(await commerceShopeeAftercareListing(env,aftercareListing[1]));
     // Marketing attribution remains separate from imported order sales.
     if(method==='POST'&&pathname===BASE_PATH+'/shopee-ads/reports') {
       if(Number(request.headers.get('content-length')||0)>700000)
