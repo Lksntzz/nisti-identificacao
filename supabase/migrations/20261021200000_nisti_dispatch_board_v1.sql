@@ -1,6 +1,6 @@
 -- NISTI Notificações: fila FIFO com 10 segundos por chamada.
 -- Não altera catálogo, vendas, Mural ou tabelas legadas.
-CREATE TABLE public.nisti_dispatch_calls (
+CREATE TABLE IF NOT EXISTS public.nisti_dispatch_calls (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   request_key uuid NOT NULL UNIQUE,
   platform text NOT NULL CHECK (platform IN ('SHOPEE','MERCADO LIVRE','AMAZON')),
@@ -14,14 +14,14 @@ CREATE TABLE public.nisti_dispatch_calls (
     OR (status IN ('SHOWING','EXPIRED') AND started_at IS NOT NULL AND expires_at IS NOT NULL)
   )
 );
-CREATE INDEX nisti_dispatch_pending_fifo_idx ON public.nisti_dispatch_calls (id) WHERE status='PENDING';
-CREATE INDEX nisti_dispatch_showing_idx ON public.nisti_dispatch_calls (expires_at) WHERE status='SHOWING';
+CREATE INDEX IF NOT EXISTS nisti_dispatch_pending_fifo_idx ON public.nisti_dispatch_calls (id) WHERE status='PENDING';
+CREATE INDEX IF NOT EXISTS nisti_dispatch_showing_idx ON public.nisti_dispatch_calls (expires_at) WHERE status='SHOWING';
 ALTER TABLE public.nisti_dispatch_calls ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.nisti_dispatch_calls FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.nisti_dispatch_calls TO service_role;
 GRANT USAGE, SELECT ON SEQUENCE public.nisti_dispatch_calls_id_seq TO service_role;
 
-CREATE TABLE public.nisti_dispatch_monitor (
+CREATE TABLE IF NOT EXISTS public.nisti_dispatch_monitor (
   singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
   key_digest text NOT NULL CHECK (key_digest ~ '^[0-9a-f]{64}$'),
   paired_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -31,7 +31,7 @@ ALTER TABLE public.nisti_dispatch_monitor ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.nisti_dispatch_monitor FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.nisti_dispatch_monitor TO service_role;
 
-CREATE FUNCTION public.nisti_dispatch_pair_monitor_v1(p_digest text)
+CREATE OR REPLACE FUNCTION public.nisti_dispatch_pair_monitor_v1(p_digest text)
 RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
 AS $$
 BEGIN
@@ -46,7 +46,7 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION public.nisti_dispatch_monitor_valid_v1(p_digest text)
+CREATE OR REPLACE FUNCTION public.nisti_dispatch_monitor_valid_v1(p_digest text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''
 AS $$
   SELECT EXISTS (
@@ -55,7 +55,7 @@ AS $$
   );
 $$;
 
-CREATE FUNCTION public.nisti_dispatch_enqueue_v1(p_platform text,p_action text,p_request_key uuid)
+CREATE OR REPLACE FUNCTION public.nisti_dispatch_enqueue_v1(p_platform text,p_action text,p_request_key uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
 AS $$
 DECLARE v_row public.nisti_dispatch_calls%ROWTYPE;
@@ -83,7 +83,7 @@ $$;
 
 -- Somente o monitor pareado pode avançar o ponteiro.
 -- A transação escolhe uma chamada por vez. Chamada não consumida fica PENDING.
-CREATE FUNCTION public.nisti_dispatch_next_v1(p_digest text)
+CREATE OR REPLACE FUNCTION public.nisti_dispatch_next_v1(p_digest text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
 AS $$
 DECLARE
@@ -124,7 +124,7 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION public.nisti_dispatch_status_v1()
+CREATE OR REPLACE FUNCTION public.nisti_dispatch_status_v1()
 RETURNS jsonb LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''
 AS $$
   SELECT jsonb_build_object(
