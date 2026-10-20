@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
-import ListingDiagnosisPanel from './commerce-listing-diagnosis-panel.jsx';
+import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import './nisti-reactbits-adaptations.css';
@@ -89,7 +89,7 @@ function MonthBars({months,basis}){
     </div>)}
   </div>;
 }
-const DETAIL_TABS=[['diagnosis','Diagnóstico'],['summary','Resumo'],['finance','Financeiro'],['variations','Variações'],['aftercare','Pós-venda']];
+const DETAIL_TABS=[['summary','Resumo'],['finance','Financeiro'],['variations','Variações'],['aftercare','Pós-venda']];
 
 function DetailMetric({label,value,description}){
   return <div className="nim-detail-metric">
@@ -108,7 +108,8 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
   const [modelHistory,setModelHistory]=useState(null);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
-  const [activeTab,setActiveTab]=useState('diagnosis');
+  const [activeTab,setActiveTab]=useState('summary');
+  const [trafficOpen,setTrafficOpen]=useState(false);
   const [finance,setFinance]=useState(null);
   const [financeLoading,setFinanceLoading]=useState(false);
   const [financeError,setFinanceError]=useState('');
@@ -120,7 +121,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
   const [periodLoading,setPeriodLoading]=useState(false);
   const [periodError,setPeriodError]=useState('');
   useEffect(()=>{
-    let cancelled=false;setMonths(null);setModelHistory(null);setError('');setShowAll(false);
+    let cancelled=false;setMonths(null);setModelHistory(null);setError('');setShowAll(false);setTrafficOpen(false);
     readJson(API+'/'+encodeURIComponent(item.id)+'/months')
       .then(x=>{if(!cancelled){setMonths(x.months||[]);setModelHistory(x.model_history||null);}})
       .catch(e=>{if(!cancelled)setError(e.message);});
@@ -259,12 +260,6 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
     </div>
     <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
       aria-labelledby={'nim-detail-tab-'+activeTab}>
-      {activeTab==='diagnosis'&&(periodLoading
-        ?<p className="nim-detail-pending" role="status">Consultando dados para o diagnóstico…</p>
-        :periodError?<p className="nim-detail-pending nim-detail-period-error" role="alert">{periodError}</p>
-        :detail?<ListingDiagnosisPanel item={detail} days={detailDays}
-          start={selectedPeriodStart} end={selectedPeriodEnd}/>
-        :<p className="nim-detail-pending">Informações de vendas indisponíveis para este período.</p>)}
       {activeTab==='summary'&&<>
         <div className="nim-detail-section-title"><h4>Evolução de vendas</h4>
           <small>{historicalByModel?'Histórico mensal do modelo':'Histórico mensal das vendas identificadas'}</small></div>
@@ -291,6 +286,17 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
           <p className="nim-subtle">{variationEvidence.identified>0
             ?num(variationEvidence.identified)+' de '+num(item.total_variations)+' variações com unidades identificadas. Consulte a aba Variações para ver cada quantidade.'
             :'Ainda não há vendas individuais vinculadas com segurança para este período; a ausência de vínculo não significa zero vendas.'}</p>}
+        <div className="nim-detail-traffic-collapsed">
+          <button type="button" aria-expanded={trafficOpen}
+            aria-controls="nim-detail-traffic-metrics"
+            onClick={()=>setTrafficOpen(open=>!open)}>
+            Métricas de tráfego <span aria-hidden="true">{trafficOpen?'−':'+'}</span>
+          </button>
+          {trafficOpen&&<div id="nim-detail-traffic-metrics">
+            <CommerceTrafficMetrics listingId={item.id}
+              start={selectedPeriodStart} end={selectedPeriodEnd}/>
+          </div>}
+        </div>
       </>}
       {activeTab==='finance'&&<>
         <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{periodLabel(detailDays,month)}</small></div>
