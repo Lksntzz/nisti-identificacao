@@ -112,8 +112,8 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
         const modelHistory=Number(item.distinct_skus||0)>1;
         const listingIds=Array.isArray(item.listing_ids)?item.listing_ids.filter(Boolean):[];
         const sharedSku=item.source==='SHOPEE'&&listingIds.length>1;
-        return <article className="nim-evolution-product" key={item.source+':'+item.model_key}>
-          <header className="nim-evolution-product-head">
+        return <details className="nim-evolution-product" key={item.source+':'+item.model_key}>
+          <summary className="nim-evolution-product-head">
             <div className="nim-evolution-name">
               <strong>{item.title||'Produto vendido na plataforma'}</strong>
               <small>{platformName(item.source)} · SKU {item.sku||item.sample_sku||item.model_key}</small>
@@ -123,7 +123,8 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
             </div>
             <span className={'nim-evolution-tag '+String(item.trend||'').toLowerCase()}>
               {labels[item.trend]||'Dados insuficientes'}</span>
-          </header>
+            <span className="nim-evolution-quick-stats"><b>{num(item.current_units)} un.</b><small>{growth}</small></span>
+          </summary>
           <div className="nim-evolution-product-stats">
             <div><small>Unidades atuais</small><strong>{num(item.current_units)}</strong>
               <span>{money(item.current_revenue)}</span></div>
@@ -153,7 +154,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
           {item.source==='SHOPEE'&&item.trend==='ZERO'&&<p className="nim-evolution-info">
             Sem vendas registradas no SKU/modelo conhecido; uma mudança de código
             não identificada pode ocultar vendas do anúncio.</p>}
-        </article>;
+        </details>;
       })}</div>
       {total>PAGE&&<footer className="nim-list-footer nim-evolution-footer">
         <span>Página {Math.floor(offset/PAGE)+1} de {Math.ceil(total/PAGE)}</span>

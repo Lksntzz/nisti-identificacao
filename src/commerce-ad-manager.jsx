@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
+import ListingDiagnosisPanel from './commerce-listing-diagnosis-panel.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
@@ -87,7 +88,7 @@ function MonthBars({months,basis}){
     </div>)}
   </div>;
 }
-const DETAIL_TABS=[['summary','Resumo'],['finance','Financeiro'],['variations','Variações'],['aftercare','Pós-venda']];
+const DETAIL_TABS=[['diagnosis','Diagnóstico'],['summary','Resumo'],['finance','Financeiro'],['variations','Variações'],['aftercare','Pós-venda']];
 
 function DetailMetric({label,value,description}){
   return <div className="nim-detail-metric">
@@ -106,7 +107,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
   const [modelHistory,setModelHistory]=useState(null);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
-  const [activeTab,setActiveTab]=useState('summary');
+  const [activeTab,setActiveTab]=useState('diagnosis');
   const [finance,setFinance]=useState(null);
   const [financeLoading,setFinanceLoading]=useState(false);
   const [financeError,setFinanceError]=useState('');
@@ -257,6 +258,11 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
     </div>
     <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
       aria-labelledby={'nim-detail-tab-'+activeTab}>
+      {activeTab==='diagnosis'&&(periodLoading
+        ?<p className="nim-detail-pending" role="status">Consultando dados para o diagnóstico…</p>
+        :periodError?<p className="nim-detail-pending nim-detail-period-error" role="alert">{periodError}</p>
+        :detail?<ListingDiagnosisPanel item={detail} days={detailDays}/>
+        :<p className="nim-detail-pending">Informações de vendas indisponíveis para este período.</p>)}
       {activeTab==='summary'&&<>
         <div className="nim-detail-section-title"><h4>Evolução de vendas</h4>
           <small>{historicalByModel?'Histórico mensal do modelo':'Histórico mensal das vendas identificadas'}</small></div>
@@ -709,7 +715,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             {!loading&&rows.map(item=>{
               const linked=listingLinkedSalesForPeriod(item,days);
               return <tr key={item.id} className={selectedId===item.id?'selected':''}
-              onClick={()=>setSelectedId(item.id)} title="Ver anúncio e suas variações">
+              onClick={()=>setSelectedId(item.id)} title="Abrir diagnóstico e informações do anúncio">
               <td><PlatformLabel item={item}/></td>
               <td><strong className="nim-ad-name">{item.title}</strong>
                 <small className="nim-ad-id">{item.external_listing_id}</small></td>
