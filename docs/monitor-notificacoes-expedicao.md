@@ -64,6 +64,41 @@ Para perda de energia, procure as opções BIOS/UEFI 'Restore AC Power Loss' par
 o PC e 'Auto Power On' para a tela, se disponíveis. Mantenha um usuário Windows
 dedicado com sessão iniciada durante o expediente, sem suspender o computador.
 
+
+## Sons diferentes para cada plataforma
+
+As dez filas possuem sequencias de notas distintas, inclusive **Mercado Livre
+Antigo**, **Mercado Livre Novo** e **Mercado Livre**. Cada chamada toca uma
+vez ao entrar na tela. O audio e sintetizado pelo navegador: nao ha arquivos
+de som externos ou dependencias de terceiros. Se o Windows ou o navegador
+bloquear a reproducao, a interface informa "Audio bloqueado pelo navegador";
+o perfil Edge iniciado pelo CMD ja usa a politica de autoplay autorizada.
+
+## Atualizacao online automatica do terminal Windows
+
+O **sistema NISTI ja e online**: o notebook abre a pagina hospedada no Cloudflare,
+nao uma copia do aplicativo extraida do ZIP. Os arquivos CMD servem apenas
+para abrir o Microsoft Edge em tela cheia, com perfil persistente, audio
+autorizado e inicializacao quando o Windows entra na conta dedicada.
+
+**Instale o inicializador uma unica vez.** Depois disso, alteracoes de
+frontend publicadas em producao nao exigem copiar, extrair nem reinstalar
+o ZIP. O monitor consulta `/monitor-build.json` a cada 60 segundos para
+identificar se o servidor possui uma nova versao. Quando ha uma versao nova,
+ele so recarrega a pagina se estiver **conectado, ativado e sem chamada na tela
+nem itens na fila**, respeitando ainda 15 segundos de ociosidade. Assim, nao
+interrompe as solicitacoes de expedição. O cookie de ativacao permanece no
+perfil dedicado entre recargas e reinicios.
+
+Sem conexao com a internet o monitor nao instala atualizacoes nem recebe
+novas chamadas em tempo real. Ao reconectar, a fila e a verificacao de
+versao voltam a funcionar. O reinicio do Windows continua sendo tratado
+separadamente pela conta dedicada e pelo atalho da pasta Startup.
+
+**Excecao:** alteracoes futuras no proprio `abrir-monitor-nisti.cmd` ou
+nas politicas do Windows podem exigir atualizacao do inicializador uma
+vez, mas nao cada publicacao do site.
+
 ## Formato e edição das opções
 
 A informação universal **RETIRAR CAPA** aparece em todas as plataformas e
