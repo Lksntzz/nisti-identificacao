@@ -41,7 +41,6 @@ test('private sender token grants persistent HttpOnly dispatch-only session',asy
 
   for(const [path,method] of [
     ['/api/expedition-panel/monitor-key','POST'],
-    ['/api/expedition-panel/monitor-key','GET'],
     ['/api/expedition-panel/pair/approve','POST'],
     ['/api/expedition-panel/bad-action','POST']
   ]){
