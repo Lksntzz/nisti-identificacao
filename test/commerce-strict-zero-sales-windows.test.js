@@ -33,7 +33,7 @@ test('a interface usa janela explícita de 60/90 dias e estado ZERO rigoroso',()
   assert.match(manager,/status===noSalesStatus/);
   assert.match(manager,/onClick=\{platform==='SHOPEE'&&days===0\?undefined:changeNoSales\}/);
   assert.match(manager,/\{n\} dias · janela importada/);
-  assert.match(manager,/const changeNoSales=\(\)=>change\(setStatus,status===noSalesStatus\?'ALL':noSalesStatus\)/);
+  assert.match(manager,/const changeNoSales=\(\)=>change\(setStatus,status==='ZERO'\?'ALL':'ZERO'\)/);
   assert.doesNotMatch(manager,/Variações sem vendas\s*<\/button>/);
   assert.doesNotMatch(manager,/Sem vínculo \(Shopee\)\s*<\/button>/);
   assert.match(manager,/zeroFilter=\{false\}/);
