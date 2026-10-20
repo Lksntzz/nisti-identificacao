@@ -4,15 +4,11 @@ import { DISPATCH_PLATFORMS,platformColor } from './notification-dispatch-option
 import DispatchIcon from './notification-ui/DispatchIcon.jsx';
 import GradientText from './notification-ui/reactbits/GradientText.jsx';
 import PlatformLogo from './notification-ui/PlatformLogo.jsx';
+import { playNotificationSound } from './notification-platform-sounds.js';
+import { fetchPublishedMonitorBuild, shouldReloadMonitor, MONITOR_BUILD_CHECK_INTERVAL_MS } from './notification-monitor-updates.js';
 
 
 const LABELS=Object.fromEntries(DISPATCH_PLATFORMS.map(name=>[name,name.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())]));
-const TONES={
-  'SHOPEE':[790,980], 'MERCADO LIVRE ANTIGO':[630,760],
-  'MERCADO LIVRE NOVO':[700,820], 'MERCADO LIVRE':[630,790],
-  'AMAZON':[520,710], 'SHEIN':[660,880], 'TIK TOK':[610,920],
-  'MAGALU':[725,910], 'KWAI':[570,845], 'LOJA INTEGRADA':[650,950]
-};
 async function post(url,body){
   const response=await fetch(url,{
     method:'POST',credentials:'same-origin',cache:'no-store',
@@ -50,22 +46,11 @@ export default function NotificationMonitor(){
   const pollingRef=useRef(false);
   const audioEnabledRef=useRef(false);
   const nextCallRef=useRef(null);
+  const reloadPendingRef=useRef(false);
+  const lastDispatchActivityRef=useRef(Date.now());
   const play=useCallback((platform)=>{
-    const ctx=audioRef.current;
-    if(!audioEnabledRef.current||!ctx||ctx.state!=='running')return false;
-    const tones=TONES[platform]||TONES.SHOPEE;
-     tones.forEach((frequency,i)=>{
-      const oscillator=ctx.createOscillator();
-      const gain=ctx.createGain();
-      oscillator.type='sine';oscillator.frequency.value=frequency;
-      oscillator.connect(gain);gain.connect(ctx.destination);
-      const t=ctx.currentTime+i*0.22;
-      gain.gain.setValueAtTime(0.0001,t);
-      gain.gain.exponentialRampToValueAtTime(0.17,t+0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001,t+0.18);
-      oscillator.start(t);oscillator.stop(t+0.2);
-    });
-    return true;
+    if(!audioEnabledRef.current)return false;
+    return playNotificationSound(audioRef.current,platform);
   },[]);
   const poll=useCallback(async()=>{
     if(pollingRef.current)return;
@@ -73,11 +58,23 @@ export default function NotificationMonitor(){
     try{
       const result=await post('/api/dispatch/next');
       const incoming=result.call||null;
-       setOffset(Date.parse(result.server_time)-Date.now());
+      const queued=Number(result.pending||0);
+      const currentTime=Date.now();
+      if(incoming||queued>0)lastDispatchActivityRef.current=currentTime;
+      setOffset(Date.parse(result.server_time)-Date.now());
       setCall(incoming);
-      setPending(result.pending||0);
+      setPending(queued);
       setDuration(result.duration_seconds||15);
       setPaired(true);setOnline(true);setError('');
+      // Uma nova versão somente entra quando a fila estiver vazia e a tela ociosa.
+      if(shouldReloadMonitor({
+        updateReady:reloadPendingRef.current,online:true,paired:true,
+        activeCall:incoming,pending:queued,
+        idleMs:currentTime-lastDispatchActivityRef.current
+      })){
+        reloadPendingRef.current=false;
+        window.location.reload();
+      }
      }catch(e){
       setOnline(false);setCall(null);
       if(e.status===401){setPaired(false);}
@@ -92,6 +89,18 @@ export default function NotificationMonitor(){
     const visibility=()=>{if(document.visibilityState==='visible')nextCallRef.current?.()};
     document.addEventListener('visibilitychange',visibility);
     return ()=>{clearInterval(timer);clearInterval(clock);document.removeEventListener('visibilitychange',visibility)};
+  },[]);
+  useEffect(()=>{
+    let canceled=false;
+    const check=async()=>{
+      const published=await fetchPublishedMonitorBuild();
+      if(!canceled&&published&&published!==__NISTI_MONITOR_BUILD_ID__){
+        reloadPendingRef.current=true;
+      }
+    };
+    const initial=setTimeout(check,10_000);
+    const interval=setInterval(check,MONITOR_BUILD_CHECK_INTERVAL_MS);
+    return ()=>{canceled=true;clearTimeout(initial);clearInterval(interval)};
   },[]);
   async function activate(e){
     e.preventDefault();setLoading(true);setError('');
