@@ -30,6 +30,14 @@ export function dispatchDisplayParts(platform,message){
   return {headline:actual,detail:''};
 }
 export default function NotificationMonitor(){
+  // Link privado salvo como URL inicial do Quiosque: a credencial é reaplicada a cada sessão InPrivate.
+  // O fragmento não é enviado em HTTP; somente o POST de ativação recebe a credencial.
+  const startupKeyRef=useRef(null);
+  if(startupKeyRef.current===null){
+    const match=/^#acesso=([0-9a-f]{64})$/i.exec(window.location.hash);
+    startupKeyRef.current=match?match[1].toLowerCase():'';
+  }
+  const startupPendingRef=useRef(Boolean(startupKeyRef.current));
   const [pairCode,setPairCode]=useState('');
   const [paired,setPaired]=useState(null);
   const [call,setCall]=useState(null);
@@ -54,7 +62,7 @@ export default function NotificationMonitor(){
     return playNotificationSound(audioRef.current,platform);
   },[]);
   const poll=useCallback(async()=>{
-    if(pollingRef.current||pairedRef.current===false)return;
+    if(startupPendingRef.current||pollingRef.current||pairedRef.current===false)return;
     pollingRef.current=true;
     try{
       const result=await post('/api/dispatch/next');
@@ -83,6 +91,30 @@ export default function NotificationMonitor(){
     }finally{pollingRef.current=false}
   },[]);
   nextCallRef.current=poll;
+  // A URL original continua configurada no Windows; a barra visível perde o fragmento
+  // imediatamente. Mesmo após reiniciar o Quiosque, o endereço inicial reaplica a autorização.
+  useEffect(()=>{
+    const key=startupKeyRef.current;
+    if(!key)return undefined;
+    window.history.replaceState(window.history.state,'',window.location.pathname+window.location.search);
+    let active=true;
+    post('/api/dispatch/activate',{key}).then(()=>{
+      if(!active)return;
+      pairedRef.current=true;
+      setPaired(true);
+      setError('');
+    }).catch(error=>{
+      if(!active)return;
+      pairedRef.current=false;
+      setPaired(false);
+      setError(error.message);
+    }).finally(()=>{
+      if(!active)return;
+      startupPendingRef.current=false;
+      nextCallRef.current?.();
+    });
+    return ()=>{active=false};
+  },[]);
   useEffect(()=>{
     nextCallRef.current?.();
     const timer=setInterval(()=>nextCallRef.current?.(),2000);
