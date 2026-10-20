@@ -315,13 +315,11 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
           <button type="button" className="nim-detail-overview-item"
             onClick={()=>setActiveTab('finance')} aria-label="Abrir detalhes financeiros">
             <span>Financeiro <b aria-hidden="true">↗</b></span>
-            <strong>{item.source==='SHOPEE'&&finance?.has_finance_data&&finance.after_identified_fees!=null
-              ?money(finance.after_identified_fees)
-              :partialLinked?money(partialRevenue):pending?'—':money(detail?.revenue)}</strong>
-            <small>{item.source==='SHOPEE'&&finance?.has_finance_data&&finance.after_identified_fees!=null
-              ?'Após taxas identificadas · estimativa'
-              :item.source==='SHOPEE'&&financeLoading?'Subtotal · conferindo taxas'
-              :'Subtotal dos produtos · sem taxas conciliadas'}</small>
+            <strong>{partialLinked?money(partialRevenue):pending?'—':money(detail?.revenue)}</strong>
+            <small>{item.source==='SHOPEE'&&finance?.has_finance_data
+              ?'Subtotal bruto · taxas disponíveis em Financeiro'
+              :item.source==='SHOPEE'&&financeLoading?'Subtotal bruto · conferindo taxas'
+              :'Subtotal dos produtos · taxas não conciliadas'}</small>
           </button>
           <button type="button" className="nim-detail-overview-item"
             onClick={()=>setActiveTab('variations')} aria-label="Abrir detalhes das variações">
@@ -367,11 +365,6 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
             <span>{labelMonth(m.period)}</span><strong>{num(m.units)} un. · {money(m.revenue)}</strong>
           </div>)}
         </div>}
-        <div className="nim-detail-summary-footer">
-          <div><strong>Variações cadastradas</strong>
-            <span>{num(item.total_variations)} variações</span></div>
-          <button type="button" onClick={()=>setActiveTab('variations')}>Ver variações →</button>
-        </div>
         {!complete&&item.total_variations>0&&
           <p className="nim-subtle">{variationEvidence.identified>0
             ?num(variationEvidence.identified)+' de '+num(item.total_variations)+' variações com unidades identificadas. Consulte a aba Variações para ver cada quantidade.'
