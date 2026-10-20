@@ -670,16 +670,10 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             hasShopeePartial?'SKU identificado · dados parciais':'No período'}
           selected={status==='SOLD'}
           onClick={()=>change(setStatus,status==='SOLD'?'ALL':'SOLD')}/>
-        <Kpi tone="rose" label={hasMixedPartial&&sourceBreakdown?.marketplacePending>0
-          ?'Sem vendas identificadas / pendentes':hasShopeePartial?'Sem vendas identificadas':'Sem vendas'}
-          value={hasShopeePartial&&data?num(emptyIdentifiedAds):
-            hasReliableSales?num(Math.max(0,Number(kpi.covered_ads||0)-Number(kpi.sold_ads||0))):'—'}
-          description={hasMixedPartial
-            ?num(sourceBreakdown.marketplaceWithoutSales)+' ML sem vendas · '+
-              (sourceBreakdown.marketplacePending>0?num(sourceBreakdown.marketplacePending)+' ML pendentes · ':'')+
-              num(sourceBreakdown.shopeeWithoutLink)+' Shopee sem venda identificada por SKU'
-            :hasShopeePartial?'Sem venda identificada por SKU no período':
-              'Filtro inclui variações sem vendas'}
+        <Kpi tone="rose" label="Sem vendas" value={data?num(kpi.zero_ads):'—'}
+          description={platform==='SHOPEE'?'Sem comprovação por anúncio nesta fonte':
+            hasShopeePartial?'Zero vendas verificadas · Shopee não incluída':
+            'Zero unidades na janela importada com cobertura completa'}
           selected={status==='ZERO'}
           onClick={()=>change(setStatus,status==='ZERO'?'ALL':'ZERO')}/>
       </div>:
@@ -746,7 +740,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           <select value={platform} onChange={e=>{
             if(e.target.value==='SHOPEE'){
               setCurve('ALL');
-              // Na Shopee, preservar o filtro exploratório sem vendas identificadas.
+              // Shopee without a confirmed listing link is never proven zero.
             }
             if(['RISING','FALLING'].includes(status))setStatus('ALL');
             change(setPlatform,e.target.value);
@@ -766,13 +760,13 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                 if(choice!=='MONTH')setMonth('');
                 if(platform==='SHOPEE'){
                   setCurve('ALL');
-                  // Na Shopee, preservar o filtro exploratório sem vendas identificadas.
+                  // Shopee without a confirmed listing link is never proven zero.
                 }
-                if(choice==='MONTH'&&['RISING','FALLING'].includes(status))setStatus('ALL');
+                if(choice==='MONTH'&&['RISING','FALLING','VAR_ZERO','UNLINKED'].includes(status))setStatus('ALL');
                 change(setDays,choice==='MONTH'?0:Number(choice));
               }}>
               {PERIODS.map(n=><option key={n} value={n}>
-                {platform==='SHOPEE'?<>{n} dias · dados importados</>:<>Últimos {n} dias</>}
+                {n} dias · janela importada
               </option>)}
               <option value="MONTH">Personalizado · escolher mês</option>
             </select>
@@ -792,9 +786,21 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             {SALES_FILTERS.map(([code,label])=><button type="button" key={code}
               className={status===code?'active':''} aria-pressed={status===code}
               onClick={()=>change(setStatus,code)}
-              title={hasShopeePartial&&code==='ZERO'?'Filtro exploratório: anúncios ou variações sem vendas vinculadas; não é zero comprovado':undefined}>
-              {hasShopeePartial&&code==='ZERO'?'Sem vendas identificadas':label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
+              title={code==='ZERO'?'Zero unidades em todo o período, com cobertura diária completa por ID do anúncio; não inclui Shopee sem vínculo':undefined}>
+              {label}{data&&code==='ALL'?' ('+num(kpi.active_ads)+')':''}
             </button>)}
+            {days!==0&&platform!=='SHOPEE'&&platform!=='AMAZON'&&platform!=='TIKTOK'&&
+              <button type="button" className={status==='VAR_ZERO'?'active nim-filter-secondary':'nim-filter-secondary'}
+                aria-pressed={status==='VAR_ZERO'} onClick={()=>change(setStatus,status==='VAR_ZERO'?'ALL':'VAR_ZERO')}
+                title="Anúncios com vendas e uma ou mais variações comprovadamente sem vendas">
+                Variações sem vendas
+              </button>}
+            {days!==0&&['TODAS','SHOPEE'].includes(platform)&&
+              <button type="button" className={status==='UNLINKED'?'active nim-filter-secondary':'nim-filter-secondary'}
+                aria-pressed={status==='UNLINKED'} onClick={()=>change(setStatus,status==='UNLINKED'?'ALL':'UNLINKED')}
+                title="Shopee: não há venda atribuída ao SKU deste anúncio; não significa vendas zero">
+                Sem vínculo (Shopee)
+              </button>}
           </div>
         </div>
         <div className="nim-filter-group nim-abc-group">
@@ -845,9 +851,16 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             {num(classified.unclassified)} anúncios sem vendas identificadas por SKU no período
           </span>
         </>:Number(kpi.pending_ads)>0&&<span className="nim-filter-panel-warning">{num(kpi.pending_ads)} anúncio(s) com dados pendentes</span>}
-        {status==='ZERO'&&<span className="nim-filter-panel-note">{hasShopeePartial
-          ?num(emptyIdentifiedVars)+' variações sem vendas identificadas · o filtro inclui anúncios que venderam outras variações; ausência não comprovada'
-          :'Inclui anúncios com variações sem vendas, mesmo quando outras variações venderam'}</span>}
+        {status==='ZERO'&&<span className="nim-filter-panel-note">
+          Somente anúncios com zero unidades durante os {days===0?'dias do mês selecionado':days+' dias completos'} da janela informada.
+          {hasShopeePartial&&' A Shopee ainda não possui atribuição confiável de vendas por anúncio; consulte Sem vínculo (Shopee).'}
+        </span>}
+        {status==='VAR_ZERO'&&<span className="nim-filter-panel-note">
+          Anúncios que venderam, mas têm variações verificadas sem vendas ao longo dos {days} dias; não são anúncios sem vendas.
+        </span>}
+        {status==='UNLINKED'&&<span className="nim-filter-panel-note">
+          Shopee: nenhuma venda vinculada ao SKU durante {days} dias. Isso não comprova ausência de pedidos.
+        </span>}
         {['RISING','FALLING'].includes(status)&&<span className="nim-filter-panel-note">
           Comparação com período anterior de mesma duração · variação de 20% ou mais · mínimo de 3 unidades anteriores · dados parciais
         </span>}
@@ -924,7 +937,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             </tr>;
             })}
             {loading&&<tr><td colSpan={7} className="nim-table-empty">Carregando anúncios…</td></tr>}
-            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">Nenhum anúncio encontrado para o filtro. {hasShopeePartial&&'A ausência de vendas vinculadas não comprova venda zero.'}</td></tr>}
+            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">
+              {status==='ZERO'
+                ?'Nenhum anúncio sem vendas comprovadas nesta janela. Fontes sem cobertura suficiente não são consideradas venda zero.'
+                :status==='VAR_ZERO'?'Nenhuma variação sem vendas confirmada nesta janela.'
+                :status==='UNLINKED'?'Nenhum anúncio Shopee sem vínculo de venda identificado nesta janela.'
+                :'Nenhum anúncio encontrado para o filtro.'}</td></tr>}
           </tbody></table>
         </div>
         <footer className="nim-list-footer">
@@ -940,7 +958,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         hasShopeeAds={hasShopeeAds(selected.id)} initialTab={selectedTab==='shopee_ads'&&hasShopeeAds(selected.id)?'shopee_ads':'summary'}
         periodStart={data?.period_start} periodEnd={data?.period_end}
         importedThrough={data?.imported_month?.period_end||data?.data_through}
-        zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}
+        zeroFilter={status==='VAR_ZERO'} onClose={()=>setSelectedId(null)}/>}
     </div>
     {platform==='SHOPEE'&&(days!==0||Boolean(month))&&
       ['ALL','SOLD'].includes(status)&&curve==='ALL'&&
@@ -948,6 +966,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         importedThrough={data?.imported_month?.period_end}
         search={search} revision={refresh} salesRevision={salesRevision}/>}
     </>}
-    <p className="nim-footnote">Os cards Em alta e Em queda contam SKU/modelos com comparação entre períodos completos de vendas importadas de Mercado Livre e Shopee, não anúncios individuais. Não são exibidos quando a plataforma ou o período não tem cálculo compatível. Os totais de unidades e faturamento importados continuam disponíveis nos relatórios próprios. A lista de anúncios atribui vendas apenas a vínculos identificáveis: no caso da Shopee, esses subtotais podem ser parciais, não necessariamente o total do anúncio. A aba Evolução de vendas compara produtos por SKU/modelo entre períodos iguais, sem presumir que o total do produto pertence ao anúncio atual. “Sem vendas identificadas” não comprova zero real do anúncio quando o código mudou. “Sem vendas registradas” refere-se ao SKU/modelo conhecido, não ao anúncio inteiro. Nenhum dado do Scanner é alterado.</p>
+    <p className="nim-footnote">A aba Anúncios só classifica ausência de vendas quando há cobertura diária completa por ID de anúncio. Variações sem vendas e anúncios Shopee sem vendas vinculadas são apresentados separadamente. A aba Evolução mostra situação de SKU/modelo, não do anúncio inteiro. Os totais de unidades e faturamento importados continuam disponíveis nos relatórios próprios. A lista de anúncios atribui vendas apenas a vínculos identificáveis: no caso da Shopee, esses subtotais podem ser parciais, não necessariamente o total do anúncio. A aba Evolução de vendas compara produtos por SKU/modelo entre períodos iguais, sem presumir que o total do produto pertence ao anúncio atual. “Sem vendas identificadas” não comprova zero real do anúncio quando o código mudou. “Sem vendas registradas” refere-se ao SKU/modelo conhecido, não ao anúncio inteiro. Nenhum dado do Scanner é alterado.</p>
   </section>;
 }
