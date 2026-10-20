@@ -1,3 +1,20 @@
+/* Monitor independente do painel administrativo: o CSS global app.css nao e carregado nesta rota.
+   Sem reset, as margens nativas de body (8px) e box-sizing:content-box criam as
+   duas barras de rolagem quando a tela usa 100% + padding. */
+html.nid-monitor-document,
+html.nid-monitor-document body,
+html.nid-monitor-document #root{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+}
+html.nid-monitor-document body{background:#06111f}
+.nid-monitor,.nid-monitor *,.nid-monitor *::before,.nid-monitor *::after{box-sizing:border-box}
+
 /* NISTI Notificações: classes isoladas da interface de cadastro/comercial. */
 .nid-admin{color:#152238;display:grid;gap:20px;width:100%;padding:0 0 30px;font-family:inherit}
 .nid-admin-heading{display:flex;justify-content:space-between;align-items:center;gap:18px}
@@ -36,7 +53,7 @@
 .nid-status{color:#506482;min-width:75px;text-align:right}
 .nid-message{padding:13px 16px;border-radius:10px;font-weight:600;font-size:13px}
 .nid-error{background:#fff0f0;color:#a22f35}.nid-success{background:#eafaf1;color:#116b42}
-.nid-monitor{min-height:100dvh;display:flex;flex-direction:column;overflow:hidden;padding:3vh 4vw;color:#fff;background:radial-gradient(circle at 50% 35%,#192d4b,#0b1326 75%);font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.nid-monitor{width:100%;height:100dvh;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:3vh 4vw;color:#fff;background:radial-gradient(circle at 50% 35%,#192d4b,#0b1326 75%);font-family:'Plus Jakarta Sans',system-ui,sans-serif}
 .nid-monitor-top,.nid-monitor-bottom{display:flex;justify-content:space-between;align-items:center;gap:16px;z-index:2}
 .nid-brand{font-size:clamp(20px,3vw,36px);font-weight:900;letter-spacing:-.055em}
 .nid-brand b{color:#ec7798}.nid-brand small{display:block;font-size:10px;letter-spacing:.22em;color:#aab8ce;margin-top:2px}
@@ -229,7 +246,15 @@
 @keyframes nid-row-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* Tela de expedição: movimento inspirado no React Bits, GradientText oficial instalado localmente. */
-.nid-monitor.nid-monitor-v5{position:relative;width:100%;height:100dvh;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;padding:clamp(9px,1.8dvh,20px) clamp(12px,3vw,45px) clamp(7px,1.4dvh,15px);isolation:isolate;background:radial-gradient(ellipse at 50% 35%,#172b49 0%,#081527 56%,#06111f 100%);color:white;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.nid-monitor.nid-monitor-v5{position:relative;width:100%;height:100dvh;min-height:0;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;padding:clamp(9px,1.8dvh,20px) clamp(12px,3vw,45px) clamp(7px,1.4dvh,15px);isolation:isolate;background:radial-gradient(ellipse at 50% 35%,#172b49 0%,#081527 56%,#06111f 100%);color:white;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+/* Cabecalho e rodape podem encolher/redistribuir conteudo sem empurrar
+   o documento para alem da tela ou cortar o relogio. */
+.nid-monitor-v5 .nid-monitor-top,.nid-monitor-v5 .nid-monitor-bottom{min-width:0;max-width:100%;flex-wrap:wrap}
+.nid-monitor-v5 .nid-brand-block,.nid-monitor-v5 .nid-monitor-topright,.nid-monitor-v5 .nid-clock-block,
+.nid-monitor-v5 .nid-footer-queue,.nid-monitor-v5 .nid-monitor-actions{min-width:0;max-width:100%}
+.nid-monitor-v5 .nid-monitor-topright{margin-left:auto;justify-content:flex-end;gap:clamp(8px,1.6vw,20px);flex-wrap:wrap}
+.nid-monitor-v5 .nid-clock-block small{overflow-wrap:anywhere}
+@media(max-width:850px){.nid-monitor-v5 .nid-monitor-top{gap:8px}.nid-monitor-v5 .nid-monitor-bottom{gap:7px}.nid-monitor-v5 .nid-monitor-actions{justify-content:flex-end}}
 .nid-monitor-v5 .nid-stage-glow{position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.6;background:radial-gradient(circle at 50% 57%,#ff527018,transparent 49%)}
 .nid-monitor-v5 .nid-monitor-top{align-items:flex-start}
 .nid-brand-block{display:grid;gap:5px}.nid-brand-block>small{font-size:10px;letter-spacing:.21em;color:#748eaa;font-weight:800}
