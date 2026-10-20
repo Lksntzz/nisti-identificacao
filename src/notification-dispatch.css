@@ -108,3 +108,7 @@
 .nid-monitor h1{overflow-wrap:anywhere}
 @media(max-width:950px){.nid-platform-picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.nid-platform-picker{grid-template-columns:1fr}.nid-mode-item{grid-template-columns:1fr;gap:8px}}
+
+.nid-audio-indicator{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:9px 11px;border-radius:9px;background:#ffffff15;border:1px solid #ffffff2a}
+.nid-audio-indicator.active{color:#b6f5cd}
+.nid-audio-indicator.blocked{color:#ffd49b;background:#7f4b213a}

@@ -35,16 +35,15 @@ export default function NotificationMonitor(){
   const [audioOn,setAudioOn]=useState(false);
   const [loading,setLoading]=useState(false);
   const audioRef=useRef(null);
-  const lastCallId=useRef(null);
+  const lastBeepId=useRef(null);
   const pollingRef=useRef(false);
   const audioEnabledRef=useRef(false);
   const nextCallRef=useRef(null);
   const play=useCallback((platform)=>{
     const ctx=audioRef.current;
-    if(!audioEnabledRef.current||!ctx)return;
+    if(!audioEnabledRef.current||!ctx||ctx.state!=='running')return false;
     const tones=TONES[platform]||TONES.SHOPEE;
-    if(ctx.state==='suspended')ctx.resume().catch(()=>{});
-    tones.forEach((frequency,i)=>{
+     tones.forEach((frequency,i)=>{
       const oscillator=ctx.createOscillator();
       const gain=ctx.createGain();
       oscillator.type='sine';oscillator.frequency.value=frequency;
@@ -55,6 +54,7 @@ export default function NotificationMonitor(){
       gain.gain.exponentialRampToValueAtTime(0.0001,t+0.18);
       oscillator.start(t);oscillator.stop(t+0.2);
     });
+    return true;
   },[]);
   const poll=useCallback(async()=>{
     if(pollingRef.current)return;
@@ -62,24 +62,17 @@ export default function NotificationMonitor(){
     try{
       const result=await post('/api/dispatch/next');
       const incoming=result.call||null;
-      const previous=lastCallId.current;
-      setOffset(Date.parse(result.server_time)-Date.now());
+       setOffset(Date.parse(result.server_time)-Date.now());
       setCall(incoming);
       setPending(result.pending||0);
       setDuration(result.duration_seconds||15);
       setPaired(true);setOnline(true);setError('');
-      if(incoming?.id!==undefined && incoming.id!==null && incoming.id!==previous){
-        lastCallId.current=incoming.id;
-        // Never beep on a repeat poll for the same call.
-        play(incoming.platform);
-      }
-      if(!incoming)lastCallId.current=null;
-    }catch(e){
+     }catch(e){
       setOnline(false);setCall(null);
-      if(e.status===401){setPaired(false);lastCallId.current=null;}
+      if(e.status===401){setPaired(false);}
       setError(e.message);
     }finally{pollingRef.current=false}
-  },[play]);
+  },[]);
   nextCallRef.current=poll;
   useEffect(()=>{
     nextCallRef.current?.();
@@ -93,26 +86,72 @@ export default function NotificationMonitor(){
     e.preventDefault();setLoading(true);setError('');
     try{
       await post('/api/dispatch/activate',{key});
-      setKey('');setPaired(true);lastCallId.current=null;
+      setKey('');setPaired(true);
       await poll();
     }catch(e){setError(e.message)}
     finally{setLoading(false)}
   }
   async function enableAudio(){
     try{
-      const Audio=window.AudioContext||window.webkitAudioContext;
-      if(!Audio)throw Error('Este navegador não oferece suporte ao áudio.');
-      if(!audioRef.current)audioRef.current=new Audio();
-      await audioRef.current.resume();
-      audioEnabledRef.current=true;setAudioOn(true);
-      play('SHOPEE');
-    }catch{setError('Áudio bloqueado. Verifique as permissões de som do navegador.')}
+      const ctx=audioRef.current;
+      if(!ctx)throw Error('Este navegador não oferece suporte ao áudio.');
+      // Somente reserva manual: no terminal configurado, o navegador já inicia
+      // o contexto de áudio automaticamente e este botão fica oculto.
+      await ctx.resume();
+      if(ctx.state!=='running')throw Error('O navegador bloqueou a reprodução.');
+      audioEnabledRef.current=true;
+      setAudioOn(true);
+    }catch{
+      setAudioOn(false);
+    }
   }
   function toggleFullScreen(){
     if(!document.fullscreenElement)document.documentElement.requestFullscreen?.().catch(()=>{});
     else document.exitFullscreen?.().catch(()=>{});
   }
-  useEffect(()=>()=>{audioRef.current?.close().catch(()=>{})},[]);
+  // Inicialização automática: navegadores com autoplay autorizado executam sem clique.
+  // Em navegadores comuns que bloqueiam áudio, NÃO simulamos permissão.
+  useEffect(()=>{
+    const Audio=window.AudioContext||window.webkitAudioContext;
+    if(!Audio)return undefined;
+    let ctx;
+    try{ctx=new Audio()}catch{return undefined}
+    audioRef.current=ctx;
+    let disposed=false;
+    const sync=()=>{
+      if(disposed)return;
+      const running=ctx.state==='running';
+      audioEnabledRef.current=running;
+      setAudioOn(running);
+    };
+    ctx.addEventListener?.('statechange',sync);
+    sync();
+    // Alguns navegadores deixam esta Promise pendente até um gesto humano.
+    // Não usamos await e não bloqueamos a fila ou a tela aguardando áudio.
+    if(ctx.state==='suspended')ctx.resume().then(sync).catch(sync);
+    const visible=()=>{
+      if(document.visibilityState==='visible'&&ctx.state==='suspended'){
+        ctx.resume().then(sync).catch(sync);
+      }
+    };
+    document.addEventListener('visibilitychange',visible);
+    return ()=>{
+      disposed=true;
+      document.removeEventListener('visibilitychange',visible);
+      ctx.removeEventListener?.('statechange',sync);
+      audioEnabledRef.current=false;
+      audioRef.current=null;
+      ctx.close().catch(()=>{});
+    };
+  },[]);
+  // Uma chamada só toca uma vez. Se o contexto iniciar um pouco depois da
+  // primeira consulta, o alerta ainda toca enquanto a chamada estiver ativa.
+  useEffect(()=>{
+    if(!audioOn||!call?.id||lastBeepId.current===call.id)return;
+    if(remainingSeconds(call.expires_at,offset)>0&&play(call.platform)){
+      lastBeepId.current=call.id;
+    }
+  },[audioOn,call,offset,play]);
   const seconds=call?remainingSeconds(call.expires_at,offset,now):0;
   const current=seconds>0?call:null;
   const color=platformColor(current?.platform);
@@ -159,9 +198,12 @@ export default function NotificationMonitor(){
     <footer className="nid-monitor-bottom">
       <div>{pending>0?pending+' chamada(s) aguardando na fila':'Nenhuma chamada em espera'}</div>
       <div className="nid-monitor-actions">
-        <button type="button" onClick={enableAudio} disabled={audioOn}>
-          {audioOn?'Som ativado':'Ativar som'}
-        </button>
+        <span className={'nid-audio-indicator '+(audioOn?'active':'blocked')} role="status">
+          {audioOn?'Som automático pronto':'Áudio bloqueado pelo navegador'}
+        </span>
+        {!audioOn&&<button type="button" onClick={enableAudio}>
+          Liberar áudio manualmente
+        </button>}
         <button type="button" onClick={toggleFullScreen}>Tela cheia</button>
       </div>
     </footer>
