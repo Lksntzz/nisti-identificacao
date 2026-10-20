@@ -1,0 +1,128 @@
+/* Commercial UI final visual polish — mockup-aligned layout, accessible copy,
+ * official Lucide icon visuals, React Bits GlareHover sourced under license.
+ * Commercial business logic and real imported values are unchanged.
+ */
+.nim-manager{--nim-font-main:#243957;--nim-font-muted:#6c809f;}
+.nim-manager .nim-heading h2{font-size:clamp(25px,2.2vw,31px);line-height:1.12;letter-spacing:-.8px;}
+.nim-manager .nim-heading p{font-size:13px;line-height:1.45;color:#788ca7;}
+.nim-manager .nim-header-actions .nim-soft-button,
+.nim-manager .nim-header-actions .nim-primary-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:41px;padding:10px 15px;font-size:12px;font-weight:760;white-space:nowrap;}
+.nim-manager .nim-header-actions button svg{flex:none;}
+/* Keep the original interactive button semantics: React Bits lives inside, not outside. */
+.nim-manager .nim-kpis>.nim-kpi,.nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){
+  padding:12px 14px;min-height:116px;align-items:stretch;justify-content:stretch;
+  border:1px solid #dfe7f3;background:#fff;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease;}
+.nim-manager .nim-kpi .nim-kpi-glare{position:relative;display:flex;align-items:center;justify-content:flex-start;
+  flex:1;gap:12px;min-width:0;min-height:86px;height:100%;width:100%;padding:4px 0;
+  border:0;border-radius:12px;background:transparent;box-shadow:none;isolation:isolate;}
+.nim-manager .nim-kpi .nim-kpi-glare .glare-hover__glare{z-index:0;}
+.nim-manager .nim-kpi .nim-kpi-glare>.nim-kpi-icon,.nim-manager .nim-kpi .nim-kpi-glare>.nim-kpi-content{
+  position:relative;z-index:1;}
+.nim-manager .nim-kpi .nim-kpi-icon{flex:0 0 42px;width:42px;height:42px;border-radius:13px;}
+.nim-manager .nim-kpi .nim-kpi-icon svg{width:21px;height:21px;color:inherit;}
+.nim-manager .nim-kpi .nim-kpi-content{min-width:0;gap:5px;}
+.nim-manager .nim-kpi .nim-kpi-content small{color:#526987;font-weight:790;font-size:11.5px;line-height:1.3;
+  overflow-wrap:anywhere;}
+.nim-manager .nim-kpi .nim-kpi-content strong{font-size:clamp(22px,1.9vw,30px);color:#172845;
+  line-height:1.1;letter-spacing:-.5px;font-variant-numeric:tabular-nums;}
+.nim-manager .nim-kpi .nim-kpi-content>span{font-size:11px;line-height:1.36;color:#7286a2;
+  overflow-wrap:anywhere;}
+.nim-manager .nim-kpi.selected{outline:2px solid #4b87eb;outline-offset:-2px;}
+.nim-manager .nim-commercial-views{padding:4px;gap:4px;margin-top:2px;}
+.nim-manager .nim-commercial-views button{display:inline-flex;gap:8px;align-items:center;justify-content:center;
+  padding:10px 17px;min-height:42px;font-size:12px;white-space:nowrap;}
+.nim-manager .nim-commercial-views button svg{color:currentColor;flex:none;}
+/* Filters: maintain native selects and labels, with Lucide icons on actual controls. */
+.nim-manager .nim-evolution-filter-panel{padding:20px 20px 18px;gap:20px;border-color:#dfe7f3;}
+.nim-manager .nim-evolution-heading h3{font-size:17px;font-weight:850;letter-spacing:-.2px;}
+.nim-manager .nim-evolution-heading p{font-size:12px;color:#7b8ca5;margin-top:5px;}
+.nim-manager .nim-evolution-interval{font-size:12px;}
+.nim-manager .nim-evolution-interval strong{display:flex;align-items:center;justify-content:flex-end;gap:9px;
+  color:#385275;font-weight:780;font-size:12px;}
+.nim-manager .nim-evolution-interval svg{color:#5b82bd;flex:none;}
+.nim-manager .nim-evolution-interval small{font-size:11px;}
+.nim-manager .nim-evolution-controls{gap:14px;}
+.nim-manager .nim-evolution-controls label{position:relative;display:grid;gap:9px;font-size:12px;
+  font-weight:750;color:#465b7b;min-width:0;}
+.nim-manager .nim-evolution-controls label>svg{position:absolute;z-index:1;left:12px;
+  top:calc(1.2em + 18px);color:#7690b3;pointer-events:none;}
+.nim-manager .nim-evolution-controls select,.nim-manager .nim-evolution-controls input{
+  height:44px;padding-left:38px;padding-right:25px;border:1px solid #d3e0ef;border-radius:9px;
+  color:#344e71;font-size:12px;font-weight:570;background-color:#fff;}
+.nim-manager .nim-evolution-controls input::placeholder{color:#8a9ab0;opacity:1;}
+.nim-manager .nim-evolution-method{font-size:11px;line-height:1.65;color:#7184a0;}
+.nim-manager .nim-evolution-results-head{padding:2px 4px;font-size:12px;}
+.nim-manager .nim-evolution-results-head strong{font-size:12px;font-weight:800;color:#3d5578;}
+.nim-manager .nim-evolution-results-head span{font-size:11px;}
+/* Wider name column and two-line clamp: SKU and variation remain independently legible. */
+.nim-manager .nim-evolution-table-head,.nim-manager .nim-evolution-product-head{
+  grid-template-columns:minmax(295px,2.85fr) minmax(100px,.82fr) minmax(155px,1.4fr)
+    minmax(90px,.88fr) minmax(78px,.72fr) minmax(82px,.75fr);
+  gap:12px;}
+.nim-manager .nim-evolution-table-head{padding:14px 16px;color:#526886;background:#f7f9fd;
+  font-size:11px;font-weight:780;}
+.nim-manager .nim-evolution-product-head{padding:11px 16px;min-height:72px;}
+.nim-manager .nim-evolution-product[open]>.nim-evolution-product-head{background:#f6f9ff;}
+.nim-manager .nim-evolution-primary{gap:9px;min-width:0;}
+.nim-manager .nim-evolution-disclosure-arrow{flex:none;color:#8ca2be;transition:transform .16s ease;}
+.nim-manager .nim-evolution-product[open] .nim-evolution-disclosure-arrow{transform:rotate(90deg);}
+.nim-manager .nim-evolution-product-icon{width:39px;height:43px;flex:0 0 39px;
+  background:#f0f5fc;border-color:#dce7f5;border-radius:9px;color:#5f82b1;}
+.nim-manager .nim-evolution-product-icon svg{width:23px;height:24px;}
+.nim-manager .nim-evolution-name{display:grid;min-width:0;gap:5px;}
+.nim-manager .nim-evolution-name strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  overflow:hidden;text-overflow:ellipsis;white-space:normal;overflow-wrap:anywhere;
+  color:#203755;font-size:12.5px;line-height:1.35;font-weight:800;max-width:100%;}
+.nim-manager .nim-evolution-name small{font-size:10.5px;line-height:1.25;color:#7e90a8;}
+.nim-manager .nim-evolution-platform{font-size:11.5px;color:#5b7190;}
+.nim-manager .nim-evolution-identification{font-size:11px;gap:6px;}
+.nim-manager .nim-evolution-identification strong{font-size:11.5px;color:#3a5071;}
+.nim-manager .nim-evolution-identification small{font-size:10.5px;line-height:1.3;}
+.nim-manager .nim-evolution-tag{display:inline-flex;align-items:center;gap:5px;border-radius:7px;
+  padding:7px 9px;font-size:10.5px;line-height:1.2;font-weight:820;}
+.nim-manager .nim-evolution-tag svg{flex:none;}
+.nim-manager .nim-evolution-quick-stats b{font-size:12.5px;font-weight:800;color:#2b4569;}
+.nim-manager .nim-evolution-growth{display:flex;align-items:center;justify-content:flex-end;gap:5px;
+  font-size:12.5px;font-weight:840;}
+.nim-manager .nim-evolution-growth svg{flex:none;}
+.nim-manager .nim-evolution-product:hover .nim-evolution-product-head{background:#f7faff;}
+.nim-manager .nim-evolution-product[open]>.nim-evolution-product-stats{padding-top:8px;}
+/* Preserve readability on narrow desktops and phones; never hide status data. */
+@media(max-width:1350px){
+  .nim-manager .nim-evolution-table-head,.nim-manager .nim-evolution-product-head{
+    grid-template-columns:minmax(225px,2.35fr) minmax(95px,.9fr) minmax(132px,1.3fr)
+      minmax(86px,.85fr) minmax(68px,.7fr) minmax(78px,.7fr);gap:10px;}
+  .nim-manager .nim-kpis>.nim-kpi,.nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){padding:12px;}
+}
+@media(max-width:1050px){
+  .nim-manager .nim-evolution-table-head{display:none;}
+  .nim-manager .nim-evolution-product-head{grid-template-columns:minmax(180px,2fr) minmax(120px,1fr) minmax(95px,.8fr);
+    gap:10px 14px;}
+  .nim-manager .nim-evolution-primary{grid-column:1/3;}
+  .nim-manager .nim-evolution-identification strong{white-space:normal;overflow-wrap:anywhere;}
+  .nim-manager .nim-evolution-growth{grid-column:3;grid-row:3;justify-content:flex-start;}
+}
+@media(max-width:700px){
+  .nim-manager .nim-kpis>.nim-kpi,.nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){min-height:106px;padding:10px;}
+  .nim-manager .nim-kpi .nim-kpi-icon{width:34px;height:34px;flex-basis:34px;}
+  .nim-manager .nim-kpi .nim-kpi-content small{font-size:11px;}
+  .nim-manager .nim-kpi .nim-kpi-content strong{font-size:22px;}
+  .nim-manager .nim-kpi .nim-kpi-content>span{font-size:10.5px;}
+  .nim-manager .nim-kpi .nim-kpi-glare{gap:9px;min-height:85px;}
+  .nim-manager .nim-evolution-filter-panel{padding:15px;gap:15px;}
+  .nim-manager .nim-evolution-interval strong{justify-content:flex-start;}
+  .nim-manager .nim-evolution-controls label>svg{top:calc(1.2em + 18px);}
+  .nim-manager .nim-evolution-product-head{grid-template-columns:minmax(0,1fr) auto;gap:9px;}
+  .nim-manager .nim-evolution-primary{grid-column:1/-1;grid-row:1;}
+  .nim-manager .nim-evolution-name strong{font-size:12.5px;}
+  .nim-manager .nim-evolution-platform{grid-column:1;grid-row:2;}
+  .nim-manager .nim-evolution-identification{grid-column:1/-1;grid-row:3;}
+  .nim-manager .nim-evolution-tag{grid-column:2;grid-row:2;}
+  .nim-manager .nim-evolution-quick-stats{grid-column:1;grid-row:4;}
+  .nim-manager .nim-evolution-growth{grid-column:2;grid-row:4;justify-content:flex-end;}
+}
+@media(prefers-reduced-motion:reduce){
+ .nim-manager .nim-evolution-disclosure-arrow{transition:none;}
+ .nim-manager .nim-kpis>.nim-kpi{transition:none;transform:none!important;}
+}
