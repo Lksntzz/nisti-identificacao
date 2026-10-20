@@ -603,6 +603,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     if(!evolutionReady)return;
     setEvolutionStatus(current=>current===next?'ALL':next);
   };
+  const trendSelected=['RISING','FALLING'].includes(status)?status:'ALL';
   const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0;
   const rows=Array.isArray(data?.items)?data.items:[];
   useEffect(()=>{
