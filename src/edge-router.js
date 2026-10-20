@@ -8,7 +8,7 @@ import { handleCommerceListingStateRequest } from './commerce-listing-state-rout
 import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
 import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
 import { handleMuralRequest } from './mural-router.js';
-import { handleNotificationDispatchRequest } from './notification-dispatch-router.js';
+import { handleNotificationDispatchRequest, activateDispatchMonitorLink } from './notification-dispatch-router.js';
 import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
 
@@ -557,6 +557,8 @@ export default {
     }
 
     if(request.method==='GET' && pathname==='/monitor-notificacoes') {
+      const activation=await activateDispatchMonitorLink(request,env);
+      if(activation)return withSecurityHeaders(activation);
       const page=await env.ASSETS.fetch(new Request(new URL('/',url),{headers:request.headers}));
       const headers=new Headers(page.headers);
       headers.set('cache-control','no-store, private');

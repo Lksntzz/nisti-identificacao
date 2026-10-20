@@ -142,7 +142,8 @@ export default function NotificationDispatchView({senderMode=false}) {
     try{
       const data=await request('/api/admin/dispatch/monitor-key',{method:'POST'});
       const url=new URL('/monitor-notificacoes',window.location.origin);
-      url.hash='acesso='+data.key;
+      // Autorização validada no servidor antes de carregar o React, inclusive no Quiosque.
+      url.searchParams.set('acesso',data.key);
       setPermanentLink(url.toString());
       setSuccess('Link do monitor criado. Configure esse endereço como URL inicial do Edge no notebook.');
       await refresh();
@@ -395,7 +396,7 @@ export default function NotificationDispatchView({senderMode=false}) {
             <button type="button" className="nid-secondary" onClick={copyPermanentMonitorLink}>
               <DispatchIcon name="copy" size={17}/>{linkCopied?'Link copiado':'Copiar link'}
             </button>
-            <small>Substitua a URL atual do Quiosque por esta URL completa, incluindo #acesso=. Não compartilhe o endereço.</small>
+            <small>Substitua a URL atual do Quiosque por esta URL completa, incluindo ?acesso=. Não compartilhe o endereço.</small>
           </div>}
         </div>
         <p className="nid-muted">Alternativa para navegadores comuns: abra o monitor no notebook, confira o código de autorização e aprove abaixo.</p>

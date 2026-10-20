@@ -52,6 +52,26 @@ function errorResponse(error) {
   console.error('[NISTI Dispatch] Falha',error?.code||error?.name||'backend_error');
   return json({error:'Não foi possível acessar o serviço de notificações.'},503);
 }
+// URLs iniciais do Quiosque são independentes da sessão InPrivate do navegador.
+// O Worker valida a credencial e faz redirecionamento sem exibir o segredo.
+export async function activateDispatchMonitorLink(request,env){
+  const url=new URL(request.url);
+  if(request.method!=='GET'||url.pathname!=='/monitor-notificacoes'||!url.searchParams.has('acesso'))return null;
+  const keys=url.searchParams.getAll('acesso');
+  const key=keys.length===1?String(keys[0]||'').trim().toLowerCase():'';
+  const security={'cache-control':'no-store, private','referrer-policy':'no-referrer','x-robots-tag':'noindex, nofollow'};
+  const invalid=(status,message)=>new Response(`<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Monitor NISTI</title></head><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1326;color:white;font:16px system-ui"><main style="max-width:560px;padding:30px;text-align:center"><h1>Monitor NISTI</h1><p>${message}</p><p>Abra o painel ADM → Comunicação → Notificações da Expedição para gerar outro link privado.</p></main></body></html>`,{status,headers:{...security,'content-type':'text/html; charset=utf-8'}});
+  if(!/^[0-9a-f]{64}$/.test(key))return invalid(400,'O link configurado no Quiosque está incompleto ou inválido.');
+  try{
+    const valid=await supabaseRpc(env,'nisti_dispatch_monitor_valid_v1',{p_digest:await digest(key)});
+    if(valid!==true)return invalid(401,'Este link não está mais autorizado.');
+    return new Response(null,{status:303,headers:{...security,location:'/monitor-notificacoes','set-cookie':monitorCookie(key)}});
+  }catch(error){
+    console.error('[NISTI Dispatch] Falha ao ativar monitor por link',error?.code||error?.name||'backend_error');
+    return invalid(503,'O servidor de notificações está temporariamente indisponível. Tente reiniciar a tela em instantes.');
+  }
+}
+
 export async function handleNotificationDispatchRequest(request,env) {
   const path=new URL(request.url).pathname;
   if(!path.startsWith('/api/dispatch/') && !path.startsWith('/api/admin/dispatch'))return null;

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {handleNotificationDispatchRequest} from '../src/notification-dispatch-router.js';
+import {handleNotificationDispatchRequest,activateDispatchMonitorLink} from '../src/notification-dispatch-router.js';
 
 const source=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 
@@ -70,4 +70,24 @@ test('kiosk uses a private revocable URL to activate its monitor session automat
     method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:'invalid'})
   }),{});
   assert.equal(response.status,401);
+});
+
+test('kiosk link validation remains server-side and malformed links receive a visible error page',async()=>{
+  assert.equal(await activateDispatchMonitorLink(new Request('https://example.com/monitor-notificacoes'),{}),null);
+  for(const url of ['https://example.com/monitor-notificacoes?acesso=invalid',
+    'https://example.com/monitor-notificacoes?acesso=invalid&acesso=other']){
+    const response=await activateDispatchMonitorLink(new Request(url),{});
+    assert.equal(response.status,400);
+    assert.match(await response.text(),/link configurado no Quiosque/);
+    assert.equal(response.headers.get('cache-control'),'no-store, private');
+    assert.equal(response.headers.get('referrer-policy'),'no-referrer');
+  }
+  const edge=source('../src/edge-router.js');
+  assert.match(edge,/activateDispatchMonitorLink\(request,env\)/);
+  const admin=source('../src/admin/NotificationDispatchView.jsx');
+  assert.match(admin,/url\.searchParams\.set\('acesso',data\.key\)/);
+  const fallback=source('../index.html');
+  assert.match(fallback,/Carregando NISTI/);
+  const entry=source('../src/entry.jsx');
+  assert.match(entry,/MonitorErrorBoundary/);
 });
