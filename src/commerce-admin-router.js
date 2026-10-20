@@ -442,7 +442,7 @@ export async function handleCommerceAdminRequest(request, env) {
       const search=String(query(url,'search')||'');
       if(!['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE'].includes(platform)
         ||![7,30,60,90].includes(days)
-        ||!['ALL','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT'].includes(status)
+        ||!['ALL','SOLD','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT'].includes(status)
         ||search.length>120)
         return json({error:'Filtros de evolução de vendas inválidos.'},400);
       return json(await commerceSalesEvolution(env,{
