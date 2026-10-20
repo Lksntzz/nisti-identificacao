@@ -26,7 +26,8 @@ test('ícones são vetores Lucide oficiais, sem dependências externas',()=>{
   for(const icon of ['megaphone','shopping-cart','circle-alert','trending-up','trending-down','refresh-cw','upload','calendar-days','notebook-tabs'])
     assert.ok(lucide.includes('"'+icon+'"'),icon);
   assert.match(manager,/<CommercialIcon name="refresh-cw"/);
-  assert.match(evolution,/<CommercialIcon name="notebook-tabs"/);
+  assert.match(evolution,/CommerceEvolutionProductThumbnail/);
+  assert.match(fs.readFileSync('src/commerce-evolution-product-thumbnail.jsx','utf8'),/<CommercialIcon name="notebook-tabs"/);
   assert.match(evolution,/<CommercialIcon name="trending-down"/);
   assert.match(notices,/ISC License/);
 });
