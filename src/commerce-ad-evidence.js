@@ -2,7 +2,8 @@
 // interval. Prevent a prior filter response from being presented as "last 7d".
 export function importedTotalsForExactWindow(report,start,end){
   if(report?.available!==true||report?.period_start!==start||
-    report?.period_end!==end||!Array.isArray(report?.sources)||!report.sources.length)
+    report?.period_end!==end||report?.units==null||report?.revenue==null||
+    !Array.isArray(report?.sources)||!report.sources.length)
     return null;
   const units=Number(report.units),revenue=Number(report.revenue);
   if(!Number.isSafeInteger(units)||units<0||
