@@ -530,7 +530,8 @@ export default {
       if (pathname === '/admin' || pathname.startsWith('/admin/')
         || pathname === '/admin-login' || pathname === '/admin-logout'
         || pathname === '/admin-commerce' || pathname.startsWith('/admin-commerce/')
-         || pathname === EXPEDITION_DISPATCH_ADMIN_PATH) {
+         || pathname === EXPEDITION_DISPATCH_ADMIN_PATH
+         || pathname.startsWith('/convite-expedicao/')) {
         return withSecurityHeaders(json({error:'Esta URL é exclusiva do Mural NISTI.'},404));
       }
       if (request.method === 'GET' && (pathname === '/mural' || pathname === '/index.html')) {
@@ -546,6 +547,13 @@ export default {
       return withSecurityHeaders(await env.ASSETS.fetch(new Request(new URL('/',url),{
         headers:request.headers
       })));
+    }
+
+    // Convites privados do painel de envio são processados antes dos assets.
+    // Não expõem o ADM e não funcionam no hostname restrito do Mural.
+    if(pathname.startsWith('/convite-expedicao/')){
+      const response=await activateDispatchSenderLink(request,env);
+      return withSecurityHeaders(response||json({error:'Convite inválido.'},404));
     }
 
     if(request.method==='GET' && pathname==='/monitor-notificacoes') {
