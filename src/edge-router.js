@@ -8,6 +8,7 @@ import { handleCommerceListingStateRequest } from './commerce-listing-state-rout
 import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
 import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
 import { handleMuralRequest } from './mural-router.js';
+import { handleNotificationDispatchRequest } from './notification-dispatch-router.js';
 import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
@@ -30,6 +31,8 @@ async function currentOperatorPinRequired(env){
   return operatorPinRequired(env);
 }
 function operatorApiNeedsPin(path){
+  // Monitor credentials are checked independently in the dispatch router.
+  if(path.startsWith('/api/dispatch/'))return false;
   if(!path.startsWith('/api/')||path.startsWith('/api/admin/'))return false;
   if(path==='/api/health'||path==='/api/platforms'
     ||path==='/api/mural/access'||path==='/api/push/public-key')return false;
@@ -532,6 +535,13 @@ export default {
       })));
     }
 
+    if(request.method==='GET' && pathname==='/monitor-notificacoes') {
+      const page=await env.ASSETS.fetch(new Request(new URL('/',url),{headers:request.headers}));
+      const headers=new Headers(page.headers);
+      headers.set('cache-control','no-store, private');
+      return withSecurityHeaders(new Response(page.body,{status:page.status,statusText:page.statusText,headers}));
+    }
+
     // Root of the dedicated administrative hostname must never serve the operator scanner.
     // Reuse the existing protected /admin route for authentication and session handling.
     if (request.method === 'GET' && (pathname === '/' || pathname === '/index.html')
@@ -653,6 +663,9 @@ export default {
       return withSecurityHeaders(json({error:'Autenticação do operador indisponível.'},503));
     }
     request=operatorContext.request;
+
+    const dispatchResponse=await handleNotificationDispatchRequest(request,env);
+    if(dispatchResponse)return withSecurityHeaders(dispatchResponse);
 
     const canvaResponse = await handleCanvaBridgeRequest(request, env);
     if (canvaResponse) return withSecurityHeaders(canvaResponse);

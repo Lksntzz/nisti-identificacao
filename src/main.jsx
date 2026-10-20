@@ -10,6 +10,7 @@ import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import OperatorPinAdminView from './admin/OperatorPinAdminView.jsx';
+import NotificationDispatchView from './admin/NotificationDispatchView.jsx';
 import MuralNisti from './mural-nisti.jsx';
 import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
@@ -365,6 +366,8 @@ function SidebarIcon({ name }) {
       return <svg {...props}><path d="M3 5v14M6 5v14M10 5v14M13 5v14M17 5v14M21 5v14" /><path d="M8 5v14M15 5v14M19 5v14" strokeWidth="1" /></svg>;
     case 'mural':
       return <svg {...props}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h7M7 16h5" /></svg>;
+    case 'bell':
+      return <svg {...props}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M10 21h4" /></svg>;
     case 'security':
       return <svg {...props}><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /><path d="M12 14v3" /></svg>;
     default:
@@ -571,6 +574,7 @@ function AdminTopbar({ onToggleSidebar, unreadCount, activeView, activeCommerceS
     : activeView === 'historico-ean' ? 'Histórico de Bipagens'
     : activeView === 'ean-nao-cadastrados' ? 'EAN não Cadastrados'
     : activeView === 'produtos-sem-ean' ? 'Produtos sem EAN'
+    : activeView === 'nisti-dispatch' ? 'Notificações da Expedição'
     : activeView === 'operadores-pin' ? 'PIN dos Operadores'
     : activeView === 'logs' ? 'Saúde & Logs'
     : 'Painel Administrativo';
@@ -1909,7 +1913,7 @@ function AdminApp() {
 
         <main className="admin-page-content">
           <div key={activeView} className="admin-view-transition">
-            {!['mural-nisti','commerce','operadores-pin'].includes(activeView) && (
+            {!['mural-nisti','commerce','operadores-pin','nisti-dispatch'].includes(activeView) && (
               <>
                 <WelcomeDateBanner />
                 {/* Dashboard de Produtividade da Expedição & KPIs */}
@@ -1979,6 +1983,8 @@ function AdminApp() {
                 onBack={() => setActiveView('catalogo')}
               />
             )}
+
+            {activeView === 'nisti-dispatch' && <NotificationDispatchView />}
 
             {activeView === 'operadores-pin' && <OperatorPinAdminView />}
 
