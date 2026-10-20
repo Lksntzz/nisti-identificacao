@@ -1,0 +1,26 @@
+.shopee-aftercare-import,.shopee-aftercare-detail{display:grid;gap:11px;font-size:11px;color:#304661;min-width:0}
+.shopee-aftercare-import{border:1px solid #e0e8f3;border-radius:11px;padding:15px;background:#fff}
+.shopee-aftercare-import h3,.shopee-aftercare-detail h4{margin:0;font-size:12px;color:#1e3554}
+.shopee-aftercare-import p,.aftercare-disclaimer{font-size:10px;line-height:1.5;color:#7a899d;margin:0}
+.shopee-aftercare-import>label{display:grid;gap:7px;padding:13px;border:1px dashed #9ab3d8;border-radius:8px;background:#f9fbfe;font-weight:750}
+.shopee-aftercare-import>label input{font-size:11px}
+.shopee-aftercare-import>label small{font-weight:400;color:#7386a1}
+.shopee-aftercare-preview{display:grid;gap:10px}
+.shopee-aftercare-preview>strong{font-size:11px}
+.shopee-aftercare-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.shopee-aftercare-facts>span{background:#f5f8fc;border:1px solid #e9eef5;border-radius:8px;padding:9px;display:grid;gap:5px;min-width:0}
+.shopee-aftercare-facts small{font-size:9px;color:#7b899f;line-height:1.4}
+.shopee-aftercare-facts b{font-size:12px;color:#243d5b;overflow-wrap:anywhere}
+.shopee-aftercare-preview>button{justify-self:start;padding:9px 12px;background:#2064cd;color:#fff;border:0;border-radius:7px;cursor:pointer;font-size:11px;font-weight:800}
+.shopee-aftercare-preview>button:disabled{opacity:.65}
+.aftercare-error{color:#b33245!important}.aftercare-success{color:#18824c!important}
+.shopee-aftercare-detail>header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.shopee-aftercare-detail>header small{font-size:10px;color:#8190a4}
+.aftercare-table{max-height:300px;overflow:auto}
+.aftercare-table table{width:100%;border-collapse:collapse;font-size:10px}
+.aftercare-table th,.aftercare-table td{padding:8px 6px;text-align:left;border-bottom:1px solid #ebf0f6;vertical-align:top}
+.aftercare-table th{background:#f6f9fc;color:#697b93}
+.aftercare-table td{color:#314560;line-height:1.45}
+.aftercare-table td strong,.aftercare-table td small{display:block;overflow-wrap:anywhere}
+.aftercare-table td small{color:#8291a7}
+@media(max-width:400px){.shopee-aftercare-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.aftercare-table{font-size:9px}}
