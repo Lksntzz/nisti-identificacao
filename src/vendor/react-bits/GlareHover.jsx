@@ -1,5 +1,6 @@
 /* React Bits GlareHover — David Haz, upstream source (2026-10-20).
  * License: MIT + Commons Clause v1.0; see THIRD_PARTY_NOTICES.txt.
+ * Adaptation: root rendered as span (phrasing element), so KPI buttons stay valid HTML.
  * Used only as an integrated UI effect in NISTI, never sold as a standalone component.
  */
 'use client';
@@ -263,7 +264,7 @@ const GlareHover = ({
   const rim = gradient(glareColor, Math.min(1, glareOpacity * 1.8), variant, softness);
 
   return (
-    <div
+    <span
       ref={rootRef}
       className={`glare-hover ${className}`.trim()}
       style={{
@@ -287,7 +288,7 @@ const GlareHover = ({
           </span>
         )}
       </span>
-    </div>
+    </span>
   );
 };
 
