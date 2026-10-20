@@ -98,6 +98,11 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
     <p className="nim-evolution-method">Crescimento e queda exigem variação de pelo menos 20%,
       mínimo de 3 unidades no período anterior e diferença de 2 unidades.
       Pouco volume e cobertura incompleta são tratados separadamente. Não criamos promoções automaticamente.</p>
+    {status==='ZERO'&&data&&<p className="nim-evolution-notice">
+      Sem vendas de SKU/modelo de {date(data.period_start)} a {date(data.period_end)}.
+      Este resultado não garante que o anúncio inteiro ficou sem vendas.
+      Para anúncios, utilize a aba Anúncios e o filtro Sem vendas.
+    </p>}
     {incomplete.length>0&&<p className="nim-evolution-notice">
       Cobertura incompleta: {incomplete.map(c=>platformName(c.source)).join(', ')}.
       Sem presumir vendas zero ou tendências nessa origem.</p>}
