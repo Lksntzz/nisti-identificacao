@@ -34,6 +34,8 @@ import {
   commerceSalesAbcAds,
   commerceListingManager,
   commerceSalesEvolution,
+  commerceListingTrafficWindow,
+  commerceSaveListingTraffic,
   commerceShopeeUnlinkedSales,
   commerceShopeeSkuReconciliationQueue,
   commerceShopeeSkuCandidates,
@@ -353,6 +355,34 @@ export async function handleCommerceAdminRequest(request, env) {
         (days!==0&&Boolean(month)))
         return json({error:'Filtros financeiros inválidos.'},400);
       return json(await commerceShopeeListingFinance(env,listingId,{days,month}));
+    }
+    // Protegido pela mesma autenticação administrativa do router comercial.
+    const listingTrafficPath=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/traffic$/);
+    if(listingTrafficPath&&method==='GET'){
+      const start=String(query(url,'start')||''),end=String(query(url,'end')||'');
+      if(!/^20\d{2}-\d{2}-\d{2}$/.test(start)||!/^20\d{2}-\d{2}-\d{2}$/.test(end))
+        return json({error:'Informe o período exato do relatório.'},400);
+      return json(await commerceListingTrafficWindow(env,listingTrafficPath[1],{start,end}));
+    }
+    if(listingTrafficPath&&method==='POST'){
+      if(Number(request.headers.get('content-length')||0)>4096)
+        return json({error:'Relatório de tráfego excede o tamanho permitido.'},413);
+      const input=await bodyJson(request);
+      if(!input)return json({error:'Relatório JSON inválido.'},400);
+      const dateOk=s=>/^20\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(s)
+        &&!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
+      const start=String(input.start||''),end=String(input.end||'');
+      const days=dateOk(start)&&dateOk(end)?(Date.parse(end)-Date.parse(start))/86400000+1:NaN;
+      const numOk=value=>value==null||value===''||
+        (typeof value==='number'&&Number.isSafeInteger(value)&&value>=0&&value<=1e12);
+      if(!Number.isInteger(days)||days<1||days>91||
+        !['ALL','ORGANIC','PAID'].includes(input.scope)||
+        String(input.source||'').trim().length<8||String(input.source||'').trim().length>200||
+        !['visits','impressions','clicks','orders'].every(key=>numOk(input[key]))||
+        ['visits','impressions','clicks','orders'].every(key=>input[key]==null||input[key]==='')||
+        (input.clicks!=null&&input.impressions!=null&&Number(input.clicks)>Number(input.impressions)))
+        return json({error:'Métricas ou período inválidos. Confira os campos do relatório.'},400);
+      return json(await commerceSaveListingTraffic(env,listingTrafficPath[1],input,'Administrador'));
     }
     if (method === 'GET' && pathname === `${BASE_PATH}/listings/manager`) {
       const days = Number(query(url,'days') ?? 30);
