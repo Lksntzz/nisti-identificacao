@@ -15,7 +15,7 @@ test('NISTI admin keeps business actions and server-derived KPI values',()=>{
  assert.match(src,/nid-preview-queue/);
  assert.match(src,/dispatchOptionValid/);
  assert.match(src,/onClick=\{saveOptions\}/);
- assert.match(src,/onClick=\{pair\}/);
+ assert.match(src,/onClick=\{\(\)=>approvePair\(item\.id,item\.code\)\}/);
 });
 test('expedition stage uses original React Bits animation and is real-time',()=>{
  const monitor=read('src/notification-monitor.jsx');

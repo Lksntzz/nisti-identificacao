@@ -21,8 +21,9 @@ https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes
   canal e o pareamento do monitor são alterados somente nesta interface.
 - **Monitor de exibição (notebook):**
   `https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes`
-  Exibe notificações e reproduz os alertas. Usa chave própria, sem compartilhar
-  a permissão de envio.
+  Exibe notificações e reproduz os alertas. A autorização é feita no painel
+  administrativo, por aprovação do código exibido no notebook. O navegador guarda
+  uma credencial exclusiva em cookie HttpOnly; ela não libera envio ou administração.
 
 A URL curta **/painel-expedicao** sozinha não concede acesso: precisa estar com
 a sessão ativada por link privado. O valor `DISPATCH_SENDER_TOKEN_SHA256` em `wrangler.toml` contém somente o
@@ -35,13 +36,16 @@ um novo deploy; os acessos anteriores deixarão de funcionar.
 Todas as telas compartilham a mesma fila no Supabase. Não há atualização do
 instalador Windows para este painel; ele é acessado pelo navegador.
 
-## Primeiro uso (apenas uma vez)
+## Ativação do monitor pelo painel de notificações
 
-1. No painel administrativo NISTI, abra **COMUNICAÇÃO → Notificações da Expedição** e gere uma chave de ativação para o monitor.
-2. No computador da expedição, execute `scripts/abrir-monitor-nisti.cmd`. O navegador usará um **perfil dedicado persistente**, separado de outros usos do Edge.
-3. Insira a chave do monitor. O cookie HttpOnly ficará no perfil dedicado.
-4. Confira no rodapé **Som automático pronto**. Envie uma chamada de teste pelo painel administrativo e ajuste o volume físico.
-5. Adicione um atalho ao arquivo `abrir-monitor-nisti.cmd` na pasta `shell:startup` do **usuário Windows dedicado** para abrir no início da sessão. Não habilite logon automático sem avaliar segurança física.
+1. No notebook, abra `/monitor-notificacoes`. A tela exibirá **Aguardando autorização** e um código de seis caracteres.
+2. No painel ADM, abra **Comunicação → Notificações da Expedição → Personalizar informações → Conexão e ativação**.
+3. Confirme que o código exibido no painel coincide com o código do notebook e clique em **Ativar monitor**. Isso desconecta o monitor previamente autorizado.
+4. A tela do notebook começará a receber chamadas sem digitar nenhum segredo. Confira no rodapé **Som automático pronto** e envie uma notificação de teste.
+
+A solicitação expira após 10 minutos. Se não aparecer no painel, aguarde até oito segundos para a atualização ou clique em **Atualizar**. Solicitações não aprovadas não podem ler a fila.
+
+Para manter a autorização quando o Windows reiniciar, use `scripts/abrir-monitor-nisti.cmd` em um **perfil Edge dedicado e persistente**. O Modo Quiosque tradicional usa InPrivate e apaga o cookie ao fechar; nesse modo é preciso aprovar novamente pelo painel após cada reinício. Não habilite logon automático sem avaliar a segurança física.
 
 ## Som sem botão de ativação
 
@@ -60,10 +64,11 @@ https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies/autoplayall
 
 ## Por que não usar `msedge --kiosk` puro?
 
-O modo quiosque do Edge é InPrivate, que não mantém o cookie de ativação depois
-de fechar a sessão. Para manter a chave e evitar repareamento diário, este
-launcher abre uma **janela de aplicativo com um perfil persistente**, não o modo
-quiosque InPrivate. Não compartilhar esse perfil com outros computadores.
+O modo quiosque do Edge é InPrivate: ao fechar a sessão, perde a credencial de
+monitor e será preciso **reautorizar pelo painel**, sem inserir chave. O launcher
+alternativo abre uma **janela de aplicativo com perfil persistente**, o que
+preserva a autorização e evita aprovação a cada inicialização. Não compartilhar
+esse perfil com outros computadores.
 
 ## Operação
 
@@ -71,7 +76,7 @@ quiosque InPrivate. Não compartilhar esse perfil com outros computadores.
 - Cada chamada aparece durante 15 segundos, sequencialmente, e some automaticamente.
 - Quando a conexão falha, o monitor indica desconexão; ao reconectar, busca o próximo item.
 - O painel ADM mostra a última comunicação do monitor.
-- Não exponha a chave de ativação publicamente; gere outra se o computador for perdido.
+- Aprove apenas o código que aparece no notebook correto. Aprovar outra solicitação revoga o acesso anterior.
 
 
 ## Abertura automática após desligar o monitor e reiniciar
@@ -84,7 +89,7 @@ mantenha os dois arquivos CMD na mesma pasta e execute uma vez o instalador:
 **scripts/instalar-monitor-nisti.cmd**. Ele copia o inicializador para a pasta
 Startup do usuário Windows e abre o Edge imediatamente. Após reiniciar o PC,
 o Edge abrirá novamente **quando esse usuário entrar no Windows**, com seu
-perfil e chave preservados.
+perfil e autorização preservados.
 
 Para cancelar, execute **scripts/remover-inicializacao-monitor-nisti.cmd**.
 O pareamento não é excluído.

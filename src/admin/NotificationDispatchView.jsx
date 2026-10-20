@@ -48,8 +48,7 @@ export default function NotificationDispatchView({senderMode=false}) {
   const [success,setSuccess]=useState('');
   const [sending,setSending]=useState(false);
   const [pairing,setPairing]=useState(false);
-  const [monitorKey,setMonitorKey]=useState('');
-  const [copyMessage,setCopyMessage]=useState('');
+  const [pendingMonitors,setPendingMonitors]=useState([]);
   useEffect(()=>{
     let canceled=false;
     request(endpoints.options).then(result=>{
@@ -94,10 +93,15 @@ export default function NotificationDispatchView({senderMode=false}) {
 
   const refresh=useCallback(async()=>{
     try {
-      const response=await request(endpoints.status);
-      setState(response);setError('');
+      const [response,monitors]=await Promise.all([
+        request(endpoints.status),
+        senderMode?Promise.resolve(null):request('/api/admin/dispatch/pair/pending')
+      ]);
+      setState(response);
+      if(monitors)setPendingMonitors(monitors.requests||[]);
+      setError('');
     }catch(e){setError(e.message)}
-  },[]);
+  },[senderMode]);
   useEffect(()=>{
     refresh();
     const timer=setInterval(refresh,8000);
@@ -129,21 +133,20 @@ export default function NotificationDispatchView({senderMode=false}) {
     }catch(e){setError(e.message+' Você pode reenviar sem duplicar a solicitação.');}
     finally{setSending(false)}
   }
-  async function pair(){
+  async function approvePair(id,code){
     if(senderMode||pairing)return;
-    if(state?.monitor_paired&&!window.confirm(
-      'Gerar uma nova chave desconectará o monitor anterior até que a nova chave seja digitada. Continuar?'
-    ))return;
-    setPairing(true);setMonitorKey('');setCopyMessage('');setError('');
+    if(!window.confirm('Confirma que o código '+code+' aparece no notebook da expedição?'
+      +(state?.monitor_paired?' O monitor anterior será desconectado.':'')))return;
+    setPairing(true);setError('');setSuccess('');
     try {
-      const result=await request(endpoints.monitorKey,{method:'POST'});
-      setMonitorKey(result.key);await refresh();
-    }catch(e){setError(e.message)}
+      await request('/api/admin/dispatch/pair/approve',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({id})
+      });
+      setSuccess('Monitor '+code+' autorizado. Aguarde a conexão no notebook.');
+      await refresh();
+    }catch(error){setError(error.message)}
     finally{setPairing(false)}
-  }
-  async function copy(){
-    try{await navigator.clipboard.writeText(monitorKey);setCopyMessage('Chave copiada.');}
-    catch{setCopyMessage('Selecione a chave acima e copie manualmente.')}
   }
   const monitorOnline=state?.monitor_last_seen
     && Date.now()-Date.parse(state.monitor_last_seen)<15000;
@@ -357,19 +360,25 @@ export default function NotificationDispatchView({senderMode=false}) {
           <span className={'nid-live-dot '+(monitorOnline?'online':'')}/>
           <strong>{monitorOnline?'Monitor conectado':state?.monitor_paired?'Monitor offline':'Monitor não ativado'}</strong>
         </div>
-        <p className="nid-muted">A chave é necessária apenas na primeira ativação. Gerar uma nova desconecta o monitor anterior.</p>
-        <button type="button" onClick={pair} disabled={pairing} className="nid-secondary">
-          <DispatchIcon name="settings-2" size={17}/>
-          {pairing?'Gerando…':state?.monitor_paired?'Substituir chave do monitor':'Gerar chave de ativação'}
-        </button>
-        {monitorKey&&<div className="nid-key-view" role="status">
-          <strong>Chave de ativação — exibida somente agora</strong>
-          <code>{monitorKey}</code>
-          <button type="button" onClick={copy} className="nid-secondary">
-            <DispatchIcon name="copy" size={17}/> Copiar chave
+        <p className="nid-muted">Abra o monitor no notebook e aguarde aparecer o código de autorização. Confira o mesmo código abaixo antes de aprovar. Nenhuma chave precisa ser digitada no notebook.</p>
+        <div className="nid-panel-title-row">
+          <strong>Notebooks aguardando autorização</strong>
+          <button type="button" className="nid-secondary" onClick={refresh}>
+            <DispatchIcon name="clock-3" size={16}/> Atualizar
           </button>
-          <small>{copyMessage||'Cole a chave na tela do monitor. A antiga será invalidada.'}</small>
-        </div>}
+        </div>
+        {pendingMonitors.length===0?<p className="nid-muted" role="status">Nenhuma solicitação pendente. Abra a tela de notificações no notebook e aguarde alguns segundos.</p>
+          :<div className="nid-pending-monitor-list">{pendingMonitors.map(item=>
+            <div className="nid-pending-monitor" key={item.id}>
+              <div><small>CÓDIGO EXIBIDO NO NOTEBOOK</small><strong>{item.code}</strong>
+                <small>Expira em {new Date(item.expires_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</small>
+              </div>
+              <button type="button" className="nid-send" disabled={pairing}
+                onClick={()=>approvePair(item.id,item.code)}>
+                <DispatchIcon name="check" size={17}/>
+                {pairing?'Aguarde…':'Ativar monitor'}
+              </button>
+            </div>)}</div>}
         <a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">
           <DispatchIcon name="monitor" size={17}/> Abrir monitor <DispatchIcon name="external-link" size={14}/>
         </a>
