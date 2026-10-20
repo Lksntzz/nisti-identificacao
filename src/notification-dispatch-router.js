@@ -82,6 +82,19 @@ export async function handleNotificationDispatchRequest(request,env) {
       const body=await request.json().catch(()=>null);
       const calls=body?.calls;
       if(!Array.isArray(calls)||calls.length<1||calls.length>DISPATCH_PLATFORMS.length)return json({error:'Selecione de uma a dez plataformas.'},400);
+      // Formato e duplicações são verificados antes de consultar Supabase.
+      // As opções permitidas são checadas depois contra a configuração atual.
+      const beforeDb=new Set();
+      for(const call of calls){
+        const platform=typeof call?.platform==='string'?call.platform.trim().toUpperCase():'';
+        const option=typeof call?.option==='string'?call.option.trim():'';
+        if(!DISPATCH_PLATFORMS.includes(platform)||beforeDb.has(platform)
+          ||!validRequestKey(call?.request_key)||option.length<1||option.length>60
+          ||/[\x00-\x1f\x7f]/.test(option)){
+          return json({error:'Escolha uma modalidade válida para cada plataforma.'},400);
+        }
+        beforeDb.add(platform);
+      }
       const config=await supabaseRpc(env,'nisti_dispatch_options_v4',{});
       const seen=new Set();
       const validated=[];
