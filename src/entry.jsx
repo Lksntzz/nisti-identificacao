@@ -22,6 +22,9 @@ function getInitialRoute() {
     || window.location.pathname === '/mural') {
     return 'mural';
   }
+  if (window.location.pathname === '/monitor-notificacoes') {
+    return 'dispatch';
+  }
   if (window.location.pathname === '/admin-commerce') {
     return 'commerce';
   }
@@ -37,6 +40,7 @@ function RootApp() {
   const [CommerceComponent, setCommerceComponent] = useState(null);
   const [PublicComponent, setPublicComponent] = useState(null);
   const [MuralComponent, setMuralComponent] = useState(null);
+  const [DispatchComponent,setDispatchComponent] = useState(null);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -63,12 +67,14 @@ function RootApp() {
       import('./mural-standalone.jsx').then(mod => {
         setMuralComponent(() => mod.default);
       });
+    } else if (route === 'dispatch' && !DispatchComponent) {
+      import('./notification-monitor.jsx').then(mod=>setDispatchComponent(()=>mod.default));
     } else if (route === 'public' && !PublicComponent) {
       import('./public-main.jsx').then(publicMod => {
         setPublicComponent(() => publicMod.default || publicMod.PublicIdentificationApp);
       });
     }
-  }, [route, AdminComponent, CommerceComponent, PublicComponent, MuralComponent]);
+  }, [route, AdminComponent, CommerceComponent, PublicComponent, MuralComponent, DispatchComponent]);
 
   if (route === 'commerce') {
     if (!CommerceComponent) {
@@ -92,6 +98,11 @@ function RootApp() {
     }
     const Comp = AdminComponent;
     return <Comp />;
+  }
+
+  if (route === 'dispatch') {
+    if (!DispatchComponent) return <main style={{minHeight:'100dvh',display:'grid',placeItems:'center',background:'#0b1326',color:'#fff'}}>Carregando monitor NISTI…</main>;
+    return <DispatchComponent />;
   }
 
   if (route === 'mural') {

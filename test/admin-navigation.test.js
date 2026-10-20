@@ -22,6 +22,7 @@ test('Admin navigation exposes only operationally useful tools', () => {
     'commerce',
     'historico-ean',
     'ean-nao-cadastrados',
+    'nisti-dispatch',
     'logs',
     'operadores-pin'
   ]);
@@ -90,7 +91,7 @@ test('Admin source has no legacy duplicate navigation or dead PlatformsView', ()
 test('Admin navigation groups tools into clear sections', () => {
   assert.deepEqual(
     ADMIN_MENU_SECTIONS.map(section => section.title),
-    ['CADASTRO', 'COMERCIAL', 'BIPAGENS', 'SISTEMA']
+    ['CADASTRO', 'COMERCIAL', 'BIPAGENS', 'COMUNICAÇÃO', 'SISTEMA']
   );
 });
 

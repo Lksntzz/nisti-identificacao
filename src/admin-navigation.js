@@ -38,6 +38,12 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
     ])
   },
   {
+    title: 'COMUNICAÇÃO',
+    items: Object.freeze([
+      { id: 'nisti-dispatch', label: 'Notificações da Expedição', icon: 'bell' }
+    ])
+  },
+  {
     title: 'SISTEMA',
     items: Object.freeze([
       { id: 'logs', label: 'Saúde & Logs', icon: 'terminal' },
