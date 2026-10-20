@@ -10,7 +10,9 @@ const reader=fs.readFileSync('src/commerce-sales-import-reader.js','utf8');
 
 test('finance-only recovery is visible on the real import center used by the manager',()=>{
   const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-  assert.match(manager,/import CommerceImportCenter from '\.\/commerce-import-center\.jsx'/);
+  assert.match(manager,/import CommerceImportModal from '\.\/commerce-import-modal\.jsx'/);
+  const modal=fs.readFileSync('src/commerce-import-modal.jsx','utf8');
+  assert.match(modal,/CommerceImportCenter key=\{mode\} embedded initialMode=\{mode\} hideModeSelector/);
   assert.match(center,/salesPlatform==='SHOPEE'&&<div className="import-center-finance-recovery">/);
   assert.match(center,/Recuperar só taxas/);
   assert.match(center,/onClick=\{handleSalesFinanceOnly\}/);
