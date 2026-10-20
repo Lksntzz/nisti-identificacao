@@ -27,7 +27,7 @@ function Metrics({title,record}) {
   </div>;
 }
 
-export default function CommerceTrafficMetrics({listingId,start,end,onSaved}) {
+export default function CommerceTrafficMetrics({listingId,start,end}) {
   const [data,setData]=useState(null),[loading,setLoading]=useState(false);
   const [error,setError]=useState(''),[revision,setRevision]=useState(0);
   const [scope,setScope]=useState('ALL'),[entryOpen,setEntryOpen]=useState(false);
@@ -76,7 +76,6 @@ export default function CommerceTrafficMetrics({listingId,start,end,onSaved}) {
       });
       setEntryOpen(false);setSource('');setValues(emptyValues);setRevision(n=>n+1);
       setMessage('Relatório registrado para a janela e tipo de tráfego selecionados.');
-      onSaved?.();
     }catch(e){setError(e.message)}
     finally{setSaving(false)}
   }
