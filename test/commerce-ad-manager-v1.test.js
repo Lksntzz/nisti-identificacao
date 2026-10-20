@@ -33,7 +33,7 @@ test('the default list shows all active ads and supports shared filters and real
   assert.match(ui,/placeholder="Nome ou ID do anúncio"/);
   assert.match(ui,/Analisar vendas mensais/);
   assert.match(ui,/MonthBars months=\{monthly\?\.months\}/);
-  assert.match(ui,/onClick=\{\(\)=>setSelectedId\(item.id\)\}/);
+  assert.match(ui,/onClick=\{\(\)=>openListing\(item.id\)\}/);
   assert.match(ui,/onClick=\{\(\)=>setImportOpen\(v=>!v\)\}/);
   assert.match(ui,/CommerceImportCenter embedded/);
 });
