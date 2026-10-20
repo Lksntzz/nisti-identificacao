@@ -42,14 +42,31 @@ function getInitialRoute() {
   return 'public';
 }
 
+// When a live notification triggers a render failure, kiosk operators may not
+// have a mouse/keyboard. Retry automatically with bounded backoff.
+export function monitorRecoveryDelay(now=Date.now(),storage=window.sessionStorage){
+  const key='nisti_monitor_recovery_v1';
+  try{
+    const prior=JSON.parse(storage.getItem(key)||'{}');
+    const count=Number.isSafeInteger(prior.count)&&now-Number(prior.last)<120000
+      ?Math.min(prior.count+1,6):1;
+    storage.setItem(key,JSON.stringify({count,last:now}));
+    return Math.min(5000*(2**(count-1)),60000);
+  }catch{return 15000}
+}
 class MonitorErrorBoundary extends React.Component {
-  constructor(props){super(props);this.state={failed:false}}
+  constructor(props){super(props);this.state={failed:false};this.retryTimer=null}
   static getDerivedStateFromError(){return {failed:true}}
-  componentDidCatch(error){console.error('[Monitor NISTI] Erro ao exibir a tela',error?.name||'render_error')}
+  componentDidCatch(error){
+    console.error('[Monitor NISTI] Erro ao exibir a tela',error?.name||'render_error');
+    const delay=monitorRecoveryDelay();
+    this.retryTimer=window.setTimeout(()=>window.location.reload(),delay);
+  }
+  componentWillUnmount(){if(this.retryTimer!==null)window.clearTimeout(this.retryTimer)}
   render(){
-    if(this.state.failed)return <main style={{minHeight:'100dvh',background:'#0b1326',color:'white',display:'grid',placeItems:'center',fontFamily:'system-ui',padding:32,textAlign:'center'}}>
-      <div><h1>Não foi possível exibir o monitor NISTI</h1><p>O sistema encontrou um erro nesta sessão do navegador.</p>
-        <button onClick={()=>window.location.reload()} style={{padding:12,borderRadius:8}}>Tentar novamente</button></div>
+    if(this.state.failed)return <main role="alert" style={{minHeight:'100dvh',background:'#0b1326',color:'white',display:'grid',placeItems:'center',fontFamily:'system-ui',padding:32,textAlign:'center'}}>
+      <div><h1>Monitor NISTI em recuperação</h1><p>Uma notificação causou uma falha de exibição. A tela será reiniciada automaticamente.</p>
+        <button onClick={()=>window.location.reload()} style={{padding:12,borderRadius:8}}>Recarregar agora</button></div>
     </main>;
     return this.props.children;
   }
