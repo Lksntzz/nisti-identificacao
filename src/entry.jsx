@@ -16,6 +16,11 @@ function registerNistiServiceWorker() {
 
 registerNistiServiceWorker();
 
+// Remove a margem padrao do navegador antes de montar a tela isolada do monitor.
+if (window.location.pathname === '/monitor-notificacoes') {
+  document.documentElement.classList.add('nid-monitor-document');
+}
+
 function getInitialRoute() {
   // Dedicated URL: never load the Scanner or admin bundles on the Mural host.
   if (window.location.hostname === 'mural.sistemanistiid.online'
@@ -36,6 +41,10 @@ function getInitialRoute() {
 
 function RootApp() {
   const [route, setRoute] = useState(getInitialRoute);
+  useEffect(() => {
+    document.documentElement.classList.toggle('nid-monitor-document',route === 'dispatch');
+    return () => document.documentElement.classList.remove('nid-monitor-document');
+  }, [route]);
   const [AdminComponent, setAdminComponent] = useState(null);
   const [CommerceComponent, setCommerceComponent] = useState(null);
   const [PublicComponent, setPublicComponent] = useState(null);
