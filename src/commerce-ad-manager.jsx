@@ -120,12 +120,12 @@ function DetailRow({label,value,description}){
     <strong>{value}</strong>
   </div>;
 }
-function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,zeroFilter,onClose}){
+function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,zeroFilter,onClose,hasShopeeAds=false,initialTab='summary'}){
   const [months,setMonths]=useState(null);
   const [modelHistory,setModelHistory]=useState(null);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
-  const [activeTab,setActiveTab]=useState('summary');
+  const [activeTab,setActiveTab]=useState(initialTab);
   const [trafficOpen,setTrafficOpen]=useState(false);
   const [finance,setFinance]=useState(null);
   const [financeLoading,setFinanceLoading]=useState(false);
@@ -214,6 +214,8 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
   const trendPct=detail?.identified_growth_pct;
   const trendLabel=trendPct==null?'Sem base comparável':
     (Number(trendPct)>0?'+':'')+num(Number(trendPct))+'%';
+  const detailTabs=hasShopeeAds&&item.source==='SHOPEE'
+    ?[...DETAIL_TABS,['shopee_ads','Shopee Ads']]:DETAIL_TABS;
   return <aside className="nim-detail" aria-label={'Detalhes do anúncio '+item.external_listing_id}>
     <header className="nim-detail-header">
       <div className="nim-detail-title"><h3>{item.title}</h3>
@@ -269,15 +271,29 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
       {pending&&!partialLinked&&!periodLoading&&!periodError&&<p className="nim-detail-pending">Dados de vendas ainda não consolidados para {periodLabel(detailDays,month)}. Valores desconhecidos não são zero.</p>}
       {partialLinked&&<p className="nim-detail-pending">Valores comprovadamente vinculados a este anúncio. Outros registros históricos podem permanecer sem associação; esse subtotal não comprova o faturamento total.</p>}
     </section>
-    {item.source==='SHOPEE'&&<CommerceShopeeAdsSummary listingId={item.id}/>}
-    <div className="nim-detail-tab-list" role="tablist" aria-label="Informações do anúncio">
-      {DETAIL_TABS.map(([code,label])=><button
+    <div className={'nim-detail-tab-list'+(hasShopeeAds&&item.source==='SHOPEE'?' has-shopee-ads':'')}
+      role="tablist" aria-label="Informações do anúncio">
+      {detailTabs.map(([code,label])=><button
         key={code} id={'nim-detail-tab-'+code} type="button" role="tab"
         aria-selected={activeTab===code} aria-controls={'nim-detail-panel-'+code}
         className={activeTab===code?'active':''} onClick={()=>setActiveTab(code)}>{label}</button>)}
     </div>
     <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
       aria-labelledby={'nim-detail-tab-'+activeTab}>
+      {activeTab==='shopee_ads'&&hasShopeeAds&&item.source==='SHOPEE'&&<>
+        <CommerceShopeeAdsSummary listingId={item.id}/>
+        <div className="nim-detail-traffic-collapsed">
+          <button type="button" aria-expanded={trafficOpen}
+            aria-controls="nim-detail-shopee-ads-traffic"
+            onClick={()=>setTrafficOpen(open=>!open)}>
+            Métricas adicionais de tráfego <span aria-hidden="true">{trafficOpen?'−':'+'}</span>
+          </button>
+          {trafficOpen&&<div id="nim-detail-shopee-ads-traffic">
+            <p className="nim-detail-hint">Dados de outros relatórios por janela exata. Os anúncios CPC importados não informam visitas orgânicas e não são rateados por período.</p>
+            <CommerceTrafficMetrics listingId={item.id} start={selectedPeriodStart} end={selectedPeriodEnd}/>
+          </div>}
+        </div>
+      </>}
       {activeTab==='summary'&&<>
         <div className="nim-detail-section-title"><h4>Evolução de vendas</h4>
           <small>{historicalByModel?'Histórico mensal do modelo':'Histórico mensal das vendas identificadas'}</small></div>
@@ -305,7 +321,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
             ?num(variationEvidence.identified)+' de '+num(item.total_variations)+' variações com unidades identificadas. Consulte a aba Variações para ver cada quantidade.'
             :'Ainda não há vendas individuais vinculadas com segurança para este período; a ausência de vínculo não significa zero vendas.'}</p>}
 
-        <div className="nim-detail-traffic-collapsed">
+        {!(hasShopeeAds&&item.source==='SHOPEE')&&<div className="nim-detail-traffic-collapsed">
           <button type="button" aria-expanded={trafficOpen}
             aria-controls="nim-detail-traffic-metrics"
             onClick={()=>setTrafficOpen(open=>!open)}>
@@ -315,7 +331,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
             <CommerceTrafficMetrics listingId={item.id}
               start={selectedPeriodStart} end={selectedPeriodEnd}/>
           </div>}
-        </div>
+        </div>}
       </>}
       {activeTab==='finance'&&<>
         <div className="nim-detail-section-title"><h4>Resultado financeiro</h4><small>{periodLabel(detailDays,month)}</small></div>
@@ -429,6 +445,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [size,setSize]=useState(20);
   const [refresh,setRefresh]=useState(0);
   const [selectedId,setSelectedId]=useState(null);
+  const [selectedTab,setSelectedTab]=useState('summary');
+  const [adsCoverage,setAdsCoverage]=useState({state:'idle',listingIds:[]});
   const [data,setData]=useState(null);
   const lastSuccessfulRequest=useRef(null);
   const [monthly,setMonthly]=useState(null);
@@ -553,6 +571,22 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   };
   const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0;
   const rows=Array.isArray(data?.items)?data.items:[];
+  useEffect(()=>{
+    const controller=new AbortController();
+    const shopeeIds=(Array.isArray(data?.items)?data.items:[])
+      .filter(item=>item.source==='SHOPEE'&&Number.isSafeInteger(Number(item.id))&&Number(item.id)>0)
+      .map(item=>Number(item.id));
+    setAdsCoverage({state:shopeeIds.length?'loading':'ready',listingIds:[]});
+    if(!shopeeIds.length)return ()=>controller.abort();
+    readJson(API+'/shopee-ads/coverage?ids='+shopeeIds.join(','),{signal:controller.signal})
+      .then(result=>{if(!controller.signal.aborted)setAdsCoverage({
+        state:'ready',listingIds:Array.isArray(result?.listing_ids)?result.listing_ids:[]
+      });})
+      .catch(()=>{if(!controller.signal.aborted)setAdsCoverage({state:'error',listingIds:[]});});
+    return ()=>controller.abort();
+  },[data?.items]);
+  const hasShopeeAds=id=>adsCoverage.state==='ready'&&adsCoverage.listingIds.includes(Number(id));
+  const openListing=(id,tab='summary')=>{setSelectedTab(tab);setSelectedId(id);};
   const total=Number(data?.total||0);
   const pages=Math.max(1,Math.ceil(total/size));
   const page=Math.floor(offset/size)+1;
@@ -799,12 +833,16 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             {!loading&&rows.map((item,index)=>{
               const linked=listingLinkedSalesForPeriod(item,days);
               return <tr key={item.id} data-nim-row style={{'--nim-order':Math.min(index,6)}} className={selectedId===item.id?'selected':''}
-              onClick={()=>setSelectedId(item.id)} title="Abrir detalhes do anúncio">
+              onClick={()=>openListing(item.id)} title="Abrir detalhes do anúncio">
               <td data-label="Plataforma"><PlatformLabel item={item}/></td>
               <td data-label="Anúncio"><strong className="nim-ad-name">{item.title}</strong>
                 <small className="nim-ad-id">{item.external_listing_id}</small>
                 <button type="button" className="nim-row-open" aria-label={'Abrir detalhes do anúncio '+item.external_listing_id}
-                  onClick={event=>{event.stopPropagation();setSelectedId(item.id);}}>Ver detalhes →</button></td>
+                  onClick={event=>{event.stopPropagation();openListing(item.id);}}>Ver detalhes →</button>
+                 {item.source==='SHOPEE'&&hasShopeeAds(item.id)&&<button type="button"
+                   className="nim-row-ads" aria-label={'Consultar Shopee Ads do anúncio '+item.external_listing_id}
+                   onClick={event=>{event.stopPropagation();openListing(item.id,'shopee_ads');}}>
+                   Shopee Ads ↗</button>}</td>
               <td data-label="Unidades" className="nim-units">{item.ready?num(item.units):linked.hasSales?num(linked.units):'—'}</td>
               <td data-label="Variações"><span className="nim-variations-cell">{item.total_variations?num(item.total_variations)+' variações':'Sem variações'}
                 <VariationSalesEvidence item={item} days={days} partial={hasShopeePartial&&item.source==='SHOPEE'}/>
@@ -827,7 +865,9 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             <button type="button" disabled={loading||offset+size>=total} onClick={()=>setOffset(v=>v+size)}>Próxima</button></div>
         </footer>
       </section>
-      {selected&&<ListingDetail key={[selected.id,days,month].join(':')} item={selected} days={days} month={month}
+      {selected&&<ListingDetail key={[selected.id,days,month,selectedTab].join(':')}
+        item={selected} days={days} month={month}
+        hasShopeeAds={hasShopeeAds(selected.id)} initialTab={selectedTab==='shopee_ads'&&hasShopeeAds(selected.id)?'shopee_ads':'summary'}
         periodStart={data?.period_start} periodEnd={data?.period_end}
         importedThrough={data?.imported_month?.period_end||data?.data_through}
         zeroFilter={status==='ZERO'} onClose={()=>setSelectedId(null)}/>}

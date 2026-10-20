@@ -68,7 +68,7 @@ test('o layout usa painel amplo, cartões e hierarquia responsiva',()=>{
 
 test('detalhe compacto não inclui diagnóstico e oferece tráfego somente quando solicitado',()=>{
   assert.doesNotMatch(details,/ListingDiagnosisPanel|activeTab==='diagnosis'|\['diagnosis','Diagnóstico'\]/);
-  assert.match(details,/useState\('summary'\)/);
+  assert.match(details,/useState\(initialTab\)/);
   assert.match(details,/aria-expanded=\{trafficOpen\}/);
   assert.match(details,/trafficOpen&&<div id="nim-detail-traffic-metrics">/);
   assert.match(details,/CommerceTrafficMetrics listingId=\{item\.id\}/);

@@ -235,6 +235,17 @@ export async function commerceImportShopeeAdsReport(env,input={}) {
     p_report:report,p_rows:rows
   },{timeoutMs:20000});
 }
+export async function commerceShopeeAdsCoverage(env,ids=[]) {
+  if(!Array.isArray(ids)||ids.length<1||ids.length>50||
+    ids.some(id=>!Number.isSafeInteger(Number(id))||Number(id)<1)) {
+    throw new Error('IDs de anúncios inválidos para consulta Shopee Ads.');
+  }
+  const result=await supabaseRpc(env,'commerce_shopee_ads_coverage_v1',{
+    p_listing_ids:ids.map(Number)
+  },{timeoutMs:9000});
+  return {listing_ids:Array.isArray(result)?result.map(Number):[]};
+}
+
 export async function commerceShopeeAdsListing(env,listingId) {
   const id=cleanId(listingId);
   if(!id)throw new Error('ID do anúncio inválido.');

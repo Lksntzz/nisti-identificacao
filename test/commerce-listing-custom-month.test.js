@@ -60,7 +60,7 @@ test('detalhes com filtro mensal nunca trocam outubro por janela de 60 dias',()=
   assert.match(jsx,/if\(detailDays===days\)\{setPeriodError\(''\);setPeriodLoading\(false\);return;\}/);
   assert.match(jsx,/if\(detailDays===0 && month\)params\.set\('month',month\)/);
   assert.match(jsx,/const detail=detailDays===days\?item/);
-  assert.match(jsx,/key=\{\[selected\.id,days,month\]\.join\(':'\)\}/);
+  assert.match(jsx,/key=\{\[selected\.id,days,month,selectedTab\]\.join\(':'\)\}/);
 });
 
 test('comparações de 7, 30, 60 e 90 dias continuam disponíveis fora do mês personalizado',()=>{

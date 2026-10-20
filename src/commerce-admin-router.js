@@ -37,6 +37,7 @@ import {
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
   commerceShopeeAdsListing,
+  commerceShopeeAdsCoverage,
   commerceSaveListingTraffic,
   commerceShopeeUnlinkedSales,
   commerceShopeeSkuReconciliationQueue,
@@ -371,6 +372,15 @@ export async function handleCommerceAdminRequest(request, env) {
         &&/^[a-f0-9]{64}$/.test(String(report.sha256||''));
       if(!allowed)return json({error:'Origem Shopee Ads inválida.'},400);
       return json(await commerceImportShopeeAdsReport(env,body));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/shopee-ads/coverage'){
+      const raw=String(query(url,'ids')||'');
+      if(!/^[1-9]\d*(?:,[1-9]\d*){0,49}$/.test(raw) || raw.length>800)
+        return json({error:'Lista de anúncios Shopee Ads inválida.'},400);
+      const ids=raw.split(',').map(Number);
+      if(ids.some(id=>!Number.isSafeInteger(id))||new Set(ids).size!==ids.length)
+        return json({error:'IDs de anúncios repetidos ou inválidos.'},400);
+      return json(await commerceShopeeAdsCoverage(env,ids));
     }
     const adsListing=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/shopee-ads$/);
     if(method==='GET'&&adsListing)
