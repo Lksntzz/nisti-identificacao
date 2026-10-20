@@ -16,6 +16,11 @@ const LOGIN_CSRF_COOKIE = '__Host-nisti_login_csrf';
 const SESSION_SECONDS = 60 * 60 * 12;
 const ADMIN_APP_PATH = '/admin';
 const COMMERCE_ADMIN_APP_PATH = '/admin-commerce';
+const EXPEDITION_DISPATCH_ADMIN_PATH = '/painel-expedicao';
+// Apenas destinos administrativos conhecidos; nunca redirecionar para URL informada pelo cliente.
+function adminLoginTarget(value){
+  return value === EXPEDITION_DISPATCH_ADMIN_PATH ? EXPEDITION_DISPATCH_ADMIN_PATH : ADMIN_APP_PATH;
+}
 const MUTATING_METHODS = new Set(['POST','PUT','PATCH','DELETE']);
 const LOGIN_FAILURE_DELAY_MS = 275;
 const OPERATOR_COOKIE_NAME = 'nisti_operator_session';
@@ -199,7 +204,7 @@ function attachOperatorCookie(response,setCookie) {
   return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
 
-function loginPage(message = '', csrfToken = '') {
+function loginPage(message = '', csrfToken = '', returnPath = ADMIN_APP_PATH) {
   // This page is served directly by the Worker, before loading the React app.
   // Keep it self-contained: no CDN, no client-side authentication logic.
   const safe = String(message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -320,6 +325,7 @@ function loginPage(message = '', csrfToken = '') {
     ${safe ? `<div class="error" role="alert">${safe}</div>` : ''}
     <form method="post" action="/admin-login">
       <input type="hidden" name="csrf_token" value="${csrfToken}">
+      <input type="hidden" name="return_to" value="${adminLoginTarget(returnPath)}">
       <label class="form-label" for="admin-password">Senha administrativa</label>
       <input class="password" id="admin-password" type="password" name="password"
         required autocomplete="current-password" autocapitalize="off"
@@ -349,9 +355,10 @@ async function validLoginCsrf(request) {
   const form=await request.clone().formData().catch(()=>null);
   return Boolean(form && await secureEqualText(String(form.get('csrf_token')||''),cookie));
 }
-function loginHtml(request,message='',status=200) {
+function loginHtml(request,message='',status=200,returnPath='') {
   const token=loginCsrfTokenFromCookie(request)||newLoginCsrfToken();
-  const response=html(loginPage(message,token),status);
+  const destination=adminLoginTarget(returnPath||new URL(request.url).searchParams.get('return_to'));
+  const response=html(loginPage(message,token,destination),status);
   response.headers.append('set-cookie',loginCsrfCookie(token));
   return withSecurityHeaders(response);
 }
@@ -476,8 +483,8 @@ function withSecurityHeaders(response) {
   });
 }
 
-function delayedLoginFailure(request, message, status = 401) {
-  return new Promise(resolve => setTimeout(() => resolve(loginHtml(request,message,status)), LOGIN_FAILURE_DELAY_MS));
+function delayedLoginFailure(request, message, status = 401, returnPath = '') {
+  return new Promise(resolve => setTimeout(() => resolve(loginHtml(request,message,status,returnPath)), LOGIN_FAILURE_DELAY_MS));
 }
 
 function isProtectedApi(pathname) {
@@ -488,7 +495,11 @@ function isProtectedApi(pathname) {
 }
 
 async function serveProtectedAdminApp(request, env, url) {
-  if (!(await validSession(request, env))) return withSecurityHeaders(Response.redirect(new URL('/admin-login', url), 302));
+  if (!(await validSession(request, env))) {
+    const loginUrl=new URL('/admin-login',url);
+    if(url.pathname===EXPEDITION_DISPATCH_ADMIN_PATH)loginUrl.searchParams.set('return_to',EXPEDITION_DISPATCH_ADMIN_PATH);
+    return withSecurityHeaders(Response.redirect(loginUrl, 302));
+  }
   const response=await env.ASSETS.fetch(new Request(new URL('/', url), { headers: request.headers }));
   const headers=new Headers(response.headers);
   headers.set('cache-control','no-store, private');
@@ -517,7 +528,8 @@ export default {
       }
       if (pathname === '/admin' || pathname.startsWith('/admin/')
         || pathname === '/admin-login' || pathname === '/admin-logout'
-        || pathname === '/admin-commerce' || pathname.startsWith('/admin-commerce/')) {
+        || pathname === '/admin-commerce' || pathname.startsWith('/admin-commerce/')
+         || pathname === EXPEDITION_DISPATCH_ADMIN_PATH) {
         return withSecurityHeaders(json({error:'Esta URL é exclusiva do Mural NISTI.'},404));
       }
       if (request.method === 'GET' && (pathname === '/mural' || pathname === '/index.html')) {
@@ -549,7 +561,7 @@ export default {
       return withSecurityHeaders(Response.redirect(new URL(ADMIN_APP_PATH, url), 302));
     }
 
-    if ((pathname === ADMIN_APP_PATH || pathname === COMMERCE_ADMIN_APP_PATH) && request.method === 'GET') {
+    if ((pathname === ADMIN_APP_PATH || pathname === COMMERCE_ADMIN_APP_PATH || pathname === EXPEDITION_DISPATCH_ADMIN_PATH) && request.method === 'GET') {
       return serveProtectedAdminApp(request, env, url);
     }
 
@@ -567,7 +579,7 @@ export default {
     if (rateLimitResponse) return rateLimitResponse;
 
     if (pathname === '/admin-login' && request.method === 'GET') {
-      if (await validSession(request, env)) return withSecurityHeaders(Response.redirect(new URL(ADMIN_APP_PATH, url), 302));
+      if (await validSession(request, env)) return withSecurityHeaders(Response.redirect(new URL(adminLoginTarget(url.searchParams.get('return_to')), url), 302));
       return loginHtml(request,env.ADMIN_PASSWORD ? '' : 'A administração ainda não foi ativada. Configure o segredo ADMIN_PASSWORD no Cloudflare.');
     }
 
@@ -576,9 +588,10 @@ export default {
       if (!configured) return loginHtml(request,'A administração está bloqueada até o segredo ADMIN_PASSWORD ser configurado no Cloudflare.',503);
       const form = await request.formData();
       const supplied = String(form.get('password') || '');
-      if (!supplied || !(await secureEqualText(supplied, configured))) return delayedLoginFailure(request,'Senha incorreta.',401);
+      const destination=adminLoginTarget(form.get('return_to'));
+      if (!supplied || !(await secureEqualText(supplied, configured))) return delayedLoginFailure(request,'Senha incorreta.',401,destination);
       const token = await createSession(sessionSigningSecret(env));
-      return withSecurityHeaders(new Response(null, { status: 302, headers: { location: ADMIN_APP_PATH, 'set-cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`, 'cache-control': 'no-store' } }));
+      return withSecurityHeaders(new Response(null, { status: 302, headers: { location: destination, 'set-cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`, 'cache-control': 'no-store' } }));
     }
 
     if (pathname === '/admin-logout') {
