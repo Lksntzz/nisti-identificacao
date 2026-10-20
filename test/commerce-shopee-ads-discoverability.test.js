@@ -18,6 +18,7 @@ test('Shopee Ads is a conditional fifth tab placed after Pós-venda',()=>{
   assert.match(detail,/\{detailTabs.map\(\(\[code,label\]\)/);
   assert.match(detail,/activeTab==='shopee_ads'&&hasShopeeAds&&item.source==='SHOPEE'/);
   assert.match(detail,/CommerceShopeeAdsSummary listingId=\{item.id\}/);
+  assert.match(detail,/periodStart=\{periodStart\} periodEnd=\{periodEnd\}/);
   assert.match(css,/\.nim-detail-tab-list\.has-shopee-ads\{grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
   assert.doesNotMatch(detail,/\{item.source==='SHOPEE'&&<CommerceShopeeAdsSummary listingId=\{item.id\}\/>\}/);
 });
