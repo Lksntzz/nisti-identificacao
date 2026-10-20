@@ -5,36 +5,11 @@ import { DISPATCH_PLATFORMS,dispatchOptionValid } from './notification-dispatch-
 export const DISPATCH_DURATION_SECONDS=15;
 export { DISPATCH_PLATFORMS } from './notification-dispatch-options.js';
 export const DISPATCH_ACTION='RETIRAR_CAPA';
-const MONITOR_COOKIE='__Host-nisti_dispatch_monitor';
-const MONITOR_COOKIE_AGE=60*60*24*180;
-const MONITOR_PAIR_COOKIE='__Host-nisti_dispatch_pair';
-const MONITOR_PAIR_AGE=60*10;
-const PAIR_COOKIE_FLAGS='; Path=/; HttpOnly; Secure; SameSite=Strict';
-
 function json(value,status=200,headers={}) {
   return new Response(JSON.stringify(value),{status,headers:{
     'content-type':'application/json; charset=utf-8',
     'cache-control':'no-store, private',...headers
   }});
-}
-function readMonitorCookie(request,name) {
-  const cookies=String(request.headers.get('cookie')||'').split(';');
-  const part=cookies.find(x=>x.trim().startsWith(name+'='));
-  const key=part?.trim().slice(name.length+1)||'';
-  return /^[0-9a-f]{64}$/.test(key)?key:null;
-}
-function monitorKey(request) {return readMonitorCookie(request,MONITOR_COOKIE)}
-function pairKey(request) {return readMonitorCookie(request,MONITOR_PAIR_COOKIE)}
-function monitorCookie(key){return MONITOR_COOKIE+'='+key+PAIR_COOKIE_FLAGS+'; Max-Age='+MONITOR_COOKIE_AGE}
-function pairCookie(key){return MONITOR_PAIR_COOKIE+'='+key+PAIR_COOKIE_FLAGS+'; Max-Age='+MONITOR_PAIR_AGE}
-async function digest(value) {
-  const bytes=new TextEncoder().encode(value);
-  const hash=await crypto.subtle.digest('SHA-256',bytes);
-  return Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('');
-}
-function newMonitorKey() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(32)),
-    x=>x.toString(16).padStart(2,'0')).join('');
 }
 function validRequestKey(value) {
   return typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -46,32 +21,9 @@ function errorResponse(error) {
   if(message.includes('invalid_dispatch_batch'))return json({error:'Seleção ou mensagens inválidas.'},400);
   if(message.includes('dispatch_option_not_allowed')||message.includes('dispatch_options_invalid'))
     return json({error:'Modalidade inválida. Atualize a lista da plataforma.'},400);
-  if(message.includes('monitor_unauthorized'))return json({error:'Monitor desconectado. Solicite autorização no painel de notificações.'},401);
-  if(message.includes('monitor_pairing_busy'))return json({error:'Muitas solicitações aguardando. Tente novamente em alguns minutos.'},429);
-  if(message.includes('monitor_pairing_expired'))return json({error:'Solicitação expirada. Aguarde uma nova autorização.'},409);
   console.error('[NISTI Dispatch] Falha',error?.code||error?.name||'backend_error');
   return json({error:'Não foi possível acessar o serviço de notificações.'},503);
 }
-// URLs iniciais do Quiosque são independentes da sessão InPrivate do navegador.
-// O Worker valida a credencial e faz redirecionamento sem exibir o segredo.
-export async function activateDispatchMonitorLink(request,env){
-  const url=new URL(request.url);
-  if(request.method!=='GET'||url.pathname!=='/monitor-notificacoes'||!url.searchParams.has('acesso'))return null;
-  const keys=url.searchParams.getAll('acesso');
-  const key=keys.length===1?String(keys[0]||'').trim().toLowerCase():'';
-  const security={'cache-control':'no-store, private','referrer-policy':'no-referrer','x-robots-tag':'noindex, nofollow'};
-  const invalid=(status,message)=>new Response(`<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Monitor NISTI</title></head><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1326;color:white;font:16px system-ui"><main style="max-width:560px;padding:30px;text-align:center"><h1>Monitor NISTI</h1><p>${message}</p><p>Abra o painel ADM → Comunicação → Notificações da Expedição para gerar outro link privado.</p></main></body></html>`,{status,headers:{...security,'content-type':'text/html; charset=utf-8'}});
-  if(!/^[0-9a-f]{64}$/.test(key))return invalid(400,'O link configurado no Quiosque está incompleto ou inválido.');
-  try{
-    const valid=await supabaseRpc(env,'nisti_dispatch_monitor_valid_v1',{p_digest:await digest(key)});
-    if(valid!==true)return invalid(401,'Este link não está mais autorizado.');
-    return new Response(null,{status:303,headers:{...security,location:'/monitor-notificacoes','set-cookie':monitorCookie(key)}});
-  }catch(error){
-    console.error('[NISTI Dispatch] Falha ao ativar monitor por link',error?.code||error?.name||'backend_error');
-    return invalid(503,'O servidor de notificações está temporariamente indisponível. Tente reiniciar a tela em instantes.');
-  }
-}
-
 export async function handleNotificationDispatchRequest(request,env) {
   const path=new URL(request.url).pathname;
   if(!path.startsWith('/api/dispatch/') && !path.startsWith('/api/admin/dispatch'))return null;
@@ -140,56 +92,10 @@ export async function handleNotificationDispatchRequest(request,env) {
       const result=await supabaseRpc(env,'nisti_dispatch_enqueue_batch_v4',{p_calls:validated});
       return json({ok:true,...result},201);
     }
-    if(path==='/api/admin/dispatch/pair/pending'&&request.method==='GET') {
-      const requests=await supabaseRpc(env,'nisti_dispatch_pair_pending_v5',{});
-      return json({ok:true,requests:Array.isArray(requests)?requests:[]});
-    }
-    if(path==='/api/admin/dispatch/pair/approve'&&request.method==='POST') {
-      const body=await request.json().catch(()=>null);
-      const id=String(body?.id||'');
-      if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
-        return json({error:'Solicitação inválida.'},400);
-      await supabaseRpc(env,'nisti_dispatch_approve_pair_v5',{p_id:id});
-      return json({ok:true});
-    }
-    if(path==='/api/dispatch/pair/request'&&request.method==='POST') {
-      const existing=pairKey(request);
-      if(existing) {
-        const state=await supabaseRpc(env,'nisti_dispatch_pair_status_v5',{p_digest:await digest(existing)});
-        if(state?.status==='PENDING')return json({ok:true,...state});
-        if(state?.status==='APPROVED')
-          return json({ok:true,...state},200,{'set-cookie':monitorCookie(existing)});
-      }
-      const secret=newMonitorKey();
-      const state=await supabaseRpc(env,'nisti_dispatch_request_pair_v5',{p_digest:await digest(secret)});
-      return json({ok:true,...state},201,{'set-cookie':pairCookie(secret)});
-    }
-    if(path==='/api/dispatch/pair/status'&&request.method==='POST') {
-      const secret=pairKey(request);
-      if(!secret)return json({error:'Solicitação não iniciada.'},401);
-      const state=await supabaseRpc(env,'nisti_dispatch_pair_status_v5',{p_digest:await digest(secret)});
-      if(!state||state.status==='EXPIRED')return json({error:'Solicitação expirada.'},401);
-      if(state.status==='APPROVED')
-        return json({ok:true,...state},200,{'set-cookie':monitorCookie(secret)});
-      return json({ok:true,...state});
-    }
-    if(path==='/api/admin/dispatch/monitor-key'&&request.method==='POST') {
-      const key=newMonitorKey();
-      await supabaseRpc(env,'nisti_dispatch_pair_monitor_v1',{p_digest:await digest(key)});
-      return json({ok:true,key,monitor_url:'/monitor-notificacoes'},201);
-    }
-    if(path==='/api/dispatch/activate'&&request.method==='POST') {
-      const body=await request.json().catch(()=>null);
-      const key=String(body?.key||'').trim().toLowerCase();
-      if(!/^[0-9a-f]{64}$/.test(key))return json({error:'Chave de monitor inválida.'},401);
-      const valid=await supabaseRpc(env,'nisti_dispatch_monitor_valid_v1',{p_digest:await digest(key)});
-      if(valid!==true)return json({error:'Chave não autorizada ou substituída.'},401);
-      return json({ok:true},200,{'set-cookie':monitorCookie(key)});
-    }
-    if(path==='/api/dispatch/next'&&request.method==='POST') {
-      const key=monitorKey(request);
-      if(!key)return json({error:'Ative o monitor com a chave da administração.'},401);
-      const data=await supabaseRpc(env,'nisti_dispatch_next_v1',{p_digest:await digest(key)});
+    // A consulta de exibição é pública. O servidor controla a fila de 15s;
+    // esta rota NÃO permite enviar, editar, aprovar ou administrar notificações.
+    if(path==='/api/dispatch/view'&&request.method==='POST') {
+      const data=await supabaseRpc(env,'nisti_dispatch_public_next_v6',{});
       return json({ok:true,...data});
     }
     return json({error:'Rota ou método não permitido.'},405,{'allow':'GET, POST'});

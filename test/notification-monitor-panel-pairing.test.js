@@ -1,93 +1,57 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {handleNotificationDispatchRequest,activateDispatchMonitorLink} from '../src/notification-dispatch-router.js';
+import {handleNotificationDispatchRequest} from '../src/notification-dispatch-router.js';
 
 const source=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 
-test('anonymous client cannot read pairing state without browser-bound cookie',async()=>{
-  const response=await handleNotificationDispatchRequest(
-    new Request('https://example.com/api/dispatch/pair/status',{method:'POST'}),{}
-  );
-  assert.equal(response.status,401);
-});
-
-test('admin approval rejects forged or missing request ids before touching storage',async()=>{
-  for(const id of ['',123,'abc','f'.repeat(128)]){
-    const response=await handleNotificationDispatchRequest(
-      new Request('https://example.com/api/admin/dispatch/pair/approve',{
-        method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({id})
-      }),{}
-    );
-    assert.equal(response.status,400);
-  }
-});
-
-test('monitor pairing cannot access the queue without a monitor credential',async()=>{
-  const response=await handleNotificationDispatchRequest(
-    new Request('https://example.com/api/dispatch/next',{
-      method:'POST',headers:{cookie:'__Host-nisti_dispatch_pair='+'1'.repeat(64)}
-    }),{}
-  );
-  assert.equal(response.status,401);
-});
-
-test('approval is server-controlled, preserves RLS and requires a pending unexpired request',()=>{
-  const sql=source('../supabase/migrations/20261021232000_nisti_dispatch_panel_pairing_v5.sql');
-  assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
-  assert.match(sql,/REVOKE ALL ON TABLE public\.nisti_dispatch_pair_requests FROM PUBLIC,anon,authenticated/);
-  assert.match(sql,/WHERE id=p_id AND state='PENDING' AND expires_at>clock_timestamp\(\)/);
-  assert.match(sql,/key_digest=excluded\.key_digest/);
-  assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.nisti_dispatch_approve_pair_v5\(uuid\) TO service_role/);
-});
-
-test('monitor has no manual key entry, and admin has explicit approval control',()=>{
+test('dedicated monitor loads directly without key, cookie, PIN or approval',()=>{
   const monitor=source('../src/notification-monitor.jsx');
-  const admin=source('../src/admin/NotificationDispatchView.jsx');
   const edge=source('../src/edge-router.js');
-  assert.match(monitor,/Aguardando autorização/);
-  assert.match(monitor,/api\/dispatch\/pair\/status/);
-  assert.doesNotMatch(monitor,/nid-monitor-key/);
-  assert.match(admin,/api\/admin\/dispatch\/pair\/approve/);
-  assert.match(admin,/Ativar monitor/);
-  assert.match(admin,/item\.code/);
+  assert.match(monitor,/post\('\/api\/dispatch\/view'\)/);
+  assert.match(monitor,/Aguardando solicitações/);
+  assert.doesNotMatch(monitor,/Aguardando autorização|nid-monitor-key|pairCode|pairedRef|startupPendingRef/);
+  assert.doesNotMatch(monitor,/api\/dispatch\/(?:activate|next|pair)/);
+  assert.match(edge,/pathname==='\/monitor-notificacoes'/);
+  assert.doesNotMatch(edge,/activateDispatchMonitorLink/);
+  assert.match(edge,/url\.searchParams\.has\('acesso'\)/);
+});
+
+test('admin exposes only the stable public monitor URL, not pairing controls',()=>{
+  const admin=source('../src/admin/NotificationDispatchView.jsx');
+  assert.match(admin,/Acesso direto ao monitor/);
+  assert.match(admin,/id="nid-monitor-public-url"/);
+  assert.doesNotMatch(admin,/approvePair|pairing|pendingMonitors|monitor-key|permanentLink/);
+  const edge=source('../src/edge-router.js');
   assert.match(edge,/isProtectedApi\(pathname\)/);
+  const router=source('../src/notification-dispatch-router.js');
+  assert.match(router,/nisti_dispatch_public_next_v6/);
+  assert.doesNotMatch(router,/nisti_dispatch_pair_monitor_v1|nisti_dispatch_approve_pair_v5/);
 });
 
-
-test('kiosk uses a private revocable URL to activate its monitor session automatically',async()=>{
-  const monitor=source('../src/notification-monitor.jsx');
-  const admin=source('../src/admin/NotificationDispatchView.jsx');
-  assert.match(monitor, /#acesso=\(\[0-9a-f\]\{64\}\)/i);
-  assert.match(monitor, /window\.history\.replaceState/);
-  assert.match(monitor, /api\/dispatch\/activate/);
-  assert.match(monitor, /startupPendingRef\.current\|\|pollingRef\.current/);
-  assert.match(admin, /Gerar link privado permanente/);
-  assert.match(admin, /api\/admin\/dispatch\/monitor-key/);
-  assert.match(admin, /navigator\.clipboard\.writeText\(permanentLink\)/);
-  const response=await handleNotificationDispatchRequest(new Request('https://example.com/api/dispatch/activate',{
-    method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:'invalid'})
-  }),{});
-  assert.equal(response.status,401);
+test('public feed retains server-owned 15-second FIFO and service-role-only database access',()=>{
+  const sql=source('../supabase/migrations/20261021233000_nisti_dispatch_public_monitor_v6.sql');
+  assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
+  assert.match(sql,/REVOKE ALL ON TABLE public\.nisti_dispatch_public_monitor FROM PUBLIC, anon, authenticated/);
+  assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.nisti_dispatch_public_next_v6\(\) TO service_role/);
+  assert.match(sql,/pg_advisory_xact_lock\(2026,1020\)/);
+  assert.match(sql,/interval '15 seconds'/);
+  assert.match(sql,/ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED/);
+  assert.match(sql,/last_seen_at/);
 });
 
-test('kiosk link validation remains server-side and malformed links receive a visible error page',async()=>{
-  assert.equal(await activateDispatchMonitorLink(new Request('https://example.com/monitor-notificacoes'),{}),null);
-  for(const url of ['https://example.com/monitor-notificacoes?acesso=invalid',
-    'https://example.com/monitor-notificacoes?acesso=invalid&acesso=other']){
-    const response=await activateDispatchMonitorLink(new Request(url),{});
-    assert.equal(response.status,400);
-    assert.match(await response.text(),/link configurado no Quiosque/);
-    assert.equal(response.headers.get('cache-control'),'no-store, private');
-    assert.equal(response.headers.get('referrer-policy'),'no-referrer');
+test('legacy monitor activation routes remain disabled and admin sending remains validated',async()=>{
+  for(const path of ['/api/dispatch/next','/api/dispatch/activate',
+    '/api/dispatch/pair/request','/api/admin/dispatch/monitor-key']){
+    const response=await handleNotificationDispatchRequest(
+      new Request('https://example.com'+path,{method:'POST'}),{}
+    );
+    assert.equal(response.status,405,path);
   }
-  const edge=source('../src/edge-router.js');
-  assert.match(edge,/activateDispatchMonitorLink\(request,env\)/);
-  const admin=source('../src/admin/NotificationDispatchView.jsx');
-  assert.match(admin,/url\.searchParams\.set\('acesso',data\.key\)/);
-  const fallback=source('../index.html');
-  assert.match(fallback,/Carregando NISTI/);
-  const entry=source('../src/entry.jsx');
-  assert.match(entry,/MonitorErrorBoundary/);
+  const invalid=await handleNotificationDispatchRequest(
+    new Request('https://example.com/api/admin/dispatch',{method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({platform:'INVALID',action:'RETIRAR_CAPA',request_key:crypto.randomUUID()})}),{}
+  );
+  assert.equal(invalid.status,400);
 });

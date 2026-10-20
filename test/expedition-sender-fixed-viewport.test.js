@@ -35,7 +35,7 @@ test('preview and history scroll internally only when there are too many rows',(
 });
 
 test('sender has personalization without monitor configuration or ADM navigation',()=>{
-  assert.match(view,/!senderMode&&<button type="button" className="nid-secondary nid-pair-link"/);
+  assert.match(view,/!senderMode&&<a href="\/monitor-notificacoes" target="_blank"/);
   assert.match(view,/tab==='settings'&&<div/);
   assert.match(view,/!senderMode&&<div className="nid-panel nid-monitor-setup-panel"/);
   assert.match(css,/\.nid-expedition-standalone \.nid-sender-settings\s*\{[^}]*overflow-y:auto/s);

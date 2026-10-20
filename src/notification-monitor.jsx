@@ -30,16 +30,6 @@ export function dispatchDisplayParts(platform,message){
   return {headline:actual,detail:''};
 }
 export default function NotificationMonitor(){
-  // Link privado salvo como URL inicial do Quiosque: a credencial é reaplicada a cada sessão InPrivate.
-  // O fragmento não é enviado em HTTP; somente o POST de ativação recebe a credencial.
-  const startupKeyRef=useRef(null);
-  if(startupKeyRef.current===null){
-    const match=/^#acesso=([0-9a-f]{64})$/i.exec(window.location.hash);
-    startupKeyRef.current=match?match[1].toLowerCase():'';
-  }
-  const startupPendingRef=useRef(Boolean(startupKeyRef.current));
-  const [pairCode,setPairCode]=useState('');
-  const [paired,setPaired]=useState(null);
   const [call,setCall]=useState(null);
   const [pending,setPending]=useState(0);
   const [duration,setDuration]=useState(15);
@@ -51,21 +41,25 @@ export default function NotificationMonitor(){
   const audioRef=useRef(null);
   const lastBeepId=useRef(null);
   const pollingRef=useRef(false);
-  const pairedRef=useRef(null);
-  pairedRef.current=paired;
   const audioEnabledRef=useRef(false);
   const nextCallRef=useRef(null);
   const reloadPendingRef=useRef(false);
   const lastDispatchActivityRef=useRef(Date.now());
+  // Elimina fragmentos de links antigos. O monitor não utiliza mais credenciais.
+  useEffect(()=>{
+    if(/^#acesso=/i.test(window.location.hash)){
+      window.history.replaceState(window.history.state,'',window.location.pathname+window.location.search);
+    }
+  },[]);
   const play=useCallback((platform)=>{
     if(!audioEnabledRef.current)return false;
     return playNotificationSound(audioRef.current,platform);
   },[]);
   const poll=useCallback(async()=>{
-    if(startupPendingRef.current||pollingRef.current||pairedRef.current===false)return;
+    if(pollingRef.current)return;
     pollingRef.current=true;
     try{
-      const result=await post('/api/dispatch/next');
+      const result=await post('/api/dispatch/view');
       const incoming=result.call||null;
       const queued=Number(result.pending||0);
       const currentTime=Date.now();
@@ -74,7 +68,7 @@ export default function NotificationMonitor(){
       setCall(incoming);
       setPending(queued);
       setDuration(result.duration_seconds||15);
-      setPaired(true);setOnline(true);setError('');
+      setOnline(true);setError('');
       // Uma nova versão somente entra quando a fila estiver vazia e a tela ociosa.
       if(shouldReloadMonitor({
         updateReady:reloadPendingRef.current,online:true,paired:true,
@@ -86,35 +80,10 @@ export default function NotificationMonitor(){
       }
      }catch(e){
       setOnline(false);setCall(null);
-      if(e.status===401){pairedRef.current=false;setPaired(false);setPairCode('');}
       setError(e.message);
     }finally{pollingRef.current=false}
   },[]);
   nextCallRef.current=poll;
-  // A URL original continua configurada no Windows; a barra visível perde o fragmento
-  // imediatamente. Mesmo após reiniciar o Quiosque, o endereço inicial reaplica a autorização.
-  useEffect(()=>{
-    const key=startupKeyRef.current;
-    if(!key)return undefined;
-    window.history.replaceState(window.history.state,'',window.location.pathname+window.location.search);
-    let active=true;
-    post('/api/dispatch/activate',{key}).then(()=>{
-      if(!active)return;
-      pairedRef.current=true;
-      setPaired(true);
-      setError('');
-    }).catch(error=>{
-      if(!active)return;
-      pairedRef.current=false;
-      setPaired(false);
-      setError(error.message);
-    }).finally(()=>{
-      if(!active)return;
-      startupPendingRef.current=false;
-      nextCallRef.current?.();
-    });
-    return ()=>{active=false};
-  },[]);
   useEffect(()=>{
     nextCallRef.current?.();
     const timer=setInterval(()=>nextCallRef.current?.(),2000);
@@ -135,38 +104,6 @@ export default function NotificationMonitor(){
     const interval=setInterval(check,MONITOR_BUILD_CHECK_INTERVAL_MS);
     return ()=>{canceled=true;clearTimeout(initial);clearInterval(interval)};
   },[]);
-  // O monitor cria uma solicitação, mas a fila só é exibida após aprovação ADM.
-  useEffect(()=>{
-    if(paired!==false)return undefined;
-    let active=true;
-    let inFlight=false;
-    async function authorize(){
-      if(inFlight)return;
-      inFlight=true;
-      try{
-        let result;
-        try{result=await post('/api/dispatch/pair/status');}
-        catch(error){
-          if(error.status!==401)throw error;
-          result=await post('/api/dispatch/pair/request');
-        }
-        if(!active)return;
-        if(result.status==='APPROVED'){
-          pairedRef.current=true;
-          setPaired(true);setPairCode('');setError('');
-          nextCallRef.current?.();
-        }else{
-          setPairCode(result.code||'');
-          setError('');
-        }
-      }catch(error){
-        if(active)setError(error.message);
-      }finally{inFlight=false}
-    }
-    authorize();
-    const timer=setInterval(authorize,3000);
-    return ()=>{active=false;clearInterval(timer)};
-  },[paired]);
   async function enableAudio(){
     try{
       const ctx=audioRef.current;
@@ -232,20 +169,6 @@ export default function NotificationMonitor(){
   const current=seconds>0?call:null;
   const color=platformColor(current?.platform);
 
-
-  if(paired===false)return <main className="nid-monitor nid-setup">
-    <div className="nid-pairing-card">
-      <span className="nid-brand">NISTI <b>PRINT</b></span>
-      <div className="nid-pairing-mark"><DispatchIcon name="monitor" size={32}/></div>
-      <h1>Aguardando autorização</h1>
-      <p>No painel administrativo, entre em <strong>Comunicação → Notificações da Expedição → Configurar monitor</strong> e aprove a solicitação deste notebook.</p>
-      {pairCode?<div className="nid-pair-display" role="status">
-        <small>CONFIRA ESTE CÓDIGO NO PAINEL ADMINISTRATIVO</small>
-        <strong>{pairCode}</strong>
-      </div>:<p role="status">Conectando ao serviço de autorização…</p>}
-      {error&&<p className="nid-monitor-error" role="alert">{error}</p>}
-    </div>
-  </main>;
 
   const details=current?dispatchDisplayParts(current.platform,current.message):null;
   return <main className={'nid-monitor nid-monitor-v5 '+(current?'nid-monitor-'+color:'')} aria-label="Monitor NISTI Notificações">

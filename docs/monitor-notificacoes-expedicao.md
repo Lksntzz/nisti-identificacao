@@ -1,6 +1,6 @@
 # NISTI Notificações — computador do monitor
 
-A área de expedição usa um **monitor comum ligado por HDMI a um PC Windows ou mini PC**, com internet e alto-falantes (do monitor ou externos). O sistema fica na URL:
+A área de expedição usa um **notebook Windows**, com internet e alto-falantes, conectado ao monitor quando necessário. O sistema fica na URL:
 
 https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes
 
@@ -16,16 +16,14 @@ https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes
   apresenta apenas uma mensagem de acesso restrito.
   Esta tela exibe **Enviar notificações**, **Fila e histórico** e **Personalizar informações**.
   Os responsáveis pelo envio podem adicionar, remover e salvar modalidades por plataforma,
-  sem acesso à chave ou autorização do monitor, demais APIs administrativas ou catálogo.
+  sem acesso às APIs administrativas, ao envio fora do escopo autorizado ou ao catálogo.
 - **Configurações da expedição (ADM):** continuam protegidas por senha administrativa,
   em `/admin`, Comunicação → Notificações da Expedição. A edição das modalidades
-  também está disponível no painel de envio; o pareamento e a gestão das credenciais
-  do monitor permanecem exclusivos do ADM.
+  também está disponível no painel de envio. O monitor não usa pareamento nem credenciais.
 - **Monitor de exibição (notebook):**
   `https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes`
-  Exibe notificações e reproduz os alertas. A autorização é feita no painel
-  administrativo, por aprovação do código exibido no notebook. O navegador guarda
-  uma credencial exclusiva em cookie HttpOnly; ela não libera envio ou administração.
+  Exibe notificações e reproduz os alertas **sem login, chave, código ou aprovação**.
+  Apenas a visualização é pública; o envio e as ferramentas administrativas permanecem protegidos.
 
 A URL curta **/painel-expedicao** sozinha não concede acesso: precisa estar com
 a sessão ativada por link privado. O valor `DISPATCH_SENDER_TOKEN_SHA256` em `wrangler.toml` contém somente o
@@ -38,24 +36,23 @@ um novo deploy; os acessos anteriores deixarão de funcionar.
 Todas as telas compartilham a mesma fila no Supabase. Não há atualização do
 instalador Windows para este painel; ele é acessado pelo navegador.
 
-## Ativação do monitor pelo painel de notificações
+## Configuração do notebook em Modo Quiosque
 
-1. No notebook, abra `/monitor-notificacoes`. A tela exibirá **Aguardando autorização** e um código de seis caracteres.
-2. No painel ADM, abra **Comunicação → Notificações da Expedição → Personalizar informações → Conexão e ativação**.
-3. Confirme que o código exibido no painel coincide com o código do notebook e clique em **Ativar monitor**. Isso desconecta o monitor previamente autorizado.
-4. A tela do notebook começará a receber chamadas sem digitar nenhum segredo. Confira no rodapé **Som automático pronto** e envie uma notificação de teste.
+1. Nas configurações do Windows, selecione **Microsoft Edge → Quiosque como um sinal digital ou display interativo**.
+2. Na **URL do site**, informe `https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes`.
+3. Em **Reinicie o Microsoft Edge após a inatividade**, escolha **Nunca**.
+4. Salve e abra a conta Windows do Quiosque. A tela abrirá diretamente em **Aguardando solicitações**.
+5. Faça uma chamada de teste pelo painel de envio autorizado e confira a exibição e o áudio.
 
-A solicitação expira após 10 minutos. Se não aparecer no painel, aguarde até oito segundos para a atualização ou clique em **Atualizar**. Solicitações não aprovadas não podem ler a fila.
+**Não existe ativação nem aprovação de notebook.** As sessões InPrivate do Edge não
+atrapalham o funcionamento, pois a consulta de exibição não depende de cookie.
 
-## Link privado permanente para Modo Quiosque do Edge
-
-O Modo Quiosque do Edge usa InPrivate e apaga os cookies a cada encerramento. Para manter o monitor autorizado **sem aprovação repetida no painel ADM**, abra **Comunicação → Notificações da Expedição → Personalizar informações → Conexão e ativação → Gerar link privado permanente**. Copie o endereço inteiro, inclusive `#acesso=...`, e cole **uma única vez** na URL inicial do Quiosque configurada no Windows.
-
-O novo link contém `?acesso=...`. O Worker valida a credencial por HTTPS, cria um cookie HttpOnly/Secure/SameSite=Strict e redireciona imediatamente para `/monitor-notificacoes`, retirando o segredo da barra de endereço. Assim, a autenticação acontece antes de carregar os scripts do React e funciona mesmo com sessão InPrivate nova. O fragmento legado `#acesso=` continua aceito no frontend, mas use o link novo com `?acesso=` para maior compatibilidade com o Quiosque. O token pode constar na URL configurada no Windows e nos registros de requisições: proteja o notebook, o painel de administração e esses registros. O monitor continua consultando a fila com credenciais próprias, sem compartilhar a sessão administrativa.
-
-**Segurança:** o link é uma credencial secreta de leitura, exibida só ao ser gerada. Quem obtiver o link poderá visualizar as notificações. Não cole em conversas públicas, não compartilhe capturas nem abra em computadores de terceiros. Trate a URL configurada e eventuais logs de acesso como dados confidenciais. Gerar um novo link revoga o anterior e desconecta o monitor que o usava. Se a URL for perdida ou exposta, gere outra no ADM e atualize o endereço do Quiosque. O link não fornece acesso ao painel ADM nem à API de envio.
-
-Alternativa: use `scripts/abrir-monitor-nisti.cmd` com perfil Edge dedicado e persistente. Não habilite logon automático no Windows sem avaliar a segurança física.
+**Privacidade:** qualquer pessoa com a URL poderá acompanhar as chamadas operacionais.
+O endpoint público entrega somente a chamada atual e o tamanho da fila, sem
+permitir criar chamadas, alterar modalidades ou entrar no ADM. A primeira consulta
+de exibição inicia os 15 segundos da chamada pendente; múltiplas telas compartilham
+a mesma chamada e não a consomem repetidamente. Por isso, use o link somente
+nos dispositivos de operação que devem acompanhar as notificações.
 
 ## Som sem botão de ativação
 
@@ -72,13 +69,12 @@ Opção administrada sem argumento de execução: aplicar a política empresaria
 `AutoplayAllowlist` ao domínio do NISTI, conforme a documentação da Microsoft:
 https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies/autoplayallowlist
 
-## Por que não usar `msedge --kiosk` puro?
+## Modo Quiosque ou inicializador próprio?
 
-O modo quiosque do Edge é InPrivate: ao fechar a sessão, perde a credencial de
-monitor e será preciso **reautorizar pelo painel**, sem inserir chave. O launcher
-alternativo abre uma **janela de aplicativo com perfil persistente**, o que
-preserva a autorização e evita aprovação a cada inicialização. Não compartilhar
-esse perfil com outros computadores.
+O **Modo Quiosque** é compatível com a tela livre do NISTI; ao reiniciar,
+não será preciso autorizar novamente. O arquivo `abrir-monitor-nisti.cmd`
+continua sendo alternativa para abrir uma janela em tela cheia com
+política de áudio automático, caso o Edge do Quiosque bloqueie os sons.
 
 ## Operação
 
@@ -86,7 +82,7 @@ esse perfil com outros computadores.
 - Cada chamada aparece durante 15 segundos, sequencialmente, e some automaticamente.
 - Quando a conexão falha, o monitor indica desconexão; ao reconectar, busca o próximo item.
 - O painel ADM mostra a última comunicação do monitor.
-- Aprove apenas o código que aparece no notebook correto. Aprovar outra solicitação revoga o acesso anterior.
+- O monitor é uma tela pública de exibição. Não existem códigos ou solicitações de aprovação.
 
 
 ## Abertura automática após desligar o monitor e reiniciar
@@ -99,10 +95,10 @@ mantenha os dois arquivos CMD na mesma pasta e execute uma vez o instalador:
 **scripts/instalar-monitor-nisti.cmd**. Ele copia o inicializador para a pasta
 Startup do usuário Windows e abre o Edge imediatamente. Após reiniciar o PC,
 o Edge abrirá novamente **quando esse usuário entrar no Windows**, com seu
-perfil e autorização preservados.
+perfil preservado.
 
 Para cancelar, execute **scripts/remover-inicializacao-monitor-nisti.cmd**.
-O pareamento não é excluído.
+Não há pareamento para remover.
 
 **Limites físicos:** software web não liga monitor desconectado da energia,
 não inicia computador fisicamente desligado e não faz login sozinho no Windows.
@@ -122,7 +118,7 @@ o perfil Edge iniciado pelo CMD ja usa a politica de autoplay autorizada.
 
 ## Atualizacao online automatica do terminal Windows
 
-O **sistema NISTI ja e online**: o notebook abre a pagina hospedada no Cloudflare,
+O **sistema NISTI já é online**: o notebook abre a pagina hospedada no Cloudflare,
 nao uma copia do aplicativo extraida do ZIP. Os arquivos CMD servem apenas
 para abrir o Microsoft Edge em tela cheia, com perfil persistente, audio
 autorizado e inicializacao quando o Windows entra na conta dedicada.
@@ -131,10 +127,9 @@ autorizado e inicializacao quando o Windows entra na conta dedicada.
 frontend publicadas em producao nao exigem copiar, extrair nem reinstalar
 o ZIP. O monitor consulta `/monitor-build.json` a cada 60 segundos para
 identificar se o servidor possui uma nova versao. Quando ha uma versao nova,
-ele so recarrega a pagina se estiver **conectado, ativado e sem chamada na tela
+ele so recarrega a pagina se estiver **conectado e sem chamada na tela
 nem itens na fila**, respeitando ainda 15 segundos de ociosidade. Assim, nao
-interrompe as solicitacoes de expedição. O cookie de ativacao permanece no
-perfil dedicado entre recargas e reinicios.
+interrompe as solicitações de expedição. Nenhuma credencial de monitor é necessária entre recargas e reinícios.
 
 Sem conexao com a internet o monitor nao instala atualizacoes nem recebe
 novas chamadas em tempo real. Ao reconectar, a fila e a verificacao de
