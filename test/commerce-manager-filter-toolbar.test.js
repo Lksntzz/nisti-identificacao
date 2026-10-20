@@ -61,7 +61,7 @@ test('o Gestor exibe apenas Todos, Com vendas e Sem vendas, sem indicadores',()=
 test('a tabela tem sete colunas e o filtro sem vendas preserva variações sem saída',()=>{
   assert.match(ui,/colSpan=\{7\}/);
   assert.doesNotMatch(ui,/colSpan=\{8\}/);
-  assert.match(ui,/zeroFilter=\{status==='ZERO'\}/);
+  assert.match(ui,/zeroFilter=\{status==='VAR_ZERO'\}/);
   assert.match(ui,/variations\.filter\(v=>v\.units===0\)/);
   assert.match(sql,/b.selected_status='ZERO' and c.ready and \(c.units=0 or c.zero_variations>0\)/);
 });
