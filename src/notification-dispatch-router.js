@@ -7,6 +7,9 @@ export { DISPATCH_PLATFORMS } from './notification-dispatch-options.js';
 export const DISPATCH_ACTION='RETIRAR_CAPA';
 const MONITOR_COOKIE='__Host-nisti_dispatch_monitor';
 const MONITOR_COOKIE_AGE=60*60*24*180;
+const MONITOR_PAIR_COOKIE='__Host-nisti_dispatch_pair';
+const MONITOR_PAIR_AGE=60*10;
+const PAIR_COOKIE_FLAGS='; Path=/; HttpOnly; Secure; SameSite=Strict';
 
 function json(value,status=200,headers={}) {
   return new Response(JSON.stringify(value),{status,headers:{
@@ -14,12 +17,16 @@ function json(value,status=200,headers={}) {
     'cache-control':'no-store, private',...headers
   }});
 }
-function monitorKey(request) {
+function readMonitorCookie(request,name) {
   const cookies=String(request.headers.get('cookie')||'').split(';');
-  const part=cookies.find(x=>x.trim().startsWith(MONITOR_COOKIE+'='));
-  const key=part?.trim().slice(MONITOR_COOKIE.length+1)||'';
+  const part=cookies.find(x=>x.trim().startsWith(name+'='));
+  const key=part?.trim().slice(name.length+1)||'';
   return /^[0-9a-f]{64}$/.test(key)?key:null;
 }
+function monitorKey(request) {return readMonitorCookie(request,MONITOR_COOKIE)}
+function pairKey(request) {return readMonitorCookie(request,MONITOR_PAIR_COOKIE)}
+function monitorCookie(key){return MONITOR_COOKIE+'='+key+PAIR_COOKIE_FLAGS+'; Max-Age='+MONITOR_COOKIE_AGE}
+function pairCookie(key){return MONITOR_PAIR_COOKIE+'='+key+PAIR_COOKIE_FLAGS+'; Max-Age='+MONITOR_PAIR_AGE}
 async function digest(value) {
   const bytes=new TextEncoder().encode(value);
   const hash=await crypto.subtle.digest('SHA-256',bytes);
@@ -39,7 +46,9 @@ function errorResponse(error) {
   if(message.includes('invalid_dispatch_batch'))return json({error:'Seleção ou mensagens inválidas.'},400);
   if(message.includes('dispatch_option_not_allowed')||message.includes('dispatch_options_invalid'))
     return json({error:'Modalidade inválida. Atualize a lista da plataforma.'},400);
-  if(message.includes('monitor_unauthorized'))return json({error:'Monitor desconectado. Ative novamente.'},401);
+  if(message.includes('monitor_unauthorized'))return json({error:'Monitor desconectado. Solicite autorização no painel de notificações.'},401);
+  if(message.includes('monitor_pairing_busy'))return json({error:'Muitas solicitações aguardando. Tente novamente em alguns minutos.'},429);
+  if(message.includes('monitor_pairing_expired'))return json({error:'Solicitação expirada. Aguarde uma nova autorização.'},409);
   console.error('[NISTI Dispatch] Falha',error?.code||error?.name||'backend_error');
   return json({error:'Não foi possível acessar o serviço de notificações.'},503);
 }
@@ -111,6 +120,39 @@ export async function handleNotificationDispatchRequest(request,env) {
       const result=await supabaseRpc(env,'nisti_dispatch_enqueue_batch_v4',{p_calls:validated});
       return json({ok:true,...result},201);
     }
+    if(path==='/api/admin/dispatch/pair/pending'&&request.method==='GET') {
+      const requests=await supabaseRpc(env,'nisti_dispatch_pair_pending_v5',{});
+      return json({ok:true,requests:Array.isArray(requests)?requests:[]});
+    }
+    if(path==='/api/admin/dispatch/pair/approve'&&request.method==='POST') {
+      const body=await request.json().catch(()=>null);
+      const id=String(body?.id||'');
+      if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
+        return json({error:'Solicitação inválida.'},400);
+      await supabaseRpc(env,'nisti_dispatch_approve_pair_v5',{p_id:id});
+      return json({ok:true});
+    }
+    if(path==='/api/dispatch/pair/request'&&request.method==='POST') {
+      const existing=pairKey(request);
+      if(existing) {
+        const state=await supabaseRpc(env,'nisti_dispatch_pair_status_v5',{p_digest:await digest(existing)});
+        if(state?.status==='PENDING')return json({ok:true,...state});
+        if(state?.status==='APPROVED')
+          return json({ok:true,...state},200,{'set-cookie':monitorCookie(existing)});
+      }
+      const secret=newMonitorKey();
+      const state=await supabaseRpc(env,'nisti_dispatch_request_pair_v5',{p_digest:await digest(secret)});
+      return json({ok:true,...state},201,{'set-cookie':pairCookie(secret)});
+    }
+    if(path==='/api/dispatch/pair/status'&&request.method==='POST') {
+      const secret=pairKey(request);
+      if(!secret)return json({error:'Solicitação não iniciada.'},401);
+      const state=await supabaseRpc(env,'nisti_dispatch_pair_status_v5',{p_digest:await digest(secret)});
+      if(!state||state.status==='EXPIRED')return json({error:'Solicitação expirada.'},401);
+      if(state.status==='APPROVED')
+        return json({ok:true,...state},200,{'set-cookie':monitorCookie(secret)});
+      return json({ok:true,...state});
+    }
     if(path==='/api/admin/dispatch/monitor-key'&&request.method==='POST') {
       const key=newMonitorKey();
       await supabaseRpc(env,'nisti_dispatch_pair_monitor_v1',{p_digest:await digest(key)});
@@ -122,8 +164,7 @@ export async function handleNotificationDispatchRequest(request,env) {
       if(!/^[0-9a-f]{64}$/.test(key))return json({error:'Chave de monitor inválida.'},401);
       const valid=await supabaseRpc(env,'nisti_dispatch_monitor_valid_v1',{p_digest:await digest(key)});
       if(valid!==true)return json({error:'Chave não autorizada ou substituída.'},401);
-      return json({ok:true},200,{'set-cookie':MONITOR_COOKIE+'='+key+
-        '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age='+MONITOR_COOKIE_AGE});
+      return json({ok:true},200,{'set-cookie':monitorCookie(key)});
     }
     if(path==='/api/dispatch/next'&&request.method==='POST') {
       const key=monitorKey(request);

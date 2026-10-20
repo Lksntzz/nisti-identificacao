@@ -30,7 +30,7 @@ export function dispatchDisplayParts(platform,message){
   return {headline:actual,detail:''};
 }
 export default function NotificationMonitor(){
-  const [key,setKey]=useState('');
+  const [pairCode,setPairCode]=useState('');
   const [paired,setPaired]=useState(null);
   const [call,setCall]=useState(null);
   const [pending,setPending]=useState(0);
@@ -40,10 +40,11 @@ export default function NotificationMonitor(){
   const [online,setOnline]=useState(false);
   const [error,setError]=useState('');
   const [audioOn,setAudioOn]=useState(false);
-  const [loading,setLoading]=useState(false);
   const audioRef=useRef(null);
   const lastBeepId=useRef(null);
   const pollingRef=useRef(false);
+  const pairedRef=useRef(null);
+  pairedRef.current=paired;
   const audioEnabledRef=useRef(false);
   const nextCallRef=useRef(null);
   const reloadPendingRef=useRef(false);
@@ -53,7 +54,7 @@ export default function NotificationMonitor(){
     return playNotificationSound(audioRef.current,platform);
   },[]);
   const poll=useCallback(async()=>{
-    if(pollingRef.current)return;
+    if(pollingRef.current||pairedRef.current===false)return;
     pollingRef.current=true;
     try{
       const result=await post('/api/dispatch/next');
@@ -77,7 +78,7 @@ export default function NotificationMonitor(){
       }
      }catch(e){
       setOnline(false);setCall(null);
-      if(e.status===401){setPaired(false);}
+      if(e.status===401){pairedRef.current=false;setPaired(false);setPairCode('');}
       setError(e.message);
     }finally{pollingRef.current=false}
   },[]);
@@ -102,15 +103,38 @@ export default function NotificationMonitor(){
     const interval=setInterval(check,MONITOR_BUILD_CHECK_INTERVAL_MS);
     return ()=>{canceled=true;clearTimeout(initial);clearInterval(interval)};
   },[]);
-  async function activate(e){
-    e.preventDefault();setLoading(true);setError('');
-    try{
-      await post('/api/dispatch/activate',{key});
-      setKey('');setPaired(true);
-      await poll();
-    }catch(e){setError(e.message)}
-    finally{setLoading(false)}
-  }
+  // O monitor cria uma solicitação, mas a fila só é exibida após aprovação ADM.
+  useEffect(()=>{
+    if(paired!==false)return undefined;
+    let active=true;
+    let inFlight=false;
+    async function authorize(){
+      if(inFlight)return;
+      inFlight=true;
+      try{
+        let result;
+        try{result=await post('/api/dispatch/pair/status');}
+        catch(error){
+          if(error.status!==401)throw error;
+          result=await post('/api/dispatch/pair/request');
+        }
+        if(!active)return;
+        if(result.status==='APPROVED'){
+          pairedRef.current=true;
+          setPaired(true);setPairCode('');setError('');
+          nextCallRef.current?.();
+        }else{
+          setPairCode(result.code||'');
+          setError('');
+        }
+      }catch(error){
+        if(active)setError(error.message);
+      }finally{inFlight=false}
+    }
+    authorize();
+    const timer=setInterval(authorize,3000);
+    return ()=>{active=false;clearInterval(timer)};
+  },[paired]);
   async function enableAudio(){
     try{
       const ctx=audioRef.current;
@@ -181,17 +205,12 @@ export default function NotificationMonitor(){
     <div className="nid-pairing-card">
       <span className="nid-brand">NISTI <b>PRINT</b></span>
       <div className="nid-pairing-mark"><DispatchIcon name="monitor" size={32}/></div>
-      <h1>Ativar monitor da expedição</h1>
-      <p>Use a chave gerada em <strong>Comunicação → Notificações da Expedição</strong>. A ativação é necessária somente na primeira configuração.</p>
-      <form onSubmit={activate}>
-        <label htmlFor="nid-monitor-key">Chave de ativação do monitor</label>
-        <input id="nid-monitor-key" autoComplete="off" spellCheck={false} value={key}
-          onChange={e=>setKey(e.target.value.trim().slice(0,64))}
-          placeholder="Cole a chave de ativação"/>
-        <button disabled={loading||!/^[0-9a-fA-F]{64}$/.test(key)} type="submit" className="nid-send">
-          {loading?'Ativando…':'Ativar monitor'} <DispatchIcon name="chevron-down"/>
-        </button>
-      </form>
+      <h1>Aguardando autorização</h1>
+      <p>No painel administrativo, entre em <strong>Comunicação → Notificações da Expedição → Configurar monitor</strong> e aprove a solicitação deste notebook.</p>
+      {pairCode?<div className="nid-pair-display" role="status">
+        <small>CONFIRA ESTE CÓDIGO NO PAINEL ADMINISTRATIVO</small>
+        <strong>{pairCode}</strong>
+      </div>:<p role="status">Conectando ao serviço de autorização…</p>}
       {error&&<p className="nid-monitor-error" role="alert">{error}</p>}
     </div>
   </main>;
