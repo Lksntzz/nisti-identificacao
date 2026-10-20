@@ -474,3 +474,11 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-detail-traffic-collapsed>button span{font-size:15px;font-weight:500}
 .nim-detail-traffic-collapsed>div{padding:9px}
 .nim-detail-traffic-collapsed .nim-traffic{padding:8px}
+
+/* Optional fifth tab only for Shopee listings with Ads CSV evidence. */
+.nim-detail-tab-list.has-shopee-ads{grid-template-columns:repeat(5,minmax(0,1fr))}
+.nim-detail-tab-list.has-shopee-ads button{padding:7px 2px;min-width:0;white-space:normal;line-height:1.2}
+.nim-row-ads{margin:4px 0 0 7px;border:1px solid #bdd3f4;background:#eff5ff;color:#1c5bad;border-radius:6px;padding:5px 8px;font:inherit;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}
+.nim-row-ads:hover{border-color:#75a9f6;background:#e4f0ff}
+.nim-row-ads:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+@media(max-width:600px){.nim-detail-tab-list.has-shopee-ads button{font-size:9px;white-space:normal}}
