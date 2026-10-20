@@ -9,7 +9,7 @@ import { handleCommerceProductStateRequest } from './commerce-product-state-rout
 import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
 import { handleMuralRequest } from './mural-router.js';
 import { handleNotificationDispatchRequest } from './notification-dispatch-router.js';
-import { handleDispatchSenderRequest } from './expedition-dispatch-sender-router.js';
+import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
@@ -563,6 +563,10 @@ export default {
     }
 
     if (pathname === EXPEDITION_DISPATCH_ADMIN_PATH && request.method === 'GET') {
+      // Acesso privado válido funciona inclusive no primeiro uso em outro PC.
+      // A chave só é consumida neste GET e removida por redirecionamento 303.
+      const activation=await activateDispatchSenderLink(request,env);
+      if(activation)return withSecurityHeaders(activation);
       // Shell público sem dados; todas as operações exigem cookie do link privado.
       const response=await env.ASSETS.fetch(new Request(new URL('/',url),{headers:request.headers}));
       const headers=new Headers(response.headers);

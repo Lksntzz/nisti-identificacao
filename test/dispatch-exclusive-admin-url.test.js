@@ -96,3 +96,24 @@ test('standalone sender is free of monitor/ADM links and settings',()=>{
   assert.match(view,/\/api\/expedition-panel\/batch/);
   assert.match(view,/\/api\/admin\/dispatch\/batch/);
 });
+
+
+test('private URL authorizes a fresh browser with a redirect and an HttpOnly cookie',async()=>{
+  const response=await query('/painel-expedicao?acesso='+token+'&utm_source=chatgpt.com');
+  assert.equal(response.status,303);
+  assert.equal(response.headers.get('location'),'/painel-expedicao');
+  assert.equal(response.headers.get('referrer-policy'),'no-referrer');
+  assert.match(response.headers.get('set-cookie')||'',/HttpOnly; Secure; SameSite=Strict/);
+  const cookie=response.headers.get('set-cookie').split(';')[0];
+  const status=await query('/api/expedition-panel/session',{headers:{cookie}});
+  assert.equal((await status.json()).authorized,true);
+});
+
+test('incomplete sender link cannot grant access',async()=>{
+  const response=await query('/painel-expedicao?acesso=invalid');
+  assert.equal(response.status,403);
+  assert.equal(response.headers.get('set-cookie'),null);
+  const plain=await query('/painel-expedicao?utm_source=chatgpt.com');
+  assert.equal(plain.status,200);
+  assert.equal(plain.headers.get('set-cookie'),null);
+});
