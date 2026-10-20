@@ -1,13 +1,13 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import '../notification-dispatch.css';
 import DispatchIcon from '../notification-ui/DispatchIcon.jsx';
+import PlatformLogo from '../notification-ui/PlatformLogo.jsx';
 
 import { DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText,platformColor } from '../notification-dispatch-options.js';
 const PLATFORMS=DISPATCH_PLATFORMS;
 const NAMES={'PENDING':'Na fila','SHOWING':'Em exibição','EXPIRED':'Exibida'};
-const CHANNEL_SHORT={'SHOPEE':'S','MERCADO LIVRE ANTIGO':'ML','MERCADO LIVRE NOVO':'ML','MERCADO LIVRE':'ML','AMAZON':'A','SHEIN':'S','TIK TOK':'T','MAGALU':'M','KWAI':'K','LOJA INTEGRADA':'LI'};
 const titleCase=name=>name.toLowerCase().replace(/\b\w/g,x=>x.toUpperCase());
-function ChannelMark({platform}){return <span className={'nid-channel-mark '+platformColor(platform)} aria-hidden="true">{CHANNEL_SHORT[platform]||'N'}</span>}
+function ChannelMark({platform}){return <PlatformLogo platform={platform} className="nid-channel-mark"/>}
 
 async function request(path,options={}) {
   const response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options});

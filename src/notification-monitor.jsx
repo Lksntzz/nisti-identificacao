@@ -3,6 +3,7 @@ import './notification-dispatch.css';
 import { DISPATCH_PLATFORMS,platformColor } from './notification-dispatch-options.js';
 import DispatchIcon from './notification-ui/DispatchIcon.jsx';
 import GradientText from './notification-ui/reactbits/GradientText.jsx';
+import PlatformLogo from './notification-ui/PlatformLogo.jsx';
 
 
 const LABELS=Object.fromEntries(DISPATCH_PLATFORMS.map(name=>[name,name.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())]));
@@ -200,7 +201,7 @@ export default function NotificationMonitor(){
     </header>
     {current?<section className="nid-live-request nid-live-v5" key={current.id} aria-live="polite">
       <div className="nid-call-kicker">NOVA SOLICITAÇÃO <span className="nid-kicker-spark">●</span> EXPEDIÇÃO</div>
-      <div className={'nid-channel-emblem '+color} aria-hidden="true"><DispatchIcon name="bell-ring" size={47} strokeWidth={1.7}/></div>
+      <div className={'nid-channel-emblem '+color}><PlatformLogo platform={current.platform} size="large"/></div>
       <div className="nid-call-platform">{LABELS[current.platform]||current.platform}</div>
       <div className="nid-live-message-card">
         <div className="nid-message-main" style={{fontSize:details.headline.length>45?'clamp(24px,4.5vw,64px)':undefined}}>{details.headline}</div>
