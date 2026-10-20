@@ -1,0 +1,23 @@
+.shopee-ads-import{display:grid;gap:12px;min-width:0;border:1px solid #e0e7f2;border-radius:12px;background:#fff;padding:17px;color:#213652}
+.shopee-ads-import header h3{margin:0;font-size:14px;color:#203552}
+.shopee-ads-import header p,.shopee-ads-import>p{margin:6px 0 0;font-size:11px;line-height:1.5;color:#708199}
+.shopee-ads-drop{display:grid;gap:7px;max-width:680px;background:#f8fbff;border:1px dashed #91acdf;border-radius:9px;padding:14px;color:#345273;font-size:12px;font-weight:750}
+.shopee-ads-drop input{display:block;font-size:11px;color:#536983}
+.shopee-ads-drop small{color:#7b879a;font-size:10px;font-weight:400}
+.shopee-ads-preview{display:grid;gap:11px}
+.shopee-ads-preview h4{margin:0;color:#30445f;font-size:12px}
+.shopee-ads-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.shopee-ads-facts>span{display:grid;gap:5px;background:#f4f7fc;border:1px solid #e9edf5;padding:9px;border-radius:8px;min-width:0}
+.shopee-ads-facts small{font-size:9px;color:#687a91}
+.shopee-ads-facts strong{font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.shopee-ads-warning{font-size:10px;line-height:1.55;margin:0;padding:9px 11px;background:#fffbf0;color:#85621b;border:1px solid #f2e3bb;border-radius:7px}
+.shopee-ads-preview-scroll{overflow:auto;max-height:280px}
+.shopee-ads-preview table{border-collapse:collapse;width:100%;font-size:10px}
+.shopee-ads-preview th,.shopee-ads-preview td{padding:9px 8px;text-align:left;border-bottom:1px solid #e5ebf5}
+.shopee-ads-preview th{background:#f7f9fc;color:#60728b;white-space:nowrap}
+.shopee-ads-preview td{color:#344963;line-height:1.5}
+.shopee-ads-preview>button{justify-self:start;background:#1665d8;border:1px solid #1665d8;color:#fff;padding:10px 14px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer}
+.shopee-ads-preview>button:disabled{opacity:.6;cursor:wait}
+.shopee-ads-error,.shopee-ads-success{font-size:11px;line-height:1.5;margin:0}
+.shopee-ads-error{color:#b53d50}.shopee-ads-success{color:#16824a}
+@media(max-width:650px){.shopee-ads-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.shopee-ads-import{padding:11px}}

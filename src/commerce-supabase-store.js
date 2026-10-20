@@ -218,6 +218,32 @@ function nullableMetric(value) {
     throw new Error('Métrica de tráfego inválida.');
   return value;
 }
+// Shopee Ads are campaign attribution metrics; never write them to order or SKU sales tables.
+export async function commerceImportShopeeAdsReport(env,input={}) {
+  const report=input.report,rows=input.rows;
+  if(!report||!Array.isArray(rows)||rows.length<1||rows.length>1000)
+    throw new Error('Relatório de publicidade inválido.');
+  if(!['GENERAL','TARGETING'].includes(report.kind)
+     || !/^\d{3,24}$/.test(String(report.shop_id||''))
+     || !/^[a-f0-9]{64}$/.test(String(report.sha256||'')))
+    throw new Error('Identificação de origem inválida.');
+  if(!validReportDate(report.start)||!validReportDate(report.end)||
+    (Date.parse(report.end)-Date.parse(report.start))/86400000<0||
+    (Date.parse(report.end)-Date.parse(report.start))/86400000>366)
+    throw new Error('Período acumulado de Shopee Ads inválido.');
+  return await supabaseRpc(env,'commerce_shopee_ads_import_v1',{
+    p_report:report,p_rows:rows
+  },{timeoutMs:20000});
+}
+export async function commerceShopeeAdsListing(env,listingId) {
+  const id=cleanId(listingId);
+  if(!id)throw new Error('ID do anúncio inválido.');
+  const rows=await supabaseRpc(env,'commerce_shopee_ads_listing_v1',{
+    p_listing_id:id
+  },{timeoutMs:9000});
+  return {items:Array.isArray(rows)?rows:[]};
+}
+
 export async function commerceListingTrafficWindow(env,listingId,filters={}) {
   const id=cleanId(listingId);
   if(!id)throw new Error('Anúncio inválido.');

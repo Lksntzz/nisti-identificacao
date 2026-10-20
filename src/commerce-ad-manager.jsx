@@ -3,6 +3,7 @@ import CommerceImportCenter from './commerce-import-center.jsx';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
 import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
+import CommerceShopeeAdsSummary from './commerce-shopee-ads-summary.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import './nisti-reactbits-adaptations.css';
@@ -299,6 +300,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
           <p className="nim-subtle">{variationEvidence.identified>0
             ?num(variationEvidence.identified)+' de '+num(item.total_variations)+' variações com unidades identificadas. Consulte a aba Variações para ver cada quantidade.'
             :'Ainda não há vendas individuais vinculadas com segurança para este período; a ausência de vínculo não significa zero vendas.'}</p>}
+        {item.source==='SHOPEE'&&<CommerceShopeeAdsSummary listingId={item.id}/>}
         <div className="nim-detail-traffic-collapsed">
           <button type="button" aria-expanded={trafficOpen}
             aria-controls="nim-detail-traffic-metrics"
