@@ -68,7 +68,7 @@ test('variation units require unambiguous linked variation SKU, and unmatched sa
   assert.match(sql,/coalesce\(u.unmapped_units,0\)>0/);
   assert.match(sql,/then null::bigint else coalesce\(st.units,0\)/);
   assert.match(sql,/variation_data_complete/);
-  assert.match(ui,/não mostramos zeros presumidos/);
+  assert.match(ui,/zeros não são presumidos/);
 });
 
 test('ABC ranks active advertisement IDs and monthly reporting filters by source and ID',()=>{
