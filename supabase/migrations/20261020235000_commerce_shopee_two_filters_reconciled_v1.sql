@@ -428,7 +428,7 @@ select jsonb_build_object(
     p.units desc,p.revenue desc,p.title,p.id)
   from page p),'[]'::jsonb)
 );
-$function$
+$function$;
 
 -- This existing admin RPC must remain callable exclusively by the Worker service role.
 revoke all on function public.commerce_listing_manager_v1(text,integer,text,text,text,text,text,integer,integer)
