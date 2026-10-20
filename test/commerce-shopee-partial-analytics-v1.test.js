@@ -23,10 +23,10 @@ test('zero is never asserted as an established fact in Shopee without verified f
   assert.match(daily,/\(dc\.current_days>=b\.days and l\.source_code<>'SHOPEE'\) ready/);
   assert.match(daily,/\(dc\.previous_days>=b\.days and l\.source_code<>'SHOPEE'\) previous_ready/);
   assert.match(daily,/'source_kind',case when \(select platform from input\)='SHOPEE'/);
-  assert.match(ui,/Sem vendas identificadas/);
-  assert.match(ui,/não comprova zero real/);
-  assert.match(ui,/não mostramos zeros presumidos/);
-  assert.match(ui,/ausência de vínculo NÃO comprova ausência de pedidos/);
+  assert.match(ui,/const noSalesLabel='Sem vendas'/);
+  assert.match(ui,/não comprova.*todos os pedidos/);
+  assert.match(ui,/zeros não são presumidos/);
+  assert.match(ui,/SKUs compartilhados entre anúncios/);
 });
 
 test('ABC on Shopee ranks only known lower-bound sales by revenue or units and labels provisional',()=>{
@@ -70,5 +70,5 @@ test('all new RPCs require service role and never modify Scanner products',()=>{
     assert.match(sql,/to service_role/);
     assert.doesNotMatch(sql,/insert into public\.products|update public\.products|delete from public\.products|update public\.commerce_sales_rows/);
   }
-  assert.match(ui,/Nenhum dado do Scanner é alterado/);
+  assert.doesNotMatch(fs.readFileSync('supabase/migrations/20261020235000_commerce_shopee_two_filters_reconciled_v1.sql','utf8'),/delete from public\.products|update public\.products/);
 });
