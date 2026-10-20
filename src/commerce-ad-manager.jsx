@@ -5,6 +5,7 @@ import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
 import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
 import CommerceShopeeAdsSummary from './commerce-shopee-ads-summary.jsx';
+import {shopeeAdsRowsForPeriod,preferredShopeeAdsReport} from './commerce-shopee-ads-period.js';
 import CommerceShopeeAftercare from './commerce-shopee-aftercare.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
@@ -132,6 +133,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
   const [activeTab,setActiveTab]=useState(initialTab);
   const [trafficOpen,setTrafficOpen]=useState(false);
   const [adsOverview,setAdsOverview]=useState({loading:false,items:[],error:''});
+  const [adsOnlySelectedPeriod,setAdsOnlySelectedPeriod]=useState(true);
   const [aftercareOverview,setAftercareOverview]=useState(null);
   const [finance,setFinance]=useState(null);
   const [financeLoading,setFinanceLoading]=useState(false);
@@ -244,7 +246,8 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
   const trendPct=detail?.identified_growth_pct;
   const trendLabel=trendPct==null?'Sem base comparável':
     (Number(trendPct)>0?'+':'')+num(Number(trendPct))+'%';
-  const latestAds=(adsOverview.items.find(row=>row.report_kind==='GENERAL')||adsOverview.items[0]||null);
+  const latestAds=preferredShopeeAdsReport(shopeeAdsRowsForPeriod(
+    adsOverview.items,periodStart,periodEnd,adsOnlySelectedPeriod));
   const detailTabs=hasShopeeAds&&item.source==='SHOPEE'
     ?[...DETAIL_TABS,['shopee_ads','Shopee Ads']]:DETAIL_TABS;
   return <aside className="nim-detail" aria-label={'Detalhes do anúncio '+item.external_listing_id}>
@@ -271,7 +274,10 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
     <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
       aria-labelledby={'nim-detail-tab-'+activeTab}>
       {activeTab==='shopee_ads'&&hasShopeeAds&&item.source==='SHOPEE'&&<>
-        <CommerceShopeeAdsSummary listingId={item.id}/>
+        <CommerceShopeeAdsSummary listingId={item.id}
+          periodStart={periodStart} periodEnd={periodEnd}
+          onlySelectedPeriod={adsOnlySelectedPeriod}
+          onOnlySelectedPeriodChange={setAdsOnlySelectedPeriod}/>
         <div className="nim-detail-traffic-collapsed">
           <button type="button" aria-expanded={trafficOpen}
             aria-controls="nim-detail-shopee-ads-traffic"
@@ -361,7 +367,9 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
             <small>{latestAds?.ctr_pct!=null
               ?'CTR '+new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2}).format(Number(latestAds.ctr_pct))+
                 '% · período '+periodDate(latestAds.start)+' a '+periodDate(latestAds.end)
-              :adsOverview.error||'Publicidade acumulada · período do relatório'}</small>
+              :adsOverview.error||(adsOnlySelectedPeriod
+                ?'Sem relatório Ads para o período selecionado'
+                :'Publicidade acumulada · período do relatório')}</small>
           </button>}
         </div>
         <details className="nim-detail-history">
