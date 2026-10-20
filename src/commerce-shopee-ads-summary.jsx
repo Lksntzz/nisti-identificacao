@@ -23,7 +23,7 @@ export default function CommerceShopeeAdsSummary({listingId}) {
   const general=items.filter(x=>x.report_kind==='GENERAL');
   const preferred=(general.length?general:items)[0]||null;
   return <details className="nim-ads-evidence" open={open} onToggle={e=>setOpen(e.currentTarget.open)}>
-    <summary>Publicidade Shopee Ads <span>{open?'−':'+'}</span></summary>
+    <summary><span className="nim-ads-evidence-summary-label">Publicidade Shopee Ads <small>Consultar relatório importado</small></span><span aria-hidden="true">{open?'−':'+'}</span></summary>
     {open&&<div className="nim-ads-evidence-body">
       {loading?<p>Carregando publicidade…</p>:error?<p role="alert">{error}</p>:!preferred?
         <p>Não há relatório Shopee Ads associado a este ID de produto. Isso não significa anúncio sem publicidade.</p>:<>
