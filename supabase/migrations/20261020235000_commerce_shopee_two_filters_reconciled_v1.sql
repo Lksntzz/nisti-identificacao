@@ -334,6 +334,7 @@ with input as (
     count(*) filter(where ready)::int covered_ads,
     count(*) filter(where ready and units>0)::int sold_ads,
     count(*) filter(where identified_units>0)::int identified_ads,
+    count(*) filter(where source_code='SHOPEE' and ready and units>0)::int shopee_covered_sold_ads,
     coalesce(sum(identified_units),0)::bigint identified_units,
     coalesce(round(sum(identified_revenue),2),0)::numeric identified_revenue,
     count(*) filter(where ready and units=0)::int zero_ads,
