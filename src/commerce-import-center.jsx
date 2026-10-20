@@ -18,6 +18,7 @@ import {
   syncCommerceListingStatuses
 } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
+import CommerceShopeeAdsImport from './commerce-shopee-ads-import.jsx';
 import { readCommerceXlsx } from './commerce-xlsx-reader.js';
 import { attestShopeeActiveExport } from './commerce-shopee-sales-info.js';
 import './commerce-import-center.css';
@@ -922,22 +923,30 @@ export default function CommerceImportCenter({ embedded = false, onSalesChanged,
           <strong>Vendas</strong>
           <small>Importar vendas, pedidos e faturamento</small>
         </button>
+        <button type="button" className={mode === 'ads' ? 'active' : ''}
+          disabled={catalogImporting || salesImporting || catalogReading || salesReading}
+          onClick={() => {setMode('ads');setError('');setMessage('');}}>
+          <span className="import-center-mode-icon" aria-hidden="true">ADS</span>
+          <strong>Shopee Ads</strong>
+          <small>Importar desempenho de anúncios CPC</small>
+        </button>
       </div>
+      {mode==='ads'&&<CommerceShopeeAdsImport/>}
 
-      {error && <div className="import-center-alert error" role="alert">
+      {mode!=='ads' && error && <div className="import-center-alert error" role="alert">
         <span className="import-center-alert-icon" aria-hidden="true">!</span>
         <span className="import-center-alert-text"><strong>Não foi possível concluir a operação</strong><small>{error}</small></span>
         <button type="button" className="import-center-alert-dismiss"
           aria-label="Fechar aviso de erro" onClick={() => setError('')}>Fechar</button>
       </div>}
-      {message && <div className="import-center-alert success" role="status">
+      {mode!=='ads' && message && <div className="import-center-alert success" role="status">
         <span className="import-center-alert-text">{message}</span>
         <button type="button" className="import-center-alert-dismiss"
           aria-label="Fechar mensagem" onClick={() => setMessage('')}>Fechar</button>
       </div>}
 
-      {embedded && mode && <button type="button" className="import-center-history-toggle" aria-expanded={showHistory} onClick={() => setShowHistory(value => !value)}>{showHistory ? 'Ocultar histórico e resumo' : 'Ver histórico de importações e resumo'}</button>}
-      {(!embedded || mode) && <div className="import-center-layout">
+      {mode!=='ads' && embedded && mode && <button type="button" className="import-center-history-toggle" aria-expanded={showHistory} onClick={() => setShowHistory(value => !value)}>{showHistory ? 'Ocultar histórico e resumo' : 'Ver histórico de importações e resumo'}</button>}
+      {mode!=='ads' && (!embedded || mode) && <div className="import-center-layout">
         <div className="import-center-flow">
           {mode === 'catalog' ? (
             <>
