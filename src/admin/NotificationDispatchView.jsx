@@ -2,6 +2,7 @@ import React,{useCallback,useEffect,useRef,useState} from 'react';
 import '../notification-dispatch.css';
 import DispatchIcon from '../notification-ui/DispatchIcon.jsx';
 import PlatformLogo from '../notification-ui/PlatformLogo.jsx';
+import { submitDispatchNotifications } from '../notification-dispatch-send.js';
 
 import { DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText,platformColor } from '../notification-dispatch-options.js';
 const PLATFORMS=DISPATCH_PLATFORMS;
@@ -89,12 +90,12 @@ export default function NotificationDispatchView({senderMode=false}) {
     finally{setSavingOptions(false)}
   }
 
-  const refresh=useCallback(async()=>{
+  const refresh=useCallback(async({silent=false}={})=>{
     try {
       const response=await request(endpoints.status);
       setState(response);
-      setError('');
-    }catch(e){setError(e.message)}
+      if(!silent)setError('');
+    }catch(e){if(!silent)setError(e.message)}
   },[senderMode]);
   useEffect(()=>{
     refresh();
@@ -113,19 +114,42 @@ export default function NotificationDispatchView({senderMode=false}) {
     }
     setSending(true);
     try{
-      if(!pendingBatch.current)pendingBatch.current=platforms.map(name=>({
-        platform:name,option:selectedOption(name),request_key:crypto.randomUUID()
-      }));
-      const data=await request(endpoints.batch,{
-        method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({calls:pendingBatch.current})
+      const result=await submitDispatchNotifications({
+        platforms,
+        optionFor:selectedOption,
+        fetchOptions:()=>request(endpoints.options),
+        enqueue:calls=>request(endpoints.batch,{
+          method:'POST',headers:{'content-type':'application/json'},
+          body:JSON.stringify({calls})
+        }),
+        pendingBatch
       });
-      pendingBatch.current=null;
+      setConfig(result.options);
+      if(result.state==='options_changed'){
+        setError('A modalidade de '+result.unavailable.map(titleCase).join(', ')+
+          ' foi alterada ou removida por outra pessoa. Atualizamos as opções: escolha uma modalidade disponível e envie novamente.');
+        return;
+      }
+      const data=result.data;
       setSuccess((data.items?.length||platforms.length)+
-        ' notificação(ões) enviada(s). Cada plataforma terá 15 segundos de exibição, uma após a outra.');
-      await refresh();
-    }catch(e){setError(e.message+' Você pode reenviar sem duplicar a solicitação.');}
-    finally{setSending(false)}
+        ' notificação(ões) confirmada(s) e enviada(s) à fila. Cada plataforma terá 15 segundos de exibição.');
+      // Atualizar os contadores é independente da operação que já foi gravada.
+      // Se o histórico estiver indisponível, não anunciar falsamente erro de envio.
+      await refresh({silent:true});
+    }catch(e){
+      if(/modalidade inválida|modalidade válida|dispatch_option_not_allowed/i.test(e.message)){
+        const updated=await request(endpoints.options).catch(()=>null);
+        if(updated?.options){
+          setConfig(updated.options);
+          if(platforms.some(name=>!dispatchOptionValid(name,selectedOption(name),updated.options))){
+            pendingBatch.current=null;
+          }
+        }
+        setError('Esta modalidade não está disponível para envio. As opções foram atualizadas; confira a seleção antes de tentar novamente.');
+      }else{
+        setError(e.message+' Se a confirmação falhou, confira Fila e histórico antes de tentar novamente.');
+      }
+    }finally{setSending(false)}
   }
   const monitorOnline=state?.monitor_last_seen
     && Date.now()-Date.parse(state.monitor_last_seen)<15000;
