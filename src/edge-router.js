@@ -197,8 +197,77 @@ function attachOperatorCookie(response,setCookie) {
 }
 
 function loginPage(message = '', csrfToken = '') {
+  // This page is served directly by the Worker, before loading the React app.
+  // Keep it self-contained: no CDN, no client-side authentication logic.
   const safe = String(message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>NISTI ID · Administração</title><style>*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f3f4f6;color:#111827;min-height:100vh;display:grid;place-items:center;padding:20px}.card{width:min(420px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:22px;padding:28px;box-shadow:0 18px 50px rgba(17,24,39,.10)}.brand{font-size:11px;font-weight:900;letter-spacing:.16em;color:#6b7280;margin:0 0 8px}h1{font-size:28px;margin:0 0 8px}p{color:#6b7280;line-height:1.5;margin:0 0 20px}label{display:grid;gap:8px;font-size:13px;font-weight:800}input{width:100%;padding:14px 15px;border:1px solid #d1d5db;border-radius:12px;font:inherit}button{width:100%;margin-top:14px;border:0;border-radius:12px;padding:14px 16px;font:inherit;font-weight:900;background:#111827;color:#fff}.error{padding:11px 12px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;margin-bottom:16px;font-size:13px}.back{display:block;text-align:center;margin-top:16px;color:#6b7280;text-decoration:none;font-size:13px}</style></head><body><main class="card"><p class="brand">NISTI ID</p><h1>Área administrativa</h1><p>Acesso restrito. Somente pessoas autorizadas podem abrir o painel administrativo.</p>${safe ? `<div class="error">${safe}</div>` : ''}<form method="post" action="/admin-login"><input type="hidden" name="csrf_token" value="${csrfToken}"><label>Senha administrativa<input type="password" name="password" required autofocus autocomplete="current-password"></label><button type="submit">Entrar na administração</button></form><a class="back" href="/">Voltar ao Painel Geral</a></main></body></html>`;
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f3f6fb">
+  <meta name="robots" content="noindex,nofollow">
+  <title>NISTI ID · Administração</title>
+  <style>
+    :root{color-scheme:light;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+    *{box-sizing:border-box}
+    html{min-height:100%;background:#f3f6fb}
+    body{margin:0;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;
+      padding:28px 18px;background:#f3f6fb;color:#172236;-webkit-font-smoothing:antialiased}
+    .card{width:100%;max-width:420px;padding:30px;border:1px solid #e2e8f0;border-radius:20px;
+      background:#fff;box-shadow:0 12px 34px rgba(25,43,73,.07)}
+    .brand-row{display:flex;align-items:center;gap:10px;margin:0 0 24px}
+    .brand-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:10px;
+      background:#172236;color:#fff;font-size:18px;font-weight:800;letter-spacing:-.06em}
+    .brand{margin:0;color:#41536f;font-size:11px;font-weight:800;letter-spacing:.13em;line-height:1.35}
+    h1{margin:0 0 9px;color:#152138;font-size:27px;line-height:1.18;font-weight:800;letter-spacing:-.035em}
+    .intro{margin:0 0 24px;color:#69788d;font-size:13px;line-height:1.6}
+    .form-label{display:block;margin:0 0 9px;color:#34435c;font-size:13px;font-weight:750}
+    .password{display:block;width:100%;height:50px;border:1px solid #cbd5e1;border-radius:11px;
+      padding:0 14px;background:#fff;color:#172236;font-family:inherit;font-size:16px;
+      -webkit-appearance:none;appearance:none}
+    .password:focus{border-color:#3b73d1;outline:3px solid #dbe8ff;outline-offset:1px}
+    .password::placeholder{color:#9ba6b7;opacity:1}
+    .submit{display:block;width:100%;min-height:49px;margin-top:15px;padding:12px 16px;
+      border:1px solid #172236;border-radius:11px;background:#172236;color:#fff;
+      font-family:inherit;font-size:14px;font-weight:750;cursor:pointer;transition:background .15s ease}
+    .submit:hover{background:#2a3b58}
+    .submit:focus-visible,.back:focus-visible{outline:3px solid #94b9fa;outline-offset:3px}
+    .back{display:flex;align-items:center;justify-content:center;gap:7px;width:max-content;max-width:100%;
+      margin:21px auto 0;padding:5px;color:#607089;text-decoration:none;font-size:12px;font-weight:650}
+    .back:hover{color:#245fc1;text-decoration:underline}
+    .error{margin:0 0 18px;padding:11px 12px;border:1px solid #f5c5cc;border-radius:10px;
+      background:#fff4f5;color:#9e2e46;font-size:12px;line-height:1.55}
+    @media(max-width:600px){
+      body{min-height:100svh;min-height:100dvh;align-items:flex-start;justify-content:center;
+        padding:clamp(25px,7svh,58px) 16px calc(24px + env(safe-area-inset-bottom))}
+      .card{max-width:460px;padding:24px 22px 22px;border-radius:18px;box-shadow:0 8px 26px rgba(25,43,73,.055)}
+      .brand-row{margin-bottom:22px}
+      h1{font-size:clamp(23px,6vw,26px)}
+      .intro{font-size:13px;margin-bottom:23px}
+    }
+    @media(max-width:360px){.card{padding:22px 18px}.brand-row{margin-bottom:19px}h1{font-size:23px}}
+    @media(prefers-reduced-motion:reduce){.submit{transition:none}}
+  </style>
+</head>
+<body>
+  <main class="card" aria-labelledby="login-title">
+    <header class="brand-row"><span class="brand-icon" aria-hidden="true">N</span><p class="brand">NISTI ID</p></header>
+    <h1 id="login-title">Área administrativa</h1>
+    <p class="intro">Acesso exclusivo para administradores autorizados.</p>
+    ${safe ? `<div class="error" role="alert">${safe}</div>` : ''}
+    <form method="post" action="/admin-login">
+      <input type="hidden" name="csrf_token" value="${csrfToken}">
+      <label class="form-label" for="admin-password">Senha administrativa</label>
+      <input class="password" id="admin-password" type="password" name="password"
+        required autocomplete="current-password" autocapitalize="off"
+        placeholder="Digite sua senha">
+      <button class="submit" type="submit">Entrar no painel</button>
+    </form>
+    <a class="back" href="/">← Voltar ao Painel Geral</a>
+  </main>
+</body>
+</html>`;
 }
 
 function newLoginCsrfToken() {
