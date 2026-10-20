@@ -26,7 +26,8 @@ test('cards levam ao painel adequado sem mexer em status, filtros e análises ex
   assert.match(manager,/onPeriodChange=\{setDays\}/);
   assert.match(evolution,/setDays\(selected\);onPeriodChange\(selected\)/);
   assert.match(evolution,/if\(trendRequest\?\.status\)setStatus\(trendRequest\.status\)/);
-  assert.doesNotMatch(manager,/setImportedTotals|importedTotalsError/);
+  assert.match(manager,/if\(!financialOpen\|\|!data\?\.period_start/);
+  assert.match(manager,/Totais financeiros importados/);
 });
 
 test('evolução usa cabeçalho tabular, detalhes nativos, dados reais e layout responsivo',()=>{
