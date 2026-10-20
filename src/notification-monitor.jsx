@@ -1,6 +1,9 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import './notification-dispatch.css';
 import { DISPATCH_PLATFORMS,platformColor } from './notification-dispatch-options.js';
+import DispatchIcon from './notification-ui/DispatchIcon.jsx';
+import GradientText from './notification-ui/reactbits/GradientText.jsx';
+
 
 const LABELS=Object.fromEntries(DISPATCH_PLATFORMS.map(name=>[name,name.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())]));
 const TONES={
@@ -21,6 +24,13 @@ async function post(url,body){
 }
 export function remainingSeconds(expiresAt,offsetMs,now=Date.now()){
   return Math.max(0,Math.ceil((Date.parse(expiresAt)-(now+offsetMs))/1000));
+}
+export function dispatchDisplayParts(platform,message){
+  const actual=String(message||'RETIRAR CAPA');
+  const prefix=platform+' RETIRAR CAPA ';
+  if(actual==='RETIRAR CAPA')return {headline:'RETIRAR CAPA',detail:''};
+  if(platform&&actual.startsWith(prefix))return {headline:'RETIRAR CAPA',detail:actual.slice(prefix.length)};
+  return {headline:actual,detail:''};
 }
 export default function NotificationMonitor(){
   const [key,setKey]=useState('');
@@ -156,55 +166,64 @@ export default function NotificationMonitor(){
   const current=seconds>0?call:null;
   const color=platformColor(current?.platform);
 
+
   if(paired===false)return <main className="nid-monitor nid-setup">
     <div className="nid-pairing-card">
       <span className="nid-brand">NISTI <b>PRINT</b></span>
+      <div className="nid-pairing-mark"><DispatchIcon name="monitor" size={32}/></div>
       <h1>Ativar monitor da expedição</h1>
-      <p>Peça à administração a chave em <strong>Notificações da Expedição</strong>. Esta ativação é feita apenas na configuração da tela.</p>
+      <p>Use a chave gerada em <strong>Comunicação → Notificações da Expedição</strong>. A ativação é necessária somente na primeira configuração.</p>
       <form onSubmit={activate}>
-        <label htmlFor="nid-monitor-key">Chave do monitor</label>
+        <label htmlFor="nid-monitor-key">Chave de ativação do monitor</label>
         <input id="nid-monitor-key" autoComplete="off" spellCheck={false} value={key}
           onChange={e=>setKey(e.target.value.trim().slice(0,64))}
-          placeholder="Cole aqui a chave de ativação"/>
-        <button disabled={loading||! /^[0-9a-fA-F]{64}$/.test(key)} type="submit" className="nid-send">
-          {loading?'Ativando…':'Ativar monitor'}
+          placeholder="Cole a chave de ativação"/>
+        <button disabled={loading||!/^[0-9a-fA-F]{64}$/.test(key)} type="submit" className="nid-send">
+          {loading?'Ativando…':'Ativar monitor'} <DispatchIcon name="chevron-down"/>
         </button>
       </form>
       {error&&<p className="nid-monitor-error" role="alert">{error}</p>}
     </div>
   </main>;
 
-  return <main className={'nid-monitor '+(current?'nid-monitor-'+color:'')} aria-label="Monitor NISTI Notificações">
+  const details=current?dispatchDisplayParts(current.platform,current.message):null;
+  return <main className={'nid-monitor nid-monitor-v5 '+(current?'nid-monitor-'+color:'')} aria-label="Monitor NISTI Notificações">
+    <div className="nid-stage-glow" aria-hidden="true"/>
     <header className="nid-monitor-top">
-      <span className="nid-brand">NISTI <b>PRINT</b> <small>NOTIFICAÇÕES</small></span>
+      <div className="nid-brand-block"><span className="nid-brand">NISTI <b>PRINT</b></span><small>CENTRAL DE EXPEDIÇÃO</small></div>
       <div className="nid-monitor-topright">
-        <span className={'nid-monitor-connection '+(online?'is-online':'')}>{online?'● CONECTADO':'● SEM CONEXÃO'}</span>
-        <time>{new Date(now).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</time>
+        <span className={'nid-monitor-connection '+(online?'is-online':'')}><span className="nid-connection-pulse"/> {online?'MONITOR CONECTADO':'SEM CONEXÃO'}</span>
+        <div className="nid-clock-block"><strong>{new Date(now).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</strong>
+          <small>{new Date(now).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</small>
+        </div>
       </div>
     </header>
-    {current?<section className={'nid-live-request '+color} aria-live="polite">
-      <div className="nid-call-kicker">SOLICITAÇÃO DA ADMINISTRAÇÃO</div>
+    {current?<section className="nid-live-request nid-live-v5" key={current.id} aria-live="polite">
+      <div className="nid-call-kicker">NOVA SOLICITAÇÃO <span className="nid-kicker-spark">●</span> EXPEDIÇÃO</div>
+      <div className={'nid-channel-emblem '+color} aria-hidden="true"><DispatchIcon name="bell-ring" size={47} strokeWidth={1.7}/></div>
       <div className="nid-call-platform">{LABELS[current.platform]||current.platform}</div>
-      <h2 className="nid-dispatch-message" style={{fontSize:(current.message||'RETIRAR CAPA').length>90?'clamp(25px,3.2vw,58px)':(current.message||'RETIRAR CAPA').length>45?'clamp(30px,4vw,75px)':undefined}}>{current.message||'RETIRAR CAPA'}</h2>
-      <div className="nid-display-progress">
-        <div className="nid-progress-rail"><span style={{width:(Math.min(100,Math.max(0,seconds/duration*100)))+'%'}}/></div>
-        <span>{seconds}s</span>
+      <div className="nid-live-message-card">
+        <div className="nid-message-main" style={{fontSize:details.headline.length>45?'clamp(24px,4.5vw,64px)':undefined}}>{details.headline}</div>
+        {details.detail&&<div className="nid-message-mode"><GradientText colors={['#ff6b37','#f4387e','#ffc273']} animationSpeed={5} variant="linear" scale={2} glow={0.06}>{details.detail}</GradientText></div>}
       </div>
-    </section>:<section className="nid-idle">
-      <div className="nid-idle-orbit" aria-hidden="true"><span>✦</span></div>
+      <div className="nid-display-progress" aria-label={seconds+' segundos restantes'}>
+        <div className="nid-progress-rail"><span style={{width:(Math.min(100,Math.max(0,seconds/duration*100)))+'%'}}/></div>
+        <strong>{seconds}s</strong>
+      </div>
+    </section>:<section className="nid-idle nid-idle-v5">
+      <div className="nid-idle-emblem" aria-hidden="true"><DispatchIcon name="bell-ring" size={49} strokeWidth={1.5}/></div>
       <h1>{online?'Aguardando solicitações':'Conexão indisponível'}</h1>
-      <p>{online?'As notificações aparecerão automaticamente.':error||'Tentando reconectar automaticamente ao servidor.'}</p>
+      <p>{online?'O monitor exibirá as chamadas automaticamente assim que chegarem.':error||'Tentando reconectar ao servidor.'}</p>
+      {online&&<span className="nid-idle-waiting">● PRONTO PARA RECEBER</span>}
     </section>}
-    <footer className="nid-monitor-bottom">
-      <div>{pending>0?pending+' chamada(s) aguardando na fila':'Nenhuma chamada em espera'}</div>
+    <footer className="nid-monitor-bottom nid-monitor-footer-v5">
+      <div className="nid-footer-queue"><DispatchIcon name="list-check" size={21}/>
+        <span>{pending>0?pending+' chamada(s) aguardando na fila':'Nenhuma chamada em espera'}</span></div>
       <div className="nid-monitor-actions">
-        <span className={'nid-audio-indicator '+(audioOn?'active':'blocked')} role="status">
-          {audioOn?'Som automático pronto':'Áudio bloqueado pelo navegador'}
-        </span>
-        {!audioOn&&<button type="button" onClick={enableAudio}>
-          Liberar áudio manualmente
-        </button>}
-        <button type="button" onClick={toggleFullScreen}>Tela cheia</button>
+        <span className={'nid-audio-indicator '+(audioOn?'active':'blocked')} role="status"><DispatchIcon name="volume-2" size={17}/>
+          {audioOn?'Som automático pronto':'Áudio bloqueado pelo navegador'}</span>
+        {!audioOn&&<button type="button" onClick={enableAudio}>Liberar áudio</button>}
+        <button type="button" onClick={toggleFullScreen} className="nid-fullscreen-action"><DispatchIcon name="monitor" size={17}/> Tela cheia</button>
       </div>
     </footer>
   </main>;

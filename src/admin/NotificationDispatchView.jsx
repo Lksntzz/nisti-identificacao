@@ -1,9 +1,14 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import '../notification-dispatch.css';
+import DispatchIcon from '../notification-ui/DispatchIcon.jsx';
 
 import { DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText,platformColor } from '../notification-dispatch-options.js';
 const PLATFORMS=DISPATCH_PLATFORMS;
 const NAMES={'PENDING':'Na fila','SHOWING':'Em exibição','EXPIRED':'Exibida'};
+const CHANNEL_SHORT={'SHOPEE':'S','MERCADO LIVRE ANTIGO':'ML','MERCADO LIVRE NOVO':'ML','MERCADO LIVRE':'ML','AMAZON':'A','SHEIN':'S','TIK TOK':'T','MAGALU':'M','KWAI':'K','LOJA INTEGRADA':'LI'};
+const titleCase=name=>name.toLowerCase().replace(/\b\w/g,x=>x.toUpperCase());
+function ChannelMark({platform}){return <span className={'nid-channel-mark '+platformColor(platform)} aria-hidden="true">{CHANNEL_SHORT[platform]||'N'}</span>}
+
 async function request(path,options={}) {
   const response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options});
   const data=await response.json().catch(()=>({}));
@@ -15,6 +20,7 @@ export default function NotificationDispatchView() {
   const [messages,setMessages]=useState({});
   const [config,setConfig]=useState(null);
   const [customOpen,setCustomOpen]=useState(false);
+  const [tab,setTab]=useState('send');
   const [editPlatform,setEditPlatform]=useState('SHOPEE');
   const [draftOptions,setDraftOptions]=useState([]);
   const [newOption,setNewOption]=useState('');
@@ -137,136 +143,232 @@ export default function NotificationDispatchView() {
   const monitorOnline=state?.monitor_last_seen
     && Date.now()-Date.parse(state.monitor_last_seen)<15000;
 
-  return <section className="nid-admin" aria-label="Central de Notificações da Expedição">
-    <header className="nid-admin-heading">
-      <div><span className="nid-eyebrow">NISTI PRINT • COMUNICAÇÃO</span>
-        <h2>Notificações da Expedição</h2>
-        <p>Chame a retirada de capas sem rádio. As solicitações passam pelo monitor em ordem de chegada, por 15 segundos cada.</p>
+  const preview=selectedPlatforms.map(platform=>({platform,option:selectedOption(platform),
+    message:formatDispatchText(platform,selectedOption(platform))}));
+  const editor=<div className="nid-panel nid-custom-panel">
+    <div className="nid-panel-title-row">
+      <div>
+        <span className="nid-section-eyebrow">PERSONALIZAÇÃO</span>
+        <h3>Informações por plataforma</h3>
+        <p className="nid-muted">Configure só as modalidades utilizadas. “RETIRAR CAPA” permanece universal em todas as plataformas.</p>
       </div>
-      <a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">Abrir monitor ↗</a>
+      <DispatchIcon name="settings-2" size={23}/>
+    </div>
+    <div className="nid-custom-workspace">
+      <div className="nid-custom-channels" role="group" aria-label="Plataforma para personalizar">
+        {PLATFORMS.map(name=><button key={name} type="button"
+          className={'nid-custom-channel '+(name===editPlatform?'active':'')}
+          onClick={()=>setEditPlatform(name)}>
+          <ChannelMark platform={name}/><span>{titleCase(name)}</span>
+          {name===editPlatform&&<DispatchIcon name="check" size={17}/>}
+        </button>)}
+      </div>
+      <div className="nid-custom-editor">
+        <div className="nid-custom-editor-heading">
+          <ChannelMark platform={editPlatform}/>
+          <div><h4>{titleCase(editPlatform)}</h4>
+            <span>{draftOptions.length} modalidade(s) personalizadas</span>
+          </div>
+        </div>
+        <div className="nid-universal-fixed"><DispatchIcon name="check" size={18}/> RETIRAR CAPA
+          <small>Universal · não pode ser removida</small></div>
+        <div className="nid-custom-section-label">MODALIDADES DISPONÍVEIS</div>
+        <div className="nid-edit-list">
+          {draftOptions.length===0?<p className="nid-muted">Nenhuma modalidade extra. Use o campo abaixo para adicionar.</p>
+            :draftOptions.map(option=><div className="nid-edit-chip" key={option}>
+              <span>{option}</span>
+              <button type="button" title={'Remover '+option} aria-label={'Remover '+option}
+                onClick={()=>setDraftOptions(current=>current.filter(x=>x!==option))}>
+                <DispatchIcon name="x" size={17}/>
+              </button>
+            </div>)}
+        </div>
+        <label className="nid-input-label" htmlFor="nid-custom-new-option">Adicionar modalidade</label>
+        <div className="nid-add-mode">
+          <input id="nid-custom-new-option" value={newOption} maxLength={60}
+            onChange={e=>setNewOption(e.target.value)}
+            onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addOption()}}}
+            placeholder="Ex.: Coleta especial"/>
+          <button className="nid-secondary" type="button" onClick={addOption}>
+            <DispatchIcon name="plus" size={18}/> Adicionar
+          </button>
+        </div>
+        <div className="nid-editor-actions">
+          <button className="nid-send" type="button" onClick={saveOptions}
+            disabled={savingOptions||!config}>
+            <DispatchIcon name="check" size={19}/>
+            {savingOptions?'Salvando…':'Salvar modalidades'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>;
+  return <section className="nid-admin nid-admin-v5" aria-label="Central de Notificações da Expedição">
+    <header className="nid-admin-heading nid-dashboard-header">
+      <div className="nid-heading-copy">
+        <span className="nid-section-eyebrow">NISTI PRINT <span className="nid-eyebrow-sep">/</span> COMUNICAÇÃO</span>
+        <h2>NISTI Notificações</h2>
+        <p>Central de comunicação da expedição</p>
+      </div>
+      <div className="nid-header-tools">
+        <span className={'nid-monitor-health '+(monitorOnline?'online':'offline')}>
+          <span className="nid-live-dot"/>{monitorOnline?'Monitor conectado':'Monitor desconectado'}
+        </span>
+        <a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">
+          <DispatchIcon name="monitor" size={17}/> Abrir monitor <DispatchIcon name="external-link" size={15}/>
+        </a>
+      </div>
     </header>
     {error&&<div className="nid-message nid-error" role="alert">{error}</div>}
     {success&&<div className="nid-message nid-success" role="status">{success}</div>}
-
-    <div className="nid-admin-grid">
-      <form className="nid-panel" onSubmit={send}>
-        <span className="nid-section-eyebrow">NOVA CHAMADA</span>
-        <h3>1. Selecione as plataformas</h3>
-        <p className="nid-muted">Marque as plataformas. A opção universal é <strong>RETIRAR CAPA</strong>; modalidades adicionais são individuais por plataforma.</p>
+    <div className="nid-kpi-grid" aria-label="Indicadores da expedição">
+      {[
+        {icon:'list-check',count:state?.pending??'—',title:'Na fila',tone:'pink'},
+        {icon:'bell-ring',count:state?.showing??'—',title:'Em exibição',tone:'blue'},
+        {icon:'clock-3',count:'15s',title:'Por notificação',tone:'indigo'},
+        {icon:'send',count:state?.today??'—',title:'Enviadas hoje',tone:'green'}
+      ].map((item,i)=><div key={item.title} className="nid-kpi" style={{'--nid-stagger':i}}>
+        <span className={'nid-kpi-icon '+item.tone}><DispatchIcon name={item.icon} size={22}/></span>
+        <div><strong>{item.count}</strong><small>{item.title}</small></div>
+      </div>)}
+    </div>
+    <nav className="nid-views" aria-label="Seções da central de notificações">
+      {[
+        {id:'send',label:'Enviar notificações',icon:'send'},
+        {id:'history',label:'Fila e histórico',icon:'list-check'},
+        {id:'settings',label:'Personalizar informações',icon:'settings-2'}
+      ].map(entry=><button key={entry.id} type="button" aria-current={tab===entry.id?'page':undefined}
+        className={'nid-tab '+(tab===entry.id?'active':'')} onClick={()=>setTab(entry.id)}>
+        <DispatchIcon name={entry.icon} size={17}/>{entry.label}
+      </button>)}
+    </nav>
+    {tab==='send'&&<div className="nid-admin-grid nid-main-grid">
+      <form className="nid-panel nid-send-panel" onSubmit={send}>
+        <div className="nid-step-head"><span className="nid-step-number">1</span><div>
+          <h3>Selecionar plataformas</h3>
+          <p className="nid-muted">Escolha uma ou mais plataformas para enviar notificações.</p>
+        </div></div>
         <div className="nid-platform-picker" role="group" aria-label="Selecionar plataformas">
           {PLATFORMS.map(name=><label key={name}
             className={'nid-platform-chip '+(selected[name]?'selected ':'')+platformColor(name)}>
             <input type="checkbox" checked={!!selected[name]} onChange={()=>togglePlatform(name)}/>
-            <span className="nid-platform-indicator" aria-hidden="true"/>
-            <span>{name.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())}</span>
-            <span className="nid-chip-tick" aria-hidden="true">{selected[name]?'✓':'+'}</span>
+            <ChannelMark platform={name}/>
+            <span className="nid-platform-name">{titleCase(name)}</span>
+            <span className="nid-chip-tick" aria-hidden="true">
+              {selected[name]&&<DispatchIcon name="check" size={14}/>}
+            </span>
           </label>)}
         </div>
         <div className="nid-selected-modes">
-          <div className="nid-selected-heading">
-            <strong>2. Escolha a informação para cada plataforma</strong>
-            <small>{selectedPlatforms.length} selecionada(s)</small>
+          <div className="nid-step-head"><span className="nid-step-number">2</span><div>
+            <h3>Definir as informações</h3>
+            <p className="nid-muted">Cada plataforma pode receber uma modalidade diferente.</p>
+          </div></div>
+          {selectedPlatforms.length===0?<div className="nid-modes-empty">
+            <DispatchIcon name="bell-ring" size={22}/>
+            Selecione ao menos uma plataforma acima.
+          </div>:selectedPlatforms.map(platform=><div key={platform} className="nid-mode-item">
+            <div className="nid-mode-channel"><ChannelMark platform={platform}/>
+              <label htmlFor={'nid-mode-'+platform}>{titleCase(platform)}</label>
+            </div>
+            <div className="nid-option-with-preview">
+              <select id={'nid-mode-'+platform} value={selectedOption(platform)}
+                onChange={event=>changeMessage(platform,event.target.value)} required>
+                {dispatchOptionGroups(platform,config||{}).map(group=><optgroup key={group.label} label={group.label}>
+                  {group.options.map(option=><option key={option} value={option}>{option}</option>)}
+                </optgroup>)}
+              </select>
+              <div className="nid-preview-line"><small>Como aparecerá no monitor:</small>
+                <strong>{formatDispatchText(platform,selectedOption(platform))}</strong></div>
+            </div>
+          </div>)}
+        </div>
+        <div className="nid-send-footer">
+          <div><strong>{selectedPlatforms.length} plataforma(s) selecionada(s)</strong>
+            <small>Uma notificação a cada 15 segundos, em ordem de envio.</small>
           </div>
-          {selectedPlatforms.length===0
-            ? <div className="nid-modes-empty">Selecione uma plataforma acima para visualizar as modalidades disponíveis.</div>
-            :selectedPlatforms.map(platform=><div key={platform} className="nid-mode-item">
-              <label htmlFor={'nid-mode-'+platform}>{platform.toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase())}</label>
-              <div className="nid-option-with-preview">
-                <select id={'nid-mode-'+platform} value={selectedOption(platform)}
-                  onChange={event=>changeMessage(platform,event.target.value)} required>
-                  {dispatchOptionGroups(platform,config||{}).map(group=><optgroup key={group.label} label={group.label}>
-                    {group.options.map(option=><option key={option} value={option}>{option}</option>)}
-                  </optgroup>)}
-                </select>
-                <small className="nid-preview-line">{formatDispatchText(platform,selectedOption(platform))}</small>
-              </div>
-            </div>)}
+          <button type="submit" className="nid-send"
+            disabled={sending||!config||selectedPlatforms.length===0||
+              selectedPlatforms.some(name=>!dispatchOptionValid(name,selectedOption(name),config))}>
+            <DispatchIcon name="send" size={18}/>
+            {sending?'Enviando…':selectedPlatforms.length>1?'Enviar '+selectedPlatforms.length+' notificações':'Enviar notificação'}
+          </button>
         </div>
-        <div className="nid-request-summary">
-          <span>Resumo do envio</span><strong>{selectedPlatforms.length} plataforma(s) • 15s cada</strong>
-        </div>
-        <button type="submit" className="nid-send" disabled={sending||!config||selectedPlatforms.length===0||
-          selectedPlatforms.some(name=>!dispatchOptionValid(name,selectedOption(name),config))}>
-          {sending?'Enviando…':selectedPlatforms.length>1?'Enviar '+selectedPlatforms.length+' notificações':'Enviar notificação'}
-          <span aria-hidden="true">→</span>
-        </button>
-        <small>Cada plataforma entra separadamente na fila, com som e 15 segundos de exibição.</small>
       </form>
-      <div className="nid-panel nid-operations">
+      <aside className="nid-side-column">
+        <div className="nid-panel nid-preview-panel">
+          <div className="nid-panel-title-row"><div>
+            <span className="nid-section-eyebrow">PRÉVIA DE ENVIO</span>
+            <h3>Ordem de exibição</h3>
+          </div><DispatchIcon name="list-check" size={22}/></div>
+          {preview.length===0?<div className="nid-preview-empty">Nenhuma chamada selecionada.</div>
+            :<div className="nid-preview-queue">{preview.map((item,i)=><div className="nid-preview-queue-row" key={item.platform}>
+              <span className="nid-queue-index">{i+1}</span><ChannelMark platform={item.platform}/>
+              <div><strong>{titleCase(item.platform)}</strong><small>{item.message}</small></div>
+            </div>)}</div>}
+        </div>
+        <div className="nid-panel nid-monitor-sidepanel">
+          <div className="nid-panel-title-row"><div>
+            <span className="nid-section-eyebrow">MONITOR DA EXPEDIÇÃO</span>
+            <h3>Status da transmissão</h3>
+          </div><DispatchIcon name="monitor" size={21}/></div>
+          <div className={'nid-monitor-inline-status '+(monitorOnline?'online':'offline')}>
+            <span className="nid-live-dot"/><div>
+              <strong>{monitorOnline?'Monitor conectado':state?.monitor_paired?'Monitor offline':'Monitor não ativado'}</strong>
+              <small>{monitorOnline?'Recebendo notificações':'As chamadas ficam na fila enquanto o monitor está ausente.'}</small>
+            </div>
+          </div>
+          <p className="nid-muted">O painel permanece ativo na tela dedicada. Som e exibição são controlados pelo monitor.</p>
+          <button type="button" className="nid-secondary nid-pair-link" onClick={()=>setTab('settings')}>
+            <DispatchIcon name="settings-2" size={17}/> Configurar monitor
+          </button>
+        </div>
+      </aside>
+    </div>}
+    {tab==='history'&&<div className="nid-panel nid-history nid-history-v5">
+      <div className="nid-panel-title-row"><div>
+        <span className="nid-section-eyebrow">CHAMADAS DA EXPEDIÇÃO</span>
+        <h3>Fila e histórico</h3>
+        <p className="nid-muted">A exibição termina após 15 segundos; isso não confirma a retirada.</p>
+      </div><button type="button" className="nid-secondary" onClick={refresh}>
+        <DispatchIcon name="clock-3" size={17}/> Atualizar
+      </button></div>
+      <div className="nid-history-list">
+        {state?.recent?.length?state.recent.map(item=><div key={item.id} className="nid-history-row">
+          <ChannelMark platform={item.platform}/>
+          <div className="nid-history-details"><strong>{titleCase(item.platform)}</strong>
+            <span>{item.message||'RETIRAR CAPA'}</span></div>
+          <span className="nid-history-clock">{new Date(item.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+          <span className={'nid-status nid-status-'+String(item.status||'').toLowerCase()}>{NAMES[item.status]||item.status}</span>
+        </div>):<p className="nid-muted">Nenhuma chamada registrada ainda.</p>}
+      </div>
+    </div>}
+    {tab==='settings'&&<div className="nid-settings-grid">
+      {editor}
+      <div className="nid-panel nid-monitor-setup-panel">
         <span className="nid-section-eyebrow">MONITOR DA EXPEDIÇÃO</span>
-        <h3>Situação da transmissão</h3>
-        <div className="nid-stats">
-          <div><strong>{state?.pending??'—'}</strong><span>Aguardando</span></div>
-          <div><strong>{state?.showing??'—'}</strong><span>Na tela</span></div>
-          <div><strong>{state?.today??'—'}</strong><span>Hoje</span></div>
+        <h3>Conexão e ativação</h3>
+        <div className="nid-monitor-inline-status">
+          <span className={'nid-live-dot '+(monitorOnline?'online':'')}/>
+          <strong>{monitorOnline?'Monitor conectado':state?.monitor_paired?'Monitor offline':'Monitor não ativado'}</strong>
         </div>
-        <div className="nid-monitor-status">
-          <span className={'nid-live-dot '+(monitorOnline?'online':'offline')}/>
-          <div><strong>{monitorOnline?'Monitor conectado':state?.monitor_paired?'Monitor offline':'Monitor não ativado'}</strong>
-            <small>{monitorOnline?'Recebendo chamadas em tempo real.':'As chamadas ficam na fila enquanto o monitor está ausente.'}</small></div>
-        </div>
-        <p className="nid-muted">Instale o monitor na expedição e abra a URL exclusiva. Para usar pela primeira vez, gere uma chave de ativação.</p>
+        <p className="nid-muted">A chave é necessária apenas na primeira ativação. Gerar uma nova desconecta o monitor anterior.</p>
         <button type="button" onClick={pair} disabled={pairing} className="nid-secondary">
+          <DispatchIcon name="settings-2" size={17}/>
           {pairing?'Gerando…':state?.monitor_paired?'Substituir chave do monitor':'Gerar chave de ativação'}
         </button>
-        <div className="nid-settings-section">
-          <div className="nid-settings-title">
-            <div>
-              <span className="nid-section-eyebrow">MODALIDADES POR PLATAFORMA</span>
-              <h3>Personalizar informações</h3>
-            </div>
-            <button type="button" className="nid-secondary" onClick={()=>setCustomOpen(v=>!v)}>
-              {customOpen?'Fechar':'Configurar'}
-            </button>
-          </div>
-          <p className="nid-muted">Full não fica disponível em todas as plataformas. Você pode acrescentar ou retirar modalidades próprias de cada canal.</p>
-          {customOpen&&<div className="nid-options-editor">
-            <label htmlFor="nid-edit-platform">Plataforma a configurar</label>
-            <select id="nid-edit-platform" value={editPlatform}
-              onChange={event=>setEditPlatform(event.target.value)}>
-              {PLATFORMS.map(name=><option key={name} value={name}>{name}</option>)}
-            </select>
-            <div className="nid-universal-fixed">RETIRAR CAPA <small>Universal · sempre disponível</small></div>
-            <div className="nid-edit-chips">
-              {draftOptions.length===0?<small>Nenhuma modalidade adicional.</small>
-                :draftOptions.map(option=><div className="nid-edit-chip" key={option}>
-                  <span>{option}</span>
-                  <button type="button" title={'Remover '+option} aria-label={'Remover '+option}
-                    onClick={()=>setDraftOptions(xs=>xs.filter(x=>x!==option))}>×</button>
-                </div>)}
-            </div>
-            <div className="nid-add-mode">
-              <input value={newOption} maxLength={60}
-                onChange={e=>setNewOption(e.target.value)}
-                onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addOption()}}}
-                placeholder="Nova modalidade, ex.: Coleta especial"/>
-              <button className="nid-secondary" type="button" onClick={addOption}>Adicionar</button>
-            </div>
-            <button className="nid-send" type="button" onClick={saveOptions}
-              disabled={savingOptions||!config}>
-              {savingOptions?'Salvando…':'Salvar modalidades da plataforma'}
-            </button>
-          </div>}
-        </div>
         {monitorKey&&<div className="nid-key-view" role="status">
-          <strong>Chave de ativação — exibida apenas agora</strong>
+          <strong>Chave de ativação — exibida somente agora</strong>
           <code>{monitorKey}</code>
-          <button type="button" onClick={copy} className="nid-secondary">Copiar chave</button>
-          <small>{copyMessage||'Cole esta chave na tela do monitor. Uma nova chave invalida a anterior.'}</small>
+          <button type="button" onClick={copy} className="nid-secondary">
+            <DispatchIcon name="copy" size={17}/> Copiar chave
+          </button>
+          <small>{copyMessage||'Cole a chave na tela do monitor. A antiga será invalidada.'}</small>
         </div>}
+        <a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">
+          <DispatchIcon name="monitor" size={17}/> Abrir monitor <DispatchIcon name="external-link" size={14}/>
+        </a>
       </div>
-    </div>
-    <div className="nid-panel nid-history">
-      <div><span className="nid-section-eyebrow">ÚLTIMOS ENVIOS</span><h3>Histórico de chamadas</h3></div>
-      {state?.recent?.length?<div className="nid-history-list">
-        {state.recent.map(item=><div key={item.id} className="nid-history-row">
-          <span className={'nid-history-tag '+platformColor(item.platform)}>{item.platform}</span>
-          <strong>{item.message||'RETIRAR CAPA'}</strong>
-          <span className="nid-muted">{new Date(item.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
-          <span className="nid-status">{NAMES[item.status]||item.status}</span>
-        </div>)}
-      </div>:<p className="nid-muted">Nenhuma chamada enviada ainda.</p>}
-      <small className="nid-muted">“Exibida” significa que os 15 segundos terminaram, não que a solicitação foi atendida.</small>
-    </div>
+    </div>}
   </section>;
 }
