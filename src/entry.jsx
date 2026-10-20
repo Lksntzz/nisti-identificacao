@@ -42,6 +42,19 @@ function getInitialRoute() {
   return 'public';
 }
 
+class MonitorErrorBoundary extends React.Component {
+  constructor(props){super(props);this.state={failed:false}}
+  static getDerivedStateFromError(){return {failed:true}}
+  componentDidCatch(error){console.error('[Monitor NISTI] Erro ao exibir a tela',error?.name||'render_error')}
+  render(){
+    if(this.state.failed)return <main style={{minHeight:'100dvh',background:'#0b1326',color:'white',display:'grid',placeItems:'center',fontFamily:'system-ui',padding:32,textAlign:'center'}}>
+      <div><h1>Não foi possível exibir o monitor NISTI</h1><p>O sistema encontrou um erro nesta sessão do navegador.</p>
+        <button onClick={()=>window.location.reload()} style={{padding:12,borderRadius:8}}>Tentar novamente</button></div>
+    </main>;
+    return this.props.children;
+  }
+}
+
 function RootApp() {
   const [route, setRoute] = useState(getInitialRoute);
   useEffect(() => {
@@ -53,6 +66,7 @@ function RootApp() {
   const [PublicComponent, setPublicComponent] = useState(null);
   const [MuralComponent, setMuralComponent] = useState(null);
   const [DispatchComponent,setDispatchComponent] = useState(null);
+  const [dispatchLoadError,setDispatchLoadError] = useState(false);
   const [DispatchAdminComponent,setDispatchAdminComponent] = useState(null);
 
   useEffect(() => {
@@ -81,7 +95,8 @@ function RootApp() {
         setMuralComponent(() => mod.default);
       });
     } else if (route === 'dispatch' && !DispatchComponent) {
-      import('./notification-monitor.jsx').then(mod=>setDispatchComponent(()=>mod.default));
+      import('./notification-monitor.jsx').then(mod=>setDispatchComponent(()=>mod.default))
+        .catch(error=>{console.error('[Monitor NISTI] Falha no carregamento',error?.name||'module_error');setDispatchLoadError(true)});
     } else if (route === 'dispatch-admin' && !DispatchAdminComponent) {
       import('./expedition-dispatch-standalone.jsx').then(mod=>setDispatchAdminComponent(()=>mod.default));
     } else if (route === 'public' && !PublicComponent) {
@@ -116,8 +131,11 @@ function RootApp() {
   }
 
   if (route === 'dispatch') {
+    if(dispatchLoadError)return <main style={{minHeight:'100dvh',background:'#0b1326',color:'white',display:'grid',placeItems:'center',fontFamily:'system-ui',padding:32,textAlign:'center'}}>
+      <div><h1>Falha ao carregar o monitor NISTI</h1><p>Verifique a conexão e tente novamente.</p><button onClick={()=>window.location.reload()} style={{padding:12,borderRadius:8}}>Recarregar monitor</button></div>
+    </main>;
     if (!DispatchComponent) return <main style={{minHeight:'100dvh',display:'grid',placeItems:'center',background:'#0b1326',color:'#fff'}}>Carregando monitor NISTI…</main>;
-    return <DispatchComponent />;
+    return <MonitorErrorBoundary><DispatchComponent /></MonitorErrorBoundary>;
   }
 
   if (route === 'dispatch-admin') {
