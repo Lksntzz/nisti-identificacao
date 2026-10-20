@@ -1,7 +1,7 @@
 import { supabaseRpc } from './supabase-read-store.js';
 import { normalizePlatform } from './platform-scope.js';
 
-export const DISPATCH_DURATION_SECONDS=10;
+export const DISPATCH_DURATION_SECONDS=15;
 export const DISPATCH_PLATFORMS=Object.freeze(['SHOPEE','MERCADO LIVRE','AMAZON']);
 export const DISPATCH_ACTION='RETIRAR_CAPA';
 const MONITOR_COOKIE='__Host-nisti_dispatch_monitor';
@@ -34,6 +34,8 @@ function validRequestKey(value) {
 function errorResponse(error) {
   const message=String(error?.message||'');
   if(message.includes('dispatch_queue_full'))return json({error:'A fila atingiu 50 notificações pendentes.'},409);
+  if(message.includes('dispatch_idempotency_conflict'))return json({error:'A solicitação foi alterada após o envio. Atualize antes de reenviar.'},409);
+  if(message.includes('invalid_dispatch_batch'))return json({error:'Seleção ou mensagens inválidas.'},400);
   if(message.includes('monitor_unauthorized'))return json({error:'Monitor desconectado. Ative novamente.'},401);
   console.error('[NISTI Dispatch] Falha',error?.code||error?.name||'backend_error');
   return json({error:'Não foi possível acessar o serviço de notificações.'},503);
@@ -54,6 +56,24 @@ export async function handleNotificationDispatchRequest(request,env) {
         p_platform:platform,p_action:DISPATCH_ACTION,p_request_key:body.request_key
       });
       return json({ok:true,call:item},201);
+    }
+    if(path==='/api/admin/dispatch/batch'&&request.method==='POST') {
+      const body=await request.json().catch(()=>null);
+      const calls=body?.calls;
+      if(!Array.isArray(calls)||calls.length<1||calls.length>3)return json({error:'Selecione de uma a três plataformas.'},400);
+      const seen=new Set();
+      const validated=[];
+      for(const call of calls) {
+        const platform=normalizePlatform(call?.platform);
+        const message=typeof call?.message==='string'?call.message.trim():'';
+        if(!DISPATCH_PLATFORMS.includes(platform)||seen.has(platform)||!validRequestKey(call?.request_key)
+          ||message.length<1||message.length>120||/[\x00-\x1f\x7f]/.test(message))
+          return json({error:'Revise as plataformas e as mensagens (até 120 caracteres, sem quebras de linha).'},400);
+        seen.add(platform);
+        validated.push({platform,message,request_key:call.request_key});
+      }
+      const result=await supabaseRpc(env,'nisti_dispatch_enqueue_batch_v2',{p_calls:validated});
+      return json({ok:true,...result},201);
     }
     if(path==='/api/admin/dispatch/monitor-key'&&request.method==='POST') {
       const key=newMonitorKey();

@@ -21,6 +21,7 @@ export default function NotificationMonitor(){
   const [paired,setPaired]=useState(null);
   const [call,setCall]=useState(null);
   const [pending,setPending]=useState(0);
+  const [duration,setDuration]=useState(15);
   const [offset,setOffset]=useState(0);
   const [now,setNow]=useState(Date.now());
   const [online,setOnline]=useState(false);
@@ -59,6 +60,7 @@ export default function NotificationMonitor(){
       setOffset(Date.parse(result.server_time)-Date.now());
       setCall(incoming);
       setPending(result.pending||0);
+      setDuration(result.duration_seconds||15);
       setPaired(true);setOnline(true);setError('');
       if(incoming?.id!==undefined && incoming.id!==null && incoming.id!==previous){
         lastCallId.current=incoming.id;
@@ -138,9 +140,9 @@ export default function NotificationMonitor(){
     {current?<section className={'nid-live-request '+color} aria-live="polite">
       <div className="nid-call-kicker">SOLICITAÇÃO DA ADMINISTRAÇÃO</div>
       <h1>{LABELS[current.platform]||current.platform}</h1>
-      <h2>RETIRAR CAPA</h2>
+      <h2 style={{fontSize:(current.message||'RETIRAR CAPA').length>90?'clamp(28px,3.2vw,58px)':(current.message||'RETIRAR CAPA').length>55?'clamp(32px,4.3vw,76px)':undefined}}>{current.message||'RETIRAR CAPA'}</h2>
       <div className="nid-display-progress">
-        <div className="nid-progress-rail"><span style={{width:(seconds*10)+'%'}}/></div>
+        <div className="nid-progress-rail"><span style={{width:(Math.min(100,Math.max(0,seconds/duration*100)))+'%'}}/></div>
         <span>{seconds}s</span>
       </div>
     </section>:<section className="nid-idle">

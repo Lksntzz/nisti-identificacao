@@ -1,4 +1,4 @@
-import React,{useCallback,useEffect,useState} from 'react';
+import React,{useCallback,useEffect,useRef,useState} from 'react';
 import '../notification-dispatch.css';
 
 const PLATFORMS=['SHOPEE','MERCADO LIVRE','AMAZON'];
@@ -10,7 +10,20 @@ async function request(path,options={}) {
   return data;
 }
 export default function NotificationDispatchView() {
-  const [platform,setPlatform]=useState('SHOPEE');
+  const [selected,setSelected]=useState({'SHOPEE':true,'MERCADO LIVRE':false,'AMAZON':false});
+  const [messages,setMessages]=useState({'SHOPEE':'RETIRAR CAPA','MERCADO LIVRE':'RETIRAR CAPA','AMAZON':'RETIRAR CAPA'});
+  const pendingBatch=useRef(null);
+  const selectedPlatforms=PLATFORMS.filter(name=>selected[name]);
+  function togglePlatform(name){
+    pendingBatch.current=null;
+    setSelected(current=>({...current,[name]:!current[name]}));
+    setSuccess('');
+  }
+  function changeMessage(name,value){
+    pendingBatch.current=null;
+    setMessages(current=>({...current,[name]:value}));
+    setSuccess('');
+  }
   const [state,setState]=useState(null);
   const [error,setError]=useState('');
   const [success,setSuccess]=useState('');
@@ -34,15 +47,29 @@ export default function NotificationDispatchView() {
   async function send(event){
     event.preventDefault();
     if(sending)return;
-    setSending(true);setSuccess('');setError('');
-    try {
-      await request('/api/admin/dispatch',{
+    setSuccess('');setError('');
+    const platforms=PLATFORMS.filter(name=>selected[name]);
+    if(!platforms.length){setError('Selecione pelo menos uma plataforma.');return;}
+    if(platforms.some(name=>!(messages[name]||'').trim())){
+      setError('Escreva uma informação para cada plataforma selecionada.');return;
+    }
+    if(platforms.some(name=>messages[name].trim().length>120)){
+      setError('Cada mensagem pode ter no máximo 120 caracteres.');return;
+    }
+    setSending(true);
+    try{
+      if(!pendingBatch.current)pendingBatch.current=platforms.map(name=>({
+        platform:name,message:messages[name].trim(),request_key:crypto.randomUUID()
+      }));
+      const data=await request('/api/admin/dispatch/batch',{
         method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({platform,action:'RETIRAR_CAPA',request_key:crypto.randomUUID()})
+        body:JSON.stringify({calls:pendingBatch.current})
       });
-      setSuccess('Solicitação enviada. Será exibida por 10 segundos quando chegar sua vez.');
+      pendingBatch.current=null;
+      setSuccess((data.items?.length||platforms.length)+
+        ' notificação(ões) enviada(s). Cada plataforma terá 15 segundos de exibição, uma após a outra.');
       await refresh();
-    }catch(e){setError(e.message)}
+    }catch(e){setError(e.message+' Você pode reenviar sem duplicar a solicitação.');}
     finally{setSending(false)}
   }
   async function pair(){
@@ -68,7 +95,7 @@ export default function NotificationDispatchView() {
     <header className="nid-admin-heading">
       <div><span className="nid-eyebrow">NISTI PRINT • COMUNICAÇÃO</span>
         <h2>Notificações da Expedição</h2>
-        <p>Chame a retirada de capas sem rádio. As solicitações passam pelo monitor em ordem de chegada, por 10 segundos cada.</p>
+        <p>Chame a retirada de capas sem rádio. As solicitações passam pelo monitor em ordem de chegada, por 15 segundos cada.</p>
       </div>
       <a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">Abrir monitor ↗</a>
     </header>
@@ -78,22 +105,36 @@ export default function NotificationDispatchView() {
     <div className="nid-admin-grid">
       <form className="nid-panel" onSubmit={send}>
         <span className="nid-section-eyebrow">NOVA CHAMADA</span>
-        <h3>Selecione a plataforma</h3>
+        <h3>Selecione uma ou mais plataformas</h3>
+        <p className="nid-muted">Marque as plataformas e escreva a informação de cada uma. O monitor exibirá uma de cada vez.</p>
         <div className="nid-platform-list">
-          {PLATFORMS.map(name=><button type="button" key={name}
-            onClick={()=>setPlatform(name)}
-            aria-pressed={platform===name}
-            className={'nid-platform-option '+(platform===name?'selected ':'')+
+          {PLATFORMS.map(name=><div key={name}
+            className={'nid-platform-group '+(selected[name]?'active ':'')+
               (name==='SHOPEE'?'shopee':name==='AMAZON'?'amazon':'ml')}>
-            <span className="nid-platform-indicator" aria-hidden="true"/>
-            {name}<span className="nid-check">{platform===name?'✓':''}</span>
-          </button>)}
+            <label className="nid-platform-option">
+              <input type="checkbox" checked={!!selected[name]} onChange={()=>togglePlatform(name)}/>
+              <span className="nid-platform-indicator" aria-hidden="true"/>
+              <strong>{name}</strong>
+              <span className="nid-check">{selected[name]?'✓':''}</span>
+            </label>
+            {selected[name]&&<div className="nid-platform-detail">
+              <label htmlFor={'nid-message-'+name}>Informação para {name}</label>
+              <textarea id={'nid-message-'+name} maxLength={120} rows={2}
+                value={messages[name]} onChange={event=>changeMessage(name,event.target.value)}
+                placeholder="Ex.: Retirar capa, material pronto, buscar pacote…"/>
+              <small>{messages[name].length}/120 caracteres</small>
+            </div>}
+          </div>)}
         </div>
-        <div className="nid-request-summary"><span>Solicitação</span><strong>RETIRAR CAPA</strong></div>
-        <button type="submit" className="nid-send" disabled={sending}>
-          {sending?'Enviando…':'Enviar notificação'} <span aria-hidden="true">→</span>
+        <div className="nid-request-summary">
+          <span>Resumo do envio</span><strong>{selectedPlatforms.length} plataforma(s) • 15s cada</strong>
+        </div>
+        <button type="submit" className="nid-send" disabled={sending||selectedPlatforms.length===0||
+          selectedPlatforms.some(name=>!(messages[name]||'').trim())}>
+          {sending?'Enviando…':selectedPlatforms.length>1?'Enviar '+selectedPlatforms.length+' notificações':'Enviar notificação'}
+          <span aria-hidden="true">→</span>
         </button>
-        <small>Uma chamada por envio. Não há confirmação manual.</small>
+        <small>As mensagens entram na fila juntas, mas aparecem individualmente, sem confirmação manual.</small>
       </form>
       <div className="nid-panel nid-operations">
         <span className="nid-section-eyebrow">MONITOR DA EXPEDIÇÃO</span>
@@ -125,12 +166,12 @@ export default function NotificationDispatchView() {
       {state?.recent?.length?<div className="nid-history-list">
         {state.recent.map(item=><div key={item.id} className="nid-history-row">
           <span className={'nid-history-tag '+(item.platform==='SHOPEE'?'shopee':item.platform==='AMAZON'?'amazon':'ml')}>{item.platform}</span>
-          <strong>Retirar capa</strong>
+          <strong>{item.message||'RETIRAR CAPA'}</strong>
           <span className="nid-muted">{new Date(item.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
           <span className="nid-status">{NAMES[item.status]||item.status}</span>
         </div>)}
       </div>:<p className="nid-muted">Nenhuma chamada enviada ainda.</p>}
-      <small className="nid-muted">“Exibida” significa que os 10 segundos terminaram, não que a capa foi retirada.</small>
+      <small className="nid-muted">“Exibida” significa que os 15 segundos terminaram, não que a solicitação foi atendida.</small>
     </div>
   </section>;
 }
