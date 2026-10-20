@@ -25,12 +25,12 @@ https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes
   a permissão de envio.
 
 A URL curta **/painel-expedicao** sozinha não concede acesso: precisa estar com
-a sessão ativada por link privado. O segredo no Cloudflare
-`DISPATCH_SENDER_TOKEN_SHA256` armazena somente o SHA-256 da chave aleatória de
-256 bits, não a chave. É necessário cadastrar esse segredo na Worker antes de
-usar em produção. Para revogar o link e todos os cookies associados, substitua
-o SHA-256 por outro gerado a partir de uma nova chave privada; o sistema passa
-a recusar os acessos anteriores imediatamente.
+a sessão ativada por link privado. O valor `DISPATCH_SENDER_TOKEN_SHA256` em `wrangler.toml` contém somente o
+SHA-256 de um token aleatório de 256 bits. O token privado NUNCA entra no
+repositório. O hash é um verificador unidirecional e é enviado ao Worker em
+cada deploy da aplicação; não é preciso configurar uma variável manualmente. Para revogar o link e todos os cookies associados, substitua
+o SHA-256 em `wrangler.toml` pelo digest de outra chave aleatória e publique
+um novo deploy; os acessos anteriores deixarão de funcionar.
 
 Todas as telas compartilham a mesma fila no Supabase. Não há atualização do
 instalador Windows para este painel; ele é acessado pelo navegador.
