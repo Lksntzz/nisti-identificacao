@@ -37,7 +37,7 @@ test('analysis dates appear as understated footer rather than detached paragraph
   assert.match(evidence,/formatDate\(data\.period_start\)/);
   assert.match(evidence,/formatDate\(data\.period_end\)/);
   assert.match(ui,/nim-filter-panel-warning/);
-  assert.match(ui,/Inclui anúncios com variações sem vendas/);
+  assert.match(ui,/Anúncios que venderam, mas têm variações verificadas sem vendas/);
   assert.doesNotMatch(ui,/<p className="nim-coverage">/);
 });
 
