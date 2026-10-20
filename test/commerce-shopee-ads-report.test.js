@@ -42,7 +42,7 @@ test('quoted commas do not corrupt report columns',()=>{
 test('reject unexpected format or invalid values',()=>{
  assert.throws(()=>parseShopeeAdsCsv('não é Shopee Ads'),/não identificado/);
  assert.throws(()=>parseShopeeAdsCsv(demo().replace('5.00%','120.00%')),/fora do limite/);
- assert.throws(()=>parseShopeeAdsCsv(demo().replace('20\\/07\\/2026 - 20\\/10\\/2026','20\\/10\\/2026 - 20\\/07\\/2026')),/Período fora/);
+ assert.throws(()=>parseShopeeAdsCsv(demo().replace('20/07/2026 - 20/10/2026','20/10/2026 - 20/07/2026')),/Período fora/);
 });
 test('source and sales stay separate; deduplication and access are restricted',()=>{
  assert.match(migration,/commerce_shopee_ads_reports_v1/);
