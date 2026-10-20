@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText} from '../src/notification-dispatch-options.js';
+import {DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText,platformColor} from '../src/notification-dispatch-options.js';
 import {handleNotificationDispatchRequest} from '../src/notification-dispatch-router.js';
 
 test('RETIRAR CAPA is universal and cannot disappear',()=>{
@@ -45,4 +45,13 @@ test('startup installer configures current Windows user',()=>{
  assert.match(cmd,/APPDATA/);
  assert.match(cmd,/NISTI-Monitor\.cmd/);
  assert.doesNotMatch(cmd,/(?:net user|autologon|reg add)/i);
+});
+
+test('idle monitor renders safely without an active platform',()=>{
+  for(const value of [undefined,null,'',false]){
+    assert.equal(platformColor(value),'other');
+  }
+  assert.equal(platformColor('SHOPEE'),'shopee');
+  assert.equal(platformColor('MERCADO LIVRE NOVO'),'ml');
+  assert.equal(platformColor('AMAZON'),'amazon');
 });
