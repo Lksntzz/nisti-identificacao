@@ -127,7 +127,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
             <div className="nim-evolution-primary">
               <CommercialIcon name="chevron-right" size={16} className="nim-evolution-disclosure-arrow"/>
               <CommerceEvolutionProductThumbnail url={item.image_url}
-                source={item.image_source} title={item.title}/>
+                source={item.image_source}/>
               <div className="nim-evolution-name">
                 <strong title={item.title||'Produto vendido na plataforma'}>{item.title||'Produto vendido na plataforma'}</strong>
                 <small>{modelHistory?'Histórico de versões de SKU':'Análise por SKU/modelo'}</small>
