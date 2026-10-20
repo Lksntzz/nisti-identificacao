@@ -4,6 +4,24 @@ A área de expedição usa um **monitor comum ligado por HDMI a um PC Windows ou
 
 https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes
 
+## URLs separadas da operação
+
+- **Painel de controle (administrador):**
+  `https://nisti-identificacao.lksntz1411.workers.dev/painel-expedicao`
+  Acesso exclusivo com a mesma senha administrativa do NISTI; após login,
+  abre diretamente a área de envio, seleção de plataformas, fila, histórico
+  e personalização de informações. Não carrega as ferramentas do catálogo,
+  Mural ou scanner.
+- **Monitor de exibição (notebook):**
+  `https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes`
+  Exibe notificações e toca sons. Usa chave de ativação própria e não
+  compartilha a sessão administrativa do painel.
+
+O painel original continua disponível no menu **Comunicação → Notificações da
+Expedição** do ADM. Ambas as telas utilizam a **mesma fila no servidor**;
+não são sistemas ou bancos diferentes. Não abrir o painel administrativo
+na conta Windows dedicada ao monitor nem salvar nela a senha administrativa.
+
 ## Primeiro uso (apenas uma vez)
 
 1. No painel administrativo NISTI, abra **COMUNICAÇÃO → Notificações da Expedição** e gere uma chave de ativação para o monitor.
