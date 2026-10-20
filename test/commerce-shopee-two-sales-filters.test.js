@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const sql=fs.readFileSync('supabase/migrations/20261020235000_commerce_shopee_two_filters_reconciled_v1.sql','utf8');
+const sql=fs.readFileSync('supabase/migrations/20261020235500_commerce_shopee_verified_variations_v2.sql','utf8');
 
 test('only Com vendas and Sem vendas are visible as listing status filters',()=>{
   assert.match(manager,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\]/);
@@ -22,6 +22,9 @@ test('verification is by full imported period, reviewed unique SKU owner, no sal
   assert.match(sql,/owner\.listing_product_id=v\.id/);
   assert.match(sql,/owner\.source_sku_norm=v\.sku_norm/);
   assert.match(sql,/so\.total=so\.verified/);
+  assert.match(sql,/listing_coverage as \(/);
+  assert.match(sql,/lc\.ready ready/);
+  assert.match(sql,/case when lc\.ready and/);
   assert.match(sql,/sw\.sales_days>=b\.days and sw\.report_days>=b\.days/);
   assert.match(sql,/b\.selected_status='ZERO' and c\.ready and c\.units=0/);
   assert.match(sql,/count\(\*\) filter\(where source_code='SHOPEE' and ready and units>0\)::int shopee_covered_sold_ads/);
