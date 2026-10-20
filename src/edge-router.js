@@ -238,6 +238,49 @@ function loginPage(message = '', csrfToken = '') {
     .back:hover{color:#245fc1;text-decoration:underline}
     .error{margin:0 0 18px;padding:11px 12px;border:1px solid #f5c5cc;border-radius:10px;
       background:#fff4f5;color:#9e2e46;font-size:12px;line-height:1.55}
+
+    /* Desktop-only split layout. Compact phone layout is unchanged. */
+    .login-shell{width:100%;max-width:420px;margin-inline:auto}
+    .intro-panel{display:none}
+    @media(min-width:821px){
+      body{background:radial-gradient(circle at 14% 14%,#e5edfb 0,transparent 35%),
+        radial-gradient(circle at 85% 90%,#e8eff8 0,transparent 37%),#f3f6fb;padding:32px}
+      .login-shell{display:grid;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);
+        width:min(940px,100%);max-width:none;min-height:550px;
+        border:1px solid #dfe7f1;border-radius:24px;overflow:hidden;background:#fff;
+        box-shadow:0 20px 64px rgba(24,42,70,.10)}
+      .intro-panel{position:relative;isolation:isolate;display:flex;flex-direction:column;
+        justify-content:space-between;gap:38px;padding:38px 36px;min-width:0;color:#fff;
+        background:linear-gradient(145deg,#101e37 0%,#1b3459 72%,#203d63 100%)}
+      .intro-panel:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+        opacity:.50;background:radial-gradient(circle at 100% 0%,#4b7cbd44 0,transparent 42%),
+          linear-gradient(140deg,transparent 52%,#ffffff08 52%,#ffffff08 52.4%,transparent 52.4%)}
+      .intro-brand{display:flex;align-items:center;gap:12px}
+      .intro-brand-icon{width:42px;height:42px;display:grid;place-items:center;flex:none;
+        border-radius:12px;background:#ffffff1c;border:1px solid #ffffff29;
+        font-size:21px;font-weight:800;line-height:1}
+      .intro-brand-name{display:block;font-size:15px;font-weight:850;letter-spacing:.085em}
+      .intro-brand-subtitle{display:block;margin-top:4px;color:#bed0e9;font-size:10px;
+        font-weight:650;letter-spacing:.065em}
+      .intro-eyebrow{display:block;color:#bed4f5;font-size:10px;letter-spacing:.15em;font-weight:800}
+      .intro-copy .intro-headline{max-width:340px;margin:14px 0 14px;font-size:clamp(26px,3vw,32px);
+        letter-spacing:-.035em;line-height:1.22;font-weight:800}
+      .intro-copy p{max-width:295px;margin:0;font-size:13px;line-height:1.75;color:#d1ddee}
+      .intro-footer{display:flex;align-items:center;gap:10px;color:#b8c9e0;font-size:11px;line-height:1.45}
+      .intro-footer:before{content:"";display:block;flex:none;width:7px;height:7px;
+        border-radius:50%;background:#79a7df}
+      .login-shell .card{display:flex;flex-direction:column;justify-content:center;
+        width:100%;max-width:none;min-height:550px;padding:48px 54px;border:0;border-radius:0;
+        background:#fff;box-shadow:none}
+      .login-shell .card .brand-row{display:none}
+      .login-shell .card h1{font-size:30px}
+      .login-shell .card .intro{font-size:14px;margin-bottom:27px}
+      .login-shell .card .back{margin-top:23px}
+    }
+    @media(min-width:821px) and (max-width:940px){
+      .intro-panel{padding:32px 28px}
+      .login-shell .card{padding:38px 34px}
+    }
     @media(max-width:600px){
       body{min-height:100svh;min-height:100dvh;align-items:flex-start;justify-content:center;
         padding:clamp(25px,7svh,58px) 16px calc(24px + env(safe-area-inset-bottom))}
@@ -251,7 +294,23 @@ function loginPage(message = '', csrfToken = '') {
   </style>
 </head>
 <body>
-  <main class="card" aria-labelledby="login-title">
+  <div class="login-shell">
+    <aside class="intro-panel" aria-label="Apresentação do NISTI ID">
+      <div class="intro-brand">
+        <span class="intro-brand-icon" aria-hidden="true">N</span>
+        <div>
+          <strong class="intro-brand-name">NISTI ID</strong>
+          <span class="intro-brand-subtitle">PLATAFORMA DE GESTÃO</span>
+        </div>
+      </div>
+      <div class="intro-copy">
+        <span class="intro-eyebrow">AMBIENTE ADMINISTRATIVO</span>
+        <p class="intro-headline">Gestão e operação em um só lugar.</p>
+        <p>Identificação de produtos, catálogo e acompanhamento comercial em uma plataforma integrada.</p>
+      </div>
+      <div class="intro-footer">Acesso reservado a administradores</div>
+    </aside>
+    <main class="card" aria-labelledby="login-title">
     <header class="brand-row"><span class="brand-icon" aria-hidden="true">N</span><p class="brand">NISTI ID</p></header>
     <h1 id="login-title">Área administrativa</h1>
     <p class="intro">Acesso exclusivo para administradores autorizados.</p>
@@ -265,7 +324,8 @@ function loginPage(message = '', csrfToken = '') {
       <button class="submit" type="submit">Entrar no painel</button>
     </form>
     <a class="back" href="/">← Voltar ao Painel Geral</a>
-  </main>
+    </main>
+  </div>
 </body>
 </html>`;
 }

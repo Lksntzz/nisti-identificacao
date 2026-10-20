@@ -35,3 +35,22 @@ test('formulário administrativo mantém POST, proteção CSRF e senha no servid
   assert.match(body,/autocomplete="current-password"/);
   assert.doesNotMatch(body,/<script\b|https:\/\/.*\.js/);
 });
+
+test('desktop mostra apresentação institucional e formulário em duas colunas; tablet e celular mantém login compacto',async()=>{
+  const response=await edgeRouter.fetch(new Request('https://nisti-identificacao.lksntz1411.workers.dev/admin-login'),{
+    APP_ENV:'test',
+    ADMIN_PASSWORD:'test-only-admin-secret'
+  },{});
+  const body=await response.text();
+  assert.match(body,/<div class="login-shell">/);
+  assert.match(body,/<aside class="intro-panel" aria-label="Apresentação do NISTI ID">/);
+  assert.match(body,/grid-template-columns:minmax\(0,\.88fr\) minmax\(0,1\.12fr\)/);
+  assert.match(body,/@media\(min-width:821px\)/);
+  assert.match(body,/\.intro-panel\{display:none\}/);
+  assert.match(body,/<main class="card" aria-labelledby="login-title">/);
+  assert.match(body,/<h1 id="login-title">Área administrativa<\/h1>/);
+  assert.match(body,/@media\(max-width:600px\)/);
+  assert.match(body,/padding:clamp\(25px,7svh,58px\)/);
+  assert.equal((body.match(/<form method="post" action="\/admin-login">/g)||[]).length,1);
+  assert.equal((body.match(/name="password"/g)||[]).length,1);
+});
