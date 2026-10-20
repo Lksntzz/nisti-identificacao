@@ -50,7 +50,7 @@ test('compact UI preserves three primary sales filters and shows trend only for 
   assert.match(ui,/onChange=\{e=>change\(setStatus,e\.target\.value\)\}/);
   assert.match(ui,/if\(choice==='MONTH'&&\['RISING','FALLING'\]\.includes\(status\)\)setStatus\('ALL'\)/);
   assert.match(ui,/if\(\['RISING','FALLING'\]\.includes\(status\)\)setStatus\('ALL'\)/);
-  assert.match(ui,/<td><Situation item=\{item\} days=\{days\}\/><\/td>/);
+  assert.match(ui,/<td data-label="Situação"><Situation item=\{item\} days=\{days\}\/><\/td>/);
   assert.match(ui,/nim-trend-hint/);
   assert.match(css,/\.nim-filter-panel-body\.nim-has-trend/);
   assert.match(css,/\.nim-trend-hint\.up/);
