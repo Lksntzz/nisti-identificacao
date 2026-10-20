@@ -39,7 +39,7 @@ test('nunca transforma valor ausente em venda zero nem mistura valores dos anún
   assert.equal(shopeeSalesTotals({...base,kpis:{identified_units:null,identified_revenue:null,units:2,revenue:99}},7),null);
   assert.match(ui,/linked\.hasSales\?num\(linked\.units\)/);
   assert.match(ui,/item\.ready\?num\(item\.units\)/);
-  assert.match(ui,/partial=\{hasShopeePartial&&item\.source==='SHOPEE'\}/);
+  assert.match(ui,/partial=\{hasShopeePartial&&item\.source==='SHOPEE'&&!item\.ready\}/);
 });
 
 test('janelas conjuntas usam último dia em comum, e pedidos usam o mesmo corte',()=>{

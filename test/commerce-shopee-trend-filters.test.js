@@ -40,7 +40,7 @@ test('listing filter counts and ordering reflect the selected percentage trend',
 });
 
 test('compact UI preserves three primary sales filters and shows trend only for Shopee daily periods',()=>{
-  assert.match(ui,/const SALES_FILTERS=\[\['ALL','Todos'\],\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\]/);
+  assert.match(ui,/const SALES_FILTERS=\[\['SOLD','Com vendas'\],\['ZERO','Sem vendas'\]\]/);
   assert.match(ui,/const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0/);
   assert.match(ui,/const trendSelected=\['RISING','FALLING'\]\.includes\(status\)\?status:'ALL'/);
   assert.match(ui,/shopeeTrendAvailable&&<label className="nim-filter-group nim-trend-group"/);
@@ -49,7 +49,7 @@ test('compact UI preserves three primary sales filters and shows trend only for 
   assert.match(ui,/<option value="FALLING">Em queda/);
   assert.match(ui,/onChange=\{e=>change\(setStatus,e\.target\.value\)\}/);
   assert.match(ui,/if\(choice==='MONTH'&&\(\['RISING','FALLING','VAR_ZERO','UNLINKED'\]\.includes\(status\)/);
-  assert.match(ui,/if\(\['RISING','FALLING'\]\.includes\(status\) \|\|/);
+  assert.match(ui,/if\(\['RISING','FALLING','UNLINKED','VAR_ZERO'\]\.includes\(status\) \|\|/);
   assert.match(ui,/<td data-label="Situação"><Situation item=\{item\} days=\{days\}\/><\/td>/);
   assert.match(ui,/nim-trend-hint/);
   assert.match(css,/\.nim-filter-panel-body\.nim-has-trend/);

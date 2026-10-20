@@ -11,7 +11,7 @@ test('anúncios e evolução possuem indicadores próprios, com bases de dados d
   assert.match(manager,/commercialView==='LISTINGS'\?/);
   assert.match(manager,/nim-kpis-listings/);
   assert.match(manager,/nim-kpis-evolution/);
-  for(const label of ['Anúncios ativos','Com vendas identificadas','Sem vendas identificadas',
+  for(const label of ['Anúncios ativos','Com vendas','Sem vendas',
     'Em queda','Sem vendas','Com vendas','Crescimento'])
     assert.ok(manager.includes(label),label);
   assert.match(manager,/value=\{evolutionCount\('falling'\)\}/);

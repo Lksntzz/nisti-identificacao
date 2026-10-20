@@ -32,6 +32,6 @@ test('a interface distingue bruto do vinculado sem sinal enganoso',()=>{
   assert.match(ui,/Faturamento bruto importado/);
   assert.match(ui,/Faturamento vinculado/);
   assert.match(ui,/shopeeSalesTotals\(data,days\)/);
-  assert.match(ui,/não necessariamente o total do anúncio/);
+  assert.match(ui,/Outros registros podem permanecer sem associação/);
   assert.doesNotMatch(ui,/≥/);
 });
