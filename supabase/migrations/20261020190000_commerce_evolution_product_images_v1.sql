@@ -273,7 +273,8 @@ with inp as (
           then btrim(l.raw_metadata->'shopee_snapshot'->>'cover_image_url')
           else null::text end
         order by l.updated_at desc nulls last,l.id desc
-      ))[1] else null::text end image_url
+      ) filter(where nullif(btrim(l.raw_metadata->'shopee_snapshot'->>'cover_image_url'),'') ~* '^https://'))[1]
+      else null::text end image_url
     from public.commerce_listing_products lp
     join public.commerce_listings l on l.id=lp.listing_id
     join public.commerce_marketplaces m on m.id=l.marketplace_id
