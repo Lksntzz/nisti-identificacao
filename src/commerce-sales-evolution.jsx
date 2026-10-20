@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
+import CommerceEvolutionProductThumbnail from './commerce-evolution-product-thumbnail.jsx';
 
 const API='/api/admin/commerce/listings/manager/evolution';
 const PAGE=25;
@@ -125,9 +126,8 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
           <summary className="nim-evolution-product-head" title="Abrir análise completa do produto">
             <div className="nim-evolution-primary">
               <CommercialIcon name="chevron-right" size={16} className="nim-evolution-disclosure-arrow"/>
-              <span className="nim-evolution-product-icon" aria-hidden="true">
-                <CommercialIcon name="notebook-tabs" size={23} strokeWidth={1.7}/>
-              </span>
+              <CommerceEvolutionProductThumbnail url={item.image_url}
+                source={item.image_source} title={item.title}/>
               <div className="nim-evolution-name">
                 <strong title={item.title||'Produto vendido na plataforma'}>{item.title||'Produto vendido na plataforma'}</strong>
                 <small>{modelHistory?'Histórico de versões de SKU':'Análise por SKU/modelo'}</small>
