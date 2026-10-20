@@ -218,6 +218,18 @@ function nullableMetric(value) {
     throw new Error('Métrica de tráfego inválida.');
   return value;
 }
+// Série diária: apenas observações reais, sem preencher dias sem registro com zero.
+export async function commerceListingDiagnosisDaily(env,listingId,filters={}) {
+  const id=cleanId(listingId);
+  if(!id)throw new Error('Anúncio inválido.');
+  validateTrafficBounds(filters.start,filters.end);
+  const scope=['ALL','ORGANIC','PAID'].includes(filters.scope)?filters.scope:'ALL';
+  const result=await supabaseRpc(env,'commerce_listing_diagnosis_daily_v1',{
+    p_listing_id:id,p_start:filters.start,p_end:filters.end,p_scope:scope
+  },{timeoutMs:12000});
+  return result&&typeof result==='object'&&!Array.isArray(result)?result:{items:[]};
+}
+
 export async function commerceListingTrafficWindow(env,listingId,filters={}) {
   const id=cleanId(listingId);
   if(!id)throw new Error('Anúncio inválido.');
