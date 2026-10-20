@@ -56,9 +56,21 @@ export async function activateDispatchSenderLink(request,env){
       'x-robots-tag':'noindex, nofollow'
     });
   }
-  headers.set('location','/painel-expedicao');
+  // Uma página de transição no próprio domínio garante que o navegador
+  // finalize a gravação do cookie SameSite=Strict antes de ir ao painel.
+  // Redirecionamentos de um clique em outros aplicativos podem preservar
+  // o contexto cross-site e ocultar cookies Strict no primeiro carregamento.
+  headers.set('content-type','text/html; charset=utf-8');
   headers.set('set-cookie',cookie(key,COOKIE_AGE));
-  return new Response(null,{status:303,headers});
+  return new Response(
+    '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'+
+    '<meta name="referrer" content="no-referrer">'+
+    '<meta http-equiv="refresh" content="0;url=/painel-expedicao">'+
+    '<title>Abrindo painel NISTI</title></head><body>'+
+    '<p>Abrindo Central de Notificações da Expedição… '+
+    '<a href="/painel-expedicao">Continuar</a></p></body></html>',
+    {status:200,headers}
+  );
 }
 
 export async function handleDispatchSenderRequest(request,env){
