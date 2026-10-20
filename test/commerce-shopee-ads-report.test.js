@@ -55,7 +55,7 @@ test('source and sales stay separate; deduplication and access are restricted',(
  assert.match(migration,/to service_role/);
  assert.doesNotMatch(migration,/insert into public\.commerce_sales_rows|update public\.commerce_listings/i);
  assert.match(importPanel,/não serão repartidos artificialmente/);
- assert.match(summary,/relatórios diferentes/); // checked next if wording changes
+ assert.match(summary,/não é adicionado aos totais/);
 });
 test('commercial view remains compact with no diagnosis tab and optional Shopee Ads',()=>{
  assert.match(ui,/CommerceShopeeAdsSummary listingId=\{item\.id\}/);
