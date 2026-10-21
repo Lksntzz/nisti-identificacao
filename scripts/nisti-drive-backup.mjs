@@ -3,7 +3,8 @@
 // No credentials, database connections, Google tokens or encryption keys here.
 import { randomBytes, scryptSync, createCipheriv, createDecipheriv, createHash } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { appendFile, chmod, mkdtemp, open, rm, unlink, writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { appendFile, chmod, mkdtemp, open, rm, stat, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
@@ -103,6 +104,49 @@ export async function decryptDump(filename,folder,passphrase) {
     throw Error('Senha incorreta ou backup inválido. Nenhum arquivo recuperado foi preservado.');
   }
 }
+// Somente inspeciona o catálogo do pg_dump; não conecta nem restaura no Supabase.
+function runPgRestoreList(archivePath) {
+  return new Promise((resolve,reject)=>{
+    const child=spawn('pg_restore',['--list',archivePath],{
+      shell:false,
+      stdio:['ignore','ignore','ignore']
+    });
+    let settled=false;
+    const finish=(error)=>{
+      if(settled)return;
+      settled=true;
+      clearTimeout(timer);
+      if(error)reject(error);else resolve();
+    };
+    const timer=setTimeout(()=>{
+      child.kill();
+      finish(Error('Inspeção pg_restore excedeu 30 segundos.'));
+    },30000);
+    child.on('error',()=>finish(Error('pg_restore indisponível no computador. Instale o cliente PostgreSQL 17.')));
+    child.on('close',code=>finish(code===0?null:Error('Arquivo não passou pela inspeção pg_restore --list.')));
+  });
+}
+
+// Confirma que um .nisti.enc pode ser descriptografado E lido como arquivo pg_dump.
+// Ainda NÃO é um teste de restauração completo: não abre nem altera bancos.
+export async function inspectEncryptedDump(filename,passphrase,inspectArchive=runPgRestoreList) {
+  assertBackupPassphrase(passphrase);
+  if(typeof filename!=='string'||!filename.endsWith('.nisti.enc'))
+    throw Error('Informe um arquivo de backup .nisti.enc válido.');
+  const temp=await mkdtemp(path.join(tmpdir(),'nisti-inspect-pg-'));
+  await chmod(temp,0o700);
+  try{
+    const archive=await decryptDump(filename,temp,passphrase);
+    const {size}=await stat(archive);
+    if(size<1024)throw Error('Arquivo PostgreSQL descriptografado muito pequeno.');
+    await inspectArchive(archive);
+    return {archiveReadable:true,plaintextBytes:size};
+  }finally{
+    // Apaga os dados em texto claro do diretório temporário mesmo quando a validação falha.
+    await rm(temp,{recursive:true,force:true});
+  }
+}
+
 export async function backupEncryptedForDrive(folder,passphrase) {
   assertBackupPassphrase(passphrase);
   const destination=await verifiedPrivateDestination(folder);
@@ -165,12 +209,18 @@ async function main() {
     console.log('Backup íntegro: '+verified.plaintextBytes+' bytes de arquivo PostgreSQL descriptografados e verificados em memória.');
     return;
   }
+  if(action==='inspect'&&arg1==='--file'&&arg2&&!arg3){
+    const inspected=await inspectEncryptedDump(arg2,secret);
+    console.log('Arquivo PostgreSQL lido pelo pg_restore: '+inspected.plaintextBytes+' bytes. Inspeção local, sem acesso a produção.');
+    console.log('ATENÇÃO: esta inspeção não substitui um teste de restauração completo em banco isolado.');
+    return;
+  }
   if(action==='decrypt'&&arg1==='--file'&&arg2&&arg3==='--output-dir'&&arg4){
     const result=await decryptDump(arg2,arg4,secret);
     console.log('Arquivo PostgreSQL recuperado localmente (NUNCA enviar este .dump ao Drive): '+result);
     return;
   }
-  throw Error('Use plan, backup --output-dir <pasta>, verify --file <arquivo> ou decrypt --file <arquivo> --output-dir <pasta>.');
+  throw Error('Use plan, backup --output-dir <pasta>, verify --file <arquivo>, inspect --file <arquivo> ou decrypt --file <arquivo> --output-dir <pasta>.');
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   main().catch(error=>{console.error('Falha segura: '+String(error?.message||error));process.exitCode=1;});
