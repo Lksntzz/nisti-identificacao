@@ -379,6 +379,8 @@ D1 não é a autoridade principal do sistema atual.
 
 O repositório ainda mantém scripts e migrations de compatibilidade para D1, mas o `wrangler.toml` de produção não possui binding D1 como banco operacional principal.
 
+**Auditoria técnica das dependências antigas, cinco índices pendentes e histórico de 235 migrações:** [D1, Índices e Migrações — 21/10/2026](docs/AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21.md). Esta análise não executa mudanças no banco.
+
 ## Rotas principais
 
 - `/` — experiência do operador / identificação por EAN;
