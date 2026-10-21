@@ -226,6 +226,23 @@ export async function commerceSalesEvolution(env, filters={}) {
   };
 }
 
+// Read-only variation health across 30, 60 and 90 days. One bounded RPC.
+export async function commerceVariationReview(env,filters={}) {
+  const platform=cleanText(filters.platform)||'TODAS';
+  const days=Number(filters.days);
+  const search=cleanText(filters.search)||null;
+  const onlyZero=filters.onlyZero===true;
+  if(!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO'].includes(platform)
+    ||![30,60,90].includes(days)||search&&search.length>120)
+    throw new Error('Filtros de variações inválidos.');
+  const data=await supabaseRpc(env,'commerce_variation_review_v1',{
+    p_platform:platform,p_days:days,p_search:search,p_only_zero:onlyZero,
+    p_limit:cleanPageSize(filters.limit,20),p_offset:cleanOffset(filters.offset)
+  },{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)
+    ?data:{items:[],total:0,kpis:{},coverage:[]};
+}
+
 export async function commerceListingManagerMonthly(env, platform='TODAS') {
   if (cleanText(platform)==='SHOPEE') {
     const linked=await supabaseRpc(env,'commerce_listing_manager_monthly_sku_v1',{
