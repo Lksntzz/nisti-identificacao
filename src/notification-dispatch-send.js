@@ -26,6 +26,16 @@ export async function submitDispatchNotifications({
   }));
   pendingBatch.current=calls;
   const data=await enqueue(calls);
-  pendingBatch.current=null;
+  // HTTP 2xx alone is not proof that every requested call was queued.
+  // Preserve idempotency keys if the server response cannot confirm them.
+  if(data?.ok!==false && Array.isArray(data?.items)
+    && data.items.length===calls.length
+    && data.items.every(item=>item&&(
+      (typeof item.id==='number'&&Number.isSafeInteger(item.id)&&item.id>0)
+      || (typeof item.id==='string'&&item.id.trim().length>0)))) {
+    pendingBatch.current=null;
+  }else{
+    throw new Error('O servidor não confirmou todas as notificações. Confira Fila e histórico antes de repetir o envio.');
+  }
   return {state:'sent',options,data};
 }
