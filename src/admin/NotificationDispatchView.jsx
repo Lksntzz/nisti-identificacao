@@ -13,7 +13,11 @@ function ChannelMark({platform}){return <PlatformLogo platform={platform} classN
 async function request(path,options={}) {
   const response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw Error(data.error||'Falha de comunicação com o servidor');
+  if(!response.ok){
+    const error=new Error(data.error||'Falha de comunicação com o servidor');
+    error.status=response.status;
+    throw error;
+  }
   return data;
 }
 const API_ENDPOINTS={
@@ -48,6 +52,19 @@ export default function NotificationDispatchView({senderMode=false}) {
   const [error,setError]=useState('');
   const [success,setSuccess]=useState('');
   const [sending,setSending]=useState(false);
+  const [sendFeedback,setSendFeedback]=useState(null);
+  const feedbackButtonRef=useRef(null);
+  useEffect(()=>{
+    if(!senderMode||!sendFeedback)return undefined;
+    feedbackButtonRef.current?.focus();
+    const onKeyDown=event=>{
+      if(event.key==='Escape')setSendFeedback(null);
+      // Keep keyboard focus within the single-action confirmation dialog.
+      if(event.key==='Tab'){event.preventDefault();feedbackButtonRef.current?.focus()}
+    };
+    document.addEventListener('keydown',onKeyDown);
+    return ()=>document.removeEventListener('keydown',onKeyDown);
+  },[senderMode,sendFeedback]);
   const [connecting,setConnecting]=useState(false);
   const [monitorUrlCopied,setMonitorUrlCopied]=useState(false);
   useEffect(()=>{
@@ -130,11 +147,23 @@ export default function NotificationDispatchView({senderMode=false}) {
   async function send(event){
     event.preventDefault();
     if(sending)return;
-    setSuccess('');setError('');
+    setSuccess('');setError('');setSendFeedback(null);
     const platforms=PLATFORMS.filter(name=>selected[name]);
-    if(!platforms.length){setError('Selecione pelo menos uma plataforma.');return;}
+    const targets=platforms.map(platform=>({
+      platform,label:titleCase(platform),message:formatDispatchText(platform,selectedOption(platform))
+    }));
+    function showSendResult(type,title,detail,confirmed=0){
+      if(senderMode)setSendFeedback({type,title,detail,targets,confirmed});
+    }
+    if(!platforms.length){
+      const detail='Selecione pelo menos uma plataforma antes de enviar.';
+      setError(detail);showSendResult('error','Notificação não enviada',detail);
+      return;
+    }
     if(!config||platforms.some(name=>!dispatchOptionValid(name,selectedOption(name),config))){
-      setError('Selecione uma opção para cada plataforma marcada.');return;
+      const detail='Selecione uma modalidade válida para cada plataforma marcada.';
+      setError(detail);showSendResult('error','Notificação não enviada',detail);
+      return;
     }
     setSending(true);
     try{
@@ -150,18 +179,25 @@ export default function NotificationDispatchView({senderMode=false}) {
       });
       setConfig(result.options);
       if(result.state==='options_changed'){
-        setError('A modalidade de '+result.unavailable.map(titleCase).join(', ')+
-          ' foi alterada ou removida por outra pessoa. Atualizamos as opções: escolha uma modalidade disponível e envie novamente.');
+        const detail='A modalidade de '+result.unavailable.map(titleCase).join(', ')+
+          ' foi alterada ou removida. Escolha novamente antes de enviar.';
+        setError(detail);
+        showSendResult('error','Notificação não enviada',detail);
         return;
       }
-      const data=result.data;
-      setSuccess((data.items?.length||platforms.length)+
-        ' notificação(ões) confirmada(s) e enviada(s) à fila. Cada plataforma terá 15 segundos de exibição.');
-      // Atualizar os contadores é independente da operação que já foi gravada.
-      // Se o histórico estiver indisponível, não anunciar falsamente erro de envio.
+      const count=result.data.items.length;
+      const detail=count+' '+(count===1?'notificação confirmada':'notificações confirmadas')+
+        ' pelo servidor e '+(count===1?'adicionada':'adicionadas')+' à fila da expedição. '+
+        'O monitor exibirá cada aviso por 15 segundos quando chegar sua vez.';
+      setSuccess(detail);
+      showSendResult('success',count===1?'Notificação enviada à fila':'Notificações enviadas à fila',detail,count);
+      // KPI/histórico são atualização separada; falhas posteriores nunca
+      // revertem uma confirmação já retornada pelo servidor.
       await refresh({silent:true});
     }catch(e){
-      if(/modalidade inválida|modalidade válida|dispatch_option_not_allowed/i.test(e.message)){
+      const rejected=/modalidade inválida|modalidade válida|dispatch_option_not_allowed/i.test(e.message);
+      const knownRejected=rejected||(e.status>=400&&e.status<500&&e.status!==408);
+      if(rejected){
         const updated=await request(endpoints.options).catch(()=>null);
         if(updated?.options){
           setConfig(updated.options);
@@ -169,9 +205,19 @@ export default function NotificationDispatchView({senderMode=false}) {
             pendingBatch.current=null;
           }
         }
-        setError('Esta modalidade não está disponível para envio. As opções foram atualizadas; confira a seleção antes de tentar novamente.');
+        const detail='Esta modalidade não está disponível para envio. As opções foram atualizadas; confira a seleção.';
+        setError(detail);
+        showSendResult('error','Notificação não enviada',detail);
+      }else if(knownRejected||!pendingBatch.current){
+        const detail=e.message||'O servidor rejeitou a solicitação.';
+        setError(detail);
+        showSendResult('error','Notificação não enviada',detail);
       }else{
-        setError(e.message+' Se a confirmação falhou, confira Fila e histórico antes de tentar novamente.');
+        // A requisição pode ter sido gravada antes da perda de conexão.
+        // A chave de idempotência fica preservada para novo envio seguro.
+        const detail='Não foi possível confirmar o envio. Verifique Fila e histórico antes de tentar novamente. '+(e.message||'');
+        setError(detail);
+        showSendResult('uncertain','Envio não confirmado',detail);
       }
     }finally{setSending(false)}
   }
@@ -256,6 +302,25 @@ export default function NotificationDispatchView({senderMode=false}) {
     </header>
     {error&&<div className="nid-message nid-error" role="alert">{error}</div>}
     {success&&<div className="nid-message nid-success" role="status">{success}</div>}
+    {senderMode&&sendFeedback&&<div className="nid-send-confirm-backdrop">
+      <div className={'nid-send-confirm-card nid-send-confirm-'+sendFeedback.type}
+        role="alertdialog" aria-modal="true" aria-labelledby="nid-send-confirm-title"
+        aria-describedby="nid-send-confirm-description">
+        <div className="nid-send-confirm-icon" aria-hidden="true">
+          <DispatchIcon name={sendFeedback.type==='success'?'check-circle-2':sendFeedback.type==='uncertain'?'alert-triangle':'x-circle'} size={29}/>
+        </div>
+        <h3 id="nid-send-confirm-title">{sendFeedback.title}</h3>
+        <p id="nid-send-confirm-description">{sendFeedback.detail}</p>
+        {sendFeedback.targets.length>0&&<div className="nid-send-confirm-targets" aria-label="Plataformas selecionadas">
+          {sendFeedback.targets.map(item=><div key={item.platform} className="nid-send-confirm-target">
+            <ChannelMark platform={item.platform}/>
+            <span><strong>{item.label}</strong><small>{item.message}</small></span>
+          </div>)}
+        </div>}
+        <button type="button" className="nid-send-confirm-close" ref={feedbackButtonRef}
+          onClick={()=>setSendFeedback(null)}>Entendi</button>
+      </div>
+    </div>}
     <div className="nid-kpi-grid" aria-label="Indicadores da expedição">
       {[
         {icon:'list-check',count:state?.pending??'—',title:'Na fila',tone:'pink'},
