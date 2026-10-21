@@ -78,7 +78,8 @@ async function assertVisible(locator, label) {
 test('painel ADM carrega em Chromium sem credenciais nem endpoints de produção', async browser => {
   const { page, context, simulator, errors } = await openAdmin(browser);
   try {
-    await assertVisible(page.getByRole('heading', { name: 'Produtos NISTI', exact: true }), 'título do painel');
+    await assertVisible(page.locator('.admin-page-title'), 'título do painel');
+    assert.equal((await page.locator('.admin-page-title').innerText()).trim(), 'Produtos NISTI');
     assert.ok(simulator.calls.some(x => x.path === '/api/products'));
     assert.equal(simulator.calls.some(x => x.method !== 'GET'), false);
     assert.deepEqual(errors, [], 'erros JavaScript ao carregar admin');
@@ -106,7 +107,7 @@ test('modo celular abre e fecha painel lateral pelo botão e pelo backdrop', asy
     await page.getByRole('button', { name: 'Alternar menu lateral' }).click();
     await assertVisible(page.locator('.admin-sidebar.open'));
     await assertVisible(page.locator('.sidebar-mobile-backdrop'));
-    await page.locator('.sidebar-mobile-backdrop').click({ position: { x: 5, y: 40 } });
+    await page.locator('.sidebar-mobile-backdrop').click({ position: { x: 375, y: 40 } });
     await page.locator('.admin-sidebar.open').waitFor({ state: 'hidden', timeout: 10000 });
   } finally { await context.close(); }
 });
@@ -119,10 +120,10 @@ test('atividades do sistema: abrir, marcar uma, marcar todas e fechar com Escape
     await assertVisible(dialog);
     assert.equal(await dialog.locator('.notification-card.unread').count(), 2);
     await dialog.locator('.notification-card.unread').first().click();
-    await dialog.locator('.notification-card.unread').first().waitFor({ state: 'visible' });
-    assert.equal(await dialog.locator('.notification-card.unread').count(), 1);
+    await page.waitForFunction(() => document.querySelectorAll('.notifications-modal .notification-card.unread').length === 1);
     assert.equal(await page.locator('.topbar-bell-badge').innerText(), '1');
     await dialog.getByRole('button', { name: 'Marcar todas como lidas' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.notifications-modal .notification-card.unread').length === 0);
     assert.equal(await dialog.locator('.notification-card.unread').count(), 0);
     assert.equal(await dialog.locator('.notification-card.read').count(), 2);
     await page.keyboard.press('Escape');
