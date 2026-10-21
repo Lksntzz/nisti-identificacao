@@ -113,15 +113,16 @@ function Advertisement({item,days}){
   </details>;
 }
 export default function CommerceVariationReview({platform='TODAS',onPlatformChange=()=>{},revision=0,salesRevision=0}){
+  const sourcePlatform=['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS';
   const [days,setDays]=useState(30),[onlyZero,setOnlyZero]=useState(false);
   const [text,setText]=useState(''),[search,setSearch]=useState(''),[offset,setOffset]=useState(0);
   const [data,setData]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
   useEffect(()=>{const timer=setTimeout(()=>setSearch(text.trim()),300);return ()=>clearTimeout(timer);},[text]);
-  useEffect(()=>setOffset(0),[platform,days,search,onlyZero]);
+  useEffect(()=>setOffset(0),[sourcePlatform,days,search,onlyZero]);
   useEffect(()=>{
     const ctrl=new AbortController();
     setLoading(true);setError('');setData(null);
-    const qs=new URLSearchParams({platform,days:String(days),only_zero:onlyZero?'1':'0',
+    const qs=new URLSearchParams({platform:sourcePlatform,days:String(days),only_zero:onlyZero?'1':'0',
       limit:String(PAGE),offset:String(offset)});
     if(search)qs.set('search',search);
     fetch(API+'?'+qs,{credentials:'same-origin',cache:'no-store',signal:ctrl.signal})
@@ -131,14 +132,14 @@ export default function CommerceVariationReview({platform='TODAS',onPlatformChan
       .catch(e=>{if(!ctrl.signal.aborted)setError(e.message);})
       .finally(()=>{if(!ctrl.signal.aborted)setLoading(false);});
     return ()=>ctrl.abort();
-  },[platform,days,search,onlyZero,offset,revision,salesRevision]);
+  },[sourcePlatform,days,search,onlyZero,offset,revision,salesRevision]);
   const kpis=data?.kpis||{},rows=data?.items||[],total=Number(data?.total||0);
   const cover=Array.isArray(data?.coverage)?data.coverage:[];
   return <section className="nim-variation-review" aria-label="Análise de variações por anúncio">
     <div className="nim-vr-heading"><div><h3>Vendas por variação de anúncio</h3>
       <p>Identifique quais opções venderam em 30, 60 e 90 dias, com a situação do SKU e a qualidade dos dados.</p></div></div>
     <div className="nim-vr-filters">
-      <label>Plataforma<select value={platform} onChange={e=>onPlatformChange(e.target.value)}>
+      <label>Plataforma<select value={sourcePlatform} onChange={e=>onPlatformChange(e.target.value)}>
         <option value="TODAS">Todas</option><option value="SHOPEE">Shopee</option>
         <option value="MERCADO_LIVRE">Mercado Livre</option>
         <option value="ML_ANTIGO">Mercado Livre Antigo</option>
