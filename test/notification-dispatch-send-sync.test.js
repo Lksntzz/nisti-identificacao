@@ -107,6 +107,7 @@ test('a interface separa envio confirmado da atualização de contadores',()=>{
   assert.match(jsx,/role="alertdialog"/);
   assert.match(jsx,/aria-modal="true"/);
   assert.match(jsx,/senderMode&&sendFeedback/);
+  assert.match(jsx,/sendFeedback.type==='success'\?'check':sendFeedback.type==='uncertain'\?'bell-ring':'x'/);
   assert.match(jsx,/await refresh\(\{silent:true\}\)/);
   assert.match(jsx,/if\(!silent\)setError\(e.message\)/);
 });
