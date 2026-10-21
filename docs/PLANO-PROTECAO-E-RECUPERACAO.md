@@ -31,11 +31,11 @@ Isso evita que um push direto sem aprovação do CI seja automaticamente publica
 
 A configuração de produção `wrangler.toml` usa `SUPABASE_WRITE_MODE="primary"`. Não trate uma exportação feita via D1 como cópia completa e atual dos dados do Supabase.
 
-O workflow `supabase-final-snapshot.yml`, apesar do nome, exporta o **D1 congelado da migração antiga**. O workflow `export-original-product-images.yml` também obtém seu índice de imagens do D1. **Nenhum dos dois comprova a existência de backup atual da produção.**
+O workflow `supabase-final-snapshot.yml`, apesar do nome, exporta **somente o D1 congelado da migração antiga**: não é backup atual do PostgreSQL. Já o workflow `export-original-product-images.yml` **obtém o índice de produtos no Supabase**, mas faz uma exportação manual de **imagens originais de produtos** para um artefato criptografado de retenção de apenas **1 dia**. Não comprova um backup completo do R2 (incluindo derivados e Mural), nem uma restauração funcional. **Nenhum desses processos substitui o backup integral atual de Supabase e R2.**
 
 ## 3. Backup seguro do Supabase
 
-**Destino escolhido:** Google Drive privado, pasta NISTI - Backups do Sistema. [Procedimento criptografado](GOOGLE-DRIVE-BACKUP-NISTI.md). Ainda não existe primeira cópia do banco validada.
+**Destino escolhido:** Google Drive privado, pasta NISTI - Backups do Sistema. [Procedimento criptografado](GOOGLE-DRIVE-BACKUP-NISTI.md). Em 21/10/2026, a pasta privada de backups do banco estava vazia: ainda não existe primeira cópia do banco validada.
 
 
 **Google Drive privado:** [BACKUP-GOOGLE-DRIVE-NISTI.md](BACKUP-GOOGLE-DRIVE-NISTI.md) — criptografe antes de sincronizar com a nuvem.
@@ -47,7 +47,7 @@ O workflow `supabase-final-snapshot.yml`, apesar do nome, exporta o **D1 congela
 - Habilitar ou provisionar backup periódico apropriado ao plano contratado, com cópia restaurável para destino privado, de preferência em infraestrutura independente. Backups automáticos do provedor dependem do plano.
 - Proteger toda credencial de conexão como **secret**. Nunca colocá-la em arquivos versionados, logs ou artifacts de GitHub Actions de um repositório público.
 - Registrar a última data de backup e fazer **restauração de teste isolada**, nunca diretamente sobre produção.
-- Uma cópia SQL do banco **não inclui automaticamente imagens e objetos no R2**.
+- Uma cópia SQL do banco **não inclui automaticamente imagens e objetos no R2**. O script de exportação usa `pg_dump --no-owner --no-acl`: além do conteúdo, uma recuperação de produção deve validar **papéis, privilégios e configuração de segurança** em ambiente isolado.
 
 ## 4. Backup seguro das imagens do R2
 
