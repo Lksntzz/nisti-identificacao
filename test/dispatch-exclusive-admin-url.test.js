@@ -194,3 +194,19 @@ test('Conectar is available only with sender session and cannot access admin fea
   assert.match(view,/connectMonitor/);
   assert.match(view,/api\/expedition-panel\/connect/);
 });
+
+test('incomplete invitation routes never fall through to Scanner and cannot authorize access',async()=>{
+  for(const path of ['/convite-expedicao','/convite-expedicao/']){
+    const response=await query(path);
+    assert.equal(response.status,400,path);
+    assert.match(response.headers.get('cache-control')||'',/no-store/);
+    assert.equal(response.headers.get('set-cookie'),null);
+    assert.match(await response.text(),/Link privado incompleto/);
+  }
+  const app=fs.readFileSync(new URL('../src/entry.jsx',import.meta.url),'utf8');
+  assert.match(app,/window\.location\.pathname === '\/convite-expedicao'/);
+  assert.match(app,/window\.location\.pathname\.startsWith\('\/convite-expedicao\/'\)/);
+  const sharedInvite=await query('/convite-expedicao/'+token);
+  assert.equal(sharedInvite.status,200);
+  assert.match(sharedInvite.headers.get('set-cookie')||'',/HttpOnly/);
+});
