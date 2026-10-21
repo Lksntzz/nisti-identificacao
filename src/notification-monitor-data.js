@@ -24,7 +24,7 @@ export function normalizeMonitorHistory(value){
   for(const raw of value.slice(0,32)){
     if(!raw||typeof raw!=='object'||Array.isArray(raw))continue;
     const id=(typeof raw.id==='number'&&Number.isSafeInteger(raw.id)&&raw.id>0)
-      ||(typeof raw.id==='string'&&/^\\d{1,18}$/.test(raw.id))?String(raw.id):null;
+      ||(typeof raw.id==='string'&&/^\d{1,18}$/.test(raw.id))?String(raw.id):null;
     if(!id||seen.has(id)||!DISPATCH_PLATFORMS.includes(raw.platform))continue;
     if(raw.status!=='SHOWING'&&raw.status!=='EXPIRED')continue;
     const started=typeof raw.started_at==='string'?raw.started_at:'';
