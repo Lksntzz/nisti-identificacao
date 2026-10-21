@@ -654,7 +654,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   // Child already sends body.kpis; do not look for a nested kpis.kpis field.
   const evolutionCounts=evolutionSummary||null;
   const evolutionReady=Boolean(evolutionCounts)
-    &&['falling','zero','sold','rising'].every(key=>
+    &&['zero','stable','rising'].every(key=>
       evolutionCounts[key]!=null&&Number.isFinite(Number(evolutionCounts[key])));
   const evolutionCount=key=>evolutionReady?num(evolutionCounts[key]):'—';
   const chooseEvolutionStatus=next=>{
@@ -758,17 +758,14 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           onClick={platform==='SHOPEE'&&days===0?undefined:changeNoSales}/>
       </div>:
       <div className="nim-kpis nim-kpis-evolution" aria-label="Filtros por situação na Evolução de Vendas">
-        <Kpi tone="falling" label="Em queda" value={evolutionCount('falling')}
-          description="SKU/modelos com queda confirmada" selected={evolutionStatus==='FALLING'}
-          onClick={evolutionReady?()=>chooseEvolutionStatus('FALLING'):undefined}/>
         <Kpi tone="rose" label="Sem vendas" value={evolutionCount('zero')}
           description="SKU/modelos sem vendas e com cobertura completa"
           selected={evolutionStatus==='ZERO'}
           onClick={evolutionReady?()=>chooseEvolutionStatus('ZERO'):undefined}/>
-        <Kpi tone="mint" label="Com vendas" value={evolutionCount('sold')}
-          description="SKU/modelos com unidades identificadas"
-          selected={evolutionStatus==='SOLD'}
-          onClick={evolutionReady?()=>chooseEvolutionStatus('SOLD'):undefined}/>
+        <Kpi tone="mint" label="Estável" value={evolutionCount('stable')}
+          description="SKU/modelos com vendas estáveis confirmadas"
+          selected={evolutionStatus==='STABLE'}
+          onClick={evolutionReady?()=>chooseEvolutionStatus('STABLE'):undefined}/>
         <Kpi tone="rising" label="Crescimento" value={evolutionCount('rising')}
           description="SKU/modelos com crescimento confirmado"
           selected={evolutionStatus==='RISING'}
