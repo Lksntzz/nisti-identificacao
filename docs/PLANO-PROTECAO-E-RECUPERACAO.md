@@ -35,6 +35,9 @@ O workflow `supabase-final-snapshot.yml`, apesar do nome, exporta o **D1 congela
 
 ## 3. Backup seguro do Supabase
 
+**Procedimento gratuito e manual (Windows):** [BACKUP-GRATUITO-NISTI.md](BACKUP-GRATUITO-NISTI.md). O script `scripts/nisti-free-backup.mjs` impede exportação acima de 100 MB por padrão e grava apenas em pasta privada local. Isso não constitui backup concluído até que uma cópia real seja executada e armazenada.
+
+
 - Verificar, no painel oficial do Supabase, em Database → Backups, quais backups de produção existem, data, retenção, recuperação disponível e eventuais custos.
 - Habilitar ou provisionar backup periódico apropriado ao plano contratado, com cópia restaurável para destino privado, de preferência em infraestrutura independente. Backups automáticos do provedor dependem do plano.
 - Proteger toda credencial de conexão como **secret**. Nunca colocá-la em arquivos versionados, logs ou artifacts de GitHub Actions de um repositório público.
