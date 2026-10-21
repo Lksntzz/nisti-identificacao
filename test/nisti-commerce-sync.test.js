@@ -200,13 +200,14 @@ test('status da sincronização fica disponível por produto no NISTI ID', () =>
 
 test('cadastro e edição exibem confirmação real da sincronização do Catálogo', () => {
   const main = read('src/main.jsx');
+  const registration = read('src/admin/ProductRegistrationModal.jsx');
   const catalog = read('src/admin/CatalogView.jsx');
   const badge = read('src/admin/CommerceSyncBadge.jsx');
 
-  assert.equal(main.includes('commerce_sync: commerceSync'), true);
-  assert.equal(main.includes('imageResult.commerce_sync || commerceSync'), true);
+  assert.equal(registration.includes('commerce_sync: commerceSync'), true);
+  assert.equal(registration.includes('imageResult.commerce_sync || commerceSync'), true);
   assert.equal(main.includes('/api/admin/commerce-sync/nisti-products/statuses'), true);
-  assert.equal(main.includes('<CommerceSyncBadge sync={item.commerce_sync} />'), true);
+  assert.equal(registration.includes('<CommerceSyncBadge sync={item.commerce_sync} />'), true);
   assert.equal(catalog.includes('<CommerceSyncBadge sync={product.commerce_sync} compact />'), true);
   assert.equal(badge.includes('Criado no Catálogo'), true);
   assert.equal(badge.includes('Erro de sincronização'), true);
