@@ -745,7 +745,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <button type="button" className={commercialView==='VARIATIONS'?'active':''}
         aria-current={commercialView==='VARIATIONS'?'page':undefined}
         onClick={()=>{setEvolutionSummary(null);setCommercialView('VARIATIONS');}}>
-        <CommercialIcon name="layers" size={16}/> Variações 30/60/90</button>
+        <CommercialIcon name="notebook-tabs" size={16}/> Variações 30/60/90</button>
     </nav>
     {commercialView==='VARIATIONS'?null:commercialView==='LISTINGS'?
       <div className="nim-kpis nim-kpis-listings" aria-label="Indicadores de anúncios">
