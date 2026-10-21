@@ -12,24 +12,24 @@ test('anúncios e evolução possuem indicadores próprios, com bases de dados d
   assert.match(manager,/nim-kpis-listings/);
   assert.match(manager,/nim-kpis-evolution/);
   for(const label of ['Anúncios ativos','Com vendas','Sem vendas',
-    'Em queda','Sem vendas','Com vendas','Crescimento'])
+    'Sem vendas','Estável','Crescimento'])
     assert.ok(manager.includes(label),label);
-  assert.match(manager,/value=\{evolutionCount\('falling'\)\}/);
+  assert.match(manager,/value=\{evolutionCount\('stable'\)\}/);
   assert.match(manager,/value=\{evolutionCount\('zero'\)\}/);
-  assert.match(manager,/value=\{evolutionCount\('sold'\)\}/);
   assert.match(manager,/value=\{evolutionCount\('rising'\)\}/);
   assert.doesNotMatch(manager,/value=\{28\}|value=\{41\}/);
   assert.doesNotMatch(manager,/trendOverview|trendRequest/);
 });
 
 test('cards filtram a evolução pelo mesmo estado do seletor; anúncios preservam filtros separados',()=>{
-  for(const status of ['FALLING','ZERO','SOLD','RISING'])
+  for(const status of ['ZERO','STABLE','RISING'])
     assert.ok(manager.includes("chooseEvolutionStatus('"+status+"')"),status);
   assert.match(manager,/setEvolutionStatus\(current=>current===next\?'ALL':next\)/);
   assert.match(manager,/status=\{evolutionStatus\} onStatusChange=\{setEvolutionStatus\}/);
   assert.match(manager,/onSummary=\{setEvolutionSummary\}/);
   assert.match(manager,/onClick=\{\(\)=>change\(setStatus,status==='SOLD'\?'ALL':'SOLD'\)\}/);
   assert.match(evolution,/onChange=\{e=>onStatusChange\(e\.target\.value\)\}/);
+  assert.match(evolution,/onClick=\{\(\)=>onStatusChange\('ALL'\)\}/);
   assert.match(evolution,/onSummary\(body\?\.kpis\|\|null\)/);
   assert.match(evolution,/setDays\(selected\);onPeriodChange\(selected\)/);
   assert.match(manager,/if\(!financialOpen\|\|!data\?\.period_start/);
@@ -48,5 +48,5 @@ test('a evolução conserva a tabela analítica, detalhes e design responsivo',(
   assert.match(css,/@media\(max-width:700px\)/);
   assert.match(css,/@media\(max-width:1050px\)/);
   assert.match(viewCss,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(viewCss,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(viewCss,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 });
