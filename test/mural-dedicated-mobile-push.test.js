@@ -14,7 +14,7 @@ test('Mural push is enabled exclusively for released operator content', () => {
 });
 
 test('New collections, products, and notices get their own push path after publish', () => {
-  const router = read('src/mural-router.js') + '\n' + read('src/mural-collection-routes.js');
+  const router = read('src/mural-router.js') + '\n' + read('src/mural-post-routes.js') + '\n' + read('src/mural-collection-routes.js');
   const push = read('src/web-push.js');
   assert.match(router, /await notifyMuralAfterPublication\(env, id\)/);
   assert.match(router, /await notifyMuralAfterPublication\(env, Number\(value\.id\)\)/);
