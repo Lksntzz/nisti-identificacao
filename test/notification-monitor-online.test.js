@@ -147,7 +147,7 @@ test('a rendering error in one active notification cannot take down the entire e
   const monitor=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
   const boundary=fs.readFileSync(new URL('../src/notification-monitor-call-boundary.jsx',import.meta.url),'utf8');
   assert.match(monitor,/<MonitorCallBoundary key=\{current\.id\} platform=\{current\.platform\} message=\{current\.message\}>/);
-  assert.match(monitor,/try\{return playNotificationSound\(audioRef\.current,platform\)\}/);
+  assert.match(monitor,/try\{return playNotificationSound\(audioRef\.current,platform,/);
   assert.match(monitor,/catch\(error\)/);
   assert.doesNotMatch(monitor,/GradientText/);
   assert.match(boundary,/getDerivedStateFromError/);
