@@ -12,6 +12,21 @@ As três pastas foram verificadas como privadas no momento da criação. Não al
 
 ## Como executar sem exceder o Free
 
+
+### Modo assistido no Windows (recomendado para quem não usa terminal)
+
+O NISTI possui o iniciador `scripts/iniciar-backup-nisti.cmd`. Ele **não faz backup automaticamente**: abre um assistente que pede os dados da conexão do PostgreSQL, a senha do banco, uma **senha diferente para criptografia** e a pasta de destino, tudo no próprio computador. Nunca informe senhas no chat.
+
+1. Instale Node.js e as ferramentas cliente **PostgreSQL 17** (`psql`, `pg_dump` e `pg_restore`) e deixe-as disponíveis no PATH do Windows.
+2. No [Supabase → Connect](https://supabase.com/dashboard/project/yioetdcbgorunwgwuawg), consulte o host, usuário e porta corretos. Use o pooler informado pelo Supabase se sua rede não oferecer IPv6. **Não forneça aqui sua senha.**
+3. Abra a pasta local do projeto NISTI e clique duas vezes em `scripts/iniciar-backup-nisti.cmd`.
+4. Informe a pasta **já existente** `Banco Supabase - Criptografado` do Google Drive para computador, se estiver sincronizada. Caso não use o aplicativo Drive, pressione Enter para criar a pasta `NISTI-Criptografado` no seu perfil do Windows.
+5. O assistente consulta o tamanho do banco primeiro e só exporta quando você digitar **BACKUP**. O limite preventivo permanece em 100 MB. Depois, valida a criptografia e inspeciona a estrutura do arquivo sem restaurar dados no banco real.
+6. Na pasta de destino, confira os dois arquivos `.nisti.enc` e `.nisti.json`. Se escolheu armazenamento local, envie **apenas esses dois** para a pasta privada do Google Drive e mantenha a senha de criptografia fora do Drive.
+
+**Limites:** a cópia não inclui imagens do R2 nem substitui um teste de restauração em PostgreSQL isolado. A exportação consome egress da franquia gratuita. O iniciador usa PowerShell local com `RemoteSigned` e não grava senhas no repositório. Se o Windows impedir a execução, confira as políticas do computador em vez de reduzir indiscriminadamente a proteção.
+
+
 A cópia é gerada no computador com o cliente PostgreSQL 17, comprimida e **criptografada antes de chegar ao Google Drive**. Não usa Supabase Storage, Cloudflare R2, GitHub Artifacts ou outro projeto de banco.
 
 1. Instale Google Drive para computador, Node.js e o cliente PostgreSQL 17 (`pg_dump`, `pg_restore`, `psql`) no computador Windows usado para administração do NISTI. Alternativa: sem Drive para computador, salve numa pasta privada local e **envie manualmente só os arquivos `.nisti.enc` e `.nisti.json` pela interface web do Drive**.
