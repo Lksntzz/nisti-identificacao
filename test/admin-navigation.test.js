@@ -81,7 +81,9 @@ test('Admin source has no legacy duplicate navigation or dead PlatformsView', ()
     assert.equal(source.includes(forbidden), false, `código morto ainda presente: ${forbidden}`);
   }
 
-  assert.equal(source.includes("import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';"), true);
+  const sidebar = fs.readFileSync(new URL('../src/admin/AdminSidebar.jsx', import.meta.url), 'utf8');
+  assert.equal(source.includes("import AdminSidebar from './admin/AdminSidebar.jsx';"), true);
+  assert.equal(sidebar.includes("import { ADMIN_MENU_SECTIONS } from '../admin-navigation.js';"), true);
   assert.equal(source.includes('Abrir NISTI ID'), false);
   assert.equal(source.includes('Voltar ao Scanner de Expedição'), false);
   assert.equal(source.includes('<span>Scanner</span>'), false);
@@ -123,18 +125,22 @@ test('Catálogo exposes commercial tools as an expandable submenu', () => {
   );
 });
 
-test('main sidebar renders expandable Mural and Catálogo trees without leaving the admin', () => {
+test('admin sidebar component keeps expandable Mural and Catálogo trees without navigation regressions', () => {
   const source = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+  const sidebar = fs.readFileSync(new URL('../src/admin/AdminSidebar.jsx', import.meta.url), 'utf8');
   const css = fs.readFileSync(new URL('../src/app.css', import.meta.url), 'utf8');
-  assert.ok(source.includes('sidebar-nav-chevron'));
-  assert.ok(source.includes('aria-expanded={isExpanded}'));
-  assert.ok(source.includes('sidebar-submenu'));
-  assert.ok(source.includes('activeMuralSection'));
-  assert.ok(source.includes('onMuralSectionChange'));
-  assert.ok(source.includes('activeCommerceSection'));
-  assert.ok(source.includes('onCommerceSectionChange'));
+  assert.ok(source.includes("import AdminSidebar from './admin/AdminSidebar.jsx';"));
+  assert.ok(source.includes('<AdminSidebar'));
+  assert.ok(sidebar.includes('sidebar-nav-chevron'));
+  assert.ok(sidebar.includes('aria-expanded={isExpanded}'));
+  assert.ok(sidebar.includes('sidebar-submenu'));
+  assert.ok(sidebar.includes('activeMuralSection'));
+  assert.ok(sidebar.includes('onMuralSectionChange'));
+  assert.ok(sidebar.includes('activeCommerceSection'));
+  assert.ok(sidebar.includes('onCommerceSectionChange'));
   assert.ok(source.includes('activeSection={muralSection}'));
-  assert.ok(source.includes("item.id === 'commerce'"));
+  assert.ok(sidebar.includes("item.id === 'commerce'"));
+  assert.ok(sidebar.includes('action="/admin-logout"'));
   assert.equal(source.includes("window.location.href = '/admin-commerce'"), false);
   assert.ok(css.includes('.sidebar-submenu-item'));
   assert.ok(css.includes('.sidebar-nav-chevron.expanded svg'));
@@ -146,8 +152,9 @@ test('Mural NISTI opens on the publication dashboard', () => {
   assert.equal(mural.children.some(item => item.id === 'overview'), false);
   const source = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
   assert.ok(source.includes("const [muralSection,setMuralSection]=useState('dashboard')"));
-  assert.ok(source.includes("activeMuralSection = 'dashboard'"));
-  assert.ok(source.includes("onMuralSectionChange?.('dashboard')"));
+  const sidebar = fs.readFileSync(new URL('../src/admin/AdminSidebar.jsx', import.meta.url), 'utf8');
+  assert.ok(sidebar.includes("activeMuralSection = 'dashboard'"));
+  assert.ok(sidebar.includes("onMuralSectionChange?.('dashboard')"));
 });
 
 
