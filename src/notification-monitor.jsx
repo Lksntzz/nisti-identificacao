@@ -4,7 +4,7 @@ import { DISPATCH_PLATFORMS,platformColor } from './notification-dispatch-option
 import DispatchIcon from './notification-ui/DispatchIcon.jsx';
 import MonitorCallBoundary from './notification-monitor-call-boundary.jsx';
 import PlatformLogo from './notification-ui/PlatformLogo.jsx';
-import { playNotificationSound } from './notification-platform-sounds.js';
+import { DISPATCH_SOUND_DURATION_SECONDS, playNotificationSound, stopNotificationSound } from './notification-platform-sounds.js';
 import { fetchPublishedMonitorBuild, shouldReloadMonitor, MONITOR_BUILD_CHECK_INTERVAL_MS } from './notification-monitor-updates.js';
 import { normalizeMonitorFeed } from './notification-monitor-data.js';
 
@@ -53,10 +53,11 @@ export default function NotificationMonitor(){
       window.history.replaceState(window.history.state,'',window.location.pathname+window.location.search);
     }
   },[]);
-  const play=useCallback((platform)=>{
+  const play=useCallback((platform,secondsLeft)=>{
     if(!audioEnabledRef.current)return false;
     // Audio API failures must never interrupt the visual notification.
-    try{return playNotificationSound(audioRef.current,platform)}
+    try{return playNotificationSound(audioRef.current,platform,
+      Math.min(DISPATCH_SOUND_DURATION_SECONDS,Math.max(0,secondsLeft-0.1)))}
     catch(error){
       console.warn('[Monitor NISTI] Falha não fatal no som',error?.name||'audio_error');
       audioEnabledRef.current=false;
@@ -173,15 +174,21 @@ export default function NotificationMonitor(){
       document.removeEventListener('visibilitychange',visible);
       ctx.removeEventListener?.('statechange',sync);
       audioEnabledRef.current=false;
+      stopNotificationSound(ctx);
       audioRef.current=null;
       ctx.close().catch(()=>{});
     };
   },[]);
-  // Uma chamada só toca uma vez. Se o contexto iniciar um pouco depois da
-  // primeira consulta, o alerta ainda toca enquanto a chamada estiver ativa.
+  // Nunca permite que um aviso antigo siga tocando após sair da fila.
+  useEffect(()=>{
+    if(!call?.id)stopNotificationSound(audioRef.current);
+  },[call?.id]);
+  // Toca até 13s por chamada; se o monitor detectar a chamada com atraso,
+  // limita o áudio ao tempo restante dos 15s de exibição.
   useEffect(()=>{
     if(!audioOn||!call?.id||lastBeepId.current===call.id)return;
-    if(remainingSeconds(call.expires_at,offset)>0&&play(call.platform)){
+    const secondsLeft=(Date.parse(call.expires_at)-(Date.now()+offset))/1000;
+    if(remainingSeconds(call.expires_at,offset)>0&&play(call.platform,secondsLeft)){
       lastBeepId.current=call.id;
     }
   },[audioOn,call,offset,play]);
@@ -225,7 +232,7 @@ export default function NotificationMonitor(){
         <span>{pending>0?pending+' chamada(s) aguardando na fila':'Nenhuma chamada em espera'}</span></div>
       <div className="nid-monitor-actions">
         <span className={'nid-audio-indicator '+(audioOn?'active':'blocked')} role="status"><DispatchIcon name="volume-2" size={17}/>
-          {audioOn?'Som automático pronto':'Áudio bloqueado pelo navegador'}</span>
+          {audioOn?'Som automático pronto · 13s':'Áudio bloqueado pelo navegador'}</span>
         {!audioOn&&<button type="button" onClick={enableAudio}>Liberar áudio</button>}
         <button type="button" onClick={toggleFullScreen} className="nid-fullscreen-action"><DispatchIcon name="monitor" size={17}/> Tela cheia</button>
       </div>

@@ -43,6 +43,6 @@ test('large logo shown in expedition stage; small logos throughout admin',()=>{
   assert.match(monitor,/<PlatformLogo platform=\{current\.platform\} size="large"\/>/);
   assert.match(admin,/function ChannelMark\(\{platform\}\)\{return <PlatformLogo platform=\{platform\}/);
   assert.match(monitor,/remainingSeconds/);
-  assert.match(monitor,/play\(call\.platform\)/);
+  assert.match(monitor,/play\(call\.platform,secondsLeft\)/);
   assert.match(admin,/dispatchOptionValid/);
 });

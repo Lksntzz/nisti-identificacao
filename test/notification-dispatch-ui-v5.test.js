@@ -28,7 +28,7 @@ test('expedition stage isolates active calls and uses safe text emphasis',()=>{
  assert.match(monitor,/key=\{current\.id\}/);
  assert.match(monitor,/remainingSeconds/);
  assert.match(monitor,/seconds\/duration\*100/);
- assert.match(monitor,/play\(call\.platform\)/);
+ assert.match(monitor,/play\(call\.platform,secondsLeft\)/);
  assert.match(monitor,/lastBeepId/);
  assert.match(monitor,/!audioOn&&<button/);
  assert.match(css,/prefers-reduced-motion:reduce/);
