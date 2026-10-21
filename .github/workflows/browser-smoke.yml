@@ -1,0 +1,80 @@
+name: Browser Smoke (Chromium)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.js'
+      - 'test-browser/**'
+      - 'README.md'
+      - '.github/workflows/browser-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.js'
+      - 'test-browser/**'
+      - '.github/workflows/browser-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nisti-browser-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium:
+    name: Chromium UI interactions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+
+      # Playwright is pinned and installed only for this isolated browser job.
+      # It is never bundled in the Worker and does not modify package-lock.json.
+      - name: Install browser test runner
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.64.1
+
+      - name: Install Chromium headless shell
+        run: npx playwright install --with-deps --only-shell chromium
+
+      - name: Start local Vite (no production backend)
+        shell: bash
+        run: |
+          set -euo pipefail
+          (npm run dev -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/nisti-vite.log 2>&1 &)
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:4173/admin -o /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/nisti-vite.log
+          exit 1
+
+      - name: Simulate desktop and mobile operations in real Chromium
+        env:
+          CI: 'true'
+        run: node test-browser/browser-smoke.mjs
+
+      - name: Show local server errors only on failure
+        if: failure()
+        run: tail -n 70 /tmp/nisti-vite.log || true
