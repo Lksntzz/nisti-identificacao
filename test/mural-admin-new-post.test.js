@@ -1,8 +1,9 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const source=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const source = muralAdminSource;
 
 test('Publish tool creates a new publication without a dashboard create button',()=>{
   assert.match(source,/const sourceItem = item && item\.mode === 'new' \? null : item/);
