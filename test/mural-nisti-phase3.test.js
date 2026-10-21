@@ -4,6 +4,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
+const imageRoutes=fs.readFileSync(new URL('../src/mural-image-routes.js',import.meta.url),'utf8');
 const collectionRoutes=fs.readFileSync(new URL('../src/mural-collection-routes.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
 const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
@@ -44,12 +45,12 @@ test('publication editor exposes product information and collection with one col
 });
 
 test('image upload is constrained and server generates the R2 key',()=>{
-  assert.match(router,/MAX_EDITORIAL_IMAGE_BYTES = 5 \* 1024 \* 1024/);
-  assert.match(router,/image\/jpeg/);
-  assert.match(router,/image\/png/);
-  assert.match(router,/image\/webp/);
-  assert.match(router,/crypto\.randomUUID\(\)/);
-  assert.match(router,/mural\/\$\{owner\}\/\$\{id\}/);
+  assert.match(imageRoutes,/MAX_EDITORIAL_IMAGE_BYTES = 5 \* 1024 \* 1024/);
+  assert.match(imageRoutes,/image\/jpeg/);
+  assert.match(imageRoutes,/image\/png/);
+  assert.match(imageRoutes,/image\/webp/);
+  assert.match(imageRoutes,/crypto\.randomUUID\(\)/);
+  assert.match(imageRoutes,/mural\/\$\{owner\}\/\$\{id\}/);
   assert.match(admin,/1600 \/ Math\.max/);
 });
 
