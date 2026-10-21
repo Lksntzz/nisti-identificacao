@@ -265,3 +265,9 @@ body:has(.nid-expedition-standalone){background:#f3f6fb;color:#152238}
     min-height:max-content;
   }
 }
+
+/* A conexão do notebook é controlada na central dos responsáveis pelo envio. */
+.nid-expedition-standalone .nid-monitor-connect-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.nid-expedition-standalone .nid-monitor-connect-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:7px 11px;font-size:11px;font-weight:800}
+.nid-expedition-standalone .nid-monitor-connect-actions .nid-connect-monitor{color:#fff;background:#1c4774;border-color:#1c4774}
+.nid-expedition-standalone .nid-monitor-connect-actions button:disabled{opacity:.65;cursor:wait}
