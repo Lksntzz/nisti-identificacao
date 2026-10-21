@@ -333,7 +333,10 @@ test('GET logout nunca encerra uma sessão HttpOnly; apenas POST do próprio sit
 });
 
 test('botões Sair usam POST e não tentam apagar cookie HttpOnly no cliente',()=>{
-  for(const file of ['../src/main.jsx','../src/commerce-admin-app-v2.jsx']){
+  const main=fs.readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
+  assert.match(main,/import AdminSidebar from '\.\/admin\/AdminSidebar\.jsx'/);
+  assert.match(main,/import AdminTopbar from '\.\/admin\/AdminTopbar\.jsx'/);
+  for(const file of ['../src/admin/AdminSidebar.jsx','../src/admin/AdminTopbar.jsx','../src/commerce-admin-app-v2.jsx']){
     const code=fs.readFileSync(new URL(file,import.meta.url),'utf8');
     assert.doesNotMatch(code,/href="\/admin-logout"/);
     assert.doesNotMatch(code,/document\.cookie\s*=\s*'nisti_admin_session=/);
