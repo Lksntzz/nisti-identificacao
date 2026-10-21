@@ -7,7 +7,7 @@ const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'ut
 test('treated image v18 is manual-only from UI to worker', () => {
   const main = read('src/main.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
-  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const admin = read('src/admin/MuralProductImageManager.jsx');
 
   assert.equal(main.includes('TREATMENT_WAKE_EVENT'), false);
   assert.equal(worker.includes('TREATMENT_WAKE_EVENT'), false);
