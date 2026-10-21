@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 
 const wrapper = fs.readFileSync('scripts/nisti-backup-assistant.ps1', 'utf8');
 const launcher = fs.readFileSync('scripts/iniciar-backup-nisti.cmd', 'utf8');
@@ -39,4 +40,17 @@ test('encrypted backup never falsely claims R2 objects are included or restore t
   assert.match(wrapper, /restauracao isolada ainda precisa ser testada/);
   assert.match(wrapper, /\.nisti\.enc/);
   assert.match(wrapper, /\.nisti\.json/);
+});
+
+test('PowerShell parser checks the interactive script when pwsh is available', (t) => {
+  const command = [
+    '$errorsList = $null;',
+    "[System.Management.Automation.Language.Parser]::ParseFile('scripts/nisti-backup-assistant.ps1', [ref]$null, [ref]$errorsList) | Out-Null;",
+    'if ($errorsList.Count -gt 0) { $errorsList | ForEach-Object { Write-Error $_ }; exit 2 }'
+  ].join(' ');
+  const result = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', command], {
+    encoding: 'utf8', timeout: 12000
+  });
+  if (result.error?.code === 'ENOENT') return t.skip('pwsh is not installed in this environment');
+  assert.equal(result.status, 0, result.stderr || result.stdout || 'PowerShell parser failed');
 });
