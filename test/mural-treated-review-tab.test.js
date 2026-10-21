@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const view=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const view=fs.readFileSync(new URL('../src/admin/MuralProductImageManager.jsx',import.meta.url),'utf8');
 
 test('Mural image manager has a dedicated treated review tab',()=>{
   assert.ok(view.includes("const [imageTab,setImageTab]=useState('review')"));

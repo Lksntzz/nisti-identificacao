@@ -253,7 +253,7 @@ test('each product treatment persists an individual auditable mask', () => {
 });
 
 test('mask backfill is visible and cannot destroy treatment review state', () => {
-  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const admin = read('src/admin/MuralProductImageManager.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
   const core = read('src/core-router.js');
 
@@ -265,7 +265,7 @@ test('mask backfill is visible and cannot destroy treatment review state', () =>
 });
 
 test('Mural admin shows live treatment totals and the current SKU', () => {
-  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const admin = read('src/admin/MuralProductImageManager.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
   const css = read('src/mural-admin.css');
   const core = read('src/core-router.js');
@@ -328,7 +328,7 @@ test('treatment queue cannot be blocked forever by one failed or oversized image
 });
 
 test('treatment supports pause, review, approval and explicit precise redo', () => {
-  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const admin = read('src/admin/MuralProductImageManager.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
   const utility = read('src/mural-transparent-image.js');
   const core = read('src/core-router.js');
@@ -346,7 +346,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(admin.includes('?products.filter(item=>item.mural_image_ready)'));
   assert.ok(admin.includes('!justApprovedIds.has(Number(item.id))'));
   assert.ok(admin.includes('setJustApprovedIds(current=>new Set(current).add(Number(product.id)))'));
-  assert.ok(admin.includes("cache: 'no-store'"));
+  assert.ok(read('src/admin/MuralNistiAdminView.jsx').includes("cache: 'no-store'"));
   assert.ok(admin.includes('Aprovada e salva'));
   assert.ok(admin.includes('/approve'));
   assert.ok(admin.includes('/redo'));
@@ -374,7 +374,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
 
 
 test('Mural review opens a large preview and exposes approve and precise-redo actions', () => {
-  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const admin = read('src/admin/MuralProductImageManager.jsx');
   const css = read('src/mural-admin.css');
   assert.match(admin, /mural-product-image-lightbox/);
   assert.match(admin, /Aprovar e mover para Revisados/);
@@ -387,7 +387,7 @@ test('Mural review opens a large preview and exposes approve and precise-redo ac
 
 test('manual image treatment stays idle until the admin explicitly starts it', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
-  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const admin = read('src/admin/MuralProductImageManager.jsx');
   const main = read('src/main.jsx');
   const core = read('src/core-router.js');
 
@@ -404,7 +404,7 @@ test('manual image treatment stays idle until the admin explicitly starts it', (
 });
 test('image treatment retries after another admin tab owns the processing lock', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
-  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const admin = read('src/admin/MuralProductImageManager.jsx');
   const adminCss = read('src/mural-admin.css');
 
   assert.match(worker, /const LOCK_RETRY_MS = 5 \* 1000/);
