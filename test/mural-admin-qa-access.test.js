@@ -1,9 +1,10 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = name => fs.readFileSync(new URL('../'+name,import.meta.url),'utf8');
 test('Mural QA opens within protected admin route instead of public scanner',()=>{
- const admin=read('src/admin/MuralNistiAdminView.jsx');
+ const admin = muralAdminSource;
  const main=read('src/main.jsx');
  const entry=read('src/entry.jsx');
  const mural=read('src/mural-nisti.jsx');
