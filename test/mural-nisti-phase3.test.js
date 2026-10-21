@@ -4,6 +4,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
+const collectionRoutes=fs.readFileSync(new URL('../src/mural-collection-routes.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
 const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
 const nav=fs.readFileSync(new URL('../src/admin-navigation.js',import.meta.url),'utf8');
@@ -53,10 +54,10 @@ test('image upload is constrained and server generates the R2 key',()=>{
 });
 
 test('collections preserve ordered product membership and are reachable from admin nav',()=>{
-  assert.match(router,/sort_order/);
-  assert.match(router,/SELECT collection_id,product_id,sort_order/);
-  assert.match(router,/ORDER BY collection_id ASC,sort_order ASC,product_id ASC/);
-  assert.match(router,/product_ids:productIds\.join\(','\)/);
-  assert.match(router,/env\.DB\.batch\(statements\)/);
+  assert.match(collectionRoutes,/sort_order/);
+  assert.match(collectionRoutes,/SELECT collection_id,product_id,sort_order/);
+  assert.match(collectionRoutes,/ORDER BY collection_id ASC,sort_order ASC,product_id ASC/);
+  assert.match(collectionRoutes,/product_ids:productIds\.join\(','\)/);
+  assert.match(collectionRoutes,/env\.DB\.batch\(statements\)/);
   assert.ok(nav.includes("id: 'mural-nisti'"));
 });
