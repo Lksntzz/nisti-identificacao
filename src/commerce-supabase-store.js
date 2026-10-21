@@ -174,13 +174,56 @@ export async function commerceSalesEvolution(env, filters={}) {
     ||![7,30,60,90].includes(days)
     ||!['ALL','SOLD','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT'].includes(status)
     ||(search&&search.length>120))throw new Error('Filtros de evolução inválidos.');
-  const result=await supabaseRpc(env,'commerce_sales_evolution_v1',{
-    p_platform:platform,p_days:days,p_status:status,p_search:search,
-    p_limit:cleanPageSize(filters.limit,25),
-    p_offset:cleanOffset(filters.offset)
+
+  // Only confirmed ZERO on the *entire active listing* can be called "Sem vendas".
+  // The existing listing-manager RPC already requires full source coverage,
+  // unique reviewed Shopee SKU ownership and 0 units on ALL variations.
+  // Never derive listing-level zero from SKU/model evolution rows.
+  const onlyListings=status==='ZERO';
+  const listingRequest=commerceListingManager(env,{
+    platform,days,search,status:'ZERO',curve:'ALL',basis:'UNITS',
+    limit:onlyListings?cleanPageSize(filters.limit,25):1,
+    offset:onlyListings?cleanOffset(filters.offset):0
+  });
+  const trendRequest=supabaseRpc(env,'commerce_sales_evolution_v1',{
+    p_platform:platform,p_days:days,p_status:onlyListings?'ALL':status,p_search:search,
+    p_limit:onlyListings?1:cleanPageSize(filters.limit,25),
+    p_offset:onlyListings?0:cleanOffset(filters.offset)
   },{timeoutMs:15000});
-  return result&&typeof result==='object'&&!Array.isArray(result)
-    ?result:{items:[],total:0,kpis:{},coverage:[]};
+  // Keep the selected result usable even if the *other* KPI source has a
+  // transient error. A missing count is unknown, never interpreted as zero.
+  const [listingState,trendState]=await Promise.allSettled([listingRequest,trendRequest]);
+  if(onlyListings&&listingState.status==='rejected')throw listingState.reason;
+  if(!onlyListings&&trendState.status==='rejected')throw trendState.reason;
+  const listing=listingState.status==='fulfilled'?listingState.value:null;
+  const trend=trendState.status==='fulfilled'?trendState.value:null;
+  const samePeriod=listing&&trend&&listing.period_start&&listing.period_end
+    &&listing.period_start===trend.period_start
+    &&listing.period_end===trend.period_end;
+  const confirmedZero=listing&&Number.isSafeInteger(Number(listing.total))
+    ?Number(listing.total):null;
+  // Stable/Rising remain SKU/model classifications. They are not silently
+  // converted into listing counts or mixed across different date windows.
+  const kpis={
+    ...(trend?.kpis||{}),
+    zero:onlyListings||samePeriod?confirmedZero:null,
+    stable:samePeriod?trend?.kpis?.stable??null:null,
+    rising:samePeriod?trend?.kpis?.rising??null:null
+  };
+  if(onlyListings)return {
+    ...listing,
+    grain:'LISTING',
+    kpis,
+    // The listing report itself supplies the verified date interval.
+    coverage:listing.coverage||[],
+    previous_start:samePeriod?trend?.previous_start:null,
+    previous_end:samePeriod?trend?.previous_end:null
+  };
+  return {
+    ...(trend||{items:[],total:0,coverage:[]}),
+    grain:'SKU',
+    kpis
+  };
 }
 
 export async function commerceListingManagerMonthly(env, platform='TODAS') {
