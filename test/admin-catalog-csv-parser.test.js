@@ -23,11 +23,11 @@ test('CSV parser removes BOM from UTF-8 files and handles CRLF', () => {
   ]);
 });
 
-test('catalog import maps named headers and removes formatting from EAN values', () => {
+test('catalog import maps named headers and retains EAN formatting as before', () => {
   const rows = catalogRowsFromCsv('SKU,NOME,VARIAÇÃO,PLATAFORMA,EAN,URL\r\nSKU_01,"Agenda, Grande",Rosa,Shopee,789.456-123,https://example.test/1');
   assert.deepEqual(rows, [{
     nome: 'Agenda, Grande', variacao: 'Rosa', platform: 'Shopee', sku: 'SKU_01',
-    gtin: '789456123', link: 'https://example.test/1'
+    gtin: '789.456-123', link: 'https://example.test/1'
   }]);
 });
 
@@ -40,7 +40,7 @@ test('catalog import accepts common alias headers for product and GTIN', () => {
 });
 
 test('catalog import preserves headerless positional files', () => {
-  const rows = catalogRowsFromCsv('unused,unused,Agenda Verde,Verde,Shopee,SKU-2,https://example.test/3,7890123456789');
+  const rows = catalogRowsFromCsv('unused,unused,Agenda Verde,Verde,Shopee,SKU-2,https://example.test/3,789.012.345-6789');
   assert.deepEqual(rows, [{
     nome: 'Agenda Verde', variacao: 'Verde', platform: 'Shopee', sku: 'SKU-2',
     gtin: '7890123456789', link: 'https://example.test/3'
