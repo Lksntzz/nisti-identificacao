@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {approvedReleasePull,passedProductionGate,verifyRelease} from '../scripts/verify-reviewed-release.mjs';
+import {approvedReleasePull,passedProductionGate,passedProductionWorkflow,verifyRelease} from '../scripts/verify-reviewed-release.mjs';
 
 const HEAD='a'.repeat(40),MERGED='b'.repeat(40);
 const validPr={
@@ -31,6 +31,34 @@ test('premerge Production Gate must pass on the exact PR source SHA',()=>{
     {...validCheck,name:'not-a-gate'},
     {...validCheck,app:{slug:'third-party'}}
   ])assert.equal(passedProductionGate([wrong],HEAD),false);
+});
+
+test('completed PR Production Gate workflow is authoritative when check-run status lags',async()=>{
+  const workflow={head_sha:HEAD,name:'Production Gate',path:'.github/workflows/production-gate.yml',
+    event:'pull_request',status:'completed',conclusion:'success'};
+  assert.equal(passedProductionWorkflow([workflow],HEAD),true);
+  for(const change of [
+    {head_sha:MERGED},{name:'Deploy Production'},{path:'.github/workflows/deploy-production.yml'},
+    {event:'push'},{status:'in_progress'},{conclusion:'failure'},{conclusion:'skipped'}
+  ])assert.equal(passedProductionWorkflow([{...workflow,...change}],HEAD),false);
+  const paths=[];
+  const get=async(path)=>{
+    paths.push(path);
+    if(path.endsWith('/pulls'))return [validPr];
+    if(path.includes('/check-runs'))return {check_runs:[{...validCheck,status:'in_progress',conclusion:null}]};
+    return {workflow_runs:[workflow]};
+  };
+  const result=await verifyRelease({
+    repository:'Lksntzz/nisti-identificacao',sha:MERGED,token:'test-token',request:get
+  });
+  assert.equal(result.number,594);
+  assert.equal(paths.length,3);
+  assert.ok(paths[2].includes('event=pull_request'));
+  await assert.rejects(verifyRelease({
+    repository:'Lksntzz/nisti-identificacao',sha:MERGED,token:'test-token',
+    request:async(path)=>path.endsWith('/pulls')?[validPr]:
+      path.includes('/check-runs')?{check_runs:[]}:{workflow_runs:[{...workflow,event:'push'}]}
+  }),/não aprovados/);
 });
 
 test('deployment gate checks association and premerge test result and fails closed',async()=>{
