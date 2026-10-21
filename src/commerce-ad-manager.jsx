@@ -13,6 +13,7 @@ import './nisti-reactbits-adaptations.css';
 import './commerce-approved-layout.css';
 import './commerce-reactbits-lucide.css';
 import './commerce-view-specific-kpis.css';
+import './commerce-evolution-polish.css';
 import './commerce-zero-sales-filters.css';
 import GlareHover from './vendor/react-bits/GlareHover.jsx';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
@@ -650,7 +651,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const emptyIdentifiedVars=Number(kpi.identified_empty_variations||0);
   // The two views must not share status filters or mix listing counts with SKUs.
   // Evolution summary comes from the same paginated RPC response as the results.
-  const evolutionCounts=evolutionSummary?.kpis||null;
+  // Child already sends body.kpis; do not look for a nested kpis.kpis field.
+  const evolutionCounts=evolutionSummary||null;
   const evolutionReady=Boolean(evolutionCounts)
     &&['falling','zero','sold','rising'].every(key=>
       evolutionCounts[key]!=null&&Number.isFinite(Number(evolutionCounts[key])));
@@ -728,6 +730,15 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/>}
 
+    <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
+      <button type="button" className={commercialView==='LISTINGS'?'active':''}
+        aria-current={commercialView==='LISTINGS'?'page':undefined}
+        onClick={()=>{setCommercialView('LISTINGS');setEvolutionSummary(null);}}><CommercialIcon name="layout-list" size={16}/> Anúncios</button>
+      <button type="button" className={commercialView==='EVOLUTION'?'active':''}
+        aria-current={commercialView==='EVOLUTION'?'page':undefined}
+        onClick={()=>{setEvolutionSummary(null);setCommercialView('EVOLUTION');}}>
+        <CommercialIcon name="chart-no-axes-column-increasing" size={16}/> Evolução de vendas</button>
+    </nav>
     {commercialView==='LISTINGS'?
       <div className="nim-kpis nim-kpis-listings" aria-label="Indicadores de anúncios">
         <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'}
@@ -763,15 +774,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
           selected={evolutionStatus==='RISING'}
           onClick={evolutionReady?()=>chooseEvolutionStatus('RISING'):undefined}/>
       </div>}
-    <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
-      <button type="button" className={commercialView==='LISTINGS'?'active':''}
-        aria-current={commercialView==='LISTINGS'?'page':undefined}
-        onClick={()=>{setCommercialView('LISTINGS');setEvolutionSummary(null);}}><CommercialIcon name="layout-list" size={16}/> Anúncios</button>
-      <button type="button" className={commercialView==='EVOLUTION'?'active':''}
-        aria-current={commercialView==='EVOLUTION'?'page':undefined}
-        onClick={()=>{setEvolutionSummary(null);setCommercialView('EVOLUTION');}}>
-        <CommercialIcon name="chart-no-axes-column-increasing" size={16}/> Evolução de vendas</button>
-    </nav>
     {commercialView==='LISTINGS'&&<section className="nim-finance-disclosure" aria-label="Conciliação de vendas importadas">
       <button type="button" className="nim-finance-toggle" aria-expanded={financialOpen}
         onClick={()=>setFinancialOpen(previous=>!previous)}>
