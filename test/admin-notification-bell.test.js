@@ -3,14 +3,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const source=fs.readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
+const topbar=fs.readFileSync(new URL('../src/admin/AdminTopbar.jsx',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../src/app.css',import.meta.url),'utf8');
 
 test('admin notifications render one stable icon without keyed SVG copies',()=>{
-  const adminStart=source.indexOf('function AdminTopbar(');
-  const bellStart=source.indexOf('className={`topbar-bell-btn',adminStart);
-  const bellEnd=source.indexOf('</button>',bellStart);
+  assert.ok(source.includes("import AdminTopbar from './admin/AdminTopbar.jsx';"));
+  const adminStart=topbar.indexOf('function AdminTopbar(');
+  const bellStart=topbar.indexOf('className={`topbar-bell-btn',adminStart);
+  const bellEnd=topbar.indexOf('</button>',bellStart);
   assert.ok(adminStart>=0&&bellStart>adminStart&&bellEnd>bellStart);
-  const bell=source.slice(bellStart,bellEnd);
+  const bell=topbar.slice(bellStart,bellEnd);
   assert.doesNotMatch(bell,/<svg|<path|key={unreadCount/);
   assert.match(bell,/onClick={onOpenNotifications}/);
   assert.match(bell,/topbar-bell-badge/);

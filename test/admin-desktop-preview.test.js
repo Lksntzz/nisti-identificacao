@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const source = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const topbar = fs.readFileSync(new URL('../src/admin/AdminTopbar.jsx', import.meta.url), 'utf8');
 const desktopBootstrap = fs.readFileSync(new URL('../public/desktop-mode.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../src/app.css', import.meta.url), 'utf8');
 
@@ -17,10 +18,11 @@ test('admin mobile desktop preview is activated before the app renders', () => {
 });
 
 test('admin topbar exposes a reversible Modo PC control', () => {
-  assert.ok(source.includes('topbar-desktop-preview-btn'));
+  assert.ok(source.includes("import AdminTopbar from './admin/AdminTopbar.jsx';"));
+  assert.ok(topbar.includes('topbar-desktop-preview-btn'));
   assert.ok(source.includes("url.searchParams.set('desktop', '1')"));
   assert.ok(source.includes("url.searchParams.delete('desktop')"));
-  assert.ok(source.includes("desktopPreview ? 'Modo celular' : 'Modo PC'"));
+  assert.ok(topbar.includes("desktopPreview ? 'Modo celular' : 'Modo PC'"));
   assert.ok(source.includes("desktopPreview ? 'admin-desktop-preview' : ''"));
 });
 
