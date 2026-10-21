@@ -118,6 +118,9 @@ test('atividades do sistema: abrir, marcar uma, marcar todas e fechar com Escape
     await page.getByRole('button', { name: /Atividades do sistema \(2 não lidas\)/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Atividades do Sistema' });
     await assertVisible(dialog);
+    // Notification data loads after the dialog opens; wait for the fixture rows
+    // rather than asserting on the initial empty/loading render.
+    await dialog.locator('.notification-card.unread').nth(1).waitFor({ state: 'visible', timeout: 10000 });
     assert.equal(await dialog.locator('.notification-card.unread').count(), 2);
     await dialog.locator('.notification-card.unread').first().click();
     await page.waitForFunction(() => document.querySelectorAll('.notifications-modal .notification-card.unread').length === 1);
