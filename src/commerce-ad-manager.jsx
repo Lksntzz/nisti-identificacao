@@ -2,8 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportModal from './commerce-import-modal.jsx';
 import {COMMERCE_IMPORT_OPTIONS} from './commerce-import-options.js';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
-import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
-import CommerceVariationReview from './commerce-variation-review.jsx';
+import CommerceEvolutionIntegrated from './commerce-evolution-integrated.jsx';
 import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
 import CommerceShopeeAdsSummary from './commerce-shopee-ads-summary.jsx';
 import {shopeeAdsRowsForPeriod,preferredShopeeAdsReport} from './commerce-shopee-ads-period.js';
@@ -543,7 +542,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [importedTotals,setImportedTotals]=useState(null);
   const [importedTotalsError,setImportedTotalsError]=useState('');
   const [evolutionStatus,setEvolutionStatus]=useState('ALL');
-  const [evolutionSummary,setEvolutionSummary]=useState(null);
   useEffect(()=>{
     if(!importMenuOpen)return;
     function handleOutside(event){
@@ -650,21 +648,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   // expanded listing and must never inflate the count of unsold ads.
   const emptyIdentifiedAds=sourceBreakdown?.withoutIdentified??0;
   const emptyIdentifiedVars=Number(kpi.identified_empty_variations||0);
-  // The two views must not share status filters or mix listing counts with SKUs.
-  // Evolution summary comes from the same paginated RPC response as the results.
-  // Child already sends body.kpis; do not look for a nested kpis.kpis field.
-  const evolutionCounts=evolutionSummary||null;
-  // The listing-level ZERO figure can be available even when a platform has
-  // no comparable SKU trend window. Never turn missing counts into 0.
-  const evolutionCountReady=key=>evolutionCounts?.[key]!=null
-    &&Number.isFinite(Number(evolutionCounts[key]));
-  const evolutionReady=Boolean(evolutionCounts)
-    &&['zero','stable','rising'].some(evolutionCountReady);
-  const evolutionCount=key=>evolutionCountReady(key)?num(evolutionCounts[key]):'—';
-  const chooseEvolutionStatus=next=>{
-    if(!evolutionCountReady(next.toLowerCase()))return;
-    setEvolutionStatus(current=>current===next?'ALL':next);
-  };
   const trendSelected=['RISING','FALLING'].includes(status)?status:'ALL';
   const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0;
   // No sale means no units recorded for a fully checked listing in the
@@ -699,7 +682,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const change=(setter,value)=>{setter(value);setOffset(0);setSelectedId(null);};
   return <section className="nim-manager">
     <header className="nim-heading">
-      <div><h2>Gestor de Anúncios</h2><p>Anúncios ativos, vendas e desempenho por plataforma</p></div>
+      <div><h2>{commercialView==='EVOLUTION'?'Evolução de vendas':'Gestor de Anúncios'}</h2>
+        <p>{commercialView==='EVOLUTION'?'Anúncios, variações e desempenho por plataforma':'Anúncios ativos, vendas e desempenho por plataforma'}</p></div>
       <div className="nim-header-actions">
         <button type="button" className="nim-soft-button" onClick={()=>setRefresh(v=>v+1)}>
           <CommercialIcon name="refresh-cw" size={16}/> Atualizar</button>
@@ -737,17 +721,13 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
     <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
       <button type="button" className={commercialView==='LISTINGS'?'active':''}
         aria-current={commercialView==='LISTINGS'?'page':undefined}
-        onClick={()=>{setCommercialView('LISTINGS');setEvolutionSummary(null);}}><CommercialIcon name="layout-list" size={16}/> Anúncios</button>
+        onClick={()=>setCommercialView('LISTINGS')}><CommercialIcon name="layout-list" size={16}/> Anúncios</button>
       <button type="button" className={commercialView==='EVOLUTION'?'active':''}
         aria-current={commercialView==='EVOLUTION'?'page':undefined}
-        onClick={()=>{setEvolutionSummary(null);setCommercialView('EVOLUTION');}}>
+        onClick={()=>setCommercialView('EVOLUTION')}>
         <CommercialIcon name="chart-no-axes-column-increasing" size={16}/> Evolução de vendas</button>
-      <button type="button" className={commercialView==='VARIATIONS'?'active':''}
-        aria-current={commercialView==='VARIATIONS'?'page':undefined}
-        onClick={()=>{setEvolutionSummary(null);setCommercialView('VARIATIONS');}}>
-        <CommercialIcon name="notebook-tabs" size={16}/> Variações 30/60/90</button>
     </nav>
-    {commercialView==='VARIATIONS'?null:commercialView==='LISTINGS'?
+    {commercialView==='LISTINGS'&&
       <div className="nim-kpis nim-kpis-listings" aria-label="Indicadores de anúncios">
         <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'}
           description="Anúncios monitorados"/>
@@ -764,20 +744,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
             'Nenhuma venda registrada na janela importada · SKUs conferidos'}
           selected={status===noSalesStatus}
           onClick={platform==='SHOPEE'&&days===0?undefined:changeNoSales}/>
-      </div>:
-      <div className="nim-kpis nim-kpis-evolution" aria-label="Filtros por situação na Evolução de Vendas">
-        <Kpi tone="rose" label="Sem vendas" value={evolutionCount('zero')}
-          description="Anúncios inteiros com zero vendas e cobertura confirmada"
-          selected={evolutionStatus==='ZERO'}
-          onClick={evolutionCountReady('zero')?()=>chooseEvolutionStatus('ZERO'):undefined}/>
-        <Kpi tone="mint" label="Estável" value={evolutionCount('stable')}
-          description="SKU/modelos com vendas estáveis confirmadas"
-          selected={evolutionStatus==='STABLE'}
-          onClick={evolutionCountReady('stable')?()=>chooseEvolutionStatus('STABLE'):undefined}/>
-        <Kpi tone="rising" label="Crescimento" value={evolutionCount('rising')}
-          description="SKU/modelos com crescimento confirmado"
-          selected={evolutionStatus==='RISING'}
-          onClick={evolutionCountReady('rising')?()=>chooseEvolutionStatus('RISING'):undefined}/>
       </div>}
     {commercialView==='LISTINGS'&&<section className="nim-finance-disclosure" aria-label="Conciliação de vendas importadas">
       <button type="button" className="nim-finance-toggle" aria-expanded={financialOpen}
@@ -811,14 +777,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </p>}
       </div>}
     </section>}
-    {commercialView==='VARIATIONS'?
-      <CommerceVariationReview platform={platform} onPlatformChange={setPlatform}
-        revision={refresh} salesRevision={salesRevision}/>:
-    commercialView==='EVOLUTION'?
-      <CommerceSalesEvolution platform={platform} onPlatformChange={setPlatform}
-        initialDays={PERIODS.includes(days)?days:30} onPeriodChange={setDays}
+    {commercialView==='EVOLUTION'?
+      <CommerceEvolutionIntegrated platform={platform} onPlatformChange={setPlatform}
+        initialDays={days===30||days===60||days===90?days:30} onPeriodChange={setDays}
         status={evolutionStatus} onStatusChange={setEvolutionStatus}
-        onSummary={setEvolutionSummary} revision={refresh} salesRevision={salesRevision}/>:
+        revision={refresh} salesRevision={salesRevision}/>:
       <>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
@@ -1034,7 +997,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         importedThrough={data?.imported_month?.period_end}
         search={search} revision={refresh} salesRevision={salesRevision}/>}
     </>}
-    {commercialView!=='VARIATIONS'&&<p className="nim-footnote">
+    {commercialView==='LISTINGS'&&<p className="nim-footnote">
       Com vendas e Sem vendas são calculados por anúncio na janela importada; o detalhamento de
       cada variação permanece na ficha do anúncio. Ausência de venda significa ausência de unidades
       registradas nos arquivos importados, e não comprovação independente de todos os pedidos.
