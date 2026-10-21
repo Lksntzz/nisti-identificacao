@@ -158,3 +158,7 @@ escolha a plataforma e adicione/remova as modalidades que utiliza; salve.
 Full não precisa estar disponível em canais que não utilizam o serviço.
 As preferências ficam guardadas no Supabase e são compartilhadas entre o ADM e os
 responsáveis pelo envio. Não modificam o catálogo comercial. O histórico existente é preservado.
+
+## Confirmação de cada envio (painel do responsável)
+
+Após cada tentativa de enviar notificações, a página `/painel-expedicao` mostra uma janela central obrigatória, com botão **Entendi**, para evitar mensagens escondidas pelo layout sem rolagem: **Notificação enviada à fila** somente após confirmação de todas as IDs no retorno do servidor, **Notificação não enviada** quando houver bloqueio/validação/rejeição, ou **Envio não confirmado** quando a requisição pode ter sido recebida mas a resposta falhou. A confirmação lista as plataformas e informações selecionadas; o operador deve conferir **Fila e histórico** no estado incerto antes de tentar de novo. Envio confirmado significa inclusão na fila, não prova de que o monitor exibiu a mensagem ou de que alguém retirou a capa.
