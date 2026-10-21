@@ -307,7 +307,7 @@ export default function NotificationDispatchView({senderMode=false}) {
         role="alertdialog" aria-modal="true" aria-labelledby="nid-send-confirm-title"
         aria-describedby="nid-send-confirm-description">
         <div className="nid-send-confirm-icon" aria-hidden="true">
-          <DispatchIcon name={sendFeedback.type==='success'?'check-circle-2':sendFeedback.type==='uncertain'?'alert-triangle':'x-circle'} size={29}/>
+          <DispatchIcon name={sendFeedback.type==='success'?'check':sendFeedback.type==='uncertain'?'bell-ring':'x'} size={29}/>
         </div>
         <h3 id="nid-send-confirm-title">{sendFeedback.title}</h3>
         <p id="nid-send-confirm-description">{sendFeedback.detail}</p>
