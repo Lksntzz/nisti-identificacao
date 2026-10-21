@@ -1,12 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-
+import React, { useEffect, useRef, useState } from 'react';
 import '../mural-admin.css';
 import { MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
 import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx';
 import MuralProductImageManager from './MuralProductImageManager.jsx';
 import { useTreatedProductImage } from '../mural-transparent-image.js';
-
 
 const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',
