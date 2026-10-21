@@ -14,7 +14,7 @@ const admin=read('src/commerce-admin-app-v2.jsx');
 test('the new Gestor de Anúncios replaces the old commercial dashboard in both entry points',()=>{
   assert.match(main,/import CommerceCommercialDashboard from '.\/commerce-ad-manager.jsx'/);
   assert.match(admin,/import CommerceCommercialDashboard from '.\/commerce-ad-manager.jsx'/);
-  assert.match(ui,/<h2>Gestor de Anúncios<\/h2>/);
+  assert.match(ui,/<h2>\{commercialView==='EVOLUTION'\?'Evolução de vendas':'Gestor de Anúncios'\}<\/h2>/);
   assert.match(ui,/Lista de anúncios/);
   assert.doesNotMatch(ui,/ProductCutoutImage|<img\b|<picture\b/);
   assert.match(css,/\.nim-ad-table/);

@@ -12,7 +12,7 @@ const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
 test('painel comercial possui duas visões, sem remover os anúncios existentes',()=>{
   assert.match(app,/commercialView==='EVOLUTION'/);
   assert.match(app,/Evolução de vendas/);
-  assert.match(app,/CommerceSalesEvolution/);
+  assert.match(app,/CommerceEvolutionIntegrated/);
   assert.match(app,/commercialView==='LISTINGS'/);
   assert.match(app,/Lista de anúncios/);
   assert.match(css,/nim-evolution-controls/);

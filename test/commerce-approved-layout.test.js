@@ -3,50 +3,37 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const evolution=fs.readFileSync('src/commerce-sales-evolution.jsx','utf8');
-const css=fs.readFileSync('src/commerce-approved-layout.css','utf8');
-const viewCss=fs.readFileSync('src/commerce-view-specific-kpis.css','utf8');
+const view=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
+const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
+const sql=fs.readFileSync('supabase/migrations/20261021220000_commerce_evolution_ads_v1.sql','utf8');
 
-test('anúncios e evolução possuem indicadores próprios, com bases de dados distintas',()=>{
-  assert.match(manager,/commercialView==='LISTINGS'\?/);
+test('anúncios e evolução possuem interfaces próprias e apenas duas opções de navegação',()=>{
+  const nav=manager.slice(manager.indexOf('<nav className="nim-commercial-views"'),manager.indexOf('</nav>'));
+  assert.equal((nav.match(/<button type="button"/g)||[]).length,2);
   assert.match(manager,/nim-kpis-listings/);
-  assert.match(manager,/nim-kpis-evolution/);
-  for(const label of ['Anúncios ativos','Com vendas','Sem vendas',
-    'Sem vendas','Estável','Crescimento'])
-    assert.ok(manager.includes(label),label);
-  assert.match(manager,/value=\{evolutionCount\('stable'\)\}/);
-  assert.match(manager,/value=\{evolutionCount\('zero'\)\}/);
-  assert.match(manager,/value=\{evolutionCount\('rising'\)\}/);
+  assert.match(manager,/CommerceEvolutionIntegrated/);
+  assert.doesNotMatch(nav,/Variações 30\/60\/90/);
   assert.doesNotMatch(manager,/value=\{28\}|value=\{41\}/);
-  assert.doesNotMatch(manager,/trendOverview|trendRequest/);
 });
 
-test('cards filtram a evolução pelo mesmo estado do seletor; anúncios preservam filtros separados',()=>{
+test('cards de evolução e seletor usam o mesmo status por anúncio inteiro',()=>{
   for(const status of ['ZERO','STABLE','RISING'])
-    assert.ok(manager.includes("chooseEvolutionStatus('"+status+"')"),status);
-  assert.match(manager,/setEvolutionStatus\(current=>current===next\?'ALL':next\)/);
-  assert.match(manager,/status=\{evolutionStatus\} onStatusChange=\{setEvolutionStatus\}/);
-  assert.match(manager,/onSummary=\{setEvolutionSummary\}/);
+    assert.match(view,new RegExp("'"+status+"'"));
+  assert.match(view,/onClick=\{\(\)=>onStatusChange\(card\.id\)\}/);
+  assert.match(view,/onChange=\{e=>onStatusChange\(e\.target\.value\)\}/);
+  assert.match(view,/status,limit:String\(PAGE\),offset:String\(offset\)/);
+  assert.match(sql,/and \(i\.status='ALL' or a\.situation=i\.status\)/);
   assert.match(manager,/onClick=\{\(\)=>change\(setStatus,status==='SOLD'\?'ALL':'SOLD'\)\}/);
-  assert.match(evolution,/onChange=\{e=>onStatusChange\(e\.target\.value\)\}/);
-  assert.match(evolution,/onClick=\{\(\)=>onStatusChange\('ALL'\)\}/);
-  assert.match(evolution,/onSummary\(body\?\.kpis\|\|null\)/);
-  assert.match(evolution,/setDays\(selected\);onPeriodChange\(selected\)/);
-  assert.match(manager,/if\(!financialOpen\|\|!data\?\.period_start/);
   assert.match(manager,/Totais financeiros importados/);
 });
 
-test('a evolução conserva a tabela analítica, detalhes e design responsivo',()=>{
-  for(const label of ['Produto','Plataforma','SKU / Anúncio','Situação','Unidades · atual / anterior','Variação'])
-    assert.ok(evolution.includes(label),label);
-  assert.match(evolution,/<details className="nim-evolution-product"/);
-  assert.match(evolution,/<summary className="nim-evolution-product-head"/);
-  assert.match(evolution,/item\.growth_pct==null\?'—'/);
-  assert.match(evolution,/item\.listing_id/);
-  assert.match(evolution,/item\.current_units/);
-  assert.match(evolution,/Ação comercial sugerida/);
-  assert.match(css,/@media\(max-width:700px\)/);
-  assert.match(css,/@media\(max-width:1050px\)/);
-  assert.match(viewCss,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(viewCss,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+test('evolução apresenta anúncio expansível, séries reais e variações 30 60 90 com layout responsivo',()=>{
+  assert.match(view,/aria-expanded=\{expanded\}/);
+  assert.match(view,/function WeeklyChart/);
+  assert.match(view,/function VariationTable/);
+  assert.match(view,/WINDOWS=\[30,60,90\]/);
+  assert.match(view,/identified_units/);
+  assert.match(view,/não são comprovadas pelos relatórios/);
+  assert.match(css,/@media\(max-width:560px\)/);
+  assert.match(css,/@media\(max-width:850px\)/);
 });

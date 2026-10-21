@@ -11,9 +11,9 @@ const view=fs.readFileSync('src/commerce-variation-review.jsx','utf8');
 const css=fs.readFileSync('src/commerce-variation-review.css','utf8');
 
 test('third commercial view groups advertisements with their variations in 30/60/90 periods',()=>{
-  assert.match(manager,/commercialView==='VARIATIONS'/);
-  assert.match(manager,/<CommerceVariationReview platform=\{platform\}/);
-  assert.match(manager,/Variações 30\/60\/90/);
+  assert.doesNotMatch(manager,/commercialView==='VARIATIONS'/);
+  assert.match(manager,/<CommerceEvolutionIntegrated platform=\{platform\}/);
+  assert.doesNotMatch(manager,/Variações 30\/60\/90/);
   assert.match(view,/const PERIODS=\[30,60,90\]/);
   assert.match(view,/variation-review'/);
   assert.match(view,/<Advertisement key=\{item\.listing_id\}/);
