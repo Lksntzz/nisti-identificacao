@@ -168,3 +168,32 @@ test('reconnect marker instructs open monitor to reload without asking ADM permi
   assert.match(sql,/reconnect_requested_at/);
   assert.match(sql,/REVOKE ALL ON FUNCTION public\.nisti_dispatch_request_reconnect_v7\(\) FROM PUBLIC,anon,authenticated/);
 });
+
+test('monitor feed history is bounded, validated, and never shows queued items',async()=>{
+  const {normalizeMonitorHistory,normalizeMonitorFeed}=await import('../src/notification-monitor-data.js');
+  const items=Array.from({length:13},(_,i)=>({
+    id:13-i,platform:'SHOPEE',message:'RETIRAR CAPA FULL',
+    started_at:'2026-10-21T12:00:00Z',status:i===3?'PENDING':i===0?'SHOWING':'EXPIRED'
+  }));
+  const history=normalizeMonitorHistory(items);
+  assert.equal(history.length,8);
+  assert.equal(history[0].id,'13');
+  assert.equal(history[0].status,'SHOWING');
+  assert.ok(history.every(x=>x.status!=='PENDING'));
+  assert.equal(normalizeMonitorHistory(null).length,0);
+  assert.equal(normalizeMonitorHistory([{id:1,platform:{evil:1},started_at:'2026-10-21T12:00:00Z',status:'EXPIRED'}]).length,0);
+  const feed=normalizeMonitorFeed({call:null,server_time:'2026-10-21T12:00:00Z',recent:items});
+  assert.equal(feed.recent.length,8);
+  const invalid=normalizeMonitorFeed({call:null,recent:[{},null,{id:9,platform:'SHOPEE',status:'PENDING',started_at:'2026-10-21T12:00:00Z'}]});
+  assert.deepEqual(invalid.recent,[]);
+});
+test('monitor receives recent completed notifications without leaking pending queue details',()=>{
+  const api=fs.readFileSync(new URL('../src/notification-dispatch-router.js',import.meta.url),'utf8');
+  const migration=fs.readFileSync(new URL('../supabase/migrations/20261021235000_nisti_dispatch_monitor_recent_v8.sql',import.meta.url),'utf8');
+  assert.match(api,/nisti_dispatch_public_next_v8/);
+  assert.match(migration,/nisti_dispatch_public_next_v7/);
+  assert.match(migration,/started_at IS NOT NULL AND status IN \('SHOWING','EXPIRED'\)/);
+  assert.match(migration,/LIMIT 8/);
+  assert.match(migration,/GRANT EXECUTE ON FUNCTION public\.nisti_dispatch_public_next_v8\(\) TO service_role/);
+  assert.doesNotMatch(migration,/to_jsonb\(v_call\)/);
+});
