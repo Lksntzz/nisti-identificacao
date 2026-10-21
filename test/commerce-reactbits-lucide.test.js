@@ -14,8 +14,9 @@ test('React Bits GlareHover é integrado sem substituir botões e dados',()=>{
   assert.match(manager,/const child=<GlareHover/);
   assert.match(manager,/aria-pressed=\{Boolean\(selected\)\}/);
   assert.match(manager,/label="Anúncios ativos"/);
-  assert.match(manager,/label="Estável"/);
-  assert.match(manager,/value=\{evolutionCount\('stable'\)\}/);
+  const integrated=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
+  assert.match(integrated,/id:'STABLE',label:'Estável'/);
+  assert.match(integrated,/value:kpis\.stable/);
   assert.match(glare,/prefers-reduced-motion: reduce/);
   assert.match(glare,/ResizeObserver/);
   assert.match(notices,/MIT \+ Commons Clause/);
