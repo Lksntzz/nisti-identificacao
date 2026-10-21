@@ -3,7 +3,7 @@
 // No credentials, database connections, Google tokens or encryption keys here.
 import { randomBytes, scryptSync, createCipheriv, createDecipheriv, createHash } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { appendFile, chmod, lstat, mkdtemp, open, readFile, rm, stat, unlink, writeFile } from 'node:fs/promises';
+import { appendFile, chmod, mkdtemp, open, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
