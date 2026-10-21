@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const admin = fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx', import.meta.url), 'utf8');
 const manager = fs.readFileSync(new URL('../src/admin/MuralProductImageManager.jsx', import.meta.url), 'utf8');
+const requests = fs.readFileSync(new URL('../src/admin/MuralPublishShared.jsx', import.meta.url), 'utf8');
 
 test('Mural admin delegates treatment interface to exactly one standalone manager', () => {
   assert.match(admin, /import MuralProductImageManager from '\.\/MuralProductImageManager\.jsx'/);
@@ -26,7 +27,7 @@ test('treatment UI retains manual pause, review and approval with original image
 });
 
 test('refactor keeps all network mutations inside existing authenticated request helper', () => {
-  assert.match(admin, /fetch\(path, \{ credentials: 'same-origin', cache: 'no-store'/);
+  assert.match(requests, /fetch\(path, \{ credentials: 'same-origin', cache: 'no-store'/);
   assert.doesNotMatch(manager, /\bfetch\s*\(/);
   assert.match(manager, /await request\(\`\/api\/admin\/mural\/products\/\$\{product\.id\}\/image\`/);
   assert.match(manager, /await request\(\`\/api\/admin\/product-image-treatment\/\$\{product\.id\}\/approve\`/);
