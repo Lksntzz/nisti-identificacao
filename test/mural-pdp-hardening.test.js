@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
+const collectionRoutes=fs.readFileSync(new URL('../src/mural-collection-routes.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
 const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
 
@@ -21,8 +22,8 @@ test('admin has protected preview and removal routes for editorial images',()=>{
 });
 
 test('collection membership rejects invalid and missing product ids',()=>{
-  assert.match(router,/Number\.isInteger\(value\) && value > 0/);
-  assert.match(router,/A coleção contém produto inexistente/);
+  assert.match(collectionRoutes,/Number\.isInteger\(value\) && value > 0/);
+  assert.match(collectionRoutes,/A coleção contém produto inexistente/);
 });
 
 test('PDP observability exposes per-publication visualizations',()=>{
@@ -108,9 +109,9 @@ test('editing an existing product post hydrates image type and finish preview fr
 });
 
 test('admin collection list returns product ids in persisted sort_order',()=>{
-  assert.match(router,/SELECT collection_id,product_id,sort_order/);
-  assert.match(router,/ORDER BY collection_id ASC,sort_order ASC,product_id ASC/);
-  assert.match(router,/product_ids:productIds\.join\(','\)/);
+  assert.match(collectionRoutes,/SELECT collection_id,product_id,sort_order/);
+  assert.match(collectionRoutes,/ORDER BY collection_id ASC,sort_order ASC,product_id ASC/);
+  assert.match(collectionRoutes,/product_ids:productIds\.join\(','\)/);
 });
 
 test('collection editor previews and removes an existing banner through the protected route',()=>{
