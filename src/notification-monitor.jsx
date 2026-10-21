@@ -2,7 +2,7 @@ import React,{useCallback,useEffect,useRef,useState} from 'react';
 import './notification-dispatch.css';
 import { DISPATCH_PLATFORMS,platformColor } from './notification-dispatch-options.js';
 import DispatchIcon from './notification-ui/DispatchIcon.jsx';
-import GradientText from './notification-ui/reactbits/GradientText.jsx';
+import MonitorCallBoundary from './notification-monitor-call-boundary.jsx';
 import PlatformLogo from './notification-ui/PlatformLogo.jsx';
 import { playNotificationSound } from './notification-platform-sounds.js';
 import { fetchPublishedMonitorBuild, shouldReloadMonitor, MONITOR_BUILD_CHECK_INTERVAL_MS } from './notification-monitor-updates.js';
@@ -45,6 +45,7 @@ export default function NotificationMonitor(){
   const audioEnabledRef=useRef(false);
   const nextCallRef=useRef(null);
   const reloadPendingRef=useRef(false);
+  const reconnectMarkerRef=useRef(undefined);
   const lastDispatchActivityRef=useRef(Date.now());
   // Elimina fragmentos de links antigos. O monitor não utiliza mais credenciais.
   useEffect(()=>{
@@ -54,7 +55,14 @@ export default function NotificationMonitor(){
   },[]);
   const play=useCallback((platform)=>{
     if(!audioEnabledRef.current)return false;
-    return playNotificationSound(audioRef.current,platform);
+    // Audio API failures must never interrupt the visual notification.
+    try{return playNotificationSound(audioRef.current,platform)}
+    catch(error){
+      console.warn('[Monitor NISTI] Falha não fatal no som',error?.name||'audio_error');
+      audioEnabledRef.current=false;
+      setAudioOn(false);
+      return false;
+    }
   },[]);
   const poll=useCallback(async()=>{
     if(pollingRef.current)return;
@@ -62,6 +70,15 @@ export default function NotificationMonitor(){
     try{
       const result=await post('/api/dispatch/view');
       const feed=normalizeMonitorFeed(result);
+      // Uma solicitação do painel autorizado força somente a tela aberta a
+      // renovar sua conexão. Após recarregar, a marca torna-se a linha de base.
+      const marker=typeof result.reconnect_marker==='string'?result.reconnect_marker:null;
+      if(reconnectMarkerRef.current!==undefined && marker!==reconnectMarkerRef.current){
+        reconnectMarkerRef.current=marker;
+        window.location.reload();
+        return;
+      }
+      reconnectMarkerRef.current=marker;
       const incoming=feed.call;
       const queued=feed.pending;
       const currentTime=Date.now();
@@ -185,19 +202,19 @@ export default function NotificationMonitor(){
         </div>
       </div>
     </header>
-    {current?<section className="nid-live-request nid-live-v5" key={current.id} aria-live="polite">
+    {current?<MonitorCallBoundary key={current.id} platform={current.platform} message={current.message}><section className="nid-live-request nid-live-v5" aria-live="polite">
       <div className="nid-call-kicker">NOVA SOLICITAÇÃO <span className="nid-kicker-spark">●</span> EXPEDIÇÃO</div>
       <div className={'nid-channel-emblem '+color}><PlatformLogo platform={current.platform} size="large"/></div>
       <div className="nid-call-platform">{LABELS[current.platform]||current.platform}</div>
       <div className="nid-live-message-card">
         <div className={'nid-message-main'+(details.headline.length>45?' nid-message-main-long':'')}>{details.headline}</div>
-        {details.detail&&<div className="nid-message-mode"><GradientText colors={['#ff6b37','#f4387e','#ffc273']} animationSpeed={5} variant="linear" scale={2} glow={0.06}>{details.detail}</GradientText></div>}
+        {details.detail&&<div className="nid-message-mode"><span className="nid-monitor-mode-safe">{details.detail}</span></div>}
       </div>
       <div className="nid-display-progress" aria-label={seconds+' segundos restantes'}>
         <div className="nid-progress-rail"><span style={{width:(Math.min(100,Math.max(0,seconds/duration*100)))+'%'}}/></div>
         <strong>{seconds}s</strong>
       </div>
-    </section>:<section className="nid-idle nid-idle-v5">
+    </section></MonitorCallBoundary>:<section className="nid-idle nid-idle-v5">
       <div className="nid-idle-emblem" aria-hidden="true"><DispatchIcon name="bell-ring" size={49} strokeWidth={1.5}/></div>
       <h1>{online?'Aguardando solicitações':'Conexão indisponível'}</h1>
       <p>{online?'O monitor exibirá as chamadas automaticamente assim que chegarem.':error||'Tentando reconectar ao servidor.'}</p>

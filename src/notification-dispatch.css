@@ -332,3 +332,12 @@ html.nid-monitor-document body{background:#06111f}
 .nid-pending-monitor .nid-send{font-size:12px;padding:12px;white-space:nowrap}
 @media(max-width:540px){.nid-pending-monitor{align-items:stretch;flex-direction:column}
   .nid-pending-monitor .nid-send{width:100%}}
+
+/* Kiosk-safe notification detail: no requestAnimationFrame or IntersectionObserver.
+   Keep the emphasis, without a JS animation that can crash the live card. */
+.nid-monitor-v5 .nid-monitor-mode-safe{color:#c3356b;text-shadow:0 0 16px #ed5b9b30;overflow-wrap:anywhere;animation:nid-safe-detail-in .35s ease-out both}
+@keyframes nid-safe-detail-in{from{opacity:.5;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.nid-monitor-v5 .nid-live-fallback{width:100%;padding:clamp(12px,3dvh,32px);color:#fff;align-content:center;text-align:center;gap:clamp(12px,3dvh,28px)}
+.nid-monitor-v5 .nid-live-fallback .nid-live-fallback-title{font-size:clamp(20px,3vw,38px);color:#c4d2e6}
+.nid-monitor-v5 .nid-live-fallback .nid-live-fallback-message{font-size:clamp(26px,5vw,70px);font-weight:900;overflow-wrap:anywhere;line-height:1.14;color:#fff}
+@media(prefers-reduced-motion:reduce){.nid-monitor-v5 .nid-monitor-mode-safe{animation:none}}

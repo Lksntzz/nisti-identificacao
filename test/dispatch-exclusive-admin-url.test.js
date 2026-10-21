@@ -178,3 +178,19 @@ test('sender may customize per-platform modes without admin or monitor privilege
   const senderRoute=fs.readFileSync(new URL('../src/expedition-dispatch-sender-router.js',import.meta.url),'utf8');
   assert.match(senderRoute,/path===API\+'\/options'&&\(request\.method==='GET'\|\|request\.method==='POST'\)/);
 });
+
+
+test('Conectar is available only with sender session and cannot access admin features',async()=>{
+  const missing=await query('/api/expedition-panel/connect',{method:'POST',headers:{origin}});
+  assert.equal(missing.status,401);
+  const forged=await query('/api/expedition-panel/connect',{method:'POST',headers:{origin:'https://evil.example',cookie:'__Host-nisti_dispatch_sender='+token}});
+  assert.equal(forged.status,403);
+  const authorized=await query('/api/expedition-panel/connect',{method:'POST',headers:{origin,cookie:'__Host-nisti_dispatch_sender='+token}});
+  assert.notEqual(authorized.status,403);
+  const admin=await query('/api/admin/dispatch/connect',{method:'POST',headers:{origin}});
+  assert.equal(admin.status,401);
+  const view=fs.readFileSync(new URL('../src/admin/NotificationDispatchView.jsx',import.meta.url),'utf8');
+  assert.match(view,/Conectar/);
+  assert.match(view,/connectMonitor/);
+  assert.match(view,/api\/expedition-panel\/connect/);
+});

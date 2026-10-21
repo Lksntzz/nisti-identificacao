@@ -17,8 +17,8 @@ async function request(path,options={}) {
   return data;
 }
 const API_ENDPOINTS={
-  admin:{status:'/api/admin/dispatch',options:'/api/admin/dispatch/options',batch:'/api/admin/dispatch/batch'},
-  sender:{status:'/api/expedition-panel',options:'/api/expedition-panel/options',batch:'/api/expedition-panel/batch'}
+  admin:{status:'/api/admin/dispatch',options:'/api/admin/dispatch/options',batch:'/api/admin/dispatch/batch',connect:'/api/admin/dispatch/connect'},
+  sender:{status:'/api/expedition-panel',options:'/api/expedition-panel/options',batch:'/api/expedition-panel/batch',connect:'/api/expedition-panel/connect'}
 };
 export default function NotificationDispatchView({senderMode=false}) {
   const endpoints=senderMode?API_ENDPOINTS.sender:API_ENDPOINTS.admin;
@@ -48,6 +48,8 @@ export default function NotificationDispatchView({senderMode=false}) {
   const [error,setError]=useState('');
   const [success,setSuccess]=useState('');
   const [sending,setSending]=useState(false);
+  const [connecting,setConnecting]=useState(false);
+  const [monitorUrlCopied,setMonitorUrlCopied]=useState(false);
   useEffect(()=>{
     let canceled=false;
     request(endpoints.options).then(result=>{
@@ -103,6 +105,28 @@ export default function NotificationDispatchView({senderMode=false}) {
     return ()=>clearInterval(timer);
   },[refresh]);
 
+  async function connectMonitor(){
+    if(connecting)return;
+    setConnecting(true);setError('');setSuccess('');
+    try{
+      const response=await request(endpoints.connect,{method:'POST'});
+      // A presença do notebook vem do último heartbeat real, não do clique.
+      await refresh({silent:true});
+      if(response.online){
+        setSuccess('Solicitação de reconexão enviada ao monitor. A tela aberta deve atualizar em alguns segundos.');
+      }else{
+        setError('Solicitação registrada, mas o notebook está offline. Abra o endereço do monitor no notebook para conectar.');
+      }
+    }catch(e){setError('Não foi possível solicitar conexão ao monitor: '+e.message)}
+    finally{setConnecting(false)}
+  }
+  async function copyMonitorUrl(){
+    try{
+      await navigator.clipboard.writeText(window.location.origin+'/monitor-notificacoes');
+      setMonitorUrlCopied(true);
+      setSuccess('Endereço do monitor copiado. Abra no notebook da expedição.');
+    }catch{setError('Copie o endereço do monitor: '+window.location.origin+'/monitor-notificacoes')}
+  }
   async function send(event){
     event.preventDefault();
     if(sending)return;
@@ -329,7 +353,15 @@ export default function NotificationDispatchView({senderMode=false}) {
               <small>{monitorOnline?'Recebendo notificações':'As chamadas ficam na fila enquanto o monitor está ausente.'}</small>
             </div>
           </div>
-          <p className="nid-muted">O painel permanece ativo na tela dedicada. Som e exibição são controlados pelo monitor.</p>
+          <p className="nid-muted">O monitor precisa estar aberto no notebook. A conexão é verificada automaticamente.</p>
+          <div className="nid-monitor-connect-actions">
+            <button type="button" className="nid-secondary nid-connect-monitor" onClick={connectMonitor} disabled={connecting}>
+              <DispatchIcon name="wifi" size={17}/>{connecting?'Conectando…':'Conectar'}
+            </button>
+            {senderMode&&<button type="button" className="nid-secondary nid-monitor-copy-url" onClick={copyMonitorUrl}>
+              <DispatchIcon name="copy" size={15}/>{monitorUrlCopied?'Link copiado':'Copiar link do monitor'}
+            </button>}
+          </div>
           {!senderMode&&<a href="/monitor-notificacoes" target="_blank" rel="noopener noreferrer" className="nid-outline-link">
             <DispatchIcon name="monitor" size={17}/> Abrir monitor
           </a>}

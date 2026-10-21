@@ -41,6 +41,12 @@ export async function handleNotificationDispatchRequest(request,env) {
       });
       return json({ok:true,call:item},201);
     }
+    // O painel autorizado solicita que o monitor aberto sincronize novamente.
+    // Não libera acesso ADM e não abre o navegador de um computador desligado.
+    if(path==='/api/admin/dispatch/connect'&&request.method==='POST') {
+      const result=await supabaseRpc(env,'nisti_dispatch_request_reconnect_v7',{});
+      return json({ok:true,...result});
+    }
     if(path==='/api/admin/dispatch/options'&&request.method==='GET') {
       return json({ok:true,options:await supabaseRpc(env,'nisti_dispatch_options_v4',{})});
     }
@@ -95,7 +101,7 @@ export async function handleNotificationDispatchRequest(request,env) {
     // A consulta de exibição é pública. O servidor controla a fila de 15s;
     // esta rota NÃO permite enviar, editar, aprovar ou administrar notificações.
     if(path==='/api/dispatch/view'&&request.method==='POST') {
-      const data=await supabaseRpc(env,'nisti_dispatch_public_next_v6',{});
+      const data=await supabaseRpc(env,'nisti_dispatch_public_next_v7',{});
       return json({ok:true,...data});
     }
     return json({error:'Rota ou método não permitido.'},405,{'allow':'GET, POST'});

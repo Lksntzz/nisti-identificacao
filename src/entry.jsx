@@ -58,7 +58,7 @@ class MonitorErrorBoundary extends React.Component {
   constructor(props){super(props);this.state={failed:false};this.retryTimer=null}
   static getDerivedStateFromError(){return {failed:true}}
   componentDidCatch(error){
-    console.error('[Monitor NISTI] Erro ao exibir a tela',error?.name||'render_error');
+    console.error('[Monitor NISTI] Erro ao exibir a tela',error?.name||'render_error',String(error?.message||'').slice(0,160));
     const delay=monitorRecoveryDelay();
     this.retryTimer=window.setTimeout(()=>window.location.reload(),delay);
   }

@@ -25,7 +25,7 @@ test('admin exposes only the stable public monitor URL, not pairing controls',()
   const edge=source('../src/edge-router.js');
   assert.match(edge,/isProtectedApi\(pathname\)/);
   const router=source('../src/notification-dispatch-router.js');
-  assert.match(router,/nisti_dispatch_public_next_v6/);
+  assert.match(router,/nisti_dispatch_public_next_v7/);
   assert.doesNotMatch(router,/nisti_dispatch_pair_monitor_v1|nisti_dispatch_approve_pair_v5/);
 });
 

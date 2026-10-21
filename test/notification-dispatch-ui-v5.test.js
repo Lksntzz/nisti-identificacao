@@ -18,18 +18,23 @@ test('NISTI admin keeps business actions and server-derived KPI values',()=>{
  assert.match(src,/Acesso direto ao monitor/);
  assert.doesNotMatch(src,/approvePair|Gerar link privado permanente/);
 });
-test('expedition stage uses original React Bits animation and is real-time',()=>{
+test('expedition stage isolates active calls and uses safe text emphasis',()=>{
  const monitor=read('src/notification-monitor.jsx');
- const gradient=read('src/notification-ui/reactbits/GradientText.jsx');
- assert.match(monitor,/GradientText/);
+ const css=read('src/notification-dispatch.css');
+ assert.match(monitor,/MonitorCallBoundary/);
+ assert.match(monitor,/nid-monitor-mode-safe/);
+ assert.doesNotMatch(monitor,/GradientText/);
+ assert.match(css,/nid-monitor-mode-safe/);
  assert.match(monitor,/key=\{current\.id\}/);
  assert.match(monitor,/remainingSeconds/);
  assert.match(monitor,/seconds\/duration\*100/);
  assert.match(monitor,/play\(call\.platform\)/);
  assert.match(monitor,/lastBeepId/);
  assert.match(monitor,/!audioOn&&<button/);
- assert.match(gradient,/requestAnimationFrame/);
- assert.match(gradient,/prefers-reduced-motion/);
+ assert.match(css,/prefers-reduced-motion:reduce/);
+ const boundary=read('src/notification-monitor-call-boundary.jsx');
+ assert.match(boundary,/componentDidCatch/);
+ assert.match(boundary,/nid-live-fallback-message/);
 });
 test('Lucide icon registry is static and not loaded from CDN',()=>{
  const icon=read('src/notification-ui/DispatchIcon.jsx');

@@ -96,6 +96,7 @@ export async function handleDispatchSenderRequest(request,env){
   const dispatchPath=path===API&&request.method==='GET'?'/api/admin/dispatch'
     :path===API+'/options'&&(request.method==='GET'||request.method==='POST')?'/api/admin/dispatch/options'
     :path===API+'/batch'&&request.method==='POST'?'/api/admin/dispatch/batch'
+    :path===API+'/connect'&&request.method==='POST'?'/api/admin/dispatch/connect'
     :null;
   if(!dispatchPath)return json({error:'Ação não autorizada nesta URL.'},403);
 

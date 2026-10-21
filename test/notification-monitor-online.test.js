@@ -109,3 +109,30 @@ test('kiosk screen reloads automatically after render failures with bounded retr
   const monitor=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
   assert.match(monitor,/normalizeMonitorFeed\(result\)/);
 });
+
+
+test('a rendering error in one active notification cannot take down the entire expedition monitor',()=>{
+  const monitor=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
+  const boundary=fs.readFileSync(new URL('../src/notification-monitor-call-boundary.jsx',import.meta.url),'utf8');
+  assert.match(monitor,/<MonitorCallBoundary key=\{current\.id\} platform=\{current\.platform\} message=\{current\.message\}>/);
+  assert.match(monitor,/try\{return playNotificationSound\(audioRef\.current,platform\)\}/);
+  assert.match(monitor,/catch\(error\)/);
+  assert.doesNotMatch(monitor,/GradientText/);
+  assert.match(boundary,/getDerivedStateFromError/);
+  assert.match(boundary,/nid-live-fallback/);
+  assert.match(boundary,/this\.props\.children/);
+});
+
+
+test('reconnect marker instructs open monitor to reload without asking ADM permission',()=>{
+  const ui=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
+  const api=fs.readFileSync(new URL('../src/notification-dispatch-router.js',import.meta.url),'utf8');
+  const sql=fs.readFileSync(new URL('../supabase/migrations/20261021234000_nisti_dispatch_sender_reconnect_v7.sql',import.meta.url),'utf8');
+  assert.match(ui,/reconnectMarkerRef/);
+  assert.match(ui,/marker!==reconnectMarkerRef\.current/);
+  assert.match(ui,/window\.location\.reload\(\)/);
+  assert.match(api,/nisti_dispatch_public_next_v7/);
+  assert.match(api,/nisti_dispatch_request_reconnect_v7/);
+  assert.match(sql,/reconnect_requested_at/);
+  assert.match(sql,/REVOKE ALL ON FUNCTION public\.nisti_dispatch_request_reconnect_v7\(\) FROM PUBLIC,anon,authenticated/);
+});
