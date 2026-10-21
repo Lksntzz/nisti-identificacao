@@ -3,6 +3,8 @@
 Sistema operacional da NISTI PRINT para cadastro mestre de produtos, identificação por EAN na expedição, gestão do Catálogo Comercial, vendas, importações e publicação de conteúdo no Mural NISTI.
 
 **Produção:** [nisti-identificacao.lksntz1411.workers.dev](https://nisti-identificacao.lksntz1411.workers.dev)  
+
+**Proteção e recuperação:** consulte [Plano de proteção e recuperação](docs/PLANO-PROTECAO-E-RECUPERACAO.md) para bloqueio de deploy sem PR, configuração do Ruleset no GitHub e procedimento para backups reais do Supabase/R2.
 **Última revisão deste README:** 06/10/2026
 
 ## Estado operacional atual

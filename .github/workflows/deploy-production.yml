@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
+  checks: read
 
 concurrency:
   group: nisti-identificacao-production
@@ -30,6 +32,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      # A successful build alone cannot authorize deployment of a direct main push.
+      # This check is additive to, not a substitute for, protected main branch rules.
+      - name: Require merged PR with passing checks
+        run: node scripts/verify-reviewed-release.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
