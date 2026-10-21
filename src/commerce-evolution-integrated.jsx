@@ -194,9 +194,9 @@ function Advertisement({ad,days}){
       <div className="nei-weekly-section">
         <button type="button" className="nei-weekly-toggle" aria-expanded={showWeekly}
           onClick={()=>setShowWeekly(open=>!open)}>
-          <CommercialIcon name="chart-no-axes-combined" size={15}/>
+          <CommercialIcon name="chart-no-axes-column-increasing" size={15}/>
           {showWeekly?'Ocultar evolução semanal':'Ver evolução semanal'}
-          <CommercialIcon name={showWeekly?'chevron-up':'chevron-down'} size={14}/>
+          <CommercialIcon name="chevron-right" size={14}/>
         </button>
         {showWeekly&&<WeeklyChart listingId={ad.listing_id}/>}
       </div>
