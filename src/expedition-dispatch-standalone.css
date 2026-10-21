@@ -271,3 +271,43 @@ body:has(.nid-expedition-standalone){background:#f3f6fb;color:#152238}
 .nid-expedition-standalone .nid-monitor-connect-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:7px 11px;font-size:11px;font-weight:800}
 .nid-expedition-standalone .nid-monitor-connect-actions .nid-connect-monitor{color:#fff;background:#1c4774;border-color:#1c4774}
 .nid-expedition-standalone .nid-monitor-connect-actions button:disabled{opacity:.65;cursor:wait}
+
+/* Confirmação de cada tentativa de envio, sempre visível no painel do responsável.
+   O retorno do servidor confirma inclusão na fila, não a exibição no notebook. */
+.nid-expedition-standalone .nid-send-confirm-backdrop{
+  position:fixed;inset:0;z-index:9999;
+  display:grid;place-items:center;padding:18px;
+  background:rgba(10,22,40,.52);
+}
+.nid-expedition-standalone .nid-send-confirm-card{
+  width:min(100%,475px);max-height:min(88dvh,760px);
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  overflow-y:auto;overscroll-behavior:contain;
+  padding:clamp(22px,4vw,32px);
+  border-radius:20px;background:#fff;color:#1c2d45;
+  box-shadow:0 22px 80px #07132455;text-align:center;
+}
+.nid-expedition-standalone .nid-send-confirm-icon{
+  display:grid;place-items:center;flex:none;width:58px;height:58px;
+  border-radius:50%;background:#e5f8ef;color:#13764b;
+}
+.nid-expedition-standalone .nid-send-confirm-error .nid-send-confirm-icon{background:#ffebed;color:#b32638}
+.nid-expedition-standalone .nid-send-confirm-uncertain .nid-send-confirm-icon{background:#fff2db;color:#995b0e}
+.nid-expedition-standalone .nid-send-confirm-card h3{font-size:clamp(19px,2.6vw,24px);line-height:1.2;margin:0;font-weight:850}
+.nid-expedition-standalone .nid-send-confirm-card>p{font-size:13px;line-height:1.5;color:#586a80;margin:0;overflow-wrap:anywhere}
+.nid-expedition-standalone .nid-send-confirm-targets{
+  width:100%;display:grid;gap:7px;text-align:left;max-height:215px;overflow-y:auto;
+}
+.nid-expedition-standalone .nid-send-confirm-target{
+  display:flex;align-items:center;gap:9px;padding:8px 10px;
+  border:1px solid #e3eaf2;border-radius:10px;background:#f8fafc;min-width:0;
+}
+.nid-expedition-standalone .nid-send-confirm-target .nid-platform-logo{width:33px;height:33px;flex:none}
+.nid-expedition-standalone .nid-send-confirm-target>span{display:grid;gap:3px;min-width:0}
+.nid-expedition-standalone .nid-send-confirm-target strong{font-size:12px;color:#20344f}
+.nid-expedition-standalone .nid-send-confirm-target small{font-size:11px;color:#63728a;overflow-wrap:anywhere}
+.nid-expedition-standalone .nid-send-confirm-close{
+  margin-top:6px;width:100%;min-height:44px;border:0;border-radius:11px;
+  background:#203f67;color:#fff;font-size:14px;font-weight:850;cursor:pointer;
+}
+.nid-expedition-standalone .nid-send-confirm-close:focus-visible{outline:3px solid #85b6f6;outline-offset:3px}
