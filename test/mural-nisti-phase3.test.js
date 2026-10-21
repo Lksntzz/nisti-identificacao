@@ -1,9 +1,10 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
-const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const admin = muralAdminSource;
 const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
 const nav=fs.readFileSync(new URL('../src/admin-navigation.js',import.meta.url),'utf8');
 const edge=fs.readFileSync(new URL('../src/edge-router.js',import.meta.url),'utf8');
