@@ -653,12 +653,15 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   // Evolution summary comes from the same paginated RPC response as the results.
   // Child already sends body.kpis; do not look for a nested kpis.kpis field.
   const evolutionCounts=evolutionSummary||null;
+  // The listing-level ZERO figure can be available even when a platform has
+  // no comparable SKU trend window. Never turn missing counts into 0.
+  const evolutionCountReady=key=>evolutionCounts?.[key]!=null
+    &&Number.isFinite(Number(evolutionCounts[key]));
   const evolutionReady=Boolean(evolutionCounts)
-    &&['zero','stable','rising'].every(key=>
-      evolutionCounts[key]!=null&&Number.isFinite(Number(evolutionCounts[key])));
-  const evolutionCount=key=>evolutionReady?num(evolutionCounts[key]):'—';
+    &&['zero','stable','rising'].some(evolutionCountReady);
+  const evolutionCount=key=>evolutionCountReady(key)?num(evolutionCounts[key]):'—';
   const chooseEvolutionStatus=next=>{
-    if(!evolutionReady)return;
+    if(!evolutionCountReady(next.toLowerCase()))return;
     setEvolutionStatus(current=>current===next?'ALL':next);
   };
   const trendSelected=['RISING','FALLING'].includes(status)?status:'ALL';
@@ -761,15 +764,15 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <Kpi tone="rose" label="Sem vendas" value={evolutionCount('zero')}
           description="SKU/modelos sem vendas e com cobertura completa"
           selected={evolutionStatus==='ZERO'}
-          onClick={evolutionReady?()=>chooseEvolutionStatus('ZERO'):undefined}/>
+          onClick={evolutionCountReady('zero')?()=>chooseEvolutionStatus('ZERO'):undefined}/>
         <Kpi tone="mint" label="Estável" value={evolutionCount('stable')}
           description="SKU/modelos com vendas estáveis confirmadas"
           selected={evolutionStatus==='STABLE'}
-          onClick={evolutionReady?()=>chooseEvolutionStatus('STABLE'):undefined}/>
+          onClick={evolutionCountReady('stable')?()=>chooseEvolutionStatus('STABLE'):undefined}/>
         <Kpi tone="rising" label="Crescimento" value={evolutionCount('rising')}
           description="SKU/modelos com crescimento confirmado"
           selected={evolutionStatus==='RISING'}
-          onClick={evolutionReady?()=>chooseEvolutionStatus('RISING'):undefined}/>
+          onClick={evolutionCountReady('rising')?()=>chooseEvolutionStatus('RISING'):undefined}/>
       </div>}
     {commercialView==='LISTINGS'&&<section className="nim-finance-disclosure" aria-label="Conciliação de vendas importadas">
       <button type="button" className="nim-finance-toggle" aria-expanded={financialOpen}

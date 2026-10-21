@@ -39,7 +39,8 @@ test('a interface usa janela explícita de 60/90 dias e estado ZERO rigoroso',()
   assert.match(manager,/zeroFilter=\{false\}/);
   assert.match(manager,/SKU\/variações conferidos/);
   assert.match(manager,/data\?\.period_start/);
-  assert.match(evolution,/Este resultado não garante que o anúncio inteiro ficou sem vendas/);
+  assert.match(evolution,/Apenas anúncios ativos com cobertura confirmada e nenhuma unidade vendida em/);
+  assert.match(evolution,/item\.ready===true&&item\.situation==='ZERO'&&Number\(item\.units\)===0/);
 });
 
 test('SQL ainda é somente leitura e preserva a política de segurança',()=>{

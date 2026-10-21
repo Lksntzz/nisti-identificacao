@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
 import CommerceEvolutionProductThumbnail from './commerce-evolution-product-thumbnail.jsx';
+import CommerceEvolutionZeroListings from './commerce-evolution-zero-listings.jsx';
 
 const API='/api/admin/commerce/listings/manager/evolution';
 const PAGE=25;
@@ -66,13 +67,13 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
   const countFor=s=>counts[s.toLowerCase()];
   const rows=Array.isArray(data?.items)?data.items:[];
   const total=Number(data?.total||0);
-  const incomplete=(data?.coverage||[]).filter(v=>
+  const incomplete=(data?.grain==='LISTING'?[]:(data?.coverage||[])).filter(v=>
     (!v.current_complete||!v.previous_complete)&&
     (v.current_days>0||v.previous_days>0||source===v.source));
   return <section className="nim-evolution" aria-label="Análise de evolução de vendas">
     <div className="nim-evolution-filter-panel">
     <header className="nim-evolution-heading"><div>
-      <h3>Comparação de vendas por SKU</h3>
+      <h3>{status==='ZERO'?'Anúncios sem vendas no período':'Comparação de vendas por SKU'}</h3>
       <p>Compare produtos em períodos equivalentes e identifique oportunidades comerciais.</p>
     </div><div className="nim-evolution-interval">
       <strong><CommercialIcon name="calendar-days" size={16}/>
@@ -92,11 +93,11 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
         aria-label="Filtrar evolução pela situação das vendas">
         <option value="" disabled hidden>Selecionar situação</option>
         {statuses.map(([code,label])=><option value={code} key={code}>
-          {label}{data?' ('+num(countFor(code))+')':''}
+          {label}{data?' ('+(countFor(code)==null?'—':num(countFor(code)))+')':''}
         </option>)}
       </select></label>
-      <label><CommercialIcon name="search" size={17}/>Pesquisar produto ou SKU<input type="search" value={draft} maxLength={120}
-        onChange={e=>setDraft(e.target.value)} placeholder="Nome, SKU ou anúncio"/></label>
+      <label><CommercialIcon name="search" size={17}/>Pesquisar {status==='ZERO'?'anúncio':'produto ou SKU'}<input type="search" value={draft} maxLength={120}
+        onChange={e=>setDraft(e.target.value)} placeholder={status==='ZERO'?'Nome ou ID do anúncio':'Nome, SKU ou anúncio'}/></label>
     </div>
     {status!=='ALL'&&<button type="button" className="nim-evolution-clear-situation"
       onClick={()=>onStatusChange('ALL')}>Limpar filtro de situação</button>}
@@ -107,10 +108,10 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
         mínimo de 3 unidades no período anterior e diferença de 2 unidades.
         Pouco volume e cobertura incompleta são tratados separadamente. Não criamos promoções automaticamente.</p>
     </details>
-    {status==='ZERO'&&data&&<p className="nim-evolution-notice">
-      Sem vendas de SKU/modelo de {date(data.period_start)} a {date(data.period_end)}.
-      Este resultado não garante que o anúncio inteiro ficou sem vendas.
-      Para anúncios, utilize a aba Anúncios e o filtro Sem vendas.
+    {status==='ZERO'&&data?.grain==='LISTING'&&<p className="nim-evolution-notice">
+      Apenas anúncios ativos com cobertura confirmada e nenhuma unidade vendida em
+      qualquer variação, de {date(data.period_start)} a {date(data.period_end)}.
+      Anúncios sem vínculo confiável ou sem cobertura ficam fora do resultado.
     </p>}
     {incomplete.length>0&&<p className="nim-evolution-notice">
       Cobertura incompleta: {incomplete.map(c=>platformName(c.source)).join(', ')}.
@@ -119,6 +120,23 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
       <button type="button" onClick={()=>setRetry(n=>n+1)}>Tentar novamente</button></p>}
     {loading&&<p className="nim-evolution-state">Consultando vendas importadas…</p>}
     {!loading&&!error&&<>
+      {data?.grain==='LISTING'?<>
+        <div className="nim-evolution-results-head">
+          <div className="nim-evolution-results-primary">
+            <strong>{num(total)} anúncio(s) inteiro(s) sem vendas confirmadas</strong>
+            <small>{total>0
+              ?'Exibindo '+num(offset+1)+'–'+num(Math.min(offset+rows.length,total))+' de '+num(total)
+              :'Nenhum anúncio com zero vendas confirmado para este período'}</small>
+          </div>
+          <span>Quantidade de unidades de todas as variações do anúncio</span>
+        </div>
+        {rows.length===0&&<p className="nim-evolution-state">
+          Nenhum anúncio comprovadamente sem vendas nesse filtro. Dados pendentes não contam como zero.
+        </p>}
+        <CommerceEvolutionZeroListings items={rows.filter(item=>
+          item.ready===true&&item.situation==='ZERO'&&Number(item.units)===0)}
+          periodStart={date(data?.period_start)} periodEnd={date(data?.period_end)}/>
+      </>:<>
       <div className="nim-evolution-results-head">
         <div className="nim-evolution-results-primary">
           <strong>{num(total)} SKU(s)/modelo(s) no filtro</strong>
@@ -216,6 +234,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
           </div>
         </details>;
       })}</div>
+      </>}
       {total>PAGE&&<footer className="nim-list-footer nim-evolution-footer">
         <span>Página {Math.floor(offset/PAGE)+1} de {Math.ceil(total/PAGE)}</span>
         <div><button type="button" disabled={offset===0}
@@ -223,10 +242,8 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
           <button type="button" disabled={offset+PAGE>=total}
             onClick={()=>setOffset(o=>o+PAGE)}>Próxima</button></div></footer>}
     </>}
-    <p className="nim-evolution-legal">Base: todas as vendas diárias importadas da
-      Shopee e do Mercado Livre, inclusive SKUs sem vínculo com anúncios ativos.
-      Um SKU sem venda não comprova ausência de pedidos no anúncio quando houve mudança
-      de código. SKUs compartilhados por vários IDs têm vendas exibidas uma única vez,
-      sem rateio por anúncio. O histórico de modelos AGMT reúne versões sem inventar vendas.</p>
+    <p className="nim-evolution-legal">{status==='ZERO'
+      ?'Base: anúncios ativos verificados em todas as variações no período importado. Sem vendas significa zero unidades no anúncio inteiro com cobertura confirmada. Anúncios com vinculação ou cobertura pendente não são classificados como zero.'
+      :'Base: vendas diárias importadas por SKU/modelo na Shopee e no Mercado Livre. SKUs compartilhados entre anúncios são agrupados sem atribuição artificial; um SKU isolado sem venda não classifica o anúncio inteiro.'}</p>
   </section>;
 }
