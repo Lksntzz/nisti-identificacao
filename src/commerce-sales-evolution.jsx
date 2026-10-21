@@ -93,7 +93,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
         aria-label="Filtrar evolução pela situação das vendas">
         <option value="" disabled hidden>Selecionar situação</option>
         {statuses.map(([code,label])=><option value={code} key={code}>
-          {label}{data?' ('+num(countFor(code))+')':''}
+          {label}{data?' ('+(countFor(code)==null?'—':num(countFor(code)))+')':''}
         </option>)}
       </select></label>
       <label><CommercialIcon name="search" size={17}/>Pesquisar {status==='ZERO'?'anúncio':'produto ou SKU'}<input type="search" value={draft} maxLength={120}
