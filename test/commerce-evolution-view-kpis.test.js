@@ -29,12 +29,14 @@ test('SOLD is accepted by authenticated route and by Supabase store, with no new
   assert.match(sql,/to service_role/);
 });
 
-test('one status drives the dropdown and all four clickable KPI cards',()=>{
-  for(const key of ['falling','zero','sold','rising'])assert.ok(ui.includes("evolutionCount('"+key+"')"),key);
+test('one status drives the dropdown and three matching KPI cards',()=>{
+  for(const key of ['zero','stable','rising'])assert.ok(ui.includes("evolutionCount('"+key+"')"),key);
+  assert.doesNotMatch(ui,/evolutionCount\('(falling|sold)'\)/);
   assert.match(ui,/setEvolutionStatus\(current=>current===next\?'ALL':next\)/);
   assert.match(ui,/status=\{evolutionStatus\} onStatusChange=\{setEvolutionStatus\}/);
-  assert.match(child,/\['SOLD','Com vendas'\]/);
+  assert.match(child,/const statuses=\[\['ZERO','Sem vendas'\],\['STABLE','Estável'\],\['RISING','Crescimento'\]\]/);
   assert.match(child,/onChange=\{e=>onStatusChange\(e\.target\.value\)\}/);
+  assert.match(child,/onClick=\{\(\)=>onStatusChange\('ALL'\)\}/);
   assert.match(child,/onSummary\(body\?\.kpis\|\|null\)/);
   assert.match(child,/onSummary\(null\)/);
   assert.doesNotMatch(ui,/trendOverview|trendRequest/);
