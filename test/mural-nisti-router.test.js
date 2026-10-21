@@ -3,6 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 
 const source = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
+const postRoutes = fs.readFileSync(new URL('../src/mural-post-routes.js', import.meta.url), 'utf8');
 const edgeRouter = fs.readFileSync(new URL('../src/edge-router.js', import.meta.url), 'utf8');
 const migration = fs.readFileSync(new URL('../migrations/0019_mural_nisti.sql', import.meta.url), 'utf8');
 
@@ -43,11 +44,11 @@ test('mural migration contains required entities and indexes', () => {
 
 
 test('admin can permanently delete a Mural publication and clean only unreferenced editorial image', () => {
-  assert.ok(source.includes('async function adminDeletePost(id, env)'));
-  assert.ok(source.includes("DELETE FROM mural_post_reads WHERE post_id=?"));
-  assert.ok(source.includes("DELETE FROM mural_posts WHERE id=?"));
-  assert.ok(source.includes("SELECT COUNT(*) FROM mural_posts WHERE image_key = ?"));
-  assert.ok(source.includes("SELECT COUNT(*) FROM mural_collections WHERE image_key = ?"));
-  assert.ok(source.includes("await env.PRODUCT_IMAGES.delete(current.image_key)"));
+  assert.ok(postRoutes.includes('async function adminDeletePost(id, env)'));
+  assert.ok(postRoutes.includes("DELETE FROM mural_post_reads WHERE post_id=?"));
+  assert.ok(postRoutes.includes("DELETE FROM mural_posts WHERE id=?"));
+  assert.ok(postRoutes.includes("SELECT COUNT(*) FROM mural_posts WHERE image_key = ?"));
+  assert.ok(postRoutes.includes("SELECT COUNT(*) FROM mural_collections WHERE image_key = ?"));
+  assert.ok(postRoutes.includes("await env.PRODUCT_IMAGES.delete(current.image_key)"));
   assert.ok(source.includes("request.method === 'DELETE') return adminDeletePost"));
 });
