@@ -1,0 +1,53 @@
+/* Commercial evolution screen: clear priority, verified figures and compact desktop rows.
+   No changes to shared sales/listings rules or to the Supabase report. */
+.nim-manager .nim-commercial-views{margin-top:0}
+.nim-manager .nim-kpis.nim-kpis-evolution{gap:10px}
+.nim-manager .nim-kpis-evolution .nim-kpi{min-height:92px;padding:12px 14px;border-radius:11px}
+.nim-manager .nim-kpis-evolution .nim-kpi-glare{min-height:0}
+.nim-manager .nim-kpis-evolution .nim-kpi-content>strong{font-size:23px;line-height:1.1;font-variant-numeric:tabular-nums}
+.nim-manager .nim-kpis-evolution .nim-kpi-content>span{font-size:10px;line-height:1.35}
+.nim-manager .nim-kpis-evolution button.nim-kpi:hover:not(.selected){border-color:#a3c0ef;box-shadow:0 4px 13px #315aa918}
+.nim-manager .nim-evolution{gap:10px}
+.nim-manager .nim-evolution-filter-panel{padding:15px 17px;gap:12px}
+.nim-manager .nim-evolution-heading h3{font-size:16px}
+.nim-manager .nim-evolution-heading p{margin-top:4px}
+.nim-manager .nim-evolution-controls{gap:10px}
+.nim-manager .nim-evolution-controls label{gap:6px;font-size:10px}
+.nim-manager .nim-evolution-controls select,.nim-manager .nim-evolution-controls input{height:41px}
+.nim-manager .nim-evolution-interval{min-width:225px;gap:4px}
+.nim-manager .nim-evolution-methodology{margin:0 2px;color:#657991}
+.nim-manager .nim-evolution-methodology>summary{display:inline-flex;align-items:center;gap:6px;font-size:10px;line-height:1.4;cursor:pointer;color:#567397;font-weight:750}
+.nim-manager .nim-evolution-methodology>summary:hover{text-decoration:underline}
+.nim-manager .nim-evolution-methodology>summary:focus-visible{outline:2px solid #3170e8;outline-offset:3px}
+.nim-manager .nim-evolution-methodology>.nim-evolution-method{margin:7px 0 0;padding:9px 12px;border:1px solid #e4eaf2;border-radius:8px;background:#f8faff}
+.nim-manager .nim-evolution-results-head{padding:5px 4px;align-items:center}
+.nim-manager .nim-evolution-results-primary{display:grid;gap:3px;min-width:0}
+.nim-manager .nim-evolution-results-primary strong{font-size:12px;color:#243c5d}
+.nim-manager .nim-evolution-results-primary small{font-size:10px;color:#7388a3;line-height:1.45}
+.nim-manager .nim-evolution-product-head{min-height:66px;padding-top:10px;padding-bottom:10px}
+.nim-manager .nim-evolution-table-head{padding-top:10px;padding-bottom:10px}
+.nim-manager .nim-evolution-quick-stats{display:grid;gap:4px;min-width:0}
+.nim-manager .nim-evolution-quick-stats b{line-height:1.1;font-size:12px;font-variant-numeric:tabular-nums}
+.nim-manager .nim-evolution-quick-stats small{display:block;line-height:1.25;font-size:9px;color:#8294ac;white-space:nowrap}
+.nim-manager .nim-evolution-growth{font-variant-numeric:tabular-nums}
+.nim-manager .nim-evolution-product[open]>.nim-evolution-product-head{border-bottom:1px solid #e6eef9}
+@media(max-width:1150px){
+ .nim-manager .nim-kpis-evolution .nim-kpi{min-height:88px}
+ .nim-manager .nim-evolution-filter-panel{padding:14px}
+ .nim-manager .nim-evolution-interval{min-width:0}
+}
+@media(max-width:700px){
+ .nim-manager .nim-evolution-filter-panel{padding:12px;gap:10px}
+ .nim-manager .nim-evolution-heading h3{font-size:14px}
+ .nim-manager .nim-evolution-interval{text-align:left}
+ .nim-manager .nim-evolution-results-head{align-items:flex-start}
+ .nim-manager .nim-evolution-results-head>span{max-width:160px;text-align:right}
+ .nim-manager .nim-evolution-quick-stats{gap:3px}
+}
+@media(max-width:600px){
+ .nim-manager .nim-kpis-evolution .nim-kpi{min-height:88px;padding:9px 10px}
+ .nim-manager .nim-kpis-evolution .nim-kpi-content>strong{font-size:18px}
+ .nim-manager .nim-kpis-evolution .nim-kpi-content>span{font-size:9px}
+ .nim-manager .nim-evolution-results-head{gap:7px}
+ .nim-manager .nim-evolution-results-head>span{font-size:9px}
+}
