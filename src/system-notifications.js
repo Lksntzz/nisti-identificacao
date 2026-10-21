@@ -255,6 +255,12 @@ export async function recordAdminActivityFromResponse(request, response, env) {
     return null;
   }
 
+  // Polling da expedição não é ação administrativa. Mantemos falhas no histórico.
+  const dispatchPollingPaths = new Set(['/api/dispatch/view', '/api/dispatch/next', '/api/dispatch/pair/status']);
+  if (dispatchPollingPaths.has(pathname) && response.status >= 200 && response.status < 400) {
+    return null;
+  }
+
   const contentType = response.headers.get('content-type') || '';
   const data = contentType.includes('application/json')
     ? await response.clone().json().catch(() => null)
