@@ -122,7 +122,7 @@ test('collection editor previews and removes an existing banner through the prot
 });
 
 test('publish rejects an expiration that would already precede publication',()=>{
-  assert.match(router,/A expiração deve ser posterior à data de publicação\./);
+  assert.match(postRoutes,/A expiração deve ser posterior à data de publicação\./);
   assert.match(postRoutes,/new Date\(current\.expires_at\) <= new Date\(publishedAt\)/);
 });
 
