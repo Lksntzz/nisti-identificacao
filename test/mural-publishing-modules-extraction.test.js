@@ -42,7 +42,7 @@ test('publish controls preserve Canva, attachment and responsive preview compone
   assert.match(components, /from '\.\.\/mural-nisti\.jsx'/);
   assert.match(components, /Arte da publicação · Canva/);
   assert.match(components, /Prévia 100% interativa/);
-  assert.doesNotMatch(components, /\bfetch\s*\(/);
+  assert.match(components, /fetch\(src, \{ credentials: 'same-origin', cache: 'no-store' \}\)/);
 });
 
 test('shared Mural requests preserve same-origin credentials and existing normalization', () => {
