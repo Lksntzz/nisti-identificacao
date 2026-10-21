@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {encryptDump,validateEncryptedDump,decryptDump,
+import {encryptDump,validateEncryptedDump,decryptDump,inspectEncryptedDump,
   assertBackupPassphrase} from '../scripts/nisti-drive-backup.mjs';
 
 const SECRET='Senha de backup NISTI ficticia 35 caracter';
@@ -63,4 +63,41 @@ test('passphrase is compulsory and never printed or hardcoded in the backup scri
   assert.match(script,/encryptedSha256/);
   assert.match(script,/includesR2Images:false/);
   assert.doesNotMatch(script,/upload_file|googleapis|drive\.google\.com\/upload/);
+});
+
+test('encrypted archive inspection temporarily decrypts for pg_restore and always cleans up',async()=>{
+  const f=fixture();
+  let inspectedPath=null;
+  try{
+    await encryptDump(f.source,f.encrypted,SECRET);
+    const result=await inspectEncryptedDump(f.encrypted,SECRET,async archive=>{
+      inspectedPath=archive;
+      assert.ok(archive.endsWith('.dump'));
+      assert.deepEqual(fs.readFileSync(archive),f.data);
+    });
+    assert.equal(result.archiveReadable,true);
+    assert.equal(result.plaintextBytes,f.data.length);
+    assert.equal(fs.existsSync(inspectedPath),false);
+
+    let failedPath=null;
+    await assert.rejects(inspectEncryptedDump(f.encrypted,SECRET,async archive=>{
+      failedPath=archive;
+      throw Error('catálogo inválido de teste');
+    }),/catálogo inválido/);
+    assert.equal(fs.existsSync(failedPath),false);
+    await assert.rejects(inspectEncryptedDump(f.encrypted,'senha-errada-longa-e-distinta-123',async()=>{
+      assert.fail('não deve chamar pg_restore se a senha for inválida');
+    }));
+    await assert.rejects(inspectEncryptedDump('arquivo.zip',SECRET,async()=>{}),/\.nisti\.enc/);
+  }finally{
+    fs.rmSync(f.dir,{recursive:true,force:true});
+  }
+});
+
+test('backup inspection never connects to remote PostgreSQL or writes to Drive',()=>{
+  const script=fs.readFileSync('scripts/nisti-drive-backup.mjs','utf8');
+  assert.match(script,/spawn\('pg_restore',\['--list',archivePath\]/);
+  assert.match(script,/await rm\(temp,\{recursive:true,force:true\}\)/);
+  assert.match(script,/action==='inspect'/);
+  assert.doesNotMatch(script,/pg_restore.*--dbname|pg_restore.*--clean/);
 });

@@ -16,7 +16,7 @@ A cópia é gerada no computador com o cliente PostgreSQL 17, comprimida e **cri
 
 1. Instale Google Drive para computador, Node.js e o cliente PostgreSQL 17 (`pg_dump`, `pg_restore`, `psql`) no computador Windows usado para administração do NISTI. Alternativa: sem Drive para computador, salve numa pasta privada local e **envie manualmente só os arquivos `.nisti.enc` e `.nisti.json` pela interface web do Drive**.
 2. No aplicativo Google Drive para computador, abra a pasta **Banco Supabase - Criptografado** já existente dentro de **NISTI - Backups do Sistema**, e copie o caminho local mostrado no Explorador de Arquivos. **Não basta criar uma pasta nova com o mesmo nome em outro local.**
-3. Verifique espaço livre no Drive; o espaço é compartilhado com outros arquivos do Google. No Supabase atual, o banco ocupa cerca de 67 MB, mas o tamanho real comprimido não foi medido e há consumo de rede (egress) ao exportar.
+3. Verifique espaço livre no Drive; o espaço é compartilhado com outros arquivos do Google. Na consulta de 21/10/2026, o banco ocupava aproximadamente **71 MiB** (74.378.387 bytes); o arquivo comprimido não foi medido e a exportação consome franquia de rede (egress).
 4. No [Supabase → Connect](https://supabase.com/dashboard/project/yioetdcbgorunwgwuawg), obtenha o host, a porta e o usuário do banco. Não compartilhe a senha no chat ou em qualquer arquivo do GitHub.
 5. Execute **PowerShell** com o repositório NISTI já disponível localmente e as ferramentas PostgreSQL no PATH:
 
@@ -61,6 +61,14 @@ node scripts/nisti-drive-backup.mjs verify --file "CAMINHO\ARQUIVO.nisti.enc"
 
 - Verifique a assinatura SHA-256 do arquivo criptografado com `Get-FileHash` comparando com o manifesto.
 - `verify` confirma a criptografia e a íntegra dos bytes; **não comprova que o banco seja restaurável**. A restauração completa deve ser testada localmente num PostgreSQL separado, sem escrever no Supabase de produção.
+- Depois, no computador com `pg_restore` instalado, execute **inspeção estrutural do arquivo descriptografado**, sem conectar ao Supabase:
+
+```powershell
+node scripts/nisti-drive-backup.mjs inspect --file "CAMINHO\ARQUIVO.nisti.enc"
+```
+
+O comando `inspect` descifra o arquivo em pasta temporária local, executa `pg_restore --list` e apaga o arquivo temporário ao terminar (inclusive em caso de erro). **Não executa restauração e não torna o backup restaurável por si só.** É uma segunda verificação para detectar arquivos ilegíveis antes do teste de restauração em um PostgreSQL isolado. Não faça isso com conteúdo desconhecido ou recebido de terceiros.
+
 - Se perder a senha de criptografia, **não será possível recuperar o conteúdo**. O Google Drive não guarda essa senha.
 
 ## Limites e segurança
