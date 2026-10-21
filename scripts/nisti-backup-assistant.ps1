@@ -56,6 +56,9 @@ try {
     throw 'Nao salve backups dentro da pasta do projeto/GitHub.'
   }
   if (-not (Test-Path -LiteralPath $destination)) {
+    if (-not $destination.Equals($defaultDir, [StringComparison]::OrdinalIgnoreCase)) {
+      throw 'A pasta escolhida nao existe. Abra a pasta REAL do Drive e informe o caminho correto.'
+    }
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
   }
   if (-not (Test-Path -LiteralPath $destination -PathType Container)) {
