@@ -71,11 +71,11 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
   return <section className="nim-evolution" aria-label="Análise de evolução de vendas">
     <div className="nim-evolution-filter-panel">
     <header className="nim-evolution-heading"><div>
-      <h3>Filtros e comparação</h3>
+      <h3>Comparação de vendas por SKU</h3>
       <p>Compare produtos em períodos equivalentes e identifique oportunidades comerciais.</p>
     </div><div className="nim-evolution-interval">
       <strong><CommercialIcon name="calendar-days" size={16}/>
-        {data?date(data.period_start)+' a '+date(data.period_end):'Período de '+days+' dias'}</strong>
+        Atual: {data?date(data.period_start)+' a '+date(data.period_end):'Período de '+days+' dias'}</strong>
       {data&&<small>Anterior: {date(data.previous_start)} a {date(data.previous_end)}</small>}
     </div></header>
     <div className="nim-evolution-controls">
@@ -95,9 +95,12 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
         onChange={e=>setDraft(e.target.value)} placeholder="Nome, SKU ou anúncio"/></label>
     </div>
     </div>
-    <p className="nim-evolution-method">Crescimento e queda exigem variação de pelo menos 20%,
-      mínimo de 3 unidades no período anterior e diferença de 2 unidades.
-      Pouco volume e cobertura incompleta são tratados separadamente. Não criamos promoções automaticamente.</p>
+    <details className="nim-evolution-methodology">
+      <summary>Como o NISTI calcula crescimento e queda?</summary>
+      <p className="nim-evolution-method">Crescimento e queda exigem variação de pelo menos 20%,
+        mínimo de 3 unidades no período anterior e diferença de 2 unidades.
+        Pouco volume e cobertura incompleta são tratados separadamente. Não criamos promoções automaticamente.</p>
+    </details>
     {status==='ZERO'&&data&&<p className="nim-evolution-notice">
       Sem vendas de SKU/modelo de {date(data.period_start)} a {date(data.period_end)}.
       Este resultado não garante que o anúncio inteiro ficou sem vendas.
@@ -111,13 +114,19 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
     {loading&&<p className="nim-evolution-state">Consultando vendas importadas…</p>}
     {!loading&&!error&&<>
       <div className="nim-evolution-results-head">
-        <strong>{num(total)} SKU(s)/modelo(s) no filtro</strong>
+        <div className="nim-evolution-results-primary">
+          <strong>{num(total)} SKU(s)/modelo(s) no filtro</strong>
+          <small>{total>0
+            ?'Exibindo '+num(offset+1)+'–'+num(Math.min(offset+rows.length,total))+' de '+num(total)
+            :'Sem itens para os critérios selecionados'}
+            {status!=='ALL'?' · '+(labels[status]||'Filtro selecionado'):''}</small>
+        </div>
         <span>Unidades e faturamento bruto dos produtos, não lucro</span>
       </div>
       {rows.length===0&&<p className="nim-evolution-state">Nenhum produto encontrado no filtro.</p>}
       <div className="nim-evolution-table-head" aria-hidden="true">
         <span>Produto</span><span>Plataforma</span><span>SKU / Anúncio</span>
-        <span>Situação</span><span>Vendas no período</span><span>Variação</span>
+        <span>Situação</span><span>Unidades · atual / anterior</span><span>Variação</span>
       </div>
       <div className="nim-evolution-grid">{rows.map(item=>{
         const growth=item.growth_pct==null?'—':
@@ -147,7 +156,10 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
               {item.trend==='RISING'&&<CommercialIcon name="trending-up" size={14}/>}
               {item.trend==='FALLING'&&<CommercialIcon name="trending-down" size={14}/>}
               {labels[item.trend]||'Dados insuficientes'}</span>
-            <span className="nim-evolution-quick-stats"><b>{num(item.current_units)} un.</b></span>
+            <span className="nim-evolution-quick-stats">
+              <b>{num(item.current_units)} un.</b>
+              <small>Anterior: {num(item.previous_units)} un.</small>
+            </span>
             <span className={'nim-evolution-growth '+(item.trend==='RISING'?'positive':
               item.trend==='FALLING'?'negative':'neutral')}>
               {item.trend==='RISING'&&<CommercialIcon name="trending-up" size={15}/>}
