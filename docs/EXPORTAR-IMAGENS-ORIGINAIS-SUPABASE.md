@@ -9,10 +9,10 @@ O workflow `.github/workflows/export-original-product-images.yml` agora consulta
 ### Segurança e configuração
 
 1. Execução **somente manual** pelo GitHub Actions. Não executar automaticamente em pushes, inclusive mudanças de workflow.
-2. O Secret de repositório `SUPABASE_SERVICE_ROLE_KEY` precisa ser configurado pelo administrador. A chave é altamente privilegiada. Preferir um ambiente protegido e aprovação manual; nunca incluí-la em commit, artefatos ou logs.
+2. Configure os Secrets `SUPABASE_SERVICE_ROLE_KEY`, `CLOUDFLARE_API_TOKEN` e `NISTI_IMAGE_EXPORT_PASSPHRASE` no GitHub Actions. A chave Supabase é altamente privilegiada; use ambiente protegido com aprovação manual quando possível. A senha de exportação deve ter **pelo menos 20 caracteres**, ser exclusiva e ficar fora do GitHub/Drive em formato legível. Nunca exponha os valores em commits, relatórios, logs ou artefatos.
 3. O script acessa a URL HTTPS do Supabase e lê as colunas `id`, `sku`, `image_key`. Usa paginação por ID com contagem exata para falhar caso o PostgREST trunque a resposta silenciosamente.
 4. Falha na autenticação, na consulta, em páginas incompletas ou em um catálogo vazio **interrompe a exportação**. Não existe fallback D1.
-5. O workflow atual gera ZIP com imagens e manifesto e o mantém como artefato temporário por **um dia**. **O ZIP não é criptografado** e pode conter informação comercial. Restrinja o acesso ao repositório e aos artefatos; não use como backup privado em repositórios públicos. A futura etapa de backup precisa criptografar a saída antes de armazenar em nuvem.
+5. O workflow cria ZIP localmente e **criptografa antes do upload**, utilizando AES-256-GCM e scrypt, com o formato distinto `NISTIIMG1`. No GitHub Actions, somente `nisti-imagens-originais.zip.nisti.enc` é disponibilizado como artefato temporário por **um dia**. O ZIP puro não é publicado. A execução falha se não houver chave/senha, se a indexação falhar ou se a exportação for parcial. O arquivo criptografado ainda deve ser guardado em local privado, com senha preservada separadamente.
 6. O índice considera apenas imagens originais **referenciadas** na tabela de produtos. Não inclui necessariamente imagens órfãs, artes Mural, documentos comerciais ou derivados R2. Portanto **não é backup completo do bucket**.
 7. O fluxo requer permissões adequadas de leitura do R2 e o Secret `CLOUDFLARE_API_TOKEN`. Não pressupor que a existência do workflow comprova execução ou recuperação.
 
@@ -25,8 +25,17 @@ O workflow `.github/workflows/export-original-product-images.yml` agora consulta
 
 ## Configuração manual para o administrador
 
-No repositório GitHub, acesse **Settings → Secrets and variables → Actions** e confira `SUPABASE_SERVICE_ROLE_KEY` (segredo) e `CLOUDFLARE_API_TOKEN`. Não envie credenciais pelo chat.
+No repositório GitHub, acesse **Settings → Secrets and variables → Actions** e confira `SUPABASE_SERVICE_ROLE_KEY`, `CLOUDFLARE_API_TOKEN` e `NISTI_IMAGE_EXPORT_PASSPHRASE`. Não envie credenciais pelo chat.
 
-Somente após validar a segurança dos artefatos, use **Actions → Export Original Product Images → Run workflow**. Esse fluxo não deve ser acionado como substituto da primeira cópia criptografada do banco Supabase ou do R2.
+Somente após conferir permissões e segredos, use **Actions → Export Original Product Images → Run workflow**. Esse fluxo não substitui a primeira cópia criptografada do banco Supabase nem um backup completo do bucket R2.
+
+Para recuperar localmente o ZIP criptografado, salve o artefato `.zip.nisti.enc`, configure no seu próprio computador a mesma variável `NISTI_IMAGE_EXPORT_PASSPHRASE` de forma privada e execute:
+
+```bash
+node scripts/nisti-encrypt-image-export.mjs verify nisti-imagens-originais.zip.nisti.enc
+node scripts/nisti-encrypt-image-export.mjs decrypt nisti-imagens-originais.zip.nisti.enc DIRETORIO_PRIVADO
+```
+
+O ZIP descriptografado contém arquivos internos e não deve ser enviado a um repositório público ou pasta compartilhada. A validação de criptografia **não equivale** à verificação de integridade de cada objeto R2 nem a um teste de restauração completo.
 
 Ver detalhes do legado em [Auditoria de D1 e índices](AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21.md).
