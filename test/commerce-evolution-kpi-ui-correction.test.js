@@ -2,47 +2,37 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const evolution=fs.readFileSync('src/commerce-sales-evolution.jsx','utf8');
-const css=fs.readFileSync('src/commerce-evolution-polish.css','utf8');
-const sql=fs.readFileSync('supabase/migrations/20261020213000_commerce_evolution_sold_filter_kpis_v1.sql','utf8');
+const view=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
+const sql=fs.readFileSync('supabase/migrations/20261021220000_commerce_evolution_ads_v1.sql','utf8');
+const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
 
-test('evolution KPIs use actual child response, not a fictitious nested kpis.kpis',()=>{
-  assert.match(evolution,/onSummary\(body\?\.kpis\|\|null\)/);
-  assert.match(manager,/const evolutionCounts=evolutionSummary\|\|null;/);
-  assert.doesNotMatch(manager,/evolutionSummary\?\.kpis/);
-  assert.match(manager,/const evolutionReady=Boolean\(evolutionCounts\)/);
-  for(const key of ['zero','stable','rising']){
-    assert.match(manager,new RegExp("evolutionCount\\('"+key+"'\\)"));
-    assert.match(sql,new RegExp("'"+key+"',\\(select count\\(\\*\\) from searched"));
+test('KPIs da evolução vêm da mesma resposta de anúncios, não da contagem de SKUs',()=>{
+  assert.match(store,/commerce_evolution_ads_v1/);
+  assert.match(view,/const kpis=report\?\.kpis\|\|\{\}/);
+  for(const key of ['zero','stable','rising','total']){
+    assert.match(view,new RegExp("value:kpis\\."+key));
+    assert.match(sql,new RegExp("'"+key+"',\\(select count\\(\\*\\) from classified"));
   }
-  assert.match(manager,/evolutionCountReady\(key\)\?num\(evolutionCounts\[key\]\):'—'/);
+  assert.doesNotMatch(manager,/evolutionSummary\?\.kpis/);
 });
 
-test('commercial view navigation precedes its three filtered KPIs',()=>{
-  const nav=manager.indexOf('<nav className="nim-commercial-views"');
-  const kpi=manager.indexOf('className="nim-kpis nim-kpis-evolution"');
-  const filter=manager.indexOf('<CommerceSalesEvolution platform={platform}');
-  assert.ok(nav>0&&nav<kpi&&kpi<filter);
-  assert.match(css,/\.nim-manager \.nim-kpis-evolution \.nim-kpi\{min-height:92px/);
+test('a navegação principal antecede a nova evolução integrada',()=>{
+  assert.ok(manager.indexOf('<nav className="nim-commercial-views"')>0);
+  assert.ok(manager.indexOf('<nav className="nim-commercial-views"') <
+    manager.indexOf('<CommerceEvolutionIntegrated platform={platform}'));
+  assert.doesNotMatch(manager,/commercialView==='VARIATIONS'/);
 });
 
-test('evolution rows show verified current and prior units without inferred listing sales',()=>{
-  assert.match(evolution,/Unidades · atual \/ anterior/);
-  assert.match(evolution,/\{num\(item\.current_units\)\} un\./);
-  assert.match(evolution,/Anterior: \{num\(item\.previous_units\)\} un\./);
-  assert.match(evolution,/data\.previous_start/);
-  assert.match(evolution,/SKU\(s\)\/modelo\(s\) no filtro/);
-  assert.match(evolution,/Math\.min\(offset\+rows\.length,total\)/);
-  assert.match(evolution,/status!=='ALL'/);
-  assert.match(evolution,/item\.listing_id\?'Anúncio '/);
-  assert.match(css,/\.nim-manager \.nim-evolution-quick-stats small/);
+test('sem vendas significa anúncio inteiro e tendências exigem duas janelas completas',()=>{
+  assert.match(sql,/when a\.unknown_variations=0 and a\.zero_variations=a\.variation_count then 'ZERO'/);
+  assert.match(sql,/a\.previous_unknown=0/);
+  assert.match(sql,/a\.previous_units>=3/);
+  assert.match(sql,/a\.identified_units>=a\.previous_units\*1\.2/);
+  assert.match(view,/Estável e Crescimento comparam o período selecionado ao período anterior de igual duração/);
 });
 
-test('methodology remains accessible but no longer occupies permanent height',()=>{
-  assert.match(evolution,/<details className="nim-evolution-methodology">/);
-  assert.match(evolution,/<summary>Como o NISTI calcula crescimento e queda\?<\/summary>/);
-  assert.match(evolution,/Não criamos promoções automaticamente/);
-  assert.match(evolution,/cobertura incompleta/i);
-  assert.match(css,/\.nim-manager \.nim-evolution-methodology>summary/);
-  assert.match(css,/@media\(max-width:600px\)/);
+test('cobertura incompleta permanece pendente',()=>{
+  assert.match(view,/Não é possível afirmar vendas zero/);
+  assert.match(view,/Sem cobertura completa, semanas sem registro não comprovam ausência de vendas/);
+  assert.match(view,/sku|SKU/);
 });
