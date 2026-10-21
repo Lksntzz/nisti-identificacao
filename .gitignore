@@ -6,3 +6,9 @@ dist/
 .env.*
 *.log
 migration-export/
+
+# Backups must remain private and outside versioned source.
+*.dump
+*.pgdump
+*.backup
+backup-local/
