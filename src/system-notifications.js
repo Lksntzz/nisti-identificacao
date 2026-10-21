@@ -23,6 +23,11 @@ export async function markAllAdminSystemNotificationsRead(env) {
 }
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const DISPATCH_POLLING_PATHS = new Set(['/api/dispatch/view', '/api/dispatch/next', '/api/dispatch/pair/status']);
+
+export function isSuccessfulDispatchPolling(pathname, status) {
+  return DISPATCH_POLLING_PATHS.has(pathname) && status >= 200 && status < 400;
+}
 
 function clean(value, maxLength = 500) {
   const text = String(value ?? '').trim();
@@ -252,6 +257,11 @@ export async function recordAdminActivityFromResponse(request, response, env) {
   const isSignificantMutation = MUTATING_METHODS.has(method) && pathname.startsWith('/api/');
 
   if ((!isAdminSessionEvent && !isScannerLookup && !isSignificantMutation) || ignoredActivityPath(pathname)) {
+    return null;
+  }
+
+  // Polling da expedição não é ação administrativa. Mantemos falhas no histórico.
+  if (isSuccessfulDispatchPolling(pathname, response.status)) {
     return null;
   }
 
