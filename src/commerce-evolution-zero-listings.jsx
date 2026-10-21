@@ -27,7 +27,7 @@ export default function CommerceEvolutionZeroListings({items=[],periodStart,peri
         </a>}
       </div>
       <strong className="nim-evolution-zero-units">
-        <CommercialIcon name="circle-check" size={16}/> 0 un.
+        <CommercialIcon name="package" size={16}/> 0 un.
       </strong>
       <span className="nim-evolution-zero-variations">
         {number(item.total_variations)} cadastrada(s)
