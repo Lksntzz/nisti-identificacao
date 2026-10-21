@@ -227,6 +227,32 @@ export async function commerceSalesEvolution(env, filters={}) {
 }
 
 // Read-only variation health across 30, 60 and 90 days. One bounded RPC.
+// Integrated evolution reads verified advertisement groups, not independent SKU rows.
+export async function commerceEvolutionAds(env,filters={}) {
+  const platform=cleanText(filters.platform)||'TODAS';
+  const days=Number(filters.days);
+  const status=cleanText(filters.status)||'ALL';
+  const search=cleanText(filters.search)||null;
+  if(!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO'].includes(platform)
+    ||![30,60,90].includes(days)||!['ALL','ZERO','STABLE','RISING'].includes(status)
+    ||search&&search.length>120)throw new Error('Filtros de evolução inválidos.');
+  const result=await supabaseRpc(env,'commerce_evolution_ads_v1',{
+    p_platform:platform,p_days:days,p_status:status,p_search:search,
+    p_only_zero:false,p_limit:cleanPageSize(filters.limit,15),
+    p_offset:cleanOffset(filters.offset)
+  },{timeoutMs:20000});
+  return result&&typeof result==='object'&&!Array.isArray(result)?result:
+    {items:[],total:0,kpis:{zero:null,stable:null,rising:null,total:null},coverage:[]};
+}
+export async function commerceEvolutionAdWeekly(env,id) {
+  const listingId=cleanId(id);
+  if(!listingId)throw new Error('Anúncio inválido.');
+  const data=await supabaseRpc(env,'commerce_evolution_ad_weekly_v1',{
+    p_listing_id:listingId
+  },{timeoutMs:10000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{points:[]};
+}
+
 export async function commerceVariationReview(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const days=Number(filters.days);
