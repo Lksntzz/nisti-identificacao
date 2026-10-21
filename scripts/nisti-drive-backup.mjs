@@ -54,7 +54,10 @@ export async function encryptDump(source,destination,passphrase) {
     throw Error('Somente arquivos PostgreSQL .dump podem ser criptografados.');
   const {salt,iv}={salt:randomBytes(SALT_LEN),iv:randomBytes(IV_LEN)};
   const cipher=createCipheriv(ALGORITHM,keyFor(passphrase,salt),iv);
-  const output=createWriteStream(destination,{flags:'wx',mode:0o600});
+  // Reserve before entering cleanup: never delete an existing backup on EEXIST.
+  const reserved=await open(destination,'wx',0o600);
+  await reserved.close();
+  const output=createWriteStream(destination,{flags:'w',mode:0o600});
   try{
     output.write(Buffer.concat([MAGIC,salt,iv]));
     await pipeline(createReadStream(source),cipher,output);
@@ -88,7 +91,9 @@ export async function decryptDump(filename,folder,passphrase) {
   if(!filename.endsWith('.nisti.enc'))
     throw Error('Extensão de backup não reconhecida.');
   const result=path.join(destination,path.basename(filename,'.nisti.enc')+'.dump');
-  const out=createWriteStream(result,{flags:'wx',mode:0o600});
+  const reserved=await open(result,'wx',0o600);
+  await reserved.close();
+  const out=createWriteStream(result,{flags:'w',mode:0o600});
   try{
     await decryptedStreamTo(filename,passphrase,out);
     return result;
