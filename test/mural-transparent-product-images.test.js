@@ -1,3 +1,4 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
@@ -5,7 +6,7 @@ import test from 'node:test';
 const utility = fs.readFileSync(new URL('../src/mural-transparent-image.js', import.meta.url), 'utf8');
 const mural = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
 const experience = fs.readFileSync(new URL('../src/mural-product-experience.jsx', import.meta.url), 'utf8');
-const admin = fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx', import.meta.url), 'utf8');
+const admin = muralAdminSource;
 const publicCss = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
 const adminCss = fs.readFileSync(new URL('../src/mural-admin.css', import.meta.url), 'utf8');
 const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
