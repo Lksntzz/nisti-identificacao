@@ -42,7 +42,8 @@ test('other sales situations and original SKU evidence remain unchanged',()=>{
   assert.match(ui,/data\?\.grain==='LISTING'\?<>\s*<div/);
   assert.match(ui,/SKU\(s\)\/modelo\(s\) no filtro/);
   assert.match(ui,/const sharedSku=item\.source==='SHOPEE'&&listingIds\.length>1/);
-  assert.match(manager,/const evolutionCountReady=key=>evolutionCounts\?\.\[key\]!=null/);
-  assert.match(manager,/const evolutionCount=key=>evolutionCountReady\(key\)\?num\(evolutionCounts\[key\]\):'—'/);
-  assert.match(manager,/chooseEvolutionStatus\('ZERO'\)/);
+  const newView=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
+  assert.match(manager,/CommerceEvolutionIntegrated/);
+  assert.match(newView,/const STATUS=\[\['ZERO','Sem vendas'\],\['STABLE','Estável'\],\['RISING','Crescimento'\]\]/);
+  assert.match(newView,/onStatusChange\(card\.id\)/);
 });
