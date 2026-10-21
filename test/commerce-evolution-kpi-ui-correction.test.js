@@ -11,14 +11,14 @@ test('evolution KPIs use actual child response, not a fictitious nested kpis.kpi
   assert.match(manager,/const evolutionCounts=evolutionSummary\|\|null;/);
   assert.doesNotMatch(manager,/evolutionSummary\?\.kpis/);
   assert.match(manager,/const evolutionReady=Boolean\(evolutionCounts\)/);
-  for(const key of ['falling','zero','sold','rising']){
+  for(const key of ['zero','stable','rising']){
     assert.match(manager,new RegExp("evolutionCount\\('"+key+"'\\)"));
     assert.match(sql,new RegExp("'"+key+"',\\(select count\\(\\*\\) from searched"));
   }
   assert.match(manager,/evolutionReady\?num\(evolutionCounts\[key\]\):'—'/);
 });
 
-test('commercial view navigation precedes its four filtered KPIs',()=>{
+test('commercial view navigation precedes its three filtered KPIs',()=>{
   const nav=manager.indexOf('<nav className="nim-commercial-views"');
   const kpi=manager.indexOf('className="nim-kpis nim-kpis-evolution"');
   const filter=manager.indexOf('<CommerceSalesEvolution platform={platform}');
