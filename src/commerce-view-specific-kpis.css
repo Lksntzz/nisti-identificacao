@@ -7,7 +7,7 @@
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
 }
 .nim-manager .nim-kpis.nim-kpis-evolution{
-  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
 }
 .nim-manager .nim-kpis.nim-kpis-listings>.nim-kpi,
 .nim-manager .nim-kpis.nim-kpis-evolution>.nim-kpi,
