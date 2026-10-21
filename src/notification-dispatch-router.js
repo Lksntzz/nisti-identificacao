@@ -101,7 +101,7 @@ export async function handleNotificationDispatchRequest(request,env) {
     // A consulta de exibição é pública. O servidor controla a fila de 15s;
     // esta rota NÃO permite enviar, editar, aprovar ou administrar notificações.
     if(path==='/api/dispatch/view'&&request.method==='POST') {
-      const data=await supabaseRpc(env,'nisti_dispatch_public_next_v7',{});
+      const data=await supabaseRpc(env,'nisti_dispatch_public_next_v8',{});
       return json({ok:true,...data});
     }
     return json({error:'Rota ou método não permitido.'},405,{'allow':'GET, POST'});

@@ -33,6 +33,7 @@ export function dispatchDisplayParts(platform,message){
 export default function NotificationMonitor(){
   const [call,setCall]=useState(null);
   const [pending,setPending]=useState(0);
+  const [recent,setRecent]=useState([]);
   const [duration,setDuration]=useState(15);
   const [offset,setOffset]=useState(0);
   const [now,setNow]=useState(Date.now());
@@ -87,6 +88,7 @@ export default function NotificationMonitor(){
       setOffset(feed.offset);
       setCall(incoming);
       setPending(queued);
+      setRecent(feed.recent);
       setDuration(feed.duration);
       setOnline(!feed.invalidCall);
       setError(feed.invalidCall?'A notificação recebida está incompleta. Aguardando os próximos dados.':'');
@@ -209,6 +211,8 @@ export default function NotificationMonitor(){
         </div>
       </div>
     </header>
+    <div className="nid-monitor-workspace">
+      <div className="nid-monitor-stage">
     {current?<MonitorCallBoundary key={current.id} platform={current.platform} message={current.message}><section className="nid-live-request nid-live-v5" aria-live="polite">
       <div className="nid-call-kicker">NOVA SOLICITAÇÃO <span className="nid-kicker-spark">●</span> EXPEDIÇÃO</div>
       <div className={'nid-channel-emblem '+color}><PlatformLogo platform={current.platform} size="large"/></div>
@@ -227,6 +231,33 @@ export default function NotificationMonitor(){
       <p>{online?'O monitor exibirá as chamadas automaticamente assim que chegarem.':error||'Tentando reconectar ao servidor.'}</p>
       {online&&<span className="nid-idle-waiting">● PRONTO PARA RECEBER</span>}
     </section>}
+      </div>
+      <aside className="nid-monitor-history" aria-label="Histórico de notificações da expedição">
+        <div className="nid-monitor-history-heading">
+          <span className="nid-monitor-history-heading-icon"><DispatchIcon name="list-check" size={19}/></span>
+          <div><strong>Histórico recente</strong><small>Últimas chamadas exibidas</small></div>
+          <span className="nid-monitor-history-count">{recent.length}</span>
+        </div>
+        <div className="nid-monitor-history-list">
+          {recent.length===0?<p className="nid-monitor-history-empty">
+            Nenhuma notificação exibida recentemente.
+          </p>:recent.map(item=><div className={'nid-monitor-history-item'+(item.status==='SHOWING'?' is-showing':'')} key={item.id}>
+            <PlatformLogo platform={item.platform}/>
+            <div className="nid-monitor-history-details">
+              <strong>{LABELS[item.platform]||item.platform}</strong>
+              <span>{item.message}</span>
+              <div className="nid-monitor-history-meta">
+                <time dateTime={item.started_at}>{new Date(item.started_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</time>
+                <span className={'nid-monitor-history-state'+(item.status==='SHOWING'?' is-showing':'')}>
+                  {item.status==='SHOWING'?'Em exibição':'Exibida'}
+                </span>
+              </div>
+            </div>
+          </div>)}
+        </div>
+        <div className="nid-monitor-history-foot">Atualização automática · Somente leitura</div>
+      </aside>
+    </div>
     <footer className="nid-monitor-bottom nid-monitor-footer-v5">
       <div className="nid-footer-queue"><DispatchIcon name="list-check" size={21}/>
         <span>{pending>0?pending+' chamada(s) aguardando na fila':'Nenhuma chamada em espera'}</span></div>

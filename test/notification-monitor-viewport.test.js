@@ -29,3 +29,14 @@ test('standalone monitor resets browser body margin and content-box overflow',()
   assert.match(css,/\.nid-monitor\{width:100%;height:100dvh;min-width:0;min-height:0;/);
   assert.match(css,/\.nid-monitor-v5 \.nid-monitor-topright\{margin-left:auto;justify-content:flex-end/);
 });
+
+test('right history panel fits the notebook kiosk without page scroll',()=>{
+  assert.match(monitor,/nid-monitor-workspace/);
+  assert.match(monitor,/nid-monitor-history/);
+  assert.match(monitor,/Histórico recente/);
+  assert.match(monitor,/Últimas chamadas exibidas/);
+  assert.match(monitor,/recent\.map\(item=>/);
+  assert.match(css,/grid-template-columns:minmax\(0,1fr\) clamp\(245px,24vw,335px\)/);
+  assert.match(css,/\.nid-monitor-v5 \.nid-monitor-history-list\{[^}]*overflow-y:auto/);
+  assert.match(css,/@media\(max-width:650px\)/);
+});
