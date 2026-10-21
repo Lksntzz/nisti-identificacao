@@ -47,7 +47,14 @@ function WeeklyChart({listingId}){
   if(error)return <p className="nei-chart-message" role="alert">{error}</p>;
   const points=Array.isArray(data?.points)?data.points:[];
   if(!points.length)return <p className="nei-chart-message">Não há dados datados suficientes para desenhar a evolução deste anúncio.</p>;
+  const weeklyTotal=points.reduce((total,p)=>total+Math.max(0,Number(p.identified_units)||0),0);
+  if(weeklyTotal===0)return <div className="nei-chart-empty" role="status">
+    <strong>Nenhuma venda semanal identificada neste intervalo.</strong>
+    <p>Sem registros datados não significa ausência de vendas quando a cobertura é incompleta.</p>
+  </div>;
   const max=Math.max(1,...points.map(x=>Number(x.identified_units)||0));
+  const ticks=max<=4?Array.from({length:max+1},(_,i)=>i):
+    [...new Set([0,.25,.5,.75,1].map(part=>Math.round(max*part)))];
   const x=i=>38+i*(490/Math.max(1,points.length-1));
   const y=v=>155-(Math.max(0,Number(v)||0)/max)*124;
   const coords=points.map((p,i)=>[x(i),y(p.identified_units)]);
@@ -61,10 +68,10 @@ function WeeklyChart({listingId}){
         <stop offset="0%" stopColor="#2e72ea" stopOpacity=".24"/>
         <stop offset="100%" stopColor="#2e72ea" stopOpacity=".015"/>
       </linearGradient></defs>
-      {[0,.25,.5,.75,1].map((part,i)=><g key={i}>
-        <line x1="38" y1={y(max*part)} x2="530" y2={y(max*part)} stroke="#e6edf7" strokeDasharray="4 4"/>
-        <text x="30" y={y(max*part)+4} textAnchor="end" fontSize="10" fill="#8091a9">
-          {number(Math.round(max*part))}</text>
+      {ticks.map(tick=><g key={tick}>
+        <line x1="38" y1={y(tick)} x2="530" y2={y(tick)} stroke="#e6edf7" strokeDasharray="4 4"/>
+        <text x="30" y={y(tick)+4} textAnchor="end" fontSize="10" fill="#8091a9">
+          {number(tick)}</text>
       </g>)}
       <path d={area} fill={'url(#nei-chart-fill-'+listingId+')'}/>
       <path d={line} fill="none" stroke="#2d6eeb" strokeWidth="2.5"
@@ -136,8 +143,27 @@ function VariationTable({ad,days}){
     {shown.length===0&&<p className="nei-empty">Nenhuma variação com pendência identificada neste anúncio.</p>}
   </div>;
 }
+function VariationSummary({ad,days}){
+  const variations=Array.isArray(ad.variations)?ad.variations:[];
+  const counts=variations.reduce((acc,v)=>{
+    const state=variationState(v,days);
+    if(state==='SOLD'||state==='PARTIAL')acc.sold++;
+    else if(state==='ZERO')acc.zero++;
+    else acc.pending++;
+    return acc;
+  },{sold:0,zero:0,pending:0});
+  return <div className="nei-variation-summary" aria-label={'Resumo das variações nos últimos '+days+' dias'}>
+    <strong>Variações · {days} dias</strong>
+    <div className="nei-variation-stats">
+      <span><b className="nei-stat-sold">{number(counts.sold)}</b><small>Com vendas identificadas</small></span>
+      <span><b className="nei-stat-zero">{number(counts.zero)}</b><small>Sem vendas confirmadas</small></span>
+      <span><b>{number(counts.pending)}</b><small>Dados pendentes</small></span>
+    </div>
+  </div>;
+}
 function Advertisement({ad,days}){
   const [expanded,setExpanded]=useState(false);
+  const [showWeekly,setShowWeekly]=useState(false);
   const badge=ad.situation||'INSUFFICIENT';
   const unitLabel=n=>known(ad['units_'+n])?number(ad['units_'+n])+' un.':
     Number(ad['identified_'+n])>0?'≥ '+number(ad['identified_'+n])+' un.':'—';
@@ -162,9 +188,18 @@ function Advertisement({ad,days}){
           <span>{known(ad['units_'+n])?'Total confirmado':
             Number(ad['identified_'+n])>0?'Mínimo identificado':'Cobertura insuficiente'}</span>
         </div>)}</div>
-        <WeeklyChart listingId={ad.listing_id}/>
+        <VariationSummary ad={ad} days={days}/>
       </div>
       <VariationTable ad={ad} days={days}/>
+      <div className="nei-weekly-section">
+        <button type="button" className="nei-weekly-toggle" aria-expanded={showWeekly}
+          onClick={()=>setShowWeekly(open=>!open)}>
+          <CommercialIcon name="chart-no-axes-combined" size={15}/>
+          {showWeekly?'Ocultar evolução semanal':'Ver evolução semanal'}
+          <CommercialIcon name={showWeekly?'chevron-up':'chevron-down'} size={14}/>
+        </button>
+        {showWeekly&&<WeeklyChart listingId={ad.listing_id}/>}
+      </div>
       <div className="nei-ad-bottom">
         <span>Intervalo encerrado em {date(ad.period_end)}. Dados pendentes não equivalem a vendas zero.</span>
         {ad.url&&<a href={ad.url} target="_blank" rel="noopener noreferrer">Abrir anúncio no marketplace ↗</a>}
