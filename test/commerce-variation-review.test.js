@@ -31,7 +31,7 @@ test('variation analysis only uses real active listings, keyed by variation ID a
     'o.canonical_sku_norm=v.norm','d.external_listing_id=v.external_listing_id']){
     assert.ok(sql.includes(needle),needle);
   }
-  assert.match(sql,/join public\.commerce_shopee_sku_owner_reviewed_v1 o/);
+  assert.match(sql,/from public\.commerce_shopee_sku_owner_reviewed_v1 o/);
   assert.match(sql,/commerce_current_sales_listing_daily_v1/);
   assert.match(sql,/sum\(d\.units\) filter/);
   assert.match(sql,/p_limit integer default 20/);
