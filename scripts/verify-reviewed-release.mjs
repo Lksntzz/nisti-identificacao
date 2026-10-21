@@ -21,6 +21,17 @@ export function passedProductionGate(checkRuns, headSha) {
   );
 }
 
+export function passedProductionWorkflow(runs,headSha) {
+  return (Array.isArray(runs)?runs:[]).some(run=>
+    run?.head_sha===headSha &&
+    run?.name==='Production Gate' &&
+    run?.path==='.github/workflows/production-gate.yml' &&
+    run?.event==='pull_request' &&
+    run?.status==='completed' &&
+    run?.conclusion==='success'
+  );
+}
+
 async function githubJson(path, token, attemptLimit=5) {
   for (let attempt=1;attempt<=attemptLimit;attempt++) {
     const controller=new AbortController();
@@ -58,8 +69,16 @@ export async function verifyRelease({repository,sha,token,request=githubJson}){
   if(!/^[0-9a-f]{40}$/.test(headSha||''))throw new Error('PR sem SHA de origem verificável.');
 
   const checkResults=await request('/repos/'+repository+'/commits/'+headSha+'/check-runs?per_page=100',token);
-  if(!passedProductionGate(checkResults?.check_runs,headSha))
-    throw new Error('Deploy negado: testes de Production Gate não aprovados no PR.');
+  if(!passedProductionGate(checkResults?.check_runs,headSha)) {
+    // GitHub can report a completed successful workflow run while its
+    // check-run still appears "in_progress" briefly or indefinitely.
+    // Verify the authoritative PR workflow execution, never fail open.
+    const history=await request(
+      '/repos/'+repository+'/actions/runs?head_sha='+headSha+'&event=pull_request&per_page=100',token
+    );
+    if(!passedProductionWorkflow(history?.workflow_runs,headSha))
+      throw new Error('Deploy negado: testes de Production Gate não aprovados no PR.');
+  }
 
   return {number:approved.number,sha,headSha};
 }
