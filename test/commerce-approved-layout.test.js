@@ -37,7 +37,7 @@ test('cards filtram a evolução pelo mesmo estado do seletor; anúncios preserv
 });
 
 test('a evolução conserva a tabela analítica, detalhes e design responsivo',()=>{
-  for(const label of ['Produto','Plataforma','SKU / Anúncio','Situação','Vendas no período','Variação'])
+  for(const label of ['Produto','Plataforma','SKU / Anúncio','Situação','Unidades · atual / anterior','Variação'])
     assert.ok(evolution.includes(label),label);
   assert.match(evolution,/<details className="nim-evolution-product"/);
   assert.match(evolution,/<summary className="nim-evolution-product-head"/);
