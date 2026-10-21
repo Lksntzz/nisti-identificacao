@@ -2,11 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const mainSource = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const mainSource = fs.readFileSync(new URL('../src/admin/ProductRegistrationModal.jsx', import.meta.url), 'utf8');
 const styles = fs.readFileSync(new URL('../src/app.css', import.meta.url), 'utf8');
 const start = mainSource.indexOf('function CreateProductModal');
-const end = mainSource.indexOf('\nfunction ', start + 20);
-const createProductModal = mainSource.slice(start, end);
+const createProductModal = mainSource.slice(start);
 
 test('product registration detects meaningful unsaved draft data', () => {
   assert.match(createProductModal, /const hasUnsavedDraft = !result/);
