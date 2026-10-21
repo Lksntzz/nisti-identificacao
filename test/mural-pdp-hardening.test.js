@@ -5,6 +5,7 @@ import test from 'node:test';
 
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
 const postRoutes=fs.readFileSync(new URL('../src/mural-post-routes.js',import.meta.url),'utf8');
+const imageRoutes=fs.readFileSync(new URL('../src/mural-image-routes.js',import.meta.url),'utf8');
 const collectionRoutes=fs.readFileSync(new URL('../src/mural-collection-routes.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
 const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
@@ -12,7 +13,7 @@ const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard
 test('public editorial images follow post and collection visibility',()=>{
   assert.match(router,/status='published'.*published_at IS NOT NULL.*datetime\(published_at\)<=CURRENT_TIMESTAMP.*expires_at/s);
   assert.match(router,/SELECT image_key FROM mural_collections WHERE slug=\? AND status='active'/);
-  assert.match(router,/x-content-type-options','nosniff'/);
+  assert.match(imageRoutes,/x-content-type-options','nosniff'/);
 });
 
 test('admin has protected preview and removal routes for editorial images',()=>{
