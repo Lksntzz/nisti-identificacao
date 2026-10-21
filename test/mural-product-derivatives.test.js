@@ -8,7 +8,7 @@ const globalDisplayMigration=fs.readFileSync(new URL('../migrations/0022_product
 const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
 const publicImages=fs.readFileSync(new URL('../src/public-image-router.js',import.meta.url),'utf8');
-const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const admin=fs.readFileSync(new URL('../src/admin/MuralProductImageManager.jsx',import.meta.url),'utf8');
 const deploy=fs.readFileSync(new URL('../.github/workflows/deploy-production.yml',import.meta.url),'utf8');
 const primaryImages=fs.readFileSync(new URL('../supabase/migrations/20261001210000_primary_product_images_v1.sql',import.meta.url),'utf8');
 
