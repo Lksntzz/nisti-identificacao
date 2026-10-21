@@ -549,6 +549,25 @@ export default {
       })));
     }
 
+    // Convite sem a chave não pode cair no fallback do Scanner.
+    // Exiba instruções explícitas, mantendo a credencial fora do HTML.
+    if(request.method==='GET' && (pathname==='/convite-expedicao'||pathname==='/convite-expedicao/')){
+      const html='<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'+
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+        '<meta name="referrer" content="no-referrer"><title>Convite NISTI Expedição</title></head>'+
+        '<body style="min-height:100vh;margin:0;display:grid;place-items:center;background:#0b1326;color:#fff;font:16px system-ui">'+
+        '<main style="width:min(560px,90vw);padding:28px;border:1px solid #44516b;border-radius:16px">'+
+        '<h1>Link privado incompleto</h1>'+
+        '<p>Este endereço não contém a chave de acesso da equipe de expedição. Solicite o link completo ao responsável pelas notificações.</p>'+
+        '<p>O link começa com <code>/convite-expedicao/</code> e continua com uma chave privada.</p>'+
+        '<p><a href="/painel-expedicao" style="color:#a6d5ff">Ir ao painel de notificações</a></p>'+
+        '</main></body></html>';
+      return withSecurityHeaders(new Response(html,{status:400,headers:{
+        'content-type':'text/html; charset=utf-8','cache-control':'no-store, private',
+        'referrer-policy':'no-referrer','x-robots-tag':'noindex, nofollow'
+      }}));
+    }
+
     // Convites privados do painel de envio são processados antes dos assets.
     // Não expõem o ADM e não funcionam no hostname restrito do Mural.
     if(pathname.startsWith('/convite-expedicao/')){
