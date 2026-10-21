@@ -3,6 +3,7 @@ import CommerceImportModal from './commerce-import-modal.jsx';
 import {COMMERCE_IMPORT_OPTIONS} from './commerce-import-options.js';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
 import CommerceSalesEvolution from './commerce-sales-evolution.jsx';
+import CommerceVariationReview from './commerce-variation-review.jsx';
 import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
 import CommerceShopeeAdsSummary from './commerce-shopee-ads-summary.jsx';
 import {shopeeAdsRowsForPeriod,preferredShopeeAdsReport} from './commerce-shopee-ads-period.js';
@@ -741,8 +742,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         aria-current={commercialView==='EVOLUTION'?'page':undefined}
         onClick={()=>{setEvolutionSummary(null);setCommercialView('EVOLUTION');}}>
         <CommercialIcon name="chart-no-axes-column-increasing" size={16}/> Evolução de vendas</button>
+      <button type="button" className={commercialView==='VARIATIONS'?'active':''}
+        aria-current={commercialView==='VARIATIONS'?'page':undefined}
+        onClick={()=>{setEvolutionSummary(null);setCommercialView('VARIATIONS');}}>
+        <CommercialIcon name="notebook-tabs" size={16}/> Variações 30/60/90</button>
     </nav>
-    {commercialView==='LISTINGS'?
+    {commercialView==='VARIATIONS'?null:commercialView==='LISTINGS'?
       <div className="nim-kpis nim-kpis-listings" aria-label="Indicadores de anúncios">
         <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'}
           description="Anúncios monitorados"/>
@@ -762,7 +767,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       </div>:
       <div className="nim-kpis nim-kpis-evolution" aria-label="Filtros por situação na Evolução de Vendas">
         <Kpi tone="rose" label="Sem vendas" value={evolutionCount('zero')}
-          description="SKU/modelos sem vendas e com cobertura completa"
+          description="Anúncios inteiros com zero vendas e cobertura confirmada"
           selected={evolutionStatus==='ZERO'}
           onClick={evolutionCountReady('zero')?()=>chooseEvolutionStatus('ZERO'):undefined}/>
         <Kpi tone="mint" label="Estável" value={evolutionCount('stable')}
@@ -806,7 +811,10 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </p>}
       </div>}
     </section>}
-    {commercialView==='EVOLUTION'?
+    {commercialView==='VARIATIONS'?
+      <CommerceVariationReview platform={platform} onPlatformChange={setPlatform}
+        revision={refresh} salesRevision={salesRevision}/>:
+    commercialView==='EVOLUTION'?
       <CommerceSalesEvolution platform={platform} onPlatformChange={setPlatform}
         initialDays={PERIODS.includes(days)?days:30} onPeriodChange={setDays}
         status={evolutionStatus} onStatusChange={setEvolutionStatus}
@@ -1026,13 +1034,13 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         importedThrough={data?.imported_month?.period_end}
         search={search} revision={refresh} salesRevision={salesRevision}/>}
     </>}
-    <p className="nim-footnote">
+    {commercialView!=='VARIATIONS'&&<p className="nim-footnote">
       Com vendas e Sem vendas são calculados por anúncio na janela importada; o detalhamento de
       cada variação permanece na ficha do anúncio. Ausência de venda significa ausência de unidades
       registradas nos arquivos importados, e não comprovação independente de todos os pedidos.
       SKUs compartilhados entre anúncios sem vínculo exclusivo não são marcados automaticamente como zero.
       {Number(kpi.shopee_unclassified_ads||0)>0&&
         ' '+num(kpi.shopee_unclassified_ads)+' anúncio(s) Shopee aguardam conciliação de SKU.'}
-    </p>
+    </p>}
   </section>;
 }
