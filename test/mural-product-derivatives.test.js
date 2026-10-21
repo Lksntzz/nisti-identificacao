@@ -7,6 +7,7 @@ const reprocessMigration=fs.readFileSync(new URL('../migrations/0021_mural_produ
 const globalDisplayMigration=fs.readFileSync(new URL('../migrations/0022_product_display_images.sql',import.meta.url),'utf8');
 const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
+const imageRoutes=fs.readFileSync(new URL('../src/mural-image-routes.js',import.meta.url),'utf8');
 const publicImages=fs.readFileSync(new URL('../src/public-image-router.js',import.meta.url),'utf8');
 const admin=fs.readFileSync(new URL('../src/admin/MuralProductImageManager.jsx',import.meta.url),'utf8');
 const deploy=fs.readFileSync(new URL('../.github/workflows/deploy-production.yml',import.meta.url),'utf8');
@@ -40,9 +41,9 @@ test('public product display serves approved derivatives matching the current so
 });
 
 test('admin accepts transparent PNG derivatives and preserves the original image',()=>{
-  assert.match(router,/inspectTransparentPng/);
-  assert.match(router,/\[4,6\]\.includes\(colorType\)/);
-  assert.match(router,/mural\/products\/\$\{productId\}/);
+  assert.match(imageRoutes,/inspectTransparentPng/);
+  assert.match(imageRoutes,/\[4,6\]\.includes\(colorType\)/);
+  assert.match(imageRoutes,/mural\/products\/\$\{productId\}/);
   assert.match(admin,/Tratamento/);
   assert.match(admin,/A foto original do catálogo fica intacta/);
   assert.match(admin,/original_image_url/);
