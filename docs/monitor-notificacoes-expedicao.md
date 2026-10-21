@@ -60,6 +60,12 @@ de exibição inicia os 15 segundos da chamada pendente; múltiplas telas compar
 a mesma chamada e não a consomem repetidamente. Por isso, use o link somente
 nos dispositivos de operação que devem acompanhar as notificações.
 
+## Histórico lateral do monitor
+
+No notebook a chamada atual continua no palco principal, enquanto o painel lateral direito mostra as **8 notificações mais recentes que entraram em exibição**, com logo da plataforma, modalidade/mensagem, horário de início e situação (Em exibição ou Exibida). A lista é atualizada automaticamente junto ao monitor, a cada 2 segundos, e é recuperada do Supabase quando o navegador reinicia. Chamadas que ainda estão apenas **PENDING** nunca são mostradas como histórico nem marcadas como exibidas. No celular o histórico aparece como faixa compacta abaixo do palco para manter o aviso legível.
+
+A consulta pública do monitor mostra somente essas últimas 8 chamadas operacionais, sem acesso ao histórico completo do painel privado, aos dados de usuário ou a controles administrativos. Quem tiver o endereço do monitor poderá ver esse resumo, assim como já pode visualizar chamadas ao vivo.
+
 ## Som sem botão de ativação
 
 O arquivo de inicialização abre o Edge em janela de aplicativo fullscreen com
