@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const app = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const app = fs.readFileSync(new URL('../src/admin/ProductRegistrationModal.jsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../src/app.css', import.meta.url), 'utf8');
 
 test('registration result keeps barcode cards inside the create-product modal', () => {
