@@ -1,12 +1,8 @@
 name: Export Original Product Images
 
+# Execução somente manual: exportações de imagens produzem artefatos sensíveis.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/export-original-product-images.yml
-      - scripts/export-original-product-images.mjs
 
 permissions:
   contents: read
@@ -32,15 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Read original image index from D1
-        run: |
-          mkdir -p export
-          npx wrangler d1 execute nisti-identificacao --remote --json \
-            --command="SELECT id, sku, image_key FROM products WHERE image_key IS NOT NULL ORDER BY id" \
-            > export/products.json
+      - name: Read original image index from Supabase (primary)
+        run: node scripts/export-original-image-index-supabase.mjs export/products.json
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+          SUPABASE_URL: https://yioetdcbgorunwgwuawg.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Download original objects from R2
         run: node scripts/export-original-product-images.mjs export/products.json export
@@ -49,13 +41,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
 
       - name: Create ZIP
-        if: always()
         run: |
           cd export
           zip -q -r nisti-imagens-originais.zip original-images manifest.csv export-summary.json failures.txt
 
       - name: Upload ZIP
-        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: nisti-imagens-originais-${{ github.run_id }}
@@ -65,7 +55,6 @@ jobs:
           retention-days: 1
 
       - name: Publish export report
-        if: always()
         shell: bash
         run: |
           set -euo pipefail
