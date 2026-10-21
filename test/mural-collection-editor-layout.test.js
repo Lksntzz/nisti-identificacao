@@ -1,8 +1,9 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const view=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const view = muralAdminSource;
 const css=fs.readFileSync(new URL('../src/mural-admin.css',import.meta.url),'utf8');
 
 test('collection editor opens as a full-page Publicar studio instead of a modal',()=>{

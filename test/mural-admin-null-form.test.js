@@ -1,8 +1,9 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const source=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const source = muralAdminSource;
 
 test('new publication form accepts null source and exposes all publication types',()=>{
   assert.match(source,/const sourceItem = item && item\.mode === 'new' \? null : item/);

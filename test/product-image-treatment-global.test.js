@@ -139,7 +139,7 @@ test('core product screens use the shared treatment', () => {
 test('Mural product rendering uses the same treated image pipeline', () => {
   const mural = read('src/mural-nisti.jsx');
   const experience = read('src/mural-product-experience.jsx');
-  const admin = read('src/admin/MuralNistiAdminView.jsx');
+  const admin = read('src/admin/MuralPublishShared.jsx');
   assert.ok(mural.includes('useTreatedProductImage'));
   assert.ok(experience.includes('useTreatedProductImage'));
   assert.ok(admin.includes('useTreatedProductImage'));
@@ -346,7 +346,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(admin.includes('?products.filter(item=>item.mural_image_ready)'));
   assert.ok(admin.includes('!justApprovedIds.has(Number(item.id))'));
   assert.ok(admin.includes('setJustApprovedIds(current=>new Set(current).add(Number(product.id)))'));
-  assert.ok(read('src/admin/MuralNistiAdminView.jsx').includes("cache: 'no-store'"));
+  assert.ok(read('src/admin/MuralPublishShared.jsx').includes("cache: 'no-store'"));
   assert.ok(admin.includes('Aprovada e salva'));
   assert.ok(admin.includes('/approve'));
   assert.ok(admin.includes('/redo'));

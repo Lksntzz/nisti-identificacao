@@ -1,8 +1,9 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const admin = fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx', import.meta.url), 'utf8');
+const admin = muralAdminSource;
 const css = fs.readFileSync(new URL('../src/mural-admin.css', import.meta.url), 'utf8');
 
 test('Publicar uses a full-page studio instead of a modal', () => {

@@ -1,8 +1,9 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const admin = muralAdminSource;
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
 const mural=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
 const migration=fs.readFileSync(new URL('../supabase/migrations/20261006145000_mural_collection_hero_v1.sql',import.meta.url),'utf8');

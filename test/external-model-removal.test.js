@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 
 const runtimeFiles = [
   'wrangler.toml',
@@ -10,7 +11,7 @@ const runtimeFiles = [
     .map(name => `src/${name}`)
 ];
 const runtimeSource = runtimeFiles.map(file => fs.readFileSync(file, 'utf8')).join('\n');
-const muralAdmin = fs.readFileSync('src/admin/MuralNistiAdminView.jsx', 'utf8');
+const muralAdmin = muralAdminSource;
 
 test('runtime has no external AI, Workers AI or Vectorize integration', () => {
   assert.equal(fs.existsSync('src/ai-product-image-treatment.js'), false);
