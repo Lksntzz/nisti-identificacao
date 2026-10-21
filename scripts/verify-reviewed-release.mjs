@@ -21,6 +21,20 @@ export function passedProductionGate(checkRuns, headSha) {
   );
 }
 
+// GitHub can briefly report a successful Actions job as "in_progress" on
+// commit check-runs. The first-party workflow-runs API is an independent,
+// equally verified source: exact PR SHA, workflow file and completed success.
+export function passedProductionGateWorkflowRuns(workflowRuns,headSha) {
+  return (Array.isArray(workflowRuns)?workflowRuns:[]).some(run=>
+    run?.name==='Production Gate' &&
+    run?.path==='.github/workflows/production-gate.yml' &&
+    run?.event==='pull_request' &&
+    run?.head_sha===headSha &&
+    run?.status==='completed' &&
+    run?.conclusion==='success'
+  );
+}
+
 async function githubJson(path, token, attemptLimit=5) {
   for (let attempt=1;attempt<=attemptLimit;attempt++) {
     const controller=new AbortController();
@@ -58,8 +72,13 @@ export async function verifyRelease({repository,sha,token,request=githubJson}){
   if(!/^[0-9a-f]{40}$/.test(headSha||''))throw new Error('PR sem SHA de origem verificável.');
 
   const checkResults=await request('/repos/'+repository+'/commits/'+headSha+'/check-runs?per_page=100',token);
-  if(!passedProductionGate(checkResults?.check_runs,headSha))
-    throw new Error('Deploy negado: testes de Production Gate não aprovados no PR.');
+  if(!passedProductionGate(checkResults?.check_runs,headSha)) {
+    const runs=await request('/repos/'+repository+
+      '/actions/workflows/production-gate.yml/runs?head_sha='+headSha+
+      '&event=pull_request&per_page=50',token);
+    if(!passedProductionGateWorkflowRuns(runs?.workflow_runs,headSha))
+      throw new Error('Deploy negado: testes de Production Gate não aprovados no PR.');
+  }
 
   return {number:approved.number,sha,headSha};
 }
