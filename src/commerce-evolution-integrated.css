@@ -73,6 +73,8 @@
 .nei-weekly-section{display:grid;gap:8px;justify-items:start}
 .nei-weekly-toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid #ccdcf1;background:#fff;color:#3567a4;border-radius:8px;padding:8px 12px;font:inherit;font-size:10px;font-weight:800;cursor:pointer}
 .nei-weekly-toggle:hover{background:#f1f6fe}
+.nei-weekly-toggle svg:last-child{transition:transform .18s ease}
+.nei-weekly-toggle[aria-expanded="true"] svg:last-child{transform:rotate(90deg)}
 .nei-weekly-toggle:focus-visible{outline:2px solid #3780e6;outline-offset:2px}
 .nei-weekly-section>.nei-chart,.nei-weekly-section>.nei-chart-message,.nei-weekly-section>.nei-chart-empty{width:100%}
 .nei-chart-empty{border:1px solid #e2eaf5;border-radius:9px;background:#fff;padding:14px 16px;display:grid;gap:5px}
