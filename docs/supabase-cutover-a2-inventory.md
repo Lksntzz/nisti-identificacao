@@ -27,6 +27,7 @@ configuration above is enabled.
 | --- | --- | --- |
 | `src/mural-router.js` | legacy Mural reads/writes | Supabase |
 | `src/mural-collection-routes.js` | legacy Mural collection create/update/membership/publish D1 compatibility SQL (extracted from `mural-router.js`) | Supabase |
+| `src/mural-post-routes.js` | legacy Mural post create/update/publish/archive/duplicate/delete D1 compatibility SQL (extracted from `mural-router.js`) | Supabase |
 | `src/recognition-metrics.js` | historical telemetry/read compatibility | Supabase |
 | `src/system-metrics-clean-router.js` | legacy D1 metrics/health branch | Supabase |
 | `src/geometric-shadow-evidence-router.js` | legacy evidence/read SQL | Supabase |
