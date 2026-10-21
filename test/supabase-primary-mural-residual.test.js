@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const mural=fs.readFileSync('src/mural-router.js','utf8');
 const postRoutes=fs.readFileSync('src/mural-post-routes.js','utf8');
+const imageRoutes=fs.readFileSync('src/mural-image-routes.js','utf8');
 const mirror=fs.readFileSync('src/supabase-mutation-mirror.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261001245000_primary_mural_residual_v2.sql','utf8');
 const cleanupSql=fs.readFileSync('supabase/migrations/20261006194000_mural_publications_metrics_v1.sql','utf8');
@@ -26,7 +27,7 @@ test('residual Mural admin reads and writes have direct Supabase-primary RPCs',(
     'nisti_admin_mural_products_v1',
     'nisti_admin_mural_metrics_v1'
   ]){
-    assert.ok((mural + postRoutes).includes(name),`missing Mural primary route ${name}`);
+    assert.ok((mural + postRoutes + imageRoutes).includes(name),`missing Mural primary route ${name}`);
   }
 });
 
