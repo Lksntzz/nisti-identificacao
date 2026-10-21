@@ -163,7 +163,7 @@ test('reconnect marker instructs open monitor to reload without asking ADM permi
   assert.match(ui,/reconnectMarkerRef/);
   assert.match(ui,/marker!==reconnectMarkerRef\.current/);
   assert.match(ui,/window\.location\.reload\(\)/);
-  assert.match(api,/nisti_dispatch_public_next_v7/);
+  assert.match(api,/nisti_dispatch_public_next_v8/);
   assert.match(api,/nisti_dispatch_request_reconnect_v7/);
   assert.match(sql,/reconnect_requested_at/);
   assert.match(sql,/REVOKE ALL ON FUNCTION public\.nisti_dispatch_request_reconnect_v7\(\) FROM PUBLIC,anon,authenticated/);
