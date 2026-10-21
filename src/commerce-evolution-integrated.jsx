@@ -292,9 +292,9 @@ export default function CommerceEvolutionIntegrated({
       </div>
       {rows.length===0&&<p className="nei-empty">Nenhum anúncio com variações atende ao filtro.
         Anúncios sem cobertura não são classificados como sem vendas.</p>}
-      <div className="nei-list">{rows.map((ad,index)=><Advertisement
+      <div className="nei-list">{rows.map(ad=><Advertisement
         key={[selectedPlatform,days,status,search,offset,ad.listing_id].join(':')}
-        ad={ad} days={days} initialExpanded={index===0}/>)}</div>
+        ad={ad} days={days} initialExpanded={ad.listing_id===rows[0]?.listing_id}/>)}</div>
       {total>PAGE&&<footer className="nei-pagination">
         <span>Página {Math.floor(offset/PAGE)+1} de {Math.ceil(total/PAGE)}</span>
         <div><button type="button" disabled={!offset}
