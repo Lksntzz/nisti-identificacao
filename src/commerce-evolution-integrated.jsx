@@ -161,8 +161,8 @@ function VariationSummary({ad,days}){
     </div>
   </div>;
 }
-function Advertisement({ad,days}){
-  const [expanded,setExpanded]=useState(false);
+function Advertisement({ad,days,initialExpanded=false}){
+  const [expanded,setExpanded]=useState(initialExpanded);
   const [showWeekly,setShowWeekly]=useState(false);
   const badge=ad.situation||'INSUFFICIENT';
   const unitLabel=n=>known(ad['units_'+n])?number(ad['units_'+n])+' un.':
@@ -174,11 +174,16 @@ function Advertisement({ad,days}){
       <span className="nei-ad-main"><strong>{ad.title||'Anúncio sem título'}</strong>
         <small>{platformName(ad.source)} · ID: {ad.external_listing_id}</small></span>
       <span className="nei-ad-var-count">{number(ad.variation_count)} variações
-        {Number(ad.zero_variations)>0&&<small>{number(ad.zero_variations)} sem vendas</small>}
+        {Number(ad.sold_variations)>0&&<small className="nei-variations-sold">{number(ad.sold_variations)} com vendas</small>}
+        {Number(ad.zero_variations)>0&&<small className="nei-variations-zero">{number(ad.zero_variations)} sem vendas</small>}
+        {Number(ad.unknown_variations)>0&&<small className="nei-variations-pending">{number(ad.unknown_variations)} pendentes</small>}
       </span>
       {WINDOWS.map(n=><span key={n} className="nei-ad-period">{unitLabel(n)}</span>)}
       <span className={'nei-pill '+badge.toLowerCase()}>{situationName(badge)}</span>
-      <span className={'nei-chevron '+(expanded?'turned':'')}><CommercialIcon name="chevron-right" size={17}/></span>
+      <span className={'nei-chevron '+(expanded?'turned':'')}>
+        <span className="nei-details-label">{expanded?'Ocultar dados':'Ver dados'}</span>
+        <CommercialIcon name="chevron-right" size={17}/>
+      </span>
     </button>
     {expanded&&<div className="nei-ad-expanded">
       <div className="nei-ad-overview">
@@ -268,7 +273,10 @@ export default function CommerceEvolutionIntegrated({
     {coverage.length>0&&<p className="nei-coverage">Cobertura dos relatórios: {coverage.map(c=>
       platformName(c.source)+' até '+date(c.end_date)+' ('+
       (c['complete_'+days]?'período completo':'período incompleto')+')').join(' · ')}.
-      Apenas anúncios com dados completos e SKU validado recebem situação confirmada.</p>}
+      Apenas anúncios com dados completos e SKU validado recebem situação confirmada.
+      {Number(kpis.without_proof)>0&&<strong className="nei-coverage-pending">
+        {number(kpis.without_proof)} anúncio(s) com pelo menos uma variação sem comprovação.
+      </strong>}</p>}
     {status!=='ALL'&&<button className="nei-clear" type="button" onClick={()=>onStatusChange('ALL')}>
       Limpar situação selecionada</button>}
     {loading&&<p className="nei-empty" role="status">Analisando anúncios e variações…</p>}
@@ -280,12 +288,13 @@ export default function CommerceEvolutionIntegrated({
           'Nenhum anúncio confirmado para esse filtro'}</span></div>
       <div className="nei-list-head" aria-hidden="true">
         <span>Anúncio</span><span>Variações</span><span>Vendas 30 dias</span>
-        <span>Vendas 60 dias</span><span>Vendas 90 dias</span><span>Situação</span><span/>
+        <span>Vendas 60 dias</span><span>Vendas 90 dias</span><span>Situação</span><span>Detalhes</span>
       </div>
       {rows.length===0&&<p className="nei-empty">Nenhum anúncio com variações atende ao filtro.
         Anúncios sem cobertura não são classificados como sem vendas.</p>}
-      <div className="nei-list">{rows.map(ad=><Advertisement key={ad.listing_id}
-        ad={ad} days={days}/>)}</div>
+      <div className="nei-list">{rows.map(ad=><Advertisement
+        key={[selectedPlatform,days,status,search,offset,ad.listing_id].join(':')}
+        ad={ad} days={days} initialExpanded={ad.listing_id===rows[0]?.listing_id}/>)}</div>
       {total>PAGE&&<footer className="nei-pagination">
         <span>Página {Math.floor(offset/PAGE)+1} de {Math.ceil(total/PAGE)}</span>
         <div><button type="button" disabled={!offset}
