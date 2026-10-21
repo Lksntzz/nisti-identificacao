@@ -11,6 +11,9 @@ test('monitor automatically tries to start audio without an operator click',()=>
   assert.match(src,/remainingSeconds\(call\.expires_at,offset\)>0/);
   assert.match(src,/\{!audioOn&&<button/);
   assert.match(src,/Som automático pronto/);
+  assert.match(src,/DISPATCH_SOUND_DURATION_SECONDS/);
+  assert.match(src,/stopNotificationSound\(ctx\)/);
+  assert.match(src,/Som automático pronto · 13s/);
 });
 test('dedicated Windows launcher keeps monitor profile and enables autoplay',()=>{
   const bat=fs.readFileSync(new URL('../scripts/abrir-monitor-nisti.cmd',import.meta.url),'utf8');
