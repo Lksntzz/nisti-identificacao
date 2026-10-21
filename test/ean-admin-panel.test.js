@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const main = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const registration = fs.readFileSync(new URL('../src/admin/ProductRegistrationModal.jsx', import.meta.url), 'utf8');
 const router = fs.readFileSync(new URL('../src/gtin-router.js', import.meta.url), 'utf8');
 const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
 const coreRouter = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 'utf8');
@@ -58,8 +59,8 @@ test('barcode generator presents collection download as an explicit view filter'
 });
 
 test('new product registration writes its EAN atomically with the NISTI source in Supabase', () => {
-  assert.match(main, /gtin: cleanGtin/);
-  assert.doesNotMatch(main, /source: 'ADMIN'/);
+  assert.match(registration, /gtin: cleanGtin/);
+  assert.doesNotMatch(registration, /source: 'ADMIN'/);
   assert.match(coreRouter, /gtin: validGtin/);
   assert.match(coreRouter, /nisti_upsert_product_primary_v1/);
   assert.match(primaryProductWrites, /VALUES\(v_product\.id,v_gtin,'GTIN-13','NISTI'/);
@@ -68,12 +69,12 @@ test('new product registration writes its EAN atomically with the NISTI source i
 });
 
 test('manual and bulk registration immediately expose downloadable barcode labels', () => {
-  assert.match(main, /function RegistrationBarcodeResult/);
-  assert.match(main, /createEan13Svg\(item\)/);
-  assert.match(main, /downloadBarcodePng\(item\)/);
-  assert.match(main, /downloadBarcodeZip\(barcodeItems/);
-  assert.match(main, /Baixar todas em ZIP/);
-  assert.match(main, /setResult\(\{ items: registered, errors: failures \}\)/);
+  assert.match(registration, /function RegistrationBarcodeResult/);
+  assert.match(registration, /createEan13Svg\(item\)/);
+  assert.match(registration, /downloadBarcodePng\(item\)/);
+  assert.match(registration, /downloadBarcodeZip\(barcodeItems/);
+  assert.match(registration, /Baixar todas em ZIP/);
+  assert.match(registration, /setResult\(\{ items: registered, errors: failures \}\)/);
   assert.match(main, /setResult\(\{ items: importedItems, errors: importErrors, created, updated \}\)/);
 });
 
@@ -105,10 +106,9 @@ test('catalog missing EAN filter uses the active GTIN relationship from the Supa
 
 
 test('cadastro manual de produto não pede plataforma nem link de anúncio', () => {
-  const start = main.indexOf('function CreateProductModal');
-  const end = main.indexOf('function EditProductModal');
-  assert.ok(start >= 0 && end > start);
-  const createModal = main.slice(start, end);
+  const start = registration.indexOf('function CreateProductModal');
+  assert.ok(start >= 0);
+  const createModal = registration.slice(start);
 
   assert.match(createModal, /Nome do Produto Pai/);
   assert.match(createModal, /Plataformas e anúncios são vinculados automaticamente pelo Catálogo Comercial/);
