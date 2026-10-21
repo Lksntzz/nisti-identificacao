@@ -1,12 +1,8 @@
 name: Export Original Product Images
 
+# Execução somente manual: exportações de imagens produzem artefatos sensíveis.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/export-original-product-images.yml
-      - scripts/export-original-product-images.mjs
 
 permissions:
   contents: read
@@ -32,15 +28,24 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Read original image index from D1
-        run: |
-          mkdir -p export
-          npx wrangler d1 execute nisti-identificacao --remote --json \
-            --command="SELECT id, sku, image_key FROM products WHERE image_key IS NOT NULL ORDER BY id" \
-            > export/products.json
+      - name: Verify required secrets
+        shell: bash
         env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NISTI_IMAGE_EXPORT_PASSPHRASE: ${{ secrets.NISTI_IMAGE_EXPORT_PASSPHRASE }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_SERVICE_ROLE_KEY}" || -z "${CLOUDFLARE_API_TOKEN}" || ${#NISTI_IMAGE_EXPORT_PASSPHRASE} -lt 20 ]]; then
+            echo "::error::Configure os Secrets protegidos do Supabase, R2 e senha de exportação (20+ caracteres)."
+            exit 1
+          fi
+
+      - name: Read original image index from Supabase (primary)
+        run: node scripts/export-original-image-index-supabase.mjs export/products.json
+        env:
+          SUPABASE_URL: https://yioetdcbgorunwgwuawg.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Download original objects from R2
         run: node scripts/export-original-product-images.mjs export/products.json export
@@ -49,23 +54,25 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: c36bf07704c2dc29e76e03539127ba05
 
       - name: Create ZIP
-        if: always()
         run: |
           cd export
           zip -q -r nisti-imagens-originais.zip original-images manifest.csv export-summary.json failures.txt
 
-      - name: Upload ZIP
-        if: always()
+      - name: Encrypt ZIP before upload
+        run: node scripts/nisti-encrypt-image-export.mjs encrypt export/nisti-imagens-originais.zip export/nisti-imagens-originais.zip.nisti.enc
+        env:
+          NISTI_IMAGE_EXPORT_PASSPHRASE: ${{ secrets.NISTI_IMAGE_EXPORT_PASSPHRASE }}
+
+      - name: Upload encrypted artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: nisti-imagens-originais-${{ github.run_id }}
-          path: export/nisti-imagens-originais.zip
+          name: nisti-imagens-originais-criptografadas-${{ github.run_id }}
+          path: export/nisti-imagens-originais.zip.nisti.enc
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
 
       - name: Publish export report
-        if: always()
         shell: bash
         run: |
           set -euo pipefail
@@ -79,6 +86,7 @@ jobs:
           if (s.failed > 0) {
             console.warn(`Aviso: ${message}`);
             console.warn('Os itens ausentes permanecem listados em export/failures.txt; nenhuma imagem tratada foi substituída.');
+            process.exitCode = 1; // Exportação parcial não é backup válido.
           } else {
             console.log(message);
           }
@@ -88,7 +96,8 @@ jobs:
             message,
             '',
             '- O relatório de ausências está em \`failures.txt\`.',
-            '- Imagens tratadas não são alteradas por este workflow.'
+            '- Imagens tratadas não são alteradas por este workflow.',
+            '- O artefato ZIP é disponibilizado apenas criptografado (AES-256-GCM).'
           ].join('\\n') + '\\n';
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
           NODE
