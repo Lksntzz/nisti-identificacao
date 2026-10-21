@@ -1,3 +1,4 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
@@ -5,7 +6,7 @@ import test from 'node:test';
 const mural=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
 const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
 const push=fs.readFileSync(new URL('../src/web-push.js',import.meta.url),'utf8');
-const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const admin = muralAdminSource;
 
 test('product creation no longer creates automatic Mural drafts',()=>{
   assert.ok(core.includes('nisti_upsert_product_primary_v1'));
