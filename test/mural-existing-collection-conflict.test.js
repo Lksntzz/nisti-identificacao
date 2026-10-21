@@ -1,7 +1,8 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const source=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const source = muralAdminSource;
 test('Mural collection slug conflict opens matching collection for editing, never automatically overwrites',()=>{
  assert.match(source,/Já existe uma coleção com esse slug/);
  assert.match(source,/setCollectionConflict\(/);
