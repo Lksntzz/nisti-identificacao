@@ -6,9 +6,11 @@ const API='/api/admin/commerce/listings/manager/evolution';
 const PAGE=25;
 const platforms=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['MERCADO_LIVRE','Mercado Livre'],
   ['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo']];
-const statuses=[['ALL','Todos'],['FALLING','Em queda'],['ZERO','SKU/modelo sem vendas'],['SOLD','Com vendas'],['RISING','Em crescimento'],
-  ['NEW','Novas vendas'],['STABLE','Estáveis'],['LOW_VOLUME','Baixo volume'],['INSUFFICIENT','Dados insuficientes']];
-const labels=Object.fromEntries(statuses);
+// Only the three user-facing filters requested in Situação das vendas.
+const statuses=[['ZERO','Sem vendas'],['STABLE','Estável'],['RISING','Crescimento']];
+const labels={ALL:'Todos',FALLING:'Em queda',ZERO:'Sem vendas',SOLD:'Com vendas',
+  RISING:'Crescimento',NEW:'Novas vendas',STABLE:'Estável',
+  LOW_VOLUME:'Baixo volume',INSUFFICIENT:'Dados insuficientes'};
 const num=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
 const date=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))?s.split('-').reverse().join('/'):'—';
@@ -61,8 +63,7 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
     return ()=>ctrl.abort();
   },[source,days,status,search,offset,revision,salesRevision,retry,onSummary]);
   const counts=data?.kpis||{};
-  const countFor=s=>counts[s==='SOLD'?'sold':s==='NEW'?'new':s==='LOW_VOLUME'?'low_volume':
-    s==='INSUFFICIENT'?'insufficient':s.toLowerCase()];
+  const countFor=s=>counts[s.toLowerCase()];
   const rows=Array.isArray(data?.items)?data.items:[];
   const total=Number(data?.total||0);
   const incomplete=(data?.coverage||[]).filter(v=>
@@ -85,15 +86,20 @@ export default function CommerceSalesEvolution({platform='TODAS',onPlatformChang
       <label><CommercialIcon name="calendar-days" size={17}/>Comparar períodos<select value={days} onChange={e=>{const selected=Number(e.target.value);setDays(selected);onPeriodChange(selected);}}>
         {[7,30,60,90].map(n=><option value={n} key={n}>{n} dias × {n} anteriores</option>)}
       </select></label>
-      <label><CommercialIcon name="circle-alert" size={17}/>Situação das vendas<select value={status} onChange={e=>onStatusChange(e.target.value)}
+      <label><CommercialIcon name="circle-alert" size={17}/>Situação das vendas<select
+        value={statuses.some(([code])=>code===status)?status:''}
+        onChange={e=>onStatusChange(e.target.value)}
         aria-label="Filtrar evolução pela situação das vendas">
+        <option value="" disabled hidden>Selecionar situação</option>
         {statuses.map(([code,label])=><option value={code} key={code}>
-          {label}{data&&code!=='ALL'?' ('+num(countFor(code))+')':''}
+          {label}{data?' ('+num(countFor(code))+')':''}
         </option>)}
       </select></label>
       <label><CommercialIcon name="search" size={17}/>Pesquisar produto ou SKU<input type="search" value={draft} maxLength={120}
         onChange={e=>setDraft(e.target.value)} placeholder="Nome, SKU ou anúncio"/></label>
     </div>
+    {status!=='ALL'&&<button type="button" className="nim-evolution-clear-situation"
+      onClick={()=>onStatusChange('ALL')}>Limpar filtro de situação</button>}
     </div>
     <details className="nim-evolution-methodology">
       <summary>Como o NISTI calcula crescimento e queda?</summary>

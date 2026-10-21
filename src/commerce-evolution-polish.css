@@ -51,3 +51,8 @@
  .nim-manager .nim-evolution-results-head{gap:7px}
  .nim-manager .nim-evolution-results-head>span{font-size:9px}
 }
+
+/* Explicit clear action preserves the unfiltered overview without adding a fourth selectable status. */
+.nim-manager .nim-evolution-clear-situation{justify-self:start;min-height:28px;border:1px solid #cdddf4;border-radius:7px;background:#f5f9ff;color:#2462a7;font:inherit;font-size:10px;font-weight:750;padding:5px 10px;cursor:pointer}
+.nim-manager .nim-evolution-clear-situation:hover{background:#eaf3ff}
+.nim-manager .nim-evolution-clear-situation:focus-visible{outline:2px solid #3170e8;outline-offset:2px}
