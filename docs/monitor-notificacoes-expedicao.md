@@ -28,7 +28,7 @@ Apenas usuários autenticados com o link privado de envio podem usar o endpoint 
   também está disponível no painel de envio. O monitor não usa pareamento nem credenciais.
 - **Monitor de exibição (notebook):**
   `https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes`
-  Exibe notificações e reproduz os alertas **sem login, chave, código ou aprovação**.
+  Exibe notificações e reproduz os alertas **sem login, chave, código ou aprovação**. O painel mantém cada aviso por **15 segundos**, com **som de até 13 segundos**, repetindo o toque exclusivo da plataforma; se o navegador começar a receber a chamada atrasado, o som é limitado ao tempo restante da tela. O Edge precisa permitir autoplay de áudio.
   Apenas a visualização é pública; o envio e as ferramentas administrativas permanecem protegidos.
 
 A URL curta **/painel-expedicao** sozinha não concede acesso: precisa estar com
