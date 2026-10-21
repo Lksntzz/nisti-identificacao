@@ -12,6 +12,7 @@ function jsFiles(dir) {
 
 const reviewed = new Set([
   'src/gtin-router.js',
+  'src/mural-collection-routes.js',
   'src/mural-router.js'
 ]);
 
