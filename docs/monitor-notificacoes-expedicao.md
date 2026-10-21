@@ -4,6 +4,12 @@ A área de expedição usa um **notebook Windows**, com internet e alto-falantes
 
 https://nisti-identificacao.lksntz1411.workers.dev/monitor-notificacoes
 
+## Conexão pelo painel de envio
+
+No painel privado `/painel-expedicao`, a seção **Status da transmissão** mostra **Conectar**. O clique solicita ao servidor que o monitor NISTI **já aberto no notebook** atualize sua conexão; não precisa entrar no ADM. A presença online é verificada pelo heartbeat real do notebook a cada 2 segundos. Se estiver offline, o painel informa que o navegador precisa ser aberto e oferece **Copiar link do monitor**. Essa ação não liga o notebook nem abre o navegador remotamente.
+
+Apenas usuários autenticados com o link privado de envio podem usar o endpoint `POST /api/expedition-panel/connect`. O monitor consulta um sinal revogável no banco via `nisti_dispatch_public_next_v7`, reinicia a página somente quando o sinal muda e continua exibindo as mensagens da fila sem alterar o histórico.
+
 ## URLs separadas da operação
 
 - **Painel de envio sem senha:** abre diretamente pelo link privado
