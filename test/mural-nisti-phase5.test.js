@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const mural=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
+const postRoutes=fs.readFileSync(new URL('../src/mural-post-routes.js',import.meta.url),'utf8');
 const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
 const push=fs.readFileSync(new URL('../src/web-push.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
@@ -16,9 +17,9 @@ test('product creation no longer creates automatic Mural drafts',()=>{
 });
 
 test('Mural drafts are created only through the explicit admin publication flow',()=>{
-  assert.ok(mural.includes('async function adminCreatePost'));
-  assert.ok(mural.includes("VALUES (?,'draft'"));
-  assert.ok(mural.includes("payload.published_at,payload.expires_at,'admin'"));
+  assert.ok(postRoutes.includes('async function adminCreatePost'));
+  assert.ok(postRoutes.includes("VALUES (?,'draft'"));
+  assert.ok(postRoutes.includes("payload.published_at,payload.expires_at,'admin'"));
 });
 
 test('Mural push is released and supports three publication types',()=>{
@@ -42,9 +43,9 @@ test('Mural uses dedicated Supabase push claims and cleans dead endpoints',()=>{
 });
 
 test('publishing Mural does not broadcast directly or bypass its release guard',()=>{
-  const publishStart=mural.indexOf('async function adminPublishPost');
-  const pushStart=mural.indexOf('async function adminSendPush');
-  assert.ok(publishStart>=0);
-  const publishSource=mural.slice(publishStart,pushStart>publishStart?pushStart:publishStart+4000);
+  const publishStart=postRoutes.indexOf('async function adminPublishPost');
+  const pushStart=postRoutes.indexOf('async function adminArchivePost');
+  assert.ok(publishStart>=0 && pushStart>publishStart);
+  const publishSource=postRoutes.slice(publishStart,pushStart);
   assert.equal(publishSource.includes('broadcastMuralPush'),false);
 });

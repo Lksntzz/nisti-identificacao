@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
+const postRoutes=fs.readFileSync(new URL('../src/mural-post-routes.js',import.meta.url),'utf8');
 const collectionRoutes=fs.readFileSync(new URL('../src/mural-collection-routes.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
 const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
@@ -27,7 +28,7 @@ test('collection membership rejects invalid and missing product ids',()=>{
 });
 
 test('PDP observability exposes per-publication visualizations',()=>{
-  assert.match(router,/mural_post_reads mr WHERE mr\.post_id=mp\.id\) AS reads/);
+  assert.match(postRoutes,/mural_post_reads mr WHERE mr\.post_id=mp\.id\) AS reads/);
   assert.match(dashboard,/Visualizações/);
   assert.match(dashboard,/mural-admin-views/);
   assert.match(dashboard,/Number\(row\.reads\|\|0\)/);
@@ -74,8 +75,8 @@ test('collection editor preserves explicit editorial order and never creates pro
 });
 
 test('post writes enforce current product and collection references before persistence',()=>{
-  assert.match(router,/Produto selecionado não existe\./);
-  assert.match(router,/Coleção selecionada não existe\./);
+  assert.match(postRoutes,/Produto selecionado não existe\./);
+  assert.match(postRoutes,/Coleção selecionada não existe\./);
 });
 
 test('editorial badge follows the PDP 18 character maximum',()=>{
@@ -100,10 +101,10 @@ test('admin product search exposes the same derived type used by the operator ca
 });
 
 test('editing an existing product post hydrates image type and finish preview from current product data',()=>{
-  assert.match(router,/product_image_url:/);
-  assert.match(router,/product_wireo:labels\.wireo/);
-  assert.match(router,/product_tassel:labels\.tassel/);
-  assert.match(router,/product_elastico:labels\.elastico/);
+  assert.match(postRoutes,/product_image_url:/);
+  assert.match(postRoutes,/product_wireo:labels\.wireo/);
+  assert.match(postRoutes,/product_tassel:labels\.tassel/);
+  assert.match(postRoutes,/product_elastico:labels\.elastico/);
   assert.match(admin,/image_url: sourceItem\.product_image_url/);
   assert.match(admin,/wireo: sourceItem\.product_wireo/);
 });
@@ -121,14 +122,14 @@ test('collection editor previews and removes an existing banner through the prot
 });
 
 test('publish rejects an expiration that would already precede publication',()=>{
-  assert.match(router,/A expiração deve ser posterior à data de publicação\./);
-  assert.match(router,/new Date\(current\.expires_at\) <= new Date\(publishedAt\)/);
+  assert.match(postRoutes,/A expiração deve ser posterior à data de publicação\./);
+  assert.match(postRoutes,/new Date\(current\.expires_at\) <= new Date\(publishedAt\)/);
 });
 
 test('duplicating a post creates an unscheduled draft',()=>{
-  const start=router.indexOf('async function adminDuplicatePost');
-  const end=router.indexOf('function detectImageType',start);
-  const source=router.slice(start,end);
+  const start=postRoutes.indexOf('async function adminDuplicatePost');
+  const end=postRoutes.indexOf('async function adminDeletePost',start);
+  const source=postRoutes.slice(start,end);
   assert.match(source,/null,null,'admin'/);
 });
 

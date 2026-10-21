@@ -7,6 +7,7 @@ const dashboard = fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboa
 const admin = muralAdminSource;
 const css = fs.readFileSync(new URL('../src/mural-admin.css', import.meta.url), 'utf8');
 const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
+const postRoutes = fs.readFileSync(new URL('../src/mural-post-routes.js', import.meta.url), 'utf8');
 
 test('Mural admin uses the approved publication dashboard layout', () => {
   assert.ok(admin.includes("import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx'"));
@@ -55,7 +56,7 @@ test('dashboard paginates publications and allows page-size selection', () => {
 
 test('collection thumbnails are exposed for the admin dashboard and public gate is released for operators', () => {
   assert.ok(router.includes('mc.image_key AS collection_image_key'));
-  assert.ok(router.includes('collection_image_url:row.collection_id && row.collection_image_key'));
+  assert.ok(postRoutes.includes('collection_image_url:row.collection_id && row.collection_image_key'));
   assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
 });
 
@@ -74,5 +75,5 @@ test('Mural metrics live inside Publications instead of a separate tool', () => 
   assert.ok(dashboard.includes('Visualizações'));
   assert.equal(admin.includes("section==='metrics'"), false);
   assert.equal(admin.includes("section==='qa'"), false);
-  assert.ok(router.includes("(SELECT COUNT(*) FROM mural_post_reads mr WHERE mr.post_id=mp.id) AS reads"));
+  assert.ok(postRoutes.includes("(SELECT COUNT(*) FROM mural_post_reads mr WHERE mr.post_id=mp.id) AS reads"));
 });
