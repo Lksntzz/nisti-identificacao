@@ -153,7 +153,8 @@ test('cadastro com alterações não salvas pede confirmação e permite continu
 });
 
 test('modo PC muda URL e visualização sem gravar no servidor', async browser => {
-  const { page, context, simulator } = await openAdmin(browser);
+  // O botão "Modo PC" só é exposto no viewport de celular (<=860px).
+  const { page, context, simulator } = await openAdmin(browser, { width: 390, height: 844 });
   try {
     await page.getByRole('button', { name: 'Visualizar como computador' }).click();
     await page.waitForURL(url => url.searchParams.get('desktop') === '1');
