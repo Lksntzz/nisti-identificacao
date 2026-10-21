@@ -4,7 +4,7 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { lstat, realpath, writeFile, unlink } from 'node:fs/promises';
+import { lstat, realpath, writeFile, unlink, open, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -116,13 +116,17 @@ export async function backup(folder) {
   const base='nisti-supabase-'+date;
   const archive=path.join(destination,base+'.dump');
   const manifest=path.join(destination,base+'.json');
-  // Exclusive file creation: never overwrite an existing backup.
+  // Reserve the file exclusively: a backup from another run is never overwritten.
+  const reserved=await open(archive,'wx',0o600);
+  await reserved.close();
   // pg_dump -Fc is compressed and allows inspection without a restore.
   try {
     await command('pg_dump',[
       '--format=custom','--compress=6','--no-owner','--no-acl',
       '--file='+archive
     ],{timeoutMs:300000});
+    const dumped=await stat(archive);
+    if(dumped.size<1024)throw Error('Backup retornou arquivo vazio ou inválido.');
     await command('pg_restore',['--list',archive],{timeoutMs:30000});
     const sum=await sha256(archive);
     await writeFile(manifest,JSON.stringify({
