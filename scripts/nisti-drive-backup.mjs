@@ -108,7 +108,7 @@ export async function backupEncryptedForDrive(folder,passphrase) {
   const destination=await verifiedPrivateDestination(folder);
   const directory=await mkdtemp(path.join(tmpdir(),'nisti-supabase-temp-'));
   await chmod(directory,0o700);
-  let encrypted=null,manifest=null;
+  let encrypted=null,manifest=null,createdEncrypted=false,createdManifest=false;
   try{
     // Uses existing 100 MB default DB size cap BEFORE any pg_dump.
     const result=await backup(directory);
@@ -117,6 +117,7 @@ export async function backupEncryptedForDrive(folder,passphrase) {
     manifest=path.join(destination,name+'.nisti.json');
     const originalHash=await sha256(result.archive);
     await encryptDump(result.archive,encrypted,passphrase);
+    createdEncrypted=true;
     const verified=await validateEncryptedDump(encrypted,passphrase);
     if(verified.sha256!==originalHash)throw Error('Falha ao conferir a integridade do backup criptografado.');
     await writeFile(manifest,JSON.stringify({
@@ -130,10 +131,11 @@ export async function backupEncryptedForDrive(folder,passphrase) {
       includesR2Images:false,
       restoreTested:false
     },null,2)+'\n',{flag:'wx',mode:0o600});
+    createdManifest=true;
     return {encrypted,manifest,usage:result.usage};
   }catch(error){
-    if(encrypted)await unlink(encrypted).catch(()=>{});
-    if(manifest)await unlink(manifest).catch(()=>{});
+    if(createdEncrypted&&encrypted)await unlink(encrypted).catch(()=>{});
+    if(createdManifest&&manifest)await unlink(manifest).catch(()=>{});
     throw error;
   }finally{
     // Never sync or upload raw database dumps.
