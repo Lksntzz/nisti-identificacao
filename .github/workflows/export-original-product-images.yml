@@ -34,6 +34,19 @@ jobs:
           SUPABASE_URL: https://yioetdcbgorunwgwuawg.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
+      - name: Verify required secrets
+        shell: bash
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NISTI_IMAGE_EXPORT_PASSPHRASE: ${{ secrets.NISTI_IMAGE_EXPORT_PASSPHRASE }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_SERVICE_ROLE_KEY}" || -z "${CLOUDFLARE_API_TOKEN}" || ${#NISTI_IMAGE_EXPORT_PASSPHRASE} -lt 20 ]]; then
+            echo "::error::Configure os Secrets protegidos do Supabase, R2 e senha de exportação (20+ caracteres)."
+            exit 1
+          fi
+
       - name: Download original objects from R2
         run: node scripts/export-original-product-images.mjs export/products.json export
         env:
@@ -45,11 +58,16 @@ jobs:
           cd export
           zip -q -r nisti-imagens-originais.zip original-images manifest.csv export-summary.json failures.txt
 
-      - name: Upload ZIP
+      - name: Encrypt ZIP before upload
+        run: node scripts/nisti-encrypt-image-export.mjs encrypt export/nisti-imagens-originais.zip export/nisti-imagens-originais.zip.nisti.enc
+        env:
+          NISTI_IMAGE_EXPORT_PASSPHRASE: ${{ secrets.NISTI_IMAGE_EXPORT_PASSPHRASE }}
+
+      - name: Upload encrypted artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: nisti-imagens-originais-${{ github.run_id }}
-          path: export/nisti-imagens-originais.zip
+          name: nisti-imagens-originais-criptografadas-${{ github.run_id }}
+          path: export/nisti-imagens-originais.zip.nisti.enc
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -77,7 +95,8 @@ jobs:
             message,
             '',
             '- O relatório de ausências está em \`failures.txt\`.',
-            '- Imagens tratadas não são alteradas por este workflow.'
+            '- Imagens tratadas não são alteradas por este workflow.',
+            '- O artefato ZIP é disponibilizado apenas criptografado (AES-256-GCM).'
           ].join('\\n') + '\\n';
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
           NODE
