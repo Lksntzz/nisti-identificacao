@@ -15,7 +15,7 @@ test('evolution KPIs use actual child response, not a fictitious nested kpis.kpi
     assert.match(manager,new RegExp("evolutionCount\\('"+key+"'\\)"));
     assert.match(sql,new RegExp("'"+key+"',\\(select count\\(\\*\\) from searched"));
   }
-  assert.match(manager,/evolutionReady\?num\(evolutionCounts\[key\]\):'—'/);
+  assert.match(manager,/evolutionCountReady\(key\)\?num\(evolutionCounts\[key\]\):'—'/);
 });
 
 test('commercial view navigation precedes its three filtered KPIs',()=>{
