@@ -34,6 +34,7 @@ import {
   commerceSalesAbcAds,
   commerceListingManager,
   commerceSalesEvolution,
+  commerceVariationReview,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
   commerceImportShopeeAftercare,
@@ -462,6 +463,20 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Filtros de evolução de vendas inválidos.'},400);
       return json(await commerceSalesEvolution(env,{
         platform,days,status,search,
+        limit:query(url,'limit'),offset:query(url,'offset')
+      }));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/variation-review'){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      const days=Number(query(url,'days')??30);
+      const search=String(query(url,'search')||'');
+      const onlyZero=String(query(url,'only_zero')||'0');
+      if(!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO'].includes(platform)
+        ||![30,60,90].includes(days)||search.length>120
+        ||!['0','1'].includes(onlyZero))
+        return json({error:'Filtro inválido para revisão de variações.'},400);
+      return json(await commerceVariationReview(env,{
+        platform,days,search,onlyZero:onlyZero==='1',
         limit:query(url,'limit'),offset:query(url,'offset')
       }));
     }
