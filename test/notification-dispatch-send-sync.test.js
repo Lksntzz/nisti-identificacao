@@ -100,7 +100,47 @@ test('a interface separa envio confirmado da atualização de contadores',()=>{
   assert.match(jsx,/await submitDispatchNotifications\(/);
   assert.match(jsx,/fetchOptions:\(\)=>request\(endpoints.options\)/);
   assert.match(jsx,/result.state==='options_changed'/);
-  assert.match(jsx,/setSuccess\(\(data.items\?\.length\|\|platforms.length\)/);
+  assert.match(jsx,/const count=result.data.items.length/);
+  assert.match(jsx,/showSendResult\('success'/);
+  assert.match(jsx,/showSendResult\('error'/);
+  assert.match(jsx,/showSendResult\('uncertain'/);
+  assert.match(jsx,/role="alertdialog"/);
+  assert.match(jsx,/aria-modal="true"/);
+  assert.match(jsx,/senderMode&&sendFeedback/);
   assert.match(jsx,/await refresh\(\{silent:true\}\)/);
   assert.match(jsx,/if\(!silent\)setError\(e.message\)/);
+});
+
+test('a partial success response is NOT reported as successful and preserves keys',async()=>{
+  const pending={current:null};
+  let attempt=0;
+  const config={SHOPEE:['Full'],SHEIN:['Empresa']};
+  const common={
+    platforms:['SHOPEE','SHEIN'],optionFor:name=>name==='SHOPEE'?'Full':'Empresa',
+    fetchOptions:async()=>({options:config}),pendingBatch:pending,
+    newRequestKey:()=>{attempt++;return '123e4567-e89b-42d3-a456-42661417400'+attempt;}
+  };
+  await assert.rejects(submitDispatchNotifications({...common,enqueue:async()=>({ok:true,items:[{id:1}]})}),
+    /servidor não confirmou todas/);
+  assert.equal(pending.current.length,2);
+  let keys;
+  const result=await submitDispatchNotifications({...common,enqueue:async calls=>{
+    keys=calls;return {ok:true,items:[{id:1},{id:2}]};
+  }});
+  assert.equal(result.state,'sent');
+  assert.equal(keys[0].request_key,'123e4567-e89b-42d3-a456-426614174001');
+  assert.equal(keys[1].request_key,'123e4567-e89b-42d3-a456-426614174002');
+  assert.equal(pending.current,null);
+});
+test('empty or malformed 2xx batch does not falsely confirm delivery',async()=>{
+  for(const data of [null,{}, {items:[]},{ok:false,items:[{id:5}]},{items:[{}]}]){
+    const pending={current:null};
+    await assert.rejects(submitDispatchNotifications({
+      platforms:['SHOPEE'],optionFor:()=> 'Full',
+      fetchOptions:async()=>({options:{SHOPEE:['Full']}}),
+      enqueue:async()=>data,pendingBatch:pending,
+      newRequestKey:()=> '123e4567-e89b-42d3-a456-426614174006'
+    }),/servidor não confirmou todas/);
+    assert.equal(pending.current.length,1);
+  }
 });
