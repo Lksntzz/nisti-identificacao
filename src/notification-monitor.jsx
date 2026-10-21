@@ -45,6 +45,7 @@ export default function NotificationMonitor(){
   const audioEnabledRef=useRef(false);
   const nextCallRef=useRef(null);
   const reloadPendingRef=useRef(false);
+  const reconnectMarkerRef=useRef(undefined);
   const lastDispatchActivityRef=useRef(Date.now());
   // Elimina fragmentos de links antigos. O monitor não utiliza mais credenciais.
   useEffect(()=>{
@@ -69,6 +70,15 @@ export default function NotificationMonitor(){
     try{
       const result=await post('/api/dispatch/view');
       const feed=normalizeMonitorFeed(result);
+      // Uma solicitação do painel autorizado força somente a tela aberta a
+      // renovar sua conexão. Após recarregar, a marca torna-se a linha de base.
+      const marker=typeof result.reconnect_marker==='string'?result.reconnect_marker:null;
+      if(reconnectMarkerRef.current!==undefined && marker!==reconnectMarkerRef.current){
+        reconnectMarkerRef.current=marker;
+        window.location.reload();
+        return;
+      }
+      reconnectMarkerRef.current=marker;
       const incoming=feed.call;
       const queued=feed.pending;
       const currentTime=Date.now();
