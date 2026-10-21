@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {
@@ -20,7 +20,6 @@ test('original image ZIP is encrypted, verified and decrypted only with secret',
   const zip = path.join(folder, 'test.zip');
   const encrypted = zip + '.nisti.enc';
   const recovery = path.join(folder, 'restored');
-  const { mkdir } = await import('node:fs/promises');
   try {
     await mkdir(recovery);
     await writeFile(zip, contents);
@@ -41,17 +40,20 @@ test('wrong passphrase and modified authentication tag never leave a decrypted Z
   const folder = await mkdtemp(path.join(os.tmpdir(), 'nisti-img-tamper-'));
   const zip = path.join(folder, 'test.zip');
   const encrypted = zip + '.nisti.enc';
+  const restored = path.join(folder, 'restored');
   try {
+    await mkdir(restored);
     await writeFile(zip, contents);
     await encryptImageZip(zip, encrypted, passphrase);
     await assert.rejects(() => verifyEncryptedImageZip(encrypted, 'outra-senha-longa-de-teste-2026'));
-    await assert.rejects(() => decryptImageZip(encrypted, folder, 'outra-senha-longa-de-teste-2026'), /descartada/);
+    await assert.rejects(() => decryptImageZip(encrypted, restored, 'outra-senha-longa-de-teste-2026'), /descartada/);
+    await assert.rejects(() => stat(path.join(restored, 'test.zip')), /ENOENT/);
     const bytes = await readFile(encrypted);
     bytes[bytes.length - 1] ^= 0xff;
     await writeFile(encrypted, bytes);
     await assert.rejects(() => verifyEncryptedImageZip(encrypted, passphrase));
-    const pathReturned = path.join(folder, 'test.zip');
-    assert.ok((await stat(pathReturned)).size > 0);
+    await assert.rejects(() => decryptImageZip(encrypted, restored, passphrase), /descartada/);
+    await assert.rejects(() => stat(path.join(restored, 'test.zip')), /ENOENT/);
   } finally {
     await rm(folder, { recursive:true, force:true });
   }
