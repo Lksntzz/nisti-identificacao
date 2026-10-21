@@ -5,7 +5,7 @@ Sistema operacional da NISTI PRINT para cadastro mestre de produtos, identifica�
 **Produção:** [nisti-identificacao.lksntz1411.workers.dev](https://nisti-identificacao.lksntz1411.workers.dev)  
 
 **Backups no Google Drive:** [Guia criptografado e sem custo](docs/BACKUP-GOOGLE-DRIVE-NISTI.md). **Backup gratuito:** [Google Drive com criptografia](docs/GOOGLE-DRIVE-BACKUP-NISTI.md) e [guia manual Supabase Free](docs/BACKUP-GRATUITO-NISTI.md). **Proteção e recuperação:** consulte [Plano de proteção e recuperação](docs/PLANO-PROTECAO-E-RECUPERACAO.md) para bloqueio de deploy sem PR, configuração do Ruleset no GitHub e procedimento para backups reais do Supabase/R2.
-**Última revisão deste README:** 06/10/2026
+**Última revisão deste README:** 21/10/2026
 
 ## Estado operacional atual
 
@@ -107,40 +107,28 @@ Gera códigos EAN-13 e arquivos para uso operacional.
 
 ### COMERCIAL
 
-#### Catálogo ▾
+#### Painel Comercial ▾
 
-O item **Catálogo** é um menu expansível. Clicar no item principal abre ou fecha as ferramentas; ele não redireciona o administrador para outra aplicação.
+O submenu real, definido em `src/admin-navigation.js`, contém:
 
-As ferramentas são:
+- **Painel Comercial:** reúne o catálogo de anúncios por plataforma, análise de vendas, filtros por período (7, 30, 60 e 90 dias conforme a ferramenta), vínculo por SKU, Shopee Ads e acesso aos fluxos de importação disponíveis dentro do painel comercial.
+- **Pendências:** revisão dos vínculos e divergências que necessitam de conferência humana.
 
-**Catálogo**
-
-Visão consolidada dos Produtos Mestre e anúncios de múltiplas plataformas.
-
-**Vendas**
-
-Painel de faturamento, pedidos, unidades, produtos com venda e análise de itens sem venda.
-
-**Central de Importações**
-
-Importação controlada de arquivos de catálogo e vendas, com validação e conferência antes da efetivação.
-
-**Pendências**
-
-Fila de vínculos, divergências e casos que exigem revisão.
-
-Todas essas ferramentas são renderizadas dentro do painel principal `/admin`.
-
-A rota `/admin-commerce` ainda é aceita pelo backend por compatibilidade, mas não é usada pela navegação administrativa principal.
+A área comercial é carregada dentro de `/admin`; a rota `/admin-commerce` continua apenas por compatibilidade. A opção `Central de Importações` não é um submenu lateral independente.
 
 ### BIPAGENS
 
 - **Histórico de Bipagens**
 - **EAN não Cadastrados**
 
+### COMUNICAÇÃO
+
+- **Notificações da Expedição:** painel de envio e personalização de avisos por plataforma, com histórico e monitor associado. As experiências específicas do monitor e remetente usam `/monitor-notificacoes` e `/painel-expedicao`, sujeitas às suas políticas de acesso.
+
 ### SISTEMA
 
 - **Saúde & Logs**
+- **PIN dos Operadores**
 
 ## Mural NISTI
 
@@ -333,7 +321,7 @@ O processamento externo inteligente ativo hoje é a transformação de imagem fo
 Operador / Administrador
           │
           ▼
-React 18 + Vite 6
+React 18 + Vite 8
           │
           ▼
 Cloudflare Worker
@@ -377,9 +365,11 @@ Usado para imagens originais e arquivos derivados do sistema.
 
 D1 não é a autoridade principal do sistema atual.
 
-O repositório ainda mantém scripts e migrations de compatibilidade para D1, mas o `wrangler.toml` de produção não possui binding D1 como banco operacional principal.
+O repositório ainda mantém scripts e migrations de compatibilidade para D1, mas o `wrangler.toml` de produção não possui binding D1 como banco operacional principal. Há rotinas antigas de espelhamento e workflows D1 ainda em avaliação. Não tratar o exportador de snapshot D1 como backup do Supabase.
 
-**Auditoria técnica das dependências antigas, cinco índices pendentes e histórico de 235 migrações:** [D1, Índices e Migrações — 21/10/2026](docs/AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21.md). Esta análise não executa mudanças no banco.
+**Auditoria técnica das dependências antigas, cinco índices pendentes e histórico de 235 migrações:** [D1, Índices e Migrações — 21/10/2026](docs/AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21.md). Os cinco índices estão pendentes de revisão/backup, sem DDL aplicada.
+
+**Exportação das imagens originais:** [índice Supabase e ZIP criptografado](docs/EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE.md). O workflow é manual, não exporta o bucket inteiro nem substitui um backup PostgreSQL. **Backups restauráveis Supabase/R2 ainda não foram confirmados.**
 
 ## Rotas principais
 
@@ -472,6 +462,31 @@ Migrações D1 de compatibilidade:
 npm run db:migrate
 ```
 
+## Testes de navegador com Chromium (ambiente isolado)
+
+A suíte `test-browser/browser-smoke.mjs` abre o **navegador Chromium real**, em um Vite **local**. Todas as rotas `/api/**` usadas pela interface recebem respostas **simuladas**; não utiliza logins ou dados de produção e bloqueia gravações não previstas. Testa: carregamento inicial do painel ADM; expansão e recolhimento dos menus Mural/Catálogo; menu lateral no celular; abrir e marcar atividades como lidas; confirmação de cadastro não salvo; troca entre modos PC/celular.
+
+Para executar no seu computador (Node.js 22 e dependências do navegador):
+
+```bash
+npm ci
+npm install --no-save --package-lock=false --ignore-scripts playwright@1.64.1
+npx playwright install --only-shell chromium
+npm run dev -- --host 127.0.0.1 --port 4173 --strictPort
+# em outro terminal:
+node test-browser/browser-smoke.mjs
+```
+
+A suíte não modifica o `package-lock.json` e o Playwright **não entra no bundle de produção**; versão fixada `1.64.1` no job próprio `.github/workflows/browser-smoke.yml`. No GitHub Actions, a execução usa o Chromium headless shell em alterações de interface e também pode ser disparada manualmente.
+
+**Limite importante:** esses testes verificam comportamento real da interface em um navegador com APIs simuladas. **Não são testes de integração com Supabase, Cloudflare, contas Shopee/Mercado Livre ou celulares físicos.** Devem complementar `npm test`, revisão de segurança das APIs e testes finais de implantação.
+
+## Modularização recente
+
+Quatro PRs extraíram, de `src/main.jsx`, a barra lateral (`src/admin/AdminSidebar.jsx`), o parser CSV (`src/admin/catalog-csv-parser.js`), o modal de atividades (`src/admin/AdminNotificationsModal.jsx`) e a barra superior (`src/admin/AdminTopbar.jsx`), reduzindo esse arquivo de 2.066 para 1.556 linhas sem reformular suas regras de negócios.
+
+A correção de eventos redundantes da expedição está em `src/system-notifications.js`; a taxa de notificações em produção não foi validada após o deploy. O tratamento dos EANs importados via CSV mantém uma diferença legada entre cabeçalhos e arquivos posicionais e requer correção funcional separada.
+
 ## Entrega contínua
 
 Os workflows do GitHub são responsáveis por validar alterações antes da produção.
@@ -483,6 +498,7 @@ O fluxo inclui:
 - validação local das migrations D1;
 - suíte automatizada de testes;
 - build de produção;
+- testes de interação em Chromium, em job separado e sem acesso a produção, quando arquivos pertinentes mudam;
 - detecção de mudanças de migration;
 - aplicação controlada de migrations quando necessário;
 - deploy do Worker de produção.
@@ -499,7 +515,7 @@ O deploy de produção é serializado para reduzir risco de publicações concor
 | Administração | Painel único em `/admin` |
 | Mural | Painel / Publicar / Tratamento |
 | Publicar | Produto / Informação / Coleção |
-| Catálogo | Catálogo / Vendas / Central de Importações / Pendências |
+| Menu comercial | Painel Comercial / Pendências (vendas e importações internas) |
 | Canva | OAuth ativo no tratamento de imagens e na criação de artes do Publicar |
 | Processador de imagens | Versão 25 |
 | Reconhecimento visual próprio | Removido |
