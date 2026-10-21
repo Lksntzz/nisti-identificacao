@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DISPATCH_PLATFORMS } from '../src/notification-dispatch-options.js';
-import { DISPATCH_SOUND_PATTERNS,playNotificationSound,missingSoundPlatforms } from '../src/notification-platform-sounds.js';
+import { DISPATCH_SOUND_PATTERNS,DISPATCH_SOUND_DURATION_SECONDS,notificationSoundNotes,playNotificationSound,stopNotificationSound,missingSoundPlatforms } from '../src/notification-platform-sounds.js';
 import { fetchPublishedMonitorBuild,shouldReloadMonitor,MONITOR_BUILD_CHECK_INTERVAL_MS } from '../src/notification-monitor-updates.js';
 import fs from 'node:fs';
 
@@ -36,8 +36,40 @@ test('chime plays only in running audio context',()=>{
   assert.equal(starts,0);
   ctx.state='running';
   assert.equal(playNotificationSound(ctx,'SHOPEE'),true);
-  assert.equal(starts,DISPATCH_SOUND_PATTERNS.SHOPEE.notes.length);
+  assert.equal(starts,notificationSoundNotes('SHOPEE').length);
   assert.equal(stops,starts);
+});
+
+test('all platform chimes repeat for at most 13 seconds',()=>{
+  assert.equal(DISPATCH_SOUND_DURATION_SECONDS,13);
+  for(const platform of DISPATCH_PLATFORMS){
+    const events=notificationSoundNotes(platform,13);
+    assert.ok(events.length>DISPATCH_SOUND_PATTERNS[platform].notes.length,platform);
+    assert.ok(events[events.length-1].begin>10,platform);
+    assert.ok(events.every(note=>note.begin>=0&&note.duration>=0.065&&note.begin+note.duration<=13.00001),platform);
+    assert.deepEqual(notificationSoundNotes(platform,0),[]);
+    const shortened=notificationSoundNotes(platform,3.25);
+    assert.ok(shortened.every(note=>note.begin+note.duration<=3.25001),platform);
+    assert.equal(notificationSoundNotes(platform,99).length,events.length);
+  }
+});
+
+test('a new call stops scheduled audio; no notes extend past the 13-second limit',()=>{
+  const starts=[],stops=[];
+  const ctx={state:'running',currentTime:50,destination:{},
+    createOscillator(){return {frequency:{value:0},connect(){},disconnect(){},start(t){starts.push(t)},stop(t){stops.push(t)}}},
+    createGain(){return {gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}}}
+  };
+  assert.equal(playNotificationSound(ctx,'AMAZON',13),true);
+  assert.ok(starts.length>10);
+  assert.ok(Math.max(...stops)<=63.00801);
+  const oldCount=stops.length;
+  assert.equal(playNotificationSound(ctx,'SHEIN',2),true);
+  assert.ok(stops.length>oldCount,'prior call cancelled');
+  const count=stops.length;
+  stopNotificationSound(ctx);
+  assert.ok(stops.length>count,'current call can be stopped');
+  assert.equal(playNotificationSound(ctx,'AMAZON',0),false);
 });
 
 test('monitor build check avoids service-worker asset cache and ignores invalid responses',async()=>{
