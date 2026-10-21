@@ -1,8 +1,9 @@
+import { muralAdminSource } from './helpers/mural-admin-source.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const admin=fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx',import.meta.url),'utf8');
+const admin = muralAdminSource;
 const css=fs.readFileSync(new URL('../src/mural-admin.css',import.meta.url),'utf8');
 
 test('Mural admin is controlled only by the main panel submenu',()=>{
