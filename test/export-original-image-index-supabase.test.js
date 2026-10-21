@@ -86,5 +86,9 @@ test('R2 original exporter is manual-only and no longer reads D1 index', () => {
   assert.match(workflow, /Read original image index from Supabase/);
   assert.match(workflow, /secrets\.SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(workflow, /scripts\/export-original-image-index-supabase\.mjs/);
+  assert.match(workflow, /scripts\/nisti-encrypt-image-export\.mjs encrypt/);
+  assert.match(workflow, /secrets\.NISTI_IMAGE_EXPORT_PASSPHRASE/);
+  assert.match(workflow, /path: export\/nisti-imagens-originais\.zip\.nisti\.enc/);
+  assert.doesNotMatch(workflow, /path: export\/nisti-imagens-originais\.zip\s*$/m);
   assert.match(downloader, /Array\.isArray\(batch\?\.results\)/);
 });
