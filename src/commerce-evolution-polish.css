@@ -56,3 +56,38 @@
 .nim-manager .nim-evolution-clear-situation{justify-self:start;min-height:28px;border:1px solid #cdddf4;border-radius:7px;background:#f5f9ff;color:#2462a7;font:inherit;font-size:10px;font-weight:750;padding:5px 10px;cursor:pointer}
 .nim-manager .nim-evolution-clear-situation:hover{background:#eaf3ff}
 .nim-manager .nim-evolution-clear-situation:focus-visible{outline:2px solid #3170e8;outline-offset:2px}
+
+
+/* Zero-sales analysis: one verified active advertisement per row, never SKU. */
+.nim-manager .nim-evolution-zero-listings{display:grid;min-width:0;border:1px solid #e2eaf5;border-radius:11px;background:#fff;overflow:hidden}
+.nim-manager .nim-evolution-zero-columns,.nim-manager .nim-evolution-zero-listing{display:grid;grid-template-columns:minmax(0,2.5fr) minmax(100px,1fr) minmax(125px,1.1fr) minmax(92px,.7fr) minmax(90px,.8fr);gap:12px;align-items:center;padding:10px 15px}
+.nim-manager .nim-evolution-zero-columns{font-size:10px;font-weight:800;background:#f7f9fc;color:#607895;border-bottom:1px solid #e7eef7}
+.nim-manager .nim-evolution-zero-listing{min-height:75px;border-bottom:1px solid #e8eef6;font-size:11px;color:#405673}
+.nim-manager .nim-evolution-zero-listing:last-child{border-bottom:0}
+.nim-manager .nim-evolution-zero-listing:hover{background:#f8fbff}
+.nim-manager .nim-evolution-zero-title{display:flex;align-items:center;gap:10px;min-width:0}
+.nim-manager .nim-evolution-zero-title>svg{color:#5b80b0;flex:none}
+.nim-manager .nim-evolution-zero-title>div{display:grid;gap:4px;min-width:0}
+.nim-manager .nim-evolution-zero-title strong{font-size:11px;color:#223957;line-height:1.4;overflow-wrap:anywhere}
+.nim-manager .nim-evolution-zero-title small{font-size:9px;color:#8394aa}
+.nim-manager .nim-evolution-zero-id{display:grid;gap:5px;min-width:0}
+.nim-manager .nim-evolution-zero-id strong{font-size:10px;font-weight:800;word-break:break-all}
+.nim-manager .nim-evolution-zero-id a{font-size:10px;color:#2467c5;text-decoration:none;font-weight:750}
+.nim-manager .nim-evolution-zero-id a:hover{text-decoration:underline}
+.nim-manager .nim-evolution-zero-units{display:flex;gap:5px;align-items:center;font-size:11px;color:#b24d62;white-space:nowrap}
+.nim-manager .nim-evolution-zero-units svg{color:#b24d62}
+.nim-manager .nim-evolution-zero-variations{font-size:10px;color:#697f9b}
+@media(max-width:1020px){
+ .nim-manager .nim-evolution-zero-columns{display:none}
+ .nim-manager .nim-evolution-zero-listing{grid-template-columns:minmax(0,2fr) minmax(90px,1fr) minmax(120px,1fr);gap:8px}
+ .nim-manager .nim-evolution-zero-units{grid-column:2}
+ .nim-manager .nim-evolution-zero-variations{grid-column:3}
+}
+@media(max-width:650px){
+ .nim-manager .nim-evolution-zero-listing{grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;padding:12px}
+ .nim-manager .nim-evolution-zero-title{grid-column:1/-1}
+ .nim-manager .nim-evolution-zero-id{grid-column:1}
+ .nim-manager .nim-evolution-zero-platform{grid-column:2;grid-row:2;text-align:right}
+ .nim-manager .nim-evolution-zero-units{grid-column:1;grid-row:3}
+ .nim-manager .nim-evolution-zero-variations{grid-column:2;grid-row:3;text-align:right}
+}
