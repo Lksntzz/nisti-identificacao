@@ -33,7 +33,7 @@ test('evolução apresenta anúncio expansível, séries reais e variações 30 
   assert.match(view,/function VariationTable/);
   assert.match(view,/WINDOWS=\[30,60,90\]/);
   assert.match(view,/identified_units/);
-  assert.match(view,/não são comprovadas pelos relatórios/);
+  assert.match(view,/Os resultados são calculados somente sobre os registros importados/);
   assert.match(css,/@media\(max-width:560px\)/);
   assert.match(css,/@media\(max-width:850px\)/);
 });
