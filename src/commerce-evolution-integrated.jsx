@@ -22,6 +22,10 @@ const variationState=(v,d)=>{
   if(Number(units)===0)return 'ZERO';
   return v['coverage_'+d]===true?'SOLD':'PARTIAL';
 };
+const variationStateForAd=(v,d,ad)=>{
+  const state=variationState(v,d);
+  return state==='ZERO'&&Number(ad?.['unlinked_'+d])>0?'UNKNOWN':state;
+};
 const situationName=s=>({
   ZERO:'Sem vendas',STABLE:'Estável',RISING:'Crescimento',
   FALLING:'Revisar queda',INSUFFICIENT:'Dados pendentes'
@@ -93,7 +97,7 @@ function WeeklyChart({listingId}){
   </div>;
 }
 function Investigation({variation,days,ad}){
-  const st=variationState(variation,days);
+  const st=variationStateForAd(variation,days,ad);
   if(st==='LINK'){
     const why=variation.match_issue==='MISSING_SKU'?'SKU ausente no catálogo':
       variation.match_issue==='DUPLICATE_SKU'?'SKU duplicado entre variações':
@@ -102,8 +106,12 @@ function Investigation({variation,days,ad}){
       <p>Corrija ou aprove o vínculo antes de concluir que esta variação não vendeu.</p></div>;
   }
   if(st==='UNKNOWN')return <div className="nei-reason">
-    <strong>Período com cobertura incompleta</strong>
-    <p>Não é possível afirmar vendas zero. Importe os relatórios dos dias ausentes.</p>
+    <strong>{Number(ad?.['unlinked_'+days])>0
+      ?'Venda identificada no anúncio sem atribuição de SKU'
+      :'Período com cobertura incompleta'}</strong>
+    <p>{Number(ad?.['unlinked_'+days])>0
+      ?'O anúncio possui vendas sem vínculo confiável com esta variação. Não é possível afirmar zero.'
+      :'Não é possível afirmar vendas zero. Importe os relatórios dos dias ausentes.'}</p>
   </div>;
   if(st==='ZERO'){
     const earlier=days===30&&known(variation.units_60)&&variation.units_60>0
@@ -120,7 +128,7 @@ function Investigation({variation,days,ad}){
 function VariationTable({ad,days}){
   const [issuesOnly,setIssuesOnly]=useState(false);
   const all=Array.isArray(ad.variations)?ad.variations:[];
-  const shown=all.filter(v=>!issuesOnly||['ZERO','LINK','UNKNOWN','PARTIAL'].includes(variationState(v,days)));
+  const shown=all.filter(v=>!issuesOnly||['ZERO','LINK','UNKNOWN','PARTIAL'].includes(variationStateForAd(v,days,ad)));
   return <div className="nei-variations">
     <div className="nei-subheading"><strong>Variações vinculadas ({number(ad.variation_count??all.length)})</strong>
       <label><input type="checkbox" checked={issuesOnly}
@@ -129,10 +137,12 @@ function VariationTable({ad,days}){
       <th>Variação / SKU</th>{WINDOWS.map(n=><th key={n}>Vendas {n} dias</th>)}
       <th>Situação</th><th>Observações e possíveis motivos</th>
     </tr></thead><tbody>{shown.map(v=>{
-      const st=variationState(v,days);
+      const st=variationStateForAd(v,days,ad);
       return <tr key={v.id}>
         <td><strong>{v.name}</strong><small>{v.sku||'SKU não informado'}</small></td>
-        {WINDOWS.map(n=><td key={n}><Value value={variationSales(v,n)}
+        {WINDOWS.map(n=><td key={n}><Value
+          value={Number(ad['unlinked_'+n])>0&&Number(variationSales(v,n))===0
+            ?null:variationSales(v,n)}
           identified={v.match_verified?v['identified_'+n]:null}
           coverage={v['coverage_'+n]===true}/></td>)}
         <td><span className={'nei-pill '+st.toLowerCase()}>{({
@@ -149,7 +159,7 @@ function VariationTable({ad,days}){
 function VariationSummary({ad,days}){
   const variations=Array.isArray(ad.variations)?ad.variations:[];
   const counts=variations.reduce((acc,v)=>{
-    const state=variationState(v,days);
+    const state=variationStateForAd(v,days,ad);
     if(state==='SOLD'||state==='PARTIAL')acc.sold++;
     else if(state==='ZERO')acc.zero++;
     else acc.pending++;
