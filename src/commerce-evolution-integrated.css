@@ -43,6 +43,15 @@
 .nei-ad-main{display:grid;gap:5px;min-width:0}
 .nei-ad-main>strong{font-size:11px;line-height:1.4;font-weight:800;color:#1a3354;overflow-wrap:anywhere}
 .nei-ad-main>.nei-zero-observed{font-size:9px;color:#a66b27;font-weight:750;line-height:1.35}
+.nei-zero-sales-bar{display:flex;flex-wrap:wrap;align-items:center;gap:7px 18px;padding:10px 14px;border:1px solid #dbe6f4;border-radius:9px;background:#f7faff;font-size:11px}
+.nei-zero-sales-bar strong{color:#294b75}
+.nei-zero-sales-bar small{color:#7589a2;font-size:10px;line-height:1.4}
+.nei-zero-sku-preview{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;border-top:1px solid #e6edf6;padding:8px 13px;background:#fffaf7;font-size:10px}
+.nei-zero-sku-preview>strong{color:#81593b;font-size:10px}
+.nei-zero-sku-preview>span{display:inline-flex;gap:5px;max-width:100%;align-items:center;padding:5px 8px;border:1px solid #e9d9ca;border-radius:6px;background:#fff;color:#76472b;font-weight:700}
+.nei-zero-sku-preview>span small{color:#8997a7;font-size:9px;font-weight:500;overflow-wrap:anywhere}
+.nei-zero-sku-preview>small{font-weight:700;color:#536d91}
+.nei-pill.zero-variation{background:#fff4e5;color:#96621c}
 .nei-zero-filter-notice{margin:0;padding:10px 13px;border-radius:8px;border:1px solid #f0d9b5;background:#fffaf2;color:#795625;font-size:10px;line-height:1.6}
 .nei-zero-filter-notice strong{font-weight:850}
 .nei-ad-main>small{color:#8094ae;font-size:9px;line-height:1.4;overflow-wrap:anywhere}

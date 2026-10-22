@@ -58,7 +58,7 @@ test('no imported window does not fabricate any zero value',()=>{
 });
 
 test('compact cards and variation rows show evidence and limit message',()=>{
-  assert.match(view,/function Value\(\{value,identified=null,coverage=true\}\)/);
+  assert.match(view,/function Value\(\{value,identified=null,coverage=true,observed=false\}\)/);
   assert.match(view,/Number\(identified\)>0\?'≥ '/);
   assert.match(view,/:'0 identificadas'/);
   assert.match(view,/adRevenueLabel\(ad,n\)/);
