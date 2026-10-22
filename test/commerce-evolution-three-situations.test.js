@@ -18,7 +18,7 @@ test('Situação das vendas oferece somente Sem vendas, Estável e Crescimento',
 
 test('visão geral recuperável pelo cartão Total, sem quarta situação selecionável',()=>{
  assert.match(child,/onClick=\{\(\)=>onStatusChange\(card\.id\)\}/);
- assert.match(child,/id:'ALL',label:'Total no filtro'/);
+ assert.match(child,/id:'ALL',label:'Total de anúncios'/);
  assert.match(child,/onStatusChange\('ALL'\)/);
  assert.match(child,/<option value="ALL" disabled hidden>/);
 });
