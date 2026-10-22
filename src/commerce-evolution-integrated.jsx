@@ -26,7 +26,8 @@ const observedVariationCounts=(ad,days)=>{
   const variations=Array.isArray(ad?.variations)?ad.variations:[];
   return variations.reduce((acc,v)=>{
     const identified=v?.['identified_'+days];
-    if(!v.match_verified||!known(identified))acc.pending++;
+    if(!v.match_verified||!known(identified)
+      ||Number(identified)===0&&Number(ad?.['unlinked_'+days])>0)acc.pending++;
     else if(Number(identified)>0)acc.sold++;
     else acc.withoutSales++;
     return acc;
@@ -175,12 +176,14 @@ function VariationTable({ad,days,focusWithoutSales=false}){
         {WINDOWS.map(n=><td key={n}><Value
           value={Number(ad['unlinked_'+n])>0&&Number(variationSales(v,n))===0
             ?null:variationSales(v,n)}
-          identified={v.match_verified?v['identified_'+n]:null}
+          identified={v.match_verified&&!(Number(ad['unlinked_'+n])>0
+            &&Number(v['identified_'+n])===0)?v['identified_'+n]:null}
           coverage={v['coverage_'+n]===true}/></td>)}
         <td><span className={'nei-pill '+st.toLowerCase()}>{({
           ZERO:'Sem vendas',SOLD:'Com vendas',PARTIAL:'Venda identificada',
           LINK:'SKU pendente',
-          UNKNOWN:v.match_verified&&known(v['identified_'+days])&&Number(v['identified_'+days])===0
+          UNKNOWN:Number(ad['unlinked_'+days])>0?'Vínculo pendente':
+            v.match_verified&&known(v['identified_'+days])&&Number(v['identified_'+days])===0
             ?'Sem venda identificada':'Sem comprovação'
         })[st]}</span></td>
         <td><Investigation variation={v} days={days} ad={ad}/>{!['ZERO','LINK','UNKNOWN'].includes(st)
@@ -265,8 +268,8 @@ function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
       {ad['coverage_'+days]===false&&<p className="nei-partial-note" role="note">
         Os valores indicados como identificados refletem apenas as vendas presentes nos
         relatórios importados. Sem cobertura completa, zero identificado não comprova
-        ausência de vendas.
-      </p>}
+        ausência de vendas. Não é possível afirmar vendas zero sem cobertura completa.
+      </p>
       <VariationTable ad={ad} days={days} focusWithoutSales={focusWithoutSales}/>
       <div className="nei-weekly-section">
         <button type="button" className="nei-weekly-toggle" aria-expanded={showWeekly}
