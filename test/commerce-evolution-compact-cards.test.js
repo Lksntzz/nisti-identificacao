@@ -18,7 +18,7 @@ test('commercial detail keeps 30/60/90 values compact and shows variation data f
 
 test('variation summary counts verified sales, confirmed zero and pending separately',()=>{
   assert.match(view,/function VariationSummary\(\{ad,days\}\)/);
-  assert.match(view,/const state=variationState\(v,days\)/);
+  assert.match(view,/const state=variationStateForAd\(v,days,ad\)/);
   assert.match(view,/state==='SOLD'\|\|state==='PARTIAL'/);
   assert.match(view,/else if\(state==='ZERO'\)acc\.zero\+\+/);
   assert.match(view,/else acc\.pending\+\+/);
