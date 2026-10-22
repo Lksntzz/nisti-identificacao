@@ -17,7 +17,7 @@ const source=[
   cut('const observedVariationCounts=', 'const variationStateForAd=')
 ].join('\n');
 const {verifiedUnsoldVariations,adUnitsLabel,adRevenueLabel}=vm.runInNewContext(
-  source+'\n({verifiedUnsoldVariations,recordedUnits,recordedRevenue})',{Intl}
+  source+'\n({verifiedUnsoldVariations,adUnitsLabel,adRevenueLabel})',{Intl}
 );
 
 test('zero filter exposes ten real Shopee SKU variations with no recorded sales',()=>{
