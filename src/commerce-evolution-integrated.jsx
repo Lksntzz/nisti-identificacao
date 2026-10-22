@@ -269,7 +269,7 @@ function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
         Os valores indicados como identificados refletem apenas as vendas presentes nos
         relatórios importados. Sem cobertura completa, zero identificado não comprova
         ausência de vendas. Não é possível afirmar vendas zero sem cobertura completa.
-      </p>
+      </p>}
       <VariationTable ad={ad} days={days} focusWithoutSales={focusWithoutSales}/>
       <div className="nei-weekly-section">
         <button type="button" className="nei-weekly-toggle" aria-expanded={showWeekly}
