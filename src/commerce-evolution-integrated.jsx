@@ -48,8 +48,11 @@ const recordedUnits=(ad,d)=>ad?.period_end&&known(ad?.['identified_'+d])
 const recordedRevenue=(ad,d)=>ad?.period_end&&known(ad?.['revenue_'+d])
   ?money(ad['revenue_'+d]):'—';
 const variationStateForAd=(v,d,ad)=>{
-  const state=variationState(v,d);
-  return state==='ZERO'&&Number(ad?.['unlinked_'+d])>0?'UNKNOWN':state;
+  if(!v.match_verified)return 'LINK';
+  const identified=v?.['identified_'+d];
+  if(!known(identified))return 'UNKNOWN';
+  if(Number(identified)===0&&Number(ad?.['unlinked_'+d])>0)return 'UNKNOWN';
+  return Number(identified)>0?'SOLD':'ZERO';
 };
 const situationName=s=>({
   ZERO:'Sem vendas',STABLE:'Estável',RISING:'Crescimento',
@@ -147,10 +150,10 @@ function Investigation({variation,days,ad}){
     const earlier=days===30&&known(variation.units_60)&&variation.units_60>0
       ?'Há vendas anteriores dentro da janela de 60 dias.':'';
     return <div className="nei-reason">
-      <strong>Sem vendas confirmadas em {days} dias</strong>
-      <p>{earlier} {Number(ad.sold_variations)>0?'Outras variações do anúncio venderam.':''}
-        {' '}Para investigar a causa, confira estoque, preço, apresentação, disponibilidade e tráfego da variação.
-        Essas causas ainda não são comprovadas pelos relatórios.</p>
+      <strong>0 vendas registradas em {days} dias</strong>
+      <p>{earlier} {observedVariationCounts(ad,days).sold>0
+        ?'Outras variações do anúncio tiveram vendas registradas.':''}
+        {' '}A quantidade corresponde ao SKU nos relatórios importados.</p>
     </div>;
   }
   return null;
@@ -178,10 +181,10 @@ function VariationTable({ad,days,focusWithoutSales=false}){
             ?null:variationSales(v,n)}
           identified={v.match_verified&&!(Number(ad['unlinked_'+n])>0
             &&Number(v['identified_'+n])===0)?v['identified_'+n]:null}
-          coverage={v['coverage_'+n]===true} observed={focusWithoutSales}/></td>)}
+          coverage={v['coverage_'+n]===true} observed={true}/></td>)}
         <td><span className={'nei-pill '+(focusWithoutSales?'zero':st.toLowerCase())}>
           {focusWithoutSales?'0 vendas registradas':({
-          ZERO:'Sem vendas',SOLD:'Com vendas',PARTIAL:'Venda identificada',
+          ZERO:'0 vendas registradas',SOLD:'Com vendas',PARTIAL:'Venda identificada',
           LINK:'SKU pendente',
           UNKNOWN:Number(ad['unlinked_'+days])>0?'Vínculo pendente':
             v.match_verified&&known(v['identified_'+days])&&Number(v['identified_'+days])===0
