@@ -6,7 +6,7 @@ const jsx=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
 const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
 
 test('first listing opens real details immediately and others expose a clear action',()=>{
-  assert.match(jsx,/function Advertisement\(\{ad,days,initialExpanded=false\}\)/);
+  assert.match(jsx,/function Advertisement\(\{ad,days,initialExpanded=false,focusWithoutSales=false\}\)/);
   assert.match(jsx,/\[expanded,setExpanded\]=useState\(initialExpanded\)/);
   assert.match(jsx,/rows\.map\(ad=><Advertisement/);
   assert.match(jsx,/initialExpanded=\{ad\.listing_id===rows\[0\]\?\.listing_id\}/);
