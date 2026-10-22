@@ -129,7 +129,10 @@ with input as (
  select l.id listing_id,
    coalesce(sum(d.units) filter(where d.sale_date between c.end_date-29 and c.end_date),0)::bigint total_30,
    coalesce(sum(d.units) filter(where d.sale_date between c.end_date-59 and c.end_date),0)::bigint total_60,
-   coalesce(sum(d.units) filter(where d.sale_date between c.end_date-89 and c.end_date),0)::bigint total_90
+   coalesce(sum(d.units) filter(where d.sale_date between c.end_date-89 and c.end_date),0)::bigint total_90,
+   round(coalesce(sum(d.product_revenue) filter(where d.sale_date between c.end_date-29 and c.end_date),0),2) revenue_30,
+   round(coalesce(sum(d.product_revenue) filter(where d.sale_date between c.end_date-59 and c.end_date),0),2) revenue_60,
+   round(coalesce(sum(d.product_revenue) filter(where d.sale_date between c.end_date-89 and c.end_date),0),2) revenue_90
  from listing_base l
  join source_coverage c on c.source=l.source
  left join daily d on d.source=l.source
@@ -188,6 +191,12 @@ with input as (
    coalesce(ad.total_30,0) identified_30,
    coalesce(ad.total_60,0) identified_60,
    coalesce(ad.total_90,0) identified_90,
+   coalesce(ad.revenue_30,0) revenue_30,
+   coalesce(ad.revenue_60,0) revenue_60,
+   coalesce(ad.revenue_90,0) revenue_90,
+   bool_and(v.complete_30) coverage_30,
+   bool_and(v.complete_60) coverage_60,
+   bool_and(v.complete_90) coverage_90,
    greatest(0,coalesce(ad.total_30,0)-coalesce(sum(v.actual_30) filter(where v.match_verified),0)) unlinked_30,
    greatest(0,coalesce(ad.total_60,0)-coalesce(sum(v.actual_60) filter(where v.match_verified),0)) unlinked_60,
    greatest(0,coalesce(ad.total_90,0)-coalesce(sum(v.actual_90) filter(where v.match_verified),0)) unlinked_90,
@@ -207,7 +216,7 @@ with input as (
    ) order by v.variation_name,v.variation_id,v.listing_product_id) variations
  from safe_variation v
  join ad_daily ad on ad.listing_id=v.listing_id
- group by v.listing_id,ad.total_30,ad.total_60,ad.total_90
+ group by v.listing_id,ad.total_30,ad.total_60,ad.total_90,ad.revenue_30,ad.revenue_60,ad.revenue_90
 ), classified as (
  select a.*,
    case
