@@ -39,6 +39,12 @@ const adUnitsLabel=(ad,n)=>known(ad?.['units_'+n])
     ?number(ad['identified_'+n])+' un.':'—';
 const adRevenueLabel=(ad,n)=>ad?.period_end&&known(ad?.['revenue_'+n])
   ?money(ad['revenue_'+n]):'—';
+const adTrend=(ad)=>{
+  if(!known(ad?.current_window_units)||!known(ad?.previous_window_units))return null;
+  const current=Number(ad.current_window_units),previous=Number(ad.previous_window_units);
+  return {current,previous,delta:current-previous,
+    percent:previous>0?Math.round((current-previous)*1000/previous)/10:null};
+};
 const verifiedUnsoldVariations=(ad,d)=>{
   if(Number(ad?.['unlinked_'+d])>0)return [];
   return (Array.isArray(ad?.variations)?ad.variations:[])
@@ -219,6 +225,7 @@ function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
     &&Number(ad['identified_'+days])===0;
   const hasSales=ad.period_end&&Number(ad['identified_'+days])>0;
   const unitLabel=n=>adUnitsLabel(ad,n);
+  const trend=['STABLE','RISING','FALLING'].includes(badge)?adTrend(ad):null;
   return <article className={'nei-ad '+(expanded?'expanded':'')}>
     <button type="button" className="nei-ad-summary" onClick={()=>setExpanded(!expanded)}
       aria-expanded={expanded} aria-label={'Detalhes do anúncio '+ad.external_listing_id}>
@@ -282,6 +289,17 @@ function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
         mas não são atribuídas a um SKU arbitrariamente.
       </p>}
 
+      {trend&&<div className="nei-trend-records" role="group"
+        aria-label={'Comparação de '+days+' dias com o período anterior'}>
+        <strong>{days} dias atuais: {number(trend.current)} un.</strong>
+        <span>{days} dias anteriores: {number(trend.previous)} un.</span>
+        <span className={'nei-trend-delta '+(trend.delta>0?'positive':trend.delta<0?'negative':'')}>
+          {trend.delta>0?'+':''}{number(trend.delta)} un.
+          {trend.percent!==null&&' ('+(trend.percent>0?'+':'')+
+            new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1}).format(trend.percent)+'%)'}
+        </span>
+        <small>Comparação entre períodos iguais nos relatórios importados.</small>
+      </div>}
       <VariationTable ad={ad} days={days} focusWithoutSales={focusWithoutSales}/>
       <div className="nei-weekly-section">
         <button type="button" className="nei-weekly-toggle" aria-expanded={showWeekly}
@@ -330,8 +348,8 @@ export default function CommerceEvolutionIntegrated({
   const kpis=report?.kpis||{},coverage=Array.isArray(report?.coverage)?report.coverage:[];
   const cards=[
     {id:'ZERO',label:'Sem vendas',value:kpis.zero,icon:'circle-alert',detail:'Anúncios ou variações sem vendas identificadas'},
-    {id:'STABLE',label:'Estável',value:kpis.stable,icon:'layout-list',detail:'Anúncios com vendas estáveis'},
-    {id:'RISING',label:'Crescimento',value:kpis.rising,icon:'trending-up',detail:'Anúncios com crescimento confirmado'},
+    {id:'STABLE',label:'Estável',value:kpis.stable,icon:'layout-list',detail:'Vendas próximas ao período anterior'},
+    {id:'RISING',label:'Crescimento',value:kpis.rising,icon:'trending-up',detail:'Alta de 20% e ao menos 2 unidades'},
     {id:'ALL',label:'Total de anúncios',value:kpis.total,icon:'package',detail:'Total na plataforma e pesquisa, sem filtro de situação'}
   ];
   return <section className="nei-dashboard" aria-label="Evolução de vendas por anúncio">
