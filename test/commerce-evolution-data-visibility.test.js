@@ -15,10 +15,10 @@ test('first listing opens real details immediately and others expose a clear act
   assert.match(css,/\.nei-details-label\{font-size:10px;font-weight:800\}/);
 });
 
-test('ad row shows sold zero and pending variation breakdown from report, not estimates',()=>{
-  assert.match(jsx,/Number\(ad\.sold_variations\)>0/);
-  assert.match(jsx,/Number\(ad\.zero_variations\)>0/);
-  assert.match(jsx,/Number\(ad\.unknown_variations\)>0/);
+test('ad row shows observed sold zeros and pending counts from verified variation records',()=>{
+  assert.match(jsx,/observedVariationCounts\(ad,days\)/);
+  assert.match(jsx,/counts\.withoutSales>0/);
+  assert.match(jsx,/counts\.pending>0/);
   assert.match(jsx,/kpis\.without_proof/);
   assert.match(jsx,/com pelo menos uma variação sem comprovação/);
   assert.match(jsx,/variationSales\(v,n\)/);

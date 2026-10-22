@@ -25,7 +25,7 @@ test('approved design has ad-level filters, four cards, expandable 30 60 90 rows
   assert.match(view,/const STATUS=\[\['ZERO','Sem vendas'\],\['STABLE','Estável'\],\['RISING','Crescimento'\]\]/);
   assert.match(view,/const PAGE=12,WINDOWS=\[30,60,90\]/);
   assert.match(view,/const cards=\[/);
-  for(const label of ['Sem vendas','Estável','Crescimento','Total no filtro'])
+  for(const label of ['Sem vendas','Estável','Crescimento','Total de anúncios'])
     assert.ok(view.includes(label),label);
   assert.match(view,/aria-expanded=\{expanded\}/);
   assert.match(view,/rows\.map\(ad=><Advertisement/);
