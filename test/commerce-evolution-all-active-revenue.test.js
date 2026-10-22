@@ -55,7 +55,7 @@ test('zero-sales classification cannot include ads with unmatched but identified
   assert.match(guard,/then 0\s+else count\(\*\) filter\(where/);
   assert.match(guard,/then count\(\*\) filter\(where \(/);
   assert.match(guard,/unknown_variations/);
-  assert.match(jsx,/variationStateForAd\(v,d,ad\)/);
+  assert.match(jsx,/const variationStateForAd=\(v,d,ad\)/);
   assert.match(jsx,/Number\(ad\?\.\['unlinked_'\+d\]\)>0/);
   assert.match(jsx,/sem vínculo confiável com uma variação/);
 });
