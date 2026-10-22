@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const migration=fs.readFileSync('supabase/migrations/20261022170000_commerce_evolution_all_active_sales_v2.sql','utf8');
+const guard=fs.readFileSync('supabase/migrations/20261022173000_commerce_evolution_zero_guard_v1.sql','utf8');
 const jsx=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
 const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
 
@@ -48,4 +49,13 @@ test('reconciliation query uses read-only service role access and bounded pagina
   assert.match(migration,/revoke all on function public\.commerce_evolution_ads_v1/);
   assert.match(migration,/to service_role/);
   assert.doesNotMatch(migration,/\b(?:update|delete from|insert into|truncate)\s+public\./i);
+});
+
+test('zero-sales classification cannot include ads with unmatched but identified sales',()=>{
+  assert.match(guard,/then 0\s+else count\(\*\) filter\(where/);
+  assert.match(guard,/then count\(\*\) filter\(where \(/);
+  assert.match(guard,/unknown_variations/);
+  assert.match(jsx,/variationStateForAd\(v,d,ad\)/);
+  assert.match(jsx,/Number\(ad\?\.\['unlinked_'\+d\]\)>0/);
+  assert.match(jsx,/sem vínculo confiável com uma variação/);
 });
