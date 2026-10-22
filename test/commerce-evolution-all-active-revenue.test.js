@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const migration=fs.readFileSync('supabase/migrations/20261022170000_commerce_evolution_all_active_sales_v2.sql','utf8');
 const guard=fs.readFileSync('supabase/migrations/20261022173000_commerce_evolution_zero_guard_v1.sql','utf8');
+const salesFirst=fs.readFileSync('supabase/migrations/20261022175000_commerce_evolution_sales_first_v1.sql','utf8');
 const jsx=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
 const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
 
@@ -58,4 +59,11 @@ test('zero-sales classification cannot include ads with unmatched but identified
   assert.match(jsx,/const variationStateForAd=\(v,d,ad\)/);
   assert.match(jsx,/Number\(ad\?\.\['unlinked_'\+d\]\)>0/);
   assert.match(jsx,/sem vínculo confiável com uma variação/);
+});
+
+test('default page displays actual selling listings first while status filter stays enforced',()=>{
+  assert.match(salesFirst,/order by \(case \(select days from input\)/);
+  assert.match(salesFirst,/a\.identified_90 end\) desc/);
+  assert.match(salesFirst,/and \(i\.status='ALL' or a\.situation=i\.status\)/);
+  assert.match(salesFirst,/limit \(select page_size from input\) offset \(select page_offset from input\)/);
 });
