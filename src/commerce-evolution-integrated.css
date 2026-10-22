@@ -42,6 +42,9 @@
 .nei-ad-icon{display:none}
 .nei-ad-main{display:grid;gap:5px;min-width:0}
 .nei-ad-main>strong{font-size:11px;line-height:1.4;font-weight:800;color:#1a3354;overflow-wrap:anywhere}
+.nei-ad-main>.nei-zero-observed{font-size:9px;color:#a66b27;font-weight:750;line-height:1.35}
+.nei-zero-filter-notice{margin:0;padding:10px 13px;border-radius:8px;border:1px solid #f0d9b5;background:#fffaf2;color:#795625;font-size:10px;line-height:1.6}
+.nei-zero-filter-notice strong{font-weight:850}
 .nei-ad-main>small{color:#8094ae;font-size:9px;line-height:1.4;overflow-wrap:anywhere}
 .nei-ad-var-count{font-size:10px;color:#46617f}
 .nei-ad-var-count small{display:block;margin-top:3px;color:#cc5570;font-size:9px}
