@@ -33,8 +33,10 @@ const observedVariationCounts=(ad,days)=>{
     return acc;
   },{sold:0,withoutSales:0,pending:0});
 };
-const adUnitsLabel=(ad,n)=>ad?.period_end&&known(ad?.['identified_'+n])
-  ?number(ad['identified_'+n])+' un.':'—';
+const adUnitsLabel=(ad,n)=>known(ad?.['units_'+n])
+  ?number(ad['units_'+n])+' un.':
+  ad?.period_end&&known(ad?.['identified_'+n])
+    ?number(ad['identified_'+n])+' un.':'—';
 const adRevenueLabel=(ad,n)=>ad?.period_end&&known(ad?.['revenue_'+n])
   ?money(ad['revenue_'+n]):'—';
 const verifiedUnsoldVariations=(ad,d)=>{
