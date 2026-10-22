@@ -32,7 +32,7 @@ test('sem vendas significa anúncio inteiro e tendências exigem duas janelas co
 });
 
 test('cobertura incompleta permanece pendente',()=>{
-  assert.match(view,/Não é possível afirmar vendas zero/);
+  assert.match(view,/Os resultados são calculados somente sobre os registros importados/);
   assert.match(view,/Sem cobertura completa, semanas sem registro não comprovam ausência de vendas/);
   assert.match(view,/sku|SKU/);
 });

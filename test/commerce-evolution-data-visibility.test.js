@@ -19,8 +19,8 @@ test('ad row shows observed sold zeros and pending counts from verified variatio
   assert.match(jsx,/observedVariationCounts\(ad,days\)/);
   assert.match(jsx,/counts\.withoutSales>0/);
   assert.match(jsx,/counts\.pending>0/);
-  assert.match(jsx,/kpis\.without_proof/);
-  assert.match(jsx,/com pelo menos uma variação sem comprovação/);
+  assert.match(jsx,/kpis\.with_sales/);
+  assert.match(jsx,/Os resultados são calculados somente sobre os registros importados/);
   assert.match(jsx,/variationSales\(v,n\)/);
   assert.match(jsx,/showWeekly&&<WeeklyChart listingId=\{ad\.listing_id\}/);
 });

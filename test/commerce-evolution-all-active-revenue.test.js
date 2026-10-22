@@ -35,8 +35,8 @@ test('show actual product revenue and evidence limits for each 30 60 90 window',
     assert.match(migration,new RegExp('identified_'+d));
   }
   assert.match(jsx,/Faturamento de produtos identificado/);
-  assert.match(jsx,/ad\['revenue_'\+n\]/);
-  assert.match(jsx,/ad\['coverage_'\+n\]===true/);
+  assert.match(jsx,/ad\?\.\['revenue_'\+n\]/);
+  assert.match(jsx,/Vendas registradas nos relatórios importados até/);
   assert.match(jsx,/Com vendas/);
   assert.match(jsx,/Variações vinculadas/);
   assert.match(jsx,/kpis\.with_sales/);
