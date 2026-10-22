@@ -318,7 +318,7 @@ export default function CommerceEvolutionIntegrated({
     {id:'ZERO',label:'Sem vendas',value:kpis.zero,icon:'circle-alert',detail:'Anúncios ou variações sem vendas identificadas'},
     {id:'STABLE',label:'Estável',value:kpis.stable,icon:'layout-list',detail:'Anúncios com vendas estáveis'},
     {id:'RISING',label:'Crescimento',value:kpis.rising,icon:'trending-up',detail:'Anúncios com crescimento confirmado'},
-    {id:'ALL',label:'Total no filtro',value:kpis.total,icon:'package',detail:'Todos os anúncios ativos, incluindo SKUs únicos e pendentes'}
+    {id:'ALL',label:'Total de anúncios',value:kpis.total,icon:'package',detail:'Total na plataforma e pesquisa, sem filtro de situação'}
   ];
   return <section className="nei-dashboard" aria-label="Evolução de vendas por anúncio">
     <div className="nei-filters">
@@ -359,7 +359,8 @@ export default function CommerceEvolutionIntegrated({
       {' '}Vendas zero confirmadas: <strong>{number(kpis.confirmed_zero)}</strong>.
     </p>}
     {report&&<div className="nei-data-overview">
-      <strong>{number(kpis.with_sales)} anúncios com vendas identificadas em {days} dias</strong>
+      <strong>Na plataforma, independente da situação: {number(kpis.with_sales)}
+        {' '}anúncios com vendas identificadas em {days} dias</strong>
       <span>{number(kpis.missing_variations)} anúncios sem variações vinculadas;
         suas vendas por ID aparecem separadamente.</span>
     </div>}
