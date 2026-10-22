@@ -8,7 +8,7 @@ const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
 test('commercial detail keeps 30/60/90 values compact and shows variation data first',()=>{
   assert.match(view,/<div className="nei-window-cards">/);
   assert.match(view,/<VariationSummary ad=\{ad\} days=\{days\}\/>/);
-  assert.match(view,/<VariationTable ad=\{ad\} days=\{days\}\/>/);
+  assert.match(view,/<VariationTable ad=\{ad\} days=\{days\} focusWithoutSales=\{focusWithoutSales\}\/>/);
   assert.match(css,/\.nei-window-card\{[^}]*min-height:88px/);
   assert.match(css,/\.nei-ad-overview\{[^}]*align-items:start/);
   const start=view.indexOf('function Advertisement');
