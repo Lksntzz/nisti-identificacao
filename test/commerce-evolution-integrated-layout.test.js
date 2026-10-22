@@ -64,7 +64,7 @@ test('no sales and trend filters represent full ads, never mix SKU counts',()=>{
   assert.match(sql,/count\(\*\) filter\(where v\.previous_units is null\)::int previous_unknown/);
   assert.match(view,/if\(!known\(units\)\)return 'UNKNOWN'/);
   assert.match(view,/if\(Number\(units\)===0\)return 'ZERO'/);
-  assert.match(view,/Não é possível afirmar vendas zero/);
+  assert.match(view,/Os resultados são calculados somente sobre os registros importados/);
   assert.match(view,/não são comprovadas pelos relatórios/);
 });
 
