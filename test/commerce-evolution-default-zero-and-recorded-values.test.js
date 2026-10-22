@@ -50,5 +50,5 @@ test('zero view remains paginated and keeps a visible data cutoff',()=>{
   assert.match(panel,/status!=='ZERO'&&coverage\.length>0/);
   assert.match(panel,/Fonte: relatórios importados até/);
   assert.match(panel,/const PAGE=12,WINDOWS=\[30,60,90\]/);
-  assert.match(panel,/platform:selectedPlatform,days:String(days),status,limit:String(PAGE)/);
+  assert.match(panel,/platform:selectedPlatform,days:String\(days\),status,limit:String\(PAGE\)/);
 });
