@@ -541,7 +541,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [financialOpen,setFinancialOpen]=useState(false);
   const [importedTotals,setImportedTotals]=useState(null);
   const [importedTotalsError,setImportedTotalsError]=useState('');
-  const [evolutionStatus,setEvolutionStatus]=useState('ALL');
+  const [evolutionStatus,setEvolutionStatus]=useState('ZERO');
   useEffect(()=>{
     if(!importMenuOpen)return;
     function handleOutside(event){
