@@ -33,20 +33,10 @@ const observedVariationCounts=(ad,days)=>{
     return acc;
   },{sold:0,withoutSales:0,pending:0});
 };
-const adUnitsLabel=(ad,n)=>{
-  if(known(ad?.['units_'+n]))return number(ad['units_'+n])+' un.';
-  if(ad?.period_end&&known(ad?.['identified_'+n]))
-    return Number(ad['identified_'+n])>0
-      ?'≥ '+number(ad['identified_'+n])+' un.':'0 identificadas';
-  return '—';
-};
-const adRevenueLabel=(ad,n)=>{
-  if(!ad?.period_end||!known(ad?.['revenue_'+n]))return '—';
-  if(ad['coverage_'+n]===true)return money(ad['revenue_'+n]);
-  return Number(ad['revenue_'+n])>0
-    ?'≥ '+money(ad['revenue_'+n])
-    :money(0)+' identificado';
-};
+const adUnitsLabel=(ad,n)=>ad?.period_end&&known(ad?.['identified_'+n])
+  ?number(ad['identified_'+n])+' un.':'—';
+const adRevenueLabel=(ad,n)=>ad?.period_end&&known(ad?.['revenue_'+n])
+  ?money(ad['revenue_'+n]):'—';
 const verifiedUnsoldVariations=(ad,d)=>{
   if(Number(ad?.['unlinked_'+d])>0)return [];
   return (Array.isArray(ad?.variations)?ad.variations:[])
@@ -226,7 +216,8 @@ function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
   const zeroVariations=focusWithoutSales?verifiedUnsoldVariations(ad,days):[];
   const noAdSales=focusWithoutSales&&known(ad?.['identified_'+days])
     &&Number(ad['identified_'+days])===0;
-  const unitLabel=n=>focusWithoutSales?recordedUnits(ad,n):adUnitsLabel(ad,n);
+  const hasSales=ad.period_end&&Number(ad['identified_'+days])>0;
+  const unitLabel=n=>adUnitsLabel(ad,n);
   return <article className={'nei-ad '+(expanded?'expanded':'')}>
     <button type="button" className="nei-ad-summary" onClick={()=>setExpanded(!expanded)}
       aria-expanded={expanded} aria-label={'Detalhes do anúncio '+ad.external_listing_id}>
@@ -251,6 +242,8 @@ function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
       <span className={'nei-pill '+(focusWithoutSales
         ?noAdSales?'zero':'zero-variation':badge.toLowerCase())}>
         {focusWithoutSales?noAdSales?'Sem vendas':'Variações sem vendas':
+          hasSales?'Com vendas':
+          ad.period_end&&Number(ad['identified_'+days])===0?'0 vendas registradas':
           situationName(badge)}
       </span>
       <span className={'nei-chevron '+(expanded?'turned':'')}>
@@ -270,10 +263,7 @@ function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
         <div className="nei-window-cards">{WINDOWS.map(n=><div className="nei-window-card" key={n}>
           <small>Vendas {n} dias</small>
           <strong>{unitLabel(n)}</strong>
-          <span>{focusWithoutSales?'Vendas nos relatórios importados':
-            known(ad['units_'+n])?'Total confirmado':
-            known(ad['identified_'+n])?'Vendas identificadas nos relatórios':
-            'Sem dados importados'}</span>
+          <span>{ad.period_end?'Unidades nos relatórios importados':'Sem relatório importado'}</span>
         </div>)}</div>
         <VariationSummary ad={ad} days={days}/>
       </div>
@@ -282,7 +272,7 @@ function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
           <small>Valor dos itens vendidos por ID do anúncio, sem descontar taxas ou frete.</small></div>
         <div className="nei-revenue-values">{WINDOWS.map(n=><span key={n}>
           <small>{n} dias</small>
-          <strong>{focusWithoutSales?recordedRevenue(ad,n):adRevenueLabel(ad,n)}</strong>
+          <strong>{adRevenueLabel(ad,n)}</strong>
         </span>)}</div>
       </div>
       {Number(ad['unlinked_'+days])>0&&<p className="nei-unlinked-notice" role="note">
@@ -290,11 +280,7 @@ function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
         {' '}sem vínculo confiável com uma variação. Estas vendas entram no total do anúncio,
         mas não são atribuídas a um SKU arbitrariamente.
       </p>}
-      {!focusWithoutSales&&ad['coverage_'+days]===false&&<p className="nei-partial-note" role="note">
-        Os valores indicados como identificados refletem apenas as vendas presentes nos
-        relatórios importados. Sem cobertura completa, zero identificado não comprova
-        ausência de vendas. Não é possível afirmar vendas zero sem cobertura completa.
-      </p>}
+
       <VariationTable ad={ad} days={days} focusWithoutSales={focusWithoutSales}/>
       <div className="nei-weekly-section">
         <button type="button" className="nei-weekly-toggle" aria-expanded={showWeekly}
@@ -372,13 +358,11 @@ export default function CommerceEvolutionIntegrated({
         <strong>{report?number(card.value):'—'} <em>anúncios</em></strong>
         <span>{card.detail}</span></span>
     </button>)}</div>
-    {status!=='ZERO'&&coverage.length>0&&<p className="nei-coverage">Cobertura dos relatórios: {coverage.map(c=>
-      platformName(c.source)+' até '+date(c.end_date)+' ('+
-      (c['complete_'+days]?'período completo':'período incompleto')+')').join(' · ')}.
-      Apenas anúncios com dados completos e SKU validado recebem situação confirmada.
-      {Number(kpis.without_proof)>0&&<strong className="nei-coverage-pending">
-        {number(kpis.without_proof)} anúncio(s) com pelo menos uma variação sem comprovação.
-      </strong>}</p>}
+    {status!=='ZERO'&&coverage.length>0&&<p className="nei-coverage">
+      Vendas registradas nos relatórios importados até {coverage.map(c=>
+        platformName(c.source)+' '+date(c.end_date)).join(' · ')}.
+      Os resultados são calculados somente sobre os registros importados.
+    </p>}
     {status==='ZERO'&&report&&<div className="nei-zero-sales-bar">
       <strong>{number(kpis.no_sales_ads)} anúncios com 0 vendas registradas</strong>
       <strong>{number(kpis.selling_ads_with_unsold_variations)}
