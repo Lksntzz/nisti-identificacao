@@ -9,6 +9,7 @@ const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],
   ['MERCADO_LIVRE','Mercado Livre'],['ML_ANTIGO','Mercado Livre Antigo'],
   ['ML_NOVO','Mercado Livre Novo']];
 const number=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
+const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
 const date=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))?s.split('-').reverse().join('/'):'—';
 const platformName=s=>s==='SHOPEE'?'Shopee':s==='ML_NOVO'?'Mercado Livre Novo':
   s==='ML_ANTIGO'?'Mercado Livre Antigo':s||'Marketplace';
@@ -26,9 +27,10 @@ const situationName=s=>({
   FALLING:'Revisar queda',INSUFFICIENT:'Dados pendentes'
 })[s]||'Dados pendentes';
 
-function Value({value,identified=null}){
-  return <span className="nei-value">{known(value)?number(value)+' un.':
-    known(identified)&&Number(identified)>0?'≥ '+number(identified)+' un.':'—'}</span>;
+function Value({value,identified=null,coverage=true}){
+  return <span className="nei-value">{coverage&&known(value)?number(value)+' un.':
+    known(identified)&&Number(identified)>0?'≥ '+number(identified)+' un.':
+    coverage&&known(value)?number(value)+' un.':'—'}</span>;
 }
 function WeeklyChart({listingId}){
   const [data,setData]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
@@ -118,9 +120,9 @@ function Investigation({variation,days,ad}){
 function VariationTable({ad,days}){
   const [issuesOnly,setIssuesOnly]=useState(false);
   const all=Array.isArray(ad.variations)?ad.variations:[];
-  const shown=all.filter(v=>!issuesOnly||['ZERO','LINK','UNKNOWN'].includes(variationState(v,days)));
+  const shown=all.filter(v=>!issuesOnly||['ZERO','LINK','UNKNOWN','PARTIAL'].includes(variationState(v,days)));
   return <div className="nei-variations">
-    <div className="nei-subheading"><strong>Variações do anúncio ({number(all.length)})</strong>
+    <div className="nei-subheading"><strong>Variações vinculadas ({number(ad.variation_count??all.length)})</strong>
       <label><input type="checkbox" checked={issuesOnly}
         onChange={e=>setIssuesOnly(e.target.checked)}/> Apenas sem vendas ou pendentes</label></div>
     <div className="nei-table-scroll"><table><thead><tr>
@@ -131,7 +133,8 @@ function VariationTable({ad,days}){
       return <tr key={v.id}>
         <td><strong>{v.name}</strong><small>{v.sku||'SKU não informado'}</small></td>
         {WINDOWS.map(n=><td key={n}><Value value={variationSales(v,n)}
-          identified={v.match_verified?v['identified_'+n]:null}/></td>)}
+          identified={v.match_verified?v['identified_'+n]:null}
+          coverage={v['coverage_'+n]===true}/></td>)}
         <td><span className={'nei-pill '+st.toLowerCase()}>{({
           ZERO:'Sem vendas',SOLD:'Com vendas',PARTIAL:'Venda identificada',
           LINK:'SKU pendente',UNKNOWN:'Sem comprovação'
@@ -173,7 +176,8 @@ function Advertisement({ad,days,initialExpanded=false}){
       <span className="nei-ad-icon"><CommercialIcon name="notebook-tabs" size={19}/></span>
       <span className="nei-ad-main"><strong>{ad.title||'Anúncio sem título'}</strong>
         <small>{platformName(ad.source)} · ID: {ad.external_listing_id}</small></span>
-      <span className="nei-ad-var-count">{number(ad.variation_count)} variações
+      <span className="nei-ad-var-count">{Number(ad.variation_count)===0
+        ?'Sem SKU vinculado':number(ad.variation_count)+' variações'}
         {Number(ad.sold_variations)>0&&<small className="nei-variations-sold">{number(ad.sold_variations)} com vendas</small>}
         {Number(ad.zero_variations)>0&&<small className="nei-variations-zero">{number(ad.zero_variations)} sem vendas</small>}
         {Number(ad.unknown_variations)>0&&<small className="nei-variations-pending">{number(ad.unknown_variations)} pendentes</small>}
@@ -195,6 +199,19 @@ function Advertisement({ad,days,initialExpanded=false}){
         </div>)}</div>
         <VariationSummary ad={ad} days={days}/>
       </div>
+      <div className="nei-revenue-panel">
+        <div><strong>Faturamento de produtos identificado</strong>
+          <small>Valor dos itens vendidos por ID do anúncio, sem descontar taxas ou frete.</small></div>
+        <div className="nei-revenue-values">{WINDOWS.map(n=><span key={n}>
+          <small>{n} dias</small>
+          <strong>{ad['coverage_'+n]===true?'':'≥ '}{money(ad['revenue_'+n])}</strong>
+        </span>)}</div>
+      </div>
+      {Number(ad['unlinked_'+days])>0&&<p className="nei-unlinked-notice" role="note">
+        <strong>{number(ad['unlinked_'+days])} unidade(s) identificada(s) pelo ID do anúncio</strong>
+        {' '}sem vínculo confiável com uma variação. Estas vendas entram no total do anúncio,
+        mas não são atribuídas a um SKU arbitrariamente.
+      </p>}
       <VariationTable ad={ad} days={days}/>
       <div className="nei-weekly-section">
         <button type="button" className="nei-weekly-toggle" aria-expanded={showWeekly}
@@ -243,7 +260,7 @@ export default function CommerceEvolutionIntegrated({
     {id:'ZERO',label:'Sem vendas',value:kpis.zero,icon:'circle-alert',detail:'Anúncios sem venda confirmada'},
     {id:'STABLE',label:'Estável',value:kpis.stable,icon:'layout-list',detail:'Anúncios com vendas estáveis'},
     {id:'RISING',label:'Crescimento',value:kpis.rising,icon:'trending-up',detail:'Anúncios com crescimento confirmado'},
-    {id:'ALL',label:'Total no filtro',value:kpis.total,icon:'package',detail:'Anúncios com variações cadastradas'}
+    {id:'ALL',label:'Total no filtro',value:kpis.total,icon:'package',detail:'Todos os anúncios ativos, incluindo SKUs únicos e pendentes'}
   ];
   return <section className="nei-dashboard" aria-label="Evolução de vendas por anúncio">
     <div className="nei-filters">
@@ -277,6 +294,11 @@ export default function CommerceEvolutionIntegrated({
       {Number(kpis.without_proof)>0&&<strong className="nei-coverage-pending">
         {number(kpis.without_proof)} anúncio(s) com pelo menos uma variação sem comprovação.
       </strong>}</p>}
+    {report&&<div className="nei-data-overview">
+      <strong>{number(kpis.with_sales)} anúncios com vendas identificadas em {days} dias</strong>
+      <span>{number(kpis.missing_variations)} anúncios sem variações vinculadas;
+        suas vendas por ID aparecem separadamente.</span>
+    </div>}
     {status!=='ALL'&&<button className="nei-clear" type="button" onClick={()=>onStatusChange('ALL')}>
       Limpar situação selecionada</button>}
     {loading&&<p className="nei-empty" role="status">Analisando anúncios e variações…</p>}
@@ -290,7 +312,7 @@ export default function CommerceEvolutionIntegrated({
         <span>Anúncio</span><span>Variações</span><span>Vendas 30 dias</span>
         <span>Vendas 60 dias</span><span>Vendas 90 dias</span><span>Situação</span><span>Detalhes</span>
       </div>
-      {rows.length===0&&<p className="nei-empty">Nenhum anúncio com variações atende ao filtro.
+      {rows.length===0&&<p className="nei-empty">Nenhum anúncio atende a estes filtros.
         Anúncios sem cobertura não são classificados como sem vendas.</p>}
       <div className="nei-list">{rows.map(ad=><Advertisement
         key={[selectedPlatform,days,status,search,offset,ad.listing_id].join(':')}
