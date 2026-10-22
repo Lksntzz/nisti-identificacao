@@ -16,15 +16,14 @@ test('commercial detail keeps 30/60/90 values compact and shows variation data f
   assert.ok(detail.indexOf('<VariationTable')<detail.indexOf('{showWeekly&&<WeeklyChart'));
 });
 
-test('variation summary counts verified sales, confirmed zero and pending separately',()=>{
+test('variation summary separates verified observed zeros from SKU linkage problems',()=>{
   assert.match(view,/function VariationSummary\(\{ad,days\}\)/);
-  assert.match(view,/const state=variationStateForAd\(v,days,ad\)/);
-  assert.match(view,/state==='SOLD'\|\|state==='PARTIAL'/);
-  assert.match(view,/else if\(state==='ZERO'\)acc\.zero\+\+/);
-  assert.match(view,/else acc\.pending\+\+/);
+  assert.match(view,/const counts=observedVariationCounts\(ad,days\)/);
+  assert.match(view,/else acc\.withoutSales\+\+/);
+  assert.match(view,/acc\.pending\+\+/);
   assert.match(view,/Com vendas identificadas/);
-  assert.match(view,/Sem vendas confirmadas/);
-  assert.match(view,/Dados pendentes/);
+  assert.match(view,/Sem vendas identificadas/);
+  assert.match(view,/Vínculo ou dados pendentes/);
 });
 
 test('weekly chart is optional, avoids empty flat line and redundant database requests',()=>{
