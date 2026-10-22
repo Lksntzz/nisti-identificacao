@@ -43,10 +43,6 @@ const verifiedUnsoldVariations=(ad,d)=>{
     .filter(v=>v.match_verified&&known(v['identified_'+d])
       &&Number(v['identified_'+d])===0);
 };
-const recordedUnits=(ad,d)=>ad?.period_end&&known(ad?.['identified_'+d])
-  ?number(ad['identified_'+d])+' un.':'—';
-const recordedRevenue=(ad,d)=>ad?.period_end&&known(ad?.['revenue_'+d])
-  ?money(ad['revenue_'+d]):'—';
 const variationStateForAd=(v,d,ad)=>{
   if(!v.match_verified)return 'LINK';
   const identified=v?.['identified_'+d];
