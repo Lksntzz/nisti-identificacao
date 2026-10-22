@@ -23,7 +23,7 @@ test('the filter shows zero-observed variations without calling them confirmed z
   assert.match(view,/Sem venda identificada/);
   assert.match(view,/kpis\.no_sales_ads/);
   assert.match(view,/kpis\.selling_ads_with_unsold_variations/);
-  assert.match(view,/recordedUnits\(ad,n\)/);
+  assert.match(view,/adUnitsLabel\(ad,n\)/);
   assert.match(view,/verifiedUnsoldVariations\(ad,days\)/);
   assert.match(view,/Anúncios ou variações sem vendas identificadas/);
   assert.match(view,/Anúncio com 0 vendas registradas/);
