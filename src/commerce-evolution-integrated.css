@@ -43,6 +43,12 @@
 .nei-ad-main{display:grid;gap:5px;min-width:0}
 .nei-ad-main>strong{font-size:11px;line-height:1.4;font-weight:800;color:#1a3354;overflow-wrap:anywhere}
 .nei-ad-main>.nei-zero-observed{font-size:9px;color:#a66b27;font-weight:750;line-height:1.35}
+.nei-trend-records{display:flex;flex-wrap:wrap;align-items:center;gap:7px 16px;padding:10px 13px;border:1px solid #d9e6f6;border-radius:9px;background:#f5f9ff;color:#2c537d;font-size:11px}
+.nei-trend-records strong{font-size:12px}
+.nei-trend-records span{font-weight:700}
+.nei-trend-records .positive{color:#167747}
+.nei-trend-records .negative{color:#bd5a35}
+.nei-trend-records small{color:#7385a0;font-size:10px}
 .nei-zero-sales-bar{display:flex;flex-wrap:wrap;align-items:center;gap:7px 18px;padding:10px 14px;border:1px solid #dbe6f4;border-radius:9px;background:#f7faff;font-size:11px}
 .nei-zero-sales-bar strong{color:#294b75}
 .nei-zero-sales-bar small{color:#7589a2;font-size:10px;line-height:1.4}
