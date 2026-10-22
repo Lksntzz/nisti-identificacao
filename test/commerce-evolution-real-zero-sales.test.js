@@ -14,9 +14,9 @@ function cut(start,end){
 const source=[
   cut('const number=', 'const date='),
   cut('const known=', 'const variationSales='),
-  cut('const verifiedUnsoldVariations=', 'const variationStateForAd=')
+  cut('const observedVariationCounts=', 'const variationStateForAd=')
 ].join('\n');
-const {verifiedUnsoldVariations,recordedUnits,recordedRevenue}=vm.runInNewContext(
+const {verifiedUnsoldVariations,adUnitsLabel,adRevenueLabel}=vm.runInNewContext(
   source+'\n({verifiedUnsoldVariations,recordedUnits,recordedRevenue})',{Intl}
 );
 
@@ -25,8 +25,8 @@ test('zero filter exposes ten real Shopee SKU variations with no recorded sales'
     revenue_30:0,unlinked_30:0,variations:Array.from({length:10},(_,i)=>({
       id:i+1,name:'Modelo '+(i+1),sku:'ETQ_'+(i+1),match_verified:true,identified_30:0
     }))};
-  assert.equal(recordedUnits(ad,30),'0 un.');
-  assert.match(recordedRevenue(ad,30),/^R\$\s*0,00$/);
+  assert.equal(adUnitsLabel(ad,30),'0 un.');
+  assert.match(adRevenueLabel(ad,30),/^R\$\s*0,00$/);
   assert.equal(verifiedUnsoldVariations(ad,30).length,10);
   assert.match(jsx,/zeroVariations\.slice\(0,4\)\.map/);
   assert.match(jsx,/zeroVariations\.length>4/);
@@ -43,7 +43,7 @@ test('mixed-sale listing shows only actual non-selling verified SKU names',()=>{
       {id:5,name:'Cabelo 5',match_verified:true,identified_30:5},
       {id:6,name:'Cabelo 6',match_verified:true,identified_30:0}
     ]};
-  assert.equal(recordedUnits(ad,30),'9 un.');
+  assert.equal(adUnitsLabel(ad,30),'9 un.');
   assert.equal(verifiedUnsoldVariations(ad,30).map(v=>v.name).join(', '),'Cabelo 2, Cabelo 6');
   assert.match(jsx,/focusWithoutSales\?noAdSales\?'Sem vendas':'Variações sem vendas'/);
 });
@@ -59,10 +59,10 @@ test('unassigned listing sales cannot falsely mark a SKU as unsold',()=>{
 
 test('zero view hides coverage classification while preserving report cutoff date',()=>{
   assert.match(jsx,/status!=='ZERO'&&coverage\.length>0/);
-  assert.match(jsx,/!focusWithoutSales&&ad\['coverage_'\+days\]===false/);
+  assert.match(jsx,/Os resultados são calculados somente sobre os registros importados/);
   assert.match(jsx,/Fonte: relatórios importados até/);
-  assert.match(jsx,/recordedRevenue\(ad,n\)/);
-  assert.match(jsx,/observed=\{focusWithoutSales\}/);
+  assert.match(jsx,/adRevenueLabel\(ad,n\)/);
+  assert.match(jsx,/observed=\{true\}/);
   assert.match(css,/\.nei-zero-sku-preview/);
   assert.match(css,/\.nei-zero-sales-bar/);
 });
