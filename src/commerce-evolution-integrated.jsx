@@ -125,10 +125,13 @@ function Investigation({variation,days,ad}){
   }
   return null;
 }
-function VariationTable({ad,days}){
+function VariationTable({ad,days,focusWithoutSales=false}){
   const [issuesOnly,setIssuesOnly]=useState(false);
   const all=Array.isArray(ad.variations)?ad.variations:[];
-  const shown=all.filter(v=>!issuesOnly||['ZERO','LINK','UNKNOWN','PARTIAL'].includes(variationStateForAd(v,days,ad)));
+  const shown=all.filter(v=>
+    (!focusWithoutSales || !v.match_verified ||
+      (known(v['identified_'+days]) && Number(v['identified_'+days])===0)) &&
+    (!issuesOnly||['ZERO','LINK','UNKNOWN','PARTIAL'].includes(variationStateForAd(v,days,ad))));
   return <div className="nei-variations">
     <div className="nei-subheading"><strong>Variações vinculadas ({number(ad.variation_count??all.length)})</strong>
       <label><input type="checkbox" checked={issuesOnly}
@@ -147,7 +150,9 @@ function VariationTable({ad,days}){
           coverage={v['coverage_'+n]===true}/></td>)}
         <td><span className={'nei-pill '+st.toLowerCase()}>{({
           ZERO:'Sem vendas',SOLD:'Com vendas',PARTIAL:'Venda identificada',
-          LINK:'SKU pendente',UNKNOWN:'Sem comprovação'
+          LINK:'SKU pendente',
+          UNKNOWN:v.match_verified&&known(v['identified_'+days])&&Number(v['identified_'+days])===0
+            ?'Sem venda identificada':'Sem comprovação'
         })[st]}</span></td>
         <td><Investigation variation={v} days={days} ad={ad}/>{!['ZERO','LINK','UNKNOWN'].includes(st)
           &&<small>Venda identificada; acompanhar desempenho.</small>}</td>
@@ -174,7 +179,7 @@ function VariationSummary({ad,days}){
     </div>
   </div>;
 }
-function Advertisement({ad,days,initialExpanded=false}){
+function Advertisement({ad,days,initialExpanded=false,focusWithoutSales=false}){
   const [expanded,setExpanded]=useState(initialExpanded);
   const [showWeekly,setShowWeekly]=useState(false);
   const badge=ad.situation||'INSUFFICIENT';
@@ -185,7 +190,12 @@ function Advertisement({ad,days,initialExpanded=false}){
       aria-expanded={expanded} aria-label={'Detalhes do anúncio '+ad.external_listing_id}>
       <span className="nei-ad-icon"><CommercialIcon name="notebook-tabs" size={19}/></span>
       <span className="nei-ad-main"><strong>{ad.title||'Anúncio sem título'}</strong>
-        <small>{platformName(ad.source)} · ID: {ad.external_listing_id}</small></span>
+        <small>{platformName(ad.source)} · ID: {ad.external_listing_id}</small>
+        {focusWithoutSales&&<small className="nei-zero-observed">
+          {Number(ad['identified_'+days])===0
+            ?'Sem vendas identificadas neste anúncio'
+            :number(ad.unsold_identified_variations)+' variação(ões) sem vendas identificadas'}
+        </small>}</span>
       <span className="nei-ad-var-count">{Number(ad.variation_count)===0
         ?'Sem SKU vinculado':number(ad.variation_count)+' variações'}
         {Number(ad.sold_variations)>0&&<small className="nei-variations-sold">{number(ad.sold_variations)} com vendas</small>}
@@ -222,7 +232,7 @@ function Advertisement({ad,days,initialExpanded=false}){
         {' '}sem vínculo confiável com uma variação. Estas vendas entram no total do anúncio,
         mas não são atribuídas a um SKU arbitrariamente.
       </p>}
-      <VariationTable ad={ad} days={days}/>
+      <VariationTable ad={ad} days={days} focusWithoutSales={focusWithoutSales}/>
       <div className="nei-weekly-section">
         <button type="button" className="nei-weekly-toggle" aria-expanded={showWeekly}
           onClick={()=>setShowWeekly(open=>!open)}>
@@ -267,7 +277,7 @@ export default function CommerceEvolutionIntegrated({
   const rows=Array.isArray(report?.items)?report.items:[],total=Number(report?.total||0);
   const kpis=report?.kpis||{},coverage=Array.isArray(report?.coverage)?report.coverage:[];
   const cards=[
-    {id:'ZERO',label:'Sem vendas',value:kpis.zero,icon:'circle-alert',detail:'Anúncios sem venda confirmada'},
+    {id:'ZERO',label:'Sem vendas',value:kpis.zero,icon:'circle-alert',detail:'Anúncios ou variações sem vendas identificadas'},
     {id:'STABLE',label:'Estável',value:kpis.stable,icon:'layout-list',detail:'Anúncios com vendas estáveis'},
     {id:'RISING',label:'Crescimento',value:kpis.rising,icon:'trending-up',detail:'Anúncios com crescimento confirmado'},
     {id:'ALL',label:'Total no filtro',value:kpis.total,icon:'package',detail:'Todos os anúncios ativos, incluindo SKUs únicos e pendentes'}
@@ -304,6 +314,12 @@ export default function CommerceEvolutionIntegrated({
       {Number(kpis.without_proof)>0&&<strong className="nei-coverage-pending">
         {number(kpis.without_proof)} anúncio(s) com pelo menos uma variação sem comprovação.
       </strong>}</p>}
+    {status==='ZERO'&&report&&<p className="nei-zero-filter-notice" role="note">
+      Este filtro mostra anúncios sem vendas identificadas e anúncios com variações
+      sem vendas identificadas no período. Com relatórios incompletos, ausência de
+      registros <strong>não comprova zero vendas</strong>.
+      {' '}Vendas zero confirmadas: <strong>{number(kpis.confirmed_zero)}</strong>.
+    </p>}
     {report&&<div className="nei-data-overview">
       <strong>{number(kpis.with_sales)} anúncios com vendas identificadas em {days} dias</strong>
       <span>{number(kpis.missing_variations)} anúncios sem variações vinculadas;
@@ -322,11 +338,12 @@ export default function CommerceEvolutionIntegrated({
         <span>Anúncio</span><span>Variações</span><span>Vendas 30 dias</span>
         <span>Vendas 60 dias</span><span>Vendas 90 dias</span><span>Situação</span><span>Detalhes</span>
       </div>
-      {rows.length===0&&<p className="nei-empty">Nenhum anúncio atende a estes filtros.
-        Anúncios sem cobertura não são classificados como sem vendas.</p>}
+      {rows.length===0&&<p className="nei-empty">Nenhum anúncio ou variação atende a estes filtros.
+        Ausência de vendas identificadas não comprova zero quando faltam relatórios.</p>}
       <div className="nei-list">{rows.map(ad=><Advertisement
         key={[selectedPlatform,days,status,search,offset,ad.listing_id].join(':')}
-        ad={ad} days={days} initialExpanded={ad.listing_id===rows[0]?.listing_id}/>)}</div>
+        ad={ad} days={days} focusWithoutSales={status==='ZERO'}
+        initialExpanded={ad.listing_id===rows[0]?.listing_id}/>)}</div>
       {total>PAGE&&<footer className="nei-pagination">
         <span>Página {Math.floor(offset/PAGE)+1} de {Math.ceil(total/PAGE)}</span>
         <div><button type="button" disabled={!offset}
