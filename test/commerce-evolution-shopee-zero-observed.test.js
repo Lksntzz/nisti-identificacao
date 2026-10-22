@@ -21,9 +21,10 @@ test('the filter shows zero-observed variations without calling them confirmed z
   assert.match(view,/focusWithoutSales=\{status==='ZERO'\}/);
   assert.match(view,/Number\(v\['identified_'\+days\]\)===0/);
   assert.match(view,/Sem venda identificada/);
-  assert.match(view,/não comprova zero vendas/);
-  assert.match(view,/Vendas zero confirmadas/);
-  assert.match(view,/kpis\.confirmed_zero/);
+  assert.match(view,/kpis\.no_sales_ads/);
+  assert.match(view,/kpis\.selling_ads_with_unsold_variations/);
+  assert.match(view,/recordedUnits\(ad,n\)/);
+  assert.match(view,/verifiedUnsoldVariations\(ad,days\)/);
   assert.match(view,/Anúncios ou variações sem vendas identificadas/);
   assert.match(view,/Sem vendas identificadas neste anúncio/);
   assert.match(css,/\.nei-zero-filter-notice/);
