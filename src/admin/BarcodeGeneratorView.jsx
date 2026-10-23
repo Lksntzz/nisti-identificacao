@@ -6,6 +6,8 @@ import ProductCutoutImage from '../product-cutout-image.jsx';
 
 const BARCODE_PRODUCT_PAGE_SIZE = 10;
 const BARCODE_COLLECTION_PAGE_SIZE = 12;
+// Limite da consulta nisti_gtin_registry_v1 (LIMIT 2000 no banco).
+const GTIN_REGISTRY_LIMIT = 2000;
 
 function paginationPages(page, totalPages) {
   const start = Math.max(1, Math.min(page - 2, Math.max(1, totalPages - 4)));
@@ -75,6 +77,7 @@ export function BarcodeGeneratorView({ api }) {
   }, [downloadFeedback, downloadedRowId, downloadedCollectionId]);
 
   const activeRows = useMemo(() => (data.gtins || []).filter(item => item.active), [data.gtins]);
+  const registryLimitReached = (data.gtins || []).length >= GTIN_REGISTRY_LIMIT;
   const platforms = useMemo(() => Array.from(new Set(activeRows.flatMap(item => item.platforms || []))).sort(), [activeRows]);
   const collections = useMemo(() => buildEanCollections(activeRows).map(collection => {
     const items = collection.items.filter(item => platform === 'all' || (item.platforms || []).includes(platform));
@@ -187,6 +190,12 @@ export function BarcodeGeneratorView({ api }) {
           <strong>{viewMode === 'collections' ? collections.length : selected.length}</strong><span>{viewMode === 'collections' ? 'coleções encontradas' : 'selecionados'}</span>
         </div>
       </section>
+
+      {registryLimitReached && (
+        <div className="form-error-banner" role="alert">
+          A lista atingiu o limite de {GTIN_REGISTRY_LIMIT} EANs. Alguns códigos podem não aparecer aqui. Peça para aumentar o limite da consulta.
+        </div>
+      )}
 
       {error && (
         <AdminState
