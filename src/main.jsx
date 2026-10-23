@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import './app.css';
 import AdminSidebar from './admin/AdminSidebar.jsx';
 import AdminNotificationsModal from './admin/AdminNotificationsModal.jsx';
 import AdminTopbar from './admin/AdminTopbar.jsx';
-import CreateProductModal, { RegistrationBarcodeResult } from './admin/ProductRegistrationModal.jsx';
-import { catalogRowsFromCsv } from './admin/catalog-csv-parser.js';
+import CreateProductModal from './admin/ProductRegistrationModal.jsx';
 import SystemHealthView from './system-health-view.jsx';
 import ExpeditionDashboard from './admin/ExpeditionDashboard.jsx';
 import CatalogView, { CatalogPlatformTags } from './admin/CatalogView.jsx';
@@ -622,123 +621,6 @@ function ViewProductModal({ product, isOpen, onClose, onEdit, onSyncComplete }) 
   );
 }
 
-function ImportCsvModal({ isOpen, onClose, onImported }) {
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const [result, setResult] = useState(null);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setMessage('');
-      setError('');
-      setResult(null);
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleUpload = async (file) => {
-    if (!file) return;
-    setBusy(true);
-    setMessage('');
-    setError('');
-
-    try {
-      const rows = catalogRowsFromCsv(await file.text());
-      if (!rows.length) throw new Error('Nenhum SKU válido encontrado na planilha.');
-
-      let created = 0;
-      let updated = 0;
-      const importedItems = [];
-      const importErrors = [];
-      const rowsBySku = new Map(rows.map(row => [String(row.sku || '').trim().toUpperCase(), row]));
-
-      for (let i = 0; i < rows.length; i += 50) {
-        const data = await api('/api/admin/bulk-products', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ rows: rows.slice(i, i + 50) })
-        });
-        created += data.created || 0;
-        updated += data.updated || 0;
-        const syncByProductId = new Map(
-          (data.commerce_sync?.results || []).map(sync => [Number(sync.nisti_product_id), sync])
-        );
-        const bulkSyncFallback = data.commerce_sync?.status === 'ERROR'
-          ? { status: 'ERROR', error: data.commerce_sync.error || 'commerce_bulk_sync_failed' }
-          : null;
-
-        for (const item of data.imported || []) {
-          const source = rowsBySku.get(String(item.sku || '').trim().toUpperCase()) || {};
-          importedItems.push({
-            ...source,
-            ...item,
-            gtin: item.gtin || source.gtin,
-            nome: source.nome,
-            variacao: source.variacao,
-            commerce_sync: syncByProductId.get(Number(item.id)) || bulkSyncFallback
-          });
-        }
-        importErrors.push(...(data.errors || []));
-      }
-
-      setMessage(`Importação concluída: ${created} novos produtos cadastrados, ${updated} atualizados.`);
-      for (const item of importedItems) {
-        if (!/^\d{13}$/.test(String(item.gtin || ''))) {
-          importErrors.push({ sku: item.sku, error: 'Produto salvo sem EAN válido; nenhuma etiqueta foi gerada.' });
-        }
-      }
-      setResult({ items: importedItems, errors: importErrors, created, updated });
-      await onImported();
-    } catch (err) {
-      setError(err.message || 'Falha ao importar arquivo CSV.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="admin-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="admin-modal">
-        <div className="admin-modal-head">
-          <div>
-            <h3>Importar Produtos em Lote (CSV)</h3>
-            <small>Envie uma planilha com seus produtos para atualização rápida.</small>
-          </div>
-          <button type="button" className="admin-modal-close" onClick={onClose}>✕</button>
-        </div>
-
-        {result ? <RegistrationBarcodeResult
-          items={result.items}
-          errors={result.errors}
-          title={`Importação concluída: ${result.created} novos e ${result.updated} atualizados`}
-          onReset={() => { setResult(null); setMessage(''); setError(''); }}
-          onClose={onClose}
-        /> : <div className="admin-modal-form">
-          <label className={`photo-empty-drop ${busy ? 'nisti-import-busy' : ''}`} style={{ minHeight: '180px' }}>
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
-              <path d="M12 12v9" />
-              <path d="m16 16-4-4-4 4" />
-            </svg>
-            <strong>{busy ? 'Processando planilha…' : 'Clique para selecionar a planilha CSV'}</strong>
-            <span>Use as colunas SKU, EAN, Nome, Variação, Plataforma e Link</span>
-            <input type="file" accept=".csv,text/csv" disabled={busy} onChange={e => handleUpload(e.target.files?.[0])} />
-          </label>
-
-          {message && <div className="form-success-banner nisti-feedback-enter" role="status">{message}</div>}
-          {error && <div className="form-error-banner nisti-feedback-enter" role="alert">{error}</div>}
-
-          <div className="admin-modal-foot">
-            <button type="button" className="btn-cancel" onClick={onClose}>Fechar</button>
-          </div>
-        </div>}
-      </div>
-    </div>
-  );
-}
-
 /* =========================================================================
    MAIN ADMIN APP ROOT
    ========================================================================= */
@@ -776,7 +658,7 @@ function AdminApp() {
   }, []);
   const [muralSection,setMuralSection]=useState('dashboard');
   const [commerceSection,setCommerceSection]=useState('catalog');
-  const [salesRevision,setSalesRevision]=useState(0);
+  const [salesRevision]=useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [metrics, setMetrics] = useState(null);
@@ -797,7 +679,6 @@ function AdminApp() {
       window.history.replaceState(window.history.state,'',url.toString());
     }
   }, []);
-  const [importModalOpen, setImportModalOpen] = useState(false);
   const [viewProduct, setViewProduct] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
   const [recentProductIds, setRecentProductIds] = useState([]);
@@ -1030,9 +911,7 @@ function AdminApp() {
               <CatalogView
                 products={products}
                 highlightedProductIds={recentProductIds}
-                onRefresh={refreshAll}
                 onOpenCreate={() => setCreateModalOpen(true)}
-                onOpenImport={() => setImportModalOpen(true)}
                 onViewProduct={p => setViewProduct(p)}
                 onEditProduct={p => setEditProduct(p)}
                 onDeleteProduct={handleDeleteProduct}
@@ -1095,12 +974,6 @@ function AdminApp() {
         onCreated={reportProductChange}
       />
 
-      <ImportCsvModal
-        isOpen={importModalOpen}
-        onClose={() => setImportModalOpen(false)}
-        onImported={refreshAll}
-      />
-
       <ViewProductModal
         product={viewProduct}
         isOpen={Boolean(viewProduct)}
@@ -1138,12 +1011,5 @@ function AdminApp() {
   );
 }
 
-export {
-  CatalogView,
-  BarcodeGeneratorView,
-  GtinEventsView,
-  ProductGtinManager,
-  RegistrationBarcodeResult
-};
 
 export default AdminApp;
