@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { isValidGtin13 } from './gtin.js';
 import { decodeEan13LumaRow, imageDataToLumaRow } from './gtin-camera-decoder.js';
 import { normalizeGtinProduct } from './gtin-product-normalizer.js';
+import { serverUnavailable, findFreshCachedEntry, withoutGtin, cachedLookupWarning } from './gtin-scan-cache.js';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import './gtin-scanner.css';
 
@@ -96,9 +97,8 @@ function persistGtinHistory(history) {
   } catch {}
 }
 
-function cachedProductForGtin(gtin) {
-  const item = loadGtinHistory().find(entry => String(entry?.gtin || '') === String(gtin || '') && entry?.product);
-  return item?.product || null;
+function cachedEntryForGtin(gtin) {
+  return findFreshCachedEntry(loadGtinHistory(), gtin);
 }
 
 function historyEntry(gtin, product) {
@@ -494,12 +494,13 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
     triggerHaptic([40, 30, 80]);
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
 
-    const acceptProduct = resolvedProduct => {
+    const acceptProduct = (resolvedProduct, acceptOptions = {}) => {
       const normalizedProduct = normalizeGtinProduct(resolvedProduct);
       setLastGtin(gtin);
       setProduct(normalizedProduct);
       acceptedGtinRef.current = { value: gtin, lastSeenAt: Date.now() };
-      if (options.recordHistory !== false) addToHistory(gtin, normalizedProduct);
+      // Uma leitura vinda do cache não renova a data do cache.
+      if (options.recordHistory !== false && acceptOptions.recordHistory !== false) addToHistory(gtin, normalizedProduct);
       onProductResolved?.(normalizedProduct, gtin);
       setLookupError('');
       setCaptureFeedback('captured');
@@ -536,13 +537,27 @@ export default function GtinScannerOverlay({ embedded = false, onProductResolved
         workerError=error;
       }
 
-      const cachedProduct = cachedProductForGtin(gtin);
-      if (cachedProduct) return acceptProduct(cachedProduct);
+      // Cache local apenas quando o servidor está inacessível, nunca para
+      // respostas definitivas (404 desvinculado, 401/403 PIN/sessão).
+      if (serverUnavailable(workerStatus, workerError)) {
+        const cachedEntry = cachedEntryForGtin(gtin);
+        if (cachedEntry) {
+          acceptProduct(cachedEntry.product, { recordHistory: false });
+          setLookupError(cachedLookupWarning(cachedEntry));
+          return true;
+        }
+      }
 
       setCaptureFeedback('error');
       feedbackTimeoutRef.current = setTimeout(() => setCaptureFeedback('idle'), 900);
 
       if (workerStatus === 404) {
+        // EAN desvinculado/não cadastrado: remove do histórico deste aparelho.
+        setHistory(previous => {
+          const next = withoutGtin(previous, gtin);
+          persistGtinHistory(next);
+          return next;
+        });
         lastRejectedRef.current = { value: gtin, at: Date.now() };
         setLookupError(`EAN ${gtin} não está cadastrado no catálogo sincronizado.`);
         return false;
