@@ -66,6 +66,7 @@ export default function SystemHealthView({
   storage,
   health,
   healthError,
+  measurementWarning = '',
   onRefresh
 }) {
   const [refreshing, setRefreshing] = useState(false);
@@ -279,10 +280,13 @@ export default function SystemHealthView({
               <p>Medições observadas pelo próprio NISTI. Não representam faturamento do provedor.</p>
             </div>
           </div>
+          {measurementWarning && (
+            <div className="form-error-banner" role="alert">{measurementWarning}</div>
+          )}
 
           <div className="system-health-usage-grid">
             <div>
-              <span>D1</span>
+              <span>Banco (Supabase)</span>
               <strong>{formatBytes(db.used_bytes)}</strong>
               <small>{formatNumber(db.products)} produtos no banco</small>
             </div>

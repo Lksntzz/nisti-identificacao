@@ -4,7 +4,8 @@ import { explicitUtcTimestamp } from './date-time.js';
 
 const TIMEZONE = 'America/Sao_Paulo';
 const SYSTEM_METRICS_CACHE_TTL_MS = 5 * 60 * 1000;
-const SYSTEM_HEALTH_CACHE_TTL_MS = 5 * 60 * 1000;
+// Saúde muda rápido: 1 min em cache; resultado com falha nunca é guardado.
+const SYSTEM_HEALTH_CACHE_TTL_MS = 60 * 1000;
 
 let systemMetricsCache = { payload: null, expires_at: 0 };
 let systemHealthCache = { payload: null, expires_at: 0 };
@@ -217,7 +218,9 @@ async function handleSystemHealth(env, { force = false } = {}) {
     }
   };
 
-  systemHealthCache = { payload, expires_at: now + SYSTEM_HEALTH_CACHE_TTL_MS };
+  systemHealthCache = overallStatus === 'degraded'
+    ? { payload: null, expires_at: 0 }
+    : { payload, expires_at: now + SYSTEM_HEALTH_CACHE_TTL_MS };
   return json(payload);
 }
 

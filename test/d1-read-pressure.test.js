@@ -13,7 +13,7 @@ test('admin background metrics refresh is five minutes and only runs while visib
 
 test('system health cache matches the reduced five-minute cadence', () => {
   const metrics=read('src/system-metrics-clean-router.js');
-  assert.match(metrics,/SYSTEM_HEALTH_CACHE_TTL_MS = 5 \* 60 \* 1000/);
+  assert.match(metrics,/SYSTEM_HEALTH_CACHE_TTL_MS = 60 \* 1000/);
 });
 
 test('catalog list no longer executes D1 SQL after the Supabase runtime cutover', () => {

@@ -669,6 +669,7 @@ function AdminApp() {
   const [storage, setStorage] = useState(null);
   const [health, setHealth] = useState(null);
   const [healthError, setHealthError] = useState('');
+  const [measurementWarning, setMeasurementWarning] = useState('');
   const [gtinDashboard, setGtinDashboard] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -736,6 +737,10 @@ function AdminApp() {
       ]);
       if (m) setMetrics(m);
       if (s) setStorage(s);
+      const failed = [!m && 'banco', !s && 'imagens (R2)'].filter(Boolean);
+      setMeasurementWarning(failed.length
+        ? `Não foi possível medir agora: ${failed.join(' e ')}. Os valores abaixo podem ser de uma leitura anterior.`
+        : '');
       if (healthResult?.data) setHealth(healthResult.data);
       setHealthError(healthResult?.error || '');
       if (gtin) setGtinDashboard(gtin);
@@ -959,6 +964,7 @@ function AdminApp() {
                 storage={storage}
                 health={health}
                 healthError={healthError}
+                measurementWarning={measurementWarning}
                 onRefresh={() => refreshMetrics(true)}
               />
             )}
