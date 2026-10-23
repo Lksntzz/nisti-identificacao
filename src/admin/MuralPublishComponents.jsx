@@ -1,49 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
-import { AdminMuralIcon, request, requestBlob, Status } from './MuralPublishShared.jsx';
-
-function PublishTypeSelector({ activeKind, onSelect, locked = false }) {
-  const options = [
-    ['product','product','Produto','Destaque um produto do catálogo'],
-    ['notice','document','Informação','Aviso ou comunicado interno'],
-    ['collection','collection','Coleção','Vitrine temática com banner']
-  ];
-  return (
-    <section className="mural-publish-v2-step mural-publish-v2-type-step">
-      <header className="mural-publish-v2-step-heading">
-        <span className="mural-publish-v2-step-number">1</span>
-        <div>
-          <strong>Escolha o tipo de publicação</strong>
-          <small>Selecione o formato ideal para o conteúdo no Mural.</small>
-        </div>
-      </header>
-      <div className="mural-publish-v2-type-grid">
-        {options.map(([value,icon,label,description])=>{
-          const active = activeKind === value;
-          const disabled = locked && !active;
-          return (
-            <button
-              type="button"
-              key={value}
-              className={active ? 'active' : ''}
-              disabled={disabled}
-              aria-pressed={active}
-              onClick={() => !disabled && onSelect(value)}
-            >
-              <span className={"mural-publish-v2-type-icon is-" + value}><AdminMuralIcon name={icon} size={20}/></span>
-              <span className="mural-publish-v2-type-copy">
-                <b>{label}</b>
-                <small>{description}</small>
-              </span>
-              <span className="mural-publish-v2-type-action">{active ? <AdminMuralIcon name="check" size={13}/> : <AdminMuralIcon name="chevron" size={14}/>}</span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
+import { AdminMuralIcon, request, requestBlob } from './MuralPublishShared.jsx';
 
 export function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], imageUrls = [], onUseImage, onStatusChange }) {
   const [status, setStatus] = useState({ loading: true, connected: false, art_creation_ready: false, art_missing_scopes: [] });
@@ -146,7 +104,7 @@ export function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles 
       if (slot <= 6) {
         const remoteData = new FormData();
         await appendRemoteImages(remoteData);
-        for (const [key, value] of remoteData.entries()) {
+        for (const [, value] of remoteData.entries()) {
           if (slot > 6) break;
           const target = slot === 1 ? 'image' : `image_${slot}`;
           formData.append(target, value);
@@ -299,7 +257,6 @@ export function PublishImageField({
   onChoose,
   onRemove,
   onOpenCanva,
-  canvaConnected,
   title = 'Imagem editorial (opcional)',
   helper = 'PNG, JPG ou WebP · até 5 MB',
   removeLabel = 'Remover imagem editorial'

@@ -504,7 +504,6 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
                     onChoose={chooseImage}
                     onRemove={removeImage}
                     onOpenCanva={() => setCanvaModalOpen(true)}
-                    canvaConnected={canvaStatus.connected}
                     title="Imagem de apoio ou foto real (opcional)"
                     helper="PNG, JPG ou WebP · até 5 MB"
                   />
@@ -569,7 +568,6 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
                     onChoose={chooseImage}
                     onRemove={removeImage}
                     onOpenCanva={() => setCanvaModalOpen(true)}
-                    canvaConnected={canvaStatus.connected}
                     title="Infográfico ou imagem de apoio (opcional)"
                     helper="PNG, JPG ou WebP · até 5 MB"
                   />
@@ -646,7 +644,6 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
                     onChoose={chooseImage}
                     onRemove={removeImage}
                     onOpenCanva={() => setCanvaModalOpen(true)}
-                    canvaConnected={canvaStatus.connected}
                     title="Arte da coleção (banner 2:1 recomendado)"
                     helper="Recomendado: banner horizontal 2:1 · PNG, JPG ou WebP"
                     removeLabel="Remover banner da coleção"

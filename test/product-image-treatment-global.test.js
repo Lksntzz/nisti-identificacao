@@ -10,8 +10,8 @@ test('shared product component uses the final treated PNG pipeline', () => {
   const utility = read('src/mural-transparent-image.js');
   assert.ok(component.includes('useTreatedProductImage'));
   assert.ok(component.includes('decoding="async"'));
-  assert.ok(utility.includes('export async function treatedProductImageUrl'));
-  assert.ok(utility.includes('export async function treatedProductImageBlob'));
+  assert.ok(utility.includes('async function buildTreatedProductImage('));
+  assert.ok(!utility.includes('export async function treatedProductImageUrl'));
   assert.ok(utility.includes('export function useTreatedProductImage'));
   assert.ok(utility.includes('outlineScale:8 / 1024'));
 });
@@ -237,7 +237,7 @@ test('each product treatment persists an individual auditable mask', () => {
   const migration = read('supabase/migrations/20261002162500_persistent_product_masks_v1.sql');
 
   assert.ok(utility.includes('productMaskPngBlob'));
-  assert.ok(utility.includes('productImageTreatmentArtifactsBlob'));
+  assert.ok(!utility.includes('productImageTreatmentArtifactsBlob'));
   assert.ok(utility.includes('productImageMaskBlob'));
   assert.ok(utility.includes("maskOnly:true"));
   assert.ok(worker.includes("form.append('mask'"));

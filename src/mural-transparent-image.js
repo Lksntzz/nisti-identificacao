@@ -1,11 +1,5 @@
-import { useEffect, useState } from 'react';
-
 const transparentImageCache = new Map();
 const transparentImageInflight = new Map();
-const transparentOutlineCache = new Map();
-const transparentOutlineInflight = new Map();
-const treatedProductImageCache = new Map();
-const treatedProductImageInflight = new Map();
 const MAX_CACHE_ENTRIES = 80;
 // Keep generated RGBA PNGs safely below the 8 MB upload ceiling. A 1280 px
 // canvas has at most ~6.6 MB of uncompressed pixel data, so even difficult
@@ -1086,95 +1080,6 @@ function buildExternalOutlineRing(mask, width, height, radius) {
   return outlineMask;
 }
 
-async function buildProductOutlineImage(src) {
-  const cutoutSrc = await transparentProductImageUrl(src);
-  if (!cutoutSrc) return '';
-
-  const response = await fetch(cutoutSrc, { credentials:'same-origin' });
-  if (!response.ok) return '';
-  const blob = await response.blob();
-  const bitmap = await loadBitmap(blob);
-  const width = Number(bitmap.width || bitmap.naturalWidth || 0);
-  const height = Number(bitmap.height || bitmap.naturalHeight || 0);
-  if (!width || !height) return '';
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d', { willReadFrequently:true });
-  if (!context) return '';
-
-  context.clearRect(0, 0, width, height);
-  context.drawImage(bitmap, 0, 0, width, height);
-  if (typeof bitmap.close === 'function') bitmap.close();
-
-  const imageData = context.getImageData(0, 0, width, height);
-  const { data } = imageData;
-  const total = width * height;
-
-  if (!hasExistingTransparency(data, total)) return '';
-
-  const mainMask = buildProductComponentsMask(data, width, height);
-  if (!mainMask) return '';
-
-  // Safety guard: a mask that occupies nearly the entire canvas or touches
-  // three/four edges is the old image background, not the agenda itself.
-  // In that case we draw no outline instead of producing a white slab.
-  const stats = maskStats(mainMask, width, height);
-  if (stats.ratio > .82 || stats.touches >= 3) return '';
-
-  const radius = clamp(Math.round(Math.max(width, height) * (8 / 1024)), 6, 11);
-  const outlineMask = buildExternalOutlineRing(mainMask, width, height, radius);
-
-  const outlineData = context.createImageData(width, height);
-  for (let index = 0; index < total; index += 1) {
-    // The white layer is only the EXTERNAL RING. Never paint white beneath
-    // the body of the agenda. This prevents internal transparency, artwork
-    // gaps or a printed/logo mark from revealing white "cuts" inside it.
-    if (!outlineMask[index]) continue;
-    const offset = index * 4;
-    outlineData.data[offset] = 255;
-    outlineData.data[offset + 1] = 255;
-    outlineData.data[offset + 2] = 255;
-    outlineData.data[offset + 3] = 255;
-  }
-
-  context.clearRect(0, 0, width, height);
-  context.putImageData(outlineData, 0, 0);
-  const outputBlob = await new Promise((resolve, reject) => {
-    canvas.toBlob(result => result ? resolve(result) : reject(new Error('Falha ao gerar o contorno do produto.')), 'image/png');
-  });
-  return URL.createObjectURL(outputBlob);
-}
-
-async function productOutlineUrl(src) {
-  const normalized = String(src || '').trim();
-  if (!normalized || typeof document === 'undefined') return '';
-  if (transparentOutlineCache.has(normalized)) return transparentOutlineCache.get(normalized);
-  if (transparentOutlineInflight.has(normalized)) return transparentOutlineInflight.get(normalized);
-
-  const promise = buildProductOutlineImage(normalized)
-    .then(url => {
-      transparentOutlineInflight.delete(normalized);
-      transparentOutlineCache.set(normalized, url);
-      while (transparentOutlineCache.size > MAX_CACHE_ENTRIES) {
-        const oldest = transparentOutlineCache.entries().next().value;
-        if (!oldest) break;
-        const [key, oldUrl] = oldest;
-        transparentOutlineCache.delete(key);
-        if (oldUrl?.startsWith('blob:')) URL.revokeObjectURL(oldUrl);
-      }
-      return url;
-    })
-    .catch(() => {
-      transparentOutlineInflight.delete(normalized);
-      return '';
-    });
-
-  transparentOutlineInflight.set(normalized, promise);
-  return promise;
-}
-
 function remember(src, url) {
   if (transparentImageCache.has(src)) transparentImageCache.delete(src);
   transparentImageCache.set(src, url);
@@ -1628,69 +1533,6 @@ async function buildTreatedProductImage(src, options = {}) {
   return URL.createObjectURL(outputBlob);
 }
 
-export async function treatedProductImageUrl(src) {
-  const normalized = String(src || '').trim();
-  if (!normalized || typeof document === 'undefined') return normalized;
-  if (treatedProductImageCache.has(normalized)) return treatedProductImageCache.get(normalized);
-  if (treatedProductImageInflight.has(normalized)) return treatedProductImageInflight.get(normalized);
-
-  const promise = (async () => {
-    if (isPersistedProductImageUrl(normalized)) {
-      const source = await persistedProductImageSource(normalized);
-      if (source === 'treated') return normalized;
-      if (source === 'original') {
-        const originalUrl = persistedProductOriginalUrl(normalized);
-        const localTreated = await buildTreatedProductImage(originalUrl);
-        return localTreated?.startsWith('blob:') ? localTreated : normalized;
-      }
-      return normalized;
-    }
-
-    return buildTreatedProductImage(normalized);
-  })()
-    .then(url => {
-      treatedProductImageInflight.delete(normalized);
-      treatedProductImageCache.set(normalized, url || normalized);
-      while (treatedProductImageCache.size > MAX_CACHE_ENTRIES) {
-        const oldest = treatedProductImageCache.entries().next().value;
-        if (!oldest) break;
-        const [key, oldUrl] = oldest;
-        treatedProductImageCache.delete(key);
-        if (oldUrl?.startsWith('blob:')) URL.revokeObjectURL(oldUrl);
-      }
-      return url || normalized;
-    })
-    .catch(() => {
-      treatedProductImageInflight.delete(normalized);
-      return normalized;
-    });
-
-  treatedProductImageInflight.set(normalized, promise);
-  return promise;
-}
-
-export async function productImageTreatmentArtifactsBlob(src, options = {}) {
-  const normalized = String(src || '').trim();
-  if (!normalized || typeof document === 'undefined' || isPersistedProductImageUrl(normalized)) return null;
-
-  let maskBlob = null;
-  const url = await buildTreatedProductImage(normalized, {
-    ...options,
-    onMask:blob => { maskBlob = blob; }
-  });
-  if (!url || !url.startsWith('blob:') || !maskBlob) return null;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const imageBlob = await response.blob();
-    if (imageBlob.type !== 'image/png' || imageBlob.size <= 0) return null;
-    return { imageBlob, maskBlob };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
 export async function productImageMaskBlob(src, options = {}) {
   const normalized = String(src || '').trim();
   if (!normalized || typeof document === 'undefined' || isPersistedProductImageUrl(normalized)) return null;
@@ -1702,23 +1544,6 @@ export async function productImageMaskBlob(src, options = {}) {
     onMask:blob => { maskBlob = blob; }
   });
   return maskBlob?.type === 'image/png' && maskBlob.size > 0 ? maskBlob : null;
-}
-
-export async function treatedProductImageBlob(src, options = {}) {
-  const normalized = String(src || '').trim();
-  if (!normalized || typeof document === 'undefined' || isPersistedProductImageUrl(normalized)) return null;
-
-  const url = await buildTreatedProductImage(normalized, options);
-  if (!url || !url.startsWith('blob:')) return null;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    return blob.type === 'image/png' && blob.size > 0 ? blob : null;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
 }
 
 export async function transparentProductImageUrl(src) {
@@ -1740,63 +1565,6 @@ export async function transparentProductImageUrl(src) {
 
   transparentImageInflight.set(normalized, promise);
   return promise;
-}
-
-export function useTransparentProductImage(src, enabled = true) {
-  const normalized = String(src || '').trim();
-  const cached = normalized && transparentImageCache.get(normalized);
-  const [resolvedSrc, setResolvedSrc] = useState(() => cached || normalized);
-
-  useEffect(() => {
-    let active = true;
-    if (!enabled || !normalized) {
-      setResolvedSrc(normalized);
-      return () => { active = false; };
-    }
-
-    const existing = transparentImageCache.get(normalized);
-    if (existing) {
-      setResolvedSrc(existing);
-      return () => { active = false; };
-    }
-
-    setResolvedSrc(normalized);
-    transparentProductImageUrl(normalized).then(url => {
-      if (active) setResolvedSrc(url || normalized);
-    });
-    return () => { active = false; };
-  }, [normalized, enabled]);
-
-  return resolvedSrc;
-}
-
-
-export function useTransparentProductOutline(src, enabled = true) {
-  const normalized = String(src || '').trim();
-  const cached = normalized && transparentOutlineCache.get(normalized);
-  const [outlineSrc, setOutlineSrc] = useState(() => cached || '');
-
-  useEffect(() => {
-    let active = true;
-    if (!enabled || !normalized) {
-      setOutlineSrc('');
-      return () => { active = false; };
-    }
-
-    const existing = transparentOutlineCache.get(normalized);
-    if (existing) {
-      setOutlineSrc(existing);
-      return () => { active = false; };
-    }
-
-    setOutlineSrc('');
-    productOutlineUrl(normalized).then(url => {
-      if (active) setOutlineSrc(url || '');
-    });
-    return () => { active = false; };
-  }, [normalized, enabled]);
-
-  return outlineSrc;
 }
 
 export function useTreatedProductImage(src, enabled = true) {
