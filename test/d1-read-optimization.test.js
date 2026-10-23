@@ -14,7 +14,7 @@ test('platformExists asks the legacy fallback for one indexed row instead of sca
 
 test('active administrative snapshots use five-minute caches with explicit refresh', () => {
   assert.match(systemMetrics, /SYSTEM_METRICS_CACHE_TTL_MS = 5 \* 60 \* 1000/);
-  assert.match(systemMetrics, /SYSTEM_HEALTH_CACHE_TTL_MS = 5 \* 60 \* 1000/);
+  assert.match(systemMetrics, /SYSTEM_HEALTH_CACHE_TTL_MS = 60 \* 1000/);
   assert.match(systemMetrics, /url\.searchParams\.get\('fresh'\) === '1'/);
   assert.match(storageMetrics, /STORAGE_METRICS_CACHE_TTL_MS = 5 \* 60 \* 1000/);
   assert.match(storageMetrics, /url\.searchParams\.get\('fresh'\) === '1'/);

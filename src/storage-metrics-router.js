@@ -33,10 +33,7 @@ async function measureBucket(bucket) {
       usedBytes += Number(object.size || 0);
     }
 
-    if (!result.truncated) {
-      cursor = undefined;
-      break;
-    }
+    if (!result.truncated) break;
 
     cursor = result.cursor;
     if (pages >= MAX_PAGES) {
