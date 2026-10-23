@@ -33,13 +33,12 @@ test('sincronização preserva dados específicos do NISTI ID no payload e atual
   assert.equal(sql.includes("reference_image_source=case when v_image is not null then 'NISTI_ID'"), true);
 });
 
-test('cadastro, edição, imagem e lote do NISTI ID acionam a sincronização', () => {
+test('cadastro, edição e imagem do NISTI ID acionam a sincronização', () => {
   const core = read('src/core-router.js');
 
   assert.equal(core.includes('syncNistiProductToCommerceSafe'), true);
   assert.equal(core.includes('syncNistiProductsToCommerce'), true);
   assert.equal(core.includes("commerce_sync: commerceSync"), true);
-  assert.equal(core.includes("syncCommerce: false"), true);
   assert.equal(core.includes("/api/admin/commerce-sync/nisti-products"), true);
 });
 

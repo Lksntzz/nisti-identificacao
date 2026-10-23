@@ -170,13 +170,6 @@ async function insertGtinScanEvent(request, env, event) {
   }
 }
 
-async function recordGtinScanEvent(request, env) {
-  const body = await request.json().catch(() => ({}));
-  await insertGtinScanEvent(request, env, body);
-
-  return json({ ok: true }, 201);
-}
-
 function scheduleGtinScanEvent(ctx, request, env, event) {
   const task = insertGtinScanEvent(request, env, event).catch(error => {
     console.error('Falha ao registrar leitura EAN.', error);
@@ -651,11 +644,6 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
-
-    if (pathname === '/api/gtin-events' && request.method === 'POST') {
-      try { return await recordGtinScanEvent(request, env); }
-      catch (error) { return errorResponse(error); }
-    }
 
     if (pathname === '/api/admin/gtin-events' && request.method === 'GET') {
       try { return await adminGtinEvents(url, env); }

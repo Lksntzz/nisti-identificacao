@@ -39,7 +39,6 @@ import {
   markAllAdminSystemNotificationsRead
 } from './system-notifications.js';
 
-const BULK_IMPORT_LIMIT = 100;
 const MAX_ORIGINAL_PRODUCT_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_TREATED_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_PRODUCT_MASK_BYTES = 4 * 1024 * 1024;
@@ -304,43 +303,6 @@ export default {
       if (url.pathname === '/api/admin/commerce-sync/nisti-products/statuses' && request.method === 'GET') {
         const statuses = await nistiCommerceProductStatuses(env);
         return json({ ok: true, statuses });
-      }
-
-      if (url.pathname === '/api/admin/bulk-products' && request.method === 'POST') {
-        const body = await request.json();
-        const rows = Array.isArray(body?.rows) ? body.rows : [];
-        if (!rows.length) return json({ error: 'Envie rows com pelo menos um produto' }, 400);
-        if (rows.length > BULK_IMPORT_LIMIT) {
-          return json({ error: `Máximo de ${BULK_IMPORT_LIMIT} produtos por lote` }, 400);
-        }
-        const imported = [];
-        const errors = [];
-        for (let i = 0; i < rows.length; i += 1) {
-          try {
-            const saved=await upsertCatalogProduct(env, rows[i], { syncCommerce: false });
-            imported.push({ row: i + 1, ...saved });
-            scheduleNewCoverPush(ctx, env, saved, rows[i]);
-          } catch (error) {
-            errors.push({ row: i + 1, sku: clean(rows[i]?.sku), error: error?.message || 'Falha ao importar' });
-          }
-        }
-        const syncedIds = imported.map(item => Number(item.id || 0)).filter(Boolean);
-        const commerceSync = syncedIds.length
-          ? await syncNistiProductsToCommerce(env, syncedIds).catch(error => ({
-              status: 'ERROR',
-              error: error?.message || 'commerce_bulk_sync_failed'
-            }))
-          : null;
-
-        return json({
-          ok: errors.length === 0,
-          received: rows.length,
-          created: imported.filter(item => item.created).length,
-          updated: imported.filter(item => !item.created).length,
-          imported,
-          errors,
-          commerce_sync: commerceSync
-        });
       }
 
       const productSingle = url.pathname.match(/^\/api\/products\/(\d+)$/);

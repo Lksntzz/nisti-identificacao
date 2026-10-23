@@ -76,13 +76,12 @@ test('primary product RPC identifies only the first notification for each distin
   assert.match(migration,/REVOKE ALL ON FUNCTION public\.nisti_upsert_product_primary_v1/);
 });
 
-test('product POST and bulk import schedule a push for the newly inserted cover only', () => {
+test('product POST schedules a push for the newly inserted cover only', () => {
   const webpush=read('../src/web-push.js');
   assert.match(core,/const notificationId=Number\(saved\?\.cover_notification_id \|\| 0\)/);
   assert.match(core,/if \(!saved\?\.cover_notification_created/);
   assert.match(core,/ctx\?\.waitUntil\) ctx\.waitUntil\(task\)/);
   assert.match(core,/scheduleNewCoverPush\(ctx, env, saved, body\)/);
-  assert.match(core,/scheduleNewCoverPush\(ctx, env, saved, rows\[i\]\)/);
   assert.match(webpush,/return \{sent,failed,skipped:false\};/);
   assert.match(webpush,/if \(res\.ok\) sent \+= 1/);
 });

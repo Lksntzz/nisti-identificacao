@@ -136,18 +136,6 @@ export function describeAdminSystemActivity({ pathname, method, status, data, ac
     };
   }
 
-  if (pathname === '/api/admin/bulk-products') {
-    return {
-      ...base,
-      event_type: ok && !data?.errors?.length ? 'product_import_completed' : 'product_import_warning',
-      source: 'catalog',
-      title: ok && !data?.errors?.length ? 'Importação de produtos concluída' : 'Importação de produtos com pendências',
-      message: ok
-        ? `${Number(data?.created || 0)} cadastrado(s), ${Number(data?.updated || 0)} atualizado(s) e ${Number(data?.errors?.length || 0)} erro(s).`
-        : responseError(data, status)
-    };
-  }
-
   const productMutation = pathname.match(/^\/api\/products\/(\d+)$/);
   if (productMutation) {
     const deleted = method === 'DELETE';

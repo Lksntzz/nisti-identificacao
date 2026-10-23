@@ -143,7 +143,7 @@ export function GtinEventsView({ initialStatus = '', api, products = [], onLinkS
     setLinkSuccessMsg('');
 
     try {
-      await api(`/api/admin/products/${selectedProductId}/gtins`, {
+      await api(`/api/products/${selectedProductId}/gtins`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ gtin: linkingEvent.gtin, source: 'NISTI' })

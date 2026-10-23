@@ -20,12 +20,8 @@ test('Supabase-primary product create/update paths synchronize Commerce instead 
   assert.doesNotMatch(update,/reason:\s*'supabase_primary_cutover'/);
 });
 
-test('bulk product import synchronizes Commerce in Supabase-primary mode too',()=>{
-  const start=core.indexOf("url.pathname === '/api/admin/bulk-products'");
-  const end=core.indexOf('const productSingle',start);
-  const block=core.slice(start,end);
-  assert.match(block,/syncNistiProductsToCommerce\(env, syncedIds\)/);
-  assert.doesNotMatch(block,/!supabasePrimaryWritesRequested\(env\)/);
+test('orphan bulk product import route was removed (no admin screen calls it)',()=>{
+  assert.equal(core.includes("/api/admin/bulk-products"),false);
 });
 
 test('finish edits synchronize and reconcile Commerce after the authoritative write',()=>{
