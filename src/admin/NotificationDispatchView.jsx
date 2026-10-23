@@ -29,7 +29,6 @@ export default function NotificationDispatchView({senderMode=false}) {
   const [selected,setSelected]=useState({});
   const [messages,setMessages]=useState({});
   const [config,setConfig]=useState(null);
-  const [customOpen,setCustomOpen]=useState(false);
   const [tab,setTab]=useState('send');
   const [editPlatform,setEditPlatform]=useState('SHOPEE');
   const [draftOptions,setDraftOptions]=useState([]);

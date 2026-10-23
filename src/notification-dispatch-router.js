@@ -1,10 +1,7 @@
 import { supabaseRpc } from './supabase-read-store.js';
-import { normalizePlatform } from './platform-scope.js';
 import { DISPATCH_PLATFORMS,dispatchOptionValid } from './notification-dispatch-options.js';
 
-export const DISPATCH_DURATION_SECONDS=15;
 export { DISPATCH_PLATFORMS } from './notification-dispatch-options.js';
-export const DISPATCH_ACTION='RETIRAR_CAPA';
 function json(value,status=200,headers={}) {
   return new Response(JSON.stringify(value),{status,headers:{
     'content-type':'application/json; charset=utf-8',
@@ -30,16 +27,6 @@ export async function handleNotificationDispatchRequest(request,env) {
   try {
     if(path==='/api/admin/dispatch'&&request.method==='GET') {
       return json({ok:true,...(await supabaseRpc(env,'nisti_dispatch_status_v1',{}))});
-    }
-    if(path==='/api/admin/dispatch'&&request.method==='POST') {
-      const body=await request.json().catch(()=>null);
-      const platform=normalizePlatform(body?.platform);
-      if(!DISPATCH_PLATFORMS.includes(platform)||body?.action!==DISPATCH_ACTION
-        ||!validRequestKey(body?.request_key))return json({error:'Plataforma, ação ou chave inválida.'},400);
-      const item=await supabaseRpc(env,'nisti_dispatch_enqueue_v1',{
-        p_platform:platform,p_action:DISPATCH_ACTION,p_request_key:body.request_key
-      });
-      return json({ok:true,call:item},201);
     }
     // O painel autorizado solicita que o monitor aberto sincronize novamente.
     // Não libera acesso ADM e não abre o navegador de um computador desligado.

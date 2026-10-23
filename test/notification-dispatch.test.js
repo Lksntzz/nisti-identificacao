@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {handleNotificationDispatchRequest,DISPATCH_DURATION_SECONDS,DISPATCH_PLATFORMS} from '../src/notification-dispatch-router.js';
+import {handleNotificationDispatchRequest,DISPATCH_PLATFORMS} from '../src/notification-dispatch-router.js';
 
 test('the dispatch board uses 15 seconds and canonical platforms',()=>{
-  assert.equal(DISPATCH_DURATION_SECONDS,15);
   assert.deepEqual(DISPATCH_PLATFORMS,['SHOPEE','MERCADO LIVRE ANTIGO','MERCADO LIVRE NOVO','MERCADO LIVRE','AMAZON','SHEIN','TIK TOK','MAGALU','KWAI','LOJA INTEGRADA']);
   const migration=fs.readFileSync(new URL('../supabase/migrations/20261021200000_nisti_dispatch_board_v1.sql',import.meta.url),'utf8');
   assert.match(migration,/interval '10 seconds'/);
@@ -34,12 +33,12 @@ test('public monitor view is POST-only without requiring a credential',async()=>
   );
   assert.equal(res.status,405);
 });
-test('admin cannot enqueue unsupported actions or platforms',async()=>{
+test('obsolete single-call enqueue route is closed (screens use /batch)',async()=>{
   const r=await handleNotificationDispatchRequest(new Request('https://example.com/api/admin/dispatch',{
     method:'POST',headers:{'content-type':'application/json'},
-    body:JSON.stringify({platform:'SHOPEE',action:'ACAO_INVALIDA',request_key:crypto.randomUUID()})
+    body:JSON.stringify({platform:'SHOPEE',action:'RETIRAR_CAPA',request_key:crypto.randomUUID()})
   }),{});
-  assert.equal(r.status,400);
+  assert.equal(r.status,405);
 });
 test('unrecognized paths are passed through to existing router',async()=>{
   assert.equal(await handleNotificationDispatchRequest(new Request('https://example.com/api/products'),{}),null);

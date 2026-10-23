@@ -16,9 +16,6 @@ if(!DISPATCH_PLATFORMS.includes(platform))return [];
 const allowed=new Set([...DISPATCH_GROUPS[0].options,...(SPECIAL_BY_PLATFORM[platform]||[]),'Flex Avulso','Turbo']);
 return DISPATCH_GROUPS.map(group=>({...group,options:group.options.filter(x=>allowed.has(x))})).filter(group=>group.options.length);
 }
-export function validDispatchOption(platform,message){
-return typeof message==='string' && optionsForPlatform(platform).some(group=>group.options.includes(message));
-}
 export function platformColor(platform){
   if(typeof platform!=='string')return 'other';
 if(platform==='SHOPEE')return 'shopee';
