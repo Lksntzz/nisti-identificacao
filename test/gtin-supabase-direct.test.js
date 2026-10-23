@@ -13,9 +13,11 @@ test('scanner resolves EAN only through the same-origin Worker API', () => {
 
 test('scanner retains local history only as a last-resort display cache', () => {
   const workerIndex = scanner.indexOf('fetch(`/api/gtin/${encodeURIComponent(gtin)}`');
-  const cacheIndex = scanner.indexOf('cachedProductForGtin(gtin)', workerIndex);
+  const guardIndex = scanner.indexOf('serverUnavailable(workerStatus, workerError)', workerIndex);
+  const cacheIndex = scanner.indexOf('cachedEntryForGtin(gtin)', workerIndex);
   assert.ok(workerIndex >= 0);
-  assert.ok(cacheIndex > workerIndex);
+  assert.ok(guardIndex > workerIndex);
+  assert.ok(cacheIndex > guardIndex);
 });
 
 test('scanner expands accessory finish codes and tassel presence', () => {
