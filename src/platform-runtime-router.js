@@ -26,27 +26,14 @@ function canonicalizeRowPlatform(row) {
 async function canonicalizeCatalogRequest(request, url) {
   if (request.method !== 'POST') return request;
   const singleProduct = url.pathname === '/api/products';
-  const bulkProducts = url.pathname === '/api/admin/bulk-products';
-  if (!singleProduct && !bulkProducts) return request;
+  if (!singleProduct) return request;
 
   const body = await request.clone().json().catch(() => null);
   if (!body || typeof body !== 'object') return request;
 
-  if (singleProduct) {
-    const normalized = canonicalizeRowPlatform(body);
-    if (!normalized) return invalidPlatformResponse();
-    Object.assign(body, normalized);
-  }
-
-  if (bulkProducts && Array.isArray(body.rows)) {
-    const rows = [];
-    for (const row of body.rows) {
-      const normalized = canonicalizeRowPlatform(row);
-      if (!normalized) return invalidPlatformResponse();
-      rows.push(normalized);
-    }
-    body.rows = rows;
-  }
+  const normalized = canonicalizeRowPlatform(body);
+  if (!normalized) return invalidPlatformResponse();
+  Object.assign(body, normalized);
 
   const headers = new Headers(request.headers);
   headers.set('content-type', 'application/json');

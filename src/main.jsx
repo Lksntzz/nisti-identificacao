@@ -52,6 +52,10 @@ async function api(path, options = {}) {
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : null;
   if (!response.ok) throw new Error(data?.error || `Erro ${response.status}`);
+  // Rota /api inexistente cai na página do site (HTML, status 200): nunca tratar como sucesso.
+  if (!data && response.status !== 204 && String(path).startsWith('/api/')) {
+    throw new Error('Resposta inesperada do servidor. A operação não foi confirmada.');
+  }
   return data;
 }
 
