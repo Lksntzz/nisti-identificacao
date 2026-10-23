@@ -143,9 +143,7 @@ function SalesTrendChart({ history, mode = 'bars' }) {
 export function CatalogView({
   products,
   highlightedProductIds = [],
-  onRefresh,
   onOpenCreate,
-  onOpenImport,
   onViewProduct,
   onEditProduct,
   onDeleteProduct
@@ -551,7 +549,6 @@ export function CatalogView({
               const report=planning[salesProduct.id];
               const display = value => value == null ? '—' : Number(value).toLocaleString('pt-BR',{maximumFractionDigits:2});
               const history=Array.isArray(report.history) ? report.history : [];
-              const max=Math.max(1,...history.map(x=>Number(x.units)||0));
               return <>
                 <div className="nisti-sales-modal-metrics">
                   <div><span>Vendas do mês</span><strong>{report.month_units == null ? 'Sem importação' : display(report.month_units)+' un.'}</strong></div>

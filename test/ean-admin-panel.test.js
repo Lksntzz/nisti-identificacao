@@ -68,14 +68,15 @@ test('new product registration writes its EAN atomically with the NISTI source i
   assert.doesNotMatch(primaryProductWrites, /source='IMPORT'/);
 });
 
-test('manual and bulk registration immediately expose downloadable barcode labels', () => {
+test('manual registration immediately exposes downloadable barcode labels', () => {
   assert.match(registration, /function RegistrationBarcodeResult/);
   assert.match(registration, /createEan13Svg\(item\)/);
   assert.match(registration, /downloadBarcodePng\(item\)/);
   assert.match(registration, /downloadBarcodeZip\(barcodeItems/);
   assert.match(registration, /Baixar todas em ZIP/);
   assert.match(registration, /setResult\(\{ items: registered, errors: failures \}\)/);
-  assert.match(main, /setResult\(\{ items: importedItems, errors: importErrors, created, updated \}\)/);
+  // A importação CSV em lote foi removida (não havia botão para abri-la).
+  assert.doesNotMatch(main, /ImportCsvModal|catalogRowsFromCsv/);
 });
 
 test('admin dashboard only shows actionable EAN pending blocks', () => {

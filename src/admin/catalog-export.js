@@ -19,26 +19,3 @@ export function sortedCatalogProducts(products) {
     return Number(a.id || 0) - Number(b.id || 0);
   });
 }
-
-function csvCell(value) {
-  return `"${String(value ?? '').replace(/"/g, '""')}"`;
-}
-
-export function organizedCatalogCsv(products) {
-  const headers = ['PLATAFORMA', 'FAMILIA_SKU', 'SKU', 'NOME', 'VARIACAO', 'CAPA_CODE', 'EAN', 'ID', 'CRIADO_EM'];
-  const rows = sortedCatalogProducts(products).map(p => [
-    p.platform, skuFamily(p.sku), p.sku, p.nome, p.variacao,
-    p.capa_code, p.gtin, p.id, p.created_at
-  ]);
-  return '\uFEFF' + [headers, ...rows].map(row => row.map(csvCell).join(';')).join('\r\n');
-}
-
-export function legacyCatalogCsv(products) {
-  const headers = ['ID', 'SKU', 'NOME', 'VARIACAO', 'CAPA_CODE', 'EAN', 'PLATAFORMA', 'CRIADO_EM'];
-  const rows = products.map(p => [
-    p.id, p.sku, p.nome, p.variacao, p.capa_code, p.gtin, p.platform, p.created_at
-  ]);
-  return '\uFEFF' + [headers.join(','), ...rows.map(row => [
-    row[0], ...row.slice(1).map(csvCell)
-  ].join(','))].join('\r\n');
-}

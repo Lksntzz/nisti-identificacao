@@ -69,7 +69,6 @@ Principais funções:
 - editar dados e SKU;
 - vincular ou corrigir EAN;
 - manter imagens;
-- importar cadastros em lote;
 - consultar sincronização comercial;
 - abrir detalhes do Produto Mestre.
 
@@ -483,9 +482,9 @@ A suíte não modifica o `package-lock.json` e o Playwright **não entra no bund
 
 ## Modularização recente
 
-Quatro PRs extraíram, de `src/main.jsx`, a barra lateral (`src/admin/AdminSidebar.jsx`), o parser CSV (`src/admin/catalog-csv-parser.js`), o modal de atividades (`src/admin/AdminNotificationsModal.jsx`) e a barra superior (`src/admin/AdminTopbar.jsx`), reduzindo esse arquivo de 2.066 para 1.556 linhas sem reformular suas regras de negócios.
+Quatro PRs extraíram, de `src/main.jsx`, a barra lateral (`src/admin/AdminSidebar.jsx`), o modal de atividades (`src/admin/AdminNotificationsModal.jsx`) e a barra superior (`src/admin/AdminTopbar.jsx`), reduzindo esse arquivo de 2.066 para 1.556 linhas sem reformular suas regras de negócios.
 
-A correção de eventos redundantes da expedição está em `src/system-notifications.js`; a taxa de notificações em produção não foi validada após o deploy. O tratamento dos EANs importados via CSV mantém uma diferença legada entre cabeçalhos e arquivos posicionais e requer correção funcional separada.
+A correção de eventos redundantes da expedição está em `src/system-notifications.js`; a taxa de notificações em produção não foi validada após o deploy. A importação de produtos em lote por CSV foi removida em 23/10/2026: não havia botão para abri-la no painel Produtos NISTI. O cadastro é feito pelo formulário de produto.
 
 ## Entrega contínua
 

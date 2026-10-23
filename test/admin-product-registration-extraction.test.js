@@ -6,10 +6,9 @@ const main = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8'
 const registration = fs.readFileSync(new URL('../src/admin/ProductRegistrationModal.jsx', import.meta.url), 'utf8');
 
 test('admin shell imports standalone registration without keeping duplicate components', () => {
-  assert.match(main, /import CreateProductModal, \{ RegistrationBarcodeResult \} from '\.\/admin\/ProductRegistrationModal\.jsx'/);
+  assert.match(main, /import CreateProductModal from '\.\/admin\/ProductRegistrationModal\.jsx'/);
   assert.doesNotMatch(main, /function (CreateProductModal|RegistrationBarcodeResult)\(/);
   assert.match(main, /<CreateProductModal[\s\S]*?api=\{api\}[\s\S]*?compressAdminImage=\{compressAdminImage\}/);
-  assert.match(main, /\bRegistrationBarcodeResult\b[\s\S]*?export default AdminApp/);
 });
 
 test('extracted component retains product/variation registration and image upload', () => {
