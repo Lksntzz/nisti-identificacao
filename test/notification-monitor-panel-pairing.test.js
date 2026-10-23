@@ -49,9 +49,9 @@ test('legacy monitor activation routes remain disabled and admin sending remains
     assert.equal(response.status,405,path);
   }
   const invalid=await handleNotificationDispatchRequest(
-    new Request('https://example.com/api/admin/dispatch',{method:'POST',
+    new Request('https://example.com/api/admin/dispatch/batch',{method:'POST',
       headers:{'content-type':'application/json'},
-      body:JSON.stringify({platform:'INVALID',action:'RETIRAR_CAPA',request_key:crypto.randomUUID()})}),{}
+      body:JSON.stringify({calls:[{platform:'INVALID',message:'Full',request_key:crypto.randomUUID()}]})}),{}
   );
   assert.equal(invalid.status,400);
 });

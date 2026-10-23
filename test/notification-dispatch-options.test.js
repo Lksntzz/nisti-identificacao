@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {DISPATCH_PLATFORMS,optionsForPlatform,validDispatchOption} from '../src/notification-dispatch-options.js';
+import {DISPATCH_PLATFORMS,optionsForPlatform,dispatchOptionValid} from '../src/notification-dispatch-options.js';
 import {handleNotificationDispatchRequest} from '../src/notification-dispatch-router.js';
 
 test('ten dispatch platforms remain separate and each has relevant operation choices',()=>{
@@ -25,11 +25,11 @@ test('ten dispatch platforms remain separate and each has relevant operation cho
     ['SHEIN','Venda Direta'],
     ['TIK TOK','Empresa'],
     ['KWAI','Full']
-  ])assert.equal(validDispatchOption(platform,choice),true);
-  assert.equal(validDispatchOption('SHOPEE','Mercado Flex'),false);
-  assert.equal(validDispatchOption('MERCADO LIVRE NOVO','Full Mercado Livre Antigo'),false);
-  assert.equal(validDispatchOption('AMAZON','Full Shopee'),false);
-  assert.equal(validDispatchOption('KWAI','Texto arbitrário'),false);
+  ])assert.equal(dispatchOptionValid(platform,choice),true);
+  assert.equal(dispatchOptionValid('SHOPEE','Mercado Flex'),false);
+  assert.equal(dispatchOptionValid('MERCADO LIVRE NOVO','Full Mercado Livre Antigo'),false);
+  assert.equal(dispatchOptionValid('AMAZON','Full Shopee'),false);
+  assert.equal(dispatchOptionValid('KWAI','Texto arbitrário'),false);
 });
 test('server rejects mismatched platform and option without database access',async()=>{
   const r=await handleNotificationDispatchRequest(new Request('https://example.test/api/admin/dispatch/batch',{
