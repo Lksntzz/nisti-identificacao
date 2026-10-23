@@ -508,7 +508,7 @@ function useAnimatedDialogClose(onClose, duration = 180) {
   return { closing, requestClose };
 }
 
-export function DetailDialog({ item, onClose, onOpenCollection }) {
+function DetailDialog({ item, onClose, onOpenCollection }) {
   const closeRef = useRef(null);
   const hasMedia = Boolean(item?.image_url);
   const { closing, requestClose } = useAnimatedDialogClose(onClose);

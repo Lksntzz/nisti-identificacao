@@ -694,7 +694,7 @@ async function adminProducts(url, env) {
   const q = String(url.searchParams.get('q') || '').trim().slice(0,80);
   const requestedLimit = Number(url.searchParams.get('limit') || 80);
   const productLimit = Number.isInteger(requestedLimit) ? Math.max(1,Math.min(500,requestedLimit)) : 80;
-  let results=[];
+  let results;
 
   if (supabasePrimaryWritesRequested(env)) {
     const rows=await supabaseRpc(env,'nisti_admin_mural_products_v1',{

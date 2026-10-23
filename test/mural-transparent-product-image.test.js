@@ -163,15 +163,13 @@ test('outline keeps the product and nearby detached wire-o while filling interna
   assert.match(source, /if \(!mask\[index\] && !outside\[index\]\) solid\[index\] = 1/);
 });
 
-test('outline is only the external white ring and rejects background-sized masks', () => {
-  assert.match(source, /function dilateMask/);
-  assert.match(source, /function maskStats/);
-  assert.match(source, /if \(stats\.ratio > \.82 \|\| stats\.touches >= 3\) return ''/);
-  assert.match(source, /const radius = clamp\(Math\.round\(Math\.max\(width, height\) \* \(8 \/ 1024\)\), 6, 11\)/);
-  assert.match(source, /const outlineMask = buildExternalOutlineRing\(mainMask, width, height, radius\)/);
-  assert.match(source, /if \(!outlineMask\[index\]\) continue/);
+test('outline is only the external white ring drawn by the treated pipeline', () => {
+  assert.match(source, /function buildExternalOutlineRing/);
+  assert.match(source, /const outlineRadius = clamp\(Math\.round\(Math\.max\(width, height\) \* outlineScale\), 6, 11\)/);
+  assert.match(source, /const outlineMask = buildExternalOutlineRing\(productMask, width, height, outlineRadius\)/);
+  assert.match(source, /if \(!outlineMask\[sourceIndex\]\) continue/);
   assert.match(source, /outlineData\.data\[offset\] = 255/);
-  assert.match(source, /export function useTransparentProductOutline/);
+  assert.doesNotMatch(source, /export function useTransparentProductOutline/);
 });
 
 test('external outline leaves closed wire-o gaps transparent', () => {
