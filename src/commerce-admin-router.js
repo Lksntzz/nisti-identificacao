@@ -476,7 +476,7 @@ export async function handleCommerceAdminRequest(request, env) {
       const search=String(query(url,'search')||'');
       if(!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO'].includes(platform)
         ||![30,60,90].includes(days)
-        ||!['ALL','ZERO','STABLE','RISING'].includes(status)
+        ||!['ALL','ZERO','STABLE','RISING','FALLING'].includes(status)
         ||search.length>120)return json({error:'Filtros de evolução inválidos.'},400);
       return json(await commerceEvolutionAds(env,{platform,days,status,search,
         limit:query(url,'limit'),offset:query(url,'offset')}));

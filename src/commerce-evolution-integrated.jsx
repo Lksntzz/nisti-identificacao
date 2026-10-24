@@ -11,8 +11,8 @@ import {observedVariationCounts,adUnits,adRevenue,adTrend,adState,variationState
 const API='/api/admin/commerce/listings/manager';
 const PAGE=12,WINDOWS=[30,60,90];
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],
-  ['MERCADO_LIVRE','Mercado Livre'],['ML_ANTIGO','Mercado Livre Antigo'],
-  ['ML_NOVO','Mercado Livre Novo']];
+  ['MERCADO_LIVRE','Mercado Livre'],['ML_ANTIGO','Mercado Livre Antigo']];
+// "Mercado Livre Novo" fica fora do filtro enquanto não houver anúncios ativos nessa conta.
 const number=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
 const pct=n=>new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1}).format(n);
@@ -182,7 +182,7 @@ export default function CommerceEvolutionIntegrated({
   const kpis=report?.kpis||{},coverage=Array.isArray(report?.coverage)?report.coverage:[];
   const v=n=>report?number(n):'—';
   const tabs=[['ALL','Todos',kpis.total],['ZERO','Sem vendas ou paradas',kpis.zero],
-    ['RISING','Crescendo',kpis.rising],['STABLE','Estáveis',kpis.stable]];
+    ['FALLING','Em queda',kpis.falling],['RISING','Crescendo',kpis.rising],['STABLE','Estáveis',kpis.stable]];
   const setPeriod=n=>{setDays(n);onPeriodChange(n);};
   const stale=report?staleSources(coverage,todayInSaoPaulo()):[];
   return <section className="nev" aria-label="Evolução de vendas por anúncio">
@@ -268,6 +268,7 @@ export default function CommerceEvolutionIntegrated({
           <b> Dados pendentes</b>: a plataforma não tem relatório importado.</li>
         <li>Os períodos terminam na última venda importada de cada plataforma, não na data de hoje.
           Um aviso aparece quando uma plataforma está há mais de 3 dias sem dados.</li>
+        <li><b>Em queda</b>: queda de 20% e ao menos 2 unidades sobre o período anterior de mesma duração.</li>
         <li><b>Crescendo</b>: alta de 20% e ao menos 2 unidades sobre o período anterior de mesma duração.
           <b> Estáveis</b>: vendas próximas ao período anterior. Só é calculado com cobertura completa nos dois períodos.</li>
         <li>Vendas pelo ID do anúncio sem SKU atribuído entram no total do anúncio, mas não em nenhuma variação.
