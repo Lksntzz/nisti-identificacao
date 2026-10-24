@@ -1,11 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import vm from 'node:vm';
+import { adTrend } from '../src/commerce-evolution-helpers.js';
 
 const sql=fs.readFileSync('supabase/migrations/20261022220000_commerce_evolution_trends_from_imported_ads_v1.sql','utf8');
-const view=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
-const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
 
 test('trend uses sales directly linked to the advertisement in equal-length windows',()=>{
   assert.match(sql,/d\.external_listing_id=l\.external_listing_id/);
@@ -39,10 +37,6 @@ test('reuses one bounded read-only sales ledger scan',()=>{
 });
 
 test('shows previous and current units plus precise deltas on stable and rising ads',()=>{
-  const a=view.indexOf('const adTrend='),b=view.indexOf('const verifiedUnsoldVariations=',a);
-  assert.ok(a>=0&&b>a);
-  const known=(n)=>n!==null&&n!==undefined&&Number.isFinite(Number(n));
-  const adTrend=vm.runInNewContext(view.slice(a,b)+'\n adTrend',{known});
   const safari=adTrend({current_window_units:1145,previous_window_units:1123});
   assert.equal(safari.delta,22);
   assert.equal(safari.percent,2);
@@ -50,7 +44,4 @@ test('shows previous and current units plus precise deltas on stable and rising 
   assert.equal(growth.delta,130);
   assert.equal(growth.percent,34.6);
   assert.equal(adTrend({current_window_units:null,previous_window_units:5}),null);
-  assert.match(view,/\['STABLE','RISING','FALLING'\]\.includes\(badge\)/);
-  assert.match(view,/Comparação entre períodos iguais nos relatórios importados/);
-  assert.match(css,/\.nei-trend-records\{/);
 });

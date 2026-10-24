@@ -1,6 +1,8 @@
 import React,{useEffect,useState} from 'react';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
 import './commerce-evolution-integrated.css';
+import {observedVariationCounts,adUnits,adRevenue,adTrend,adState,variationState}
+  from './commerce-evolution-helpers.js';
 
 // Evolução de vendas por anúncio — layout v2 (foco: quem vende e quem não vende).
 // Mesma API e mesmas regras de honestidade: zero só quando os relatórios
@@ -16,40 +18,6 @@ const pct=n=>new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1}).format(n);
 const date=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))?s.split('-').reverse().join('/'):'—';
 const platformName=s=>s==='SHOPEE'?'Shopee':s==='ML_NOVO'?'Mercado Livre Novo':
   s==='ML_ANTIGO'?'Mercado Livre Antigo':s==='MERCADO_LIVRE'?'Mercado Livre':s||'Marketplace';
-const known=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n));
-
-const observedVariationCounts=(ad,days)=>{
-  const variations=Array.isArray(ad?.variations)?ad.variations:[];
-  return variations.reduce((acc,v)=>{
-    const identified=v?.['identified_'+days];
-    if(!v.match_verified||!known(identified)
-      ||Number(identified)===0&&Number(ad?.['unlinked_'+days])>0)acc.pending++;
-    else if(Number(identified)>0)acc.sold++;
-    else acc.withoutSales++;
-    return acc;
-  },{sold:0,withoutSales:0,pending:0});
-};
-const adUnits=(ad,n)=>known(ad?.['units_'+n])?Number(ad['units_'+n])
-  :ad?.period_end&&known(ad?.['identified_'+n])?Number(ad['identified_'+n]):null;
-const adTrend=ad=>{
-  if(!known(ad?.current_window_units)||!known(ad?.previous_window_units))return null;
-  const current=Number(ad.current_window_units),previous=Number(ad.previous_window_units);
-  return {current,previous,delta:current-previous,
-    percent:previous>0?Math.round((current-previous)*1000/previous)/10:null};
-};
-// Estado do anúncio no período: SOLD (vendeu), ZERO (0 confirmado), PENDING (sem comprovação).
-const adState=(ad,days)=>{
-  const units=adUnits(ad,days);
-  if(units===null||!ad?.period_end)return 'PENDING';
-  return units>0?'SOLD':'ZERO';
-};
-const variationState=(v,d,ad)=>{
-  if(!v.match_verified)return 'LINK';
-  const identified=v?.['identified_'+d];
-  if(!known(identified))return 'UNKNOWN';
-  if(Number(identified)===0&&Number(ad?.['unlinked_'+d])>0)return 'UNKNOWN';
-  return Number(identified)>0?'SOLD':'ZERO';
-};
 const VARIATION_LABEL={SOLD:'Vendendo',ZERO:'Sem vendas',LINK:'SKU pendente',UNKNOWN:'Sem comprovação'};
 const variationHint=(v,d,ad,st)=>{
   if(st==='LINK')return v.match_issue==='MISSING_SKU'?'SKU ausente no catálogo':
@@ -126,7 +94,7 @@ function AdDetails({ad,days}){
       return <div key={n} className={n===days?'current':''}>
         <small>{n} dias</small>
         <strong>{u===null?'—':number(u)+' un.'}</strong>
-        <span>{ad.period_end&&known(ad['revenue_'+n])?money(ad['revenue_'+n]):'—'}</span>
+        <span>{adRevenue(ad,n)===null?'—':money(adRevenue(ad,n))}</span>
       </div>;})}</div>
     {Number(ad['unlinked_'+days])>0&&<p className="nev-note" role="note">
       {number(ad['unlinked_'+days])} unidade(s) vendida(s) pelo ID do anúncio sem SKU atribuído.
