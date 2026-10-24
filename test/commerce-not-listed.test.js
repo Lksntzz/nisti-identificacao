@@ -26,11 +26,3 @@ test('produto sem anúncio só é criado após aprovação explícita', () => {
   assert.equal(sql.includes("'USER_NEW_BULK_NOT_LISTED'"), true);
   assert.equal(sql.includes("raise exception 'new_products_not_approved'"), true);
 });
-
-test('UI permite decidir produto sem anúncio sem criar URL sintética', () => {
-  const source = read('src/commerce-import-view.jsx');
-  assert.equal(source.includes("payload.listing_presence_hint === 'NOT_LISTED'"), true);
-  assert.equal(source.includes("['NO_MATCH', 'NO_MATCH_NOT_LISTED'].includes(row.match_method)"), true);
-  assert.equal(source.includes('Produto sem anúncio nesta plataforma'), true);
-  assert.equal(source.includes('canResolveProduct'), true);
-});

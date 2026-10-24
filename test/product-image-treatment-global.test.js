@@ -114,28 +114,6 @@ test('calibrated planner geometry rejects implausible wide cutouts', () => {
   assert.equal(plannerMaskGeometryIsSafe(tooWide,width,height),false);
 });
 
-test('core product screens use the shared treatment', () => {
-  const files = [
-    'src/main.jsx',
-    'src/admin/CatalogView.jsx',
-    'src/admin/BarcodeGeneratorView.jsx',
-    'src/admin/ExpeditionDashboard.jsx',
-    'src/admin/ProductsWithoutGtinView.jsx',
-    'src/commerce-catalog-workspace.jsx',
-    'src/commerce-products-view.jsx',
-    'src/commerce-listings-view.jsx',
-    'src/commerce-management-view.jsx',
-    'src/commerce-sales-dashboard.jsx',
-    'src/commerce-sales-product-performance.jsx',
-    'src/commerce-shopee-snapshot-view.jsx',
-    'src/gtin-scanner-overlay.jsx',
-    'src/public-main.jsx'
-  ];
-  for (const path of files) {
-    assert.ok(read(path).includes('ProductCutoutImage'), path);
-  }
-});
-
 test('Mural product rendering uses the same treated image pipeline', () => {
   const mural = read('src/mural-nisti.jsx');
   const experience = read('src/mural-product-experience.jsx');

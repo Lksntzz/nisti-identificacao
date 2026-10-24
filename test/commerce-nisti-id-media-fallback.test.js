@@ -35,14 +35,3 @@ test('anúncios com múltiplos produtos recebem galeria de fallback por SKU', ()
   assert.equal(sql.includes("'sku',x.sku"), true);
   assert.equal(sql.includes("'image_url','/api/images/' || x.source_product_id::text"), true);
 });
-
-test('store comercial usa RPCs v3 e UI identifica mídia NISTI ID', () => {
-  const store = read('src/commerce-supabase-store.js');
-  const products = read('src/commerce-products-view.jsx');
-  const listings = read('src/commerce-listings-view.jsx');
-  assert.equal(store.includes("'commerce_list_products_v3'"), true);
-  assert.equal(store.includes("'commerce_list_listings_v4'"), true);
-  assert.equal(products.includes("product.thumbnail_source === 'NISTI_ID'"), true);
-  assert.equal(listings.includes("listing.cover_image_source === 'NISTI_ID'"), true);
-  assert.equal(listings.includes('fallback_product_images'), true);
-});

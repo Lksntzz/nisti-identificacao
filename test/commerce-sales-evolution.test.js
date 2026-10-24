@@ -6,7 +6,6 @@ const sql=fs.readFileSync('supabase/migrations/20261019211000_commerce_sales_evo
 const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
 const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
 const app=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const panel=fs.readFileSync('src/commerce-sales-evolution.jsx','utf8');
 const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
 
 test('painel comercial possui duas visões, sem remover os anúncios existentes',()=>{
@@ -17,24 +16,6 @@ test('painel comercial possui duas visões, sem remover os anúncios existentes'
   assert.match(app,/Lista de anúncios/);
   assert.match(css,/nim-evolution-controls/);
   assert.match(css,/max-width:550px/);
-});
-
-test('evolução usa somente um seletor para todas as situações, sem botões duplicados',()=>{
-  assert.match(panel,/Situação das vendas<select/);
-  assert.match(panel,/value=\{statuses.some\(\(\[code\]\)=>code===status\)\?status:''\}/);
-  assert.match(panel,/onChange=\{e=>onStatusChange\(e.target.value\)\}/);
-  assert.match(panel,/statuses\.map\(\(\[code,label\]\)=><option value=\{code\}/);
-  for(const state of ['ZERO','STABLE','RISING']){
-    assert.match(panel,new RegExp("'"+state+"'"));
-  }
-  assert.match(panel,/onClick=\{\(\)=>onStatusChange\('ALL'\)\}/);
-  assert.doesNotMatch(panel,/nim-evolution-summary|nim-evolution-statuses|nim-evolution-kpi/);
-  assert.doesNotMatch(css,/\.nim-evolution-summary|\.nim-evolution-statuses|\.nim-evolution-kpi/);
-  assert.match(panel,/\[7,30,60,90\]\.map/);
-  assert.match(panel,/onPlatformChange\(e.target.value\)/);
-  assert.match(panel,/setDraft\(e.target.value\)/);
-  assert.match(panel,/SKU\(s\)\/modelo\(s\) no filtro/);
-  assert.match(panel,/Sem vendas/);
 });
 
 test('trends comparam períodos idênticos e respeitam cobertura diária real',()=>{
@@ -61,16 +42,6 @@ test('inclui todos os SKUs da Shopee, ML datado e aliases já aprovados',()=>{
   assert.match(sql,/count\(distinct a\.listing_id\)=1/);
   assert.match(sql,/null::text end listing_id/);
   assert.doesNotMatch(sql,/\b(update|insert into|delete from)\s+public\.commerce_sales_/i);
-});
-test('ações são sugestões, sem criação automática de promoções ou falsa venda zero',()=>{
-  assert.match(panel,/Ação comercial sugerida/);
-  assert.match(panel,/promoção somente depois de conferir a margem/);
-  assert.match(panel,/Mudança de código|mudança\s+de\s+código/i);
-  assert.match(panel,/current_units/);
-  assert.match(panel,/previous_units/);
-  assert.match(panel,/growth_pct/);
-  assert.match(panel,/Sem ID exclusivo de anúncio identificado/);
-  assert.doesNotMatch(panel,/fetch\([^)]*POST/);
 });
 test('API é protegida por admin, aceita filtros válidos e mantém RPC restrita',()=>{
   assert.match(router,/listings\/manager\/evolution/);

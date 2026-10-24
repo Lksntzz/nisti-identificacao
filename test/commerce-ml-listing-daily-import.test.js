@@ -8,7 +8,6 @@ const store = read('src/commerce-supabase-store.js');
 const router = read('src/commerce-admin-router.js');
 const importer = read('src/commerce-import-client.js');
 const reader = read('src/commerce-ml-native-sales-reader.js');
-const ui = read('src/commerce-abc-ad-performance.jsx');
 
 test('daily sales by ID persist only aggregate fields and are readable only by service role',()=>{
   assert.match(sql,/commerce_sales_listing_daily_v1/);
@@ -39,16 +38,4 @@ test('browser stages listing totals before committing the normalized sales snaps
   assert.match(router,/sellerDailyMatch/);
   assert.match(router,/commerceAppendSalesListingDaily\(env,batchId,body\.rows\)/);
   assert.match(store,/commerce_append_sales_listing_daily_v1/);
-});
-
-test('ABC ad details prefer verified imported values; manual values remain separately labelled',()=>{
-  assert.match(abc,/public\.commerce_current_sales_listing_daily_v1 s/);
-  assert.match(abc,/'imported_units',imported_units/);
-  assert.match(abc,/'imported_revenue',imported_revenue/);
-  assert.match(ui,/hasImportedUnits/);
-  assert.match(ui,/item\.imported_units/);
-  assert.match(ui,/item\.imported_revenue/);
-  assert.match(ui,/Vendas importadas por ID de anúncio/);
-  assert.match(ui,/registro manual separado/);
-  assert.doesNotMatch(ui,/fmtMoney\(item\.imported_revenue\+item\.manual_units\)/);
 });

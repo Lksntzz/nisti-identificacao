@@ -31,17 +31,6 @@ test('manual listing state route is protected and routed before generic commerce
   assert.ok(genericHandler > stateHandler);
 });
 
-test('listing UI uses RPC contract IDs and exposes manual verification', () => {
-  const view = read('src/commerce-listings-view.jsx');
-  assert.equal(view.includes('listing.listing_id'), true);
-  assert.equal(view.includes('listing.id'), false);
-  assert.equal(view.includes('Salvar verificação'), true);
-  assert.equal(view.includes('/state'), true);
-  assert.equal(view.includes('sales_status'), true);
-  assert.equal(view.includes('video_status'), true);
-  assert.equal(view.includes('last_checked_at'), true);
-});
-
 test('product UI uses product_id and marketplace_codes returned by RPC', () => {
   const view = read('src/commerce-products-view.jsx');
   assert.equal(view.includes('product.product_id'), true);

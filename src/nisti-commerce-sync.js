@@ -61,17 +61,10 @@ async function loadNistiProducts(env, ids = null) {
   let statement;
   if (idList.length) {
     const placeholders = idList.map(() => '?').join(',');
-    sql += ` WHERE p.id IN (${placeholders})`;
+    sql += ` WHERE p.id IN (${placeholders}) ORDER BY p.id ASC`;
     statement = env.DB.prepare(sql).bind(...idList);
   } else {
-    statement = env.DB.prepare(sql);
-  }
-
-  sql += ' ORDER BY p.id ASC';
-
-  if (idList.length) {
-    statement = env.DB.prepare(sql).bind(...idList);
-  } else {
+    sql += ' ORDER BY p.id ASC';
     statement = env.DB.prepare(sql);
   }
 

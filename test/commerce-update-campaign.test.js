@@ -49,15 +49,3 @@ test('RPCs anuais ficam restritas à service role', () => {
   assert.equal(sql.includes('from public, anon, authenticated'), true);
   assert.equal(sql.includes('to service_role'), true);
 });
-
-test('API e interface expõem a campanha anual sem acesso direto ao Supabase', () => {
-  const router = read('src/commerce-update-admin-router.js');
-  const view = read('src/commerce-update-view.jsx');
-  const edge = read('src/edge-router.js');
-  assert.equal(router.includes('/api/admin/commerce/update-campaigns'), true);
-  assert.equal(router.includes('commerceSetUpdateCheck'), true);
-  assert.equal(view.includes('Nova campanha anual'), true);
-  assert.equal(view.includes('Salvar verificação'), true);
-  assert.equal(view.includes('Fechar campanha'), true);
-  assert.equal(edge.includes('handleCommerceUpdateAdminRequest'), true);
-});

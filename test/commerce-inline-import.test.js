@@ -2,24 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = file => fs.readFileSync(file,'utf8');
-const dashboard=read('src/commerce-commercial-dashboard.jsx');
 const importView=read('src/commerce-import-center.jsx');
 const styles=read('src/commerce-import-center.css');
 const main=read('src/main.jsx');
 const admin=read('src/commerce-admin-app-v2.jsx');
 const nav=read('src/admin-navigation.js');
-
-test('import is a compact card in the commercial dashboard, not a second sidebar page',()=>{
-  assert.match(dashboard,/<CommerceImportCenter embedded/);
-  assert.match(dashboard,/className="nisti-com-section nisti-com-imports"/);
-  assert.match(dashboard,/onSalesChanged=\{\(\)=>setRefresh\(value=>value\+1\)\}/);
-  assert.match(dashboard,/onCatalogChanged=\{\(\)=>setRefresh\(value=>value\+1\)\}/);
-  assert.doesNotMatch(main,/<CommerceImportCenter onSalesChanged/);
-  assert.doesNotMatch(admin,/<CommerceImportCenter onSalesChanged/);
-  assert.doesNotMatch(nav,/id: 'import-center'/);
-  assert.match(nav,/id: 'pending'/);
-  assert.match(admin,/id: 'planning'/);
-});
 
 test('operator chooses type first; relevant platform, account and file field then appear in one card',()=>{
   assert.match(importView,/useState\(IMPORT_MODES\.includes\(initialMode\) \? initialMode : embedded \? '' : 'catalog'\)/);

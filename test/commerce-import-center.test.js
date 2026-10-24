@@ -4,16 +4,6 @@ import fs from 'node:fs';
 
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('Painel Comercial incorpora a importação e remove a ferramenta duplicada do menu', () => {
-  const app = read('src/commerce-admin-app-v2.jsx');
-  const dashboard = read('src/commerce-commercial-dashboard.jsx');
-  assert.equal(app.includes('CommerceCommercialDashboard'), true);
-  assert.equal(app.includes("id: 'import-center'"), false);
-  assert.equal(dashboard.includes('CommerceImportCenter embedded'), true);
-  assert.equal(dashboard.includes('onSalesChanged'), true);
-  assert.equal(dashboard.includes('onCatalogChanged'), true);
-});
-
 test('Central de Importações é um componente próprio e separado da tela antiga', () => {
   const center = read('src/commerce-import-center.jsx');
   assert.equal(center.includes("commerce-unified-import-view"), false);

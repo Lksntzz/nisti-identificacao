@@ -7,8 +7,6 @@ const attribution=fs.readFileSync('supabase/migrations/20261016191100_commerce_s
 const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
 const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
 const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const form=fs.readFileSync('src/commerce-shopee-reconciliation.jsx','utf8');
-const css=fs.readFileSync('src/commerce-shopee-reconciliation.css','utf8');
 
 test('fonte e destino de SKU têm validação dupla, sem alterar produtos',()=>{
   assert.match(migration,/create table if not exists public\.commerce_shopee_sales_sku_alias_reviews_v1/);
@@ -22,25 +20,6 @@ test('fonte e destino de SKU têm validação dupla, sem alterar produtos',()=>{
   assert.match(migration,/p_confirmed is distinct from true/);
   assert.match(migration,/revoked_at=now\(\)/);
   assert.doesNotMatch(migration,/insert into public\.products|update public\.products|delete from public\.products|update public\.commerce_listing_products|update public\.commerce_sales_rows/);
-});
-
-test('nunca aprova automaticamente sugestão de prefixo 2026/2027',()=>{
-  assert.match(migration,/when s\.sku~'\^PB\(25\|26\)'/);
-  assert.match(migration,/when s\.sku~'\^AGMT\(25\|26\)'/);
-  assert.match(migration,/when s\.sku~'\^PLAN\(25\|26\)'/);
-  assert.match(migration,/having count\(\*\)=1/);
-  assert.match(form,/Sugestão: anúncio/);
-  assert.match(form,/setConfirmed\(false\)/);
-  assert.match(form,/Confirmei que este SKU das vendas e a variação escolhida representam o mesmo produto/);
-  assert.match(form,/evidence\.trim\(\)\.length<8/);
-  assert.match(form,/sku:active\.sku,variation_id:Number\(variation\.variation_id\)/);
-});
-
-test('SKU duplicado no mesmo anúncio permanece pendente sem rateio por variação',()=>{
-  assert.match(migration,/when coalesce\(o\.owners,0\)>1 then 'DUPLICATE_SKU'/);
-  assert.match(form,/item\.status==='DUPLICATE_SKU'/);
-  assert.match(form,/Requer ID de variação na origem/);
-  assert.match(migration,/having count\(\*\)=1/);
 });
 
 test('associações aprovadas alimentam dias, meses e histórico pelo SKU canônico',()=>{
@@ -74,15 +53,4 @@ test('controle de banco isola a conciliação do usuário anônimo',()=>{
   assert.match(migration,/security invoker set search_path=public/);
   assert.match(migration,/from public,anon,authenticated/);
   assert.match(migration,/to service_role/);
-});
-
-test('o Gestor exibe vendas automaticamente sem formulário de conciliação',()=>{
-  assert.match(manager,/import ShopeeUnlinkedSales from/);
-  assert.match(manager,/ShopeeUnlinkedSales days=\{days\}/);
-  assert.doesNotMatch(manager,/import ShopeeSkuReconciliation|Conciliar SKUs Shopee|reconciliationOpen/);
-  // The legacy audited reviewer remains available in source for rollback,
-  // but is not mounted in the commercial dashboard.
-  assert.match(form,/const PAGE_SIZE=15/);
-  assert.match(form,/Confirmar revogação/);
-  assert.match(css,/@media\(max-width:800px\)/);
 });

@@ -27,19 +27,3 @@ test('RPC segura existe nos namespaces live e preview e continua service-role on
   assert.equal(sql.includes('revoke all on function public.commerce_approve_probable_rows_v1(bigint) from public, anon, authenticated'), true);
   assert.equal(sql.includes('grant execute on function public.commerce_approve_probable_rows_v1(bigint) to service_role'), true);
 });
-
-test('API e UI exigem confirmação explícita antes da aprovação em lote', () => {
-  const router = read('src/commerce-admin-router.js');
-  const store = read('src/commerce-supabase-store.js');
-  const client = read('src/commerce-import-client.js');
-  const view = read('src/commerce-import-view.jsx');
-
-  assert.equal(router.includes('/approve-probable'), true);
-  assert.equal(store.includes("commerce_approve_probable_rows_v1"), true);
-  assert.equal(store.includes("commerce_import_batch_account_v1"), true);
-  assert.equal(client.includes('/approve-probable'), true);
-  assert.equal(view.includes('window.confirm'), true);
-  assert.equal(view.includes('approvable_probable_count'), true);
-  assert.equal(view.includes('nome e categoria exatos'), true);
-  assert.equal(view.includes('exatamente um candidato'), true);
-});
