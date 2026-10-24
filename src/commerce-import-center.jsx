@@ -351,11 +351,9 @@ function ImportSummary({ mode, history, batch }) {
 }
 
 function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit, onSyncStatuses, onRetryReconcile }) {
-  const unresolved = Number(batch?.unresolved_count || 0);
   const totalPages = Math.max(1, Math.ceil(Number(batch?.row_count || 0) / 20));
   const rowCount = Number(batch?.row_count || 0);
   const matched = Number(batch?.matched_count || 0);
-  const probable = Number(batch?.probable_count || 0);
   const invalid = Number(batch?.invalid_count || 0);
   const ignored = Number(batch?.ignored_count || 0);
   const reviewCount = Math.max(0, rowCount - matched - invalid - ignored);

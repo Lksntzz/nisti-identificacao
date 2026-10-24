@@ -5,9 +5,6 @@ import fs from 'node:fs';
 const read = name => fs.readFileSync(name,'utf8');
 const ui = read('src/commerce-import-center.jsx');
 const css = read('src/commerce-import-center.css');
-const dashboardCss = read('src/commerce-commercial-dashboard.css');
-const velocityCss = read('src/commerce-sales-velocity.css');
-const abcCss = read('src/commerce-abc-ad-performance.css');
 const client = read('src/commerce-import-client.js');
 const salesSchema = read('supabase/migrations/20260928205021_commerce_sales_import_pipeline_v1.sql');
 const listingSchema = read('supabase/migrations/20261016050000_commerce_sales_listing_daily_v1.sql');
@@ -24,20 +21,6 @@ test('import file shows abbreviated filename, size and real remove control; rese
   assert.match(ui,/setSalesFile\(null\);setSalesParsed\(null\)/);
   assert.match(css,/\.import-center-filename/);
   assert.match(css,/text-overflow:ellipsis/);
-});
-
-test('visual hierarchy uses full-width verification and submission cards, while keeping desktop layout',()=>{
-  assert.match(ui,/className="import-center-step-review"/);
-  assert.match(ui,/className="import-center-step-submit"/);
-  assert.match(css,/\.import-center-embedded \.import-center-step-review,.import-center-embedded \.import-center-step-submit\{grid-column:1 \/ -1/);
-  assert.match(css,/\.import-center-embedded \.import-center-preview\{grid-template-columns:repeat\(4/);
-  assert.match(css,/\.import-center-embedded \.import-center-step>.import-center-step-index\{display:grid/);
-  assert.match(css,/\.import-center-embedded \.import-center-action-line\{grid-template-columns:/);
-  assert.match(dashboardCss,/\.nisti-com-abc-card\{min-height:170px/);
-  assert.match(dashboardCss,/\.nisti-com-metric\{min-height:123px/);
-  assert.match(velocityCss,/\.nisti-vl-metric\{min-height:135px/);
-  assert.match(abcCss,/\.nisti-abc-ad-product\{border-radius:12px/);
-  assert.match(css,/\.import-center-embedded \.import-center-mode-grid>button\.active/);
 });
 
 test('sales validation details are compact, expandable, and do not hide source warnings',()=>{

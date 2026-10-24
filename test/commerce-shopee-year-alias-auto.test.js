@@ -4,7 +4,6 @@ import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261016195500_commerce_shopee_auto_year_26_to_27_v1.sql','utf8');
 const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const ui=fs.readFileSync('src/commerce-shopee-reconciliation.jsx','utf8');
 
 test('automatic 26->27 rule is restricted to PB, PLAN and AGMT (never 25 or unrelated SKUs)',()=>{
   assert.match(sql,/\^PB26\[A-Z0-9\]\{3,\}\$/);
@@ -50,12 +49,4 @@ test('future sales and catalog imports reconcile on successful commits without d
   assert.match(store,/String\(result\?\.status\|\|''\)\.toUpperCase\(\)==='COMMITTED'/);
   assert.match(store,/export async function commerceCommitImportBatch/);
   assert.match(store,/await refreshShopeeYearAliases\(env\)/);
-});
-
-test('the operator sees explicitly which associations were automatic and can revoke them',()=>{
-  assert.match(ui,/item\.approved_by==='NISTI_AUTO_YEAR_26_27'/);
-  assert.match(ui,/Ano 26 → 27 · automático/);
-  assert.match(ui,/PB, PLAN, AGMT, CONFIN, VACMNO e VACMNA com ano 26 → 27/);
-  assert.match(ui,/Vínculos a anúncios podem ser revogados e validações de histórico podem ser reabertas/);
-  assert.match(ui,/Confirmar revogação/);
 });

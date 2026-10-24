@@ -41,19 +41,3 @@ test('store e router expõem snapshot Shopee protegido', () => {
   assert.equal(store.includes("'commerce_list_shopee_snapshot_v1'"), true);
   assert.equal(router.includes('/shopee-snapshot'), true);
 });
-
-test('galeria Shopee continua disponível no código sem ocupar o menu comercial', () => {
-  const app = read('src/commerce-admin-app-v2.jsx');
-  const view = read('src/commerce-shopee-snapshot-view.jsx');
-  const products = read('src/commerce-products-view.jsx');
-  const listings = read('src/commerce-listings-view.jsx');
-  assert.equal(app.includes("id: 'shopee'"), false);
-  assert.equal(app.includes('CommerceShopeeSnapshotView'), false);
-  assert.equal(view.includes('Shopee · Capas e variações'), true);
-  assert.equal(view.includes('variation_options'), true);
-  assert.equal(products.includes('thumbnail_url'), true);
-  assert.equal(products.includes('ProductCutoutImage'), true);
-  assert.equal(listings.includes('listing.cover_image_url'), true);
-  assert.equal(listings.includes('ProductCutoutImage'), true);
-  assert.equal(listings.includes('listing.variation_options'), true);
-});

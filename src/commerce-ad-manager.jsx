@@ -627,7 +627,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const monthCoverage=shopeeMonthlyImportCoverage(data);
   const coverageText=monthCoverage?new Intl.NumberFormat('pt-BR',
     {minimumFractionDigits:2,maximumFractionDigits:2}).format(monthCoverage.percentage)+'%':null;
-  const partialAds=sourceBreakdown?.identified??0;
   const shopeeTotals=shopeeSalesTotals(data,days);
   const importedMonthTotal=Boolean(shopeeTotals?.hasImportedTotal);
   const verifiedImportedTotals=importedTotalsForExactWindow(
@@ -644,10 +643,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const salesCoverageLabel=Number(kpi.pending_ads||0)>0
     ?periodLabel(days,month)+' · dados parciais':periodLabel(days,month)+' · anúncios ativos';
   const hasReliableSales=data&&Number(kpi.covered_ads||0)>0;
-  // This KPI counts listings only; variation-level gaps belong in the
-  // expanded listing and must never inflate the count of unsold ads.
-  const emptyIdentifiedAds=sourceBreakdown?.withoutIdentified??0;
-  const emptyIdentifiedVars=Number(kpi.identified_empty_variations||0);
   const trendSelected=['RISING','FALLING'].includes(status)?status:'ALL';
   const shopeeTrendAvailable=platform==='SHOPEE'&&days!==0;
   // No sale means no units recorded for a fully checked listing in the

@@ -15,13 +15,6 @@ const platformName=s=>s==='SHOPEE'?'Shopee':s==='ML_NOVO'?'Mercado Livre Novo':
   s==='ML_ANTIGO'?'Mercado Livre Antigo':s||'Marketplace';
 const known=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n));
 const variationSales=(v,d)=>v?.['units_'+d];
-const variationState=(v,d)=>{
-  if(!v.match_verified)return 'LINK';
-  const units=variationSales(v,d);
-  if(!known(units))return 'UNKNOWN';
-  if(Number(units)===0)return 'ZERO';
-  return v['coverage_'+d]===true?'SOLD':'PARTIAL';
-};
 const observedVariationCounts=(ad,days)=>{
   const variations=Array.isArray(ad?.variations)?ad.variations:[];
   return variations.reduce((acc,v)=>{

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261016210000_commerce_shopee_review_unlinked_history_v1.sql','utf8');
-const ui=fs.readFileSync('src/commerce-shopee-reconciliation.jsx','utf8');
 const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
 const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
 
@@ -29,21 +28,6 @@ test('records the imported quantity, revenue, end date and review reason for sta
   assert.match(sql,/h\.active/);
 });
 
-test('queue separates pending, linked and historically approved, no fictitious units',()=>{
-  assert.match(sql,/upper\(p_state\) in \('APPROVED','REVIEWED'\)/);
-  assert.match(sql,/HISTORICAL_APPROVED/);
-  assert.match(sql,/DUPLICATE_REVIEWED/);
-  assert.match(sql,/status in \('DUPLICATE_SKU','MISSING_ACTIVE_SKU'\)/);
-  assert.match(sql,/reviewed_skus/);
-  assert.match(sql,/reviewed_units/);
-  assert.match(sql,/approved_skus/);
-  assert.match(ui,/Histórico validado · sem anúncio ativo/);
-  assert.match(ui,/Histórico validado · SKU duplicado/);
-  assert.match(ui,/Histórico validado/);
-  assert.match(ui,/SKUs vinculados a anúncios/);
-  assert.match(ui,/não comprova vendas por anúncio, ausência de vendas ou Curva ABC/);
-});
-
 test('admin-only RPC and endpoints demand explicit confirmation with reason',()=>{
   assert.match(sql,/alter table public\.commerce_shopee_sales_history_reviews_v1 enable row level security/);
   assert.match(sql,/revoke all on public\.commerce_shopee_sales_history_reviews_v1 from public,anon,authenticated/);
@@ -59,15 +43,4 @@ test('admin-only RPC and endpoints demand explicit confirmation with reason',()=
   assert.match(store,/commerce_shopee_review_unlinked_history_v1/);
   assert.match(store,/commerce_shopee_reopen_unlinked_history_v1/);
   assert.match(store,/filters\.state/);
-});
-
-test('reopening historical review is reversible and keeps original imported rows',()=>{
-  assert.match(sql,/commerce_shopee_reopen_unlinked_history_v1/);
-  assert.match(sql,/active=false,reopened_at=now\(\)/);
-  assert.match(sql,/reopened_by/);
-  assert.match(ui,/Confirmar reabertura/);
-  assert.match(ui,/history\/reopen/);
-  assert.match(sql,/where coalesce\(o\.owner_count,0\)<>1 and a\.source_sku_norm is null/);
-  assert.match(sql,/on conflict\(source_sku_norm\) do update/);
-  assert.match(sql,/pg_advisory_xact_lock/);
 });

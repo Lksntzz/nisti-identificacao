@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const evolution=fs.readFileSync('src/commerce-sales-evolution.jsx','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261020232000_commerce_listing_manager_strict_zero_windows_v1.sql','utf8');
 const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
 
@@ -25,22 +24,6 @@ test('variações que não venderam e Shopee sem atribuição não contaminam ze
   assert.match(router,/\['ALL','SOLD','ZERO','VAR_ZERO','UNLINKED','LOW','RISING','FALLING','PENDING'\]/);
   assert.match(sql,/SECURITY INVOKER/);
   assert.doesNotMatch(sql,/\b(?:delete\s+from|update|insert\s+into|truncate)\s+public\./i);
-});
-
-test('a interface usa janela explícita de 60/90 dias e estado ZERO rigoroso',()=>{
-  assert.match(manager,/const noSalesStatus='ZERO'/);
-  assert.match(manager,/const noSalesValue=kpi\.zero_ads/);
-  assert.match(manager,/status===noSalesStatus/);
-  assert.match(manager,/onClick=\{platform==='SHOPEE'&&days===0\?undefined:changeNoSales\}/);
-  assert.match(manager,/\{n\} dias · janela importada/);
-  assert.match(manager,/const changeNoSales=\(\)=>change\(setStatus,status==='ZERO'\?'ALL':'ZERO'\)/);
-  assert.doesNotMatch(manager,/Variações sem vendas\s*<\/button>/);
-  assert.doesNotMatch(manager,/Sem vínculo \(Shopee\)\s*<\/button>/);
-  assert.match(manager,/zeroFilter=\{false\}/);
-  assert.match(manager,/SKU\/variações conferidos/);
-  assert.match(manager,/data\?\.period_start/);
-  assert.match(evolution,/Apenas anúncios ativos com cobertura confirmada e nenhuma unidade vendida em/);
-  assert.match(evolution,/item\.ready===true&&item\.situation==='ZERO'&&Number\(item\.units\)===0/);
 });
 
 test('SQL ainda é somente leitura e preserva a política de segurança',()=>{

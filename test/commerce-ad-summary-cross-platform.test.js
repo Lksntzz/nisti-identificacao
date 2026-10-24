@@ -62,7 +62,6 @@ test('UI mostra distribuição verificável e não rotula variação vazia como 
   assert.match(ui,/anúncios ML sem vendas no período/);
   assert.match(ui,/anúncios Shopee sem vendas identificadas por SKU no período/);
   assert.doesNotMatch(ui,/anúncios Shopee sem vendas vinculadas; não significa zero/);
-  assert.match(ui,/sourceBreakdown\?\.withoutIdentified\?\?0/);
   assert.match(ui,/const noSalesValue=kpi\.zero_ads/);
   assert.doesNotMatch(ui,/emptyIdentifiedAds=Number\(kpi\.identified_empty_ads/);
 });

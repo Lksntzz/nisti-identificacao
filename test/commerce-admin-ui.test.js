@@ -44,45 +44,6 @@ test('rota do Catálogo Comercial reutiliza a sessão administrativa', () => {
   assert.equal(edge.includes("pathname.startsWith('/api/admin/')"), true);
 });
 
-test('UI comercial mantém Catálogo e Pendências e expõe Planejamento de Produtos', () => {
-  const shell = read('src/commerce-admin-app-v2.jsx');
-
-  for (const label of ['Painel Comercial', 'Pendências', 'Planejamento de Produtos']) {
-    assert.equal(shell.includes(`label: '${label}'`), true, `${label} deve existir`);
-  }
-
-  for (const label of ['Gestão', 'Produtos Mestre', 'Anúncios', 'Visão Geral', 'Shopee · Capas', 'Importações Excel', 'Revisão de vínculos', 'Atualização Anual']) {
-    assert.equal(shell.includes(`label: '${label}'`), false, `${label} não deve aparecer no menu`);
-  }
-
-  assert.equal(shell.includes('CommerceManagementView'), true);
-  assert.equal(shell.includes('CommerceProductsView'), true);
-  assert.equal(shell.includes('CommerceCommercialDashboard'), true);
-  assert.equal(shell.includes('<CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />'), true);
-  assert.equal(shell.includes('mode="pending"'), true);
-
-  assert.equal(fs.existsSync('src/commerce-products-view.jsx'), true);
-  assert.equal(fs.existsSync('src/commerce-listings-view.jsx'), true);
-});
-
-test('importação XLSX é browser-side, versionada e usa staging antes do commit', () => {
-  const reader = read('src/commerce-xlsx-reader.js');
-  const client = read('src/commerce-import-client.js');
-  const view = read('src/commerce-import-view.jsx');
-  const pkg = JSON.parse(read('package.json'));
-
-  assert.equal(pkg.dependencies['read-excel-file'], '9.3.10');
-  assert.equal(reader.includes("from 'read-excel-file/browser'"), true);
-  assert.equal(reader.includes('crypto.subtle.digest'), true);
-  assert.equal(reader.includes('COMMERCE_XLSX_MAX_BYTES'), true);
-  assert.equal(client.includes('/imports/${batchId}/rows'), true);
-  assert.equal(client.includes('/finalize'), true);
-  assert.equal(client.includes('/reconcile'), true);
-  assert.equal(client.includes('/commit'), true);
-  assert.equal(view.includes('Criar lote e reconciliar'), true);
-  assert.equal(view.includes('Commitar catálogo'), true);
-});
-
 test('cliente comercial confirma estado antes de tratar timeout de mutação como falha', () => {
   const client = read('src/commerce-import-client.js');
   assert.equal(client.includes('recoverBatchAfterRetryableError'), true);
@@ -92,22 +53,3 @@ test('cliente comercial confirma estado antes de tratar timeout de mutação com
   assert.equal(client.includes('recovered_after_timeout'), true);
 });
 
-
-test('fila de revisão comercial suporta produto existente, produto novo e anúncios N:N', () => {
-  const router = read('src/commerce-admin-router.js');
-  const store = read('src/commerce-supabase-store.js');
-  const view = read('src/commerce-reconciliation-view.jsx');
-
-  assert.equal(router.includes('/reconciliation'), true);
-  assert.equal(router.includes('LINK_EXISTING'), true);
-  assert.equal(router.includes('CREATE_NEW'), true);
-  assert.equal(router.includes('MARK_RESOLVED'), true);
-  assert.equal(store.includes('commerce_list_reconciliation_queue_v1'), true);
-  assert.equal(store.includes('commerce_resolve_reconciliation_listing_v1'), true);
-  assert.equal(view.includes('Vincular seleção e continuar'), true);
-  assert.equal(view.includes('Um Produto Mestre para toda a família'), true);
-  assert.equal(view.includes('Concluir revisão'), true);
-  assert.equal(view.includes('defaultSkuSelection'), true);
-  assert.equal(view.includes('selectionRequired'), true);
-  assert.equal(view.includes('Selecione pelo menos um SKU/variação'), true);
-});

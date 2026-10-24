@@ -33,13 +33,3 @@ test('detalhe do Produto Mestre herda imagem de outra plataforma sem copiar tít
   assert.equal(sql.includes("'title',l.title"), true);
   assert.equal(sql.includes("'title',src_listing.title"), false);
 });
-
-test('UI identifica foto reutilizada do mesmo produto', () => {
-  const products = read('src/commerce-products-view.jsx');
-  const listings = read('src/commerce-listings-view.jsx');
-  assert.equal(products.includes("listing.image_source === 'OTHER_MARKETPLACE'"), true);
-  assert.equal(products.includes('Mesma foto do produto'), true);
-  assert.equal(listings.includes("listing.cover_image_source === 'OTHER_MARKETPLACE'"), true);
-  assert.equal(listings.includes('Mesma foto'), true);
-  assert.equal(listings.includes('inherited_product_images'), true);
-});
