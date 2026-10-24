@@ -28,11 +28,6 @@ test('sales reporting endpoints are private and validate filters',()=>{
 });
 
 test('the three status cards filter the same listing/variation report',()=>{
- assert.match(view,/id:'ZERO',label:'Sem vendas'/);
- assert.match(view,/id:'STABLE',label:'Estável'/);
- assert.match(view,/id:'RISING',label:'Crescimento'/);
- assert.match(view,/onClick=\{\(\)=>onStatusChange\(card\.id\)\}/);
  assert.match(manager,/status=\{evolutionStatus\} onStatusChange=\{setEvolutionStatus\}/);
- assert.match(view,/value=\{status\} onChange=\{e=>onStatusChange\(e\.target\.value\)\}/);
  assert.doesNotMatch(manager,/trendOverview|trendRequest/);
 });

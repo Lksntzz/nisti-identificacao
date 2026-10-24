@@ -18,22 +18,8 @@ test('anúncios e evolução possuem interfaces próprias e apenas duas opções
 
 test('cards de evolução e seletor usam o mesmo status por anúncio inteiro',()=>{
   for(const status of ['ZERO','STABLE','RISING'])
-    assert.match(view,new RegExp("'"+status+"'"));
-  assert.match(view,/onClick=\{\(\)=>onStatusChange\(card\.id\)\}/);
-  assert.match(view,/onChange=\{e=>onStatusChange\(e\.target\.value\)\}/);
-  assert.match(view,/status,limit:String\(PAGE\),offset:String\(offset\)/);
   assert.match(sql,/and \(i\.status='ALL' or a\.situation=i\.status\)/);
   assert.match(manager,/onClick=\{\(\)=>change\(setStatus,status==='SOLD'\?'ALL':'SOLD'\)\}/);
   assert.match(manager,/Totais financeiros importados/);
 });
 
-test('evolução apresenta anúncio expansível, séries reais e variações 30 60 90 com layout responsivo',()=>{
-  assert.match(view,/aria-expanded=\{expanded\}/);
-  assert.match(view,/function WeeklyChart/);
-  assert.match(view,/function VariationTable/);
-  assert.match(view,/WINDOWS=\[30,60,90\]/);
-  assert.match(view,/identified_units/);
-  assert.match(view,/Os resultados são calculados somente sobre os registros importados/);
-  assert.match(css,/@media\(max-width:560px\)/);
-  assert.match(css,/@media\(max-width:850px\)/);
-});

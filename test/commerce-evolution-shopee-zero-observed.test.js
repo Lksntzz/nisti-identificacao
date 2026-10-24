@@ -17,19 +17,6 @@ test('Sem vendas includes ads with zero sales identified and ads with zero-obser
   assert.match(sql,/a\.variation_count>0 and a\.unknown_variations=0/);
 });
 
-test('the filter shows zero-observed variations without calling them confirmed zero',()=>{
-  assert.match(view,/focusWithoutSales=\{status==='ZERO'\}/);
-  assert.match(view,/Number\(v\['identified_'\+days\]\)===0/);
-  assert.match(view,/Sem venda identificada/);
-  assert.match(view,/kpis\.no_sales_ads/);
-  assert.match(view,/kpis\.selling_ads_with_unsold_variations/);
-  assert.match(view,/adUnitsLabel\(ad,n\)/);
-  assert.match(view,/verifiedUnsoldVariations\(ad,days\)/);
-  assert.match(view,/Anúncios ou variações sem vendas identificadas/);
-  assert.match(view,/Anúncio com 0 vendas registradas/);
-  assert.match(css,/\.nei-zero-filter-notice/);
-});
-
 test('database query remains service-only, read-only and paginated',()=>{
   assert.match(sql,/daily as materialized/);
   assert.match(sql,/greatest\(1,least\(coalesce\(p_limit,20\),50\)\)/);

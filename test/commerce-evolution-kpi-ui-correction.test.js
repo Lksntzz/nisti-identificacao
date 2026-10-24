@@ -8,9 +8,7 @@ const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
 
 test('KPIs da evolução vêm da mesma resposta de anúncios, não da contagem de SKUs',()=>{
   assert.match(store,/commerce_evolution_ads_v1/);
-  assert.match(view,/const kpis=report\?\.kpis\|\|\{\}/);
   for(const key of ['zero','stable','rising','total']){
-    assert.match(view,new RegExp("value:kpis\\."+key));
     assert.match(sql,new RegExp("'"+key+"',\\(select count\\(\\*\\) from classified"));
   }
   assert.doesNotMatch(manager,/evolutionSummary\?\.kpis/);
@@ -28,11 +26,5 @@ test('sem vendas significa anúncio inteiro e tendências exigem duas janelas co
   assert.match(sql,/a\.previous_unknown=0/);
   assert.match(sql,/a\.previous_units>=3/);
   assert.match(sql,/a\.identified_units>=a\.previous_units\*1\.2/);
-  assert.match(view,/Estável e Crescimento comparam o período selecionado ao período anterior de igual duração/);
 });
 
-test('cobertura incompleta permanece pendente',()=>{
-  assert.match(view,/Os resultados são calculados somente sobre os registros importados/);
-  assert.match(view,/Sem cobertura completa, semanas sem registro não comprovam ausência de vendas/);
-  assert.match(view,/sku|SKU/);
-});

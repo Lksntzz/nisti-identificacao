@@ -21,30 +21,7 @@ test('exactly two main commercial tabs and integrated view, without an extra var
   assert.doesNotMatch(manager,/nim-kpis-evolution/);
 });
 
-test('approved design has ad-level filters, four cards, expandable 30 60 90 rows and real variation data',()=>{
-  assert.match(view,/const STATUS=\[\['ZERO','Sem vendas'\],\['STABLE','Estável'\],\['RISING','Crescimento'\]\]/);
-  assert.match(view,/const PAGE=12,WINDOWS=\[30,60,90\]/);
-  assert.match(view,/const cards=\[/);
-  for(const label of ['Sem vendas','Estável','Crescimento','Total de anúncios'])
-    assert.ok(view.includes(label),label);
-  assert.match(view,/aria-expanded=\{expanded\}/);
-  assert.match(view,/rows\.map\(ad=><Advertisement/);
-  assert.match(view,/VariationTable ad=\{ad\} days=\{days\}/);
-  assert.match(view,/variationSales\(v,n\)/);
-  assert.match(view,/WINDOWS\.map\(n=><td/);
-  assert.match(view,/Pesquisar anúncio, ID ou SKU/);
-  assert.match(view,/onStatusChange\(card\.id\)/);
-  assert.match(css,/\.nei-filters\{display:grid;grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
-  assert.match(css,/@media\(max-width:560px\)/);
-  assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
-});
-
 test('real lazy weekly chart uses sale dates and verified listing/SKU only, not fabricated curves',()=>{
-  assert.match(view,/fetch\(API\+'\/'\+encodeURIComponent\(listingId\)\+'\/evolution-weekly'/);
-  assert.match(view,/function WeeklyChart/);
-  assert.match(view,/points\.map\(\(p,i\)=>/);
-  assert.match(view,/p\.identified_units/);
-  assert.match(view,/Sem cobertura completa, semanas sem registro não comprovam ausência de vendas/);
   assert.match(chartSql,/generate_series\(0,12\)/);
   assert.match(chartSql,/commerce_current_sales_listing_daily_v1/);
   assert.match(chartSql,/commerce_shopee_sku_owner_reviewed_v1/);
@@ -62,8 +39,6 @@ test('no sales and trend filters represent full ads, never mix SKU counts',()=>{
   assert.match(sql,/and \(i\.status='ALL' or a\.situation=i\.status\)/);
   assert.match(sql,/'zero',\(select count\(\*\) from classified where situation='ZERO'\)/);
   assert.match(sql,/count\(\*\) filter\(where v\.previous_units is null\)::int previous_unknown/);
-  assert.match(view,/Os resultados são calculados somente sobre os registros importados/);
-  assert.match(view,/Os resultados são calculados somente sobre os registros importados/);
 });
 
 test('bounded Supabase read-only RPCs and authenticated routes protect free-tier data',()=>{

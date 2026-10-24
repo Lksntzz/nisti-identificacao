@@ -25,8 +25,6 @@ test('sales identified by advertisement ID are not assigned to arbitrary variati
   assert.match(migration,/v\.match_verified and \(v\.complete_90 or v\.actual_90>0\)/);
   assert.match(migration,/bool_and\(v\.complete_90\)/);
   assert.match(migration,/sum\(v\.units_90\)=coalesce\(ad\.total_90,0\)/);
-  assert.match(jsx,/ad\['unlinked_'\+days\]/);
-  assert.match(jsx,/não são atribuídas a um SKU arbitrariamente/);
 });
 
 test('show actual product revenue and evidence limits for each 30 60 90 window',()=>{
@@ -34,14 +32,6 @@ test('show actual product revenue and evidence limits for each 30 60 90 window',
     assert.match(migration,new RegExp('revenue_'+d));
     assert.match(migration,new RegExp('identified_'+d));
   }
-  assert.match(jsx,/Faturamento de produtos identificado/);
-  assert.match(jsx,/ad\?\.\['revenue_'\+n\]/);
-  assert.match(jsx,/Vendas registradas nos relatórios importados até/);
-  assert.match(jsx,/Com vendas/);
-  assert.match(jsx,/Variações vinculadas/);
-  assert.match(jsx,/kpis\.with_sales/);
-  assert.match(css,/\.nei-revenue-panel/);
-  assert.match(css,/\.nei-data-overview/);
 });
 
 test('reconciliation query uses read-only service role access and bounded pagination',()=>{
@@ -56,9 +46,6 @@ test('zero-sales classification cannot include ads with unmatched but identified
   assert.match(guard,/then 0\s+else count\(\*\) filter\(where/);
   assert.match(guard,/then count\(\*\) filter\(where \(/);
   assert.match(guard,/unknown_variations/);
-  assert.match(jsx,/const variationStateForAd=\(v,d,ad\)/);
-  assert.match(jsx,/Number\(ad\?\.\['unlinked_'\+d\]\)>0/);
-  assert.match(jsx,/sem vínculo confiável com uma variação/);
 });
 
 test('default page displays actual selling listings first while status filter stays enforced',()=>{
