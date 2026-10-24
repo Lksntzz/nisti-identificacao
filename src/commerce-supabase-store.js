@@ -234,7 +234,7 @@ export async function commerceEvolutionAds(env,filters={}) {
   const status=cleanText(filters.status)||'ALL';
   const search=cleanText(filters.search)||null;
   if(!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO'].includes(platform)
-    ||![30,60,90].includes(days)||!['ALL','ZERO','STABLE','RISING'].includes(status)
+    ||![30,60,90].includes(days)||!['ALL','ZERO','STABLE','RISING','FALLING'].includes(status)
     ||search&&search.length>120)throw new Error('Filtros de evolução inválidos.');
   const result=await supabaseRpc(env,'commerce_evolution_ads_v1',{
     p_platform:platform,p_days:days,p_status:status,p_search:search,

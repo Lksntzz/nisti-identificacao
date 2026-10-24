@@ -94,3 +94,22 @@ test('variação com 0 registrado e relatórios faltando não é chamada de para
   assert.deepEqual(plain(observedVariationCounts({ unlinked_30: 0, variations: [v] }, 30)),
     { sold: 0, withoutSales: 0, pending: 1 });
 });
+
+test('aba "Em queda" usa o filtro FALLING aceito pela rota, pelo store e pelo banco', () => {
+  const router = fs.readFileSync('src/commerce-admin-router.js', 'utf8');
+  const store = fs.readFileSync('src/commerce-supabase-store.js', 'utf8');
+  const sql = fs.readFileSync('supabase/migrations/20261023230000_commerce_evolution_period_coverage_falling_v1.sql', 'utf8');
+  assert.match(view, /\['FALLING','Em queda',kpis\.falling\]/);
+  assert.match(router, /'ALL','ZERO','STABLE','RISING','FALLING'/);
+  assert.match(store, /'ALL','ZERO','STABLE','RISING','FALLING'/);
+  assert.match(sql, /in \('ALL','ZERO','STABLE','RISING','FALLING'\)/);
+});
+
+test('cobertura conta os dias abrangidos por relatórios de período (Shopee mensal)', () => {
+  const sql = fs.readFileSync('supabase/migrations/20261023230000_commerce_evolution_period_coverage_falling_v1.sql', 'utf8');
+  assert.match(sql, /generate_series\(\s*greatest\(sm\.period_start,l\.end_date-179\)/);
+  assert.doesNotMatch(sql, /and sm\.period_start=sm\.period_end\)::int covered_30/);
+  assert.match(sql, /b\.status='COMMITTED'/);
+  assert.doesNotMatch(sql, /\b(?:update|delete from|insert into|truncate)\s+public\./i);
+  assert.match(sql, /to service_role/);
+});

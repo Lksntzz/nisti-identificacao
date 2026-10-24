@@ -21,7 +21,7 @@ test('Evolução KPIs are scoped to the whole list, not the current page or sele
 
 test('sales reporting endpoints are private and validate filters',()=>{
  assert.match(router,/\/listings\/manager\/evolution-ads/);
- assert.match(router,/\['ALL','ZERO','STABLE','RISING'\]/);
+ assert.match(router,/\['ALL','ZERO','STABLE','RISING','FALLING'\]/);
  assert.match(store,/commerce_evolution_ads_v1/);
  assert.match(sql,/revoke all on function public\.commerce_evolution_ads_v1/);
  assert.match(sql,/to service_role/);
