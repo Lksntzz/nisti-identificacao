@@ -1,7 +1,8 @@
 import React,{useEffect,useState} from 'react';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
 import './commerce-evolution-integrated.css';
-import {observedVariationCounts,adUnits,adRevenue,adTrend,adState,variationState}
+import {observedVariationCounts,adUnits,adRevenue,adTrend,adState,variationState,
+  staleSources,todayInSaoPaulo}
   from './commerce-evolution-helpers.js';
 
 // Evolução de vendas por anúncio — layout v2 (foco: quem vende e quem não vende).
@@ -127,7 +128,8 @@ function AdRow({ad,days}){
         <small>{platformName(ad.source)} · ID {ad.external_listing_id}</small></span>
       <span className="nev-row-sales">
         {state==='SOLD'&&<><strong>{number(units)}</strong><small>un. em {days} dias</small></>}
-        {state==='ZERO'&&<><strong>0</strong><small>sem vendas em {days} dias</small></>}
+        {state==='ZERO'&&<><strong>0</strong><small>zero confirmado em {days} dias</small></>}
+        {state==='UNCONFIRMED'&&<><strong>0</strong><small>registradas · faltam relatórios</small></>}
         {state==='PENDING'&&<><strong>—</strong><small>dados pendentes</small></>}
       </span>
       <span className="nev-row-trend">{trend
@@ -182,6 +184,7 @@ export default function CommerceEvolutionIntegrated({
   const tabs=[['ALL','Todos',kpis.total],['ZERO','Sem vendas ou paradas',kpis.zero],
     ['RISING','Crescendo',kpis.rising],['STABLE','Estáveis',kpis.stable]];
   const setPeriod=n=>{setDays(n);onPeriodChange(n);};
+  const stale=report?staleSources(coverage,todayInSaoPaulo()):[];
   return <section className="nev" aria-label="Evolução de vendas por anúncio">
     <div className="nev-toolbar">
       <label className="nev-field">Plataforma
@@ -198,6 +201,14 @@ export default function CommerceEvolutionIntegrated({
           onChange={e=>setDraft(e.target.value)} placeholder="Nome, ID ou SKU…"/></label>
     </div>
 
+    {stale.length>0&&<div className="nev-stale" role="alert">
+      <strong>Dados desatualizados</strong>
+      <span>{stale.map(c=>c.end_date
+        ?platformName(c.source)+': última venda importada em '+date(c.end_date)+' ('+number(c.days_ago)+' dias atrás)'
+        :platformName(c.source)+': nenhum relatório importado').join(' · ')}.
+        {' '}Os períodos de {days} dias terminam nessa data, não hoje. Importe os relatórios recentes antes de decidir.</span>
+    </div>}
+
     <div className="nev-overview">
       <div className="nev-big sold">
         <small>Com vendas em {days} dias</small>
@@ -206,10 +217,12 @@ export default function CommerceEvolutionIntegrated({
       </div>
       <button type="button" className={'nev-big zero'+(status==='ZERO'?' selected':'')}
         onClick={()=>onStatusChange(status==='ZERO'?'ALL':'ZERO')} aria-pressed={status==='ZERO'}>
-        <small>Sem vendas em {days} dias</small>
+        <small>Sem vendas registradas em {days} dias</small>
         <strong>{v(kpis.no_sales_ads)}</strong>
-        <span>anúncios{Number(kpis.selling_ads_with_unsold_variations)>0&&<>
-          {' '}· + {number(kpis.selling_ads_with_unsold_variations)} com variações paradas</>}</span>
+        <span>{report?<>{number(kpis.confirmed_zero)} zero confirmado · {number(Math.max(0,
+          Number(kpis.no_sales_ads||0)-Number(kpis.confirmed_zero||0)))} faltam relatórios</>:'anúncios'}
+          {Number(kpis.selling_ads_with_unsold_variations)>0&&<><br/>
+          + {number(kpis.selling_ads_with_unsold_variations)} anúncios vendendo com variações paradas</>}</span>
       </button>
       <div className="nev-big total">
         <small>Total no filtro</small>
@@ -250,8 +263,11 @@ export default function CommerceEvolutionIntegrated({
       <ul>
         <li>Fonte: vendas importadas, anúncios ativos e vínculos verificados de SKU.
           Os totais de 30, 60 e 90 dias terminam na última data importada.</li>
-        <li><b>Sem vendas</b> significa zero vendas encontradas nos relatórios disponíveis.
-          Quando faltam relatórios, o anúncio aparece como <b>dados pendentes</b>, e não como zero.</li>
+        <li><b>Zero confirmado</b>: nenhuma venda e relatórios importados para todos os dias do período.
+          <b> Faltam relatórios</b>: nenhuma venda registrada, mas há dias sem relatório; pode ter vendido.
+          <b> Dados pendentes</b>: a plataforma não tem relatório importado.</li>
+        <li>Os períodos terminam na última venda importada de cada plataforma, não na data de hoje.
+          Um aviso aparece quando uma plataforma está há mais de 3 dias sem dados.</li>
         <li><b>Crescendo</b>: alta de 20% e ao menos 2 unidades sobre o período anterior de mesma duração.
           <b> Estáveis</b>: vendas próximas ao período anterior. Só é calculado com cobertura completa nos dois períodos.</li>
         <li>Vendas pelo ID do anúncio sem SKU atribuído entram no total do anúncio, mas não em nenhuma variação.

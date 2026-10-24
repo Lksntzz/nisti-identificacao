@@ -1,7 +1,7 @@
 /* Evolução de vendas — layout v2: clareza entre anúncios com e sem vendas. */
 .nev{--nev-ink:#17304f;--nev-muted:#6b7f9c;--nev-line:#e3eaf4;--nev-soft:#f6f9fd;
   --nev-sold:#14915f;--nev-sold-bg:#e8f7f0;--nev-zero:#d2405f;--nev-zero-bg:#fdecf0;
-  --nev-pending:#9aa8bb;--nev-pending-bg:#f1f4f8;--nev-accent:#2f6fe4;
+  --nev-pending:#9aa8bb;--nev-warn:#b8730a;--nev-warn-bg:#fff6e5;--nev-pending-bg:#f1f4f8;--nev-accent:#2f6fe4;
   display:grid;gap:14px;min-width:0;color:var(--nev-ink);font-family:inherit}
 .nev *{box-sizing:border-box}
 .nev button{font:inherit}
@@ -16,6 +16,11 @@
 .nev-segmented{display:inline-flex;height:38px;padding:3px;border:1px solid #d5e0ef;border-radius:9px;background:var(--nev-soft)}
 .nev-segmented button{border:0;background:transparent;padding:0 14px;border-radius:6px;font-size:12px;font-weight:700;color:var(--nev-muted);cursor:pointer;white-space:nowrap}
 .nev-segmented button.active{background:#fff;color:var(--nev-ink);box-shadow:0 1px 4px #1c35601f}
+
+/* Alerta de dados desatualizados */
+.nev-stale{display:grid;gap:3px;padding:11px 14px;border:1px solid #f0d49c;border-left:4px solid var(--nev-warn);
+  border-radius:10px;background:var(--nev-warn-bg);color:#6b4a0c;font-size:12px;line-height:1.5}
+.nev-stale strong{font-size:13px}
 
 /* Visão geral: os dois números que importam */
 .nev-overview{display:grid;grid-template-columns:1fr 1fr .9fr;gap:12px}
@@ -48,6 +53,8 @@
 .nev-row::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--nev-pending)}
 .nev-row.sold::before{background:var(--nev-sold)}
 .nev-row.zero::before{background:var(--nev-zero)}
+.nev-row.unconfirmed::before{background:repeating-linear-gradient(180deg,var(--nev-warn) 0 6px,#f3d6a3 6px 12px)}
+.nev-row.unconfirmed .nev-row-sales strong{color:var(--nev-warn)}
 .nev-row.open{border-color:#b9cff2;box-shadow:0 6px 20px #1d3b6a12}
 .nev-row-main{width:100%;min-height:66px;padding:10px 16px 10px 20px;border:0;background:none;text-align:left;color:inherit;cursor:pointer}
 .nev-row-main:hover{background:#fafcff}
