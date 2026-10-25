@@ -64,8 +64,8 @@ test('layout v2: com/sem vendas em destaque, abas e nada expandido por padrão',
 });
 
 test('mesma API e paginação da versão anterior', () => {
-  assert.match(view, /const PAGE=12,WINDOWS=\[30,60,90\]/);
-  assert.match(view, /platform:selectedPlatform,days:String\(days\),status,limit:String\(PAGE\),offset:String\(offset\)/);
+  assert.match(view, /const PAGE=12,WINDOWS=\[7,30,60,90\]/);
+  assert.match(view, /platform:selectedPlatform,days:String\(days\),status:status==='CANDIDATES'\?'ALL':status,limit:String\(PAGE\),offset:String\(offset\)/);
   assert.match(view, /API\+'\/evolution-ads\?'\+params/);
   assert.match(view, /'\/evolution-weekly'/);
 });

@@ -129,3 +129,18 @@
 .import-center-finance-only:disabled{opacity:.55;cursor:not-allowed}
 @media(max-width:650px){.import-center-finance-recovery{align-items:stretch;flex-direction:column}
   .import-center-finance-only{align-self:stretch}}
+
+/* Prévia da sincronização do catálogo (anúncios/variações que saíram da planilha) */
+.import-center-sync-panel{display:grid;gap:10px;margin-top:14px;padding:16px 18px;border:1px solid #f0d49c;border-left:4px solid #b8730a;border-radius:12px;background:#fffaf0;color:#3d2c09;font-size:13px}
+.import-center-sync-panel h4{margin:0;font-size:14px}
+.import-center-sync-counts{margin:0;padding-left:18px;display:grid;gap:4px;line-height:1.5}
+.import-center-sync-counts strong{font-size:15px}
+.import-center-sync-note{margin:0;font-size:12px;color:#6b5420}
+.import-center-sync-samples{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px;max-height:260px;overflow:auto}
+.import-center-sync-samples li{display:grid;grid-template-columns:150px 1fr;gap:2px 10px;padding:6px 8px;border-radius:7px;background:#fff}
+.import-center-sync-samples li span{font-size:11px;font-weight:700;color:#8a5a08}
+.import-center-sync-samples li small{grid-column:2;font-size:11px;color:#6b7d96}
+.import-center-sync-mass{display:block;padding:9px 11px;border-radius:8px;background:#fff1d6;font-size:12px}
+.import-center-sync-actions{display:flex;gap:8px;justify-content:flex-end}
+.import-center-sync-actions button{border:1px solid #d9c49a;background:#fff;border-radius:8px;padding:7px 14px;font-weight:700;cursor:pointer}
+@media (max-width:640px){.import-center-sync-samples li{grid-template-columns:1fr}.import-center-sync-samples li small{grid-column:1}}

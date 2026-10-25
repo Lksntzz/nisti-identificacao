@@ -234,7 +234,7 @@ export async function commerceEvolutionAds(env,filters={}) {
   const status=cleanText(filters.status)||'ALL';
   const search=cleanText(filters.search)||null;
   if(!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO'].includes(platform)
-    ||![30,60,90].includes(days)||!['ALL','ZERO','STABLE','RISING','FALLING'].includes(status)
+    ||![7,30,60,90].includes(days)||!['ALL','ZERO','STABLE','RISING','FALLING'].includes(status)
     ||search&&search.length>120)throw new Error('Filtros de evolução inválidos.');
   const result=await supabaseRpc(env,'commerce_evolution_ads_v1',{
     p_platform:platform,p_days:days,p_status:status,p_search:search,
@@ -909,6 +909,30 @@ export async function commerceSyncImportListingStates(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
   return await supabaseRpc(env, 'commerce_sync_import_listing_states_account_v1', { p_batch_id: id });
+}
+
+// Sincronização do catálogo ML: prévia (somente leitura) e aplicação
+// (desativa anúncios ausentes e variações cujo SKU sumiu; nunca apaga).
+export async function commerceCatalogSyncPreview(env, batchId) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  return await supabaseRpc(env, 'commerce_catalog_sync_preview_v1', { p_batch_id: id }, { timeoutMs: 20000 });
+}
+
+export async function commerceCatalogSyncApply(env, batchId, confirmMass = false) {
+  const id = cleanId(batchId);
+  if (!id) throw new Error('batch_id inválido.');
+  return await supabaseRpc(env, 'commerce_catalog_sync_apply_v1',
+    { p_batch_id: id, p_confirm_mass: confirmMass === true }, { timeoutMs: 20000 });
+}
+
+export async function commerceVariationRemovalCandidates(env, filters = {}) {
+  const platform = cleanText(filters.platform) || 'TODAS';
+  if (!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO'].includes(platform))
+    throw new Error('Plataforma inválida.');
+  return await supabaseRpc(env, 'commerce_variation_removal_candidates_v1', {
+    p_platform: platform, p_limit: cleanPageSize(filters.limit, 50), p_offset: cleanOffset(filters.offset)
+  }, { timeoutMs: 20000 });
 }
 
 export async function commerceCommitImportBatch(env, batchId) {

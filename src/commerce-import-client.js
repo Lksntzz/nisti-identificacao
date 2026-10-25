@@ -208,6 +208,17 @@ export async function syncCommerceListingStatuses(batchId) {
   });
 }
 
+export async function previewCommerceCatalogSync(batchId) {
+  return requestJson(`${API_BASE}/imports/${Number(batchId)}/sync-preview`);
+}
+
+export async function applyCommerceCatalogSync(batchId, confirmMass = false) {
+  return requestJson(`${API_BASE}/imports/${Number(batchId)}/sync-apply`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ confirm_mass: confirmMass === true })
+  });
+}
+
 export async function commitCommerceImport(batchId) {
   try {
     return await requestJson(`${API_BASE}/imports/${Number(batchId)}/commit`, {

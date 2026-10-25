@@ -86,7 +86,7 @@
 
 /* Detalhes */
 .nev-details{display:grid;gap:14px;padding:4px 20px 18px;border-top:1px solid var(--nev-line);background:#fcfdff}
-.nev-windows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.nev-windows{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
 .nev-windows>div{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--nev-line);border-radius:9px;background:#fff}
 .nev-windows>div.current{border-color:#b9cff2;background:#f4f8ff}
 .nev-windows small{font-size:11px;font-weight:700;color:var(--nev-muted)}
@@ -151,3 +151,25 @@
   .nev-details{padding:4px 14px 16px}
 }
 @media (prefers-reduced-motion:reduce){.nev-chevron,.nev-big.zero{transition:none}}
+
+/* Variações candidatas a remover */
+.nev-candidates{display:grid;gap:12px}
+.nev-candidates-intro{display:grid;gap:4px;padding:12px 14px;border:1px solid var(--nev-line);border-radius:11px;background:#fff;font-size:12px;line-height:1.55;color:var(--nev-muted)}
+.nev-candidates-intro strong{font-size:14px;color:var(--nev-ink)}
+.nev-candidates-intro b{color:var(--nev-ink)}
+.nev-candidates-summary{margin:0;font-size:12px;font-weight:700;color:#3d5779}
+.nev-candidate-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.nev-candidate-list li{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(130px,.8fr) minmax(220px,2.4fr) auto;gap:12px;align-items:center;
+  padding:10px 14px;border:1px solid var(--nev-line);border-left:4px solid var(--nev-zero);border-radius:10px;background:#fff}
+.nev-cand-var,.nev-cand-ad{display:grid;gap:2px;min-width:0}
+.nev-cand-var strong,.nev-cand-ad strong{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nev-cand-var small,.nev-cand-ad small{font-size:11px;color:var(--nev-muted)}
+.nev-cand-kind{justify-self:start;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:750}
+.nev-cand-kind.never{background:var(--nev-zero-bg);color:var(--nev-zero)}
+.nev-cand-kind.stopped{background:var(--nev-warn-bg);color:var(--nev-warn)}
+.nev-candidate-list a{color:var(--nev-accent);font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap}
+@media (max-width:860px){
+  .nev-windows{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .nev-candidate-list li{grid-template-columns:1fr auto}
+  .nev-cand-ad{grid-column:1/-1}
+}

@@ -48,11 +48,12 @@ test('official export requires STATUS and rejects conflicting parent states', ()
   assert.throws(() => indexMercadoLivreBulkStatus(conflict), /conflitante/);
 });
 
-test('current import path filters to ACTIVE and invokes server-side auto-link without new UI', () => {
+test('current import path keeps inactive listings as status-only observations and invokes server-side auto-link without new UI', () => {
   const reader = fs.readFileSync('src/commerce-xlsx-reader.js', 'utf8');
   const store = fs.readFileSync('src/commerce-supabase-store.js', 'utf8');
   const sql = fs.readFileSync('supabase/migrations/20261015190000_ml_active_nisti_auto_link_v1.sql', 'utf8');
-  assert.match(reader, /listingStatusById\.get\(.*\) !== 'ACTIVE'/);
+  assert.match(reader, /if \(status !== 'ACTIVE'\)/);
+  assert.match(reader, /inactiveObserved/);
   assert.match(reader, /indexMercadoLivreBulkStatus\(data\)/);
   assert.match(store, /commerce_reconcile_import_batch_auto_v1/);
   assert.match(sql, /commerce_sync_import_listing_states_account_v1/);

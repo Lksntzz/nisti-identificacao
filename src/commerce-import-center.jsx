@@ -15,7 +15,9 @@ import {
   reprocessShopeeSalesFinance,
   stageCommerceWorkbook,
   retryCommerceImportReconciliation,
-  syncCommerceListingStatuses
+  syncCommerceListingStatuses,
+  previewCommerceCatalogSync,
+  applyCommerceCatalogSync
 } from './commerce-import-client.js';
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
 import CommerceShopeeAdsImport from './commerce-shopee-ads-import.jsx';
@@ -350,7 +352,59 @@ function ImportSummary({ mode, history, batch }) {
   );
 }
 
-function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit, onSyncStatuses, onRetryReconcile }) {
+const SYNC_ERRORS = {
+  catalog_sync_not_latest_batch: 'Esta não é a planilha mais recente desta conta. Use a importação mais nova para sincronizar.',
+  catalog_sync_mass_confirmation_required: 'A desativação é grande. Marque a confirmação extra para continuar.',
+  catalog_sync_ml_account_required: 'Disponível apenas para importações do Mercado Livre com conta (Antiga ou Nova) definida.'
+};
+function syncErrorMessage(err) {
+  const text = String(err?.message || '');
+  const code = Object.keys(SYNC_ERRORS).find(key => text.includes(key));
+  return code ? SYNC_ERRORS[code] : (text || 'Não foi possível sincronizar o catálogo.');
+}
+
+function CatalogSyncPanel({ preview, busy, confirmMass, onConfirmMass, onApply, onClose }) {
+  if (!preview) return null;
+  const listings = Number(preview.deactivate_listings || 0);
+  const variations = Number(preview.deactivate_variations || 0);
+  const reactivated = Number(preview.reactivate_variations || 0);
+  const nothing = !listings && !variations && !reactivated;
+  const label = { DEACTIVATE_ABSENT: 'Anúncio sai do painel', DEACTIVATE_VARIATION: 'Variação sai do painel',
+    REACTIVATE_VARIATION: 'Variação volta ao painel' };
+  return (
+    <section className="import-center-sync-panel" aria-label="Prévia da sincronização do catálogo">
+      <h4>Anúncios e variações que saíram da planilha · conta {preview.account_code === 'NOVO' ? 'Nova' : 'Antiga'}</h4>
+      {!preview.is_latest_batch && <p className="form-error-banner" role="alert">
+        Esta não é a planilha mais recente desta conta (a mais recente é o lote #{preview.latest_batch_id}). A sincronização só pode ser aplicada com a mais recente.</p>}
+      {nothing ? <p>Nada a alterar: todos os anúncios e variações ativos no sistema estão na planilha.</p> : <>
+        <ul className="import-center-sync-counts">
+          <li><strong>{brNumber(listings)}</strong> de {brNumber(preview.previous_active_listings)} anúncios ativos serão <b>desativados</b> (não aparecem na planilha)</li>
+          <li><strong>{brNumber(variations)}</strong> variações serão <b>desativadas</b> (SKU não aparece mais no anúncio)</li>
+          <li><strong>{brNumber(reactivated)}</strong> variações serão <b>reativadas</b> (SKU voltou para o anúncio)</li>
+        </ul>
+        <p className="import-center-sync-note">Nada é apagado: o histórico de vendas é mantido e o item volta automaticamente se reaparecer ativo numa planilha futura.</p>
+        {Array.isArray(preview.samples) && preview.samples.length > 0 && <details>
+          <summary>Ver exemplos ({brNumber(preview.samples.length)})</summary>
+          <ul className="import-center-sync-samples">{preview.samples.map((s, i) => (
+            <li key={i}><span>{label[s.action] || s.action}</span> <strong>{s.title || s.external_listing_id}</strong>
+              <small>{s.external_listing_id}{s.sku ? ' · SKU ' + s.sku : ''}</small></li>))}</ul>
+        </details>}
+        {preview.requires_mass_confirmation && <label className="import-center-sync-mass">
+          <input type="checkbox" checked={confirmMass} onChange={e => onConfirmMass(e.target.checked)} />
+          {' '}A desativação é grande (mais de 30% do que está ativo). Confirmo que exportei a planilha <b>completa, sem filtros</b>.
+        </label>}
+      </>}
+      <div className="import-center-sync-actions">
+        <button type="button" disabled={busy} onClick={onClose}>Fechar</button>
+        {!nothing && <button type="button" className="import-center-primary compact"
+          disabled={busy || !preview.is_latest_batch || (preview.requires_mass_confirmation && !confirmMass)}
+          onClick={onApply}>Aplicar sincronização</button>}
+      </div>
+    </section>
+  );
+}
+
+function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange, onDecision, onYearDecision, onApproveProbable, onApproveNew, onCommit, onSyncStatuses, onSyncPreview, onRetryReconcile }) {
   const totalPages = Math.max(1, Math.ceil(Number(batch?.row_count || 0) / 20));
   const rowCount = Number(batch?.row_count || 0);
   const matched = Number(batch?.matched_count || 0);
@@ -498,6 +552,12 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
                 Atualizar status dos anúncios
               </button>
             )}
+            {batch.marketplace_code === 'MERCADO_LIVRE' && ['REVIEW', 'PARSED', 'COMMITTED'].includes(batch.status) && onSyncPreview && (
+              <button type="button" disabled={busy} onClick={onSyncPreview}
+                title="Mostra quais anúncios e variações ativos no sistema não aparecem nesta planilha. Nada é aplicado sem a sua confirmação.">
+                Revisar anúncios que saíram da planilha
+              </button>
+            )}
             <button
               type="button"
               className="import-center-primary compact"
@@ -533,6 +593,8 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
   const [catalogYearTargets, setCatalogYearTargets] = useState({});
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogBusy, setCatalogBusy] = useState(false);
+  const [syncPreview, setSyncPreview] = useState(null);
+  const [syncConfirmMass, setSyncConfirmMass] = useState(false);
   const [deletingCatalogId, setDeletingCatalogId] = useState(null);
 
   const [salesPlatform, setSalesPlatform] = useState('SHOPEE');
@@ -772,6 +834,30 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
     } finally {
       setCatalogBusy(false);
     }
+  }
+
+  async function handleCatalogSyncPreview() {
+    if (!catalogBatch?.id || catalogBatch.marketplace_code !== 'MERCADO_LIVRE') return;
+    setCatalogBusy(true); setError(''); setSyncConfirmMass(false);
+    try {
+      setSyncPreview(await previewCommerceCatalogSync(catalogBatch.id));
+    } catch (err) {
+      setError(syncErrorMessage(err));
+    } finally { setCatalogBusy(false); }
+  }
+
+  async function handleCatalogSyncApply() {
+    if (!catalogBatch?.id || !syncPreview) return;
+    setCatalogBusy(true); setError('');
+    try {
+      const result = await applyCommerceCatalogSync(catalogBatch.id, syncConfirmMass);
+      setMessage(`Sincronização aplicada: ${brNumber(result.deactivated_listings)} anúncio(s) e ${brNumber(result.deactivated_variations)} variação(ões) desativados; ${brNumber(result.reactivated_variations)} variação(ões) reativadas. Nada foi apagado.`);
+      setSyncPreview(null);
+      await Promise.all([openCatalogBatch(catalogBatch.id), refreshCatalogHistory()]);
+      onCatalogChanged?.();
+    } catch (err) {
+      setError(syncErrorMessage(err));
+    } finally { setCatalogBusy(false); }
   }
 
   async function handleCatalogCommit() {
@@ -1056,8 +1142,12 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
                 onApproveNew={handleApproveNew}
                 onCommit={handleCatalogCommit}
                 onSyncStatuses={handleCatalogStatusSync}
+                onSyncPreview={handleCatalogSyncPreview}
                 onRetryReconcile={handleCatalogRetryReconcile}
               />}
+              {catalogBatch && <CatalogSyncPanel preview={syncPreview} busy={catalogBusy}
+                confirmMass={syncConfirmMass} onConfirmMass={setSyncConfirmMass}
+                onApply={handleCatalogSyncApply} onClose={() => setSyncPreview(null)} />}
             </>
           ) : (
             <>

@@ -9,7 +9,7 @@ import {observedVariationCounts,adUnits,adRevenue,adTrend,adState,variationState
 // Mesma API e mesmas regras de honestidade: zero só quando os relatórios
 // importados confirmam; caso contrário, "dados pendentes".
 const API='/api/admin/commerce/listings/manager';
-const PAGE=12,WINDOWS=[30,60,90];
+const PAGE=12,WINDOWS=[7,30,60,90];
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],
   ['MERCADO_LIVRE','Mercado Livre'],['ML_ANTIGO','Mercado Livre Antigo']];
 // "Mercado Livre Novo" fica fora do filtro enquanto não houver anúncios ativos nessa conta.
@@ -153,6 +153,56 @@ function AdRow({ad,days}){
   </article>;
 }
 
+function RemovalCandidates({platform,revision=0}){
+  const [data,setData]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
+  const [offset,setOffset]=useState(0),[retry,setRetry]=useState(0);
+  useEffect(()=>setOffset(0),[platform]);
+  useEffect(()=>{
+    const ctrl=new AbortController();setLoading(true);setError('');
+    const params=new URLSearchParams({platform,limit:'50',offset:String(offset)});
+    fetch(API+'/variation-candidates?'+params,{credentials:'same-origin',cache:'no-store',signal:ctrl.signal})
+      .then(async r=>{const x=await r.json().catch(()=>({}));if(!r.ok)throw Error(x.error||'Não foi possível consultar as variações.');return x;})
+      .then(x=>{if(!ctrl.signal.aborted)setData(x);})
+      .catch(e=>{if(!ctrl.signal.aborted)setError(e.message);})
+      .finally(()=>{if(!ctrl.signal.aborted)setLoading(false);});
+    return ()=>ctrl.abort();
+  },[platform,offset,revision,retry]);
+  const items=Array.isArray(data?.items)?data.items:[],total=Number(data?.total||0);
+  const incomplete=(Array.isArray(data?.coverage)?data.coverage:[]).filter(c=>!c.complete_90);
+  return <div className="nev-candidates">
+    <div className="nev-candidates-intro">
+      <strong>Variações sem venda em 90 dias, em anúncios que vendem</strong>
+      <span>Candidatas a sair do anúncio para concentrar as vendas nas variações que vendem.
+        Antes de remover, confira: <b>estoque</b> (o sistema não sabe se a variação ficou sem estoque),
+        <b> sazonalidade</b> (agendas e planners vendem mais no fim do ano) e se a variação é <b>nova</b>.
+        Anote a data em que remover para comparar o antes e depois.</span>
+    </div>
+    {incomplete.length>0&&<p className="nev-stale" role="note">Sem relatórios completos de 90 dias para:{' '}
+      {incomplete.map(c=>platformName(c.source)).join(', ')}. Essas plataformas não entram na lista.</p>}
+    {loading&&<p className="nev-empty" role="status">Analisando variações…</p>}
+    {error&&<p className="nev-empty" role="alert">{error}{' '}<button type="button" onClick={()=>setRetry(x=>x+1)}>Tentar novamente</button></p>}
+    {!loading&&!error&&<>
+      <p className="nev-candidates-summary">{number(total)} variação(ões) em {number(data?.listings)} anúncio(s) ·{' '}
+        {number(data?.never_sold)} nunca venderam desde o início do histórico · {number(data?.stopped)} pararam de vender</p>
+      {items.length===0&&<p className="nev-empty">Nenhuma variação candidata neste filtro.</p>}
+      <ul className="nev-candidate-list">{items.map(it=><li key={it.listing_product_id}>
+        <span className="nev-cand-var"><strong>{it.variation_name}</strong><small>SKU {it.sku||'—'}</small></span>
+        <span className={'nev-cand-kind '+(it.kind==='NEVER'?'never':'stopped')}>{it.kind==='NEVER'
+          ?'Nunca vendeu':'Última venda em '+date(it.last_sale_date)}</span>
+        <span className="nev-cand-ad"><strong>{it.title||'Anúncio'}</strong>
+          <small>{platformName(it.source)} · ID {it.external_listing_id} · anúncio vendeu {number(it.ad_units_90)} un. em 90 dias ·
+            {' '}{number(it.selling_variations)} de {number(it.variation_count)} variações vendendo</small></span>
+        {it.url?<a href={it.url} target="_blank" rel="noopener noreferrer">Abrir ↗</a>:<span/>}
+      </li>)}</ul>
+      {total>50&&<footer className="nev-pagination">
+        <span>{number(offset+1)}–{number(Math.min(total,offset+items.length))} de {number(total)}</span>
+        <div><button type="button" disabled={!offset} onClick={()=>setOffset(n=>Math.max(0,n-50))}>Anterior</button>
+        <button type="button" disabled={offset+50>=total} onClick={()=>setOffset(n=>n+50)}>Próxima</button></div>
+      </footer>}
+    </>}
+  </div>;
+}
+
 export default function CommerceEvolutionIntegrated({
   platform='TODAS',onPlatformChange=()=>{},initialDays=30,onPeriodChange=()=>{},
   status='ALL',onStatusChange=()=>{},revision=0,salesRevision=0
@@ -166,7 +216,7 @@ export default function CommerceEvolutionIntegrated({
   useEffect(()=>setOffset(0),[selectedPlatform,days,status,search]);
   useEffect(()=>{
     const ctrl=new AbortController(),params=new URLSearchParams({
-      platform:selectedPlatform,days:String(days),status,limit:String(PAGE),offset:String(offset)
+      platform:selectedPlatform,days:String(days),status:status==='CANDIDATES'?'ALL':status,limit:String(PAGE),offset:String(offset)
     });
     if(search)params.set('search',search);
     setLoading(true);setError('');setReport(null);
@@ -182,7 +232,9 @@ export default function CommerceEvolutionIntegrated({
   const kpis=report?.kpis||{},coverage=Array.isArray(report?.coverage)?report.coverage:[];
   const v=n=>report?number(n):'—';
   const tabs=[['ALL','Todos',kpis.total],['ZERO','Sem vendas ou paradas',kpis.zero],
-    ['FALLING','Em queda',kpis.falling],['RISING','Crescendo',kpis.rising],['STABLE','Estáveis',kpis.stable]];
+    ['FALLING','Em queda',kpis.falling],['RISING','Crescendo',kpis.rising],['STABLE','Estáveis',kpis.stable],
+    ['CANDIDATES','Variações para remover',null]];
+  const showCandidates=status==='CANDIDATES';
   const setPeriod=n=>{setDays(n);onPeriodChange(n);};
   const stale=report?staleSources(coverage,todayInSaoPaulo()):[];
   return <section className="nev" aria-label="Evolução de vendas por anúncio">
@@ -234,13 +286,14 @@ export default function CommerceEvolutionIntegrated({
     <div className="nev-tabs" role="tablist" aria-label="Situação das vendas">
       {tabs.map(([id,label,count])=><button type="button" role="tab" key={id}
         aria-selected={status===id} className={status===id?'active':''}
-        onClick={()=>onStatusChange(id)}>{label}<span>{v(count)}</span></button>)}
+        onClick={()=>onStatusChange(id)}>{label}{count!==null&&<span>{v(count)}</span>}</button>)}
     </div>
 
-    {loading&&<p className="nev-empty" role="status">Carregando anúncios…</p>}
-    {error&&<p className="nev-empty" role="alert">{error}{' '}
+    {showCandidates&&<RemovalCandidates platform={selectedPlatform} revision={revision+salesRevision}/>}
+    {!showCandidates&&loading&&<p className="nev-empty" role="status">Carregando anúncios…</p>}
+    {!showCandidates&&error&&<p className="nev-empty" role="alert">{error}{' '}
       <button type="button" onClick={()=>setRetry(x=>x+1)}>Tentar novamente</button></p>}
-    {!loading&&!error&&<>
+    {!showCandidates&&!loading&&!error&&<>
       <div className="nev-list-head" aria-hidden="true">
         <span>Anúncio</span><span>Vendas · {days} dias</span><span>vs. período anterior</span>
         <span>Variações</span><span/>
@@ -268,6 +321,8 @@ export default function CommerceEvolutionIntegrated({
           <b> Dados pendentes</b>: a plataforma não tem relatório importado.</li>
         <li>Os períodos terminam na última venda importada de cada plataforma, não na data de hoje.
           Um aviso aparece quando uma plataforma está há mais de 3 dias sem dados.</li>
+        <li><b>Variações para remover</b>: variação com SKU verificado, 0 vendas nos últimos 90 dias com relatórios completos,
+          em anúncio ativo em que outra variação vendeu e sem vendas do anúncio sem SKU atribuído.</li>
         <li><b>Em queda</b>: queda de 20% e ao menos 2 unidades sobre o período anterior de mesma duração.</li>
         <li><b>Crescendo</b>: alta de 20% e ao menos 2 unidades sobre o período anterior de mesma duração.
           <b> Estáveis</b>: vendas próximas ao período anterior. Só é calculado com cobertura completa nos dois períodos.</li>

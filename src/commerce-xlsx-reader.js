@@ -163,9 +163,22 @@ export async function readCommerceXlsx(file, marketplace, accountCode = null) {
     let sheetWorkbookHyperlinks = 0;
     let sheetRecoveredHyperlinks = 0;
 
+    // Anúncios não ativos (pausado, inativo, finalizado) entram apenas como UMA
+    // observação de status por anúncio, sem SKU: o servidor desativa o anúncio,
+    // mas nenhum vínculo de produto/variação é criado para ele.
+    const inactiveObserved = new Set();
     data.forEach((rawRow, index) => {
-      const row = stableRow(rawRow);
-      if (isMlBulk && listingStatusById.get(String(row?.[1] ?? '').trim().toUpperCase()) !== 'ACTIVE') return;
+      let row = stableRow(rawRow);
+      if (isMlBulk) {
+        const id = String(row?.[1] ?? '').trim().toUpperCase();
+        const status = listingStatusById.get(id);
+        if (!status) return;
+        if (status !== 'ACTIVE') {
+          if (inactiveObserved.has(id)) return;
+          inactiveObserved.add(id);
+          row = row.map((value, column) => (column === 3 || column === 4) ? null : value);
+        }
+      }
       const hyperlinks = hyperlinksForRow(sheetLinks, index + 1);
       const hyperlinkCount = Object.keys(hyperlinks).length;
       const recoveredCount = countRecoveredHyperlinks(row, hyperlinks);
