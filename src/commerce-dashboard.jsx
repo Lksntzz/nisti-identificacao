@@ -278,7 +278,7 @@ export default function CommerceDashboard(){
       :{k:'ads',t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:'Nenhum relatório Shopee Ads importado.'}
   ];
   const openAlert=k=>{if(k==='abc'){setTab('abc');return;}setTab(k);};
-  const daysAgo=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?null:Math.max(0,Math.floor((Date.now()-d.getTime())/86400000));};
+  
   const stoppedRows=ov.stopped||[];
   const TABS=[
     ['best','Melhores produtos',null],
@@ -352,13 +352,13 @@ export default function CommerceDashboard(){
               <td><span className="ndb-why tone-warn"><strong>Vendas zeraram</strong><small>Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</small></span></td></tr>)}
             {stoppedRows.length===0&&<tr><td colSpan={4} className="ndb-empty">{overview?'Nenhum anúncio parou de vender neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>}
-          {tab==='nosales'&&<><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th><th>Plataforma</th><th>Cadastrado em</th><th>Situação</th></tr></thead><tbody>
-            {(ov.no_sales||[]).map(r=>{const age=daysAgo(r.created_at);const isNew=age!=null&&age<=days;return <tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></td>
-              <td>{PLATFORM_LABEL[r.platform]||r.platform}</td><td>{r.created_at?fmtDayFull(r.created_at):'—'}{age!=null?' ('+age+' dias)':''}</td>
-              <td><span className={'ndb-why tone-'+(isNew?'good':'warn')}><strong>{isNew?'Anúncio novo':'Sem venda no período'}</strong><small>{isNew?'Criado dentro do período; pode estar ganhando exposição.':'Já existia antes do período e não vendeu.'}</small></span></td></tr>;})}
+          {tab==='nosales'&&<><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th><th>Plataforma</th><th>Última venda</th><th>Situação</th></tr></thead><tbody>
+            {(ov.no_sales||[]).map(r=>{const sold=Boolean(r.last_sale);return <tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></td>
+              <td>{PLATFORM_LABEL[r.platform]||r.platform}</td><td>{sold?fmtDayFull(r.last_sale):'nunca'}</td>
+              <td><span className={'ndb-why tone-'+(sold?'warn':'muted')} title={sold?'Já vendeu ('+num(r.units_ever)+' unid. no total importado) e não vendeu nada neste período.':'Nenhuma venda nos dados importados (desde abril). Pode ser anúncio novo ou nunca ter vendido; o sistema não sabe a data de criação no marketplace.'}><strong>{sold?'Vendia e parou':'Nunca vendeu nos dados'}</strong><small>{sold?(Number(r.units_previous)>0?num(r.units_previous)+' unid. no período anterior; confira estoque, preço e se está pausado.':'Última venda antes do período anterior; confira se ainda vale manter.'):'Sem venda desde abril (início dos dados importados). Pode ser novo.'}</small></span></td></tr>;})}
             {(ov.no_sales||[]).length===0&&<tr><td colSpan={4} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>
-          <p className="ndb-note">Mostrando os {Math.min((ov.no_sales||[]).length,50)} cadastrados mais recentemente, de {num(ov.no_sales_total)}.</p></>}
+          <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista: primeiro os que já venderam, depois os que nunca venderam (até 100).</p></>}
           {tab==='ads'&&<div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Campanha / anúncio</th><th className="num">Investimento</th><th className="num">Vendas atribuídas</th><th className="num">ROAS</th></tr></thead><tbody>
             {[...adsRows].sort((x,y)=>Number(x.roas)-Number(y.roas)).map((r,i)=><tr key={i}><td title={r.campaign}><strong>{r.title||r.campaign}</strong><small>{r.listing_id?'Anúncio individual':'Grupo de anúncios'}</small></td>
               <td className="num">{money(r.spend)}</td><td className="num">{money(r.gmv)}</td><td className="num">{r.roas==null?'sem dados':<span className={'ndb-roas'+(Number(r.roas)<1?' low':'')}>{String(r.roas).replace('.',',')}x</span>}</td></tr>)}
