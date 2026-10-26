@@ -48,3 +48,10 @@ test('missing data is shown as sem dados, never zero',()=>{
   assert.ok(ui.includes('Sem dados: falta cadastrar o custo do produto'));
   assert.ok(ui.includes("Gasto e retorno de anúncios: sem dados"));
 });
+test('listingUrl builds marketplace links from the platform and listing id',()=>{
+  const src=read('src/commerce-dashboard.jsx');
+  assert.ok(src.includes("https://shopee.com.br/product/'+SHOPEE_SHOP_ID+'/'"));
+  assert.ok(src.includes("https://produto.mercadolivre.com.br/MLB-'+m[1]"));
+  assert.ok(src.includes('rel="noopener noreferrer"'));
+  assert.equal((src.match(/<Ext platform=/g)||[]).length,4);
+});

@@ -53,6 +53,23 @@ export function InfoIcon({text,label}){
   </span>;
 }
 
+const SHOPEE_SHOP_ID='376221706';
+export function listingUrl(platform,id){
+  const v=String(id||'').trim();
+  if(!v)return null;
+  if(platform==='SHOPEE')return /^[0-9]+$/.test(v)?'https://shopee.com.br/product/'+SHOPEE_SHOP_ID+'/'+v:null;
+  const m=v.match(/^MLB-?([0-9]+)$/i);
+  return m?'https://produto.mercadolivre.com.br/MLB-'+m[1]:null;
+}
+function Ext({platform,id}){
+  const url=listingUrl(platform,id);
+  const name=platform==='SHOPEE'?'Shopee':'Mercado Livre';
+  if(!url)return null;
+  return <a className="ndb-ext" href={url} target="_blank" rel="noopener noreferrer" title={'Abrir o anúncio no '+name} aria-label={'Abrir o anúncio no '+name}>
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+  </a>;
+}
+
 function Delta({cur,prev}){
   const v=changePct(cur,prev);
   return <span className={'ndb-chip tone-'+tone(v)}>{v==null?'novo':(v>0?'▲ ':v<0?'▼ ':'')+String(Math.abs(v)).replace('.',',')+'%'}</span>;
@@ -346,7 +363,7 @@ export default function CommerceDashboard(){
           </header>
           {tab==='best'&&<><div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num">Investimento</th><th className="num">ROAS</th></tr></thead><tbody>
             {bestAll.map(r=>{const ad=adsByListing[r.listing_id];return <tr key={r.platform+r.external_id}>
-              <td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{r.sku||r.external_id}</small></td>
+              <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.sku||r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td>{PLATFORM_LABEL[r.platform]||r.platform}</td>
               <td><span className={'ndb-status'+(r.status==='ACTIVE'?' on':'')}>{r.status==='ACTIVE'?'Ativo':'Inativo'}</span></td>
               <td className="num"><b>{num(r.units)}</b></td><td className="num">{money(r.revenue)}</td>
@@ -357,7 +374,7 @@ export default function CommerceDashboard(){
           <p className="ndb-note" title="Investimento e ROAS vêm do relatório Shopee Ads importado (período próprio) e só aparecem para anúncios com campanha individual.">Os 15 anúncios que mais faturam. Investimento e ROAS: relatório Shopee Ads importado, só anúncios com campanha individual.</p></>}
           {tab==='drops'&&<><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades</th><th className="num">Variação</th><th className="num">Perdeu</th><th className="num">Preço médio</th><th>Por que caiu</th></tr></thead><tbody>
             {whyRows.map(r=>{const sg=signals[r.listing_id];const why=reasonFor(sg,diagnosis[r.listing_id]);return <tr key={r.platform+r.external_id}>
-              <td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></td>
+              <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{num(r.units_previous)} → {num(r.units)}</td><td className="num neg">{pctText(changePct(r.units,r.units_previous))}</td>
               <td className="num neg" title={money(r.revenue_previous)+' → '+money(r.revenue)}>{money(r.lost_revenue)}</td>
               <td className="num">{sg&&sg.price_previous!=null&&sg.price_current!=null?money(sg.price_previous)+' → '+money(sg.price_current):'—'}</td>
@@ -366,7 +383,7 @@ export default function CommerceDashboard(){
           </tbody></table></div>
           <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. “Por que caiu” é correlação, não prova de causa.</p></>}
           {tab==='stopped'&&<div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Unidades antes</th><th className="num">Faturamento antes</th><th>O que verificar</th></tr></thead><tbody>
-            {stoppedRows.map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></td>
+            {stoppedRows.map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{r.last_sale?fmtDayFull(r.last_sale):'—'}</td><td className="num">{num(r.units_previous)} → 0</td><td className="num">{money(r.revenue_previous)} → R$ 0,00</td>
               <td><span className="ndb-why tone-warn"><strong>Vendas zeraram</strong><small>Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</small></span></td></tr>)}
             {stoppedRows.length===0&&<tr><td colSpan={5} className="ndb-empty">{overview?'Nenhum anúncio parou de vender neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
@@ -375,7 +392,7 @@ export default function CommerceDashboard(){
             <div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',(ov.no_sales||[]).length],['stopped','Vendia e parou',(ov.no_sales||[]).filter(r=>r.last_sale).length],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length]].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>
             <span className="ndb-note">Período: últimos {days} dias</span></div>
           <div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th><th>Plataforma</th><th>Última venda</th><th>Situação</th></tr></thead><tbody>
-            {(ov.no_sales||[]).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);return <tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></td>
+            {(ov.no_sales||[]).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);return <tr key={r.platform+r.external_id}><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td>{PLATFORM_LABEL[r.platform]||r.platform}</td><td>{sold?fmtDayFull(r.last_sale):'nunca'}</td>
               <td><span className={'ndb-why tone-'+(sold?'warn':'muted')} title={sold?'Já vendeu ('+num(r.units_ever)+' unid. no total importado) e não vendeu nada neste período.':'Nenhuma venda nos dados importados (desde '+firstDay+'). Pode ser anúncio novo ou nunca ter vendido; o sistema não sabe a data de criação no marketplace.'}><strong>{sold?'Vendia e parou':'Nunca vendeu nos dados'}</strong><small>{sold?(Number(r.units_previous)>0?num(r.units_previous)+' unid. no período anterior; confira estoque, preço e se está pausado.':'Última venda antes do período anterior; confira se ainda vale manter.'):'Sem venda desde '+firstDay+' (início dos dados importados). Pode ser novo.'}</small></span></td></tr>;})}
             {(ov.no_sales||[]).length===0&&<tr><td colSpan={4} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
