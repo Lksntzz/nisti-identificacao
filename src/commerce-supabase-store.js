@@ -315,6 +315,16 @@ export async function commerceSalesDashboardSeriesV1(env,filters={}) {
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{daily:[]};
 }
 
+export async function commerceSalesDashboardOverviewV1(env,filters={}) {
+  const platform=String(cleanText(filters.platform)||'TODAS').toUpperCase();
+  const days=Number(filters.days);
+  const data=await supabaseRpc(env,'commerce_dashboard_overview_v1',{
+    p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS',
+    p_days:[7,30,60,90].includes(days)?days:30
+  },{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{};
+}
+
 export async function commerceVariationReview(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const days=Number(filters.days);

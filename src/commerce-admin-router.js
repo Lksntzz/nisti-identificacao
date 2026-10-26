@@ -43,6 +43,7 @@ import {
   commerceSalesImportHistory,
   commerceSalesDashboardV1,
   commerceSalesDashboardSeriesV1,
+  commerceSalesDashboardOverviewV1,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
   commerceImportShopeeAftercare,
@@ -514,6 +515,13 @@ export async function handleCommerceAdminRequest(request, env) {
       if(!['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)||![7,30,60,90].includes(days))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardSeriesV1(env,{platform,days}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/overview'){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      const days=Number(query(url,'days')||30);
+      if(!['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)||![7,30,60,90].includes(days))
+        return json({error:'Filtro do dashboard inválido.'},400);
+      return json(await commerceSalesDashboardOverviewV1(env,{platform,days}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();

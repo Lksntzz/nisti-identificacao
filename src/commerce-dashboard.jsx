@@ -14,6 +14,10 @@ const SOURCES={
   daily:'Vendas importadas (tabela de vendas diárias por anúncio): soma do faturamento de cada dia, separado por plataforma. A linha tracejada é o dia equivalente do período anterior (mesmo tamanho). Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
   top:'Vendas importadas: os 15 anúncios com maior faturamento no período, com a variação de unidades contra o período anterior de mesmo tamanho. Título e situação vêm do cadastro de anúncios do sistema.',
   kpi:'Vendas importadas no período escolhido, contra o período anterior de mesmo tamanho. O período termina no último dia com venda importada, não em hoje.',
+  alerts:'Calculado sobre as vendas importadas e o cadastro de anúncios: queda = anúncio ativo com 5 ou mais unidades antes e 15% ou mais de queda; pararam = ativos que venderam 3 ou mais unidades no período anterior e zero no atual; sem venda = ativos sem nenhuma unidade no período; inativos com venda = anúncios inativos ou removidos que ainda aparecem nas vendas. Anúncio pago com ROAS abaixo de 1 vem do relatório Shopee Ads importado.',
+  best:'Vendas importadas, por anúncio, no período escolhido. Crescimento = ativos com 5 ou mais unidades antes, 10 ou mais agora e alta de 15% ou mais, ordenados pelas unidades a mais. ROAS vem do relatório Shopee Ads importado (período próprio) e só inclui anúncios com campanha individual. Mais vendido não significa mais lucrativo: não há custo do produto cadastrado.',
+  ads:'Relatório Shopee Ads “Dados gerais” mais recente importado (Importar > Shopee Ads). O período dele é o do próprio arquivo, não o filtro da tela. Linhas de grupos de anúncios e de anúncios individuais podem se sobrepor, então não some as linhas. Mercado Livre Publicidade ainda não é importado.',
+  trust:'Cobertura do que está no banco: último dia com venda e última importação aplicada por plataforma (Histórico de importações), dias do período com venda importada e faturamento sem SKU vinculado.',
   help:'Lista de dados que o sistema ainda não recebe e que ajudariam a explicar quedas.'
 };
 const HELP=[
@@ -180,6 +184,7 @@ export default function CommerceDashboard(){
   const [days,setDays]=useState(30);
   const [data,setData]=useState(null);
   const [series,setSeries]=useState(null);
+  const [overview,setOverview]=useState(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [cls,setCls]=useState('A');
@@ -193,6 +198,8 @@ export default function CommerceDashboard(){
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/series'+q,{signal:controller.signal})
       .then(setSeries).catch(()=>{if(!controller.signal.aborted)setSeries(null);});
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/overview'+q,{signal:controller.signal})
+      .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});
     return()=>controller.abort();
   },[platform,days]);
   const drops=data?.drops?.items||[];
@@ -207,6 +214,15 @@ export default function CommerceDashboard(){
   const daily=series?.daily||[];
   const shopeeTotal=daily.reduce((a,d)=>a+Number(d.shopee||0),0);
   const mlTotal=daily.reduce((a,d)=>a+Number(d.ml||0),0);
+  const ov=overview||{};
+  const ovListings=ov.listings||{};
+  const adsRows=ov.ads?.rows||[];
+  const lowRoas=adsRows.filter(r=>r.roas!=null&&Number(r.roas)<1);
+  const [best,setBest]=useState('revenue');
+  const bestRows=best==='units'?(ov.top_units||[]).map(r=>({...r,value:num(r.units)+' unid.',sub:money(r.revenue),delta:[r.units,r.units_previous]}))
+    :best==='growth'?(ov.growth||[]).map(r=>({...r,value:'+'+num(r.units-r.units_previous)+' unid.',sub:num(r.units_previous)+' → '+num(r.units)+' unid.',delta:[r.units,r.units_previous]}))
+    :best==='roas'?adsRows.filter(r=>r.listing_id&&r.roas!=null).sort((a,b)=>Number(b.roas)-Number(a.roas)).slice(0,10).map(r=>({platform:'SHOPEE',external_id:'Ads',title:r.title||r.campaign,value:'ROAS '+String(r.roas).replace('.',','),sub:'Gasto '+money(r.spend)+' · vendas atribuídas '+money(r.gmv)}))
+    :top.slice(0,15).map(r=>({...r,value:money(r.revenue),sub:num(r.units)+' unid.',delta:[r.units,r.units_previous]}));
   const maxTop=Math.max(1,...top.map(r=>Number(r.revenue)||0));
   const maxDrop=Math.max(1,...drops.map(r=>Number(r.lost_revenue)||0));
   return <section className="ndb-root" aria-label="Dashboard comercial">
@@ -226,9 +242,24 @@ export default function CommerceDashboard(){
     {hasData&&<div className="ndb-kpis">
       <article><span>Faturamento<InfoIcon text={SOURCES.kpi} label="Faturamento"/></span><strong>{money(totals.cur_rev)}</strong><small><Delta cur={totals.cur_rev} prev={totals.prev_rev}/> antes: {money(totals.prev_rev)}</small></article>
       <article><span>Unidades vendidas<InfoIcon text={SOURCES.kpi} label="Unidades"/></span><strong>{num(totals.cur_units)}</strong><small><Delta cur={totals.cur_units} prev={totals.prev_units}/> antes: {num(totals.prev_units)}</small></article>
-      <article><span>Anúncios com venda<InfoIcon text={SOURCES.kpi} label="Anúncios com venda"/></span><strong>{num(totals.listings_selling)}</strong><small>{num(data.drops?.total)} ativos em queda</small></article>
-      <article className="is-loss"><span>Perda nos anúncios em queda<InfoIcon text={SOURCES.drops} label="Perda"/></span><strong>{money(data.drops?.lost_revenue)}</strong><small>faturamento a menos contra o período anterior</small></article>
+      <article><span>Pedidos<InfoIcon text={SOURCES.kpi+' Pedidos são somados por anúncio: um pedido com dois anúncios diferentes conta duas vezes.'} label="Pedidos"/></span><strong>{ov.orders?num(ov.orders.current):'—'}</strong><small>{ov.orders&&<Delta cur={ov.orders.current} prev={ov.orders.previous}/>} {ov.orders?'antes: '+num(ov.orders.previous):'sem dados'}</small></article>
+      <article><span>Anúncios ativos<InfoIcon text={SOURCES.alerts} label="Anúncios ativos"/></span><strong>{ov.listings?num(ovListings.active):'—'}</strong><small>{ov.listings?num(ovListings.inactive)+' inativos · '+num(ovListings.active_without_sales)+' ativos sem venda':'sem dados'}</small></article>
+      <article className="is-loss"><span>Perda nos anúncios em queda<InfoIcon text={SOURCES.drops} label="Perda"/></span><strong>{money(data.drops?.lost_revenue)}</strong><small>{num(data.drops?.total)} anúncios ativos em queda</small></article>
+      <article className="is-muted"><span>Investimento em anúncios e ROAS<InfoIcon text={SOURCES.ads} label="Investimento e ROAS"/></span><strong>Sem dados</strong><small>no período escolhido; veja Shopee Ads abaixo</small></article>
+      <article className="is-muted"><span>Margem e lucro<InfoIcon text="O sistema ainda não tem o custo de cada produto. Sem custo, margem e lucro não podem ser calculados com segurança." label="Margem e lucro"/></span><strong>Sem dados</strong><small>falta cadastrar o custo do produto</small></article>
     </div>}
+    {hasData&&overview&&<Card className="span-12 ndb-alerts" title="Precisa de ação" subtitle={'Comparação: últimos '+days+' dias contra os '+days+' dias anteriores'} source="alerts">
+      <div className="ndb-tiles">
+        <div className="ndb-tile bad"><b>{num(data.drops?.total)}</b><strong>Em queda</strong><span>ativos com queda de 15% ou mais; {money(data.drops?.lost_revenue)} a menos</span></div>
+        <div className="ndb-tile bad"><b>{num((ov.stopped||[]).length)}{(ov.stopped||[]).length>=10?'+':''}</b><strong>Pararam de vender</strong><span>ativos com 3 ou mais unidades antes e nenhuma agora</span></div>
+        <div className="ndb-tile warn"><b>{num(ovListings.active_without_sales)}</b><strong>Ativos sem venda</strong><span>de {num(ovListings.active)} ativos, nenhuma unidade no período</span></div>
+        <div className="ndb-tile warn"><b>{num(ovListings.inactive_with_sales)}</b><strong>Inativos com venda</strong><span>inativos ou removidos que ainda aparecem nas vendas</span></div>
+        <div className={'ndb-tile '+(lowRoas.length?'bad':'good')}><b>{adsRows.length?num(lowRoas.length):'—'}</b><strong>Anúncios pagos com ROAS &lt; 1</strong><span>{adsRows.length?'gastou mais do que vendeu (relatório Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+')':'sem relatório Shopee Ads importado'}</span></div>
+        <div className="ndb-tile good"><b>{num((ov.growth||[]).length)}{(ov.growth||[]).length>=10?'+':''}</b><strong>Em alta</strong><span>ativos com alta de 15% ou mais; veja em Melhores produtos</span></div>
+      </div>
+      {(ov.stopped||[]).length>0&&<div className="ndb-stopped"><strong>Pararam de vender (maiores primeiro)</strong>
+        <ul>{(ov.stopped||[]).slice(0,6).map(r=><li key={r.platform+r.external_id}><span title={r.title||''}>{r.title||r.external_id}</span><small>{PLATFORM_LABEL[r.platform]||r.platform} · {num(r.units_previous)} unid. antes · {money(r.revenue_previous)}</small></li>)}</ul></div>}
+    </Card>}
     <div className="ndb-grid">
       <Card className="span-8" title="Faturamento por dia" subtitle="Cada dia do período, empilhado por plataforma, contra o mesmo dia do período anterior" source="daily">
         <DailyChart daily={daily}/>
@@ -271,12 +302,45 @@ export default function CommerceDashboard(){
           extra={r=><div className="ndb-bar-extra"><span>{num(r.units_previous)} → {num(r.units)} unid.</span><PriceSignalCell signal={signals[r.listing_id]} window={days} diagnosis={diagnosis[r.listing_id]}/></div>}/>
         {drops.length>10&&<p className="ndb-note">Mostrando 10 de {num(data.drops?.total)} anúncios em queda.</p>}
       </Card>
-      <Card className="span-6" title="Top 15 anúncios" subtitle="Maior faturamento no período, colorido pela plataforma" source="top">
-        {top.length===0&&!loading&&<p className="ndb-empty">Sem vendas no período.</p>}
-        <BarList rows={top} max={maxTop} colorOf={r=>PLAT_COLOR[r.platform]||'#2a78d6'} value={r=>Number(r.revenue)||0}
-          extra={r=><div className="ndb-bar-extra"><span>{num(r.units)} unid. · preço médio {money(r.price)}</span></div>}/>
+      <Card className="span-6" title="Melhores produtos" subtitle="Cada critério mostra uma coisa diferente; o mais vendido não é necessariamente o mais lucrativo" source="best">
+        <div className="ndb-seg" role="group" aria-label="Critério">
+          {[['revenue','Maior faturamento'],['units','Mais unidades'],['growth','Maior crescimento'],['roas','Melhor ROAS (Ads)']].map(([v,l])=><button key={v} type="button" className={v===best?'is-active':''} aria-pressed={v===best} onClick={()=>setBest(v)}>{l}</button>)}
+        </div>
+        {bestRows.length===0&&<p className="ndb-empty">Sem dados para este critério no período.</p>}
+        <ol className="ndb-rank-list">{bestRows.map((r,i)=><li key={(r.platform||'')+(r.external_id||'')+i}>
+          <span className="ndb-rank">{i+1}</span>
+          <div><strong title={r.title||''}>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform}{r.external_id&&r.external_id!=='Ads'?' · '+r.external_id:''} · {r.sub}</small></div>
+          <div className="ndb-bar-val"><b>{r.value}</b>{r.delta&&<Delta cur={r.delta[0]} prev={r.delta[1]}/>}</div>
+        </li>)}</ol>
       </Card>
     </div>
+    {hasData&&overview&&<div className="ndb-grid">
+      <Card className="span-12" title="Shopee Ads: campanhas" subtitle={adsRows.length?'Relatório de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+' (período próprio, não segue o filtro)':'Nenhum relatório importado'} source="ads">
+        {adsRows.length===0?<p className="ndb-empty">Sem dados de anúncios pagos. Importe o relatório “Dados gerais” em Importar, opção Shopee Ads.</p>:
+        <div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Campanha</th><th className="num">Impressões</th><th className="num">Cliques</th><th className="num">CTR</th><th className="num">Itens vendidos</th><th className="num">Vendas atribuídas</th><th className="num">Gasto</th><th className="num">ROAS</th></tr></thead><tbody>
+          {adsRows.map((r,i)=><tr key={i}><td title={r.campaign}><strong>{r.title||r.campaign}</strong><small>{r.listing_id?'Anúncio individual':'Grupo de anúncios'}</small></td>
+            <td className="num">{num(r.impressions)}</td><td className="num">{num(r.clicks)}</td><td className="num">{r.impressions?String((r.clicks/r.impressions*100).toFixed(2)).replace('.',',')+'%':'—'}</td>
+            <td className="num">{num(r.items_sold)}</td><td className="num">{money(r.gmv)}</td><td className="num">{money(r.spend)}</td>
+            <td className={'num'+(r.roas!=null&&Number(r.roas)<1?' bad':'')}>{r.roas==null?'sem dados':String(r.roas).replace('.',',')}</td></tr>)}
+        </tbody></table></div>}
+        <p className="ndb-note">Não some as linhas: grupos de anúncios e anúncios individuais podem contar as mesmas vendas.</p>
+      </Card>
+      <Card className="span-12" title="Confiabilidade dos dados" subtitle="O que está no banco e o que pode estar faltando" source="trust">
+        <div className="ndb-tiles">
+          {(ov.coverage||[]).map(c=><div key={c.platform} className="ndb-tile"><strong>{PLATFORM_LABEL[c.platform]||c.platform}</strong><span>Vendas até {fmtDayFull(c.last_day)}</span><span>Última importação aplicada: {c.last_import?new Date(c.last_import).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'}):'sem dados'}</span></div>)}
+          <div className="ndb-tile"><strong>Dias com venda</strong><span>{num(ov.window_days_with_sales)} de {days} dias do período{Number(ov.window_days_with_sales)<days?' (há dias sem venda importada)':''}</span></div>
+          <div className={'ndb-tile '+(Number(ov.unlinked?.revenue)>0?'warn':'good')}><strong>Vendas sem SKU vinculado</strong><span>{Number(ov.unlinked?.revenue)>0?num(ov.unlinked.listings)+' anúncios, '+money(ov.unlinked.revenue)+' fora da curva ABC por produto':'nenhuma no período'}</span></div>
+        </div>
+        <details className="ndb-defs"><summary>Definição de cada indicador</summary><ul>
+          <li><b>Faturamento:</b> valor dos produtos vendidos, sem frete, das vendas importadas. Não é o faturamento atribuído aos anúncios pagos.</li>
+          <li><b>Pedidos:</b> soma por anúncio; um pedido com dois anúncios conta duas vezes.</li>
+          <li><b>Curva ABC:</b> por SKU, ordenada pelo faturamento do período. A = até 80% do total, B = até 95%, C = o restante. Produto C pode ser novo, sazonal ou estratégico.</li>
+          <li><b>Em queda:</b> anúncio ativo com 5 ou mais unidades no período anterior e queda de 15% ou mais nas unidades.</li>
+          <li><b>ROAS:</b> vendas atribuídas ÷ gasto, do relatório Shopee Ads. ROAS menor que 1 = gastou mais do que vendeu, antes de custo de produto e taxas.</li>
+          <li><b>Sem dados:</b> a informação não existe no sistema. Nunca é mostrada como zero.</li>
+        </ul></details>
+      </Card>
+    </div>}
     <details className="ndb-help-box"><summary>Dados que ajudariam a explicar as quedas<InfoIcon text={SOURCES.help} label="Dados que ajudariam"/></summary>
       <ul className="ndb-help">{HELP.map(([t,d])=><li key={t}><strong>{t}</strong><span>{d}</span></li>)}</ul>
     </details>
