@@ -31,9 +31,8 @@ test('mural admin writes inherit existing admin session protection',()=>{
 
 test('publication editor exposes product information and collection with one collection editor',()=>{
   assert.ok(admin.includes('MuralNistiAdminView'));
-  assert.ok(admin.includes("changeKind('product')"));
-  assert.ok(admin.includes("changeKind('notice')"));
-  assert.ok(admin.includes("changeKind('collection')"));
+  assert.ok(admin.includes('onClick={() => changeKind(key)}'));
+  for (const kind of ['product','notice','collection']) assert.ok(admin.includes(`['${kind}', '`), kind);
   assert.ok(admin.includes('function CollectionEditor'));
   assert.ok(admin.includes("if (nextKind === 'collection')"));
   assert.ok(admin.includes('setCollectionEditor(linked)'));

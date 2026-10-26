@@ -429,8 +429,8 @@ export function PublishImageField({
   );
 }
 
-export function PublishPreviewCard({ activeKind, form, product, collection, selectedProducts = [], imageUrl, onToggleFeatured }) {
-  const [viewMode, setViewMode] = useState(form.featured ? 'hero' : 'feed'); // 'feed' | 'hero' | 'detail'
+export function PublishPreviewCard({ activeKind, form, product, collection, selectedProducts = [], imageUrl, onToggleFeatured, compact = false }) {
+  const [viewMode, setViewMode] = useState(compact ? 'detail' : (form.featured ? 'hero' : 'feed')); // 'feed' | 'hero' | 'detail'
   const [tabFilter, setTabFilter] = useState(() => (
     activeKind === 'product' ? 'product' : activeKind === 'collection' ? 'collection' : activeKind === 'notice' ? 'notice' : 'all'
   ));
@@ -611,8 +611,8 @@ export function PublishPreviewCard({ activeKind, form, product, collection, sele
   };
 
   return (
-    <aside className="mural-publish-v2-preview">
-      <header>
+    <aside className={`mural-publish-v2-preview${compact ? ' is-compact' : ''}`}>
+      {!compact && <header>
         <div className="mural-publish-v2-preview-title-row">
           <div className="mural-publish-v2-preview-heading">
             <span className="mural-publish-v2-preview-icon"><AdminMuralIcon name="eye" size={20}/></span>
@@ -673,7 +673,7 @@ export function PublishPreviewCard({ activeKind, form, product, collection, sele
             </button>
           </div>
         )}
-      </header>
+      </header>}
 
       <div className="mural-publish-v2-preview-body">
         <div className="mural-preview-smartphone" aria-label="Mockup do aplicativo móvel">
@@ -1000,10 +1000,10 @@ export function PublishPreviewCard({ activeKind, form, product, collection, sele
         </div>
       </div>
 
-      <footer>
+      {!compact && <footer>
         <span className="mural-publish-v2-preview-pulse" aria-hidden="true" />
         <span>Prévia 100% interativa — teste abas, botões e clique nos cards para abrir o detalhe.</span>
-      </footer>
+      </footer>}
     </aside>
   );
 }

@@ -17,5 +17,5 @@ test('Publish tool creates a new publication without a dashboard create button',
 test('Publish tool routes Collection to the official collection editor',()=>{
   assert.ok(source.includes("onCreateCollection={()=>setCollectionEditor({mode:'new'})}"));
   assert.ok(source.includes('return <CollectionEditor'));
-  assert.ok(source.includes("<span>Coleção</span>"));
+  assert.ok(source.includes("['collection', 'Coleção', 'Vários produtos']"));
 });
