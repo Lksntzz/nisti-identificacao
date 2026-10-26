@@ -23,9 +23,9 @@ test('Importar arquivo is a dropdown; legacy four-card inline block is removed',
   assert.match(managerCss,/\.nim-import-option-copy/);
 });
 
-test('all four report types use the same import window, not different implementations',()=>{
+test('all five report types use the same import window, not different implementations',()=>{
   assert.deepEqual(COMMERCE_IMPORT_OPTIONS.map(x=>x.mode),
-    ['catalog','sales','ads','aftercare']);
+    ['catalog','sales','ads','performance','aftercare']);
   assert.match(manager,/selectedImportMode&&<CommerceImportModal mode=\{selectedImportMode\}/);
   assert.match(modal,/CommerceImportCenter key=\{mode\} embedded initialMode=\{mode\} hideModeSelector/);
   assert.match(center,/IMPORT_MODES\.includes\(initialMode\)/);
