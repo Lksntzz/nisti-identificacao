@@ -253,3 +253,9 @@
 .ndb-ext{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;border:1px solid #dbe2ee;background:#fff;color:#1d5fd1;text-decoration:none}
 .ndb-ext:hover{background:#1d5fd1;border-color:#1d5fd1;color:#fff}
 .ndb-ext:focus-visible{outline:2px solid #1d5fd1;outline-offset:2px}
+/* Gráfico por grupo: cor e resumo do grupo escolhido */
+.ndb-seg-sum{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;border:1.5px solid #1d5fd1;font-weight:800;font-size:11px;background:#fff;color:#0f1b3d}
+.ndb-seg-sum.neg{background:#fff5f5}.ndb-seg-sum.pos{background:#f3fbf7}
+.ndb-chart-panel.is-seg{border-top:3px solid #1d5fd1}
+.ndb-chart-panel.seg-drops{border-top-color:#d63535}.ndb-chart-panel.seg-stopped{border-top-color:#d98a00}.ndb-chart-panel.seg-best{border-top-color:#139a62}
+.ndb-chart-panel.seg-a{border-top-color:#1d5fd1}.ndb-chart-panel.seg-b{border-top-color:#16a46b}.ndb-chart-panel.seg-c{border-top-color:#f08a1c}
