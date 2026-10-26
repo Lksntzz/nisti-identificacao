@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import './app.css';
 import './commerce-admin.css';
 import LOGO from './assets/logo.png';
-import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceImportHistory from './commerce-import-history.jsx';
@@ -16,7 +15,6 @@ if (IS_GA && typeof document !== 'undefined') document.title = 'GA - Gestor de A
 const NAV_ITEMS = Object.freeze([
   { id: 'catalog', label: 'Painel Comercial', icon: 'grid' },
   { id: 'planning', label: 'Planejamento de Produtos', icon: 'package' },
-  { id: 'pending', label: 'Pendências', icon: 'list' },
   { id: 'imports', label: 'Histórico de importações', icon: 'list' }
 ]);
 
@@ -24,7 +22,6 @@ const VIEW_TITLES = Object.freeze({
   catalog: 'Painel Comercial',
   planning: 'Planejamento de Produtos NISTI',
   sales: 'Painel Comercial',
-  pending: 'Pendências',
   imports: 'Histórico de importações'
 });
 
@@ -32,7 +29,6 @@ const VIEW_DESCRIPTIONS = Object.freeze({
   catalog: 'Catálogo ativo e indicadores de vendas no mesmo painel, com Curva ABC e análise detalhada.',
   planning: 'Vendas do mês, saída diária, projeção, histórico e anúncios exclusivos por plataforma.',
   sales: 'Pedidos, unidades, faturamento e itens sem venda por plataforma, período e SKU.',
-  pending: 'Somente produtos que precisam de vínculo, revisão ou correção.',
   imports: 'Cada relatório de vendas importado: período, situação e resumo, por plataforma.'
 });
 
@@ -238,7 +234,6 @@ export default function CommerceAdminAppV2() {
             {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'imports' && <CommerceImportHistory />}
-            {activeView === 'pending' && <CommerceManagementView mode="pending" onCreateScanner={IS_GA ? undefined : () => window.location.assign('/admin?new-scanner-product=1')} />}
           </div>
         </main>
 

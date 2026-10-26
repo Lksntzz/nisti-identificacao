@@ -48,9 +48,7 @@ test('camada de edição preserva fontes importadas e registra histórico', () =
 test('interface oferece seleção, editor individual e fluxo em massa com confirmação', () => {
   const workspace = read('src/commerce-catalog-workspace.jsx');
   const css = read('src/commerce-catalog-workspace.css');
-  const management = read('src/commerce-management-view.jsx');
 
-  assert.equal(management.includes('CommerceCatalogWorkspace'), true);
   assert.equal(workspace.includes('Editar anúncio individual'), true);
   assert.equal(workspace.includes('Editar em massa'), true);
   assert.equal(workspace.includes('Selecionar campo'), true);
