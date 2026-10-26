@@ -23,8 +23,7 @@ test('Admin navigation exposes only operationally useful tools', () => {
     'historico-ean',
     'ean-nao-cadastrados',
     'nisti-dispatch',
-    'logs',
-    'operadores-pin'
+    'logs'
   ]);
   assert.equal(new Set(ids).size, ids.length);
 });

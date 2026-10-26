@@ -15,7 +15,6 @@ export default function AdminTopbar({ onToggleSidebar, unreadCount, activeView, 
     : activeView === 'ean-nao-cadastrados' ? 'EAN não Cadastrados'
     : activeView === 'produtos-sem-ean' ? 'Produtos sem EAN'
     : activeView === 'nisti-dispatch' ? 'Notificações da Expedição'
-    : activeView === 'operadores-pin' ? 'PIN dos Operadores'
     : activeView === 'logs' ? 'Saúde & Logs'
     : 'Painel Administrativo';
 

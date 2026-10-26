@@ -366,10 +366,9 @@ test('health and other public routes do not mint unnecessary operator sessions',
   assert.equal(access.headers.get('set-cookie'),null);
 });
 
-test('admin Mural QA keeps signed admin-preview privilege independent of operator PIN',()=>{
+test('admin Mural QA keeps signed admin-preview privilege',()=>{
   const edge=fs.readFileSync('src/edge-router.js','utf8');
-  assert.match(edge,/const adminQaAuthorized=muralPreviewCandidate&&await validSession\(request,env\)/);
-  assert.match(edge,/operatorApi&&!adminQaAuthorized/);
-  assert.match(edge,/operatorApi\s*\?await verifiedOperatorRequest/);
-  assert.match(edge,/\{request,setCookie:null,authorized:true\}/);
+  assert.match(edge,/\? await validSession\(request, env\)/);
+  assert.match(edge,/handleMuralRequest\(request, env, \{ qaAuthorized: muralQaSession \}\)/);
+  assert.doesNotMatch(edge,/operator-pin|operatorPinRequired|OPERATOR_PIN/);
 });

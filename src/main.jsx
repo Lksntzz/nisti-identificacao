@@ -11,7 +11,6 @@ import BarcodeGeneratorView from './admin/BarcodeGeneratorView.jsx';
 import GtinEventsView from './admin/GtinEventsView.jsx';
 import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
-import OperatorPinAdminView from './admin/OperatorPinAdminView.jsx';
 import NotificationDispatchView from './admin/NotificationDispatchView.jsx';
 import MuralNisti from './mural-nisti.jsx';
 import CommerceManagementView from './commerce-management-view.jsx';
@@ -885,7 +884,7 @@ function AdminApp() {
 
         <main className="admin-page-content">
           <div key={activeView} className="admin-view-transition">
-            {!['mural-nisti','commerce','operadores-pin','nisti-dispatch'].includes(activeView) && (
+            {!['mural-nisti','commerce','nisti-dispatch'].includes(activeView) && (
               <>
                 <WelcomeDateBanner />
                 {/* Dashboard de Produtividade da Expedição & KPIs */}
@@ -956,7 +955,6 @@ function AdminApp() {
 
             {activeView === 'nisti-dispatch' && <NotificationDispatchView />}
 
-            {activeView === 'operadores-pin' && <OperatorPinAdminView />}
 
             {activeView === 'logs' && (
               <SystemHealthView
