@@ -3,7 +3,7 @@ import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import './commerce-dashboard.css';
 
-const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)']];
+const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
 const PLATFORM_LABEL={SHOPEE:'Shopee',ML_ANTIGO:'ML Antigo',ML_NOVO:'ML Novo'};
 const PERIODS=[7,30,60,90];
 const CLASS_NOTE={A:'Até 80% do faturamento',B:'Dos 80% aos 95%',C:'Últimos 5%'};
@@ -334,7 +334,8 @@ export default function CommerceDashboard(){
   const mlTotal=daily.reduce((a,d)=>a+Number(d.ml||0),0);
   const ov=overview||{};
   const lst=ov.listings||{};
-  const adsRows=platform==='ML_ANTIGO'?[]:(ov.ads?.rows||[]);
+  const isML=platform==='ML_ANTIGO'||platform==='ML_NOVO';
+  const adsRows=isML?[]:(ov.ads?.rows||[]);
   const lowRoas=adsRows.filter(r=>r.roas!=null&&Number(r.roas)<1);
   const totalProducts=classes.reduce((a,c)=>a+Number(c.products||0),0)||1;
 
@@ -347,8 +348,8 @@ export default function CommerceDashboard(){
       :{k:'stopped',t:'muted',i:'pause',h:'Pararam de vender: sem dados',d:'A consulta de alertas ainda não está disponível.'},
     overview?{k:'nosales',t:'warn',i:'eye',h:num(ov.no_sales_total??lst.active_without_sales)+' anúncios ativos sem vendas',d:'Nenhuma unidade vendida em '+curTxt+', de '+num(lst.active)+' anúncios ativos.'}
       :{k:'nosales',t:'muted',i:'eye',h:'Anúncios sem vendas: sem dados',d:'A consulta de alertas ainda não está disponível.'},
-    adsRows.length&&platform!=='ML_ANTIGO'?{k:'ads',t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam. Relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+' (período próprio, não segue o filtro).'}
-      :{k:'ads',t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:platform==='ML_ANTIGO'?'Não há relatório de anúncios do Mercado Livre importado.':'Nenhum relatório Shopee Ads importado.'}
+    adsRows.length&&!isML?{k:'ads',t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam. Relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+' (período próprio, não segue o filtro).'}
+      :{k:'ads',t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:isML?'Não há relatório de anúncios do Mercado Livre importado.':'Nenhum relatório Shopee Ads importado.'}
   ];
   const openAlert=k=>{if(k==='abc'){setTab('abc');return;}setTab(k);};
   
