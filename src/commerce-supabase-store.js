@@ -253,6 +253,16 @@ export async function commerceEvolutionAdWeekly(env,id) {
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{points:[]};
 }
 
+export async function commerceListingPriceSignal(env,{ids=[],days=30}={}) {
+  const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
+  if(!listingIds.length)return {signals:{}};
+  const data=await supabaseRpc(env,'commerce_listing_price_signal_v1',{
+    p_listing_ids:listingIds.map(Number),
+    p_days:[7,30,60,90].includes(Number(days))?Number(days):30
+  },{timeoutMs:10000});
+  return {signals:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
+}
+
 export async function commerceVariationReview(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const days=Number(filters.days);

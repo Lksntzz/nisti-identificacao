@@ -37,6 +37,7 @@ import {
   commerceVariationReview,
   commerceEvolutionAds,
   commerceEvolutionAdWeekly,
+  commerceListingPriceSignal,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
   commerceImportShopeeAftercare,
@@ -480,6 +481,13 @@ export async function handleCommerceAdminRequest(request, env) {
         ||search.length>120)return json({error:'Filtros de evolução inválidos.'},400);
       return json(await commerceEvolutionAds(env,{platform,days,status,search,
         limit:query(url,'limit'),offset:query(url,'offset')}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/price-signal'){
+      const ids=String(query(url,'ids')||'').split(',').filter(Boolean);
+      const days=Number(query(url,'days')||30);
+      if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id))||![7,30,60,90].includes(days))
+        return json({error:'Filtro de preço e vendas inválido.'},400);
+      return json(await commerceListingPriceSignal(env,{ids,days}));
     }
     const evolutionChart=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/evolution-weekly$/);
     if(method==='GET'&&evolutionChart)
