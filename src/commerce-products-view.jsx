@@ -10,6 +10,7 @@ import {
   commerceStatusLabel
 } from './commerce-admin-shared.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
+import './commerce-planning-layout.css';
 import './commerce-listing-state.css';
 
 const MARKETPLACE_LABELS = Object.freeze({
@@ -420,7 +421,7 @@ export default function CommerceProductsView() {
           <h2>Produtos Mestre</h2>
           <p>Visão central por produto. A tag mostra se ele é exclusivo de uma plataforma ou está publicado em múltiplas plataformas.</p>
         </div>
-        <div className="commerce-filter-row">
+        <div className="commerce-filter-row nisti-planning-filters">
           <form onSubmit={event => { event.preventDefault(); load(0); }}>
             <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar nome ou SKU" />
             <button type="submit">Buscar</button>
@@ -451,7 +452,7 @@ export default function CommerceProductsView() {
       {message && <div className="commerce-listing-state-message">{message}</div>}
 
       {loading ? <CommerceLoadingBlock label="Carregando produtos…" /> : data.items?.length ? (
-        <div className="commerce-product-card-grid">
+        <div className="commerce-product-card-grid nisti-planning-grid">
           {data.items.map(product => {
             const productId = Number(product.product_id || 0);
             const marketplaceCodes = Array.isArray(product.marketplace_codes) ? product.marketplace_codes : [];

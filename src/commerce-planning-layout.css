@@ -1,0 +1,22 @@
+/* Planejamento de Produtos: cartões legíveis e filtros compactos (GA - Gestor de Anúncio). */
+.nisti-planning-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:center}
+.nisti-planning-filters>form{grid-column:1/-1;display:flex;gap:10px;min-width:0}
+.nisti-planning-filters>form input{flex:1;min-width:0}
+.nisti-planning-filters>select{width:100%;min-width:0}
+@media(max-width:900px){.nisti-planning-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.nisti-planning-filters{grid-template-columns:1fr}}
+
+.nisti-planning-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,430px),1fr));gap:16px;align-items:start}
+.nisti-planning-grid .commerce-product-card{display:grid;grid-template-columns:minmax(0,1fr);min-height:0}
+.nisti-planning-grid .commerce-product-card-main{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;align-items:start;padding:14px}
+.nisti-planning-grid .commerce-product-card-image{width:96px;height:96px;min-height:0;object-fit:contain;border-radius:12px;border:1px solid #e2e8f0;background:#fff}
+.nisti-planning-grid .commerce-product-card-image.commerce-image-placeholder{display:grid;place-items:center;color:#94a3b8;font-size:11px;font-weight:800;text-align:center;padding:6px}
+.nisti-planning-grid .commerce-product-card-copy{min-width:0}
+.nisti-planning-grid .commerce-product-card-title{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+.nisti-planning-grid .commerce-product-card-title h3{font-size:13.5px;line-height:1.35;overflow-wrap:anywhere}
+.nisti-planning-grid .nisti-product-planning-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+.nisti-planning-grid .nisti-product-planning-metrics strong{font-size:1rem;white-space:nowrap}
+.nisti-planning-grid .nisti-product-planning-metrics span{white-space:normal}
+.nisti-planning-grid .nisti-product-planning-history{overflow-x:auto;scrollbar-width:thin}
+.nisti-planning-grid .nisti-product-planning-history>div{flex:0 0 52px}
+@media(max-width:520px){.nisti-planning-grid .commerce-product-card-main{grid-template-columns:72px minmax(0,1fr)}.nisti-planning-grid .commerce-product-card-image{width:72px;height:72px}}
