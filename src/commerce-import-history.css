@@ -1,0 +1,21 @@
+.nih-root{display:flex;flex-direction:column;gap:14px}
+.nih-coverage{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.nih-cover-card{border:1px solid var(--border,#e5e7eb);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.nih-cover-card h4{margin:0;font-size:14px}.nih-cover-card p{margin:0}
+.nih-cover-card small{opacity:.8}
+.nih-ok{color:#15803d}.nih-warn{color:#b45309}
+.nih-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.nih-toolbar select{margin-left:6px;padding:6px 8px}
+.nih-error{color:#b91c1c}
+.nih-scroll{overflow-x:auto}
+.nih-table{width:100%;border-collapse:collapse;font-size:13px}
+.nih-table th,.nih-table td{padding:9px 10px;border-bottom:1px solid var(--border,#e5e7eb);text-align:left;vertical-align:top}
+.nih-table .num{text-align:right;white-space:nowrap}
+.nih-file{max-width:340px;overflow-wrap:anywhere}.nih-file small{display:block;opacity:.7}
+.nih-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;white-space:nowrap}
+.nih-badge.tone-ok{background:#dcfce7;color:#166534}.nih-badge.tone-warn{background:#fef3c7;color:#92400e}.nih-badge.tone-muted{background:#e5e7eb}
+.nih-empty{text-align:center;opacity:.7}
+.nih-footer{display:flex;justify-content:space-between;align-items:center}
+.nih-footer button{margin-left:8px}
+.nih-note{font-size:12px;opacity:.75;margin:0}
+@media (max-width:720px){.nih-table thead{display:none}.nih-table tr{display:block;border-bottom:1px solid var(--border,#e5e7eb);padding:6px 0}.nih-table td{display:flex;justify-content:space-between;gap:10px;border:0;padding:4px 10px}.nih-table td::before{content:attr(data-label);opacity:.6}.nih-table .num{text-align:right}}

@@ -38,6 +38,7 @@ import {
   commerceEvolutionAds,
   commerceEvolutionAdWeekly,
   commerceListingPriceSignal,
+  commerceSalesImportHistory,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
   commerceImportShopeeAftercare,
@@ -488,6 +489,12 @@ export async function handleCommerceAdminRequest(request, env) {
       if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id))||![7,30,60,90].includes(days))
         return json({error:'Filtro de preço e vendas inválido.'},400);
       return json(await commerceListingPriceSignal(env,{ids,days}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales/import-history'){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform))
+        return json({error:'Plataforma do histórico de importações inválida.'},400);
+      return json(await commerceSalesImportHistory(env,{platform,limit:query(url,'limit'),offset:query(url,'offset')}));
     }
     const evolutionChart=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/evolution-weekly$/);
     if(method==='GET'&&evolutionChart)
