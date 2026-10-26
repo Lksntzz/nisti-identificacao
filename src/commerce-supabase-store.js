@@ -253,6 +253,28 @@ export async function commerceEvolutionAdWeekly(env,id) {
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{points:[]};
 }
 
+// Desempenho Shopee (impressoes/cliques/pedidos): dados isolados, nunca alteram vendas nem SKUs.
+export async function commerceImportShopeePerformance(env,input={}) {
+  const report=input?.report,rows=input?.rows;
+  if(!report||!Array.isArray(rows)||rows.length<1||rows.length>3000
+    ||!/^[a-f0-9]{64}$/.test(String(report.sha256||''))
+    ||!validReportDate(report.start)||!validReportDate(report.end)
+    ||(Date.parse(report.end)-Date.parse(report.start))/86400000<0
+    ||(Date.parse(report.end)-Date.parse(report.start))/86400000>92)
+    throw new Error('Relatório de desempenho da Shopee inválido.');
+  return await supabaseRpc(env,'commerce_shopee_performance_import_v1',{
+    p_report:report,p_rows:rows
+  },{timeoutMs:30000});
+}
+export async function commerceListingPerformanceDiagnosis(env,{ids=[]}={}) {
+  const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
+  if(!listingIds.length)return {diagnosis:{}};
+  const data=await supabaseRpc(env,'commerce_listing_performance_diagnosis_v1',{
+    p_listing_ids:listingIds.map(Number)
+  },{timeoutMs:10000});
+  return {diagnosis:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
+}
+
 export async function commerceListingPriceSignal(env,{ids=[],days=30}={}) {
   const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
   if(!listingIds.length)return {signals:{}};

@@ -20,6 +20,7 @@ import {
 import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
 import CommerceShopeeAdsImport from './commerce-shopee-ads-import.jsx';
 import CommerceShopeeAftercareImport from './commerce-shopee-aftercare-import.jsx';
+import CommerceShopeePerformanceImport from './commerce-shopee-performance-import.jsx';
 import { readCommerceXlsx } from './commerce-xlsx-reader.js';
 import { attestShopeeActiveExport } from './commerce-shopee-sales-info.js';
 import './commerce-import-center.css';
@@ -513,7 +514,8 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
   );
 }
 
-const IMPORT_MODES=['catalog','sales','ads','aftercare'];
+const IMPORT_MODES=['catalog','sales','ads','aftercare','performance'];
+const STANDALONE_MODES=['ads','aftercare','performance'];
 export default function CommerceImportCenter({ embedded = false, initialMode = null, hideModeSelector = false, onSalesChanged, onCatalogChanged }) {
   const [mode, setMode] = useState(IMPORT_MODES.includes(initialMode) ? initialMode : embedded ? '' : 'catalog');
   const [showHistory, setShowHistory] = useState(false);
@@ -937,24 +939,32 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
           <strong>Pós-venda Shopee</strong>
           <small>Devoluções e reembolsos por SKU</small>
         </button>
+        <button type="button" className={mode === 'performance' ? 'active' : ''}
+          disabled={catalogImporting || salesImporting || catalogReading || salesReading}
+          onClick={() => {setMode('performance');setError('');setMessage('');}}>
+          <span className="import-center-mode-icon" aria-hidden="true">↗</span>
+          <strong>Desempenho Shopee</strong>
+          <small>Impressões, cliques e pedidos por anúncio</small>
+        </button>
       </div>}
       {mode==='ads'&&<CommerceShopeeAdsImport/>}
       {mode==='aftercare'&&<CommerceShopeeAftercareImport/>}
+      {mode==='performance'&&<CommerceShopeePerformanceImport/>}
 
-      {(mode!=='ads' && mode!=='aftercare') && error && <div className="import-center-alert error" role="alert">
+      {!STANDALONE_MODES.includes(mode) && error && <div className="import-center-alert error" role="alert">
         <span className="import-center-alert-icon" aria-hidden="true">!</span>
         <span className="import-center-alert-text"><strong>Não foi possível concluir a operação</strong><small>{error}</small></span>
         <button type="button" className="import-center-alert-dismiss"
           aria-label="Fechar aviso de erro" onClick={() => setError('')}>Fechar</button>
       </div>}
-      {(mode!=='ads' && mode!=='aftercare') && message && <div className="import-center-alert success" role="status">
+      {!STANDALONE_MODES.includes(mode) && message && <div className="import-center-alert success" role="status">
         <span className="import-center-alert-text">{message}</span>
         <button type="button" className="import-center-alert-dismiss"
           aria-label="Fechar mensagem" onClick={() => setMessage('')}>Fechar</button>
       </div>}
 
-      {(mode!=='ads' && mode!=='aftercare') && embedded && mode && <button type="button" className="import-center-history-toggle" aria-expanded={showHistory} onClick={() => setShowHistory(value => !value)}>{showHistory ? 'Ocultar histórico e resumo' : 'Ver histórico de importações e resumo'}</button>}
-      {(mode!=='ads' && mode!=='aftercare') && (!embedded || mode) && <div className="import-center-layout">
+      {!STANDALONE_MODES.includes(mode) && embedded && mode && <button type="button" className="import-center-history-toggle" aria-expanded={showHistory} onClick={() => setShowHistory(value => !value)}>{showHistory ? 'Ocultar histórico e resumo' : 'Ver histórico de importações e resumo'}</button>}
+      {!STANDALONE_MODES.includes(mode) && (!embedded || mode) && <div className="import-center-layout">
         <div className="import-center-flow">
           {mode === 'catalog' ? (
             <>

@@ -654,7 +654,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const noSalesValue=kpi.zero_ads;
   const changeNoSales=()=>change(setStatus,status==='ZERO'?'ALL':'ZERO');
   const rows=Array.isArray(data?.items)?data.items:[];
-  const {signals:priceSignals,window:signalWindow}=usePriceSignals(rows,days);
+  const {signals:priceSignals,diagnosis:perfDiagnosis,window:signalWindow}=usePriceSignals(rows,days);
   useEffect(()=>{
     const controller=new AbortController();
     const shopeeIds=(Array.isArray(data?.items)?data.items:[])
@@ -966,7 +966,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
               <td data-label="Curva ABC">{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}
                 title={item.curve_partial?'ABC indicativa: calculada apenas com vendas identificadas':'Curva ABC por vendas consolidadas'}>{item.curve}{item.curve_partial?'*':''}</span>:'—'}</td>
               <td data-label="Situação"><Situation item={item} days={days}/></td>
-              <td data-label="Preço × vendas"><PriceSignalCell signal={priceSignals[String(item.id)]} window={signalWindow}/></td>
+              <td data-label="Preço × vendas"><PriceSignalCell signal={priceSignals[String(item.id)]} window={signalWindow} diagnosis={perfDiagnosis[String(item.id)]}/></td>
             </tr>;
             })}
             {loading&&<tr><td colSpan={8} className="nim-table-empty">Carregando anúncios…</td></tr>}

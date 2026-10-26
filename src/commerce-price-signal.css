@@ -4,3 +4,5 @@
 .nim-price-signal.tone-bad strong{color:#b91c1c}
 .nim-price-signal.tone-good strong{color:#15803d}
 .nim-price-signal.tone-muted{opacity:.6}
+.nim-price-cause{font-weight:700;opacity:1!important}
+.nim-price-cause.tone-bad{color:#b91c1c}.nim-price-cause.tone-good{color:#15803d}

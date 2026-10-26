@@ -38,6 +38,8 @@ import {
   commerceEvolutionAds,
   commerceEvolutionAdWeekly,
   commerceListingPriceSignal,
+  commerceImportShopeePerformance,
+  commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
@@ -482,6 +484,20 @@ export async function handleCommerceAdminRequest(request, env) {
         ||search.length>120)return json({error:'Filtros de evolução inválidos.'},400);
       return json(await commerceEvolutionAds(env,{platform,days,status,search,
         limit:query(url,'limit'),offset:query(url,'offset')}));
+    }
+    if(method==='POST'&&pathname===BASE_PATH+'/shopee/performance/reports'){
+      if(Number(request.headers.get('content-length')||0)>1800000)
+        return json({error:'Arquivo de desempenho excede 1,8 MB.'},413);
+      const input=await bodyJson(request);
+      if(!input||!Array.isArray(input.rows)||input.rows.length<1||input.rows.length>3000)
+        return json({error:'Relatório de desempenho inválido.'},400);
+      return json(await commerceImportShopeePerformance(env,input));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/performance-diagnosis'){
+      const ids=String(query(url,'ids')||'').split(',').filter(Boolean);
+      if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id)))
+        return json({error:'Filtro de diagnóstico inválido.'},400);
+      return json(await commerceListingPerformanceDiagnosis(env,{ids}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/price-signal'){
       const ids=String(query(url,'ids')||'').split(',').filter(Boolean);
