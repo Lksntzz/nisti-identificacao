@@ -19,7 +19,7 @@
 .ndb-chip.tone-good{background:#dcfce7;color:#166534}.ndb-chip.tone-bad{background:#fee2e2;color:#b91c1c}.ndb-chip.tone-neutral{background:#eef2f8;color:#52637b}
 .ndb-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;align-items:start}
 .ndb-card{grid-column:span 12;background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
-.ndb-card.span-6{grid-column:span 6}
+.ndb-card.span-6{grid-column:span 6}.ndb-card.span-8{grid-column:span 8}.ndb-card.span-4{grid-column:span 4}
 .ndb-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .ndb-card h3{margin:0;font-size:16px;font-weight:800}
 .ndb-card header p{margin:3px 0 0;font-size:12px;color:#64748b}
@@ -28,9 +28,19 @@
 .ndb-info-pop{display:none;position:absolute;z-index:30;top:24px;right:-8px;width:min(340px,80vw);padding:12px 14px;border-radius:12px;background:#0f172a;color:#e2e8f0;font-size:12px;line-height:1.5;font-weight:500;text-align:left;box-shadow:0 10px 30px rgba(15,23,42,.25)}
 .ndb-info-pop strong{display:block;margin-bottom:4px;color:#fff;font-size:12px}
 .ndb-info:hover .ndb-info-pop,.ndb-info:focus .ndb-info-pop{display:block}
-.ndb-abc-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:20px;align-items:center}
-.ndb-pareto{position:relative}
-.ndb-pareto svg{width:100%;height:auto;display:block}
+.ndb-chartbox{position:relative}
+.ndb-chartbox svg{width:100%;height:auto;display:block}
+.ndb-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:#52637b}
+.ndb-legend span{display:inline-flex;align-items:center;gap:6px}
+.ndb-legend i,.ndb-tip i{display:inline-block;width:10px;height:10px;border-radius:3px}
+.ndb-legend i.dash{width:16px;height:0;border-top:2px dashed #314058;border-radius:0;background:none}
+.ndb-tip span{display:flex;align-items:center;gap:6px}
+.ndb-donut-box{display:flex;flex-direction:column;align-items:center;gap:14px}
+.ndb-donut{width:150px;height:150px}
+.ndb-donut-main{font-size:12.5px;font-weight:800;fill:#0f172a}.ndb-donut-sub{font-size:9px;fill:#64748b}
+.ndb-donut-legend{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;width:100%}
+.ndb-donut-legend li{display:grid;grid-template-columns:12px 1fr auto auto;gap:8px;align-items:center;font-size:12.5px}
+.ndb-donut-legend i{width:10px;height:10px;border-radius:3px}.ndb-donut-legend small{color:#64748b;min-width:32px;text-align:right}
 .ndb-grid-line{stroke:#edf0f5;stroke-width:1}
 .ndb-guide{stroke:#94a3b8;stroke-width:1;stroke-dasharray:4 4}
 .ndb-cross{stroke:#94a3b8;stroke-width:1}
@@ -38,7 +48,7 @@
 .ndb-axis-strong{font-size:11.5px;font-weight:700;fill:#314058}
 .ndb-tip{position:absolute;top:6px;z-index:5;pointer-events:none;display:flex;flex-direction:column;gap:2px;max-width:280px;padding:8px 10px;border-radius:10px;background:#0f172a;color:#e2e8f0;font-size:11.5px;box-shadow:0 8px 24px rgba(15,23,42,.25)}
 .ndb-tip b{color:#fff}.ndb-tip em{font-style:normal;color:#cbd5e1}
-.ndb-classes{display:flex;flex-direction:column;gap:8px}
+.ndb-classes{display:flex;flex-direction:column;gap:8px;width:100%}
 .ndb-stack{display:flex;height:10px;gap:2px;border-radius:999px;overflow:hidden;margin-bottom:4px}
 .ndb-stack i{display:block;min-width:3px}
 .ndb-class{display:grid;grid-template-columns:12px 1fr auto;gap:2px 10px;align-items:center;text-align:left;padding:10px 12px;border:1px solid #e6eaf2;border-radius:12px;background:#fff;cursor:pointer}
@@ -74,5 +84,5 @@
 .ndb-help{margin:12px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
 .ndb-help li{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:10px;background:#f8fafc}
 .ndb-help strong{font-size:12.5px}.ndb-help span{font-size:12px;color:#52637b;line-height:1.45}
-@media (max-width:1100px){.ndb-card.span-6{grid-column:span 12}.ndb-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ndb-abc-layout{grid-template-columns:1fr}}
+@media (max-width:1100px){.ndb-card.span-6,.ndb-card.span-8,.ndb-card.span-4{grid-column:span 12}.ndb-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ndb-abc-layout{grid-template-columns:1fr}}
 @media (max-width:560px){.ndb-kpis{grid-template-columns:1fr}.ndb-info-pop{right:auto;left:-120px}.ndb-seg button{padding:0 10px}}
