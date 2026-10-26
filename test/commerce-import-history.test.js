@@ -21,5 +21,5 @@ test('route validates platform and GA menu exposes the history view',()=>{
 test('UI separates applied from pending imports and explains the period source',()=>{
   assert.ok(ui.includes('Pendente · não aplicada')&&ui.includes('Aplicada'));
   assert.ok(ui.includes('Período lido do nome do arquivo'));
-  assert.ok(ui.includes('dia(s) sem nenhuma venda'));
+  assert.ok(ui.includes('dia(s) sem venda'));
 });
