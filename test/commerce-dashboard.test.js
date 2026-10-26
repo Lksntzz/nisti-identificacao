@@ -23,7 +23,8 @@ test('route validates platform and period; GA menu exposes the dashboard',()=>{
   assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard />'));
 });
 test('every card has an info icon naming its data source',()=>{
-  for(const key of ['abc','drops','top','help'])assert.ok(ui.includes('source="'+key+'"'),key);
+  for(const key of ['abc','drops','best','ads','alerts','daily'])assert.ok(ui.includes('source="'+key+'"'),key);
+  assert.ok(ui.includes('SOURCES.help')&&ui.includes('SOURCES.trust'));
   assert.ok(ui.includes('De onde vêm os dados'));
   assert.ok(ui.includes('[7,30,60,90]'.replace(/,/g,',')) || ui.includes('PERIODS=[7,30,60,90]'));
 });
@@ -32,4 +33,17 @@ test('changePct handles new and falling listings',async()=>{
   if(!changePct)return;
   assert.equal(changePct(50,100),-50);
   assert.equal(changePct(10,0),null);
+});
+test('series and overview SQL are read-only, service_role only and expose routes',()=>{
+  for(const f of ['20261026180000_commerce_dashboard_series_v1','20261026190000_commerce_dashboard_overview_v1']){
+    const q=read('supabase/migrations/'+f+'.sql');
+    assert.match(q,/language sql stable/);
+    assert.doesNotMatch(q,/\b(insert into|update public|delete from|drop )\b/i);
+    assert.match(q,/grant execute[\s\S]*to service_role/);
+  }
+  assert.ok(router.includes("/sales-dashboard/series")&&router.includes("/sales-dashboard/overview"));
+});
+test('missing data is shown as sem dados, never zero',()=>{
+  assert.ok(ui.includes('Sem dados: falta cadastrar o custo do produto'));
+  assert.ok(ui.includes("Gasto e retorno de anúncios: sem dados"));
 });

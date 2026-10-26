@@ -11,8 +11,13 @@ const CLASS_NOTE={A:'Até 80% do faturamento',B:'Dos 80% aos 95%',C:'Últimos 5%
 const SOURCES={
   abc:'Vendas importadas (tabela de vendas diárias por anúncio, o mesmo dado do Histórico de importações). Soma o faturamento do período por SKU, ordena do maior para o menor e classifica: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
   drops:'Vendas importadas: compara os últimos N dias com os N dias imediatamente anteriores, por anúncio ATIVO. Entra quem tinha 5 ou mais unidades no período anterior e caiu 15% ou mais. A coluna “Preço × vendas” compara o preço médio realizado. A linha de causa vem dos relatórios de desempenho Shopee importados (impressões, cliques, conversão); sem esse relatório aparece só o preço. São sinais, não prova de causa.',
+  daily:'Vendas importadas (tabela de vendas diárias por anúncio): soma do faturamento de cada dia, separado por plataforma. A linha tracejada é o dia equivalente do período anterior (mesmo tamanho). Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
   top:'Vendas importadas: os 15 anúncios com maior faturamento no período, com a variação de unidades contra o período anterior de mesmo tamanho. Título e situação vêm do cadastro de anúncios do sistema.',
   kpi:'Vendas importadas no período escolhido, contra o período anterior de mesmo tamanho. O período termina no último dia com venda importada, não em hoje.',
+  alerts:'Calculado sobre as vendas importadas e o cadastro de anúncios: queda = anúncio ativo com 5 ou mais unidades antes e 15% ou mais de queda; pararam = ativos que venderam 3 ou mais unidades no período anterior e zero no atual; sem venda = ativos sem nenhuma unidade no período; inativos com venda = anúncios inativos ou removidos que ainda aparecem nas vendas. Anúncio pago com ROAS abaixo de 1 vem do relatório Shopee Ads importado.',
+  best:'Vendas importadas, por anúncio, no período escolhido. Crescimento = ativos com 5 ou mais unidades antes, 10 ou mais agora e alta de 15% ou mais, ordenados pelas unidades a mais. ROAS vem do relatório Shopee Ads importado (período próprio) e só inclui anúncios com campanha individual. Mais vendido não significa mais lucrativo: não há custo do produto cadastrado.',
+  ads:'Relatório Shopee Ads “Dados gerais” mais recente importado (Importar > Shopee Ads). O período dele é o do próprio arquivo, não o filtro da tela. Linhas de grupos de anúncios e de anúncios individuais podem se sobrepor, então não some as linhas. Mercado Livre Publicidade ainda não é importado.',
+  trust:'Cobertura do que está no banco: último dia com venda e última importação aplicada por plataforma (Histórico de importações), dias do período com venda importada e faturamento sem SKU vinculado.',
   help:'Lista de dados que o sistema ainda não recebe e que ajudariam a explicar quedas.'
 };
 const HELP=[
@@ -48,90 +53,265 @@ export function InfoIcon({text,label}){
   </span>;
 }
 
-function Card({title,source,children,aside}){
-  return <section className="ndb-card"><header><h3>{title}</h3>{aside}<InfoIcon text={SOURCES[source]} label={title}/></header>{children}</section>;
-}
-
 function Delta({cur,prev}){
   const v=changePct(cur,prev);
-  return <span className={'ndb-delta tone-'+tone(v)}>{pctText(v)}</span>;
+  return <span className={'ndb-chip tone-'+tone(v)}>{v==null?'novo':(v>0?'▲ ':v<0?'▼ ':'')+String(Math.abs(v)).replace('.',',')+'%'}</span>;
+}
+
+function niceMax(v){
+  if(v<=0)return 1;
+  const p=Math.pow(10,Math.floor(Math.log10(v)));
+  const m=[1,2,2.5,5,10].find(k=>k*p>=v);
+  return m*p;
+}
+
+const CLASS_COLOR={A:'#1d5fd1',B:'#16a46b',C:'#f08a1c'};
+const PLAT_COLOR={SHOPEE:'#eb6834',ML_ANTIGO:'#2a78d6',ML_NOVO:'#2a78d6'};
+const axisMoney=v=>v>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil':String(Math.round(v));
+const when=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'});};
+
+function Icon({name}){
+  const p={viewBox:'0 0 24 24',width:22,height:22,fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':true};
+  if(name==='money')return <svg {...p}><path d="M12 2v20M17 6.5C16 5 14.2 4 12 4c-2.8 0-5 1.4-5 3.5S9.2 10.5 12 11s5 1.4 5 3.5S14.8 18 12 18c-2.3 0-4.2-1-5.2-2.6"/></svg>;
+  if(name==='box')return <svg {...p}><path d="m21 8-9-5-9 5v8l9 5 9-5zM3.3 7.5 12 12.5l8.7-5M12 22V12.5"/></svg>;
+  if(name==='cart')return <svg {...p}><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6"/></svg>;
+  if(name==='list')return <svg {...p}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>;
+  if(name==='down')return <svg {...p}><path d="m22 17-8.5-8.5-5 5L2 7M16 17h6v-6"/></svg>;
+  if(name==='alert')return <svg {...p}><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>;
+  if(name==='pause')return <svg {...p}><circle cx="12" cy="12" r="10"/><path d="M10 15V9M14 15V9"/></svg>;
+  if(name==='eye')return <svg {...p}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>;
+  if(name==='megaphone')return <svg {...p}><path d="m3 11 18-5v12L3 14zM11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>;
+  if(name==='trophy')return <svg {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-1.2 1.2C7.8 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 1.2 1.2 1 .6 1.8 2 1.8 3.8M18 2H6v7a6 6 0 0 0 12 0z"/></svg>;
+  if(name==='pie')return <svg {...p}><path d="M21.2 15.9A10 10 0 1 1 8 2.8M22 12A10 10 0 0 0 12 2v10z"/></svg>;
+  return <svg {...p}><path d="M3 3v18h18M7 15l4-4 3 3 5-6"/></svg>;
+}
+
+function Panel({title,icon,source,children,className='',aside}){
+  return <section className={'ndb-panel '+className}>
+    <header><h3>{icon&&<span className="ndb-ico"><Icon name={icon}/></span>}{title}</h3>{aside}{source&&<InfoIcon text={SOURCES[source]} label={title}/>}</header>
+    {children}
+  </section>;
+}
+
+function KpiCard({icon,label,source,value,chip,foot,muted}){
+  return <article className={'ndb-kpi'+(muted?' is-muted':'')}>
+    <span className="ndb-kpi-ico"><Icon name={icon}/></span>
+    <div className="ndb-kpi-body">
+      <span className="ndb-kpi-label">{label}<InfoIcon text={SOURCES[source]||source} label={label}/></span>
+      <div className="ndb-kpi-row"><strong>{value}</strong>{chip}</div>
+      <small>{foot}</small>
+    </div>
+  </article>;
+}
+
+// Vendas por dia: linha do período atual (com preenchimento) contra o período anterior (tracejado).
+function DailyChart({daily}){
+  const [hover,setHover]=useState(null);
+  const n=daily.length;
+  if(!n)return <p className="ndb-empty">Sem dados diários para este período.</p>;
+  const W=760,H=250,L=50,R=12,T=12,B=28,iw=W-L-R,ih=H-T-B;
+  const tot=d=>Number(d.shopee)+Number(d.ml);
+  const maxV=niceMax(Math.max(...daily.map(d=>Math.max(tot(d),Number(d.prev_revenue)||0))));
+  const x=i=>L+(n===1?iw/2:i/(n-1)*iw);
+  const y=v=>T+ih-(v/maxV)*ih;
+  const line=f=>daily.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(f(d)).toFixed(1)).join(' ');
+  const ticks=[0,.25,.5,.75,1].map(k=>k*maxV);
+  const xt=n<=7?daily.map((_,i)=>i):[0,1,2,3,4,5,6].map(k=>Math.round(k*(n-1)/6));
+  const h=hover!=null?daily[hover]:null;
+  return <div className="ndb-chartbox">
+    <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label="Faturamento por dia" onMouseLeave={()=>setHover(null)}
+      onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;setHover(Math.max(0,Math.min(n-1,Math.round((px-L)/iw*(n-1)))));}}>
+      <defs><linearGradient id="ndbfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1d5fd1" stopOpacity=".22"/><stop offset="1" stopColor="#1d5fd1" stopOpacity="0"/></linearGradient></defs>
+      {ticks.map(t=><g key={t}><line x1={L} x2={W-R} y1={y(t)} y2={y(t)} className="ndb-grid-line"/><text x={L-8} y={y(t)+4} textAnchor="end" className="ndb-axis">{axisMoney(t)}</text></g>)}
+      <path d={line(tot)+' L'+x(n-1).toFixed(1)+' '+y(0)+' L'+x(0).toFixed(1)+' '+y(0)+' Z'} fill="url(#ndbfill)"/>
+      <path d={line(d=>Number(d.prev_revenue)||0)} fill="none" stroke="#8a97ab" strokeWidth="1.8" strokeDasharray="5 4" strokeLinecap="round"/>
+      <path d={line(tot)} fill="none" stroke="#1d5fd1" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+      {daily.map((d,i)=>n<=31&&<circle key={i} cx={x(i)} cy={y(tot(d))} r="2.6" fill="#1d5fd1"/>)}
+      {xt.map(i=><text key={i} x={x(i)} y={H-8} textAnchor={i===0?'start':i===n-1?'end':'middle'} className="ndb-axis">{fmtDay(daily[i].day)}</text>)}
+      {h&&<g><line x1={x(hover)} x2={x(hover)} y1={T} y2={T+ih} className="ndb-cross"/><circle cx={x(hover)} cy={y(tot(h))} r="5" fill="#fff" stroke="#1d5fd1" strokeWidth="2.4"/></g>}
+    </svg>
+    {h&&<div className="ndb-tip" style={{left:Math.min(66,Math.max(2,x(hover)/W*100))+'%'}}>
+      <b>{fmtDayFull(h.day)}</b>
+      {Number(h.shopee)>0&&<span><i style={{background:PLAT_COLOR.SHOPEE}}/>Shopee {money(h.shopee)}</span>}
+      {Number(h.ml)>0&&<span><i style={{background:PLAT_COLOR.ML_ANTIGO}}/>Mercado Livre {money(h.ml)}</span>}
+      <em>Total {money(tot(h))} · {num(h.units)} unid.</em>
+      <em>Mesmo dia do período anterior: {money(h.prev_revenue)}</em></div>}
+    <div className="ndb-legend"><span><i className="solid"/>Faturamento do período</span><span><i className="dash"/>Período anterior</span></div>
+  </div>;
+}
+
+// Curva de Pareto: eixo único (% acumulado do faturamento), produtos do maior para o menor.
+function ParetoChart({items}){
+  const [hover,setHover]=useState(null);
+  if(!items.length)return <p className="ndb-empty">Sem vendas no período.</p>;
+  const W=760,H=240,L=44,R=16,T=12,B=28,iw=W-L-R,ih=H-T-B,n=items.length;
+  const x=i=>L+(n===1?iw/2:i/(n-1)*iw);
+  const y=v=>T+ih-(v/100)*ih;
+  const pts=items.map((it,i)=>[x(i),y(it.cum_pct)]);
+  const seg=['A','B','C'].map(c=>{
+    const idx=items.map((it,i)=>it.class===c?i:-1).filter(i=>i>=0);
+    if(!idx.length)return null;
+    const from=Math.max(0,idx[0]-1),to=idx[idx.length-1];
+    return {c,path:pts.slice(from,to+1).map((p,k)=>(k?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' '),start:x(from),end:x(to)};
+  }).filter(Boolean);
+  const h=hover!=null?items[hover]:null;
+  return <div className="ndb-chartbox">
+    <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label="Curva ABC: percentual acumulado do faturamento por produto"
+      onMouseLeave={()=>setHover(null)}
+      onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;setHover(Math.max(0,Math.min(n-1,Math.round((px-L)/iw*(n-1)))));}}>
+      {[0,20,40,60,80,100].map(g=><g key={g}><line x1={L} x2={W-R} y1={y(g)} y2={y(g)} className="ndb-grid-line"/><text x={L-8} y={y(g)+4} textAnchor="end" className="ndb-axis">{g}%</text></g>)}
+      <line x1={L} x2={W-R} y1={y(80)} y2={y(80)} className="ndb-guide"/><line x1={L} x2={W-R} y1={y(95)} y2={y(95)} className="ndb-guide"/>
+      {seg.map(s=><path key={s.c} d={s.path} fill="none" stroke={CLASS_COLOR[s.c]} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>)}
+      {seg.map(s=><text key={'t'+s.c} x={(s.start+s.end)/2} y={H-8} textAnchor="middle" className="ndb-axis-strong">Classe {s.c}</text>)}
+      {h&&<g><line x1={pts[hover][0]} x2={pts[hover][0]} y1={T} y2={T+ih} className="ndb-cross"/><circle cx={pts[hover][0]} cy={pts[hover][1]} r="5" fill={CLASS_COLOR[h.class]} stroke="#fff" strokeWidth="2"/></g>}
+    </svg>
+    {h&&<div className="ndb-tip" style={{left:Math.min(66,Math.max(2,pts[hover][0]/W*100))+'%'}}>
+      <b>{h.key}</b><span>{h.title||'—'}</span>
+      <em>{money(h.revenue)} · {num(h.units)} unid. · acumulado {String(h.cum_pct).replace('.',',')}%</em></div>}
+  </div>;
 }
 
 export default function CommerceDashboard(){
   const [platform,setPlatform]=useState('TODAS');
   const [days,setDays]=useState(30);
   const [data,setData]=useState(null);
+  const [series,setSeries]=useState(null);
+  const [overview,setOverview]=useState(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
-  const [cls,setCls]=useState('A');
+  const [cls,setCls]=useState(null);
+  const [curve,setCurve]=useState(false);
+  const [alertsOpen,setAlertsOpen]=useState(false);
   useEffect(()=>{
     const controller=new AbortController();
+    const q='?platform='+platform+'&days='+days;
     setLoading(true);setError('');
-    fetchCommercialManager('/api/admin/commerce/sales-dashboard?platform='+platform+'&days='+days,{signal:controller.signal})
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard'+q,{signal:controller.signal})
       .then(setData).catch(e=>{if(!controller.signal.aborted)setError(e.message||'Não foi possível carregar o dashboard.');})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/series'+q,{signal:controller.signal})
+      .then(setSeries).catch(()=>{if(!controller.signal.aborted)setSeries(null);});
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/overview'+q,{signal:controller.signal})
+      .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});
     return()=>controller.abort();
   },[platform,days]);
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
-  const signalRows=useMemo(()=>{
-    const seen=new Map();
-    [...drops,...top].forEach(r=>{if(r.listing_id)seen.set(r.listing_id,{id:r.listing_id});});
-    return [...seen.values()];
-  },[data]);
+  const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
   const {signals,diagnosis}=usePriceSignals(signalRows,days);
   const totals=data?.totals||{};
   const classes=data?.abc?.classes||[];
-  const items=(data?.abc?.items||[]).filter(i=>i.class===cls);
+  const allItems=data?.abc?.items||[];
   const hasData=data&&data.last_day;
+  const daily=series?.daily||[];
+  const shopeeTotal=daily.reduce((a,d)=>a+Number(d.shopee||0),0);
+  const mlTotal=daily.reduce((a,d)=>a+Number(d.ml||0),0);
+  const ov=overview||{};
+  const lst=ov.listings||{};
+  const adsRows=ov.ads?.rows||[];
+  const lowRoas=adsRows.filter(r=>r.roas!=null&&Number(r.roas)<1);
+  const totalProducts=classes.reduce((a,c)=>a+Number(c.products||0),0)||1;
+  const bestRows=[...top].sort((a,b)=>Number(b.units)-Number(a.units)).slice(0,5);
+  const adsByListing=Object.fromEntries(adsRows.filter(r=>r.listing_id).map(r=>[r.listing_id,r]));
+  const classRows=cls?allItems.filter(i=>i.class===cls):[];
+  const updated=(ov.coverage||[]).map(c=>c.last_import).filter(Boolean).sort().pop();
+  const alerts=[
+    {t:'bad',i:'down',h:num(data?.drops?.total)+' produtos em queda',d:'Perderam '+money(data?.drops?.lost_revenue)+' de faturamento em relação ao período anterior.'},
+    overview?{t:'warn',i:'eye',h:num(lst.active_without_sales)+' anúncios ativos sem vendas',d:'Nenhuma unidade vendida no período, de '+num(lst.active)+' anúncios ativos.'}
+      :{t:'muted',i:'eye',h:'Anúncios sem vendas: sem dados',d:'A consulta de alertas ainda não está disponível.'},
+    adsRows.length?{t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam (relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+').'}
+      :{t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:'Nenhum relatório Shopee Ads importado.'}
+  ];
   return <section className="ndb-root" aria-label="Dashboard comercial">
-    <div className="ndb-toolbar">
-      <label><span>Plataforma</span><select value={platform} onChange={e=>setPlatform(e.target.value)}>
-        {PLATFORMS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
-      <div className="ndb-periods" role="group" aria-label="Período">
-        {PERIODS.map(p=><button key={p} type="button" className={p===days?'is-active':''} aria-pressed={p===days} onClick={()=>setDays(p)}>{p} dias</button>)}
+    <header className="ndb-head">
+      <div className="ndb-head-title"><span className="ndb-logo"><Icon name="chart"/></span><div><h2>Gestão de Anúncios</h2>
+        <p>{loading?'Consultando…':hasData?'Vendas de '+fmtDayFull(data.current_start)+' a '+fmtDayFull(data.last_day)+' · comparadas com os '+days+' dias anteriores':'Visão geral do desempenho dos produtos'}</p></div></div>
+      <div className="ndb-head-filters">
+        <label className="ndb-select"><span>Período</span><select value={days} onChange={e=>setDays(Number(e.target.value))} aria-label="Período">{PERIODS.map(p=><option key={p} value={p}>Últimos {p} dias</option>)}</select></label>
+        <label className="ndb-select"><span>Plataforma</span><select value={platform} onChange={e=>setPlatform(e.target.value)} aria-label="Plataforma">{PLATFORMS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
+        <small>{updated?'Última importação aplicada: '+when(updated):hasData?'Dados até '+fmtDayFull(data.last_day):''}</small>
       </div>
-      <small>{loading?'Consultando…':hasData?'Período '+fmtDayFull(data.current_start)+' a '+fmtDayFull(data.last_day)+' · comparado com '+fmtDayFull(data.previous_start)+' a '+fmtDayFull(dayBefore(data.current_start))+' · vendas importadas até '+fmtDayFull(data.last_day):''}</small>
-    </div>
+    </header>
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
     {hasData&&<div className="ndb-kpis">
-      <article><span>Faturamento<InfoIcon text={SOURCES.kpi} label="Faturamento"/></span><strong>{money(totals.cur_rev)}</strong><small><Delta cur={totals.cur_rev} prev={totals.prev_rev}/> vs. período anterior ({money(totals.prev_rev)})</small></article>
-      <article><span>Unidades<InfoIcon text={SOURCES.kpi} label="Unidades"/></span><strong>{num(totals.cur_units)}</strong><small><Delta cur={totals.cur_units} prev={totals.prev_units}/> vs. período anterior ({num(totals.prev_units)})</small></article>
-      <article><span>Anúncios com venda<InfoIcon text={SOURCES.kpi} label="Anúncios com venda"/></span><strong>{num(totals.listings_selling)}</strong><small>no período selecionado</small></article>
+      <KpiCard icon="money" label="Faturamento total" source="kpi" value={money(totals.cur_rev)} chip={<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={'vs. '+money(totals.prev_rev)+' no período anterior'}/>
+      <KpiCard icon="box" label="Unidades vendidas" source="kpi" value={num(totals.cur_units)} chip={<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={'vs. '+num(totals.prev_units)+' no período anterior'}/>
+      <KpiCard icon="megaphone" muted label="Investimento em anúncios" source="ads" value="Sem dados" foot="sem relatório de anúncios para este período"/>
+      <KpiCard icon="chart" muted label="ROAS dos anúncios" source="ads" value="Sem dados" foot="depende do investimento em anúncios"/>
     </div>}
-    <div className="ndb-grid">
-      <Card title="Curva ABC de produtos" source="abc">
-        <div className="ndb-abc">{classes.map(c=><button type="button" key={c.class} className={'ndb-abc-box c-'+c.class+(c.class===cls?' is-active':'')} onClick={()=>setCls(c.class)} aria-pressed={c.class===cls}>
-          <b>{c.class}</b><strong>{num(c.products)} produtos</strong><span>{String(c.revenue_pct).replace('.',',')}% do faturamento</span><small>{CLASS_NOTE[c.class]} · {money(c.revenue)}</small></button>)}</div>
-        <div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto (SKU)</th><th className="num">Unid.</th><th className="num">Faturamento</th><th className="num">% acum.</th></tr></thead><tbody>
-          {items.map(i=><tr key={i.key}><td title={i.title||''}><strong>{i.key}</strong><small>{i.title||'—'}</small></td><td className="num">{num(i.units)}</td><td className="num">{money(i.revenue)}</td><td className="num">{String(i.cum_pct).replace('.',',')}%</td></tr>)}
-          {!loading&&items.length===0&&<tr><td colSpan={4} className="ndb-empty">Sem produtos nesta classe.</td></tr>}
-        </tbody></table></div>
-        <p className="ndb-note">Mostra até os 120 maiores produtos por faturamento.</p>
-      </Card>
-      <Card title="Anúncios em queda" source="drops">
-        {hasData&&<p className="ndb-sum"><strong>{num(data.drops?.total)}</strong> anúncios ativos caíram 15% ou mais · <strong>{money(data.drops?.lost_revenue)}</strong> a menos de faturamento nesses anúncios. Abaixo, os 20 de maior perda.</p>}
-        <div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Anúncio</th><th className="num">Unid. antes → agora</th><th className="num">Faturamento perdido</th><th>Preço × vendas e causa</th></tr></thead><tbody>
-          {drops.map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></td>
-            <td className="num">{num(r.units_previous)} → {num(r.units)} <Delta cur={r.units} prev={r.units_previous}/></td>
-            <td className="num bad">{money(r.lost_revenue)}</td>
-            <td><PriceSignalCell signal={signals[r.listing_id]} window={days} diagnosis={diagnosis[r.listing_id]}/></td></tr>)}
-          {!loading&&drops.length===0&&<tr><td colSpan={4} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
-        </tbody></table></div>
-      </Card>
-      <Card title="Top 15 anúncios por faturamento" source="top">
-        <div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>#</th><th>Anúncio</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num">Preço médio</th><th className="num">Unid. vs. anterior</th></tr></thead><tbody>
-          {top.map((r,i)=><tr key={r.platform+r.external_id}><td className="num">{i+1}</td>
-            <td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}{r.status&&r.status!=='ACTIVE'?' · inativo':''}</small></td>
-            <td className="num">{num(r.units)}</td><td className="num">{money(r.revenue)}</td><td className="num">{money(r.price)}</td>
-            <td className="num"><Delta cur={r.units} prev={r.units_previous}/></td></tr>)}
-          {!loading&&top.length===0&&<tr><td colSpan={6} className="ndb-empty">Sem vendas no período.</td></tr>}
-        </tbody></table></div>
-      </Card>
-      <Card title="Dados que ajudariam a explicar as quedas" source="help">
-        <ul className="ndb-help">{HELP.map(([t,d])=><li key={t}><strong>{t}</strong><span>{d}</span></li>)}</ul>
-      </Card>
+    <div className="ndb-row r-main">
+      <Panel title="Vendas ao longo do período" icon="chart" source="daily" aside={hasData&&<span className="ndb-plat-split">{shopeeTotal>0&&<span><i style={{background:PLAT_COLOR.SHOPEE}}/>Shopee {money(shopeeTotal)}</span>}{mlTotal>0&&<span><i style={{background:PLAT_COLOR.ML_ANTIGO}}/>ML {money(mlTotal)}</span>}</span>}>
+        <DailyChart daily={daily}/>
+      </Panel>
+      <Panel title="Atenção" icon="alert" source="alerts" className="ndb-attention">
+        <ul className="ndb-alert-list">{alerts.map((a,i)=><li key={i} className={'tone-'+a.t}><span className="ndb-alert-ico"><Icon name={a.i}/></span><div><strong>{a.h}</strong><small>{a.d}</small></div></li>)}</ul>
+        {alertsOpen&&<ul className="ndb-stopped-list">{(ov.stopped||[]).slice(0,8).map(r=><li key={r.platform+r.external_id}><span title={r.title||''}>{r.title||r.external_id}</span><small>{PLATFORM_LABEL[r.platform]||r.platform} · {num(r.units_previous)} unid. antes · {money(r.revenue_previous)}</small></li>)}
+          {(ov.stopped||[]).length===0&&<li><small>Nenhum anúncio parou de vender.</small></li>}</ul>}
+        <button type="button" className="ndb-cta" onClick={()=>setAlertsOpen(v=>!v)} aria-expanded={alertsOpen}>{alertsOpen?'Ocultar alertas':'Ver alertas'} <span aria-hidden="true">{alertsOpen?'↑':'→'}</span></button>
+      </Panel>
     </div>
+    <Panel title="Classificação ABC dos produtos" icon="pie" source="abc" aside={<button type="button" className="ndb-link" onClick={()=>setCurve(v=>!v)}>{curve?'Ocultar curva':'Ver curva'}</button>}>
+      <div className="ndb-abc">
+        {classes.map(c=><button type="button" key={c.class} className={'ndb-abc-card c-'+c.class+(cls===c.class?' is-active':'')} onClick={()=>setCls(cls===c.class?null:c.class)} aria-pressed={cls===c.class}>
+          <span className="ndb-abc-badge" style={{background:CLASS_COLOR[c.class]}}>{c.class}</span>
+          <div><small>{Math.round(Number(c.products)/totalProducts*100)}% dos produtos ({num(c.products)})</small><strong>{String(c.revenue_pct).replace('.',',')}% do faturamento</strong><em>{CLASS_NOTE[c.class]} · {money(c.revenue)}</em></div>
+          <i className="ndb-abc-bar"><b style={{width:Number(c.revenue_pct)+'%',background:CLASS_COLOR[c.class]}}/></i>
+        </button>)}
+        {classes.length===0&&!loading&&<p className="ndb-empty">Sem vendas no período.</p>}
+      </div>
+      {curve&&<ParetoChart items={allItems}/>}
+      {cls&&<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto (SKU) · classe {cls}</th><th className="num">Unid.</th><th className="num">Faturamento</th><th className="num">% acum.</th></tr></thead><tbody>
+        {classRows.map(i=><tr key={i.key}><td title={i.title||''}><strong>{i.key}</strong><small>{i.title||'—'}</small></td><td className="num">{num(i.units)}</td><td className="num">{money(i.revenue)}</td><td className="num">{String(i.cum_pct).replace('.',',')}%</td></tr>)}
+      </tbody></table></div>}
+    </Panel>
+    <div className="ndb-row r-half">
+      <Panel title="Melhores produtos" icon="trophy" source="best">
+        <table className="ndb-table"><thead><tr><th>Produto</th><th className="num">Unidades</th><th className="num">Faturamento</th></tr></thead><tbody>
+          {bestRows.map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.sku||r.external_id}</small></td>
+            <td className="num"><b>{num(r.units)}</b></td><td className="num"><span className="ndb-roas">{money(r.revenue)}</span></td></tr>)}
+          {bestRows.length===0&&!loading&&<tr><td colSpan={3} className="ndb-empty">Sem vendas no período.</td></tr>}
+        </tbody></table>
+      </Panel>
+      <Panel title="Produtos em queda" icon="down" source="drops">
+        <table className="ndb-table"><thead><tr><th>Produto</th><th className="num">Variação</th><th className="num">Vendas</th></tr></thead><tbody>
+          {drops.slice(0,5).map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.sku||r.external_id}</small></td>
+            <td className="num neg">{pctText(changePct(r.units,r.units_previous))}</td><td className="num">{num(r.units)}</td></tr>)}
+          {drops.length===0&&!loading&&<tr><td colSpan={3} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
+        </tbody></table>
+        {drops.length>5&&<p className="ndb-note">Mostrando 5 de {num(data.drops?.total)} em queda, por maior perda de faturamento.</p>}
+      </Panel>
+    </div>
+    <Panel title="Desempenho dos anúncios" icon="megaphone" source="ads">
+      <div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Investimento</th><th className="num">Vendas atribuídas</th><th className="num">ROAS</th></tr></thead><tbody>
+        {top.slice(0,8).map(r=>{const ad=adsByListing[r.listing_id];return <tr key={r.platform+r.external_id}>
+          <td title={r.title||''}><strong>{r.title||r.external_id}{r.sku?'  |  '+r.sku:''}</strong></td>
+          <td>{PLATFORM_LABEL[r.platform]||r.platform}</td>
+          <td><span className={'ndb-status'+(r.status==='ACTIVE'?' on':'')}>{r.status==='ACTIVE'?'Ativo':'Inativo'}</span></td>
+          <td className="num">{ad?money(ad.spend):'sem dados'}</td><td className="num">{money(r.revenue)}</td>
+          <td className="num">{ad&&ad.roas!=null?<span className={'ndb-roas'+(Number(ad.roas)<1?' low':'')}>{String(ad.roas).replace('.',',')}x</span>:'sem dados'}</td></tr>;})}
+        {top.length===0&&!loading&&<tr><td colSpan={6} className="ndb-empty">Sem vendas no período.</td></tr>}
+      </tbody></table></div>
+      <p className="ndb-note">Vendas = faturamento do anúncio no período escolhido. Investimento e ROAS vêm do relatório Shopee Ads importado (período próprio) e só aparecem para anúncios com campanha individual.</p>
+    </Panel>
+    <details className="ndb-fold"><summary>Confiabilidade dos dados e definições<InfoIcon text={SOURCES.trust} label="Confiabilidade"/></summary>
+      <div className="ndb-trust">
+        {(ov.coverage||[]).map(c=><div key={c.platform}><strong>{PLATFORM_LABEL[c.platform]||c.platform}</strong><span>Vendas até {fmtDayFull(c.last_day)}</span><span>Importação aplicada: {c.last_import?when(c.last_import):'sem dados'}</span></div>)}
+        <div><strong>Dias com venda</strong><span>{num(ov.window_days_with_sales)} de {days} dias do período{Number(ov.window_days_with_sales)<days?' (há dias sem venda importada)':''}</span></div>
+        <div><strong>Vendas sem SKU vinculado</strong><span>{Number(ov.unlinked?.revenue)>0?num(ov.unlinked.listings)+' anúncios, '+money(ov.unlinked.revenue)+' fora da curva ABC':'nenhuma no período'}</span></div>
+        <div><strong>Margem e lucro</strong><span>Sem dados: falta cadastrar o custo do produto.</span></div>
+      </div>
+      <ul className="ndb-defs">
+        <li><b>Faturamento:</b> valor dos produtos vendidos, sem frete, das vendas importadas. Não é o faturamento atribuído aos anúncios pagos.</li>
+        <li><b>Pedidos:</b> soma por anúncio; um pedido com dois anúncios conta duas vezes.</li>
+        <li><b>Curva ABC:</b> por SKU, ordenada pelo faturamento do período. A = até 80% do total, B = até 95%, C = o restante. Produto C pode ser novo, sazonal ou estratégico.</li>
+        <li><b>Em queda:</b> anúncio ativo com 5 ou mais unidades no período anterior e queda de 15% ou mais.</li>
+        <li><b>ROAS:</b> vendas atribuídas ÷ investimento, do relatório Shopee Ads. Abaixo de 1 = gastou mais do que vendeu, antes de custo e taxas.</li>
+        <li><b>Sem dados:</b> a informação não existe no sistema. Nunca é mostrada como zero.</li>
+      </ul>
+    </details>
+    <details className="ndb-fold"><summary>Dados que ajudariam a explicar as quedas<InfoIcon text={SOURCES.help} label="Dados que ajudariam"/></summary>
+      <ul className="ndb-help">{HELP.map(([t,d])=><li key={t}><strong>{t}</strong><span>{d}</span></li>)}</ul>
+    </details>
   </section>;
 }
