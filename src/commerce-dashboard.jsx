@@ -9,7 +9,7 @@ const PERIODS=[7,30,60,90];
 const CLASS_NOTE={A:'Até 80% do faturamento',B:'Dos 80% aos 95%',C:'Últimos 5%'};
 
 const SOURCES={
-  abc:'Vendas importadas (tabela de vendas diárias por anúncio, o mesmo dado do Histórico de importações). Soma o faturamento do período por SKU, ordena do maior para o menor e classifica: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
+  abc:'Vendas importadas (tabela de vendas diárias por anúncio, o mesmo dado do Histórico de importações). Soma o faturamento do período por SKU em cada plataforma (Shopee, ML Antigo e ML Novo nunca se misturam: cada uma tem a sua própria curva), ordena do maior para o menor e classifica: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
   drops:'Vendas importadas: compara os últimos N dias com os N dias imediatamente anteriores, por anúncio ATIVO. Entra quem tinha 5 ou mais unidades no período anterior e caiu 15% ou mais. A coluna “Preço × vendas” compara o preço médio realizado. A linha de causa vem dos relatórios de desempenho Shopee importados (impressões, cliques, conversão); sem esse relatório aparece só o preço. São sinais, não prova de causa.',
   daily:'Vendas importadas (tabela de vendas diárias por anúncio): soma do faturamento de cada dia, separado por plataforma. A linha tracejada é o dia equivalente do período anterior (mesmo tamanho). Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
   top:'Vendas importadas: os 15 anúncios com maior faturamento no período, com a variação de unidades contra o período anterior de mesmo tamanho. Título e situação vêm do cadastro de anúncios do sistema.',
@@ -281,6 +281,7 @@ export default function CommerceDashboard(){
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [cls,setCls]=useState(null);
+  const [abcPlat,setAbcPlat]=useState('SHOPEE');
   const [curve,setCurve]=useState(false);
   const [tab,setTabRaw]=useState('best');
   const [focus,setFocus]=useState(false);
@@ -302,22 +303,24 @@ export default function CommerceDashboard(){
       .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});
     return()=>controller.abort();
   },[platform,days]);
+  const abcP=platform==='TODAS'?abcPlat:platform;
   const segment=!focus?null:tab==='best'?'best':tab==='drops'?'drops':tab==='stopped'?'stopped':(tab==='abc'&&cls)?cls.toLowerCase():null;
+  const segPlatform=segment&&segment.length===1?abcP:platform;
   useEffect(()=>{
     if(!segment){setSegSeries(null);return undefined;}
     const controller=new AbortController();
     setSegSeries(null);setSegFail(false);
-    fetchCommercialManager('/api/admin/commerce/sales-dashboard/segment-series?platform='+platform+'&days='+days+'&segment='+segment,{signal:controller.signal})
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/segment-series?platform='+segPlatform+'&days='+days+'&segment='+segment,{signal:controller.signal})
       .then(setSegSeries).catch(()=>{if(!controller.signal.aborted){setSegSeries(null);setSegFail(true);}});
     return()=>controller.abort();
-  },[platform,days,segment]);
+  },[segPlatform,days,segment]);
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
   const {signals,diagnosis}=usePriceSignals(signalRows,days);
   const totals=data?.totals||{};
-  const classes=data?.abc?.classes||[];
-  const allItems=data?.abc?.items||[];
+  const classes=data?.abc?.classes_by_platform?.[abcP]||[];
+  const allItems=(data?.abc?.items||[]).filter(i=>i.platform===abcP);
   const hasData=data&&data.last_day;
   const per=hasData?{curFrom:addDays(data.last_day,-days+1),curTo:data.last_day,prevFrom:addDays(data.last_day,-2*days+1),prevTo:addDays(data.last_day,-days)}:null;
   const rng=(a,b)=>fmtDay(a)+' a '+fmtDay(b);
@@ -452,8 +455,8 @@ export default function CommerceDashboard(){
               <button type="button" className="ndb-link" onClick={()=>setCurve(v=>!v)}>{curve?'Ver lista':'Ver curva'}</button>
             </div>
             {curve?<ParetoChart items={allItems}/>
-              :<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto (SKU){cls?' · classe '+cls:''}</th><th>Anúncios</th><th className="num">Unid.</th><th className="num">Faturamento</th><th className="num">% acum.</th></tr></thead><tbody>
-                {(cls?classRows:allItems).map(i=><tr key={i.key}><td title={i.title||''}><strong>{i.key}</strong><small>{i.title||'—'}</small></td><td><ExtList links={i.links}/></td><td className="num">{num(i.units)}</td><td className="num">{money(i.revenue)}</td><td className="num">{String(i.cum_pct).replace('.',',')}%</td></tr>)}
+              :<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto (SKU) · {PLATFORM_LABEL[abcP]||abcP}{cls?' · classe '+cls:''}</th><th>Anúncios</th><th className="num">Unid.</th><th className="num">Faturamento</th><th className="num">% acum.</th></tr></thead><tbody>
+                {(cls?classRows:allItems).map(i=><tr key={i.platform+'|'+i.key}><td title={i.title||''}><strong>{i.key}</strong><small>{i.title||'—'}</small></td><td><ExtList links={i.links}/></td><td className="num">{num(i.units)}</td><td className="num">{money(i.revenue)}</td><td className="num">{String(i.cum_pct).replace('.',',')}%</td></tr>)}
                 {allItems.length===0&&!loading&&<tr><td colSpan={5} className="ndb-empty">Sem vendas no período.</td></tr>}
               </tbody></table></div>}
           </>}
@@ -464,7 +467,8 @@ export default function CommerceDashboard(){
           <ul className="ndb-alert-list">{alerts.map(a=><li key={a.k}><button type="button" className={'tone-'+a.t+(tab===a.k?' is-open':'')} disabled={a.t==='muted'} title={a.d} onClick={()=>openAlert(a.k)}>
             <span className="ndb-alert-ico"><Icon name={a.i}/></span><span className="ndb-alert-txt"><strong>{a.h}</strong><small>{a.d}</small></span><span className="ndb-alert-go" aria-hidden="true">›</span></button></li>)}</ul>
         </Panel>
-        <Panel title="Classificação ABC" icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>{setTab('abc');setCurve(true);}}>Ver curva</button>}>
+        <Panel title={'ABC · '+(PLATFORM_LABEL[abcP]||abcP)} icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>{setTab('abc');setCurve(true);}}>Ver curva</button>}>
+          {platform==='TODAS'&&<div className="ndb-seg ndb-abc-plat" role="group" aria-label="Plataforma da curva ABC">{['SHOPEE','ML_ANTIGO','ML_NOVO'].map(v=><button key={v} type="button" className={v===abcPlat?'is-active':''} aria-pressed={v===abcPlat} onClick={()=>setAbcPlat(v)}>{PLATFORM_LABEL[v]}</button>)}</div>}
           <div className="ndb-abc">
             {classes.map(c=><button type="button" key={c.class} className={'ndb-abc-card c-'+c.class+(tab==='abc'&&cls===c.class?' is-active':'')} onClick={()=>{setTab('abc');setCurve(false);setCls(c.class);}} aria-pressed={tab==='abc'&&cls===c.class} title={CLASS_NOTE[c.class]+' · '+money(c.revenue)}>
               <span className="ndb-abc-badge" style={{background:CLASS_COLOR[c.class]}}>{c.class}</span>

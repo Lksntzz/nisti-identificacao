@@ -271,3 +271,5 @@
 .ndb-periodbar .pb i{width:8px;height:8px;border-radius:50%;background:#1d5fd1}
 .ndb-periodbar .pb.prev i{background:#8a97ab}
 .ndb-periodbar .pb.arrow{background:none;padding:0;color:#7a8aa3;font-weight:700}
+.ndb-abc-plat{display:flex;width:100%;margin-bottom:8px}
+.ndb-abc-plat button{flex:1;min-height:28px;padding:0 6px;font-size:12px}
