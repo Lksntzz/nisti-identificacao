@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
+const IS_GA_HOST = window.location.hostname === 'ga.sistemanistiid.online';
+
 function registerNistiServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
+  if (IS_GA_HOST || !('serviceWorker' in navigator)) return;
   const register = () => {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/', updateViaCache: 'none' })
@@ -21,6 +23,8 @@ if (window.location.pathname === '/monitor-notificacoes') {
 }
 
 function getInitialRoute() {
+  // GA - Gestor de Anúncio: este endereço só monta o Painel Comercial.
+  if (IS_GA_HOST) return 'commerce';
   // Dedicated URL: never load the Scanner or admin bundles on the Mural host.
   if (window.location.hostname === 'mural.sistemanistiid.online'
     || window.location.pathname === '/mural') {
