@@ -221,7 +221,7 @@ export default function CommerceAdminAppV2() {
 
         <main className="admin-page-content commerce-admin-page-content">
           <div key={activeView} className="commerce-admin-view-transition">
-            <div className="welcome-banner commerce-welcome-banner">
+            {activeView !== 'dashboard' && <div className="welcome-banner commerce-welcome-banner">
               <div className="welcome-copy">
                 <h2>{VIEW_TITLES[activeItem.id] || activeItem.label}</h2>
                 <p>{VIEW_DESCRIPTIONS[activeItem.id]}</p>
@@ -233,7 +233,7 @@ export default function CommerceAdminAppV2() {
                   <small>Supabase PostgreSQL</small>
                 </div>
               </div>
-            </div>
+            </div>}
 
             {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
             {activeView === 'planning' && <CommerceProductsView />}

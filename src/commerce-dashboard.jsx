@@ -107,9 +107,18 @@ function KpiCard({icon,label,source,value,chip,foot,muted}){
 // Vendas por dia: linha do período atual (com preenchimento) contra o período anterior (tracejado).
 function DailyChart({daily}){
   const [hover,setHover]=useState(null);
+  const [W,setW]=useState(760);
+  const boxRef=useRef(null);
+  useEffect(()=>{
+    const el=boxRef.current;if(!el)return undefined;
+    const set=()=>{const w=Math.round(el.getBoundingClientRect().width);if(w>200)setW(w);};
+    set();
+    if(typeof ResizeObserver==='undefined')return undefined;
+    const ro=new ResizeObserver(set);ro.observe(el);return()=>ro.disconnect();
+  },[daily.length>0]);
   const n=daily.length;
   if(!n)return <p className="ndb-empty">Sem dados diários para este período.</p>;
-  const W=760,H=250,L=50,R=12,T=12,B=28,iw=W-L-R,ih=H-T-B;
+  const H=190,L=50,R=12,T=12,B=28,iw=W-L-R,ih=H-T-B;
   const tot=d=>Number(d.shopee)+Number(d.ml);
   const maxV=niceMax(Math.max(...daily.map(d=>Math.max(tot(d),Number(d.prev_revenue)||0))));
   const x=i=>L+(n===1?iw/2:i/(n-1)*iw);
@@ -118,8 +127,8 @@ function DailyChart({daily}){
   const ticks=[0,.25,.5,.75,1].map(k=>k*maxV);
   const xt=n<=7?daily.map((_,i)=>i):[0,1,2,3,4,5,6].map(k=>Math.round(k*(n-1)/6));
   const h=hover!=null?daily[hover]:null;
-  return <div className="ndb-chartbox">
-    <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label="Faturamento por dia" onMouseLeave={()=>setHover(null)}
+  return <div className="ndb-chartbox" ref={boxRef}>
+    <svg viewBox={'0 0 '+W+' '+H} height={H} role="img" aria-label="Faturamento por dia" onMouseLeave={()=>setHover(null)}
       onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;setHover(Math.max(0,Math.min(n-1,Math.round((px-L)/iw*(n-1)))));}}>
       <defs><linearGradient id="ndbfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1d5fd1" stopOpacity=".22"/><stop offset="1" stopColor="#1d5fd1" stopOpacity="0"/></linearGradient></defs>
       {ticks.map(t=><g key={t}><line x1={L} x2={W-R} y1={y(t)} y2={y(t)} className="ndb-grid-line"/><text x={L-8} y={y(t)+4} textAnchor="end" className="ndb-axis">{axisMoney(t)}</text></g>)}
