@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './admin-notification-details.css';
 
 function adminNotificationSourceLabel(source) {
   return ({
@@ -77,10 +78,113 @@ function formatAdminNotificationDate(value) {
   });
 }
 
+
+// Explicação em linguagem simples de cada tipo de atividade: o que é, o que significa e o que fazer.
+const EXPLANATIONS = {
+  admin_login: ['Alguém entrou no painel administrativo com a senha correta.', 'Se foi você, está tudo certo. Se o aparelho ou o local não forem conhecidos, troque a senha do painel.'],
+  admin_login_failed: ['Alguém tentou entrar no painel e errou a senha ou não foi autorizado.', 'Uma ou duas tentativas costumam ser engano. Várias seguidas, de um lugar desconhecido, merecem atenção: troque a senha.'],
+  admin_logout: ['A sessão do painel foi encerrada.', 'Normal. Nenhuma ação necessária.'],
+  gtin_identified: ['Um operador bipou um código de barras e o sistema reconheceu o produto.', 'Mostra qual produto foi identificado. Nenhuma ação necessária.'],
+  gtin_not_found: ['Um operador bipou um código de barras que não está cadastrado.', 'Cadastre esse código em "EAN não Cadastrados" para ele ser reconhecido da próxima vez.'],
+  gtin_error: ['O scanner não conseguiu consultar o código de barras.', 'Verifique a internet do aparelho. Se persistir, veja o painel Saúde & Logs.'],
+  gtin_linked: ['Um código de barras (EAN) foi ligado a um produto.', 'A partir de agora, bipar esse código identifica esse produto.'],
+  gtin_removed: ['Um código de barras foi desligado de um produto.', 'Esse código deixa de identificar o produto. Se foi engano, ligue de novo na ficha do produto.'],
+  visual_identification: ['Um operador usou a identificação por imagem para achar um produto.', 'Nenhuma ação necessária.'],
+  visual_identification_error: ['A identificação por imagem falhou.', 'O operador pode bipar o código de barras no lugar.'],
+  product_created: ['Um produto novo entrou no catálogo.', 'Confira se o EAN e a imagem foram cadastrados.'],
+  product_updated: ['Os dados de um produto foram alterados.', 'Nenhuma ação necessária. Se não foi você, veja quem fez em "Responsável".'],
+  product_deleted: ['Um produto foi excluído do catálogo.', 'Se foi engano, cadastre o produto de novo. Vendas antigas dele podem ficar sem vínculo.'],
+  product_image_updated: ['A foto original de um produto foi trocada.', 'A foto tratada pode precisar ser refeita em "Produtos NISTI".'],
+  image_treatment_ready: ['O sistema terminou de tratar uma imagem (recorte e fundo).', 'Revise e aprove a imagem para ela aparecer no sistema.'],
+  image_treatment_approved: ['Uma imagem tratada foi aprovada.', 'Ela já está sendo usada no sistema e no Mural.'],
+  image_treatment_redo: ['Foi pedido um novo tratamento de imagem.', 'O produto voltou para a fila. Aguarde o aviso de "pronta para revisão".'],
+  image_treatment_failed: ['O tratamento automático da imagem falhou.', 'Tente refazer. Se continuar, troque a foto original por uma com fundo mais limpo.'],
+  mural_updated: ['Algo mudou no Mural dos operadores (publicação, coleção ou imagem).', 'Abra o Mural no celular para conferir como ficou.'],
+  mural_update_error: ['Não foi possível salvar uma alteração do Mural.', 'Tente de novo. Se persistir, anote a hora e veja o Saúde & Logs.'],
+  commerce_updated: ['O Painel Comercial recebeu uma alteração ou importação (anúncios, vendas ou vínculos).', 'Confira os números no Painel Comercial se foi uma importação.'],
+  commerce_update_error: ['Uma importação ou alteração do Painel Comercial falhou.', 'Confira o arquivo importado e tente de novo.'],
+  operator_profile_updated: ['Um operador informou ou trocou o nome no aplicativo.', 'Serve para saber quem fez cada ação.'],
+  system_activity: ['O sistema concluiu uma operação interna.', 'Nenhuma ação necessária.'],
+  system_error: ['Uma operação do sistema deu erro.', 'Se o erro se repetir várias vezes, veja o painel Saúde & Logs.']
+};
+
+function explanationFor(item) {
+  const known = EXPLANATIONS[item.event_type];
+  if (known) return { what: known[0], todo: known[1] };
+  if (item.severity === 'error') return { what: 'Uma operação do sistema deu erro.', todo: 'Se se repetir, veja o painel Saúde & Logs.' };
+  if (item.severity === 'warning') return { what: 'Uma operação terminou com aviso.', todo: 'Confira se o resultado é o esperado.' };
+  return { what: 'Atividade registrada pelo sistema.', todo: 'Nenhuma ação necessária.' };
+}
+
+function describeStatus(status) {
+  const code = Number(status);
+  if (!code) return null;
+  if (code >= 200 && code < 300) return `Deu certo (${code})`;
+  if (code === 401 || code === 403) return `Sem permissão (${code})`;
+  if (code === 404) return `Não encontrado (${code})`;
+  if (code === 429) return `Muitos pedidos em pouco tempo (${code})`;
+  if (code >= 400 && code < 500) return `Pedido recusado (${code})`;
+  if (code >= 500) return `Erro no servidor (${code})`;
+  return String(code);
+}
+
+function detailRows(item) {
+  const d = item.details || {};
+  const rows = [
+    ['Quando', formatAdminNotificationDate(item.created_at)],
+    ['Quem', item.actor_name || (item.source === 'security' ? 'Administrador do painel' : null)],
+    ['Produto', d.product_name],
+    ['SKU', d.sku || item.entity_id],
+    ['Código de barras', d.gtin],
+    ['Variação', d.variation],
+    ['Wire-o', d.wireo],
+    ['Aparelho', d.device],
+    ['Local aproximado', d.place],
+    ['Endereço de rede (IP)', d.ip],
+    ['Resultado', describeStatus(item.http_status)]
+  ];
+  return rows.filter(([, value]) => value);
+}
+
+function detailsAsText(item, explanation) {
+  return [item.title, item.message, ...detailRows(item).map(([k, v]) => `${k}: ${v}`), `O que significa: ${explanation.what}`].join('\n');
+}
+
+
+function NotificationDetail({ item, copied, onCopy }) {
+  const explanation = explanationFor(item);
+  const rows = detailRows(item);
+  const productId = item.details?.product_id;
+  const showPhoto = productId && ['product_created', 'product_updated', 'product_image_updated', 'gtin_identified', 'gtin_linked', 'gtin_removed', 'image_treatment_ready', 'image_treatment_approved'].includes(item.event_type);
+  return (
+    <div className="notif-detail" onClick={event => event.stopPropagation()}>
+      <div className="notif-detail-explain">
+        <b>O que significa</b>
+        <p>{explanation.what}</p>
+        <b>O que fazer</b>
+        <p>{explanation.todo}</p>
+      </div>
+      {(rows.length > 0 || showPhoto) && (
+        <div className="notif-detail-body">
+          {showPhoto && <img className="notif-detail-photo" src={`/api/images/${encodeURIComponent(productId)}`} alt="" loading="lazy" onError={event => { event.currentTarget.style.display = 'none'; }} />}
+          <dl className="notif-detail-grid">
+            {rows.map(([label, value]) => (<React.Fragment key={label}><dt>{label}</dt><dd>{value}</dd></React.Fragment>))}
+          </dl>
+        </div>
+      )}
+      <button type="button" className="notif-detail-copy" onClick={() => onCopy(detailsAsText(item, explanation))}>
+        {copied ? 'Copiado ✓' : 'Copiar detalhes'}
+      </button>
+    </div>
+  );
+}
+
 export default function AdminNotificationsModal({ isOpen, onClose, unreadCount, setUnreadCount, api }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -128,6 +232,19 @@ export default function AdminNotificationsModal({ isOpen, onClose, unreadCount, 
     }
   };
 
+  const toggleOpen = item => {
+    setOpenId(current => current === item.id ? null : item.id);
+    if (!item.is_read) markOne(item.id);
+  };
+
+  const copyDetails = async (id, text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(current => current === id ? null : current), 1800);
+    } catch { /* sem permissão de área de transferência: não é crítico */ }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -158,8 +275,12 @@ export default function AdminNotificationsModal({ isOpen, onClose, unreadCount, 
           {!loading && notifications.map(item => (
             <article
               key={item.id}
-              className={`notification-card ${item.is_read ? 'read' : 'unread'}`}
-              onClick={() => !item.is_read && markOne(item.id)}
+              className={`notification-card ${item.is_read ? 'read' : 'unread'}${openId === item.id ? ' is-open' : ''}`}
+              onClick={() => toggleOpen(item)}
+              role="button"
+              tabIndex={0}
+              aria-expanded={openId === item.id}
+              onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleOpen(item); } }}
             >
               <div className={`notification-thumb notification-thumb-${item.severity === 'error' ? 'error' : item.severity === 'warning' ? 'warning' : (['scanner', 'catalog', 'images', 'mural', 'commerce', 'operators', 'security', 'admin'].includes(item.source) ? item.source : 'system')}`} aria-hidden="true">
                 {adminNotificationIcon(item.source, item.severity)}
@@ -174,6 +295,8 @@ export default function AdminNotificationsModal({ isOpen, onClose, unreadCount, 
                 <p className="notif-variacao">{item.message}</p>
                 {item.actor_name && <p className="notif-variacao"><strong>Responsável:</strong> {item.actor_name}</p>}
                 <small className="notif-date">{formatAdminNotificationDate(item.created_at)}</small>
+                {openId === item.id && <NotificationDetail item={item} copied={copiedId === item.id} onCopy={text => copyDetails(item.id, text)} />}
+                <span className="notif-expand-hint" aria-hidden="true">{openId === item.id ? 'Ocultar detalhes ▲' : 'Ver detalhes ▼'}</span>
               </div>
             </article>
           ))}

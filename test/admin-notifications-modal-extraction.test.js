@@ -29,7 +29,7 @@ test('notifications modal preserves visibility, keyboard, mobile classes and ari
   assert.ok(modal.includes('role="dialog" aria-modal="true"'));
   assert.ok(modal.includes('className="notifications-modal"'));
   assert.ok(modal.includes('className="notifications-body"'));
-  assert.ok(modal.includes("!item.is_read && markOne(item.id)"));
+  assert.ok(modal.includes("if (!item.is_read) markOne(item.id)"));
   assert.ok(modal.includes('formatAdminNotificationDate(item.created_at)'));
   assert.ok(modal.includes('adminNotificationSourceLabel(item.source)'));
   assert.ok(modal.includes('adminNotificationIcon(item.source, item.severity)'));

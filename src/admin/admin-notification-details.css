@@ -1,0 +1,16 @@
+/* Detalhes que abrem ao clicar numa atividade do sino. Só anima ao abrir. */
+.notification-card[role="button"]{cursor:pointer}
+.notification-card.is-open{border-color:#93c5fd;box-shadow:0 8px 22px rgba(37,99,235,.14)}
+.notif-expand-hint{display:block;margin-top:6px;font-size:11px;font-weight:700;color:#2563eb}
+.notif-detail{margin-top:10px;padding:12px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;cursor:default;animation:notif-detail-in 260ms cubic-bezier(.22,.8,.26,1) backwards}
+.notif-detail-explain b{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#64748b;margin-top:2px}
+.notif-detail-explain p{margin:2px 0 8px;font-size:13px;line-height:1.45;color:#0f172a}
+.notif-detail-body{display:flex;gap:12px;align-items:flex-start;margin-top:4px;padding-top:10px;border-top:1px dashed #cbd5e1}
+.notif-detail-photo{width:72px;height:72px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid #e2e8f0;flex:none}
+.notif-detail-grid{margin:0;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;font-size:12.5px;flex:1;min-width:0}
+.notif-detail-grid dt{color:#64748b;font-weight:600}
+.notif-detail-grid dd{margin:0;color:#0f172a;overflow-wrap:anywhere}
+.notif-detail-copy{margin-top:10px;border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#334155;cursor:pointer}
+@keyframes notif-detail-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.notif-detail{animation:none}}
+@media (max-width:520px){.notif-detail-body{flex-direction:column}}
