@@ -96,3 +96,33 @@
     filter: none !important;
   }
 }
+
+/* Menu lateral recolhido (so icones); abre ao passar o mouse, sobrepondo o conteudo */
+@media (min-width:861px){
+  .commerce-admin-root{position:relative}
+  .commerce-admin-root>.admin-sidebar{position:fixed;left:0;top:0;bottom:0;width:68px;overflow-x:hidden;transition:width .18s ease,box-shadow .18s ease}
+  .commerce-admin-root>.admin-sidebar:hover,.commerce-admin-root>.admin-sidebar:has(:focus-visible){width:256px;box-shadow:12px 0 36px rgba(0,0,0,.28)}
+  .commerce-admin-root>.admin-main-wrapper{margin-left:68px}
+  .commerce-admin-root .admin-sidebar .sidebar-header{padding:18px 14px 12px}
+  .commerce-admin-root .admin-sidebar .sidebar-nav{padding:0 12px}
+  .commerce-admin-root .admin-sidebar .sidebar-nav-item{padding:9px 12px;white-space:nowrap}
+  .commerce-admin-root .admin-sidebar .sidebar-brand-text,
+  .commerce-admin-root .admin-sidebar .sidebar-section-title,
+  .commerce-admin-root .admin-sidebar .sidebar-item-label,
+  .commerce-admin-root .admin-sidebar .sidebar-logout-btn span,
+  .commerce-admin-root .admin-sidebar .sidebar-highlight-btn span{opacity:0;transition:opacity .12s ease;white-space:nowrap}
+  .commerce-admin-root .admin-sidebar:hover .sidebar-brand-text,
+  .commerce-admin-root .admin-sidebar:hover .sidebar-section-title,
+  .commerce-admin-root .admin-sidebar:hover .sidebar-item-label,
+  .commerce-admin-root .admin-sidebar:hover .sidebar-logout-btn span,
+  .commerce-admin-root .admin-sidebar:hover .sidebar-highlight-btn span,
+  .commerce-admin-root .admin-sidebar:has(:focus-visible) .sidebar-brand-text,
+  .commerce-admin-root .admin-sidebar:has(:focus-visible) .sidebar-item-label{opacity:1}
+  .commerce-admin-root .admin-sidebar .sidebar-nav-item:hover{transform:none}
+  .commerce-admin-root .admin-sidebar .sidebar-logout-btn{white-space:nowrap}
+}
+@media (min-width:861px){
+  .commerce-admin-root .admin-sidebar svg{flex:none}
+  .commerce-admin-root .admin-sidebar .sidebar-brand-logo{flex:none}
+  .commerce-admin-root .admin-sidebar .sidebar-highlight-btn,.commerce-admin-root .admin-sidebar .sidebar-logout-btn{white-space:nowrap;overflow:hidden}
+}
