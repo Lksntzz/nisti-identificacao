@@ -46,8 +46,7 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
   {
     title: 'SISTEMA',
     items: Object.freeze([
-      { id: 'logs', label: 'Saúde & Logs', icon: 'terminal' },
-      { id: 'operadores-pin', label: 'PIN dos Operadores', icon: 'security' }
+      { id: 'logs', label: 'Saúde & Logs', icon: 'terminal' }
     ])
   }
 ]);

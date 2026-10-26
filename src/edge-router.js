@@ -1,8 +1,5 @@
 import app from './gtin-router.js';
 import { handleCommerceAdminRequest } from './commerce-admin-router.js';
-import {
-  operatorPinRequired,operatorPinSessionInfo,verifyOperatorPin,handleOperatorPinAdminRequest
-} from './operator-pin-access.js';
 import { handleCommerceUpdateAdminRequest } from './commerce-update-admin-router.js';
 import { handleCommerceListingStateRequest } from './commerce-listing-state-router.js';
 import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
@@ -26,18 +23,9 @@ const MUTATING_METHODS = new Set(['POST','PUT','PATCH','DELETE']);
 const LOGIN_FAILURE_DELAY_MS = 275;
 const OPERATOR_COOKIE_NAME = 'nisti_operator_session';
 const OPERATOR_SESSION_SECONDS = 60 * 60 * 12;
-const OPERATOR_PIN_LOGIN_PATH = '/api/operator/login';
-const OPERATOR_PIN_SESSION_PATH = '/api/operator/session';
-const OPERATOR_PIN_LOGOUT_PATH = '/api/operator/logout';
-async function currentOperatorPinRequired(env){
-  // Read authoritative PIN policy on every protected request. This guarantees
-  // activation/revocation takes effect immediately, with no stale cache window.
-  // Tests/local development without Supabase retain the legacy unconfigured mode.
-  if(!env?.SUPABASE_URL&&String(env?.APP_ENV||'')!=='production')return false;
-  return operatorPinRequired(env);
-}
-function operatorApiNeedsPin(path){
-  // A consulta pública do monitor não exige PIN; operações administrativas continuam protegidas.
+// O operador não usa PIN: cada aparelho recebe uma sessão anônima assinada,
+// usada só para identificar o aparelho (notificações e histórico de leituras).
+function operatorApiNeedsSession(path){
   if(path.startsWith('/api/dispatch/'))return false;
   if(!path.startsWith('/api/')||path.startsWith('/api/admin/'))return false;
   if(path==='/api/health'||path==='/api/platforms'
@@ -135,12 +123,10 @@ async function operatorHmac(env, value) {
   return new Uint8Array(await crypto.subtle.sign('HMAC',key,textBytes(value)));
 }
 
-async function createOperatorSession(env,account=null) {
-  const id=account?.id||`op_${crypto.randomUUID()}`;
+async function createOperatorSession(env) {
+  const id=`op_${crypto.randomUUID()}`;
   const exp=Math.floor(Date.now()/1000)+OPERATOR_SESSION_SECONDS;
-  const payload=base64url(textBytes(JSON.stringify({
-    id,exp,...(account?{pin:1,version:Number(account.version)}:{})
-  })));
+  const payload=base64url(textBytes(JSON.stringify({id,exp})));
   const signature=await operatorHmac(env,payload);
   if(!signature)return null;
   return {id,token:`${payload}.${base64url(signature)}`};
@@ -162,40 +148,28 @@ async function readOperatorSession(request,env) {
     const id=String(payload?.id||'');
     if(!/^op_[0-9a-f-]{36}$/i.test(id))return null;
     if(Number(payload?.exp||0)<=Math.floor(Date.now()/1000))return null;
-    return {id,token,pin:payload.pin===1,version:Number(payload.version||0)};
+    return {id,token};
   }catch{
     return null;
   }
 }
 
-async function verifiedOperatorRequest(request,env,pinRequired=false) {
-  if(!new URL(request.url).pathname.startsWith('/api/'))return {request,setCookie:null,authorized:true};
-  if(new URL(request.url).pathname.startsWith('/api/admin/'))return {request,setCookie:null,authorized:true};
+async function operatorSessionRequest(request,env) {
+  if(!new URL(request.url).pathname.startsWith('/api/'))return {request,setCookie:null};
+  if(new URL(request.url).pathname.startsWith('/api/admin/'))return {request,setCookie:null};
   let session=await readOperatorSession(request,env);
-  let setCookie=null,verifiedName=null;
-  if(pinRequired){
-    if(!session?.pin||!Number.isInteger(session.version)||session.version<1)
-      return {request,setCookie:null,authorized:false};
-    const account=await operatorPinSessionInfo(env,session.id);
-    if(!account||Number(account.version)!==session.version)
-      return {request,setCookie:null,authorized:false};
-    verifiedName=String(account.name);
-  }else if(!session){
+  let setCookie=null;
+  if(!session){
     session=await createOperatorSession(env);
-    if(!session)return {request,setCookie:null,authorized:true};
+    if(!session)return {request,setCookie:null};
     setCookie=`${OPERATOR_COOKIE_NAME}=${session.token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${OPERATOR_SESSION_SECONDS}`;
   }
   const headers=new Headers(request.headers);
   if(session?.id)headers.set('x-user-id',session.id);
   else headers.delete('x-user-id');
-  // A client cannot set the trust marker; only this edge verifies PIN sessions.
   headers.delete('x-operator-verified');
-  if(verifiedName){
-    headers.set('x-operator-name',encodeURIComponent(verifiedName));
-    headers.set('x-operator-verified','pin');
-  }
   const secured=new Request(request,{headers});
-  return {request:secured,setCookie,authorized:true};
+  return {request:secured,setCookie};
 }
 
 function attachOperatorCookie(response,setCookie) {
@@ -388,8 +362,7 @@ function rateLimitKey(request, scope) {
 
 async function enforceRateLimit(env, request, pathname) {
   const method = String(request.method || '').toUpperCase();
-  const loginRequest = (pathname === '/admin-login' || pathname === OPERATOR_PIN_LOGIN_PATH)
-    && method === 'POST';
+  const loginRequest = pathname === '/admin-login' && method === 'POST';
   const canvaArtCreateRequest = pathname === CANVA_ART_CREATE_PATH && method === 'POST';
   const apiRequest = pathname.startsWith('/api/');
   if (!loginRequest && !apiRequest) return null;
@@ -409,7 +382,7 @@ async function enforceRateLimit(env, request, pathname) {
   }
 
   const scope = loginRequest
-    ? pathname===OPERATOR_PIN_LOGIN_PATH?'operator-pin-login':'admin-login'
+    ? 'admin-login'
     : canvaArtCreateRequest ? 'canva-art-create' : 'api';
   try {
     const result = await binding.limit({ key: rateLimitKey(request, scope) });
@@ -516,9 +489,7 @@ export default {
     // URL that exposes the Scanner or protected administration endpoints.
     if (url.hostname === 'mural.sistemanistiid.online') {
       if (pathname.startsWith('/api/')) {
-        const muralApi = pathname === '/api/mural' || pathname.startsWith('/api/mural/')
-          || pathname===OPERATOR_PIN_LOGIN_PATH||pathname===OPERATOR_PIN_SESSION_PATH
-          || pathname===OPERATOR_PIN_LOGOUT_PATH;
+        const muralApi = pathname === '/api/mural' || pathname.startsWith('/api/mural/');
         const publicImage = request.method === 'GET' && (
           pathname.startsWith('/api/images/')
           || pathname.startsWith('/api/reference-images/')
@@ -626,7 +597,7 @@ export default {
     const rateLimitResponse = await enforceRateLimit(env, request, pathname);
     if (rateLimitResponse) return rateLimitResponse;
 
-    // A permissão de expedição NÃO herda a sessão do admin nem o PIN de operador.
+    // A permissão de expedição NÃO herda a sessão do admin.
     // É verificada no servidor e autoriza só leitura de fila, opções e envio.
     const senderResponse=await handleDispatchSenderRequest(request,env);
     if(senderResponse)return withSecurityHeaders(senderResponse);
@@ -660,73 +631,14 @@ export default {
       return withSecurityHeaders(json({ error: 'Acesso administrativo não autorizado.' }, 401));
     }
 
-    // Public operator login requires only an eight-digit PIN. No client-supplied
-    // x-user-id or x-operator-name is trusted once PIN enforcement is active.
-    if(pathname===OPERATOR_PIN_SESSION_PATH&&request.method==='GET'){
-      try{
-        const required=await currentOperatorPinRequired(env);
-        if(!required)return withSecurityHeaders(json({required:false,authenticated:false}));
-        const session=await readOperatorSession(request,env);
-        const account=session?.pin?await operatorPinSessionInfo(env,session.id):null;
-        const authenticated=!!account&&Number(account.version)===session.version;
-        return withSecurityHeaders(json(authenticated
-          ?{required:true,authenticated:true,name:account.name}
-          :{required:true,authenticated:false}));
-      }catch{
-        return withSecurityHeaders(json({error:'Verificação de acesso indisponível.'},503));
-      }
-    }
-    if(pathname===OPERATOR_PIN_LOGIN_PATH&&request.method==='POST'){
-      try{
-        const body=await request.json().catch(()=>null);
-        const pin=body?.pin;
-        const account=await verifyOperatorPin(env,pin);
-        if(!account){
-          await new Promise(resolve=>setTimeout(resolve,250));
-          return withSecurityHeaders(json({error:'PIN inválido.'},401));
-        }
-        const operatorSession=await createOperatorSession(env,account);
-        if(!operatorSession)return withSecurityHeaders(json({error:'Acesso indisponível.'},503));
-        return withSecurityHeaders(new Response(JSON.stringify({ok:true,name:account.name}),{
-          status:200,headers:{
-            'content-type':'application/json; charset=utf-8','cache-control':'no-store, private',
-            'set-cookie':`${OPERATOR_COOKIE_NAME}=${operatorSession.token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${OPERATOR_SESSION_SECONDS}`
-          }
-        }));
-      }catch(error){
-        console.error('[Operator PIN] Falha no serviço de login',error?.name||'error');
-        return withSecurityHeaders(json({error:'Acesso por PIN indisponível.'},503));
-      }
-    }
-    if(pathname===OPERATOR_PIN_LOGOUT_PATH&&request.method==='POST'){
-      return withSecurityHeaders(new Response(JSON.stringify({ok:true}),{
-        status:200,headers:{'content-type':'application/json; charset=utf-8',
-          'cache-control':'no-store','set-cookie':`${OPERATOR_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`}
-      }));
-    }
-    const pinAdmin=await handleOperatorPinAdminRequest(request,env);
-    if(pinAdmin)return withSecurityHeaders(pinAdmin);
-
     let operatorContext;
     try{
-      const operatorApi=operatorApiNeedsPin(pathname);
-      const muralPreviewCandidate=pathname.startsWith('/api/mural')
-        && (request.headers.get('x-mural-qa')==='1'
-            || /^\/api\/mural\/images\/\d+$/.test(pathname)
-            || /^\/api\/mural\/collections\/[^/]+\/image$/.test(pathname));
-      // A signed administrative session may inspect the private Mural QA
-      // without entering a second operator PIN; public operator APIs may not.
-      const adminQaAuthorized=muralPreviewCandidate&&await validSession(request,env);
-      const required=operatorApi&&!adminQaAuthorized
-        ?await currentOperatorPinRequired(env):false;
-      operatorContext=operatorApi
-        ?await verifiedOperatorRequest(request,env,required)
-        :{request,setCookie:null,authorized:true};
-      if(!operatorContext.authorized)
-        return withSecurityHeaders(json({error:'Informe o PIN do operador para continuar.',code:'operator_pin_required'},401));
+      operatorContext=operatorApiNeedsSession(pathname)
+        ?await operatorSessionRequest(request,env)
+        :{request,setCookie:null};
     }catch(error){
-      console.error('[Operator PIN] Falha na verificação de sessão',error?.name||'error');
-      return withSecurityHeaders(json({error:'Autenticação do operador indisponível.'},503));
+      console.error('[Operator session] Falha ao preparar sessão do aparelho',error?.name||'error');
+      operatorContext={request,setCookie:null};
     }
     request=operatorContext.request;
 
