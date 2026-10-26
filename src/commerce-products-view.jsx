@@ -303,6 +303,101 @@ function ProductPlatformDrawer({
   );
 }
 
+const PLANNING_COLUMNS = Object.freeze([
+  { key: 'name', label: 'Produto', get: (p) => String(p.name || '').toLowerCase() },
+  { key: 'status', label: 'Estado', get: (p) => String(p.internal_status || '') },
+  { key: 'platforms', label: 'Plataformas', get: (p) => (p.marketplace_codes || []).length },
+  { key: 'month_units', label: 'Vendas do mês', num: true, get: (p, r) => r?.month_units },
+  { key: 'daily_average', label: 'Saída diária', num: true, get: (p, r) => r?.daily_average },
+  { key: 'month_projection', label: 'Projeção do mês', num: true, get: (p, r) => r?.month_projection },
+  { key: 'historic_monthly_average', label: 'Média histórica', num: true, get: (p, r) => r?.historic_monthly_average }
+]);
+
+function PlanningTable({ items, reports, busy, error, onOpen, onReview }) {
+  const [sort, setSort] = useState({ key: '', dir: 'desc' });
+  const fmt = (value, digits = 0) => value === null || value === undefined ? '—'
+    : Number(value).toLocaleString('pt-BR', { maximumFractionDigits: digits });
+  const rows = React.useMemo(() => {
+    const column = PLANNING_COLUMNS.find(item => item.key === sort.key);
+    if (!column) return items;
+    const factor = sort.dir === 'asc' ? 1 : -1;
+    return [...items].sort((left, right) => {
+      const a = column.get(left, reports[Number(left.product_id)]);
+      const b = column.get(right, reports[Number(right.product_id)]);
+      if (a === null || a === undefined) return 1;
+      if (b === null || b === undefined) return -1;
+      return (a > b ? 1 : a < b ? -1 : 0) * factor;
+    });
+  }, [items, reports, sort]);
+  const recordedUntil = Object.values(reports).map(item => item?.recorded_until).filter(Boolean)[0];
+  const toggle = key => setSort(current => current.key === key
+    ? { key, dir: current.dir === 'desc' ? 'asc' : 'desc' }
+    : { key, dir: 'desc' });
+  return (
+    <div className="nisti-planning-table-wrap">
+      {error ? <p className="nisti-planning-note is-error">Indicadores temporariamente indisponíveis.</p>
+        : busy ? <p className="nisti-planning-note">Consultando vendas importadas…</p>
+        : <p className="nisti-planning-note">
+            {recordedUntil ? `Vendas importadas até ${String(recordedUntil).split('-').reverse().join('/')}. ` : ''}
+            Projeção é estimativa, não representa vendas realizadas. Clique no título de uma coluna para ordenar esta página.
+          </p>}
+      <div className="nisti-planning-scroll">
+        <table className="nisti-planning-table" aria-label="Planejamento de produtos">
+          <thead>
+            <tr>
+              {PLANNING_COLUMNS.map(column => (
+                <th key={column.key} className={column.num ? 'num' : ''}
+                  aria-sort={sort.key === column.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => toggle(column.key)}>
+                    {column.label}{sort.key === column.key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                  </button>
+                </th>
+              ))}
+              <th className="actions"><span className="sr-only">Ações</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(product => {
+              const id = Number(product.product_id || 0);
+              const report = reports[id];
+              const hasCurrent = report && report.month_units !== null && report.month_units !== undefined;
+              const history = Array.isArray(report?.history) ? report.history : [];
+              const historyText = history.length
+                ? 'Histórico: ' + history.map(item => `${String(item.month).slice(5)}/${String(item.month).slice(2, 4)}: ${fmt(item.units)}`).join(' · ')
+                : 'Sem histórico de vendas importado';
+              const codes = Array.isArray(product.marketplace_codes) ? product.marketplace_codes : [];
+              const coverage = coverageInfo(codes);
+              return (
+                <tr key={id} onClick={() => onOpen(product)} title="Abrir plataformas deste produto">
+                  <td className="product">
+                    <div className="nisti-planning-product">
+                      <ProductImage product={product} className="nisti-planning-thumb" />
+                      <div><strong>{product.name}</strong><code>{product.current_sku || 'SKU não informado'}</code></div>
+                    </div>
+                  </td>
+                  <td><CommerceStatusPill value={product.internal_status} /></td>
+                  <td>
+                    <span className={`commerce-coverage-tag ${coverage.kind}`}>{coverage.label}</span>
+                    {codes.length ? <small className="nisti-planning-platforms">{codes.map(marketplaceLabel).join(', ')}</small> : null}
+                  </td>
+                  <td className="num">{hasCurrent ? fmt(report.month_units) : '—'}</td>
+                  <td className="num">{hasCurrent ? fmt(report.daily_average, 2) : '—'}</td>
+                  <td className="num">{fmt(report?.month_projection)}</td>
+                  <td className="num" title={historyText}>{Number(report?.historic_months_imported || 0) ? fmt(report.historic_monthly_average, 1) : '—'}</td>
+                  <td className="actions" onClick={event => event.stopPropagation()}>
+                    <button type="button" className="commerce-card-review-button" onClick={() => onReview(product)}>Revisar status</button>
+                    <button type="button" className="commerce-card-detail-button" onClick={() => onOpen(product)}>Ver plataformas</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function CommerceProductsView() {
   const [search, setSearch] = useState('');
   const [marketplace, setMarketplace] = useState('');
@@ -452,52 +547,14 @@ export default function CommerceProductsView() {
       {message && <div className="commerce-listing-state-message">{message}</div>}
 
       {loading ? <CommerceLoadingBlock label="Carregando produtos…" /> : data.items?.length ? (
-        <div className="commerce-product-card-grid nisti-planning-grid">
-          {data.items.map(product => {
-            const productId = Number(product.product_id || 0);
-            const marketplaceCodes = Array.isArray(product.marketplace_codes) ? product.marketplace_codes : [];
-            return (
-              <article className="commerce-product-card" key={productId}>
-                <button
-                  type="button"
-                  className="commerce-product-card-main"
-                  onClick={() => openProductDetail(product)}
-                  aria-label={`Abrir detalhes de ${product.name || product.current_sku || `produto ${productId}`}`}
-                >
-                  <ProductImage product={product} className="commerce-product-card-image" />
-
-                  <div className="commerce-product-card-copy">
-                    <div className="commerce-product-card-title">
-                      <div>
-                        <h3>{product.name}</h3>
-                        <code>{product.current_sku || 'SKU não informado'}</code>
-                      </div>
-                      <CommerceStatusPill value={product.internal_status} />
-                    </div>
-
-                    <ProductCoverage marketplaceCodes={marketplaceCodes} />
-
-                    <SalesPlanningCard report={salesPlanning[productId]} loading={planningBusy} error={planningError} />
-
-                    <div className="commerce-product-card-meta">
-                      <span>{product.category_name || 'Sem categoria'}</span>
-                      <span>{commerceFormatNumber(product.listing_count || 0)} anúncio(s)</span>
-                      {product.thumbnail_source === 'NISTI_ID' ? <span className="commerce-media-source">Foto NISTI ID</span> : null}
-                    </div>
-                  </div>
-                </button>
-
-                <div className="commerce-product-card-footer">
-                  <span>Produto Mestre #{productId}</span>
-                  <div>
-                    <button type="button" className="commerce-card-review-button" onClick={() => setStateProduct(product)}>Revisar status</button>
-                    <button type="button" className="commerce-card-detail-button" onClick={() => openProductDetail(product)}>Ver plataformas</button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+        <PlanningTable
+          items={data.items}
+          reports={salesPlanning}
+          busy={planningBusy}
+          error={planningError}
+          onOpen={openProductDetail}
+          onReview={setStateProduct}
+        />
       ) : (
         <CommerceEmptyState title="Nenhum produto comercial cadastrado" detail="Os produtos aparecerão aqui após a reconciliação das fontes comerciais." />
       )}
