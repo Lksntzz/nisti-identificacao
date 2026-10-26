@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import './commerce-dashboard.css';
@@ -171,6 +171,20 @@ function ParetoChart({items}){
   </div>;
 }
 
+const pf=v=>v==null?'':String(Math.abs(v)).replace('.',',')+'%';
+// Tradução simples dos sinais em um motivo provável. É correlação observada, não prova de causa.
+function reasonFor(signal,diag){
+  const d=diag&&diag.driver&&diag.driver!=='INSUFFICIENT'&&diag.trend==='DOWN'?diag:null;
+  if(d&&d.driver==='IMPRESSIONS')return {tone:'bad',title:'Menos exposição',text:'Impressões '+pf(d.impressions_pct)+' menores (relatório Shopee): o anúncio está sendo mostrado menos.'};
+  if(d&&d.driver==='CTR')return {tone:'bad',title:'Menos cliques',text:'Cliques por impressão '+pf(d.ctr_pct)+' menores: título, foto ou preço atraem menos.'};
+  if(d&&d.driver==='CONVERSION')return {tone:'bad',title:'Converte menos',text:'Conversão '+pf(d.conversion_pct)+' menor: visitam mas compram menos (preço, avaliações ou estoque).'};
+  if(!signal)return {tone:'muted',title:'Sem dados',text:'Ainda carregando ou sem vendas suficientes para comparar.'};
+  if(signal.signal==='PRICE_UP_SALES_DOWN')return {tone:'warn',title:'Preço subiu',text:'Preço médio '+pf(signal.price_change_pct)+' maior e as unidades caíram junto.'};
+  if(signal.signal==='DROP_PRICE_STABLE')return {tone:'warn',title:'Queda sem mudança de preço',text:'Preço estável. Sem relatório de visitas/impressões deste anúncio não dá para apontar a causa.'};
+  if(signal.signal==='INSUFFICIENT')return {tone:'muted',title:'Poucas vendas',text:'Vendas insuficientes nas duas janelas para uma conclusão segura.'};
+  return {tone:'muted',title:'Sem causa clara',text:'Os dados disponíveis não explicam a queda.'};
+}
+
 export default function CommerceDashboard(){
   const [platform,setPlatform]=useState('TODAS');
   const [days,setDays]=useState(30);
@@ -181,7 +195,8 @@ export default function CommerceDashboard(){
   const [loading,setLoading]=useState(true);
   const [cls,setCls]=useState(null);
   const [curve,setCurve]=useState(false);
-  const [alertsOpen,setAlertsOpen]=useState(false);
+  const [alertView,setAlertView]=useState(null);
+  const detailRef=useRef(null);
   useEffect(()=>{
     const controller=new AbortController();
     const q='?platform='+platform+'&days='+days;
@@ -216,19 +231,25 @@ export default function CommerceDashboard(){
   const classRows=cls?allItems.filter(i=>i.class===cls):[];
   const updated=(ov.coverage||[]).map(c=>c.last_import).filter(Boolean).sort().pop();
   const alerts=[
-    {t:'bad',i:'down',h:num(data?.drops?.total)+' produtos em queda',d:'Perderam '+money(data?.drops?.lost_revenue)+' de faturamento em relação ao período anterior.'},
-    overview?{t:'warn',i:'eye',h:num(lst.active_without_sales)+' anúncios ativos sem vendas',d:'Nenhuma unidade vendida no período, de '+num(lst.active)+' anúncios ativos.'}
-      :{t:'muted',i:'eye',h:'Anúncios sem vendas: sem dados',d:'A consulta de alertas ainda não está disponível.'},
-    adsRows.length?{t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam (relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+').'}
-      :{t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:'Nenhum relatório Shopee Ads importado.'}
+    {k:'drops',t:'bad',i:'down',h:num(data?.drops?.total)+' produtos em queda',d:'Perderam '+money(data?.drops?.lost_revenue)+' de faturamento em relação ao período anterior.'},
+    overview?{k:'stopped',t:'bad',i:'pause',h:num((ov.stopped||[]).length)+((ov.stopped||[]).length>=10?'+':'')+' pararam de vender',d:'Venderam 3 ou mais unidades no período anterior e nenhuma agora.'}
+      :{k:'stopped',t:'muted',i:'pause',h:'Pararam de vender: sem dados',d:'A consulta de alertas ainda não está disponível.'},
+    overview?{k:'nosales',t:'warn',i:'eye',h:num(ov.no_sales_total??lst.active_without_sales)+' anúncios ativos sem vendas',d:'Nenhuma unidade vendida no período, de '+num(lst.active)+' anúncios ativos.'}
+      :{k:'nosales',t:'muted',i:'eye',h:'Anúncios sem vendas: sem dados',d:'A consulta de alertas ainda não está disponível.'},
+    adsRows.length?{k:'ads',t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam (relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+').'}
+      :{k:'ads',t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:'Nenhum relatório Shopee Ads importado.'}
   ];
+  const openAlert=k=>{setAlertView(v=>v===k?null:k);setTimeout(()=>detailRef.current&&detailRef.current.scrollIntoView({behavior:'smooth',block:'nearest'}),60);};
+  const daysAgo=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?null:Math.max(0,Math.floor((Date.now()-d.getTime())/86400000));};
   return <section className="ndb-root" aria-label="Dashboard comercial">
     <header className="ndb-head">
       <div className="ndb-head-title"><span className="ndb-logo"><Icon name="chart"/></span><div><h2>Gestão de Anúncios</h2>
         <p>{loading?'Consultando…':hasData?'Vendas de '+fmtDayFull(data.current_start)+' a '+fmtDayFull(data.last_day)+' · comparadas com os '+days+' dias anteriores':'Visão geral do desempenho dos produtos'}</p></div></div>
       <div className="ndb-head-filters">
-        <label className="ndb-select"><span>Período</span><select value={days} onChange={e=>setDays(Number(e.target.value))} aria-label="Período">{PERIODS.map(p=><option key={p} value={p}>Últimos {p} dias</option>)}</select></label>
-        <label className="ndb-select"><span>Plataforma</span><select value={platform} onChange={e=>setPlatform(e.target.value)} aria-label="Plataforma">{PLATFORMS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
+        <div className="ndb-fgroup"><span>Período</span>
+          <div className="ndb-seg" role="group" aria-label="Período">{PERIODS.map(p=><button key={p} type="button" className={p===days?'is-active':''} aria-pressed={p===days} onClick={()=>setDays(p)}>{p} dias</button>)}</div></div>
+        <div className="ndb-fgroup"><span>Plataforma</span>
+          <div className="ndb-seg" role="group" aria-label="Plataforma">{PLATFORMS.map(([v,l])=><button key={v} type="button" className={v===platform?'is-active':''} aria-pressed={v===platform} onClick={()=>setPlatform(v)}>{v==='TODAS'?'Todas':v==='SHOPEE'?'Shopee':'Mercado Livre'}</button>)}</div></div>
         <small>{updated?'Última importação aplicada: '+when(updated):hasData?'Dados até '+fmtDayFull(data.last_day):''}</small>
       </div>
     </header>
@@ -245,12 +266,41 @@ export default function CommerceDashboard(){
         <DailyChart daily={daily}/>
       </Panel>
       <Panel title="Atenção" icon="alert" source="alerts" className="ndb-attention">
-        <ul className="ndb-alert-list">{alerts.map((a,i)=><li key={i} className={'tone-'+a.t}><span className="ndb-alert-ico"><Icon name={a.i}/></span><div><strong>{a.h}</strong><small>{a.d}</small></div></li>)}</ul>
-        {alertsOpen&&<ul className="ndb-stopped-list">{(ov.stopped||[]).slice(0,8).map(r=><li key={r.platform+r.external_id}><span title={r.title||''}>{r.title||r.external_id}</span><small>{PLATFORM_LABEL[r.platform]||r.platform} · {num(r.units_previous)} unid. antes · {money(r.revenue_previous)}</small></li>)}
-          {(ov.stopped||[]).length===0&&<li><small>Nenhum anúncio parou de vender.</small></li>}</ul>}
-        <button type="button" className="ndb-cta" onClick={()=>setAlertsOpen(v=>!v)} aria-expanded={alertsOpen}>{alertsOpen?'Ocultar alertas':'Ver alertas'} <span aria-hidden="true">{alertsOpen?'↑':'→'}</span></button>
+        <ul className="ndb-alert-list">{alerts.map(a=><li key={a.k}><button type="button" className={'tone-'+a.t+(alertView===a.k?' is-open':'')} disabled={a.t==='muted'} aria-expanded={alertView===a.k} onClick={()=>openAlert(a.k)}>
+          <span className="ndb-alert-ico"><Icon name={a.i}/></span><span className="ndb-alert-txt"><strong>{a.h}</strong><small>{a.d}</small></span><span className="ndb-alert-go" aria-hidden="true">{alertView===a.k?'−':'+'}</span></button></li>)}</ul>
+        <button type="button" className="ndb-cta" onClick={()=>openAlert('drops')}>Ver produtos em queda <span aria-hidden="true">→</span></button>
       </Panel>
     </div>
+    {alertView&&<div ref={detailRef}><Panel title={alertView==='drops'?'Produtos em queda: quais são e por que caíram':alertView==='stopped'?'Pararam de vender':alertView==='nosales'?'Anúncios ativos sem vendas no período':'Anúncios pagos por retorno (ROAS)'} icon={alertView==='ads'?'megaphone':alertView==='nosales'?'eye':'down'} source={alertView==='ads'?'ads':'alerts'} className="ndb-detail" aside={<button type="button" className="ndb-link" onClick={()=>setAlertView(null)}>Fechar</button>}>
+      {alertView==='drops'&&<>
+        <p className="ndb-note">Comparação: últimos {days} dias contra os {days} dias anteriores. “Por que caiu” é o que os dados mostram em comum com a queda (correlação), não prova de causa. Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)}, por maior perda de faturamento.</p>
+        <div className="ndb-scroll tall"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades</th><th className="num">Variação</th><th className="num">Faturamento</th><th className="num">Perdeu</th><th className="num">Preço médio</th><th>Por que caiu</th></tr></thead><tbody>
+          {drops.map(r=>{const sg=signals[r.listing_id];const why=reasonFor(sg,diagnosis[r.listing_id]);return <tr key={r.platform+r.external_id}>
+            <td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></td>
+            <td className="num">{num(r.units_previous)} → {num(r.units)}</td><td className="num neg">{pctText(changePct(r.units,r.units_previous))}</td>
+            <td className="num">{money(r.revenue_previous)} → {money(r.revenue)}</td><td className="num neg">{money(r.lost_revenue)}</td>
+            <td className="num">{sg&&sg.price_previous!=null&&sg.price_current!=null?money(sg.price_previous)+' → '+money(sg.price_current):'—'}</td>
+            <td><span className={'ndb-why tone-'+why.tone}><strong>{why.title}</strong><small>{why.text}</small></span></td></tr>;})}
+          {drops.length===0&&!loading&&<tr><td colSpan={7} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
+        </tbody></table></div></>}
+      {alertView==='stopped'&&<div className="ndb-scroll tall"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades antes</th><th className="num">Faturamento antes</th><th>O que verificar</th></tr></thead><tbody>
+        {(ov.stopped||[]).map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></td>
+          <td className="num">{num(r.units_previous)} → 0</td><td className="num">{money(r.revenue_previous)} → R$ 0,00</td>
+          <td><span className="ndb-why tone-warn"><strong>Vendas zeraram</strong><small>Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou. O sistema não importa esses dados.</small></span></td></tr>)}
+        {(ov.stopped||[]).length===0&&<tr><td colSpan={4} className="ndb-empty">Nenhum anúncio parou de vender neste período.</td></tr>}
+      </tbody></table></div>}
+      {alertView==='nosales'&&<><p className="ndb-note">Mostrando os {Math.min((ov.no_sales||[]).length,50)} cadastrados mais recentemente, de {num(ov.no_sales_total)}.</p>
+        <div className="ndb-scroll tall"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th><th>Plataforma</th><th>Cadastrado em</th><th>Situação</th></tr></thead><tbody>
+        {(ov.no_sales||[]).map(r=>{const age=daysAgo(r.created_at);const isNew=age!=null&&age<=days;return <tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></td>
+          <td>{PLATFORM_LABEL[r.platform]||r.platform}</td><td>{r.created_at?fmtDayFull(r.created_at):'—'}{age!=null?' ('+age+' dias)':''}</td>
+          <td><span className={'ndb-why tone-'+(isNew?'good':'warn')}><strong>{isNew?'Anúncio novo':'Sem venda no período'}</strong><small>{isNew?'Criado dentro do período; pode ainda estar ganhando exposição.':'Já existia antes do período e não vendeu nenhuma unidade.'}</small></span></td></tr>;})}
+        {(ov.no_sales||[]).length===0&&<tr><td colSpan={4} className="ndb-empty">Todos os anúncios ativos venderam no período.</td></tr>}
+      </tbody></table></div></>}
+      {alertView==='ads'&&<div className="ndb-scroll tall"><table className="ndb-table ndb-detail-table"><thead><tr><th>Campanha / anúncio</th><th className="num">Investimento</th><th className="num">Vendas atribuídas</th><th className="num">ROAS</th></tr></thead><tbody>
+        {[...adsRows].sort((a,b)=>Number(a.roas)-Number(b.roas)).map((r,i)=><tr key={i}><td title={r.campaign}><strong>{r.title||r.campaign}</strong><small>{r.listing_id?'Anúncio individual':'Grupo de anúncios'}</small></td>
+          <td className="num">{money(r.spend)}</td><td className="num">{money(r.gmv)}</td><td className="num">{r.roas==null?'sem dados':<span className={'ndb-roas'+(Number(r.roas)<1?' low':'')}>{String(r.roas).replace('.',',')}x</span>}</td></tr>)}
+      </tbody></table></div>}
+    </Panel></div>}
     <Panel title="Classificação ABC dos produtos" icon="pie" source="abc" aside={<button type="button" className="ndb-link" onClick={()=>setCurve(v=>!v)}>{curve?'Ocultar curva':'Ver curva'}</button>}>
       <div className="ndb-abc">
         {classes.map(c=><button type="button" key={c.class} className={'ndb-abc-card c-'+c.class+(cls===c.class?' is-active':'')} onClick={()=>setCls(cls===c.class?null:c.class)} aria-pressed={cls===c.class}>
