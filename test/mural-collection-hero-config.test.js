@@ -11,7 +11,7 @@ const migration=fs.readFileSync(new URL('../supabase/migrations/20261006145000_m
 test('collection editor exposes optional year and hero banner metadata',()=>{
   assert.ok(admin.includes('Mostrar ano no banner'));
   assert.ok(admin.includes('Frase de destaque (hero)'));
-  assert.ok(admin.includes('Direção visual'));
+  assert.ok(admin.includes('Animação de abertura'));
   assert.ok(admin.includes('Elementos / cores do tema'));
   assert.ok(admin.includes("hero_message: (isEditingCollection ? sourceItem?.hero_message : '') || ''"));
   assert.ok(admin.includes("visual_direction: (isEditingCollection ? sourceItem?.visual_direction : '') || 'automatic'"));
@@ -34,4 +34,13 @@ test('public Mural hides optional year and prefers short hero message',()=>{
 test('Supabase publish title respects show_year',()=>{
   assert.ok(migration.includes('IF COALESCE(v_current.show_year,true)'));
   assert.ok(migration.includes('NULLIF(BTRIM(v_current.hero_message)'));
+});
+
+test('collection opening animation choice reaches the operator intro', () => {
+  const fs2 = fs;
+  const nisti = fs2.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
+  const routes = fs2.readFileSync(new URL('../src/mural-collection-routes.js', import.meta.url), 'utf8');
+  assert.ok(routes.includes("'fireworks'"));
+  assert.ok(nisti.includes("introStyle={collection.visual_direction === 'fireworks' ? 'fireworks' : 'confetti'}"));
+  assert.ok(nisti.includes('className="mural-showcase"'));
 });

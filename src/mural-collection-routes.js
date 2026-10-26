@@ -4,7 +4,7 @@ import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-wr
 // Router assembly supplies its existing validation, reply and push helpers.
 // No auth checks, SQL, mutations or response contracts change in this module.
 export function createMuralCollectionHandlers({ json, readJson, nullableText, requiredText, notifyMuralAfterPublication }) {
-const COLLECTION_VISUAL_DIRECTIONS = new Set(['automatic','delicate','premium','minimal','playful']);
+const COLLECTION_VISUAL_DIRECTIONS = new Set(['automatic','delicate','premium','minimal','playful','fireworks']);
 
 async function adminListCollections(env) {
   if (supabasePrimaryWritesRequested(env)) {

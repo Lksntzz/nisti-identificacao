@@ -912,7 +912,7 @@ function CollectionDialog({ slug, onClose }) {
         <CollectionRevealIntro
           products={products}
           title={formatCollectionTitle(collection)}
-          introStyle={collection.intro_style}
+          introStyle={collection.visual_direction === 'fireworks' ? 'fireworks' : 'confetti'}
           onComplete={() => setIntroComplete(true)}
         />
       )}
