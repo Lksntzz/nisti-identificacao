@@ -156,7 +156,9 @@ export async function handleGaHostRequest(request, env, { secure = r => r, nextA
     if (!form || !csrf || !(await equalText(String(form.get('csrf_token') || ''), csrf))) {
       return done(loginResponse(request, 'Sessão de login expirada. Atualize a página e tente novamente.', 403));
     }
-    if (!sameOrigin(request, url)) return done(json({ error: 'Origem da solicitação não autorizada.' }, 403));
+    // O formulário de login envia Origin "null" (política de referrer do site). A proteção aqui é o
+    // token CSRF + cookie SameSite=Strict; só recusamos o que o navegador declara como cross-site.
+    if (String(request.headers.get('sec-fetch-site') || '').toLowerCase() === 'cross-site') return done(json({ error: 'Origem da solicitação não autorizada.' }, 403));
     const supplied = String(form.get('password') || '');
     if (!supplied || !(await equalText(supplied, String(env.GA_PASSWORD || '')))) {
       await new Promise(resolve => setTimeout(resolve, FAILURE_DELAY_MS));
