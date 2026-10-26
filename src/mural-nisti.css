@@ -4192,3 +4192,32 @@
   .mural-launch-banner-fallback{padding-left:17px;padding-right:56px}
   .mural-collection-launch-card.has-editorial-banner:not(.is-image-ready) .mural-collection-launch-copy{padding-left:18px;padding-right:54px}
 }
+
+/* Abertura de coleção: Fogos e brilho */
+.mural-collection-reveal-intro.is-fireworks .mural-collection-reveal-vignette{
+  background:radial-gradient(circle at 50% 70%,rgba(120,84,20,.35),transparent 45%),linear-gradient(180deg,#05040a 0%,#0b0814 60%,#141020 100%);
+}
+.mural-collection-fireworks{position:absolute;inset:0;z-index:5;overflow:hidden;pointer-events:none}
+.mural-firework{position:absolute;left:var(--fw-x);top:var(--fw-y);width:0;height:0}
+.mural-firework-trail{position:absolute;left:-1.5px;top:0;width:3px;height:42px;border-radius:3px;background:linear-gradient(180deg,var(--fw-color),transparent);opacity:0}
+.mural-firework i{position:absolute;left:-2px;top:-2px;width:5px;height:5px;border-radius:50%;background:var(--fw-color);box-shadow:0 0 10px var(--fw-color),0 0 16px var(--fw-color);opacity:0;transform:rotate(var(--fw-angle)) translateY(0)}
+.mural-collection-reveal-intro.is-ready .mural-firework-trail{animation:mural-fw-rise 700ms cubic-bezier(.2,.7,.3,1) var(--fw-delay) both}
+.mural-collection-reveal-intro.is-ready .mural-firework i{animation:mural-fw-burst 1500ms cubic-bezier(.12,.8,.3,1) calc(var(--fw-delay) + 650ms) both}
+@keyframes mural-fw-rise{
+  0%{opacity:0;transform:translateY(60vh)}
+  1%{opacity:0}
+  15%{opacity:1}
+  90%{opacity:1;transform:translateY(0)}
+  100%{opacity:0;transform:translateY(0)}
+}
+@keyframes mural-fw-burst{
+  0%{opacity:0;transform:rotate(var(--fw-angle)) translateY(0) scale(1.6)}
+  4%{opacity:1}
+  60%{opacity:.95}
+  100%{opacity:0;transform:rotate(var(--fw-angle)) translateY(calc(var(--fw-size) * -1)) translateX(0) scale(.4)}
+}
+.mural-glitter{position:absolute;left:var(--gl-left);top:var(--gl-top);width:var(--gl-size);height:var(--gl-size);border-radius:50%;background:#fff7d6;box-shadow:0 0 6px #ffe08a,0 0 12px #ffd16699;opacity:0}
+.mural-collection-reveal-intro.is-ready .mural-glitter{animation:mural-glitter-twinkle 1800ms ease-in-out var(--gl-delay) infinite}
+@keyframes mural-glitter-twinkle{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1.3)}}
+.mural-collection-reveal-intro.is-fireworks .mural-collection-reveal-title small{color:#fcd34d;text-shadow:0 0 12px rgba(252,211,77,.6)}
+@media (prefers-reduced-motion: reduce){.mural-collection-fireworks{display:none}}
