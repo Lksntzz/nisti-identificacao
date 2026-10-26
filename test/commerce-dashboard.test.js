@@ -23,7 +23,8 @@ test('route validates platform and period; GA menu exposes the dashboard',()=>{
   assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard />'));
 });
 test('every card has an info icon naming its data source',()=>{
-  for(const key of ['abc','drops','top','help'])assert.ok(ui.includes('source="'+key+'"'),key);
+  for(const key of ['abc','drops','top'])assert.ok(ui.includes('source="'+key+'"'),key);
+  assert.ok(ui.includes('SOURCES.help'));
   assert.ok(ui.includes('De onde vêm os dados'));
   assert.ok(ui.includes('[7,30,60,90]'.replace(/,/g,',')) || ui.includes('PERIODS=[7,30,60,90]'));
 });
