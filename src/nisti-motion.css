@@ -1,0 +1,63 @@
+/*
+ * Camada única de movimento do painel administrativo.
+ * Regra: efeitos só ao ABRIR um painel (o conteúdo é remontado a cada clique no menu)
+ * ou ao CLICAR/SELECIONAR algo. Nada roda sozinho, em loop ou no hover.
+ * Não vale para o scanner nem para o Mural do operador.
+ */
+:root{--nm-ease:cubic-bezier(.22,.8,.26,1)}
+
+/* 1. Abrir painel: cards entram em sequência (só o card de fora, nunca os aninhados). */
+:is(.admin-view-transition,.commerce-admin-view-transition) :is([class*="-card"],[class*="kpi-box"],.nim-kpi):not(svg *):not(:is([class*="-card"],[class*="kpi-box"],.nim-kpi) *){
+  animation:nm-card-in 460ms var(--nm-ease) backwards;
+}
+:is(.admin-view-transition,.commerce-admin-view-transition) :is([class*="-card"],[class*="kpi-box"],.nim-kpi):not(:is([class*="-card"],[class*="kpi-box"],.nim-kpi) *):nth-child(2){animation-delay:50ms}
+:is(.admin-view-transition,.commerce-admin-view-transition) :is([class*="-card"],[class*="kpi-box"],.nim-kpi):not(:is([class*="-card"],[class*="kpi-box"],.nim-kpi) *):nth-child(3){animation-delay:100ms}
+:is(.admin-view-transition,.commerce-admin-view-transition) :is([class*="-card"],[class*="kpi-box"],.nim-kpi):not(:is([class*="-card"],[class*="kpi-box"],.nim-kpi) *):nth-child(4){animation-delay:150ms}
+:is(.admin-view-transition,.commerce-admin-view-transition) :is([class*="-card"],[class*="kpi-box"],.nim-kpi):not(:is([class*="-card"],[class*="kpi-box"],.nim-kpi) *):nth-child(5){animation-delay:200ms}
+:is(.admin-view-transition,.commerce-admin-view-transition) :is([class*="-card"],[class*="kpi-box"],.nim-kpi):not(:is([class*="-card"],[class*="kpi-box"],.nim-kpi) *):nth-child(n+6){animation-delay:240ms}
+@keyframes nm-card-in{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+
+/* 2. Abrir painel: gráficos se desenham uma vez. */
+:is(.admin-view-transition,.commerce-admin-view-transition) .nisti-sales-trend-chart rect{
+  transform-box:fill-box;transform-origin:50% 100%;animation:nm-bar-grow 700ms var(--nm-ease) backwards;
+}
+:is(.admin-view-transition,.commerce-admin-view-transition) .nisti-sales-trend-chart polyline{
+  stroke-dasharray:3000;stroke-dashoffset:3000;animation:nm-line-draw 1100ms var(--nm-ease) 150ms forwards;
+}
+:is(.admin-view-transition,.commerce-admin-view-transition) .nisti-sales-trend-chart circle{
+  transform-box:fill-box;transform-origin:center;animation:nm-pop 380ms var(--nm-ease) 700ms backwards;
+}
+:is(.admin-view-transition,.commerce-admin-view-transition) .nisti-sales-trend-chart :is(rect,circle):nth-of-type(2){animation-delay:50ms}
+:is(.admin-view-transition,.commerce-admin-view-transition) .nisti-sales-trend-chart :is(rect,circle):nth-of-type(3){animation-delay:100ms}
+:is(.admin-view-transition,.commerce-admin-view-transition) .nisti-sales-trend-chart :is(rect,circle):nth-of-type(4){animation-delay:150ms}
+:is(.admin-view-transition,.commerce-admin-view-transition) .nisti-sales-trend-chart :is(rect,circle):nth-of-type(n+5){animation-delay:200ms}
+:is(.admin-view-transition,.commerce-admin-view-transition) :is(.nev-bar,.nisti-progress-track){
+  transform-origin:0 50%;animation:nm-bar-fill 650ms var(--nm-ease) 120ms backwards;
+}
+@keyframes nm-bar-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes nm-bar-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes nm-line-draw{to{stroke-dashoffset:0}}
+@keyframes nm-pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+
+/* 3. Clique: botão afunda enquanto pressionado e solta um anel azul (classe aplicada pelo nisti-motion.js). */
+:is(.admin-page-content,.admin-sidebar) :is(button,[role="button"],[role="tab"]):not(:disabled):active{
+  transform:scale(.97);
+}
+.nm-click-ring{animation:nm-ring 450ms ease-out}
+@keyframes nm-ring{
+  from{box-shadow:0 0 0 0 rgba(37,99,235,.38)}
+  to{box-shadow:0 0 0 10px rgba(37,99,235,0)}
+}
+
+/* 4. Seleção: aba, filtro ou item que fica ativo dá um "pulo" curto uma única vez. */
+.admin-page-content :is([aria-selected="true"],[aria-pressed="true"],button.active,button.selected,[role="tab"].active){
+  animation:nm-select 300ms var(--nm-ease);
+}
+@keyframes nm-select{0%{transform:scale(.94)}60%{transform:scale(1.03)}100%{transform:none}}
+
+@media (prefers-reduced-motion: reduce){
+  :is(.admin-view-transition,.commerce-admin-view-transition) *,
+  .admin-page-content *,.admin-sidebar *,.nm-click-ring{animation:none!important}
+  :is(.admin-page-content,.admin-sidebar) :is(button,[role="button"],[role="tab"]):active{transform:none}
+  :is(.admin-view-transition,.commerce-admin-view-transition) .nisti-sales-trend-chart polyline{stroke-dashoffset:0}
+}
