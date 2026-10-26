@@ -15,25 +15,25 @@ test('Publicar uses a full-page studio instead of a modal', () => {
 });
 
 test('Publicar starts with three explicit content types', () => {
-  assert.ok(admin.includes("mural-studio-kind-tabs"));
-  for(const label of ['Produto','Informação','Coleção']) assert.ok(admin.includes(`<span>${label}</span>`));
-  assert.ok(admin.includes("changeKind('collection')"));
-  assert.ok(css.includes('.mural-studio-kind-tabs'));
+  assert.ok(admin.includes('className="nps-kinds" role="tablist"'));
+  for(const label of ['Produto','Informação','Coleção']) assert.ok(admin.includes(`', '${label}', '`));
+  assert.ok(admin.includes('onClick={() => changeKind(key)}'));
+  assert.ok(css.includes('.nps-kinds'));
 });
 
 test('product panel contains product search editorial image copy and system action', () => {
-  assert.ok(admin.includes('Produto e imagem de destaque'));
+  assert.ok(admin.includes('Qual produto?'));
   assert.ok(admin.includes('mural-studio-selected-product'));
   assert.ok(admin.includes('Digite o SKU, nome ou código do produto...'));
   assert.ok(admin.includes("Imagem de apoio ou foto real (opcional)"));
   assert.ok(admin.includes('Título da publicação'));
   assert.ok(admin.includes('Descrição curta'));
-  assert.ok(admin.includes('Ação no Mural'));
-  assert.ok(admin.includes("activeKind === 'collection' ? 'Ver coleção' : activeKind === 'notice' ? 'Ver aviso' : 'Ver produto'"));
+  assert.ok(!admin.includes('Ação no Mural'), 'campo fixo e não editável foi removido');
+  assert.ok(admin.includes("cta: activeKind === 'collection' ? 'Ver coleção' : activeKind === 'product' ? 'Ver produto' : 'Ver aviso'"));
 });
 
 test('information panel has priority category copy and image controls', () => {
-  assert.ok(admin.includes('Classificação e imagem do comunicado'));
+  assert.ok(admin.includes('Tipo do aviso e imagem'));
   assert.ok(admin.includes('Prioridade da publicação'));
   for (const label of ['Normal','Atenção','Importante','COMUNICADO INTERNO','PROCESSO','NOVIDADE']) {
     assert.ok(admin.includes(label), label);
@@ -55,8 +55,10 @@ test('collection panel reuses the same studio hierarchy and official collection 
 
 test('all publication panels share a right live preview and fixed action hierarchy', () => {
   assert.ok(admin.includes('Prévia 100% interativa'));
-  assert.ok(admin.includes('mural-studio-preview-pane'));
-  assert.ok(admin.includes('mural-studio-topbar-right'));
+  assert.ok(admin.includes('mural-studio-preview-pane nps-side'));
+  assert.ok(admin.includes('nps-topbar-actions'));
+  assert.ok(admin.includes('nps-checklist'));
+  assert.equal((admin.match(/setCanvaModalOpen\(true\)/g) || []).length, 1, 'um único botão do Canva');
   assert.equal((admin.match(/Salvar rascunho/g) || []).length, 1);
   assert.ok(admin.includes("busy ? 'Processando…' : publishLabel"));
   assert.ok(css.includes('.mural-studio-preview-pane'));

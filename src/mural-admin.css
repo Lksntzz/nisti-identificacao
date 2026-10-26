@@ -4501,3 +4501,49 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
 .mural-open-existing-collection{display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin-left:12px;padding:0 12px;border:1px solid #b91c1c;border-radius:8px;background:#fff;color:#991b1b;font-size:12px;font-weight:750;cursor:pointer}
 .mural-open-existing-collection:hover{background:#fff1f2}
 @media(max-width:680px){.mural-open-existing-collection{display:flex;margin:10px 0 0}}
+
+/* ===== Publicar no Mural — layout limpo (nps-*) ===== */
+.mural-studio-workspace *,.mural-studio-workspace *::before,.mural-studio-workspace *::after{box-sizing:border-box}
+.mural-studio-workspace input,.mural-studio-workspace textarea,.mural-studio-workspace select{max-width:100%;min-width:0}
+.nps-topbar{flex-wrap:nowrap;padding:12px 16px}
+.nps-topbar h2{flex:1;margin:0;font-size:17px;font-weight:800;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nps-topbar-actions{display:flex;gap:8px}
+.mural-studio-workspace .mural-studio-body{max-width:none;padding:16px;gap:16px;grid-template-columns:minmax(0,1fr) 380px;align-items:stretch}
+.mural-studio-workspace .mural-studio-form{gap:16px}
+.mural-studio-workspace .mural-studio-form>.mural-studio-card:last-of-type{flex:1}
+.mural-studio-workspace .mural-studio-split-row,.mural-studio-workspace .mural-studio-copy-grid{grid-template-columns:minmax(0,1fr)}
+.mural-studio-workspace .mural-studio-card-header{border-bottom:0;padding-bottom:0}
+.mural-studio-workspace .mural-studio-card-header strong{display:flex;align-items:center;gap:10px;font-size:15px}
+.nps-step-n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#0f172a;color:#fff;font-size:12px;font-weight:800;flex:none}
+.nps-kinds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nps-kind{display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;text-align:left;cursor:pointer;color:#0f172a}
+.nps-kind:disabled{cursor:default}.nps-kind:disabled:not(.active){opacity:.45}
+.nps-kind.active{border-color:#2563eb;background:#eff6ff}
+.nps-kind-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:9px;flex:none}
+.nps-kind.is-product .nps-kind-icon{background:#dbeafe;color:#2563eb}
+.nps-kind.is-notice .nps-kind-icon{background:#fef3c7;color:#d97706}
+.nps-kind.is-collection .nps-kind-icon{background:#ede9fe;color:#7c3aed}
+.nps-kind-text{display:flex;flex-direction:column;min-width:0}.nps-kind-text b{font-size:14px}.nps-kind-text small{font-size:12px;color:#64748b}
+.nps-more{gap:12px}
+.nps-more>summary{cursor:pointer;font-weight:700;color:#2563eb;list-style:revert}
+.nps-more>summary small{color:#94a3b8;font-weight:500;margin-left:6px}
+.nps-more .mural-studio-settings-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.nps-side{position:static;display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid #e2e8f0;border-radius:18px;background:#fff}
+.nps-side-title{margin:0;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#64748b}
+.mural-publish-v2-preview.is-compact{flex:1;padding:0;border:0;box-shadow:none;background:none}
+.nps-checklist{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13px;color:#94a3b8}
+.nps-checklist li{display:flex;align-items:center;gap:6px}.nps-checklist li.ok{color:#16a34a}
+.nps-canva-btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-weight:700;color:#334155;cursor:pointer}
+.nps-canva-btn svg{color:#7c3aed}
+@media(max-width:1120px){.mural-studio-workspace .mural-studio-body{grid-template-columns:minmax(0,1fr)}.nps-side{order:-1}}
+@media(max-width:768px){
+ .nps-topbar h2{font-size:15px}.nps-topbar-actions button{padding:0 10px;font-size:12px}
+ .nps-kind{flex-direction:column;text-align:center;gap:6px;padding:10px 6px}.nps-kind-text small{display:none}
+ .nps-more .mural-studio-settings-row{grid-template-columns:minmax(0,1fr)}
+ .mural-studio-workspace .mural-studio-body{padding:12px}
+}
+.mural-publish-v2-preview.is-compact{display:flex;flex-direction:column}
+.mural-publish-v2-preview.is-compact .mural-publish-v2-preview-body{flex:1;display:flex;flex-direction:column;padding:0;background:none}
+.mural-publish-v2-preview.is-compact .mural-preview-smartphone{flex:none;min-height:460px}
+.mural-studio-workspace .mural-studio-body>.nps-side{position:sticky;top:76px;align-self:start}
+@media(max-width:1120px){.mural-studio-workspace .mural-studio-body>.nps-side{position:static}}
