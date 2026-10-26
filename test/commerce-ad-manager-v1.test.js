@@ -11,8 +11,8 @@ const router=read('src/commerce-admin-router.js');
 const main=read('src/main.jsx');
 const admin=read('src/commerce-admin-app-v2.jsx');
 
-test('the new Gestor de Anúncios replaces the old commercial dashboard in both entry points',()=>{
-  assert.match(main,/import CommerceCommercialDashboard from '.\/commerce-ad-manager.jsx'/);
+test('the Gestor de Anúncios lives only in the GA entry point, not in the NISTI ID admin',()=>{
+  assert.doesNotMatch(main,/commerce-ad-manager/);
   assert.match(admin,/import CommerceCommercialDashboard from '.\/commerce-ad-manager.jsx'/);
   assert.match(ui,/<h2>\{commercialView==='EVOLUTION'\?'Evolução de vendas':'Gestor de Anúncios'\}<\/h2>/);
   assert.match(ui,/Lista de anúncios/);

@@ -72,8 +72,7 @@ test('Pendências shows unmatched marketplace products and keeps existing commer
 });
 
 test('new Scanner product opens existing registration form, never auto-creates a Scanner item',()=>{
-  assert.match(admin,/onCreateScanner=\{\(\) => \{ setActiveView\('catalogo'\); setCreateModalOpen\(true\); \}\}/);
   assert.match(admin,/new-scanner-product/);
-  assert.match(standalone,/window\.location\.assign\('\/admin\?new-scanner-product=1'\)/);
+  assert.match(standalone,/IS_GA \? undefined : \(\) => window\.location\.assign\('\/admin\?new-scanner-product=1'\)/);
   assert.doesNotMatch(sql,/insert into public\.products\b|update public\.products\b|delete from public\.products\b/i);
 });

@@ -6,41 +6,26 @@ function read(path) {
   return fs.readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 }
 
-test('menu administrativo expõe o Catálogo como árvore de ferramentas no painel principal', () => {
+test('menu administrativo do NISTI ID não tem mais o Painel Comercial', () => {
   const nav = read('src/admin-navigation.js');
-  assert.equal(nav.includes("title: 'COMERCIAL'"), true);
-  assert.equal(nav.includes("label: 'Painel Comercial'"), true);
-  assert.equal(nav.includes("id: 'sales'"), false);
-  assert.equal(nav.includes("id: 'import-center'"), false);
-  assert.equal(nav.includes("id: 'pending'"), true);
-  assert.equal(nav.includes("href: '/admin-commerce'"), false);
-});
-
-test('menu principal mantém as ferramentas comerciais dentro de /admin', () => {
+  assert.equal(nav.includes("title: 'COMERCIAL'"), false);
+  assert.equal(nav.includes("label: 'Painel Comercial'"), false);
   const main = read('src/main.jsx');
-  assert.equal(main.includes("window.location.href = '/admin-commerce'"), false);
-  assert.equal(main.includes("activeView === 'commerce'"), true);
-  assert.equal(main.includes("commerceSection === 'catalog'"), true);
-  assert.equal(main.includes("commerceSection === 'sales'"), true);
-  assert.equal(main.includes("commerceSection === 'import-center'"), false);
-  assert.equal(main.includes("commerceSection === 'pending'"), true);
+  assert.equal(main.includes("activeView === 'commerce'"), false);
+  assert.equal(main.includes('commerce-management-view'), false);
 });
 
-test('entry resolve /admin-commerce antes do prefixo genérico /admin', () => {
+test('/admin-commerce não existe mais no NISTI ID e o GA monta o Painel Comercial', () => {
   const entry = read('src/entry.jsx');
-  const commerce = entry.indexOf("window.location.pathname === '/admin-commerce'");
-  const admin = entry.indexOf("pathname === '/admin'");
-  const adminSubroutes = entry.indexOf("pathname.startsWith('/admin/')");
-  assert.ok(commerce >= 0);
-  assert.ok(admin > commerce);
-  assert.ok(adminSubroutes > admin);
+  assert.equal(entry.includes("window.location.pathname === '/admin-commerce'"), false);
+  assert.equal(entry.includes("if (IS_GA_HOST) return 'commerce'"), true);
   assert.equal(entry.includes("import('./commerce-admin-app-v2.jsx')"), true);
 });
 
-test('rota do Catálogo Comercial reutiliza a sessão administrativa', () => {
+test('rota antiga /admin-commerce responde 404 no NISTI ID', () => {
   const edge = read('src/edge-router.js');
   assert.equal(edge.includes("const COMMERCE_ADMIN_APP_PATH = '/admin-commerce'"), true);
-  assert.equal(edge.includes('serveProtectedAdminApp(request, env, url)'), true);
+  assert.equal(edge.includes('Esta URL não existe neste sistema.'), true);
   assert.equal(edge.includes("pathname.startsWith('/api/admin/')"), true);
 });
 

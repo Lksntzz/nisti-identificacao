@@ -101,8 +101,8 @@ const EXPLANATIONS = {
   image_treatment_failed: ['O tratamento automático da imagem falhou.', 'Tente refazer. Se continuar, troque a foto original por uma com fundo mais limpo.'],
   mural_updated: ['Algo mudou no Mural dos operadores (publicação, coleção ou imagem).', 'Abra o Mural no celular para conferir como ficou.'],
   mural_update_error: ['Não foi possível salvar uma alteração do Mural.', 'Tente de novo. Se persistir, anote a hora e veja o Saúde & Logs.'],
-  commerce_updated: ['O Painel Comercial recebeu uma alteração ou importação (anúncios, vendas ou vínculos).', 'Confira os números no Painel Comercial se foi uma importação.'],
-  commerce_update_error: ['Uma importação ou alteração do Painel Comercial falhou.', 'Confira o arquivo importado e tente de novo.'],
+  commerce_updated: ['O GA - Gestor de Anúncio recebeu uma alteração ou importação (anúncios, vendas ou vínculos).', 'Confira os números no GA se foi uma importação.'],
+  commerce_update_error: ['Uma importação ou alteração do GA falhou.', 'Confira o arquivo importado e tente de novo.'],
   operator_profile_updated: ['Um operador informou ou trocou o nome no aplicativo.', 'Serve para saber quem fez cada ação.'],
   system_activity: ['O sistema concluiu uma operação interna.', 'Nenhuma ação necessária.'],
   system_error: ['Uma operação do sistema deu erro.', 'Se o erro se repetir várias vezes, veja o painel Saúde & Logs.']
