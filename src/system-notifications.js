@@ -52,6 +52,42 @@ function ignoredActivityPath(pathname) {
     || pathname === '/api/mural/mark-all-read';
 }
 
+
+// ---- Detalhes que acompanham cada atividade (aparecem ao clicar no sino) ----
+function deviceFromUserAgent(ua) {
+  const text = String(ua || '');
+  if (!text) return null;
+  const browser = /Edg\//.test(text) ? 'Edge' : /OPR\/|Opera/.test(text) ? 'Opera'
+    : /Firefox\//.test(text) ? 'Firefox' : /Chrome\//.test(text) ? 'Chrome'
+    : /Safari\//.test(text) ? 'Safari' : 'Navegador';
+  const system = /iPhone|iPad/.test(text) ? 'iPhone/iPad' : /Android/.test(text) ? 'Android'
+    : /Windows/.test(text) ? 'Windows' : /Mac OS X|Macintosh/.test(text) ? 'Mac'
+    : /Linux/.test(text) ? 'Linux' : 'sistema desconhecido';
+  return `${browser} no ${system}`;
+}
+
+export function requestContext(request) {
+  const headers = request?.headers;
+  if (!headers?.get) return {};
+  const cf = request.cf || {};
+  const place = [cf.city, cf.region, cf.country || headers.get('cf-ipcountry')].filter(Boolean).join(', ');
+  return {
+    ip: clean(headers.get('cf-connecting-ip'), 64),
+    device: deviceFromUserAgent(headers.get('user-agent')),
+    place: clean(place, 120)
+  };
+}
+
+function compactDetails(details) {
+  if (!details || typeof details !== 'object') return null;
+  const out = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (value == null || value === '') continue;
+    out[key] = typeof value === 'string' ? value.slice(0, 160) : value;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 function productIdFromPath(pathname) {
   return pathname.match(/^\/api\/(?:products|admin\/product-image-treatment)\/(\d+)/)?.[1] || null;
 }
@@ -60,7 +96,7 @@ function responseError(data, status) {
   return clean(data?.error || data?.message, 500) || `A operação respondeu com o status ${status}.`;
 }
 
-export function describeAdminSystemActivity({ pathname, method, status, data, actorName }) {
+export function describeAdminSystemActivity({ pathname, method, status, data, actorName, context = {} }) {
   const ok = status >= 200 && status < 400;
   const productId = productIdFromPath(pathname);
   const base = {
@@ -71,6 +107,15 @@ export function describeAdminSystemActivity({ pathname, method, status, data, ac
     http_status: status,
     entity_type: productId ? 'product' : null,
     entity_id: productId,
+    details: compactDetails({
+      sku: data?.sku || data?.product?.sku || null,
+      product_name: data?.product?.nome || data?.product?.product_name || data?.nome || null,
+      product_id: data?.product?.id || data?.product_id || productId || null,
+      gtin: data?.gtin?.gtin || (typeof data?.gtin === 'string' ? data.gtin : null) || data?.product?.gtin || null,
+      variation: data?.product?.variacao || null,
+      wireo: data?.product?.wireo || null,
+      http_status: status
+    }),
     metadata: data && typeof data === 'object' ? {
       product_id: data.product_id || data.id || productId || null,
       sku: data.sku || data.product?.sku || null,
@@ -83,6 +128,7 @@ export function describeAdminSystemActivity({ pathname, method, status, data, ac
   if (pathname === '/admin-login') {
     return {
       ...base,
+      details: compactDetails({ ip: context.ip, device: context.device, place: context.place }),
       event_type: ok ? 'admin_login' : 'admin_login_failed',
       source: 'security',
       title: ok ? 'Acesso ao painel administrativo' : 'Tentativa de acesso recusada',
@@ -90,7 +136,7 @@ export function describeAdminSystemActivity({ pathname, method, status, data, ac
     };
   }
   if (pathname === '/admin-logout') {
-    return { ...base, event_type: 'admin_logout', source: 'security', title: 'Saída do painel administrativo', message: 'A sessão administrativa foi encerrada.' };
+    return { ...base, details: compactDetails({ ip: context.ip, device: context.device, place: context.place }), event_type: 'admin_logout', source: 'security', title: 'Saída do painel administrativo', message: 'A sessão administrativa foi encerrada.' };
   }
 
   const gtinLookup = pathname.match(/^\/api\/gtin\/([^/]+)$/);
@@ -248,6 +294,12 @@ export async function recordAdminActivityFromResponse(request, response, env) {
     return null;
   }
 
+  // Rota inexistente (404) ou método não permitido (405) é robô de internet sondando o site:
+  // não é atividade do sistema. O 404 do scanner (EAN não cadastrado) continua registrado.
+  if ((response.status === 404 || response.status === 405) && !isScannerLookup) {
+    return null;
+  }
+
   // Polling da expedição não é ação administrativa. Mantemos falhas no histórico.
   if (isSuccessfulDispatchPolling(pathname, response.status)) {
     return null;
@@ -262,7 +314,8 @@ export async function recordAdminActivityFromResponse(request, response, env) {
     method,
     status: Number(response.status || 0),
     data,
-    actorName: operatorNameFromRequest(request)
+    actorName: operatorNameFromRequest(request),
+    context: requestContext(request)
   });
   return recordAdminSystemNotification(env, event);
 }

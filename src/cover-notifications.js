@@ -134,14 +134,17 @@ export async function recordAdminSystemNotification(env, event = {}) {
   const severity = ['info', 'success', 'warning', 'error'].includes(event.severity)
     ? event.severity
     : 'info';
-  const envelope = JSON.stringify({
+  const baseEnvelope = {
     source:cleanAdminValue(event.source, 80) || 'system',
     severity,
     actor_name:cleanAdminValue(event.actor_name, 100),
     entity_type:cleanAdminValue(event.entity_type, 80),
     request_method:cleanAdminValue(event.request_method, 12),
     http_status:Number.isInteger(Number(event.http_status)) ? Number(event.http_status) : null
-  }).slice(0, 1000);
+  };
+  // Detalhes entram inteiros ou não entram: cortar o texto no meio quebraria o JSON.
+  let envelope = JSON.stringify({ ...baseEnvelope, details:event.details || null });
+  if (envelope.length > 1800) envelope = JSON.stringify(baseEnvelope);
 
   const result = await mirrorSupabaseRpc(env, 'nisti_record_admin_system_notification_v1', {
     p_row: {
@@ -187,6 +190,7 @@ export async function listAdminSystemNotifications(env, limit = 80) {
         request_path:row.image_key || null,
         request_method:envelope.request_method || null,
         http_status:envelope.http_status == null ? null : Number(envelope.http_status),
+        details:envelope.details && typeof envelope.details === 'object' ? envelope.details : null,
         metadata:null,
         is_read:row.is_read === true || Number(row.is_read) === 1,
         read_at:row.read_at || null,
