@@ -32,12 +32,13 @@ test('store e router expõem detalhe por Produto Mestre', () => {
   assert.equal(router.includes('/products\\/(\\d+)\\/details'), true);
 });
 
-test('Produtos Mestre usam cards com tags exclusivo e multiplataforma', () => {
+test('Produtos Mestre usam tabela compacta com tags exclusivo e multiplataforma', () => {
   const view = read('src/commerce-products-view.jsx');
   assert.equal(view.includes("label: 'Exclusivo'"), true);
   assert.equal(view.includes("label: 'Multiplataforma'"), true);
   assert.equal(view.includes("label: 'Sem anúncio'"), true);
-  assert.equal(view.includes('commerce-product-card-grid'), true);
+  assert.equal(view.includes('nisti-planning-table'), true);
+  assert.equal(view.includes('PlanningTable'), true);
   assert.equal(view.includes('Ver plataformas'), true);
 });
 
