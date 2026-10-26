@@ -17,6 +17,8 @@ import './commerce-evolution-polish.css';
 import './commerce-zero-sales-filters.css';
 import GlareHover from './vendor/react-bits/GlareHover.jsx';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
+import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
+import './commerce-price-signal.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
 import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals, importedTotalsForExactWindow } from './commerce-ad-evidence.js';
 
@@ -652,6 +654,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const noSalesValue=kpi.zero_ads;
   const changeNoSales=()=>change(setStatus,status==='ZERO'?'ALL':'ZERO');
   const rows=Array.isArray(data?.items)?data.items:[];
+  const {signals:priceSignals,window:signalWindow}=usePriceSignals(rows,days);
   useEffect(()=>{
     const controller=new AbortController();
     const shopeeIds=(Array.isArray(data?.items)?data.items:[])
@@ -939,7 +942,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <div className="nim-table-scroll">
           <table className="nim-ad-table" aria-label="Anúncios ativos e desempenho"><thead><tr>
             <th>Plataforma</th><th>Nome e ID do anúncio</th><th>{hasMixedPartial?'Unid. identificadas':hasShopeePartial?'Unid. vinculadas':'Unid.'} {periodLabel(days,month)}</th>
-            <th>Variações</th><th>{hasMixedPartial?'Faturamento identificado':hasShopeePartial?'Faturamento vinculado':'Faturamento'}</th><th>ABC</th><th>Vendas</th>
+            <th>Variações</th><th>{hasMixedPartial?'Faturamento identificado':hasShopeePartial?'Faturamento vinculado':'Faturamento'}</th><th>ABC</th><th>Vendas</th><th>Preço × vendas</th>
           </tr></thead><tbody>
             {!loading&&rows.map((item,index)=>{
               const linked=listingLinkedSalesForPeriod(item,days);
@@ -963,10 +966,11 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
               <td data-label="Curva ABC">{item.curve?<span className={'nim-curve badge-'+item.curve.toLowerCase()}
                 title={item.curve_partial?'ABC indicativa: calculada apenas com vendas identificadas':'Curva ABC por vendas consolidadas'}>{item.curve}{item.curve_partial?'*':''}</span>:'—'}</td>
               <td data-label="Situação"><Situation item={item} days={days}/></td>
+              <td data-label="Preço × vendas"><PriceSignalCell signal={priceSignals[String(item.id)]} window={signalWindow}/></td>
             </tr>;
             })}
-            {loading&&<tr><td colSpan={7} className="nim-table-empty">Carregando anúncios…</td></tr>}
-            {!loading&&!error&&rows.length===0&&<tr><td colSpan={7} className="nim-table-empty">
+            {loading&&<tr><td colSpan={8} className="nim-table-empty">Carregando anúncios…</td></tr>}
+            {!loading&&!error&&rows.length===0&&<tr><td colSpan={8} className="nim-table-empty">
               {status==='ZERO'?'Nenhum anúncio com zero vendas registradas e SKU conferido nesta janela.':
                 'Nenhum anúncio encontrado para o filtro.'}</td></tr>}
           </tbody></table>

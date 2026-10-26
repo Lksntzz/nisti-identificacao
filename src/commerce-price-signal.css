@@ -1,0 +1,6 @@
+.nim-price-signal{display:flex;flex-direction:column;gap:2px;font-size:12px;line-height:1.25;min-width:150px}
+.nim-price-signal small{opacity:.75}
+.nim-price-signal.tone-warn strong{color:#b45309}
+.nim-price-signal.tone-bad strong{color:#b91c1c}
+.nim-price-signal.tone-good strong{color:#15803d}
+.nim-price-signal.tone-muted{opacity:.6}
