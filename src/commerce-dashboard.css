@@ -243,3 +243,7 @@
 @media (max-width:700px){.ndb-kpis{grid-template-columns:1fr}}
 .ndb-explorer .ndb-detail-table td strong,.ndb-explorer .ndb-detail-table td small{max-width:250px}
 .ndb-explorer .ndb-why{min-width:0;max-width:300px}.ndb-explorer .ndb-why small{max-width:280px!important}
+/* Animação de crescimento do gráfico (desenha da esquerda para a direita) */
+.ndb-reveal{animation:ndbReveal .9s cubic-bezier(.22,.61,.36,1) both}
+@keyframes ndbReveal{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@media (prefers-reduced-motion:reduce){.ndb-reveal{animation:none}}

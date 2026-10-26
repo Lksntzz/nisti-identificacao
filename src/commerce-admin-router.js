@@ -43,6 +43,7 @@ import {
   commerceSalesImportHistory,
   commerceSalesDashboardV1,
   commerceSalesDashboardSeriesV1,
+  commerceSalesDashboardSegmentSeriesV1,
   commerceSalesDashboardOverviewV1,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
@@ -515,6 +516,14 @@ export async function handleCommerceAdminRequest(request, env) {
       if(!['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)||![7,30,60,90].includes(days))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardSeriesV1(env,{platform,days}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/segment-series'){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      const days=Number(query(url,'days')||30);
+      const segment=String(query(url,'segment')||'').toLowerCase();
+      if(!['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)||![7,30,60,90].includes(days)||!['drops','stopped','best','a','b','c'].includes(segment))
+        return json({error:'Filtro do dashboard inválido.'},400);
+      return json(await commerceSalesDashboardSegmentSeriesV1(env,{platform,days,segment}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/overview'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();

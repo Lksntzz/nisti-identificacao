@@ -120,10 +120,11 @@ function useBox(){
 }
 
 // Vendas por dia: linha do período atual (com preenchimento) contra o período anterior (tracejado).
-function DailyChart({daily}){
+function DailyChart({daily,animKey}){
   const [hover,setHover]=useState(null);
   const [boxRef,{W,H}]=useBox();
   const n=daily.length;
+  const reduce=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!n)return <p className="ndb-empty">Sem dados diários para este período.</p>;
   const L=46,R=10,T=8,B=20,iw=W-L-R,ih=H-T-B;
   const tot=d=>Number(d.shopee)+Number(d.ml);
@@ -140,10 +141,12 @@ function DailyChart({daily}){
       onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;setHover(Math.max(0,Math.min(n-1,Math.round((px-L)/iw*(n-1)))));}}>
       <defs><linearGradient id="ndbfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1d5fd1" stopOpacity=".22"/><stop offset="1" stopColor="#1d5fd1" stopOpacity="0"/></linearGradient></defs>
       {ticks.map(t=><g key={t}><line x1={L} x2={W-R} y1={y(t)} y2={y(t)} className="ndb-grid-line"/><text x={L-8} y={y(t)+4} textAnchor="end" className="ndb-axis">{axisMoney(t)}</text></g>)}
+      <g key={animKey} className={reduce?'':'ndb-reveal'}>
       <path d={line(tot)+' L'+x(n-1).toFixed(1)+' '+y(0)+' L'+x(0).toFixed(1)+' '+y(0)+' Z'} fill="url(#ndbfill)"/>
       <path d={line(d=>Number(d.prev_revenue)||0)} fill="none" stroke="#8a97ab" strokeWidth="1.6" strokeDasharray="5 4" strokeLinecap="round"/>
       <path d={line(tot)} fill="none" stroke="#1d5fd1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
       {daily.map((d,i)=>n<=31&&<circle key={i} cx={x(i)} cy={y(tot(d))} r="2.3" fill="#1d5fd1"/>)}
+      </g>
       {xt.map(i=><text key={i} x={x(i)} y={H-5} textAnchor={i===0?'start':i===n-1?'end':'middle'} className="ndb-axis">{fmtDay(daily[i].day)}</text>)}
       {h&&<g><line x1={x(hover)} x2={x(hover)} y1={T} y2={T+ih} className="ndb-cross"/><circle cx={x(hover)} cy={y(tot(h))} r="4.5" fill="#fff" stroke="#1d5fd1" strokeWidth="2.2"/></g>}
     </svg>
@@ -233,9 +236,12 @@ export default function CommerceDashboard(){
   const [loading,setLoading]=useState(true);
   const [cls,setCls]=useState(null);
   const [curve,setCurve]=useState(false);
-  const [tab,setTab]=useState('best');
+  const [tab,setTabRaw]=useState('best');
+  const [focus,setFocus]=useState(false);
+  const setTab=k=>{setTabRaw(k);setFocus(true);};
   const [helpOpen,setHelpOpen]=useState(false);
   const [nsf,setNsf]=useState('all');
+  const [segSeries,setSegSeries]=useState(null);
   useEffect(()=>{
     const controller=new AbortController();
     const q='?platform='+platform+'&days='+days;
@@ -249,6 +255,15 @@ export default function CommerceDashboard(){
       .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});
     return()=>controller.abort();
   },[platform,days]);
+  const segment=!focus?null:tab==='best'?'best':tab==='drops'?'drops':tab==='stopped'?'stopped':(tab==='abc'&&cls)?cls.toLowerCase():null;
+  useEffect(()=>{
+    if(!segment){setSegSeries(null);return undefined;}
+    const controller=new AbortController();
+    setSegSeries(null);
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/segment-series?platform='+platform+'&days='+days+'&segment='+segment,{signal:controller.signal})
+      .then(setSegSeries).catch(()=>{if(!controller.signal.aborted)setSegSeries(null);});
+    return()=>controller.abort();
+  },[platform,days,segment]);
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
@@ -257,7 +272,9 @@ export default function CommerceDashboard(){
   const classes=data?.abc?.classes||[];
   const allItems=data?.abc?.items||[];
   const hasData=data&&data.last_day;
-  const daily=series?.daily||[];
+  const SEG_TITLE={best:'Vendas dos 15 anúncios que mais faturam',drops:'Vendas dos anúncios em queda',stopped:'Vendas dos anúncios que pararam de vender',a:'Vendas dos produtos da classe A',b:'Vendas dos produtos da classe B',c:'Vendas dos produtos da classe C'};
+  const segActive=Boolean(segment&&segSeries&&segSeries.segment&&segSeries.segment.toLowerCase()===segment);
+  const daily=segActive?(segSeries.daily||[]):(series?.daily||[]);
   const shopeeTotal=daily.reduce((a,d)=>a+Number(d.shopee||0),0);
   const mlTotal=daily.reduce((a,d)=>a+Number(d.ml||0),0);
   const ov=overview||{};
@@ -317,10 +334,10 @@ export default function CommerceDashboard(){
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
-        <Panel title="Vendas ao longo do período" icon="chart" source="daily" className="ndb-chart-panel" aside={hasData&&<span className="ndb-plat-split">
+        <Panel title={segActive?SEG_TITLE[segment]+' ('+num(segSeries.listings)+')':segment?'Carregando…':'Vendas ao longo do período'} icon="chart" source="daily" className="ndb-chart-panel" aside={hasData&&<span className="ndb-plat-split">{segment&&<button type="button" className="ndb-link" onClick={()=>setFocus(false)}>Voltar ao total</button>}
           {shopeeTotal>0&&<span><i style={{background:PLAT_COLOR.SHOPEE}}/>Shopee {money(shopeeTotal)}</span>}{mlTotal>0&&<span><i style={{background:PLAT_COLOR.ML_ANTIGO}}/>ML {money(mlTotal)}</span>}
           <span><i className="ln"/>Atual</span><span><i className="ln dash"/>Anterior</span></span>}>
-          <DailyChart daily={daily}/>
+          <DailyChart daily={daily} animKey={platform+days+(segActive?segment:'total')}/>
         </Panel>
         <section className="ndb-panel ndb-explorer">
           <header className="ndb-tabs-head">
@@ -371,7 +388,7 @@ export default function CommerceDashboard(){
           </tbody></table></div>}
           {tab==='abc'&&<>
             <div className="ndb-abc-bar-row">
-              <div className="ndb-seg" role="group" aria-label="Classe">{[[null,'Todas'],['A','A'],['B','B'],['C','C']].map(([v,l])=><button key={l} type="button" className={v===cls?'is-active':''} aria-pressed={v===cls} onClick={()=>setCls(v)}>{l}</button>)}</div>
+              <div className="ndb-seg" role="group" aria-label="Classe">{[[null,'Todas'],['A','A'],['B','B'],['C','C']].map(([v,l])=><button key={l} type="button" className={v===cls?'is-active':''} aria-pressed={v===cls} onClick={()=>{setCls(v);setFocus(true);}}>{l}</button>)}</div>
               <button type="button" className="ndb-link" onClick={()=>setCurve(v=>!v)}>{curve?'Ver lista':'Ver curva'}</button>
             </div>
             {curve?<ParetoChart items={allItems}/>
