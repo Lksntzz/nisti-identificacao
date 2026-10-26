@@ -17,20 +17,6 @@ export const ADMIN_MENU_SECTIONS = Object.freeze([
     ])
   },
   {
-    title: 'COMERCIAL',
-    items: Object.freeze([
-      {
-        id: 'commerce',
-        label: 'Painel Comercial',
-        icon: 'grid',
-        children: Object.freeze([
-          { id: 'catalog', label: 'Painel Comercial' },
-          { id: 'pending', label: 'Pendências' }
-        ])
-      }
-    ])
-  },
-  {
     title: 'BIPAGENS',
     items: Object.freeze([
       { id: 'historico-ean', label: 'Histórico de Bipagens', icon: 'history' },

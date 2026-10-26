@@ -39,9 +39,6 @@ function getInitialRoute() {
     // Even if an offline shell is shown by the browser, do not mount Scanner.
     return 'dispatch-admin';
   }
-  if (window.location.pathname === '/admin-commerce') {
-    return 'commerce';
-  }
   if (window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')) {
     return 'admin';
   }

@@ -19,7 +19,6 @@ test('Admin navigation exposes only operationally useful tools', () => {
     'catalogo',
     'mural-nisti',
     'gerador-barras',
-    'commerce',
     'historico-ean',
     'ean-nao-cadastrados',
     'nisti-dispatch',
@@ -52,7 +51,6 @@ test('Admin navigation keeps catalog, barcode generator, commerce, operations an
   for (const expected of [
     'Produtos NISTI',
     'Gerador de Barras',
-    'Painel Comercial',
     'Histórico de Bipagens',
     'EAN não Cadastrados',
     'Saúde & Logs'
@@ -92,7 +90,7 @@ test('Admin source has no legacy duplicate navigation or dead PlatformsView', ()
 test('Admin navigation groups tools into clear sections', () => {
   assert.deepEqual(
     ADMIN_MENU_SECTIONS.map(section => section.title),
-    ['CADASTRO', 'COMERCIAL', 'BIPAGENS', 'COMUNICAÇÃO', 'SISTEMA']
+    ['CADASTRO', 'BIPAGENS', 'COMUNICAÇÃO', 'SISTEMA']
   );
 });
 
@@ -110,18 +108,9 @@ test('Mural NISTI exposes its tools as a submenu of the main admin navigation', 
   );
 });
 
-test('Catálogo exposes commercial tools as an expandable submenu', () => {
-  const catalog = flattenedItems().find(item => item.id === 'commerce');
-  assert.ok(catalog);
-  assert.equal(catalog.href, undefined);
-  assert.deepEqual(
-    catalog.children.map(item => item.id),
-    ['catalog','pending']
-  );
-  assert.deepEqual(
-    catalog.children.map(item => item.label),
-    ['Painel Comercial','Pendências']
-  );
+test('O Painel Comercial não existe mais no NISTI ID (vive só no GA)', () => {
+  assert.equal(flattenedItems().some(item => item.id === 'commerce'), false);
+  assert.equal(ADMIN_MENU_SECTIONS.some(section => section.title === 'COMERCIAL'), false);
 });
 
 test('admin sidebar component keeps expandable Mural and Catálogo trees without navigation regressions', () => {

@@ -601,7 +601,11 @@ export default {
       headers.set('x-robots-tag','noindex, nofollow');
       return withSecurityHeaders(new Response(response.body,{status:response.status,statusText:response.statusText,headers}));
     }
-    if ((pathname === ADMIN_APP_PATH || pathname === COMMERCE_ADMIN_APP_PATH) && request.method === 'GET') {
+    // O Painel Comercial saiu do NISTI ID: vive só no GA - Gestor de Anúncio.
+    if (pathname === COMMERCE_ADMIN_APP_PATH || pathname.startsWith(`${COMMERCE_ADMIN_APP_PATH}/`)) {
+      return withSecurityHeaders(json({ error: 'Esta URL não existe neste sistema.' }, 404));
+    }
+    if (pathname === ADMIN_APP_PATH && request.method === 'GET') {
       return serveProtectedAdminApp(request, env, url);
     }
 

@@ -13,9 +13,6 @@ import ProductsWithoutGtinView from './admin/ProductsWithoutGtinView.jsx';
 import MuralNistiAdminView from './admin/MuralNistiAdminView.jsx';
 import NotificationDispatchView from './admin/NotificationDispatchView.jsx';
 import MuralNisti from './mural-nisti.jsx';
-import CommerceManagementView from './commerce-management-view.jsx';
-import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
-import './commerce-admin.css';
 import './nisti-motion.css';
 import './nisti-motion.js';
 import ProductCutoutImage from './product-cutout-image.jsx';
@@ -886,7 +883,7 @@ function AdminApp() {
 
         <main className="admin-page-content">
           <div key={activeView} className="admin-view-transition">
-            {!['mural-nisti','commerce','nisti-dispatch'].includes(activeView) && (
+            {!['mural-nisti','nisti-dispatch'].includes(activeView) && (
               <>
                 <WelcomeDateBanner />
                 {/* Dashboard de Produtividade da Expedição & KPIs */}
@@ -910,12 +907,6 @@ function AdminApp() {
               </section>
             ) : <MuralNistiAdminView activeSection={muralSection} onSectionChange={setMuralSection} />)}
 
-            {activeView === 'commerce' && (
-              <div className="commerce-admin-inline-view">
-                {(commerceSection === 'catalog' || commerceSection === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
-                {commerceSection === 'pending' && <CommerceManagementView mode="pending" onCreateScanner={() => { setActiveView('catalogo'); setCreateModalOpen(true); }} />}
-              </div>
-            )}
 
             {activeView === 'catalogo' && (
               <CatalogView

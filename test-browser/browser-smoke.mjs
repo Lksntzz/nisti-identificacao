@@ -96,8 +96,8 @@ test('menu lateral expande Mural e Catálogo, com títulos e submenus verdadeiro
     await page.getByRole('button', { name: 'Recolher Mural NISTI' }).click();
     assert.equal(await page.locator('.sidebar-submenu-item').filter({ hasText: 'Publicar' }).count(), 0);
 
-    await page.getByRole('button', { name: 'Expandir Painel Comercial' }).click();
-    await assertVisible(page.locator('.sidebar-submenu-item').filter({ hasText: 'Pendências' }));
+    // O Painel Comercial saiu do NISTI ID (vive só no GA).
+    assert.equal(await page.getByRole('button', { name: 'Expandir Painel Comercial' }).count(), 0);
   } finally { await context.close(); }
 });
 
