@@ -574,16 +574,14 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
                   </div>
 
                   <label className="mural-publish-v2-field">
-                    Direção visual
+                    Animação de abertura
+                    {/* Guardada em visual_direction: o campo não tinha outro uso na tela do operador. */}
                     <select
-                      value={collectionForm.visual_direction}
+                      value={collectionForm.visual_direction === 'fireworks' ? 'fireworks' : 'automatic'}
                       onChange={e => setCol('visual_direction', e.target.value)}
                     >
-                      <option value="automatic">Automática (Harmonização inteligente)</option>
-                      <option value="delicate">Delicada (Tons pastéis e florais)</option>
-                      <option value="premium">Premium (Dourado, contrastes sóbrios)</option>
-                      <option value="minimal">Minimalista (Geométrico, monocromático)</option>
-                      <option value="playful">Divertida (Cores vivas e lúdicas)</option>
+                      <option value="automatic">Confete — produtos em leque (padrão)</option>
+                      <option value="fireworks">Fogos e brilho — produtos apresentados um a um</option>
                     </select>
                   </label>
 

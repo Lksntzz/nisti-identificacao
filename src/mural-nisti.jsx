@@ -587,7 +587,66 @@ function collectionRevealPosition(index, totalProducts) {
   };
 }
 
-function CollectionRevealIntro({ products, title, onComplete }) {
+const FIREWORK_BURSTS = [
+  { x: 22, y: 24, delay: 150, color: '#ffd166', size: 150 },
+  { x: 76, y: 18, delay: 650, color: '#fff3c4', size: 170 },
+  { x: 50, y: 12, delay: 1150, color: '#f9a8d4', size: 130 },
+  { x: 16, y: 52, delay: 1700, color: '#fcd34d', size: 120 },
+  { x: 84, y: 46, delay: 2150, color: '#fde68a', size: 140 },
+  { x: 38, y: 30, delay: 2700, color: '#ffffff', size: 160 },
+  { x: 64, y: 34, delay: 3250, color: '#fbbf24', size: 150 },
+  { x: 26, y: 16, delay: 3900, color: '#fff3c4', size: 160 },
+  { x: 72, y: 26, delay: 4500, color: '#f9a8d4', size: 140 },
+  { x: 46, y: 20, delay: 5200, color: '#ffd166', size: 180 },
+  { x: 18, y: 36, delay: 5900, color: '#ffffff', size: 130 },
+  { x: 82, y: 30, delay: 6500, color: '#fcd34d', size: 160 }
+];
+
+const SHOWCASE_LIMIT = 6;
+const SHOWCASE_STEP = 1150;
+function showcaseSpacing(count) {
+  return Math.min(96, 300 / Math.max(1, count - 1 || 1));
+}
+
+function CollectionFireworks() {
+  return (
+    <span className="mural-collection-fireworks" aria-hidden="true">
+      {FIREWORK_BURSTS.map((burst, index) => (
+        <span
+          key={index}
+          className="mural-firework"
+          style={{
+            '--fw-x': `${burst.x}%`,
+            '--fw-y': `${burst.y}%`,
+            '--fw-delay': `${burst.delay}ms`,
+            '--fw-color': burst.color,
+            '--fw-size': `${burst.size}px`
+          }}
+        >
+          <span className="mural-firework-trail" />
+          {Array.from({ length: 18 }, (_, ray) => (
+            <i key={ray} style={{ '--fw-angle': `${ray * 20}deg` }} />
+          ))}
+        </span>
+      ))}
+      {Array.from({ length: 22 }, (_, index) => (
+        <b
+          key={index}
+          className="mural-glitter"
+          style={{
+            '--gl-left': `${4 + ((index * 41) % 92)}%`,
+            '--gl-top': `${6 + ((index * 23) % 70)}%`,
+            '--gl-delay': `${(index * 211) % 2600}ms`,
+            '--gl-size': `${2 + (index % 3)}px`
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
+export function CollectionRevealIntro({ products, title, onComplete, introStyle = 'confetti' }) {
+  const fireworks = introStyle === 'fireworks';
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const expectedImageCount = products.filter(product => Boolean(product?.image_url)).length;
@@ -597,7 +656,10 @@ function CollectionRevealIntro({ products, title, onComplete }) {
   const secondaryStart = 2100;
   const secondaryStep = 1500;
   const secondaryDuration = 1250;
-  const titleDelay = secondaryCount
+  const showcaseProducts = products.slice(0, SHOWCASE_LIMIT);
+  const titleDelay = fireworks
+    ? 600 + showcaseProducts.length * SHOWCASE_STEP + 700
+    : secondaryCount
     ? secondaryStart + (secondaryCount - 1) * secondaryStep + secondaryDuration + 350
     : 2850;
   const titleDuration = 2400;
@@ -662,7 +724,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
 
   return (
     <div
-      className={`mural-collection-reveal-intro${ready ? ' is-ready' : ''}${leaving ? ' is-leaving' : ''}`}
+      className={`mural-collection-reveal-intro${fireworks ? ' is-fireworks' : ''}${ready ? ' is-ready' : ''}${leaving ? ' is-leaving' : ''}`}
       role="button"
       tabIndex={0}
       aria-label={`Pular apresentação da coleção ${title} e abrir informações`}
@@ -675,6 +737,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
       onTransitionEnd={handleIntroTransitionEnd}
     >
       <span className="mural-collection-reveal-vignette" aria-hidden="true" />
+      {fireworks ? <CollectionFireworks /> : (
       <span className="mural-collection-party-effects" aria-hidden="true">
         {Array.from({ length: 28 }, (_, index) => {
           const colors = ['#ff6b8a','#ffd166','#6ee7b7','#7dd3fc','#c4b5fd','#f9a8d4'];
@@ -695,6 +758,29 @@ function CollectionRevealIntro({ products, title, onComplete }) {
           );
         })}
       </span>
+      )}
+      {fireworks ? (
+        <div className="mural-showcase" aria-hidden="true" style={{ '--showcase-count': showcaseProducts.length }}>
+          {showcaseProducts.map((product, index) => (
+            <span
+              key={product.id}
+              className="mural-showcase-product"
+              style={{
+                '--showcase-delay': `${600 + index * SHOWCASE_STEP}ms`,
+                '--showcase-x': `${(index - (showcaseProducts.length - 1) / 2) * showcaseSpacing(showcaseProducts.length)}px`
+              }}
+            >
+              <span className="mural-showcase-glow" />
+              <CollectionProductImage product={product} eager onReady={() => markProductReady(product.id)} />
+            </span>
+          ))}
+          {products.length > SHOWCASE_LIMIT && (
+            <span className="mural-showcase-more" style={{ '--showcase-delay': `${600 + SHOWCASE_LIMIT * SHOWCASE_STEP}ms` }}>
+              +{products.length - SHOWCASE_LIMIT} produtos
+            </span>
+          )}
+        </div>
+      ) : (<>
       <span className="mural-collection-reveal-white-arc" aria-hidden="true" />
       <div className={`mural-collection-reveal-fan fan-${Math.min(products.length,4)}`} aria-hidden="true">
         <span className="mural-collection-reveal-product is-main">
@@ -721,6 +807,7 @@ function CollectionRevealIntro({ products, title, onComplete }) {
           );
         })}
       </div>
+      </>)}
       <span
         className="mural-collection-reveal-title"
         style={{
@@ -825,6 +912,7 @@ function CollectionDialog({ slug, onClose }) {
         <CollectionRevealIntro
           products={products}
           title={formatCollectionTitle(collection)}
+          introStyle={collection.visual_direction === 'fireworks' ? 'fireworks' : 'confetti'}
           onComplete={() => setIntroComplete(true)}
         />
       )}

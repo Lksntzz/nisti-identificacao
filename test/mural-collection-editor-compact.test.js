@@ -23,7 +23,7 @@ test('collection product selection is searchable visual and ordered',()=>{
 
 test('collection advanced metadata stays available without cluttering the main panel',()=>{
   assert.ok(view.includes('mural-publish-v2-collection-advanced'));
-  assert.ok(view.includes('Direção visual'));
+  assert.ok(view.includes('Animação de abertura'));
   assert.ok(view.includes('Elementos / cores do tema'));
   assert.ok(view.includes('Descrição da coleção'));
 });
