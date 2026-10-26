@@ -1,22 +1,36 @@
-/* Planejamento de Produtos: cartões legíveis e filtros compactos (GA - Gestor de Anúncio). */
-.nisti-planning-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:center}
-.nisti-planning-filters>form{grid-column:1/-1;display:flex;gap:10px;min-width:0}
+/* Planejamento de Produtos: cartões compactos e filtros em uma linha (GA - Gestor de Anúncio). */
+.nisti-planning-filters{display:grid;grid-template-columns:minmax(0,2fr) repeat(4,minmax(0,1fr));gap:8px;align-items:center}
+.nisti-planning-filters>form{display:flex;gap:8px;min-width:0}
 .nisti-planning-filters>form input{flex:1;min-width:0}
+.nisti-planning-filters select,.nisti-planning-filters input,.nisti-planning-filters button{min-height:36px;font-size:13px}
 .nisti-planning-filters>select{width:100%;min-width:0}
-@media(max-width:900px){.nisti-planning-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1100px){.nisti-planning-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.nisti-planning-filters>form{grid-column:1/-1}}
 @media(max-width:520px){.nisti-planning-filters{grid-template-columns:1fr}}
 
-.nisti-planning-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,430px),1fr));gap:16px;align-items:start}
-.nisti-planning-grid .commerce-product-card{display:grid;grid-template-columns:minmax(0,1fr);min-height:0}
-.nisti-planning-grid .commerce-product-card-main{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;align-items:start;padding:14px}
-.nisti-planning-grid .commerce-product-card-image{width:96px;height:96px;min-height:0;object-fit:contain;border-radius:12px;border:1px solid #e2e8f0;background:#fff}
-.nisti-planning-grid .commerce-product-card-image.commerce-image-placeholder{display:grid;place-items:center;color:#94a3b8;font-size:11px;font-weight:800;text-align:center;padding:6px}
-.nisti-planning-grid .commerce-product-card-copy{min-width:0}
-.nisti-planning-grid .commerce-product-card-title{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
-.nisti-planning-grid .commerce-product-card-title h3{font-size:13.5px;line-height:1.35;overflow-wrap:anywhere}
-.nisti-planning-grid .nisti-product-planning-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
-.nisti-planning-grid .nisti-product-planning-metrics strong{font-size:1rem;white-space:nowrap}
-.nisti-planning-grid .nisti-product-planning-metrics span{white-space:normal}
-.nisti-planning-grid .nisti-product-planning-history{overflow-x:auto;scrollbar-width:thin}
-.nisti-planning-grid .nisti-product-planning-history>div{flex:0 0 52px}
-@media(max-width:520px){.nisti-planning-grid .commerce-product-card-main{grid-template-columns:72px minmax(0,1fr)}.nisti-planning-grid .commerce-product-card-image{width:72px;height:72px}}
+.nisti-planning-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:10px;padding:14px 16px;align-items:start}
+.nisti-planning-grid .commerce-product-card{display:grid;grid-template-columns:minmax(0,1fr);min-height:0;border-radius:12px}
+.nisti-planning-grid .commerce-product-card-main{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px}
+.nisti-planning-grid .commerce-product-card-image{width:44px;height:44px;min-height:0;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0;background:#fff;padding:0}
+.nisti-planning-grid .commerce-product-card-image.commerce-image-placeholder{display:grid;place-items:center;color:#94a3b8;font-size:8px;font-weight:800;text-align:center;padding:2px}
+.nisti-planning-grid .commerce-product-card-copy{min-width:0;gap:6px}
+.nisti-planning-grid .commerce-product-card-title{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:start}
+.nisti-planning-grid .commerce-product-card-title h3{font-size:12.5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.nisti-planning-grid .commerce-product-card-title code{font-size:9px;padding:2px 5px}
+.nisti-planning-grid .commerce-product-coverage{gap:5px}
+.nisti-planning-grid .commerce-coverage-tag{min-height:19px;padding:2px 7px;font-size:8px}
+.nisti-planning-grid .commerce-platform-tag{padding:2px 6px;font-size:8px}
+.nisti-planning-grid .nisti-product-planning{margin:2px 0;padding:7px 8px;gap:6px;border-radius:9px}
+.nisti-planning-grid .nisti-product-planning-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.nisti-planning-grid .nisti-product-planning-metrics span{font-size:.56rem;line-height:1.2;white-space:normal;letter-spacing:.01em}
+.nisti-planning-grid .nisti-product-planning-metrics strong{font-size:.8rem;white-space:nowrap}
+.nisti-planning-grid .nisti-product-planning-history{overflow-x:auto;scrollbar-width:thin;gap:3px}
+.nisti-planning-grid .nisti-product-planning-history>div{flex:0 0 42px;padding:3px 2px}
+.nisti-planning-grid .nisti-product-planning-history span{font-size:.56rem}
+.nisti-planning-grid .nisti-product-planning-history strong{font-size:.68rem}
+.nisti-planning-grid .nisti-product-planning>small{display:none}
+.nisti-planning-grid .commerce-product-card-meta{font-size:9px;gap:4px 8px}
+.nisti-planning-grid .commerce-product-card-footer{padding:7px 12px}
+.nisti-planning-grid .commerce-product-card-footer>span{display:none}
+.nisti-planning-grid .commerce-product-card-footer>div{width:100%;justify-content:flex-end}
+.nisti-planning-grid .commerce-card-review-button,.nisti-planning-grid .commerce-card-detail-button{padding:6px 9px;font-size:9px}
+.nisti-planning-grid .nisti-product-planning-metrics>div{grid-template-rows:2.45em auto;align-content:start}
