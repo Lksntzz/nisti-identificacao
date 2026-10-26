@@ -5,6 +5,8 @@ import LOGO from './assets/logo.png';
 import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
+import './nisti-motion.css';
+import './nisti-motion.js';
 
 const NAV_ITEMS = Object.freeze([
   { id: 'catalog', label: 'Painel Comercial', icon: 'grid' },

@@ -16,6 +16,8 @@ import MuralNisti from './mural-nisti.jsx';
 import CommerceManagementView from './commerce-management-view.jsx';
 import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
 import './commerce-admin.css';
+import './nisti-motion.css';
+import './nisti-motion.js';
 import ProductCutoutImage from './product-cutout-image.jsx';
 import ProductImageTreatmentWorker from './product-image-treatment-worker.jsx';
 import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
