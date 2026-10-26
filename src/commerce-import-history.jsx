@@ -50,30 +50,29 @@ export default function CommerceImportHistory(){
   const pages=Math.max(1,Math.ceil(total/limit));
   return <section className="nih-root" aria-label="Histórico de importações de vendas">
     <div className="nih-coverage">
-      {coverage.map(c=><article key={c.platform_code} className="nih-cover-card">
-        <h4>{PLATFORM_LABEL[c.platform_code]||c.platform_code}</h4>
-        <p><strong>{fmtDate(c.first_day)}</strong> até <strong>{fmtDate(c.last_day)}</strong></p>
-        <small>{num(c.units)} unid. · {money(c.revenue)}</small>
-        <small className={Number(c.days_without_sales)>0?'nih-warn':'nih-ok'}>
-          {Number(c.days_without_sales)>0?num(c.days_without_sales)+' dia(s) sem nenhuma venda registrada no intervalo':'Sem dias faltando no intervalo'}
-        </small>
-      </article>)}
+      {coverage.map(c=>{const gaps=Number(c.days_without_sales)>0;return <article key={c.platform_code} className="nih-cover-card">
+        <header><h4>{PLATFORM_LABEL[c.platform_code]||c.platform_code}</h4>
+          <span className={'nih-cover-status '+(gaps?'is-warn':'is-ok')}>
+            {gaps?num(c.days_without_sales)+' dia(s) sem venda':'Sem dias faltando'}</span></header>
+        <p className="nih-cover-range">{fmtDate(c.first_day)} <span>até</span> {fmtDate(c.last_day)}</p>
+        <dl><div><dt>Unidades</dt><dd>{num(c.units)}</dd></div><div><dt>Faturamento</dt><dd>{money(c.revenue)}</dd></div></dl>
+      </article>;})}
     </div>
     <div className="nih-toolbar">
-      <label>Plataforma <select value={platform} onChange={e=>{setOffset(0);setPlatform(e.target.value);}}>
+      <label><span>Plataforma</span><select value={platform} onChange={e=>{setOffset(0);setPlatform(e.target.value);}}>
         {PLATFORMS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
       <small>{loading?'Consultando…':num(total)+' importações'}</small>
     </div>
     {error&&<p className="nih-error" role="alert">{error}</p>}
-    <div className="nih-scroll"><table className="nih-table"><thead><tr>
+    <div className="nih-card"><div className="nih-scroll"><table className="nih-table"><thead><tr>
       <th>Plataforma</th><th>Arquivo</th><th>Período do relatório</th><th>Situação</th>
       <th className="num">Pedidos</th><th className="num">Unidades</th><th className="num">Faturamento</th>
       <th className="num">Anúncios c/ venda</th><th>Importado em</th></tr></thead><tbody>
       {items.map(i=>{const st=STATUS_LABEL[i.status]||[i.status,'muted'];return <tr key={i.batch_id}>
-        <td data-label="Plataforma">{PLATFORM_LABEL[i.platform_code]||i.platform_code}</td>
+        <td data-label="Plataforma" className="nih-platform">{PLATFORM_LABEL[i.platform_code]||i.platform_code}</td>
         <td data-label="Arquivo" className="nih-file" title={i.source_filename}><strong>{fileLabel(i.source_filename)}</strong>
           <small>Lote {i.batch_id}{part(i.source_filename)?' · '+part(i.source_filename):''}</small></td>
-        <td data-label="Período" title={SOURCE_NOTE[i.period_source]||'Período não identificado.'}>
+        <td data-label="Período" className="nih-period" title={SOURCE_NOTE[i.period_source]||'Período não identificado.'}>
           {i.period_start?fmtDate(i.period_start)+' – '+fmtDate(i.period_end):'—'}</td>
         <td data-label="Situação"><span className={'nih-badge tone-'+st[1]}>{st[0]}</span></td>
         <td data-label="Pedidos" className="num">{num(i.orders)}</td>
@@ -84,7 +83,7 @@ export default function CommerceImportHistory(){
       </tr>;})}
       {!loading&&!error&&items.length===0&&<tr><td colSpan={9} className="nih-empty">Nenhuma importação encontrada.</td></tr>}
       {loading&&<tr><td colSpan={9} className="nih-empty">Carregando…</td></tr>}
-    </tbody></table></div>
+    </tbody></table></div></div>
     <footer className="nih-footer">
       <span>Página {Math.floor(offset/limit)+1} de {pages}</span>
       <div><button type="button" disabled={loading||offset===0} onClick={()=>setOffset(v=>Math.max(0,v-limit))}>Anterior</button>
