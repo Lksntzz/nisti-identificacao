@@ -262,7 +262,7 @@ export default function CommerceDashboard(){
   const mlTotal=daily.reduce((a,d)=>a+Number(d.ml||0),0);
   const ov=overview||{};
   const lst=ov.listings||{};
-  const adsRows=ov.ads?.rows||[];
+  const adsRows=platform==='ML_ANTIGO'?[]:(ov.ads?.rows||[]);
   const lowRoas=adsRows.filter(r=>r.roas!=null&&Number(r.roas)<1);
   const totalProducts=classes.reduce((a,c)=>a+Number(c.products||0),0)||1;
 
@@ -271,12 +271,12 @@ export default function CommerceDashboard(){
   const updated=(ov.coverage||[]).map(c=>c.last_import).filter(Boolean).sort().pop();
   const alerts=[
     {k:'drops',t:'bad',i:'down',h:num(data?.drops?.total)+' produtos em queda',d:'Perderam '+money(data?.drops?.lost_revenue)+' de faturamento em relação ao período anterior.'},
-    overview?{k:'stopped',t:'bad',i:'pause',h:num((ov.stopped||[]).length)+((ov.stopped||[]).length>=10?'+':'')+' pararam de vender',d:'Venderam 3 ou mais unidades no período anterior e nenhuma agora.'}
+    overview?{k:'stopped',t:'bad',i:'pause',h:num(ov.stopped_total??(ov.stopped||[]).length)+' pararam de vender',d:'Venderam 3 ou mais unidades no período anterior e nenhuma agora.'}
       :{k:'stopped',t:'muted',i:'pause',h:'Pararam de vender: sem dados',d:'A consulta de alertas ainda não está disponível.'},
     overview?{k:'nosales',t:'warn',i:'eye',h:num(ov.no_sales_total??lst.active_without_sales)+' anúncios ativos sem vendas',d:'Nenhuma unidade vendida no período, de '+num(lst.active)+' anúncios ativos.'}
       :{k:'nosales',t:'muted',i:'eye',h:'Anúncios sem vendas: sem dados',d:'A consulta de alertas ainda não está disponível.'},
-    adsRows.length?{k:'ads',t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam (relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+').'}
-      :{k:'ads',t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:'Nenhum relatório Shopee Ads importado.'}
+    adsRows.length&&platform!=='ML_ANTIGO'?{k:'ads',t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam. Relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+' (período próprio, não segue o filtro).'}
+      :{k:'ads',t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:platform==='ML_ANTIGO'?'Não há relatório de anúncios do Mercado Livre importado.':'Nenhum relatório Shopee Ads importado.'}
   ];
   const openAlert=k=>{if(k==='abc'){setTab('abc');return;}setTab(k);};
   
@@ -285,7 +285,7 @@ export default function CommerceDashboard(){
   const TABS=[
     ['best','Melhores produtos',null],
     ['drops','Em queda',data?.drops?.total],
-    ['stopped','Pararam',overview?stoppedRows.length:null],
+    ['stopped','Pararam',overview?(ov.stopped_total??stoppedRows.length):null],
     ['nosales','Sem vendas',overview?(ov.no_sales_total??lst.active_without_sales):null],
     ['ads','Anúncios pagos (ROAS)',adsRows.length||null],
     ['abc','Curva ABC',null]
@@ -348,11 +348,11 @@ export default function CommerceDashboard(){
             {drops.length===0&&!loading&&<tr><td colSpan={6} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. “Por que caiu” é correlação, não prova de causa.</p></>}
-          {tab==='stopped'&&<div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades antes</th><th className="num">Faturamento antes</th><th>O que verificar</th></tr></thead><tbody>
+          {tab==='stopped'&&<div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Unidades antes</th><th className="num">Faturamento antes</th><th>O que verificar</th></tr></thead><tbody>
             {stoppedRows.map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></td>
-              <td className="num">{num(r.units_previous)} → 0</td><td className="num">{money(r.revenue_previous)} → R$ 0,00</td>
+              <td className="num">{r.last_sale?fmtDayFull(r.last_sale):'—'}</td><td className="num">{num(r.units_previous)} → 0</td><td className="num">{money(r.revenue_previous)} → R$ 0,00</td>
               <td><span className="ndb-why tone-warn"><strong>Vendas zeraram</strong><small>Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</small></span></td></tr>)}
-            {stoppedRows.length===0&&<tr><td colSpan={4} className="ndb-empty">{overview?'Nenhum anúncio parou de vender neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
+            {stoppedRows.length===0&&<tr><td colSpan={5} className="ndb-empty">{overview?'Nenhum anúncio parou de vender neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>}
           {tab==='nosales'&&<><div className="ndb-abc-bar-row">
             <div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',(ov.no_sales||[]).length],['stopped','Vendia e parou',(ov.no_sales||[]).filter(r=>r.last_sale).length],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length]].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>
