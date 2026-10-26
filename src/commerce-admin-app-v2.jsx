@@ -4,6 +4,7 @@ import './commerce-admin.css';
 import LOGO from './assets/logo.png';
 import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
+import CommerceDashboard from './commerce-dashboard.jsx';
 import CommerceImportHistory from './commerce-import-history.jsx';
 import './nisti-motion.css';
 import './nisti-motion.js';
@@ -13,12 +14,14 @@ const LOGOUT_ACTION = IS_GA ? '/ga-logout' : '/admin-logout';
 if (IS_GA && typeof document !== 'undefined') document.title = 'GA - Gestor de Anúncio';
 
 const NAV_ITEMS = Object.freeze([
+  { id: 'dashboard', label: 'Dashboard', icon: 'chart' },
   { id: 'catalog', label: 'Painel Comercial', icon: 'grid' },
   { id: 'planning', label: 'Planejamento de Produtos', icon: 'package' },
   { id: 'imports', label: 'Histórico de importações', icon: 'list' }
 ]);
 
 const VIEW_TITLES = Object.freeze({
+  dashboard: 'Dashboard',
   catalog: 'Painel Comercial',
   planning: 'Planejamento de Produtos NISTI',
   sales: 'Painel Comercial',
@@ -26,6 +29,7 @@ const VIEW_TITLES = Object.freeze({
 });
 
 const VIEW_DESCRIPTIONS = Object.freeze({
+  dashboard: 'Curva ABC, quedas de vendas e anúncios que mais vendem, por plataforma e período.',
   catalog: 'Catálogo ativo e indicadores de vendas no mesmo painel, com Curva ABC e análise detalhada.',
   planning: 'Vendas do mês, saída diária, projeção, histórico e anúncios exclusivos por plataforma.',
   sales: 'Pedidos, unidades, faturamento e itens sem venda por plataforma, período e SKU.',
@@ -233,6 +237,7 @@ export default function CommerceAdminAppV2() {
 
             {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
             {activeView === 'planning' && <CommerceProductsView />}
+            {activeView === 'dashboard' && <CommerceDashboard />}
             {activeView === 'imports' && <CommerceImportHistory />}
           </div>
         </main>

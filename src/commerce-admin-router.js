@@ -41,6 +41,7 @@ import {
   commerceImportShopeePerformance,
   commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
+  commerceSalesDashboardV1,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
   commerceImportShopeeAftercare,
@@ -505,6 +506,13 @@ export async function handleCommerceAdminRequest(request, env) {
       if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id))||![7,30,60,90].includes(days))
         return json({error:'Filtro de preço e vendas inválido.'},400);
       return json(await commerceListingPriceSignal(env,{ids,days}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard'){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      const days=Number(query(url,'days')||30);
+      if(!['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)||![7,30,60,90].includes(days))
+        return json({error:'Filtro do dashboard inválido.'},400);
+      return json(await commerceSalesDashboardV1(env,{platform,days}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales/import-history'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
