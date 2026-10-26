@@ -23,8 +23,8 @@ test('route validates platform and period; GA menu exposes the dashboard',()=>{
   assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard />'));
 });
 test('every card has an info icon naming its data source',()=>{
-  for(const key of ['abc','drops','best','ads','alerts','trust'])assert.ok(ui.includes('source="'+key+'"'),key);
-  assert.ok(ui.includes('SOURCES.help'));
+  for(const key of ['abc','drops','best','ads','alerts','daily'])assert.ok(ui.includes('source="'+key+'"'),key);
+  assert.ok(ui.includes('SOURCES.help')&&ui.includes('SOURCES.trust'));
   assert.ok(ui.includes('De onde vêm os dados'));
   assert.ok(ui.includes('[7,30,60,90]'.replace(/,/g,',')) || ui.includes('PERIODS=[7,30,60,90]'));
 });
@@ -44,6 +44,6 @@ test('series and overview SQL are read-only, service_role only and expose routes
   assert.ok(router.includes("/sales-dashboard/series")&&router.includes("/sales-dashboard/overview"));
 });
 test('missing data is shown as sem dados, never zero',()=>{
-  assert.ok(ui.includes('Sem dados')&&ui.includes('falta cadastrar o custo do produto'));
-  assert.ok(ui.includes("sem relatório Shopee Ads importado"));
+  assert.ok(ui.includes('Sem dados: falta cadastrar o custo do produto'));
+  assert.ok(ui.includes("Anúncios pagos: sem dados"));
 });
