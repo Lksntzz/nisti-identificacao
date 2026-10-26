@@ -263,6 +263,16 @@ export async function commerceListingPriceSignal(env,{ids=[],days=30}={}) {
   return {signals:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
 }
 
+export async function commerceSalesImportHistory(env,filters={}) {
+  const platform=cleanText(filters.platform)||'TODAS';
+  const data=await supabaseRpc(env,'commerce_sales_import_history_v1',{
+    p_platform:platform,
+    p_limit:cleanPageSize(filters.limit),
+    p_offset:cleanOffset(filters.offset)
+  },{timeoutMs:10000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{total:0,items:[],coverage:[]};
+}
+
 export async function commerceVariationReview(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const days=Number(filters.days);
