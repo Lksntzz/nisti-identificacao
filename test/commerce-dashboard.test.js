@@ -55,3 +55,15 @@ test('listingUrl builds marketplace links from the platform and listing id',()=>
   assert.ok(src.includes('rel="noopener noreferrer"'));
   assert.equal((src.match(/<Ext platform=/g)||[]).length,4);
 });
+test('ABC is computed per platform: never mixes Shopee, ML Antigo and ML Novo',()=>{
+  const m=read('supabase/migrations/20261026270000_commerce_dashboard_abc_per_platform_v1.sql');
+  assert.match(m,/partition by platform_code order by revenue desc,product_key/);
+  assert.match(m,/partition by platform_code\) total_rev/);
+  assert.match(m,/classes_by_platform/);
+  assert.match(m,/a\.platform_code=l\.platform_code/);
+  assert.doesNotMatch(m,/\b(insert into|update public|delete from|drop )\b/i);
+  assert.ok(ui.includes("platform==='TODAS'?abcPlat:platform"));
+  assert.ok(ui.includes('classes_by_platform'));
+  assert.ok(ui.includes("i.platform===abcP"));
+  assert.ok(ui.includes("key={i.platform+'|'+i.key}"));
+});
