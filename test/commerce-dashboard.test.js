@@ -45,5 +45,5 @@ test('series and overview SQL are read-only, service_role only and expose routes
 });
 test('missing data is shown as sem dados, never zero',()=>{
   assert.ok(ui.includes('Sem dados: falta cadastrar o custo do produto'));
-  assert.ok(ui.includes("Anúncios pagos: sem dados"));
+  assert.ok(ui.includes("Gasto e retorno de anúncios: sem dados"));
 });

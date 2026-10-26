@@ -108,7 +108,7 @@ function KpiCard({icon,label,source,value,chip,foot,muted}){
 function DailyChart({daily}){
   const [hover,setHover]=useState(null);
   const n=daily.length;
-  if(!n)return <p className="ndb-empty">Sem vendas no período.</p>;
+  if(!n)return <p className="ndb-empty">Sem dados diários para este período.</p>;
   const W=760,H=250,L=50,R=12,T=12,B=28,iw=W-L-R,ih=H-T-B;
   const tot=d=>Number(d.shopee)+Number(d.ml);
   const maxV=niceMax(Math.max(...daily.map(d=>Math.max(tot(d),Number(d.prev_revenue)||0))));
@@ -181,7 +181,6 @@ export default function CommerceDashboard(){
   const [loading,setLoading]=useState(true);
   const [cls,setCls]=useState(null);
   const [curve,setCurve]=useState(false);
-  const [best,setBest]=useState('revenue');
   const [alertsOpen,setAlertsOpen]=useState(false);
   useEffect(()=>{
     const controller=new AbortController();
@@ -212,19 +211,16 @@ export default function CommerceDashboard(){
   const adsRows=ov.ads?.rows||[];
   const lowRoas=adsRows.filter(r=>r.roas!=null&&Number(r.roas)<1);
   const totalProducts=classes.reduce((a,c)=>a+Number(c.products||0),0)||1;
-  const bestRows=best==='units'?(ov.top_units||[]).slice(0,8).map(r=>({...r,a:num(r.units),b:money(r.revenue),delta:[r.units,r.units_previous]}))
-    :best==='growth'?(ov.growth||[]).slice(0,8).map(r=>({...r,a:'+'+num(r.units-r.units_previous),b:num(r.units_previous)+' → '+num(r.units),delta:[r.units,r.units_previous]}))
-    :best==='roas'?adsRows.filter(r=>r.listing_id&&r.roas!=null).sort((a,b)=>Number(b.roas)-Number(a.roas)).slice(0,8).map(r=>({platform:'SHOPEE',external_id:'Ads',title:r.title||r.campaign,a:String(r.roas).replace('.',',')+'x',b:'gasto '+money(r.spend)}))
-    :top.slice(0,8).map(r=>({...r,a:money(r.revenue),b:num(r.units)+' unid.',delta:[r.units,r.units_previous]}));
-  const bestHead=best==='units'?['Unidades','Faturamento']:best==='growth'?['Unid. a mais','Antes → agora']:best==='roas'?['ROAS','Gasto']:['Faturamento','Unidades'];
+  const bestRows=[...top].sort((a,b)=>Number(b.units)-Number(a.units)).slice(0,5);
+  const adsByListing=Object.fromEntries(adsRows.filter(r=>r.listing_id).map(r=>[r.listing_id,r]));
   const classRows=cls?allItems.filter(i=>i.class===cls):[];
   const updated=(ov.coverage||[]).map(c=>c.last_import).filter(Boolean).sort().pop();
   const alerts=[
-    {t:'bad',i:'down',h:num(data?.drops?.total)+' anúncios em queda',d:'Perderam '+money(data?.drops?.lost_revenue)+' em relação ao período anterior.'},
-    {t:'bad',i:'pause',h:num((ov.stopped||[]).length)+((ov.stopped||[]).length>=10?'+':'')+' pararam de vender',d:'Ativos que venderam 3 ou mais unidades antes e nenhuma agora.'},
-    {t:'warn',i:'eye',h:num(lst.active_without_sales)+' ativos sem venda',d:'De '+num(lst.active)+' ativos, nenhuma unidade no período.'},
-    adsRows.length?{t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' campanhas com ROAS abaixo de 1',d:'Gastaram mais do que venderam (relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+').'}
-      :{t:'muted',i:'megaphone',h:'Anúncios pagos: sem dados',d:'Nenhum relatório Shopee Ads importado.'}
+    {t:'bad',i:'down',h:num(data?.drops?.total)+' produtos em queda',d:'Perderam '+money(data?.drops?.lost_revenue)+' de faturamento em relação ao período anterior.'},
+    overview?{t:'warn',i:'eye',h:num(lst.active_without_sales)+' anúncios ativos sem vendas',d:'Nenhuma unidade vendida no período, de '+num(lst.active)+' anúncios ativos.'}
+      :{t:'muted',i:'eye',h:'Anúncios sem vendas: sem dados',d:'A consulta de alertas ainda não está disponível.'},
+    adsRows.length?{t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam (relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+').'}
+      :{t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:'Nenhum relatório Shopee Ads importado.'}
   ];
   return <section className="ndb-root" aria-label="Dashboard comercial">
     <header className="ndb-head">
@@ -241,8 +237,8 @@ export default function CommerceDashboard(){
     {hasData&&<div className="ndb-kpis">
       <KpiCard icon="money" label="Faturamento total" source="kpi" value={money(totals.cur_rev)} chip={<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={'vs. '+money(totals.prev_rev)+' no período anterior'}/>
       <KpiCard icon="box" label="Unidades vendidas" source="kpi" value={num(totals.cur_units)} chip={<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={'vs. '+num(totals.prev_units)+' no período anterior'}/>
-      <KpiCard icon="cart" label="Pedidos" source={SOURCES.kpi+' Pedidos são somados por anúncio: um pedido com dois anúncios diferentes conta duas vezes.'} value={ov.orders?num(ov.orders.current):'—'} chip={ov.orders&&<Delta cur={ov.orders.current} prev={ov.orders.previous}/>} foot={ov.orders?'vs. '+num(ov.orders.previous)+' no período anterior':'sem dados'}/>
-      <KpiCard icon="list" label="Anúncios ativos" source="alerts" value={ov.listings?num(lst.active):'—'} foot={ov.listings?num(lst.inactive)+' inativos · '+num(lst.active_without_sales)+' ativos sem venda':'sem dados'}/>
+      <KpiCard icon="megaphone" muted label="Investimento em anúncios" source="ads" value="Sem dados" foot="sem relatório de anúncios para este período"/>
+      <KpiCard icon="chart" muted label="ROAS dos anúncios" source="ads" value="Sem dados" foot="depende do investimento em anúncios"/>
     </div>}
     <div className="ndb-row r-main">
       <Panel title="Vendas ao longo do período" icon="chart" source="daily" aside={hasData&&<span className="ndb-plat-split">{shopeeTotal>0&&<span><i style={{background:PLAT_COLOR.SHOPEE}}/>Shopee {money(shopeeTotal)}</span>}{mlTotal>0&&<span><i style={{background:PLAT_COLOR.ML_ANTIGO}}/>ML {money(mlTotal)}</span>}</span>}>
@@ -271,33 +267,32 @@ export default function CommerceDashboard(){
     </Panel>
     <div className="ndb-row r-half">
       <Panel title="Melhores produtos" icon="trophy" source="best">
-        <div className="ndb-tabs" role="group" aria-label="Critério">
-          {[['revenue','Faturamento'],['units','Unidades'],['growth','Crescimento'],['roas','ROAS (Ads)']].map(([v,l])=><button key={v} type="button" className={v===best?'is-active':''} aria-pressed={v===best} onClick={()=>setBest(v)}>{l}</button>)}
-        </div>
-        <table className="ndb-table"><thead><tr><th>Produto</th><th className="num">{bestHead[0]}</th><th className="num">{bestHead[1]}</th></tr></thead><tbody>
-          {bestRows.map((r,i)=><tr key={(r.platform||'')+(r.external_id||'')+i}><td title={r.title||''}><strong>{i+1}. {r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform}{r.external_id&&r.external_id!=='Ads'?' · '+r.external_id:''}</small></td>
-            <td className="num"><b>{r.a}</b>{r.delta&&<> <Delta cur={r.delta[0]} prev={r.delta[1]}/></>}</td><td className="num">{r.b}</td></tr>)}
-          {bestRows.length===0&&<tr><td colSpan={3} className="ndb-empty">Sem dados para este critério no período.</td></tr>}
+        <table className="ndb-table"><thead><tr><th>Produto</th><th className="num">Unidades</th><th className="num">Faturamento</th></tr></thead><tbody>
+          {bestRows.map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.sku||r.external_id}</small></td>
+            <td className="num"><b>{num(r.units)}</b></td><td className="num"><span className="ndb-roas">{money(r.revenue)}</span></td></tr>)}
+          {bestRows.length===0&&!loading&&<tr><td colSpan={3} className="ndb-empty">Sem vendas no período.</td></tr>}
         </tbody></table>
       </Panel>
       <Panel title="Produtos em queda" icon="down" source="drops">
-        <div className="ndb-scroll"><table className="ndb-table ndb-drops"><thead><tr><th>Anúncio</th><th className="num">Variação</th><th className="num">Unidades</th><th className="num">Perdeu</th><th>Preço × vendas e causa</th></tr></thead><tbody>
-          {drops.slice(0,8).map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></td>
-            <td className="num neg">{pctText(changePct(r.units,r.units_previous))}</td><td className="num">{num(r.units_previous)} → {num(r.units)}</td><td className="num neg">{money(r.lost_revenue)}</td>
-            <td><PriceSignalCell signal={signals[r.listing_id]} window={days} diagnosis={diagnosis[r.listing_id]}/></td></tr>)}
-          {drops.length===0&&!loading&&<tr><td colSpan={5} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
-        </tbody></table></div>
-        {drops.length>8&&<p className="ndb-note">Mostrando 8 de {num(data.drops?.total)} anúncios em queda, por maior perda de faturamento.</p>}
+        <table className="ndb-table"><thead><tr><th>Produto</th><th className="num">Variação</th><th className="num">Vendas</th></tr></thead><tbody>
+          {drops.slice(0,5).map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.sku||r.external_id}</small></td>
+            <td className="num neg">{pctText(changePct(r.units,r.units_previous))}</td><td className="num">{num(r.units)}</td></tr>)}
+          {drops.length===0&&!loading&&<tr><td colSpan={3} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
+        </tbody></table>
+        {drops.length>5&&<p className="ndb-note">Mostrando 5 de {num(data.drops?.total)} em queda, por maior perda de faturamento.</p>}
       </Panel>
     </div>
-    <Panel title="Desempenho dos anúncios pagos (Shopee Ads)" icon="megaphone" source="ads">
-      <p className="ndb-note">{adsRows.length?'Relatório de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+'. Período próprio do arquivo, não segue o filtro. Grupos e anúncios individuais podem contar as mesmas vendas: não some as linhas.':'Nenhum relatório importado. Importe o relatório “Dados gerais” em Importar, opção Shopee Ads.'}</p>
-      {adsRows.length>0&&<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Campanha / anúncio</th><th>Tipo</th><th className="num">Impressões</th><th className="num">Cliques</th><th className="num">CTR</th><th className="num">Investimento</th><th className="num">Vendas atribuídas</th><th className="num">ROAS</th></tr></thead><tbody>
-        {adsRows.map((r,i)=><tr key={i}><td title={r.campaign}><strong>{r.title||r.campaign}</strong></td><td>{r.listing_id?'Anúncio individual':'Grupo de anúncios'}</td>
-          <td className="num">{num(r.impressions)}</td><td className="num">{num(r.clicks)}</td><td className="num">{r.impressions?String((r.clicks/r.impressions*100).toFixed(2)).replace('.',',')+'%':'—'}</td>
-          <td className="num">{money(r.spend)}</td><td className="num">{money(r.gmv)}</td>
-          <td className="num">{r.roas==null?'sem dados':<span className={'ndb-roas'+(Number(r.roas)<1?' low':'')}>{String(r.roas).replace('.',',')}x</span>}</td></tr>)}
-      </tbody></table></div>}
+    <Panel title="Desempenho dos anúncios" icon="megaphone" source="ads">
+      <div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Investimento</th><th className="num">Vendas atribuídas</th><th className="num">ROAS</th></tr></thead><tbody>
+        {top.slice(0,8).map(r=>{const ad=adsByListing[r.listing_id];return <tr key={r.platform+r.external_id}>
+          <td title={r.title||''}><strong>{r.title||r.external_id}{r.sku?'  |  '+r.sku:''}</strong></td>
+          <td>{PLATFORM_LABEL[r.platform]||r.platform}</td>
+          <td><span className={'ndb-status'+(r.status==='ACTIVE'?' on':'')}>{r.status==='ACTIVE'?'Ativo':'Inativo'}</span></td>
+          <td className="num">{ad?money(ad.spend):'sem dados'}</td><td className="num">{money(r.revenue)}</td>
+          <td className="num">{ad&&ad.roas!=null?<span className={'ndb-roas'+(Number(ad.roas)<1?' low':'')}>{String(ad.roas).replace('.',',')}x</span>:'sem dados'}</td></tr>;})}
+        {top.length===0&&!loading&&<tr><td colSpan={6} className="ndb-empty">Sem vendas no período.</td></tr>}
+      </tbody></table></div>
+      <p className="ndb-note">Vendas = faturamento do anúncio no período escolhido. Investimento e ROAS vêm do relatório Shopee Ads importado (período próprio) e só aparecem para anúncios com campanha individual.</p>
     </Panel>
     <details className="ndb-fold"><summary>Confiabilidade dos dados e definições<InfoIcon text={SOURCES.trust} label="Confiabilidade"/></summary>
       <div className="ndb-trust">
