@@ -70,6 +70,15 @@ function Ext({platform,id}){
   </a>;
 }
 
+function ExtList({links}){
+  const list=(links||[]).filter(l=>listingUrl(l.platform,l.external_id));
+  if(!list.length)return <span className="ndb-muted">sem link</span>;
+  const shown=list.slice(0,4);
+  return <span className="ndb-extlist">{shown.map(l=>{const name=l.platform==='SHOPEE'?'Shopee':'Mercado Livre';
+    return <a key={l.platform+l.external_id} className={'ndb-extchip '+(l.platform==='SHOPEE'?'shp':'ml')} href={listingUrl(l.platform,l.external_id)} target="_blank" rel="noopener noreferrer" title={'Abrir no '+name+' · '+num(l.units)+' unid. · '+money(l.revenue)}>{l.platform==='SHOPEE'?'Shopee':'ML'}<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/></svg></a>;})}
+    {list.length>shown.length&&<span className="ndb-muted" title={list.slice(4).map(l=>l.external_id).join(', ')}>+{list.length-shown.length}</span>}</span>;
+}
+
 function Delta({cur,prev}){
   const v=changePct(cur,prev);
   return <span className={'ndb-chip tone-'+tone(v)}>{v==null?'novo':(v>0?'▲ ':v<0?'▼ ':'')+String(Math.abs(v)).replace('.',',')+'%'}</span>;
@@ -427,9 +436,9 @@ export default function CommerceDashboard(){
               <button type="button" className="ndb-link" onClick={()=>setCurve(v=>!v)}>{curve?'Ver lista':'Ver curva'}</button>
             </div>
             {curve?<ParetoChart items={allItems}/>
-              :<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto (SKU){cls?' · classe '+cls:''}</th><th className="num">Unid.</th><th className="num">Faturamento</th><th className="num">% acum.</th></tr></thead><tbody>
-                {(cls?classRows:allItems).map(i=><tr key={i.key}><td title={i.title||''}><strong>{i.key}</strong><small>{i.title||'—'}</small></td><td className="num">{num(i.units)}</td><td className="num">{money(i.revenue)}</td><td className="num">{String(i.cum_pct).replace('.',',')}%</td></tr>)}
-                {allItems.length===0&&!loading&&<tr><td colSpan={4} className="ndb-empty">Sem vendas no período.</td></tr>}
+              :<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto (SKU){cls?' · classe '+cls:''}</th><th>Anúncios</th><th className="num">Unid.</th><th className="num">Faturamento</th><th className="num">% acum.</th></tr></thead><tbody>
+                {(cls?classRows:allItems).map(i=><tr key={i.key}><td title={i.title||''}><strong>{i.key}</strong><small>{i.title||'—'}</small></td><td><ExtList links={i.links}/></td><td className="num">{num(i.units)}</td><td className="num">{money(i.revenue)}</td><td className="num">{String(i.cum_pct).replace('.',',')}%</td></tr>)}
+                {allItems.length===0&&!loading&&<tr><td colSpan={5} className="ndb-empty">Sem vendas no período.</td></tr>}
               </tbody></table></div>}
           </>}
         </section>

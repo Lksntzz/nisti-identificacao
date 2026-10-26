@@ -259,3 +259,8 @@
 .ndb-chart-panel.is-seg{border-top:3px solid #1d5fd1}
 .ndb-chart-panel.seg-drops{border-top-color:#d63535}.ndb-chart-panel.seg-stopped{border-top-color:#d98a00}.ndb-chart-panel.seg-best{border-top-color:#139a62}
 .ndb-chart-panel.seg-a{border-top-color:#1d5fd1}.ndb-chart-panel.seg-b{border-top-color:#16a46b}.ndb-chart-panel.seg-c{border-top-color:#f08a1c}
+.ndb-extlist{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ndb-extchip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;text-decoration:none;border:1px solid #dbe2ee;background:#fff;color:#1d5fd1}
+.ndb-extchip.shp{color:#c2410c;border-color:#fbd5c0;background:#fff7f2}.ndb-extchip.ml{color:#1d4ed8;border-color:#c7d7f7;background:#f3f7ff}
+.ndb-extchip:hover{filter:brightness(.95)}.ndb-extchip:focus-visible{outline:2px solid #1d5fd1;outline-offset:2px}
+.ndb-muted{font-size:11px;color:#7a8aa3}
