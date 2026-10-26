@@ -8,6 +8,7 @@ import { handleMuralRequest } from './mural-router.js';
 import { handleNotificationDispatchRequest } from './notification-dispatch-router.js';
 import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
+import { GA_HOST, handleGaHostRequest } from './ga-access.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
 const LOGIN_CSRF_COOKIE = '__Host-nisti_login_csrf';
@@ -484,6 +485,26 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
+
+    // GA - Gestor de Anúncio: hostname próprio, login próprio e só o Painel Comercial.
+    if (url.hostname === GA_HOST) {
+      return handleGaHostRequest(request, env, {
+        secure: withSecurityHeaders,
+        nextApi: async req => {
+          for (const handler of [
+            handleCommerceListingEditorRequest,
+            handleCommerceProductStateRequest,
+            handleCommerceListingStateRequest,
+            handleCommerceUpdateAdminRequest,
+            handleCommerceAdminRequest
+          ]) {
+            const response = await handler(req, env);
+            if (response) return response;
+          }
+          return new URL(req.url).pathname.startsWith('/api/admin/') ? null : app.fetch(req, env, ctx);
+        }
+      });
+    }
 
     // Mural's public hostname is a distinct application surface, not a second
     // URL that exposes the Scanner or protected administration endpoints.

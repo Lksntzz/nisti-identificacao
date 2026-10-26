@@ -8,6 +8,10 @@ import CommerceProductsView from './commerce-products-view.jsx';
 import './nisti-motion.css';
 import './nisti-motion.js';
 
+const IS_GA = typeof window !== 'undefined' && window.location.hostname === 'ga.sistemanistiid.online';
+const LOGOUT_ACTION = IS_GA ? '/ga-logout' : '/admin-logout';
+if (IS_GA && typeof document !== 'undefined') document.title = 'GA - Gestor de Anúncio';
+
 const NAV_ITEMS = Object.freeze([
   { id: 'catalog', label: 'Painel Comercial', icon: 'grid' },
   { id: 'planning', label: 'Planejamento de Produtos', icon: 'package' },
@@ -104,20 +108,20 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
           <div className="sidebar-brand">
             <img src={LOGO} alt="NISTI ID" className="sidebar-brand-logo" />
             <div className="sidebar-brand-text">
-              <span className="sidebar-brand-title">NISTI ID</span>
-              <span className="sidebar-brand-subtitle">CATÁLOGO COMERCIAL</span>
+              <span className="sidebar-brand-title">{IS_GA ? 'GA' : 'NISTI ID'}</span>
+              <span className="sidebar-brand-subtitle">{IS_GA ? 'GESTOR DE ANÚNCIO' : 'CATÁLOGO COMERCIAL'}</span>
             </div>
           </div>
         </div>
 
-        <div className="sidebar-highlight-wrap">
+        {!IS_GA && <div className="sidebar-highlight-wrap">
           <a href="/admin" className="sidebar-highlight-btn">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m15 18-6-6 6-6" />
             </svg>
             <span>Voltar ao NISTI ID</span>
           </a>
-        </div>
+        </div>}
 
         <nav className="sidebar-nav">
           <div className="sidebar-section">
@@ -143,7 +147,7 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
         </nav>
 
         <div className="sidebar-footer">
-          <form method="POST" action="/admin-logout" className="nim-logout-form"><button type="submit" className="sidebar-logout-btn">
+          <form method="POST" action="/admin-logout" onSubmit={event => { if (IS_GA) event.currentTarget.action = LOGOUT_ACTION; }} className="nim-logout-form"><button type="submit" className="sidebar-logout-btn">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" />
@@ -191,13 +195,13 @@ export default function CommerceAdminAppV2() {
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-            <h1 className="admin-page-title">Catálogo Comercial</h1>
+            <h1 className="admin-page-title">{IS_GA ? 'GA - Gestor de Anúncio' : 'Catálogo Comercial'}</h1>
           </div>
 
           <div className="topbar-right">
-            <a href="/admin" className="topbar-logout-btn">
+            {!IS_GA && <a href="/admin" className="topbar-logout-btn">
               <span>NISTI ID</span>
-            </a>
+            </a>}
             <button
               type="button"
               className="topbar-logout-btn commerce-refresh-btn"
@@ -205,7 +209,7 @@ export default function CommerceAdminAppV2() {
             >
               Atualizar
             </button>
-            <form method="POST" action="/admin-logout" className="nim-logout-form"><button type="submit" className="topbar-logout-btn">
+            <form method="POST" action="/admin-logout" onSubmit={event => { if (IS_GA) event.currentTarget.action = LOGOUT_ACTION; }} className="nim-logout-form"><button type="submit" className="topbar-logout-btn">
               <span>Sair</span>
             </button></form>
           </div>

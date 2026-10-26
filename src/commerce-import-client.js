@@ -17,7 +17,7 @@ async function requestJson(path, options = {}) {
     const type = response.headers.get('content-type') || '';
     const data = type.includes('application/json') ? await response.json() : null;
     if (response.status === 401) {
-      window.location.href = '/admin-login';
+      window.location.href = window.location.hostname === 'ga.sistemanistiid.online' ? '/ga-login' : '/admin-login';
       throw new Error('Sessão administrativa expirada.');
     }
     if (response.status === 429 && attempt < maxRetries) {
