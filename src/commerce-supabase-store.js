@@ -859,7 +859,7 @@ export async function commerceImportBatch(env, batchId) {
 export async function commerceReconcileImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  return await supabaseRpc(env, 'commerce_reconcile_import_batch_auto_v1', { p_batch_id: id }, { timeoutMs: 30000 });
+  return await supabaseRpc(env, 'commerce_reconcile_import_batch_id_first_v1', { p_batch_id: id }, { timeoutMs: 30000 });
 }
 
 export async function commerceImportRows(env, batchId, filters = {}) {
@@ -914,7 +914,7 @@ export async function commerceSyncImportListingStates(env, batchId) {
 export async function commerceCommitImportBatch(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id inválido.');
-  const result=await supabaseRpc(env, 'commerce_commit_import_batch_account_v4', { p_batch_id: id });
+  const result=await supabaseRpc(env, 'commerce_commit_import_batch_account_v5', { p_batch_id: id });
   // New active SKU owners can become available when the catalogue is imported.
   await refreshShopeeYearAliases(env);
   return result;

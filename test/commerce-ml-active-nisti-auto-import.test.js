@@ -54,7 +54,7 @@ test('current import path filters to ACTIVE and invokes server-side auto-link wi
   const sql = fs.readFileSync('supabase/migrations/20261015190000_ml_active_nisti_auto_link_v1.sql', 'utf8');
   assert.match(reader, /listingStatusById\.get\(.*\) !== 'ACTIVE'/);
   assert.match(reader, /indexMercadoLivreBulkStatus\(data\)/);
-  assert.match(store, /commerce_reconcile_import_batch_auto_v1/);
+  assert.match(store, /commerce_reconcile_import_batch_id_first_v1/);
   assert.match(sql, /commerce_sync_import_listing_states_account_v1/);
   assert.match(sql, /commerce_sync_nisti_product_v1/);
   assert.match(sql, /commerce_nisti_sku_norm_v1/);
