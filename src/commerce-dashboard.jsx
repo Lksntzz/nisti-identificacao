@@ -82,7 +82,7 @@ function DailyChart({daily}){
   const [hover,setHover]=useState(null);
   const n=daily.length;
   if(!n)return <p className="ndb-empty">Sem vendas no período.</p>;
-  const W=760,H=300,L=52,R=14,T=14,B=30,iw=W-L-R,ih=H-T-B;
+  const W=700,H=270,L=50,R=14,T=14,B=30,iw=W-L-R,ih=H-T-B;
   const tot=d=>Number(d.shopee)+Number(d.ml);
   const maxV=niceMax(Math.max(...daily.map(d=>Math.max(tot(d),Number(d.prev_revenue)||0))));
   const x=i=>L+(n===1?iw/2:i/(n-1)*iw);
@@ -135,7 +135,7 @@ function Donut({parts,center,sub}){
 function ParetoChart({items}){
   const [hover,setHover]=useState(null);
   if(!items.length)return <p className="ndb-empty">Sem vendas no período.</p>;
-  const W=760,H=280,L=44,R=16,T=14,B=32,iw=W-L-R,ih=H-T-B,n=items.length;
+  const W=560,H=290,L=40,R=16,T=14,B=32,iw=W-L-R,ih=H-T-B,n=items.length;
   const x=i=>L+(n===1?iw/2:i/(n-1)*iw);
   const y=v=>T+ih-(v/100)*ih;
   const pts=items.map((it,i)=>[x(i),y(it.cum_pct)]);
@@ -219,10 +219,10 @@ export default function CommerceDashboard(){
   const adsRows=ov.ads?.rows||[];
   const lowRoas=adsRows.filter(r=>r.roas!=null&&Number(r.roas)<1);
   const [best,setBest]=useState('revenue');
-  const bestRows=best==='units'?(ov.top_units||[]).map(r=>({...r,value:num(r.units)+' unid.',sub:money(r.revenue),delta:[r.units,r.units_previous]}))
-    :best==='growth'?(ov.growth||[]).map(r=>({...r,value:'+'+num(r.units-r.units_previous)+' unid.',sub:num(r.units_previous)+' → '+num(r.units)+' unid.',delta:[r.units,r.units_previous]}))
-    :best==='roas'?adsRows.filter(r=>r.listing_id&&r.roas!=null).sort((a,b)=>Number(b.roas)-Number(a.roas)).slice(0,10).map(r=>({platform:'SHOPEE',external_id:'Ads',title:r.title||r.campaign,value:'ROAS '+String(r.roas).replace('.',','),sub:'Gasto '+money(r.spend)+' · vendas atribuídas '+money(r.gmv)}))
-    :top.slice(0,15).map(r=>({...r,value:money(r.revenue),sub:num(r.units)+' unid.',delta:[r.units,r.units_previous]}));
+  const bestRows=best==='units'?(ov.top_units||[]).slice(0,8).map(r=>({...r,value:num(r.units)+' unid.',sub:money(r.revenue),delta:[r.units,r.units_previous]}))
+    :best==='growth'?(ov.growth||[]).slice(0,8).map(r=>({...r,value:'+'+num(r.units-r.units_previous)+' unid.',sub:num(r.units_previous)+' → '+num(r.units)+' unid.',delta:[r.units,r.units_previous]}))
+    :best==='roas'?adsRows.filter(r=>r.listing_id&&r.roas!=null).sort((a,b)=>Number(b.roas)-Number(a.roas)).slice(0,8).map(r=>({platform:'SHOPEE',external_id:'Ads',title:r.title||r.campaign,value:'ROAS '+String(r.roas).replace('.',','),sub:'Gasto '+money(r.spend)+' · vendas atribuídas '+money(r.gmv)}))
+    :top.slice(0,8).map(r=>({...r,value:money(r.revenue),sub:num(r.units)+' unid.',delta:[r.units,r.units_previous]}));
   const maxTop=Math.max(1,...top.map(r=>Number(r.revenue)||0));
   const maxDrop=Math.max(1,...drops.map(r=>Number(r.lost_revenue)||0));
   return <section className="ndb-root" aria-label="Dashboard comercial">
@@ -257,14 +257,19 @@ export default function CommerceDashboard(){
         <div className={'ndb-tile '+(lowRoas.length?'bad':'good')}><b>{adsRows.length?num(lowRoas.length):'—'}</b><strong>Anúncios pagos com ROAS &lt; 1</strong><span>{adsRows.length?'gastou mais do que vendeu (relatório Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+')':'sem relatório Shopee Ads importado'}</span></div>
         <div className="ndb-tile good"><b>{num((ov.growth||[]).length)}{(ov.growth||[]).length>=10?'+':''}</b><strong>Em alta</strong><span>ativos com alta de 15% ou mais; veja em Melhores produtos</span></div>
       </div>
-      {(ov.stopped||[]).length>0&&<div className="ndb-stopped"><strong>Pararam de vender (maiores primeiro)</strong>
-        <ul>{(ov.stopped||[]).slice(0,6).map(r=><li key={r.platform+r.external_id}><span title={r.title||''}>{r.title||r.external_id}</span><small>{PLATFORM_LABEL[r.platform]||r.platform} · {num(r.units_previous)} unid. antes · {money(r.revenue_previous)}</small></li>)}</ul></div>}
+      {(ov.stopped||[]).length>0&&<details className="ndb-stopped"><summary>Ver os que pararam de vender (maiores primeiro)</summary>
+        <ul>{(ov.stopped||[]).slice(0,6).map(r=><li key={r.platform+r.external_id}><span title={r.title||''}>{r.title||r.external_id}</span><small>{PLATFORM_LABEL[r.platform]||r.platform} · {num(r.units_previous)} unid. antes · {money(r.revenue_previous)}</small></li>)}</ul></details>}
     </Card>}
     <div className="ndb-grid">
-      <Card className="span-8" title="Faturamento por dia" subtitle="Cada dia do período, empilhado por plataforma, contra o mesmo dia do período anterior" source="daily">
+      <Card className="span-5" title="Faturamento por dia" subtitle="Cada dia do período, empilhado por plataforma, contra o mesmo dia do período anterior" source="daily">
         <DailyChart daily={daily}/>
       </Card>
-      <Card className="span-4" title="Participação por plataforma" subtitle="Faturamento do período" source="daily">
+      <Card className="span-4" title="Curva ABC de produtos" subtitle="Quanto do faturamento cada produto concentra, do maior para o menor (por SKU)" source="abc">
+        <ParetoChart items={allItems}/>
+        <p className="ndb-note">Passe o mouse na curva para ver cada produto (até os 120 maiores).</p>
+      </Card>
+      <div className="ndb-stackcol">
+      <Card className="ndb-mini" title="Participação por plataforma" subtitle="Faturamento do período" source="daily">
         <div className="ndb-donut-box">
           <Donut parts={[{label:'Shopee',value:shopeeTotal,color:PLAT_COLOR.SHOPEE},{label:'Mercado Livre',value:mlTotal,color:PLAT_COLOR.ML_ANTIGO}]} center={shortMoney(shopeeTotal+mlTotal)} sub="total"/>
           <ul className="ndb-donut-legend">
@@ -273,11 +278,7 @@ export default function CommerceDashboard(){
           </ul>
         </div>
       </Card>
-      <Card className="span-8" title="Curva ABC de produtos" subtitle="Quanto do faturamento cada produto concentra, do maior para o menor (por SKU)" source="abc">
-        <ParetoChart items={allItems}/>
-        <p className="ndb-note">Passe o mouse na curva para ver cada produto (até os 120 maiores).</p>
-      </Card>
-      <Card className="span-4" title="Classes A, B e C" subtitle="Clique para listar os produtos" source="abc">
+      <Card className="ndb-mini" title="Classes A, B e C" subtitle="Clique para listar os produtos" source="abc">
         <div className="ndb-donut-box">
           <Donut parts={classes.map(c=>({label:'Classe '+c.class,value:Number(c.revenue)||0,color:CLASS_COLOR[c.class]}))} center={num(classes.reduce((a,c)=>a+Number(c.products||0),0))} sub="produtos"/>
           <div className="ndb-classes">
@@ -289,6 +290,7 @@ export default function CommerceDashboard(){
           </div>
         </div>
       </Card>
+      </div>
       {showAbc&&<Card className="span-12" title={'Produtos da classe '+cls} subtitle={CLASS_NOTE[cls]} source="abc">
         <div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto (SKU)</th><th className="num">Unid.</th><th className="num">Faturamento</th><th className="num">% acum.</th></tr></thead><tbody>
           {items.map(i=><tr key={i.key}><td title={i.title||''}><strong>{i.key}</strong><small>{i.title||'—'}</small></td><td className="num">{num(i.units)}</td><td className="num">{money(i.revenue)}</td><td className="num">{String(i.cum_pct).replace('.',',')}%</td></tr>)}
@@ -296,13 +298,13 @@ export default function CommerceDashboard(){
         </tbody></table></div>
         <button type="button" className="ndb-toggle" onClick={()=>setShowAbc(false)}>Fechar lista</button>
       </Card>}
-      <Card className="span-6" title="Anúncios em queda" subtitle="Ativos que mais perderam faturamento contra o período anterior" source="drops">
+      <Card className="span-4" title="Anúncios em queda" subtitle="Ativos que mais perderam faturamento contra o período anterior" source="drops">
         {drops.length===0&&!loading&&<p className="ndb-empty">Nenhum anúncio ativo em queda neste período.</p>}
-        <BarList rows={drops.slice(0,10)} max={maxDrop} colorOf={()=>'#e34948'} value={r=>Number(r.lost_revenue)||0}
+        <BarList rows={drops.slice(0,8)} max={maxDrop} colorOf={()=>'#e34948'} value={r=>Number(r.lost_revenue)||0}
           extra={r=><div className="ndb-bar-extra"><span>{num(r.units_previous)} → {num(r.units)} unid.</span><PriceSignalCell signal={signals[r.listing_id]} window={days} diagnosis={diagnosis[r.listing_id]}/></div>}/>
-        {drops.length>10&&<p className="ndb-note">Mostrando 10 de {num(data.drops?.total)} anúncios em queda.</p>}
+        {drops.length>8&&<p className="ndb-note">Mostrando 8 de {num(data.drops?.total)} anúncios em queda.</p>}
       </Card>
-      <Card className="span-6" title="Melhores produtos" subtitle="Cada critério mostra uma coisa diferente; o mais vendido não é necessariamente o mais lucrativo" source="best">
+      <Card className="span-4" title="Melhores produtos" subtitle="Cada critério mostra uma coisa diferente; o mais vendido não é necessariamente o mais lucrativo" source="best">
         <div className="ndb-seg" role="group" aria-label="Critério">
           {[['revenue','Maior faturamento'],['units','Mais unidades'],['growth','Maior crescimento'],['roas','Melhor ROAS (Ads)']].map(([v,l])=><button key={v} type="button" className={v===best?'is-active':''} aria-pressed={v===best} onClick={()=>setBest(v)}>{l}</button>)}
         </div>
@@ -313,18 +315,19 @@ export default function CommerceDashboard(){
           <div className="ndb-bar-val"><b>{r.value}</b>{r.delta&&<Delta cur={r.delta[0]} prev={r.delta[1]}/>}</div>
         </li>)}</ol>
       </Card>
-    </div>
-    {hasData&&overview&&<div className="ndb-grid">
-      <Card className="span-12" title="Shopee Ads: campanhas" subtitle={adsRows.length?'Relatório de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+' (período próprio, não segue o filtro)':'Nenhum relatório importado'} source="ads">
+      {hasData&&overview&&(
+      <Card className="span-4" title="Shopee Ads: campanhas" subtitle={adsRows.length?'Relatório de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+' (período próprio, não segue o filtro)':'Nenhum relatório importado'} source="ads">
         {adsRows.length===0?<p className="ndb-empty">Sem dados de anúncios pagos. Importe o relatório “Dados gerais” em Importar, opção Shopee Ads.</p>:
-        <div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Campanha</th><th className="num">Impressões</th><th className="num">Cliques</th><th className="num">CTR</th><th className="num">Itens vendidos</th><th className="num">Vendas atribuídas</th><th className="num">Gasto</th><th className="num">ROAS</th></tr></thead><tbody>
+        <div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Campanha</th><th className="num">Vendas</th><th className="num">Gasto</th><th className="num">ROAS</th></tr></thead><tbody>
           {adsRows.map((r,i)=><tr key={i}><td title={r.campaign}><strong>{r.title||r.campaign}</strong><small>{r.listing_id?'Anúncio individual':'Grupo de anúncios'}</small></td>
-            <td className="num">{num(r.impressions)}</td><td className="num">{num(r.clicks)}</td><td className="num">{r.impressions?String((r.clicks/r.impressions*100).toFixed(2)).replace('.',',')+'%':'—'}</td>
-            <td className="num">{num(r.items_sold)}</td><td className="num">{money(r.gmv)}</td><td className="num">{money(r.spend)}</td>
+            <td className="num">{money(r.gmv)}</td><td className="num">{money(r.spend)}</td>
             <td className={'num'+(r.roas!=null&&Number(r.roas)<1?' bad':'')}>{r.roas==null?'sem dados':String(r.roas).replace('.',',')}</td></tr>)}
         </tbody></table></div>}
         <p className="ndb-note">Não some as linhas: grupos de anúncios e anúncios individuais podem contar as mesmas vendas.</p>
       </Card>
+      )}
+    </div>
+    {hasData&&overview&&<div className="ndb-grid">
       <Card className="span-12" title="Confiabilidade dos dados" subtitle="O que está no banco e o que pode estar faltando" source="trust">
         <div className="ndb-tiles">
           {(ov.coverage||[]).map(c=><div key={c.platform} className="ndb-tile"><strong>{PLATFORM_LABEL[c.platform]||c.platform}</strong><span>Vendas até {fmtDayFull(c.last_day)}</span><span>Última importação aplicada: {c.last_import?new Date(c.last_import).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'}):'sem dados'}</span></div>)}
