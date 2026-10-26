@@ -247,3 +247,9 @@
 .ndb-reveal{animation:ndbReveal .9s cubic-bezier(.22,.61,.36,1) both}
 @keyframes ndbReveal{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
 @media (prefers-reduced-motion:reduce){.ndb-reveal{animation:none}}
+/* Link para o anúncio no marketplace */
+.ndb-pc{display:flex;align-items:center;gap:8px;min-width:0}
+.ndb-pt{min-width:0;flex:1}
+.ndb-ext{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;border:1px solid #dbe2ee;background:#fff;color:#1d5fd1;text-decoration:none}
+.ndb-ext:hover{background:#1d5fd1;border-color:#1d5fd1;color:#fff}
+.ndb-ext:focus-visible{outline:2px solid #1d5fd1;outline-offset:2px}
