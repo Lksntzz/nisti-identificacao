@@ -137,15 +137,22 @@ function useBox(){
 }
 
 // Vendas por dia: linha do período atual (com preenchimento) contra o período anterior (tracejado).
-function DailyChart({daily,animKey}){
+const SEG_THEME={total:'#1d5fd1',drops:'#d63535',stopped:'#d98a00',best:'#139a62',a:'#1d5fd1',b:'#16a46b',c:'#f08a1c'};
+function DailyChart({daily,animKey,theme='total'}){
   const [hover,setHover]=useState(null);
   const [boxRef,{W,H}]=useBox();
   const n=daily.length;
   const reduce=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!n)return <p className="ndb-empty">Sem dados diários para este período.</p>;
+  const col=SEG_THEME[theme]||SEG_THEME.total;
+  const stopped=theme==='stopped';
   const L=46,R=10,T=8,B=20,iw=W-L-R,ih=H-T-B;
-  const tot=d=>Number(d.shopee)+Number(d.ml);
-  const maxV=niceMax(Math.max(...daily.map(d=>Math.max(tot(d),Number(d.prev_revenue)||0))));
+  const cur=d=>Number(d.shopee)+Number(d.ml);
+  const prv=d=>Number(d.prev_revenue)||0;
+  // Pararam: o que vale mostrar é o que vendiam antes (agora é zero); nos demais, linha cheia = período atual.
+  const main=stopped?prv:cur;
+  const alt=stopped?cur:prv;
+  const maxV=niceMax(Math.max(...daily.map(d=>Math.max(cur(d),prv(d)))));
   const x=i=>L+(n===1?iw/2:i/(n-1)*iw);
   const y=v=>T+ih-(v/maxV)*ih;
   const line=f=>daily.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(f(d)).toFixed(1)).join(' ');
@@ -153,25 +160,29 @@ function DailyChart({daily,animKey}){
   const ticks=Array.from({length:steps+1},(_,k)=>k/steps*maxV);
   const xt=n<=7?daily.map((_,i)=>i):[0,1,2,3,4,5,6].map(k=>Math.round(k*(n-1)/6));
   const h=hover!=null?daily[hover]:null;
+  const gid='ndbfill-'+theme;
+  // Faixa entre o período anterior e o atual quando o atual ficou abaixo (venda perdida).
+  const gap=theme==='drops'?daily.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(Math.max(prv(d),cur(d))).toFixed(1)).join(' ')+daily.slice().reverse().map((d,k)=>'L'+x(n-1-k).toFixed(1)+' '+y(cur(d)).toFixed(1)).join(' ')+' Z':null;
   return <div className="ndb-chartbox fill" ref={boxRef}>
     <svg viewBox={'0 0 '+W+' '+H} width={W} height={H} role="img" aria-label="Faturamento por dia" onMouseLeave={()=>setHover(null)}
       onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;setHover(Math.max(0,Math.min(n-1,Math.round((px-L)/iw*(n-1)))));}}>
-      <defs><linearGradient id="ndbfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1d5fd1" stopOpacity=".22"/><stop offset="1" stopColor="#1d5fd1" stopOpacity="0"/></linearGradient></defs>
+      <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={col} stopOpacity=".26"/><stop offset="1" stopColor={col} stopOpacity="0"/></linearGradient></defs>
       {ticks.map(t=><g key={t}><line x1={L} x2={W-R} y1={y(t)} y2={y(t)} className="ndb-grid-line"/><text x={L-8} y={y(t)+4} textAnchor="end" className="ndb-axis">{axisMoney(t)}</text></g>)}
       <g key={animKey} className={reduce?'':'ndb-reveal'}>
-      <path d={line(tot)+' L'+x(n-1).toFixed(1)+' '+y(0)+' L'+x(0).toFixed(1)+' '+y(0)+' Z'} fill="url(#ndbfill)"/>
-      <path d={line(d=>Number(d.prev_revenue)||0)} fill="none" stroke="#8a97ab" strokeWidth="1.6" strokeDasharray="5 4" strokeLinecap="round"/>
-      <path d={line(tot)} fill="none" stroke="#1d5fd1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-      {daily.map((d,i)=>n<=31&&<circle key={i} cx={x(i)} cy={y(tot(d))} r="2.3" fill="#1d5fd1"/>)}
+      {gap&&<path d={gap} fill={col} fillOpacity=".14"/>}
+      <path d={line(main)+' L'+x(n-1).toFixed(1)+' '+y(0)+' L'+x(0).toFixed(1)+' '+y(0)+' Z'} fill={'url(#'+gid+')'}/>
+      <path d={line(alt)} fill="none" stroke={stopped?col:'#8a97ab'} strokeWidth={stopped?2:1.6} strokeDasharray="5 4" strokeLinecap="round"/>
+      <path d={line(main)} fill="none" stroke={col} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+      {daily.map((d,i)=>n<=31&&<circle key={i} cx={x(i)} cy={y(main(d))} r="2.3" fill={col}/>)}
       </g>
       {xt.map(i=><text key={i} x={x(i)} y={H-5} textAnchor={i===0?'start':i===n-1?'end':'middle'} className="ndb-axis">{fmtDay(daily[i].day)}</text>)}
-      {h&&<g><line x1={x(hover)} x2={x(hover)} y1={T} y2={T+ih} className="ndb-cross"/><circle cx={x(hover)} cy={y(tot(h))} r="4.5" fill="#fff" stroke="#1d5fd1" strokeWidth="2.2"/></g>}
+      {h&&<g><line x1={x(hover)} x2={x(hover)} y1={T} y2={T+ih} className="ndb-cross"/><circle cx={x(hover)} cy={y(main(h))} r="4.5" fill="#fff" stroke={col} strokeWidth="2.2"/></g>}
     </svg>
     {h&&<div className="ndb-tip" style={{left:Math.min(W-250,Math.max(L,x(hover)+12))+'px'}}>
       <b>{fmtDayFull(h.day)}</b>
       {Number(h.shopee)>0&&<span><i style={{background:PLAT_COLOR.SHOPEE}}/>Shopee {money(h.shopee)}</span>}
       {Number(h.ml)>0&&<span><i style={{background:PLAT_COLOR.ML_ANTIGO}}/>Mercado Livre {money(h.ml)}</span>}
-      <em>Total {money(tot(h))} · {num(h.units)} unid.</em>
+      <em>Total {money(cur(h))} · {num(h.units)} unid.</em>
       <em>Mesmo dia do período anterior: {money(h.prev_revenue)}</em></div>}
   </div>;
 }
@@ -289,9 +300,13 @@ export default function CommerceDashboard(){
   const classes=data?.abc?.classes||[];
   const allItems=data?.abc?.items||[];
   const hasData=data&&data.last_day;
-  const SEG_TITLE={best:'Vendas dos 15 anúncios que mais faturam',drops:'Vendas dos anúncios em queda',stopped:'Vendas dos anúncios que pararam de vender',a:'Vendas dos produtos da classe A',b:'Vendas dos produtos da classe B',c:'Vendas dos produtos da classe C'};
+  const SEG_TITLE={best:'15 anúncios que mais faturam',drops:'Anúncios em queda',stopped:'Anúncios que pararam de vender',a:'Produtos da classe A',b:'Produtos da classe B',c:'Produtos da classe C'};
   const segActive=Boolean(segment&&segSeries&&segSeries.segment&&segSeries.segment.toLowerCase()===segment);
   const daily=segActive?(segSeries.daily||[]):(series?.daily||[]);
+  const segColor=SEG_THEME[segActive?segment:'total'];
+  const curSum=daily.reduce((a,d)=>a+Number(d.shopee||0)+Number(d.ml||0),0);
+  const prevSum=daily.reduce((a,d)=>a+Number(d.prev_revenue||0),0);
+  const segDelta=changePct(curSum,prevSum);
   const shopeeTotal=daily.reduce((a,d)=>a+Number(d.shopee||0),0);
   const mlTotal=daily.reduce((a,d)=>a+Number(d.ml||0),0);
   const ov=overview||{};
@@ -351,10 +366,13 @@ export default function CommerceDashboard(){
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
-        <Panel title={segActive?SEG_TITLE[segment]+' ('+num(segSeries.listings)+')':segment?'Carregando…':'Vendas ao longo do período'} icon="chart" source="daily" className="ndb-chart-panel" aside={hasData&&<span className="ndb-plat-split">{segment&&<button type="button" className="ndb-link" onClick={()=>setFocus(false)}>Voltar ao total</button>}
-          {shopeeTotal>0&&<span><i style={{background:PLAT_COLOR.SHOPEE}}/>Shopee {money(shopeeTotal)}</span>}{mlTotal>0&&<span><i style={{background:PLAT_COLOR.ML_ANTIGO}}/>ML {money(mlTotal)}</span>}
-          <span><i className="ln"/>Atual</span><span><i className="ln dash"/>Anterior</span></span>}>
-          <DailyChart daily={daily} animKey={platform+days+(segActive?segment:'total')}/>
+        <Panel title={segActive?SEG_TITLE[segment]+' ('+num(segSeries.listings)+')':segment?'Carregando…':'Vendas ao longo do período'} icon="chart" source="daily" className={'ndb-chart-panel'+(segment?' is-seg seg-'+segment:'')} aside={hasData&&<span className="ndb-plat-split">
+          {segment&&<button type="button" className="ndb-link" onClick={()=>setFocus(false)}>Voltar ao total</button>}
+          {segActive&&<span className={'ndb-seg-sum'+(segDelta!=null&&segDelta<0?' neg':' pos')} style={{borderColor:segColor}}>{segment==='stopped'?'Vendiam '+money(prevSum)+' · agora R$ 0,00':money(curSum)+' vs. '+money(prevSum)+(segDelta!=null?' ('+(segDelta>0?'+':'')+String(segDelta).replace('.',',')+'%)':'')}</span>}
+          {!segment&&shopeeTotal>0&&<span><i style={{background:PLAT_COLOR.SHOPEE}}/>Shopee {money(shopeeTotal)}</span>}{!segment&&mlTotal>0&&<span><i style={{background:PLAT_COLOR.ML_ANTIGO}}/>ML {money(mlTotal)}</span>}
+          <span><i className="ln" style={{borderTopColor:segColor}}/>{segment==='stopped'?'Antes (período anterior)':'Atual'}</span><span><i className="ln dash" style={segment==='stopped'?{borderTopColor:segColor}:undefined}/>{segment==='stopped'?'Agora':'Anterior'}</span></span>}>
+          <DailyChart daily={daily} theme={segActive?segment:'total'} animKey={platform+days+(segActive?segment:'total')}/>
+          {!segment&&(tab==='nosales'||tab==='ads')&&focus===true&&<p className="ndb-note">Esta aba não tem gráfico próprio: mostra o total de vendas.</p>}
         </Panel>
         <section className="ndb-panel ndb-explorer">
           <header className="ndb-tabs-head">
