@@ -50,6 +50,10 @@ test('login: senha errada falha, senha certa cria cookie próprio', async () => 
   const ok = await post('senha-ga');
   assert.equal(ok.status, 302);
   assert.match(ok.headers.get('set-cookie'), /^__Host-nisti_ga_session=.+HttpOnly; Secure; SameSite=Strict/);
+  const nullOrigin = await run('/ga-login', { method: 'POST', headers: { origin: 'null', 'sec-fetch-site': 'same-origin', cookie: `__Host-nisti_ga_csrf=${csrf}`, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf_token: csrf, password: 'senha-ga' }) });
+  assert.equal(nullOrigin.status, 302);
+  const crossSite = await run('/ga-login', { method: 'POST', headers: { 'sec-fetch-site': 'cross-site', cookie: `__Host-nisti_ga_csrf=${csrf}`, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf_token: csrf, password: 'senha-ga' }) });
+  assert.equal(crossSite.status, 403);
   const noCsrf = await run('/ga-login', { method: 'POST', body: new URLSearchParams({ password: 'senha-ga' }) });
   assert.equal(noCsrf.status, 403);
 });
