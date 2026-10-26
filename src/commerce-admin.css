@@ -24,8 +24,7 @@
 .commerce-live-status strong{font-size:12px;color:#0f172a}
 .commerce-live-status small{font-size:11px;line-height:1.35;color:#64748b}
 .commerce-live-dot{width:9px;height:9px;border-radius:999px;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.12)}
-.commerce-admin-page-content>.commerce-panel,
-.commerce-admin-page-content>.commerce-management-shell{margin:0}
+.commerce-admin-page-content>.commerce-panel{margin:0}
 @media(max-width:760px){
   .commerce-admin-page-content{padding:20px 16px 32px}
   .commerce-welcome-banner{align-items:flex-start}
