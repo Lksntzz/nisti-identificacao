@@ -513,7 +513,7 @@ export async function handleCommerceAdminRequest(request, env) {
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/series'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
-      if(!['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)||![7,30,60,90].includes(days))
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardSeriesV1(env,{platform,days}));
     }
@@ -521,21 +521,21 @@ export async function handleCommerceAdminRequest(request, env) {
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
       const segment=String(query(url,'segment')||'').toLowerCase();
-      if(!['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)||![7,30,60,90].includes(days)||!['drops','stopped','best','a','b','c'].includes(segment))
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days)||!['drops','stopped','best','a','b','c'].includes(segment))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardSegmentSeriesV1(env,{platform,days,segment}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/overview'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
-      if(!['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)||![7,30,60,90].includes(days))
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardOverviewV1(env,{platform,days}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
-      if(!['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)||![7,30,60,90].includes(days))
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardV1(env,{platform,days}));
     }

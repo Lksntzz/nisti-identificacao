@@ -18,7 +18,7 @@ test('dashboard SQL is read-only, service_role only and keeps only valid windows
 });
 test('route validates platform and period; GA menu exposes the dashboard',()=>{
   assert.ok(router.includes("BASE_PATH+'/sales-dashboard'"));
-  assert.ok(router.includes("['TODAS','SHOPEE','ML_ANTIGO'].includes(platform)"));
+  assert.ok(router.includes("['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)"));
   assert.ok(router.includes('![7,30,60,90].includes(days)'));
   assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard />'));
 });
