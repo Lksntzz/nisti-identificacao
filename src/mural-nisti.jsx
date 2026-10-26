@@ -602,6 +602,12 @@ const FIREWORK_BURSTS = [
   { x: 82, y: 30, delay: 6500, color: '#fcd34d', size: 160 }
 ];
 
+const SHOWCASE_LIMIT = 6;
+const SHOWCASE_STEP = 1150;
+function showcaseSpacing(count) {
+  return Math.min(96, 300 / Math.max(1, count - 1 || 1));
+}
+
 function CollectionFireworks() {
   return (
     <span className="mural-collection-fireworks" aria-hidden="true">
@@ -650,7 +656,10 @@ export function CollectionRevealIntro({ products, title, onComplete, introStyle 
   const secondaryStart = 2100;
   const secondaryStep = 1500;
   const secondaryDuration = 1250;
-  const titleDelay = secondaryCount
+  const showcaseProducts = products.slice(0, SHOWCASE_LIMIT);
+  const titleDelay = fireworks
+    ? 600 + showcaseProducts.length * SHOWCASE_STEP + 700
+    : secondaryCount
     ? secondaryStart + (secondaryCount - 1) * secondaryStep + secondaryDuration + 350
     : 2850;
   const titleDuration = 2400;
@@ -750,6 +759,28 @@ export function CollectionRevealIntro({ products, title, onComplete, introStyle 
         })}
       </span>
       )}
+      {fireworks ? (
+        <div className="mural-showcase" aria-hidden="true" style={{ '--showcase-count': showcaseProducts.length }}>
+          {showcaseProducts.map((product, index) => (
+            <span
+              key={product.id}
+              className="mural-showcase-product"
+              style={{
+                '--showcase-delay': `${600 + index * SHOWCASE_STEP}ms`,
+                '--showcase-x': `${(index - (showcaseProducts.length - 1) / 2) * showcaseSpacing(showcaseProducts.length)}px`
+              }}
+            >
+              <span className="mural-showcase-glow" />
+              <CollectionProductImage product={product} eager onReady={() => markProductReady(product.id)} />
+            </span>
+          ))}
+          {products.length > SHOWCASE_LIMIT && (
+            <span className="mural-showcase-more" style={{ '--showcase-delay': `${600 + SHOWCASE_LIMIT * SHOWCASE_STEP}ms` }}>
+              +{products.length - SHOWCASE_LIMIT} produtos
+            </span>
+          )}
+        </div>
+      ) : (<>
       <span className="mural-collection-reveal-white-arc" aria-hidden="true" />
       <div className={`mural-collection-reveal-fan fan-${Math.min(products.length,4)}`} aria-hidden="true">
         <span className="mural-collection-reveal-product is-main">
@@ -776,6 +807,7 @@ export function CollectionRevealIntro({ products, title, onComplete, introStyle 
           );
         })}
       </div>
+      </>)}
       <span
         className="mural-collection-reveal-title"
         style={{
