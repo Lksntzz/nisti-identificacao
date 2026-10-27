@@ -23,9 +23,9 @@ test('Importar arquivo is a dropdown; legacy four-card inline block is removed',
   assert.match(managerCss,/\.nim-import-option-copy/);
 });
 
-test('all five report types use the same import window, not different implementations',()=>{
+test('all six report types use the same import window, not different implementations',()=>{
   assert.deepEqual(COMMERCE_IMPORT_OPTIONS.map(x=>x.mode),
-    ['catalog','sales','ads','performance','aftercare']);
+    ['catalog','sales','ads','performance','ml_performance','aftercare']);
   assert.match(manager,/selectedImportMode&&<CommerceImportModal mode=\{selectedImportMode\}/);
   assert.match(modal,/CommerceImportCenter key=\{mode\} embedded initialMode=\{mode\} hideModeSelector/);
   assert.match(center,/IMPORT_MODES\.includes\(initialMode\)/);
@@ -59,4 +59,10 @@ test('portal remains keyboard-accessible and supports narrow phone viewports',()
   assert.match(modalCss,/height:100dvh/);
   for(const option of COMMERCE_IMPORT_OPTIONS)
     assert.ok(icon.includes('"'+option.icon+'":'),option.icon+' must be a supported icon');
+});
+
+test('menu Importar arquivo inclui Desempenho Mercado Livre e o centro de importacao o abre',()=>{
+  assert.ok(COMMERCE_IMPORT_OPTIONS.some(x=>x.mode==='ml_performance'&&x.label==='Desempenho Mercado Livre'));
+  assert.match(center,/mode==='ml_performance'&&<CommerceMlPerformanceImport/);
+  assert.match(center,/STANDALONE_MODES=\[[^\]]*'ml_performance'/);
 });
