@@ -77,3 +77,11 @@ test('studio is responsive without a duplicate mobile implementation', () => {
   assert.ok(css.includes('.mural-publish-v2-shell{grid-template-columns:1fr}'));
   assert.ok(css.includes('@media(max-width:620px)'));
 });
+
+test('trocar o tipo de publicacao nao copia dados entre Produto, Informacao e Colecao', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync('src/admin/MuralPublishWorkspace.jsx', 'utf8');
+  assert.match(src, /draftsRef\.current\[activeKind\] = \{ form, image, selectedProduct, productQuery \}/);
+  assert.match(src, /setForm\(saved\?\.form \|\| freshPostForm\(nextKind\)\)/);
+  assert.match(src, /setImage\(saved\?\.image \|\| null\)/);
+});

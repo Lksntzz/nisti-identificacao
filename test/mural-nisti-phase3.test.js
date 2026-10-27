@@ -34,7 +34,7 @@ test('publication editor exposes product information and collection with one col
   assert.ok(admin.includes('onClick={() => changeKind(key)}'));
   for (const kind of ['product','notice','collection']) assert.ok(admin.includes(`['${kind}', '`), kind);
   assert.ok(admin.includes('function CollectionEditor'));
-  assert.ok(admin.includes("if (nextKind === 'collection')"));
+  assert.ok(admin.includes("if (kind === 'collection')"));
   assert.ok(admin.includes('setCollectionEditor(linked)'));
   assert.ok(admin.includes('function PublishPreviewCard'));
   assert.ok(admin.includes('mural-studio-preview-pane'));

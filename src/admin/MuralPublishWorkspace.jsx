@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { EMPTY_POST, AdminMuralIcon, request, TransparentMuralProductImage, postForm, compressImage } from './MuralPublishShared.jsx';
 import { CanvaArtworkModal, PublishImageField, PublishPreviewCard } from './MuralPublishComponents.jsx';
 
@@ -115,34 +115,28 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
   const setCol = (key, value) => setCollectionForm(current => ({ ...current, [key]: value }));
 
+  // Cada tipo (Produto, Informação, Coleção) guarda o PRÓPRIO rascunho: trocar de tipo nunca
+  // copia título, texto, selo, produto ou imagem de um tipo para o outro.
+  const draftsRef = useRef({});
+  const freshPostForm = kind => {
+    const base = { ...EMPTY_POST, kind };
+    if (kind === 'notice') return postForm({ ...base, notice_level: 'info', badge: 'COMUNICADO INTERNO' });
+    if (kind === 'collection') return postForm({ ...base, notice_level: null, badge: 'NOVA COLEÇÃO', featured: true });
+    return postForm({ ...base, notice_level: null, badge: 'NOVO' });
+  };
+
   const changeKind = nextKind => {
-    setActiveKind(nextKind);
+    if (nextKind === activeKind) return;
     setError('');
-    if (nextKind === 'notice') {
-      setForm(current => ({
-        ...current,
-        kind: 'notice',
-        product_id: '',
-        collection_id: '',
-        notice_level: current.notice_level || 'info',
-        badge: ['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].includes(current.badge) ? current.badge : 'COMUNICADO INTERNO'
-      }));
-    } else if (nextKind === 'product') {
-      setForm(current => ({
-        ...current,
-        kind: 'product',
-        collection_id: '',
-        notice_level: null,
-        badge: ['COMUNICADO INTERNO','PROCESSO','NOVIDADE'].includes(current.badge) ? 'NOVO' : (current.badge || 'NOVO')
-      }));
-    } else if (nextKind === 'collection') {
-      setForm(current => ({
-        ...current,
-        kind: 'collection',
-        badge: 'NOVA COLEÇÃO',
-        featured: true
-      }));
-    }
+    draftsRef.current[activeKind] = { form, image, selectedProduct, productQuery };
+    const saved = draftsRef.current[nextKind];
+    if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
+    setActiveKind(nextKind);
+    setForm(saved?.form || freshPostForm(nextKind));
+    setImage(saved?.image || null);
+    setImageUrl(saved?.image ? URL.createObjectURL(saved.image) : '');
+    setSelectedProduct(saved?.selectedProduct || null);
+    setProductQuery(saved?.productQuery || '');
   };
 
   const chooseProduct = prod => {
