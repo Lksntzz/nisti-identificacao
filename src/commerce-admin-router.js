@@ -39,6 +39,8 @@ import {
   commerceEvolutionAdWeekly,
   commerceListingPriceSignal,
   commerceImportShopeePerformance,
+  commerceImportMlPerformance,
+  commerceMlPerformanceLatest,
   commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
   commerceSalesDashboardV1,
@@ -498,6 +500,16 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Relatório de desempenho inválido.'},400);
       return json(await commerceImportShopeePerformance(env,input));
     }
+    if(method==='POST'&&pathname===BASE_PATH+'/ml/performance/reports'){
+      if(Number(request.headers.get('content-length')||0)>2500000)
+        return json({error:'Arquivo de desempenho excede 2,5 MB.'},413);
+      const input=await bodyJson(request);
+      if(!input||!Array.isArray(input.rows)||input.rows.length<1||input.rows.length>5000)
+        return json({error:'Relatório de desempenho inválido.'},400);
+      return json(await commerceImportMlPerformance(env,input));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/ml/performance/latest')
+      return json(await commerceMlPerformanceLatest(env));
     if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/performance-diagnosis'){
       const ids=String(query(url,'ids')||'').split(',').filter(Boolean);
       if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id)))

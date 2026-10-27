@@ -21,3 +21,7 @@
 .shopee-ads-error,.shopee-ads-success{font-size:11px;line-height:1.5;margin:0}
 .shopee-ads-error{color:#b53d50}.shopee-ads-success{color:#16824a}
 @media(max-width:650px){.shopee-ads-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.shopee-ads-import{padding:11px}}
+
+.ml-perf-account{border:1px solid var(--line,#d8dee9);border-radius:10px;padding:8px 12px;margin:0 0 10px}
+.ml-perf-account legend{font-size:12px;padding:0 6px;color:#5b6577}
+.ml-perf-account label{margin-right:16px;font-size:14px}
