@@ -3,8 +3,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261022190000_commerce_evolution_zero_observed_filter_v1.sql','utf8');
-const view=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
-const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
 
 test('Sem vendas includes ads with zero sales identified and ads with zero-observed verified variants',()=>{
   assert.match(sql,/unsold_identified_variations/);

@@ -27,5 +27,4 @@ test('Totais por plataforma não transformam anúncios ML pendentes em Shopee',(
   assert.match(sql,/shopee_active_ads/);
   assert.match(sql,/marketplace_active_ads/);
   assert.match(ui,/sourceBreakdown\.marketplacePending/);
-  const integrated=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
-});
+  });
