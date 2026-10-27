@@ -90,3 +90,7 @@ test('Sem filtro: period 0 accumulates all sales, monthly chart per platform, AB
   assert.ok(ui.includes("<MonthlyChart"));
   assert.ok(ui.includes("/sales-dashboard/monthly?platform="));
 });
+test('GA opens on the Dashboard screen by default',()=>{
+  assert.ok(app.includes("useState('dashboard')"));
+  assert.ok(!app.includes("const [activeView, setActiveView] = useState('catalog')"));
+});
