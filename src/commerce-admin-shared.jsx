@@ -21,7 +21,7 @@ export function commerceStatusLabel(value) {
     REMOVED: 'Removido',
     UNKNOWN: 'Não verificado',
     DRAFT: 'Rascunho',
-    DISCONTINUED: 'Descontinuado',
+    DISCONTINUED: 'Desativado',
     SELLING: 'Vendendo',
     NO_SALES: 'Sem vendas',
     ANNUAL: 'Anual',

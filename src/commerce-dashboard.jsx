@@ -5,6 +5,10 @@ import './commerce-dashboard.css';
 
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
 const PLATFORM_LABEL={SHOPEE:'Shopee',ML_ANTIGO:'ML Antigo',ML_NOVO:'ML Novo'};
+// Situação do anúncio no catálogo: Ativo, Desativado (não continuou na plataforma; histórico de vendas preservado) ou sem status.
+const listingState=status=>status==='ACTIVE'?{label:'Ativo',cls:' on',off:false}
+  :['INACTIVE','REMOVED','PAUSED'].includes(status)?{label:'Desativado',cls:' off',off:true}
+  :{label:'Sem status',cls:'',off:false};
 const PERIODS=[7,30,60,90];
 const CLASS_NOTE={A:'Até 80% do faturamento',B:'Dos 80% aos 95%',C:'Últimos 5%'};
 
@@ -459,10 +463,10 @@ export default function CommerceDashboard(){
             <InfoIcon text={SOURCES[TAB_SOURCE[tab]]} label={TABS.find(t=>t[0]===tab)[1]}/>
           </header>
           {tab==='best'&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num">Investimento</th><th className="num">ROAS</th></tr></thead><tbody>
-            {bestAll.map(r=>{const ad=adsByListing[r.listing_id];return <tr key={r.platform+r.external_id}>
+            {bestAll.map(r=>{const ad=adsByListing[r.listing_id];const st=listingState(r.status);return <tr key={r.platform+r.external_id} className={st.off?'ndb-off':''}>
               <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.sku||r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td>{PLATFORM_LABEL[r.platform]||r.platform}</td>
-              <td><span className={'ndb-status'+(r.status==='ACTIVE'?' on':'')}>{r.status==='ACTIVE'?'Ativo':'Inativo'}</span></td>
+              <td><span className={'ndb-status'+st.cls}>{st.label}</span></td>
               <td className="num"><b>{num(r.units)}</b></td><td className="num">{money(r.revenue)}</td>
               <td className="num">{ad?money(ad.spend):'sem dados'}</td>
               <td className="num">{ad&&ad.roas!=null?<span className={'ndb-roas'+(Number(ad.roas)<1?' low':'')}>{String(ad.roas).replace('.',',')}x</span>:'sem dados'}</td></tr>;})}

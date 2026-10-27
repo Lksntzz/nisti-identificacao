@@ -141,10 +141,10 @@ function ProductStateEditor({ product, busy, onClose, onSave }) {
             <select value={internalStatus} onChange={event => setInternalStatus(event.target.value)} disabled={busy}>
               <option value="DRAFT">Rascunho</option>
               <option value="ACTIVE">Ativo</option>
-              <option value="DISCONTINUED">Descontinuado</option>
+              <option value="DISCONTINUED">Desativado</option>
             </select>
             <small>
-              Ative apenas produtos comercialmente válidos. Use Descontinuado quando o produto não deve mais operar, sem apagar seu histórico.
+              Ative apenas produtos comercialmente válidos. Use Desativado quando o produto não continuou na plataforma: o histórico de vendas é mantido e os anúncios ligados só a ele passam a Desativado.
             </small>
           </label>
         </div>
@@ -313,8 +313,9 @@ const PLANNING_COLUMNS = Object.freeze([
   { key: 'historic_monthly_average', label: 'Média histórica', num: true, get: (p, r) => r?.historic_monthly_average }
 ]);
 
-function PlanningTable({ items, reports, busy, error, onOpen, onReview }) {
+function PlanningTable({ items, reports, busy, error, onOpen, onReview, onToggle }) {
   const [sort, setSort] = useState({ key: '', dir: 'desc' });
+  const [confirmId, setConfirmId] = useState(0);
   const fmt = (value, digits = 0) => value === null || value === undefined ? '—'
     : Number(value).toLocaleString('pt-BR', { maximumFractionDigits: digits });
   const rows = React.useMemo(() => {
@@ -368,7 +369,7 @@ function PlanningTable({ items, reports, busy, error, onOpen, onReview }) {
               const codes = Array.isArray(product.marketplace_codes) ? product.marketplace_codes : [];
               const coverage = coverageInfo(codes);
               return (
-                <tr key={id} onClick={() => onOpen(product)} title="Abrir plataformas deste produto">
+                <tr key={id} className={product.internal_status === 'DISCONTINUED' ? 'is-deactivated' : ''} onClick={() => onOpen(product)} title="Abrir plataformas deste produto">
                   <td className="product">
                     <div className="nisti-planning-product">
                       <ProductImage product={product} className="nisti-planning-thumb" />
@@ -386,6 +387,13 @@ function PlanningTable({ items, reports, busy, error, onOpen, onReview }) {
                   <td className="num" title={historyText}>{Number(report?.historic_months_imported || 0) ? fmt(report.historic_monthly_average, 1) : '—'}</td>
                   <td className="actions" onClick={event => event.stopPropagation()}>
                     <button type="button" className="commerce-card-review-button" onClick={() => onReview(product)}>Revisar status</button>
+                    {onToggle && (confirmId === id
+                      ? <button type="button" className="commerce-card-review-button is-confirm" onClick={() => { setConfirmId(0); onToggle(product); }}>
+                          {product.internal_status === 'DISCONTINUED' ? 'Confirmar reativar' : 'Confirmar desativar'}
+                        </button>
+                      : <button type="button" className="commerce-card-review-button" onClick={() => setConfirmId(id)}>
+                          {product.internal_status === 'DISCONTINUED' ? 'Reativar' : 'Desativar'}
+                        </button>)}
                     <button type="button" className="commerce-card-detail-button" onClick={() => onOpen(product)}>Ver plataformas</button>
                   </td>
                 </tr>
@@ -401,7 +409,7 @@ function PlanningTable({ items, reports, busy, error, onOpen, onReview }) {
 export default function CommerceProductsView() {
   const [search, setSearch] = useState('');
   const [marketplace, setMarketplace] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState('ACTIVE');
   const [presence, setPresence] = useState('ALL');
   const [historyMonths, setHistoryMonths] = useState(3);
   const [salesPlanning, setSalesPlanning] = useState({});
@@ -505,6 +513,27 @@ export default function CommerceProductsView() {
     }
   }
 
+  async function toggleDeactivated(product) {
+    const productId = Number(product?.product_id || 0);
+    if (!productId) return;
+    const next = product.internal_status === 'DISCONTINUED' ? 'ACTIVE' : 'DISCONTINUED';
+    setError('');
+    setMessage('');
+    try {
+      await commerceApi(`/api/admin/commerce/products/${productId}/state`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ internal_status: next })
+      });
+      setMessage(next === 'DISCONTINUED'
+        ? `${product.name}: desativado. O histórico de vendas foi mantido.`
+        : `${product.name}: reativado.`);
+      await load(offset);
+    } catch (err) {
+      setError(err.message || 'Não foi possível alterar o produto.');
+    }
+  }
+
   const total = Number(data?.pagination?.total || 0);
   const page = Math.floor(offset / COMMERCE_PAGE_SIZE) + 1;
   const pages = Math.max(1, Math.ceil(total / COMMERCE_PAGE_SIZE));
@@ -535,10 +564,10 @@ export default function CommerceProductsView() {
             <option value={12}>Histórico de 12 meses</option>
           </select>
           <select value={status} onChange={event => setStatus(event.target.value)}>
-            <option value="">Todos os estados</option>
             <option value="ACTIVE">Ativos</option>
             <option value="DRAFT">Rascunhos</option>
-            <option value="DISCONTINUED">Descontinuados</option>
+            <option value="DISCONTINUED">Desativados (histórico)</option>
+            <option value="">Todos os estados</option>
           </select>
         </div>
       </div>
@@ -554,6 +583,7 @@ export default function CommerceProductsView() {
           error={planningError}
           onOpen={openProductDetail}
           onReview={setStateProduct}
+          onToggle={toggleDeactivated}
         />
       ) : (
         <CommerceEmptyState title="Nenhum produto comercial cadastrado" detail="Os produtos aparecerão aqui após a reconciliação das fontes comerciais." />

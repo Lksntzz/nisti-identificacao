@@ -31,3 +31,8 @@
 .nisti-planning-table td.actions button+button{margin-left:6px}
 .nisti-planning-table td.actions .commerce-card-review-button,.nisti-planning-table td.actions .commerce-card-detail-button{padding:6px 9px;font-size:10px}
 .nisti-planning-table .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* Produto desativado: histórico preservado, destacado como inativo */
+.nisti-planning-table tr.is-deactivated td{opacity:.6}
+.nisti-planning-table tr.is-deactivated td.actions{opacity:1}
+.nisti-planning-table .is-confirm{background:#b4531a;color:#fff;border-color:#b4531a}
