@@ -4547,3 +4547,5 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
 .mural-publish-v2-preview.is-compact .mural-preview-smartphone{flex:none;min-height:460px}
 .mural-studio-workspace .mural-studio-body>.nps-side{position:sticky;top:76px;align-self:start}
 @media(max-width:1120px){.mural-studio-workspace .mural-studio-body>.nps-side{position:static}}
+
+.nps-when-hint{display:block;margin-top:8px;color:#64748b;font-size:12px}

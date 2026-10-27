@@ -15,7 +15,7 @@ test('collection editor opens as a full-page Publicar studio instead of a modal'
 
 test('collection workspace follows the same three-step hierarchy as product and information',()=>{
   assert.ok(view.includes("['collection', 'Coleção', 'Vários produtos']"));
-  assert.ok(view.includes("{step(activeKind === 'collection' ? 3 : 2)}O que dizer?"));
+  assert.ok(view.includes("{step(activeKind === 'collection' ? 3 : activeKind === 'notice' ? 1 : 2)}O que dizer?"));
   assert.ok(view.includes('{step(2)}Produtos da coleção'));
   assert.ok(view.includes('className="mural-studio-card nps-more"'));
   assert.ok(view.includes('Nome da coleção'));
