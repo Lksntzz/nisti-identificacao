@@ -23,9 +23,9 @@ test('Importar arquivo is a dropdown; legacy four-card inline block is removed',
   assert.match(managerCss,/\.nim-import-option-copy/);
 });
 
-test('all six report types use the same import window, not different implementations',()=>{
+test('all five import types use the same import window, not different implementations',()=>{
   assert.deepEqual(COMMERCE_IMPORT_OPTIONS.map(x=>x.mode),
-    ['catalog','sales','ads','performance','ml_performance','aftercare']);
+    ['catalog','sales','ads','performance','aftercare']);
   assert.match(manager,/selectedImportMode&&<CommerceImportModal mode=\{selectedImportMode\}/);
   assert.match(modal,/CommerceImportCenter key=\{mode\} embedded initialMode=\{mode\} hideModeSelector/);
   assert.match(center,/IMPORT_MODES\.includes\(initialMode\)/);
@@ -61,8 +61,13 @@ test('portal remains keyboard-accessible and supports narrow phone viewports',()
     assert.ok(icon.includes('"'+option.icon+'":'),option.icon+' must be a supported icon');
 });
 
-test('menu Importar arquivo inclui Desempenho Mercado Livre e o centro de importacao o abre',()=>{
-  assert.ok(COMMERCE_IMPORT_OPTIONS.some(x=>x.mode==='ml_performance'&&x.label==='Desempenho Mercado Livre'));
-  assert.match(center,/mode==='ml_performance'&&<CommerceMlPerformanceImport/);
-  assert.match(center,/STANDALONE_MODES=\[[^\]]*'ml_performance'/);
+test('menu Importar arquivo agrupa Desempenho e a tela pede a plataforma antes do arquivo',()=>{
+  assert.ok(COMMERCE_IMPORT_OPTIONS.some(x=>x.mode==='performance'&&x.label==='Desempenho'));
+  assert.ok(!COMMERCE_IMPORT_OPTIONS.some(x=>x.mode==='ml_performance'));
+  assert.match(center,/mode==='performance'&&<CommercePerformanceImport\/>/);
+  assert.match(center,/STANDALONE_MODES=\[[^\]]*'performance'/);
+  const screen=fs.readFileSync('src/commerce-performance-import.jsx','utf8');
+  for(const v of ['SHOPEE','ML_NOVO','ML_ANTIGO'])assert.ok(screen.includes(v));
+  assert.match(screen,/account="NOVO"/);assert.match(screen,/account="ANTIGO"/);
+  assert.match(screen,/\{!platform&&/);
 });
