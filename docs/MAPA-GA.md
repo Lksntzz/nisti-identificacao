@@ -105,7 +105,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 
 **Evolução de vendas:** o código já foi removido (27/10/2026). Falta apagar do banco as funções `evolution_ads_v1`, `evolution_ad_weekly_v1` e `sales_evolution_v1`.
 
-**Já anotados antes:** funções órfãs do `commerce-catalog-workspace`; anúncios duplicados do planner Aqua.
+**Removidos em 27/10/2026:** o editor antigo `commerce-catalog-workspace.jsx`, `supabase-reserve-backfill.js`, `GtinRegistryView.jsx` e 9 funções soltas. **Ainda anotado:** anúncios duplicados do planner Aqua.
 
 ## 8. Arquivos grandes (risco ao alterar)
 

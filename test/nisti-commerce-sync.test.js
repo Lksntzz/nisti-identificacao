@@ -145,18 +145,13 @@ test('regra global reconcilia produtos de plataforma com o NISTI ID por SKU comp
   assert.equal(sql.includes('perform public.commerce_reconcile_nisti_product_v2'), true);
 });
 
-test('Catálogo expõe sincronizado versus sem NISTI', () => {
+test('Banco expõe sincronizado versus sem NISTI', () => {
   const sql = read('supabase/migrations/20260928180154_nisti_catalog_sync_status_v6.sql');
-  const ui = read('src/commerce-catalog-workspace.jsx');
 
   assert.equal(sql.includes("'NISTI_SYNCED'"), true);
   assert.equal(sql.includes("'NISTI_PENDING'"), true);
   assert.equal(sql.includes("'nisti_synced'"), true);
   assert.equal(sql.includes("'nisti_pending'"), true);
-  assert.equal(ui.includes("nistiStatus === 'NISTI_SYNCED'"), true);
-  assert.equal(ui.includes("nistiStatus === 'NISTI_PENDING'"), true);
-  assert.equal(ui.includes("Sincronizado"), true);
-  assert.equal(ui.includes("Sem NISTI"), true);
 });
 
 

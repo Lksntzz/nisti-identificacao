@@ -310,11 +310,3 @@ export async function canvaBackgroundRemoveToPng({bytes,token,name='NISTI produt
   }
 }
 
-export const __canvaCutoutInternals={
-  utf8Base64,
-  safeMessage,
-  safeCode,
-  fitDesignSize,
-  detectImageType,
-  safeCanvaDownloadUrl
-};

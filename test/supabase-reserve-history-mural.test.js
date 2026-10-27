@@ -2,14 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-test('legacy reserve backfill stays recovery-only while gated Mural notification scheduling is allowed', () => {
-  const backfill = fs.readFileSync('src/supabase-reserve-backfill.js','utf8');
+test('Mural notification scheduling is allowed and the legacy reserve backfill is gone', () => {
   const router = fs.readFileSync('src/operator-audit-router.js','utf8');
 
-  assert.match(backfill,/WHERE id>\?/);
-  assert.match(backfill,/BATCH_SIZE = 100/);
-  assert.match(backfill,/mural_collection_products/);
-  assert.match(backfill,/mural_post_reads/);
   assert.match(router,/async scheduled\(_event, env, ctx\)/);
   assert.match(router,/dispatchScheduledMuralNotifications\(env\)/);
   assert.match(fs.readFileSync('src/mural-router.js','utf8'),/const MURAL_PUBLIC_RELEASED = true/);

@@ -15,7 +15,6 @@ const globalImage = fs.readFileSync(new URL('../src/product-cutout-image.jsx', i
 const main = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const catalog = fs.readFileSync(new URL('../src/admin/CatalogView.jsx', import.meta.url), 'utf8');
 const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
-const commerceCatalog = fs.readFileSync(new URL('../src/commerce-catalog-workspace.jsx', import.meta.url), 'utf8');
 
 test('Mural creates transparent PNG cutouts by removing only border-connected near-white pixels', () => {
   assert.ok(utility.includes('isBorderBackgroundCandidate'));
@@ -33,7 +32,6 @@ test('treated product rendering is shared across NISTI ID, Catalog, Scanner, Com
   assert.ok(main.includes('ProductCutoutImage'));
   assert.ok(catalog.includes('ProductCutoutImage'));
   assert.ok(scanner.includes('ProductCutoutImage'));
-  assert.ok(commerceCatalog.includes('ProductCutoutImage'));
   assert.ok(mural.includes('useTreatedProductImage'));
   assert.ok(experience.includes('useTreatedProductImage'));
   assert.equal(core.includes('mural-transparent-image'), false);
