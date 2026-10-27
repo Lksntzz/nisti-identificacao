@@ -67,3 +67,12 @@ test('ABC is computed per platform: never mixes Shopee, ML Antigo and ML Novo',(
   assert.ok(ui.includes("i.platform===abcP"));
   assert.ok(ui.includes("key={i.platform+'|'+i.key}"));
 });
+test('Pararam de vender is cumulative: sold 3+ units ever and no sale in the filter period',()=>{
+  const m=read('supabase/migrations/20261027090000_commerce_dashboard_stopped_cumulative_v1.sql');
+  assert.match(m,/h\.total_units>=3/);
+  assert.match(m,/a\.cur_units=0/);
+  assert.match(m,/days_since/);
+  assert.doesNotMatch(m,/\b(insert into|update public|delete from|drop )\b/i);
+  assert.ok(ui.includes('r.days_since'));
+  assert.ok(ui.includes('Sem vender há'));
+});
