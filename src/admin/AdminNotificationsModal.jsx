@@ -88,6 +88,7 @@ const EXPLANATIONS = {
   gtin_not_found: ['Um operador bipou um código de barras que não está cadastrado.', 'Cadastre esse código em "EAN não Cadastrados" para ele ser reconhecido da próxima vez.'],
   gtin_error: ['O scanner não conseguiu consultar o código de barras.', 'Verifique a internet do aparelho. Se persistir, veja o painel Saúde & Logs.'],
   gtin_linked: ['Um código de barras (EAN) foi ligado a um produto.', 'A partir de agora, bipar esse código identifica esse produto.'],
+  mural_ean_draft: ['O sistema preparou um rascunho no Mural avisando que um produto novo tem EAN.', 'Abra o Mural, revise o texto e a imagem e publique, ou descarte o rascunho.'],
   gtin_removed: ['Um código de barras foi desligado de um produto.', 'Esse código deixa de identificar o produto. Se foi engano, ligue de novo na ficha do produto.'],
   visual_identification: ['Um operador usou a identificação por imagem para achar um produto.', 'Nenhuma ação necessária.'],
   visual_identification_error: ['A identificação por imagem falhou.', 'O operador pode bipar o código de barras no lugar.'],
