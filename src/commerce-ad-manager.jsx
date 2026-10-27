@@ -2,7 +2,6 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import CommerceImportModal from './commerce-import-modal.jsx';
 import {COMMERCE_IMPORT_OPTIONS} from './commerce-import-options.js';
 import ShopeeUnlinkedSales from './commerce-shopee-unlinked-sales.jsx';
-import CommerceEvolutionIntegrated from './commerce-evolution-integrated.jsx';
 import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
 import CommerceShopeeAdsSummary from './commerce-shopee-ads-summary.jsx';
 import {shopeeAdsRowsForPeriod,preferredShopeeAdsReport} from './commerce-shopee-ads-period.js';
@@ -543,7 +542,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const [financialOpen,setFinancialOpen]=useState(false);
   const [importedTotals,setImportedTotals]=useState(null);
   const [importedTotalsError,setImportedTotalsError]=useState('');
-  const [evolutionStatus,setEvolutionStatus]=useState('ZERO');
   useEffect(()=>{
     if(!importMenuOpen)return;
     function handleOutside(event){
@@ -680,8 +678,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const change=(setter,value)=>{setter(value);setOffset(0);setSelectedId(null);};
   return <section className="nim-manager">
     <header className="nim-heading">
-      <div><h2>{commercialView==='EVOLUTION'?'Evolução de vendas':'Gestor de Anúncios'}</h2>
-        <p>{commercialView==='EVOLUTION'?'Anúncios, variações e desempenho por plataforma':'Anúncios ativos, vendas e desempenho por plataforma'}</p></div>
+      <div><h2>Gestor de Anúncios</h2>
+        <p>Anúncios ativos, vendas e desempenho por plataforma</p></div>
       <div className="nim-header-actions">
         <button type="button" className="nim-soft-button" onClick={()=>setRefresh(v=>v+1)}>
           <CommercialIcon name="refresh-cw" size={16}/> Atualizar</button>
@@ -716,15 +714,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/>}
 
-    <nav className="nim-commercial-views" aria-label="Visões do Painel Comercial">
-      <button type="button" className={commercialView==='LISTINGS'?'active':''}
-        aria-current={commercialView==='LISTINGS'?'page':undefined}
-        onClick={()=>setCommercialView('LISTINGS')}><CommercialIcon name="layout-list" size={16}/> Anúncios</button>
-      <button type="button" className={commercialView==='EVOLUTION'?'active':''}
-        aria-current={commercialView==='EVOLUTION'?'page':undefined}
-        onClick={()=>setCommercialView('EVOLUTION')}>
-        <CommercialIcon name="chart-no-axes-column-increasing" size={16}/> Evolução de vendas</button>
-    </nav>
     {commercialView==='LISTINGS'&&
       <div className="nim-kpis nim-kpis-listings" aria-label="Indicadores de anúncios">
         <Kpi tone="blue" label="Anúncios ativos" value={data?num(kpi.active_ads):'—'}
@@ -775,11 +764,6 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         </p>}
       </div>}
     </section>}
-    {commercialView==='EVOLUTION'?
-      <CommerceEvolutionIntegrated platform={platform} onPlatformChange={setPlatform}
-        initialDays={days===30||days===60||days===90?days:30} onPeriodChange={setDays}
-        status={evolutionStatus} onStatusChange={setEvolutionStatus}
-        revision={refresh} salesRevision={salesRevision}/>:
       <>
     <section className="nim-filter-panel" aria-label="Filtros de plataforma, anúncio, período, situação de vendas e Curva ABC">
       <div className="nim-filter-top">
@@ -995,7 +979,7 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
       <ShopeeUnlinkedSales days={days} month={month}
         importedThrough={data?.imported_month?.period_end}
         search={search} revision={refresh} salesRevision={salesRevision}/>}
-    </>}
+    </>
     {commercialView==='LISTINGS'&&<p className="nim-footnote">
       Com vendas e Sem vendas são calculados por anúncio na janela importada; o detalhamento de
       cada variação permanece na ficha do anúncio. Ausência de venda significa ausência de unidades

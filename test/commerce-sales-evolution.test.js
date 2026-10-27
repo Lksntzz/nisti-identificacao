@@ -8,10 +8,9 @@ const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
 const app=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
 const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
 
-test('painel comercial possui duas visões, sem remover os anúncios existentes',()=>{
-  assert.match(app,/commercialView==='EVOLUTION'/);
-  assert.match(app,/Evolução de vendas/);
-  assert.match(app,/CommerceEvolutionIntegrated/);
+test('painel comercial mantem a lista de anuncios (evolucao saiu para o Dashboard)',()=>{
+  assert.doesNotMatch(app,/commercialView==='EVOLUTION'/);
+  assert.doesNotMatch(app,/CommerceEvolutionIntegrated/);
   assert.match(app,/commercialView==='LISTINGS'/);
   assert.match(app,/Lista de anúncios/);
   assert.match(css,/nim-evolution-controls/);

@@ -5,6 +5,5 @@ import fs from 'node:fs';
 const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
 
 test('opening Evolution starts on the no-sales filter rather than all listings',()=>{
-  assert.match(manager,/\[evolutionStatus,setEvolutionStatus\]=useState\('ZERO'\)/);
-  assert.match(manager,/status=\{evolutionStatus\} onStatusChange=\{setEvolutionStatus\}/);
+  assert.doesNotMatch(manager,/evolutionStatus/);
 });
