@@ -8,10 +8,9 @@
 
 As três pastas foram verificadas como privadas no momento da criação. Não alterar o compartilhamento para **Qualquer pessoa com o link**.
 
-**Estado atual: as pastas existem, mas o backup do banco AINDA NÃO foi produzido.** A conexão do Google Drive permite organizar arquivos, mas não fornece a senha privada do PostgreSQL nem exporta automaticamente o banco inteiro.
+**Última verificação documentada (21/10/2026): as pastas existem, mas o backup do banco AINDA NÃO tinha sido produzido.** Este documento não foi atualizado desde então; **confirme no Google Drive se já existe um backup real antes de confiar nele.** A conexão do Google Drive permite organizar arquivos, mas não fornece a senha privada do PostgreSQL nem exporta automaticamente o banco inteiro.
 
 ## Como executar sem exceder o Free
-
 
 ### Modo assistido no Windows (recomendado para quem não usa terminal)
 
@@ -26,12 +25,13 @@ O NISTI possui o iniciador `scripts/iniciar-backup-nisti.cmd`. Ele **não faz ba
 
 **Limites:** a cópia não inclui imagens do R2 nem substitui um teste de restauração em PostgreSQL isolado. A exportação consome egress da franquia gratuita. O iniciador usa PowerShell local com `RemoteSigned` e não grava senhas no repositório. Se o Windows impedir a execução, confira as políticas do computador em vez de reduzir indiscriminadamente a proteção.
 
+### Modo manual no PowerShell
 
 A cópia é gerada no computador com o cliente PostgreSQL 17, comprimida e **criptografada antes de chegar ao Google Drive**. Não usa Supabase Storage, Cloudflare R2, GitHub Artifacts ou outro projeto de banco.
 
 1. Instale Google Drive para computador, Node.js e o cliente PostgreSQL 17 (`pg_dump`, `pg_restore`, `psql`) no computador Windows usado para administração do NISTI. Alternativa: sem Drive para computador, salve numa pasta privada local e **envie manualmente só os arquivos `.nisti.enc` e `.nisti.json` pela interface web do Drive**.
 2. No aplicativo Google Drive para computador, abra a pasta **Banco Supabase - Criptografado** já existente dentro de **NISTI - Backups do Sistema**, e copie o caminho local mostrado no Explorador de Arquivos. **Não basta criar uma pasta nova com o mesmo nome em outro local.**
-3. Verifique espaço livre no Drive; o espaço é compartilhado com outros arquivos do Google. Na consulta de 21/10/2026, o banco ocupava aproximadamente **71 MiB** (74.378.387 bytes); o arquivo comprimido não foi medido e a exportação consome franquia de rede (egress).
+3. Verifique espaço livre no Drive em https://one.google.com/storage; o espaço é compartilhado com outros arquivos do Google e a cota desta conta **não foi consultada**. Em 21/10/2026 o banco foi medido duas vezes com resultados diferentes: aproximadamente **71 MiB** (74.378.387 bytes) e aproximadamente **67 MiB** (13,31% do teto de 500 MiB). Use o tamanho atual, que o assistente consulta antes de exportar. O arquivo comprimido não foi medido e a exportação consome franquia de rede (egress).
 4. No [Supabase → Connect](https://supabase.com/dashboard/project/yioetdcbgorunwgwuawg), obtenha o host, a porta e o usuário do banco. Não compartilhe a senha no chat ou em qualquer arquivo do GitHub.
 5. Execute **PowerShell** com o repositório NISTI já disponível localmente e as ferramentas PostgreSQL no PATH:
 
@@ -63,6 +63,15 @@ Remove-Item Env:NISTI_BACKUP_PASSPHRASE
 
 O caminho `G:\Meu Drive\...` acima é somente um exemplo. Confirme a localização da pasta existente no seu PC.
 
+Sem o Google Drive para computador, crie **antes** uma pasta privada local (por exemplo `C:\NISTI-Criptografado`; ela precisa existir antes do comando) e use-a em `--output-dir`. Depois envie os arquivos pelo navegador, como descrito a seguir.
+
+## Enviar pelo Google Drive no navegador
+
+1. Abra a pasta **Banco Supabase - Criptografado** dentro de **NISTI - Backups do Sistema**.
+2. Carregue somente os dois arquivos gerados na pasta privada local: o `.nisti.enc` e o manifesto `.nisti.json`.
+3. Confira no Drive a data, o nome e o tamanho dos arquivos. **Não** carregue arquivos `.dump` nem senhas.
+4. Mantenha uma cópia adicional criptografada em disco privado ou HD externo.
+
 O processo deixa apenas dois arquivos no destino: o backup **`.nisti.enc`** (criptografado com AES-256-GCM e chave derivada com scrypt) e o manifesto **`.nisti.json`** (SHA-256, data, formato e indicação de que imagens R2 não estão incluídas). O banco em formato legível existe temporariamente apenas no computador e é removido ao final, inclusive se o processo falhar.
 
 ## Conferir antes de considerar backup válido
@@ -88,10 +97,13 @@ O comando `inspect` descifra o arquivo em pasta temporária local, executa `pg_r
 
 ## Limites e segurança
 
-- O programa bloqueia o backup quando o tamanho do banco ultrapassa **100 MB** por padrão. O teto usa o tamanho total do banco como critério conservador, mas **não mede o consumo real da franquia mensal de egress**.
+- Envie ao Drive **somente** arquivos terminados em `.nisti.enc` e `.nisti.json`, **nunca** `.dump` sem criptografia. Não compartilhe a pasta com outros usuários nem por link público.
+- A senha de criptografia deve ser exclusiva, com **no mínimo 20 caracteres**, diferente da senha do Supabase, e guardada **fora do Drive**. Sem ela não é possível recuperar a cópia.
+- Não crie outro projeto Supabase, rotina agendada de backup ou bucket R2 pago para isso.
+- O `.dump` temporário fica só na pasta temporária local e é removido após a criptografia. Um desligamento abrupto do computador pode deixá-lo lá; confira essa pasta se isso acontecer.- O programa bloqueia o backup quando o tamanho do banco ultrapassa **100 MB** por padrão. O teto usa o tamanho total do banco como critério conservador, mas **não mede o consumo real da franquia mensal de egress**.
 - Não há agendamento automático, serviço pago, cobrança ativada ou upload de dumps não criptografados.
 - **Não use o `scripts/nisti-free-backup.mjs backup` direto dentro da pasta Google Drive**, pois esse comando gera um `.dump` não criptografado. Use somente `scripts/nisti-drive-backup.mjs backup`.
-- Backups das **imagens R2** ainda precisam ser planejados separadamente após conferir as operações e o consumo do bucket Cloudflare; eles não fazem parte desta primeira cópia.
+- Backups das **imagens R2** ainda precisam ser planejados separadamente após conferir as operações e o consumo do bucket Cloudflare; eles não fazem parte desta primeira cópia. O dump PostgreSQL não contém os arquivos do bucket. Não use a rotina antiga indexada pelo banco D1 para isso; consulte `docs/EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE.md`.
 - A primeira exportação real não foi executada durante a configuração do Drive porque a conexão PostgreSQL privada está disponível apenas para o administrador.
 
 ## Acompanhamento
@@ -99,6 +111,7 @@ O comando `inspect` descifra o arquivo em pasta temporária local, executa `pg_r
 - [x] Pasta do Google Drive para banco criada e verificada como privada.
 - [x] Pasta separada para imagens criada e verificada como privada.
 - [x] Ferramenta de backup com criptografia antes da sincronização.
+- [ ] Espaço livre da conta Google Drive confirmado.
 - [ ] Primeira exportação criptografada gerada no computador.
 - [ ] Presença dos dois arquivos confirmada no Google Drive.
 - [ ] Integridade e restauração independente verificadas.

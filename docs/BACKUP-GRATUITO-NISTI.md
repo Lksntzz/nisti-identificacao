@@ -2,7 +2,7 @@
 
 **Para armazenar no Google Drive, USE O SCRIPT CRIPTOGRAFADO:** [BACKUP-GOOGLE-DRIVE-NISTI.md](BACKUP-GOOGLE-DRIVE-NISTI.md). O procedimento manual descrito abaixo gera arquivos sem criptografia e **não deve salvar diretamente em pastas sincronizadas com a nuvem**.
 
-**Google Drive já preparado:** siga primeiro [Backup NISTI criptografado no Google Drive](GOOGLE-DRIVE-BACKUP-NISTI.md). Nunca carregue arquivos .dump sem criptografia no Drive.
+**Google Drive já preparado:** siga primeiro o guia criptografado acima. Nunca carregue arquivos .dump sem criptografia no Drive.
 
 **Modo de uso:** manual no computador do administrador. **O script NÃO roda no Worker,
 não escreve no Supabase, não cria outro banco, não agenda tarefas e não envia arquivos
