@@ -1,6 +1,7 @@
 import { parseSku } from './sku.js';
 import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 import { requireValidGtin13 } from './gtin.js';
+import { scheduleEanAnnouncementDraft } from './mural-ean-announcement.js';
 import {
   updateNotificationImage,
   listUserNotifications,
@@ -775,6 +776,7 @@ export default {
         if(saved.value?.status==='invalid_derivative') {
           return json({error:'Este produto ainda não possui uma imagem tratada válida para aprovação.'},422);
         }
+        scheduleEanAnnouncementDraft(ctx,env,productId);
         return json({ok:true,product_id:productId,status:'approved'});
       }
 
