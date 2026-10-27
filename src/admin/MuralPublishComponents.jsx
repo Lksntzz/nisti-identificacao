@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard } from '../mural-nisti.jsx';
+import { MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard, MuralDetailContent } from '../mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
 import { AdminMuralIcon, request, requestBlob } from './MuralPublishShared.jsx';
 
@@ -430,7 +430,7 @@ export function PublishImageField({
 }
 
 export function PublishPreviewCard({ activeKind, form, product, collection, selectedProducts = [], imageUrl, onToggleFeatured, compact = false }) {
-  const [viewMode, setViewMode] = useState(compact ? 'detail' : (form.featured ? 'hero' : 'feed')); // 'feed' | 'hero' | 'detail'
+  const [viewMode, setViewMode] = useState(form.featured ? 'hero' : 'feed'); // 'feed' | 'hero' | 'detail'
   const [tabFilter, setTabFilter] = useState(() => (
     activeKind === 'product' ? 'product' : activeKind === 'collection' ? 'collection' : activeKind === 'notice' ? 'notice' : 'all'
   ));
@@ -781,102 +781,9 @@ export function PublishPreviewCard({ activeKind, form, product, collection, sele
                   ‹ Voltar ao feed
                 </button>
 
-                {currentDetailItem.image_url ? (
-                  <div className="mural-preview-detail-media">
-                    <img src={currentDetailItem.image_url} alt="Arte em destaque" />
-                  </div>
-                ) : currentDetailItem.kind === 'product' && (
-                  <div className="mural-preview-detail-placeholder">
-                    <AdminMuralIcon name="product" size={36}/>
-                    <small>Foto padrão do catálogo</small>
-                  </div>
-                )}
-
-                <div className="mural-card-badges">
-                  {!currentDetailItem.is_read && <span className="mural-new-badge">NOVO</span>}
-                  {currentDetailItem.kind === 'notice' && (
-                    <span className={`mural-notice-label ${currentDetailItem.notice_level || 'info'}`}>
-                      {currentDetailItem.notice_level === 'important' ? 'Importante' : currentDetailItem.notice_level === 'attention' ? 'Atenção' : 'Informação'}
-                    </span>
-                  )}
-                  {currentDetailItem.badge && currentDetailItem.badge !== 'NOVO' && (
-                    <span className="mural-editorial-badge">{currentDetailItem.badge}</span>
-                  )}
-                </div>
-
-                <div className="mural-preview-detail-typography">
-                  {currentDetailItem.kind === 'product' && currentDetailItem.product?.type && (
-                    <span className="mural-preview-detail-kicker">{currentDetailItem.product.type}</span>
-                  )}
-                  <strong>{currentDetailItem.title}</strong>
-                  {currentDetailItem.subtitle && <p className="mural-preview-detail-subtitle">{currentDetailItem.subtitle}</p>}
-                  {currentDetailItem.body && <p className="mural-preview-detail-body">{currentDetailItem.body}</p>}
-                </div>
-
-                {currentDetailItem.kind === 'product' && currentDetailItem.product && (
-                  <div className="mural-preview-detail-specs">
-                    <div><b>SKU</b><span>{currentDetailItem.product.sku || 'N/A'}</span></div>
-                    <div><b>Wire-o</b><span>{currentDetailItem.product.wireo || 'Padrão'}</span></div>
-                    <div><b>Elástico</b><span>{currentDetailItem.product.elastico || 'Padrão'}</span></div>
-                    <div><b>Coleção</b><span>{currentDetailItem.product.collection || 'Catálogo'}</span></div>
-                  </div>
-                )}
-
-                {currentDetailItem.kind === 'collection' && (currentDetailItem.collection?.preview_products?.length > 0 || collectionProducts.length > 0) && (
-                  <div className="mural-preview-collection-vitrine">
-                    <header>
-                      <b>Vitrine da coleção</b>
-                      <small>{(currentDetailItem.collection?.preview_products || collectionProducts).length} produtos</small>
-                    </header>
-                    <div className="mural-preview-collection-chips">
-                      {(currentDetailItem.collection?.preview_products || collectionProducts).slice(0, 6).map(p => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className="mural-preview-collection-chip-btn"
-                          onClick={() => openDetail({
-                            id: p.id,
-                            kind: 'product',
-                            title: p.nome || p.type || p.sku,
-                            subtitle: `Produto da coleção ${currentDetailItem.title}`,
-                            body: `SKU: ${p.sku || 'N/A'} • Wire-o: ${p.wireo || 'Padrão'} • Elástico: ${p.elastico || 'Padrão'}`,
-                            badge: 'COLEÇÃO',
-                            image_url: p.image_url || null,
-                            product: p
-                          })}
-                          title={`Ver detalhes do ${p.sku || p.nome}`}
-                        >
-                          {p.image_url && <img src={p.image_url} alt=""/>}
-                          <b>{p.sku || p.nome || p.type}</b>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {currentDetailItem.kind === 'notice' && (
-                  <div className={`mural-preview-notice-callout is-${currentDetailItem.notice_level || 'info'}`}>
-                    <AdminMuralIcon name="notice" size={18}/>
-                    <span>Orientação prioritária para equipes de expedição e triagem.</span>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  className={`mural-preview-detail-action-btn ${ctaFeedback ? 'is-success' : ''}`}
-                  onClick={handleTestCta}
-                >
-                  <AdminMuralIcon name={ctaFeedback ? 'check' : 'layers'} size={15}/>
-                  <span>
-                    {ctaFeedback
-                      ? 'Ação executada com sucesso!'
-                      : currentDetailItem.kind === 'collection'
-                      ? 'Ver catálogo da coleção'
-                      : currentDetailItem.kind === 'notice'
-                      ? 'Confirmar leitura no terminal'
-                      : 'Ver produto no catálogo'}
-                  </span>
-                </button>
+                <section className={`mural-detail mural-preview-real-detail${currentDetailItem.kind === 'product' ? ' mural-detail-immersive' : currentDetailItem.image_url ? '' : ' no-media'}`}>
+                  <MuralDetailContent item={currentDetailItem} />
+                </section>
               </div>
             ) : viewMode === 'hero' ? (
               <div className="mural-preview-hero-container">
