@@ -5,8 +5,6 @@ import fs from 'node:fs';
 const migration=fs.readFileSync('supabase/migrations/20261022170000_commerce_evolution_all_active_sales_v2.sql','utf8');
 const guard=fs.readFileSync('supabase/migrations/20261022173000_commerce_evolution_zero_guard_v1.sql','utf8');
 const salesFirst=fs.readFileSync('supabase/migrations/20261022175000_commerce_evolution_sales_first_v1.sql','utf8');
-const jsx=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
-const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
 
 test('all active marketplace ads are eligible regardless of number of variations',()=>{
   assert.match(migration,/where l\.listing_status='ACTIVE'/);

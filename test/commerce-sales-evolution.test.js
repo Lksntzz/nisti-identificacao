@@ -42,13 +42,3 @@ test('inclui todos os SKUs da Shopee, ML datado e aliases já aprovados',()=>{
   assert.match(sql,/null::text end listing_id/);
   assert.doesNotMatch(sql,/\b(update|insert into|delete from)\s+public\.commerce_sales_/i);
 });
-test('API é protegida por admin, aceita filtros válidos e mantém RPC restrita',()=>{
-  assert.match(router,/listings\/manager\/evolution/);
-  assert.match(router,/commerceSalesEvolution\(env/);
-  assert.match(router,/\[7,30,60,90\]\.includes\(days\)/);
-  assert.match(store,/commerce_sales_evolution_v1/);
-  assert.match(store,/timeoutMs:15000/);
-  assert.match(sql,/security invoker set search_path=public/);
-  assert.match(sql,/revoke all on function public\.commerce_sales_evolution_v1/);
-  assert.match(sql,/to service_role/);
-});

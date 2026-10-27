@@ -33,10 +33,7 @@ import {
   commerceShopeeSnapshot,
   commerceSalesAbcAds,
   commerceListingManager,
-  commerceSalesEvolution,
   commerceVariationReview,
-  commerceEvolutionAds,
-  commerceEvolutionAdWeekly,
   commerceListingPriceSignal,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
@@ -465,34 +462,6 @@ export async function handleCommerceAdminRequest(request, env) {
         limit:query(url,'limit'),offset:query(url,'offset')
       }));
     }
-    if(method==='GET'&&pathname===`${BASE_PATH}/listings/manager/evolution`){
-      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
-      const days=Number(query(url,'days')??30);
-      const status=String(query(url,'status')||'ALL').toUpperCase();
-      const search=String(query(url,'search')||'');
-      if(!['TODAS','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO','SHOPEE'].includes(platform)
-        ||![7,30,60,90].includes(days)
-        ||!['ALL','SOLD','RISING','FALLING','STABLE','ZERO','NEW','LOW_VOLUME','INSUFFICIENT'].includes(status)
-        ||search.length>120)
-        return json({error:'Filtros de evolução de vendas inválidos.'},400);
-      return json(await commerceSalesEvolution(env,{
-        platform,days,status,search,
-        limit:query(url,'limit'),offset:query(url,'offset')
-      }));
-    }
-    // Private, read-only integrated ad/variation evolution. No extra sidebar tool.
-    if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/evolution-ads'){
-      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
-      const days=Number(query(url,'days')??30);
-      const status=String(query(url,'status')||'ALL').toUpperCase();
-      const search=String(query(url,'search')||'');
-      if(!['TODAS','SHOPEE','MERCADO_LIVRE','ML_ANTIGO','ML_NOVO'].includes(platform)
-        ||![30,60,90].includes(days)
-        ||!['ALL','ZERO','STABLE','RISING','FALLING'].includes(status)
-        ||search.length>120)return json({error:'Filtros de evolução inválidos.'},400);
-      return json(await commerceEvolutionAds(env,{platform,days,status,search,
-        limit:query(url,'limit'),offset:query(url,'offset')}));
-    }
     if(method==='POST'&&pathname===BASE_PATH+'/shopee/performance/reports'){
       if(Number(request.headers.get('content-length')||0)>1800000)
         return json({error:'Arquivo de desempenho excede 1,8 MB.'},413);
@@ -567,9 +536,6 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Plataforma do histórico de importações inválida.'},400);
       return json(await commerceSalesImportHistory(env,{platform,limit:query(url,'limit'),offset:query(url,'offset')}));
     }
-    const evolutionChart=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/evolution-weekly$/);
-    if(method==='GET'&&evolutionChart)
-      return json(await commerceEvolutionAdWeekly(env,evolutionChart[1]));
     if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/variation-review'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')??30);

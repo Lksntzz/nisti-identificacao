@@ -2,8 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const view=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
-const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261021220000_commerce_evolution_ads_v1.sql','utf8');
 const chartSql=fs.readFileSync('supabase/migrations/20261021221000_commerce_evolution_ad_weekly_v1.sql','utf8');
 const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
@@ -36,16 +34,3 @@ test('no sales and trend filters represent full ads, never mix SKU counts',()=>{
   assert.match(sql,/count\(\*\) filter\(where v\.previous_units is null\)::int previous_unknown/);
 });
 
-test('bounded Supabase read-only RPCs and authenticated routes protect free-tier data',()=>{
-  assert.match(router,/\/listings\/manager\/evolution-ads/);
-  assert.match(router,/\/evolution-weekly/);
-  assert.match(router,/commerceEvolutionAds\(env,/);
-  assert.match(router,/commerceEvolutionAdWeekly\(env,/);
-  assert.match(store,/commerce_evolution_ads_v1/);
-  assert.match(store,/commerce_evolution_ad_weekly_v1/);
-  assert.match(sql,/daily as materialized/);
-  assert.match(sql,/greatest\(1,least\(coalesce\(p_limit,20\),50\)\)/);
-  assert.match(sql,/revoke all on function public\.commerce_evolution_ads_v1/);
-  assert.match(sql,/to service_role/);
-  assert.doesNotMatch(sql+chartSql,/\b(update|delete from|insert into|truncate)\s+public\.commerce_/i);
-});

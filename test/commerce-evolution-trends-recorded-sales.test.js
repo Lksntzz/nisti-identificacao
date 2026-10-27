@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { adTrend } from '../src/commerce-evolution-helpers.js';
 
 const sql=fs.readFileSync('supabase/migrations/20261022220000_commerce_evolution_trends_from_imported_ads_v1.sql','utf8');
 
@@ -36,12 +35,3 @@ test('reuses one bounded read-only sales ledger scan',()=>{
   assert.doesNotMatch(sql,/\b(?:update|delete from|insert into|truncate)\s+public\./i);
 });
 
-test('shows previous and current units plus precise deltas on stable and rising ads',()=>{
-  const safari=adTrend({current_window_units:1145,previous_window_units:1123});
-  assert.equal(safari.delta,22);
-  assert.equal(safari.percent,2);
-  const growth=adTrend({current_window_units:506,previous_window_units:376});
-  assert.equal(growth.delta,130);
-  assert.equal(growth.percent,34.6);
-  assert.equal(adTrend({current_window_units:null,previous_window_units:5}),null);
-});

@@ -44,7 +44,7 @@ Menu em `commerce-admin-app-v2.jsx`:
 | Planejamento de Produtos | `commerce-products-view.jsx` | Controle de produtos: ativo, rascunho, desativado (histórico mantido) | `list_products_planning_cards_v1`, `set_product_state_v1`, `set_listing_state_v1` |
 | Histórico de importações | `commerce-import-history.jsx` | Conferir e excluir importações | `list_import_batches_v1`, `list_sales_imports_v1`, `sales_import_history_v1`, `delete_import_batch_v1` |
 
-Observação: a antiga aba "Evolução de vendas" do Painel Comercial foi removida em 27/10/2026. O arquivo `commerce-evolution-integrated.jsx` e suas funções SQL (`evolution_ads_v1`, `evolution_ad_weekly_v1`, `sales_evolution_v1`) ficaram sem tela (ver seção 7).
+Observação: a antiga aba "Evolução de vendas" do Painel Comercial foi removida em 27/10/2026. O código da tela (`commerce-evolution-integrated.*`, ajudas e estilos), as rotas `/listings/manager/evolution*` e as funções do store foram removidos em 27/10/2026. As funções SQL `evolution_ads_v1`, `evolution_ad_weekly_v1` e `sales_evolution_v1` continuam no banco, sem uso (ver seção 7).
 
 ## 4. Importação (menu "Importar arquivo")
 
@@ -103,7 +103,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 
 **Família preview:** 72 funções e 20 tabelas `commerce_preview_*` (quase todas vazias). O código as cita em `commerce-rpc.js` e `commerce-admin-router.js` (provavelmente para um ambiente de testes). Confirmar se o ambiente de preview ainda é usado antes de qualquer remoção.
 
-**Sem tela depois de 27/10/2026:** `src/commerce-evolution-integrated.jsx` (+ CSS e testes) e as funções `evolution_ads_v1`, `evolution_ad_weekly_v1`, `sales_evolution_v1`.
+**Evolução de vendas:** o código já foi removido (27/10/2026). Falta apagar do banco as funções `evolution_ads_v1`, `evolution_ad_weekly_v1` e `sales_evolution_v1`.
 
 **Já anotados antes:** funções órfãs do `commerce-catalog-workspace`; anúncios duplicados do planner Aqua.
 
