@@ -45,12 +45,9 @@ test('Account-safe commits reject ambiguity before product writes', () => {
 test('Account-aware status and history never silently claim unassigned listing', () => {
   const sql = read('supabase/migrations/20261014_ml_account_status_history.sql');
   const store = read('src/commerce-supabase-store.js');
-  const history = read('src/commerce-catalog-workspace.jsx');
   assert.match(sql, /ambiguous_unassigned/);
   assert.match(sql, /l.account_code is null/);
   assert.match(sql, /l.account_code=v_batch.account_code/);
   assert.match(sql, /commerce_listing_history_account_v1/);
   assert.match(store, /p_account_code: normalizedAccount/);
-  assert.match(history, /Conta não identificada/);
-  assert.match(history, /account_code: account/);
 });

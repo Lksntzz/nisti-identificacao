@@ -43,15 +43,6 @@ export function CommerceStatusPill({ value }) {
   return <span className={`commerce-status-pill ${className}`}>{commerceStatusLabel(normalized)}</span>;
 }
 
-export function CommerceMetricCard({ label, value, helper }) {
-  return (
-    <article className="commerce-metric-card">
-      <span>{label}</span>
-      <strong>{commerceFormatNumber(value)}</strong>
-      <small>{helper}</small>
-    </article>
-  );
-}
 
 export function CommerceEmptyState({ title, detail }) {
   return (

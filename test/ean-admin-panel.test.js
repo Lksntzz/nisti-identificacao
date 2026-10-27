@@ -8,7 +8,6 @@ const router = fs.readFileSync(new URL('../src/gtin-router.js', import.meta.url)
 const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
 const coreRouter = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 'utf8');
 const migration = fs.readFileSync(new URL('../migrations/0017_gtin_scan_events.sql', import.meta.url), 'utf8');
-const gtinRegistry = fs.readFileSync(new URL('../src/admin/GtinRegistryView.jsx', import.meta.url), 'utf8');
 const gtinEvents = fs.readFileSync(new URL('../src/admin/GtinEventsView.jsx', import.meta.url), 'utf8');
 const barcodeGen = fs.readFileSync(new URL('../src/admin/BarcodeGeneratorView.jsx', import.meta.url), 'utf8');
 const expeditionDashboard = fs.readFileSync(new URL('../src/admin/ExpeditionDashboard.jsx', import.meta.url), 'utf8');

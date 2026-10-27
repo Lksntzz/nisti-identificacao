@@ -126,12 +126,6 @@ export async function supabasePlatformExists(env, platform) {
   return (await supabaseRpc(env, 'nisti_platform_exists', { p_platform: platform })) === true;
 }
 
-export async function supabaseProductsForCover(env, capaCode, platform) {
-  return rows(await supabaseRpc(env, 'nisti_products_for_cover', {
-    p_capa_code: String(capaCode || '').trim().toUpperCase(),
-    p_platform: String(platform || '').trim().toUpperCase()
-  }));
-}
 
 export async function supabaseImageKey(env, entity, id) {
   const value = await supabaseRpc(env, 'nisti_image_key', {

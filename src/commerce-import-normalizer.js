@@ -320,19 +320,6 @@ export function normalizeCommerceImportRow({ marketplace, sheetName, row, rowNum
   };
 }
 
-export function normalizeCommerceSheet({ marketplace, sheetName, rows }) {
-  const normalizedRows = [];
-  (rows || []).forEach((row, index) => {
-    const result = normalizeCommerceImportRow({
-      marketplace,
-      sheetName,
-      row,
-      rowNumber: index + 1
-    });
-    if (result) normalizedRows.push(result);
-  });
-  return normalizedRows;
-}
 
 export const commerceImportNormalizerInternals = Object.freeze({
   normalizeUpdateHint,
