@@ -17,7 +17,7 @@ bucket_name = "nisti-identificacao-images"
 [[ratelimits]]
 name = "GLOBAL_RATE_LIMITER"
 namespace_id = "419001"
-simple.limit = 120
+simple.limit = 600
 simple.period = 60
 
 [[ratelimits]]
