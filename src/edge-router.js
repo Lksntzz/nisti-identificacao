@@ -366,13 +366,16 @@ async function enforceRateLimit(env, request, pathname) {
   const loginRequest = pathname === '/admin-login' && method === 'POST';
   const canvaArtCreateRequest = pathname === CANVA_ART_CREATE_PATH && method === 'POST';
   const apiRequest = pathname.startsWith('/api/');
+  // O monitor da expedição consulta a fila a cada 2 s (30/min por tela): tem limitador próprio
+  // para não consumir o limite geral do mesmo IP e travar o painel (erro "Muitas requisições").
+  const dispatchPollRequest = pathname === '/api/dispatch/view' && method === 'POST';
   if (!loginRequest && !apiRequest) return null;
 
   const bindingName = loginRequest
     ? 'LOGIN_RATE_LIMITER'
     : canvaArtCreateRequest
       ? 'CANVA_ART_RATE_LIMITER'
-      : 'GLOBAL_RATE_LIMITER';
+      : dispatchPollRequest ? 'DISPATCH_POLL_RATE_LIMITER' : 'GLOBAL_RATE_LIMITER';
   const binding = env?.[bindingName];
   // A production login must never become unlimited when its rate-limit binding
   // is accidentally missing. Other APIs keep their existing availability policy.
@@ -384,7 +387,7 @@ async function enforceRateLimit(env, request, pathname) {
 
   const scope = loginRequest
     ? 'admin-login'
-    : canvaArtCreateRequest ? 'canva-art-create' : 'api';
+    : canvaArtCreateRequest ? 'canva-art-create' : dispatchPollRequest ? 'dispatch-poll' : 'api';
   try {
     const result = await binding.limit({ key: rateLimitKey(request, scope) });
     if (result?.success === false) {

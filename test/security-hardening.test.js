@@ -372,3 +372,18 @@ test('admin Mural QA keeps signed admin-preview privilege',()=>{
   assert.match(edge,/handleMuralRequest\(request, env, \{ qaAuthorized: muralQaSession \}\)/);
   assert.doesNotMatch(edge,/operator-pin|operatorPinRequired|OPERATOR_PIN/);
 });
+
+test('polling do monitor da expedicao usa limitador proprio e nao gasta o limite geral do IP', async () => {
+  let globalCalls=0;
+  let pollCalls=0;
+  const response=await edgeRouter.fetch(new Request('https://nisti.example/api/dispatch/view',{
+    method:'POST',
+    headers:{origin:'https://nisti.example','CF-Connecting-IP':'203.0.113.10'}
+  }),{
+    GLOBAL_RATE_LIMITER:{limit:async()=>{globalCalls+=1;return {success:false}}},
+    DISPATCH_POLL_RATE_LIMITER:{limit:async({key})=>{pollCalls+=1;assert.equal(key,'dispatch-poll:203.0.113.10');return {success:true}}}
+  },{});
+  assert.equal(globalCalls,0);
+  assert.equal(pollCalls,1);
+  assert.notEqual(response.status,429);
+});
