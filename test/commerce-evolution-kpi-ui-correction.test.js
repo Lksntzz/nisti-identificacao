@@ -14,10 +14,9 @@ test('KPIs da evolução vêm da mesma resposta de anúncios, não da contagem d
   assert.doesNotMatch(manager,/evolutionSummary\?\.kpis/);
 });
 
-test('a navegação principal antecede a nova evolução integrada',()=>{
-  assert.ok(manager.indexOf('<nav className="nim-commercial-views"')>0);
-  assert.ok(manager.indexOf('<nav className="nim-commercial-views"') <
-    manager.indexOf('<CommerceEvolutionIntegrated platform={platform}'));
+test('Painel Comercial nao tem mais navegacao de abas nem evolucao integrada',()=>{
+  assert.doesNotMatch(manager,/<nav className="nim-commercial-views"/);
+  assert.doesNotMatch(manager,/<CommerceEvolutionIntegrated/);
   assert.doesNotMatch(manager,/commercialView==='VARIATIONS'/);
 });
 

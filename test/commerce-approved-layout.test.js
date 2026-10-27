@@ -7,12 +7,10 @@ const view=fs.readFileSync('src/commerce-evolution-integrated.jsx','utf8');
 const css=fs.readFileSync('src/commerce-evolution-integrated.css','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261021220000_commerce_evolution_ads_v1.sql','utf8');
 
-test('anúncios e evolução possuem interfaces próprias e apenas duas opções de navegação',()=>{
-  const nav=manager.slice(manager.indexOf('<nav className="nim-commercial-views"'),manager.indexOf('</nav>'));
-  assert.equal((nav.match(/<button type="button"/g)||[]).length,2);
+test('Painel Comercial tem so a lista de anuncios (evolucao de vendas ficou no Dashboard)',()=>{
+  assert.doesNotMatch(manager,/nim-commercial-views/);
+  assert.doesNotMatch(manager,/CommerceEvolutionIntegrated/);
   assert.match(manager,/nim-kpis-listings/);
-  assert.match(manager,/CommerceEvolutionIntegrated/);
-  assert.doesNotMatch(nav,/Variações 30\/60\/90/);
   assert.doesNotMatch(manager,/value=\{28\}|value=\{41\}/);
 });
 

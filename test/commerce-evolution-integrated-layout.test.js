@@ -9,15 +9,10 @@ const chartSql=fs.readFileSync('supabase/migrations/20261021221000_commerce_evol
 const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
 const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
 
-test('exactly two main commercial tabs and integrated view, without an extra variations tool',()=>{
-  const nav=manager.slice(manager.indexOf('<nav className="nim-commercial-views"'),manager.indexOf('</nav>')+6);
-  assert.equal((nav.match(/<button type="button"/g)||[]).length,2);
-  assert.match(nav,/Anúncios/);
-  assert.match(nav,/Evolução de vendas/);
-  assert.doesNotMatch(nav,/Variações 30\/60\/90/);
-  assert.match(manager,/CommerceEvolutionIntegrated platform=\{platform\}/);
-  assert.doesNotMatch(manager,/CommerceVariationReview|CommerceSalesEvolution|commercialView==='VARIATIONS'/);
-  assert.match(manager,/commercialView==='EVOLUTION'\?'Evolução de vendas':'Gestor de Anúncios'/);
+test('Painel Comercial sem abas: evolucao de vendas removida, sem ferramenta extra de variacoes',()=>{
+  assert.doesNotMatch(manager,/nim-commercial-views|commercialView==='EVOLUTION'/);
+  assert.doesNotMatch(manager,/CommerceEvolutionIntegrated|CommerceVariationReview|CommerceSalesEvolution|commercialView==='VARIATIONS'/);
+  assert.match(manager,/Gestor de Anúncios/);
   assert.doesNotMatch(manager,/nim-kpis-evolution/);
 });
 

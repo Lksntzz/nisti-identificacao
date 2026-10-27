@@ -5,7 +5,7 @@ import fs from 'node:fs';
 test('commercial navigation is restored after removing unified view', () => {
   const ui = fs.readFileSync('src/commerce-ad-manager.jsx', 'utf8');
   assert.ok(ui.includes("useState('LISTINGS')"));
-  assert.ok(ui.includes('CommerceEvolutionIntegrated'));
+  assert.ok(!ui.includes('CommerceEvolutionIntegrated'));
   assert.ok(!ui.includes('ListingDiagnosisPanel'));
   assert.ok(ui.includes('CommerceTrafficMetrics'));
   assert.ok(ui.includes("useState('summary')"));

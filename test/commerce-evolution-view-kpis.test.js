@@ -28,6 +28,6 @@ test('sales reporting endpoints are private and validate filters',()=>{
 });
 
 test('the three status cards filter the same listing/variation report',()=>{
- assert.match(manager,/status=\{evolutionStatus\} onStatusChange=\{setEvolutionStatus\}/);
+ assert.doesNotMatch(manager,/evolutionStatus/);
  assert.doesNotMatch(manager,/trendOverview|trendRequest/);
 });
