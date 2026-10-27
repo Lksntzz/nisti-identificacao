@@ -41,7 +41,14 @@ export function AdminMuralIcon({ name, size = 22 }) {
 }
 
 export async function request(path, options = {}) {
-  const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...options });
+  const isRead = !options.method || String(options.method).toUpperCase() === 'GET';
+  let response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...options });
+  // Limite momentâneo do servidor (429): leituras tentam de novo sozinhas, sem mostrar erro.
+  for (const waitMs of isRead ? [1500, 4000] : []) {
+    if (response.status !== 429) break;
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+    response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...options });
+  }
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : null;
   if (!response.ok) {

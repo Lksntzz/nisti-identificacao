@@ -387,3 +387,11 @@ test('polling do monitor da expedicao usa limitador proprio e nao gasta o limite
   assert.equal(pollCalls,1);
   assert.notEqual(response.status,429);
 });
+
+test('limite geral por IP comporta varios aparelhos e a tela admin repete leituras em 429', async () => {
+  const { readFileSync } = await import('node:fs');
+  const toml = readFileSync('wrangler.toml', 'utf8');
+  assert.match(toml, /name = "GLOBAL_RATE_LIMITER"\nnamespace_id = "419001"\nsimple\.limit = 600/);
+  const shared = readFileSync('src/admin/MuralPublishShared.jsx', 'utf8');
+  assert.match(shared, /response\.status !== 429/);
+});
