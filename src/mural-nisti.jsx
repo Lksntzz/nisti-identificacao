@@ -508,26 +508,12 @@ function useAnimatedDialogClose(onClose, duration = 180) {
   return { closing, requestClose };
 }
 
-function DetailDialog({ item, onClose, onOpenCollection }) {
-  const closeRef = useRef(null);
+// Conteudo do detalhe do Mural (usado no modal real e na previa do painel Publicar).
+export function MuralDetailContent({ item, onOpenCollection = () => {} }) {
   const hasMedia = Boolean(item?.image_url);
-  const { closing, requestClose } = useAnimatedDialogClose(onClose);
-
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKey = event => {
-      if (event.key === 'Escape') requestClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [requestClose]);
-
   const immersiveProduct = item.kind === 'product';
-
   return (
-    <div className={`mural-modal-backdrop${closing ? ' is-closing' : ''}`} onMouseDown={event => event.target === event.currentTarget && requestClose()}>
-      <section className={`mural-detail${immersiveProduct ? ' mural-detail-immersive' : hasMedia ? '' : ' no-media'}`} role="dialog" aria-modal="true" aria-labelledby="mural-detail-title">
-        <button ref={closeRef} type="button" className="mural-detail-close" onClick={requestClose} disabled={closing} aria-label="Fechar detalhe"><span aria-hidden="true">×</span></button>
+    <>
         {immersiveProduct ? <MuralProductExperience item={item} /> : (
           <>
             {hasMedia && <MuralImage item={item} eager className={`mural-detail-image mural-detail-image-${item.kind}`} />}
@@ -550,6 +536,31 @@ function DetailDialog({ item, onClose, onOpenCollection }) {
             </div>
           </>
         )}
+    </>
+  );
+}
+
+function DetailDialog({ item, onClose, onOpenCollection }) {
+  const closeRef = useRef(null);
+  const hasMedia = Boolean(item?.image_url);
+  const { closing, requestClose } = useAnimatedDialogClose(onClose);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = event => {
+      if (event.key === 'Escape') requestClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [requestClose]);
+
+  const immersiveProduct = item.kind === 'product';
+
+  return (
+    <div className={`mural-modal-backdrop${closing ? ' is-closing' : ''}`} onMouseDown={event => event.target === event.currentTarget && requestClose()}>
+      <section className={`mural-detail${immersiveProduct ? ' mural-detail-immersive' : hasMedia ? '' : ' no-media'}`} role="dialog" aria-modal="true" aria-labelledby="mural-detail-title">
+        <button ref={closeRef} type="button" className="mural-detail-close" onClick={requestClose} disabled={closing} aria-label="Fechar detalhe"><span aria-hidden="true">×</span></button>
+        <MuralDetailContent item={item} onOpenCollection={onOpenCollection} />
       </section>
     </div>
   );

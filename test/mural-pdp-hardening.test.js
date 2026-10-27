@@ -87,8 +87,11 @@ test('editorial badge follows the PDP 18 character maximum',()=>{
 test('admin preview reuses the exact operator Mural card component',()=>{
   const publicUi=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
   assert.match(publicUi,/export function MuralCard/);
-  assert.match(admin,/import \{ MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard \} from '\.\.\/mural-nisti\.jsx'/);
+  assert.match(admin,/import \{ MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard, MuralDetailContent \} from '\.\.\/mural-nisti\.jsx'/);
   assert.match(admin,/<MuralCard item=\{previewItem\}/);
+  // o detalhe da previa tambem e o componente real do Mural (nao uma imitacao)
+  assert.match(publicUi,/export function MuralDetailContent/);
+  assert.match(admin,/<MuralDetailContent item=\{currentDetailItem\} \/>/);
 });
 
 test('collection posts fall back to the active collection banner when no post image exists',()=>{
