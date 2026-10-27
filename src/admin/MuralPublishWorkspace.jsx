@@ -360,6 +360,52 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
     ? Boolean((collectionForm.name || form.title)?.trim())
     : Boolean(form.title?.trim() && (activeKind !== 'product' || selectedProduct || form.product_id));
 
+  const copyCard = (
+          <section className="mural-studio-card">
+            <header className="mural-studio-card-header">
+              <strong>{step(activeKind === 'collection' ? 3 : activeKind === 'notice' ? 1 : 2)}O que dizer?</strong>
+            </header>
+
+            <div className="mural-studio-copy-grid">
+              <label className="mural-publish-v2-field">
+                <span>{activeKind === 'collection' ? 'Nome da coleção' : activeKind === 'notice' ? 'Título da informação' : 'Título da publicação'} <em>*</em></span>
+                <input
+                  maxLength="90"
+                  required
+                  value={activeKind === 'collection' ? collectionForm.name : form.title}
+                  onChange={e => activeKind === 'collection' ? setCol('name', e.target.value) : set('title', e.target.value)}
+                  placeholder={activeKind === 'collection' ? 'Ex.: Coleção Minimalista 2027' : activeKind === 'notice' ? 'Ex.: Nova conferência obrigatória de Wire-o' : 'Ex.: Planner Cactus 2027'}
+                />
+                <small>{String((activeKind === 'collection' ? collectionForm.name : form.title) || '').length}/90</small>
+              </label>
+
+              <label className="mural-publish-v2-field">
+                {activeKind === 'collection' ? 'Frase de destaque (hero)' : 'Subtítulo / Linha de apoio'}
+                <input
+                  maxLength="120"
+                  value={activeKind === 'collection' ? (collectionForm.hero_message || '') : (form.subtitle || '')}
+                  onChange={e => activeKind === 'collection' ? setCol('hero_message', e.target.value) : set('subtitle', e.target.value)}
+                  placeholder="Uma frase curta de impacto."
+                />
+                <small>{String((activeKind === 'collection' ? collectionForm.hero_message : form.subtitle) || '').length}/120</small>
+              </label>
+
+              <label className="mural-publish-v2-field mural-publish-v2-wide">
+                {activeKind === 'collection' ? 'Descrição da coleção' : activeKind === 'notice' ? 'Mensagem completa do aviso' : 'Descrição curta'}
+                <textarea
+                  maxLength="700"
+                  rows="3"
+                  value={activeKind === 'collection' ? (collectionForm.description || '') : (form.body || '')}
+                  onChange={e => activeKind === 'collection' ? setCol('description', e.target.value) : set('body', e.target.value)}
+                  placeholder={activeKind === 'notice' ? 'Escreva a orientação completa para os operadores da expedição.' : 'Orientações e especificações que os operadores precisam saber.'}
+                />
+                <small>{String((activeKind === 'collection' ? collectionForm.description : form.body) || '').length}/700</small>
+              </label>
+
+            </div>
+          </section>
+  );
+
   return (
     <section className="mural-publisher-workspace mural-studio-workspace" aria-label="Editor de publicação do Mural">
       <header className="mural-studio-topbar nps-topbar">
@@ -477,10 +523,12 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
             </section>
           )}
 
+          {activeKind === 'notice' && copyCard}
+
           {activeKind === 'notice' && (
             <section className="mural-studio-card">
               <header className="mural-studio-card-header">
-                <strong>{step(1)}Tipo do aviso e imagem</strong>
+                <strong>{step(2)}Prioridade, tipo e imagem</strong>
               </header>
 
               <div className="mural-studio-split-row">
@@ -683,54 +731,44 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
             </section>
           )}
 
-          {/* Card 2: Conteúdo Editorial */}
-          <section className="mural-studio-card">
-            <header className="mural-studio-card-header">
-              <strong>{step(activeKind === 'collection' ? 3 : 2)}O que dizer?</strong>
-            </header>
+          {activeKind !== 'notice' && copyCard}
 
-            <div className="mural-studio-copy-grid">
-              <label className="mural-publish-v2-field">
-                <span>{activeKind === 'collection' ? 'Nome da coleção' : activeKind === 'notice' ? 'Título da informação' : 'Título da publicação'} <em>*</em></span>
-                <input
-                  maxLength="90"
-                  required
-                  value={activeKind === 'collection' ? collectionForm.name : form.title}
-                  onChange={e => activeKind === 'collection' ? setCol('name', e.target.value) : set('title', e.target.value)}
-                  placeholder={activeKind === 'collection' ? 'Ex.: Coleção Minimalista 2027' : activeKind === 'notice' ? 'Ex.: Nova conferência obrigatória de Wire-o' : 'Ex.: Planner Cactus 2027'}
-                />
-                <small>{String((activeKind === 'collection' ? collectionForm.name : form.title) || '').length}/90</small>
-              </label>
-
-              <label className="mural-publish-v2-field">
-                {activeKind === 'collection' ? 'Frase de destaque (hero)' : 'Subtítulo / Linha de apoio'}
-                <input
-                  maxLength="120"
-                  value={activeKind === 'collection' ? (collectionForm.hero_message || '') : (form.subtitle || '')}
-                  onChange={e => activeKind === 'collection' ? setCol('hero_message', e.target.value) : set('subtitle', e.target.value)}
-                  placeholder="Uma frase curta de impacto."
-                />
-                <small>{String((activeKind === 'collection' ? collectionForm.hero_message : form.subtitle) || '').length}/120</small>
-              </label>
-
-              <label className="mural-publish-v2-field mural-publish-v2-wide">
-                {activeKind === 'collection' ? 'Descrição da coleção' : activeKind === 'notice' ? 'Mensagem completa do aviso' : 'Descrição curta'}
-                <textarea
-                  maxLength="700"
-                  rows="3"
-                  value={activeKind === 'collection' ? (collectionForm.description || '') : (form.body || '')}
-                  onChange={e => activeKind === 'collection' ? setCol('description', e.target.value) : set('body', e.target.value)}
-                  placeholder={activeKind === 'notice' ? 'Escreva a orientação completa para os operadores da expedição.' : 'Orientações e especificações que os operadores precisam saber.'}
-                />
-                <small>{String((activeKind === 'collection' ? collectionForm.description : form.body) || '').length}/700</small>
-              </label>
-
-            </div>
-          </section>
+          {activeKind !== 'collection' && (
+            <section className="mural-studio-card">
+              <header className="mural-studio-card-header">
+                <strong>{step(activeKind === 'notice' ? 3 : 3)}Quando aparece no Mural</strong>
+              </header>
+              <div className="mural-studio-settings-row">
+                <div className="mural-publish-v2-setting-tile mural-publish-v2-input-tile">
+                  <div className="mural-publish-v2-tile-label">
+                    <AdminMuralIcon name="calendar" size={15}/>
+                    <span>Publicar em</span>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={form.published_at}
+                    onChange={e => set('published_at', e.target.value)}
+                  />
+                </div>
+                <div className="mural-publish-v2-setting-tile mural-publish-v2-input-tile">
+                  <div className="mural-publish-v2-tile-label">
+                    <AdminMuralIcon name="calendar" size={15}/>
+                    <span>Expira em <em className="muted">(opcional)</em></span>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={form.expires_at}
+                    onChange={e => set('expires_at', e.target.value)}
+                  />
+                </div>
+              </div>
+              <small className="nps-when-hint">Deixe "Publicar em" vazio para valer assim que você clicar em Publicar.</small>
+            </section>
+          )}
 
           {/* Card 3: Configurações & Agendamento */}
           <details className="mural-studio-card nps-more">
-            <summary>Mais opções <small>{activeKind === 'collection' ? 'selo, destaque, ano no banner' : 'selo, datas, ordem, fixar no topo'}</small></summary>
+            <summary>Mais opções <small>{activeKind === 'collection' ? 'selo, destaque, ano no banner' : 'selo, ordem, fixar no topo'}</small></summary>
 
             <div className="nps-more-badge">
                 <label className="mural-publish-v2-field">
@@ -773,17 +811,7 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
                   </div>
                 </label>
               ) : (
-                <div className="mural-publish-v2-setting-tile mural-publish-v2-input-tile">
-                  <div className="mural-publish-v2-tile-label">
-                    <AdminMuralIcon name="calendar" size={15}/>
-                    <span>Publicar em</span>
-                  </div>
-                  <input
-                    type="datetime-local"
-                    value={form.published_at}
-                    onChange={e => set('published_at', e.target.value)}
-                  />
-                </div>
+                null
               )}
 
               {activeKind === 'collection' ? (
@@ -795,17 +823,7 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
                   </div>
                 </div>
               ) : (
-                <div className="mural-publish-v2-setting-tile mural-publish-v2-input-tile">
-                  <div className="mural-publish-v2-tile-label">
-                    <AdminMuralIcon name="calendar" size={15}/>
-                    <span>Expira em <em className="muted">(opcional)</em></span>
-                  </div>
-                  <input
-                    type="datetime-local"
-                    value={form.expires_at}
-                    onChange={e => set('expires_at', e.target.value)}
-                  />
-                </div>
+                null
               )}
 
               {activeKind === 'collection' ? (

@@ -33,7 +33,7 @@ test('product panel contains product search editorial image copy and system acti
 });
 
 test('information panel has priority category copy and image controls', () => {
-  assert.ok(admin.includes('Tipo do aviso e imagem'));
+  assert.ok(admin.includes('Prioridade, tipo e imagem'));
   assert.ok(admin.includes('Prioridade da publicação'));
   for (const label of ['Normal','Atenção','Importante','COMUNICADO INTERNO','PROCESSO','NOVIDADE']) {
     assert.ok(admin.includes(label), label);
@@ -84,4 +84,12 @@ test('trocar o tipo de publicacao nao copia dados entre Produto, Informacao e Co
   assert.match(src, /draftsRef\.current\[activeKind\] = \{ form, image, selectedProduct, productQuery \}/);
   assert.match(src, /setForm\(saved\?\.form \|\| freshPostForm\(nextKind\)\)/);
   assert.match(src, /setImage\(saved\?\.image \|\| null\)/);
+});
+
+test('painel Publicar: aviso comeca por "O que dizer" e as datas ficam visiveis fora de "Mais opções"', () => {
+  assert.ok(admin.includes("{activeKind === 'notice' && copyCard}"));
+  assert.ok(admin.includes("{activeKind !== 'notice' && copyCard}"));
+  assert.ok(admin.includes('Quando aparece no Mural'));
+  const more = admin.slice(admin.indexOf('<details className="mural-studio-card nps-more">'));
+  assert.ok(!more.slice(0, more.indexOf('</details>')).includes('Publicar em'));
 });
