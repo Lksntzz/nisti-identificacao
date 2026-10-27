@@ -39,6 +39,12 @@ test('migracao e rotas: dados isolados, somente service_role, protecao de conta 
   assert.doesNotMatch(m,/(update|delete from) public\.commerce_(listings|products|current_sales)/i);
   assert.ok(router.includes("/ml/performance/reports"));
   assert.ok(router.includes("/ml/performance/latest"));
-  assert.ok(read('src/commerce-dashboard.jsx').includes('Visitas ML'));
+  assert.ok(read('src/commerce-dashboard.jsx').includes('/shopee/performance/latest'));
+  assert.ok(read('src/commerce-dashboard.jsx').includes('perfItems[r.external_id]'));
+  const sp=read('supabase/migrations/20261027140000_commerce_shopee_performance_latest_v1.sql');
+  assert.match(sp,/grant execute on function public\.commerce_shopee_performance_latest_v1\(\) to service_role/);
+  assert.match(sp,/order by period_end desc,id desc limit 1/);
+  assert.doesNotMatch(sp,/\b(insert into|update public|delete from|drop )\b/i);
+  assert.ok(router.includes('/shopee/performance/latest'));
   assert.ok(read('src/commerce-import-center.jsx').includes('CommerceMlPerformanceImport'));
 });

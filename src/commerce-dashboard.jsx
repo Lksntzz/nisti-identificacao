@@ -6,6 +6,7 @@ import './commerce-dashboard.css';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
 const PLATFORM_LABEL={SHOPEE:'Shopee',ML_ANTIGO:'ML Antigo',ML_NOVO:'ML Novo'};
 // Situação do anúncio no catálogo: Ativo, Desativado (não continuou na plataforma; histórico de vendas preservado) ou sem status.
+const dm=s=>String(s||'').split('-').reverse().join('/');
 const listingState=status=>status==='ACTIVE'?{label:'Ativo',cls:' on',off:false}
   :['INACTIVE','REMOVED','PAUSED'].includes(status)?{label:'Desativado',cls:' off',off:true}
   :{label:'Sem status',cls:'',off:false};
@@ -369,14 +370,16 @@ export default function CommerceDashboard(){
     return()=>controller.abort();
   },[segPlatform,days,segment]);
   // Desempenho do Mercado Livre (relatório importado): visitas e conversão por anúncio; falha silenciosa.
-  const [mlPerf,setMlPerf]=useState(null);
+  const [mlPerf,setMlPerf]=useState(null),[spPerf,setSpPerf]=useState(null);
   useEffect(()=>{
     const controller=new AbortController();
-    fetchCommercialManager('/api/admin/commerce/ml/performance/latest',{signal:controller.signal})
-      .then(setMlPerf).catch(()=>{});
+    fetchCommercialManager('/api/admin/commerce/ml/performance/latest',{signal:controller.signal}).then(setMlPerf).catch(()=>{});
+    fetchCommercialManager('/api/admin/commerce/shopee/performance/latest',{signal:controller.signal}).then(setSpPerf).catch(()=>{});
     return()=>controller.abort();
   },[]);
-  const perfItems=mlPerf?.items||{};
+  const perfItems=useMemo(()=>({...(spPerf?.items||{}),...(mlPerf?.items||{})}),[mlPerf,spPerf]);
+  const perfNotes=[...(mlPerf?.reports||[]).map(x=>(x.account==='NOVO'?'ML Novo':'ML Antigo')+' '+dm(x.start)+' a '+dm(x.end)),
+    ...(spPerf?.reports||[]).map(x=>'Shopee '+dm(x.start)+' a '+dm(x.end))];
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
@@ -471,7 +474,7 @@ export default function CommerceDashboard(){
             <div className="ndb-tabs" role="tablist" aria-label="Detalhes">{TABS.map(([k,l,c])=><button key={k} type="button" role="tab" aria-selected={tab===k} className={tab===k?'is-active':''} onClick={()=>setTab(k)}>{l}{c!=null&&<em>{num(c)}</em>}</button>)}</div>
             <InfoIcon text={SOURCES[TAB_SOURCE[tab]]} label={TABS.find(t=>t[0]===tab)[1]}/>
           </header>
-          {tab==='best'&&<><PeriodBar cur={curTxt}/>{(mlPerf?.reports||[]).length>0&&<p className="ndb-perf-note">Visitas ML e Conv. ML vêm do relatório importado ({mlPerf.reports.map(x=>(x.account==='NOVO'?'ML Novo':'ML Antigo')+' '+String(x.start).split('-').reverse().join('/')+' a '+String(x.end).split('-').reverse().join('/')).join(' · ')}) e valem para esse período inteiro, não para o filtro acima.</p>}<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num" title="Visitas únicas no período do relatório importado (Mercado Livre)">Visitas ML</th><th className="num" title="Vendas ÷ visitas no período do relatório importado">Conv. ML</th><th className="num">Investimento</th><th className="num">ROAS</th></tr></thead><tbody>
+          {tab==='best'&&<><PeriodBar cur={curTxt}/>{perfNotes.length>0&&<p className="ndb-perf-note">Visitas e Conversão vêm dos relatórios de desempenho importados ({perfNotes.join(' · ')}) e valem para o período de cada relatório, não para o filtro acima. ML: vendas ÷ visitas; Shopee: pedidos feitos ÷ visitantes.</p>}<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num" title="Visitas únicas no período do relatório de desempenho importado de cada plataforma">Visitas</th><th className="num" title="Mercado Livre: vendas ÷ visitas. Shopee: pedidos feitos ÷ visitantes (inclui cancelados depois)">Conversão</th><th className="num">Investimento</th><th className="num">ROAS</th></tr></thead><tbody>
             {bestAll.map(r=>{const ad=adsByListing[r.listing_id];const st=listingState(r.status);return <tr key={r.platform+r.external_id} className={st.off?'ndb-off':''}>
               <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.sku||r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td>{PLATFORM_LABEL[r.platform]||r.platform}</td>
