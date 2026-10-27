@@ -274,3 +274,6 @@
 .ndb-abc-plat{display:flex;width:100%;margin-bottom:8px}
 .ndb-abc-plat button{flex:1;min-height:28px;padding:0 6px;font-size:12px}
 .ndb-plat-split em{font-style:normal}
+/* O quadro colorido de "Por que caiu / O que verificar" cobre o texto inteiro (o texto quebra de linha dentro dele). */
+.ndb-explorer .ndb-table td .ndb-why{min-width:0;max-width:470px;width:100%;box-sizing:border-box}
+.ndb-explorer .ndb-table td .ndb-why small{display:block;white-space:normal!important;overflow:visible;text-overflow:clip;max-width:none!important}
