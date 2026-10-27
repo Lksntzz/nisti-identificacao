@@ -266,6 +266,24 @@ export async function commerceImportShopeePerformance(env,input={}) {
     p_report:report,p_rows:rows
   },{timeoutMs:30000});
 }
+// Desempenho Mercado Livre (visitas/vendas/conversao/qualidade): dados isolados, nunca alteram vendas nem SKUs.
+export async function commerceImportMlPerformance(env,input={}) {
+  const report=input?.report,rows=input?.rows;
+  const days=report?(Date.parse(report.end)-Date.parse(report.start))/86400000:-1;
+  if(!report||!Array.isArray(rows)||rows.length<1||rows.length>5000
+    ||!/^[a-f0-9]{64}$/.test(String(report.sha256||''))
+    ||!['ANTIGO','NOVO'].includes(String(report.account||''))
+    ||!validReportDate(report.start)||!validReportDate(report.end)
+    ||!(days>=0&&days<=400))
+    throw new Error('Relatório de desempenho do Mercado Livre inválido.');
+  return await supabaseRpc(env,'commerce_ml_performance_import_v1',{
+    p_report:report,p_rows:rows
+  },{timeoutMs:30000});
+}
+export async function commerceMlPerformanceLatest(env) {
+  const data=await supabaseRpc(env,'commerce_ml_performance_latest_v1',{},{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:{}};
+}
 export async function commerceListingPerformanceDiagnosis(env,{ids=[]}={}) {
   const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
   if(!listingIds.length)return {diagnosis:{}};

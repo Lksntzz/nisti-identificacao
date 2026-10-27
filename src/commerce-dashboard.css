@@ -281,3 +281,5 @@
 /* Anúncio desativado: histórico preservado, mas visualmente separado dos ativos */
 .ndb-status.off{color:#8a6a1f;font-weight:600}.ndb-status.off::before{background:#c98a14}
 .ndb-table tr.ndb-off td{opacity:.62}
+
+.ndb-perf-note{margin:6px 14px 0;font-size:12px;color:#5b6577}

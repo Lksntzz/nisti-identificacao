@@ -368,6 +368,15 @@ export default function CommerceDashboard(){
       .then(setSegSeries).catch(()=>{if(!controller.signal.aborted){setSegSeries(null);setSegFail(true);}});
     return()=>controller.abort();
   },[segPlatform,days,segment]);
+  // Desempenho do Mercado Livre (relatório importado): visitas e conversão por anúncio; falha silenciosa.
+  const [mlPerf,setMlPerf]=useState(null);
+  useEffect(()=>{
+    const controller=new AbortController();
+    fetchCommercialManager('/api/admin/commerce/ml/performance/latest',{signal:controller.signal})
+      .then(setMlPerf).catch(()=>{});
+    return()=>controller.abort();
+  },[]);
+  const perfItems=mlPerf?.items||{};
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
@@ -462,15 +471,16 @@ export default function CommerceDashboard(){
             <div className="ndb-tabs" role="tablist" aria-label="Detalhes">{TABS.map(([k,l,c])=><button key={k} type="button" role="tab" aria-selected={tab===k} className={tab===k?'is-active':''} onClick={()=>setTab(k)}>{l}{c!=null&&<em>{num(c)}</em>}</button>)}</div>
             <InfoIcon text={SOURCES[TAB_SOURCE[tab]]} label={TABS.find(t=>t[0]===tab)[1]}/>
           </header>
-          {tab==='best'&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num">Investimento</th><th className="num">ROAS</th></tr></thead><tbody>
+          {tab==='best'&&<><PeriodBar cur={curTxt}/>{(mlPerf?.reports||[]).length>0&&<p className="ndb-perf-note">Visitas ML e Conv. ML vêm do relatório importado ({mlPerf.reports.map(x=>(x.account==='NOVO'?'ML Novo':'ML Antigo')+' '+String(x.start).split('-').reverse().join('/')+' a '+String(x.end).split('-').reverse().join('/')).join(' · ')}) e valem para esse período inteiro, não para o filtro acima.</p>}<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num" title="Visitas únicas no período do relatório importado (Mercado Livre)">Visitas ML</th><th className="num" title="Vendas ÷ visitas no período do relatório importado">Conv. ML</th><th className="num">Investimento</th><th className="num">ROAS</th></tr></thead><tbody>
             {bestAll.map(r=>{const ad=adsByListing[r.listing_id];const st=listingState(r.status);return <tr key={r.platform+r.external_id} className={st.off?'ndb-off':''}>
               <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.sku||r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td>{PLATFORM_LABEL[r.platform]||r.platform}</td>
               <td><span className={'ndb-status'+st.cls}>{st.label}</span></td>
               <td className="num"><b>{num(r.units)}</b></td><td className="num">{money(r.revenue)}</td>
+              {(()=>{const pf=perfItems[r.external_id];return <><td className="num">{pf&&pf.visits!=null?num(pf.visits):'—'}</td><td className="num">{pf&&pf.conversion_pct!=null?String(pf.conversion_pct).replace('.',',')+'%':'—'}</td></>;})()}
               <td className="num">{ad?money(ad.spend):'sem dados'}</td>
               <td className="num">{ad&&ad.roas!=null?<span className={'ndb-roas'+(Number(ad.roas)<1?' low':'')}>{String(ad.roas).replace('.',',')}x</span>:'sem dados'}</td></tr>;})}
-            {top.length===0&&!loading&&<tr><td colSpan={7} className="ndb-empty">Sem vendas no período.</td></tr>}
+            {top.length===0&&!loading&&<tr><td colSpan={9} className="ndb-empty">Sem vendas no período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note" title="Investimento e ROAS vêm do relatório Shopee Ads importado (período próprio) e só aparecem para anúncios com campanha individual.">Os 15 anúncios que mais faturam. Investimento e ROAS: relatório Shopee Ads importado, só anúncios com campanha individual.</p></>}
           {(tab==='drops'||tab==='stopped')&&all&&<p className="ndb-empty">Escolha 30, 60 ou 90 dias no filtro de período: esta lista compara períodos.</p>}

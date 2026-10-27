@@ -21,6 +21,7 @@ import { readCommerceSalesXlsx } from './commerce-sales-import-reader.js';
 import CommerceShopeeAdsImport from './commerce-shopee-ads-import.jsx';
 import CommerceShopeeAftercareImport from './commerce-shopee-aftercare-import.jsx';
 import CommerceShopeePerformanceImport from './commerce-shopee-performance-import.jsx';
+import CommerceMlPerformanceImport from './commerce-ml-performance-import.jsx';
 import { readCommerceXlsx } from './commerce-xlsx-reader.js';
 import { attestShopeeActiveExport } from './commerce-shopee-sales-info.js';
 import './commerce-import-center.css';
@@ -514,8 +515,8 @@ function CatalogBatchReview({ batch, rows, yearTargets, busy, page, onPageChange
   );
 }
 
-const IMPORT_MODES=['catalog','sales','ads','aftercare','performance'];
-const STANDALONE_MODES=['ads','aftercare','performance'];
+const IMPORT_MODES=['catalog','sales','ads','aftercare','performance','ml_performance'];
+const STANDALONE_MODES=['ads','aftercare','performance','ml_performance'];
 export default function CommerceImportCenter({ embedded = false, initialMode = null, hideModeSelector = false, onSalesChanged, onCatalogChanged }) {
   const [mode, setMode] = useState(IMPORT_MODES.includes(initialMode) ? initialMode : embedded ? '' : 'catalog');
   const [showHistory, setShowHistory] = useState(false);
@@ -946,10 +947,18 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
           <strong>Desempenho Shopee</strong>
           <small>Impressões, cliques e pedidos por anúncio</small>
         </button>
+        <button type="button" className={mode === 'ml_performance' ? 'active' : ''}
+          disabled={catalogImporting || salesImporting || catalogReading || salesReading}
+          onClick={() => {setMode('ml_performance');setError('');setMessage('');}}>
+          <span className="import-center-mode-icon" aria-hidden="true">↗</span>
+          <strong>Desempenho Mercado Livre</strong>
+          <small>Visitas, vendas e conversão por anúncio</small>
+        </button>
       </div>}
       {mode==='ads'&&<CommerceShopeeAdsImport/>}
       {mode==='aftercare'&&<CommerceShopeeAftercareImport/>}
       {mode==='performance'&&<CommerceShopeePerformanceImport/>}
+      {mode==='ml_performance'&&<CommerceMlPerformanceImport/>}
 
       {!STANDALONE_MODES.includes(mode) && error && <div className="import-center-alert error" role="alert">
         <span className="import-center-alert-icon" aria-hidden="true">!</span>
