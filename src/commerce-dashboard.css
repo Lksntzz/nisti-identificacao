@@ -277,3 +277,7 @@
 /* O quadro colorido de "Por que caiu / O que verificar" cobre o texto inteiro (o texto quebra de linha dentro dele). */
 .ndb-explorer .ndb-table td .ndb-why{min-width:0;max-width:470px;width:100%;box-sizing:border-box}
 .ndb-explorer .ndb-table td .ndb-why small{display:block;white-space:normal!important;overflow:visible;text-overflow:clip;max-width:none!important}
+
+/* Anúncio desativado: histórico preservado, mas visualmente separado dos ativos */
+.ndb-status.off{color:#8a6a1f;font-weight:600}.ndb-status.off::before{background:#c98a14}
+.ndb-table tr.ndb-off td{opacity:.62}

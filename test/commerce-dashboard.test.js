@@ -94,3 +94,17 @@ test('GA opens on the Dashboard screen by default',()=>{
   assert.ok(app.includes("useState('dashboard')"));
   assert.ok(!app.includes("const [activeView, setActiveView] = useState('catalog')"));
 });
+test('Desativar produto: preserva historico, so desativa anuncios sem produto ativo e restaura ao reativar',()=>{
+  const m=read('supabase/migrations/20261027120000_commerce_product_deactivation_cascade_v1.sql');
+  const products=read('src/commerce-products-view.jsx');
+  const shared=read('src/commerce-admin-shared.jsx');
+  assert.match(m,/status_before_deactivation/);
+  assert.match(m,/p\.internal_status <> 'DISCONTINUED'/);
+  assert.doesNotMatch(m,/\bdelete from\b|\bdrop\b/i);
+  assert.ok(shared.includes("DISCONTINUED: 'Desativado'"));
+  assert.ok(products.includes('toggleDeactivated'));
+  assert.ok(products.includes('Confirmar desativar'));
+  assert.ok(products.includes("useState('ACTIVE')"));
+  assert.ok(ui.includes("label:'Desativado'"));
+  assert.ok(ui.includes("label:'Sem status'"));
+});
