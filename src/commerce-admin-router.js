@@ -45,6 +45,7 @@ import {
   commerceSalesDashboardSeriesV1,
   commerceSalesDashboardSegmentSeriesV1,
   commerceSalesDashboardOverviewV1,
+  commerceSalesDashboardMonthlyV1,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
   commerceImportShopeeAftercare,
@@ -528,14 +529,20 @@ export async function handleCommerceAdminRequest(request, env) {
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/overview'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
-      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardOverviewV1(env,{platform,days}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/monthly'){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform))
+        return json({error:'Filtro do dashboard inválido.'},400);
+      return json(await commerceSalesDashboardMonthlyV1(env,{platform}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
-      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardV1(env,{platform,days}));
     }
