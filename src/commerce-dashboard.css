@@ -273,3 +273,4 @@
 .ndb-periodbar .pb.arrow{background:none;padding:0;color:#7a8aa3;font-weight:700}
 .ndb-abc-plat{display:flex;width:100%;margin-bottom:8px}
 .ndb-abc-plat button{flex:1;min-height:28px;padding:0 6px;font-size:12px}
+.ndb-plat-split em{font-style:normal}

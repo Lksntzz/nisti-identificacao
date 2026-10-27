@@ -76,3 +76,17 @@ test('Pararam de vender is cumulative: sold 3+ units ever and no sale in the fil
   assert.ok(ui.includes('r.days_since'));
   assert.ok(ui.includes('Sem vender há'));
 });
+test('Sem filtro: period 0 accumulates all sales, monthly chart per platform, ABC independent of period',()=>{
+  const a=read('supabase/migrations/20261027100000_commerce_dashboard_all_period_abc_history_v1.sql');
+  const m=read('supabase/migrations/20261027110000_commerce_dashboard_monthly_v1.sql');
+  assert.match(a,/when p_days=0 then 36500/);
+  assert.match(a,/from alst where cur_rev>0 group by 1,2/);
+  assert.match(m,/date_trunc\('month',sale_date\)/);
+  assert.match(m,/grant execute on function public\.commerce_dashboard_monthly_v1\(text\) to service_role/);
+  assert.doesNotMatch(a+m,/\b(insert into|update public|delete from|drop )\b/i);
+  assert.ok(router.includes("![0,7,30,60,90].includes(days)"));
+  assert.ok(router.includes("/sales-dashboard/monthly"));
+  assert.ok(ui.includes("Sem filtro (todo o histórico)"));
+  assert.ok(ui.includes("<MonthlyChart"));
+  assert.ok(ui.includes("/sales-dashboard/monthly?platform="));
+});

@@ -9,7 +9,7 @@ const PERIODS=[7,30,60,90];
 const CLASS_NOTE={A:'Até 80% do faturamento',B:'Dos 80% aos 95%',C:'Últimos 5%'};
 
 const SOURCES={
-  abc:'Vendas importadas (tabela de vendas diárias por anúncio, o mesmo dado do Histórico de importações). Soma o faturamento do período por SKU em cada plataforma (Shopee, ML Antigo e ML Novo nunca se misturam: cada uma tem a sua própria curva), ordena do maior para o menor e classifica: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
+  abc:'Vendas importadas (tabela de vendas diárias por anúncio, o mesmo dado do Histórico de importações). Usa todo o histórico de vendas importado (não muda com o filtro de período) e soma o faturamento por SKU em cada plataforma (Shopee, ML Antigo e ML Novo nunca se misturam: cada uma tem a sua própria curva), ordena do maior para o menor e classifica: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
   drops:'Vendas importadas: compara os últimos N dias com os N dias imediatamente anteriores, por anúncio ATIVO. Entra quem tinha 5 ou mais unidades no período anterior e caiu 15% ou mais. A coluna “Preço × vendas” compara o preço médio realizado. A linha de causa vem dos relatórios de desempenho Shopee importados (impressões, cliques, conversão); sem esse relatório aparece só o preço. São sinais, não prova de causa.',
   daily:'Vendas importadas (tabela de vendas diárias por anúncio): soma do faturamento de cada dia, separado por plataforma. A linha tracejada é o dia equivalente do período anterior (mesmo tamanho). Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
   top:'Vendas importadas: os 15 anúncios com maior faturamento no período, com a variação de unidades contra o período anterior de mesmo tamanho. Título e situação vêm do cadastro de anúncios do sistema.',
@@ -101,8 +101,8 @@ function niceMax(v){
 }
 
 const CLASS_COLOR={A:'#1d5fd1',B:'#16a46b',C:'#f08a1c'};
-const PLAT_COLOR={SHOPEE:'#eb6834',ML_ANTIGO:'#2a78d6',ML_NOVO:'#2a78d6'};
-const axisMoney=v=>v>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil':String(Math.round(v));
+const PLAT_COLOR={SHOPEE:'#eb6834',ML_ANTIGO:'#2a78d6',ML_NOVO:'#7b4fd4'};
+const axisMoney=v=>v>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:v>=100000?0:1})+' mil':String(Math.round(v));
 const when=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'});};
 
 function Icon({name}){
@@ -205,6 +205,47 @@ function DailyChart({daily,animKey,theme='total'}){
   </div>;
 }
 
+// Vendas por mês: barras agrupadas, uma por plataforma. Meses incompletos são marcados.
+const MONTH_PLATS=[['SHOPEE','shopee','Shopee'],['ML_ANTIGO','ml_antigo','ML Antigo'],['ML_NOVO','ml_novo','ML Novo']];
+const monthLabel=m=>new Date(String(m).slice(0,10)+'T00:00:00Z').toLocaleDateString('pt-BR',{month:'short',timeZone:'UTC'}).replace('.','');
+const monthPartial=m=>{
+  const f=String(m.first_day||'').slice(0,10),l=String(m.last_day||'').slice(0,10),mo=String(m.month).slice(0,10);
+  if(!f||!l)return false;
+  const [y,mm]=mo.split('-').map(Number);
+  const end=new Date(Date.UTC(y,mm,0)).getUTCDate();
+  return f.slice(8,10)!=='01'||Number(l.slice(8,10))<end;
+};
+function MonthlyChart({months,platform,animKey}){
+  const [hover,setHover]=useState(null);
+  const [boxRef,{W,H}]=useBox();
+  const reduce=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const n=months.length;
+  if(!n)return <p className="ndb-empty">Sem vendas importadas.</p>;
+  const plats=MONTH_PLATS.filter(([code])=>platform==='TODAS'||platform===code);
+  const L=54,R=10,T=8,B=22,iw=W-L-R,ih=H-T-B;
+  const maxV=niceMax(Math.max(...months.flatMap(m=>plats.map(([,k])=>Number(m[k])||0))));
+  const gw=iw/n,bw=Math.max(4,Math.min(26,gw*0.8/plats.length));
+  const y=v=>T+ih-(v/maxV)*ih;
+  const steps=ih<110?2:4;
+  const ticks=Array.from({length:steps+1},(_,k)=>k/steps*maxV);
+  const h=hover!=null?months[hover]:null;
+  return <div className="ndb-chartbox fill" ref={boxRef}>
+    <svg viewBox={'0 0 '+W+' '+H} width={W} height={H} role="img" aria-label="Faturamento por mês e plataforma" onMouseLeave={()=>setHover(null)}
+      onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;setHover(Math.max(0,Math.min(n-1,Math.floor((px-L)/gw))));}}>
+      {ticks.map(t=><g key={t}><line x1={L} x2={W-R} y1={y(t)} y2={y(t)} className="ndb-grid-line"/><text x={L-8} y={y(t)+4} textAnchor="end" className="ndb-axis">{axisMoney(t)}</text></g>)}
+      {h&&<rect x={L+hover*gw} y={T} width={gw} height={ih} fill="#1d5fd1" fillOpacity=".06"/>}
+      <g key={animKey} className={reduce?'':'ndb-reveal'}>
+      {months.map((m,i)=>plats.map(([code,k],j)=>{const v=Number(m[k])||0;const bx=L+i*gw+(gw-bw*plats.length)/2+j*bw;return <rect key={i+code} x={bx} y={y(v)} width={bw-1} height={Math.max(0,T+ih-y(v))} rx="2" fill={PLAT_COLOR[code]} fillOpacity={monthPartial(m)?.55:1}/>;}))}
+      </g>
+      {months.map((m,i)=><text key={i} x={L+i*gw+gw/2} y={H-6} textAnchor="middle" className="ndb-axis">{monthLabel(m.month)}{monthPartial(m)?'*':''}</text>)}
+    </svg>
+    {h&&<div className="ndb-tip" style={{left:Math.min(W-250,Math.max(L,L+hover*gw+gw/2+10))+'px'}}>
+      <b>{monthLabel(h.month)}/{String(h.month).slice(0,4)}{monthPartial(h)?' (parcial: '+num(h.days_with_sales)+' dias com venda)':''}</b>
+      {plats.map(([code,k,label])=><span key={code}><i style={{background:PLAT_COLOR[code]}}/>{label} {money(h[k])} · {num(h['units_'+k])} unid.</span>)}
+      <em>Total {money(plats.reduce((a,[,k])=>a+Number(h[k]||0),0))}</em></div>}
+  </div>;
+}
+
 // Curva de Pareto: eixo único (% acumulado do faturamento), produtos do maior para o menor.
 function ParetoChart({items}){
   const [hover,setHover]=useState(null);
@@ -289,6 +330,7 @@ export default function CommerceDashboard(){
   const [helpOpen,setHelpOpen]=useState(false);
   const [nsf,setNsf]=useState('all');
   const [segSeries,setSegSeries]=useState(null);
+  const [monthly,setMonthly]=useState(null);
   const [segFail,setSegFail]=useState(false);
   useEffect(()=>{
     const controller=new AbortController();
@@ -297,14 +339,22 @@ export default function CommerceDashboard(){
     fetchCommercialManager('/api/admin/commerce/sales-dashboard'+q,{signal:controller.signal})
       .then(setData).catch(e=>{if(!controller.signal.aborted)setError(e.message||'Não foi possível carregar o dashboard.');})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
-    fetchCommercialManager('/api/admin/commerce/sales-dashboard/series'+q,{signal:controller.signal})
-      .then(setSeries).catch(()=>{if(!controller.signal.aborted)setSeries(null);});
+    if(days===0){
+      setSeries(null);setMonthly(null);
+      fetchCommercialManager('/api/admin/commerce/sales-dashboard/monthly?platform='+platform,{signal:controller.signal})
+        .then(setMonthly).catch(()=>{if(!controller.signal.aborted)setMonthly(null);});
+    }else{
+      setMonthly(null);
+      fetchCommercialManager('/api/admin/commerce/sales-dashboard/series'+q,{signal:controller.signal})
+        .then(setSeries).catch(()=>{if(!controller.signal.aborted)setSeries(null);});
+    }
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/overview'+q,{signal:controller.signal})
       .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});
     return()=>controller.abort();
   },[platform,days]);
   const abcP=platform==='TODAS'?abcPlat:platform;
-  const segment=!focus?null:tab==='best'?'best':tab==='drops'?'drops':tab==='stopped'?'stopped':(tab==='abc'&&cls)?cls.toLowerCase():null;
+  const all=days===0;
+  const segment=!focus||all?null:tab==='best'?'best':tab==='drops'?'drops':tab==='stopped'?'stopped':(tab==='abc'&&cls)?cls.toLowerCase():null;
   const segPlatform=segment&&segment.length===1?abcP:platform;
   useEffect(()=>{
     if(!segment){setSegSeries(null);return undefined;}
@@ -317,15 +367,15 @@ export default function CommerceDashboard(){
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
-  const {signals,diagnosis}=usePriceSignals(signalRows,days);
+  const {signals,diagnosis}=usePriceSignals(signalRows,all?90:days);
   const totals=data?.totals||{};
   const classes=data?.abc?.classes_by_platform?.[abcP]||[];
   const allItems=(data?.abc?.items||[]).filter(i=>i.platform===abcP);
   const hasData=data&&data.last_day;
-  const per=hasData?{curFrom:addDays(data.last_day,-days+1),curTo:data.last_day,prevFrom:addDays(data.last_day,-2*days+1),prevTo:addDays(data.last_day,-days)}:null;
+  const per=hasData?(all?{curFrom:data.first_day||data.current_start,curTo:data.last_day,prevFrom:null,prevTo:null}:{curFrom:addDays(data.last_day,-days+1),curTo:data.last_day,prevFrom:addDays(data.last_day,-2*days+1),prevTo:addDays(data.last_day,-days)}):null;
   const rng=(a,b)=>fmtDay(a)+' a '+fmtDay(b);
-  const curTxt=per?rng(per.curFrom,per.curTo):'';
-  const prevTxt=per?rng(per.prevFrom,per.prevTo):'';
+  const curTxt=per?(all?'todo o histórico ('+rng(per.curFrom,per.curTo)+')':rng(per.curFrom,per.curTo)):'';
+  const prevTxt=per&&!all?rng(per.prevFrom,per.prevTo):'';
   const SEG_TITLE={best:'15 anúncios que mais faturam',drops:'Anúncios em queda',stopped:'Anúncios que pararam de vender',a:'Produtos da classe A',b:'Produtos da classe B',c:'Produtos da classe C'};
   const segActive=Boolean(segment&&segSeries&&segSeries.segment&&segSeries.segment.toLowerCase()===segment);
   const daily=segActive?(segSeries.daily||[]):(series?.daily||[]);
@@ -346,8 +396,10 @@ export default function CommerceDashboard(){
   const classRows=cls?allItems.filter(i=>i.class===cls):[];
   const updated=(ov.coverage||[]).map(c=>c.last_import).filter(Boolean).sort().pop();
   const alerts=[
-    {k:'drops',t:'bad',i:'down',h:num(data?.drops?.total)+' produtos em queda',d:'Perderam '+money(data?.drops?.lost_revenue)+' de faturamento ('+curTxt+' vs. '+prevTxt+').'},
-    overview?{k:'stopped',t:'bad',i:'pause',h:num(ov.stopped_total??(ov.stopped||[]).length)+' pararam de vender',d:'Já venderam 3 ou mais unidades e estão sem nenhuma venda desde '+(per?fmtDayFull(per.curFrom):'o início do período')+' ('+days+' dias ou mais).'}
+    all?{k:'drops',t:'muted',i:'down',h:'Em queda: escolha um período',d:'A comparação com o período anterior precisa de 30, 60 ou 90 dias.'}
+      :{k:'drops',t:'bad',i:'down',h:num(data?.drops?.total)+' produtos em queda',d:'Perderam '+money(data?.drops?.lost_revenue)+' de faturamento ('+curTxt+' vs. '+prevTxt+').'},
+    all?{k:'stopped',t:'muted',i:'pause',h:'Pararam de vender: escolha um período',d:'Precisa de 30, 60 ou 90 dias para saber quem ficou sem vender.'}
+      :overview?{k:'stopped',t:'bad',i:'pause',h:num(ov.stopped_total??(ov.stopped||[]).length)+' pararam de vender',d:'Já venderam 3 ou mais unidades e estão sem nenhuma venda desde '+(per?fmtDayFull(per.curFrom):'o início do período')+' ('+days+' dias ou mais).'}
       :{k:'stopped',t:'muted',i:'pause',h:'Pararam de vender: sem dados',d:'A consulta de alertas ainda não está disponível.'},
     overview?{k:'nosales',t:'warn',i:'eye',h:num(ov.no_sales_total??lst.active_without_sales)+' anúncios ativos sem vendas',d:'Nenhuma unidade vendida em '+curTxt+', de '+num(lst.active)+' anúncios ativos.'}
       :{k:'nosales',t:'muted',i:'eye',h:'Anúncios sem vendas: sem dados',d:'A consulta de alertas ainda não está disponível.'},
@@ -360,8 +412,8 @@ export default function CommerceDashboard(){
   const firstDay=fmtDayFull((ov.coverage||[]).map(c=>c.first_day).filter(Boolean).sort()[0]);
   const TABS=[
     ['best','Melhores produtos',null],
-    ['drops','Em queda',data?.drops?.total],
-    ['stopped','Pararam',overview?(ov.stopped_total??stoppedRows.length):null],
+    ['drops','Em queda',all?null:data?.drops?.total],
+    ['stopped','Pararam',overview&&!all?(ov.stopped_total??stoppedRows.length):null],
     ['nosales','Sem vendas',overview?(ov.no_sales_total??lst.active_without_sales):null],
     ['ads','Anúncios pagos (ROAS)',adsRows.length||null],
     ['abc','Curva ABC',null]
@@ -369,14 +421,14 @@ export default function CommerceDashboard(){
   const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',ads:'ads',abc:'abc'};
   const bestAll=[...top].sort((x,y)=>Number(y.units)-Number(x.units));
   const filters=<>
-    <Dropdown label="Período" value={days} options={PERIODS.map(p=>[p,'Últimos '+p+' dias'])} onChange={setDays}/>
+    <Dropdown label="Período" value={days} options={[...PERIODS.map(p=>[p,'Últimos '+p+' dias']),[0,'Sem filtro (todo o histórico)']]} onChange={setDays}/>
     <Dropdown label="Plataforma" value={platform} options={PLATFORMS} onChange={setPlatform}/>
   </>;
   const whyRows=drops;
   return <section className="ndb-root" aria-label="Dashboard comercial">
     <header className="ndb-head">
       <div className="ndb-head-title"><span className="ndb-logo"><Icon name="chart"/></span><div><h2>Gestão de Anúncios</h2>
-        <p>{loading?'Consultando…':hasData?fmtDayFull(data.current_start)+' a '+fmtDayFull(data.last_day)+' · anterior: '+fmtDayFull(per.prevFrom)+' a '+fmtDayFull(per.prevTo):'Visão geral do desempenho dos produtos'}</p></div></div>
+        <p>{loading?'Consultando…':hasData?(all?fmtDayFull(per.curFrom)+' a '+fmtDayFull(data.last_day)+' · todo o histórico, sem comparação':fmtDayFull(data.current_start)+' a '+fmtDayFull(data.last_day)+' · anterior: '+fmtDayFull(per.prevFrom)+' a '+fmtDayFull(per.prevTo)):'Visão geral do desempenho dos produtos'}</p></div></div>
       <div className="ndb-head-filters">
         {filters}
         <small>{updated?'Última importação: '+when(updated):hasData?'Dados até '+fmtDayFull(data.last_day):''}</small>
@@ -384,21 +436,21 @@ export default function CommerceDashboard(){
       </div>
     </header>
     {error&&<p className="ndb-error" role="alert">{error}</p>}
-    {hasData&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
+    {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
     {hasData&&<div className="ndb-kpis">
-      <KpiCard icon="money" label="Faturamento total" source="kpi" value={money(totals.cur_rev)} chip={<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={'vs. '+money(totals.prev_rev)+' em '+prevTxt}/>
-      <KpiCard icon="box" label="Unidades vendidas" source="kpi" value={num(totals.cur_units)} chip={<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={'vs. '+num(totals.prev_units)+' em '+prevTxt}/>
+      <KpiCard icon="money" label="Faturamento total" source="kpi" value={money(totals.cur_rev)} chip={all?null:<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={all?'soma de todas as vendas importadas':'vs. '+money(totals.prev_rev)+' em '+prevTxt}/>
+      <KpiCard icon="box" label="Unidades vendidas" source="kpi" value={num(totals.cur_units)} chip={all?null:<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={all?'soma de todas as vendas importadas':'vs. '+num(totals.prev_units)+' em '+prevTxt}/>
       <KpiCard icon="megaphone" muted label="Investimento em anúncios" source="ads" value="Sem dados" foot="sem relatório de anúncios para este período"/>
       <KpiCard icon="chart" muted label="ROAS dos anúncios" source="ads" value="Sem dados" foot="depende do investimento em anúncios"/>
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
-        <Panel title={segActive?SEG_TITLE[segment]+' ('+num(segSeries.listings)+')':segment?(segFail?'Vendas ao longo do período (gráfico do grupo indisponível)':'Carregando…'):'Vendas ao longo do período'} icon="chart" source="daily" className={'ndb-chart-panel'+(segment?' is-seg seg-'+segment:'')} aside={hasData&&<span className="ndb-plat-split">
+        <Panel title={all?'Vendas por mês e por plataforma':segActive?SEG_TITLE[segment]+' ('+num(segSeries.listings)+')':segment?(segFail?'Vendas ao longo do período (gráfico do grupo indisponível)':'Carregando…'):'Vendas ao longo do período'} icon="chart" source="daily" className={'ndb-chart-panel'+(segment?' is-seg seg-'+segment:'')} aside={hasData&&(all?<span className="ndb-plat-split">{MONTH_PLATS.filter(([c])=>platform==='TODAS'||platform===c).map(([c,k,l])=>{const t=(monthly?.months||[]).reduce((a,m)=>a+Number(m[k]||0),0);return t>0?<span key={c}><i style={{background:PLAT_COLOR[c]}}/>{l} {money(t)}</span>:null;})}<span>* mês parcial</span></span>:<span className="ndb-plat-split">
           {segment&&<button type="button" className="ndb-link" onClick={()=>setFocus(false)}>Voltar ao total</button>}
           {segActive&&<span className={'ndb-seg-sum'+(segDelta!=null&&segDelta<0?' neg':' pos')} style={{borderColor:segColor}}>{segment==='stopped'?'Vendiam '+money(prevSum)+' · agora R$ 0,00':money(curSum)+' vs. '+money(prevSum)+(segDelta!=null?' ('+(segDelta>0?'+':'')+String(segDelta).replace('.',',')+'%)':'')}</span>}
           {!segment&&shopeeTotal>0&&<span><i style={{background:PLAT_COLOR.SHOPEE}}/>Shopee {money(shopeeTotal)}</span>}{!segment&&mlTotal>0&&<span><i style={{background:PLAT_COLOR.ML_ANTIGO}}/>ML {money(mlTotal)}</span>}
-          <span><i className="ln" style={{borderTopColor:segColor}}/>{segment==='stopped'?'Antes (período anterior)':'Atual'}</span><span><i className="ln dash" style={segment==='stopped'?{borderTopColor:segColor}:undefined}/>{segment==='stopped'?'Agora':'Anterior'}</span></span>}>
-          <DailyChart daily={daily} theme={segActive?segment:'total'} animKey={platform+days+(segActive?segment:'total')}/>
+          <span><i className="ln" style={{borderTopColor:segColor}}/>{segment==='stopped'?'Antes (período anterior)':'Atual'}</span><span><i className="ln dash" style={segment==='stopped'?{borderTopColor:segColor}:undefined}/>{segment==='stopped'?'Agora':'Anterior'}</span></span>)}>
+          {all?<MonthlyChart months={monthly?.months||[]} platform={platform} animKey={platform+'m'+(monthly?.months?.length||0)}/>:<DailyChart daily={daily} theme={segActive?segment:'total'} animKey={platform+days+(segActive?segment:'total')}/>}
           {!segment&&(tab==='nosales'||tab==='ads')&&focus===true&&<p className="ndb-note">Esta aba não tem gráfico próprio: mostra o total de vendas.</p>}
         </Panel>
         <section className="ndb-panel ndb-explorer">
@@ -417,7 +469,8 @@ export default function CommerceDashboard(){
             {top.length===0&&!loading&&<tr><td colSpan={7} className="ndb-empty">Sem vendas no período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note" title="Investimento e ROAS vêm do relatório Shopee Ads importado (período próprio) e só aparecem para anúncios com campanha individual.">Os 15 anúncios que mais faturam. Investimento e ROAS: relatório Shopee Ads importado, só anúncios com campanha individual.</p></>}
-          {tab==='drops'&&<><PeriodBar cur={curTxt} prev={prevTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades (ant. → atual)</th><th className="num">Variação</th><th className="num">Perdeu</th><th className="num">Preço médio</th><th>Por que caiu</th></tr></thead><tbody>
+          {(tab==='drops'||tab==='stopped')&&all&&<p className="ndb-empty">Escolha 30, 60 ou 90 dias no filtro de período: esta lista compara períodos.</p>}
+          {tab==='drops'&&!all&&<><PeriodBar cur={curTxt} prev={prevTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades (ant. → atual)</th><th className="num">Variação</th><th className="num">Perdeu</th><th className="num">Preço médio</th><th>Por que caiu</th></tr></thead><tbody>
             {whyRows.map(r=>{const sg=signals[r.listing_id];const why=reasonFor(sg,diagnosis[r.listing_id]);return <tr key={r.platform+r.external_id}>
               <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{num(r.units_previous)} → {num(r.units)}</td><td className="num neg">{pctText(changePct(r.units,r.units_previous))}</td>
@@ -427,7 +480,7 @@ export default function CommerceDashboard(){
             {drops.length===0&&!loading&&<tr><td colSpan={6} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. “Por que caiu” é correlação, não prova de causa.</p></>}
-          {tab==='stopped'&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th><th>O que verificar</th></tr></thead><tbody>
+          {tab==='stopped'&&!all&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th><th>O que verificar</th></tr></thead><tbody>
             {stoppedRows.map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{r.last_sale?fmtDayFull(r.last_sale):'—'}</td><td className="num">{r.days_since!=null?num(r.days_since)+' dias':'—'}</td><td className="num">{num(r.units_ever)} un. · {money(r.revenue_ever)}</td>
               <td><span className="ndb-why tone-warn"><strong>Sem vendas no período</strong><small>Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</small></span></td></tr>)}
@@ -450,7 +503,7 @@ export default function CommerceDashboard(){
             {adsRows.length===0&&<tr><td colSpan={4} className="ndb-empty">Gasto e retorno de anúncios: sem dados. Nenhum relatório Shopee Ads importado.</td></tr>}
           </tbody></table></div>}
           {tab==='abc'&&<>
-            <PeriodBar cur={curTxt}/>
+            <PeriodBar cur="todo o histórico (não muda com o período)"/>
             <div className="ndb-abc-bar-row">
               <div className="ndb-seg" role="group" aria-label="Classe">{[[null,'Todas'],['A','A'],['B','B'],['C','C']].map(([v,l])=><button key={l} type="button" className={v===cls?'is-active':''} aria-pressed={v===cls} onClick={()=>{setCls(v);setFocus(true);}}>{l}</button>)}</div>
               <button type="button" className="ndb-link" onClick={()=>setCurve(v=>!v)}>{curve?'Ver lista':'Ver curva'}</button>
@@ -488,7 +541,7 @@ export default function CommerceDashboard(){
           <h4>Confiabilidade dos dados<InfoIcon text={SOURCES.trust} label="Confiabilidade"/></h4>
           <div className="ndb-trust">
             {(ov.coverage||[]).map(c=><div key={c.platform}><strong>{PLATFORM_LABEL[c.platform]||c.platform}</strong><span>Vendas até {fmtDayFull(c.last_day)}</span><span>Importação aplicada: {c.last_import?when(c.last_import):'sem dados'}</span></div>)}
-            <div><strong>Dias com venda</strong><span>{num(ov.window_days_with_sales)} de {days} dias do período{Number(ov.window_days_with_sales)<days?' (há dias sem venda importada)':''}</span></div>
+            <div><strong>Dias com venda</strong><span>{all?num(ov.window_days_with_sales)+' dias com venda em todo o histórico':num(ov.window_days_with_sales)+' de '+days+' dias do período'+(Number(ov.window_days_with_sales)<days?' (há dias sem venda importada)':'')}</span></div>
             <div><strong>Vendas sem SKU vinculado</strong><span>{Number(ov.unlinked?.revenue)>0?num(ov.unlinked.listings)+' anúncios, '+money(ov.unlinked.revenue)+' fora da curva ABC':'nenhuma no período'}</span></div>
             <div><strong>Margem e lucro</strong><span>Sem dados: falta cadastrar o custo do produto.</span></div>
           </div>
@@ -496,7 +549,7 @@ export default function CommerceDashboard(){
           <ul className="ndb-defs">
             <li><b>Faturamento:</b> valor dos produtos vendidos, sem frete, das vendas importadas. Não é o faturamento atribuído aos anúncios pagos.</li>
             <li><b>Pedidos:</b> soma por anúncio; um pedido com dois anúncios conta duas vezes.</li>
-            <li><b>Curva ABC:</b> por SKU, ordenada pelo faturamento do período. A = até 80% do total, B = até 95%, C = o restante. Produto C pode ser novo, sazonal ou estratégico.</li>
+            <li><b>Curva ABC:</b> por SKU em cada plataforma, ordenada pelo faturamento de todo o histórico (não muda com o filtro de período). A = até 80% do total, B = até 95%, C = o restante. Produto C pode ser novo, sazonal ou estratégico.</li>
             <li><b>Em queda:</b> anúncio ativo com 5 ou mais unidades no período anterior e queda de 15% ou mais.</li>
             <li><b>ROAS:</b> vendas atribuídas ÷ investimento, do relatório Shopee Ads. Abaixo de 1 = gastou mais do que vendeu, antes de custo e taxas.</li>
             <li><b>Sem dados:</b> a informação não existe no sistema. Nunca é mostrada como zero.</li>
