@@ -4549,3 +4549,46 @@ button:hover .mural-admin-icon-svg-sparkles path:nth-child(2),
 @media(max-width:1120px){.mural-studio-workspace .mural-studio-body>.nps-side{position:static}}
 
 .nps-when-hint{display:block;margin-top:8px;color:#64748b;font-size:12px}
+
+/* ===== Painel Publicar compacto: uma tela, cards menores, 2 colunas em tela larga ===== */
+.mural-studio-workspace .mural-studio-body{padding:12px;gap:12px}
+.mural-studio-workspace .mural-studio-form{gap:10px}
+.mural-studio-workspace .mural-studio-card{padding:12px 14px;gap:8px;border-radius:14px}
+.mural-studio-workspace .mural-studio-card-header strong{font-size:13.5px}
+.mural-studio-workspace .nps-step-n{width:20px;height:20px;font-size:11px}
+.mural-studio-workspace .nps-kind{padding:8px 10px;border-radius:10px}
+.mural-studio-workspace .nps-kind-icon{width:30px;height:30px}
+.mural-studio-workspace .mural-publish-v2-field{gap:3px;font-size:12px}
+.mural-studio-workspace .mural-publish-v2-field input,
+.mural-studio-workspace .mural-publish-v2-field select{min-height:34px;padding:6px 10px}
+.mural-studio-workspace .mural-publish-v2-field textarea{min-height:58px;padding:6px 10px}
+.mural-studio-workspace .mural-studio-copy-grid{gap:8px}
+.mural-studio-workspace .mural-publish-v2-upload{min-height:0;padding:10px 12px}
+.mural-studio-workspace .mural-publish-v2-image-preview{max-height:150px}
+.mural-studio-workspace .mural-publish-v2-priority button{min-height:34px;padding:4px 8px}
+.mural-studio-workspace .mural-publish-v2-category-chips button{padding:4px 10px}
+.mural-studio-workspace .nps-more{padding:12px 14px}
+.mural-studio-workspace .mural-studio-settings-row .mural-publish-v2-setting-tile{padding:8px 10px}
+.mural-studio-workspace .nps-when-hint{margin-top:2px}
+@media(min-width:1350px){
+  .mural-studio-workspace .mural-studio-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;align-content:start}
+  .mural-studio-workspace .mural-studio-form>.nps-kinds,
+  .mural-studio-workspace .mural-studio-form>.mural-admin-error{grid-column:1/-1}
+  .mural-studio-workspace .mural-studio-form>.mural-studio-card:last-of-type{flex:none}
+  .mural-studio-workspace .nps-more .mural-studio-settings-row{grid-template-columns:minmax(0,1fr)}
+  /* Posicao explicita dos cards (filhos: 1 abas, 2..5 cards) para nao deixar buracos */
+  .mural-studio-workspace .mural-studio-form.is-notice>:nth-child(2){grid-column:1;grid-row:2}
+  .mural-studio-workspace .mural-studio-form.is-notice>:nth-child(3){grid-column:2;grid-row:2/span 2}
+  .mural-studio-workspace .mural-studio-form.is-notice>:nth-child(4){grid-column:1;grid-row:3}
+  .mural-studio-workspace .mural-studio-form.is-notice>:nth-child(5){grid-column:1;grid-row:4}
+  .mural-studio-workspace .mural-studio-form.is-product>:nth-child(2){grid-column:1;grid-row:2}
+  .mural-studio-workspace .mural-studio-form.is-product>:nth-child(3){grid-column:2;grid-row:2}
+  .mural-studio-workspace .mural-studio-form.is-product>:nth-child(4){grid-column:1;grid-row:3}
+  .mural-studio-workspace .mural-studio-form.is-product>:nth-child(5){grid-column:2;grid-row:3}
+  .mural-studio-workspace .mural-studio-form.is-collection>:nth-child(2){grid-column:1;grid-row:2/span 3}
+  .mural-studio-workspace .mural-studio-form.is-collection>:nth-child(3){grid-column:2;grid-row:2}
+  .mural-studio-workspace .mural-studio-form.is-collection>:nth-child(4){grid-column:2;grid-row:3}
+  .mural-studio-workspace .mural-studio-form.is-collection>:nth-child(5){grid-column:2;grid-row:4}
+}
+.mural-studio-workspace .mural-studio-settings-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.mural-studio-workspace .mural-publish-v2-input-tile input{width:100%}
