@@ -38,7 +38,7 @@ test('SQL is isolated, idempotent by sha256, service_role only and never touches
 });
 test('routes, import tab and cause text are wired and never claim proof',()=>{
   assert.ok(router.includes("/shopee/performance/reports")&&router.includes('/listings/manager/performance-diagnosis'));
-  assert.ok(center.includes("'performance'")&&center.includes('<CommerceShopeePerformanceImport/>'));
+  assert.ok(center.includes("'performance'")&&read('src/commerce-performance-import.jsx').includes('<CommerceShopeePerformanceImport'));
   assert.match(cell,/não prova o motivo/);
   assert.ok(cell.includes('Menos impressões')&&cell.includes('Converte menos'));
 });

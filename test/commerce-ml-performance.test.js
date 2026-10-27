@@ -46,5 +46,5 @@ test('migracao e rotas: dados isolados, somente service_role, protecao de conta 
   assert.match(sp,/order by period_end desc,id desc limit 1/);
   assert.doesNotMatch(sp,/\b(insert into|update public|delete from|drop )\b/i);
   assert.ok(router.includes('/shopee/performance/latest'));
-  assert.ok(read('src/commerce-import-center.jsx').includes('CommerceMlPerformanceImport'));
+  assert.ok(read('src/commerce-performance-import.jsx').includes('CommerceMlPerformanceImport'));
 });

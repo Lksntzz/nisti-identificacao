@@ -7,8 +7,9 @@ const num=x=>new Intl.NumberFormat('pt-BR').format(Number(x||0));
 const money=x=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(x||0));
 const date=s=>String(s||'').split('-').reverse().join('/');
 
-export default function CommerceMlPerformanceImport(){
-  const [account,setAccount]=useState('NOVO');
+export default function CommerceMlPerformanceImport({account:fixedAccount}={}){
+  const [ownAccount,setAccount]=useState('NOVO');
+  const account=fixedAccount||ownAccount;
   const [file,setFile]=useState(null),[parsed,setParsed]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState(null);
   async function read(value,acc){
@@ -43,11 +44,11 @@ export default function CommerceMlPerformanceImport(){
       <p>Relatório de desempenho das publicações (arquivo <code>Relatorio_desempenho_publicacoes_AAAA_MM_DD-AAAA_MM_DD.xlsx</code>).
         Mostra visitas, vendas, conversão e qualidade de cada anúncio. Não altera vendas, pedidos nem SKUs.</p>
     </header>
-    <fieldset className="ml-perf-account" disabled={busy}>
+    {!fixedAccount&&<fieldset className="ml-perf-account" disabled={busy}>
       <legend>De qual conta é este relatório?</legend>
       <label><input type="radio" name="ml-perf-account" checked={account==='NOVO'} onChange={()=>changeAccount('NOVO')}/> Mercado Livre Novo</label>{' '}
       <label><input type="radio" name="ml-perf-account" checked={account==='ANTIGO'} onChange={()=>changeAccount('ANTIGO')}/> Mercado Livre Antigo</label>
-    </fieldset>
+    </fieldset>}
     <label className="shopee-ads-drop">Selecionar relatório (.xlsx)
       <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={busy} onChange={choose}/>
       <small>{file?.name||'O período é lido do nome do arquivo.'}</small>
