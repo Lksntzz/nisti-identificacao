@@ -283,3 +283,18 @@
 .ndb-table tr.ndb-off td{opacity:.62}
 
 .ndb-perf-note{margin:6px 14px 0;font-size:12px;color:#5b6577}
+
+/* Vendas por semana e por dia (aba Em queda) */
+.ndb-sb{display:flex;flex-direction:column;gap:4px;min-width:250px}
+.ndb-sb-weeks{display:flex;gap:6px}
+.ndb-sb-week{display:flex;flex-direction:column;align-items:center;min-width:48px;padding:3px 6px;border-radius:8px;background:#f5f7fb}
+.ndb-sb-week small{font-size:10px;color:#5b6b86}.ndb-sb-week b{font-size:13px}
+.ndb-sb-week.is-cur{background:#e8f0ff;outline:1px solid #b9cdf7}
+.ndb-sb-delta{font-size:11.5px;font-weight:700}
+.ndb-sb-delta.tone-bad,.ndb-sb-day em.tone-bad{color:#c0392b}.ndb-sb-delta.tone-good,.ndb-sb-day em.tone-good{color:#1f8a4c}.ndb-sb-delta.tone-muted,.ndb-sb-day em.tone-muted{color:#7a8aa5}
+.ndb-sb-empty{color:#7a8aa5;font-size:12px}
+.ndb-sb-daily-row>td{background:#fafbfe;padding:8px 12px}
+.ndb-sb-days{display:grid;grid-template-columns:repeat(14,minmax(52px,1fr));gap:6px;margin-bottom:4px}
+.ndb-sb-day{display:flex;flex-direction:column;align-items:center;padding:4px 2px;border-radius:8px;background:#fff;border:1px solid #e6ebf4}
+.ndb-sb-day small{font-size:10px;color:#5b6b86}.ndb-sb-day b{font-size:13px}.ndb-sb-day em{font-size:10.5px;font-style:normal;font-weight:700}
+.ndb-sb-daily-row .ndb-note{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;max-width:none!important;display:block}

@@ -35,6 +35,7 @@ import {
   commerceListingManager,
   commerceVariationReview,
   commerceListingPriceSignal,
+  commerceListingSalesBreakdown,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -487,6 +488,12 @@ export async function handleCommerceAdminRequest(request, env) {
       if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id)))
         return json({error:'Filtro de diagnóstico inválido.'},400);
       return json(await commerceListingPerformanceDiagnosis(env,{ids}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/sales-breakdown'){
+      const ids=String(query(url,'ids')||'').split(',').filter(Boolean);
+      if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id)))
+        return json({error:'Filtro de vendas por dia e semana inválido.'},400);
+      return json(await commerceListingSalesBreakdown(env,{ids}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/price-signal'){
       const ids=String(query(url,'ids')||'').split(',').filter(Boolean);

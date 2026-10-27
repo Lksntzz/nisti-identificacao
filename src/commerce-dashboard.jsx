@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
+import {useSalesBreakdown,WeeklySalesCell,DailySalesRow} from './commerce-sales-breakdown.jsx';
 import './commerce-dashboard.css';
 
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
@@ -15,7 +16,7 @@ const CLASS_NOTE={A:'Até 80% do faturamento',B:'Dos 80% aos 95%',C:'Últimos 5%
 
 const SOURCES={
   abc:'Vendas importadas (tabela de vendas diárias por anúncio, o mesmo dado do Histórico de importações). Usa todo o histórico de vendas importado (não muda com o filtro de período) e soma o faturamento por SKU em cada plataforma (Shopee, ML Antigo e ML Novo nunca se misturam: cada uma tem a sua própria curva), ordena do maior para o menor e classifica: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
-  drops:'Vendas importadas: compara os últimos N dias com os N dias imediatamente anteriores, por anúncio ATIVO. Entra quem tinha 5 ou mais unidades no período anterior e caiu 15% ou mais. A coluna “Preço × vendas” compara o preço médio realizado. A linha de causa vem dos relatórios de desempenho Shopee importados (impressões, cliques, conversão); sem esse relatório aparece só o preço. São sinais, não prova de causa.',
+  drops:'Vendas importadas: compara os últimos N dias com os N dias imediatamente anteriores, por anúncio ATIVO. Entra quem tinha 5 ou mais unidades no período anterior e caiu 15% ou mais. A coluna “Preço médio” compara o preço médio realizado. A coluna “Vendas por semana e por dia” mostra as unidades das últimas 4 semanas de 7 dias (terminando no último dia com venda importada) e, em “Ver por dia”, os últimos 14 dias, comparando cada dia com o mesmo dia da semana anterior.',
   daily:'Vendas importadas (tabela de vendas diárias por anúncio): soma do faturamento de cada dia, separado por plataforma. A linha tracejada é o dia equivalente do período anterior (mesmo tamanho). Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
   top:'Vendas importadas: os 15 anúncios com maior faturamento no período, com a variação de unidades contra o período anterior de mesmo tamanho. Título e situação vêm do cadastro de anúncios do sistema.',
   kpi:'Vendas importadas no período escolhido, contra o período anterior de mesmo tamanho. O período termina no último dia com venda importada, não em hoje.',
@@ -283,20 +284,6 @@ function ParetoChart({items}){
   </div>;
 }
 
-const pf=v=>v==null?'':String(Math.abs(v)).replace('.',',')+'%';
-// Tradução simples dos sinais em um motivo provável. É correlação observada, não prova de causa.
-function reasonFor(signal,diag){
-  const d=diag&&diag.driver&&diag.driver!=='INSUFFICIENT'&&diag.trend==='DOWN'?diag:null;
-  if(d&&d.driver==='IMPRESSIONS')return {tone:'bad',title:'Menos exposição',text:'Impressões '+pf(d.impressions_pct)+' menores (relatório Shopee): o anúncio está sendo mostrado menos.'};
-  if(d&&d.driver==='CTR')return {tone:'bad',title:'Menos cliques',text:'Cliques por impressão '+pf(d.ctr_pct)+' menores: título, foto ou preço atraem menos.'};
-  if(d&&d.driver==='CONVERSION')return {tone:'bad',title:'Converte menos',text:'Conversão '+pf(d.conversion_pct)+' menor: visitam mas compram menos (preço, avaliações ou estoque).'};
-  if(!signal)return {tone:'muted',title:'Sem dados',text:'Ainda carregando ou sem vendas suficientes para comparar.'};
-  if(signal.signal==='PRICE_UP_SALES_DOWN')return {tone:'warn',title:'Preço subiu',text:'Preço médio '+pf(signal.price_change_pct)+' maior e as unidades caíram junto.'};
-  if(signal.signal==='DROP_PRICE_STABLE')return {tone:'warn',title:'Queda sem mudança de preço',text:'Preço estável. Sem relatório de visitas/impressões deste anúncio não dá para apontar a causa.'};
-  if(signal.signal==='INSUFFICIENT')return {tone:'muted',title:'Poucas vendas',text:'Vendas insuficientes nas duas janelas para uma conclusão segura.'};
-  return {tone:'muted',title:'Sem causa clara',text:'Os dados disponíveis não explicam a queda.'};
-}
-
 function Dropdown({label,value,options,onChange}){
   const [open,setOpen]=useState(false);
   const ref=useRef(null);
@@ -383,7 +370,9 @@ export default function CommerceDashboard(){
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
-  const {signals,diagnosis}=usePriceSignals(signalRows,all?90:days);
+  const {signals}=usePriceSignals(signalRows,all?90:days);
+  const salesBreakdown=useSalesBreakdown(signalRows);
+  const [openDays,setOpenDays]=useState({});
   const totals=data?.totals||{};
   const classes=data?.abc?.classes_by_platform?.[abcP]||[];
   const allItems=(data?.abc?.items||[]).filter(i=>i.platform===abcP);
@@ -487,16 +476,17 @@ export default function CommerceDashboard(){
           </tbody></table></div>
           <p className="ndb-note" title="Investimento e ROAS vêm do relatório Shopee Ads importado (período próprio) e só aparecem para anúncios com campanha individual.">Os 15 anúncios que mais faturam. Investimento e ROAS: relatório Shopee Ads importado, só anúncios com campanha individual.</p></>}
           {(tab==='drops'||tab==='stopped')&&all&&<p className="ndb-empty">Escolha 30, 60 ou 90 dias no filtro de período: esta lista compara períodos.</p>}
-          {tab==='drops'&&!all&&<><PeriodBar cur={curTxt} prev={prevTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades (ant. → atual)</th><th className="num">Variação</th><th className="num">Perdeu</th><th className="num">Preço médio</th><th>Por que caiu</th></tr></thead><tbody>
-            {whyRows.map(r=>{const sg=signals[r.listing_id];const why=reasonFor(sg,diagnosis[r.listing_id]);return <tr key={r.platform+r.external_id}>
+          {tab==='drops'&&!all&&<><PeriodBar cur={curTxt} prev={prevTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades (ant. → atual)</th><th className="num">Variação</th><th className="num">Perdeu</th><th className="num">Preço médio</th><th>Vendas por semana e por dia</th></tr></thead><tbody>
+            {whyRows.map(r=>{const sg=signals[r.listing_id];const sb=salesBreakdown[r.listing_id];const rk=r.platform+r.external_id;return <React.Fragment key={rk}><tr>
               <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{num(r.units_previous)} → {num(r.units)}</td><td className="num neg">{pctText(changePct(r.units,r.units_previous))}</td>
               <td className="num neg" title={money(r.revenue_previous)+' → '+money(r.revenue)}>{money(r.lost_revenue)}</td>
               <td className="num">{sg&&sg.price_previous!=null&&sg.price_current!=null?money(sg.price_previous)+' → '+money(sg.price_current):'—'}</td>
-              <td><span className={'ndb-why tone-'+why.tone} title={why.text}><strong>{why.title}</strong><small>{why.text}</small></span></td></tr>;})}
+              <td><WeeklySalesCell data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))}/></td></tr>
+              {openDays[rk]&&sb&&<DailySalesRow data={sb} colSpan={6}/>}</React.Fragment>;})}
             {drops.length===0&&!loading&&<tr><td colSpan={6} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
           </tbody></table></div>
-          <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. “Por que caiu” é correlação, não prova de causa.</p></>}
+          <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. As vendas por semana e por dia vêm das vendas importadas; o % compara com o período anterior.</p></>}
           {tab==='stopped'&&!all&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th><th>O que verificar</th></tr></thead><tbody>
             {stoppedRows.map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{r.last_sale?fmtDayFull(r.last_sale):'—'}</td><td className="num">{r.days_since!=null?num(r.days_since)+' dias':'—'}</td><td className="num">{num(r.units_ever)} un. · {money(r.revenue_ever)}</td>
