@@ -41,6 +41,7 @@ import {
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
+  commerceShopeePerformanceLatest,
   commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
   commerceSalesDashboardV1,
@@ -508,6 +509,8 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Relatório de desempenho inválido.'},400);
       return json(await commerceImportMlPerformance(env,input));
     }
+    if(method==='GET'&&pathname===BASE_PATH+'/shopee/performance/latest')
+      return json(await commerceShopeePerformanceLatest(env));
     if(method==='GET'&&pathname===BASE_PATH+'/ml/performance/latest')
       return json(await commerceMlPerformanceLatest(env));
     if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/performance-diagnosis'){

@@ -284,6 +284,10 @@ export async function commerceMlPerformanceLatest(env) {
   const data=await supabaseRpc(env,'commerce_ml_performance_latest_v1',{},{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:{}};
 }
+export async function commerceShopeePerformanceLatest(env) {
+  const data=await supabaseRpc(env,'commerce_shopee_performance_latest_v1',{},{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:{}};
+}
 export async function commerceListingPerformanceDiagnosis(env,{ids=[]}={}) {
   const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
   if(!listingIds.length)return {diagnosis:{}};
