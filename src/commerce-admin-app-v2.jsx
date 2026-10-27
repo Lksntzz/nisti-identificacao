@@ -166,7 +166,7 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
 }
 
 export default function CommerceAdminAppV2() {
-  const [activeView, setActiveView] = useState('catalog');
+  const [activeView, setActiveView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesRevision, setSalesRevision] = useState(0);
 
