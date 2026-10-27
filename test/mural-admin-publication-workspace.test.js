@@ -93,3 +93,11 @@ test('painel Publicar: aviso comeca por "O que dizer" e as datas ficam visiveis 
   const more = admin.slice(admin.indexOf('<details className="mural-studio-card nps-more">'));
   assert.ok(!more.slice(0, more.indexOf('</details>')).includes('Publicar em'));
 });
+
+test('painel Publicar compacto: formulario recebe classe do tipo e grade de 2 colunas em tela larga', () => {
+  assert.ok(admin.includes('mural-studio-form is-${activeKind}'));
+  for (const kind of ['notice', 'product', 'collection']) {
+    assert.ok(css.includes(`.mural-studio-form.is-${kind}>:nth-child(2)`), kind);
+  }
+  assert.ok(css.includes('align-content:start'));
+});

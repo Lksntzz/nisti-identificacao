@@ -423,7 +423,7 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
 
       {/* Main Studio Body: 2 Columns */}
       <div className="mural-studio-body">
-        <form id="mural-publication-form" className="mural-studio-form" onSubmit={e => { e.preventDefault(); save(false); }}>
+        <form id="mural-publication-form" className={`mural-studio-form is-${activeKind}`} onSubmit={e => { e.preventDefault(); save(false); }}>
           
           <div className="nps-kinds" role="tablist" aria-label="Tipo de publicação">
             {KIND_OPTIONS.map(([key, label, hint]) => (
