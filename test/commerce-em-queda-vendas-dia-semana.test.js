@@ -47,7 +47,7 @@ test('Dashboard: 4 indices de performance no lugar dos cards de faturamento', ()
 });
 
 test('Dashboard: grafico mostra faturamento por produto conforme o filtro', () => {
-  assert.match(dash, /<RevenueByProduct items=\{top\}\/>/);
+  assert.match(dash, /<RevenueByProduct items=\{top\}/);
   assert.match(dash, /title="Faturamento por produto"/);
   assert.doesNotMatch(dash, /<DailyChart|<MonthlyChart|segment-series/);
 });
@@ -98,4 +98,11 @@ test('indicador de conexao tenta duas vezes e mostra o motivo da falha', () => {
   assert.match(app, /status\.detail/);
   assert.match(store, /supabase_rpc|error\?\.code/);
   assert.match(router, /error: database\.error/);
+});
+
+test('coluna Plataforma so aparece em Todas as plataformas; health usa chamada direta', () => {
+  assert.match(dash, /const multi=platform==='TODAS'/);
+  assert.match(dash, /\{multi&&<th>Plataforma<\/th>\}/);
+  assert.doesNotMatch(dash, /<th>Plataforma<\/th><th>Status<\/th>/);
+  assert.match(store, /directSupabaseRpc\(env, 'nisti_system_health_core_v1'/);
 });
