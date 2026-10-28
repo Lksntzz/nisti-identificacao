@@ -32,8 +32,6 @@ export default function CommerceCommercialPanel({perfOpen=null}){
   return <section className="nim-manager" aria-label="Painel Comercial">
     <header className="nim-heading" style={{justifyContent:'flex-end'}}>
       <div className="nim-header-actions">
-        <button type="button" className="nim-soft-button" onClick={()=>setRefresh(v=>v+1)}>
-          <CommercialIcon name="refresh-cw" size={16}/> Atualizar</button>
         <div className="nim-import-dropdown" ref={importMenuRef}>
           <button type="button" className="nim-primary-button" ref={importTriggerRef}
             onClick={()=>setImportMenuOpen(open=>!open)} aria-haspopup="menu"
