@@ -51,3 +51,12 @@ test('Dashboard: grafico mostra faturamento por produto conforme o filtro', () =
   assert.match(dash, /title="Faturamento por produto"/);
   assert.doesNotMatch(dash, /<DailyChart|<MonthlyChart|segment-series/);
 });
+
+test('lista Melhores/Em queda/Pararam/Sem vendas vive no Painel Comercial (aba Desempenho)', () => {
+  assert.match(manager, /<CommerceDashboard key=\{[^}]*\} mode="explorer"/);
+  assert.match(manager, /Desempenho \(melhores, em queda, pararam, sem vendas\)/);
+  assert.match(dash, /mode==='explorer'&&<section className="ndb-panel ndb-explorer">/);
+  assert.match(dash, /mode==='overview'&&<Panel title="Faturamento por produto"/);
+  const app = readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  assert.match(app, /onOpenTab=\{openPerformance\}/);
+});

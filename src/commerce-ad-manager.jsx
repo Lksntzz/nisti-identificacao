@@ -17,6 +17,7 @@ import GlareHover from './vendor/react-bits/GlareHover.jsx';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import './commerce-price-signal.css';
+import CommerceDashboard from './commerce-dashboard.jsx';
 import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
 import './commerce-dashboard.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
@@ -514,7 +515,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
     </footer>
   </aside>;
 }
-export default function CommerceCommercialDashboard({salesRevision=0}){
+export default function CommerceCommercialDashboard({salesRevision=0,perfOpen=null}){
   const [platform,setPlatform]=useState('TODAS');
   const [days,setDays]=useState(30);
   const [month,setMonth]=useState('');
@@ -539,7 +540,8 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const importMenuRef=useRef(null);
   const importTriggerRef=useRef(null);
   const [monthlyOpen,setMonthlyOpen]=useState(false);
-  const [commercialView,setCommercialView]=useState('LISTINGS');
+  const [commercialView,setCommercialView]=useState(perfOpen?'PERFORMANCE':'LISTINGS');
+  useEffect(()=>{if(perfOpen)setCommercialView('PERFORMANCE');},[perfOpen]);
   const [financialOpen,setFinancialOpen]=useState(false);
   const [importedTotals,setImportedTotals]=useState(null);
   const [importedTotalsError,setImportedTotalsError]=useState('');
@@ -686,7 +688,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const clear=()=>{setPlatform('TODAS');setDays(30);setMonth('');setQuery('');setSearch('');
     setStatus('ALL');setCurve('ALL');setBasis('REVENUE');setOffset(0);setSelectedId(null);};
   const change=(setter,value)=>{setter(value);setOffset(0);setSelectedId(null);};
+  const viewSwitch=<div className="nim-view-switch" role="tablist" aria-label="Visão do Painel Comercial">
+    {[['LISTINGS','Anúncios'],['PERFORMANCE','Desempenho (melhores, em queda, pararam, sem vendas)']].map(([k,l])=><button key={k} type="button" role="tab" aria-selected={commercialView===k} className={commercialView===k?'is-active':''} onClick={()=>setCommercialView(k)}>{l}</button>)}
+  </div>;
+  if(commercialView==='PERFORMANCE')return <section className="nim-manager">{viewSwitch}<CommerceDashboard key={perfOpen?perfOpen.nonce:'perf'} mode="explorer" initialTab={perfOpen?perfOpen.tab:null}/></section>;
   return <section className="nim-manager">
+    {viewSwitch}
     <header className="nim-heading">
       <div><h2>Gestor de Anúncios</h2>
         <p>Anúncios ativos, vendas e desempenho por plataforma</p></div>
