@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {readShopeeAdsCsvFile} from './commerce-shopee-ads-csv-reader.js';
 import {commerceApi} from './commerce-admin-api.js';
 import './commerce-shopee-ads-import.css';
+import { maskMoney } from './commerce-privacy.js';
 
 const num=x=>new Intl.NumberFormat('pt-BR').format(Number(x||0));
 export default function CommerceShopeeAdsImport(){
@@ -58,7 +59,7 @@ export default function CommerceShopeeAdsImport(){
       </tr></thead><tbody>{parsed.rows.slice(0,20).map((r,i)=><tr key={i}>
         <td>{r.name}</td><td>{r.product_id||'Grupo · sem ID'}</td>
         <td>{num(r.impressions)}</td><td>{num(r.clicks)}</td><td>{num(r.conversions)}</td>
-        <td>{r.spend==null?'—':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(r.spend)}</td>
+        <td>{r.spend==null?'—':maskMoney(new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(r.spend))}</td>
       </tr>)}</tbody></table></div>
       <button type="button" disabled={busy} onClick={save}>{busy?'Importando…':'Importar dados de publicidade'}</button>
       {saved&&<p className="shopee-ads-success" role="status">

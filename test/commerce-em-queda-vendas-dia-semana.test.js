@@ -201,3 +201,13 @@ test('Período: opção Personalizado abre calendário por ano com os meses que 
   assert.match(pk,/Meses sem vendas importadas ficam desativados/);
   assert.match(d,/<PeriodPicker days=\{days\} month=\{month\}/);
 });
+
+test('Modo privacidade: botão no topo e todos os formatadores de reais passam pela máscara',()=>{
+  const r=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
+  const priv=r('src/commerce-privacy.js'),app=r('src/commerce-admin-app-v2.jsx');
+  assert.match(priv,/ga\.privacy/);assert.match(priv,/useSyncExternalStore/);
+  assert.match(app,/Ocultar valores/);assert.match(app,/setPrivate\(!privacy\)/);
+  for(const f of ['commerce-dashboard.jsx','commerce-dashboard-charts.jsx','commerce-cohorts.jsx','commerce-ad-manager.jsx','commerce-import-history.jsx','commerce-import-center.jsx','commerce-sales-breakdown.jsx','commerce-price-signal.jsx','commerce-shopee-ads-summary.jsx','commerce-shopee-ads-import.jsx','commerce-shopee-aftercare.jsx','commerce-shopee-unlinked-sales.jsx','commerce-shopee-performance-import.jsx','commerce-ml-performance-import.jsx'])
+    assert.match(r('src/'+f),/maskMoney/,f);
+  assert.doesNotMatch(r('src/commerce-dashboard.jsx'),/const money=v=>/);
+});

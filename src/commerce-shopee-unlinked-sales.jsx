@@ -1,8 +1,10 @@
 import React,{useEffect,useState} from 'react';
+import { maskMoney } from './commerce-privacy.js';
 const BASE='/api/admin/commerce/listings/manager/shopee/unlinked-sales';
 const PAGE_SIZE=20;
 const number=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
-const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
+const moneyRaw=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
+const money=(...a)=>maskMoney(moneyRaw(...a));
 const monthLabel=p=>/^\d{4}-\d{2}$/.test(String(p||''))?p.slice(5,7)+'/'+p.slice(0,4):p;
 const date=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))?s.split('-').reverse().join('/'):'—';
 

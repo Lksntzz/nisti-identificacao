@@ -1,12 +1,15 @@
 import React,{useMemo,useState} from 'react';
+import { maskMoney, isPrivate } from './commerce-privacy.js';
 
 // Gráficos e resumo do Dashboard (visão geral). Só recebem dados já carregados; não buscam nada.
 const num=v=>v==null?'—':Number(v).toLocaleString('pt-BR');
-const money=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const moneyRaw=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const money=(...a)=>maskMoney(moneyRaw(...a));
 const dm=v=>{const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+'/'+m[2]:'—';};
 const WEEK=['dom','seg','ter','qua','qui','sex','sáb'];
 const weekday=v=>WEEK[new Date(String(v).slice(0,10)+'T00:00:00Z').getUTCDay()];
-const axisMoney=v=>v>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:v>=100000?0:1})+' mil':String(Math.round(v));
+const axisMoneyRaw=v=>v>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:v>=100000?0:1})+' mil':String(Math.round(v));
+const axisMoney=(...a)=>isPrivate()?'•••':axisMoneyRaw(...a);
 const C_SHOPEE='#eb6834',C_ML='#2a78d6',C_PREV='#8a97ad';
 
 function niceMax(v){

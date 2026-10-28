@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import './commerce-import-history.css';
+import { maskMoney } from './commerce-privacy.js';
 
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
 const PLATFORM_LABEL={SHOPEE:'Shopee',ML_ANTIGO:'ML Antigo',ML_NOVO:'ML Novo'};
@@ -22,7 +23,8 @@ const fmtDateTime=v=>{
   return Number.isNaN(d.getTime())?'—':d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'});
 };
 const num=v=>v==null?'—':Number(v).toLocaleString('pt-BR');
-const money=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const moneyRaw=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const money=(...a)=>maskMoney(moneyRaw(...a));
 export const fileLabel=name=>{
   const text=String(name||'');
   return /^[A-Z0-9_]+$/.test(text)?text.replace(/_/g,' ').toLowerCase():text;
