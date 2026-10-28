@@ -335,3 +335,15 @@
 .ndb-chart-panel{display:flex;flex-direction:column;min-height:0}
 .ndb-rev-list{flex:1;min-height:0;overflow-y:auto;gap:5px}
 .ndb-rev-track{height:6px}
+
+/* Painel Comercial (modo explorer): a página rola normalmente, sem caixa de altura fixa */
+.ndb-root.is-explorer{height:auto;min-height:0;overflow:visible}
+.ndb-root.is-explorer .ndb-main{flex:none}
+.ndb-root.is-explorer .ndb-left{display:block}
+.ndb-root.is-explorer .ndb-explorer{overflow:visible}
+.ndb-root.is-explorer .ndb-explorer .ndb-scroll{max-height:none;overflow-x:auto;overflow-y:visible}
+.ndb-root.is-explorer .ndb-explorer .ndb-table td strong,.ndb-root.is-explorer .ndb-explorer .ndb-table td small{max-width:260px}
+.ndb-root.is-explorer .ndb-explorer .ndb-table th{position:static}
+.ndb-root.is-explorer .ndb-explorer .ndb-note{white-space:normal}
+.ndb-root.is-explorer .ndb-sb{min-width:240px}
+.ndb-root.is-explorer .ndb-right{align-self:start}
