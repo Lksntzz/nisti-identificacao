@@ -99,3 +99,10 @@ test('indicador de conexao tenta duas vezes e mostra o motivo da falha', () => {
   assert.match(store, /supabase_rpc|error\?\.code/);
   assert.match(router, /error: database\.error/);
 });
+
+test('coluna Plataforma so aparece em Todas as plataformas; health usa chamada direta', () => {
+  assert.match(dash, /const multi=platform==='TODAS'/);
+  assert.match(dash, /\{multi&&<th>Plataforma<\/th>\}/);
+  assert.doesNotMatch(dash, /<th>Plataforma<\/th><th>Status<\/th>/);
+  assert.match(store, /directSupabaseRpc\(env, 'nisti_system_health_core_v1'/);
+});

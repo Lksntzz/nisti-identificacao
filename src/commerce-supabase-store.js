@@ -556,7 +556,8 @@ export async function commerceSalesProductPerformance(env, filters = {}) {
 // Verificação leve da conexão com o banco (indicador do topo do GA): uma leitura curta, sem varrer vendas.
 export async function commerceDatabaseHealth(env) {
   try {
-    const result = await supabaseRpc(env, 'nisti_system_health_core_v1', {}, { timeoutMs: 5000 });
+    // Função genérica de saúde (não começa com commerce_), por isso usa a chamada direta e não a comercial.
+    const result = await directSupabaseRpc(env, 'nisti_system_health_core_v1', {}, { timeoutMs: 5000 });
     return { ok: Boolean(result) };
   } catch (error) {
     // Nunca derruba o indicador com erro 500: devolve o motivo para aparecer ao passar o mouse.
