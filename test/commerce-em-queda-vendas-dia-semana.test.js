@@ -79,6 +79,7 @@ test('topo do GA: titulo da tela, bolinha de conexao real e atualizar em icone, 
 });
 
 test('lista Melhores nao mostra colunas Investimento e ROAS por anuncio', () => {
-  assert.doesNotMatch(dash, /<th className="num">Investimento<\/th>|<th className="num">ROAS<\/th>/);
+  const best = dash.slice(dash.indexOf("tab==='best'&&<>"), dash.indexOf("tab==='drops'&&!all"));
+  assert.doesNotMatch(best, /Investimento|ROAS<\/th>/);
   assert.doesNotMatch(dash, /adsByListing/);
 });
