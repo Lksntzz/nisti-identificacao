@@ -124,3 +124,19 @@ test('Painel Comercial: Importar fica ao lado dos filtros e há busca por produt
   assert.match(panel,/actions=\{importMenu\}/);
   assert.doesNotMatch(panel,/<header className="nim-heading"/);
 });
+
+test('aba Cadastros por mês: rota, consulta no banco e tela estão ligadas',()=>{
+  const r=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
+  const router=r('src/commerce-admin-router.js'),store=r('src/commerce-supabase-store.js');
+  const dash=r('src/commerce-dashboard.jsx'),tab=r('src/commerce-cohorts.jsx');
+  const mig=r('supabase/migrations/20261028150100_commerce_listing_cohorts_v1.sql');
+  assert.match(router,/sales-dashboard\/cohorts/);
+  assert.match(router,/platform\.startsWith\('ML_'\)\?'ML':platform/);
+  assert.match(store,/commerce_listing_cohorts_v1/);
+  assert.match(dash,/\['cohorts','Cadastros por mês',null\]/);
+  assert.match(dash,/<CohortsTab platform=\{platform\} query=\{query\}\/>/);
+  assert.match(tab,/sales-dashboard\/cohorts\?platform=/);
+  assert.match(mig,/grant execute on function public\.commerce_listing_cohorts_v1\(text\) to service_role/);
+  assert.match(mig,/revoke all on public\.commerce_listing_creation_v1 from public, anon, authenticated/);
+  assert.equal((mig.match(/^\s+\('(SHOPEE|ML)',/gm)||[]).length,99);
+});

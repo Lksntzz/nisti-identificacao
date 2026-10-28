@@ -49,6 +49,7 @@ import {
   commerceSalesDashboardSegmentSeriesV1,
   commerceSalesDashboardOverviewV1,
   commerceSalesDashboardMonthlyV1,
+  commerceListingCohortsV1,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
   commerceImportShopeeAftercare,
@@ -537,6 +538,13 @@ export async function handleCommerceAdminRequest(request, env) {
       if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardMonthlyV1(env,{platform}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/cohorts'){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform))
+        return json({error:'Filtro do dashboard inválido.'},400);
+      // A data de criação vem por anúncio do Mercado Livre inteiro: ML Antigo e ML Novo viram "ML".
+      return json(await commerceListingCohortsV1(env,{platform:platform.startsWith('ML_')?'ML':platform}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();

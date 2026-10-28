@@ -297,6 +297,14 @@ export async function commerceSalesDashboardMonthlyV1(env,filters={}) {
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[]};
 }
 
+export async function commerceListingCohortsV1(env,filters={}) {
+  const platform=String(cleanText(filters.platform)||'TODAS').toUpperCase();
+  const data=await supabaseRpc(env,'commerce_listing_cohorts_v1',{
+    p_platform:['SHOPEE','ML'].includes(platform)?platform:'TODAS'
+  },{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[]};
+}
+
 export async function commerceVariationReview(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const days=Number(filters.days);

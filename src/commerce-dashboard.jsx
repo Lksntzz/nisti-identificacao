@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
+import CohortsTab from './commerce-cohorts.jsx';
 import './commerce-dashboard.css';
 
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
@@ -15,6 +16,7 @@ const PERIODS=[7,30,60,90];
 const CLASS_NOTE={A:'Até 80% do faturamento',B:'Dos 80% aos 95%',C:'Últimos 5%'};
 
 const SOURCES={
+  cohorts:'Data de criação do anúncio informada na planilha "Análise de Anúncios Nisti Print" (32 anúncios da Shopee e 67 itens do Mercado Livre, ligados por SKU) + vendas importadas. Os números contam do dia da criação até o último dia fechado. Não muda com o filtro de período.',
   abc:'Vendas importadas (tabela de vendas diárias por anúncio, o mesmo dado do Histórico de importações). Usa todo o histórico de vendas importado (não muda com o filtro de período) e soma o faturamento por SKU em cada plataforma (Shopee, ML Antigo e ML Novo nunca se misturam: cada uma tem a sua própria curva), ordena do maior para o menor e classifica: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
   drops:'Vendas importadas: compara os últimos N dias com os N dias imediatamente anteriores, por anúncio ATIVO. Entra quem tinha 5 ou mais unidades no período anterior e caiu 15% ou mais. A coluna “Preço médio” compara o preço médio realizado. A coluna “Vendas por semana e por dia” mostra as unidades das últimas 4 semanas de 7 dias (terminando no último dia com venda importada) e, em “Ver por dia”, os últimos 14 dias, comparando cada dia com o mesmo dia da semana anterior.',
   daily:'Vendas importadas (tabela de vendas diárias por anúncio): soma do faturamento de cada dia, separado por plataforma. A linha tracejada é o dia equivalente do período anterior (mesmo tamanho). Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
@@ -411,9 +413,10 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     ['drops','Em queda',all?null:data?.drops?.total],
     ['stopped','Pararam',overview&&!all?(ov.stopped_total??stoppedRows.length):null],
     ['nosales','Sem vendas',overview?(ov.no_sales_total??lst.active_without_sales):null],
-    ['abc','Curva ABC',null]
+    ['abc','Curva ABC',null],
+    ['cohorts','Cadastros por mês',null]
   ];
-  const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc'};
+  const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc',cohorts:'cohorts'};
   const bestAll=[...top].filter(hit).sort((x,y)=>Number(y.units)-Number(x.units));
   const filters=<>
     <Dropdown label="Período" value={days} options={[...PERIODS.map(p=>[p,'Últimos '+p+' dias']),[0,'Sem filtro (todo o histórico)']]} onChange={setDays}/>
@@ -490,6 +493,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {(ov.no_sales||[]).length===0&&<tr><td colSpan={multi?4:3} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista completa do período escolhido: primeiro os que já venderam, depois os que nunca venderam. Confira estoque, preço e se está pausado. Em quem já vendeu, as semanas e os dias são contados até a última venda (até 200 anúncios).</p></>}
+          {tab==='cohorts'&&<CohortsTab platform={platform} query={query}/>}
           {tab==='abc'&&<>
             <PeriodBar cur="todo o histórico (não muda com o período)"/>
             <div className="ndb-abc-bar-row">
