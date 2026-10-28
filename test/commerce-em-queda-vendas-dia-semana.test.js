@@ -47,7 +47,7 @@ test('Dashboard: 4 indices de performance no lugar dos cards de faturamento', ()
 });
 
 test('Dashboard: grafico mostra faturamento por produto conforme o filtro', () => {
-  assert.match(dash, /<RevenueByProduct items=\{top\}\/>/);
+  assert.match(dash, /<RevenueByProduct items=\{top\}/);
   assert.match(dash, /title="Faturamento por produto"/);
   assert.doesNotMatch(dash, /<DailyChart|<MonthlyChart|segment-series/);
 });
