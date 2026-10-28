@@ -151,6 +151,6 @@
 @media (max-width:900px){.commerce-privacy-btn span{display:none}.commerce-privacy-btn{padding:0 9px}}
 
 /* Modo noturno: inverte as cores da página inteira e devolve a cor original às imagens. */
-html.ga-dark{background:#fff;filter:invert(1) hue-rotate(180deg);color-scheme:dark}
+html.ga-dark{background:#fff;filter:invert(.9) hue-rotate(180deg) saturate(.85)}
 html.ga-dark .admin-sidebar,html.ga-dark img,html.ga-dark video,html.ga-dark canvas,html.ga-dark .commerce-brand,html.ga-dark [data-keep-color]{filter:invert(1) hue-rotate(180deg)}
 html.ga-dark .commerce-theme-btn.is-on{background:#fff;color:#14213d}
