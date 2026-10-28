@@ -553,8 +553,15 @@ export async function commerceSalesProductPerformance(env, filters = {}) {
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
+// Verificação leve da conexão com o banco (indicador do topo do GA): uma leitura curta, sem varrer vendas.
+export async function commerceDatabaseHealth(env) {
+  const result = await supabaseRpc(env, 'nisti_system_health_core_v1', {}, { timeoutMs: 5000 });
+  return { ok: Boolean(result) };
+}
+
 export async function commerceDashboard(env) {
-  const result = await supabaseRpc(env, 'commerce_dashboard_v1');
+  // Parâmetros explícitos: existem duas versões da função (sem parâmetros e com plataforma/dias) e uma chamada vazia fica ambígua.
+  const result = await supabaseRpc(env, 'commerce_dashboard_v1', { p_platform: 'TODAS', p_days: 30 });
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 

@@ -45,14 +45,15 @@ export function WeeklySalesCell({data,open,onToggle,anchored=false,months,months
   if(!weeks.length)return <span className="ndb-sb-empty">sem dados</span>;
   const cur=weeks[weeks.length-1],prev=weeks[weeks.length-2];
   const d=deltaPct(cur.units,prev?.units);
+  const max=Math.max(1,...weeks.map(w=>Number(w.units)||0));
   return <div className="ndb-sb">
-    <div className="ndb-sb-weeks" title="Unidades vendidas em cada semana de 7 dias, terminando no último dia com venda importada.">
-      {weeks.map((w,i)=><span key={w.end} className={'ndb-sb-week'+(i===weeks.length-1?' is-cur':'')} title={dm(w.start)+' a '+dm(w.end)+' · '+money(w.revenue)}>
-        <small>{i===weeks.length-1?(anchored?'Última':'Atual'):'-'+(weeks.length-1-i)+' sem.'}</small><b>{num(w.units)}</b></span>)}
+    <div className="ndb-sb-weeks" title={anchored?'Unidades por semana de 7 dias, terminando na última venda do anúncio ('+dm(data.last_day)+').':'Unidades vendidas em cada semana de 7 dias, terminando no último dia com venda importada.'}>
+      {weeks.map((w,i)=>{const last=i===weeks.length-1;return <span key={w.end} className={'ndb-sb-week'+(last?' is-cur':'')} title={dm(w.start)+' a '+dm(w.end)+' · '+money(w.revenue)}>
+        <small>{last?(anchored?'até '+dm(data.last_day):'Atual'):'-'+(weeks.length-1-i)+' sem.'}</small><b>{num(w.units)}</b>
+        <i className="ndb-sb-bar" style={{width:Math.max(Number(w.units)>0?8:0,(Number(w.units)||0)/max*100)+'%'}}/></span>;})}
     </div>
-    {anchored&&<small className="ndb-sb-anchor">Semanas até a última venda ({dm(data.last_day)})</small>}
     <div className="ndb-sb-meta">
-      <span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)} vs. sem. anterior</span>
+      {d!=null&&<span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)} vs. sem. anterior</span>}
       <button type="button" className="ndb-link" onClick={onToggle} aria-expanded={open}>{open?'Ocultar dias':'Ver por dia'}</button>
       {months&&<BestMonthBadge data={months} open={monthsOpen} onToggle={onToggleMonths}/>}
     </div>

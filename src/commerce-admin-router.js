@@ -8,6 +8,7 @@ import {
   commerceCreateImportBatch,
   commerceDeleteImportBatch,
   commerceDashboard,
+  commerceDatabaseHealth,
   commerceDecideImportRow,
   commerceFinalizeImportBatch,
   commerceImportBatch,
@@ -194,12 +195,10 @@ export async function handleCommerceAdminRequest(request, env) {
     }
 
     if (method === 'GET' && pathname === `${BASE_PATH}/health`) {
-      const dashboard = await commerceDashboard(env);
+      const database = await commerceDatabaseHealth(env);
       return json({
-        ok: true,
+        ok: database.ok === true,
         backend: 'supabase',
-        products: Number(dashboard?.products || 0),
-        listings: Number(dashboard?.listings || 0),
         commit_enabled: commerceCommitEnabled(env)
       });
     }
