@@ -323,7 +323,7 @@ export async function commerceListingCohortsV1(env,filters={}) {
 export async function commerceListingCohortDetailV1(env,filters={}) {
   const platform=String(cleanText(filters.platform)||'SHOPEE').toUpperCase()==='ML'?'ML':'SHOPEE';
   const listing=String(cleanText(filters.listing)||'');
-  const data=await supabaseRpc(env,'commerce_listing_cohort_detail_v5',{p_platform:platform,p_key:listing},{timeoutMs:15000});
+  const data=await supabaseRpc(env,'commerce_listing_cohort_detail_v6',{p_platform:platform,p_key:listing},{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{variations:[],listings:[],months:[]};
 }
 
