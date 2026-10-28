@@ -362,7 +362,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const whyRows=drops;
   return <section className={'ndb-root'+(mode==='explorer'?' is-explorer':'')} aria-label="Dashboard comercial">
     <header className="ndb-head">
-      <div className="ndb-head-title">{mode!=='explorer'&&<span className="ndb-logo"><Icon name="chart"/></span>}<div>{mode==='explorer'?null:<h2>Gestão de Anúncios</h2>}
+      <div className="ndb-head-title"><div>
         <p>{loading?'Consultando…':hasData?(all?fmtDayFull(per.curFrom)+' a '+fmtDayFull(data.last_day)+' · todo o histórico, sem comparação':fmtDayFull(data.current_start)+' a '+fmtDayFull(data.last_day)+' · anterior: '+fmtDayFull(per.prevFrom)+' a '+fmtDayFull(per.prevTo)):'Visão geral do desempenho dos produtos'}</p></div></div>
       <div className="ndb-head-filters">
         {filters}

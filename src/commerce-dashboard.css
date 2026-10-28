@@ -347,3 +347,41 @@
 .ndb-root.is-explorer .ndb-explorer .ndb-note{white-space:normal}
 .ndb-root.is-explorer .ndb-sb{min-width:240px}
 .ndb-root.is-explorer .ndb-right{align-self:start}
+
+/* Notebook (telas de ~1280–1440 px de largura e ~700–800 px de altura): cards, painéis e tabelas mais compactos */
+@media (max-width:1440px){
+  .ndb-main{grid-template-columns:minmax(0,1fr) 290px}
+  .ndb-kpi{padding:7px 10px;gap:9px}
+  .ndb-kpi-label{font-size:11.5px}
+  .ndb-kpi-row strong{font-size:17px}
+  .ndb-kpi small{font-size:10.5px}
+  .ndb-root.is-explorer .ndb-explorer .ndb-table th,.ndb-root.is-explorer .ndb-explorer .ndb-table td{padding:5px 6px;font-size:12px}
+  .ndb-root.is-explorer .ndb-explorer .ndb-table td strong,.ndb-root.is-explorer .ndb-explorer .ndb-table td small{max-width:210px}
+  .ndb-head-filters{gap:6px}
+  .ndb-sb-weeks{gap:4px}
+}
+@media (max-width:1280px){
+  .ndb-main{grid-template-columns:minmax(0,1fr) 250px}
+  .ndb-idx .ndb-kpi-ico{width:28px;height:28px}
+  .ndb-idx small{white-space:normal;line-height:1.25}
+  .ndb-rev-val{min-width:84px}
+  .ndb-root.is-explorer .ndb-explorer .ndb-table td strong,.ndb-root.is-explorer .ndb-explorer .ndb-table td small{max-width:170px}
+}
+@media (max-width:1100px){
+  .ndb-main{grid-template-columns:1fr}
+  .ndb-root.is-explorer .ndb-right{align-self:stretch}
+}
+/* altura de notebook: o Dashboard rola em vez de espremer os painéis */
+@media (max-height:820px) and (min-width:1101px){
+  .ndb-root:not(.is-explorer){height:auto;min-height:0;overflow:visible}
+  .ndb-root:not(.is-explorer) .ndb-main{flex:none}
+  .ndb-root:not(.is-explorer) .ndb-left{display:block}
+  .ndb-root:not(.is-explorer) .ndb-rev-list{max-height:420px}
+  .ndb-root:not(.is-explorer) .ndb-right{align-self:start}
+}
+@media (max-width:1440px){
+  .ndb-root.is-explorer .ndb-main{grid-template-columns:1fr}
+  .ndb-root.is-explorer .ndb-right{align-self:stretch}
+  .ndb-root.is-explorer .ndb-abc-panel{max-width:none}
+}
+.nim-manager>.nim-heading{margin:0 0 4px!important;padding:0!important;min-height:0!important}

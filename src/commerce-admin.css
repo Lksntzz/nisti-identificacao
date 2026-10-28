@@ -126,3 +126,20 @@
   .commerce-admin-root .admin-sidebar .sidebar-brand-logo{flex:none}
   .commerce-admin-root .admin-sidebar .sidebar-highlight-btn,.commerce-admin-root .admin-sidebar .sidebar-logout-btn{white-space:nowrap;overflow:hidden}
 }
+
+/* Topo: estado real da conexão com o banco + atualizar em ícone */
+.commerce-db-status{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid #e2e8f0;border-radius:999px;background:#fff;font-size:12px;font-weight:700;color:#0f172a;white-space:nowrap}
+.commerce-db-status .commerce-live-dot{flex:none}
+.commerce-db-status.is-ok .commerce-live-dot{background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.14)}
+.commerce-db-status.is-error{border-color:#fecaca;background:#fef2f2;color:#991b1b}
+.commerce-db-status.is-error .commerce-live-dot{background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.16)}
+.commerce-db-status.is-checking .commerce-live-dot{background:#94a3b8;box-shadow:0 0 0 4px rgba(148,163,184,.18);animation:commerce-db-pulse 1s ease-in-out infinite}
+@keyframes commerce-db-pulse{50%{opacity:.35}}
+.commerce-refresh-icon{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#334155;cursor:pointer}
+.commerce-refresh-icon:hover{border-color:#94a3b8;color:#0f172a}
+.commerce-refresh-icon:focus-visible{outline:3px solid rgba(37,99,235,.25);outline-offset:2px}
+.commerce-refresh-icon.is-spinning svg{animation:commerce-spin .9s linear infinite}
+@keyframes commerce-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.commerce-refresh-icon.is-spinning svg,.commerce-db-status.is-checking .commerce-live-dot{animation:none}}
+@media (max-width:620px){.commerce-db-status-text{display:none}.commerce-db-status{padding:8px}}
+.commerce-admin-root .topbar-right{align-items:center;gap:10px}

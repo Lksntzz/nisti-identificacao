@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import './app.css';
 import './commerce-admin.css';
 import LOGO from './assets/logo.png';
@@ -6,6 +6,7 @@ import CommerceCommercialPanel from './commerce-commercial-panel.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceDashboard from './commerce-dashboard.jsx';
 import CommerceImportHistory from './commerce-import-history.jsx';
+import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './nisti-motion.css';
 import './nisti-motion.js';
 
@@ -26,14 +27,6 @@ const VIEW_TITLES = Object.freeze({
   planning: 'Planejamento de Produtos NISTI',
   sales: 'Painel Comercial',
   imports: 'Histórico de importações'
-});
-
-const VIEW_DESCRIPTIONS = Object.freeze({
-  dashboard: 'Curva ABC, quedas de vendas e anúncios que mais vendem, por plataforma e período.',
-  catalog: 'Catálogo ativo e indicadores de vendas no mesmo painel, com Curva ABC e análise detalhada.',
-  planning: 'Vendas do mês, saída diária, projeção, histórico e anúncios exclusivos por plataforma.',
-  sales: 'Pedidos, unidades, faturamento e itens sem venda por plataforma, período e SKU.',
-  imports: 'Cada relatório de vendas importado: período, situação e resumo, por plataforma.'
 });
 
 function SidebarIcon({ name }) {
@@ -165,6 +158,44 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
   );
 }
 
+// Estado real da conexão com o banco: consulta o endpoint /health (que faz uma leitura no Supabase).
+// Verde = respondeu; vermelho = falhou; cinza = verificando. Reverifica a cada 60 s (só com a aba visível) e ao atualizar.
+function useDatabaseStatus(revision) {
+  const [status, setStatus] = useState({ state: 'checking', at: null });
+  const check = useCallback(async signal => {
+    setStatus(current => ({ ...current, state: 'checking' }));
+    try {
+      const result = await fetchCommercialManager('/api/admin/commerce/health', { signal });
+      if (signal?.aborted) return;
+      setStatus({ state: result?.ok === true ? 'ok' : 'error', at: new Date() });
+    } catch (error) {
+      if (signal?.aborted) return;
+      setStatus({ state: 'error', at: new Date() });
+    }
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    check(controller.signal);
+    const timer = setInterval(() => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') check(controller.signal);
+    }, 60000);
+    return () => { controller.abort(); clearInterval(timer); };
+  }, [check, revision]);
+  return status;
+}
+
+function DatabaseStatus({ status }) {
+  const label = status.state === 'ok' ? 'Conectado ao banco de dados'
+    : status.state === 'error' ? 'Sem conexão com o banco de dados' : 'Verificando conexão…';
+  const when = status.at ? ' · verificado às ' + status.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  return (
+    <span className={'commerce-db-status is-' + status.state} role="status" title={label + when} aria-label={label}>
+      <span className="commerce-live-dot" aria-hidden="true" />
+      <span className="commerce-db-status-text">{status.state === 'ok' ? 'Conectado' : status.state === 'error' ? 'Sem conexão' : 'Verificando'}</span>
+    </span>
+  );
+}
+
 export default function CommerceAdminAppV2() {
   const [activeView, setActiveView] = useState('dashboard');
   const [perfOpen, setPerfOpen] = useState(null);
@@ -172,6 +203,7 @@ export default function CommerceAdminAppV2() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesRevision, setSalesRevision] = useState(0);
 
+  const dbStatus = useDatabaseStatus(salesRevision);
   const activeItem = useMemo(
     () => NAV_ITEMS.find(item => item.id === activeView) || NAV_ITEMS[0],
     [activeView]
@@ -201,43 +233,35 @@ export default function CommerceAdminAppV2() {
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-            <h1 className="admin-page-title">{IS_GA ? 'GA - Gestor de Anúncio' : 'Catálogo Comercial'}</h1>
+            <h1 className="admin-page-title">{IS_GA ? (VIEW_TITLES[activeItem.id] || activeItem.label) : 'Catálogo Comercial'}</h1>
           </div>
 
           <div className="topbar-right">
             {!IS_GA && <a href="/admin" className="topbar-logout-btn">
               <span>NISTI ID</span>
             </a>}
+            <DatabaseStatus status={dbStatus} />
             <button
               type="button"
-              className="topbar-logout-btn commerce-refresh-btn"
-              onClick={() => window.location.reload()}
+              className={'commerce-refresh-icon' + (dbStatus.state === 'checking' ? ' is-spinning' : '')}
+              onClick={() => setSalesRevision(value => value + 1)}
+              aria-label="Atualizar dados"
+              title="Atualizar dados"
             >
-              Atualizar
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                <path d="M21 3v6h-6" />
+              </svg>
             </button>
-            <form method="POST" action="/admin-logout" onSubmit={event => { if (IS_GA) event.currentTarget.action = LOGOUT_ACTION; }} className="nim-logout-form"><button type="submit" className="topbar-logout-btn">
+            {!IS_GA && <form method="POST" action="/admin-logout" className="nim-logout-form"><button type="submit" className="topbar-logout-btn">
               <span>Sair</span>
-            </button></form>
+            </button></form>}
           </div>
         </header>
 
         <main className="admin-page-content commerce-admin-page-content">
-          <div key={activeView} className="commerce-admin-view-transition">
-            {activeView !== 'dashboard' && <div className="welcome-banner commerce-welcome-banner">
-              <div className="welcome-copy">
-                <h2>{VIEW_TITLES[activeItem.id] || activeItem.label}</h2>
-                <p>{VIEW_DESCRIPTIONS[activeItem.id]}</p>
-              </div>
-              <div className="commerce-live-status">
-                <span className="commerce-live-dot" />
-                <div>
-                  <strong>Dados conectados</strong>
-                  <small>Supabase PostgreSQL</small>
-                </div>
-              </div>
-            </div>}
-
-            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialPanel key={salesRevision} perfOpen={perfOpen} />}
+          <div key={activeView + ':' + salesRevision} className="commerce-admin-view-transition">
+            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialPanel perfOpen={perfOpen} />}
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} />}
             {activeView === 'imports' && <CommerceImportHistory />}

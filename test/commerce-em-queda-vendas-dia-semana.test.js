@@ -65,3 +65,15 @@ test('Painel Comercial e so o desempenho (explorer) mais o menu Importar', () =>
   assert.match(dash, /mode==='explorer'&&<section className="ndb-panel ndb-explorer">/);
   assert.match(dash, /mode==='overview'&&<Panel title="Faturamento por produto"/);
 });
+
+test('topo do GA: titulo da tela, bolinha de conexao real e atualizar em icone, sem Sair', () => {
+  const app = readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  assert.doesNotMatch(app, /\{IS_GA \? 'GA - Gestor de Anúncio' :/);
+  assert.match(app, /VIEW_TITLES\[activeItem\.id\]/);
+  assert.match(app, /\/api\/admin\/commerce\/health/);
+  assert.match(app, /useDatabaseStatus/);
+  assert.match(app, /aria-label="Atualizar dados"/);
+  assert.match(app, /\{!IS_GA && <form method="POST" action="\/admin-logout"/);
+  assert.doesNotMatch(app, /welcome-banner commerce-welcome-banner/);
+  assert.doesNotMatch(panel, /Atualizar<\/button>/);
+});
