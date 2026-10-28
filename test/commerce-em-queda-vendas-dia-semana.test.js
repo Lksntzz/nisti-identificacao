@@ -134,9 +134,24 @@ test('aba Cadastros por mês: rota, consulta no banco e tela estão ligadas',()=
   assert.match(router,/platform\.startsWith\('ML_'\)\?'ML':platform/);
   assert.match(store,/commerce_listing_cohorts_v1/);
   assert.match(dash,/\['cohorts','Cadastros por mês',null\]/);
-  assert.match(dash,/<CohortsTab platform=\{platform\} query=\{query\}\/>/);
+  assert.match(dash,/<CohortsTab platform=\{platform\} query=\{query\} linkFor=\{listingUrl\}\/>/);
   assert.match(tab,/sales-dashboard\/cohorts\?platform=/);
   assert.match(mig,/grant execute on function public\.commerce_listing_cohorts_v1\(text\) to service_role/);
   assert.match(mig,/revoke all on public\.commerce_listing_creation_v1 from public, anon, authenticated/);
   assert.equal((mig.match(/^\s+\('(SHOPEE|ML)',/gm)||[]).length,99);
+});
+
+test('Cadastros por mês: detalhe por variação, melhor mês e links',()=>{
+  const r=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
+  const router=r('src/commerce-admin-router.js'),store=r('src/commerce-supabase-store.js'),tab=r('src/commerce-cohorts.jsx');
+  const mig=r('supabase/migrations/20261028160000_commerce_listing_cohorts_v2.sql');
+  assert.match(router,/sales-dashboard\/cohorts\/detail/);
+  assert.match(router,/Filtro do detalhe inválido/);
+  assert.match(store,/commerce_listing_cohort_detail_v1/);
+  assert.match(tab,/sales-dashboard\/cohorts\/detail\?platform=/);
+  assert.match(tab,/role="dialog"/);
+  assert.match(tab,/Por dia/);assert.match(tab,/Por semana/);assert.match(tab,/Por mês/);
+  assert.match(tab,/Melhor mês/);assert.match(tab,/Mostrar mais/);
+  assert.match(mig,/grant execute on function public\.commerce_listing_cohort_detail_v1\(text,text\) to service_role/);
+  assert.match(mig,/best_month/);
 });

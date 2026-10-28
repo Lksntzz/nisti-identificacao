@@ -50,6 +50,7 @@ import {
   commerceSalesDashboardOverviewV1,
   commerceSalesDashboardMonthlyV1,
   commerceListingCohortsV1,
+  commerceListingCohortDetailV1,
   commerceListingTrafficWindow,
   commerceImportShopeeAdsReport,
   commerceImportShopeeAftercare,
@@ -538,6 +539,13 @@ export async function handleCommerceAdminRequest(request, env) {
       if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardMonthlyV1(env,{platform}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/cohorts/detail'){
+      const platform=String(query(url,'platform')||'').toUpperCase();
+      const product=String(query(url,'product')||'').trim();
+      if(!['SHOPEE','ML'].includes(platform)||!/^[A-Za-z0-9._-]{1,40}$/.test(product))
+        return json({error:'Filtro do detalhe inválido.'},400);
+      return json(await commerceListingCohortDetailV1(env,{platform,product}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/cohorts'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();

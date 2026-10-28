@@ -493,7 +493,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {(ov.no_sales||[]).length===0&&<tr><td colSpan={multi?4:3} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista completa do período escolhido: primeiro os que já venderam, depois os que nunca venderam. Confira estoque, preço e se está pausado. Em quem já vendeu, as semanas e os dias são contados até a última venda (até 200 anúncios).</p></>}
-          {tab==='cohorts'&&<CohortsTab platform={platform} query={query}/>}
+          {tab==='cohorts'&&<CohortsTab platform={platform} query={query} linkFor={listingUrl}/>}
           {tab==='abc'&&<>
             <PeriodBar cur="todo o histórico (não muda com o período)"/>
             <div className="ndb-abc-bar-row">
