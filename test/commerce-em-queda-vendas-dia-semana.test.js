@@ -37,3 +37,10 @@ test('aba Pararam mostra como o anuncio vendia ate a ultima venda (ancora last_s
   assert.match(router, /anchor/);
   assert.match(sql, /p_anchor='last_sale'/);
 });
+
+test('"Vendia e parou" (aba Sem vendas) mostra semanas e dias ate a ultima venda', () => {
+  assert.match(dash, /useSalesBreakdown\(noSalesIds,'last_sale'\)/);
+  assert.match(dash, /<th>Última venda<\/th><th>Como vendia antes de parar<\/th>/);
+  assert.match(dash, /noSalesBreakdown\[r\.listing_id\]/);
+  assert.match(dash, /\.slice\(0,200\)/);
+});
