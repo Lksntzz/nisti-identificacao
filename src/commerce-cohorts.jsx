@@ -7,6 +7,7 @@ const moneyRaw=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currenc
 const money=(...a)=>maskMoney(moneyRaw(...a));
 const dec=v=>v==null?'—':(Math.round(v*10)/10).toLocaleString('pt-BR',{maximumFractionDigits:1});
 const PLAT={SHOPEE:'Shopee',ML:'Mercado Livre'};
+const platName=i=>i.platform==='ML'?(i.account==='NOVO'?'ML Novo':i.account==='ANTIGO'?'ML Antigo':'Mercado Livre'):(PLAT[i.platform]||i.platform);
 const MONTHS_FULL=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 const MONTHS_SHORT=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
@@ -68,7 +69,7 @@ function ProductRow({i,lastDay,linkFor,onOpen}){
   return <li className="ndb-coh-row">
     <div className="ndb-coh-prod">
       <button type="button" className="ndb-coh-title" onClick={onOpen} title={i.title+' — ver variações'}>{i.title}</button>
-      <small><span className={'ndb-coh-pill p-'+String(i.platform).toLowerCase()}>{PLAT[i.platform]||i.platform}</span>{i.platform==='ML'?i.product_ref+' · '+num(i.listings)+(i.listings===1?' variação':' variações'):i.listing_id+' · SKU '+i.product_ref}</small>
+      <small><span className={'ndb-coh-pill p-'+String(i.platform).toLowerCase()}>{platName(i)}</span>{i.platform==='ML'?i.product_ref+' · '+num(i.listings)+(i.listings===1?' variação':' variações'):i.listing_id+' · SKU '+i.product_ref}</small>
       <Links platform={i.platform} ids={i.listing_ids} linkFor={linkFor}/>
     </div>
     <div className="ndb-coh-when"><b>{dmy(i.created_on)}</b><small>{num(i.age_days)} dias · {first}</small></div>
@@ -113,7 +114,7 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
     <section className="ndb-coh-dialog" role="dialog" aria-modal="true" aria-label={'Variações de '+item.title}>
       <header className="ndb-coh-dhead">
         <div><h3>{item.title}</h3>
-          <p><span className={'ndb-coh-pill p-'+String(item.platform).toLowerCase()}>{PLAT[item.platform]||item.platform}</span>{item.platform==='ML'?item.product_ref:item.listing_id+' · SKU '+item.product_ref} · criado em {dmy(item.created_on)} · {num(item.age_days)} dias · {num(item.units)} un. · {money(item.revenue)}</p>
+          <p><span className={'ndb-coh-pill p-'+String(item.platform).toLowerCase()}>{platName(item)}</span>{item.platform==='ML'?item.product_ref:item.listing_id+' · SKU '+item.product_ref} · criado em {dmy(item.created_on)} · {num(item.age_days)} dias · {num(item.units)} un. · {money(item.revenue)}</p>
           <Links platform={item.platform} ids={item.listing_ids} linkFor={linkFor} max={8}/></div>
         <button type="button" ref={closeRef} className="ndb-coh-close" onClick={onClose} aria-label="Fechar">×</button>
       </header>
@@ -201,7 +202,7 @@ export default function CohortsTab({platform='TODAS',query='',linkFor=()=>null})
   useEffect(()=>{setShown(PAGE);},[curYear,month,sort,qn,platform]);
   if(error)return <p className="ndb-empty">Consulta indisponível. Tente atualizar.</p>;
   if(!data)return <p className="ndb-empty">Carregando…</p>;
-  if(!all.length)return <p className="ndb-empty">Nenhum anúncio com data de criação para esta plataforma.</p>;
+  if(!all.length)return <p className="ndb-empty">Nenhum anúncio desta plataforma tem data de criação cadastrada ainda (a planilha de datas só traz Shopee e ML Antigo).</p>;
   const units=sel.reduce((a,i)=>a+Number(i.units||0),0),rev=sel.reduce((a,i)=>a+Number(i.revenue||0),0);
   return <div className="ndb-coh">
     <div className="ndb-coh-filters">
