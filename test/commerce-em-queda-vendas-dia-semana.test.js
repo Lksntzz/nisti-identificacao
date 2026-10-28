@@ -228,5 +228,5 @@ test('Dashboard: o filtro acompanha o clique até o Painel Comercial', () => {
 test('GA: modo noturno com botão e escolha guardada', () => {
   assert.match(readFileSync('src/commerce-theme.js','utf8'),/ga\.theme/);
   assert.match(readFileSync('src/commerce-admin-app-v2.jsx','utf8'),/commerce-theme-btn/);
-  assert.match(readFileSync('src/commerce-admin.css','utf8'),/html\.ga-dark/);
+  assert.match(readFileSync('src/commerce-dark.css','utf8'),/html\.ga-dark/);
 });
