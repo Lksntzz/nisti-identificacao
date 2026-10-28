@@ -325,7 +325,6 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const lowRoas=adsRows.filter(r=>r.roas!=null&&Number(r.roas)<1);
   const totalProducts=classes.reduce((a,c)=>a+Number(c.products||0),0)||1;
 
-  const adsByListing=Object.fromEntries(adsRows.filter(r=>r.listing_id).map(r=>[r.listing_id,r]));
   const classRows=cls?allItems.filter(i=>i.class===cls):[];
   const updated=(ov.coverage||[]).map(c=>c.last_import).filter(Boolean).sort().pop();
   const alerts=[
@@ -389,18 +388,17 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             <div className="ndb-tabs" role="tablist" aria-label="Detalhes">{TABS.map(([k,l,c])=><button key={k} type="button" role="tab" aria-selected={tab===k} className={tab===k?'is-active':''} onClick={()=>setTab(k)}>{l}{c!=null&&<em>{num(c)}</em>}</button>)}</div>
             <InfoIcon text={SOURCES[TAB_SOURCE[tab]]} label={TABS.find(t=>t[0]===tab)[1]}/>
           </header>
-          {tab==='best'&&<><PeriodBar cur={curTxt}/>{perfNotes.length>0&&<p className="ndb-perf-note">Visitas e Conversão vêm dos relatórios de desempenho importados ({perfNotes.join(' · ')}) e valem para o período de cada relatório, não para o filtro acima. ML: vendas ÷ visitas; Shopee: pedidos feitos ÷ visitantes.</p>}<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num" title="Visitas únicas no período do relatório de desempenho importado de cada plataforma">Visitas</th><th className="num" title="Mercado Livre: vendas ÷ visitas. Shopee: pedidos feitos ÷ visitantes (inclui cancelados depois)">Conversão</th><th className="num">Investimento</th><th className="num">ROAS</th><th>Histórico de vendas</th></tr></thead><tbody>
-            {bestAll.map(r=>{const ad=adsByListing[r.listing_id];const st=listingState(r.status);const rk='b'+r.platform+r.external_id;const sb=bestBreakdown[r.listing_id];return <React.Fragment key={rk}><tr className={st.off?'ndb-off':''}>
+          {tab==='best'&&<><PeriodBar cur={curTxt}/>{perfNotes.length>0&&<p className="ndb-perf-note">Visitas e Conversão vêm dos relatórios de desempenho importados ({perfNotes.join(' · ')}) e valem para o período de cada relatório, não para o filtro acima. ML: vendas ÷ visitas; Shopee: pedidos feitos ÷ visitantes.</p>}<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num" title="Visitas únicas no período do relatório de desempenho importado de cada plataforma">Visitas</th><th className="num" title="Mercado Livre: vendas ÷ visitas. Shopee: pedidos feitos ÷ visitantes (inclui cancelados depois)">Conversão</th><th>Histórico de vendas</th></tr></thead><tbody>
+            {bestAll.map(r=>{const st=listingState(r.status);const rk='b'+r.platform+r.external_id;const sb=bestBreakdown[r.listing_id];return <React.Fragment key={rk}><tr className={st.off?'ndb-off':''}>
               <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.sku||r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td>{PLATFORM_LABEL[r.platform]||r.platform}</td>
               <td><span className={'ndb-status'+st.cls}>{st.label}</span></td>
               <td className="num"><b>{num(r.units)}</b></td><td className="num">{money(r.revenue)}</td>
               {(()=>{const pf=perfItems[r.external_id];return <><td className="num">{pf&&pf.visits!=null?num(pf.visits):'—'}</td><td className="num">{pf&&pf.conversion_pct!=null?String(pf.conversion_pct).replace('.',',')+'%':'—'}</td></>;})()}
-              <td className="num">{ad?money(ad.spend):'sem dados'}</td>
-              <td className="num">{ad&&ad.roas!=null?<span className={'ndb-roas'+(Number(ad.roas)<1?' low':'')}>{String(ad.roas).replace('.',',')}x</span>:'sem dados'}</td><td>{salesCell(rk,r.listing_id,sb,false)}</td></tr>{salesRows(rk,r.listing_id,sb,false,10)}</React.Fragment>;})}
-            {top.length===0&&!loading&&<tr><td colSpan={10} className="ndb-empty">Sem vendas no período.</td></tr>}
+              <td>{salesCell(rk,r.listing_id,sb,false)}</td></tr>{salesRows(rk,r.listing_id,sb,false,8)}</React.Fragment>;})}
+            {top.length===0&&!loading&&<tr><td colSpan={8} className="ndb-empty">Sem vendas no período.</td></tr>}
           </tbody></table></div>
-          <p className="ndb-note" title="Investimento e ROAS vêm do relatório Shopee Ads importado (período próprio) e só aparecem para anúncios com campanha individual.">Os 15 anúncios que mais faturam. Investimento e ROAS: relatório Shopee Ads importado, só anúncios com campanha individual.</p></>}
+          <p className="ndb-note">Os 15 anúncios que mais faturam no período.</p></>}
           {(tab==='drops'||tab==='stopped')&&all&&<p className="ndb-empty">Escolha 30, 60 ou 90 dias no filtro de período: esta lista compara períodos.</p>}
           {tab==='drops'&&!all&&<><PeriodBar cur={curTxt} prev={prevTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades (ant. → atual)</th><th className="num">Variação</th><th className="num">Perdeu</th><th className="num">Preço médio</th><th>Vendas por semana, dia e mês</th></tr></thead><tbody>
             {whyRows.map(r=>{const sg=signals[r.listing_id];const rk=r.platform+r.external_id;const sb=dropBreakdown[r.listing_id];return <React.Fragment key={rk}><tr>
