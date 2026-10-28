@@ -372,6 +372,8 @@ export default function CommerceDashboard(){
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
   const {signals}=usePriceSignals(signalRows,all?90:days);
   const salesBreakdown=useSalesBreakdown(signalRows);
+  const stoppedIds=useMemo(()=>(overview?.stopped||[]).filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[overview]);
+  const stoppedBreakdown=useSalesBreakdown(stoppedIds,'last_sale');
   const [openDays,setOpenDays]=useState({});
   const totals=data?.totals||{};
   const classes=data?.abc?.classes_by_platform?.[abcP]||[];
@@ -487,13 +489,14 @@ export default function CommerceDashboard(){
             {drops.length===0&&!loading&&<tr><td colSpan={6} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. As vendas por semana e por dia vêm das vendas importadas; o % compara com o período anterior.</p></>}
-          {tab==='stopped'&&!all&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th><th>O que verificar</th></tr></thead><tbody>
-            {stoppedRows.map(r=><tr key={r.platform+r.external_id}><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
+          {tab==='stopped'&&!all&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th><th>Como vendia antes de parar</th></tr></thead><tbody>
+            {stoppedRows.map(r=>{const rk='s'+r.platform+r.external_id;const sb=stoppedBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{r.last_sale?fmtDayFull(r.last_sale):'—'}</td><td className="num">{r.days_since!=null?num(r.days_since)+' dias':'—'}</td><td className="num">{num(r.units_ever)} un. · {money(r.revenue_ever)}</td>
-              <td><span className="ndb-why tone-warn"><strong>Sem vendas no período</strong><small>Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</small></span></td></tr>)}
+              <td><WeeklySalesCell anchored data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))}/></td></tr>
+              {openDays[rk]&&sb&&<DailySalesRow anchored data={sb} colSpan={5}/>}</React.Fragment>;})}
             {stoppedRows.length>0&&stoppedRows.length<Number(ov.stopped_total||0)&&<tr><td colSpan={5} className="ndb-empty">Mostrando os {num(stoppedRows.length)} que pararam mais recentemente, de {num(ov.stopped_total)}.</td></tr>}
             {stoppedRows.length===0&&<tr><td colSpan={5} className="ndb-empty">{overview?'Nenhum anúncio ativo está parado neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
-          </tbody></table></div></>}
+          </tbody></table></div><p className="ndb-note">Semanas e dias contados até a última venda de cada anúncio, para ver como ele vendia antes de parar. Depois, confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</p></>}
           {tab==='nosales'&&<><div className="ndb-abc-bar-row">
             <div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',(ov.no_sales||[]).length],['stopped','Vendia e parou',(ov.no_sales||[]).filter(r=>r.last_sale).length],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length]].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>
             </div><PeriodBar cur={curTxt}/>

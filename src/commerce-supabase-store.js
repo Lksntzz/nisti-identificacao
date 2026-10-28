@@ -217,11 +217,12 @@ export async function commerceListingPriceSignal(env,{ids=[],days=30}={}) {
   return {signals:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
 }
 
-export async function commerceListingSalesBreakdown(env,{ids=[]}={}) {
+export async function commerceListingSalesBreakdown(env,{ids=[],anchor='last_day'}={}) {
   const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
   if(!listingIds.length)return {breakdown:{}};
-  const data=await supabaseRpc(env,'commerce_listing_sales_breakdown_v1',{
-    p_listing_ids:listingIds.map(Number)
+  const data=await supabaseRpc(env,'commerce_listing_sales_breakdown_v2',{
+    p_listing_ids:listingIds.map(Number),
+    p_anchor:anchor==='last_sale'?'last_sale':'last_day'
   },{timeoutMs:10000});
   return {breakdown:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
 }

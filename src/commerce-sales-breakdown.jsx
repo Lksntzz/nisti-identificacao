@@ -11,20 +11,20 @@ const pctText=v=>v==null?'—':(v>0?'+':'')+String(v).replace('.',',')+'%';
 const tone=v=>v==null?'muted':v<0?'bad':v>0?'good':'muted';
 
 // Vendas por semana e por dia dos anuncios listados (fonte: vendas diarias importadas).
-export function useSalesBreakdown(rows){
+export function useSalesBreakdown(rows,anchor='last_day'){
   const [breakdown,setBreakdown]=useState({});
   const ids=(rows||[]).map(r=>r.id).filter(Boolean).join(',');
   useEffect(()=>{
     if(!ids){setBreakdown({});return undefined;}
     const controller=new AbortController();
-    fetchCommercialManager('/api/admin/commerce/listings/manager/sales-breakdown?ids='+ids,{signal:controller.signal})
+    fetchCommercialManager('/api/admin/commerce/listings/manager/sales-breakdown?anchor='+anchor+'&ids='+ids,{signal:controller.signal})
       .then(data=>setBreakdown(data?.breakdown||{})).catch(()=>{if(!controller.signal.aborted)setBreakdown({});});
     return()=>controller.abort();
-  },[ids]);
+  },[ids,anchor]);
   return breakdown;
 }
 
-export function WeeklySalesCell({data,open,onToggle}){
+export function WeeklySalesCell({data,open,onToggle,anchored=false}){
   const weeks=data?.weeks||[];
   if(!weeks.length)return <span className="ndb-sb-empty">sem dados</span>;
   const cur=weeks[weeks.length-1],prev=weeks[weeks.length-2];
@@ -32,14 +32,15 @@ export function WeeklySalesCell({data,open,onToggle}){
   return <div className="ndb-sb">
     <div className="ndb-sb-weeks" title="Unidades vendidas em cada semana de 7 dias, terminando no último dia com venda importada.">
       {weeks.map((w,i)=><span key={w.end} className={'ndb-sb-week'+(i===weeks.length-1?' is-cur':'')} title={dm(w.start)+' a '+dm(w.end)+' · '+money(w.revenue)}>
-        <small>{i===weeks.length-1?'Atual':'-'+(weeks.length-1-i)+' sem.'}</small><b>{num(w.units)}</b></span>)}
+        <small>{i===weeks.length-1?(anchored?'Última':'Atual'):'-'+(weeks.length-1-i)+' sem.'}</small><b>{num(w.units)}</b></span>)}
     </div>
+    {anchored&&<small className="ndb-sb-anchor">Semanas até a última venda ({dm(data.last_day)})</small>}
     <span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)} vs. semana anterior</span>
     <button type="button" className="ndb-link" onClick={onToggle} aria-expanded={open}>{open?'Ocultar dias':'Ver por dia'}</button>
   </div>;
 }
 
-export function DailySalesRow({data,colSpan}){
+export function DailySalesRow({data,colSpan,anchored=false}){
   const days=data?.days||[];
   return <tr className="ndb-sb-daily-row"><td colSpan={colSpan}>
     <div className="ndb-sb-days" role="table" aria-label="Vendas por dia, últimos 14 dias">
@@ -52,6 +53,6 @@ export function DailySalesRow({data,colSpan}){
         </div>;
       })}
     </div>
-    <small className="ndb-note">Unidades por dia nos últimos 14 dias. O % compara com o mesmo dia da semana anterior.</small>
+    <small className="ndb-note">{anchored?'Unidades por dia nos 14 dias até a última venda ('+dm(data?.last_day)+').':'Unidades por dia nos últimos 14 dias.'} O % compara com o mesmo dia da semana anterior.</small>
   </td></tr>;
 }
