@@ -272,9 +272,10 @@ export async function commerceSalesDashboardMonthSeriesV1(env,filters={}) {
 export async function commerceSalesDashboardSeriesV1(env,filters={}) {
   const platform=String(cleanText(filters.platform)||'TODAS').toUpperCase();
   const days=Number(filters.days);
-  const data=await supabaseRpc(env,'commerce_dashboard_series_v1',{
+  const data=await supabaseRpc(env,'commerce_dashboard_series_v2',{
     p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS',
-    p_days:[7,30,60,90].includes(days)?days:30
+    p_days:[7,30,60,90].includes(days)?days:30,
+    p_month:cleanMonth(filters.month)
   },{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{daily:[]};
 }

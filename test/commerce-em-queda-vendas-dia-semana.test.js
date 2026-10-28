@@ -174,7 +174,7 @@ test('Dashboard: filtro por mês específico e histórico de todos os meses',()=
   const mig=r('supabase/migrations/20261028150000_commerce_dashboard_month_filter_v1.sql');
   const ser=r('supabase/migrations/20261028170000_commerce_dashboard_month_series_v1.sql');
   assert.match(dash,/<MonthsTrend months=\{monthly\.months\}/);
-  assert.match(dash,/sales-dashboard\/month-series\?platform=/);
+  assert.match(dash,/sales-dashboard\/series\?platform=.*month=/);
   assert.match(dash,/'&month='\+month/);
   assert.match(router,/sales-dashboard\/month-series/);
   assert.match(router,/MONTH_RE/);
@@ -210,4 +210,17 @@ test('Modo privacidade: botão no topo e todos os formatadores de reais passam p
   for(const f of ['commerce-dashboard.jsx','commerce-dashboard-charts.jsx','commerce-cohorts.jsx','commerce-ad-manager.jsx','commerce-import-history.jsx','commerce-import-center.jsx','commerce-sales-breakdown.jsx','commerce-price-signal.jsx','commerce-shopee-ads-summary.jsx','commerce-shopee-ads-import.jsx','commerce-shopee-aftercare.jsx','commerce-shopee-unlinked-sales.jsx','commerce-shopee-performance-import.jsx','commerce-ml-performance-import.jsx'])
     assert.match(r('src/'+f),/maskMoney/,f);
   assert.doesNotMatch(r('src/commerce-dashboard.jsx'),/const money=v=>/);
+});
+
+test('Dashboard: separa Shopee, ML Antigo e ML Novo', () => {
+  const c=readFileSync('src/commerce-dashboard-charts.jsx','utf8');
+  const d=readFileSync('src/commerce-dashboard.jsx','utf8');
+  assert.match(c,/ML Antigo/);assert.match(c,/ML Novo/);
+  assert.match(c,/export function PlatformTable/);assert.match(c,/export function MonthMatrix/);
+  assert.match(d,/Comparativo por plataforma/);assert.match(d,/Mês a mês por plataforma/);
+});
+
+test('Dashboard: o filtro acompanha o clique até o Painel Comercial', () => {
+  assert.match(readFileSync('src/commerce-dashboard.jsx','utf8'),/onOpenTab\(k,\{platform,days,month\}\)/);
+  assert.match(readFileSync('src/commerce-commercial-panel.jsx','utf8'),/initialFilter=\{perfOpen\?perfOpen\.filter:null\}/);
 });
