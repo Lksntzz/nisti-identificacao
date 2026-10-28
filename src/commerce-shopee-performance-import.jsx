@@ -2,9 +2,11 @@ import React,{useState} from 'react';
 import {readShopeePerformanceFile} from './commerce-shopee-performance-reader.js';
 import {commerceApi} from './commerce-admin-api.js';
 import './commerce-shopee-ads-import.css';
+import { maskMoney } from './commerce-privacy.js';
 
 const num=x=>new Intl.NumberFormat('pt-BR').format(Number(x||0));
-const money=x=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(x||0));
+const moneyRaw=x=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(x||0));
+const money=(...a)=>maskMoney(moneyRaw(...a));
 const date=s=>String(s||'').split('-').reverse().join('/');
 
 export default function CommerceShopeePerformanceImport(){

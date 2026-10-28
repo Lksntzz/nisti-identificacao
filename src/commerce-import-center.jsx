@@ -24,6 +24,7 @@ import CommercePerformanceImport from './commerce-performance-import.jsx';
 import { readCommerceXlsx } from './commerce-xlsx-reader.js';
 import { attestShopeeActiveExport } from './commerce-shopee-sales-info.js';
 import './commerce-import-center.css';
+import { maskMoney } from './commerce-privacy.js';
 
 const CATALOG_PLATFORMS = [
   ['SHOPEE', 'Shopee'],
@@ -69,7 +70,7 @@ function brNumber(value) {
 }
 
 function brCurrency(value) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+  return maskMoney(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0)));
 }
 
 function brDate(value) {

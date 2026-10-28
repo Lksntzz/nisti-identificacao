@@ -22,6 +22,7 @@ import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPan
 import './commerce-dashboard.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
 import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals, importedTotalsForExactWindow } from './commerce-ad-evidence.js';
+import { maskMoney } from './commerce-privacy.js';
 
 const API='/api/admin/commerce/listings/manager';
 const PLATFORMS=[['TODAS','Todas as plataformas'],['ML_ANTIGO','Mercado Livre Antigo'],['ML_NOVO','Mercado Livre Novo'],['MERCADO_LIVRE','Todo Mercado Livre'],['SHOPEE','Shopee'],['AMAZON','Amazon'],['TIKTOK','TikTok Shop']];
@@ -29,7 +30,8 @@ const SALES_FILTERS=[['SOLD','Com vendas'],['ZERO','Sem vendas']];
 const PERIODS=[7,30,60,90];
 const periodLabel=(days,month)=>days===0?(month?'Mês '+month.split('-').reverse().join('/'):'Mês personalizado'):days+' dias';
 const num=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
-const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
+const moneyRaw=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n||0));
+const money=(...a)=>maskMoney(moneyRaw(...a));
 const labelMonth=s=>/^\d{4}-\d{2}$/.test(String(s||''))?new Date(s+'-02T12:00:00').toLocaleDateString('pt-BR',{month:'short',year:'numeric'}):s;
 const periodDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))?s.split('-').reverse().join('/'):'—';
 async function readJson(url,options={}){

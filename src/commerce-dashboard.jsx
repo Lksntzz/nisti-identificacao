@@ -6,6 +6,7 @@ import PeriodPicker from './commerce-period-picker.jsx';
 import CohortsTab from './commerce-cohorts.jsx';
 import {SalesTrend,MonthsTrend,PlatformSplit,SummaryList} from './commerce-dashboard-charts.jsx';
 import './commerce-dashboard.css';
+import { maskMoney, isPrivate } from './commerce-privacy.js';
 
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
 const PLATFORM_LABEL={SHOPEE:'Shopee',ML_ANTIGO:'ML Antigo',ML_NOVO:'ML Novo'};
@@ -54,7 +55,8 @@ const HELP=[
 ];
 
 const num=v=>v==null?'—':Number(v).toLocaleString('pt-BR');
-const money=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const moneyRaw=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const money=(...a)=>maskMoney(moneyRaw(...a));
 const fmtDay=v=>{const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+'/'+m[2]:'—';};
 const fmtDayFull=v=>{const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+'/'+m[2]+'/'+m[1]:'—';};
 const addDays=(v,n)=>{const d=new Date(String(v||'')+'T12:00:00Z');return Number.isNaN(d.getTime())?'':new Date(d.getTime()+n*86400000).toISOString().slice(0,10);};
@@ -123,7 +125,8 @@ function niceMax(v){
 
 const CLASS_COLOR={A:'#1d5fd1',B:'#16a46b',C:'#f08a1c'};
 const PLAT_COLOR={SHOPEE:'#eb6834',ML_ANTIGO:'#2a78d6',ML_NOVO:'#7b4fd4'};
-const axisMoney=v=>v>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:v>=100000?0:1})+' mil':String(Math.round(v));
+const axisMoneyRaw=v=>v>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:v>=100000?0:1})+' mil':String(Math.round(v));
+const axisMoney=(...a)=>isPrivate()?'•••':axisMoneyRaw(...a);
 const when=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'});};
 
 function Icon({name}){

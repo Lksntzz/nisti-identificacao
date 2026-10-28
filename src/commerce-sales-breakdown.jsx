@@ -1,9 +1,11 @@
 import React,{useEffect,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {deltaPct,monthLabel,bestMonth} from './commerce-sales-breakdown-helpers.js';
+import { maskMoney } from './commerce-privacy.js';
 
 const num=v=>Number(v||0).toLocaleString('pt-BR');
-const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const moneyRaw=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const money=(...a)=>maskMoney(moneyRaw(...a));
 const dm=v=>String(v||'').slice(0,10).split('-').reverse().slice(0,2).join('/');
 const WEEKDAY=['dom','seg','ter','qua','qui','sex','sáb'];
 const weekday=v=>WEEKDAY[new Date(String(v).slice(0,10)+'T12:00:00').getDay()];

@@ -1,8 +1,10 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
+import { maskMoney } from './commerce-privacy.js';
 
 const num=v=>v==null?'—':Number(v).toLocaleString('pt-BR');
-const money=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const moneyRaw=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const money=(...a)=>maskMoney(moneyRaw(...a));
 const dec=v=>v==null?'—':(Math.round(v*10)/10).toLocaleString('pt-BR',{maximumFractionDigits:1});
 const PLAT={SHOPEE:'Shopee',ML:'Mercado Livre'};
 const MONTHS_FULL=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -12,7 +14,8 @@ const ymd=d=>String(d||'').slice(0,10);
 const dmy=d=>{const s=ymd(d);return s?s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4):'—';};
 const monthShort=m=>{const s=ymd(m);return s?cap(MONTHS_SHORT[Number(s.slice(5,7))-1])+'/'+s.slice(2,4):'—';};
 const monthFull=m=>{const s=ymd(m);return s?cap(MONTHS_FULL[Number(s.slice(5,7))-1])+' de '+s.slice(0,4):'—';};
-const compactMoney=v=>{const n=Number(v||0);return n>=1000?'R$ '+(n/1000).toLocaleString('pt-BR',{maximumFractionDigits:n>=100000?0:1})+' mil':money(n);};
+const compactMoneyRaw=v=>{const n=Number(v||0);return n>=1000?'R$ '+(n/1000).toLocaleString('pt-BR',{maximumFractionDigits:n>=100000?0:1})+' mil':money(n);};
+const compactMoney=(...a)=>maskMoney(compactMoneyRaw(...a));
 const norm=v=>String(v??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
 const PAGE=15;
 

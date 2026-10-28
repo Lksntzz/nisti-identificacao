@@ -1,9 +1,11 @@
 import React,{useEffect,useState} from 'react';
 import {commerceApi} from './commerce-admin-api.js';
 import './commerce-shopee-aftercare.css';
+import { maskMoney } from './commerce-privacy.js';
 
 const num=x=>new Intl.NumberFormat('pt-BR').format(Number(x||0));
-const money=x=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(x||0));
+const moneyRaw=x=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(x||0));
+const money=(...a)=>maskMoney(moneyRaw(...a));
 const date=x=>x?new Date(x).toLocaleDateString('pt-BR',{timeZone:'UTC'}):'—';
 export default function CommerceShopeeAftercare({listingId}){
   const [result,setResult]=useState(null),[error,setError]=useState('');

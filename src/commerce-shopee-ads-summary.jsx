@@ -2,8 +2,10 @@ import React,{useEffect,useState} from 'react';
 import {commerceApi} from './commerce-admin-api.js';
 import './commerce-shopee-ads-summary.css';
 import {shopeeAdsRowsForPeriod,preferredShopeeAdsReport} from './commerce-shopee-ads-period.js';
+import { maskMoney } from './commerce-privacy.js';
 const units=n=>n==null?'—':new Intl.NumberFormat('pt-BR').format(n);
-const money=n=>n==null?'—':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);
+const moneyRaw=n=>n==null?'—':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);
+const money=(...a)=>maskMoney(moneyRaw(...a));
 const pct=n=>n==null?'—':new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2}).format(n)+'%';
 const date=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))?s.split('-').reverse().join('/'):'—';
 export default function CommerceShopeeAdsSummary({listingId,periodStart,periodEnd,onlySelectedPeriod=true,onOnlySelectedPeriodChange=()=>{}}) {

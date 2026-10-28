@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
+import { maskMoney } from './commerce-privacy.js';
 
 // Rotulos honestos: o sinal e correlacao entre preco medio realizado e unidades
 // vendidas (janela atual x anterior). Nao prova a causa da variacao.
@@ -18,8 +19,8 @@ const MEANING={
   INSUFFICIENT:'Poucas vendas nas duas janelas (menos de 10 no total ou menos de 5 na anterior) para comparar com segurança.'
 };
 const pct=v=>v==null?'—':(v>0?'+':'')+String(v).replace('.',',')+'%';
-const brl=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-
+const brlRaw=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const brl=(...a)=>maskMoney(brlRaw(...a));
 const DRIVER_FIELD={IMPRESSIONS:'impressions_pct',CTR:'ctr_pct',CONVERSION:'conversion_pct'};
 const DRIVER_TEXT={
   DOWN:{IMPRESSIONS:'Menos impressões',CTR:'Menos cliques por impressão',CONVERSION:'Converte menos',OTHER:'Sem causa clara nos dados'},
