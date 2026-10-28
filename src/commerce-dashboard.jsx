@@ -374,6 +374,8 @@ export default function CommerceDashboard(){
   const salesBreakdown=useSalesBreakdown(signalRows);
   const stoppedIds=useMemo(()=>(overview?.stopped||[]).filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[overview]);
   const stoppedBreakdown=useSalesBreakdown(stoppedIds,'last_sale');
+  const noSalesIds=useMemo(()=>tab==='nosales'?(overview?.no_sales||[]).filter(r=>r.last_sale&&r.listing_id).slice(0,200).map(r=>({id:r.listing_id})):[],[overview,tab]);
+  const noSalesBreakdown=useSalesBreakdown(noSalesIds,'last_sale');
   const [openDays,setOpenDays]=useState({});
   const totals=data?.totals||{};
   const classes=data?.abc?.classes_by_platform?.[abcP]||[];
@@ -500,13 +502,15 @@ export default function CommerceDashboard(){
           {tab==='nosales'&&<><div className="ndb-abc-bar-row">
             <div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',(ov.no_sales||[]).length],['stopped','Vendia e parou',(ov.no_sales||[]).filter(r=>r.last_sale).length],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length]].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>
             </div><PeriodBar cur={curTxt}/>
-          <div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th><th>Plataforma</th><th>Última venda</th><th>Situação</th></tr></thead><tbody>
-            {(ov.no_sales||[]).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);return <tr key={r.platform+r.external_id}><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
+          <div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th><th>Plataforma</th><th>Última venda</th><th>Como vendia antes de parar</th></tr></thead><tbody>
+            {(ov.no_sales||[]).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);const rk='n'+r.platform+r.external_id;const sb=noSalesBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td>{PLATFORM_LABEL[r.platform]||r.platform}</td><td>{sold?fmtDayFull(r.last_sale):'nunca'}</td>
-              <td><span className={'ndb-why tone-'+(sold?'warn':'muted')} title={sold?'Já vendeu ('+num(r.units_ever)+' unid. no total importado) e não vendeu nada neste período.':'Nenhuma venda nos dados importados (desde '+firstDay+'). Pode ser anúncio novo ou nunca ter vendido; o sistema não sabe a data de criação no marketplace.'}><strong>{sold?'Vendia e parou':'Nunca vendeu nos dados'}</strong><small>{sold?(Number(r.units_previous)>0?num(r.units_previous)+' unid. no período anterior; confira estoque, preço e se está pausado.':'Última venda antes do período anterior; confira se ainda vale manter.'):'Sem venda desde '+firstDay+' (início dos dados importados). Pode ser novo.'}</small></span></td></tr>;})}
+              <td>{sold?<WeeklySalesCell anchored data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))}/>
+                :<span className="ndb-why tone-muted" title={'Nenhuma venda nos dados importados (desde '+firstDay+'). Pode ser anúncio novo ou nunca ter vendido; o sistema não sabe a data de criação no marketplace.'}><strong>Nunca vendeu nos dados</strong><small>{'Sem venda desde '+firstDay+' (início dos dados importados). Pode ser novo.'}</small></span>}</td></tr>
+              {sold&&openDays[rk]&&sb&&<DailySalesRow anchored data={sb} colSpan={4}/>}</React.Fragment>;})}
             {(ov.no_sales||[]).length===0&&<tr><td colSpan={4} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>
-          <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista completa do período escolhido: primeiro os que já venderam, depois os que nunca venderam.</p></>}
+          <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista completa do período escolhido: primeiro os que já venderam, depois os que nunca venderam. Em quem já vendeu, as semanas e os dias são contados até a última venda (até 200 anúncios); confira estoque, preço e se está pausado.</p></>}
           {tab==='ads'&&<div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Campanha / anúncio</th><th className="num">Investimento</th><th className="num">Vendas atribuídas</th><th className="num">ROAS</th></tr></thead><tbody>
             {[...adsRows].sort((x,y)=>Number(x.roas)-Number(y.roas)).map((r,i)=><tr key={i}><td title={r.campaign}><strong>{r.title||r.campaign}</strong><small>{r.listing_id?'Anúncio individual':'Grupo de anúncios'}</small></td>
               <td className="num">{money(r.spend)}</td><td className="num">{money(r.gmv)}</td><td className="num">{r.roas==null?'sem dados':<span className={'ndb-roas'+(Number(r.roas)<1?' low':'')}>{String(r.roas).replace('.',',')}x</span>}</td></tr>)}
