@@ -298,3 +298,15 @@
 .ndb-sb-day{display:flex;flex-direction:column;align-items:center;padding:4px 2px;border-radius:8px;background:#fff;border:1px solid #e6ebf4}
 .ndb-sb-day small{font-size:10px;color:#5b6b86}.ndb-sb-day b{font-size:13px}.ndb-sb-day em{font-size:10.5px;font-style:normal;font-weight:700}
 .ndb-sb-daily-row .ndb-note{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;max-width:none!important;display:block}
+
+/* Mes mais vendido e comparacao mes a mes */
+.ndb-best-month{align-self:flex-start;border:1px solid #f0d58a;background:#fff8e1;color:#7a5a00;border-radius:999px;padding:3px 10px;font-size:11.5px;cursor:pointer}
+.ndb-best-month b{font-weight:800}.ndb-best-month.is-open{background:#ffefb8}
+.ndb-months-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px}
+.ndb-months-table th{text-align:left;font-size:11px;color:#5b6b86;padding:4px 8px}.ndb-months-table th.num,.ndb-months-table td.num{text-align:right}
+.ndb-months-table td{padding:5px 8px;border-top:1px solid #e6ebf4;cursor:pointer}
+.ndb-months-table tr.is-best td{background:#fffbea}.ndb-months-table tr.is-selected td{background:#eaf1ff}
+.ndb-best-tag{margin-left:8px;color:#9a6b00;font-size:11px;font-weight:700}
+.ndb-months-table td.tone-bad{color:#c0392b}.ndb-months-table td.tone-good{color:#1f8a4c}
+.ndb-month-days{margin:6px 0}.ndb-sb-days.is-month{grid-template-columns:repeat(auto-fill,minmax(64px,1fr))}
+.ndb-sb-day.is-peak{background:#fff3c4;border-color:#f0c24b}

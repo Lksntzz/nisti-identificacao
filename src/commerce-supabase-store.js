@@ -227,6 +227,16 @@ export async function commerceListingSalesBreakdown(env,{ids=[],anchor='last_day
   return {breakdown:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
 }
 
+export async function commerceListingSalesMonths(env,{ids=[],daily=false}={}) {
+  const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
+  if(!listingIds.length)return {months:{}};
+  const data=await supabaseRpc(env,'commerce_listing_sales_months_v1',{
+    p_listing_ids:listingIds.map(Number),
+    p_include_daily:Boolean(daily)&&listingIds.length===1
+  },{timeoutMs:12000});
+  return {months:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
+}
+
 export async function commerceSalesImportHistory(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const data=await supabaseRpc(env,'commerce_sales_import_history_v1',{
