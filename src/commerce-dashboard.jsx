@@ -462,7 +462,6 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     <InfoIcon text={SOURCES.period} label="Período"/>
     <Dropdown label="Plataforma" value={platform} options={PLATFORMS} onChange={setPlatform}/>
     {mode==='explorer'&&<label className="ndb-search" title="Busca nos anúncios que aparecem nas listas abaixo (nome, SKU ou código do anúncio).">
-      <span>Buscar</span>
       <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Produto, SKU ou código" aria-label="Buscar produto, SKU ou código do anúncio"/>
     </label>}
     {actions}
