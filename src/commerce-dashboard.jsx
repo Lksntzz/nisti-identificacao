@@ -177,15 +177,17 @@ function IndexCard({icon,label,value,foot,tone,active,onClick,disabled,title}){
 function RevenueByProduct({items,showPlatform=true}){
   const rows=(items||[]).filter(r=>Number(r.revenue)>0);
   const max=Math.max(1,...rows.map(r=>Number(r.revenue)));
+  const total=rows.reduce((a,r)=>a+Number(r.revenue),0);
   if(!rows.length)return <p className="ndb-empty">Nenhum anúncio com faturamento neste filtro.</p>;
   return <ol className="ndb-rev-list" aria-label="Faturamento por produto">
-    {rows.map((r,i)=><li key={r.platform+r.external_id}>
+    {rows.map((r,i)=><li key={r.platform+r.external_id} title={(r.title||r.external_id)+' — '+(total>0?(Number(r.revenue)/total*100).toLocaleString('pt-BR',{maximumFractionDigits:1}):'0')+'% do faturamento desta lista'+(Number(r.units)>0?' · ticket '+money(Number(r.revenue)/Number(r.units)):'')}>
       <span className="ndb-rev-rank">{i+1}</span>
       <div className="ndb-rev-main">
         <span className="ndb-rev-name" title={r.title||r.external_id}>{r.title||r.external_id}</span>
         <span className="ndb-rev-track"><i style={{width:Math.max(2,Number(r.revenue)/max*100)+'%',background:PLAT_COLOR[r.platform]||'#1d5fd1'}}/></span>
       </div>
       <span className="ndb-rev-val"><b>{money(r.revenue)}</b><small>{num(r.units)} un.{showPlatform?' · '+(PLATFORM_LABEL[r.platform]||r.platform):''}</small></span>
+      <Ext platform={r.platform} id={r.external_id}/>
     </li>)}
   </ol>;
 }
@@ -211,17 +213,22 @@ function LowConversionList({rows,hasPerf,note}){
   </li>)}</ul>{note&&<p className="ndb-note">{note}</p>}</>;
 }
 
-function MonthlyUnits({months,platform}){
-  const keys=MONTH_PLATS.filter(([c])=>platform==='TODAS'||platform===c).map(([,k])=>k);
-  const rows=(months||[]).map(m=>({m,units:keys.reduce((a,k)=>a+Number(m['units_'+k]||0),0),partial:monthPartial(m)}));
+function MonthlyUnits({months,platform,onPick}){
+  const [hover,setHover]=useState(null);
+  const plats=MONTH_PLATS.filter(([c])=>platform==='TODAS'||platform===c);
+  const colors={SHOPEE:'#eb6834',ML_ANTIGO:'#2a78d6',ML_NOVO:'#7b4fd4'};
+  const rows=(months||[]).map(m=>({m,parts:plats.map(([c,k,l])=>({c,l,v:Number(m['units_'+k]||0)})),partial:monthPartial(m)})).map(r=>({...r,units:r.parts.reduce((a,x)=>a+x.v,0)}));
   if(!rows.length)return <p className="ndb-empty">Sem vendas importadas.</p>;
   const complete=rows.filter(r=>!r.partial&&r.units>0);
   const best=(complete.length?complete:rows).reduce((a,r)=>r.units>a.units?r:a,rows[0]);
   const max=Math.max(1,...rows.map(r=>r.units));
+  const h=hover!=null?rows[hover]:null;
   return <div className="ndb-seas">
-    <div className="ndb-seas-bars" role="img" aria-label="Unidades vendidas por mês">{rows.map(r=><div key={r.m.month} className={'ndb-seas-col'+(r===best?' is-best':'')+(r.partial?' is-partial':'')} title={monthLabel(r.m.month)+': '+num(r.units)+' un.'+(r.partial?' (mês incompleto)':'')}>
-      <b>{num(r.units)}</b><i style={{height:Math.max(3,r.units/max*100)+'%'}}/><small>{monthLabel(r.m.month)}</small></div>)}</div>
-    <p className="ndb-note">Mês mais forte (completo): <b>{monthLabel(best.m.month)}</b> com {num(best.units)} un. Barras claras = mês incompleto. Só há vendas de {String(rows[0].m.month).slice(0,4)}: para ver sazonalidade de verdade é preciso importar o ano anterior.</p>
+    <div className="ndb-seas-bars" role="img" aria-label="Unidades vendidas por mês" onMouseLeave={()=>setHover(null)}>{rows.map((r,i)=><div key={r.m.month} className={'ndb-seas-col is-click'+(r===best?' is-best':'')+(r.partial?' is-partial':'')+(hover===i?' is-hover':'')} onMouseEnter={()=>setHover(i)} onClick={()=>onPick&&onPick(String(r.m.month).slice(0,7))} title={'Clique para filtrar o dashboard só por '+monthLabel(r.m.month)}>
+      <b>{num(r.units)}</b>
+      <span className="ndb-seas-stack" style={{height:Math.max(3,r.units/max*100)+'%'}}>{r.parts.filter(x=>x.v>0).map(x=><i key={x.c} style={{flex:x.v,background:colors[x.c]}}/>)}</span>
+      <small>{monthLabel(r.m.month)}</small></div>)}</div>
+    <p className="ndb-note ndb-seas-tip">{h?<><b>{monthLabel(h.m.month)}</b>: {num(h.units)} un.{h.partial?' (mês incompleto)':''} {h.parts.filter(x=>x.v>0).map(x=><span key={x.c}><i className="ndb-tip-dot" style={{background:colors[x.c]}}/>{x.l} {num(x.v)}</span>)}</>:<>Mês mais forte (completo): <b>{monthLabel(best.m.month)}</b> com {num(best.units)} un. Passe o mouse num mês para ver por plataforma; clique para filtrar. Barras claras = mês incompleto.</>}</p>
   </div>;
 }
 
@@ -496,7 +503,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {splitRows?<PlatformSplit daily={splitRows} platform={platform} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>}
           </Panel>
           <Panel title="Vendas por mês (unidades)" icon="chart" source="monthly">
-            <MonthlyUnits months={monthly?.months} platform={platform}/>
+            <MonthlyUnits months={monthly?.months} platform={platform} onPick={setMonth}/>
           </Panel>
         </div>}
         {mode==='overview'&&<Panel title="Comparativo por plataforma" icon="pie" source="platform">
@@ -586,7 +593,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
         </Panel>}
         {<Panel title="Em alta" icon="down" source="growing" className="ndb-side-panel ndb-grow-panel"><GrowingList rows={growingRows} all={all} hasOverview={Boolean(overview)}/></Panel>}
         {mode==='explorer'&&<Panel title="Muita visita, pouca venda" icon="eye" source="lowconv" className="ndb-side-panel"><LowConversionList rows={lowConvRows} hasPerf={hasPerf} note={perfNotes.length?'Relatórios: '+perfNotes.join(' · ')+'. Visitas e conversão valem para o período de cada relatório.':''}/></Panel>}
-        {mode==='explorer'&&<Panel title="Vendas por mês (unidades)" icon="chart" source="monthly" className="ndb-side-panel"><MonthlyUnits months={monthly?.months} platform={platform}/></Panel>}
+        {mode==='explorer'&&<Panel title="Vendas por mês (unidades)" icon="chart" source="monthly" className="ndb-side-panel"><MonthlyUnits months={monthly?.months} platform={platform} onPick={setMonth}/></Panel>}
       </aside>
     </div>
     {helpOpen&&<div className="ndb-modal" role="dialog" aria-modal="true" aria-label="Definições e dados" onMouseDown={e=>{if(e.target===e.currentTarget)setHelpOpen(false);}}>
