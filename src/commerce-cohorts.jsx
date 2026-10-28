@@ -69,7 +69,7 @@ function ProductRow({i,lastDay,linkFor,onOpen}){
   return <li className="ndb-coh-row">
     <div className="ndb-coh-prod">
       <button type="button" className="ndb-coh-title" onClick={onOpen} title={i.title+' — ver variações'}>{i.title}</button>
-      <small><span className={'ndb-coh-pill p-'+String(i.platform).toLowerCase()}>{platName(i)}</span>{i.platform==='ML'?i.product_ref+' · '+num(i.listings)+(i.listings===1?' variação':' variações'):i.listing_id+' · SKU '+i.product_ref}</small>
+      <small><span className={'ndb-coh-pill p-'+String(i.platform).toLowerCase()}>{platName(i)}</span>{i.platform==='ML'?i.product_ref+' · '+num(i.account==='NOVO'&&i.skus!=null?i.skus:i.listings)+((i.account==='NOVO'&&i.skus!=null?i.skus:i.listings)===1?' variação':' variações'):i.listing_id+' · SKU '+i.product_ref}</small>
       <Links platform={i.platform} ids={i.listing_ids} linkFor={linkFor}/>
     </div>
     <div className="ndb-coh-when"><b>{dmy(i.created_on)}</b><small>{num(i.age_days)} dias · {first}</small></div>
