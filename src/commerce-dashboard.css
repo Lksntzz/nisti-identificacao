@@ -356,7 +356,7 @@
   .ndb-kpi-row strong{font-size:17px}
   .ndb-kpi small{font-size:10.5px}
   .ndb-root.is-explorer .ndb-explorer .ndb-table th,.ndb-root.is-explorer .ndb-explorer .ndb-table td{padding:5px 6px;font-size:12px}
-  .ndb-root.is-explorer .ndb-explorer .ndb-table td strong,.ndb-root.is-explorer .ndb-explorer .ndb-table td small{max-width:210px}
+
   .ndb-head-filters{gap:6px}
   .ndb-sb-weeks{gap:4px}
 }
@@ -365,7 +365,7 @@
   .ndb-idx .ndb-kpi-ico{width:28px;height:28px}
   .ndb-idx small{white-space:normal;line-height:1.25}
   .ndb-rev-val{min-width:84px}
-  .ndb-root.is-explorer .ndb-explorer .ndb-table td strong,.ndb-root.is-explorer .ndb-explorer .ndb-table td small{max-width:170px}
+
 }
 @media (max-width:1100px){
   .ndb-main{grid-template-columns:1fr}
@@ -399,3 +399,13 @@
 .ndb-sb-anchor{font-size:10.5px}
 .ndb-root.is-explorer .ndb-sb{min-width:220px}
 .ndb-root.is-explorer .ndb-explorer .ndb-table td{padding-top:4px;padding-bottom:4px}
+
+/* Linha do anúncio: título usa a largura da coluna (até 2 linhas) em vez de cortar cedo; barrinha mostra a tendência das semanas */
+.ndb-root.is-explorer .ndb-explorer .ndb-table td strong{max-width:none;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3}
+.ndb-root.is-explorer .ndb-explorer .ndb-table td small{max-width:none}
+.ndb-sb-week{position:relative;overflow:hidden;padding-bottom:5px}
+.ndb-sb-bar{position:absolute;left:0;bottom:0;height:3px;border-radius:0 2px 2px 0;background:#8fb0ee}
+.ndb-sb-week.is-cur .ndb-sb-bar{background:#1d5fd1}
+.ndb-sb-week small{white-space:nowrap}
+.ndb-root.is-explorer .ndb-pc{justify-content:flex-start}
+.ndb-root.is-explorer .ndb-pt{flex:0 1 auto}

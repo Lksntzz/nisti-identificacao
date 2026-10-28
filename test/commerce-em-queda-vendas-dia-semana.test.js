@@ -83,3 +83,11 @@ test('lista Melhores nao mostra colunas Investimento e ROAS por anuncio', () => 
   assert.doesNotMatch(best, /Investimento|ROAS<\/th>/);
   assert.doesNotMatch(dash, /adsByListing/);
 });
+
+test('indicador de conexao usa consulta leve e sem ambiguidade de funcao', () => {
+  assert.match(store, /commerceDatabaseHealth/);
+  assert.match(store, /nisti_system_health_core_v1/);
+  assert.match(store, /commerce_dashboard_v1', \{ p_platform: 'TODAS', p_days: 30 \}/);
+  assert.match(router, /commerceDatabaseHealth\(env\)/);
+  assert.doesNotMatch(router, /products: Number\(dashboard\?\.products/);
+});
