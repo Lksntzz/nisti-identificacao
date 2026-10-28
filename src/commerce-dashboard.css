@@ -541,7 +541,7 @@
 .ndb-legend li{display:flex;align-items:center;gap:6px}
 .ndb-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}.ndb-legend i.is-line{height:0;border-top:2px dashed #8a97ad;background:none!important;border-radius:0;width:16px}
 .ndb-trend-box{position:relative}
-.ndb-trend-box svg{width:100%;height:auto;display:block;cursor:crosshair}
+.ndb-trend-box svg{max-width:100%;height:auto;display:block;cursor:crosshair}
 .ndb-trend-tip{position:absolute;top:6px;transform:translateX(-50%);background:#14213d;color:#fff;border-radius:10px;padding:8px 11px;font-size:12px;display:flex;flex-direction:column;gap:2px;pointer-events:none;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .ndb-trend-tip small{color:#c3cde0;font-size:11px}
 .ndb-split-bar{display:flex;height:16px;border-radius:999px;overflow:hidden;background:#eef2f8}
