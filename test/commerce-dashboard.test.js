@@ -23,7 +23,7 @@ test('route validates platform and period; GA menu exposes the dashboard',()=>{
   assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard onOpenTab={openPerformance} />'));
 });
 test('every card has an info icon naming its data source',()=>{
-  for(const key of ['abc','drops','best','ads','alerts'])assert.ok(ui.includes('source="'+key+'"')||ui.includes("'"+key+"'"),key);
+  for(const key of ['abc','drops','best','alerts'])assert.ok(ui.includes('source="'+key+'"')||ui.includes("'"+key+"'"),key);
   assert.ok(ui.includes('TAB_SOURCE'));
   assert.ok(ui.includes('SOURCES.help')&&ui.includes('SOURCES.trust'));
   assert.ok(ui.includes('De onde vêm os dados'));
@@ -46,7 +46,7 @@ test('series and overview SQL are read-only, service_role only and expose routes
 });
 test('missing data is shown as sem dados, never zero',()=>{
   assert.ok(ui.includes('Sem dados: falta cadastrar o custo do produto'));
-  assert.ok(ui.includes("Gasto e retorno de anúncios: sem dados"));
+  assert.ok(!ui.includes("Anúncios pagos (ROAS)"));
 });
 test('listingUrl builds marketplace links from the platform and listing id',()=>{
   const src=read('src/commerce-dashboard.jsx');

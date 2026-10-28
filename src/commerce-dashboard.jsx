@@ -22,7 +22,6 @@ const SOURCES={
   kpi:'Vendas importadas no período escolhido, contra o período anterior de mesmo tamanho. O período termina no último dia com venda importada, não em hoje.',
   alerts:'Calculado sobre as vendas importadas e o cadastro de anúncios: queda = anúncio ativo com 5 ou mais unidades antes e 15% ou mais de queda; pararam = anúncios ativos que já venderam 3 ou mais unidades e não têm nenhuma venda no período do filtro (30, 60 ou 90 dias; quem está parado há mais tempo também aparece nos filtros menores); sem venda = ativos sem nenhuma unidade no período; inativos com venda = anúncios inativos ou removidos que ainda aparecem nas vendas. Anúncio pago com ROAS abaixo de 1 vem do relatório Shopee Ads importado.',
   best:'Vendas importadas, por anúncio, no período escolhido. Crescimento = ativos com 5 ou mais unidades antes, 10 ou mais agora e alta de 15% ou mais, ordenados pelas unidades a mais. ROAS vem do relatório Shopee Ads importado (período próprio) e só inclui anúncios com campanha individual. Mais vendido não significa mais lucrativo: não há custo do produto cadastrado.',
-  ads:'Relatório Shopee Ads “Dados gerais” mais recente importado (Importar > Shopee Ads). O período dele é o do próprio arquivo, não o filtro da tela. Linhas de grupos de anúncios e de anúncios individuais podem se sobrepor, então não some as linhas. Mercado Livre Publicidade ainda não é importado.',
   trust:'Cobertura do que está no banco: último dia com venda e última importação aplicada por plataforma (Histórico de importações), dias do período com venda importada e faturamento sem SKU vinculado.',
   help:'Lista de dados que o sistema ainda não recebe e que ajudariam a explicar quedas.'
 };
@@ -320,9 +319,6 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const prevTxt=per&&!all?rng(per.prevFrom,per.prevTo):'';
   const ov=overview||{};
   const lst=ov.listings||{};
-  const isML=platform==='ML_ANTIGO'||platform==='ML_NOVO';
-  const adsRows=isML?[]:(ov.ads?.rows||[]);
-  const lowRoas=adsRows.filter(r=>r.roas!=null&&Number(r.roas)<1);
   const totalProducts=classes.reduce((a,c)=>a+Number(c.products||0),0)||1;
 
   const classRows=cls?allItems.filter(i=>i.class===cls):[];
@@ -335,8 +331,6 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
       :{k:'stopped',t:'muted',i:'pause',h:'Pararam de vender: sem dados',d:'A consulta de alertas ainda não está disponível.'},
     overview?{k:'nosales',t:'warn',i:'eye',h:num(ov.no_sales_total??lst.active_without_sales)+' anúncios ativos sem vendas',d:'Nenhuma unidade vendida em '+curTxt+', de '+num(lst.active)+' anúncios ativos.'}
       :{k:'nosales',t:'muted',i:'eye',h:'Anúncios sem vendas: sem dados',d:'A consulta de alertas ainda não está disponível.'},
-    adsRows.length&&!isML?{k:'ads',t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam. Relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+' (período próprio, não segue o filtro).'}
-      :{k:'ads',t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:isML?'Não há relatório de anúncios do Mercado Livre importado.':'Nenhum relatório Shopee Ads importado.'}
   ];
   // No Dashboard, os cards e alertas levam ao Painel Comercial (aba Desempenho); lá abrem a lista correspondente.
   const goTab=k=>{if(onOpenTab)onOpenTab(k);else{if(k==='never'){setNsf('never');setTab('nosales');}else setTab(k);}};
@@ -349,10 +343,9 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     ['drops','Em queda',all?null:data?.drops?.total],
     ['stopped','Pararam',overview&&!all?(ov.stopped_total??stoppedRows.length):null],
     ['nosales','Sem vendas',overview?(ov.no_sales_total??lst.active_without_sales):null],
-    ['ads','Anúncios pagos (ROAS)',adsRows.length||null],
     ['abc','Curva ABC',null]
   ];
-  const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',ads:'ads',abc:'abc'};
+  const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc'};
   const bestAll=[...top].sort((x,y)=>Number(y.units)-Number(x.units));
   const filters=<>
     <Dropdown label="Período" value={days} options={[...PERIODS.map(p=>[p,'Últimos '+p+' dias']),[0,'Sem filtro (todo o histórico)']]} onChange={setDays}/>
@@ -424,11 +417,6 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {(ov.no_sales||[]).length===0&&<tr><td colSpan={4} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista completa do período escolhido: primeiro os que já venderam, depois os que nunca venderam. Confira estoque, preço e se está pausado. Em quem já vendeu, as semanas e os dias são contados até a última venda (até 200 anúncios).</p></>}
-          {tab==='ads'&&<div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Campanha / anúncio</th><th className="num">Investimento</th><th className="num">Vendas atribuídas</th><th className="num">ROAS</th></tr></thead><tbody>
-            {[...adsRows].sort((x,y)=>Number(x.roas)-Number(y.roas)).map((r,i)=><tr key={i}><td title={r.campaign}><strong>{r.title||r.campaign}</strong><small>{r.listing_id?'Anúncio individual':'Grupo de anúncios'}</small></td>
-              <td className="num">{money(r.spend)}</td><td className="num">{money(r.gmv)}</td><td className="num">{r.roas==null?'sem dados':<span className={'ndb-roas'+(Number(r.roas)<1?' low':'')}>{String(r.roas).replace('.',',')}x</span>}</td></tr>)}
-            {adsRows.length===0&&<tr><td colSpan={4} className="ndb-empty">Gasto e retorno de anúncios: sem dados. Nenhum relatório Shopee Ads importado.</td></tr>}
-          </tbody></table></div>}
           {tab==='abc'&&<>
             <PeriodBar cur="todo o histórico (não muda com o período)"/>
             <div className="ndb-abc-bar-row">
@@ -478,7 +466,6 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             <li><b>Pedidos:</b> soma por anúncio; um pedido com dois anúncios conta duas vezes.</li>
             <li><b>Curva ABC:</b> por SKU em cada plataforma, ordenada pelo faturamento de todo o histórico (não muda com o filtro de período). A = até 80% do total, B = até 95%, C = o restante. Produto C pode ser novo, sazonal ou estratégico.</li>
             <li><b>Em queda:</b> anúncio ativo com 5 ou mais unidades no período anterior e queda de 15% ou mais.</li>
-            <li><b>ROAS:</b> vendas atribuídas ÷ investimento, do relatório Shopee Ads. Abaixo de 1 = gastou mais do que vendeu, antes de custo e taxas.</li>
             <li><b>Sem dados:</b> a informação não existe no sistema. Nunca é mostrada como zero.</li>
           </ul>
           <h4>Dados que ajudariam a explicar as quedas<InfoIcon text={SOURCES.help} label="Dados que ajudariam"/></h4>
