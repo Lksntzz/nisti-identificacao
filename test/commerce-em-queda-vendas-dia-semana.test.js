@@ -91,3 +91,11 @@ test('indicador de conexao usa consulta leve e sem ambiguidade de funcao', () =>
   assert.match(router, /commerceDatabaseHealth\(env\)/);
   assert.doesNotMatch(router, /products: Number\(dashboard\?\.products/);
 });
+
+test('indicador de conexao tenta duas vezes e mostra o motivo da falha', () => {
+  const app = readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  assert.match(app, /attempt < 2/);
+  assert.match(app, /status\.detail/);
+  assert.match(store, /supabase_rpc|error\?\.code/);
+  assert.match(router, /error: database\.error/);
+});

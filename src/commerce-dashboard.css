@@ -409,3 +409,10 @@
 .ndb-sb-week small{white-space:nowrap}
 .ndb-root.is-explorer .ndb-pc{justify-content:flex-start}
 .ndb-root.is-explorer .ndb-pt{flex:0 1 auto}
+
+/* Histórico de vendas ocupa a coluna inteira (sem sobra à direita): semanas se esticam e o selo acompanha */
+.ndb-root.is-explorer .ndb-explorer .ndb-table th:last-child,.ndb-root.is-explorer .ndb-explorer .ndb-table td:last-child{width:46%}
+.ndb-root.is-explorer .ndb-sb{min-width:0;width:100%}
+.ndb-root.is-explorer .ndb-sb-weeks{display:grid;grid-template-columns:repeat(4,minmax(54px,1fr));gap:6px;max-width:640px}
+.ndb-root.is-explorer .ndb-sb-week{min-width:0}
+.ndb-root.is-explorer .ndb-sb-meta{gap:2px 12px}
