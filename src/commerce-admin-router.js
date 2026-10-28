@@ -517,9 +517,10 @@ export async function handleCommerceAdminRequest(request, env) {
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/series'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
-      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
+      const month=String(query(url,'month')||'');
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days)||(month&&!MONTH_RE.test(month)))
         return json({error:'Filtro do dashboard inválido.'},400);
-      return json(await commerceSalesDashboardSeriesV1(env,{platform,days}));
+      return json(await commerceSalesDashboardSeriesV1(env,{platform,days,month}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/segment-series'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();

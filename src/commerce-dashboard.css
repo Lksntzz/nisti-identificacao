@@ -579,3 +579,13 @@
   .ndb-head-title{flex:1 1 100%}
   .ndb-head-filters{flex:1 1 100%;flex-wrap:wrap;justify-content:flex-start}
 }
+
+/* Comparativo entre as contas (Shopee / ML Antigo / ML Novo) */
+.ndb-plat-name{display:inline-flex;align-items:center;gap:8px}
+.ndb-plat-name i,.ndb-tip-dot{display:inline-block;width:10px;height:10px;border-radius:3px}
+.ndb-dn{display:block;font-size:11px;font-weight:600}
+.ndb-dn.up{color:#1a8a4a}.ndb-dn.down{color:#d13b3b}.ndb-dn.flat{color:#7a8794}
+.ndb-plat-table tr.is-total td{border-top:2px solid rgba(120,130,140,.35)}
+.ndb-matrix{width:100%;border-collapse:collapse;font-size:12px}
+.ndb-matrix th,.ndb-matrix td{padding:6px 8px;text-align:right;white-space:nowrap}
+.ndb-matrix th:first-child,.ndb-matrix td:first-child{text-align:left}

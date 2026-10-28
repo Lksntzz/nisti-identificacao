@@ -4,7 +4,7 @@ import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
 import PeriodPicker from './commerce-period-picker.jsx';
 import CohortsTab from './commerce-cohorts.jsx';
-import {SalesTrend,MonthsTrend,PlatformSplit,SummaryList} from './commerce-dashboard-charts.jsx';
+import {SalesTrend,MonthsTrend,MonthMatrix,PlatformSplit,PlatformTable,SummaryList} from './commerce-dashboard-charts.jsx';
 import './commerce-dashboard.css';
 import { maskMoney, isPrivate } from './commerce-privacy.js';
 
@@ -307,11 +307,11 @@ function Dropdown({label,value,options,onChange}){
   </div>;
 }
 
-export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null,actions=null}){
-  const [platform,setPlatform]=useState('TODAS');
+export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null,actions=null,initialFilter=null}){
+  const [platform,setPlatform]=useState(initialFilter?.platform||'TODAS');
   const [query,setQuery]=useState('');
-  const [days,setDays]=useState(30);
-  const [month,setMonth]=useState('');
+  const [days,setDays]=useState(initialFilter?.days??30);
+  const [month,setMonth]=useState(initialFilter?.month||'');
   const [data,setData]=useState(null);
   const [overview,setOverview]=useState(null);
   const [error,setError]=useState('');
@@ -342,7 +342,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     setSeries(null);
     if(days===0&&!month)return undefined;
     const controller=new AbortController();
-    const url=month?'/api/admin/commerce/sales-dashboard/month-series?platform='+platform+'&month='+month:'/api/admin/commerce/sales-dashboard/series?platform='+platform+'&days='+days;
+    const url='/api/admin/commerce/sales-dashboard/series?platform='+platform+(month?'&month='+month:'&days='+days);
     fetchCommercialManager(url,{signal:controller.signal})
       .then(setSeries).catch(()=>{if(!controller.signal.aborted)setSeries(null);});
     return()=>controller.abort();
@@ -432,7 +432,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   // No Dashboard, os cards e alertas levam ao Painel Comercial (aba Desempenho); lá abrem a lista correspondente.
   // Com uma plataforma escolhida, a coluna/etiqueta de plataforma é redundante; só aparece em "Todas as plataformas".
   const multi=platform==='TODAS';
-  const goTab=k=>{if(onOpenTab)onOpenTab(k);else{if(k==='never'){setNsf('never');setTab('nosales');}else setTab(k);}};
+  const goTab=k=>{if(onOpenTab)onOpenTab(k,{platform,days,month});else{if(k==='never'){setNsf('never');setTab('nosales');}else setTab(k);}};
   const openAlert=k=>goTab(k);
   const openAbc=(c,curveMode)=>{if(mode==='overview'){goTab('abc');return;}setTab('abc');setCurve(curveMode);if(c)setCls(c);};
   
@@ -449,7 +449,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc',cohorts:'cohorts'};
   const bestAll=[...top].filter(hit).sort((x,y)=>Number(y.units)-Number(x.units));
   const availableMonths=(monthly?.months||[]).map(m=>String(m.month).slice(0,7));
-  const splitRows=all?(monthly?.months||[]).map(m=>({shopee:m.shopee,ml:Number(m.ml_antigo||0)+Number(m.ml_novo||0)})):series?.daily;
+  const splitRows=all?(monthly?.months||[]):series?.daily;
   const filters=<>
     <PeriodPicker days={days} month={month} periods={PERIODS} available={availableMonths} onDays={v=>{setMonth('');setDays(v);}} onMonth={setMonth}/>
     <InfoIcon text={SOURCES.period} label="Período"/>
@@ -499,6 +499,12 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             <MonthlyUnits months={monthly?.months} platform={platform}/>
           </Panel>
         </div>}
+        {mode==='overview'&&<Panel title="Comparativo por plataforma" icon="pie" source="platform">
+          {splitRows?<PlatformTable daily={splitRows} platform={platform} all={all} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>}
+        </Panel>}
+        {mode==='overview'&&!month&&<Panel title="Mês a mês por plataforma" icon="chart" source="monthly">
+          {monthly?<MonthMatrix months={monthly.months} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>}
+        </Panel>}
         {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="top" className="ndb-chart-panel ndb-rank-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
           <p className="ndb-note">{all?'15 anúncios que mais faturaram em todo o histórico.':'15 anúncios que mais faturaram em '+curTxt+'.'}</p>
           <RevenueByProduct items={top} showPlatform={multi}/>

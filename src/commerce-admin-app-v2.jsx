@@ -209,7 +209,7 @@ export default function CommerceAdminAppV2() {
   const privacy = usePrivacy();
   const [activeView, setActiveView] = useState('dashboard');
   const [perfOpen, setPerfOpen] = useState(null);
-  const openPerformance = tab => { setPerfOpen({ tab, nonce: Date.now() }); setActiveView('catalog'); };
+  const openPerformance = (tab, filter = null) => { setPerfOpen({ tab, filter, nonce: Date.now() }); setActiveView('catalog'); };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesRevision, setSalesRevision] = useState(0);
 

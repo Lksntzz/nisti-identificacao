@@ -51,6 +51,6 @@ export default function CommerceCommercialPanel({perfOpen=null}){
       onChooseAnother={()=>{setSelectedImportMode(null);setImportMenuOpen(true);}}
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/>}
-    <CommerceDashboard key={refresh+':'+(perfOpen?perfOpen.nonce:0)} mode="explorer" initialTab={perfOpen?perfOpen.tab:null} actions={importMenu}/>
+    <CommerceDashboard key={refresh+':'+(perfOpen?perfOpen.nonce:0)} mode="explorer" initialTab={perfOpen?perfOpen.tab:null} initialFilter={perfOpen?perfOpen.filter:null} actions={importMenu}/>
   </section>;
 }
