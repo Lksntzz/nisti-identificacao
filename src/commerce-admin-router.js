@@ -198,6 +198,7 @@ export async function handleCommerceAdminRequest(request, env) {
       const database = await commerceDatabaseHealth(env);
       return json({
         ok: database.ok === true,
+        error: database.error || null,
         backend: 'supabase',
         commit_enabled: commerceCommitEnabled(env)
       });

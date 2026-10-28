@@ -161,17 +161,25 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
 // Estado real da conexão com o banco: consulta o endpoint /health (que faz uma leitura no Supabase).
 // Verde = respondeu; vermelho = falhou; cinza = verificando. Reverifica a cada 60 s (só com a aba visível) e ao atualizar.
 function useDatabaseStatus(revision) {
-  const [status, setStatus] = useState({ state: 'checking', at: null });
+  const [status, setStatus] = useState({ state: 'checking', at: null, detail: '' });
   const check = useCallback(async signal => {
     setStatus(current => ({ ...current, state: 'checking' }));
-    try {
-      const result = await fetchCommercialManager('/api/admin/commerce/health', { signal });
+    let detail = '';
+    // Duas tentativas antes de ficar vermelho: uma falha momentânea (rede, Worker frio) não deve assustar.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const result = await fetchCommercialManager('/api/admin/commerce/health', { signal });
+        if (signal?.aborted) return;
+        if (result?.ok === true) { setStatus({ state: 'ok', at: new Date(), detail: '' }); return; }
+        detail = result?.error || 'o banco não respondeu';
+      } catch (error) {
+        if (signal?.aborted) return;
+        detail = error?.message || 'falha na consulta';
+      }
+      if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 2500));
       if (signal?.aborted) return;
-      setStatus({ state: result?.ok === true ? 'ok' : 'error', at: new Date() });
-    } catch (error) {
-      if (signal?.aborted) return;
-      setStatus({ state: 'error', at: new Date() });
     }
+    setStatus({ state: 'error', at: new Date(), detail });
   }, []);
   useEffect(() => {
     const controller = new AbortController();
@@ -189,7 +197,7 @@ function DatabaseStatus({ status }) {
     : status.state === 'error' ? 'Sem conexão com o banco de dados' : 'Verificando conexão…';
   const when = status.at ? ' · verificado às ' + status.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
   return (
-    <span className={'commerce-db-status is-' + status.state} role="status" title={label + when} aria-label={label}>
+    <span className={'commerce-db-status is-' + status.state} role="status" title={label + when + (status.state === 'error' && status.detail ? ' · ' + status.detail : '')} aria-label={label}>
       <span className="commerce-live-dot" aria-hidden="true" />
       <span className="commerce-db-status-text">{status.state === 'ok' ? 'Conectado' : status.state === 'error' ? 'Sem conexão' : 'Verificando'}</span>
     </span>
