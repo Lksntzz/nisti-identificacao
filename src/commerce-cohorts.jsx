@@ -68,7 +68,7 @@ function ProductRow({i,lastDay,linkFor,onOpen}){
   return <li className="ndb-coh-row">
     <div className="ndb-coh-prod">
       <button type="button" className="ndb-coh-title" onClick={onOpen} title={i.title+' — ver variações'}>{i.title}</button>
-      <small><span className={'ndb-coh-pill p-'+String(i.platform).toLowerCase()}>{PLAT[i.platform]||i.platform}</span>{i.product_ref} · {num(i.listings)} {i.listings===1?'anúncio':'anúncios'}</small>
+      <small><span className={'ndb-coh-pill p-'+String(i.platform).toLowerCase()}>{PLAT[i.platform]||i.platform}</span>{i.listing_id} · SKU {i.product_ref}</small>
       <Links platform={i.platform} ids={i.listing_ids} linkFor={linkFor}/>
     </div>
     <div className="ndb-coh-when"><b>{dmy(i.created_on)}</b><small>{num(i.age_days)} dias · {first}</small></div>
@@ -90,10 +90,10 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
   useEffect(()=>{
     const controller=new AbortController();
     setData(null);setError(false);setSel('all');
-    fetchCommercialManager('/api/admin/commerce/sales-dashboard/cohorts/detail?platform='+item.platform+'&product='+encodeURIComponent(item.product_ref),{signal:controller.signal})
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/cohorts/detail?platform='+item.platform+'&listing='+encodeURIComponent(item.listing_id),{signal:controller.signal})
       .then(setData).catch(()=>{if(!controller.signal.aborted)setError(true);});
     return()=>controller.abort();
-  },[item.platform,item.product_ref]);
+  },[item.platform,item.listing_id]);
   useEffect(()=>{
     const prev=document.activeElement;
     closeRef.current?.focus();
@@ -113,7 +113,7 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
     <section className="ndb-coh-dialog" role="dialog" aria-modal="true" aria-label={'Variações de '+item.title}>
       <header className="ndb-coh-dhead">
         <div><h3>{item.title}</h3>
-          <p><span className={'ndb-coh-pill p-'+String(item.platform).toLowerCase()}>{PLAT[item.platform]||item.platform}</span>{item.product_ref} · criado em {dmy(item.created_on)} · {num(item.age_days)} dias · {num(item.units)} un. · {money(item.revenue)}</p>
+          <p><span className={'ndb-coh-pill p-'+String(item.platform).toLowerCase()}>{PLAT[item.platform]||item.platform}</span>{item.listing_id} · SKU {item.product_ref} · criado em {dmy(item.created_on)} · {num(item.age_days)} dias · {num(item.units)} un. · {money(item.revenue)}</p>
           <Links platform={item.platform} ids={item.listing_ids} linkFor={linkFor} max={8}/></div>
         <button type="button" ref={closeRef} className="ndb-coh-close" onClick={onClose} aria-label="Fechar">×</button>
       </header>
@@ -222,9 +222,9 @@ export default function CohortsTab({platform='TODAS',query='',linkFor=()=>null})
     <p className="ndb-coh-summary"><b>{num(sel.length)}</b> produto{sel.length===1?'':'s'} cadastrado{sel.length===1?'':'s'} em {curYear?(month?monthFull(curYear+'-'+month+'-01'):curYear):'todos os anos'} · <b>{num(units)}</b> un. vendidas · <b>{compactMoney(rev)}</b></p>
     {sel.length===0?<p className="ndb-empty">{qn?'Nenhum produto cadastrado encontrado nessa busca.':'Nenhum produto cadastrado neste período.'}</p>:<>
       <div className="ndb-coh-cols" aria-hidden="true"><span>Produto</span><span>Criado em</span><span>Vendas nos primeiros dias</span><span>Total</span><span>Melhor mês</span><span>Ritmo</span><span/></div>
-      <ul className="ndb-coh-list">{sel.slice(0,shown).map(i=><ProductRow key={i.platform+i.product_ref} i={i} lastDay={data.last_day} linkFor={linkFor} onOpen={()=>setOpenItem(i)}/>)}</ul>
+      <ul className="ndb-coh-list">{sel.slice(0,shown).map(i=><ProductRow key={i.platform+i.listing_id} i={i} lastDay={data.last_day} linkFor={linkFor} onOpen={()=>setOpenItem(i)}/>)}</ul>
       {sel.length>shown&&<button type="button" className="ndb-coh-showmore" onClick={()=>setShown(s=>s+PAGE)}>Mostrar mais {Math.min(PAGE,sel.length-shown)} de {num(sel.length-shown)} restantes</button>}</>}
-    <p className="ndb-note">Data de criação vinda da planilha “Análise de Anúncios” ({num(all.length)} produtos). Vendas contadas até {dmy(data.last_day)}. No Mercado Livre, o produto soma todos os itens do mesmo catálogo (ML Antigo e ML Novo juntos). Compare pelos blocos de 7, 14, 28 e 56 dias, não pelo total, porque produtos mais antigos tiveram mais tempo para vender. A seta do ritmo compara os últimos 28 dias com a média desde a criação (só para produtos com 56+ dias e 10+ vendas). “Parcial” = mês incompleto.</p>
+    <p className="ndb-note">Data de criação vinda da planilha “Análise de Anúncios” ({num(all.length)} anúncios, cada um separado: vendas e variações nunca se misturam). Vendas contadas até {dmy(data.last_day)}. Compare pelos blocos de 7, 14, 28 e 56 dias, não pelo total, porque produtos mais antigos tiveram mais tempo para vender. A seta do ritmo compara os últimos 28 dias com a média desde a criação (só para produtos com 56+ dias e 10+ vendas). “Parcial” = mês incompleto.</p>
     {openItem&&<DetailDialog item={openItem} lastDay={data.last_day} linkFor={linkFor} onClose={()=>setOpenItem(null)}/>}
   </div>;
 }
