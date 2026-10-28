@@ -1,4 +1,4 @@
-import React,{useMemo,useState} from 'react';
+import React,{useCallback,useMemo,useRef,useState} from 'react';
 import { maskMoney, isPrivate } from './commerce-privacy.js';
 
 // Gráficos e resumo do Dashboard (visão geral). Só recebem dados já carregados; não buscam nada.
@@ -16,6 +16,19 @@ export const PLATS=[['SHOPEE','Shopee','shopee','units_shopee','prev_shopee','pr
   ['ML_NOVO','ML Novo','ml_novo','units_ml_novo','prev_ml_novo','prev_units_ml_novo','#7b4fd4']];
 const visible=(platform,code)=>platform==='TODAS'||platform===code;
 
+// Largura real do quadro do gráfico: o desenho usa o tamanho verdadeiro (texto e barras não "esticam" em monitor grande).
+function useBoxWidth(){
+  const [w,setW]=useState(760);
+  const ro=useRef(null);
+  const ref=useCallback(el=>{
+    if(ro.current){ro.current.disconnect();ro.current=null;}
+    if(!el)return;
+    const set=()=>{const x=Math.round(el.getBoundingClientRect().width);if(x>240)setW(Math.min(x,1800));};
+    set();
+    if(typeof ResizeObserver!=='undefined'){ro.current=new ResizeObserver(set);ro.current.observe(el);}
+  },[]);
+  return [ref,w];
+}
 function niceMax(v){
   if(v<=0)return 1;
   const p=Math.pow(10,Math.floor(Math.log10(v)));
@@ -26,13 +39,14 @@ function niceMax(v){
 // Vendas por dia: barras empilhadas por plataforma (Shopee, ML Antigo e ML Novo separados), com linha do período anterior e dica ao passar o mouse.
 export function SalesTrend({daily,platform='TODAS'}){
   const [metric,setMetric]=useState('revenue');
+  const [boxRef,W]=useBoxWidth();
   const [hover,setHover]=useState(null);
   const isRev=metric==='revenue';
   const plats=PLATS.filter(p=>visible(platform,p[0]));
   const rows=useMemo(()=>(daily||[]).map(d=>({day:d.day,parts:PLATS.map(p=>Number(d[isRev?p[2]:p[3]])||0),prev:Number(isRev?d.prev_revenue:d.prev_units)||0})),[daily,isRev]);
   if(!rows.length)return <p className="ndb-empty">Sem vendas importadas para este filtro.</p>;
   const tot=r=>r.parts.reduce((a,v)=>a+v,0);
-  const W=760,H=250,L=48,R=10,T=12,B=26,pw=W-L-R,ph=H-T-B;
+  const H=250,L=48,R=10,T=12,B=26,pw=W-L-R,ph=H-T-B;
   const max=niceMax(Math.max(1,...rows.map(r=>Math.max(tot(r),r.prev))));
   const bw=pw/rows.length;
   const x=i=>L+bw*i+bw/2;
@@ -58,8 +72,8 @@ export function SalesTrend({daily,platform='TODAS'}){
         <li><i className="is-line" style={{background:C_PREV}}/>Dia equivalente do período anterior</li>
       </ul>
     </div>
-    <div className="ndb-trend-box">
-      <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label={isRev?'Faturamento por dia':'Unidades por dia'} onMouseMove={onMove} onMouseLeave={()=>setHover(null)}>
+    <div className="ndb-trend-box" ref={boxRef}>
+      <svg viewBox={'0 0 '+W+' '+H} width={W} height={H} role="img" aria-label={isRev?'Faturamento por dia':'Unidades por dia'} onMouseMove={onMove} onMouseLeave={()=>setHover(null)}>
         {ticks.map(t=><g key={t}><line x1={L} x2={W-R} y1={y(t)} y2={y(t)} className="ndb-grid-line"/><text x={L-6} y={y(t)+3} textAnchor="end" fontSize="10" fill="#7a8aa3">{isRev?axisMoney(t):Math.round(t)}</text></g>)}
         {rows.map((r,i)=>{const w=Math.max(2,bw*.7);let acc=0;
           return <g key={r.day} opacity={hover==null||hover===i?1:.55}>
@@ -159,13 +173,14 @@ const monFull=m=>new Date(String(m).slice(0,10)+'T00:00:00Z').toLocaleDateString
 // Histórico de todos os meses: barras empilhadas por plataforma (três fatias); clicar num mês filtra o dashboard por ele.
 export function MonthsTrend({months,platform='TODAS',onPick}){
   const [metric,setMetric]=useState('revenue');
+  const [boxRef,W]=useBoxWidth();
   const [hover,setHover]=useState(null);
   const isRev=metric==='revenue';
   const plats=PLATS.filter(p=>visible(platform,p[0]));
   const rows=useMemo(()=>(months||[]).map(m=>({m:m.month,parts:PLATS.map(p=>Number(m[isRev?p[2]:p[3]]||0)),partial:Boolean(m.last_day&&m.first_day&&String(m.last_day).slice(8,10)<'28')})),[months,isRev]);
   if(!rows.length)return <p className="ndb-empty">Sem vendas importadas para este filtro.</p>;
   const tot=r=>r.parts.reduce((a,v)=>a+v,0);
-  const W=760,H=250,L=48,R=10,T=12,B=26,pw=W-L-R,ph=H-T-B;
+  const H=250,L=48,R=10,T=12,B=26,pw=W-L-R,ph=H-T-B;
   const max=niceMax(Math.max(1,...rows.map(tot)));
   const bw=pw/rows.length,x=i=>L+bw*i+bw/2,y=v=>T+ph-(v/max)*ph;
   const fmt=v=>isRev?money(v):num(v)+' un.';
@@ -182,8 +197,8 @@ export function MonthsTrend({months,platform='TODAS',onPick}){
         <li>Clique em um mês para filtrar</li>
       </ul>
     </div>
-    <div className="ndb-trend-box">
-      <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label="Vendas de todos os meses" onMouseLeave={()=>setHover(null)}>
+    <div className="ndb-trend-box" ref={boxRef}>
+      <svg viewBox={'0 0 '+W+' '+H} width={W} height={H} role="img" aria-label="Vendas de todos os meses" onMouseLeave={()=>setHover(null)}>
         {[0,.25,.5,.75,1].map(t=>{const v=t*max;return <g key={t}><line x1={L} x2={W-R} y1={y(v)} y2={y(v)} className="ndb-grid-line"/><text x={L-6} y={y(v)+3} textAnchor="end" fontSize="10" fill="#7a8aa3">{isRev?axisMoney(v):Math.round(v)}</text></g>;})}
         {rows.map((r,i)=>{const w=Math.max(6,bw*.62);const o=hover==null||hover===i?1:.55;let acc=0;
           return <g key={r.m} opacity={r.partial?o*.7:o} style={{cursor:'pointer'}} onMouseEnter={()=>setHover(i)} onClick={()=>onPick&&onPick(String(r.m).slice(0,7))}>
