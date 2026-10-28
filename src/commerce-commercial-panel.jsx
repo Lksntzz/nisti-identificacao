@@ -29,10 +29,7 @@ export default function CommerceCommercialPanel({perfOpen=null}){
     setImportMenuOpen(false);
     setSelectedImportMode(mode);
   };
-  return <section className="nim-manager" aria-label="Painel Comercial">
-    <header className="nim-heading" style={{justifyContent:'flex-end'}}>
-      <div className="nim-header-actions">
-        <div className="nim-import-dropdown" ref={importMenuRef}>
+  const importMenu=(<div className="nim-import-dropdown" ref={importMenuRef}>
           <button type="button" className="nim-primary-button" ref={importTriggerRef}
             onClick={()=>setImportMenuOpen(open=>!open)} aria-haspopup="menu"
             aria-controls="nim-import-options" aria-expanded={importMenuOpen}>
@@ -46,15 +43,14 @@ export default function CommerceCommercialPanel({perfOpen=null}){
               <span className="nim-import-option-arrow" aria-hidden="true">›</span>
             </button>)}
           </div>}
-        </div>
-      </div>
-    </header>
+        </div>);
+  return <section className="nim-manager" aria-label="Painel Comercial">
     {selectedImportMode&&<CommerceImportModal mode={selectedImportMode}
       returnFocusRef={importTriggerRef}
       onClose={()=>setSelectedImportMode(null)}
       onChooseAnother={()=>{setSelectedImportMode(null);setImportMenuOpen(true);}}
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/>}
-    <CommerceDashboard key={refresh+':'+(perfOpen?perfOpen.nonce:0)} mode="explorer" initialTab={perfOpen?perfOpen.tab:null}/>
+    <CommerceDashboard key={refresh+':'+(perfOpen?perfOpen.nonce:0)} mode="explorer" initialTab={perfOpen?perfOpen.tab:null} actions={importMenu}/>
   </section>;
 }

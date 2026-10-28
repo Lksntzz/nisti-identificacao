@@ -115,3 +115,12 @@ test('Painel Comercial tem blocos Em alta, Muita visita pouca venda e Vendas por
   assert.match(src,/Number\(pf\.visits\)>=300/);
   assert.match(src,/sales-dashboard\/monthly\?platform=/);
 });
+
+test('Painel Comercial: Importar fica ao lado dos filtros e há busca por produto, SKU ou código',()=>{
+  const dash=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
+  const panel=readFileSync(new URL('../src/commerce-commercial-panel.jsx',import.meta.url),'utf8');
+  assert.match(dash,/aria-label="Buscar produto, SKU ou código do anúncio"/);
+  assert.match(dash,/\{actions\}/);
+  assert.match(panel,/actions=\{importMenu\}/);
+  assert.doesNotMatch(panel,/<header className="nim-heading"/);
+});
