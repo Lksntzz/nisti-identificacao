@@ -451,7 +451,8 @@
 /* Aba Cadastros por mês */
 .ndb-coh{display:flex;flex-direction:column;gap:12px}
 .ndb-coh-filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
-.ndb-coh-years{flex:none}.ndb-coh-months{flex:1 1 auto;min-width:0}
+.ndb-coh-years{flex:none;align-items:center}.ndb-coh-months{min-width:0}
+.ndb-coh-flabel{font-size:12px;font-weight:700;color:#5b6b86;margin-right:2px}
 .ndb-coh-years,.ndb-coh-months{display:flex;flex-wrap:wrap;gap:6px}
 .ndb-coh-years button,.ndb-coh-months button{font:inherit;font-size:13px;font-weight:700;color:#33415f;background:#fff;border:1px solid #dfe7f5;border-radius:999px;padding:5px 12px;cursor:pointer}
 .ndb-coh-years button.is-active,.ndb-coh-months button.is-active{background:#1d5fd1;border-color:#1d5fd1;color:#fff}

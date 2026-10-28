@@ -161,13 +161,13 @@ export default function CohortsTab({platform='TODAS',query='',linkFor=()=>null})
   },[platform]);
   const all=useMemo(()=>(data?.months||[]).flatMap(m=>(m.items||[]).map(i=>({...i,_month:ymd(m.month).slice(0,7)}))),[data]);
   const years=useMemo(()=>[...new Set(all.map(i=>i._month.slice(0,4)))].sort(),[all]);
-  const curYear=year&&years.includes(year)?year:years[years.length-1]||null;
+  const curYear=year&&years.includes(year)?year:null;
   const qn=norm(query);
   const searched=useMemo(()=>all.filter(i=>!qn||norm(i.title).includes(qn)||norm(i.product_ref).includes(qn)),[all,qn]);
-  const inYear=useMemo(()=>searched.filter(i=>i._month.startsWith(curYear||'')),[searched,curYear]);
+  const inYear=useMemo(()=>curYear?searched.filter(i=>i._month.startsWith(curYear)):searched,[searched,curYear]);
   const counts=useMemo(()=>{const c={};inYear.forEach(i=>{c[i._month.slice(5,7)]=(c[i._month.slice(5,7)]||0)+1;});return c;},[inYear]);
   const sel=useMemo(()=>{
-    const list=month?inYear.filter(i=>i._month.slice(5,7)===month):inYear.slice();
+    const list=curYear&&month?inYear.filter(i=>i._month.slice(5,7)===month):inYear.slice();
     const by={recent:(a,b)=>ymd(b.created_on).localeCompare(ymd(a.created_on))||b.units-a.units,
       units:(a,b)=>b.units-a.units,
       pace:(a,b)=>(b.units/(b.age_days||1))-(a.units/(a.age_days||1)),
@@ -181,15 +181,15 @@ export default function CohortsTab({platform='TODAS',query='',linkFor=()=>null})
   const units=sel.reduce((a,i)=>a+Number(i.units||0),0),rev=sel.reduce((a,i)=>a+Number(i.revenue||0),0);
   return <div className="ndb-coh">
     <div className="ndb-coh-filters">
-      <div className="ndb-coh-years" role="group" aria-label="Ano de criação">{years.map(y=><button key={y} type="button" className={y===curYear?'is-active':''} aria-pressed={y===curYear} onClick={()=>{setYear(y);setMonth(null);}}>{y}</button>)}</div>
-      <div className="ndb-coh-months" role="group" aria-label="Mês de criação">
-        <button type="button" className={!month?'is-active':''} aria-pressed={!month} onClick={()=>setMonth(null)}>Todos <em>{num(inYear.length)}</em></button>
-        {MONTHS_SHORT.map((n,k)=>{const key=String(k+1).padStart(2,'0');const c=counts[key]||0;
-          return <button key={key} type="button" disabled={!c} className={month===key?'is-active':''} aria-pressed={month===key} onClick={()=>setMonth(key)}>{cap(n)} {c>0&&<em>{c}</em>}</button>;})}
-      </div>
+      <div className="ndb-coh-years" role="group" aria-label="Ano de criação"><span className="ndb-coh-flabel">Ano</span>{years.map(y=><button key={y} type="button" className={y===curYear?'is-active':''} aria-pressed={y===curYear} onClick={()=>{setYear(y===curYear?null:y);setMonth(null);}}>{y}</button>)}</div>
       <label className="ndb-coh-sort"><span>Ordenar por</span><select value={sort} onChange={e=>setSort(e.target.value)}>{SORTS.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select></label>
     </div>
-    <p className="ndb-coh-summary"><b>{num(sel.length)}</b> produto{sel.length===1?'':'s'} cadastrado{sel.length===1?'':'s'} em {month?monthFull(curYear+'-'+month+'-01'):curYear} · <b>{num(units)}</b> un. vendidas · <b>{compactMoney(rev)}</b></p>
+    {curYear&&<div className="ndb-coh-months" role="group" aria-label="Mês de criação">
+      <button type="button" className={!month?'is-active':''} aria-pressed={!month} onClick={()=>setMonth(null)}>Todos <em>{num(inYear.length)}</em></button>
+      {MONTHS_SHORT.map((n,k)=>{const key=String(k+1).padStart(2,'0');const c=counts[key]||0;
+        return c>0&&<button key={key} type="button" className={month===key?'is-active':''} aria-pressed={month===key} onClick={()=>setMonth(key)}>{cap(n)} <em>{c}</em></button>;})}
+    </div>}
+    <p className="ndb-coh-summary"><b>{num(sel.length)}</b> produto{sel.length===1?'':'s'} cadastrado{sel.length===1?'':'s'} em {curYear?(month?monthFull(curYear+'-'+month+'-01'):curYear):'todos os anos'} · <b>{num(units)}</b> un. vendidas · <b>{compactMoney(rev)}</b></p>
     {sel.length===0?<p className="ndb-empty">{qn?'Nenhum produto cadastrado encontrado nessa busca.':'Nenhum produto cadastrado neste período.'}</p>:<>
       <div className="ndb-coh-cols" aria-hidden="true"><span>Produto</span><span>Criado em</span><span>Vendas nos primeiros dias</span><span>Total</span><span>Melhor mês</span><span>Ritmo</span><span/></div>
       <ul className="ndb-coh-list">{sel.slice(0,shown).map(i=><ProductRow key={i.platform+i.product_ref} i={i} lastDay={data.last_day} linkFor={linkFor} onOpen={()=>setOpenItem(i)}/>)}</ul>
