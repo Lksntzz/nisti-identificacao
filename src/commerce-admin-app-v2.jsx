@@ -213,6 +213,11 @@ export default function CommerceAdminAppV2() {
   useEffect(() => { applyTheme(); return () => document.documentElement.classList.remove('ga-dark'); }, []);
   const [activeView, setActiveView] = useState('dashboard');
   const [perfOpen, setPerfOpen] = useState(null);
+  useEffect(() => {
+    const go = e => { if (NAV_ITEMS.some(item => item.id === e.detail)) setActiveView(e.detail); };
+    window.addEventListener('ga:navigate', go);
+    return () => window.removeEventListener('ga:navigate', go);
+  }, []);
   const openPerformance = (tab, filter = null) => { setPerfOpen({ tab, filter, nonce: Date.now() }); setActiveView('catalog'); };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesRevision, setSalesRevision] = useState(0);
