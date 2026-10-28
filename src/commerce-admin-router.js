@@ -554,7 +554,7 @@ export async function handleCommerceAdminRequest(request, env) {
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/cohorts/detail'){
       const platform=String(query(url,'platform')||'').toUpperCase();
       const listing=String(query(url,'listing')||'').trim();
-      if(!['SHOPEE','ML'].includes(platform)||!/^[A-Za-z0-9._-]{1,40}$/.test(listing))
+      if(!['SHOPEE','ML'].includes(platform)||!/^[A-Za-z0-9._|-]{1,60}$/.test(listing))
         return json({error:'Filtro do detalhe inválido.'},400);
       return json(await commerceListingCohortDetailV1(env,{platform,listing}));
     }
@@ -562,8 +562,8 @@ export async function handleCommerceAdminRequest(request, env) {
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform))
         return json({error:'Filtro do dashboard inválido.'},400);
-      // A data de criação vem por anúncio do Mercado Livre inteiro: ML Antigo e ML Novo viram "ML".
-      return json(await commerceListingCohortsV1(env,{platform:platform.startsWith('ML_')?'ML':platform}));
+      // ML Antigo e ML Novo são contas diferentes: o filtro vai por conta, nunca juntas.
+      return json(await commerceListingCohortsV1(env,{platform:platform.startsWith('ML_')?'ML':platform,account:platform==='ML_ANTIGO'?'ANTIGO':platform==='ML_NOVO'?'NOVO':null}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
