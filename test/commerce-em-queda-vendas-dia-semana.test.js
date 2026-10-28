@@ -147,7 +147,7 @@ test('Cadastros por mês: detalhe por variação, melhor mês e links',()=>{
   const mig=r('supabase/migrations/20261028160000_commerce_listing_cohorts_v2.sql');
   assert.match(router,/sales-dashboard\/cohorts\/detail/);
   assert.match(router,/Filtro do detalhe inválido/);
-  assert.match(store,/commerce_listing_cohort_detail_v1/);
+  assert.match(store,/commerce_listing_cohort_detail_v2/);
   assert.match(tab,/sales-dashboard\/cohorts\/detail\?platform=/);
   assert.match(tab,/role="dialog"/);
   assert.match(tab,/Por dia/);assert.match(tab,/Por semana/);assert.match(tab,/Por mês/);
@@ -243,4 +243,11 @@ test('GA: o conteúdo ocupa a largura do monitor (sem faixa vazia nas laterais)'
 
 test('Curva ABC no Painel Comercial tem altura própria', () => {
   assert.match(readFileSync('src/commerce-dashboard.css','utf8'),/is-explorer \.ndb-chartbox\.fill\{[^}]*height:clamp/);
+});
+
+test('Detalhe do produto separa os dados de cada anúncio', () => {
+  const m=readFileSync('supabase/migrations/20261028190000_commerce_listing_cohort_detail_v2.sql','utf8');
+  assert.match(m,/grant execute on function public\.commerce_listing_cohort_detail_v2\(text,text\) to service_role/);
+  assert.doesNotMatch(m,/\b(insert into|update public|delete from|drop )\b/i);
+  assert.match(readFileSync('src/commerce-cohorts.jsx','utf8'),/ndb-coh-ltabs/);
 });

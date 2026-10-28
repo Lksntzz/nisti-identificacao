@@ -85,10 +85,11 @@ function ProductRow({i,lastDay,linkFor,onOpen}){
 function DetailDialog({item,lastDay,linkFor,onClose}){
   const [data,setData]=useState(null);
   const [error,setError]=useState(false);
+  const [sel,setSel]=useState('all');
   const closeRef=useRef(null);
   useEffect(()=>{
     const controller=new AbortController();
-    setData(null);setError(false);
+    setData(null);setError(false);setSel('all');
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/cohorts/detail?platform='+item.platform+'&product='+encodeURIComponent(item.product_ref),{signal:controller.signal})
       .then(setData).catch(()=>{if(!controller.signal.aborted)setError(true);});
     return()=>controller.abort();
@@ -101,8 +102,12 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
     return()=>{document.removeEventListener('keydown',onKey);prev?.focus?.();};
   },[onClose]);
   const age=item.age_days>0?item.age_days:null;
-  const monthsMax=Math.max(1,...(data?.months||[]).map(m=>Number(m.units||0)));
-  const bestMonth=(data?.months||[]).filter(m=>!partialMonth(m.month,item.created_on,lastDay)).reduce((a,m)=>(!a||m.units>a.units?m:a),null);
+  const lst=(data?.listings||[]);
+  const one=sel!=='all'?lst.find(l=>l.external_id===sel):null;
+  const shownMonths=one?(one.months||[]):(data?.months||[]);
+  const shownVars=one?(one.variations||[]):(data?.variations||[]);
+  const monthsMax=Math.max(1,...shownMonths.map(m=>Number(m.units||0)));
+  const bestMonth=shownMonths.filter(m=>!partialMonth(m.month,item.created_on,lastDay)).reduce((a,m)=>(!a||m.units>a.units?m:a),null);
   const avg=u=>age?{d:u/age,w:u/age*7,m:u/age*30}:{d:null,w:null,m:null};
   return <div className="ndb-coh-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
     <section className="ndb-coh-dialog" role="dialog" aria-modal="true" aria-label={'Variações de '+item.title}>
@@ -115,10 +120,14 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
       {error&&<p className="ndb-empty">Consulta indisponível. Feche e tente de novo.</p>}
       {!error&&!data&&<p className="ndb-empty">Carregando…</p>}
       {data&&<div className="ndb-coh-dbody">
-        <h4>Vendas por mês do produto</h4>
-        {(data.months||[]).length===0?<p className="ndb-empty">Sem vendas.</p>:<>
+        {lst.length>1&&<div className="ndb-coh-ltabs" role="tablist" aria-label="Anúncio do produto">
+          <button type="button" role="tab" aria-selected={sel==='all'} className={sel==='all'?'is-active':''} onClick={()=>setSel('all')}>Todos os anúncios <small>{num(data.listings.reduce((a,l)=>a+Number(l.units||0),0))} un.</small></button>
+          {lst.map(l=><button key={l.external_id} type="button" role="tab" aria-selected={sel===l.external_id} className={sel===l.external_id?'is-active':''} onClick={()=>setSel(l.external_id)}>{l.external_id} <small>{num(l.units)} un.</small></button>)}
+        </div>}
+        <h4>{one?'Vendas por mês do anúncio '+one.external_id:'Vendas por mês do produto'}</h4>
+        {shownMonths.length===0?<p className="ndb-empty">Sem vendas.</p>:<>
           <div className="ndb-coh-mbars" role="img" aria-label="Unidades vendidas por mês">
-            {data.months.map(m=>{const partial=partialMonth(m.month,item.created_on,lastDay);const best=bestMonth&&bestMonth.month===m.month;
+            {shownMonths.map(m=>{const partial=partialMonth(m.month,item.created_on,lastDay);const best=bestMonth&&bestMonth.month===m.month;
               return <div key={m.month} className={'ndb-coh-mbar'+(best?' is-best':'')+(partial?' is-partial':'')} title={monthFull(m.month)+': '+num(m.units)+' un. · '+money(m.revenue)+(partial?' (mês incompleto)':'')}>
                 <b>{num(m.units)}</b><i style={{height:Math.max(3,Number(m.units)/monthsMax*100)+'%'}}/><small>{monthShort(m.month)}</small></div>;})}
           </div>
@@ -128,16 +137,16 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
             <Links platform={item.platform} ids={[l.external_id]} linkFor={linkFor}/>
             <span>{l.external_id}</span><span>{num(l.units)} un.</span><span>{money(l.revenue)}</span>
             <span>{l.best_month?'Melhor mês: '+monthShort(l.best_month)+' ('+num(l.best_month_units)+' un.)':'sem vendas'}</span></li>)}</ul></>}
-        <h4>Variações ({num((data.variations||[]).length)})</h4>
+        <h4>Variações ({num(shownVars.length)}){one?' · anúncio '+one.external_id:''}</h4>
         <div className="ndb-scroll"><table className="ndb-table ndb-detail-table ndb-coh-vtable">
           <thead><tr><th>Variação</th><th className="num">Vendas</th><th className="num">Faturamento</th><th>Melhor mês</th><th className="num" title="Média desde a criação do produto">Por dia</th><th className="num" title="Média desde a criação do produto">Por semana</th><th className="num" title="Média desde a criação do produto (mês de 30 dias)">Por mês</th><th className="num" title="Unidades nos últimos 28 dias">Últimos 28d</th></tr></thead>
-          <tbody>{(data.variations||[]).map(v=>{const a=avg(Number(v.units||0));return <tr key={v.sku} className={v.units?'':'ndb-off'}>
+          <tbody>{shownVars.map(v=>{const a=avg(Number(v.units||0));return <tr key={v.sku} className={v.units?'':'ndb-off'}>
             <td><div className="ndb-pc"><div className="ndb-pt"><strong>{v.name||v.sku}</strong>{v.name&&<small>{v.sku}</small>}</div></div></td>
             <td className="num"><b>{num(v.units)}</b></td><td className="num">{money(v.revenue)}</td>
             <td><BestMonth month={v.best_month} units={v.best_month_units} createdOn={item.created_on} lastDay={lastDay}/></td>
             <td className="num">{v.units?dec(a.d):'—'}</td><td className="num">{v.units?dec(a.w):'—'}</td><td className="num">{v.units?dec(a.m):'—'}</td>
             <td className="num">{num(v.u_last28)}</td></tr>;})}
-            {(data.variations||[]).length===0&&<tr><td colSpan={8} className="ndb-empty">Nenhuma variação encontrada para este produto.</td></tr>}</tbody></table></div>
+            {shownVars.length===0&&<tr><td colSpan={8} className="ndb-empty">Nenhuma variação encontrada para este produto.</td></tr>}</tbody></table></div>
         <p className="ndb-note">Por dia, semana e mês são médias desde a criação do produto ({num(item.age_days)} dias, mês de 30 dias), contando os dias sem venda. “Últimos 28d” mostra o ritmo mais recente. Variações em cinza não tiveram venda.</p>
       </div>}
     </section>

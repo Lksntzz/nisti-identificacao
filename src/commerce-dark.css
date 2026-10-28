@@ -707,6 +707,19 @@ html.ga-dark .ndb-dn.up{color:#6cdc9c}
 html.ga-dark .ndb-dn.down{color:#bf3636}
 html.ga-dark .ndb-dn.flat{color:#6e7985}
 html.ga-dark .ndb-plat-table tr.is-total td{border-top:2px solid rgba(116,126,135,.35)}
+html.ga-dark .ndb-rev-list li:hover{background:rgba(52,112,216,.07)}
+html.ga-dark .ndb-seas-col.is-hover{background:rgba(52,112,216,.09)}
+html.ga-dark .ndb-split li:hover{background:rgba(52,112,216,.07)}
+html.ga-dark .ndb-info-kind{background:rgba(26,26,26,.08)}
+html.ga-dark .ndb-info-kind em{color:#1a3e80}
+html.ga-dark .ndb-info-pop li::before{background:#47649f}
+html.ga-dark .ndb-info-link{border:1px solid rgba(26,62,128,.5);background:rgba(26,62,128,.14);color:#162643}
+html.ga-dark .ndb-info-link:hover{background:rgba(26,62,128,.28);color:#1a1a1a}
+html.ga-dark .ndb-coh-ltabs button{border:1px solid #272e3c;background:#1a1a1a;color:#94a3c2}
+html.ga-dark .ndb-coh-ltabs button small{color:#616f86}
+html.ga-dark .ndb-coh-ltabs button:hover{border-color:#3470d8}
+html.ga-dark .ndb-coh-ltabs button.is-active{background:#82a2e9;border-color:#82a2e9;color:#1a1a1a}
+html.ga-dark .ndb-coh-ltabs button.is-active small{color:#2c3850}
 html.ga-dark .import-center-mode-grid>button{border:1px solid #272d34;background:#1a1a1a;color:#bac6e3}
 html.ga-dark .import-center-mode-grid>button:hover{border-color:#334257;box-shadow:0 5px 16px rgba(186,198,227,.05)}
 html.ga-dark .import-center-mode-grid>button.active{border-color:#0a42c7;background:#0e1b29;box-shadow:inset 0 0 0 1px rgba(10,66,199,.08)}

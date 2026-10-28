@@ -612,3 +612,9 @@
 
 /* Curva ABC no Painel Comercial: o quadro precisa de altura própria (o modo "explorer" não tem altura fixa) */
 .ndb-root.is-explorer .ndb-chartbox.fill{flex:none;width:100%;height:clamp(320px,52vh,520px);min-height:320px}
+
+.ndb-coh-ltabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 4px}
+.ndb-coh-ltabs button{border:1px solid #d5deee;background:#fff;color:#33415f;border-radius:999px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.ndb-coh-ltabs button small{margin-left:4px;color:#7a8aa3;font-weight:600}
+.ndb-coh-ltabs button:hover{border-color:#1d5fd1}
+.ndb-coh-ltabs button.is-active{background:#0d2a6b;border-color:#0d2a6b;color:#fff}.ndb-coh-ltabs button.is-active small{color:#c3cde0}
