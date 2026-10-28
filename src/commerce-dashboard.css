@@ -609,3 +609,6 @@
 .ndb-info-pop li::before{content:'';position:absolute;left:2px;top:.6em;width:5px;height:5px;border-radius:50%;background:#5f7fbf}
 .ndb-info-link{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid rgba(143,176,238,.5);border-radius:8px;background:rgba(143,176,238,.14);color:#cfe0ff;font:inherit;font-size:12px;font-weight:700;text-align:left;cursor:pointer}
 .ndb-info-link:hover{background:rgba(143,176,238,.28);color:#fff}
+
+/* Curva ABC no Painel Comercial: o quadro precisa de altura própria (o modo "explorer" não tem altura fixa) */
+.ndb-root.is-explorer .ndb-chartbox.fill{flex:none;width:100%;height:clamp(320px,52vh,520px);min-height:320px}
