@@ -152,6 +152,18 @@ export default function CohortsTab({platform='TODAS',query='',linkFor=()=>null})
   const [sort,setSort]=useState('recent');
   const [shown,setShown]=useState(PAGE);
   const [openItem,setOpenItem]=useState(null);
+  const [yearsOpen,setYearsOpen]=useState(false);
+  const [hover,setHover]=useState(null);
+  const [shifts,setShifts]=useState({});
+  const monthsRef=useRef(null);
+  // Ao passar o mouse em um mês, os outros "recuam" na direção do ano; o mês sob o mouse fica parado.
+  const hoverMonth=(key,el)=>{
+    const box=monthsRef.current;if(!box)return;
+    const origin=box.getBoundingClientRect().left;
+    const next={};
+    box.querySelectorAll('.ndb-coh-m').forEach(b=>{if(b!==el)next[b.dataset.k]=origin-b.getBoundingClientRect().left;});
+    setShifts(next);setHover(key);
+  };
   useEffect(()=>{
     const controller=new AbortController();
     setData(null);setError(false);
@@ -181,14 +193,20 @@ export default function CohortsTab({platform='TODAS',query='',linkFor=()=>null})
   const units=sel.reduce((a,i)=>a+Number(i.units||0),0),rev=sel.reduce((a,i)=>a+Number(i.revenue||0),0);
   return <div className="ndb-coh">
     <div className="ndb-coh-filters">
-      <div className="ndb-coh-years" role="group" aria-label="Ano de criação"><span className="ndb-coh-flabel">Ano</span>{years.map(y=><button key={y} type="button" className={y===curYear?'is-active':''} aria-pressed={y===curYear} onClick={()=>{setYear(y===curYear?null:y);setMonth(null);}}>{y}</button>)}</div>
+      <div className="ndb-coh-flow">
+        <button type="button" className={'ndb-coh-ano'+(yearsOpen?' is-open':'')} aria-expanded={yearsOpen} onClick={()=>{if(yearsOpen){setYearsOpen(false);setYear(null);setMonth(null);}else setYearsOpen(true);}}>Ano <i aria-hidden="true">›</i></button>
+        <div className={'ndb-coh-slide'+(yearsOpen?' is-open':'')} role="group" aria-label="Ano de criação"><div className="ndb-coh-slide-in">
+          {years.map(y=><button key={y} type="button" tabIndex={yearsOpen?0:-1} className={y===curYear?'is-active':''} aria-pressed={y===curYear} onClick={()=>{setYear(y===curYear?null:y);setMonth(null);}}>{y}</button>)}</div></div>
+        <div className={'ndb-coh-slide'+(curYear?' is-open':'')} role="group" aria-label="Mês de criação" ref={monthsRef}><div className="ndb-coh-slide-in">
+          <button type="button" tabIndex={curYear?0:-1} className={!month?'is-active':''} aria-pressed={!month} onClick={()=>setMonth(null)}>Todos <em>{num(inYear.length)}</em></button>
+          {MONTHS_SHORT.map((n,k)=>{const key=String(k+1).padStart(2,'0');const c=counts[key]||0;
+            if(!c)return null;
+            const away=hover&&hover!==key;
+            return <button key={key} type="button" tabIndex={curYear?0:-1} data-k={key} className={'ndb-coh-m'+(month===key?' is-active':'')+(away?' is-away':'')} style={away?{transform:'translateX('+(shifts[key]||0)+'px)'}:undefined} aria-pressed={month===key} onClick={()=>setMonth(key)} onMouseEnter={e=>hoverMonth(key,e.currentTarget)} onMouseLeave={()=>setHover(null)}>{cap(n)} <em>{c}</em></button>;})}
+        </div></div>
+      </div>
       <label className="ndb-coh-sort"><span>Ordenar por</span><select value={sort} onChange={e=>setSort(e.target.value)}>{SORTS.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select></label>
     </div>
-    {curYear&&<div className="ndb-coh-months" role="group" aria-label="Mês de criação">
-      <button type="button" className={!month?'is-active':''} aria-pressed={!month} onClick={()=>setMonth(null)}>Todos <em>{num(inYear.length)}</em></button>
-      {MONTHS_SHORT.map((n,k)=>{const key=String(k+1).padStart(2,'0');const c=counts[key]||0;
-        return c>0&&<button key={key} type="button" className={month===key?'is-active':''} aria-pressed={month===key} onClick={()=>setMonth(key)}>{cap(n)} <em>{c}</em></button>;})}
-    </div>}
     <p className="ndb-coh-summary"><b>{num(sel.length)}</b> produto{sel.length===1?'':'s'} cadastrado{sel.length===1?'':'s'} em {curYear?(month?monthFull(curYear+'-'+month+'-01'):curYear):'todos os anos'} · <b>{num(units)}</b> un. vendidas · <b>{compactMoney(rev)}</b></p>
     {sel.length===0?<p className="ndb-empty">{qn?'Nenhum produto cadastrado encontrado nessa busca.':'Nenhum produto cadastrado neste período.'}</p>:<>
       <div className="ndb-coh-cols" aria-hidden="true"><span>Produto</span><span>Criado em</span><span>Vendas nos primeiros dias</span><span>Total</span><span>Melhor mês</span><span>Ritmo</span><span/></div>
