@@ -58,9 +58,9 @@ test('o Gestor exibe apenas Todos, Com vendas e Sem vendas, sem indicadores',()=
   assert.doesNotMatch(styles,/\.nim-indicators|\.nim-status\.rising|\.nim-status\.low/);
 });
 
-test('a tabela tem oito colunas (inclui Preço × vendas) e o filtro sem vendas preserva variações sem saída',()=>{
-  assert.match(ui,/colSpan=\{8\}/);
-  assert.doesNotMatch(ui,/colSpan=\{7\}/);
+test('a tabela tem nove colunas (inclui Preço × vendas e Histórico de vendas) e o filtro sem vendas preserva variações sem saída',()=>{
+  assert.match(ui,/colSpan=\{9\}/);
+  assert.doesNotMatch(ui,/colSpan=\{[78]\}/);
   assert.match(ui,/zeroFilter=\{false\}/);
   assert.match(ui,/variations\.filter\(v=>v\.units===0\)/);
   assert.match(sql,/b.selected_status='ZERO' and c.ready and \(c.units=0 or c.zero_variations>0\)/);

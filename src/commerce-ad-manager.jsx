@@ -17,6 +17,8 @@ import GlareHover from './vendor/react-bits/GlareHover.jsx';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import './commerce-price-signal.css';
+import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
+import './commerce-dashboard.css';
 import { listingSalesSituation } from './commerce-listing-classification.js';
 import { identifiedVariationCoverage, listingLinkedSalesForPeriod, listingClassificationCoverage, listingPlatformSalesBreakdown, importedWindowDescription, shopeeMonthlyImportCoverage, shopeeSalesTotals, importedTotalsForExactWindow } from './commerce-ad-evidence.js';
 
@@ -652,6 +654,15 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
   const changeNoSales=()=>change(setStatus,status==='ZERO'?'ALL':'ZERO');
   const rows=Array.isArray(data?.items)?data.items:[];
   const {signals:priceSignals,diagnosis:perfDiagnosis,window:signalWindow}=usePriceSignals(rows,days);
+  // Anúncios com vendas no período: semanas até o último dia importado. Sem vendas no período: semanas até a última venda (como vendia antes de parar).
+  const activeSaleRows=useMemo(()=>rows.filter(r=>Number(r.units)>0),[rows]);
+  const idleSaleRows=useMemo(()=>rows.filter(r=>!(Number(r.units)>0)),[rows]);
+  const activeBreakdown=useSalesBreakdown(activeSaleRows);
+  const idleBreakdown=useSalesBreakdown(idleSaleRows,'last_sale');
+  const salesBreakdown=useMemo(()=>({...idleBreakdown,...activeBreakdown}),[idleBreakdown,activeBreakdown]);
+  const salesMonths=useSalesMonths(rows);
+  const [openDays,setOpenDays]=useState({});
+  const [openMonths,setOpenMonths]=useState({});
   useEffect(()=>{
     const controller=new AbortController();
     const shopeeIds=(Array.isArray(data?.items)?data.items:[])
@@ -925,11 +936,12 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
         <div className="nim-table-scroll">
           <table className="nim-ad-table" aria-label="Anúncios ativos e desempenho"><thead><tr>
             <th>Plataforma</th><th>Nome e ID do anúncio</th><th>{hasMixedPartial?'Unid. identificadas':hasShopeePartial?'Unid. vinculadas':'Unid.'} {periodLabel(days,month)}</th>
-            <th>Variações</th><th>{hasMixedPartial?'Faturamento identificado':hasShopeePartial?'Faturamento vinculado':'Faturamento'}</th><th>ABC</th><th>Vendas</th><th>Preço × vendas</th>
+            <th>Variações</th><th>{hasMixedPartial?'Faturamento identificado':hasShopeePartial?'Faturamento vinculado':'Faturamento'}</th><th>ABC</th><th>Vendas</th><th>Preço × vendas</th><th>Histórico de vendas (semanas, dias e meses)</th>
           </tr></thead><tbody>
             {!loading&&rows.map((item,index)=>{
               const linked=listingLinkedSalesForPeriod(item,days);
-              return <tr key={item.id} data-nim-row style={{'--nim-order':Math.min(index,6)}} className={selectedId===item.id?'selected':''}
+              const sb=salesBreakdown[item.id];const sm=salesMonths[item.id];
+              return <React.Fragment key={item.id}><tr data-nim-row style={{'--nim-order':Math.min(index,6)}} className={selectedId===item.id?'selected':''}
               onClick={()=>openListing(item.id)} title="Abrir detalhes do anúncio">
               <td data-label="Plataforma"><PlatformLabel item={item}/></td>
               <td data-label="Anúncio"><strong className="nim-ad-name">{item.title}</strong>
@@ -950,10 +962,14 @@ export default function CommerceCommercialDashboard({salesRevision=0}){
                 title={item.curve_partial?'ABC indicativa: calculada apenas com vendas identificadas':'Curva ABC por vendas consolidadas'}>{item.curve}{item.curve_partial?'*':''}</span>:'—'}</td>
               <td data-label="Situação"><Situation item={item} days={days}/></td>
               <td data-label="Preço × vendas"><PriceSignalCell signal={priceSignals[String(item.id)]} window={signalWindow} diagnosis={perfDiagnosis[String(item.id)]}/></td>
-            </tr>;
+              <td data-label="Histórico de vendas" onClick={event=>event.stopPropagation()}><WeeklySalesCell anchored={!(Number(item.units)>0)} data={sb} open={Boolean(openDays[item.id])} onToggle={()=>setOpenDays(o=>({...o,[item.id]:!o[item.id]}))} months={sm} monthsOpen={Boolean(openMonths[item.id])} onToggleMonths={()=>setOpenMonths(o=>({...o,[item.id]:!o[item.id]}))}/></td>
+            </tr>
+            {openDays[item.id]&&sb&&<DailySalesRow anchored={!(Number(item.units)>0)} data={sb} colSpan={9}/>}
+            {openMonths[item.id]&&sm&&<MonthsPanelRow listingId={item.id} data={sm} colSpan={9}/>}
+            </React.Fragment>;
             })}
-            {loading&&<tr><td colSpan={8} className="nim-table-empty">Carregando anúncios…</td></tr>}
-            {!loading&&!error&&rows.length===0&&<tr><td colSpan={8} className="nim-table-empty">
+            {loading&&<tr><td colSpan={9} className="nim-table-empty">Carregando anúncios…</td></tr>}
+            {!loading&&!error&&rows.length===0&&<tr><td colSpan={9} className="nim-table-empty">
               {status==='ZERO'?'Nenhum anúncio com zero vendas registradas e SKU conferido nesta janela.':
                 'Nenhum anúncio encontrado para o filtro.'}</td></tr>}
           </tbody></table>

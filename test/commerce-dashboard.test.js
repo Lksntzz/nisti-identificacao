@@ -23,7 +23,7 @@ test('route validates platform and period; GA menu exposes the dashboard',()=>{
   assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard />'));
 });
 test('every card has an info icon naming its data source',()=>{
-  for(const key of ['abc','drops','best','ads','alerts','daily'])assert.ok(ui.includes('source="'+key+'"')||ui.includes("'"+key+"'"),key);
+  for(const key of ['abc','drops','best','ads','alerts'])assert.ok(ui.includes('source="'+key+'"')||ui.includes("'"+key+"'"),key);
   assert.ok(ui.includes('TAB_SOURCE'));
   assert.ok(ui.includes('SOURCES.help')&&ui.includes('SOURCES.trust'));
   assert.ok(ui.includes('De onde vêm os dados'));
@@ -87,8 +87,6 @@ test('Sem filtro: period 0 accumulates all sales, monthly chart per platform, AB
   assert.ok(router.includes("![0,7,30,60,90].includes(days)"));
   assert.ok(router.includes("/sales-dashboard/monthly"));
   assert.ok(ui.includes("Sem filtro (todo o histórico)"));
-  assert.ok(ui.includes("<MonthlyChart"));
-  assert.ok(ui.includes("/sales-dashboard/monthly?platform="));
 });
 test('GA opens on the Dashboard screen by default',()=>{
   assert.ok(app.includes("useState('dashboard')"));

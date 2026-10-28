@@ -14,12 +14,16 @@ test('variacao percentual entre periodos', () => {
   assert.equal(deltaPct(5, 0), null);
 });
 
-test('aba Em queda mostra vendas por semana e por dia no lugar de "Por que caiu"', () => {
-  assert.match(dash, /<th>Vendas por semana e por dia<\/th>/);
+const manager = readFileSync('src/commerce-ad-manager.jsx', 'utf8');
+
+test('detalhe de vendas por semana, dia e mes mora no Painel Comercial, nao no Dashboard', () => {
+  assert.doesNotMatch(dash, /WeeklySalesCell|DailySalesRow|MonthsPanelRow|useSalesBreakdown/);
   assert.doesNotMatch(dash, /<th>Por que caiu<\/th>/);
-  assert.doesNotMatch(dash, /function reasonFor/);
-  assert.match(dash, /<WeeklySalesCell /);
-  assert.match(dash, /<DailySalesRow /);
+  assert.match(manager, /<WeeklySalesCell /);
+  assert.match(manager, /<DailySalesRow /);
+  assert.match(manager, /<MonthsPanelRow /);
+  assert.match(manager, /useSalesMonths\(rows\)/);
+  assert.match(manager, /Histórico de vendas/);
 });
 
 test('rota e funcao SQL de vendas por dia e semana validam entrada e sao somente leitura', () => {
@@ -30,17 +34,20 @@ test('rota e funcao SQL de vendas por dia e semana validam entrada e sao somente
   assert.doesNotMatch(sql, /\b(insert into|update public|delete from)\b/i);
 });
 
-test('aba Pararam mostra como o anuncio vendia ate a ultima venda (ancora last_sale)', () => {
-  assert.match(dash, /<th>Como vendia antes de parar<\/th>/);
-  assert.match(dash, /useSalesBreakdown\(stoppedIds,'last_sale'\)/);
-  assert.match(dash, /<WeeklySalesCell anchored /);
+test('Painel Comercial usa ancora last_sale para anuncios sem vendas no periodo', () => {
+  assert.match(manager, /useSalesBreakdown\(idleSaleRows,'last_sale'\)/);
+  assert.match(manager, /anchored=\{!\(Number\(item\.units\)>0\)\}/);
   assert.match(router, /anchor/);
   assert.match(sql, /p_anchor='last_sale'/);
 });
 
-test('"Vendia e parou" (aba Sem vendas) mostra semanas e dias ate a ultima venda', () => {
-  assert.match(dash, /useSalesBreakdown\(noSalesIds,'last_sale'\)/);
-  assert.match(dash, /<th>Última venda<\/th><th>Como vendia antes de parar<\/th>/);
-  assert.match(dash, /noSalesBreakdown\[r\.listing_id\]/);
-  assert.match(dash, /\.slice\(0,200\)/);
+test('Dashboard: 4 indices de performance no lugar dos cards de faturamento', () => {
+  for (const l of ['Vendendo', 'Em queda', 'Vendia e parou', 'Não vendeu']) assert.match(dash, new RegExp('label="' + l + '"'));
+  assert.doesNotMatch(dash, /label="Faturamento total"|label="Investimento em anúncios"|label="ROAS dos anúncios"/);
+});
+
+test('Dashboard: grafico mostra faturamento por produto conforme o filtro', () => {
+  assert.match(dash, /<RevenueByProduct items=\{top\}\/>/);
+  assert.match(dash, /title="Faturamento por produto"/);
+  assert.doesNotMatch(dash, /<DailyChart|<MonthlyChart|segment-series/);
 });
