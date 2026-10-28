@@ -138,7 +138,7 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
             <Links platform={item.platform} ids={[l.external_id]} linkFor={linkFor}/>
             <span>{l.external_id}</span><span>{num(l.units)} un.</span><span>{money(l.revenue)}</span>
             <span>{l.best_month?'Melhor mês: '+monthShort(l.best_month)+' ('+num(l.best_month_units)+' un.)':'sem vendas'}</span></li>)}</ul></>}
-        <h4>{item.platform==='ML'?'Variações (cada MLB)':'Variações'} ({num(shownVars.length)}){one?' · anúncio '+one.external_id:''}</h4>
+        <h4>{item.platform==='ML'?(item.account==='NOVO'?'Variações (SKUs do anúncio)':'Variações (cada MLB)'):'Variações'} ({num(shownVars.length)}){one?' · anúncio '+one.external_id:''}</h4>
         <div className="ndb-scroll"><table className="ndb-table ndb-detail-table ndb-coh-vtable">
           <thead><tr><th>Variação</th><th className="num">Vendas</th><th className="num">Faturamento</th><th>Melhor mês</th><th className="num" title="Média desde a criação do produto">Por dia</th><th className="num" title="Média desde a criação do produto">Por semana</th><th className="num" title="Média desde a criação do produto (mês de 30 dias)">Por mês</th><th className="num" title="Unidades nos últimos 28 dias">Últimos 28d</th></tr></thead>
           <tbody>{shownVars.map(v=>{const a=avg(Number(v.units||0));return <tr key={v.sku} className={v.units?'':'ndb-off'}>
