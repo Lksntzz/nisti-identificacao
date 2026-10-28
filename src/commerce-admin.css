@@ -16,7 +16,8 @@
   text-rendering:optimizeLegibility;
   font-synthesis:none;
 }
-.commerce-admin-page-content{display:grid;gap:22px}
+.commerce-admin-page-content{display:grid;gap:22px;max-width:2400px}
+.admin-page-content.commerce-admin-page-content:has(.ndb-root){max-width:none}
 .commerce-welcome-banner{margin-bottom:2px}
 .commerce-refresh-btn{font:inherit;cursor:pointer}
 .commerce-live-status{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 14px;box-shadow:0 2px 6px rgba(15,23,42,.02)}

@@ -236,3 +236,7 @@ test('Ícones de informação: texto organizado e atalho para o Histórico de im
   assert.match(d,/ndb-info-link/);assert.match(d,/ga:navigate/);
   assert.match(readFileSync('src/commerce-admin-app-v2.jsx','utf8'),/ga:navigate/);
 });
+
+test('GA: o conteúdo ocupa a largura do monitor (sem faixa vazia nas laterais)', () => {
+  assert.match(readFileSync('src/commerce-admin.css','utf8'),/commerce-admin-page-content:has\(\.ndb-root\)\{max-width:none\}/);
+});
