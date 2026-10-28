@@ -451,14 +451,16 @@
 /* Aba Cadastros por mês */
 .ndb-coh{display:flex;flex-direction:column;gap:12px}
 .ndb-coh-filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.ndb-coh-years{flex:none}.ndb-coh-months{flex:1 1 auto;min-width:0}
 .ndb-coh-years,.ndb-coh-months{display:flex;flex-wrap:wrap;gap:6px}
 .ndb-coh-years button,.ndb-coh-months button{font:inherit;font-size:13px;font-weight:700;color:#33415f;background:#fff;border:1px solid #dfe7f5;border-radius:999px;padding:5px 12px;cursor:pointer}
 .ndb-coh-years button.is-active,.ndb-coh-months button.is-active{background:#1d5fd1;border-color:#1d5fd1;color:#fff}
 .ndb-coh-months button:disabled{opacity:.4;cursor:default}
 .ndb-coh-months em{font-style:normal;font-size:11px;margin-left:4px;opacity:.8}
 .ndb-coh-years button:focus-visible,.ndb-coh-months button:focus-visible,.ndb-coh-open:focus-visible,.ndb-coh-title:focus-visible,.ndb-coh-showmore:focus-visible,.ndb-coh-close:focus-visible{outline:2px solid #1d5fd1;outline-offset:2px}
-.ndb-coh-sort{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:12px;color:#5b6b86}
-.ndb-coh-sort select{font:inherit;padding:5px 8px;border:1px solid #dfe7f5;border-radius:8px;background:#fff}
+.ndb-coh-sort{display:flex;flex-direction:row;align-items:center;flex:none;gap:8px;margin-left:auto;font-size:12px;color:#5b6b86;white-space:nowrap}
+.ndb-coh-sort span{white-space:nowrap}
+.ndb-coh-sort select{width:auto;min-width:0;max-width:260px;font:inherit;font-size:13px;padding:6px 28px 6px 10px;border:1px solid #dfe7f5;border-radius:8px;background-color:#fff}
 .ndb-coh-summary{margin:0;font-size:13px;color:#5b6b86}.ndb-coh-summary b{color:#1c2a48}
 .ndb-coh-cols,.ndb-coh-row{display:grid;grid-template-columns:minmax(220px,1.7fr) minmax(120px,.8fr) minmax(160px,1fr) minmax(100px,.6fr) minmax(100px,.6fr) minmax(120px,.8fr) 90px;gap:14px;align-items:center;padding:0 16px}
 .ndb-coh-cols{padding-top:8px;padding-bottom:6px;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7a8aa3;border-bottom:1px solid #eef2f9}
