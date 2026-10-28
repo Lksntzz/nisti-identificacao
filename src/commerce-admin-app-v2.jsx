@@ -8,6 +8,7 @@ import CommerceDashboard from './commerce-dashboard.jsx';
 import CommerceImportHistory from './commerce-import-history.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import { usePrivacy, setPrivate } from './commerce-privacy.js';
+import { useDark, setDark, applyTheme } from './commerce-theme.js';
 import './nisti-motion.css';
 import './nisti-motion.js';
 
@@ -207,6 +208,8 @@ function DatabaseStatus({ status }) {
 
 export default function CommerceAdminAppV2() {
   const privacy = usePrivacy();
+  const dark = useDark();
+  useEffect(() => { applyTheme(); return () => document.documentElement.classList.remove('ga-dark'); }, []);
   const [activeView, setActiveView] = useState('dashboard');
   const [perfOpen, setPerfOpen] = useState(null);
   const openPerformance = (tab, filter = null) => { setPerfOpen({ tab, filter, nonce: Date.now() }); setActiveView('catalog'); };
@@ -250,6 +253,19 @@ export default function CommerceAdminAppV2() {
             {!IS_GA && <a href="/admin" className="topbar-logout-btn">
               <span>NISTI ID</span>
             </a>}
+            <button
+              type="button"
+              className={'commerce-privacy-btn commerce-theme-btn' + (dark ? ' is-on' : '')}
+              onClick={() => setDark(!dark)}
+              aria-pressed={dark}
+              aria-label={dark ? 'Voltar ao modo claro' : 'Ativar modo noturno'}
+              title={dark ? 'Modo noturno ligado. Clique para voltar ao claro' : 'Ativar modo noturno'}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+              </svg>
+              <span>{dark ? 'Modo noturno' : 'Modo claro'}</span>
+            </button>
             <button
               type="button"
               className={'commerce-privacy-btn' + (privacy ? ' is-on' : '')}
