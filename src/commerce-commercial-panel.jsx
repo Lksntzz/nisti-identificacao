@@ -30,8 +30,7 @@ export default function CommerceCommercialPanel({perfOpen=null}){
     setSelectedImportMode(mode);
   };
   return <section className="nim-manager" aria-label="Painel Comercial">
-    <header className="nim-heading">
-      <div><h2>Painel Comercial</h2><p>Desempenho dos anúncios por plataforma e período</p></div>
+    <header className="nim-heading" style={{justifyContent:'flex-end'}}>
       <div className="nim-header-actions">
         <button type="button" className="nim-soft-button" onClick={()=>setRefresh(v=>v+1)}>
           <CommercialIcon name="refresh-cw" size={16}/> Atualizar</button>
