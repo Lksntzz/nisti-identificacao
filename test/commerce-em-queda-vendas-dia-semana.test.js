@@ -77,3 +77,8 @@ test('topo do GA: titulo da tela, bolinha de conexao real e atualizar em icone, 
   assert.doesNotMatch(app, /welcome-banner commerce-welcome-banner/);
   assert.doesNotMatch(panel, /Atualizar<\/button>/);
 });
+
+test('lista Melhores nao mostra colunas Investimento e ROAS por anuncio', () => {
+  assert.doesNotMatch(dash, /<th className="num">Investimento<\/th>|<th className="num">ROAS<\/th>/);
+  assert.doesNotMatch(dash, /adsByListing/);
+});
