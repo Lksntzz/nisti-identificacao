@@ -553,10 +553,10 @@ export async function handleCommerceAdminRequest(request, env) {
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/cohorts/detail'){
       const platform=String(query(url,'platform')||'').toUpperCase();
-      const product=String(query(url,'product')||'').trim();
-      if(!['SHOPEE','ML'].includes(platform)||!/^[A-Za-z0-9._-]{1,40}$/.test(product))
+      const listing=String(query(url,'listing')||'').trim();
+      if(!['SHOPEE','ML'].includes(platform)||!/^[A-Za-z0-9._-]{1,40}$/.test(listing))
         return json({error:'Filtro do detalhe inválido.'},400);
-      return json(await commerceListingCohortDetailV1(env,{platform,product}));
+      return json(await commerceListingCohortDetailV1(env,{platform,listing}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/cohorts'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();

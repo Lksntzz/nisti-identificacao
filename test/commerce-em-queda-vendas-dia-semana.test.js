@@ -132,7 +132,7 @@ test('aba Cadastros por mês: rota, consulta no banco e tela estão ligadas',()=
   const mig=r('supabase/migrations/20261028150100_commerce_listing_cohorts_v1.sql');
   assert.match(router,/sales-dashboard\/cohorts/);
   assert.match(router,/platform\.startsWith\('ML_'\)\?'ML':platform/);
-  assert.match(store,/commerce_listing_cohorts_v1/);
+  assert.match(store,/commerce_listing_cohorts_v2/);
   assert.match(dash,/\['cohorts','Cadastros por mês',null\]/);
   assert.match(dash,/<CohortsTab platform=\{platform\} query=\{query\} linkFor=\{listingUrl\}\/>/);
   assert.match(tab,/sales-dashboard\/cohorts\?platform=/);
@@ -147,7 +147,7 @@ test('Cadastros por mês: detalhe por variação, melhor mês e links',()=>{
   const mig=r('supabase/migrations/20261028160000_commerce_listing_cohorts_v2.sql');
   assert.match(router,/sales-dashboard\/cohorts\/detail/);
   assert.match(router,/Filtro do detalhe inválido/);
-  assert.match(store,/commerce_listing_cohort_detail_v2/);
+  assert.match(store,/commerce_listing_cohort_detail_v3/);
   assert.match(tab,/sales-dashboard\/cohorts\/detail\?platform=/);
   assert.match(tab,/role="dialog"/);
   assert.match(tab,/Por dia/);assert.match(tab,/Por semana/);assert.match(tab,/Por mês/);
@@ -250,4 +250,12 @@ test('Detalhe do produto separa os dados de cada anúncio', () => {
   assert.match(m,/grant execute on function public\.commerce_listing_cohort_detail_v2\(text,text\) to service_role/);
   assert.doesNotMatch(m,/\b(insert into|update public|delete from|drop )\b/i);
   assert.match(readFileSync('src/commerce-cohorts.jsx','utf8'),/ndb-coh-ltabs/);
+});
+
+test('Cadastros por mês: uma linha por anúncio, sem misturar vendas nem variações', () => {
+  const m=readFileSync('supabase/migrations/20261028200000_commerce_cohorts_por_anuncio_v2.sql','utf8');
+  assert.match(m,/left join sales s on s\.external_listing_id=pr\.lid/);
+  assert.doesNotMatch(m,/group by c\.platform, c\.product_ref/);
+  assert.match(m,/grant execute on function public\.commerce_listing_cohort_detail_v3\(text,text\) to service_role/);
+  assert.match(readFileSync('src/commerce-cohorts.jsx','utf8'),/&listing='\+encodeURIComponent\(item\.listing_id\)/);
 });
