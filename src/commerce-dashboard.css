@@ -573,3 +573,9 @@
 .ndb-pp-grid button.is-active{background:#1d5fd1!important;border-color:#1d5fd1!important;color:#fff!important}
 .ndb-pp-cal p{margin:8px 0 0;font-size:11px;color:#7a8aa3;white-space:normal}
 .ndb-pp-menu{max-height:min(80vh,520px)}
+/* Notebook: o texto do período ocupa a própria linha e os filtros ficam abaixo, sem espremer a data em 4 linhas */
+@media (max-width:1560px){
+  .ndb-head{flex-wrap:wrap;row-gap:6px}
+  .ndb-head-title{flex:1 1 100%}
+  .ndb-head-filters{flex:1 1 100%;flex-wrap:wrap;justify-content:flex-start}
+}
