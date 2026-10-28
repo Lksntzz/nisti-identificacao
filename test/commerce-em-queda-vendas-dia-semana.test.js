@@ -183,3 +183,12 @@ test('Dashboard: filtro por mês específico e histórico de todos os meses',()=
   assert.match(mig,/grant execute on function public\.%I\(text,integer,text\) to service_role/);
   assert.match(ser,/grant execute on function public\.commerce_dashboard_month_series_v1\(text,text\) to service_role/);
 });
+
+test('Ícones de informação explicam a origem dos dados de cada bloco do Dashboard',()=>{
+  const d=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
+  for(const k of ['period','kpiRevenue','kpiUnits','kpiTicket','kpiDaily','daily','history','platform','monthly','summary','top','growing','lowconv','cohorts','abc','alerts'])
+    assert.match(d,new RegExp('\\n  '+k+":'"));
+  assert.match(d,/Importar arquivo/);
+  assert.match(d,/<Panel title="Em alta" icon="down" source="growing"/);
+  assert.match(d,/<Panel title="Muita visita, pouca venda" icon="eye" source="lowconv"/);
+});
