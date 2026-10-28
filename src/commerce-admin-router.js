@@ -49,6 +49,7 @@ import {
   commerceSalesDashboardSegmentSeriesV1,
   commerceSalesDashboardOverviewV1,
   commerceSalesDashboardMonthlyV1,
+  commerceSalesDashboardMonthSeriesV1,
   commerceListingCohortsV1,
   commerceListingCohortDetailV1,
   commerceListingTrafficWindow,
@@ -97,6 +98,7 @@ import {
 } from './commerce-supabase-store.js';
 
 const BASE_PATH = '/api/admin/commerce';
+const MONTH_RE=/^20[0-9]{2}-(0[1-9]|1[0-2])$/;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -530,9 +532,17 @@ export async function handleCommerceAdminRequest(request, env) {
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/overview'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
-      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days))
+      const month=String(query(url,'month')||'');
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days)||(month&&!MONTH_RE.test(month)))
         return json({error:'Filtro do dashboard inválido.'},400);
-      return json(await commerceSalesDashboardOverviewV1(env,{platform,days}));
+      return json(await commerceSalesDashboardOverviewV1(env,{platform,days,month}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/month-series'){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      const month=String(query(url,'month')||'');
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||!MONTH_RE.test(month))
+        return json({error:'Filtro do dashboard inválido.'},400);
+      return json(await commerceSalesDashboardMonthSeriesV1(env,{platform,month}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/monthly'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
@@ -557,9 +567,10 @@ export async function handleCommerceAdminRequest(request, env) {
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
-      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days))
+      const month=String(query(url,'month')||'');
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days)||(month&&!MONTH_RE.test(month)))
         return json({error:'Filtro do dashboard inválido.'},400);
-      return json(await commerceSalesDashboardV1(env,{platform,days}));
+      return json(await commerceSalesDashboardV1(env,{platform,days,month}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales/import-history'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();

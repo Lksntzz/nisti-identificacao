@@ -556,3 +556,4 @@
 .ndb-sumlist dt{font-size:11px;color:#7a8aa3;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
 .ndb-sumlist dd{margin:0;font-size:13px;color:#14213d;font-variant-numeric:tabular-nums}
 @media (max-width:1180px){.ndb-root:not(.is-explorer) .ndb-main{grid-template-columns:1fr}.ndb-duo{grid-template-columns:1fr}}
+.ndb-dd-list{max-height:min(60vh,380px);overflow-y:auto}
