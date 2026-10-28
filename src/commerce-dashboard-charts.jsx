@@ -87,7 +87,7 @@ export function PlatformSplit({daily,platform,onPick}){
   if(total<=0)return <p className="ndb-empty">Sem faturamento no período.</p>;
   const parts=PLATS.map((p,i)=>({p,v:sums[i]})).filter(x=>x.v>0);
   return <div className="ndb-split">
-    <div className="ndb-split-bar" role="img" aria-label="Divisão do faturamento por plataforma">{parts.map(({p,v})=><i key={p[0]} style={{width:v/total*100+'%',background:p[6]}} title={p[1]+': '+money(v)}/>)}</div>
+    <div className="ndb-split-bar" role="img" aria-label="Divisão do faturamento por plataforma">{parts.map(({p,v})=><i key={p[0]} style={{width:v/total*100+'%',background:p[6],cursor:platform==='TODAS'&&onPick?'pointer':'default'}} title={p[1]+': '+money(v)+' ('+(v/total*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%)'+(platform==='TODAS'&&onPick?' — clique para filtrar':'')} onClick={()=>platform==='TODAS'&&onPick&&onPick(p[0])}/>)}</div>
     <ul>{parts.map(({p,v})=>{const can=platform==='TODAS';
       return <li key={p[0]}><i style={{background:p[6]}}/>
         {can?<button type="button" className="ndb-link" onClick={()=>onPick(p[0])} title={'Filtrar o dashboard só por '+p[1]}>{p[1]}</button>:<span>{p[1]}</span>}

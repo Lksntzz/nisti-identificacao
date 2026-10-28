@@ -53,7 +53,7 @@ test('listingUrl builds marketplace links from the platform and listing id',()=>
   assert.ok(src.includes("https://shopee.com.br/product/'+SHOPEE_SHOP_ID+'/'"));
   assert.ok(src.includes("https://produto.mercadolivre.com.br/MLB-'+m[1]"));
   assert.ok(src.includes('rel="noopener noreferrer"'));
-  assert.equal((src.match(/<Ext platform=/g)||[]).length,6);
+  assert.equal((src.match(/<Ext platform=/g)||[]).length,7);
 });
 test('ABC is computed per platform: never mixes Shopee, ML Antigo and ML Novo',()=>{
   const m=read('supabase/migrations/20261026270000_commerce_dashboard_abc_per_platform_v1.sql');
