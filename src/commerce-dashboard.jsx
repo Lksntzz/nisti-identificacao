@@ -16,15 +16,27 @@ const listingState=status=>status==='ACTIVE'?{label:'Ativo',cls:' on',off:false}
 const PERIODS=[7,30,60,90];
 const CLASS_NOTE={A:'Até 80% do faturamento',B:'Dos 80% aos 95%',C:'Últimos 5%'};
 
+const SALES_SRC='tabela de vendas diárias por anúncio do sistema, alimentada pelas planilhas de pedidos da Shopee e do Mercado Livre que você importa em "Importar arquivo" (o mesmo dado do Histórico de importações)';
 const SOURCES={
-  cohorts:'Data de criação do anúncio informada na planilha "Análise de Anúncios Nisti Print" (32 anúncios da Shopee e 67 itens do Mercado Livre, ligados por SKU) + vendas importadas. Os números contam do dia da criação até o último dia fechado. Não muda com o filtro de período.',
-  abc:'Vendas importadas (tabela de vendas diárias por anúncio, o mesmo dado do Histórico de importações). Usa todo o histórico de vendas importado (não muda com o filtro de período) e soma o faturamento por SKU em cada plataforma (Shopee, ML Antigo e ML Novo nunca se misturam: cada uma tem a sua própria curva), ordena do maior para o menor e classifica: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
-  drops:'Vendas importadas: compara os últimos N dias com os N dias imediatamente anteriores, por anúncio ATIVO. Entra quem tinha 5 ou mais unidades no período anterior e caiu 15% ou mais. A coluna “Preço médio” compara o preço médio realizado. A coluna “Vendas por semana e por dia” mostra as unidades das últimas 4 semanas de 7 dias (terminando no último dia com venda importada) e, em “Ver por dia”, os últimos 14 dias, comparando cada dia com o mesmo dia da semana anterior.',
-  daily:'Vendas importadas (tabela de vendas diárias por anúncio): soma do faturamento de cada dia, separado por plataforma. A linha tracejada é o dia equivalente do período anterior (mesmo tamanho). Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
-  top:'Vendas importadas: os 15 anúncios com maior faturamento no período, com a variação de unidades contra o período anterior de mesmo tamanho. Título e situação vêm do cadastro de anúncios do sistema.',
-  kpi:'Vendas importadas no período escolhido, contra o período anterior de mesmo tamanho. O período termina no último dia com venda importada, não em hoje.',
-  alerts:'Calculado sobre as vendas importadas e o cadastro de anúncios: queda = anúncio ativo com 5 ou mais unidades antes e 15% ou mais de queda; pararam = anúncios ativos que já venderam 3 ou mais unidades e não têm nenhuma venda no período do filtro (30, 60 ou 90 dias; quem está parado há mais tempo também aparece nos filtros menores); sem venda = ativos sem nenhuma unidade no período; inativos com venda = anúncios inativos ou removidos que ainda aparecem nas vendas. Anúncio pago com ROAS abaixo de 1 vem do relatório Shopee Ads importado.',
-  best:'Vendas importadas, por anúncio, no período escolhido. Crescimento = ativos com 5 ou mais unidades antes, 10 ou mais agora e alta de 15% ou mais, ordenados pelas unidades a mais. ROAS vem do relatório Shopee Ads importado (período próprio) e só inclui anúncios com campanha individual. Mais vendido não significa mais lucrativo: não há custo do produto cadastrado.',
+  period:'O período termina no último dia fechado com venda importada (o dia de hoje fica de fora por estar incompleto). "Últimos N dias" é comparado com os N dias imediatamente anteriores. Ao escolher um mês, vale o mês inteiro (o mês em andamento vai até o último dia fechado) e a comparação é com o mês anterior, usando o mesmo número de dias quando o mês atual ainda não terminou.',
+  kpi:'Fonte: '+SALES_SRC+'. Faturamento = valor dos produtos vendidos, sem frete. Compara o período escolhido com o período anterior de mesmo tamanho (ou o mês anterior, se um mês foi escolhido).',
+  kpiRevenue:'Fonte: '+SALES_SRC+'. Soma do valor dos produtos vendidos no período, sem frete e sem descontar taxas. A variação compara com o período anterior de mesmo tamanho.',
+  kpiUnits:'Fonte: '+SALES_SRC+'. Soma das unidades vendidas no período. A variação compara com o período anterior de mesmo tamanho.',
+  kpiTicket:'Calculado: faturamento ÷ unidades vendidas no período. É o preço médio realizado por unidade, não por pedido. A variação compara com o período anterior.',
+  kpiDaily:'Calculado: faturamento do período ÷ dias do período (em "todo o histórico", ÷ dias que tiveram venda importada).',
+  daily:'Fonte: '+SALES_SRC+'. Cada barra é um dia, separada por plataforma (Mercado Livre soma ML Antigo e ML Novo). A linha tracejada é o dia equivalente do período anterior. Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
+  history:'Fonte: '+SALES_SRC+', somada por mês civil desde a primeira venda importada. Não muda com o filtro de período. Clique em um mês para filtrar o dashboard por ele. Barras mais claras = mês incompleto.',
+  platform:'Fonte: '+SALES_SRC+'. Divide o faturamento do período entre Shopee e Mercado Livre (ML Antigo e ML Novo juntos). Para ver cada conta do Mercado Livre separada, use o filtro Plataforma.',
+  monthly:'Fonte: '+SALES_SRC+'. Unidades vendidas por mês desde a primeira venda importada; não muda com o filtro de período. Só há vendas de 2026: para ver sazonalidade de verdade é preciso importar o ano anterior.',
+  summary:'Calculado a partir das vendas do período filtrado: média por dia, melhor e pior dia, dias sem venda e dia da semana mais forte vêm do gráfico de vendas por dia; mês mais forte vem do histórico mensal (só meses completos); concentração da classe A vem da Curva ABC.',
+  top:'Fonte: '+SALES_SRC+'. Os 15 anúncios com maior faturamento no período, com a variação contra o período anterior de mesmo tamanho. Título e situação vêm do cadastro de anúncios do sistema.',
+  best:'Fonte: '+SALES_SRC+', por anúncio, no período escolhido. Visitas e conversão vêm dos relatórios de desempenho importados (Mercado Livre e Shopee) e valem para o período de cada relatório. Crescimento = ativos com 5 ou mais unidades antes, 10 ou mais agora e alta de 15% ou mais. ROAS vem do relatório Shopee Ads importado. Mais vendido não significa mais lucrativo: não há custo do produto cadastrado.',
+  drops:'Fonte: '+SALES_SRC+'. Compara o período com o período anterior de mesmo tamanho, por anúncio ATIVO: entra quem tinha 5 ou mais unidades antes e caiu 15% ou mais. "Preço médio" compara o preço médio realizado. "Vendas por semana e por dia" mostra as 4 últimas semanas de 7 dias e, em "Ver por dia", os últimos 14 dias.',
+  alerts:'Fonte: '+SALES_SRC+' e o cadastro de anúncios. Queda = anúncio ativo com 5 ou mais unidades antes e queda de 15% ou mais. Pararam = ativos que já venderam 3 ou mais unidades e não têm nenhuma venda no período. Sem venda = ativos sem nenhuma unidade no período; "nunca venderam" = ativos sem venda em todo o histórico importado. Inativos com venda = anúncios inativos ou removidos que ainda aparecem nas vendas. ROAS abaixo de 1 vem do relatório Shopee Ads importado.',
+  abc:'Fonte: '+SALES_SRC+'. Usa todo o histórico (não muda com o filtro de período) e soma o faturamento por SKU em cada plataforma (Shopee, ML Antigo e ML Novo têm cada uma a sua curva). Ordena do maior para o menor: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
+  growing:'Fonte: '+SALES_SRC+'. Anúncios ativos que mais cresceram contra o período anterior: 5 ou mais unidades antes, 10 ou mais agora e alta de 15% ou mais.',
+  lowconv:'Fonte: relatórios de desempenho importados (visitas e conversão por anúncio) e vendas do período. Entram anúncios com 300 ou mais visitas e conversão abaixo de 1,5%. As visitas valem para o período de cada relatório, não para o filtro.',
+  cohorts:'Data de criação: planilha "Análise de Anúncios Nisti Print" (hoje 99 produtos, 32 da Shopee e 67 do Mercado Livre, ligados por SKU; só vale até a data da última atualização da planilha). Vendas: '+SALES_SRC+', contadas do dia da criação até o último dia fechado. Melhor mês = mês com mais unidades (mês incompleto aparece como parcial). Variações: cada SKU do produto, com média por dia, semana e mês desde a criação. Links: código do anúncio no cadastro do sistema. Não muda com o filtro de período.',
   trust:'Cobertura do que está no banco: último dia com venda e última importação aplicada por plataforma (Histórico de importações), dias do período com venda importada e faturamento sem SKU vinculado.',
   help:'Lista de dados que o sistema ainda não recebe e que ajudariam a explicar quedas.'
 };
@@ -437,6 +449,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const splitRows=all?(monthly?.months||[]).map(m=>({shopee:m.shopee,ml:Number(m.ml_antigo||0)+Number(m.ml_novo||0)})):series?.daily;
   const filters=<>
     <Dropdown label="Período" value={month?'m:'+month:days} options={[...PERIODS.map(p=>[p,'Últimos '+p+' dias']),[0,'Sem filtro (todo o histórico)'],...monthOptions]} onChange={v=>{if(typeof v==='string'&&v.startsWith('m:')){setMonth(v.slice(2));}else{setMonth('');setDays(v);}}}/>
+    <InfoIcon text={SOURCES.period} label="Período"/>
     <Dropdown label="Plataforma" value={platform} options={PLATFORMS} onChange={setPlatform}/>
     {mode==='explorer'&&<label className="ndb-search" title="Busca nos anúncios que aparecem nas listas abaixo (nome, SKU ou código do anúncio).">
       <span>Buscar</span>
@@ -458,10 +471,10 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-sum-row" role="group" aria-label="Resumo do período">
-      <KpiCard icon="money" label="Faturamento" source="Valor dos produtos vendidos no período, sem frete." value={money(totals.cur_rev)} chip={!all&&<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
-      <KpiCard icon="box" label="Unidades vendidas" source="Soma das unidades vendidas no período." value={num(totals.cur_units)} chip={!all&&<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
-      <KpiCard icon="cart" label="Ticket médio por unidade" source="Faturamento dividido pelas unidades vendidas." value={Number(totals.cur_units)>0?money(Number(totals.cur_rev)/Number(totals.cur_units)):'—'} chip={!all&&Number(totals.prev_units)>0&&<Delta cur={Number(totals.cur_rev)/Math.max(1,Number(totals.cur_units))} prev={Number(totals.prev_rev)/Number(totals.prev_units)}/>} foot="faturamento ÷ unidades"/>
-      <KpiCard icon="list" label="Média por dia" source="Faturamento do período dividido pelos dias do período." value={money(Number(totals.cur_rev)/Math.max(1,all?(Number(ov.window_days_with_sales)||1):span))} foot={all?'por dia com venda':'por dia no período'}/>
+      <KpiCard icon="money" label="Faturamento" source="kpiRevenue" value={money(totals.cur_rev)} chip={!all&&<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
+      <KpiCard icon="box" label="Unidades vendidas" source="kpiUnits" value={num(totals.cur_units)} chip={!all&&<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
+      <KpiCard icon="cart" label="Ticket médio por unidade" source="kpiTicket" value={Number(totals.cur_units)>0?money(Number(totals.cur_rev)/Number(totals.cur_units)):'—'} chip={!all&&Number(totals.prev_units)>0&&<Delta cur={Number(totals.cur_rev)/Math.max(1,Number(totals.cur_units))} prev={Number(totals.prev_rev)/Number(totals.prev_units)}/>} foot="faturamento ÷ unidades"/>
+      <KpiCard icon="list" label="Média por dia" source="kpiDaily" value={money(Number(totals.cur_rev)/Math.max(1,all?(Number(ov.window_days_with_sales)||1):span))} foot={all?'por dia com venda':'por dia no período'}/>
     </div>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-idx-row" role="group" aria-label="Índices de performance">
       <IndexCard icon="box" tone="good" label="Vendendo" value={num(totals.listings||0)} foot={all?'anúncios com venda no histórico':'anúncios com venda no período'} active={tab==='best'&&focus} onClick={()=>goTab('best')} title="Anúncios que tiveram ao menos uma venda no período do filtro."/>
@@ -471,19 +484,19 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
-        {mode==='overview'&&<Panel title={all?'Histórico de vendas por mês':'Vendas por dia'} icon="chart" source={all?'Faturamento (ou unidades) de cada mês desde o início das vendas importadas, separado por plataforma. Clique em um mês para filtrar o dashboard por ele.':'Faturamento (ou unidades) de cada dia do período, separado por plataforma, com a linha do dia equivalente do período anterior. Passe o mouse sobre as barras para ver o detalhe.'} className="ndb-trend-panel" aside={month&&<button type="button" className="ndb-link" onClick={()=>{setMonth('');setDays(0);}}>Ver todos os meses</button>}>
+        {mode==='overview'&&<Panel title={all?'Histórico de vendas por mês':'Vendas por dia'} icon="chart" source={all?'history':'daily'} className="ndb-trend-panel" aside={month&&<button type="button" className="ndb-link" onClick={()=>{setMonth('');setDays(0);}}>Ver todos os meses</button>}>
           {all?(monthly?<MonthsTrend months={monthly.months} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>)
             :(series?<SalesTrend daily={series.daily} platform={platform}/>:<p className="ndb-empty">{loading?'Carregando…':'Gráfico indisponível.'}</p>)}
         </Panel>}
         {mode==='overview'&&<div className="ndb-duo">
-          <Panel title="Faturamento por plataforma" icon="pie" source="Divisão do faturamento do período entre Shopee e Mercado Livre (ML Antigo e ML Novo juntos).">
+          <Panel title="Faturamento por plataforma" icon="pie" source="platform">
             {splitRows?<PlatformSplit daily={splitRows} platform={platform} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>}
           </Panel>
-          <Panel title="Vendas por mês (unidades)" icon="chart" source="Unidades vendidas por mês, desde o início das vendas importadas.">
+          <Panel title="Vendas por mês (unidades)" icon="chart" source="monthly">
             <MonthlyUnits months={monthly?.months} platform={platform}/>
           </Panel>
         </div>}
-        {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="kpi" className="ndb-chart-panel ndb-rank-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
+        {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="top" className="ndb-chart-panel ndb-rank-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
           <p className="ndb-note">{all?'15 anúncios que mais faturaram em todo o histórico.':'15 anúncios que mais faturaram em '+curTxt+'.'}</p>
           <RevenueByProduct items={top} showPlatform={multi}/>
         </Panel>}
@@ -548,7 +561,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
           <ul className="ndb-alert-list">{alerts.map(a=><li key={a.k}><button type="button" className={'tone-'+a.t+(tab===a.k?' is-open':'')} disabled={a.t==='muted'} title={a.d} onClick={()=>openAlert(a.k)}>
             <span className="ndb-alert-ico"><Icon name={a.i}/></span><span className="ndb-alert-txt"><strong>{a.h}</strong><small>{a.d}</small></span><span className="ndb-alert-go" aria-hidden="true">›</span></button></li>)}</ul>
         </Panel>}
-        {mode==='overview'&&<Panel title="Resumo do período" icon="list" source="Números calculados a partir das vendas do período filtrado.">
+        {mode==='overview'&&<Panel title="Resumo do período" icon="list" source="summary">
           <SummaryList daily={series?.daily} totals={hasData?totals:null} months={monthly?.months} classes={classes} all={all}/>
         </Panel>}
         {<Panel title={'ABC · '+(PLATFORM_LABEL[abcP]||abcP)} icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>openAbc(null,true)}>Ver curva</button>}>
@@ -562,9 +575,9 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {classes.length===0&&!loading&&<p className="ndb-empty">Sem vendas no período.</p>}
           </div>
         </Panel>}
-        {<Panel title="Em alta" icon="down" className="ndb-side-panel ndb-grow-panel"><GrowingList rows={growingRows} all={all} hasOverview={Boolean(overview)}/></Panel>}
-        {mode==='explorer'&&<Panel title="Muita visita, pouca venda" icon="eye" className="ndb-side-panel"><LowConversionList rows={lowConvRows} hasPerf={hasPerf} note={perfNotes.length?'Relatórios: '+perfNotes.join(' · ')+'. Visitas e conversão valem para o período de cada relatório.':''}/></Panel>}
-        {mode==='explorer'&&<Panel title="Vendas por mês (unidades)" icon="chart" className="ndb-side-panel"><MonthlyUnits months={monthly?.months} platform={platform}/></Panel>}
+        {<Panel title="Em alta" icon="down" source="growing" className="ndb-side-panel ndb-grow-panel"><GrowingList rows={growingRows} all={all} hasOverview={Boolean(overview)}/></Panel>}
+        {mode==='explorer'&&<Panel title="Muita visita, pouca venda" icon="eye" source="lowconv" className="ndb-side-panel"><LowConversionList rows={lowConvRows} hasPerf={hasPerf} note={perfNotes.length?'Relatórios: '+perfNotes.join(' · ')+'. Visitas e conversão valem para o período de cada relatório.':''}/></Panel>}
+        {mode==='explorer'&&<Panel title="Vendas por mês (unidades)" icon="chart" source="monthly" className="ndb-side-panel"><MonthlyUnits months={monthly?.months} platform={platform}/></Panel>}
       </aside>
     </div>
     {helpOpen&&<div className="ndb-modal" role="dialog" aria-modal="true" aria-label="Definições e dados" onMouseDown={e=>{if(e.target===e.currentTarget)setHelpOpen(false);}}>
@@ -583,6 +596,8 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             <li><b>Faturamento:</b> valor dos produtos vendidos, sem frete, das vendas importadas. Não é o faturamento atribuído aos anúncios pagos.</li>
             <li><b>Pedidos:</b> soma por anúncio; um pedido com dois anúncios conta duas vezes.</li>
             <li><b>Curva ABC:</b> por SKU em cada plataforma, ordenada pelo faturamento de todo o histórico (não muda com o filtro de período). A = até 80% do total, B = até 95%, C = o restante. Produto C pode ser novo, sazonal ou estratégico.</li>
+            <li><b>Período e mês:</b> {SOURCES.period}</li>
+            <li><b>Cadastros por mês:</b> data de criação vinda da planilha “Análise de Anúncios Nisti Print”; vendas contadas do dia da criação até o último dia fechado.</li>
             <li><b>Em queda:</b> anúncio ativo com 5 ou mais unidades no período anterior e queda de 15% ou mais.</li>
             <li><b>Sem dados:</b> a informação não existe no sistema. Nunca é mostrada como zero.</li>
           </ul>
