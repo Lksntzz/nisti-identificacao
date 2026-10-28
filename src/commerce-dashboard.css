@@ -310,3 +310,28 @@
 .ndb-months-table td.tone-bad{color:#c0392b}.ndb-months-table td.tone-good{color:#1f8a4c}
 .ndb-month-days{margin:6px 0}.ndb-sb-days.is-month{grid-template-columns:repeat(auto-fill,minmax(64px,1fr))}
 .ndb-sb-day.is-peak{background:#fff3c4;border-color:#f0c24b}
+
+/* Índices de performance (substituem os cards de faturamento) */
+.ndb-idx{cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%;transition:border-color .15s,box-shadow .15s}
+.ndb-idx:hover:not(:disabled){border-color:#9db8e8;box-shadow:0 2px 8px rgba(29,95,209,.12)}
+.ndb-idx:disabled{cursor:not-allowed;opacity:.6}
+.ndb-idx.is-active{border-color:#1d5fd1;box-shadow:0 0 0 2px rgba(29,95,209,.18)}
+.ndb-idx.tone-good .ndb-kpi-ico{background:#e3f6ec;color:#139a62}
+.ndb-idx.tone-bad .ndb-kpi-ico{background:#fde8e8;color:#d63535}
+.ndb-idx.tone-warn .ndb-kpi-ico{background:#fff1d6;color:#d98a00}
+.ndb-idx.tone-muted .ndb-kpi-ico{background:#eceff5;color:#5b6b86}
+/* Faturamento por produto */
+.ndb-rev-sum{font-size:12px;font-weight:700;color:#33415f;white-space:nowrap}
+.ndb-rev-list{list-style:none;margin:0;padding:4px 14px 12px;display:flex;flex-direction:column;gap:7px}
+.ndb-rev-list li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:center}
+.ndb-rev-rank{font-size:11px;font-weight:700;color:#7a8aa3;text-align:right}
+.ndb-rev-main{min-width:0;display:flex;flex-direction:column;gap:3px}
+.ndb-rev-name{font-size:12.5px;font-weight:600;color:#1c2a48;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ndb-rev-track{height:8px;border-radius:99px;background:#eef2f9;overflow:hidden}
+.ndb-rev-track i{display:block;height:100%;border-radius:99px}
+.ndb-rev-val{display:flex;flex-direction:column;align-items:flex-end;min-width:96px}
+.ndb-rev-val b{font-size:13px;font-variant-numeric:tabular-nums}
+.ndb-rev-val small{font-size:10.5px;color:#7a8aa3;white-space:nowrap}
+.ndb-chart-panel{display:flex;flex-direction:column;min-height:0}
+.ndb-rev-list{flex:1;min-height:0;overflow-y:auto;gap:5px}
+.ndb-rev-track{height:6px}

@@ -27,8 +27,8 @@ test('rota e SQL de vendas por mes sao somente leitura e restritos ao service_ro
   assert.match(router, /listings\/manager\/sales-months/);
 });
 
-test('dashboard mostra selo de mes mais vendido e painel de meses', () => {
-  const dash = fs.readFileSync('src/commerce-dashboard.jsx', 'utf8');
+test('Painel Comercial mostra selo de mes mais vendido e painel de meses', () => {
+  const dash = fs.readFileSync('src/commerce-ad-manager.jsx', 'utf8');
   assert.match(dash, /MonthsPanelRow/);
   assert.match(dash, /useSalesMonths/);
   const comp = fs.readFileSync('src/commerce-sales-breakdown.jsx', 'utf8');
