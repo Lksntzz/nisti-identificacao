@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
+import PeriodPicker from './commerce-period-picker.jsx';
 import CohortsTab from './commerce-cohorts.jsx';
 import {SalesTrend,MonthsTrend,PlatformSplit,SummaryList} from './commerce-dashboard-charts.jsx';
 import './commerce-dashboard.css';
@@ -444,11 +445,10 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   ];
   const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc',cohorts:'cohorts'};
   const bestAll=[...top].filter(hit).sort((x,y)=>Number(y.units)-Number(x.units));
-  const monthOptions=[...(monthly?.months||[])].reverse().map(m=>['m:'+String(m.month).slice(0,7),new Date(String(m.month).slice(0,10)+'T00:00:00Z').toLocaleDateString('pt-BR',{month:'long',year:'numeric',timeZone:'UTC'}).replace(/^./,c=>c.toUpperCase())]);
-  if(month&&!monthOptions.some(o=>o[0]==='m:'+month))monthOptions.push(['m:'+month,month]);
+  const availableMonths=(monthly?.months||[]).map(m=>String(m.month).slice(0,7));
   const splitRows=all?(monthly?.months||[]).map(m=>({shopee:m.shopee,ml:Number(m.ml_antigo||0)+Number(m.ml_novo||0)})):series?.daily;
   const filters=<>
-    <Dropdown label="Período" value={month?'m:'+month:days} options={[...PERIODS.map(p=>[p,'Últimos '+p+' dias']),[0,'Sem filtro (todo o histórico)'],...monthOptions]} onChange={v=>{if(typeof v==='string'&&v.startsWith('m:')){setMonth(v.slice(2));}else{setMonth('');setDays(v);}}}/>
+    <PeriodPicker days={days} month={month} periods={PERIODS} available={availableMonths} onDays={v=>{setMonth('');setDays(v);}} onMonth={setMonth}/>
     <InfoIcon text={SOURCES.period} label="Período"/>
     <Dropdown label="Plataforma" value={platform} options={PLATFORMS} onChange={setPlatform}/>
     {mode==='explorer'&&<label className="ndb-search" title="Busca nos anúncios que aparecem nas listas abaixo (nome, SKU ou código do anúncio).">

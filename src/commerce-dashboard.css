@@ -557,3 +557,19 @@
 .ndb-sumlist dd{margin:0;font-size:13px;color:#14213d;font-variant-numeric:tabular-nums}
 @media (max-width:1180px){.ndb-root:not(.is-explorer) .ndb-main{grid-template-columns:1fr}.ndb-duo{grid-template-columns:1fr}}
 .ndb-dd-list{max-height:min(60vh,380px);overflow-y:auto}
+
+.ndb-pp-menu{padding:6px;min-width:260px}
+.ndb-pp-menu ul{list-style:none;margin:0;padding:0}
+.ndb-pp-menu li button i{float:right;font-style:normal;color:#7a8aa3}
+.ndb-pp-menu li button.is-active i{color:#fff}
+.ndb-pp-cal{border-top:1px solid #eef2f8;margin-top:6px;padding:8px 6px 4px}
+.ndb-pp-year{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.ndb-pp-year b{font-size:14px;color:#14213d}
+.ndb-pp-year button{width:30px!important;height:30px;padding:0!important;text-align:center!important;border:1px solid #dfe7f5!important;background:#fff!important;border-radius:8px!important;font-size:16px!important;cursor:pointer}
+.ndb-pp-year button:disabled{opacity:.35;cursor:default}
+.ndb-pp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ndb-pp-grid button{text-align:center!important;padding:8px 0!important;border:1px solid #dfe7f5!important;border-radius:8px!important;font-weight:700!important}
+.ndb-pp-grid button:disabled{opacity:.35;cursor:default;background:#f6f8fc!important}
+.ndb-pp-grid button.is-active{background:#1d5fd1!important;border-color:#1d5fd1!important;color:#fff!important}
+.ndb-pp-cal p{margin:8px 0 0;font-size:11px;color:#7a8aa3;white-space:normal}
+.ndb-pp-menu{max-height:min(80vh,520px)}
