@@ -447,3 +447,13 @@
 .ndb-search input:focus{outline:2px solid #1d5fd1;outline-offset:1px}
 .ndb-head-filters .nim-import-dropdown{align-self:flex-end}
 @media (max-width:700px){.ndb-search input{min-width:0;width:100%}.ndb-search{flex:1 1 100%}}
+
+/* Aba Cadastros por mês */
+.ndb-coh{display:flex;flex-direction:column;gap:10px}
+.ndb-coh-month{border:1px solid #e1e8f4;border-radius:10px;background:#fff;overflow:hidden}
+.ndb-coh-head{width:100%;display:grid;grid-template-columns:minmax(150px,1.2fr) 1fr auto auto 18px;gap:14px;align-items:center;padding:10px 14px;background:#f5f8fe;border:0;cursor:pointer;font:inherit;color:#1c2a48;text-align:left}
+.ndb-coh-head strong{font-size:14px;text-transform:capitalize}
+.ndb-coh-head span{font-size:12px;color:#5b6b86;font-variant-numeric:tabular-nums}
+.ndb-coh-head:focus-visible{outline:2px solid #1d5fd1;outline-offset:-2px}
+.ndb-coh-table td:first-child{max-width:340px}
+@media (max-width:700px){.ndb-coh-head{grid-template-columns:1fr 1fr;row-gap:2px}.ndb-coh-head i{display:none}}
