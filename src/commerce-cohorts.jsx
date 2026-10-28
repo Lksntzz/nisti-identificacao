@@ -70,7 +70,7 @@ function ProductRow({i,lastDay,linkFor,onOpen}){
     <div className="ndb-coh-prod">
       <button type="button" className="ndb-coh-title" onClick={onOpen} title={i.title+' — ver variações'}>{i.title}</button>
       <small><span className={'ndb-coh-pill p-'+String(i.platform).toLowerCase()}>{platName(i)}</span>{i.platform==='ML'?i.product_ref+' · '+num(i.account==='NOVO'&&i.skus!=null?i.skus:i.listings)+((i.account==='NOVO'&&i.skus!=null?i.skus:i.listings)===1?' variação':' variações'):i.listing_id+' · SKU '+i.product_ref}</small>
-      <Links platform={i.platform} ids={i.listing_ids} linkFor={linkFor}/>
+      <Links platform={i.platform} ids={i.product_url?[i.listing_ids[0]]:i.listing_ids} linkFor={i.product_url?(()=>i.product_url):linkFor}/>
     </div>
     <div className="ndb-coh-when"><b>{dmy(i.created_on)}</b><small>{num(i.age_days)} dias · {first}</small></div>
     <EarlyBars item={i}/>
@@ -115,7 +115,7 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
       <header className="ndb-coh-dhead">
         <div><h3>{item.title}</h3>
           <p><span className={'ndb-coh-pill p-'+String(item.platform).toLowerCase()}>{platName(item)}</span>{item.platform==='ML'?item.product_ref:item.listing_id+' · SKU '+item.product_ref} · criado em {dmy(item.created_on)} · {num(item.age_days)} dias · {num(item.units)} un. · {money(item.revenue)}</p>
-          <Links platform={item.platform} ids={item.listing_ids} linkFor={linkFor} max={8}/></div>
+          <Links platform={item.platform} ids={item.product_url?[item.listing_ids[0]]:item.listing_ids} linkFor={item.product_url?(()=>item.product_url):linkFor} max={8}/></div>
         <button type="button" ref={closeRef} className="ndb-coh-close" onClick={onClose} aria-label="Fechar">×</button>
       </header>
       {error&&<p className="ndb-empty">Consulta indisponível. Feche e tente de novo.</p>}
