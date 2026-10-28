@@ -206,6 +206,8 @@ function MonthlyUnits({months,platform}){
   </div>;
 }
 
+const normSearch=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+
 function useBox(){
   const ref=useRef(null);
   const [dim,setDim]=useState({W:760,H:200});
@@ -286,8 +288,9 @@ function Dropdown({label,value,options,onChange}){
   </div>;
 }
 
-export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null}){
+export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null,actions=null}){
   const [platform,setPlatform]=useState('TODAS');
+  const [query,setQuery]=useState('');
   const [days,setDays]=useState(30);
   const [data,setData]=useState(null);
   const [overview,setOverview]=useState(null);
@@ -372,7 +375,9 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const salesRows=(rk,lid,sb,anchored,span)=><>{openDays[rk]&&sb&&<DailySalesRow anchored={anchored} data={sb} colSpan={span}/>}{openMonths[rk]&&salesMonths[lid]&&<MonthsPanelRow listingId={lid} data={salesMonths[lid]} colSpan={span}/>}</>;
   const totals=data?.totals||{};
   const classes=data?.abc?.classes_by_platform?.[abcP]||[];
-  const allItems=(data?.abc?.items||[]).filter(i=>i.platform===abcP);
+  const qn=normSearch(query);
+  const hit=r=>!qn||[r.title,r.sku,r.ean,r.external_id,r.product_key].some(v=>normSearch(v).includes(qn));
+  const allItems=(data?.abc?.items||[]).filter(i=>i.platform===abcP).filter(hit);
   const hasData=data&&data.last_day;
   const per=hasData?(all?{curFrom:data.first_day||data.current_start,curTo:data.last_day,prevFrom:null,prevTo:null}:{curFrom:addDays(data.last_day,-days+1),curTo:data.last_day,prevFrom:addDays(data.last_day,-2*days+1),prevTo:addDays(data.last_day,-days)}):null;
   const rng=(a,b)=>fmtDay(a)+' a '+fmtDay(b);
@@ -399,7 +404,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const goTab=k=>{if(onOpenTab)onOpenTab(k);else{if(k==='never'){setNsf('never');setTab('nosales');}else setTab(k);}};
   const openAlert=k=>goTab(k);
   
-  const stoppedRows=ov.stopped||[];
+  const stoppedRows=(ov.stopped||[]).filter(hit);
   const firstDay=fmtDayFull((ov.coverage||[]).map(c=>c.first_day).filter(Boolean).sort()[0]);
   const TABS=[
     ['best','Melhores produtos',null],
@@ -409,12 +414,17 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     ['abc','Curva ABC',null]
   ];
   const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc'};
-  const bestAll=[...top].sort((x,y)=>Number(y.units)-Number(x.units));
+  const bestAll=[...top].filter(hit).sort((x,y)=>Number(y.units)-Number(x.units));
   const filters=<>
     <Dropdown label="Período" value={days} options={[...PERIODS.map(p=>[p,'Últimos '+p+' dias']),[0,'Sem filtro (todo o histórico)']]} onChange={setDays}/>
     <Dropdown label="Plataforma" value={platform} options={PLATFORMS} onChange={setPlatform}/>
+    {mode==='explorer'&&<label className="ndb-search" title="Busca nos anúncios que aparecem nas listas abaixo (nome, SKU ou código do anúncio).">
+      <span>Buscar</span>
+      <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Produto, SKU ou código" aria-label="Buscar produto, SKU ou código do anúncio"/>
+    </label>}
+    {actions}
   </>;
-  const whyRows=drops;
+  const whyRows=drops.filter(hit);
   return <section className={'ndb-root'+(mode==='explorer'?' is-explorer':'')} aria-label="Dashboard comercial">
     <header className="ndb-head">
       <div className="ndb-head-title"><div>
@@ -475,7 +485,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             <div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',(ov.no_sales||[]).length],['stopped','Vendia e parou',(ov.no_sales||[]).filter(r=>r.last_sale).length],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length]].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>
             </div><PeriodBar cur={curTxt}/>
           <div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th>{multi&&<th>Plataforma</th>}<th>Última venda</th><th>Como vendia antes de parar</th></tr></thead><tbody>
-            {(ov.no_sales||[]).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);const rk='n'+r.platform+r.external_id;const sb=noSalesBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
+            {(ov.no_sales||[]).filter(hit).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);const rk='n'+r.platform+r.external_id;const sb=noSalesBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               {multi&&<td>{PLATFORM_LABEL[r.platform]||r.platform}</td>}<td>{sold?fmtDayFull(r.last_sale):'nunca'}</td><td>{sold?salesCell(rk,r.listing_id,sb,true):<span className="ndb-sb-empty">nunca vendeu nos dados</span>}</td></tr>{sold&&salesRows(rk,r.listing_id,sb,true,multi?4:3)}</React.Fragment>;})}
             {(ov.no_sales||[]).length===0&&<tr><td colSpan={multi?4:3} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>
