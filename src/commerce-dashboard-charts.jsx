@@ -60,7 +60,7 @@ export function SalesTrend({daily,platform='TODAS'}){
     </div>
     <div className="ndb-trend-box">
       <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label={isRev?'Faturamento por dia':'Unidades por dia'} onMouseMove={onMove} onMouseLeave={()=>setHover(null)}>
-        {ticks.map(t=><g key={t}><line x1={L} x2={W-R} y1={y(t)} y2={y(t)} stroke="#e8edf5"/><text x={L-6} y={y(t)+3} textAnchor="end" fontSize="10" fill="#7a8aa3">{isRev?axisMoney(t):Math.round(t)}</text></g>)}
+        {ticks.map(t=><g key={t}><line x1={L} x2={W-R} y1={y(t)} y2={y(t)} className="ndb-grid-line"/><text x={L-6} y={y(t)+3} textAnchor="end" fontSize="10" fill="#7a8aa3">{isRev?axisMoney(t):Math.round(t)}</text></g>)}
         {rows.map((r,i)=>{const w=Math.max(2,bw*.7);let acc=0;
           return <g key={r.day} opacity={hover==null||hover===i?1:.55}>
             {PLATS.map((p,k)=>{const v=r.parts[k];if(!(v>0)||!visible(platform,p[0]))return null;const y0=y(acc+v),hh=y(acc)-y0;acc+=v;
@@ -184,7 +184,7 @@ export function MonthsTrend({months,platform='TODAS',onPick}){
     </div>
     <div className="ndb-trend-box">
       <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label="Vendas de todos os meses" onMouseLeave={()=>setHover(null)}>
-        {[0,.25,.5,.75,1].map(t=>{const v=t*max;return <g key={t}><line x1={L} x2={W-R} y1={y(v)} y2={y(v)} stroke="#e8edf5"/><text x={L-6} y={y(v)+3} textAnchor="end" fontSize="10" fill="#7a8aa3">{isRev?axisMoney(v):Math.round(v)}</text></g>;})}
+        {[0,.25,.5,.75,1].map(t=>{const v=t*max;return <g key={t}><line x1={L} x2={W-R} y1={y(v)} y2={y(v)} className="ndb-grid-line"/><text x={L-6} y={y(v)+3} textAnchor="end" fontSize="10" fill="#7a8aa3">{isRev?axisMoney(v):Math.round(v)}</text></g>;})}
         {rows.map((r,i)=>{const w=Math.max(6,bw*.62);const o=hover==null||hover===i?1:.55;let acc=0;
           return <g key={r.m} opacity={r.partial?o*.7:o} style={{cursor:'pointer'}} onMouseEnter={()=>setHover(i)} onClick={()=>onPick&&onPick(String(r.m).slice(0,7))}>
             <rect x={L+bw*i} y={T} width={bw} height={ph} fill="transparent"/>

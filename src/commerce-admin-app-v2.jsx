@@ -11,6 +11,7 @@ import { usePrivacy, setPrivate } from './commerce-privacy.js';
 import { useDark, setDark, applyTheme } from './commerce-theme.js';
 import './nisti-motion.css';
 import './nisti-motion.js';
+import './commerce-dark.css';
 
 const IS_GA = typeof window !== 'undefined' && window.location.hostname === 'ga.sistemanistiid.online';
 const LOGOUT_ACTION = IS_GA ? '/ga-logout' : '/admin-logout';
