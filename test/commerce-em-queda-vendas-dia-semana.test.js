@@ -132,7 +132,7 @@ test('aba Cadastros por mês: rota, consulta no banco e tela estão ligadas',()=
   const mig=r('supabase/migrations/20261028150100_commerce_listing_cohorts_v1.sql');
   assert.match(router,/sales-dashboard\/cohorts/);
   assert.match(router,/platform\.startsWith\('ML_'\)\?'ML':platform/);
-  assert.match(store,/commerce_listing_cohorts_v2/);
+  assert.match(store,/commerce_listing_cohorts_v3/);
   assert.match(dash,/\['cohorts','Cadastros por mês',null\]/);
   assert.match(dash,/<CohortsTab platform=\{platform\} query=\{query\} linkFor=\{listingUrl\}\/>/);
   assert.match(tab,/sales-dashboard\/cohorts\?platform=/);
@@ -147,7 +147,7 @@ test('Cadastros por mês: detalhe por variação, melhor mês e links',()=>{
   const mig=r('supabase/migrations/20261028160000_commerce_listing_cohorts_v2.sql');
   assert.match(router,/sales-dashboard\/cohorts\/detail/);
   assert.match(router,/Filtro do detalhe inválido/);
-  assert.match(store,/commerce_listing_cohort_detail_v3/);
+  assert.match(store,/commerce_listing_cohort_detail_v4/);
   assert.match(tab,/sales-dashboard\/cohorts\/detail\?platform=/);
   assert.match(tab,/role="dialog"/);
   assert.match(tab,/Por dia/);assert.match(tab,/Por semana/);assert.match(tab,/Por mês/);
@@ -258,4 +258,11 @@ test('Cadastros por mês: uma linha por anúncio, sem misturar vendas nem varia�
   assert.doesNotMatch(m,/group by c\.platform, c\.product_ref/);
   assert.match(m,/grant execute on function public\.commerce_listing_cohort_detail_v3\(text,text\) to service_role/);
   assert.match(readFileSync('src/commerce-cohorts.jsx','utf8'),/&listing='\+encodeURIComponent\(item\.listing_id\)/);
+});
+
+test('Cadastros por mês: anúncio por linha e variações dentro (Shopee por anúncio, ML por produto)', () => {
+  const m=readFileSync('supabase/migrations/20261028210000_commerce_cohorts_anuncio_e_variacoes_v3.sql','utf8');
+  assert.match(m,/case when c\.platform='ML' then c\.product_ref else c\.external_listing_id end k/);
+  assert.match(m,/grant execute on function public\.commerce_listing_cohort_detail_v4\(text,text\) to service_role/);
+  assert.doesNotMatch(m,/\b(insert into|update public|delete from|drop )\b/i);
 });
