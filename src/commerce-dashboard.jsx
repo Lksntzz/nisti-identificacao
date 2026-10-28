@@ -3,6 +3,7 @@ import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
 import CohortsTab from './commerce-cohorts.jsx';
+import {SalesTrend,PlatformSplit,SummaryList} from './commerce-dashboard-charts.jsx';
 import './commerce-dashboard.css';
 
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
@@ -130,7 +131,7 @@ function Icon({name}){
 
 function Panel({title,icon,source,children,className='',aside}){
   return <section className={'ndb-panel '+className}>
-    <header><h3>{icon&&<span className="ndb-ico"><Icon name={icon}/></span>}{title}</h3>{aside}{source&&<InfoIcon text={SOURCES[source]} label={title}/>}</header>
+    <header><h3>{icon&&<span className="ndb-ico"><Icon name={icon}/></span>}{title}</h3>{aside}{source&&<InfoIcon text={SOURCES[source]||source} label={title}/>}</header>
     {children}
   </section>;
 }
@@ -318,14 +319,22 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
       .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});
     return()=>controller.abort();
   },[platform,days]);
+  const [series,setSeries]=useState(null);
   useEffect(()=>{
-    if(mode!=='explorer')return undefined;
+    if(mode!=='overview')return undefined;
+    const controller=new AbortController();
+    setSeries(null);
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/series?platform='+platform+'&days='+(days===0?90:days),{signal:controller.signal})
+      .then(setSeries).catch(()=>{if(!controller.signal.aborted)setSeries(null);});
+    return()=>controller.abort();
+  },[platform,days,mode]);
+  useEffect(()=>{
     const controller=new AbortController();
     setMonthly(null);
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/monthly?platform='+platform,{signal:controller.signal})
       .then(setMonthly).catch(()=>{if(!controller.signal.aborted)setMonthly(null);});
     return()=>controller.abort();
-  },[platform,mode]);
+  },[platform]);
   const abcP=platform==='TODAS'?abcPlat:platform;
   const all=days===0;
   // Desempenho do Mercado Livre (relatório importado): visitas e conversão por anúncio; falha silenciosa.
@@ -405,6 +414,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const multi=platform==='TODAS';
   const goTab=k=>{if(onOpenTab)onOpenTab(k);else{if(k==='never'){setNsf('never');setTab('nosales');}else setTab(k);}};
   const openAlert=k=>goTab(k);
+  const openAbc=(c,curveMode)=>{if(mode==='overview'){goTab('abc');return;}setTab('abc');setCurve(curveMode);if(c)setCls(c);};
   
   const stoppedRows=(ov.stopped||[]).filter(hit);
   const firstDay=fmtDayFull((ov.coverage||[]).map(c=>c.first_day).filter(Boolean).sort()[0]);
@@ -440,6 +450,12 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     </header>
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
+    {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-sum-row" role="group" aria-label="Resumo do período">
+      <KpiCard icon="money" label="Faturamento" source="Valor dos produtos vendidos no período, sem frete." value={money(totals.cur_rev)} chip={!all&&<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
+      <KpiCard icon="box" label="Unidades vendidas" source="Soma das unidades vendidas no período." value={num(totals.cur_units)} chip={!all&&<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
+      <KpiCard icon="cart" label="Ticket médio por unidade" source="Faturamento dividido pelas unidades vendidas." value={Number(totals.cur_units)>0?money(Number(totals.cur_rev)/Number(totals.cur_units)):'—'} chip={!all&&Number(totals.prev_units)>0&&<Delta cur={Number(totals.cur_rev)/Math.max(1,Number(totals.cur_units))} prev={Number(totals.prev_rev)/Number(totals.prev_units)}/>} foot="faturamento ÷ unidades"/>
+      <KpiCard icon="list" label="Média por dia" source="Faturamento do período dividido pelos dias do período." value={money(Number(totals.cur_rev)/Math.max(1,all?(Number(ov.window_days_with_sales)||1):days))} foot={all?'por dia com venda':'por dia no período'}/>
+    </div>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-idx-row" role="group" aria-label="Índices de performance">
       <IndexCard icon="box" tone="good" label="Vendendo" value={num(totals.listings||0)} foot={all?'anúncios com venda no histórico':'anúncios com venda no período'} active={tab==='best'&&focus} onClick={()=>goTab('best')} title="Anúncios que tiveram ao menos uma venda no período do filtro."/>
       <IndexCard icon="down" tone="bad" label="Em queda" value={all?'—':num(data?.drops?.total||0)} foot={all?'escolha um período':'vendem menos que no período anterior'} active={tab==='drops'&&focus} disabled={all} onClick={()=>goTab('drops')} title="Anúncios ativos que venderam pelo menos 15% menos que no período anterior."/>
@@ -448,7 +464,18 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
-        {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="kpi" className="ndb-chart-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
+        {mode==='overview'&&<Panel title="Vendas por dia" icon="chart" source="Faturamento (ou unidades) de cada dia do período, separado por plataforma, com a linha do dia equivalente do período anterior. Passe o mouse sobre as barras para ver o detalhe. Com 'todo o histórico' o gráfico mostra os últimos 90 dias." className="ndb-trend-panel" aside={all&&<span className="ndb-rev-sum">últimos 90 dias</span>}>
+          {series?<SalesTrend daily={series.daily} platform={platform}/>:<p className="ndb-empty">{loading?'Carregando…':'Gráfico indisponível.'}</p>}
+        </Panel>}
+        {mode==='overview'&&<div className="ndb-duo">
+          <Panel title="Faturamento por plataforma" icon="pie" source="Divisão do faturamento do período entre Shopee e Mercado Livre (ML Antigo e ML Novo juntos).">
+            {series?<PlatformSplit daily={series.daily} platform={platform} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>}
+          </Panel>
+          <Panel title="Vendas por mês (unidades)" icon="chart" source="Unidades vendidas por mês, desde o início das vendas importadas.">
+            <MonthlyUnits months={monthly?.months} platform={platform}/>
+          </Panel>
+        </div>}
+        {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="kpi" className="ndb-chart-panel ndb-rank-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
           <p className="ndb-note">{all?'15 anúncios que mais faturaram em todo o histórico.':'15 anúncios que mais faturaram em '+curTxt+'.'}</p>
           <RevenueByProduct items={top} showPlatform={multi}/>
         </Panel>}
@@ -513,10 +540,13 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
           <ul className="ndb-alert-list">{alerts.map(a=><li key={a.k}><button type="button" className={'tone-'+a.t+(tab===a.k?' is-open':'')} disabled={a.t==='muted'} title={a.d} onClick={()=>openAlert(a.k)}>
             <span className="ndb-alert-ico"><Icon name={a.i}/></span><span className="ndb-alert-txt"><strong>{a.h}</strong><small>{a.d}</small></span><span className="ndb-alert-go" aria-hidden="true">›</span></button></li>)}</ul>
         </Panel>}
-        {mode==='explorer'&&<Panel title={'ABC · '+(PLATFORM_LABEL[abcP]||abcP)} icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>{setTab('abc');setCurve(true);}}>Ver curva</button>}>
+        {mode==='overview'&&<Panel title="Resumo do período" icon="list" source="Números calculados a partir das vendas do período filtrado.">
+          <SummaryList daily={series?.daily} totals={hasData?totals:null} months={monthly?.months} classes={classes} all={all}/>
+        </Panel>}
+        {<Panel title={'ABC · '+(PLATFORM_LABEL[abcP]||abcP)} icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>openAbc(null,true)}>Ver curva</button>}>
           {platform==='TODAS'&&<div className="ndb-seg ndb-abc-plat" role="group" aria-label="Plataforma da curva ABC">{['SHOPEE','ML_ANTIGO','ML_NOVO'].map(v=><button key={v} type="button" className={v===abcPlat?'is-active':''} aria-pressed={v===abcPlat} onClick={()=>setAbcPlat(v)}>{PLATFORM_LABEL[v]}</button>)}</div>}
           <div className="ndb-abc">
-            {classes.map(c=><button type="button" key={c.class} className={'ndb-abc-card c-'+c.class+(tab==='abc'&&cls===c.class?' is-active':'')} onClick={()=>{setTab('abc');setCurve(false);setCls(c.class);}} aria-pressed={tab==='abc'&&cls===c.class} title={CLASS_NOTE[c.class]+' · '+money(c.revenue)}>
+            {classes.map(c=><button type="button" key={c.class} className={'ndb-abc-card c-'+c.class+(mode==='explorer'&&tab==='abc'&&cls===c.class?' is-active':'')} onClick={()=>openAbc(c.class,false)} aria-pressed={mode==='explorer'&&tab==='abc'&&cls===c.class} title={CLASS_NOTE[c.class]+' · '+money(c.revenue)}>
               <span className="ndb-abc-badge" style={{background:CLASS_COLOR[c.class]}}>{c.class}</span>
               <div><strong>{String(c.revenue_pct).replace('.',',')}% do faturamento</strong><small>{Math.round(Number(c.products)/totalProducts*100)}% dos produtos ({num(c.products)}) · {money(c.revenue)}</small></div>
               <i className="ndb-abc-bar"><b style={{width:Number(c.revenue_pct)+'%',background:CLASS_COLOR[c.class]}}/></i>
@@ -524,7 +554,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {classes.length===0&&!loading&&<p className="ndb-empty">Sem vendas no período.</p>}
           </div>
         </Panel>}
-        {mode==='explorer'&&<Panel title="Em alta" icon="down" className="ndb-side-panel ndb-grow-panel"><GrowingList rows={growingRows} all={all} hasOverview={Boolean(overview)}/></Panel>}
+        {<Panel title="Em alta" icon="down" className="ndb-side-panel ndb-grow-panel"><GrowingList rows={growingRows} all={all} hasOverview={Boolean(overview)}/></Panel>}
         {mode==='explorer'&&<Panel title="Muita visita, pouca venda" icon="eye" className="ndb-side-panel"><LowConversionList rows={lowConvRows} hasPerf={hasPerf} note={perfNotes.length?'Relatórios: '+perfNotes.join(' · ')+'. Visitas e conversão valem para o período de cada relatório.':''}/></Panel>}
         {mode==='explorer'&&<Panel title="Vendas por mês (unidades)" icon="chart" className="ndb-side-panel"><MonthlyUnits months={monthly?.months} platform={platform}/></Panel>}
       </aside>

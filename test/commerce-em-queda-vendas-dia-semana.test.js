@@ -109,7 +109,7 @@ test('coluna Plataforma so aparece em Todas as plataformas; health usa chamada d
 
 test('Painel Comercial tem blocos Em alta, Muita visita pouca venda e Vendas por mês (só no explorer)',()=>{
   const src=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
-  assert.match(src,/mode==='explorer'&&<Panel title="Em alta"/);
+  assert.match(src,/<Panel title="Em alta"/);
   assert.match(src,/mode==='explorer'&&<Panel title="Muita visita, pouca venda"/);
   assert.match(src,/mode==='explorer'&&<Panel title="Vendas por mês \(unidades\)"/);
   assert.match(src,/Number\(pf\.visits\)>=300/);
@@ -154,4 +154,16 @@ test('Cadastros por mês: detalhe por variação, melhor mês e links',()=>{
   assert.match(tab,/Melhor mês/);assert.match(tab,/Mostrar mais/);
   assert.match(mig,/grant execute on function public\.commerce_listing_cohort_detail_v1\(text,text\) to service_role/);
   assert.match(mig,/best_month/);
+});
+
+test('Dashboard (visão geral): resumo, gráfico de vendas por dia, plataforma e resumo do período',()=>{
+  const dash=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
+  const ch=readFileSync(new URL('../src/commerce-dashboard-charts.jsx',import.meta.url),'utf8');
+  assert.match(dash,/sales-dashboard\/series\?platform=/);
+  assert.match(dash,/<SalesTrend daily=\{series\.daily\}/);
+  assert.match(dash,/title="Faturamento por plataforma"/);
+  assert.match(dash,/title="Resumo do período"/);
+  assert.match(dash,/Ticket médio por unidade/);
+  assert.match(ch,/onMouseMove/);
+  assert.match(ch,/Dia equivalente anterior/);
 });
