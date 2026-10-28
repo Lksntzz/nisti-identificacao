@@ -192,3 +192,12 @@ test('Ícones de informação explicam a origem dos dados de cada bloco do Dashb
   assert.match(d,/<Panel title="Em alta" icon="down" source="growing"/);
   assert.match(d,/<Panel title="Muita visita, pouca venda" icon="eye" source="lowconv"/);
 });
+
+test('Período: opção Personalizado abre calendário por ano com os meses que têm vendas',()=>{
+  const pk=readFileSync(new URL('../src/commerce-period-picker.jsx',import.meta.url),'utf8');
+  const d=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
+  assert.match(pk,/Personalizado…/);
+  assert.match(pk,/Ano anterior/);assert.match(pk,/Próximo ano/);
+  assert.match(pk,/Meses sem vendas importadas ficam desativados/);
+  assert.match(d,/<PeriodPicker days=\{days\} month=\{month\}/);
+});

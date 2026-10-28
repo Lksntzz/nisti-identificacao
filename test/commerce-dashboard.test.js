@@ -86,7 +86,7 @@ test('Sem filtro: period 0 accumulates all sales, monthly chart per platform, AB
   assert.doesNotMatch(a+m,/\b(insert into|update public|delete from|drop )\b/i);
   assert.ok(router.includes("![0,7,30,60,90].includes(days)"));
   assert.ok(router.includes("/sales-dashboard/monthly"));
-  assert.ok(ui.includes("Sem filtro (todo o histórico)"));
+  assert.ok(readFileSync(new URL("../src/commerce-period-picker.jsx",import.meta.url),"utf8").includes("Sem filtro (todo o histórico)"));
 });
 test('GA opens on the Dashboard screen by default',()=>{
   assert.ok(app.includes("useState('dashboard')"));
