@@ -51,9 +51,11 @@ export function WeeklySalesCell({data,open,onToggle,anchored=false,months,months
         <small>{i===weeks.length-1?(anchored?'Última':'Atual'):'-'+(weeks.length-1-i)+' sem.'}</small><b>{num(w.units)}</b></span>)}
     </div>
     {anchored&&<small className="ndb-sb-anchor">Semanas até a última venda ({dm(data.last_day)})</small>}
-    <span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)} vs. semana anterior</span>
-    <button type="button" className="ndb-link" onClick={onToggle} aria-expanded={open}>{open?'Ocultar dias':'Ver por dia'}</button>
-    {months&&<BestMonthBadge data={months} open={monthsOpen} onToggle={onToggleMonths}/>}
+    <div className="ndb-sb-meta">
+      <span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)} vs. sem. anterior</span>
+      <button type="button" className="ndb-link" onClick={onToggle} aria-expanded={open}>{open?'Ocultar dias':'Ver por dia'}</button>
+      {months&&<BestMonthBadge data={months} open={monthsOpen} onToggle={onToggleMonths}/>}
+    </div>
   </div>;
 }
 
