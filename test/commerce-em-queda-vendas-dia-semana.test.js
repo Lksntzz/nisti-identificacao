@@ -167,3 +167,19 @@ test('Dashboard (visão geral): resumo, gráfico de vendas por dia, plataforma e
   assert.match(ch,/onMouseMove/);
   assert.match(ch,/Dia equivalente anterior/);
 });
+
+test('Dashboard: filtro por mês específico e histórico de todos os meses',()=>{
+  const r=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
+  const dash=r('src/commerce-dashboard.jsx'),router=r('src/commerce-admin-router.js'),store=r('src/commerce-supabase-store.js');
+  const mig=r('supabase/migrations/20261028150000_commerce_dashboard_month_filter_v1.sql');
+  const ser=r('supabase/migrations/20261028170000_commerce_dashboard_month_series_v1.sql');
+  assert.match(dash,/<MonthsTrend months=\{monthly\.months\}/);
+  assert.match(dash,/sales-dashboard\/month-series\?platform=/);
+  assert.match(dash,/'&month='\+month/);
+  assert.match(router,/sales-dashboard\/month-series/);
+  assert.match(router,/MONTH_RE/);
+  assert.match(store,/commerce_dashboard_month_series_v1/);
+  assert.match(store,/p_month:cleanMonth\(filters\.month\)/);
+  assert.match(mig,/grant execute on function public\.%I\(text,integer,text\) to service_role/);
+  assert.match(ser,/grant execute on function public\.commerce_dashboard_month_series_v1\(text,text\) to service_role/);
+});

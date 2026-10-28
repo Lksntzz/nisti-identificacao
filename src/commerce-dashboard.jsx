@@ -3,7 +3,7 @@ import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
 import CohortsTab from './commerce-cohorts.jsx';
-import {SalesTrend,PlatformSplit,SummaryList} from './commerce-dashboard-charts.jsx';
+import {SalesTrend,MonthsTrend,PlatformSplit,SummaryList} from './commerce-dashboard-charts.jsx';
 import './commerce-dashboard.css';
 
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
@@ -295,6 +295,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [platform,setPlatform]=useState('TODAS');
   const [query,setQuery]=useState('');
   const [days,setDays]=useState(30);
+  const [month,setMonth]=useState('');
   const [data,setData]=useState(null);
   const [overview,setOverview]=useState(null);
   const [error,setError]=useState('');
@@ -310,7 +311,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [nsf,setNsf]=useState(initialTab==='never'?'never':'all');
   useEffect(()=>{
     const controller=new AbortController();
-    const q='?platform='+platform+'&days='+days;
+    const q='?platform='+platform+'&days='+days+(month?'&month='+month:'');
     setLoading(true);setError('');
     fetchCommercialManager('/api/admin/commerce/sales-dashboard'+q,{signal:controller.signal})
       .then(setData).catch(e=>{if(!controller.signal.aborted)setError(e.message||'Não foi possível carregar o dashboard.');})
@@ -318,16 +319,18 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/overview'+q,{signal:controller.signal})
       .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});
     return()=>controller.abort();
-  },[platform,days]);
+  },[platform,days,month]);
   const [series,setSeries]=useState(null);
   useEffect(()=>{
     if(mode!=='overview')return undefined;
-    const controller=new AbortController();
     setSeries(null);
-    fetchCommercialManager('/api/admin/commerce/sales-dashboard/series?platform='+platform+'&days='+(days===0?90:days),{signal:controller.signal})
+    if(days===0&&!month)return undefined;
+    const controller=new AbortController();
+    const url=month?'/api/admin/commerce/sales-dashboard/month-series?platform='+platform+'&month='+month:'/api/admin/commerce/sales-dashboard/series?platform='+platform+'&days='+days;
+    fetchCommercialManager(url,{signal:controller.signal})
       .then(setSeries).catch(()=>{if(!controller.signal.aborted)setSeries(null);});
     return()=>controller.abort();
-  },[platform,days,mode]);
+  },[platform,days,month,mode]);
   useEffect(()=>{
     const controller=new AbortController();
     setMonthly(null);
@@ -336,7 +339,8 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     return()=>controller.abort();
   },[platform]);
   const abcP=platform==='TODAS'?abcPlat:platform;
-  const all=days===0;
+  const all=days===0&&!month;
+  const span=month?Number(data?.days)||30:days;
   // Desempenho do Mercado Livre (relatório importado): visitas e conversão por anúncio; falha silenciosa.
   const [mlPerf,setMlPerf]=useState(null),[spPerf,setSpPerf]=useState(null);
   useEffect(()=>{
@@ -390,7 +394,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const hit=r=>!qn||[r.title,r.sku,r.ean,r.external_id,r.product_key].some(v=>normSearch(v).includes(qn));
   const allItems=(data?.abc?.items||[]).filter(i=>i.platform===abcP).filter(hit);
   const hasData=data&&data.last_day;
-  const per=hasData?(all?{curFrom:data.first_day||data.current_start,curTo:data.last_day,prevFrom:null,prevTo:null}:{curFrom:addDays(data.last_day,-days+1),curTo:data.last_day,prevFrom:addDays(data.last_day,-2*days+1),prevTo:addDays(data.last_day,-days)}):null;
+  const per=hasData?(all?{curFrom:data.first_day||data.current_start,curTo:data.last_day,prevFrom:null,prevTo:null}:month?{curFrom:data.current_start,curTo:addDays(data.current_start,span-1),prevFrom:data.previous_start,prevTo:addDays(data.previous_start,span-1)}:{curFrom:addDays(data.last_day,-days+1),curTo:data.last_day,prevFrom:addDays(data.last_day,-2*days+1),prevTo:addDays(data.last_day,-days)}):null;
   const rng=(a,b)=>fmtDay(a)+' a '+fmtDay(b);
   const curTxt=per?(all?'todo o histórico ('+rng(per.curFrom,per.curTo)+')':rng(per.curFrom,per.curTo)):'';
   const prevTxt=per&&!all?rng(per.prevFrom,per.prevTo):'';
@@ -404,7 +408,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     all?{k:'drops',t:'muted',i:'down',h:'Em queda: escolha um período',d:'A comparação com o período anterior precisa de 30, 60 ou 90 dias.'}
       :{k:'drops',t:'bad',i:'down',h:num(data?.drops?.total)+' produtos em queda',d:'Perderam '+money(data?.drops?.lost_revenue)+' de faturamento ('+curTxt+' vs. '+prevTxt+').'},
     all?{k:'stopped',t:'muted',i:'pause',h:'Pararam de vender: escolha um período',d:'Precisa de 30, 60 ou 90 dias para saber quem ficou sem vender.'}
-      :overview?{k:'stopped',t:'bad',i:'pause',h:num(ov.stopped_total??(ov.stopped||[]).length)+' pararam de vender',d:'Já venderam 3 ou mais unidades e estão sem nenhuma venda desde '+(per?fmtDayFull(per.curFrom):'o início do período')+' ('+days+' dias ou mais).'}
+      :overview?{k:'stopped',t:'bad',i:'pause',h:num(ov.stopped_total??(ov.stopped||[]).length)+' pararam de vender',d:'Já venderam 3 ou mais unidades e estão sem nenhuma venda desde '+(per?fmtDayFull(per.curFrom):'o início do período')+' ('+span+' dias ou mais).'}
       :{k:'stopped',t:'muted',i:'pause',h:'Pararam de vender: sem dados',d:'A consulta de alertas ainda não está disponível.'},
     overview?{k:'nosales',t:'warn',i:'eye',h:num(ov.no_sales_total??lst.active_without_sales)+' anúncios ativos sem vendas',d:'Nenhuma unidade vendida em '+curTxt+', de '+num(lst.active)+' anúncios ativos.'}
       :{k:'nosales',t:'muted',i:'eye',h:'Anúncios sem vendas: sem dados',d:'A consulta de alertas ainda não está disponível.'},
@@ -428,8 +432,11 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   ];
   const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc',cohorts:'cohorts'};
   const bestAll=[...top].filter(hit).sort((x,y)=>Number(y.units)-Number(x.units));
+  const monthOptions=[...(monthly?.months||[])].reverse().map(m=>['m:'+String(m.month).slice(0,7),new Date(String(m.month).slice(0,10)+'T00:00:00Z').toLocaleDateString('pt-BR',{month:'long',year:'numeric',timeZone:'UTC'}).replace(/^./,c=>c.toUpperCase())]);
+  if(month&&!monthOptions.some(o=>o[0]==='m:'+month))monthOptions.push(['m:'+month,month]);
+  const splitRows=all?(monthly?.months||[]).map(m=>({shopee:m.shopee,ml:Number(m.ml_antigo||0)+Number(m.ml_novo||0)})):series?.daily;
   const filters=<>
-    <Dropdown label="Período" value={days} options={[...PERIODS.map(p=>[p,'Últimos '+p+' dias']),[0,'Sem filtro (todo o histórico)']]} onChange={setDays}/>
+    <Dropdown label="Período" value={month?'m:'+month:days} options={[...PERIODS.map(p=>[p,'Últimos '+p+' dias']),[0,'Sem filtro (todo o histórico)'],...monthOptions]} onChange={v=>{if(typeof v==='string'&&v.startsWith('m:')){setMonth(v.slice(2));}else{setMonth('');setDays(v);}}}/>
     <Dropdown label="Plataforma" value={platform} options={PLATFORMS} onChange={setPlatform}/>
     {mode==='explorer'&&<label className="ndb-search" title="Busca nos anúncios que aparecem nas listas abaixo (nome, SKU ou código do anúncio).">
       <span>Buscar</span>
@@ -454,7 +461,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
       <KpiCard icon="money" label="Faturamento" source="Valor dos produtos vendidos no período, sem frete." value={money(totals.cur_rev)} chip={!all&&<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
       <KpiCard icon="box" label="Unidades vendidas" source="Soma das unidades vendidas no período." value={num(totals.cur_units)} chip={!all&&<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
       <KpiCard icon="cart" label="Ticket médio por unidade" source="Faturamento dividido pelas unidades vendidas." value={Number(totals.cur_units)>0?money(Number(totals.cur_rev)/Number(totals.cur_units)):'—'} chip={!all&&Number(totals.prev_units)>0&&<Delta cur={Number(totals.cur_rev)/Math.max(1,Number(totals.cur_units))} prev={Number(totals.prev_rev)/Number(totals.prev_units)}/>} foot="faturamento ÷ unidades"/>
-      <KpiCard icon="list" label="Média por dia" source="Faturamento do período dividido pelos dias do período." value={money(Number(totals.cur_rev)/Math.max(1,all?(Number(ov.window_days_with_sales)||1):days))} foot={all?'por dia com venda':'por dia no período'}/>
+      <KpiCard icon="list" label="Média por dia" source="Faturamento do período dividido pelos dias do período." value={money(Number(totals.cur_rev)/Math.max(1,all?(Number(ov.window_days_with_sales)||1):span))} foot={all?'por dia com venda':'por dia no período'}/>
     </div>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-idx-row" role="group" aria-label="Índices de performance">
       <IndexCard icon="box" tone="good" label="Vendendo" value={num(totals.listings||0)} foot={all?'anúncios com venda no histórico':'anúncios com venda no período'} active={tab==='best'&&focus} onClick={()=>goTab('best')} title="Anúncios que tiveram ao menos uma venda no período do filtro."/>
@@ -464,12 +471,13 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
-        {mode==='overview'&&<Panel title="Vendas por dia" icon="chart" source="Faturamento (ou unidades) de cada dia do período, separado por plataforma, com a linha do dia equivalente do período anterior. Passe o mouse sobre as barras para ver o detalhe. Com 'todo o histórico' o gráfico mostra os últimos 90 dias." className="ndb-trend-panel" aside={all&&<span className="ndb-rev-sum">últimos 90 dias</span>}>
-          {series?<SalesTrend daily={series.daily} platform={platform}/>:<p className="ndb-empty">{loading?'Carregando…':'Gráfico indisponível.'}</p>}
+        {mode==='overview'&&<Panel title={all?'Histórico de vendas por mês':'Vendas por dia'} icon="chart" source={all?'Faturamento (ou unidades) de cada mês desde o início das vendas importadas, separado por plataforma. Clique em um mês para filtrar o dashboard por ele.':'Faturamento (ou unidades) de cada dia do período, separado por plataforma, com a linha do dia equivalente do período anterior. Passe o mouse sobre as barras para ver o detalhe.'} className="ndb-trend-panel" aside={month&&<button type="button" className="ndb-link" onClick={()=>{setMonth('');setDays(0);}}>Ver todos os meses</button>}>
+          {all?(monthly?<MonthsTrend months={monthly.months} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>)
+            :(series?<SalesTrend daily={series.daily} platform={platform}/>:<p className="ndb-empty">{loading?'Carregando…':'Gráfico indisponível.'}</p>)}
         </Panel>}
         {mode==='overview'&&<div className="ndb-duo">
           <Panel title="Faturamento por plataforma" icon="pie" source="Divisão do faturamento do período entre Shopee e Mercado Livre (ML Antigo e ML Novo juntos).">
-            {series?<PlatformSplit daily={series.daily} platform={platform} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>}
+            {splitRows?<PlatformSplit daily={splitRows} platform={platform} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>}
           </Panel>
           <Panel title="Vendas por mês (unidades)" icon="chart" source="Unidades vendidas por mês, desde o início das vendas importadas.">
             <MonthlyUnits months={monthly?.months} platform={platform}/>
@@ -566,7 +574,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
           <h4>Confiabilidade dos dados<InfoIcon text={SOURCES.trust} label="Confiabilidade"/></h4>
           <div className="ndb-trust">
             {(ov.coverage||[]).map(c=><div key={c.platform}><strong>{PLATFORM_LABEL[c.platform]||c.platform}</strong><span>Vendas até {fmtDayFull(c.last_day)}</span><span>Importação aplicada: {c.last_import?when(c.last_import):'sem dados'}</span></div>)}
-            <div><strong>Dias com venda</strong><span>{all?num(ov.window_days_with_sales)+' dias com venda em todo o histórico':num(ov.window_days_with_sales)+' de '+days+' dias do período'+(Number(ov.window_days_with_sales)<days?' (há dias sem venda importada)':'')}</span></div>
+            <div><strong>Dias com venda</strong><span>{all?num(ov.window_days_with_sales)+' dias com venda em todo o histórico':num(ov.window_days_with_sales)+' de '+span+' dias do período'+(Number(ov.window_days_with_sales)<span?' (há dias sem venda importada)':'')}</span></div>
             <div><strong>Vendas sem SKU vinculado</strong><span>{Number(ov.unlinked?.revenue)>0?num(ov.unlinked.listings)+' anúncios, '+money(ov.unlinked.revenue)+' fora da curva ABC':'nenhuma no período'}</span></div>
             <div><strong>Margem e lucro</strong><span>Sem dados: falta cadastrar o custo do produto.</span></div>
           </div>

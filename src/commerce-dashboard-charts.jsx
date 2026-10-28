@@ -90,6 +90,7 @@ export function PlatformSplit({daily,platform,onPick}){
 
 // Resumo em linguagem simples, calculado dos mesmos números do filtro.
 export function SummaryList({daily,totals,months,classes,all}){
+  if(all)return <SummaryMonths months={months} classes={classes}/>;
   const rows=(daily||[]).map(d=>({day:d.day,v:Number(d.shopee||0)+Number(d.ml||0),u:Number(d.units||0)}));
   if(!rows.length||!totals)return <p className="ndb-empty">Sem dados no período.</p>;
   const withSales=rows.filter(r=>r.v>0);
@@ -116,6 +117,79 @@ export function SummaryList({daily,totals,months,classes,all}){
     ['Dias sem venda',noSale===0?'nenhum':noSale+' de '+rows.length],
     ['Dia da semana mais forte',WEEK[topW]+' · média '+money(wAvg[topW])],
     bestMonth&&['Mês mais forte (completo)',monthName(bestMonth)+' · '+money(monthKey(bestMonth))],
+    A&&['Concentração (classe A)',String(A.revenue_pct).replace('.',',')+'% do faturamento em '+num(A.products)+' produtos']
+  ].filter(Boolean);
+  return <dl className="ndb-sumlist">{items.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>;
+}
+
+const MON=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const monLabel=m=>{const d=String(m).slice(0,7);return MON[Number(d.slice(5,7))-1]+'/'+d.slice(2,4);};
+const monFull=m=>new Date(String(m).slice(0,10)+'T00:00:00Z').toLocaleDateString('pt-BR',{month:'long',year:'numeric',timeZone:'UTC'});
+
+// Histórico de todos os meses: barras empilhadas por plataforma; clicar num mês filtra o dashboard por ele.
+export function MonthsTrend({months,platform='TODAS',onPick}){
+  const [metric,setMetric]=useState('revenue');
+  const [hover,setHover]=useState(null);
+  const rows=useMemo(()=>(months||[]).map(m=>({m:m.month,shopee:Number(m.shopee||0),ml:Number(m.ml_antigo||0)+Number(m.ml_novo||0),
+    us:Number(m.units_shopee||0),um:Number(m.units_ml_antigo||0)+Number(m.units_ml_novo||0),partial:Boolean(m.last_day&&m.first_day&&String(m.last_day).slice(8,10)<'28')})),[months]);
+  if(!rows.length)return <p className="ndb-empty">Sem vendas importadas para este filtro.</p>;
+  const isRev=metric==='revenue';
+  const a=r=>isRev?r.shopee:r.us,b=r=>isRev?r.ml:r.um;
+  const W=760,H=250,L=48,R=10,T=12,B=26,pw=W-L-R,ph=H-T-B;
+  const max=niceMax(Math.max(1,...rows.map(r=>a(r)+b(r))));
+  const bw=pw/rows.length,x=i=>L+bw*i+bw/2,y=v=>T+ph-(v/max)*ph;
+  const fmt=v=>isRev?money(v):num(v)+' un.';
+  const h=hover!=null?rows[hover]:null;
+  const best=rows.filter(r=>!r.partial).reduce((acc,r)=>!acc||a(r)+b(r)>a(acc)+b(acc)?r:acc,null);
+  return <div className="ndb-trend">
+    <div className="ndb-trend-bar">
+      <div className="ndb-seg" role="group" aria-label="Métrica do gráfico">
+        <button type="button" className={isRev?'is-active':''} aria-pressed={isRev} onClick={()=>setMetric('revenue')}>Faturamento</button>
+        <button type="button" className={!isRev?'is-active':''} aria-pressed={!isRev} onClick={()=>setMetric('units')}>Unidades</button>
+      </div>
+      <ul className="ndb-legend">
+        {platform!=='ML_ANTIGO'&&platform!=='ML_NOVO'&&<li><i style={{background:C_SHOPEE}}/>Shopee</li>}
+        {platform!=='SHOPEE'&&<li><i style={{background:C_ML}}/>Mercado Livre</li>}
+        <li>Clique em um mês para filtrar</li>
+      </ul>
+    </div>
+    <div className="ndb-trend-box">
+      <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label="Vendas de todos os meses" onMouseLeave={()=>setHover(null)}>
+        {[0,.25,.5,.75,1].map(t=>{const v=t*max;return <g key={t}><line x1={L} x2={W-R} y1={y(v)} y2={y(v)} stroke="#e8edf5"/><text x={L-6} y={y(v)+3} textAnchor="end" fontSize="10" fill="#7a8aa3">{isRev?axisMoney(v):Math.round(v)}</text></g>;})}
+        {rows.map((r,i)=>{const w=Math.max(6,bw*.62);const o=hover==null||hover===i?1:.55;
+          return <g key={r.m} opacity={r.partial?o*.7:o} style={{cursor:'pointer'}} onMouseEnter={()=>setHover(i)} onClick={()=>onPick&&onPick(String(r.m).slice(0,7))}>
+            <rect x={L+bw*i} y={T} width={bw} height={ph} fill="transparent"/>
+            <rect x={x(i)-w/2} y={y(b(r))} width={w} height={Math.max(0,T+ph-y(b(r)))} fill={C_ML} rx="2"/>
+            <rect x={x(i)-w/2} y={y(a(r)+b(r))} width={w} height={Math.max(0,y(b(r))-y(a(r)+b(r)))} fill={C_SHOPEE} rx="2"/>
+            <text x={x(i)} y={H-8} textAnchor="middle" fontSize="10" fill={best&&best.m===r.m?'#1f8a4c':'#7a8aa3'} fontWeight={best&&best.m===r.m?'700':'400'}>{monLabel(r.m)}</text>
+          </g>;})}
+      </svg>
+      {h&&<div className="ndb-trend-tip" style={{left:Math.min(78,Math.max(22,x(hover)/W*100))+'%'}} role="status">
+        <b>{monFull(h.m)}{h.partial?' (parcial)':''}</b>
+        <span>{fmt(a(h)+b(h))}</span>
+        <small>Shopee {fmt(a(h))} · ML {fmt(b(h))}</small>
+        <small>Clique para filtrar este mês</small>
+      </div>}
+    </div>
+    {best&&<p className="ndb-note">Mês mais forte (completo): <b>{monFull(best.m)}</b> com {fmt(a(best)+b(best))}. Barras mais claras = mês incompleto.</p>}
+  </div>;
+}
+
+function SummaryMonths({months,classes}){
+  const rows=(months||[]).map(m=>({m:m.month,v:Number(m.shopee||0)+Number(m.ml_antigo||0)+Number(m.ml_novo||0),u:Number(m.units_shopee||0)+Number(m.units_ml_antigo||0)+Number(m.units_ml_novo||0),partial:Boolean(m.last_day&&String(m.last_day).slice(8,10)<'28')}));
+  if(!rows.length)return <p className="ndb-empty">Sem dados.</p>;
+  const full=rows.filter(r=>!r.partial&&r.v>0);
+  const best=full.length?full.reduce((a,r)=>r.v>a.v?r:a,full[0]):null;
+  const worst=full.length>1?full.reduce((a,r)=>r.v<a.v?r:a,full[0]):null;
+  const total=rows.reduce((a,r)=>a+r.v,0);
+  const avg=full.length?full.reduce((a,r)=>a+r.v,0)/full.length:0;
+  const A=(classes||[]).find(c=>c.class==='A');
+  const items=[
+    ['Faturamento no histórico',money(total)],
+    full.length&&['Média por mês completo',money(avg)],
+    best&&['Mês mais forte',monFull(best.m)+' · '+money(best.v)],
+    worst&&['Mês mais fraco (completo)',monFull(worst.m)+' · '+money(worst.v)],
+    ['Meses com venda',String(rows.length)],
     A&&['Concentração (classe A)',String(A.revenue_pct).replace('.',',')+'% do faturamento em '+num(A.products)+' produtos']
   ].filter(Boolean);
   return <dl className="ndb-sumlist">{items.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>;
