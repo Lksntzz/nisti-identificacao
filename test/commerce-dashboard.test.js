@@ -20,7 +20,7 @@ test('route validates platform and period; GA menu exposes the dashboard',()=>{
   assert.ok(router.includes("BASE_PATH+'/sales-dashboard'"));
   assert.ok(router.includes("['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)"));
   assert.ok(router.includes('![7,30,60,90].includes(days)'));
-  assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard />'));
+  assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard onOpenTab={openPerformance} />'));
 });
 test('every card has an info icon naming its data source',()=>{
   for(const key of ['abc','drops','best','ads','alerts'])assert.ok(ui.includes('source="'+key+'"')||ui.includes("'"+key+"'"),key);

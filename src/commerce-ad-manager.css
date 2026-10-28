@@ -530,3 +530,7 @@ button.nim-kpi:hover{box-shadow:0 3px 15px #14293a19;border-color:#99abd5}
 .nim-import-option-arrow{flex:0 0 auto;color:#9daec3;font-size:20px;line-height:1}
 .nim-import-trigger-arrow{font-size:12px;line-height:1;margin-left:3px}
 @media(max-width:600px){.nim-import-dropdown{max-width:100%}.nim-import-options{right:0;width:min(342px,calc(100vw - 26px))}}
+
+.nim-view-switch{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap}
+.nim-view-switch button{border:1px solid #d6dfef;background:#fff;color:#33415f;border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.nim-view-switch button.is-active{background:#0f2a5f;border-color:#0f2a5f;color:#fff}

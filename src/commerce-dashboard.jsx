@@ -251,7 +251,7 @@ function Dropdown({label,value,options,onChange}){
   </div>;
 }
 
-export default function CommerceDashboard(){
+export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null}){
   const [platform,setPlatform]=useState('TODAS');
   const [days,setDays]=useState(30);
   const [data,setData]=useState(null);
@@ -261,11 +261,11 @@ export default function CommerceDashboard(){
   const [cls,setCls]=useState(null);
   const [abcPlat,setAbcPlat]=useState('SHOPEE');
   const [curve,setCurve]=useState(false);
-  const [tab,setTabRaw]=useState('best');
-  const [focus,setFocus]=useState(false);
+  const [tab,setTabRaw]=useState(initialTab==='never'?'nosales':initialTab||'best');
+  const [focus,setFocus]=useState(Boolean(initialTab));
   const setTab=k=>{setTabRaw(k);setFocus(true);};
   const [helpOpen,setHelpOpen]=useState(false);
-  const [nsf,setNsf]=useState('all');
+  const [nsf,setNsf]=useState(initialTab==='never'?'never':'all');
   useEffect(()=>{
     const controller=new AbortController();
     const q='?platform='+platform+'&days='+days;
@@ -323,7 +323,9 @@ export default function CommerceDashboard(){
     adsRows.length&&!isML?{k:'ads',t:lowRoas.length?'bad':'good',i:'megaphone',h:num(lowRoas.length)+' anúncios com ROAS abaixo de 1',d:'Gastaram mais do que venderam. Relatório Shopee Ads de '+fmtDayFull(ov.ads.period_start)+' a '+fmtDayFull(ov.ads.period_end)+' (período próprio, não segue o filtro).'}
       :{k:'ads',t:'muted',i:'megaphone',h:'Gasto e retorno de anúncios: sem dados',d:isML?'Não há relatório de anúncios do Mercado Livre importado.':'Nenhum relatório Shopee Ads importado.'}
   ];
-  const openAlert=k=>{if(k==='abc'){setTab('abc');return;}setTab(k);};
+  // No Dashboard, os cards e alertas levam ao Painel Comercial (aba Desempenho); lá abrem a lista correspondente.
+  const goTab=k=>{if(onOpenTab)onOpenTab(k);else{if(k==='never'){setNsf('never');setTab('nosales');}else setTab(k);}};
+  const openAlert=k=>goTab(k);
   
   const stoppedRows=ov.stopped||[];
   const firstDay=fmtDayFull((ov.coverage||[]).map(c=>c.first_day).filter(Boolean).sort()[0]);
@@ -344,7 +346,7 @@ export default function CommerceDashboard(){
   const whyRows=drops;
   return <section className="ndb-root" aria-label="Dashboard comercial">
     <header className="ndb-head">
-      <div className="ndb-head-title"><span className="ndb-logo"><Icon name="chart"/></span><div><h2>Gestão de Anúncios</h2>
+      <div className="ndb-head-title"><span className="ndb-logo"><Icon name="chart"/></span><div><h2>{mode==='explorer'?'Desempenho dos anúncios':'Gestão de Anúncios'}</h2>
         <p>{loading?'Consultando…':hasData?(all?fmtDayFull(per.curFrom)+' a '+fmtDayFull(data.last_day)+' · todo o histórico, sem comparação':fmtDayFull(data.current_start)+' a '+fmtDayFull(data.last_day)+' · anterior: '+fmtDayFull(per.prevFrom)+' a '+fmtDayFull(per.prevTo)):'Visão geral do desempenho dos produtos'}</p></div></div>
       <div className="ndb-head-filters">
         {filters}
@@ -354,19 +356,19 @@ export default function CommerceDashboard(){
     </header>
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
-    {hasData&&<div className="ndb-kpis ndb-idx-row" role="group" aria-label="Índices de performance">
-      <IndexCard icon="box" tone="good" label="Vendendo" value={num(totals.listings||0)} foot={all?'anúncios com venda no histórico':'anúncios com venda no período'} active={tab==='best'&&focus} onClick={()=>setTab('best')} title="Anúncios que tiveram ao menos uma venda no período do filtro."/>
-      <IndexCard icon="down" tone="bad" label="Em queda" value={all?'—':num(data?.drops?.total||0)} foot={all?'escolha um período':'vendem menos que no período anterior'} active={tab==='drops'&&focus} disabled={all} onClick={()=>setTab('drops')} title="Anúncios ativos que venderam pelo menos 15% menos que no período anterior."/>
-      <IndexCard icon="pause" tone="warn" label="Vendia e parou" value={all||!overview?'—':num(ov.stopped_total??stoppedRows.length)} foot={all?'escolha um período':overview?'já venderam e estão sem vender no período':'consulta indisponível'} active={tab==='stopped'&&focus} disabled={all||!overview} onClick={()=>setTab('stopped')} title="Anúncios ativos que já venderam 3 ou mais unidades e não tiveram nenhuma venda no período."/>
-      <IndexCard icon="eye" tone="muted" label="Não vendeu" value={overview?num(ov.no_sales_never??0):'—'} foot={overview?'ativos que nunca venderam nos dados':'consulta indisponível'} active={tab==='nosales'&&focus&&nsf==='never'} disabled={!overview} onClick={()=>{setNsf('never');setTab('nosales');}} title="Anúncios ativos sem nenhuma venda em todo o histórico importado."/>
+    {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-idx-row" role="group" aria-label="Índices de performance">
+      <IndexCard icon="box" tone="good" label="Vendendo" value={num(totals.listings||0)} foot={all?'anúncios com venda no histórico':'anúncios com venda no período'} active={tab==='best'&&focus} onClick={()=>goTab('best')} title="Anúncios que tiveram ao menos uma venda no período do filtro."/>
+      <IndexCard icon="down" tone="bad" label="Em queda" value={all?'—':num(data?.drops?.total||0)} foot={all?'escolha um período':'vendem menos que no período anterior'} active={tab==='drops'&&focus} disabled={all} onClick={()=>goTab('drops')} title="Anúncios ativos que venderam pelo menos 15% menos que no período anterior."/>
+      <IndexCard icon="pause" tone="warn" label="Vendia e parou" value={all||!overview?'—':num(ov.stopped_total??stoppedRows.length)} foot={all?'escolha um período':overview?'já venderam e estão sem vender no período':'consulta indisponível'} active={tab==='stopped'&&focus} disabled={all||!overview} onClick={()=>goTab('stopped')} title="Anúncios ativos que já venderam 3 ou mais unidades e não tiveram nenhuma venda no período."/>
+      <IndexCard icon="eye" tone="muted" label="Não vendeu" value={overview?num(ov.no_sales_never??0):'—'} foot={overview?'ativos que nunca venderam nos dados':'consulta indisponível'} active={tab==='nosales'&&focus&&nsf==='never'} disabled={!overview} onClick={()=>goTab('never')} title="Anúncios ativos sem nenhuma venda em todo o histórico importado."/>
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
-        <Panel title="Faturamento por produto" icon="money" source="kpi" className="ndb-chart-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
+        {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="kpi" className="ndb-chart-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
           <p className="ndb-note">{all?'15 anúncios que mais faturaram em todo o histórico.':'15 anúncios que mais faturaram em '+curTxt+'.'}</p>
           <RevenueByProduct items={top}/>
-        </Panel>
-        <section className="ndb-panel ndb-explorer">
+        </Panel>}
+        {mode==='explorer'&&<section className="ndb-panel ndb-explorer">
           <header className="ndb-tabs-head">
             <div className="ndb-tabs" role="tablist" aria-label="Detalhes">{TABS.map(([k,l,c])=><button key={k} type="button" role="tab" aria-selected={tab===k} className={tab===k?'is-active':''} onClick={()=>setTab(k)}>{l}{c!=null&&<em>{num(c)}</em>}</button>)}</div>
             <InfoIcon text={SOURCES[TAB_SOURCE[tab]]} label={TABS.find(t=>t[0]===tab)[1]}/>
@@ -425,14 +427,14 @@ export default function CommerceDashboard(){
                 {allItems.length===0&&!loading&&<tr><td colSpan={5} className="ndb-empty">Sem vendas no período.</td></tr>}
               </tbody></table></div>}
           </>}
-        </section>
+        </section>}
       </div>
       <aside className="ndb-right">
-        <Panel title="Atenção" icon="alert" source="alerts" className="ndb-attention">
+        {mode==='overview'&&<Panel title="Atenção" icon="alert" source="alerts" className="ndb-attention">
           <ul className="ndb-alert-list">{alerts.map(a=><li key={a.k}><button type="button" className={'tone-'+a.t+(tab===a.k?' is-open':'')} disabled={a.t==='muted'} title={a.d} onClick={()=>openAlert(a.k)}>
             <span className="ndb-alert-ico"><Icon name={a.i}/></span><span className="ndb-alert-txt"><strong>{a.h}</strong><small>{a.d}</small></span><span className="ndb-alert-go" aria-hidden="true">›</span></button></li>)}</ul>
-        </Panel>
-        <Panel title={'ABC · '+(PLATFORM_LABEL[abcP]||abcP)} icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>{setTab('abc');setCurve(true);}}>Ver curva</button>}>
+        </Panel>}
+        {mode==='explorer'&&<Panel title={'ABC · '+(PLATFORM_LABEL[abcP]||abcP)} icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>{setTab('abc');setCurve(true);}}>Ver curva</button>}>
           {platform==='TODAS'&&<div className="ndb-seg ndb-abc-plat" role="group" aria-label="Plataforma da curva ABC">{['SHOPEE','ML_ANTIGO','ML_NOVO'].map(v=><button key={v} type="button" className={v===abcPlat?'is-active':''} aria-pressed={v===abcPlat} onClick={()=>setAbcPlat(v)}>{PLATFORM_LABEL[v]}</button>)}</div>}
           <div className="ndb-abc">
             {classes.map(c=><button type="button" key={c.class} className={'ndb-abc-card c-'+c.class+(tab==='abc'&&cls===c.class?' is-active':'')} onClick={()=>{setTab('abc');setCurve(false);setCls(c.class);}} aria-pressed={tab==='abc'&&cls===c.class} title={CLASS_NOTE[c.class]+' · '+money(c.revenue)}>
@@ -442,7 +444,7 @@ export default function CommerceDashboard(){
             </button>)}
             {classes.length===0&&!loading&&<p className="ndb-empty">Sem vendas no período.</p>}
           </div>
-        </Panel>
+        </Panel>}
       </aside>
     </div>
     {helpOpen&&<div className="ndb-modal" role="dialog" aria-modal="true" aria-label="Definições e dados" onMouseDown={e=>{if(e.target===e.currentTarget)setHelpOpen(false);}}>

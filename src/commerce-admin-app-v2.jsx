@@ -167,6 +167,8 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
 
 export default function CommerceAdminAppV2() {
   const [activeView, setActiveView] = useState('dashboard');
+  const [perfOpen, setPerfOpen] = useState(null);
+  const openPerformance = tab => { setPerfOpen({ tab, nonce: Date.now() }); setActiveView('catalog'); };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesRevision, setSalesRevision] = useState(0);
 
@@ -235,9 +237,9 @@ export default function CommerceAdminAppV2() {
               </div>
             </div>}
 
-            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} />}
+            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} perfOpen={perfOpen} />}
             {activeView === 'planning' && <CommerceProductsView />}
-            {activeView === 'dashboard' && <CommerceDashboard />}
+            {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} />}
             {activeView === 'imports' && <CommerceImportHistory />}
           </div>
         </main>
