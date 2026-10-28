@@ -416,3 +416,27 @@
 .ndb-root.is-explorer .ndb-sb-weeks{display:grid;grid-template-columns:repeat(4,minmax(54px,1fr));gap:6px;max-width:640px}
 .ndb-root.is-explorer .ndb-sb-week{min-width:0}
 .ndb-root.is-explorer .ndb-sb-meta{gap:2px 12px}
+
+/* Blocos laterais do Painel Comercial: Em alta, Muita visita pouca venda, Vendas por mês */
+.ndb-side-panel{flex:none}
+.ndb-side-list{list-style:none;margin:0;padding:2px 12px 10px;display:flex;flex-direction:column;gap:6px}
+.ndb-side-list li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #eef2f9}
+.ndb-side-list li:last-child{border-bottom:0}
+.ndb-side-main{min-width:0;display:flex;flex-direction:column;gap:1px}
+.ndb-side-main strong{font-size:12px;font-weight:600;color:#1c2a48;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ndb-side-main small{font-size:10.5px;color:#7a8aa3}
+.ndb-side-val{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+.ndb-side-val.pos{color:#1f8a4c}.ndb-side-val.neg{color:#c0392b}
+.ndb-side-panel .ndb-empty{padding:10px 14px;font-size:12px}
+.ndb-side-panel .ndb-note{padding:0 12px 10px;white-space:normal;font-size:10.5px}
+.ndb-seas{padding:4px 12px 8px}
+.ndb-seas-bars{display:flex;align-items:flex-end;gap:5px;height:120px;padding-top:16px}
+.ndb-seas-col{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px}
+.ndb-seas-col i{display:block;width:100%;border-radius:4px 4px 0 0;background:#8fb0ee;min-height:3px}
+.ndb-seas-col.is-best i{background:#1d5fd1}
+.ndb-seas-col.is-partial i{background:repeating-linear-gradient(135deg,#c9d8f5 0 4px,#dfe8fa 4px 8px)}
+.ndb-seas-col b{font-size:9.5px;color:#33415f;font-variant-numeric:tabular-nums}
+.ndb-seas-col small{font-size:9.5px;color:#7a8aa3}
+@media (max-width:1440px){
+  .ndb-root.is-explorer .ndb-right{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:start}
+}

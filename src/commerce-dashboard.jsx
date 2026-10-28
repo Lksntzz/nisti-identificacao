@@ -171,6 +171,41 @@ function RevenueByProduct({items,showPlatform=true}){
   </ol>;
 }
 
+function GrowingList({rows,all,hasOverview}){
+  if(all)return <p className="ndb-empty">Escolha um período para comparar com o anterior.</p>;
+  if(!hasOverview)return <p className="ndb-empty">Consulta indisponível.</p>;
+  if(!rows.length)return <p className="ndb-empty">Nenhum anúncio cresceu 15% ou mais neste período.</p>;
+  return <ul className="ndb-side-list">{rows.map(r=><li key={r.platform+r.external_id}>
+    <div className="ndb-side-main"><strong title={r.title||''}>{r.title||r.external_id}</strong><small>{r.multi?(PLATFORM_LABEL[r.platform]||r.platform)+' · ':''}{num(r.units_previous)} → {num(r.units)} un.</small></div>
+    <span className="ndb-side-val pos">{pctText(changePct(r.units,r.units_previous))}</span>
+    <Ext platform={r.platform} id={r.external_id}/>
+  </li>)}</ul>;
+}
+
+function LowConversionList({rows,hasPerf,note}){
+  if(!hasPerf)return <p className="ndb-empty">Importe o relatório de desempenho do Mercado Livre ou da Shopee para ver visitas e conversão.</p>;
+  if(!rows.length)return <p className="ndb-empty">Nenhum anúncio com muitas visitas e conversão baixa.</p>;
+  return <><ul className="ndb-side-list">{rows.map(r=><li key={r.platform+r.external_id}>
+    <div className="ndb-side-main"><strong title={r.title||''}>{r.title||r.external_id}</strong><small>{r.multi?(PLATFORM_LABEL[r.platform]||r.platform)+' · ':''}{num(r.visits)} visitas · {num(r.units)} un. no período</small></div>
+    <span className="ndb-side-val neg" title="Conversão: ML vendas ÷ visitas; Shopee pedidos ÷ visitantes">{String(r.conversion).replace('.',',')}%</span>
+    <Ext platform={r.platform} id={r.external_id}/>
+  </li>)}</ul>{note&&<p className="ndb-note">{note}</p>}</>;
+}
+
+function MonthlyUnits({months,platform}){
+  const keys=MONTH_PLATS.filter(([c])=>platform==='TODAS'||platform===c).map(([,k])=>k);
+  const rows=(months||[]).map(m=>({m,units:keys.reduce((a,k)=>a+Number(m['units_'+k]||0),0),partial:monthPartial(m)}));
+  if(!rows.length)return <p className="ndb-empty">Sem vendas importadas.</p>;
+  const complete=rows.filter(r=>!r.partial&&r.units>0);
+  const best=(complete.length?complete:rows).reduce((a,r)=>r.units>a.units?r:a,rows[0]);
+  const max=Math.max(1,...rows.map(r=>r.units));
+  return <div className="ndb-seas">
+    <div className="ndb-seas-bars" role="img" aria-label="Unidades vendidas por mês">{rows.map(r=><div key={r.m.month} className={'ndb-seas-col'+(r===best?' is-best':'')+(r.partial?' is-partial':'')} title={monthLabel(r.m.month)+': '+num(r.units)+' un.'+(r.partial?' (mês incompleto)':'')}>
+      <b>{num(r.units)}</b><i style={{height:Math.max(3,r.units/max*100)+'%'}}/><small>{monthLabel(r.m.month)}</small></div>)}</div>
+    <p className="ndb-note">Mês mais forte (completo): <b>{monthLabel(best.m.month)}</b> com {num(best.units)} un. Barras claras = mês incompleto. Só há vendas de {String(rows[0].m.month).slice(0,4)}: para ver sazonalidade de verdade é preciso importar o ano anterior.</p>
+  </div>;
+}
+
 function useBox(){
   const ref=useRef(null);
   const [dim,setDim]=useState({W:760,H:200});
@@ -265,6 +300,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [focus,setFocus]=useState(Boolean(initialTab));
   const setTab=k=>{setTabRaw(k);setFocus(true);};
   const [helpOpen,setHelpOpen]=useState(false);
+  const [monthly,setMonthly]=useState(null);
   const [nsf,setNsf]=useState(initialTab==='never'?'never':'all');
   useEffect(()=>{
     const controller=new AbortController();
@@ -277,6 +313,14 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
       .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});
     return()=>controller.abort();
   },[platform,days]);
+  useEffect(()=>{
+    if(mode!=='explorer')return undefined;
+    const controller=new AbortController();
+    setMonthly(null);
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/monthly?platform='+platform,{signal:controller.signal})
+      .then(setMonthly).catch(()=>{if(!controller.signal.aborted)setMonthly(null);});
+    return()=>controller.abort();
+  },[platform,mode]);
   const abcP=platform==='TODAS'?abcPlat:platform;
   const all=days===0;
   // Desempenho do Mercado Livre (relatório importado): visitas e conversão por anúncio; falha silenciosa.
@@ -290,6 +334,23 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const perfItems=useMemo(()=>({...(spPerf?.items||{}),...(mlPerf?.items||{})}),[mlPerf,spPerf]);
   const perfNotes=[...(mlPerf?.reports||[]).map(x=>(x.account==='NOVO'?'ML Novo':'ML Antigo')+' '+dm(x.start)+' a '+dm(x.end)),
     ...(spPerf?.reports||[]).map(x=>'Shopee '+dm(x.start)+' a '+dm(x.end))];
+  const growingRows=useMemo(()=>(overview?.growth||[]).filter(r=>platform==='TODAS'||r.platform===platform).slice(0,8).map(r=>({...r,multi:platform==='TODAS'})),[overview,platform]);
+  // Muita visita e pouca venda: só anúncios com ao menos 300 visitas e conversão abaixo de 1,5% no relatório de desempenho.
+  const lowConvRows=useMemo(()=>{
+    if(!overview)return [];
+    const seen=new Set(),out=[];
+    const add=(r,units)=>{
+      const pf=perfItems[r.external_id];
+      if(!pf||seen.has(r.platform+r.external_id)||(platform!=='TODAS'&&r.platform!==platform))return;
+      if(!(Number(pf.visits)>=300)||pf.conversion_pct==null||Number(pf.conversion_pct)>=1.5)return;
+      seen.add(r.platform+r.external_id);
+      out.push({platform:r.platform,external_id:r.external_id,title:r.title,visits:Number(pf.visits),conversion:pf.conversion_pct,units,multi:platform==='TODAS'});
+    };
+    (overview.no_sales||[]).forEach(r=>add(r,0));
+    (data?.top||[]).forEach(r=>add(r,Number(r.units)||0));
+    return out.sort((a,b)=>b.visits-a.visits).slice(0,6);
+  },[overview,data,perfItems,platform]);
+  const hasPerf=Object.keys(perfItems).length>0;
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
@@ -449,6 +510,9 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {classes.length===0&&!loading&&<p className="ndb-empty">Sem vendas no período.</p>}
           </div>
         </Panel>}
+        {mode==='explorer'&&<Panel title="Em alta" icon="down" className="ndb-side-panel ndb-grow-panel"><GrowingList rows={growingRows} all={all} hasOverview={Boolean(overview)}/></Panel>}
+        {mode==='explorer'&&<Panel title="Muita visita, pouca venda" icon="eye" className="ndb-side-panel"><LowConversionList rows={lowConvRows} hasPerf={hasPerf} note={perfNotes.length?'Relatórios: '+perfNotes.join(' · ')+'. Visitas e conversão valem para o período de cada relatório.':''}/></Panel>}
+        {mode==='explorer'&&<Panel title="Vendas por mês (unidades)" icon="chart" className="ndb-side-panel"><MonthlyUnits months={monthly?.months} platform={platform}/></Panel>}
       </aside>
     </div>
     {helpOpen&&<div className="ndb-modal" role="dialog" aria-modal="true" aria-label="Definições e dados" onMouseDown={e=>{if(e.target===e.currentTarget)setHelpOpen(false);}}>
