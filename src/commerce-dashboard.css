@@ -41,7 +41,7 @@
 
 .ndb-info{position:relative;display:inline-flex;color:#93a1b8;cursor:help;outline:none;flex:none}
 .ndb-info:hover,.ndb-info:focus{color:#0f1b3d}
-.ndb-info-pop{display:none;position:absolute;z-index:40;top:24px;right:-8px;width:min(340px,80vw);padding:12px 14px;border-radius:12px;background:#0f1b3d;color:#e2e8f0;font-size:12px;line-height:1.5;font-weight:500;text-align:left;box-shadow:0 10px 30px rgba(15,27,61,.28)}
+.ndb-info-pop{display:none;position:absolute;z-index:40;top:100%;margin-top:0;right:-8px;width:min(340px,80vw);padding:12px 14px;border-radius:12px;background:#0f1b3d;color:#e2e8f0;font-size:12px;line-height:1.5;font-weight:500;text-align:left;box-shadow:0 10px 30px rgba(15,27,61,.28)}
 .ndb-info-pop strong{display:block;margin-bottom:4px;color:#fff;font-size:12px}
 .ndb-info:hover .ndb-info-pop,.ndb-info:focus .ndb-info-pop{display:block}
 
@@ -598,3 +598,14 @@
 .ndb-seas-tip span{display:inline-flex;align-items:center;gap:4px;margin-left:10px}
 .ndb-split-bar i{transition:opacity .12s}.ndb-split-bar:hover i{opacity:.55}.ndb-split-bar i:hover{opacity:1}
 .ndb-split li{border-radius:8px;transition:background .12s}.ndb-split li:hover{background:rgba(29,95,209,.07)}
+
+/* Balão de informação organizado: título, rótulo da fonte, lista curta e atalho para os dados */
+.ndb-info-pop{padding-top:16px;border-top:8px solid transparent;background-clip:padding-box;width:min(360px,84vw)}
+.ndb-info-pop strong{font-size:13px;margin-bottom:8px}
+.ndb-info-kind{display:block;margin-bottom:8px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.08)}
+.ndb-info-kind em{display:block;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8fb0ee;margin-bottom:2px}
+.ndb-info-pop ul{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:6px}
+.ndb-info-pop li{position:relative;padding-left:14px}
+.ndb-info-pop li::before{content:'';position:absolute;left:2px;top:.6em;width:5px;height:5px;border-radius:50%;background:#5f7fbf}
+.ndb-info-link{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid rgba(143,176,238,.5);border-radius:8px;background:rgba(143,176,238,.14);color:#cfe0ff;font:inherit;font-size:12px;font-weight:700;text-align:left;cursor:pointer}
+.ndb-info-link:hover{background:rgba(143,176,238,.28);color:#fff}

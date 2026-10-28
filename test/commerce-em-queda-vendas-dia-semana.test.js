@@ -230,3 +230,9 @@ test('GA: modo noturno com botão e escolha guardada', () => {
   assert.match(readFileSync('src/commerce-admin-app-v2.jsx','utf8'),/commerce-theme-btn/);
   assert.match(readFileSync('src/commerce-dark.css','utf8'),/html\.ga-dark/);
 });
+
+test('Ícones de informação: texto organizado e atalho para o Histórico de importações', () => {
+  const d=readFileSync('src/commerce-dashboard.jsx','utf8');
+  assert.match(d,/ndb-info-link/);assert.match(d,/ga:navigate/);
+  assert.match(readFileSync('src/commerce-admin-app-v2.jsx','utf8'),/ga:navigate/);
+});

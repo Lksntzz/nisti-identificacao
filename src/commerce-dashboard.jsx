@@ -69,11 +69,27 @@ export const changePct=(cur,prev)=>{
 const pctText=v=>v==null?'novo':(v>0?'+':'')+String(v).replace('.',',')+'%';
 const tone=v=>v==null?'neutral':v>=5?'good':v<=-5?'bad':'neutral';
 
-export function InfoIcon({text,label}){
+// Quebra o texto em frases: "Fonte:"/"Calculado:" viram um rótulo, o resto vira lista curta.
+function infoParts(text){
+  const sentences=String(text||'').split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ"])/).map(x=>x.trim()).filter(Boolean);
+  let kind=null;
+  if(sentences.length){const m=sentences[0].match(/^(Fonte|Calculado|Data de criação|Cobertura do que está no banco):\s*(.*)$/s);if(m){kind=m[1]==='Calculado'?'Cálculo':m[1]==='Fonte'?'Fonte':m[1];sentences[0]=m[2].charAt(0).toUpperCase()+m[2].slice(1);}}
+  return {kind,items:sentences.filter(Boolean)};
+}
+export function openImportHistory(){
+  if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('ga:navigate',{detail:'imports'}));
+}
+export function InfoIcon({text,label,link=true}){
+  const {kind,items}=infoParts(text);
   return <span className="ndb-info" tabIndex={0} role="note" aria-label={'De onde vêm os dados: '+label}>
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
-    <span className="ndb-info-pop"><strong>De onde vêm os dados</strong>{text}</span>
+    <span className="ndb-info-pop">
+      <strong>{label}</strong>
+      {kind&&items.length>0&&<span className="ndb-info-kind"><em>{kind}</em>{items[0]}</span>}
+      {items.length>(kind?1:0)&&<ul>{items.slice(kind?1:0).map((t,k)=><li key={k}>{t}</li>)}</ul>}
+      {link&&<button type="button" className="ndb-info-link" onClick={openImportHistory}>Conferir os dados no Histórico de importações →</button>}
+    </span>
   </span>;
 }
 
@@ -617,7 +633,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             <li><b>Em queda:</b> anúncio ativo com 5 ou mais unidades no período anterior e queda de 15% ou mais.</li>
             <li><b>Sem dados:</b> a informação não existe no sistema. Nunca é mostrada como zero.</li>
           </ul>
-          <h4>Dados que ajudariam a explicar as quedas<InfoIcon text={SOURCES.help} label="Dados que ajudariam"/></h4>
+          <h4>Dados que ajudariam a explicar as quedas<InfoIcon text={SOURCES.help} label="Dados que ajudariam" link={false}/></h4>
           <ul className="ndb-help">{HELP.map(([t,d])=><li key={t}><strong>{t}</strong><span>{d}</span></li>)}</ul>
         </div>
       </div>
