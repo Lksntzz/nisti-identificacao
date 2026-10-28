@@ -240,3 +240,7 @@ test('Ícones de informação: texto organizado e atalho para o Histórico de im
 test('GA: o conteúdo ocupa a largura do monitor (sem faixa vazia nas laterais)', () => {
   assert.match(readFileSync('src/commerce-admin.css','utf8'),/commerce-admin-page-content:has\(\.ndb-root\)\{max-width:none\}/);
 });
+
+test('Curva ABC no Painel Comercial tem altura própria', () => {
+  assert.match(readFileSync('src/commerce-dashboard.css','utf8'),/is-explorer \.ndb-chartbox\.fill\{[^}]*height:clamp/);
+});
