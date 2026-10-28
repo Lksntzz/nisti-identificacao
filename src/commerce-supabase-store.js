@@ -313,7 +313,7 @@ export async function commerceSalesDashboardMonthlyV1(env,filters={}) {
 
 export async function commerceListingCohortsV1(env,filters={}) {
   const platform=String(cleanText(filters.platform)||'TODAS').toUpperCase();
-  const data=await supabaseRpc(env,'commerce_listing_cohorts_v2',{
+  const data=await supabaseRpc(env,'commerce_listing_cohorts_v3',{
     p_platform:['SHOPEE','ML'].includes(platform)?platform:'TODAS'
   },{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[]};
@@ -322,7 +322,7 @@ export async function commerceListingCohortsV1(env,filters={}) {
 export async function commerceListingCohortDetailV1(env,filters={}) {
   const platform=String(cleanText(filters.platform)||'SHOPEE').toUpperCase()==='ML'?'ML':'SHOPEE';
   const listing=String(cleanText(filters.listing)||'');
-  const data=await supabaseRpc(env,'commerce_listing_cohort_detail_v3',{p_platform:platform,p_listing_id:listing},{timeoutMs:15000});
+  const data=await supabaseRpc(env,'commerce_listing_cohort_detail_v4',{p_platform:platform,p_key:listing},{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{variations:[],listings:[],months:[]};
 }
 

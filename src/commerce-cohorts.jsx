@@ -68,7 +68,7 @@ function ProductRow({i,lastDay,linkFor,onOpen}){
   return <li className="ndb-coh-row">
     <div className="ndb-coh-prod">
       <button type="button" className="ndb-coh-title" onClick={onOpen} title={i.title+' — ver variações'}>{i.title}</button>
-      <small><span className={'ndb-coh-pill p-'+String(i.platform).toLowerCase()}>{PLAT[i.platform]||i.platform}</span>{i.listing_id} · SKU {i.product_ref}</small>
+      <small><span className={'ndb-coh-pill p-'+String(i.platform).toLowerCase()}>{PLAT[i.platform]||i.platform}</span>{i.platform==='ML'?i.product_ref+' · '+num(i.listings)+(i.listings===1?' variação':' variações'):i.listing_id+' · SKU '+i.product_ref}</small>
       <Links platform={i.platform} ids={i.listing_ids} linkFor={linkFor}/>
     </div>
     <div className="ndb-coh-when"><b>{dmy(i.created_on)}</b><small>{num(i.age_days)} dias · {first}</small></div>
@@ -113,14 +113,14 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
     <section className="ndb-coh-dialog" role="dialog" aria-modal="true" aria-label={'Variações de '+item.title}>
       <header className="ndb-coh-dhead">
         <div><h3>{item.title}</h3>
-          <p><span className={'ndb-coh-pill p-'+String(item.platform).toLowerCase()}>{PLAT[item.platform]||item.platform}</span>{item.listing_id} · SKU {item.product_ref} · criado em {dmy(item.created_on)} · {num(item.age_days)} dias · {num(item.units)} un. · {money(item.revenue)}</p>
+          <p><span className={'ndb-coh-pill p-'+String(item.platform).toLowerCase()}>{PLAT[item.platform]||item.platform}</span>{item.platform==='ML'?item.product_ref:item.listing_id+' · SKU '+item.product_ref} · criado em {dmy(item.created_on)} · {num(item.age_days)} dias · {num(item.units)} un. · {money(item.revenue)}</p>
           <Links platform={item.platform} ids={item.listing_ids} linkFor={linkFor} max={8}/></div>
         <button type="button" ref={closeRef} className="ndb-coh-close" onClick={onClose} aria-label="Fechar">×</button>
       </header>
       {error&&<p className="ndb-empty">Consulta indisponível. Feche e tente de novo.</p>}
       {!error&&!data&&<p className="ndb-empty">Carregando…</p>}
       {data&&<div className="ndb-coh-dbody">
-        {lst.length>1&&<div className="ndb-coh-ltabs" role="tablist" aria-label="Anúncio do produto">
+        {item.platform!=='ML'&&lst.length>1&&<div className="ndb-coh-ltabs" role="tablist" aria-label="Anúncio do produto">
           <button type="button" role="tab" aria-selected={sel==='all'} className={sel==='all'?'is-active':''} onClick={()=>setSel('all')}>Todos os anúncios <small>{num(data.listings.reduce((a,l)=>a+Number(l.units||0),0))} un.</small></button>
           {lst.map(l=><button key={l.external_id} type="button" role="tab" aria-selected={sel===l.external_id} className={sel===l.external_id?'is-active':''} onClick={()=>setSel(l.external_id)}>{l.external_id} <small>{num(l.units)} un.</small></button>)}
         </div>}
@@ -137,7 +137,7 @@ function DetailDialog({item,lastDay,linkFor,onClose}){
             <Links platform={item.platform} ids={[l.external_id]} linkFor={linkFor}/>
             <span>{l.external_id}</span><span>{num(l.units)} un.</span><span>{money(l.revenue)}</span>
             <span>{l.best_month?'Melhor mês: '+monthShort(l.best_month)+' ('+num(l.best_month_units)+' un.)':'sem vendas'}</span></li>)}</ul></>}
-        <h4>Variações ({num(shownVars.length)}){one?' · anúncio '+one.external_id:''}</h4>
+        <h4>{item.platform==='ML'?'Variações (cada MLB)':'Variações'} ({num(shownVars.length)}){one?' · anúncio '+one.external_id:''}</h4>
         <div className="ndb-scroll"><table className="ndb-table ndb-detail-table ndb-coh-vtable">
           <thead><tr><th>Variação</th><th className="num">Vendas</th><th className="num">Faturamento</th><th>Melhor mês</th><th className="num" title="Média desde a criação do produto">Por dia</th><th className="num" title="Média desde a criação do produto">Por semana</th><th className="num" title="Média desde a criação do produto (mês de 30 dias)">Por mês</th><th className="num" title="Unidades nos últimos 28 dias">Últimos 28d</th></tr></thead>
           <tbody>{shownVars.map(v=>{const a=avg(Number(v.units||0));return <tr key={v.sku} className={v.units?'':'ndb-off'}>
@@ -224,7 +224,7 @@ export default function CohortsTab({platform='TODAS',query='',linkFor=()=>null})
       <div className="ndb-coh-cols" aria-hidden="true"><span>Produto</span><span>Criado em</span><span>Vendas nos primeiros dias</span><span>Total</span><span>Melhor mês</span><span>Ritmo</span><span/></div>
       <ul className="ndb-coh-list">{sel.slice(0,shown).map(i=><ProductRow key={i.platform+i.listing_id} i={i} lastDay={data.last_day} linkFor={linkFor} onOpen={()=>setOpenItem(i)}/>)}</ul>
       {sel.length>shown&&<button type="button" className="ndb-coh-showmore" onClick={()=>setShown(s=>s+PAGE)}>Mostrar mais {Math.min(PAGE,sel.length-shown)} de {num(sel.length-shown)} restantes</button>}</>}
-    <p className="ndb-note">Data de criação vinda da planilha “Análise de Anúncios” ({num(all.length)} anúncios, cada um separado: vendas e variações nunca se misturam). Vendas contadas até {dmy(data.last_day)}. Compare pelos blocos de 7, 14, 28 e 56 dias, não pelo total, porque produtos mais antigos tiveram mais tempo para vender. A seta do ritmo compara os últimos 28 dias com a média desde a criação (só para produtos com 56+ dias e 10+ vendas). “Parcial” = mês incompleto.</p>
+    <p className="ndb-note">Data de criação vinda da planilha “Análise de Anúncios” ({num(all.length)} anúncios; as variações ficam dentro de cada anúncio. Na Shopee cada anúncio é separado; no Mercado Livre os MLB do mesmo produto aparecem como variações). Vendas contadas até {dmy(data.last_day)}. Compare pelos blocos de 7, 14, 28 e 56 dias, não pelo total, porque produtos mais antigos tiveram mais tempo para vender. A seta do ritmo compara os últimos 28 dias com a média desde a criação (só para produtos com 56+ dias e 10+ vendas). “Parcial” = mês incompleto.</p>
     {openItem&&<DetailDialog item={openItem} lastDay={data.last_day} linkFor={linkFor} onClose={()=>setOpenItem(null)}/>}
   </div>;
 }
