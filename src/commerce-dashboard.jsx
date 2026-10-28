@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
+import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
 import './commerce-dashboard.css';
 
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
@@ -294,6 +295,21 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const top=data?.top||[];
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
   const {signals}=usePriceSignals(signalRows,all?90:days);
+  // Histórico de vendas (semanas, dias e meses) só da lista aberta, para não pedir dados à toa.
+  const idsOf=a=>a.filter(r=>r.listing_id).map(r=>({id:r.listing_id}));
+  const bestIds=useMemo(()=>mode==='explorer'&&tab==='best'?idsOf(top):[],[data,tab,mode]);
+  const dropIds=useMemo(()=>mode==='explorer'&&tab==='drops'?signalRows:[],[signalRows,tab,mode]);
+  const stoppedIds=useMemo(()=>mode==='explorer'&&tab==='stopped'?idsOf(overview?.stopped||[]):[],[overview,tab,mode]);
+  const noSalesIds=useMemo(()=>mode==='explorer'&&tab==='nosales'?(overview?.no_sales||[]).filter(r=>r.last_sale&&r.listing_id).slice(0,200).map(r=>({id:r.listing_id})):[],[overview,tab,mode]);
+  const bestBreakdown=useSalesBreakdown(bestIds);
+  const dropBreakdown=useSalesBreakdown(dropIds);
+  const stoppedBreakdown=useSalesBreakdown(stoppedIds,'last_sale');
+  const noSalesBreakdown=useSalesBreakdown(noSalesIds,'last_sale');
+  const salesMonths=useSalesMonths(useMemo(()=>[...bestIds,...dropIds,...stoppedIds,...noSalesIds],[bestIds,dropIds,stoppedIds,noSalesIds]));
+  const [openDays,setOpenDays]=useState({});
+  const [openMonths,setOpenMonths]=useState({});
+  const salesCell=(rk,lid,sb,anchored)=><WeeklySalesCell anchored={anchored} data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))} months={salesMonths[lid]} monthsOpen={Boolean(openMonths[rk])} onToggleMonths={()=>setOpenMonths(o=>({...o,[rk]:!o[rk]}))}/>;
+  const salesRows=(rk,lid,sb,anchored,span)=><>{openDays[rk]&&sb&&<DailySalesRow anchored={anchored} data={sb} colSpan={span}/>}{openMonths[rk]&&salesMonths[lid]&&<MonthsPanelRow listingId={lid} data={salesMonths[lid]} colSpan={span}/>}</>;
   const totals=data?.totals||{};
   const classes=data?.abc?.classes_by_platform?.[abcP]||[];
   const allItems=(data?.abc?.items||[]).filter(i=>i.platform===abcP);
@@ -373,43 +389,43 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             <div className="ndb-tabs" role="tablist" aria-label="Detalhes">{TABS.map(([k,l,c])=><button key={k} type="button" role="tab" aria-selected={tab===k} className={tab===k?'is-active':''} onClick={()=>setTab(k)}>{l}{c!=null&&<em>{num(c)}</em>}</button>)}</div>
             <InfoIcon text={SOURCES[TAB_SOURCE[tab]]} label={TABS.find(t=>t[0]===tab)[1]}/>
           </header>
-          {tab==='best'&&<><PeriodBar cur={curTxt}/>{perfNotes.length>0&&<p className="ndb-perf-note">Visitas e Conversão vêm dos relatórios de desempenho importados ({perfNotes.join(' · ')}) e valem para o período de cada relatório, não para o filtro acima. ML: vendas ÷ visitas; Shopee: pedidos feitos ÷ visitantes.</p>}<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num" title="Visitas únicas no período do relatório de desempenho importado de cada plataforma">Visitas</th><th className="num" title="Mercado Livre: vendas ÷ visitas. Shopee: pedidos feitos ÷ visitantes (inclui cancelados depois)">Conversão</th><th className="num">Investimento</th><th className="num">ROAS</th></tr></thead><tbody>
-            {bestAll.map(r=>{const ad=adsByListing[r.listing_id];const st=listingState(r.status);return <tr key={r.platform+r.external_id} className={st.off?'ndb-off':''}>
+          {tab==='best'&&<><PeriodBar cur={curTxt}/>{perfNotes.length>0&&<p className="ndb-perf-note">Visitas e Conversão vêm dos relatórios de desempenho importados ({perfNotes.join(' · ')}) e valem para o período de cada relatório, não para o filtro acima. ML: vendas ÷ visitas; Shopee: pedidos feitos ÷ visitantes.</p>}<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th><th>Plataforma</th><th>Status</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num" title="Visitas únicas no período do relatório de desempenho importado de cada plataforma">Visitas</th><th className="num" title="Mercado Livre: vendas ÷ visitas. Shopee: pedidos feitos ÷ visitantes (inclui cancelados depois)">Conversão</th><th className="num">Investimento</th><th className="num">ROAS</th><th>Histórico de vendas</th></tr></thead><tbody>
+            {bestAll.map(r=>{const ad=adsByListing[r.listing_id];const st=listingState(r.status);const rk='b'+r.platform+r.external_id;const sb=bestBreakdown[r.listing_id];return <React.Fragment key={rk}><tr className={st.off?'ndb-off':''}>
               <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.sku||r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td>{PLATFORM_LABEL[r.platform]||r.platform}</td>
               <td><span className={'ndb-status'+st.cls}>{st.label}</span></td>
               <td className="num"><b>{num(r.units)}</b></td><td className="num">{money(r.revenue)}</td>
               {(()=>{const pf=perfItems[r.external_id];return <><td className="num">{pf&&pf.visits!=null?num(pf.visits):'—'}</td><td className="num">{pf&&pf.conversion_pct!=null?String(pf.conversion_pct).replace('.',',')+'%':'—'}</td></>;})()}
               <td className="num">{ad?money(ad.spend):'sem dados'}</td>
-              <td className="num">{ad&&ad.roas!=null?<span className={'ndb-roas'+(Number(ad.roas)<1?' low':'')}>{String(ad.roas).replace('.',',')}x</span>:'sem dados'}</td></tr>;})}
-            {top.length===0&&!loading&&<tr><td colSpan={9} className="ndb-empty">Sem vendas no período.</td></tr>}
+              <td className="num">{ad&&ad.roas!=null?<span className={'ndb-roas'+(Number(ad.roas)<1?' low':'')}>{String(ad.roas).replace('.',',')}x</span>:'sem dados'}</td><td>{salesCell(rk,r.listing_id,sb,false)}</td></tr>{salesRows(rk,r.listing_id,sb,false,10)}</React.Fragment>;})}
+            {top.length===0&&!loading&&<tr><td colSpan={10} className="ndb-empty">Sem vendas no período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note" title="Investimento e ROAS vêm do relatório Shopee Ads importado (período próprio) e só aparecem para anúncios com campanha individual.">Os 15 anúncios que mais faturam. Investimento e ROAS: relatório Shopee Ads importado, só anúncios com campanha individual.</p></>}
           {(tab==='drops'||tab==='stopped')&&all&&<p className="ndb-empty">Escolha 30, 60 ou 90 dias no filtro de período: esta lista compara períodos.</p>}
-          {tab==='drops'&&!all&&<><PeriodBar cur={curTxt} prev={prevTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades (ant. → atual)</th><th className="num">Variação</th><th className="num">Perdeu</th><th className="num">Preço médio</th></tr></thead><tbody>
-            {whyRows.map(r=>{const sg=signals[r.listing_id];const rk=r.platform+r.external_id;return <React.Fragment key={rk}><tr>
+          {tab==='drops'&&!all&&<><PeriodBar cur={curTxt} prev={prevTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades (ant. → atual)</th><th className="num">Variação</th><th className="num">Perdeu</th><th className="num">Preço médio</th><th>Vendas por semana, dia e mês</th></tr></thead><tbody>
+            {whyRows.map(r=>{const sg=signals[r.listing_id];const rk=r.platform+r.external_id;const sb=dropBreakdown[r.listing_id];return <React.Fragment key={rk}><tr>
               <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{num(r.units_previous)} → {num(r.units)}</td><td className="num neg">{pctText(changePct(r.units,r.units_previous))}</td>
               <td className="num neg" title={money(r.revenue_previous)+' → '+money(r.revenue)}>{money(r.lost_revenue)}</td>
-              <td className="num">{sg&&sg.price_previous!=null&&sg.price_current!=null?money(sg.price_previous)+' → '+money(sg.price_current):'—'}</td></tr></React.Fragment>;})}
-            {drops.length===0&&!loading&&<tr><td colSpan={5} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
+              <td className="num">{sg&&sg.price_previous!=null&&sg.price_current!=null?money(sg.price_previous)+' → '+money(sg.price_current):'—'}</td><td>{salesCell(rk,r.listing_id,sb,false)}</td></tr>{salesRows(rk,r.listing_id,sb,false,6)}</React.Fragment>;})}
+            {drops.length===0&&!loading&&<tr><td colSpan={6} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
           </tbody></table></div>
-          <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. O % compara com o período anterior. As vendas por semana, por dia e por mês de cada anúncio estão no Painel Comercial.</p></>}
-          {tab==='stopped'&&!all&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th></tr></thead><tbody>
-            {stoppedRows.map(r=>{const rk='s'+r.platform+r.external_id;return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
-              <td className="num">{r.last_sale?fmtDayFull(r.last_sale):'—'}</td><td className="num">{r.days_since!=null?num(r.days_since)+' dias':'—'}</td><td className="num">{num(r.units_ever)} un. · {money(r.revenue_ever)}</td></tr></React.Fragment>;})}
-            {stoppedRows.length>0&&stoppedRows.length<Number(ov.stopped_total||0)&&<tr><td colSpan={4} className="ndb-empty">Mostrando os {num(stoppedRows.length)} que pararam mais recentemente, de {num(ov.stopped_total)}.</td></tr>}
-            {stoppedRows.length===0&&<tr><td colSpan={4} className="ndb-empty">{overview?'Nenhum anúncio ativo está parado neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
-          </tbody></table></div><p className="ndb-note">Para ver como cada anúncio vendia antes de parar (semanas, dias e meses), abra o Painel Comercial. Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</p></>}
+          <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. O % compara com o período anterior.</p></>}
+          {tab==='stopped'&&!all&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th><th>Como vendia antes de parar</th></tr></thead><tbody>
+            {stoppedRows.map(r=>{const rk='s'+r.platform+r.external_id;const sb=stoppedBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
+              <td className="num">{r.last_sale?fmtDayFull(r.last_sale):'—'}</td><td className="num">{r.days_since!=null?num(r.days_since)+' dias':'—'}</td><td className="num">{num(r.units_ever)} un. · {money(r.revenue_ever)}</td><td>{salesCell(rk,r.listing_id,sb,true)}</td></tr>{salesRows(rk,r.listing_id,sb,true,5)}</React.Fragment>;})}
+            {stoppedRows.length>0&&stoppedRows.length<Number(ov.stopped_total||0)&&<tr><td colSpan={5} className="ndb-empty">Mostrando os {num(stoppedRows.length)} que pararam mais recentemente, de {num(ov.stopped_total)}.</td></tr>}
+            {stoppedRows.length===0&&<tr><td colSpan={5} className="ndb-empty">{overview?'Nenhum anúncio ativo está parado neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
+          </tbody></table></div><p className="ndb-note">Semanas, dias e meses contados até a última venda de cada anúncio, para ver como ele vendia antes de parar. Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</p></>}
           {tab==='nosales'&&<><div className="ndb-abc-bar-row">
             <div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',(ov.no_sales||[]).length],['stopped','Vendia e parou',(ov.no_sales||[]).filter(r=>r.last_sale).length],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length]].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>
             </div><PeriodBar cur={curTxt}/>
-          <div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th><th>Plataforma</th><th>Última venda</th></tr></thead><tbody>
-            {(ov.no_sales||[]).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);const rk='n'+r.platform+r.external_id;return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
-              <td>{PLATFORM_LABEL[r.platform]||r.platform}</td><td>{sold?fmtDayFull(r.last_sale):'nunca'}</td></tr></React.Fragment>;})}
-            {(ov.no_sales||[]).length===0&&<tr><td colSpan={3} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
+          <div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th><th>Plataforma</th><th>Última venda</th><th>Como vendia antes de parar</th></tr></thead><tbody>
+            {(ov.no_sales||[]).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);const rk='n'+r.platform+r.external_id;const sb=noSalesBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
+              <td>{PLATFORM_LABEL[r.platform]||r.platform}</td><td>{sold?fmtDayFull(r.last_sale):'nunca'}</td><td>{sold?salesCell(rk,r.listing_id,sb,true):<span className="ndb-sb-empty">nunca vendeu nos dados</span>}</td></tr>{sold&&salesRows(rk,r.listing_id,sb,true,4)}</React.Fragment>;})}
+            {(ov.no_sales||[]).length===0&&<tr><td colSpan={4} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>
-          <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista completa do período escolhido: primeiro os que já venderam, depois os que nunca venderam. Confira estoque, preço e se está pausado. O histórico de vendas por semana, dia e mês de cada anúncio está no Painel Comercial.</p></>}
+          <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista completa do período escolhido: primeiro os que já venderam, depois os que nunca venderam. Confira estoque, preço e se está pausado. Em quem já vendeu, as semanas e os dias são contados até a última venda (até 200 anúncios).</p></>}
           {tab==='ads'&&<div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Campanha / anúncio</th><th className="num">Investimento</th><th className="num">Vendas atribuídas</th><th className="num">ROAS</th></tr></thead><tbody>
             {[...adsRows].sort((x,y)=>Number(x.roas)-Number(y.roas)).map((r,i)=><tr key={i}><td title={r.campaign}><strong>{r.title||r.campaign}</strong><small>{r.listing_id?'Anúncio individual':'Grupo de anúncios'}</small></td>
               <td className="num">{money(r.spend)}</td><td className="num">{money(r.gmv)}</td><td className="num">{r.roas==null?'sem dados':<span className={'ndb-roas'+(Number(r.roas)<1?' low':'')}>{String(r.roas).replace('.',',')}x</span>}</td></tr>)}

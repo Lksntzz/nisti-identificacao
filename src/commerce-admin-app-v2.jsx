@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import './app.css';
 import './commerce-admin.css';
 import LOGO from './assets/logo.png';
-import CommerceCommercialDashboard from './commerce-ad-manager.jsx';
+import CommerceCommercialPanel from './commerce-commercial-panel.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceDashboard from './commerce-dashboard.jsx';
 import CommerceImportHistory from './commerce-import-history.jsx';
@@ -237,7 +237,7 @@ export default function CommerceAdminAppV2() {
               </div>
             </div>}
 
-            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialDashboard key={salesRevision} salesRevision={salesRevision} perfOpen={perfOpen} />}
+            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialPanel key={salesRevision} perfOpen={perfOpen} />}
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} />}
             {activeView === 'imports' && <CommerceImportHistory />}

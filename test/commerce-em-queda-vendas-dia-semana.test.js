@@ -16,14 +16,16 @@ test('variacao percentual entre periodos', () => {
 
 const manager = readFileSync('src/commerce-ad-manager.jsx', 'utf8');
 
-test('detalhe de vendas por semana, dia e mes mora no Painel Comercial, nao no Dashboard', () => {
-  assert.doesNotMatch(dash, /WeeklySalesCell|DailySalesRow|MonthsPanelRow|useSalesBreakdown/);
+test('listas do Painel Comercial mostram historico de vendas por semana, dia e mes', () => {
   assert.doesNotMatch(dash, /<th>Por que caiu<\/th>/);
-  assert.match(manager, /<WeeklySalesCell /);
-  assert.match(manager, /<DailySalesRow /);
-  assert.match(manager, /<MonthsPanelRow /);
-  assert.match(manager, /useSalesMonths\(rows\)/);
-  assert.match(manager, /Histórico de vendas/);
+  assert.match(dash, /<th>Histórico de vendas<\/th>/);
+  assert.match(dash, /<th>Vendas por semana, dia e mês<\/th>/);
+  assert.match(dash, /<th>Como vendia antes de parar<\/th>/);
+  assert.match(dash, /useSalesBreakdown\(stoppedIds,'last_sale'\)/);
+  assert.match(dash, /useSalesBreakdown\(noSalesIds,'last_sale'\)/);
+  assert.match(dash, /useSalesMonths\(/);
+  assert.match(dash, /<DailySalesRow /);
+  assert.match(dash, /<MonthsPanelRow /);
 });
 
 test('rota e funcao SQL de vendas por dia e semana validam entrada e sao somente leitura', () => {
@@ -34,9 +36,7 @@ test('rota e funcao SQL de vendas por dia e semana validam entrada e sao somente
   assert.doesNotMatch(sql, /\b(insert into|update public|delete from)\b/i);
 });
 
-test('Painel Comercial usa ancora last_sale para anuncios sem vendas no periodo', () => {
-  assert.match(manager, /useSalesBreakdown\(idleSaleRows,'last_sale'\)/);
-  assert.match(manager, /anchored=\{!\(Number\(item\.units\)>0\)\}/);
+test('Pararam e Sem vendas usam ancora last_sale', () => {
   assert.match(router, /anchor/);
   assert.match(sql, /p_anchor='last_sale'/);
 });
@@ -52,11 +52,16 @@ test('Dashboard: grafico mostra faturamento por produto conforme o filtro', () =
   assert.doesNotMatch(dash, /<DailyChart|<MonthlyChart|segment-series/);
 });
 
-test('lista Melhores/Em queda/Pararam/Sem vendas vive no Painel Comercial (aba Desempenho)', () => {
-  assert.match(manager, /<CommerceDashboard key=\{[^}]*\} mode="explorer"/);
-  assert.match(manager, /Desempenho \(melhores, em queda, pararam, sem vendas\)/);
+const panel = readFileSync('src/commerce-commercial-panel.jsx', 'utf8');
+test('Painel Comercial e so o desempenho (explorer) mais o menu Importar', () => {
+  const app = readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  assert.match(panel, /<CommerceDashboard key=\{[^}]*\} mode="explorer"/);
+  assert.match(panel, /COMMERCE_IMPORT_OPTIONS/);
+  assert.match(panel, /Importar arquivo/);
+  assert.doesNotMatch(panel, /nim-ad-table|ListingDetail/);
+  assert.match(app, /<CommerceCommercialPanel /);
+  assert.doesNotMatch(app, /commerce-ad-manager/);
+  assert.match(app, /onOpenTab=\{openPerformance\}/);
   assert.match(dash, /mode==='explorer'&&<section className="ndb-panel ndb-explorer">/);
   assert.match(dash, /mode==='overview'&&<Panel title="Faturamento por produto"/);
-  const app = readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
-  assert.match(app, /onOpenTab=\{openPerformance\}/);
 });
