@@ -106,3 +106,12 @@ test('coluna Plataforma so aparece em Todas as plataformas; health usa chamada d
   assert.doesNotMatch(dash, /<th>Plataforma<\/th><th>Status<\/th>/);
   assert.match(store, /directSupabaseRpc\(env, 'nisti_system_health_core_v1'/);
 });
+
+test('Painel Comercial tem blocos Em alta, Muita visita pouca venda e Vendas por mês (só no explorer)',()=>{
+  const src=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
+  assert.match(src,/mode==='explorer'&&<Panel title="Em alta"/);
+  assert.match(src,/mode==='explorer'&&<Panel title="Muita visita, pouca venda"/);
+  assert.match(src,/mode==='explorer'&&<Panel title="Vendas por mês \(unidades\)"/);
+  assert.match(src,/Number\(pf\.visits\)>=300/);
+  assert.match(src,/sales-dashboard\/monthly\?platform=/);
+});
