@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
-import {useSalesBreakdown,WeeklySalesCell,DailySalesRow} from './commerce-sales-breakdown.jsx';
+import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
 import './commerce-dashboard.css';
 
 const PLATFORMS=[['TODAS','Todas as plataformas'],['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']];
@@ -376,7 +376,10 @@ export default function CommerceDashboard(){
   const stoppedBreakdown=useSalesBreakdown(stoppedIds,'last_sale');
   const noSalesIds=useMemo(()=>tab==='nosales'?(overview?.no_sales||[]).filter(r=>r.last_sale&&r.listing_id).slice(0,200).map(r=>({id:r.listing_id})):[],[overview,tab]);
   const noSalesBreakdown=useSalesBreakdown(noSalesIds,'last_sale');
+  const monthIds=useMemo(()=>[...signalRows,...stoppedIds,...noSalesIds],[signalRows,stoppedIds,noSalesIds]);
+  const salesMonths=useSalesMonths(monthIds);
   const [openDays,setOpenDays]=useState({});
+  const [openMonths,setOpenMonths]=useState({});
   const totals=data?.totals||{};
   const classes=data?.abc?.classes_by_platform?.[abcP]||[];
   const allItems=(data?.abc?.items||[]).filter(i=>i.platform===abcP);
@@ -486,16 +489,18 @@ export default function CommerceDashboard(){
               <td className="num">{num(r.units_previous)} → {num(r.units)}</td><td className="num neg">{pctText(changePct(r.units,r.units_previous))}</td>
               <td className="num neg" title={money(r.revenue_previous)+' → '+money(r.revenue)}>{money(r.lost_revenue)}</td>
               <td className="num">{sg&&sg.price_previous!=null&&sg.price_current!=null?money(sg.price_previous)+' → '+money(sg.price_current):'—'}</td>
-              <td><WeeklySalesCell data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))}/></td></tr>
-              {openDays[rk]&&sb&&<DailySalesRow data={sb} colSpan={6}/>}</React.Fragment>;})}
+              <td><WeeklySalesCell data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))} months={salesMonths[r.listing_id]} monthsOpen={Boolean(openMonths[rk])} onToggleMonths={()=>setOpenMonths(o=>({...o,[rk]:!o[rk]}))}/></td></tr>
+              {openDays[rk]&&sb&&<DailySalesRow data={sb} colSpan={6}/>}
+              {openMonths[rk]&&salesMonths[r.listing_id]&&<MonthsPanelRow listingId={r.listing_id} data={salesMonths[r.listing_id]} colSpan={6}/>}</React.Fragment>;})}
             {drops.length===0&&!loading&&<tr><td colSpan={6} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. As vendas por semana e por dia vêm das vendas importadas; o % compara com o período anterior.</p></>}
           {tab==='stopped'&&!all&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th><th>Como vendia antes de parar</th></tr></thead><tbody>
             {stoppedRows.map(r=>{const rk='s'+r.platform+r.external_id;const sb=stoppedBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{PLATFORM_LABEL[r.platform]||r.platform} · {r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{r.last_sale?fmtDayFull(r.last_sale):'—'}</td><td className="num">{r.days_since!=null?num(r.days_since)+' dias':'—'}</td><td className="num">{num(r.units_ever)} un. · {money(r.revenue_ever)}</td>
-              <td><WeeklySalesCell anchored data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))}/></td></tr>
-              {openDays[rk]&&sb&&<DailySalesRow anchored data={sb} colSpan={5}/>}</React.Fragment>;})}
+              <td><WeeklySalesCell anchored data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))} months={salesMonths[r.listing_id]} monthsOpen={Boolean(openMonths[rk])} onToggleMonths={()=>setOpenMonths(o=>({...o,[rk]:!o[rk]}))}/></td></tr>
+              {openDays[rk]&&sb&&<DailySalesRow anchored data={sb} colSpan={5}/>}
+              {openMonths[rk]&&salesMonths[r.listing_id]&&<MonthsPanelRow listingId={r.listing_id} data={salesMonths[r.listing_id]} colSpan={5}/>}</React.Fragment>;})}
             {stoppedRows.length>0&&stoppedRows.length<Number(ov.stopped_total||0)&&<tr><td colSpan={5} className="ndb-empty">Mostrando os {num(stoppedRows.length)} que pararam mais recentemente, de {num(ov.stopped_total)}.</td></tr>}
             {stoppedRows.length===0&&<tr><td colSpan={5} className="ndb-empty">{overview?'Nenhum anúncio ativo está parado neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div><p className="ndb-note">Semanas e dias contados até a última venda de cada anúncio, para ver como ele vendia antes de parar. Depois, confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</p></>}
@@ -505,9 +510,10 @@ export default function CommerceDashboard(){
           <div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th><th>Plataforma</th><th>Última venda</th><th>Como vendia antes de parar</th></tr></thead><tbody>
             {(ov.no_sales||[]).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);const rk='n'+r.platform+r.external_id;const sb=noSalesBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td>{PLATFORM_LABEL[r.platform]||r.platform}</td><td>{sold?fmtDayFull(r.last_sale):'nunca'}</td>
-              <td>{sold?<WeeklySalesCell anchored data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))}/>
+              <td>{sold?<WeeklySalesCell anchored data={sb} open={Boolean(openDays[rk])} onToggle={()=>setOpenDays(o=>({...o,[rk]:!o[rk]}))} months={salesMonths[r.listing_id]} monthsOpen={Boolean(openMonths[rk])} onToggleMonths={()=>setOpenMonths(o=>({...o,[rk]:!o[rk]}))}/>
                 :<span className="ndb-why tone-muted" title={'Nenhuma venda nos dados importados (desde '+firstDay+'). Pode ser anúncio novo ou nunca ter vendido; o sistema não sabe a data de criação no marketplace.'}><strong>Nunca vendeu nos dados</strong><small>{'Sem venda desde '+firstDay+' (início dos dados importados). Pode ser novo.'}</small></span>}</td></tr>
-              {sold&&openDays[rk]&&sb&&<DailySalesRow anchored data={sb} colSpan={4}/>}</React.Fragment>;})}
+              {sold&&openDays[rk]&&sb&&<DailySalesRow anchored data={sb} colSpan={4}/>}
+              {sold&&openMonths[rk]&&salesMonths[r.listing_id]&&<MonthsPanelRow listingId={r.listing_id} data={salesMonths[r.listing_id]} colSpan={4}/>}</React.Fragment>;})}
             {(ov.no_sales||[]).length===0&&<tr><td colSpan={4} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista completa do período escolhido: primeiro os que já venderam, depois os que nunca venderam. Em quem já vendeu, as semanas e os dias são contados até a última venda (até 200 anúncios); confira estoque, preço e se está pausado.</p></>}

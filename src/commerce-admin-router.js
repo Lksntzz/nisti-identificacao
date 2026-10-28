@@ -36,6 +36,7 @@ import {
   commerceVariationReview,
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
+  commerceListingSalesMonths,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -495,6 +496,12 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Filtro de vendas por dia e semana inválido.'},400);
       const anchor=query(url,'anchor')==='last_sale'?'last_sale':'last_day';
       return json(await commerceListingSalesBreakdown(env,{ids,anchor}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/sales-months'){
+      const ids=String(query(url,'ids')||'').split(',').filter(Boolean);
+      if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id)))
+        return json({error:'Filtro de vendas por mês inválido.'},400);
+      return json(await commerceListingSalesMonths(env,{ids,daily:query(url,'daily')==='1'}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/price-signal'){
       const ids=String(query(url,'ids')||'').split(',').filter(Boolean);

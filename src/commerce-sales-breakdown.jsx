@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
-import {deltaPct} from './commerce-sales-breakdown-helpers.js';
+import {deltaPct,monthLabel,bestMonth} from './commerce-sales-breakdown-helpers.js';
 
 const num=v=>Number(v||0).toLocaleString('pt-BR');
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -24,7 +24,23 @@ export function useSalesBreakdown(rows,anchor='last_day'){
   return breakdown;
 }
 
-export function WeeklySalesCell({data,open,onToggle,anchored=false}){
+export function useSalesMonths(rows){
+  const [months,setMonths]=useState({});
+  const ids=[...new Set((rows||[]).map(r=>r.id).filter(Boolean))];
+  const key=ids.join(',');
+  useEffect(()=>{
+    if(!ids.length){setMonths({});return undefined;}
+    const controller=new AbortController();
+    const chunks=[];for(let i=0;i<ids.length;i+=200)chunks.push(ids.slice(i,i+200));
+    Promise.all(chunks.map(c=>fetchCommercialManager('/api/admin/commerce/listings/manager/sales-months?ids='+c.join(','),{signal:controller.signal})
+      .then(data=>data?.months||{}).catch(()=>({}))))
+      .then(parts=>{if(!controller.signal.aborted)setMonths(Object.assign({},...parts));});
+    return()=>controller.abort();
+  },[key]);
+  return months;
+}
+
+export function WeeklySalesCell({data,open,onToggle,anchored=false,months,monthsOpen,onToggleMonths}){
   const weeks=data?.weeks||[];
   if(!weeks.length)return <span className="ndb-sb-empty">sem dados</span>;
   const cur=weeks[weeks.length-1],prev=weeks[weeks.length-2];
@@ -37,6 +53,7 @@ export function WeeklySalesCell({data,open,onToggle,anchored=false}){
     {anchored&&<small className="ndb-sb-anchor">Semanas até a última venda ({dm(data.last_day)})</small>}
     <span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)} vs. semana anterior</span>
     <button type="button" className="ndb-link" onClick={onToggle} aria-expanded={open}>{open?'Ocultar dias':'Ver por dia'}</button>
+    {months&&<BestMonthBadge data={months} open={monthsOpen} onToggle={onToggleMonths}/>}
   </div>;
 }
 
@@ -54,5 +71,50 @@ export function DailySalesRow({data,colSpan,anchored=false}){
       })}
     </div>
     <small className="ndb-note">{anchored?'Unidades por dia nos 14 dias até a última venda ('+dm(data?.last_day)+').':'Unidades por dia nos últimos 14 dias.'} O % compara com o mesmo dia da semana anterior.</small>
+  </td></tr>;
+}
+
+// Selo "Mes mais vendido": abre a comparacao mes a mes do anuncio.
+export function BestMonthBadge({data,open,onToggle}){
+  const best=bestMonth(data?.months,data?.last_day);
+  if(!best)return null;
+  return <button type="button" className={'ndb-best-month'+(open?' is-open':'')} onClick={onToggle} aria-expanded={open}
+    title="Mês com mais unidades vendidas deste anúncio (todo o histórico importado). Clique para comparar os meses.">
+    <span aria-hidden="true">★</span> Mais vendido: <b>{monthLabel(best.month)}</b> · {num(best.units)} un.{best.ongoing?' (mês em andamento)':''}
+  </button>;
+}
+
+// Comparacao mes a mes + melhor dia de cada mes; clicar no mes mostra todos os dias dele.
+export function MonthsPanelRow({listingId,data,colSpan}){
+  const months=data?.months||[];
+  const best=bestMonth(months,data?.last_day);
+  const [selected,setSelected]=useState(null);
+  const [daily,setDaily]=useState(null);
+  const [failed,setFailed]=useState(false);
+  useEffect(()=>{
+    if(!selected||daily||failed)return undefined;
+    const controller=new AbortController();
+    fetchCommercialManager('/api/admin/commerce/listings/manager/sales-months?daily=1&ids='+listingId,{signal:controller.signal})
+      .then(r=>setDaily(r?.months?.[String(listingId)]?.daily||[])).catch(()=>{if(!controller.signal.aborted)setFailed(true);});
+    return()=>controller.abort();
+  },[selected,daily,failed,listingId]);
+  const monthDays=selected&&daily?daily.filter(d=>String(d.day).slice(0,7)===selected):[];
+  const peak=monthDays.reduce((m,d)=>Math.max(m,Number(d.units)),0);
+  return <tr className="ndb-sb-daily-row ndb-months-row"><td colSpan={colSpan}>
+    <table className="ndb-months-table"><thead><tr><th>Mês</th><th className="num">Unidades</th><th className="num">Faturamento</th><th className="num">vs. mês anterior</th><th className="num">Dias com venda</th><th>Melhor dia</th></tr></thead><tbody>
+      {months.map((m,i)=>{const prev=months[i-1];const d=prev?deltaPct(m.units,prev.units):null;const isBest=best&&best.month===m.month;
+        const ongoing=data?.last_day&&String(data.last_day).slice(0,7)===m.month;
+        return <tr key={m.month} className={(isBest?'is-best ':'')+(selected===m.month?'is-selected':'')} onClick={()=>setSelected(selected===m.month?null:m.month)} title="Clique para ver todos os dias deste mês">
+          <td><b>{monthLabel(m.month)}</b>{isBest&&<span className="ndb-best-tag">★ mais vendido</span>}{ongoing&&<small className="ndb-note"> até {dm(data.last_day)}</small>}</td>
+          <td className="num">{num(m.units)}</td><td className="num">{money(m.revenue)}</td>
+          <td className={'num tone-'+tone(d)}>{pctText(d)}</td><td className="num">{num(m.active_days)}</td>
+          <td>{dm(m.best_day)} · {num(m.best_units)} un.</td></tr>;})}
+    </tbody></table>
+    {selected&&<div className="ndb-month-days">
+      <small className="ndb-note">Todos os dias de {monthLabel(selected)} (unidades por dia). O dia mais forte aparece em destaque.</small>
+      {failed?<small className="ndb-note">Não foi possível carregar os dias agora.</small>:!daily?<small className="ndb-note">Carregando dias…</small>
+        :<div className="ndb-sb-days is-month">{monthDays.map(x=><div key={x.day} className={'ndb-sb-day'+(Number(x.units)===peak&&peak>0?' is-peak':'')}><small>{weekday(x.day)} {dm(x.day)}</small><b>{num(x.units)}</b></div>)}</div>}
+    </div>}
+    <small className="ndb-note">Mês mais vendido = mais unidades no histórico importado. O mês em andamento pode ficar abaixo só por estar incompleto.</small>
   </td></tr>;
 }
