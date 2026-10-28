@@ -449,11 +449,32 @@
 @media (max-width:700px){.ndb-search input{min-width:0;width:100%}.ndb-search{flex:1 1 100%}}
 
 /* Aba Cadastros por mês */
-.ndb-coh{display:flex;flex-direction:column;gap:10px}
-.ndb-coh-month{border:1px solid #e1e8f4;border-radius:10px;background:#fff;overflow:hidden}
-.ndb-coh-head{width:100%;display:grid;grid-template-columns:minmax(150px,1.2fr) 1fr auto auto 18px;gap:14px;align-items:center;padding:10px 14px;background:#f5f8fe;border:0;cursor:pointer;font:inherit;color:#1c2a48;text-align:left}
-.ndb-coh-head strong{font-size:14px;text-transform:capitalize}
-.ndb-coh-head span{font-size:12px;color:#5b6b86;font-variant-numeric:tabular-nums}
+.ndb-coh{display:flex;flex-direction:column;gap:12px}
+.ndb-coh-month{border:1px solid #e1e8f4;border-radius:12px;background:#fff;overflow:hidden}
+.ndb-coh-head{width:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;background:#f5f8fe;border:0;cursor:pointer;font:inherit;color:#1c2a48;text-align:left}
+.ndb-coh-head strong{font-size:16px;font-weight:800;margin-right:8px}
+.ndb-coh-head i{margin-left:auto;font-style:normal;color:#5b6b86}
+.ndb-coh-chip{font-size:12px;color:#5b6b86;background:#fff;border:1px solid #dfe7f5;border-radius:999px;padding:3px 10px;font-variant-numeric:tabular-nums}
+.ndb-coh-chip b{color:#1c2a48}
 .ndb-coh-head:focus-visible{outline:2px solid #1d5fd1;outline-offset:-2px}
-.ndb-coh-table td:first-child{max-width:340px}
-@media (max-width:700px){.ndb-coh-head{grid-template-columns:1fr 1fr;row-gap:2px}.ndb-coh-head i{display:none}}
+.ndb-coh-cols,.ndb-coh-row{display:grid;grid-template-columns:minmax(220px,1.7fr) minmax(130px,.8fr) minmax(170px,1fr) minmax(110px,.7fr) minmax(130px,.8fr);gap:16px;align-items:center;padding:0 16px}
+.ndb-coh-cols{padding-top:8px;padding-bottom:6px;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7a8aa3;border-bottom:1px solid #eef2f9}
+.ndb-coh-list{list-style:none;margin:0;padding:0}
+.ndb-coh-row{padding-top:10px;padding-bottom:10px;border-bottom:1px solid #eef2f9}
+.ndb-coh-row:last-child{border-bottom:0}
+.ndb-coh-row small{display:block;font-size:11px;color:#7a8aa3;margin-top:2px}
+.ndb-coh-row b{font-size:13px;color:#1c2a48;font-variant-numeric:tabular-nums}
+.ndb-coh-prod{min-width:0}
+.ndb-coh-prod strong{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;font-weight:700;color:#1c2a48;line-height:1.3}
+.ndb-coh-pill{display:inline-block;margin-right:6px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;background:#eef2f9;color:#33415f}
+.ndb-coh-pill.p-shopee{background:#fde9e1;color:#b4391b}.ndb-coh-pill.p-ml{background:#fff4c2;color:#7a5d00}
+.ndb-coh-bars{display:flex;align-items:flex-end;gap:8px;height:64px}
+.ndb-coh-bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;min-width:0}
+.ndb-coh-bar i{display:block;width:100%;max-width:28px;border-radius:3px 3px 0 0;background:#1d5fd1}
+.ndb-coh-bar:nth-child(1) i{background:#a9c3f2}.ndb-coh-bar:nth-child(2) i{background:#7ea5ea}.ndb-coh-bar:nth-child(3) i{background:#4a82e0}
+.ndb-coh-bar.is-na i{background:#e1e8f4}.ndb-coh-bar.is-na b{color:#b3bfd3}
+.ndb-coh-bar b{font-size:10.5px}.ndb-coh-bar small{margin:0;font-size:10px}
+.ndb-coh-trend{font-style:normal;font-weight:800;margin-left:6px;padding:0 6px;border-radius:999px;font-size:10.5px}
+.ndb-coh-trend.up{background:#dff3e6;color:#1f8a4c}.ndb-coh-trend.down{background:#fbe3e0;color:#c0392b}.ndb-coh-trend.flat{background:#eef2f9;color:#5b6b86}
+@media (max-width:1100px){.ndb-coh-cols{display:none}.ndb-coh-row{grid-template-columns:1fr 1.5fr 1fr 1fr;row-gap:8px}.ndb-coh-prod{grid-column:1/-1}.ndb-coh-bars{max-width:240px}}
+@media (max-width:700px){.ndb-coh-row{grid-template-columns:1fr 1fr}.ndb-coh-bars{grid-column:1/-1}}
