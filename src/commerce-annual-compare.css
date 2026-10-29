@@ -117,3 +117,7 @@
 .ndb-ac-fl.best{color:#d49a00}.ndb-ac-fl.worst{color:#b42318}
 .ndb-ac-wc.has-flag{box-shadow:inset 0 0 0 1.5px rgba(29,95,209,.35)}
 @media (max-width:1000px){.ndb-ac-kv{grid-template-columns:1fr}}
+
+/* o grid do painel esticava as linhas e abria vão entre abas e conteúdo */
+.nim-manager{align-content:start}
+.ndb-ac-tabs{align-self:start}

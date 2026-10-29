@@ -49,3 +49,7 @@ test('alias de SKU e restrito ao service_role', () => {
   assert.match(sql, /CADMNAPFL/);
   assert.match(sql, /revoke all on public\.commerce_sku_alias_v1 from public,anon,authenticated/i);
 });
+
+test('migracao de desempenho cria o indice de nome por SKU', () => {
+  assert.match(fs.readFileSync('supabase/migrations/20261029170000_commerce_annual_perf_v1.sql', 'utf8'), /commerce_product_skus_canon_idx/);
+});
