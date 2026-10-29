@@ -86,3 +86,10 @@ test('produtos do mês são buscados para o mês exibido, inclusive o padrão', 
   assert.match(ui, /defaultMonth/);
   assert.match(fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8'), /Number\(monthData\.month\)===selectedMonth/);
 });
+
+test('botoes e tabelas do painel herdam a fonte sem sobrescrever tamanhos das classes', () => {
+  const g = fs.readFileSync('src/commerce-annual-guided.css', 'utf8');
+  assert.match(g, /\.ga-y-guided :where\(button,select,input,table\)\{font:inherit\}/);
+  assert.doesNotMatch(g, /\.ga-y-guided button,\.ga-y-guided select\{font:inherit\}/);
+  assert.match(fs.readFileSync('src/commerce-annual-compare.css', 'utf8'), /Plus Jakarta Sans/);
+});
