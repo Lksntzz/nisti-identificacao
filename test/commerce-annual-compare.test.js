@@ -193,3 +193,10 @@ test('SKU sem cadastro usa o nome do relatório de vendas e a consulta de catego
   const sql = fs.readFileSync('supabase/migrations/20261029260000_commerce_sku_name_fallback_v1.sql','utf8');
   assert.match(sql,/commerce_sku_name_v1/); assert.match(sql,/commerce_sales_rows_sku_canon_idx/); assert.match(sql,/cl as materialized/);
 });
+
+test('dashboard: filtro inteligente bloqueia plataforma sem vendas no mês e filtra os meses da plataforma', () => {
+  const d = fs.readFileSync('src/commerce-dashboard.jsx','utf8');
+  assert.match(d, /Sem vendas importadas em/);
+  assert.match(d, /options=\{platformOptions\}/);
+  assert.match(d, /hasSales\(r,platform\)/);
+});

@@ -377,6 +377,27 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
       .then(setMonthly).catch(()=>{if(!controller.signal.aborted)setMonthly(null);});
     return()=>controller.abort();
   },[platform]);
+  const [monthlyAll,setMonthlyAll]=useState(null);
+  useEffect(()=>{
+    const controller=new AbortController();
+    fetchCommercialManager('/api/admin/commerce/listings/manager/monthly?platform=TODAS',{signal:controller.signal})
+      .then(setMonthlyAll).catch(()=>{if(!controller.signal.aborted)setMonthlyAll(null);});
+    return()=>controller.abort();
+  },[]);
+  // Filtro inteligente: períodos e plataformas só aparecem quando há vendas importadas para a combinação.
+  const platKey={SHOPEE:'units_shopee',ML_ANTIGO:'units_ml_antigo',ML_NOVO:'units_ml_novo'};
+  const hasSales=(row,plat)=>plat==='TODAS'?Object.values(platKey).some(k=>Number(row?.[k]||0)>0):Number(row?.[platKey[plat]]||0)>0;
+  const rowsAll=monthlyAll?.months||null;
+  const monthRow=m=>(rowsAll||[]).find(r=>String(r.month).slice(0,7)===m);
+  const platformOptions=PLATFORMS.map(([id,label])=>[id,label,
+    rowsAll&&month&&id!=='TODAS'&&!hasSales(monthRow(month),id)?'Sem vendas importadas em '+monthLabel(month+'-01')+'/'+month.slice(2,4):null]);
+  const platformBlocked=Boolean(platformOptions.find(o=>o[0]===platform)?.[2]);
+  useEffect(()=>{
+    if(!platformBlocked||!rowsAll)return;
+    const row=monthRow(month);
+    const ok=['SHOPEE','ML_ANTIGO','ML_NOVO'].filter(p=>hasSales(row,p));
+    setPlatform(ok.length===1?ok[0]:'TODAS');
+  },[platformBlocked,month,rowsAll]);
   const abcP=platform==='TODAS'?abcPlat:platform;
   const all=days===0&&!month;
   const span=month?Number(data?.days)||30:days;
@@ -472,12 +493,12 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   ];
   const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc',cohorts:'cohorts'};
   const bestAll=[...top].filter(hit).sort((x,y)=>Number(y.units)-Number(x.units));
-  const availableMonths=(monthly?.months||[]).map(m=>String(m.month).slice(0,7));
+  const availableMonths=(rowsAll||monthly?.months||[]).filter(r=>!rowsAll||hasSales(r,platform)).map(m=>String(m.month).slice(0,7));
   const splitRows=all?(monthly?.months||[]):series?.daily;
   const filters=<>
     <PeriodPicker days={days} month={month} periods={PERIODS} available={availableMonths} onDays={v=>{setMonth('');setDays(v);}} onMonth={setMonth}/>
     <InfoIcon text={SOURCES.period} label="Período"/>
-    <Dropdown label="Plataforma" value={platform} options={PLATFORMS} onChange={setPlatform}/>
+    <Dropdown label="Plataforma" value={platform} options={platformOptions} onChange={setPlatform}/>
     {mode==='explorer'&&<label className="ndb-search" title="Busca nos anúncios que aparecem nas listas abaixo (nome, SKU ou código do anúncio).">
       <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Produto, SKU ou código" aria-label="Buscar produto, SKU ou código do anúncio"/>
     </label>}
