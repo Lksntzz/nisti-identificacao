@@ -18,7 +18,7 @@ const MIN_UNITS=30;
 // Etiqueta ao lado das unidades: "novo" só quando o produto nunca vendeu no ano base inteiro.
 function NewTag({row,base}){
   const k=newKind(row);
-  if(k==='new')return <em className="ndb-ac-newtag" title={'Nenhuma venda em '+base+' inteiro'}>novo</em>;
+  if(k==='new')return <em className="ndb-ac-newtag" title={'Nenhum anúncio com venda em '+base+' inteiro'}>novo</em>;
   if(k==='old')return <em className="ndb-ac-newtag is-old" title={'Sem venda neste período de '+base+', mas vendeu em outros meses de '+base}>já vendia</em>;
   return null;
 }
