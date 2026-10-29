@@ -51,5 +51,5 @@ test('alias de SKU e restrito ao service_role', () => {
 });
 
 test('migracao de desempenho cria o indice de nome por SKU', () => {
-  assert.match(fs.readFileSync('supabase/migrations/20261029170000_commerce_annual_perf_v1.sql', 'utf8'), /commerce_product_skus_canon_idx/);
+  assert.match(fs.readFileSync('supabase/migrations/20261029180000_commerce_annual_perf_v1.sql', 'utf8'), /commerce_product_skus_canon_idx/);
 });
