@@ -733,6 +733,11 @@ html.ga-dark .ndb-sb-week.is-cur .ndb-sb-bar{background:#3470d8}
 html.ga-dark .ndb-best-month{color:#d7b76d}
 html.ga-dark .ndb-table tr:hover .ndb-ext,html.ga-dark .ndb-ext:focus-visible{border-color:#262c37;background:#1a1a1a}
 html.ga-dark .ndb-perf-note{color:#4f5b6f}
+html.ga-dark .ndb-root .ndb-sb-bar{background:#222c3e}
+html.ga-dark .ndb-root .ndb-sb-week b{color:#616f86}
+html.ga-dark .ndb-root .ndb-sb-week.is-cur .ndb-sb-bar{background:#3470d8}
+html.ga-dark .ndb-root .ndb-sb-week.is-cur b{color:#a9b9e6}
+html.ga-dark .ndb-table td.num.neg[title]{color:#78869f}
 html.ga-dark .import-center-mode-grid>button{border:1px solid #272d34;background:#1a1a1a;color:#bac6e3}
 html.ga-dark .import-center-mode-grid>button:hover{border-color:#334257;box-shadow:0 5px 16px rgba(186,198,227,.05)}
 html.ga-dark .import-center-mode-grid>button.active{border-color:#0a42c7;background:#0e1b29;box-shadow:inset 0 0 0 1px rgba(10,66,199,.08)}

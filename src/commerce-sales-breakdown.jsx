@@ -50,9 +50,10 @@ export function WeeklySalesCell({data,open,onToggle,anchored=false,months,months
   const max=Math.max(1,...weeks.map(w=>Number(w.units)||0));
   return <div className="ndb-sb">
     <div className="ndb-sb-weeks" title={anchored?'Unidades por semana de 7 dias, terminando na última venda do anúncio ('+dm(data.last_day)+').':'Unidades vendidas em cada semana de 7 dias, terminando no último dia com venda importada.'}>
-      {weeks.map((w,i)=>{const last=i===weeks.length-1;return <span key={w.end} className={'ndb-sb-week'+(last?' is-cur':'')} title={dm(w.start)+' a '+dm(w.end)+' · '+money(w.revenue)}>
-        <small>{last?(anchored?'até '+dm(data.last_day):'Atual'):'-'+(weeks.length-1-i)+' sem.'}</small><b>{num(w.units)}</b>
-        <i className="ndb-sb-bar" style={{width:Math.max(Number(w.units)>0?8:0,(Number(w.units)||0)/max*100)+'%'}}/></span>;})}
+      {weeks.map((w,i)=>{const last=i===weeks.length-1;const u=Number(w.units)||0;
+        const label=last?(anchored?'até '+dm(data.last_day):'semana atual'):(weeks.length-1-i)+' sem. atrás';
+        return <span key={w.end} className={'ndb-sb-week'+(last?' is-cur':'')} title={label+' ('+dm(w.start)+' a '+dm(w.end)+') · '+num(u)+' un. · '+money(w.revenue)}>
+        <i className="ndb-sb-bar" style={{height:Math.max(u>0?4:2,u/max*26)+'px'}}/><b>{num(u)}</b></span>;})}
     </div>
     <div className="ndb-sb-meta">
       {d!=null&&<span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)} vs. sem. anterior</span>}

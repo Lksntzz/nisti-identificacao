@@ -648,3 +648,17 @@
 @media (hover:none){.ndb-sb-meta .ndb-link,.ndb-best-month{opacity:1}.ndb-ext{opacity:1}}
 /* Anúncio desativado: a linha inteira fica em cinza (no lugar da coluna Status) */
 .ndb-table tr.ndb-off td{opacity:.55;filter:grayscale(1)}
+
+/* ===== Lista compacta: semanas em mini barras (uma linha por produto) ===== */
+.ndb-root .ndb-sb,.ndb-root.is-explorer .ndb-sb{flex-direction:row;align-items:center;gap:14px;min-width:0;width:auto}
+.ndb-root .ndb-sb-weeks,.ndb-root.is-explorer .ndb-sb-weeks{display:flex;align-items:flex-end;gap:8px;max-width:none;grid-template-columns:none}
+.ndb-root .ndb-sb-week,.ndb-root.is-explorer .ndb-sb-week{position:static;overflow:visible;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;min-width:26px;padding:0;background:transparent}
+.ndb-root .ndb-sb-bar{position:static;display:block;width:14px;height:2px;border-radius:2px;background:#d3def3}
+.ndb-root .ndb-sb-week b{font-size:10.5px;font-weight:600;color:#7a8aa3;line-height:1.2}
+.ndb-root .ndb-sb-week.is-cur .ndb-sb-bar{background:#1d5fd1}
+.ndb-root .ndb-sb-week.is-cur b{font-size:12.5px;font-weight:800;color:#0f1b3d}
+.ndb-root .ndb-sb-meta{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.ndb-root .ndb-sb-meta .ndb-sb-delta{font-size:11.5px;font-weight:700}
+/* Menos cor nas colunas de números: só a variação em vermelho */
+.ndb-table td.neg{font-weight:600}
+.ndb-table td.num.neg[title]{color:#5b6b86;font-weight:600}
