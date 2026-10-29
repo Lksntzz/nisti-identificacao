@@ -161,3 +161,11 @@ html.ga-dark .ndb-ac-hidden{background:#3a2e10;color:#f1d58a}
 html.ga-dark .ga-y-hc{background:#1d2a40;color:#9fb0cc}
 html.ga-dark .ga-y-hc.h2{background:#27406e;color:#dbe6fb}html.ga-dark .ga-y-hc.h3{background:#3d6fd6;color:#fff}html.ga-dark .ga-y-hc.h4{background:#8fb0ee;color:#0b1a3a}
 html.ga-dark .ga-y-mb-bars i.is-base{background:#4a5d82}html.ga-dark .ga-y-mb-bars i.is-current{background:#8fb0ee}
+.ga-y-adtitle{display:block;max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ga-y-heat th small{display:block;font-weight:500;color:var(--gy-muted);font-size:10px}
+.ga-y-adrow{cursor:pointer}.ga-y-adrow:hover{background:rgba(13,42,107,.04)}
+.ga-y-adbtn{all:unset;cursor:pointer;display:flex;gap:6px;font-weight:700;color:var(--gy-ink)}
+.ga-y-adbtn i{font-style:normal;color:var(--gy-muted)}
+.ga-y-varrow td{background:rgba(13,42,107,.035);font-size:12px}
+.ga-y-var{padding-left:18px;font-weight:600}.ga-y-varrow small{padding-left:18px}
+html.ga-dark .ga-y-varrow td{background:rgba(143,176,238,.08)}
