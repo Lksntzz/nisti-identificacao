@@ -662,3 +662,11 @@
 /* Menos cor nas colunas de números: só a variação em vermelho */
 .ndb-table td.neg{font-weight:600}
 .ndb-table td.num.neg[title]{color:#5b6b86;font-weight:600}
+
+/* Coluna "Melhor mês" (sempre visível) e colunas mais folgadas */
+.ndb-best-cell{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;background:transparent;padding:2px 6px;margin:-2px -6px;border-radius:8px;cursor:pointer;text-align:left;color:#26334f}
+.ndb-best-cell b{font-size:12.5px;font-weight:700}
+.ndb-best-cell small{font-size:10.5px;color:#7a8aa3;margin:0}
+.ndb-best-cell:hover,.ndb-best-cell.is-open{background:#fff4d6}
+.ndb-table td,.ndb-table th{padding-left:14px;padding-right:14px}
+.ndb-table .num{padding-left:18px}
