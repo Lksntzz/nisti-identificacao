@@ -5,10 +5,10 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(path,'utf8');
 
 test('a comparação guiada preserva módulos e navegação do painel comercial',()=>{
-  const entry=read('src/commerce-commercial-panel.jsx');
+  const entry=read('src/commerce-admin-app-v2.jsx');
   const annual=read('src/commerce-annual-compare.jsx');
   const guided=read('src/commerce-annual-guided.jsx');
-  for(const label of ['Anúncios','Comparação anual','Categorias'])assert.ok(entry.includes(label));
+  for(const label of ['Painel Comercial','Comparação anual','Categorias'])assert.ok(entry.includes(label));
   assert.match(annual,/GuidedAnnualCompare/);
   for(const label of ['Unidades no ano','Últimos 28 dias','Projeção de ','Preço médio por unidade',
     'Comparação mensal','Investigação','Semanas do mês','Comparação diária',

@@ -24,6 +24,11 @@ const NAV_ITEMS = Object.freeze([
   { id: 'imports', label: 'Histórico de importações', icon: 'list' }
 ]);
 
+const COMMERCIAL_SUBITEMS = Object.freeze([
+  { id: 'comparison', label: 'Comparação anual' },
+  { id: 'categories', label: 'Categorias' }
+]);
+
 const VIEW_TITLES = Object.freeze({
   dashboard: 'Dashboard',
   catalog: 'Painel Comercial',
@@ -99,7 +104,7 @@ function SidebarIcon({ name }) {
   );
 }
 
-function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar }) {
+function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar, commercialView, onCommercialView }) {
   return (
     <>
       {sidebarOpen && <div className="sidebar-mobile-backdrop" onClick={onCloseSidebar} />}
@@ -131,8 +136,9 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
                 <li key={item.id}>
                   <button
                     type="button"
-                    className={`sidebar-nav-item ${activeView === item.id ? 'active' : ''}`}
+                    className={`sidebar-nav-item ${activeView === item.id && (item.id !== 'catalog' || commercialView === 'ads') ? 'active' : ''}`}
                     onClick={() => {
+                      if (item.id === 'catalog') onCommercialView('ads');
                       onViewChange(item.id);
                       onCloseSidebar();
                     }}
@@ -140,6 +146,25 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
                     <SidebarIcon name={item.icon} />
                     <span className="sidebar-item-label">{item.label}</span>
                   </button>
+                  {item.id === 'catalog' && (
+                    <ul className="sidebar-sublist" aria-label="Painel Comercial">
+                      {COMMERCIAL_SUBITEMS.map(sub => (
+                        <li key={sub.id}>
+                          <button
+                            type="button"
+                            className={`sidebar-nav-item sidebar-subitem ${activeView === 'catalog' && commercialView === sub.id ? 'active' : ''}`}
+                            onClick={() => {
+                              onCommercialView(sub.id);
+                              onViewChange('catalog');
+                              onCloseSidebar();
+                            }}
+                          >
+                            <span className="sidebar-item-label">{sub.label}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               ))}
             </ul>
@@ -213,12 +238,13 @@ export default function CommerceAdminAppV2() {
   useEffect(() => { applyTheme(); return () => document.documentElement.classList.remove('ga-dark'); }, []);
   const [activeView, setActiveView] = useState('dashboard');
   const [perfOpen, setPerfOpen] = useState(null);
+  const [commercialView, setCommercialView] = useState('ads');
   useEffect(() => {
     const go = e => { if (NAV_ITEMS.some(item => item.id === e.detail)) setActiveView(e.detail); };
     window.addEventListener('ga:navigate', go);
     return () => window.removeEventListener('ga:navigate', go);
   }, []);
-  const openPerformance = (tab, filter = null) => { setPerfOpen({ tab, filter, nonce: Date.now() }); setActiveView('catalog'); };
+  const openPerformance = (tab, filter = null) => { setPerfOpen({ tab, filter, nonce: Date.now() }); setCommercialView('ads'); setActiveView('catalog'); };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesRevision, setSalesRevision] = useState(0);
 
@@ -233,6 +259,8 @@ export default function CommerceAdminAppV2() {
       <CommerceSidebar
         activeView={activeView}
         onViewChange={setActiveView}
+        commercialView={commercialView}
+        onCommercialView={setCommercialView}
         sidebarOpen={sidebarOpen}
         onCloseSidebar={() => setSidebarOpen(false)}
       />
@@ -308,7 +336,7 @@ export default function CommerceAdminAppV2() {
 
         <main className="admin-page-content commerce-admin-page-content">
           <div key={activeView + ':' + salesRevision} className="commerce-admin-view-transition">
-            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialPanel perfOpen={perfOpen} />}
+            {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialPanel perfOpen={perfOpen} view={activeView === 'catalog' ? commercialView : 'ads'} />}
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} />}
             {activeView === 'imports' && <CommerceImportHistory />}
