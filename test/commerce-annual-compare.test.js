@@ -188,3 +188,8 @@ test('categorias por coleção: migração, rota e tela usam coleção e variaç
   assert.match(ui,/Variações e vendas/); assert.match(ui,/Voltar às coleções/);
   assert.doesNotMatch(ui,/<h2>Categorias<\/h2>/);
 });
+
+test('SKU sem cadastro usa o nome do relatório de vendas e a consulta de categorias é materializada', () => {
+  const sql = fs.readFileSync('supabase/migrations/20261029260000_commerce_sku_name_fallback_v1.sql','utf8');
+  assert.match(sql,/commerce_sku_name_v1/); assert.match(sql,/commerce_sales_rows_sku_canon_idx/); assert.match(sql,/cl as materialized/);
+});
