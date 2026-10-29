@@ -460,6 +460,9 @@ html.ga-dark .ndb-ac-wc.ndb-ac-wm{border-left:2px solid #222935}
 html.ga-dark .ndb-ac-fl.best{color:#f4be2d}
 html.ga-dark .ndb-ac-fl.worst{color:#de554a}
 html.ga-dark .ndb-ac-wc.has-flag{box-shadow:inset 0 0 0 1.5px rgba(52,112,216,.35)}
+html.ga-dark .ndb-ac-newtag{color:#3470d8;background:#152032}
+html.ga-dark .ndb-ac-wt i{background:#1f3d74}
+html.ga-dark .ndb-ac-wt span{color:#94a3c2}
 html.ga-dark .ga-y-toolbar select{background:#1a1a1a}
 html.ga-dark .ga-y-view-controls{background:#1a1a1a}
 html.ga-dark .ga-y-view-controls button{color:#8395af}

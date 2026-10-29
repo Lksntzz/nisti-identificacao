@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {maskMoney} from './commerce-privacy.js';
-import {growth,pctText,indexOf,weekHighlights} from './commerce-annual-compare-helpers.js';
+import {growth,pctText,indexOf,weekHighlights,productLabel,share} from './commerce-annual-compare-helpers.js';
 import './commerce-annual-compare.css';
 import GuidedAnnualCompare from './commerce-annual-guided.jsx';
 
@@ -285,16 +285,28 @@ export function WeeksCard({monthData,year,base,selected}){
 }
 
 export function Champions({month,monthData,year,base}){
-  const top=monthData?.top||[];
-  return <section className="ndb-ac-card ndb-ac-det" aria-label="Produtos campeões do mês">
-    <h3>Campeões de {MONTH_FULL[month-1]}</h3>
-    <p className="ndb-ac-sub">Os 15 produtos (SKU) que mais venderam em {year}, contra o mesmo período de {base}. Produto sem venda em {base} aparece como “novo”: pode ser lançamento ou troca de código do mesmo produto.</p>
-    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Variação</th></tr></thead>
-      <tbody>{top.map((r,i)=><tr key={r.sku}><td className="ndb-ac-mut">{i+1}</td>
-        <td><span className="ndb-ac-pn" title={r.name||r.sku}>{r.name||'Sem cadastro'}</span><small className="ndb-ac-mut">{r.sku}{r.category?' · '+r.category:''}</small></td>
-        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b></td><td className="num"><Delta cur={r.cur} base={r.base} small/></td></tr>)}
-        {top.length===0&&<tr><td colSpan={5} className="ndb-ac-mut">Sem vendas nesse mês.</td></tr>}</tbody></table></div>
-    <div className="ndb-ac-dgrid ndb-ac-dgrid2"><SkuList title="Mais cresceram" items={monthData?.up||[]} empty="Nenhum produto cresceu."/><SkuList title="Mais caíram" items={monthData?.down||[]} empty="Nenhum produto caiu."/></div>
+  const [tab,setTab]=useState('top');
+  const tot=monthData?.month_total||{cur:0,base:0};
+  const lists={top:(monthData?.top||[]).slice(0,10),up:(monthData?.up||[]).slice(0,10),down:(monthData?.down||[]).slice(0,10)};
+  const rows=lists[tab];
+  const useBase=tab==='down';
+  const labels={top:'Campeões',up:'Mais cresceram',down:'Mais caíram'};
+  const intro={top:'Os 10 que mais venderam em '+year+'.',up:'Os 10 que mais ganharam unidades contra '+base+'.',down:'Os 10 que mais perderam unidades contra '+base+'.'};
+  const maxShare=Math.max(1,...rows.map(r=>share(useBase?r.base:r.cur,useBase?tot.base:tot.cur)||0));
+  return <section className="ndb-ac-card ndb-ac-det ndb-ac-prod" aria-label="Produtos do mês">
+    <div className="ndb-ac-wh"><h3>Produtos de {MONTH_FULL[month-1]}</h3>
+      <div className="ndb-ac-seg" role="tablist" aria-label="Tipo de lista">
+        {Object.keys(labels).map(k=><button type="button" role="tab" aria-selected={tab===k} key={k} className={tab===k?'is-on':''} onClick={()=>setTab(k)}>{labels[k]} <small>{lists[k].length}</small></button>)}
+      </div></div>
+    <p className="ndb-ac-sub">{intro[tab]} “Peso” é quanto o produto representa das vendas do mês em {useBase?base:year}. “Novo” = sem venda em {base}: pode ser lançamento ou troca de código.</p>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Diferença</th><th>Peso em {useBase?base:year}</th></tr></thead>
+      <tbody>{rows.map((r,i)=>{const L=productLabel(r.name,r.sku),d=Number(r.cur)-Number(r.base),w=share(useBase?r.base:r.cur,useBase?tot.base:tot.cur);
+        return <tr key={r.sku}><td className="ndb-ac-mut">{i+1}</td>
+        <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.category?r.category+' · ':''}{r.sku}</small></td>
+        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b>{Number(r.base)===0&&Number(r.cur)>0&&<em className="ndb-ac-newtag">novo</em>}</td>
+        <td className={'num '+(d>=0?'g':'r')}>{d>=0?'+':'−'}{num(Math.abs(d))}</td>
+        <td className="ndb-ac-wt">{w==null?'—':<><i style={{width:Math.max(3,w/maxShare*100)+'%'}}/><span>{w.toFixed(1).replace('.',',')}%</span></>}</td></tr>;})}
+        {rows.length===0&&<tr><td colSpan={6} className="ndb-ac-mut">Nenhum produto nesta lista.</td></tr>}</tbody></table></div>
   </section>;
 }
 
