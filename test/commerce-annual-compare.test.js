@@ -43,3 +43,9 @@ test('SQL mensal e restrito ao service_role e rota existe', () => {
   assert.match(sql, /revoke all on function[^;]*from public,\s*anon,\s*authenticated/i);
   assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /sales-compare\/annual-month/);
 });
+
+test('alias de SKU e restrito ao service_role', () => {
+  const sql = fs.readFileSync('supabase/migrations/20261029150000_commerce_sku_alias_v1.sql', 'utf8');
+  assert.match(sql, /CADMNAPFL/);
+  assert.match(sql, /revoke all on public\.commerce_sku_alias_v1 from public,anon,authenticated/i);
+});
