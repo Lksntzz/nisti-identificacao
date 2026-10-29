@@ -618,3 +618,31 @@
 .ndb-coh-ltabs button small{margin-left:4px;color:#7a8aa3;font-weight:600}
 .ndb-coh-ltabs button:hover{border-color:#1d5fd1}
 .ndb-coh-ltabs button.is-active{background:#0d2a6b;border-color:#0d2a6b;color:#fff}.ndb-coh-ltabs button.is-active small{color:#c3cde0}
+
+/* ===== Visual limpo das tabelas do Painel Comercial (mesmos dados, menos ruído) ===== */
+.ndb-table th{background:transparent;border-bottom:1px solid #e3e9f3;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7a8aa3;padding:10px 10px 8px}
+.ndb-table td{padding:12px 10px;border-bottom:1px solid #f1f4f9}
+.ndb-table tbody tr:hover>td{background:#f8faff}
+.ndb-table td strong{font-weight:650;line-height:1.3}
+.ndb-table td small{color:#98a4b8}
+/* Semanas: sem caixas, só número + barra fina; "Atual" em destaque */
+.ndb-sb-week{background:transparent;outline:0!important;border-radius:0;padding:0 2px 6px;min-width:38px;align-items:flex-start}
+.ndb-sb-week small{font-size:10px;color:#98a4b8}
+.ndb-sb-week b{font-size:13px;font-weight:600;color:#4a5875}
+.ndb-sb-bar{height:2px;background:#d3def3;left:2px;right:auto}
+.ndb-sb-week.is-cur{background:transparent}
+.ndb-sb-week.is-cur b{font-weight:800;color:#0f1b3d}
+.ndb-sb-week.is-cur small{color:#1d5fd1;font-weight:700}
+.ndb-sb-week.is-cur .ndb-sb-bar{background:#1d5fd1;height:3px}
+.ndb-sb-weeks{gap:14px}
+.ndb-root.is-explorer .ndb-sb-weeks{gap:14px}
+/* Ações secundárias: aparecem ao passar o mouse na linha (ou ao focar com o teclado) */
+.ndb-sb-meta .ndb-link,.ndb-best-month{opacity:.0;transition:opacity .12s}
+.ndb-table tr:hover .ndb-sb-meta .ndb-link,.ndb-table tr:hover .ndb-best-month,.ndb-sb-meta:focus-within .ndb-link,.ndb-sb-meta:focus-within .ndb-best-month,.ndb-best-month.is-open{opacity:1}
+.ndb-best-month{background:transparent;border-color:transparent;color:#8a6a1f;padding-left:0}
+.ndb-ext{border-color:transparent;background:transparent;opacity:.4}
+.ndb-table tr:hover .ndb-ext,.ndb-ext:focus-visible{opacity:1;border-color:#dbe2ee;background:#fff}
+/* Status "Ativo" vira só o ponto verde (o texto continua para leitores de tela); outros status mantêm o texto */
+.ndb-status.on{font-size:0;gap:0}
+.ndb-perf-note{font-size:11.5px;color:#98a4b8;line-height:1.45}
+@media (hover:none){.ndb-sb-meta .ndb-link,.ndb-best-month{opacity:1}.ndb-ext{opacity:1}}
