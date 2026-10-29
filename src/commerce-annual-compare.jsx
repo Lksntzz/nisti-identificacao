@@ -348,18 +348,17 @@ export function Champions({month,monthData,year,base,loading=false,platform='SHO
         {Object.keys(labels).map(k=><button type="button" role="tab" aria-selected={tab===k} key={k} className={tab===k?'is-on':''} onClick={()=>setTab(k)}>{labels[k]} <small>{lists[k].length}</small></button>)}
       </div></div>
     {oldOk&&ns&&Number(ns.count)>0&&<p className="ndb-ac-hidden">Novos ocultos: {num(ns.count)} produtos, {num(ns.cur)} unidades ({money(ns.cur_rev)}) em {MONTH_FULL[month-1].toLowerCase()}.</p>}
-    <p className="ndb-ac-sub">{intro[tab]} “Preço médio” = receita ÷ unidades vendidas no mês, sem frete (não é o preço de tabela do anúncio). “Novo” = nunca vendeu em {base} inteiro. “Já vendia” = sem venda neste mês de {base}, mas vendeu em outros meses.</p>
-    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th className="num" title="Valor médio de venda por unidade (receita dos produtos ÷ unidades), sem frete">Preço médio {base} → {year}</th><th className="num">Receita {year}</th><th>Peso em {useBase?base:year}</th><th>Anúncio</th></tr></thead>
+    <p className="ndb-ac-sub">{intro[tab]} Abaixo da receita: preço médio por unidade (receita ÷ unidades, sem frete). “novo” = anúncio sem venda em {base} inteiro; “já vendia” = sem venda neste mês de {base}, mas vendeu em outros meses.</p>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Variação</th><th className="num" title="Receita dos produtos no mês; abaixo, preço médio por unidade (receita ÷ unidades, sem frete)">Receita {year}</th><th>Anúncio</th></tr></thead>
       <tbody>{rows.map((r,i)=>{const L=productLabel(r.name,r.sku),d=Number(r.cur)-Number(r.base),w=share(useBase?r.base:r.cur,useBase?tot.base:tot.cur);
         return <tr key={r.sku}><td className="ndb-ac-mut">{i+1}</td>
         <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.category?r.category+' · ':''}{r.sku}</small></td>
         <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b><NewTag row={r} base={base}/></td>
-        <td className={'num '+(d>=0?'g':'r')}>{d>=0?'+':'−'}{num(Math.abs(d))}</td>
-        <td className="num ndb-ac-pr">{(()=>{const pb=Number(r.base)>0&&Number(r.base_rev)>0?Number(r.base_rev)/Number(r.base):null,pc=Number(r.cur)>0&&Number(r.cur_rev)>0?Number(r.cur_rev)/Number(r.cur):null;
-          return pc==null&&pb==null?'—':<><span className="ndb-ac-mut">{pb!=null?money(pb):'—'}</span> → <b>{pc!=null?money(pc):'—'}</b>{pb!=null&&pc!=null&&<Delta cur={pc} base={pb} small/>}</>;})()}</td>
-        <td className="num ndb-ac-mut">{Number(r.cur_rev)>0?money(r.cur_rev):'—'}</td>
-        <td className="ndb-ac-wt">{w==null?'—':<><i style={{width:Math.max(3,w/maxShare*100)+'%'}}/><span>{w.toFixed(1).replace('.',',')}%</span></>}</td><td><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
-        {rows.length===0&&<tr><td colSpan={9} className="ndb-ac-mut">{loading?'Carregando produtos do mês…':'Nenhum produto nesta lista.'}</td></tr>}</tbody></table></div>
+        <td className={'num '+(d>=0?'g':'r')}>{d>=0?'+':'−'}{num(Math.abs(d))}{Number(r.base)>0&&<small className="ndb-ac-sub2">{d>=0?'+':'−'}{Math.abs(Math.round(100*d/Number(r.base)))}%</small>}</td>
+        <td className="num"><b>{Number(r.cur_rev)>0?money(r.cur_rev):'—'}</b>{(()=>{const pb=Number(r.base)>0&&Number(r.base_rev)>0?Number(r.base_rev)/Number(r.base):null,pc=Number(r.cur)>0&&Number(r.cur_rev)>0?Number(r.cur_rev)/Number(r.cur):null;
+          return pc==null?null:<small className="ndb-ac-mut ndb-ac-sub2">{money(pc)}/un.{pb!=null&&<> · antes {money(pb)}</>}</small>;})()}</td>
+        <td><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
+        {rows.length===0&&<tr><td colSpan={7} className="ndb-ac-mut">{loading?'Carregando produtos do mês…':'Nenhum produto nesta lista.'}</td></tr>}</tbody></table></div>
   </section>;
 }
 

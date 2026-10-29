@@ -32,8 +32,8 @@ function HeatRows({ rows, year, base, done }) {
     <tbody>{rows.flatMap(r => {
       const b = indexRow(r.months.map(m => Number(m.base)), 12), c = indexRow(r.months.map(m => Number(m.cur)), done);
       return [
-        <tr key={r.id + 'b'}><th rowSpan={2} title={r.title}><span className="ga-y-adtitle">{r.title}</span><small>{r.id}</small></th><td>{base}</td>{b.idx.map((v, i) => <td key={i} className={'ga-y-hc' + heat(v)} title={MON[i] + '/' + base + ': ' + Number(r.months[i].base).toLocaleString('pt-BR') + ' un.'}>{v ?? '—'}</td>)}</tr>,
-        <tr key={r.id + 'c'}><td>{year}</td>{c.idx.map((v, i) => <td key={i} className={'ga-y-hc' + heat(v)} title={MON[i] + '/' + year + ': ' + Number(r.months[i].cur).toLocaleString('pt-BR') + ' un.'}>{v ?? '—'}</td>)}</tr>
+        <tr key={r.id + 'b'}><th rowSpan={2} title={r.title}><span className="ga-y-adtitle">{r.title}</span><small>{r.id}</small></th><td>{base}</td>{b.idx.map((v, i) => <td key={i} className={'ga-y-hc' + heat(v)} title={MON[i] + '/' + base + ': ' + Number(r.months[i].base).toLocaleString('pt-BR') + ' un. (índice ' + (v ?? '—') + ')'}>{v != null && v >= 120 ? v : ''}</td>)}</tr>,
+        <tr key={r.id + 'c'}><td>{year}</td>{c.idx.map((v, i) => <td key={i} className={'ga-y-hc' + heat(v)} title={MON[i] + '/' + year + ': ' + Number(r.months[i].cur).toLocaleString('pt-BR') + ' un. (índice ' + (v ?? 'mês incompleto') + ')'}>{v != null && v >= 120 ? v : (v == null ? '–' : '')}</td>)}</tr>
       ];
     })}</tbody></table></div>;
 }
@@ -42,7 +42,7 @@ function PeakList({ title, list, fmt }) {
   return <div className="ga-y-peaks"><h5>{title}</h5>
     {list.length === 0 ? <p className="ga-y-muted">Nenhum dia muito acima do normal.</p> :
       <ul>{list.map(d => <li key={d.date}>
-        <div><strong>{ddmmyy(d.date)}</strong> <span>{fmt(d.units)} un. (normal ≈ {fmt(Math.round(d.avg))})</span></div>
+        <div><strong>{ddmmyy(d.date)}</strong> <span>{fmt(d.units)} un. · {(Number(d.units) / Number(d.avg)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}× o normal</span></div>
         <small>{(d.top || []).map(t => t.title + ' (' + fmt(t.units) + ')').join(' · ')}</small>
       </li>)}</ul>}
   </div>;
@@ -77,7 +77,7 @@ export function Seasonality({ platform, year, base, refresh, fmt, amount }) {
     <section className="ga-y-main" aria-label="Calendário de picos por anúncio">
       <header><div><h3>Calendário de picos por anúncio</h3><p>Os 12 anúncios que mais venderam. Índice 100 = mês médio do próprio anúncio no ano (só meses completos em {year}). Passe o mouse para ver as unidades.</p></div></header>
       {(data.listings || []).length === 0 ? <p className="ga-y-muted">Sem anúncios com volume suficiente.</p> : <HeatRows rows={data.listings} year={year} base={base} done={done} />}
-      <p className="ga-y-note">Quanto mais forte a cor, mais o mês está acima do mês médio. Compare a linha de {base} com a de {year}: o mesmo mês forte nas duas linhas indica sazonalidade.</p>
+      <p className="ga-y-note">Cor mais escura = mês mais acima do mês médio do anúncio; o número aparece só nos meses fortes (índice 120 ou mais) e o valor de cada mês está na dica ao passar o mouse. “–” = mês ainda sem fechar. Mesmo mês forte nas duas linhas sugere sazonalidade.</p>
     </section>
 
     <section className="ga-y-main" aria-label="Dias de pico">
