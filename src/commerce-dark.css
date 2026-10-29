@@ -560,6 +560,23 @@ html.ga-dark .nim-manager .nim-finance-toggle{background:#1a1a1a;color:#7f95b4}
 html.ga-dark .nim-manager .nim-finance-toggle:hover{background:#0e162a}
 html.ga-dark .nim-manager .nim-finance-toggle:focus-visible{outline:2px solid #205ec3}
 html.ga-dark .nim-manager .nim-finance-note{color:#63738a}
+html.ga-dark .ndb-cp-search input{background:#1a1a1a}
+html.ga-dark .ndb-cp-kpi{background:#1a1a1a}
+html.ga-dark button.ndb-cp-kpi:hover,html.ga-dark button.ndb-cp-kpi:focus-visible{border-color:#204783}
+html.ga-dark .ndb-cp-kpi.is-active{background:#101c30}
+html.ga-dark .ndb-cp-list,html.ga-dark .ndb-cp-detail{background:#1a1a1a}
+html.ga-dark .ndb-cp-row:hover{background:#161d28}
+html.ga-dark .ndb-cp-row.is-selected{background:#111c33;border-color:#102d61}
+html.ga-dark .ndb-cp-bars i.b{background:#333d4e}
+html.ga-dark .ndb-cp-var.is-up{background:#1f3129}
+html.ga-dark .ndb-cp-var.is-down{background:#2d1416}
+html.ga-dark .ndb-cp-var.is-neutral{background:#1d232b;color:#7a8aa5}
+html.ga-dark .ndb-cp-subs button:hover{background:#161d28}
+html.ga-dark .ndb-cp-tabs button{color:#8395af}
+html.ga-dark .ndb-cp-tabs button.is-active{color:#1a1a1a}
+html.ga-dark .ndb-cp-sku-main .ndb-cp-warn{color:#f7c466}
+html.ga-dark .ndb-cp-note{background:#392f13;color:#f8d77d}
+html.ga-dark .ndb-cp-error{background:#2d1416;color:#c86c74}
 html.ga-dark .ndb-root{color:#a9b9e6}
 html.ga-dark .ndb-logo{background:#82a2e9;color:#1a1a1a}
 html.ga-dark .ndb-head p{color:#78869f}

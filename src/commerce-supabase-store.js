@@ -1268,3 +1268,20 @@ export async function commerceAnnualWindow(env,{platform='SHOPEE',curFrom,curTo,
   const data=await supabaseRpc(env,'commerce_annual_window_v1',{p_platform:plat,p_cur_from:curFrom,p_cur_to:curTo,p_base_from:baseFrom,p_base_to:baseTo},{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{days:[],total:{cur:0,base:0}};
 }
+
+const CAT_PLATFORMS=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'];
+function categoriesArgs({platform='SHOPEE',year=null,mode='ytd',month=null,days=null}={}) {
+  const plat=CAT_PLATFORMS.includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
+  const m=['ytd','month','days'].includes(mode)?mode:'ytd';
+  return {p_platform:plat,p_year:year||null,p_mode:m,p_month:m==='month'?Number(month):null,p_days:m==='days'?Number(days):null};
+}
+
+export async function commerceCategories(env,opts={}) {
+  const data=await supabaseRpc(env,'commerce_categories_v2',categoriesArgs(opts),{timeoutMs:20000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{categories:[],total:{cur:0,base:0}};
+}
+
+export async function commerceCategoriesSub(env,opts={}) {
+  const data=await supabaseRpc(env,'commerce_categories_sub_v2',{...categoriesArgs(opts),p_cat:String(opts.cat||''),p_sub:String(opts.sub||'')},{timeoutMs:20000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{up:[],down:[]};
+}

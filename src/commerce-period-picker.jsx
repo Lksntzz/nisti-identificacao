@@ -5,7 +5,7 @@ const FULL=['janeiro','fevereiro','março','abril','maio','junho','julho','agost
 const label=m=>{const s=String(m||'');return s.length>=7?FULL[Number(s.slice(5,7))-1].replace(/^./,c=>c.toUpperCase())+' de '+s.slice(0,4):'';};
 
 // Filtro de período: dias fixos, todo o histórico ou "Personalizado" (calendário com os meses que têm vendas; anos aparecem conforme os dados).
-export default function PeriodPicker({days,month,periods,available,onDays,onMonth,allowAll=true}){
+export default function PeriodPicker({days,month,periods,available,onDays,onMonth,allowAll=true,allLabel='Sem filtro (todo o histórico)'}){
   const [open,setOpen]=useState(false);
   const [cal,setCal]=useState(Boolean(month));
   const years=useMemo(()=>[...new Set((available||[]).map(m=>m.slice(0,4)))].sort(),[available]);
@@ -20,7 +20,7 @@ export default function PeriodPicker({days,month,periods,available,onDays,onMont
     return()=>{document.removeEventListener('mousedown',down);document.removeEventListener('keydown',key);};
   },[open]);
   const idx=years.indexOf(shownYear);
-  const cur=month?label(month):days===0?'Sem filtro (todo o histórico)':'Últimos '+days+' dias';
+  const cur=month?label(month):days===0?allLabel:'Últimos '+days+' dias';
   const pick=fn=>{fn();setOpen(false);};
   return <div className="ndb-dd ndb-pp" ref={ref}>
     <button type="button" className="ndb-dd-btn" aria-haspopup="dialog" aria-expanded={open} onClick={()=>{setOpen(o=>!o);setCal(Boolean(month));}}>
@@ -30,7 +30,7 @@ export default function PeriodPicker({days,month,periods,available,onDays,onMont
     {open&&<div className="ndb-dd-list ndb-pp-menu" role="dialog" aria-label="Escolher período">
       <ul>
         {periods.map(p=><li key={p}><button type="button" className={!month&&days===p?'is-active':''} onClick={()=>pick(()=>onDays(p))}>Últimos {p} dias</button></li>)}
-        {allowAll&&<li><button type="button" className={!month&&days===0?'is-active':''} onClick={()=>pick(()=>onDays(0))}>Sem filtro (todo o histórico)</button></li>}
+        {allowAll&&<li><button type="button" className={!month&&days===0?'is-active':''} onClick={()=>pick(()=>onDays(0))}>{allLabel}</button></li>}
         <li><button type="button" className={month||cal?'is-active':''} aria-expanded={cal} onClick={()=>setCal(c=>!c)}>Personalizado… <i aria-hidden="true">{cal?'▴':'▾'}</i></button></li>
       </ul>
       {cal&&<div className="ndb-pp-cal">
