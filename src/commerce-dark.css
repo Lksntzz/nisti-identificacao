@@ -397,9 +397,6 @@ html.ga-dark .commerce-privacy-btn{border:1px solid #262d39;background:#1a1a1a;c
 html.ga-dark .commerce-privacy-btn:hover{border-color:#3470d8;color:#3470d8}
 html.ga-dark .commerce-privacy-btn.is-on{background:#abbbdf;border-color:#abbbdf;color:#1a1a1a}
 html.ga-dark .commerce-privacy-btn:focus-visible{outline:2px solid #3470d8}
-html.ga-dark .ndb-ac-tabs{border-bottom:1px solid #212732}
-html.ga-dark .ndb-ac-tabs button{color:#78869f}
-html.ga-dark .ndb-ac-tabs button.is-on{color:#3470d8;border-bottom-color:#3470d8}
 html.ga-dark .ndb-ac-root{color:#a9b9e6}
 html.ga-dark .ndb-ac-seg{border:1px solid #282f3b;background:#1a1a1a}
 html.ga-dark .ndb-ac-seg button{color:#94a3c2}

@@ -20,8 +20,8 @@ test('SQL do comparativo anual e somente leitura e restrito ao service_role', ()
 });
 
 test('Painel Comercial tem submenu com os tres itens', () => {
-  const p = fs.readFileSync('src/commerce-commercial-panel.jsx', 'utf8');
-  for (const l of ['Anúncios', 'Comparação anual', 'Categorias']) assert.ok(p.includes(l));
+  const p = fs.readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  for (const l of ['Painel Comercial', 'Comparação anual', 'Categorias']) assert.ok(p.includes(l));
 });
 
 import { indexOf, weekHighlights } from '../src/commerce-annual-compare-helpers.js';
@@ -52,4 +52,12 @@ test('alias de SKU e restrito ao service_role', () => {
 
 test('migracao de desempenho cria o indice de nome por SKU', () => {
   assert.match(fs.readFileSync('supabase/migrations/20261029180000_commerce_annual_perf_v1.sql', 'utf8'), /commerce_product_skus_canon_idx/);
+});
+
+test('submenu do Painel Comercial fica na lateral com Comparação anual e Categorias', () => {
+  const app = fs.readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  assert.match(app, /COMMERCIAL_SUBITEMS/);
+  assert.match(app, /Comparação anual/);
+  assert.match(app, /Categorias/);
+  assert.doesNotMatch(fs.readFileSync('src/commerce-commercial-panel.jsx', 'utf8'), /ndb-ac-tabs/);
 });
