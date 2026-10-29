@@ -191,13 +191,11 @@ export default function GuidedAnnualCompare({
           <DailyTable data={dailyState.data && Number(dailyState.data.month)===selectedMonth && Number(dailyState.data.week)===week && Number(dailyState.data.year)===year && dailyState.data.platform===filters.platform ? dailyState.data : null} loading={dailyState.loading} error={dailyState.error} onRetry={()=>setDailyRevision(v=>v+1)} selectedDay={selectedDay} setSelectedDay={setSelectedDay} week={week}/>
         </div>}
         <div className="ga-y-advanced-actions">
-          <button type="button" onClick={()=>setAdvanced(advanced==='matrix'?'':'matrix')}>{advanced==='matrix'?'Ocultar':'Ver'} matriz semanal completa</button>
           <button type="button" onClick={()=>setAdvanced(advanced==='products'?'':'products')}>{advanced==='products'?'Ocultar':'Ver'} campeões do mês</button>
           <button type="button" onClick={()=>setAdvanced(advanced==='mobile'?'':'mobile')}>{advanced==='mobile'?'Ocultar':'Ver'} série móvel</button>
         </div>
       </aside>
     </div>
-    {advanced==='matrix'&&<WeeksCard monthData={validMonthData?monthData:{months:[]}} year={year} base={baseYear} selected={null}/>}
     {advanced==='products'&&<Champions month={selectedMonth} monthData={validMonthData?monthData:{top:[],up:[],down:[]}} year={year} base={baseYear}/>}
     {advanced==='mobile'&&<MobilePeriods platform={filters.platform} gran={mobileSeries} onGran={setMobileSeries} year={year} baseYear={baseYear} useAnnualCompare={useAnnualCompare} PeriodSummary={PeriodSummary} PeriodDetails={PeriodDetails}/>}
   </div>;
