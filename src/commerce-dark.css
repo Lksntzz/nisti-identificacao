@@ -859,6 +859,7 @@ html.ga-dark .ndb-table td.num.neg[title]{color:#78869f}
 html.ga-dark .ndb-best-cell{color:#a0aece}
 html.ga-dark .ndb-best-cell small{color:#616f86}
 html.ga-dark .ndb-best-cell:hover,html.ga-dark .ndb-best-cell.is-open{background:#3f3415}
+html.ga-dark .ndb-dd-lock{color:#efb056}
 html.ga-dark .import-center-mode-grid>button{border:1px solid #272d34;background:#1a1a1a;color:#bac6e3}
 html.ga-dark .import-center-mode-grid>button:hover{border-color:#334257;box-shadow:0 5px 16px rgba(186,198,227,.05)}
 html.ga-dark .import-center-mode-grid>button.active{border-color:#0a42c7;background:#0e1b29;box-shadow:inset 0 0 0 1px rgba(10,66,199,.08)}

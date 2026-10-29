@@ -309,7 +309,7 @@ function ParetoChart({items}){
   </div>;
 }
 
-function Dropdown({label,value,options,onChange}){
+export function Dropdown({label,value,options,onChange}){
   const [open,setOpen]=useState(false);
   const ref=useRef(null);
   useEffect(()=>{
@@ -325,8 +325,8 @@ function Dropdown({label,value,options,onChange}){
       <span>{label}</span><b>{cur?cur[1]:''}</b>
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
     </button>
-    {open&&<ul className="ndb-dd-list" role="listbox" aria-label={label}>{options.map(([v,l])=><li key={v}>
-      <button type="button" role="option" aria-selected={v===value} className={v===value?'is-active':''} onClick={()=>{onChange(v);setOpen(false);}}>{l}</button></li>)}</ul>}
+    {open&&<ul className="ndb-dd-list" role="listbox" aria-label={label}>{options.map(([v,l,blocked])=><li key={v}>
+      <button type="button" role="option" aria-selected={v===value} aria-disabled={blocked?true:undefined} disabled={Boolean(blocked)} title={blocked||undefined} className={(v===value?'is-active':'')+(blocked?' is-blocked':'')} onClick={()=>{if(blocked)return;onChange(v);setOpen(false);}}>{l}{blocked&&<small className="ndb-dd-lock">bloqueado</small>}</button></li>)}</ul>}
   </div>;
 }
 

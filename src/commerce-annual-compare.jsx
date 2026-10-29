@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {maskMoney} from './commerce-privacy.js';
 import {growth,pctText,indexOf,weekHighlights,productLabel,share} from './commerce-annual-compare-helpers.js';
-import {listingUrl} from './commerce-dashboard.jsx';
+import {listingUrl,Dropdown} from './commerce-dashboard.jsx';
 import './commerce-annual-compare.css';
 import GuidedAnnualCompare from './commerce-annual-guided.jsx';
 
@@ -71,29 +71,20 @@ function missingBase(data,platform){
 }
 
 export function AnnualFilters({filters,setFilters,data}){
-  const missing=missingBase(data,filters.platform);
-  return <>
-    <div className="ndb-ac-filters">
-      <div className="ndb-ac-seg" role="group" aria-label="Comparar por">
-        {[['day','Dia'],['week','Semana'],['month','Mês']].map(([k,l])=>
-          <button type="button" key={k} className={filters.gran===k?'is-on':''} aria-pressed={filters.gran===k} onClick={()=>setFilters({...filters,gran:k})}>{l}</button>)}
-      </div>
-      <span className="ndb-ac-chip">Ano <b>{data?data.year:'—'}</b> contra <b>{data?data.base_year:'—'}</b></span>
-      <label className="ndb-ac-chip ndb-ac-select"><span>Mês</span>
-        <select value={filters.month||''} onChange={e=>setFilters({...filters,month:e.target.value})}>
-          <option value="">Todos</option>
-          {MONTH_FULL.map((l,i)=><option key={l} value={String(i+1)}>{l}</option>)}
-        </select></label>
-      <label className="ndb-ac-chip ndb-ac-select"><span>Plataforma</span>
-        <select value={filters.platform} onChange={e=>setFilters({...filters,platform:e.target.value})}>
-          {PLATFORMS.map(([k,l])=><option key={k} value={k}>{l}</option>)}
-        </select></label>
-      {data&&<span className="ndb-ac-asof">Dados até {String(data.as_of).split('-').reverse().join('/')}</span>}
-    </div>
-    {missing.length>0&&<p className="ndb-warn ndb-ac-warn" role="note">
-      <b>{missing.join(' e ')} de {data.base_year} ainda não foi importado.</b> Sem esse ano, {missing.length>1?'essas plataformas aparecem':'essa plataforma aparece'} como crescimento de 100% e o total fica errado. Compare só a Shopee até importar.
-    </p>}
-  </>;
+  const units=(p,y)=>Number((data?.coverage||[]).find(c=>c.platform===p&&Number(c.year)===Number(y))?.units||0);
+  const blockedFor=id=>{
+    if(!data)return null;
+    const list=PLATFORM_LIST[id]||[];
+    return list.some(p=>units(p,data.base_year)<=0)?'Sem vendas de '+data.base_year+' importadas: não dá para comparar':null;
+  };
+  const options=PLATFORMS.map(([id,l])=>[id,l,blockedFor(id)]);
+  const selectedBlocked=Boolean(options.find(o=>o[0]===filters.platform)?.[2]);
+  useEffect(()=>{if(selectedBlocked)setFilters(prev=>({...prev,platform:'SHOPEE'}));},[selectedBlocked]);
+  return <div className="ndb-ac-filters">
+    <Dropdown label="Plataforma" value={filters.platform} options={options} onChange={v=>setFilters(prev=>({...prev,platform:v}))}/>
+    <span className="ndb-ac-chip">Ano <b>{data?data.year:'—'}</b> contra <b>{data?data.base_year:'—'}</b></span>
+    {data&&<span className="ndb-ac-asof">Dados até {String(data.as_of).split('-').reverse().join('/')}</span>}
+  </div>;
 }
 
 function Kpi({label,value,delta,sub,info,onOpen}){
