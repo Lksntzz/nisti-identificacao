@@ -278,11 +278,12 @@ export async function commerceSalesDashboardV1(env,filters={}) {
   const data=await supabaseRpc(env,'commerce_dashboard_v1',{
     p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS',
     p_days:[0,7,30,60,90].includes(days)?days:30,
-    p_month:cleanMonth(filters.month)
+    p_month:cleanPeriod(filters.month)
   },{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{};
 }
 
+const cleanPeriod=v=>/^20[0-9]{2}(-(0[1-9]|1[0-2]))?$/.test(String(v||''))?String(v):null;
 const cleanMonth=v=>/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(String(v||''))?String(v):null;
 
 export async function commerceSalesDashboardMonthSeriesV1(env,filters={}) {
@@ -300,7 +301,7 @@ export async function commerceSalesDashboardSeriesV1(env,filters={}) {
   const data=await supabaseRpc(env,'commerce_dashboard_series_v2',{
     p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS',
     p_days:[7,30,60,90].includes(days)?days:30,
-    p_month:cleanMonth(filters.month)
+    p_month:cleanPeriod(filters.month)
   },{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{daily:[]};
 }
@@ -323,7 +324,7 @@ export async function commerceSalesDashboardOverviewV1(env,filters={}) {
   const data=await supabaseRpc(env,'commerce_dashboard_overview_v1',{
     p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS',
     p_days:[0,7,30,60,90].includes(days)?days:30,
-    p_month:cleanMonth(filters.month)
+    p_month:cleanPeriod(filters.month)
   },{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{};
 }

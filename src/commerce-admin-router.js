@@ -100,6 +100,8 @@ import {
 
 const BASE_PATH = '/api/admin/commerce';
 const MONTH_RE=/^20[0-9]{2}-(0[1-9]|1[0-2])$/;
+// Dashboard aceita também o ano inteiro (YYYY) como período.
+const PERIOD_RE=/^20[0-9]{2}(-(0[1-9]|1[0-2]))?$/;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -595,7 +597,7 @@ export async function handleCommerceAdminRequest(request, env) {
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
       const month=String(query(url,'month')||'');
-      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days)||(month&&!MONTH_RE.test(month)))
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days)||(month&&!PERIOD_RE.test(month)))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardSeriesV1(env,{platform,days,month}));
     }
@@ -611,7 +613,7 @@ export async function handleCommerceAdminRequest(request, env) {
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
       const month=String(query(url,'month')||'');
-      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days)||(month&&!MONTH_RE.test(month)))
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days)||(month&&!PERIOD_RE.test(month)))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardOverviewV1(env,{platform,days,month}));
     }
@@ -646,7 +648,7 @@ export async function handleCommerceAdminRequest(request, env) {
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
       const days=Number(query(url,'days')||30);
       const month=String(query(url,'month')||'');
-      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days)||(month&&!MONTH_RE.test(month)))
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days)||(month&&!PERIOD_RE.test(month)))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardV1(env,{platform,days,month}));
     }

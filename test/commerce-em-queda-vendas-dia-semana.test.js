@@ -172,7 +172,7 @@ test('Dashboard: filtro por mês específico e histórico de todos os meses',()=
   const dash=r('src/commerce-dashboard.jsx'),router=r('src/commerce-admin-router.js'),store=r('src/commerce-supabase-store.js');
   const mig=r('supabase/migrations/20261028150000_commerce_dashboard_month_filter_v1.sql');
   const ser=r('supabase/migrations/20261028170000_commerce_dashboard_month_series_v1.sql');
-  assert.match(dash,/<MonthsTrend months=\{monthly\.months\}/);
+  assert.match(dash,/<MonthsTrend months=\{yearMonths\}/);
   assert.match(dash,/sales-dashboard\/series\?platform=.*month=/);
   assert.match(dash,/'&month='\+month/);
   assert.match(router,/sales-dashboard\/month-series/);
