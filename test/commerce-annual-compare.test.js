@@ -71,3 +71,12 @@ test('produto: tira a marca, separa a colecao e trata cadastro ausente', () => {
   assert.equal(share(50, 200), 25);
   assert.equal(share(5, 0), null);
 });
+
+test('produtos do dia: rota validada, SQL restrito e links nos produtos', () => {
+  const sql = fs.readFileSync('supabase/migrations/20261029200000_commerce_annual_day_products_v1.sql', 'utf8');
+  assert.match(sql, /revoke all on function public\.commerce_annual_day_products_v1/i);
+  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-day-products/);
+  const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
+  assert.match(ui, /ProductLinks/);
+  assert.match(ui, /rel="noopener noreferrer"/);
+});

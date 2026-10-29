@@ -463,6 +463,9 @@ html.ga-dark .ndb-ac-wc.has-flag{box-shadow:inset 0 0 0 1.5px rgba(52,112,216,.3
 html.ga-dark .ndb-ac-newtag{color:#3470d8;background:#152032}
 html.ga-dark .ndb-ac-wt i{background:#1f3d74}
 html.ga-dark .ndb-ac-wt span{color:#94a3c2}
+html.ga-dark .ndb-ac-links a{color:#3470d8}
+html.ga-dark .ndb-ac-dayprod{border-top:1px solid #212732}
+html.ga-dark .ndb-ac-dayprod h4 small{color:#616f86}
 html.ga-dark .ga-y-toolbar select{background:#1a1a1a}
 html.ga-dark .ga-y-view-controls{background:#1a1a1a}
 html.ga-dark .ga-y-view-controls button{color:#8395af}

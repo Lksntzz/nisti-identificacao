@@ -280,7 +280,7 @@ export default function CommerceAdminAppV2() {
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-            <h1 className="admin-page-title">{IS_GA ? (VIEW_TITLES[activeItem.id] || activeItem.label) : 'Catálogo Comercial'}</h1>
+            <h1 className="admin-page-title">{IS_GA ? (activeView === 'catalog' && commercialView === 'comparison' ? 'Comparação anual' : activeView === 'catalog' && commercialView === 'categories' ? 'Categorias' : (VIEW_TITLES[activeItem.id] || activeItem.label)) : 'Catálogo Comercial'}</h1>
           </div>
 
           <div className="topbar-right">

@@ -74,7 +74,7 @@ function MonthRows({periods,mode,year,baseYear,baseAvailable,selected,onSelect,a
   </div>;
 }
 
-function DailyTable({data,loading,error,onRetry,selectedDay,setSelectedDay,week}) {
+function DailyTable({data,loading,error,onRetry,selectedDay,setSelectedDay,week,platform,DayProducts}) {
   if (loading) return <p className="ga-y-muted" role="status">Consultando dados diários…</p>;
   if (error) return <div className="ga-y-error" role="alert"><span>{error}</span><button type="button" onClick={onRetry}>Tentar novamente</button></div>;
   if (!Array.isArray(data?.days)) return <p className="ga-y-muted">Dados diários indisponíveis para o período.</p>;
@@ -94,13 +94,15 @@ function DailyTable({data,loading,error,onRetry,selectedDay,setSelectedDay,week}
         <span>{day.base==null||day.cur==null?'Sem cobertura diária comprovada nas duas datas':'Diferença: '+signed(day.cur-day.base)+' unidades'}</span>
       </div>;
     })()}
+    {selectedDay!=null&&(()=>{const day=filtered.find(d=>d.day===selectedDay);
+      return day&&day.cur_date&&day.base_date&&DayProducts?<DayProducts platform={platform} curDate={day.cur_date} baseDate={day.base_date} year={data.year} base={data.base_year}/>:null;})()}
     <p className="ga-y-note">Comparação por mesma data do calendário. “—” indica ausência de registro diário confirmado, não zero vendas.</p>
   </div>;
 }
 
 export default function GuidedAnnualCompare({
   data, monthData, filters, setFilters, refresh=0, onKpiOpen,
-  WeeksCard, Champions, PeriodSummary, PeriodDetails, useAnnualCompare
+  WeeksCard, Champions, PeriodSummary, PeriodDetails, useAnnualCompare, DayProducts
 }) {
   const [display,setDisplay]=useState('bars');
   const [week,setWeek]=useState(1);
@@ -188,7 +190,7 @@ export default function GuidedAnnualCompare({
           </div>}
         {showDaily&&isValidWeek&&<div className="ga-y-daily-section">
           <div className="ga-y-section-head"><h4>Comparação diária</h4><small>{displayedDays} dia(s) · {MONTHS[selectedMonth-1]}</small></div>
-          <DailyTable data={dailyState.data && Number(dailyState.data.month)===selectedMonth && Number(dailyState.data.week)===week && Number(dailyState.data.year)===year && dailyState.data.platform===filters.platform ? dailyState.data : null} loading={dailyState.loading} error={dailyState.error} onRetry={()=>setDailyRevision(v=>v+1)} selectedDay={selectedDay} setSelectedDay={setSelectedDay} week={week}/>
+          <DailyTable data={dailyState.data && Number(dailyState.data.month)===selectedMonth && Number(dailyState.data.week)===week && Number(dailyState.data.year)===year && dailyState.data.platform===filters.platform ? dailyState.data : null} loading={dailyState.loading} error={dailyState.error} onRetry={()=>setDailyRevision(v=>v+1)} selectedDay={selectedDay} setSelectedDay={setSelectedDay} week={week} platform={filters.platform} DayProducts={DayProducts}/>
         </div>}
         <div className="ga-y-advanced-actions">
           <button type="button" onClick={()=>setAdvanced(advanced==='products'?'':'products')}>{advanced==='products'?'Ocultar':'Ver'} campeões do mês</button>
