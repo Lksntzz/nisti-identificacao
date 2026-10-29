@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {maskMoney} from './commerce-privacy.js';
-import {growth,pctText,indexOf,weekHighlights,productLabel,share} from './commerce-annual-compare-helpers.js';
+import {growth,pctText,indexOf,weekHighlights,productLabel,share,newKind} from './commerce-annual-compare-helpers.js';
 import {listingUrl,Dropdown} from './commerce-dashboard.jsx';
 import './commerce-annual-compare.css';
 import GuidedAnnualCompare from './commerce-annual-guided.jsx';
@@ -14,6 +14,14 @@ const PLATFORMS=[['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre antigo'],['ML_N
 const PLATFORM_LIST={SHOPEE:['SHOPEE'],ML_ANTIGO:['ML_ANTIGO'],ML_NOVO:['ML_NOVO'],TODAS:['SHOPEE','ML_ANTIGO','ML_NOVO']};
 const PLATFORM_NAME={SHOPEE:'Shopee',ML_ANTIGO:'Mercado Livre antigo',ML_NOVO:'Mercado Livre novo'};
 const MIN_UNITS=30;
+
+// Etiqueta ao lado das unidades: "novo" só quando o produto nunca vendeu no ano base inteiro.
+function NewTag({row,base}){
+  const k=newKind(row);
+  if(k==='new')return <em className="ndb-ac-newtag" title={'Nenhuma venda em '+base+' inteiro'}>novo</em>;
+  if(k==='old')return <em className="ndb-ac-newtag is-old" title={'Sem venda neste período de '+base+', mas vendeu em outros meses de '+base}>já vendia</em>;
+  return null;
+}
 
 const monthText=m=>{const [y,mm]=String(m||'').split('-');return mm?MONTHS[Number(mm)-1]+'/'+String(y).slice(2):'—';};
 
@@ -303,7 +311,7 @@ export function PeriodProducts({platform,curFrom,curTo,baseFrom,baseTo,year,base
     <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th>Anúncio</th></tr></thead>
       <tbody>{rows.map(r=>{const L=productLabel(r.name,r.sku),df=Number(r.cur)-Number(r.base);return <tr key={r.sku}>
         <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.sku}</small></td>
-        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b></td>
+        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b><NewTag row={r} base={base}/></td>
         <td className={'num '+(df>=0?'g':'r')}>{df>=0?'+':'−'}{num(Math.abs(df))}</td><td><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
         {rows.length===0&&<tr><td colSpan={5} className="ndb-ac-mut">Sem vendas registradas neste período.</td></tr>}
         {rows.length>0&&<tr className="ndb-ac-total"><td><b>Total</b></td><td className="num ndb-ac-mut">{num(d.total.base)}</td><td className="num"><b>{num(d.total.cur)}</b></td><td className={'num '+(d.total.cur>=d.total.base?'g':'r')}>{d.total.cur>=d.total.base?'+':'−'}{num(Math.abs(d.total.cur-d.total.base))}</td><td/></tr>}</tbody></table></div>
@@ -325,12 +333,12 @@ export function Champions({month,monthData,year,base,loading=false,platform='SHO
       <div className="ndb-ac-seg" role="tablist" aria-label="Tipo de lista">
         {Object.keys(labels).map(k=><button type="button" role="tab" aria-selected={tab===k} key={k} className={tab===k?'is-on':''} onClick={()=>setTab(k)}>{labels[k]} <small>{lists[k].length}</small></button>)}
       </div></div>
-    <p className="ndb-ac-sub">{intro[tab]} “Preço médio” = receita ÷ unidades vendidas no mês, sem frete (não é o preço de tabela do anúncio). “Novo” = sem venda em {base}: pode ser lançamento ou troca de código.</p>
+    <p className="ndb-ac-sub">{intro[tab]} “Preço médio” = receita ÷ unidades vendidas no mês, sem frete (não é o preço de tabela do anúncio). “Novo” = nunca vendeu em {base} inteiro. “Já vendia” = sem venda neste mês de {base}, mas vendeu em outros meses.</p>
     <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th className="num" title="Valor médio de venda por unidade (receita dos produtos ÷ unidades), sem frete">Preço médio {base} → {year}</th><th>Peso em {useBase?base:year}</th><th>Anúncio</th></tr></thead>
       <tbody>{rows.map((r,i)=>{const L=productLabel(r.name,r.sku),d=Number(r.cur)-Number(r.base),w=share(useBase?r.base:r.cur,useBase?tot.base:tot.cur);
         return <tr key={r.sku}><td className="ndb-ac-mut">{i+1}</td>
         <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.category?r.category+' · ':''}{r.sku}</small></td>
-        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b>{Number(r.base)===0&&Number(r.cur)>0&&<em className="ndb-ac-newtag">novo</em>}</td>
+        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b><NewTag row={r} base={base}/></td>
         <td className={'num '+(d>=0?'g':'r')}>{d>=0?'+':'−'}{num(Math.abs(d))}</td>
         <td className="num ndb-ac-pr">{(()=>{const pb=Number(r.base)>0&&Number(r.base_rev)>0?Number(r.base_rev)/Number(r.base):null,pc=Number(r.cur)>0&&Number(r.cur_rev)>0?Number(r.cur_rev)/Number(r.cur):null;
           return pc==null&&pb==null?'—':<><span className="ndb-ac-mut">{pb!=null?money(pb):'—'}</span> → <b>{pc!=null?money(pc):'—'}</b>{pb!=null&&pc!=null&&<Delta cur={pc} base={pb} small/>}</>;})()}</td>

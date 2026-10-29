@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { growth, pctText } from '../src/commerce-annual-compare-helpers.js';
+import { growth, pctText, newKind } from '../src/commerce-annual-compare-helpers.js';
 
 test('growth nao inventa percentual sem base', () => {
   assert.equal(growth(10, 0), null);
@@ -209,4 +209,12 @@ test('dashboard: filtro de ano inteiro (banco, Worker e seletor)', () => {
   assert.match(fs.readFileSync('src/commerce-supabase-store.js','utf8'), /cleanPeriod/);
   assert.match(fs.readFileSync('src/commerce-period-picker.jsx','utf8'), /Ano todo de/);
   assert.match(fs.readFileSync('src/commerce-dashboard.jsx','utf8'), /yearOption/);
+});
+
+test('newKind separa novo de verdade de produto que ja vendia em outro mes', () => {
+  assert.equal(newKind({ base: 0, cur: 495, prior: { y: 0 } }), 'new');
+  assert.equal(newKind({ base: 0, cur: 212, prior: { y: 474 } }), 'old');
+  assert.equal(newKind({ base: 0, cur: 10 }), 'new');
+  assert.equal(newKind({ base: 5, cur: 10, prior: { y: 0 } }), null);
+  assert.equal(newKind({ base: 0, cur: 0, prior: { y: 0 } }), null);
 });
