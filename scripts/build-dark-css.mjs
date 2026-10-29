@@ -67,6 +67,9 @@ for (const file of FILES) {
     out.push(wrapped);
   });
 }
+// Fundos transparentes do visual limpo não são convertidos pelo gerador; reforça-os aqui.
+out.push('html.ga-dark .ndb-sb-week,html.ga-dark .ndb-sb-week.is-cur{background:transparent;outline:0}');
+out.push('html.ga-dark .ndb-table th,html.ga-dark .ndb-best-month,html.ga-dark .ndb-ext{background:transparent}');
 out.push('html.ga-dark{background:#1a1d23;color:#e6e8ec;color-scheme:dark}');
 out.push('html.ga-dark body{background:#14171c;color:#e6e8ec}');
 out.push("html.ga-dark .commerce-theme-btn.is-on{background:#e6e8ec;color:#14213d}");

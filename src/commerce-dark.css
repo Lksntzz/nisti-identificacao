@@ -720,6 +720,19 @@ html.ga-dark .ndb-coh-ltabs button small{color:#616f86}
 html.ga-dark .ndb-coh-ltabs button:hover{border-color:#3470d8}
 html.ga-dark .ndb-coh-ltabs button.is-active{background:#82a2e9;border-color:#82a2e9;color:#1a1a1a}
 html.ga-dark .ndb-coh-ltabs button.is-active small{color:#2c3850}
+html.ga-dark .ndb-table th{border-bottom:1px solid #212732;color:#616f86}
+html.ga-dark .ndb-table td{border-bottom:1px solid #1b2028}
+html.ga-dark .ndb-table tbody tr:hover>td{background:#0e162a}
+html.ga-dark .ndb-table td small{color:#4f5b6f}
+html.ga-dark .ndb-sb-week small{color:#4f5b6f}
+html.ga-dark .ndb-sb-week b{color:#8492ae}
+html.ga-dark .ndb-sb-bar{background:#222c3e}
+html.ga-dark .ndb-sb-week.is-cur b{color:#a9b9e6}
+html.ga-dark .ndb-sb-week.is-cur small{color:#3470d8}
+html.ga-dark .ndb-sb-week.is-cur .ndb-sb-bar{background:#3470d8}
+html.ga-dark .ndb-best-month{color:#d7b76d}
+html.ga-dark .ndb-table tr:hover .ndb-ext,html.ga-dark .ndb-ext:focus-visible{border-color:#262c37;background:#1a1a1a}
+html.ga-dark .ndb-perf-note{color:#4f5b6f}
 html.ga-dark .import-center-mode-grid>button{border:1px solid #272d34;background:#1a1a1a;color:#bac6e3}
 html.ga-dark .import-center-mode-grid>button:hover{border-color:#334257;box-shadow:0 5px 16px rgba(186,198,227,.05)}
 html.ga-dark .import-center-mode-grid>button.active{border-color:#0a42c7;background:#0e1b29;box-shadow:inset 0 0 0 1px rgba(10,66,199,.08)}
@@ -1179,6 +1192,8 @@ html.ga-dark .admin-mural-qa-header{background:#1a1a1a;border:1px solid #242d37}
 html.ga-dark .admin-mural-qa-header strong{color:#b5c1db}
 html.ga-dark .admin-mural-qa-header p{color:#748398}
 html.ga-dark .admin-mural-qa-header button{border:1px solid #142e5d;background:#101c30;color:#2f5bd8}
+html.ga-dark .ndb-sb-week,html.ga-dark .ndb-sb-week.is-cur{background:transparent;outline:0}
+html.ga-dark .ndb-table th,html.ga-dark .ndb-best-month,html.ga-dark .ndb-ext{background:transparent}
 html.ga-dark{background:#1a1d23;color:#e6e8ec;color-scheme:dark}
 html.ga-dark body{background:#14171c;color:#e6e8ec}
 html.ga-dark .commerce-theme-btn.is-on{background:#e6e8ec;color:#14213d}

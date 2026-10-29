@@ -56,7 +56,6 @@ export function WeeklySalesCell({data,open,onToggle,anchored=false,months,months
     </div>
     <div className="ndb-sb-meta">
       {d!=null&&<span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)} vs. sem. anterior</span>}
-      <button type="button" className="ndb-link" onClick={onToggle} aria-expanded={open}>{open?'Ocultar dias':'Ver por dia'}</button>
       {months&&<BestMonthBadge data={months} open={monthsOpen} onToggle={onToggleMonths}/>}
     </div>
   </div>;
