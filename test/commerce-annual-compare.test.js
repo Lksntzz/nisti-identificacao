@@ -23,3 +23,23 @@ test('Painel Comercial tem submenu com os tres itens', () => {
   const p = fs.readFileSync('src/commerce-commercial-panel.jsx', 'utf8');
   for (const l of ['Anúncios', 'Comparação anual', 'Categorias']) assert.ok(p.includes(l));
 });
+
+import { indexOf, weekHighlights } from '../src/commerce-annual-compare-helpers.js';
+test('indice 100 = igual ao ano passado e nao existe sem base', () => {
+  assert.equal(indexOf(55, 100), 55);
+  assert.equal(indexOf(150, 100), 150);
+  assert.equal(indexOf(10, 0), null);
+});
+test('destaques de semana ignoram semana parcial e semana 5', () => {
+  const [m] = weekHighlights([{ month: 10, weeks: [
+    { n: 1, cur: 900, base: 2090, days: 7 }, { n: 2, cur: 1359, base: 2302, days: 7 },
+    { n: 3, cur: 1286, base: 2146, days: 7 }, { n: 4, cur: 100, base: 1762, days: 3 }] }]);
+  assert.equal(m.best.n, 2);
+  assert.equal(m.worst.n, 1);
+  assert.equal(m.cur, 3645);
+});
+test('SQL mensal e restrito ao service_role e rota existe', () => {
+  const sql = fs.readFileSync('supabase/migrations/20261029140000_commerce_annual_month_v1.sql', 'utf8');
+  assert.match(sql, /revoke all on function[^;]*from public,\s*anon,\s*authenticated/i);
+  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /sales-compare\/annual-month/);
+});

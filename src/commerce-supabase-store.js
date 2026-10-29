@@ -1229,3 +1229,12 @@ export async function commerceCatalogYearDecision(env, rowId, action, actor) {
     p_actor: cleanText(actor)
   });
 }
+
+export async function commerceAnnualMonth(env,{platform='SHOPEE',month=null,year=null,base=null}={}) {
+  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
+  const m=Number.isInteger(Number(month))&&Number(month)>=1&&Number(month)<=12?Number(month):null;
+  const y=Number.isInteger(Number(year))&&Number(year)>2000?Number(year):null;
+  const b=Number.isInteger(Number(base))&&Number(base)>2000?Number(base):null;
+  const data=await supabaseRpc(env,'commerce_annual_month_v1',{p_platform:plat,p_month:m,p_year:y,p_base:b},{timeoutMs:20000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[],top:[],up:[],down:[]};
+}

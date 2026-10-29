@@ -430,7 +430,7 @@ html.ga-dark .ndb-ac-table td{border-top:1px solid #1e2329}
 html.ga-dark .ndb-ac-table .g{color:#7be4ab}
 html.ga-dark .ndb-ac-table .r{color:#de554a}
 html.ga-dark .ndb-ac-total td{background:#171c26}
-html.ga-dark .ndb-ac-cat:hover,html.ga-dark .ndb-ac-sub:hover{background:#171c26}
+html.ga-dark .ndb-ac-r-cat:hover,html.ga-dark .ndb-ac-r-sub:hover{background:#171c26}
 html.ga-dark .ndb-ac-chev{color:#616f86}
 html.ga-dark .ndb-ac-bt{background:#1e2329}
 html.ga-dark .ndb-ac-detail td{background:#121a26}
@@ -438,6 +438,19 @@ html.ga-dark .ndb-ac-blk h4{color:#94a3c2}
 html.ga-dark .ndb-ac-sku{border-top:1px solid #1e2329}
 html.ga-dark .ndb-ac-sku small{color:#616f86}
 html.ga-dark .ndb-ac-note{color:#616f86}
+html.ga-dark .ndb-ac-kpi.is-click:hover,html.ga-dark .ndb-ac-kpi.is-click:focus-visible{border-color:#3470d8;box-shadow:0 2px 10px rgba(52,112,216,.15)}
+html.ga-dark .ndb-ac-kpi-more{color:#3470d8}
+html.ga-dark .ndb-ac-overlay{background:rgba(169,185,230,.45)}
+html.ga-dark .ndb-ac-modal{background:#1a1a1a;color:#a9b9e6;box-shadow:0 20px 50px rgba(169,185,230,.3)}
+html.ga-dark .ndb-ac-x{background:#1e2329;color:#94a3c2}
+html.ga-dark .ndb-ac-idx.up{background:#1e3326;color:#7be4ab}
+html.ga-dark .ndb-ac-idx.dn{background:#311414;color:#de554a}
+html.ga-dark .ndb-ac-strip{color:#78869f}
+html.ga-dark .ndb-ac-strip b{color:#a9b9e6}
+html.ga-dark .ndb-ac-tag.up{background:#1e3326;color:#7be4ab}
+html.ga-dark .ndb-ac-tag.dn{background:#311414;color:#de554a}
+html.ga-dark .ndb-ac-part{color:#efb056}
+html.ga-dark .ndb-ac-first td{border-top:2px solid #222935}
 html.ga-dark .nim-manager .nim-kpis>.nim-kpi,html.ga-dark .nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){border:1px solid #202834;background:#1a1a1a;box-shadow:0 4px 16px rgba(151,178,214,.035)}
 html.ga-dark .nim-manager .nim-kpi-icon{color:#2267d0;background:#111e33}
 html.ga-dark .nim-manager .nim-kpi.mint .nim-kpi-icon{color:#63e3b5;background:#1d3027}
