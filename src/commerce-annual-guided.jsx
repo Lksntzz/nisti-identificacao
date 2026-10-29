@@ -120,7 +120,7 @@ export default function GuidedAnnualCompare({
     monthData.platform===filters.platform && (!monthData.month || Number(monthData.month)===selectedMonth);
   const monthInfo=useMemo(()=>validMonthData?weekHighlights(monthData.months||[]).find(m=>Number(m.month)===selectedMonth):null,[monthData,validMonthData,selectedMonth]);
   const weekly=monthInfo?.weeks?.filter(w=>w.n<=Math.ceil(daysInMonth(year,selectedMonth)/7))||[];
-  const displayedDays=Math.min(7,daysInMonth(year,selectedMonth)-(week-1)*7);
+  const displayedDays=Math.max(0,Math.min(7,daysInMonth(year,selectedMonth)-(week-1)*7));
   const isCurrentMonth=selectedMonth===current;
   const partial=isCurrentMonth && Number((data.as_of||'').slice(8,10))<daysInMonth(year,selectedMonth);
   const isValidWeek=weekly.some(w=>w.n===week);
@@ -155,8 +155,8 @@ export default function GuidedAnnualCompare({
     </div>
     {!baseAvailable&&<p className="ga-y-error" role="note">Sem referência importada suficiente para uma ou mais plataformas em {baseYear}. As diferenças não são apresentadas como crescimento comprovado.</p>}
     <div className="ga-y-kpis">
-      <Figure label="Unidades no ano" value={fmt(k.cur||0)} reference={baseYear+': '+(baseAvailable?fmt(k.base||0):'sem base')} cur={k.cur} base={baseAvailable?k.base:null} onClick={()=>onKpiOpen('units')}/>
-      <Figure label="Últimos 28 dias" value={fmt(k.cur28||0)} reference={baseYear+': '+(baseAvailable?fmt(k.base28||0):'sem base')} cur={k.cur28} base={baseAvailable?k.base28:null} onClick={()=>onKpiOpen('l28')}/>
+      <Figure label="Unidades no ano" value={hasValue(k.cur)?fmt(k.cur):'—'} reference={baseYear+': '+(baseAvailable?fmt(k.base||0):'sem base')} cur={k.cur} base={baseAvailable?k.base:null} onClick={()=>onKpiOpen('units')}/>
+      <Figure label="Últimos 28 dias" value={hasValue(k.cur28)?fmt(k.cur28):'—'} reference={baseYear+': '+(baseAvailable?fmt(k.base28||0):'sem base')} cur={k.cur28} base={baseAvailable?k.base28:null} onClick={()=>onKpiOpen('l28')}/>
       <Figure label={'Projeção de '+year} value={hasValue(k.projection)?fmt(k.projection):'—'} reference="Estimativa pelo ritmo dos últimos 28 dias" cur={k.projection} base={baseAvailable?k.base_full:null} onClick={()=>onKpiOpen('proj')}/>
       <Figure label="Preço médio por unidade" value={priceCur!=null?amount(priceCur):'—'} reference={baseYear+': '+(priceBase!=null&&baseAvailable?amount(priceBase):'sem base')} cur={priceCur} base={baseAvailable?priceBase:null} neutral onClick={()=>onKpiOpen('price')}/>
     </div>
@@ -186,7 +186,7 @@ export default function GuidedAnnualCompare({
           </div>}
         {showDaily&&isValidWeek&&<div className="ga-y-daily-section">
           <div className="ga-y-section-head"><h4>Comparação diária</h4><small>{displayedDays} dia(s) · {MONTHS[selectedMonth-1]}</small></div>
-          <DailyTable data={dailyState.data} loading={dailyState.loading} error={dailyState.error} onRetry={()=>setDailyRevision(v=>v+1)} selectedDay={selectedDay} setSelectedDay={setSelectedDay} week={week}/>
+          <DailyTable data={dailyState.data && Number(dailyState.data.month)===selectedMonth && Number(dailyState.data.week)===week && Number(dailyState.data.year)===year && dailyState.data.platform===filters.platform ? dailyState.data : null} loading={dailyState.loading} error={dailyState.error} onRetry={()=>setDailyRevision(v=>v+1)} selectedDay={selectedDay} setSelectedDay={setSelectedDay} week={week}/>
         </div>}
         <div className="ga-y-advanced-actions">
           <button type="button" onClick={()=>setAdvanced(advanced==='matrix'?'':'matrix')}>{advanced==='matrix'?'Ocultar':'Ver'} matriz semanal completa</button>
