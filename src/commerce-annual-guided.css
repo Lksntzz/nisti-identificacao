@@ -122,3 +122,42 @@ html.ga-dark .ga-y-guided .ga-y-error{background:#4c252f;color:#ffb6bb;border-co
 .ga-y-idx{display:block;margin-top:2px;font-style:normal;font-size:9.5px;font-weight:800;color:#1d5fd1}
 
 .ga-y-left{display:grid;gap:12px;min-width:0;align-content:start}
+
+/* Filtro de período: o menu aberto fica acima de KPIs/tabelas e da barra fixa; nunca é cortado pelo contêiner */
+.ga-y-toolbar{position:relative;z-index:40}
+.ndb-pp.is-open{z-index:80}
+.ndb-pp-menu{max-width:calc(100vw - 24px)}
+
+/* Abas, filtro "só antigos" e novas seções */
+.ga-y-tabs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:12px 0 4px;border-bottom:1px solid var(--gy-line);padding-bottom:8px}
+.ga-y-tabs>button{border:1px solid var(--gy-line);background:#fff;color:var(--gy-ink);border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer}
+.ga-y-tabs>button.is-active{background:#0d2a6b;border-color:#0d2a6b;color:#fff}
+.ga-y-oldtoggle{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:650;color:var(--gy-ink);cursor:pointer}
+.ndb-ac-hidden{margin:6px 0;padding:7px 10px;border-radius:8px;background:#fff6e0;color:#7a5400;font-size:12.5px;font-weight:600}
+.ga-y-season{display:flex;flex-direction:column;gap:14px;margin-top:10px}
+.ga-y-scroll{overflow-x:auto}
+.ga-y-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ga-y-table th,.ga-y-table td{padding:7px 9px;border-bottom:1px solid var(--gy-line);text-align:left;vertical-align:top}
+.ga-y-table small{display:block;color:var(--gy-muted);font-size:11px}
+.ga-y-monthbars{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;align-items:end}
+.ga-y-mb{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}
+.ga-y-mb-bars{display:flex;align-items:end;gap:3px;height:120px;width:100%;justify-content:center}
+.ga-y-mb-bars i{display:block;width:38%;min-height:2px;border-radius:3px 3px 0 0}
+.ga-y-mb-bars i.is-base{background:#b9c7e4}.ga-y-mb-bars i.is-current{background:#0d2a6b}
+.ga-y-mb small{color:var(--gy-muted);font-size:10px}
+.ga-y-heat{border-collapse:separate;border-spacing:2px;font-size:11.5px;width:100%}
+.ga-y-heat th{font-weight:700;text-align:left;padding:3px 6px;white-space:nowrap}
+.ga-y-hc{text-align:center;border-radius:4px;padding:5px 3px;min-width:34px;background:#f1f4fa;color:#5b6a86}
+.ga-y-hc.h2{background:#dbe6fb;color:#173a86}.ga-y-hc.h3{background:#8fb0ee;color:#0b2358}.ga-y-hc.h4{background:#0d2a6b;color:#fff}
+.ga-y-peaks-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ga-y-peaks h5{margin:0 0 6px;font-size:13px}
+.ga-y-peaks ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ga-y-peaks li small{display:block;color:var(--gy-muted);font-size:11.5px}
+.ga-y-details{margin-top:8px;font-size:12.5px}.ga-y-details ul{margin:6px 0 0 18px}
+@media(max-width:760px){.ga-y-peaks-grid{grid-template-columns:1fr}.ga-y-oldtoggle{margin-left:0;width:100%}.ga-y-mb-bars{height:90px}}
+html.ga-dark .ga-y-tabs>button{background:#182438;color:var(--gy-ink)}
+html.ga-dark .ga-y-tabs>button.is-active{background:#3d6fd6;border-color:#3d6fd6;color:#fff}
+html.ga-dark .ndb-ac-hidden{background:#3a2e10;color:#f1d58a}
+html.ga-dark .ga-y-hc{background:#1d2a40;color:#9fb0cc}
+html.ga-dark .ga-y-hc.h2{background:#27406e;color:#dbe6fb}html.ga-dark .ga-y-hc.h3{background:#3d6fd6;color:#fff}html.ga-dark .ga-y-hc.h4{background:#8fb0ee;color:#0b1a3a}
+html.ga-dark .ga-y-mb-bars i.is-base{background:#4a5d82}html.ga-dark .ga-y-mb-bars i.is-current{background:#8fb0ee}

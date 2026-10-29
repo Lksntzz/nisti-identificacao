@@ -4,6 +4,7 @@ import { Dropdown } from './commerce-dashboard.jsx';
 import PeriodPicker from './commerce-period-picker.jsx';
 import { maskMoney } from './commerce-privacy.js';
 import { growth, indexOf, weekHighlights, projectionRange, daysBehind } from './commerce-annual-compare-helpers.js';
+import { Seasonality, Launches } from './commerce-annual-seasonality.jsx';
 import './commerce-annual-guided.css';
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -109,6 +110,8 @@ export default function GuidedAnnualCompare({
   WeeksCard, Champions, PeriodSummary, PeriodDetails, useAnnualCompare, PeriodProducts
 }) {
   const [display,setDisplay]=useState('bars');
+  const [tab,setTab]=useState('compare');
+  const [onlyOld,setOnlyOld]=useState(true);
   const [week,setWeek]=useState(1);
   const [showDaily,setShowDaily]=useState(true);
   const [selectedDay,setSelectedDay]=useState(null);
@@ -213,6 +216,13 @@ export default function GuidedAnnualCompare({
       </div>
       <span className="ga-y-asof">Dados até {String(data.as_of||'').split('-').reverse().join('/')}</span>
     </div>
+    <div className="ga-y-tabs" role="tablist" aria-label="Seções da comparação anual">
+      {[['compare','Comparação'],['seasonal','Picos e sazonalidade'],['launches','Lançamentos '+year]].map(([id,label])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)}>{label}</button>)}
+      {tab==='compare'&&<label className="ga-y-oldtoggle"><input type="checkbox" checked={onlyOld} onChange={e=>setOnlyOld(e.target.checked)}/> Só produtos que já existiam em {baseYear}</label>}
+    </div>
+    {tab==='seasonal'&&<Seasonality platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/>}
+    {tab==='launches'&&<Launches platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/>}
+    {tab==='compare'&&<>
     {stale&&<p className="ga-y-warning" role="note">Os dados vão até {String(data.as_of).split('-').reverse().join('/')}, há {behind} dias. Importe as vendas mais recentes para os números do mês e dos últimos 28 dias ficarem completos.</p>}
     {!baseAvailable&&<p className="ga-y-error" role="note">Sem referência importada suficiente para uma ou mais plataformas em {baseYear}. As diferenças não são apresentadas como crescimento comprovado.</p>}
     <div className="ga-y-kpis">
@@ -229,8 +239,8 @@ export default function GuidedAnnualCompare({
         <MonthRows periods={data.periods||[]} mode={display} year={year} baseYear={baseYear} baseAvailable={baseAvailable} selected={windowMode?null:selectedMonth} onSelect={selectMonth} asOf={data.as_of}/>
         <p className="ga-y-note">Selecione um mês para analisar semanas e dias. Os valores seguem os dados importados no GA.</p>
       </section>
-      {windowMode&&winRange&&PeriodProducts&&<section className="ga-y-main" aria-label="Produtos do período"><PeriodProducts key={winRange.curFrom+winRange.curTo} platform={filters.platform} {...winRange} year={year} base={baseYear} title={winTitle}/></section>}
-      {!windowMode&&advanced==='products'&&<Champions month={selectedMonth} monthData={validMonthData&&Number(monthData.month)===selectedMonth?monthData:{top:[],up:[],down:[]}} loading={!(validMonthData&&Number(monthData.month)===selectedMonth)} year={year} base={baseYear} platform={filters.platform}/>}
+      {windowMode&&winRange&&PeriodProducts&&<section className="ga-y-main" aria-label="Produtos do período"><PeriodProducts onlyOld={onlyOld} key={winRange.curFrom+winRange.curTo} platform={filters.platform} {...winRange} year={year} base={baseYear} title={winTitle}/></section>}
+      {!windowMode&&advanced==='products'&&<Champions onlyOld={onlyOld} month={selectedMonth} monthData={validMonthData&&Number(monthData.month)===selectedMonth?monthData:{top:[],up:[],down:[]}} loading={!(validMonthData&&Number(monthData.month)===selectedMonth)} year={year} base={baseYear} platform={filters.platform}/>}
       {!windowMode&&advanced==='mobile'&&<MobilePeriods platform={filters.platform} gran={mobileSeries} onGran={setMobileSeries} year={year} baseYear={baseYear} useAnnualCompare={useAnnualCompare} PeriodSummary={PeriodSummary} PeriodDetails={PeriodDetails}/>}
       </div>
       {windowMode&&<aside className="ga-y-investigation" aria-label="Investigação do período">
@@ -279,13 +289,14 @@ export default function GuidedAnnualCompare({
           <div className="ga-y-section-head"><h4>Comparação diária</h4><small>{displayedDays} dia(s) · {MONTHS[selectedMonth-1]}</small></div>
           <DailyTable data={dailyState.data && Number(dailyState.data.month)===selectedMonth && Number(dailyState.data.week)===week && Number(dailyState.data.year)===year && dailyState.data.platform===filters.platform ? dailyState.data : null} loading={dailyState.loading} error={dailyState.error} onRetry={()=>setDailyRevision(v=>v+1)} selectedDay={selectedDay} setSelectedDay={setSelectedDay} week={week}/>
         </div>}
-        {range&&PeriodProducts&&<PeriodProducts key={range.curFrom+range.curTo} platform={filters.platform} {...range} year={year} base={baseYear} title={periodTitle}/>}
+        {range&&PeriodProducts&&<PeriodProducts onlyOld={onlyOld} key={range.curFrom+range.curTo} platform={filters.platform} {...range} year={year} base={baseYear} title={periodTitle}/>}
         <div className="ga-y-advanced-actions">
           <button type="button" onClick={()=>setAdvanced(advanced==='products'?'':'products')}>{advanced==='products'?'Ocultar':'Ver'} campeões do mês</button>
           <button type="button" onClick={()=>setAdvanced(advanced==='mobile'?'':'mobile')}>{advanced==='mobile'?'Ocultar':'Ver'} série móvel</button>
         </div>
       </aside>}
     </div>
+    </>}
   </div>;
 }
 function MobilePeriods({platform,gran,onGran,year,baseYear,useAnnualCompare,PeriodSummary,PeriodDetails}) {
