@@ -110,7 +110,7 @@ export default function GuidedAnnualCompare({
   const [selectedDay,setSelectedDay]=useState(null);
   const [dailyRevision,setDailyRevision]=useState(0);
   const [dailyState,setDailyState]=useState({loading:false,error:'',data:null});
-  const [advanced,setAdvanced]=useState('');
+  const [advanced,setAdvanced]=useState('products');
   const [mobileSeries,setMobileSeries]=useState('week');
   const current=Number((data?.as_of||'').slice(5,7))||1;
   const defaultMonth=Math.max(1,current>1?current-1:1);
@@ -129,7 +129,7 @@ export default function GuidedAnnualCompare({
   const chosenWeek=weekly.find(w=>w.n===week);
   const updateFilters=patch=>setFilters(prev=>({...prev,...patch}));
   const selectMonth=m=>updateFilters({month:String(m)});
-  useEffect(()=>{setWeek(1);setShowDaily(false);setSelectedDay(null);setAdvanced('');},[selectedMonth,filters.platform,year]);
+  useEffect(()=>{setWeek(1);setShowDaily(false);setSelectedDay(null);setAdvanced('products');},[selectedMonth,filters.platform,year]);
   useEffect(()=>{
     if(!showDaily||!isValidWeek)return;
     const controller=new AbortController();
@@ -163,12 +163,16 @@ export default function GuidedAnnualCompare({
       <Figure label="Preço médio por unidade" value={priceCur!=null?amount(priceCur):'—'} reference={baseYear+': '+(priceBase!=null&&baseAvailable?amount(priceBase):'sem base')} cur={priceCur} base={baseAvailable?priceBase:null} neutral onClick={()=>onKpiOpen('price')}/>
     </div>
     <div className="ga-y-body">
+      <div className="ga-y-left">
       <section className="ga-y-main" aria-label="Comparação mensal">
         <header><div><h3>Comparação mensal</h3><p>{baseYear} versus {year} · unidades vendidas</p></div>
           <div className="ga-y-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-current"/>{year}</span></div></header>
         <MonthRows periods={data.periods||[]} mode={display} year={year} baseYear={baseYear} baseAvailable={baseAvailable} selected={selectedMonth} onSelect={selectMonth} asOf={data.as_of}/>
         <p className="ga-y-note">Selecione um mês para analisar semanas e dias. Os valores seguem os dados importados no GA.</p>
       </section>
+      {advanced==='products'&&<Champions month={selectedMonth} monthData={validMonthData?monthData:{top:[],up:[],down:[]}} year={year} base={baseYear}/>}
+      {advanced==='mobile'&&<MobilePeriods platform={filters.platform} gran={mobileSeries} onGran={setMobileSeries} year={year} baseYear={baseYear} useAnnualCompare={useAnnualCompare} PeriodSummary={PeriodSummary} PeriodDetails={PeriodDetails}/>}
+      </div>
       <aside className="ga-y-investigation" aria-label="Investigação do mês">
         <header><h3>Investigação</h3><p>{MONTHS[selectedMonth-1]} · {PLATFORMS.find(p=>p[0]===filters.platform)?.[1]} · {year} × {baseYear}</p></header>
         <div className="ga-y-result">
@@ -198,8 +202,6 @@ export default function GuidedAnnualCompare({
         </div>
       </aside>
     </div>
-    {advanced==='products'&&<Champions month={selectedMonth} monthData={validMonthData?monthData:{top:[],up:[],down:[]}} year={year} base={baseYear}/>}
-    {advanced==='mobile'&&<MobilePeriods platform={filters.platform} gran={mobileSeries} onGran={setMobileSeries} year={year} baseYear={baseYear} useAnnualCompare={useAnnualCompare} PeriodSummary={PeriodSummary} PeriodDetails={PeriodDetails}/>}
   </div>;
 }
 function MobilePeriods({platform,gran,onGran,year,baseYear,useAnnualCompare,PeriodSummary,PeriodDetails}) {
