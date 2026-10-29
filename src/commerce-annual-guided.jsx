@@ -75,7 +75,7 @@ function MonthRows({periods,mode,year,baseYear,baseAvailable,selected,onSelect,a
   </div>;
 }
 
-function DailyTable({data,loading,error,onRetry,selectedDay,setSelectedDay,week,platform,DayProducts}) {
+function DailyTable({data,loading,error,onRetry,selectedDay,setSelectedDay,week}) {
   if (loading) return <p className="ga-y-muted" role="status">Consultando dados diários…</p>;
   if (error) return <div className="ga-y-error" role="alert"><span>{error}</span><button type="button" onClick={onRetry}>Tentar novamente</button></div>;
   if (!Array.isArray(data?.days)) return <p className="ga-y-muted">Dados diários indisponíveis para o período.</p>;
@@ -95,19 +95,17 @@ function DailyTable({data,loading,error,onRetry,selectedDay,setSelectedDay,week,
         <span>{day.base==null||day.cur==null?'Sem cobertura diária comprovada nas duas datas':'Diferença: '+signed(day.cur-day.base)+' unidades'}</span>
       </div>;
     })()}
-    {selectedDay!=null&&(()=>{const day=filtered.find(d=>d.day===selectedDay);
-      return day&&day.cur_date&&day.base_date&&DayProducts?<DayProducts platform={platform} curDate={day.cur_date} baseDate={day.base_date} year={data.year} base={data.base_year}/>:null;})()}
     <p className="ga-y-note">Comparação por mesma data do calendário. “—” indica ausência de registro diário confirmado, não zero vendas.</p>
   </div>;
 }
 
 export default function GuidedAnnualCompare({
   data, monthData, filters, setFilters, refresh=0, onKpiOpen,
-  WeeksCard, Champions, PeriodSummary, PeriodDetails, useAnnualCompare, DayProducts
+  WeeksCard, Champions, PeriodSummary, PeriodDetails, useAnnualCompare, PeriodProducts
 }) {
   const [display,setDisplay]=useState('bars');
   const [week,setWeek]=useState(1);
-  const [showDaily,setShowDaily]=useState(false);
+  const [showDaily,setShowDaily]=useState(true);
   const [selectedDay,setSelectedDay]=useState(null);
   const [dailyRevision,setDailyRevision]=useState(0);
   const [dailyState,setDailyState]=useState({loading:false,error:'',data:null});
@@ -130,7 +128,13 @@ export default function GuidedAnnualCompare({
   const chosenWeek=weekly.find(w=>w.n===week);
   const updateFilters=patch=>setFilters(prev=>({...prev,...patch}));
   const selectMonth=m=>updateFilters({month:String(m)});
-  useEffect(()=>{setWeek(1);setShowDaily(false);setSelectedDay(null);setAdvanced('products');},[selectedMonth,filters.platform,year]);
+  useEffect(()=>{setWeek(1);setShowDaily(true);setSelectedDay(null);setAdvanced('products');},[selectedMonth,filters.platform,year]);
+  // Abre direto na semana mais recente com vendas, sem exigir cliques extras.
+  useEffect(()=>{
+    if(!validMonthData)return;
+    const last=[...weekly].reverse().find(w=>Number(w.days)>0||Number(w.cur)>0);
+    if(last){setWeek(last.n);setSelectedDay(null);}
+  },[validMonthData,selectedMonth,filters.platform,year]);
   useEffect(()=>{
     if(!showDaily||!isValidWeek)return;
     const controller=new AbortController();
@@ -142,6 +146,13 @@ export default function GuidedAnnualCompare({
       .catch(err=>{if(!controller.signal.aborted)setDailyState({loading:false,error:err?.message||'Não foi possível carregar o período.',data:null});});
     return ()=>controller.abort();
   },[showDaily,isValidWeek,selectedMonth,week,year,baseYear,filters.platform,dailyRevision,refresh]);
+  const dailyOk=dailyState.data&&Number(dailyState.data.month)===selectedMonth&&Number(dailyState.data.week)===week&&Number(dailyState.data.year)===year&&dailyState.data.platform===filters.platform?dailyState.data:null;
+  const weekDays=dailyOk?dailyOk.days.filter(d=>Number(d.day)>=(week-1)*7+1&&Number(d.day)<=week*7):[];
+  const dayPick=selectedDay!=null?weekDays.find(d=>d.day===selectedDay):null;
+  const usable=(dayPick?[dayPick]:weekDays).filter(d=>d.cur_date&&d.base_date&&d.cur_date<=dailyOk.as_of);
+  const range=usable.length?{curFrom:usable[0].cur_date,curTo:usable[usable.length-1].cur_date,baseFrom:usable[0].base_date,baseTo:usable[usable.length-1].base_date}:null;
+  const mm=String(selectedMonth).padStart(2,'0');
+  const periodTitle=dayPick?'Produtos vendidos em '+String(dayPick.day).padStart(2,'0')+'/'+mm:'Produtos da semana '+(week===5?'29+':String((week-1)*7+1).padStart(2,'0')+'–'+Math.min(week*7,daysInMonth(year,selectedMonth)))+' de '+MONTHS[selectedMonth-1].toLowerCase();
   const k=data.kpi||{};
   const priceCur=Number(k.cur)>0?Number(k.cur_rev)/Number(k.cur):null;
   const priceBase=Number(k.base)>0?Number(k.base_rev)/Number(k.base):null;
@@ -188,7 +199,7 @@ export default function GuidedAnnualCompare({
           <div className="ga-y-result-trend">{period&&baseAvailable?<><Trend cur={period.cur} base={period.base}/><small>{signed(Number(period.cur)-Number(period.base))} unidades</small></>:<span className="ga-y-neutral">Sem base</span>}</div>
         </div>
         {partial&&<p className="ga-y-warning">Parcial até {String(data.as_of).split('-').reverse().join('/')}; referência do ano anterior cortada na data equivalente.</p>}
-        <div className="ga-y-section-head"><h4>Semanas do mês</h4>{showDaily&&<button type="button" onClick={()=>{setShowDaily(false);setSelectedDay(null);}}>Voltar às semanas</button>}</div>
+        <div className="ga-y-section-head"><h4>Semanas do mês</h4></div>
         {!validMonthData?<p className="ga-y-muted">Carregando análise semanal…</p>:
           weekly.length===0?<p className="ga-y-muted">Sem registros semanais neste mês.</p>:
           <div className="ga-y-week-list">
@@ -202,8 +213,9 @@ export default function GuidedAnnualCompare({
           </div>}
         {showDaily&&isValidWeek&&<div className="ga-y-daily-section">
           <div className="ga-y-section-head"><h4>Comparação diária</h4><small>{displayedDays} dia(s) · {MONTHS[selectedMonth-1]}</small></div>
-          <DailyTable data={dailyState.data && Number(dailyState.data.month)===selectedMonth && Number(dailyState.data.week)===week && Number(dailyState.data.year)===year && dailyState.data.platform===filters.platform ? dailyState.data : null} loading={dailyState.loading} error={dailyState.error} onRetry={()=>setDailyRevision(v=>v+1)} selectedDay={selectedDay} setSelectedDay={setSelectedDay} week={week} platform={filters.platform} DayProducts={DayProducts}/>
+          <DailyTable data={dailyState.data && Number(dailyState.data.month)===selectedMonth && Number(dailyState.data.week)===week && Number(dailyState.data.year)===year && dailyState.data.platform===filters.platform ? dailyState.data : null} loading={dailyState.loading} error={dailyState.error} onRetry={()=>setDailyRevision(v=>v+1)} selectedDay={selectedDay} setSelectedDay={setSelectedDay} week={week}/>
         </div>}
+        {range&&PeriodProducts&&<PeriodProducts key={range.curFrom+range.curTo} platform={filters.platform} {...range} year={year} base={baseYear} title={periodTitle}/>}
         <div className="ga-y-advanced-actions">
           <button type="button" onClick={()=>setAdvanced(advanced==='products'?'':'products')}>{advanced==='products'?'Ocultar':'Ver'} campeões do mês</button>
           <button type="button" onClick={()=>setAdvanced(advanced==='mobile'?'':'mobile')}>{advanced==='mobile'?'Ocultar':'Ver'} série móvel</button>

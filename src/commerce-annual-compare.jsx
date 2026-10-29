@@ -282,30 +282,29 @@ export function ProductLinks({links}){
   return <span className="ndb-ac-links">{items.map(i=><a key={i.label} href={i.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>{i.label} ↗</a>)}</span>;
 }
 
-export function DayProducts({platform,curDate,baseDate,year,base}){
+export function PeriodProducts({platform,curFrom,curTo,baseFrom,baseTo,year,base,title}){
   const [state,setState]=useState({loading:true,error:'',data:null});
   useEffect(()=>{
     const c=new AbortController();
     setState({loading:true,error:'',data:null});
-    fetchCommercialManager('/api/admin/commerce/sales-compare/annual-day-products?platform='+encodeURIComponent(platform)+'&cur='+curDate+'&base='+baseDate,{signal:c.signal})
+    fetchCommercialManager('/api/admin/commerce/sales-compare/annual-period-products?platform='+encodeURIComponent(platform)+'&cur_from='+curFrom+'&cur_to='+curTo+'&base_from='+baseFrom+'&base_to='+baseTo,{signal:c.signal})
       .then(data=>setState({loading:false,error:'',data}))
-      .catch(e=>{if(!c.signal.aborted)setState({loading:false,error:e?.message||'Não foi possível carregar os produtos do dia.',data:null});});
+      .catch(e=>{if(!c.signal.aborted)setState({loading:false,error:e?.message||'Não foi possível carregar os produtos.',data:null});});
     return()=>c.abort();
-  },[platform,curDate,baseDate]);
-  const fmtD=d=>String(d).split('-').reverse().slice(0,2).join('/');
-  if(state.loading)return <p className="ndb-ac-mut" role="status">Carregando produtos do dia…</p>;
+  },[platform,curFrom,curTo,baseFrom,baseTo]);
+  if(state.loading)return <p className="ndb-ac-mut" role="status">Carregando produtos…</p>;
   if(state.error)return <p className="ndb-error" role="alert">{state.error}</p>;
   const d=state.data,rows=d?.products||[];
   return <div className="ndb-ac-dayprod">
-    <h4>Produtos vendidos em {fmtD(curDate)} <small>contra {fmtD(baseDate)} de {base}</small></h4>
-    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>Produto</th><th className="num">{fmtD(baseDate)}/{String(base).slice(2)}</th><th className="num">{fmtD(curDate)}/{String(year).slice(2)}</th><th className="num">Dif.</th><th>Anúncio</th></tr></thead>
+    <h4>{title}</h4>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th>Anúncio</th></tr></thead>
       <tbody>{rows.map(r=>{const L=productLabel(r.name,r.sku),df=Number(r.cur)-Number(r.base);return <tr key={r.sku}>
         <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.sku}</small></td>
         <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b></td>
         <td className={'num '+(df>=0?'g':'r')}>{df>=0?'+':'−'}{num(Math.abs(df))}</td><td><ProductLinks links={r.links}/></td></tr>;})}
-        {rows.length===0&&<tr><td colSpan={5} className="ndb-ac-mut">Sem vendas registradas nessas datas.</td></tr>}
-        {rows.length>0&&<tr className="ndb-ac-total"><td><b>Total do dia</b></td><td className="num ndb-ac-mut">{num(d.total.base)}</td><td className="num"><b>{num(d.total.cur)}</b></td><td className={'num '+(d.total.cur>=d.total.base?'g':'r')}>{d.total.cur>=d.total.base?'+':'−'}{num(Math.abs(d.total.cur-d.total.base))}</td><td/></tr>}</tbody></table></div>
-    {rows.length>=40&&<p className="ndb-ac-note">Mostrando os 40 produtos que mais venderam no dia.</p>}
+        {rows.length===0&&<tr><td colSpan={5} className="ndb-ac-mut">Sem vendas registradas neste período.</td></tr>}
+        {rows.length>0&&<tr className="ndb-ac-total"><td><b>Total</b></td><td className="num ndb-ac-mut">{num(d.total.base)}</td><td className="num"><b>{num(d.total.cur)}</b></td><td className={'num '+(d.total.cur>=d.total.base?'g':'r')}>{d.total.cur>=d.total.base?'+':'−'}{num(Math.abs(d.total.cur-d.total.base))}</td><td/></tr>}</tbody></table></div>
+    {rows.length>=40&&<p className="ndb-ac-note">Mostrando os 40 produtos que mais venderam.</p>}
   </div>;
 }
 
@@ -363,7 +362,7 @@ export default function CommerceAnnualCompare({view='comparison',filters,setFilt
       :<GuidedAnnualCompare data={data} monthData={monthData} filters={filters}
         setFilters={setFilters} refresh={refresh} onKpiOpen={setModal}
         WeeksCard={WeeksCard} Champions={Champions} PeriodSummary={PeriodSummary}
-        PeriodDetails={PeriodDetails} useAnnualCompare={useAnnualCompare} DayProducts={DayProducts}/>)}
+        PeriodDetails={PeriodDetails} useAnnualCompare={useAnnualCompare} PeriodProducts={PeriodProducts}/>)}
     {modal&&fresh&&<KpiModal kind={modal} data={data} monthData={monthData} filters={filters} onClose={()=>setModal(null)}/>}
   </div>;
 }

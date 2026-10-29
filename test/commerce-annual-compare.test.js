@@ -78,6 +78,7 @@ test('produtos do dia: rota validada, SQL restrito e links nos produtos', () => 
   assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-day-products/);
   const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
   assert.match(ui, /ProductLinks/);
+  assert.match(ui, /PeriodProducts/);
   assert.match(ui, /rel="noopener noreferrer"/);
 });
 
@@ -101,4 +102,13 @@ test('filtros usam o seletor do Painel Comercial e bloqueiam plataforma sem base
   assert.match(g, /platformOptions/);
   assert.match(c, /não dá para comparar/);
   assert.doesNotMatch(g, /<label>Plataforma<select/);
+});
+
+test('periodo: SQL restrito, rota e abertura direta na semana mais recente', () => {
+  const sql = fs.readFileSync('supabase/migrations/20261029210000_commerce_annual_period_products_v1.sql', 'utf8');
+  assert.match(sql, /revoke all on function public\.commerce_annual_period_products_v1/i);
+  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-period-products/);
+  const g = fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8');
+  assert.match(g, /PeriodProducts/);
+  assert.doesNotMatch(g, /Voltar às semanas/);
 });
