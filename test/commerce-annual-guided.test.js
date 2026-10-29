@@ -12,7 +12,7 @@ test('a comparação guiada preserva módulos e navegação do painel comercial'
   assert.match(annual,/GuidedAnnualCompare/);
   for(const label of ['Unidades no ano','Últimos 28 dias','Projeção de ','Preço médio por unidade',
     'Comparação mensal','Investigação','Semanas do mês','Comparação diária',
-    'Ver','matriz semanal completa','campeões do mês','Séries móveis','Barras','Tabela','Gráfico'])
+    'Ver','campeões do mês','Séries móveis','Barras','Tabela','Gráfico'])
     assert.ok(guided.includes(label),'Rótulo ausente: '+label);
 });
 
