@@ -61,3 +61,13 @@ test('submenu do Painel Comercial fica na lateral com Comparação anual e Categ
   assert.match(app, /Categorias/);
   assert.doesNotMatch(fs.readFileSync('src/commerce-commercial-panel.jsx', 'utf8'), /ndb-ac-tabs/);
 });
+
+import { productLabel, share } from '../src/commerce-annual-compare-helpers.js';
+test('produto: tira a marca, separa a colecao e trata cadastro ausente', () => {
+  const a = productLabel('Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Safari', 'X');
+  assert.equal(a.title, 'Caderneta de Vacinação Menino Personalizado');
+  assert.equal(a.collection, 'Safari');
+  assert.equal(productLabel(null, 'ABC').title, 'Sem cadastro');
+  assert.equal(share(50, 200), 25);
+  assert.equal(share(5, 0), null);
+});

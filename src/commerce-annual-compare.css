@@ -121,3 +121,11 @@
 /* submenu do Painel Comercial na lateral */
 .sidebar-sublist{list-style:none;margin:2px 0 4px 0;padding:0 0 0 18px;border-left:1px solid rgba(148,163,184,.3);margin-left:22px}
 .sidebar-nav-item.sidebar-subitem{padding-top:7px;padding-bottom:7px;font-size:.92em}
+
+.ndb-ac-prod .ndb-ac-seg button small{opacity:.7;font-weight:600;margin-left:3px}
+.ndb-ac-prod .ndb-ac-pn{max-width:340px}
+.ndb-ac-prod td small{display:block;font-size:11px}
+.ndb-ac-newtag{margin-left:6px;font-style:normal;font-size:10.5px;font-weight:800;color:#1d5fd1;background:#e8f0fd;border-radius:999px;padding:1px 7px}
+.ndb-ac-wt{min-width:130px;position:relative}
+.ndb-ac-wt i{display:block;height:6px;border-radius:3px;background:#9db9ea;margin-bottom:2px;max-width:100px}
+.ndb-ac-wt span{font-size:11.5px;color:#33415f;font-variant-numeric:tabular-nums}
