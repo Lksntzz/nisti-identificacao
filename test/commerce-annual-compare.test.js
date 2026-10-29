@@ -173,3 +173,9 @@ test('anúncios: só ícone, só da plataforma em análise; comparação só ofe
   const g = fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
   assert.match(g, /hasUnits\(n-1\)/);
 });
+
+test('categorias: Top 5 usa o título do produto (texto) e o detalhe tem proteção contra erro', () => {
+  const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
+  assert.match(ui, /productLabel\(r\.name,r\.sku\)\.title/);
+  assert.match(ui, /getDerivedStateFromError/);
+});
