@@ -127,7 +127,8 @@ test('periodo igual ao Painel Comercial: 7/30/60/90 dias e meses, sem "todo o hi
 
 test('produtos do mês mostram o preço médio vendido nos dois anos', () => {
   const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
-  assert.match(ui, /Preço médio \{base\} → \{year\}/);
+  assert.match(ui, /preço médio por unidade/);
+  assert.match(ui, /\/un\./);
   assert.match(fs.readFileSync('supabase/migrations/20261029230000_commerce_annual_month_prices_v1.sql', 'utf8'), /'cur_rev',cr,'base_rev',br/);
 });
 

@@ -169,3 +169,41 @@ html.ga-dark .ga-y-mb-bars i.is-base{background:#4a5d82}html.ga-dark .ga-y-mb-ba
 .ga-y-varrow td{background:rgba(13,42,107,.035);font-size:12px}
 .ga-y-var{padding-left:18px;font-weight:600}.ga-y-varrow small{padding-left:18px}
 html.ga-dark .ga-y-varrow td{background:rgba(143,176,238,.08)}
+
+/* ===== Layout profissional (v2): hierarquia, tabelas legíveis, detalhe em abas ===== */
+.ga-y-guided{gap:16px}
+.ga-y-body{display:flex;flex-direction:column;gap:14px}
+.ga-y-left{display:flex;flex-direction:column;gap:14px;min-width:0}
+.ga-y-head-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}
+.ga-y-view-controls button{padding:7px 12px}
+.ga-y-chart-month{height:auto;min-height:250px;padding:6px 2px 4px}
+.ga-y-chart-label{font-weight:700;color:var(--gy-ink);font-size:12px}
+.ga-y-chart-delta{font-size:10.5px;font-weight:750;font-variant-numeric:tabular-nums}
+.ga-y-chart-delta.is-up{color:var(--gy-up)}.ga-y-chart-delta.is-down{color:var(--gy-down)}
+.ga-y-chart{min-height:290px}
+.ga-y-detail-head{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:6px;padding-bottom:8px;border-bottom:1px solid var(--gy-line)}
+.ga-y-detail-head h3{margin:0;font-size:18px;font-weight:800}
+.ga-y-detail-head p{margin:2px 0 0;font-size:12px;color:var(--gy-muted)}
+.ga-y-detail-tabs{display:flex;gap:4px;background:#eef2f8;padding:3px;border-radius:10px}
+.ga-y-detail-tabs button{border:0;background:transparent;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:700;color:#4a5b78;cursor:pointer}
+.ga-y-detail-tabs button.is-active{background:#fff;color:var(--gy-ink);box-shadow:0 1px 3px rgba(20,40,80,.12)}
+.ga-y-investigation{max-width:none}
+/* Tabelas: texto à esquerda, números à direita, linhas arejadas, cabeçalho discreto */
+.ndb-ac-table th{font-size:11px;letter-spacing:.02em;text-transform:uppercase;color:#6b7a93}
+.ndb-ac-table td{padding:11px 10px}
+.ndb-ac-table tbody tr:hover td{background:#f7faff}
+.ndb-ac-sub2{display:block;font-size:11px;color:#7b8aa3;font-weight:500;margin-top:1px}
+.ga-y-table th,.ga-y-table td{padding:11px 10px}
+.ga-y-table th{font-size:11px;letter-spacing:.02em;text-transform:uppercase;color:#6b7a93}
+.ga-y-table th:not(:first-child),.ga-y-table td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.ga-y-table.is-left th:not(:first-child),.ga-y-table.is-left td:not(:first-child){text-align:left}
+.ga-y-heat{border-spacing:3px}
+.ga-y-hc{font-size:10.5px;min-width:30px;height:26px;padding:0}
+html.ga-dark .ga-y-detail-tabs{background:#1d2a40}
+html.ga-dark .ga-y-detail-tabs button{color:#9fb0cc}
+html.ga-dark .ga-y-detail-tabs button.is-active{background:#2a3d5e;color:#fff}
+html.ga-dark .ndb-ac-table tbody tr:hover td{background:#1d2a40}
+.ga-y-body{align-items:stretch}
+.ga-y-chart{align-items:stretch;min-height:300px}
+.ga-y-chart-month{height:280px;min-height:0}
+.ga-y-chart-pair{min-height:200px;max-height:none}
