@@ -63,7 +63,7 @@ function SkuRow({r,i,platform}){
   return <li className="ndb-cp-sku">
     <span className="ndb-cp-rank">{i+1}º</span>
     <div className="ndb-cp-sku-main">
-      <b title={r.name||r.sku}>{productLabel(r.name,r.sku)}</b>
+      <b title={r.name||r.sku}>{productLabel(r.name,r.sku).title}</b>
       <span><code>{r.sku}</code> <button type="button" className="ndb-cp-copy" onClick={()=>copySku(r.sku)} aria-label={'Copiar SKU '+r.sku}>copiar</button> <ProductLinks links={r.links} platform={platform}/></span>
       {pc!=null&&<small>Preço médio: {pb!=null?money(pb)+' → ':''}{money(pc)}</small>}
       {!(Number(r.base)>0)&&<small className="ndb-cp-warn">Sem venda no ano anterior: pode ser lançamento, troca de código ou falta de importação.</small>}
@@ -127,6 +127,13 @@ function CategoryDetail({row,total,baseYear,query,year,sub,setSub,platform}){
     <ul className="ndb-cp-subs">{row.subs.map(s=><li key={s.name}><button type="button" onClick={()=>setSub(s.name)}>
       <span className="ndb-cp-subname">{s.name}</span><span className="ndb-cp-n">{fmt(s.cur)}</span><span className="ndb-cp-mut">{share(s.cur,row.cur)}</span><Var cur={s.cur} base={s.base}/></button></li>)}</ul>
   </div>;
+}
+
+class DetailGuard extends React.Component{
+  constructor(p){super(p);this.state={failed:false};}
+  static getDerivedStateFromError(){return {failed:true};}
+  componentDidUpdate(prev){if(this.state.failed&&prev.resetKey!==this.props.resetKey)this.setState({failed:false});}
+  render(){return this.state.failed?<p className="ndb-cp-error" role="alert">Não foi possível mostrar este detalhe. Escolha outra categoria ou subcategoria.</p>:this.props.children;}
 }
 
 export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
@@ -196,7 +203,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
           <p className="ndb-cp-foot">Barra cinza: {baseYear}; azul: {year}. A barra mostra volume, não crescimento. “28 dias” é a janela dos últimos 28 dias do período, contra as mesmas datas do ano anterior. Percentuais em cinza têm menos de {LOW} unidades nos dois anos.</p>
         </section>
         <aside className="ndb-cp-detail" aria-label="Investigação da categoria" aria-live="polite">
-          {current?<CategoryDetail platform={filters.platform} key={current.name} row={current} total={total} baseYear={baseYear} year={year} query={query} sub={selSub} setSub={setSelSub}/>
+          {current?<DetailGuard resetKey={current.name+'|'+selSub}><CategoryDetail platform={filters.platform} key={current.name} row={current} total={total} baseYear={baseYear} year={year} query={query} sub={selSub} setSub={setSelSub}/></DetailGuard>
             :<p className="ndb-cp-mut">Selecione uma categoria para investigar.</p>}
         </aside>
       </div>
