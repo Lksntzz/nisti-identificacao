@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {maskMoney} from './commerce-privacy.js';
-import {growth,pctText,indexOf,weekHighlights,productLabel,share,newKind} from './commerce-annual-compare-helpers.js';
+import {growth,pctText,indexOf,weekHighlights,productLabel,share,newKind,projectionRange} from './commerce-annual-compare-helpers.js';
 import {listingUrl,Dropdown} from './commerce-dashboard.jsx';
 import './commerce-annual-compare.css';
 import GuidedAnnualCompare from './commerce-annual-guided.jsx';
@@ -237,14 +237,21 @@ export function KpiModal({kind,data,monthData,filters,onClose}){
         <tr className="ndb-ac-total"><td><b>28 dias</b></td><td className="num ndb-ac-mut">{num(k.base28)}</td><td className="num"><b>{num(k.cur28)}</b></td><td className="num"><Index cur={k.cur28} base={k.base28}/></td><td className="num"><Delta cur={k.cur28} base={k.base28} small/></td></tr></tbody></table>
       <p className="ndb-ac-note">Cada semana de {y} é comparada com a mesma semana 364 dias antes, para cair no mesmo dia da semana.</p></>;
   }else if(kind==='proj'){
-    const ratio=Number(k.base28)>0?Number(k.cur28)/Number(k.base28):null;
+    const pr=projectionRange(k,data.as_of);
     const rest=Number(k.base_full)-Number(k.base);
+    const ratio=Number(k.base28)>0?Number(k.cur28)/Number(k.base28):null;
+    const yr=Number(k.base)>0?Number(k.cur)/Number(k.base):null;
+    const pct=v=>v==null?'—':v.toFixed(2).replace('.',',')+' ('+Math.round(v*100)+'%)';
     body=<><div className="ndb-ac-kv">
       <div><span>Vendido em {y} até agora</span><b>{num(k.cur)}</b></div>
       <div><span>{b}: o que faltava vender depois desta data</span><b>{num(rest)}</b></div>
-      <div><span>Ritmo atual (últimos 28 dias {y} ÷ {b})</span><b>{ratio==null?'—':ratio.toFixed(2).replace('.',',')+' ('+Math.round(ratio*100)+'%)'}</b></div>
-      <div><span>Projeção = vendido + faltante × ritmo</span><b>{k.projection==null?'—':num(k.projection)}</b></div></div>
-      <p className="ndb-warn ndb-ac-warn">Atenção: a projeção supõe que o resto do ano repete o ritmo dos últimos 28 dias contra {b}. Se esse ritmo foi um período ruim isolado, a projeção fica pessimista; se {b} teve campanha forte no fim do ano, o erro aumenta. Use como alerta, não como meta.</p></>;
+      <div><span>Ritmo recente (últimos 28 dias {y} ÷ {b})</span><b>{pct(ratio)}</b></div>
+      <div><span>Ritmo do ano até agora ({y} ÷ {b})</span><b>{pct(yr)}</b></div>
+      <div><span>Método 1: faltante × ritmo recente</span><b>{pr?.recent==null?'—':num(pr.recent)}</b></div>
+      <div><span>Método 2: faltante × ritmo do ano até agora</span><b>{pr?.year==null?'—':num(pr.year)}</b></div>
+      <div><span>Método 3: ritmo diário dos últimos 28 dias mantido até 31/12</span><b>{pr?.pace==null?'—':num(pr.pace)}</b></div>
+      <div><span>Faixa da projeção</span><b>{pr?num(pr.low)+' a '+num(pr.high):'—'}</b></div></div>
+      <p className="ndb-warn ndb-ac-warn">Atenção: são três jeitos de estimar o resto do ano e nenhum é garantido. O método 1 é o mais pessimista quando {b} teve um pico recente (o ritmo dos últimos 28 dias fica baixo contra ele). Nov e dez costumam vender mais (11.11, Black Friday, Natal), então o método 3 tende a ficar baixo. Use como alerta, não como meta.</p></>;
   }else{
     const ps=g?.periods||[];
     body=loading&&!g?<p className="ndb-ac-mut">Carregando…</p>:<table className="ndb-ac-table"><thead><tr><th>Mês</th><th className="num">{b}</th><th className="num">{y}</th><th className="num">Variação</th></tr></thead>

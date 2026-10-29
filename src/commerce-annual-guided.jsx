@@ -3,7 +3,7 @@ import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import { Dropdown } from './commerce-dashboard.jsx';
 import PeriodPicker from './commerce-period-picker.jsx';
 import { maskMoney } from './commerce-privacy.js';
-import { growth, indexOf, weekHighlights } from './commerce-annual-compare-helpers.js';
+import { growth, indexOf, weekHighlights, projectionRange, daysBehind } from './commerce-annual-compare-helpers.js';
 import './commerce-annual-guided.css';
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -16,6 +16,7 @@ const percent = (current, base) => {
   const n = growth(Number(current),Number(base));
   return n == null ? null : (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%';
 };
+const mil = value => (Number(value)/1000).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
 const hasValue = value => value !== null && value !== undefined && Number.isFinite(Number(value));
 const daysInMonth = (year,month) => new Date(year,month,0).getDate();
 const isoAdd=(iso,n)=>{const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
@@ -184,6 +185,10 @@ export default function GuidedAnnualCompare({
   const mm=String(selectedMonth).padStart(2,'0');
   const periodTitle=dayPick?'Produtos vendidos em '+String(dayPick.day).padStart(2,'0')+'/'+mm:'Produtos da semana '+(week===5?'29+':String((week-1)*7+1).padStart(2,'0')+'–'+Math.min(week*7,daysInMonth(year,selectedMonth)))+' de '+MONTHS[selectedMonth-1].toLowerCase();
   const k=data.kpi||{};
+  const proj=projectionRange(k,data.as_of);
+  const today=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+  const behind=daysBehind(data.as_of,today);
+  const stale=behind!=null&&behind>=2;
   const priceCur=Number(k.cur)>0?Number(k.cur_rev)/Number(k.cur):null;
   const priceBase=Number(k.base)>0?Number(k.base_rev)/Number(k.base):null;
   const unitsOf=(p,y)=>Number((data.coverage||[]).find(c=>c.platform===p&&Number(c.year)===Number(y))?.units||0);
@@ -208,11 +213,12 @@ export default function GuidedAnnualCompare({
       </div>
       <span className="ga-y-asof">Dados até {String(data.as_of||'').split('-').reverse().join('/')}</span>
     </div>
+    {stale&&<p className="ga-y-warning" role="note">Os dados vão até {String(data.as_of).split('-').reverse().join('/')}, há {behind} dias. Importe as vendas mais recentes para os números do mês e dos últimos 28 dias ficarem completos.</p>}
     {!baseAvailable&&<p className="ga-y-error" role="note">Sem referência importada suficiente para uma ou mais plataformas em {baseYear}. As diferenças não são apresentadas como crescimento comprovado.</p>}
     <div className="ga-y-kpis">
       <Figure label="Unidades no ano" value={hasValue(k.cur)?fmt(k.cur):'—'} reference={baseYear+': '+(baseAvailable?fmt(k.base||0):'sem base')} cur={k.cur} base={baseAvailable?k.base:null} onClick={()=>onKpiOpen('units')}/>
       <Figure label="Últimos 28 dias" value={hasValue(k.cur28)?fmt(k.cur28):'—'} reference={baseYear+': '+(baseAvailable?fmt(k.base28||0):'sem base')} cur={k.cur28} base={baseAvailable?k.base28:null} onClick={()=>onKpiOpen('l28')}/>
-      <Figure label={'Projeção de '+year} value={hasValue(k.projection)?fmt(k.projection):'—'} reference="Estimativa pelo ritmo dos últimos 28 dias" cur={k.projection} base={baseAvailable?k.base_full:null} onClick={()=>onKpiOpen('proj')}/>
+      <Figure label={'Projeção de '+year} value={proj?(proj.high-proj.low<500?mil(proj.mid)+' mil':mil(proj.low)+'–'+mil(proj.high)+' mil'):(hasValue(k.projection)?fmt(k.projection):'—')} reference={proj?'Faixa de 3 métodos; o % usa o ponto médio':'Estimativa pelo ritmo dos últimos 28 dias'} cur={proj?proj.mid:k.projection} base={baseAvailable?k.base_full:null} neutral={Boolean(proj)} onClick={()=>onKpiOpen('proj')}/>
       <Figure label="Preço médio por unidade" value={priceCur!=null?amount(priceCur):'—'} reference={baseYear+': '+(priceBase!=null&&baseAvailable?amount(priceBase):'sem base')} cur={priceCur} base={baseAvailable?priceBase:null} neutral onClick={()=>onKpiOpen('price')}/>
     </div>
     <div className="ga-y-body">

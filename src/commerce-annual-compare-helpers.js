@@ -38,3 +38,32 @@ export const newKind=r=>{
   if(!(Number(r?.base)===0&&Number(r?.cur)>0))return null;
   return Number(r?.prior?.y)>0?'old':'new';
 };
+
+// Projeção do ano em faixa, por três métodos (nenhum é "o certo"; a faixa mostra a incerteza):
+//  recent = o que faltava vender no ano base × ritmo dos últimos 28 dias contra o ano base (método antigo; pessimista se o ano base teve pico recente)
+//  year   = o que faltava vender no ano base × ritmo do ano inteiro até agora contra o ano base
+//  pace   = ritmo diário dos últimos 28 dias mantido até 31/12, sem sazonalidade
+export function projectionRange(k,asOf){
+  const cur=Number(k?.cur),base=Number(k?.base),full=Number(k?.base_full),c28=Number(k?.cur28),b28=Number(k?.base28);
+  if(!asOf||!Number.isFinite(cur)||!(full>0)||!(base>=0))return null;
+  const rest=Math.max(0,full-base);
+  const out={};
+  if(b28>0&&Number.isFinite(c28))out.recent=Math.round(cur+rest*c28/b28);
+  if(base>0)out.year=Math.round(cur+rest*cur/base);
+  const y=Number(String(asOf).slice(0,4)),m=Number(String(asOf).slice(5,7)),d=Number(String(asOf).slice(8,10));
+  if(Number.isFinite(c28)&&y&&m&&d){
+    const left=Math.max(0,Math.round((Date.UTC(y,11,31)-Date.UTC(y,m-1,d))/86400000));
+    out.pace=Math.round(cur+left*c28/28);
+  }
+  const vals=Object.values(out).filter(Number.isFinite);
+  if(!vals.length)return null;
+  const low=Math.min(...vals),high=Math.max(...vals);
+  return {...out,low,high,mid:Math.round((low+high)/2)};
+}
+
+// Quantos dias o último dado está atrasado em relação a hoje (datas AAAA-MM-DD). null se alguma data for inválida.
+export function daysBehind(asOf,today){
+  const t=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)):null;
+  const a=t(asOf),b=t(today);
+  return a==null||b==null?null:Math.max(0,Math.round((b-a)/86400000));
+}
