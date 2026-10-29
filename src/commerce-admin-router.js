@@ -38,7 +38,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualWindow, commerceCategories, commerceCategoriesSub,
+  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualWindow, commerceCategories, commerceCategoriesSub, commerceCategoriesCol,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -522,13 +522,13 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Ano comparativo inválido.'},400);
       return json(await commerceAnnualMonth(env,{platform,month,year,base}));
     }
-    if(method==='GET'&&(pathname===BASE_PATH+'/sales-compare/categories'||pathname===BASE_PATH+'/sales-compare/categories-sub')){
+    if(method==='GET'&&(pathname===BASE_PATH+'/sales-compare/categories'||pathname===BASE_PATH+'/sales-compare/categories-sub'||pathname===BASE_PATH+'/sales-compare/categories-col')){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
       const mode=String(query(url,'mode')||'ytd');
       const yearRaw=query(url,'year'),year=yearRaw?Number(yearRaw):null;
       const month=Number(query(url,'month')||0),days=Number(query(url,'days')||0);
-      const sub=pathname.endsWith('categories-sub');
-      const cat=String(query(url,'cat')||''),subName=String(query(url,'sub')||'');
+      const sub=pathname.endsWith('categories-sub')||pathname.endsWith('categories-col');
+      const cat=String(query(url,'cat')||''),subName=String(query(url,pathname.endsWith('categories-col')?'col':'sub')||'');
       if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||!['ytd','month','days'].includes(mode)||
          (yearRaw&&(!Number.isInteger(year)||year<2020||year>2100))||
          (mode==='month'&&!(Number.isInteger(month)&&month>=1&&month<=12))||
@@ -536,6 +536,7 @@ export async function handleCommerceAdminRequest(request, env) {
          (sub&&(!cat||!subName||cat.length>120||subName.length>120)))
         return json({error:'Filtro de categorias inválido.'},400);
       const opts={platform,year,mode,month,days};
+      if(pathname.endsWith('categories-col'))return json(await commerceCategoriesCol(env,{...opts,cat,col:subName}));
       return json(sub?await commerceCategoriesSub(env,{...opts,cat,sub:subName}):await commerceCategories(env,opts));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-window'){

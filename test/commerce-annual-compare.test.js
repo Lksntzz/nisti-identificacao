@@ -179,3 +179,12 @@ test('categorias: Top 5 usa o título do produto (texto) e o detalhe tem proteç
   assert.match(ui, /productLabel\(r\.name,r\.sku\)\.title/);
   assert.match(ui, /getDerivedStateFromError/);
 });
+
+test('categorias por coleção: migração, rota e tela usam coleção e variações', () => {
+  const sql = fs.readFileSync('supabase/migrations/20261029250000_commerce_categories_collections_v1.sql','utf8');
+  assert.match(sql,/commerce_collection_v1/); assert.match(sql,/commerce_sku_collection_v1/);
+  assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/categories-col/);
+  const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
+  assert.match(ui,/Variações e vendas/); assert.match(ui,/Voltar às coleções/);
+  assert.doesNotMatch(ui,/<h2>Categorias<\/h2>/);
+});
