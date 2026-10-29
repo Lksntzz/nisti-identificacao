@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import CommerceImportModal from './commerce-import-modal.jsx';
 import {COMMERCE_IMPORT_OPTIONS} from './commerce-import-options.js';
 import CommerceDashboard from './commerce-dashboard.jsx';
+import CommerceAnnualCompare from './commerce-annual-compare.jsx';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
 import './commerce-ad-manager.css';
 import './nisti-reactbits-adaptations.css';
@@ -12,6 +13,9 @@ import './commerce-reactbits-lucide.css';
 // com os filtros de período e plataforma, mais o menu de importação de relatórios.
 export default function CommerceCommercialPanel({perfOpen=null}){
   const [refresh,setRefresh]=useState(0);
+  const [view,setView]=useState('ads');
+  const [annualFilters,setAnnualFilters]=useState({platform:'SHOPEE',gran:'month'});
+  useEffect(()=>{if(perfOpen)setView('ads');},[perfOpen]);
   const [importMenuOpen,setImportMenuOpen]=useState(false);
   const [selectedImportMode,setSelectedImportMode]=useState(null);
   const importMenuRef=useRef(null);
@@ -51,6 +55,11 @@ export default function CommerceCommercialPanel({perfOpen=null}){
       onChooseAnother={()=>{setSelectedImportMode(null);setImportMenuOpen(true);}}
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/>}
-    <CommerceDashboard key={refresh+':'+(perfOpen?perfOpen.nonce:0)} mode="explorer" initialTab={perfOpen?perfOpen.tab:null} initialFilter={perfOpen?perfOpen.filter:null} actions={importMenu}/>
+    <nav className="ndb-ac-tabs" aria-label="Seções do Painel Comercial">
+      {[['ads','Anúncios'],['comparison','Comparação anual'],['categories','Categorias']].map(([k,l])=>
+        <button type="button" key={k} className={view===k?'is-on':''} aria-current={view===k?'page':undefined} onClick={()=>setView(k)}>{l}</button>)}
+    </nav>
+    {view!=='ads'&&<CommerceAnnualCompare view={view} filters={annualFilters} setFilters={setAnnualFilters} actions={importMenu} refresh={refresh}/>}
+    {view==='ads'&&<CommerceDashboard key={refresh+':'+(perfOpen?perfOpen.nonce:0)} mode="explorer" initialTab={perfOpen?perfOpen.tab:null} initialFilter={perfOpen?perfOpen.filter:null} actions={importMenu}/>}
   </section>;
 }

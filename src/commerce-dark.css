@@ -397,6 +397,47 @@ html.ga-dark .commerce-privacy-btn{border:1px solid #262d39;background:#1a1a1a;c
 html.ga-dark .commerce-privacy-btn:hover{border-color:#3470d8;color:#3470d8}
 html.ga-dark .commerce-privacy-btn.is-on{background:#abbbdf;border-color:#abbbdf;color:#1a1a1a}
 html.ga-dark .commerce-privacy-btn:focus-visible{outline:2px solid #3470d8}
+html.ga-dark .ndb-ac-tabs{border-bottom:1px solid #212732}
+html.ga-dark .ndb-ac-tabs button{color:#78869f}
+html.ga-dark .ndb-ac-tabs button.is-on{color:#3470d8;border-bottom-color:#3470d8}
+html.ga-dark .ndb-ac-root{color:#a9b9e6}
+html.ga-dark .ndb-ac-seg{border:1px solid #282f3b;background:#1a1a1a}
+html.ga-dark .ndb-ac-seg button{color:#94a3c2}
+html.ga-dark .ndb-ac-seg button.is-on{background:#3470d8;color:#1a1a1a}
+html.ga-dark .ndb-ac-chip{border:1px solid #282f3b;background:#1a1a1a;color:#94a3c2}
+html.ga-dark .ndb-ac-select select{color:#a9b9e6}
+html.ga-dark .ndb-ac-asof{color:#616f86}
+html.ga-dark .ndb-ac-kpi{background:#1a1a1a;border:1px solid #212732}
+html.ga-dark .ndb-ac-kpi small{color:#78869f}
+html.ga-dark .ndb-ac-kpi-sub{color:#616f86}
+html.ga-dark .ndb-ac-card{background:#1a1a1a;border:1px solid #212732}
+html.ga-dark .ndb-ac-card h3 small{color:#616f86}
+html.ga-dark .ndb-ac-sub{color:#616f86}
+html.ga-dark .ndb-ac-lbl{color:#78869f}
+html.ga-dark .ndb-ac-mut{color:#616f86}
+html.ga-dark .ndb-ac-pill.up{background:#1e3326;color:#7be4ab}
+html.ga-dark .ndb-ac-pill.dn{background:#311414;color:#de554a}
+html.ga-dark .ndb-ac-pill.is-few{background:#1e2329;color:#616f86}
+html.ga-dark .ndb-ac-new{background:#152032;color:#3470d8}
+html.ga-dark .ndb-ac-bar-pair .o,html.ga-dark .ndb-ac-legend .o{background:#313f58}
+html.ga-dark .ndb-ac-bar-pair .n,html.ga-dark .ndb-ac-legend .n{background:#3470d8}
+html.ga-dark .ndb-ac-bar-col small{color:#616f86}
+html.ga-dark .ndb-ac-legend{color:#78869f}
+html.ga-dark .ndb-ac-kv>div,html.ga-dark .ndb-ac-kv2{border-top:1px solid #1e2329}
+html.ga-dark .ndb-ac-kv span,html.ga-dark .ndb-ac-kv2 span{color:#78869f}
+html.ga-dark .ndb-ac-table th{background:#171c26;color:#78869f}
+html.ga-dark .ndb-ac-table td{border-top:1px solid #1e2329}
+html.ga-dark .ndb-ac-table .g{color:#7be4ab}
+html.ga-dark .ndb-ac-table .r{color:#de554a}
+html.ga-dark .ndb-ac-total td{background:#171c26}
+html.ga-dark .ndb-ac-cat:hover,html.ga-dark .ndb-ac-sub:hover{background:#171c26}
+html.ga-dark .ndb-ac-chev{color:#616f86}
+html.ga-dark .ndb-ac-bt{background:#1e2329}
+html.ga-dark .ndb-ac-detail td{background:#121a26}
+html.ga-dark .ndb-ac-blk h4{color:#94a3c2}
+html.ga-dark .ndb-ac-sku{border-top:1px solid #1e2329}
+html.ga-dark .ndb-ac-sku small{color:#616f86}
+html.ga-dark .ndb-ac-note{color:#616f86}
 html.ga-dark .nim-manager .nim-kpis>.nim-kpi,html.ga-dark .nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){border:1px solid #202834;background:#1a1a1a;box-shadow:0 4px 16px rgba(151,178,214,.035)}
 html.ga-dark .nim-manager .nim-kpi-icon{color:#2267d0;background:#111e33}
 html.ga-dark .nim-manager .nim-kpi.mint .nim-kpi-icon{color:#63e3b5;background:#1d3027}
