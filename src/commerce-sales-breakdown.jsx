@@ -42,7 +42,7 @@ export function useSalesMonths(rows){
   return months;
 }
 
-export function WeeklySalesCell({data,open,onToggle,anchored=false,months,monthsOpen,onToggleMonths}){
+export function WeeklySalesCell({data,open,onToggle,anchored=false,months,monthsOpen,onToggleMonths,showBest=true}){
   const weeks=data?.weeks||[];
   if(!weeks.length)return <span className="ndb-sb-empty">sem dados</span>;
   const cur=weeks[weeks.length-1],prev=weeks[weeks.length-2];
@@ -57,7 +57,7 @@ export function WeeklySalesCell({data,open,onToggle,anchored=false,months,months
     </div>
     <div className="ndb-sb-meta">
       {d!=null&&<span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)}</span>}
-      {months&&<BestMonthBadge data={months} open={monthsOpen} onToggle={onToggleMonths}/>}
+      {showBest&&months&&<BestMonthBadge data={months} open={monthsOpen} onToggle={onToggleMonths}/>}
     </div>
   </div>;
 }
@@ -77,6 +77,15 @@ export function DailySalesRow({data,colSpan,anchored=false}){
     </div>
     <small className="ndb-note">{anchored?'Unidades por dia nos 14 dias até a última venda ('+dm(data?.last_day)+').':'Unidades por dia nos últimos 14 dias.'} O % compara com o mesmo dia da semana anterior.</small>
   </td></tr>;
+}
+
+// Coluna "Melhor mês": mesmo selo, sempre visível, em coluna própria.
+export function BestMonthCell({data,open,onToggle}){
+  const best=bestMonth(data?.months,data?.last_day);
+  if(!best)return <span className="ndb-sb-empty">—</span>;
+  return <button type="button" className={'ndb-best-cell'+(open?' is-open':'')} onClick={onToggle} aria-expanded={open}
+    title="Mês com mais unidades vendidas deste anúncio (todo o histórico importado). Clique para comparar os meses.">
+    <b>{monthLabel(best.month)}</b><small>{num(best.units)} un.{best.ongoing?' · em andamento':''}</small></button>;
 }
 
 // Selo "Mes mais vendido": abre a comparacao mes a mes do anuncio.
