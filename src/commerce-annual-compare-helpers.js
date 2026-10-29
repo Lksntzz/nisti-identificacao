@@ -30,3 +30,11 @@ export function productLabel(name,sku){
 }
 // Peso do produto no total do mês, em %.
 export const share=(units,total)=>{const t=Number(total||0);return t>0?Number(units||0)/t*100:null;};
+
+// "Novo" de verdade: sem venda no período do ano base E sem nenhuma venda em todo o ano base ("prior.y").
+// Sem venda no período mas com venda em outro mês do ano base = "já vendia" (não é lançamento).
+// Resposta antiga da API (sem "prior") mantém o comportamento anterior: "novo".
+export const newKind=r=>{
+  if(!(Number(r?.base)===0&&Number(r?.cur)>0))return null;
+  return Number(r?.prior?.y)>0?'old':'new';
+};
