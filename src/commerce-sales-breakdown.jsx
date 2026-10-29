@@ -56,7 +56,7 @@ export function WeeklySalesCell({data,open,onToggle,anchored=false,months,months
         <i className="ndb-sb-bar" style={{height:Math.max(u>0?4:2,u/max*26)+'px'}}/><b>{num(u)}</b></span>;})}
     </div>
     <div className="ndb-sb-meta">
-      {d!=null&&<span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)} vs. sem. anterior</span>}
+      {d!=null&&<span className={'ndb-sb-delta tone-'+tone(d)} title="Semana atual contra a semana anterior">{pctText(d)}</span>}
       {months&&<BestMonthBadge data={months} open={monthsOpen} onToggle={onToggleMonths}/>}
     </div>
   </div>;
