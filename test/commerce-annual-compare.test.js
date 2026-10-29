@@ -93,3 +93,12 @@ test('botoes e tabelas do painel herdam a fonte sem sobrescrever tamanhos das cl
   assert.doesNotMatch(g, /\.ga-y-guided button,\.ga-y-guided select\{font:inherit\}/);
   assert.match(fs.readFileSync('src/commerce-annual-compare.css', 'utf8'), /Plus Jakarta Sans/);
 });
+
+test('filtros usam o seletor do Painel Comercial e bloqueiam plataforma sem base', () => {
+  const g = fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8');
+  const c = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
+  assert.match(g, /import \{ Dropdown \} from '\.\/commerce-dashboard\.jsx'/);
+  assert.match(g, /platformOptions/);
+  assert.match(c, /não dá para comparar/);
+  assert.doesNotMatch(g, /<label>Plataforma<select/);
+});

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
+import { Dropdown } from './commerce-dashboard.jsx';
 import { maskMoney } from './commerce-privacy.js';
 import { growth, indexOf, weekHighlights } from './commerce-annual-compare-helpers.js';
 import './commerce-annual-guided.css';
@@ -144,12 +145,19 @@ export default function GuidedAnnualCompare({
   const k=data.kpi||{};
   const priceCur=Number(k.cur)>0?Number(k.cur_rev)/Number(k.cur):null;
   const priceBase=Number(k.base)>0?Number(k.base_rev)/Number(k.base):null;
+  const unitsOf=(p,y)=>Number((data.coverage||[]).find(c=>c.platform===p&&Number(c.year)===Number(y))?.units||0);
+  const needsBase=p=>unitsOf(p,baseYear)<=0;
+  const NO_BASE='Sem vendas de '+baseYear+' importadas: não dá para comparar';
+  const platformOptions=PLATFORMS.map(([id,label])=>[id,label,
+    (id==='TODAS'?['SHOPEE','ML_ANTIGO','ML_NOVO'].some(needsBase):needsBase(id))?NO_BASE:null]);
+  const selectedBlocked=Boolean(platformOptions.find(o=>o[0]===filters.platform)?.[2]);
+  useEffect(()=>{if(selectedBlocked)setFilters(prev=>({...prev,platform:'SHOPEE'}));},[selectedBlocked]);
   const yearChoices=[...new Set((data.coverage||[]).map(c=>Number(c.year)).filter(n=>n>=2021&&n<=2100).concat([year]))].sort((a,b)=>b-a);
   return <div className="ga-y-guided">
     <div className="ga-y-toolbar">
-      <label>Plataforma<select value={filters.platform} onChange={e=>updateFilters({platform:e.target.value})}>{PLATFORMS.map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></label>
-      <label>Comparação<select value={year} onChange={e=>updateFilters({year:Number(e.target.value),base:Number(e.target.value)-1,month:''})}>{yearChoices.map(y=><option value={y} key={y}>{y} × {y-1}</option>)}</select></label>
-      <label>Mês<select value={filters.month||''} onChange={e=>updateFilters({month:e.target.value})}><option value="">Último mês completo</option>{MONTHS.map((m,i)=><option key={m} value={String(i+1)} disabled={i>=current}>{m}</option>)}</select></label>
+      <Dropdown label="Plataforma" value={filters.platform} options={platformOptions} onChange={v=>updateFilters({platform:v})}/>
+      <Dropdown label="Comparação" value={String(year)} options={yearChoices.map(y=>[String(y),y+' × '+(y-1)])} onChange={v=>updateFilters({year:Number(v),base:Number(v)-1,month:''})}/>
+      <Dropdown label="Mês" value={filters.month||''} options={[['','Último mês completo'],...MONTHS.map((m,i)=>[String(i+1),m,i>=current?'Mês ainda sem dados':null])]} onChange={v=>updateFilters({month:v})}/>
       <div className="ga-y-view-controls" role="group" aria-label="Visualização mensal">
         {['bars','table','chart'].map((mode,i)=><button type="button" key={mode} className={display===mode?'is-active':''} onClick={()=>setDisplay(mode)} aria-pressed={display===mode}>{['Barras','Tabela','Gráfico'][i]}</button>)}
       </div>
