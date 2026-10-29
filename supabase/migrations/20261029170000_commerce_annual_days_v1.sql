@@ -32,28 +32,28 @@ with prm as (
   from p2
 ), calendar as (
   select c.*,d as day,
-    make_date(c.y,c.mo,d) as current_date,
+    make_date(c.y,c.mo,d) as cur_date,
     case when d<=extract(day from
       (make_date(c.b,c.mo,1)+interval '1 month - 1 day'))::int
-      then make_date(c.b,c.mo,d) else null::date end as previous_date
+      then make_date(c.b,c.mo,d) else null::date end as base_date
   from cut c cross join lateral generate_series((c.wk-1)*7+1,
     least(c.wk*7,extract(day from
       (make_date(c.y,c.mo,1)+interval '1 month - 1 day'))::int)) d
 ), answer as (
-  select cal.day,cal.current_date,cal.previous_date,
-    case when cal.current_date<=cal.as_of then cur.units end as current_units,
-    case when cal.current_date<=cal.as_of and cal.previous_date<=
+  select cal.day,cal.cur_date,cal.base_date,
+    case when cal.cur_date<=cal.as_of then cur.units end as current_units,
+    case when cal.cur_date<=cal.as_of and cal.base_date<=
       (cal.as_of-interval '1 year')::date then prev.units end as previous_units
   from calendar cal
-  left join scoped cur on cur.sale_date=cal.current_date
-  left join scoped prev on prev.sale_date=cal.previous_date
+  left join scoped cur on cur.sale_date=cal.cur_date
+  left join scoped prev on prev.sale_date=cal.base_date
 )
 select jsonb_build_object(
   'year',(select y from cut),'base_year',(select b from cut),
   'platform',(select plat from cut),'month',(select mo from cut),
   'week',(select wk from cut),'as_of',(select as_of from cut),
   'days',coalesce((select jsonb_agg(jsonb_build_object(
-    'day',day,'cur_date',current_date,'base_date',previous_date,
+    'day',day,'cur_date',cur_date,'base_date',base_date,
     'cur',current_units,'base',previous_units
   ) order by day) from answer),'[]'::jsonb)
 );
