@@ -38,7 +38,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualWindow,
+  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualWindow, commerceCategories, commerceCategoriesSub,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -521,6 +521,22 @@ export async function handleCommerceAdminRequest(request, env) {
          (year!=null&&base!=null&&base!==year-1))
         return json({error:'Ano comparativo inválido.'},400);
       return json(await commerceAnnualMonth(env,{platform,month,year,base}));
+    }
+    if(method==='GET'&&(pathname===BASE_PATH+'/sales-compare/categories'||pathname===BASE_PATH+'/sales-compare/categories-sub')){
+      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
+      const mode=String(query(url,'mode')||'ytd');
+      const yearRaw=query(url,'year'),year=yearRaw?Number(yearRaw):null;
+      const month=Number(query(url,'month')||0),days=Number(query(url,'days')||0);
+      const sub=pathname.endsWith('categories-sub');
+      const cat=String(query(url,'cat')||''),subName=String(query(url,'sub')||'');
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||!['ytd','month','days'].includes(mode)||
+         (yearRaw&&(!Number.isInteger(year)||year<2020||year>2100))||
+         (mode==='month'&&!(Number.isInteger(month)&&month>=1&&month<=12))||
+         (mode==='days'&&!(Number.isInteger(days)&&days>=1&&days<=99))||
+         (sub&&(!cat||!subName||cat.length>120||subName.length>120)))
+        return json({error:'Filtro de categorias inválido.'},400);
+      const opts={platform,year,mode,month,days};
+      return json(sub?await commerceCategoriesSub(env,{...opts,cat,sub:subName}):await commerceCategories(env,opts));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-window'){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();

@@ -131,3 +131,37 @@ test('produtos do mês mostram o preço médio vendido nos dois anos', () => {
   assert.match(ui, /Preço \{year\}/);
   assert.match(fs.readFileSync('supabase/migrations/20261029230000_commerce_annual_month_prices_v1.sql', 'utf8'), /'cur_rev',cr,'base_rev',br/);
 });
+
+import {periodParams,periodQuery,periodLabel,categoryKpis,listCategories,unitPrice} from '../src/commerce-categories-helpers.js';
+
+test('categorias: período segue dias > mês > acumulado e a consulta carrega o par exato', () => {
+  assert.deepEqual(periodParams({days:30,month:'9'}), {mode:'days',days:30});
+  assert.deepEqual(periodParams({month:'9'}), {mode:'month',month:9});
+  assert.deepEqual(periodParams({}), {mode:'ytd'});
+  assert.equal(periodQuery({platform:'SHOPEE',month:'9'},2026), 'platform=SHOPEE&year=2026&mode=month&month=9');
+  assert.match(periodLabel({mode:'ytd',cur_from:'2026-01-01',cur_to:'2026-10-26',base_from:'2025-01-01',base_to:'2025-10-26'}), /Acumulado até 26\/10\/2026 × até 26\/10\/2025/);
+});
+
+test('categorias: KPIs ignoram base ausente e estáveis; busca só esconde linhas', () => {
+  const d={total:{cur:100,base:90},categories:[
+    {name:'A',cur:50,base:40,c28:5,b28:9},{name:'B',cur:30,base:30,c28:1,b28:1},{name:'C',cur:10,base:20,c28:0,b28:4},
+    {name:'D',cur:5,base:0,c28:5,b28:0},{name:'Sem categoria',cur:5,base:0,c28:0,b28:0}]};
+  const k=categoryKpis(d);
+  assert.equal(k.up,1); assert.equal(k.down,1); assert.equal(k.noneUnits,5); assert.equal(k.units,100);
+  assert.deepEqual(listCategories(d.categories,{search:'sem'}).map(c=>c.name), ['Sem categoria']);
+  assert.equal(categoryKpis(d).units,100);
+  assert.deepEqual(listCategories(d.categories,{show:'down'}).map(c=>c.name), ['C']);
+  assert.deepEqual(listCategories(d.categories,{sort:'loss'}).map(c=>c.name)[0], 'C');
+  assert.equal(unitPrice(0,5), null);
+  assert.equal(unitPrice(100,4), 25);
+});
+
+test('categorias: migração, rotas e painel existem e validam entradas', () => {
+  const sql = fs.readFileSync('supabase/migrations/20261029240000_commerce_categories_v2.sql','utf8');
+  assert.match(sql,/commerce_categories_v2/); assert.match(sql,/commerce_categories_sub_v2/);
+  assert.match(sql,/revoke all on function public\.commerce_categories_v2/);
+  assert.match(sql,/r_up<=5/);
+  const router = fs.readFileSync('src/commerce-admin-router.js','utf8');
+  assert.match(router,/sales-compare\/categories-sub/); assert.match(router,/Filtro de categorias inválido/);
+  assert.match(fs.readFileSync('src/commerce-commercial-panel.jsx','utf8'),/CommerceCategoriesPanel/);
+});
