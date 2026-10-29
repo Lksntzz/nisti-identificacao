@@ -322,15 +322,17 @@ export function Champions({month,monthData,year,base,loading=false}){
       <div className="ndb-ac-seg" role="tablist" aria-label="Tipo de lista">
         {Object.keys(labels).map(k=><button type="button" role="tab" aria-selected={tab===k} key={k} className={tab===k?'is-on':''} onClick={()=>setTab(k)}>{labels[k]} <small>{lists[k].length}</small></button>)}
       </div></div>
-    <p className="ndb-ac-sub">{intro[tab]} “Peso” é quanto o produto representa das vendas do mês em {useBase?base:year}. “Novo” = sem venda em {base}: pode ser lançamento ou troca de código.</p>
-    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Diferença</th><th>Peso em {useBase?base:year}</th><th>Anúncio</th></tr></thead>
+    <p className="ndb-ac-sub">{intro[tab]} “Peso” é quanto o produto representa das vendas do mês em {useBase?base:year}. “Novo” = sem venda em {base}: pode ser lançamento ou troca de código. “Preço” é o valor médio de venda por unidade no mês (sem frete), não o preço de tabela do anúncio.</p>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th className="num" title="Valor médio de venda por unidade (receita dos produtos ÷ unidades), sem frete">Preço {base}</th><th className="num">Preço {year}</th><th>Peso em {useBase?base:year}</th><th>Anúncio</th></tr></thead>
       <tbody>{rows.map((r,i)=>{const L=productLabel(r.name,r.sku),d=Number(r.cur)-Number(r.base),w=share(useBase?r.base:r.cur,useBase?tot.base:tot.cur);
         return <tr key={r.sku}><td className="ndb-ac-mut">{i+1}</td>
         <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.category?r.category+' · ':''}{r.sku}</small></td>
         <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b>{Number(r.base)===0&&Number(r.cur)>0&&<em className="ndb-ac-newtag">novo</em>}</td>
         <td className={'num '+(d>=0?'g':'r')}>{d>=0?'+':'−'}{num(Math.abs(d))}</td>
+        <td className="num ndb-ac-mut">{Number(r.base)>0&&Number(r.base_rev)>0?money(Number(r.base_rev)/Number(r.base)):'—'}</td>
+        <td className="num">{Number(r.cur)>0&&Number(r.cur_rev)>0?<><b>{money(Number(r.cur_rev)/Number(r.cur))}</b>{Number(r.base)>0&&Number(r.base_rev)>0&&<Delta cur={Number(r.cur_rev)/Number(r.cur)} base={Number(r.base_rev)/Number(r.base)} small/>}</>:'—'}</td>
         <td className="ndb-ac-wt">{w==null?'—':<><i style={{width:Math.max(3,w/maxShare*100)+'%'}}/><span>{w.toFixed(1).replace('.',',')}%</span></>}</td><td><ProductLinks links={r.links}/></td></tr>;})}
-        {rows.length===0&&<tr><td colSpan={7} className="ndb-ac-mut">{loading?'Carregando produtos do mês…':'Nenhum produto nesta lista.'}</td></tr>}</tbody></table></div>
+        {rows.length===0&&<tr><td colSpan={9} className="ndb-ac-mut">{loading?'Carregando produtos do mês…':'Nenhum produto nesta lista.'}</td></tr>}</tbody></table></div>
   </section>;
 }
 
