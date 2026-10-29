@@ -199,4 +199,5 @@ test('dashboard: filtro inteligente bloqueia plataforma sem vendas no mês e fil
   assert.match(d, /Sem vendas importadas em/);
   assert.match(d, /options=\{platformOptions\}/);
   assert.match(d, /hasSales\(r,platform\)/);
+  assert.match(d, /sales-dashboard\/monthly\?platform=TODAS/);
 });
