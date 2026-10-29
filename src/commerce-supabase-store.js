@@ -237,6 +237,18 @@ export async function commerceListingSalesMonths(env,{ids=[],daily=false}={}) {
   return {months:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
 }
 
+export async function commerceAnnualDays(env,{platform='SHOPEE',month,week,year,base}={}) {
+  const p=String(platform).toUpperCase(),m=Number(month),w=Number(week),y=Number(year),b=Number(base);
+  if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(p)||
+     !Number.isInteger(m)||m<1||m>12||!Number.isInteger(w)||w<1||w>5||
+     !Number.isInteger(y)||y<2020||y>2100||b!==y-1)
+    throw new Error('Parâmetros inválidos na investigação diária.');
+  const data=await supabaseRpc(env,'commerce_annual_days_v1',{
+    p_platform:p,p_month:m,p_week:w,p_year:y,p_base:b
+  },{timeoutMs:12000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{days:[]};
+}
+
 export async function commerceAnnualCompare(env,{platform='SHOPEE',gran='month',year=null,base=null}={}) {
   const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
   const g=['day','week','month'].includes(String(gran))?String(gran):'month';

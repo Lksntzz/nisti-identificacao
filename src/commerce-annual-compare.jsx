@@ -3,6 +3,7 @@ import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {maskMoney} from './commerce-privacy.js';
 import {growth,pctText,indexOf,weekHighlights} from './commerce-annual-compare-helpers.js';
 import './commerce-annual-compare.css';
+import GuidedAnnualCompare from './commerce-annual-guided.jsx';
 
 const num=v=>Number(v||0).toLocaleString('pt-BR');
 const moneyRaw=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -25,29 +26,29 @@ export function Delta({cur,base,small=false}){
   return <span className={'ndb-ac-pill '+(p>=0?'up':'dn')+(small?' is-sm':'')+(few?' is-few':'')} title={few?'Poucas unidades nos dois anos: o percentual oscila muito.':undefined}>{p>=0?'▲':'▼'} {pctText(p)}</span>;
 }
 
-export function useAnnualCompare({platform,gran,refresh=0}){
+export function useAnnualCompare({platform,gran,year=null,base=null,refresh=0}){
   const [state,setState]=useState({loading:true,error:'',data:null});
   useEffect(()=>{
     const controller=new AbortController();
     setState(s=>({...s,loading:true,error:''}));
-    fetchCommercialManager('/api/admin/commerce/sales-compare/annual?platform='+platform+'&gran='+gran,{signal:controller.signal})
+    fetchCommercialManager('/api/admin/commerce/sales-compare/annual?platform='+encodeURIComponent(platform)+'&gran='+gran+(year?'&year='+Number(year)+'&base='+Number(base||year-1):''),{signal:controller.signal})
       .then(data=>setState({loading:false,error:'',data}))
       .catch(e=>{if(!controller.signal.aborted)setState({loading:false,error:e?.message||'Não foi possível carregar o comparativo.',data:null});});
     return()=>controller.abort();
-  },[platform,gran,refresh]);
+  },[platform,gran,year,base,refresh]);
   return state;
 }
 
-export function useAnnualMonth({platform,month,refresh=0}){
+export function useAnnualMonth({platform,month,year=null,base=null,refresh=0}){
   const [state,setState]=useState({loading:true,error:'',data:null});
   useEffect(()=>{
     const controller=new AbortController();
     setState(s=>({...s,loading:true,error:''}));
-    fetchCommercialManager('/api/admin/commerce/sales-compare/annual-month?platform='+platform+(month?'&month='+month:''),{signal:controller.signal})
+    fetchCommercialManager('/api/admin/commerce/sales-compare/annual-month?platform='+encodeURIComponent(platform)+(month?'&month='+month:'')+(year?'&year='+Number(year)+'&base='+Number(base||year-1):''),{signal:controller.signal})
       .then(data=>setState({loading:false,error:'',data}))
       .catch(e=>{if(!controller.signal.aborted)setState({loading:false,error:e?.message||'Não foi possível carregar os dados do mês.',data:null});});
     return()=>controller.abort();
-  },[platform,month,refresh]);
+  },[platform,month,year,base,refresh]);
   return state;
 }
 
@@ -216,7 +217,7 @@ export function CategoriesTable({data}){
 
 export function KpiModal({kind,data,monthData,filters,onClose}){
   const needGran=kind==='l28'?'week':'month';
-  const {loading,data:g}=useAnnualCompare({platform:filters.platform,gran:needGran});
+  const {loading,data:g}=useAnnualCompare({platform:filters.platform,gran:needGran,year:filters.year,base:filters.base});
   useEffect(()=>{
     const esc=e=>{if(e.key==='Escape')onClose();};
     document.addEventListener('keydown',esc);return()=>document.removeEventListener('keydown',esc);
@@ -297,24 +298,38 @@ export function Champions({month,monthData,year,base}){
   </section>;
 }
 
-export default function CommerceAnnualCompare({view='comparison',filters,setFilters,actions=null,refresh=0}){
-  const {loading,error,data}=useAnnualCompare({platform:filters.platform,gran:filters.gran,refresh});
-  const {data:monthData}=useAnnualMonth({platform:filters.platform,month:filters.month||'',refresh});
+export default function CommerceAnnualCompare({view='comparison',filters,setFilters,actions=null,refresh=0}) {
+  const {loading,error,data}=useAnnualCompare({
+    platform:filters.platform,gran:view==='categories'?(filters.gran||'month'):'month',
+    year:filters.year||null,base:filters.base||null,refresh
+  });
+  const {data:monthData}=useAnnualMonth({
+    platform:filters.platform,month:filters.month||'',year:filters.year||null,base:filters.base||null,refresh
+  });
   const [modal,setModal]=useState(null);
   const title=view==='categories'?'Categorias':'Comparação anual';
-  const lead=view==='categories'?'Veja quais categorias e subcategorias puxam ou derrubam o resultado contra o ano anterior.':'Veja se este ano estamos crescendo ou caindo contra o ano anterior, por mês, semana ou dia.';
+  const lead=view==='categories'
+    ?'Veja quais categorias e subcategorias puxam ou derrubam o resultado contra o ano anterior.'
+    :'Veja se este ano estamos crescendo ou caindo contra o ano anterior, por mês, semana ou dia.';
+  // A consulta conserva a última resposta enquanto atualiza: jamais mostrar dados
+  // da plataforma/ano anterior com os filtros novos.
+  const fresh=Boolean(data && data.platform===filters.platform &&
+    (!filters.year || Number(data.year)===Number(filters.year)));
   return <div className="ndb-ac-root">
-    <header className="ndb-head"><div className="ndb-head-title"><span className="ndb-logo" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span>
-      <div><h2>{title}</h2><p>{lead}</p></div></div>{actions&&<div className="ndb-head-filters">{actions}</div>}</header>
-    <AnnualFilters filters={filters} setFilters={setFilters} data={data}/>
+    <header className="ndb-head">
+      <div className="ndb-head-title"><span className="ndb-logo" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span>
+        <div><h2>{title}</h2><p>{lead}</p></div>
+      </div>
+      {actions&&<div className="ndb-head-filters">{actions}</div>}
+    </header>
     {error&&<p className="ndb-error" role="alert">{error}</p>}
-    {loading&&!data&&<p className="ndb-ac-mut ndb-ac-loading">Carregando comparativo…</p>}
-    {data&&<div className={loading?'ndb-ac-body is-loading':'ndb-ac-body'}>
-      {view==='categories'?<CategoriesTable data={data}/>:<>
-        <AnnualKpis data={data} onOpen={setModal}/>
-        <div className="ndb-ac-g2"><PeriodSummary data={data}/>{filters.month&&monthData?<Champions month={Number(filters.month)} monthData={monthData} year={data.year} base={data.base_year}/>:<PeriodDetails data={data}/>}</div>
-        {monthData&&<WeeksCard monthData={monthData} year={data.year} base={data.base_year} selected={filters.month}/>}</>}
-    </div>}
-    {modal&&data&&<KpiModal kind={modal} data={data} monthData={monthData} filters={filters} onClose={()=>setModal(null)}/>}
+    {loading&&!fresh&&<p className="ndb-ac-mut ndb-ac-loading" role="status">Carregando comparativo…</p>}
+    {fresh&&(view==='categories'
+      ?<><AnnualFilters filters={filters} setFilters={setFilters} data={data}/><CategoriesTable data={data}/></>
+      :<GuidedAnnualCompare data={data} monthData={monthData} filters={filters}
+        setFilters={setFilters} refresh={refresh} onKpiOpen={setModal}
+        WeeksCard={WeeksCard} Champions={Champions} PeriodSummary={PeriodSummary}
+        PeriodDetails={PeriodDetails} useAnnualCompare={useAnnualCompare}/>)}
+    {modal&&fresh&&<KpiModal kind={modal} data={data} monthData={monthData} filters={filters} onClose={()=>setModal(null)}/>}
   </div>;
 }
