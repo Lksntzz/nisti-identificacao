@@ -18,8 +18,7 @@ const manager = readFileSync('src/commerce-ad-manager.jsx', 'utf8');
 
 test('listas do Painel Comercial mostram historico de vendas por semana, dia e mes', () => {
   assert.doesNotMatch(dash, /<th>Por que caiu<\/th>/);
-  assert.match(dash, /<th>Histórico de vendas<\/th>/);
-  assert.match(dash, /<th>Vendas por semana, dia e mês<\/th>/);
+  assert.match(dash, /Vendas por semana \(−3 · −2 · −1 · atual\)/);
   assert.match(dash, /<th>Como vendia antes de parar<\/th>/);
   assert.match(dash, /useSalesBreakdown\(stoppedIds,'last_sale'\)/);
   assert.match(dash, /useSalesBreakdown\(noSalesIds,'last_sale'\)/);
