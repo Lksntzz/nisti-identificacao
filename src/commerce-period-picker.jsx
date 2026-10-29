@@ -11,6 +11,8 @@ export default function PeriodPicker({days,month,periods,available,onDays,onMont
   const years=useMemo(()=>[...new Set((available||[]).map(m=>m.slice(0,4)))].sort(),[available]);
   const [year,setYear]=useState(null);
   const ref=useRef(null);
+  const menuRef=useRef(null);
+  const [maxH,setMaxH]=useState(null);
   const shownYear=year&&years.includes(year)?year:(month&&month.slice(0,4))||years[years.length-1]||String(new Date().getFullYear());
   useEffect(()=>{
     if(!open)return undefined;
@@ -19,15 +21,28 @@ export default function PeriodPicker({days,month,periods,available,onDays,onMont
     document.addEventListener('mousedown',down);document.addEventListener('keydown',key);
     return()=>{document.removeEventListener('mousedown',down);document.removeEventListener('keydown',key);};
   },[open]);
+  // Mede o espaço real abaixo do botão (descontando barras fixas do topo/rodapé) para o menu nunca ser cortado.
+  useEffect(()=>{
+    if(!open||!ref.current)return undefined;
+    const fit=()=>{
+      const r=ref.current.getBoundingClientRect();
+      setMaxH(Math.max(180,Math.min(520,window.innerHeight-r.bottom-16)));
+    };
+    fit();
+    const m=menuRef.current;
+    if(m){const b=m.getBoundingClientRect();if(b.bottom>window.innerHeight-8)window.scrollBy({top:b.bottom-window.innerHeight+16,behavior:'smooth'});}
+    window.addEventListener('resize',fit);window.addEventListener('scroll',fit,true);
+    return()=>{window.removeEventListener('resize',fit);window.removeEventListener('scroll',fit,true);};
+  },[open,cal]);
   const idx=years.indexOf(shownYear);
   const cur=month?label(month):days===0?allLabel:'Últimos '+days+' dias';
   const pick=fn=>{fn();setOpen(false);};
-  return <div className="ndb-dd ndb-pp" ref={ref}>
+  return <div className={"ndb-dd ndb-pp"+(open?" is-open":"")} ref={ref}>
     <button type="button" className="ndb-dd-btn" aria-haspopup="dialog" aria-expanded={open} onClick={()=>{setOpen(o=>!o);setCal(Boolean(month));}}>
       <span>Período</span><b>{cur}</b>
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
     </button>
-    {open&&<div className="ndb-dd-list ndb-pp-menu" role="dialog" aria-label="Escolher período">
+    {open&&<div className="ndb-dd-list ndb-pp-menu" ref={menuRef} style={maxH?{maxHeight:maxH}:undefined} role="dialog" aria-label="Escolher período">
       <ul>
         {periods.map(p=><li key={p}><button type="button" className={!month&&days===p?'is-active':''} onClick={()=>pick(()=>onDays(p))}>Últimos {p} dias</button></li>)}
         {allowAll&&<li><button type="button" className={!month&&days===0?'is-active':''} onClick={()=>pick(()=>onDays(0))}>{allLabel}</button></li>}

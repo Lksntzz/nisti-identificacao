@@ -300,7 +300,7 @@ export function ProductLinks({links,platform='SHOPEE'}){
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>)}</span>;
 }
 
-export function PeriodProducts({platform,curFrom,curTo,baseFrom,baseTo,year,base,title}){
+export function PeriodProducts({platform,curFrom,curTo,baseFrom,baseTo,year,base,title,onlyOld=false}){
   const [state,setState]=useState({loading:true,error:'',data:null});
   useEffect(()=>{
     const c=new AbortController();
@@ -312,24 +312,31 @@ export function PeriodProducts({platform,curFrom,curTo,baseFrom,baseTo,year,base
   },[platform,curFrom,curTo,baseFrom,baseTo]);
   if(state.loading)return <p className="ndb-ac-mut" role="status">Carregando produtos…</p>;
   if(state.error)return <p className="ndb-error" role="alert">{state.error}</p>;
-  const d=state.data,rows=d?.products||[];
+  const d=state.data;
+  const rows=(onlyOld&&d?.products_old)?d.products_old:(d?.products||[]);
+  const tot=(onlyOld&&d?.total_old)?d.total_old:d?.total;
+  const ns=d?.new_summary;
   return <div className="ndb-ac-dayprod">
     <h4>{title}</h4>
-    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th>Anúncio</th></tr></thead>
+    {onlyOld&&ns&&Number(ns.count)>0&&<p className="ndb-ac-hidden">Novos ocultos: {num(ns.count)} produtos, {num(ns.cur)} unidades{Number(ns.cur_rev)>0?' ('+money(ns.cur_rev)+')':''}.</p>}
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th className="num">Receita {year}</th><th>Anúncio</th></tr></thead>
       <tbody>{rows.map(r=>{const L=productLabel(r.name,r.sku),df=Number(r.cur)-Number(r.base);return <tr key={r.sku}>
         <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.sku}</small></td>
         <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b><NewTag row={r} base={base}/></td>
-        <td className={'num '+(df>=0?'g':'r')}>{df>=0?'+':'−'}{num(Math.abs(df))}</td><td><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
-        {rows.length===0&&<tr><td colSpan={5} className="ndb-ac-mut">Sem vendas registradas neste período.</td></tr>}
-        {rows.length>0&&<tr className="ndb-ac-total"><td><b>Total</b></td><td className="num ndb-ac-mut">{num(d.total.base)}</td><td className="num"><b>{num(d.total.cur)}</b></td><td className={'num '+(d.total.cur>=d.total.base?'g':'r')}>{d.total.cur>=d.total.base?'+':'−'}{num(Math.abs(d.total.cur-d.total.base))}</td><td/></tr>}</tbody></table></div>
+        <td className={'num '+(df>=0?'g':'r')}>{df>=0?'+':'−'}{num(Math.abs(df))}</td><td className="num ndb-ac-mut">{Number(r.cur_rev)>0?money(r.cur_rev):'—'}</td><td><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
+        {rows.length===0&&<tr><td colSpan={6} className="ndb-ac-mut">Sem vendas registradas neste período.</td></tr>}
+        {rows.length>0&&<tr className="ndb-ac-total"><td><b>Total{onlyOld?' (antigos)':''}</b></td><td className="num ndb-ac-mut">{num(tot.base)}</td><td className="num"><b>{num(tot.cur)}</b></td><td className={'num '+(tot.cur>=tot.base?'g':'r')}>{tot.cur>=tot.base?'+':'−'}{num(Math.abs(tot.cur-tot.base))}</td><td className="num ndb-ac-mut">{Number(tot.cur_rev)>0?money(tot.cur_rev):'—'}</td><td/></tr>}</tbody></table></div>
     {rows.length>=40&&<p className="ndb-ac-note">Mostrando os 40 produtos que mais venderam.</p>}
   </div>;
 }
 
-export function Champions({month,monthData,year,base,loading=false,platform='SHOPEE'}){
+export function Champions({month,monthData,year,base,loading=false,platform='SHOPEE',onlyOld=false}){
   const [tab,setTab]=useState('top');
-  const tot=monthData?.month_total||{cur:0,base:0};
-  const lists={top:(monthData?.top||[]).slice(0,10),up:(monthData?.up||[]).slice(0,10),down:(monthData?.down||[]).slice(0,10)};
+  const oldOk=onlyOld&&Array.isArray(monthData?.top_old);
+  const tot=(oldOk&&monthData?.old_total)||monthData?.month_total||{cur:0,base:0};
+  const pick=k=>(oldOk?monthData[k+'_old']:monthData?.[k])||[];
+  const lists={top:pick('top').slice(0,10),up:pick('up').slice(0,10),down:pick('down').slice(0,10)};
+  const ns=monthData?.new_summary;
   const rows=lists[tab];
   const useBase=tab==='down';
   const labels={top:'Campeões',up:'Mais cresceram',down:'Mais caíram'};
@@ -340,8 +347,9 @@ export function Champions({month,monthData,year,base,loading=false,platform='SHO
       <div className="ndb-ac-seg" role="tablist" aria-label="Tipo de lista">
         {Object.keys(labels).map(k=><button type="button" role="tab" aria-selected={tab===k} key={k} className={tab===k?'is-on':''} onClick={()=>setTab(k)}>{labels[k]} <small>{lists[k].length}</small></button>)}
       </div></div>
+    {oldOk&&ns&&Number(ns.count)>0&&<p className="ndb-ac-hidden">Novos ocultos: {num(ns.count)} produtos, {num(ns.cur)} unidades ({money(ns.cur_rev)}) em {MONTH_FULL[month-1].toLowerCase()}.</p>}
     <p className="ndb-ac-sub">{intro[tab]} “Preço médio” = receita ÷ unidades vendidas no mês, sem frete (não é o preço de tabela do anúncio). “Novo” = nunca vendeu em {base} inteiro. “Já vendia” = sem venda neste mês de {base}, mas vendeu em outros meses.</p>
-    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th className="num" title="Valor médio de venda por unidade (receita dos produtos ÷ unidades), sem frete">Preço médio {base} → {year}</th><th>Peso em {useBase?base:year}</th><th>Anúncio</th></tr></thead>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th className="num" title="Valor médio de venda por unidade (receita dos produtos ÷ unidades), sem frete">Preço médio {base} → {year}</th><th className="num">Receita {year}</th><th>Peso em {useBase?base:year}</th><th>Anúncio</th></tr></thead>
       <tbody>{rows.map((r,i)=>{const L=productLabel(r.name,r.sku),d=Number(r.cur)-Number(r.base),w=share(useBase?r.base:r.cur,useBase?tot.base:tot.cur);
         return <tr key={r.sku}><td className="ndb-ac-mut">{i+1}</td>
         <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.category?r.category+' · ':''}{r.sku}</small></td>
@@ -349,8 +357,9 @@ export function Champions({month,monthData,year,base,loading=false,platform='SHO
         <td className={'num '+(d>=0?'g':'r')}>{d>=0?'+':'−'}{num(Math.abs(d))}</td>
         <td className="num ndb-ac-pr">{(()=>{const pb=Number(r.base)>0&&Number(r.base_rev)>0?Number(r.base_rev)/Number(r.base):null,pc=Number(r.cur)>0&&Number(r.cur_rev)>0?Number(r.cur_rev)/Number(r.cur):null;
           return pc==null&&pb==null?'—':<><span className="ndb-ac-mut">{pb!=null?money(pb):'—'}</span> → <b>{pc!=null?money(pc):'—'}</b>{pb!=null&&pc!=null&&<Delta cur={pc} base={pb} small/>}</>;})()}</td>
+        <td className="num ndb-ac-mut">{Number(r.cur_rev)>0?money(r.cur_rev):'—'}</td>
         <td className="ndb-ac-wt">{w==null?'—':<><i style={{width:Math.max(3,w/maxShare*100)+'%'}}/><span>{w.toFixed(1).replace('.',',')}%</span></>}</td><td><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
-        {rows.length===0&&<tr><td colSpan={8} className="ndb-ac-mut">{loading?'Carregando produtos do mês…':'Nenhum produto nesta lista.'}</td></tr>}</tbody></table></div>
+        {rows.length===0&&<tr><td colSpan={9} className="ndb-ac-mut">{loading?'Carregando produtos do mês…':'Nenhum produto nesta lista.'}</td></tr>}</tbody></table></div>
   </section>;
 }
 

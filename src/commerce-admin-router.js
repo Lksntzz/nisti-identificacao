@@ -38,7 +38,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualWindow, commerceCategories, commerceCategoriesSub, commerceCategoriesCol,
+  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualWindow, commerceCategories, commerceCategoriesSub, commerceCategoriesCol,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -540,6 +540,17 @@ export async function handleCommerceAdminRequest(request, env) {
       const opts={platform,year,mode,month,days};
       if(pathname.endsWith('categories-col'))return json(await commerceCategoriesCol(env,{...opts,cat,col:subName}));
       return json(sub?await commerceCategoriesSub(env,{...opts,cat,sub:subName}):await commerceCategories(env,opts));
+    }
+    if(method==='GET'&&(pathname===BASE_PATH+'/sales-compare/annual-seasonality'||pathname===BASE_PATH+'/sales-compare/annual-launches')){
+      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
+      const yearRaw=query(url,'year'),baseRaw=query(url,'base');
+      const year=yearRaw?Number(yearRaw):null,base=baseRaw?Number(baseRaw):null;
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||
+         (yearRaw&&(!Number.isInteger(year)||year<2020||year>2100))||
+         (baseRaw&&(!Number.isInteger(base)||base<2020||base>2100))||
+         (year!=null&&base!=null&&base!==year-1))
+        return json({error:'Filtro de picos e lançamentos inválido.'},400);
+      return json(pathname.endsWith('seasonality')?await commerceAnnualSeasonality(env,{platform,year,base}):await commerceAnnualLaunches(env,{platform,year,base}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-window'){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
