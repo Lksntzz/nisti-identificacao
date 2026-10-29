@@ -53,7 +53,7 @@ export default function CommerceCommercialPanel({perfOpen=null,view='ads'}){
       onChooseAnother={()=>{setSelectedImportMode(null);setImportMenuOpen(true);}}
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/>}
-    {view!=='ads'&&<CommerceAnnualCompare view={view} filters={annualFilters} setFilters={setAnnualFilters} actions={importMenu} refresh={refresh}/>}
+    {view!=='ads'&&<CommerceAnnualCompare view={view} filters={annualFilters} setFilters={setAnnualFilters} refresh={refresh}/>}
     {view==='ads'&&<CommerceDashboard key={refresh+':'+(perfOpen?perfOpen.nonce:0)} mode="explorer" initialTab={perfOpen?perfOpen.tab:null} initialFilter={perfOpen?perfOpen.filter:null} actions={importMenu}/>}
   </section>;
 }

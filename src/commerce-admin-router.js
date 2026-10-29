@@ -38,7 +38,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays,
+  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays, commerceAnnualDayProducts,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -521,6 +521,14 @@ export async function handleCommerceAdminRequest(request, env) {
          (year!=null&&base!=null&&base!==year-1))
         return json({error:'Ano comparativo inválido.'},400);
       return json(await commerceAnnualMonth(env,{platform,month,year,base}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-day-products'){
+      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
+      const cur=String(query(url,'cur')||''),base=String(query(url,'base')||'');
+      const okDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v+'T12:00:00Z'));
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||!okDate(cur)||!okDate(base))
+        return json({error:'Data do comparativo diário inválida.'},400);
+      return json(await commerceAnnualDayProducts(env,{platform,cur,base}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-days'){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
