@@ -451,6 +451,18 @@ html.ga-dark .ndb-ac-tag.up{background:#1e3326;color:#7be4ab}
 html.ga-dark .ndb-ac-tag.dn{background:#311414;color:#de554a}
 html.ga-dark .ndb-ac-part{color:#efb056}
 html.ga-dark .ndb-ac-first td{border-top:2px solid #222935}
+html.ga-dark .ndb-ac-wc small{color:#616f86}
+html.ga-dark .ndb-ac-wc.up{background:#1d2d23}
+html.ga-dark .ndb-ac-wc.up b{color:#7be4ab}
+html.ga-dark .ndb-ac-wc.dn{background:#2d1414}
+html.ga-dark .ndb-ac-wc.dn b{color:#de554a}
+html.ga-dark .ndb-ac-wc.is-part{background:#1c2027}
+html.ga-dark .ndb-ac-wc.is-part b{color:#616f86}
+html.ga-dark .ndb-ac-wc.is-empty{color:#323c4e}
+html.ga-dark .ndb-ac-wc.ndb-ac-wm{border-left:2px solid #222935}
+html.ga-dark .ndb-ac-fl.best{color:#f4be2d}
+html.ga-dark .ndb-ac-fl.worst{color:#de554a}
+html.ga-dark .ndb-ac-wc.has-flag{box-shadow:inset 0 0 0 1.5px rgba(52,112,216,.35)}
 html.ga-dark .nim-manager .nim-kpis>.nim-kpi,html.ga-dark .nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){border:1px solid #202834;background:#1a1a1a;box-shadow:0 4px 16px rgba(151,178,214,.035)}
 html.ga-dark .nim-manager .nim-kpi-icon{color:#2267d0;background:#111e33}
 html.ga-dark .nim-manager .nim-kpi.mint .nim-kpi-icon{color:#63e3b5;background:#1d3027}

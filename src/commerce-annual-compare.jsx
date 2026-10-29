@@ -259,26 +259,27 @@ export function KpiModal({kind,data,monthData,filters,onClose}){
 export function WeeksCard({monthData,year,base,selected}){
   const all=weekHighlights(monthData?.months||[]);
   const rows=selected?all.filter(r=>r.month===Number(selected)):all;
-  const worstM=all.filter(r=>r.index!=null).reduce((a,r)=>(!a||r.index<a.index?r:a),null);
-  const bestM=all.filter(r=>r.index!=null).reduce((a,r)=>(!a||r.index>a.index?r:a),null);
-  const fell=all.filter(r=>r.index!=null&&r.index<100).length;
+  const ranked=all.filter(r=>r.index!=null);
+  const worstM=ranked.reduce((a,r)=>(!a||r.index<a.index?r:a),null);
+  const bestM=ranked.reduce((a,r)=>(!a||r.index>a.index?r:a),null);
+  const fell=ranked.filter(r=>r.index<100).length;
+  const cell=(r,n)=>{
+    const w=r.weeks.find(x=>x.n===n);
+    if(!w)return <td key={n} className="ndb-ac-wc is-empty">—</td>;
+    const flags=[r.best&&r.best.n===n?'best':'',r.worst&&r.worst.n===n&&r.worst.index<100?'worst':'',r.top&&r.top.n===n&&r.top.index>=100?'top':''].filter(Boolean);
+    const tip=WEEK_LABEL[n]+': '+base+' '+num(w.base)+' · '+year+' '+num(w.cur)+(w.partial?' (só '+w.days+' '+(w.days===1?'dia':'dias')+')':'')+(flags.includes('best')?' · semana que mais vendeu':'')+(flags.includes('worst')?' · semana que mais caiu':'')+(flags.includes('top')?' · semana que mais cresceu':'');
+    const i=w.index;
+    return <td key={n} className={'ndb-ac-wc '+(i==null?'':i>=100?'up':'dn')+(w.partial?' is-part':'')+(flags.length?' has-flag':'')} title={tip}>
+      <b>{i==null?'—':i}</b><small>{num(w.cur)}</small>{flags.includes('best')&&<i className="ndb-ac-fl best" aria-label="mais vendeu">★</i>}{flags.includes('worst')&&<i className="ndb-ac-fl worst" aria-label="mais caiu">▼</i>}</td>;
+  };
   return <section className="ndb-ac-card ndb-ac-weeks" aria-label="Semanas de cada mês">
-    <h3>Semanas de cada mês</h3>
-    <p className="ndb-ac-sub">Semana 1 = dias 1–7, semana 2 = 8–14, e assim por diante, sempre contra os mesmos dias de {base}. Índice 100 = igual a {base}; abaixo de 100 = vendeu menos.</p>
-    <div className="ndb-ac-strip">
-      <span>Mês mais forte <b>{bestM?MONTH_FULL[bestM.month-1]+' · '+bestM.index:'—'}</b></span>
-      <span>Mês mais fraco <b>{worstM?MONTH_FULL[worstM.month-1]+' · '+worstM.index:'—'}</b></span>
-      <span>Meses abaixo de {base} <b>{fell} de {all.length}</b></span>
-    </div>
-    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>Mês</th><th>Semana</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Índice</th><th>Destaque</th></tr></thead>
-      <tbody>{rows.map(r=><React.Fragment key={r.month}>
-        {r.weeks.map((w,i)=><tr key={w.n} className={i===0?'ndb-ac-first':''}>
-          <td>{i===0&&<b>{MONTH_FULL[r.month-1]}</b>}</td>
-          <td>{WEEK_LABEL[w.n]}{w.partial&&<em className="ndb-ac-part"> · {w.days} {w.days===1?'dia':'dias'}</em>}</td>
-          <td className="num ndb-ac-mut">{num(w.base)}</td><td className="num"><b>{num(w.cur)}</b></td><td className="num"><Index cur={w.cur} base={w.base}/></td>
-          <td>{r.best&&r.best.n===w.n&&<span className="ndb-ac-tag up">mais vendeu</span>}{r.top&&r.top.n===w.n&&r.top.index>=100&&<span className="ndb-ac-tag up">mais cresceu</span>}{r.worst&&r.worst.n===w.n&&r.worst.index<100&&<span className="ndb-ac-tag dn">mais caiu</span>}</td></tr>)}
-        <tr className="ndb-ac-total"><td/><td><b>Mês</b></td><td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b></td><td className="num"><Index cur={r.cur} base={r.base}/></td><td/></tr>
-      </React.Fragment>)}</tbody></table></div>
+    <div className="ndb-ac-wh"><h3>Semanas de cada mês</h3>
+      <div className="ndb-ac-strip"><span>Mais forte <b>{bestM?MONTH_FULL[bestM.month-1]+' · '+bestM.index:'—'}</b></span><span>Mais fraco <b>{worstM?MONTH_FULL[worstM.month-1]+' · '+worstM.index:'—'}</b></span><span>Abaixo de {base} <b>{fell} de {all.length}</b></span></div></div>
+    <p className="ndb-ac-sub">Cada célula é o índice da semana (100 = igual a {base}); o número pequeno são as unidades de {year}. ★ semana que mais vendeu · ▼ semana que mais caiu. Passe o mouse para ver {base} contra {year}. Semana cinza = poucos dias.</p>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table ndb-ac-wtable"><thead><tr><th>Mês</th>{[1,2,3,4,5].map(n=><th key={n} className="num">{n===5?'29+':(n-1)*7+1+'–'+n*7}</th>)}<th className="num">Mês</th><th className="num">{base}</th><th className="num">{year}</th></tr></thead>
+      <tbody>{rows.map(r=><tr key={r.month}><td><b>{MONTH_FULL[r.month-1].slice(0,3)}</b></td>{[1,2,3,4,5].map(n=>cell(r,n))}
+        <td className={'ndb-ac-wc ndb-ac-wm '+(r.index==null?'':r.index>=100?'up':'dn')}><b>{r.index==null?'—':r.index}</b></td>
+        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b></td></tr>)}</tbody></table></div>
   </section>;
 }
 
