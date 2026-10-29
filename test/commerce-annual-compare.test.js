@@ -112,3 +112,15 @@ test('periodo: SQL restrito, rota e abertura direta na semana mais recente', () 
   assert.match(g, /PeriodProducts/);
   assert.doesNotMatch(g, /Voltar às semanas/);
 });
+
+test('periodo igual ao Painel Comercial: 7/30/60/90 dias e meses, sem "todo o histórico"', () => {
+  const g = fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8');
+  assert.match(g, /import PeriodPicker from '\.\/commerce-period-picker\.jsx'/);
+  assert.match(g, /periods=\{\[7,30,60,90\]\} allowAll=\{false\}/);
+  assert.match(g, /annual-window/);
+  const pp = fs.readFileSync('src/commerce-period-picker.jsx', 'utf8');
+  assert.match(pp, /allowAll&&/);
+  const sql = fs.readFileSync('supabase/migrations/20261029220000_commerce_annual_window_v1.sql', 'utf8');
+  assert.match(sql, /revoke all on function public\.commerce_annual_window_v1/i);
+  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-window/);
+});

@@ -1262,3 +1262,9 @@ export async function commerceAnnualPeriodProducts(env,{platform='SHOPEE',curFro
   const data=await supabaseRpc(env,'commerce_annual_period_products_v1',{p_platform:plat,p_cur_from:curFrom,p_cur_to:curTo,p_base_from:baseFrom,p_base_to:baseTo},{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{products:[],total:{cur:0,base:0}};
 }
+
+export async function commerceAnnualWindow(env,{platform='SHOPEE',curFrom,curTo,baseFrom,baseTo}={}) {
+  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
+  const data=await supabaseRpc(env,'commerce_annual_window_v1',{p_platform:plat,p_cur_from:curFrom,p_cur_to:curTo,p_base_from:baseFrom,p_base_to:baseTo},{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{days:[],total:{cur:0,base:0}};
+}
