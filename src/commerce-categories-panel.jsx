@@ -57,14 +57,14 @@ function Failure({error,onRetry}){
 
 function copySku(sku){try{navigator.clipboard?.writeText(sku);}catch(e){/* sem permissão: ignora */}}
 
-function SkuRow({r,i}){
+function SkuRow({r,i,platform}){
   const diff=Number(r.cur)-Number(r.base);
   const pb=unitPrice(r.base_rev,r.base),pc=unitPrice(r.cur_rev,r.cur);
   return <li className="ndb-cp-sku">
     <span className="ndb-cp-rank">{i+1}º</span>
     <div className="ndb-cp-sku-main">
       <b title={r.name||r.sku}>{productLabel(r.name,r.sku)}</b>
-      <span><code>{r.sku}</code> <button type="button" className="ndb-cp-copy" onClick={()=>copySku(r.sku)} aria-label={'Copiar SKU '+r.sku}>copiar</button> <ProductLinks links={r.links}/></span>
+      <span><code>{r.sku}</code> <button type="button" className="ndb-cp-copy" onClick={()=>copySku(r.sku)} aria-label={'Copiar SKU '+r.sku}>copiar</button> <ProductLinks links={r.links} platform={platform}/></span>
       {pc!=null&&<small>Preço médio: {pb!=null?money(pb)+' → ':''}{money(pc)}</small>}
       {!(Number(r.base)>0)&&<small className="ndb-cp-warn">Sem venda no ano anterior: pode ser lançamento, troca de código ou falta de importação.</small>}
     </div>
@@ -72,7 +72,7 @@ function SkuRow({r,i}){
   </li>;
 }
 
-function SubDetail({cat,sub,query,year,baseYear,catRow,onBack}){
+function SubDetail({cat,sub,query,year,baseYear,catRow,onBack,platform}){
   const [rank,setRank]=useState('up');
   const {loading,error,data,retry}=useJson('/api/admin/commerce/sales-compare/categories-sub?'+query+'&cat='+encodeURIComponent(cat)+'&sub='+encodeURIComponent(sub));
   useEffect(()=>setRank('up'),[cat,sub,query]);
@@ -100,16 +100,16 @@ function SubDetail({cat,sub,query,year,baseYear,catRow,onBack}){
     </div>
     {error?<Failure error={error} onRetry={retry}/>
       :loading?<p className="ndb-cp-mut" role="status">Carregando produtos…</p>
-      :list.length?<ol className="ndb-cp-skus">{list.map((r,i)=><SkuRow key={r.sku} r={r} i={i}/>)}</ol>
+      :list.length?<ol className="ndb-cp-skus">{list.map((r,i)=><SkuRow key={r.sku} r={r} i={i} platform={platform}/>)}</ol>
       :<p className="ndb-cp-mut">{rank==='up'?'Nenhum SKU com crescimento no período.':'Nenhum SKU com queda no período.'}</p>}
     <p className="ndb-cp-foot">Ranking pela diferença em unidades ({year} − {baseYear}); o percentual é informativo. Com diferença igual, vale o maior volume atual.</p>
   </div>;
 }
 
-function CategoryDetail({row,total,baseYear,query,year,sub,setSub}){
+function CategoryDetail({row,total,baseYear,query,year,sub,setSub,platform}){
   const diff=Number(row.cur)-Number(row.base);
   const pc=unitPrice(row.cur_rev,row.cur),pb=unitPrice(row.base_rev,row.base);
-  if(sub)return <SubDetail cat={row.name} sub={sub} query={query} year={year} baseYear={baseYear} catRow={row} onBack={()=>setSub(null)}/>;
+  if(sub)return <SubDetail platform={platform} cat={row.name} sub={sub} query={query} year={year} baseYear={baseYear} catRow={row} onBack={()=>setSub(null)}/>;
   return <div className="ndb-cp-cat">
     <h4>{row.name}</h4>
     {row.name==='Sem categoria'&&<p className="ndb-cp-note" role="note">Unidades de SKUs que ainda não têm categoria no cadastro. A análise é só diagnóstica: nada é classificado ou alterado automaticamente.</p>}
@@ -196,7 +196,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
           <p className="ndb-cp-foot">Barra cinza: {baseYear}; azul: {year}. A barra mostra volume, não crescimento. “28 dias” é a janela dos últimos 28 dias do período, contra as mesmas datas do ano anterior. Percentuais em cinza têm menos de {LOW} unidades nos dois anos.</p>
         </section>
         <aside className="ndb-cp-detail" aria-label="Investigação da categoria" aria-live="polite">
-          {current?<CategoryDetail key={current.name} row={current} total={total} baseYear={baseYear} year={year} query={query} sub={selSub} setSub={setSelSub}/>
+          {current?<CategoryDetail platform={filters.platform} key={current.name} row={current} total={total} baseYear={baseYear} year={year} query={query} sub={selSub} setSub={setSelSub}/>
             :<p className="ndb-cp-mut">Selecione uma categoria para investigar.</p>}
         </aside>
       </div>

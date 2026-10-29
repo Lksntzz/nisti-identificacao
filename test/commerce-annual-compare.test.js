@@ -127,8 +127,7 @@ test('periodo igual ao Painel Comercial: 7/30/60/90 dias e meses, sem "todo o hi
 
 test('produtos do mês mostram o preço médio vendido nos dois anos', () => {
   const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
-  assert.match(ui, /Preço \{base\}/);
-  assert.match(ui, /Preço \{year\}/);
+  assert.match(ui, /Preço médio \{base\} → \{year\}/);
   assert.match(fs.readFileSync('supabase/migrations/20261029230000_commerce_annual_month_prices_v1.sql', 'utf8'), /'cur_rev',cr,'base_rev',br/);
 });
 
@@ -164,4 +163,13 @@ test('categorias: migração, rotas e painel existem e validam entradas', () => 
   const router = fs.readFileSync('src/commerce-admin-router.js','utf8');
   assert.match(router,/sales-compare\/categories-sub/); assert.match(router,/Filtro de categorias inválido/);
   assert.match(fs.readFileSync('src/commerce-commercial-panel.jsx','utf8'),/CommerceCategoriesPanel/);
+});
+
+test('anúncios: só ícone, só da plataforma em análise; comparação só oferece ano com base', () => {
+  const ui = fs.readFileSync('src/commerce-annual-compare.jsx','utf8');
+  assert.match(ui, /Abrir anúncio na/);
+  assert.doesNotMatch(ui, /\{i\.label\} ↗/);
+  assert.match(ui, /platform==='SHOPEE'\?l\.platform==='SHOPEE'/);
+  const g = fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
+  assert.match(g, /hasUnits\(n-1\)/);
 });
