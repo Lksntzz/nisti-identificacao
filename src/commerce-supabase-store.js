@@ -1285,3 +1285,8 @@ export async function commerceCategoriesSub(env,opts={}) {
   const data=await supabaseRpc(env,'commerce_categories_sub_v2',{...categoriesArgs(opts),p_cat:String(opts.cat||''),p_sub:String(opts.sub||'')},{timeoutMs:20000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{up:[],down:[]};
 }
+
+export async function commerceCategoriesCol(env,opts={}) {
+  const data=await supabaseRpc(env,'commerce_categories_col_v2',{...categoriesArgs(opts),p_cat:String(opts.cat||''),p_col:String(opts.col||'')},{timeoutMs:20000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{items:[]};
+}

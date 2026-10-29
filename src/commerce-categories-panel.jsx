@@ -72,18 +72,17 @@ function SkuRow({r,i,platform}){
   </li>;
 }
 
-function SubDetail({cat,sub,query,year,baseYear,catRow,onBack,platform}){
-  const [rank,setRank]=useState('up');
-  const {loading,error,data,retry}=useJson('/api/admin/commerce/sales-compare/categories-sub?'+query+'&cat='+encodeURIComponent(cat)+'&sub='+encodeURIComponent(sub));
-  useEffect(()=>setRank('up'),[cat,sub,query]);
-  const s=catRow.subs.find(x=>x.name===sub)||{};
+function ColDetail({cat,col,query,baseYear,catRow,onBack,platform}){
+  const {loading,error,data,retry}=useJson('/api/admin/commerce/sales-compare/categories-col?'+query+'&cat='+encodeURIComponent(cat)+'&col='+encodeURIComponent(col));
+  const s=(catRow.cols||[]).find(x=>x.name===col)||{};
   const diff=Number(s.cur)-Number(s.base);
   const pc=unitPrice(s.cur_rev,s.cur),pb=unitPrice(s.base_rev,s.base);
   const bm=data?.best_month?.month?MONTHS[Number(data.best_month.month.slice(5,7))-1]+'/'+data.best_month.month.slice(2,4):null;
-  const list=data?(rank==='up'?data.up:data.down)||[]:[];
+  const items=data?.items||[];
   return <div className="ndb-cp-sub">
-    <button type="button" className="ndb-cp-back" onClick={onBack}>← Voltar às subcategorias</button>
-    <h4>{sub}<small>{cat}</small></h4>
+    <button type="button" className="ndb-cp-back" onClick={onBack}>← Voltar às coleções</button>
+    <h4>{col}<small>{cat}</small></h4>
+    {col==='Sem coleção'&&<p className="ndb-cp-note" role="note">Produtos cujo nome não indica uma coleção (ou SKUs sem nome cadastrado). A coleção é lida do nome do produto; dá para corrigir por SKU.</p>}
     <div className="ndb-cp-grid2">
       <Stat label="Unidades" value={fmt(s.cur)} sub={baseYear+': '+fmt(s.base)+' · '+signed(diff)}/>
       <Stat label="Variação" value={Number(s.base)>0?pct(variation(s.cur,s.base)):'Sem base'} sub={Number(s.base)>0?'contra '+baseYear:'sem vendas em '+baseYear}/>
@@ -95,21 +94,19 @@ function SubDetail({cat,sub,query,year,baseYear,catRow,onBack,platform}){
       <div><dt>Preço médio por unidade</dt><dd>{pc!=null?money(pc):'—'}<small>{baseYear}: {pb!=null?money(pb):'—'} {pb!=null&&pc!=null&&<Var cur={pc} base={pb} neutral/>}</small></dd></div>
       <div><dt>Receita de produtos</dt><dd>{Number(s.cur_rev)>0?money(s.cur_rev):'—'}<small>{baseYear}: {Number(s.base_rev)>0?money(s.base_rev):'—'} · sem frete</small></dd></div>
     </dl>
-    <div className="ndb-cp-tabs" role="tablist" aria-label="Ranking de produtos">
-      {[['up','Mais cresceram'],['down','Mais caíram']].map(([k,l])=><button key={k} type="button" role="tab" aria-selected={rank===k} className={rank===k?'is-active':''} onClick={()=>setRank(k)}>{l}</button>)}
-    </div>
+    <h5>Variações e vendas <small>{items.length?items.length+' produto'+(items.length>1?'s':''):''}</small></h5>
     {error?<Failure error={error} onRetry={retry}/>
-      :loading?<p className="ndb-cp-mut" role="status">Carregando produtos…</p>
-      :list.length?<ol className="ndb-cp-skus">{list.map((r,i)=><SkuRow key={r.sku} r={r} i={i} platform={platform}/>)}</ol>
-      :<p className="ndb-cp-mut">{rank==='up'?'Nenhum SKU com crescimento no período.':'Nenhum SKU com queda no período.'}</p>}
-    <p className="ndb-cp-foot">Ranking pela diferença em unidades ({year} − {baseYear}); o percentual é informativo. Com diferença igual, vale o maior volume atual.</p>
+      :loading?<p className="ndb-cp-mut" role="status">Carregando variações…</p>
+      :items.length?<ol className="ndb-cp-skus">{items.map((r,i)=><SkuRow key={r.sku} r={r} i={i} platform={platform}/>)}</ol>
+      :<p className="ndb-cp-mut">Nenhuma venda nesta coleção no período.</p>}
+    <p className="ndb-cp-foot">Ordenado por unidades vendidas. “Sem base” = sem venda no ano anterior: pode ser lançamento, troca de código ou falta de importação.</p>
   </div>;
 }
 
 function CategoryDetail({row,total,baseYear,query,year,sub,setSub,platform}){
   const diff=Number(row.cur)-Number(row.base);
   const pc=unitPrice(row.cur_rev,row.cur),pb=unitPrice(row.base_rev,row.base);
-  if(sub)return <SubDetail platform={platform} cat={row.name} sub={sub} query={query} year={year} baseYear={baseYear} catRow={row} onBack={()=>setSub(null)}/>;
+  if(sub)return <ColDetail platform={platform} cat={row.name} col={sub} query={query} baseYear={baseYear} catRow={row} onBack={()=>setSub(null)}/>;
   return <div className="ndb-cp-cat">
     <h4>{row.name}</h4>
     {row.name==='Sem categoria'&&<p className="ndb-cp-note" role="note">Unidades de SKUs que ainda não têm categoria no cadastro. A análise é só diagnóstica: nada é classificado ou alterado automaticamente.</p>}
@@ -123,8 +120,8 @@ function CategoryDetail({row,total,baseYear,query,year,sub,setSub,platform}){
       <div><dt>Receita de produtos</dt><dd>{Number(row.cur_rev)>0?money(row.cur_rev):'—'}<small>{baseYear}: {Number(row.base_rev)>0?money(row.base_rev):'—'} · sem frete</small></dd></div>
       <div><dt>Preço médio por unidade</dt><dd>{pc!=null?money(pc):'—'}<small>{baseYear}: {pb!=null?money(pb):'—'}</small></dd></div>
     </dl>
-    <h5>Subcategorias <small>escolha uma para ver os produtos</small></h5>
-    <ul className="ndb-cp-subs">{row.subs.map(s=><li key={s.name}><button type="button" onClick={()=>setSub(s.name)}>
+    <h5>Coleções <small>escolha uma para ver as variações</small></h5>
+    <ul className="ndb-cp-subs">{(row.cols||[]).map(s=><li key={s.name}><button type="button" onClick={()=>setSub(s.name)}>
       <span className="ndb-cp-subname">{s.name}</span><span className="ndb-cp-n">{fmt(s.cur)}</span><span className="ndb-cp-mut">{share(s.cur,row.cur)}</span><Var cur={s.cur} base={s.base}/></button></li>)}</ul>
   </div>;
 }
@@ -165,8 +162,6 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const updateFilters=patch=>setFilters(prev=>({...prev,...patch}));
   const total=data?.total||{cur:0,base:0};
   return <div className="ndb-cp">
-    <header className="ndb-cp-head"><div><h2>Categorias</h2><p>Quais categorias puxam ou derrubam o resultado contra o ano anterior.</p></div>
-      {data&&<span className="ndb-cp-asof">Dados até {String(data.as_of).split('-').reverse().join('/')}</span>}</header>
     <div className="ndb-cp-filters">
       <Dropdown label="Plataforma" value={filters.platform} options={platformOptions} onChange={v=>updateFilters({platform:v})}/>
       <Dropdown label="Comparação" value={String(year||'')} options={year?[[String(year),year+' × '+(year-1)]]:[['','…']]} onChange={()=>{}}/>
@@ -176,7 +171,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
       <Dropdown label="Ordenar" value={sort} options={Object.entries(SORTS)} onChange={setSort}/>
       <label className="ndb-cp-search"><span className="ndb-cp-sr">Pesquisar categoria</span><input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Pesquisar categoria"/></label>
     </div>
-    {data&&<p className="ndb-cp-period" role="note">{periodLabel(data)} · mesmas datas do calendário nos dois anos.</p>}
+    {data&&<p className="ndb-cp-period" role="note">{periodLabel(data)} · mesmas datas do calendário nos dois anos · dados até {String(data.as_of).split('-').reverse().join('/')}</p>}
     {cover.error&&<p className="ndb-cp-error" role="alert">{cover.error}</p>}
     {error&&<Failure error={error} onRetry={retry}/>}
     {!error&&loading&&<p className="ndb-cp-mut" role="status">Carregando categorias…</p>}
