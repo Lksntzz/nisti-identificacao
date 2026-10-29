@@ -38,6 +38,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
+  commerceAnnualCompare,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -506,6 +507,15 @@ export async function handleCommerceAdminRequest(request, env) {
       if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id)))
         return json({error:'Filtro de vendas por mês inválido.'},400);
       return json(await commerceListingSalesMonths(env,{ids,daily:query(url,'daily')==='1'}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual'){
+      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
+      const gran=String(query(url,'gran')||'month');
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||!['day','week','month'].includes(gran))
+        return json({error:'Filtro do comparativo anual inválido.'},400);
+      const year=query(url,'year')?Number(query(url,'year')):null;
+      const base=query(url,'base')?Number(query(url,'base')):null;
+      return json(await commerceAnnualCompare(env,{platform,gran,year,base}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/listings/manager/price-signal'){
       const ids=String(query(url,'ids')||'').split(',').filter(Boolean);

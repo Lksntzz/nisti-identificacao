@@ -237,6 +237,19 @@ export async function commerceListingSalesMonths(env,{ids=[],daily=false}={}) {
   return {months:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
 }
 
+export async function commerceAnnualCompare(env,{platform='SHOPEE',gran='month',year=null,base=null}={}) {
+  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
+  const g=['day','week','month'].includes(String(gran))?String(gran):'month';
+  const y=Number.isInteger(Number(year))&&Number(year)>=2020&&Number(year)<=2100?Number(year):null;
+  const b=Number.isInteger(Number(base))&&Number(base)>=2020&&Number(base)<=2100?Number(base):null;
+  const [data,coverage]=await Promise.all([
+    supabaseRpc(env,'commerce_annual_compare_v1',{p_platform:plat,p_gran:g,p_year:y,p_base:b},{timeoutMs:20000}),
+    supabaseRpc(env,'commerce_annual_compare_coverage_v1',{},{timeoutMs:10000}).catch(()=>[])
+  ]);
+  const out=data&&typeof data==='object'&&!Array.isArray(data)?data:{categories:[],periods:[],kpi:null};
+  return {...out,coverage:Array.isArray(coverage)?coverage:[]};
+}
+
 export async function commerceSalesImportHistory(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const data=await supabaseRpc(env,'commerce_sales_import_history_v1',{
