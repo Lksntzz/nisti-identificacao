@@ -141,3 +141,5 @@
 .ndb-ac-dayprod h4{margin:0 0 6px;font-size:13px}
 .ndb-ac-dayprod h4 small{font-weight:500;color:#7a8aa3}
 .ndb-ac-dayprod .ndb-ac-scroll{max-height:340px}
+
+.ndb-ac-prod td.num .ndb-ac-pill{display:block;margin:2px 0 0 auto;width:fit-content}
