@@ -170,7 +170,7 @@ export default function GuidedAnnualCompare({
         <MonthRows periods={data.periods||[]} mode={display} year={year} baseYear={baseYear} baseAvailable={baseAvailable} selected={selectedMonth} onSelect={selectMonth} asOf={data.as_of}/>
         <p className="ga-y-note">Selecione um mês para analisar semanas e dias. Os valores seguem os dados importados no GA.</p>
       </section>
-      {advanced==='products'&&<Champions month={selectedMonth} monthData={validMonthData?monthData:{top:[],up:[],down:[]}} year={year} base={baseYear}/>}
+      {advanced==='products'&&<Champions month={selectedMonth} monthData={validMonthData&&Number(monthData.month)===selectedMonth?monthData:{top:[],up:[],down:[]}} loading={!(validMonthData&&Number(monthData.month)===selectedMonth)} year={year} base={baseYear}/>}
       {advanced==='mobile'&&<MobilePeriods platform={filters.platform} gran={mobileSeries} onGran={setMobileSeries} year={year} baseYear={baseYear} useAnnualCompare={useAnnualCompare} PeriodSummary={PeriodSummary} PeriodDetails={PeriodDetails}/>}
       </div>
       <aside className="ga-y-investigation" aria-label="Investigação do mês">

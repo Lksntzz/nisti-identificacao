@@ -80,3 +80,9 @@ test('produtos do dia: rota validada, SQL restrito e links nos produtos', () => 
   assert.match(ui, /ProductLinks/);
   assert.match(ui, /rel="noopener noreferrer"/);
 });
+
+test('produtos do mês são buscados para o mês exibido, inclusive o padrão', () => {
+  const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
+  assert.match(ui, /defaultMonth/);
+  assert.match(fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8'), /Number\(monthData\.month\)===selectedMonth/);
+});

@@ -318,7 +318,7 @@ export function DayProducts({platform,curDate,baseDate,year,base}){
   </div>;
 }
 
-export function Champions({month,monthData,year,base}){
+export function Champions({month,monthData,year,base,loading=false}){
   const [tab,setTab]=useState('top');
   const tot=monthData?.month_total||{cur:0,base:0};
   const lists={top:(monthData?.top||[]).slice(0,10),up:(monthData?.up||[]).slice(0,10),down:(monthData?.down||[]).slice(0,10)};
@@ -340,7 +340,7 @@ export function Champions({month,monthData,year,base}){
         <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b>{Number(r.base)===0&&Number(r.cur)>0&&<em className="ndb-ac-newtag">novo</em>}</td>
         <td className={'num '+(d>=0?'g':'r')}>{d>=0?'+':'−'}{num(Math.abs(d))}</td>
         <td className="ndb-ac-wt">{w==null?'—':<><i style={{width:Math.max(3,w/maxShare*100)+'%'}}/><span>{w.toFixed(1).replace('.',',')}%</span></>}</td><td><ProductLinks links={r.links}/></td></tr>;})}
-        {rows.length===0&&<tr><td colSpan={7} className="ndb-ac-mut">Nenhum produto nesta lista.</td></tr>}</tbody></table></div>
+        {rows.length===0&&<tr><td colSpan={7} className="ndb-ac-mut">{loading?'Carregando produtos do mês…':'Nenhum produto nesta lista.'}</td></tr>}</tbody></table></div>
   </section>;
 }
 
@@ -349,8 +349,11 @@ export default function CommerceAnnualCompare({view='comparison',filters,setFilt
     platform:filters.platform,gran:view==='categories'?(filters.gran||'month'):'month',
     year:filters.year||null,base:filters.base||null,refresh
   });
+  // Sem mês escolhido, a tela mostra o último mês completo: os produtos precisam ser buscados para esse mês.
+  const asOfMonth=Number((data?.as_of||'').slice(5,7))||0;
+  const defaultMonth=asOfMonth>1?asOfMonth-1:(asOfMonth?1:'');
   const {data:monthData}=useAnnualMonth({
-    platform:filters.platform,month:filters.month||'',year:filters.year||null,base:filters.base||null,refresh
+    platform:filters.platform,month:filters.month||(view==='categories'?'':defaultMonth),year:filters.year||null,base:filters.base||null,refresh
   });
   const [modal,setModal]=useState(null);
   const title=view==='categories'?'Categorias':'Comparação anual';
