@@ -143,3 +143,7 @@
 .ndb-ac-dayprod .ndb-ac-scroll{max-height:340px}
 
 .ndb-ac-prod td.num .ndb-ac-pill{display:block;margin:2px 0 0 auto;width:fit-content}
+.ndb-ac-links a{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px}
+.ndb-ac-links a:hover{background:#eaf1ff;text-decoration:none}
+.ndb-ac-pr{white-space:nowrap}
+.ndb-ac-pr .ndb-ac-pill{display:block;margin:2px 0 0 auto;width:fit-content}

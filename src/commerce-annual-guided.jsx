@@ -193,7 +193,9 @@ export default function GuidedAnnualCompare({
     (id==='TODAS'?['SHOPEE','ML_ANTIGO','ML_NOVO'].some(needsBase):needsBase(id))?NO_BASE:null]);
   const selectedBlocked=Boolean(platformOptions.find(o=>o[0]===filters.platform)?.[2]);
   useEffect(()=>{if(selectedBlocked)setFilters(prev=>({...prev,platform:'SHOPEE'}));},[selectedBlocked]);
-  const yearChoices=[...new Set((data.coverage||[]).map(c=>Number(c.year)).filter(n=>n>=2021&&n<=2100).concat([year]))].sort((a,b)=>b-a);
+  const hasUnits=y=>(data.coverage||[]).some(c=>Number(c.year)===y&&Number(c.units)>0);
+  // Só oferece "A × A-1" quando o ano anterior tem vendas importadas; o ano em tela fica sempre na lista.
+  const yearChoices=[...new Set((data.coverage||[]).map(c=>Number(c.year)).filter(n=>n>=2021&&n<=2100&&hasUnits(n-1)).concat([year]))].sort((a,b)=>b-a);
   return <div className="ga-y-guided">
     <div className="ga-y-toolbar">
       <Dropdown label="Plataforma" value={filters.platform} options={platformOptions} onChange={v=>updateFilters({platform:v})}/>
@@ -222,7 +224,7 @@ export default function GuidedAnnualCompare({
         <p className="ga-y-note">Selecione um mês para analisar semanas e dias. Os valores seguem os dados importados no GA.</p>
       </section>
       {windowMode&&winRange&&PeriodProducts&&<section className="ga-y-main" aria-label="Produtos do período"><PeriodProducts key={winRange.curFrom+winRange.curTo} platform={filters.platform} {...winRange} year={year} base={baseYear} title={winTitle}/></section>}
-      {!windowMode&&advanced==='products'&&<Champions month={selectedMonth} monthData={validMonthData&&Number(monthData.month)===selectedMonth?monthData:{top:[],up:[],down:[]}} loading={!(validMonthData&&Number(monthData.month)===selectedMonth)} year={year} base={baseYear}/>}
+      {!windowMode&&advanced==='products'&&<Champions month={selectedMonth} monthData={validMonthData&&Number(monthData.month)===selectedMonth?monthData:{top:[],up:[],down:[]}} loading={!(validMonthData&&Number(monthData.month)===selectedMonth)} year={year} base={baseYear} platform={filters.platform}/>}
       {!windowMode&&advanced==='mobile'&&<MobilePeriods platform={filters.platform} gran={mobileSeries} onGran={setMobileSeries} year={year} baseYear={baseYear} useAnnualCompare={useAnnualCompare} PeriodSummary={PeriodSummary} PeriodDetails={PeriodDetails}/>}
       </div>
       {windowMode&&<aside className="ga-y-investigation" aria-label="Investigação do período">
