@@ -463,6 +463,55 @@ html.ga-dark .ndb-ac-wc.ndb-ac-wm{border-left:2px solid #222935}
 html.ga-dark .ndb-ac-fl.best{color:#f4be2d}
 html.ga-dark .ndb-ac-fl.worst{color:#de554a}
 html.ga-dark .ndb-ac-wc.has-flag{box-shadow:inset 0 0 0 1.5px rgba(52,112,216,.35)}
+html.ga-dark .ga-y-toolbar select{background:#1a1a1a}
+html.ga-dark .ga-y-view-controls{background:#1a1a1a}
+html.ga-dark .ga-y-view-controls button{color:#8395af}
+html.ga-dark .ga-y-view-controls button+button{border-left:1px solid #1d242d}
+html.ga-dark .ga-y-view-controls button.is-active{color:#1a1a1a}
+html.ga-dark .ga-y-kpi{background:#1a1a1a}
+html.ga-dark .ga-y-kpi:hover,html.ga-dark .ga-y-kpi:focus-visible{border-color:#204783;box-shadow:0 3px 12px rgba(107,147,216,.08)}
+html.ga-dark .ga-y-delta.is-up{background:#1f3129}
+html.ga-dark .ga-y-delta.is-down{background:#2d1416}
+html.ga-dark .ga-y-delta.is-neutral{color:#7a8aa5;background:#1d232b}
+html.ga-dark .ga-y-neutral{color:#6b778c}
+html.ga-dark .ga-y-main,html.ga-dark .ga-y-investigation,html.ga-dark .ga-y-mobile-series{background:#1a1a1a}
+html.ga-dark .ga-y-month-heading{background:#1a1e25;color:#7a8aa5}
+html.ga-dark .ga-y-month-row{border-bottom-color:#1e242a}
+html.ga-dark .ga-y-month-row:hover{background:#0f1a2d}
+html.ga-dark .ga-y-month-row.is-selected{background:#101d30}
+html.ga-dark .ga-y-month-name small{color:#daad61}
+html.ga-dark .ga-y-num.is-base-number{color:#627189}
+html.ga-dark .ga-y-chart-month.is-selected{border-color:#073484;background:#101f31}
+html.ga-dark .ga-y-result{background:#161e29}
+html.ga-dark .ga-y-week-head{background:#1a1e25}
+html.ga-dark .ga-y-week-row{border-bottom-color:#1e242a}
+html.ga-dark .ga-y-week-row.is-selected{border-color:#124090;background:#101c30}
+html.ga-dark .ga-y-week-row:hover{background:#0f1a2d}
+html.ga-dark .ga-y-daily th,html.ga-dark .ga-y-daily td{border-bottom:1px solid #1e242a}
+html.ga-dark .ga-y-daily th{background:#1a1e25}
+html.ga-dark .ga-y-daily tr.is-selected td{background:#101f31}
+html.ga-dark .ga-y-day-info{background:#1a1e25}
+html.ga-dark .ga-y-advanced-actions button{background:#1a1a1a}
+html.ga-dark .ga-y-advanced-actions button:hover{background:#0f1a2d}
+html.ga-dark .ga-y-muted{background:#171c26}
+html.ga-dark .ga-y-warning{background:#322c11;color:#e3ac65;border:1px solid #675010}
+html.ga-dark .ga-y-error{background:#2f1012;color:#cc606a;border:1px solid #432025}
+html.ga-dark .ga-y-error button{background:#1a1a1a;border:1px solid #68222a;color:#d56873}
+html.ga-dark html.ga-dark .ga-y-guided :is(.ga-y-main,.ga-y-investigation,.ga-y-mobile-series,.ga-y-kpi,.ga-y-toolbar select,.ga-y-view-controls,.ga-y-advanced-actions button){background:#b1c0da}
+html.ga-dark html.ga-dark .ga-y-guided :is(.ga-y-result,.ga-y-week-head,.ga-y-month-heading,.ga-y-daily th,.ga-y-day-info){background:#a2b2cd}
+html.ga-dark html.ga-dark .ga-y-guided :is(.ga-y-month-row:hover,.ga-y-week-row:hover){background:#9cb2d1}
+html.ga-dark html.ga-dark .ga-y-guided :is(.ga-y-month-row.is-selected,.ga-y-week-row.is-selected,.ga-y-daily tr.is-selected td){background:#92aed8;border-color:#0c429f}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-delta.is-up{background:#a4e1d1;color:#20754f}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-delta.is-down{background:#cda4b0;color:#511b1f}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-delta.is-neutral{background:#98a5c0;color:#2f3e4f}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-daily td button{color:#1d232e}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-view-controls button{color:#252e3f}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-view-controls button.is-active{color:#1a1a1a}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-warning{background:#d1c3a7;color:#785206;border-color:#bca97f}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-error{background:#cea2ae;color:#521b1f;border-color:#a16d73}
+html.ga-dark .ga-y-week-row .is-up{color:#7be4ab}
+html.ga-dark .ga-y-week-row .is-down{color:#de554a}
+html.ga-dark .ga-y-idx{color:#3470d8}
 html.ga-dark .nim-manager .nim-kpis>.nim-kpi,html.ga-dark .nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){border:1px solid #202834;background:#1a1a1a;box-shadow:0 4px 16px rgba(151,178,214,.035)}
 html.ga-dark .nim-manager .nim-kpi-icon{color:#2267d0;background:#111e33}
 html.ga-dark .nim-manager .nim-kpi.mint .nim-kpi-icon{color:#63e3b5;background:#1d3027}

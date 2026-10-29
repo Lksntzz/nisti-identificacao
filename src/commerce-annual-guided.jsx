@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import { maskMoney } from './commerce-privacy.js';
-import { growth, weekHighlights } from './commerce-annual-compare-helpers.js';
+import { growth, indexOf, weekHighlights } from './commerce-annual-compare-helpers.js';
 import './commerce-annual-guided.css';
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -178,10 +178,12 @@ export default function GuidedAnnualCompare({
         {!validMonthData?<p className="ga-y-muted">Carregando análise semanal…</p>:
           weekly.length===0?<p className="ga-y-muted">Sem registros semanais neste mês.</p>:
           <div className="ga-y-week-list">
-            <div className="ga-y-week-head"><span>Semana</span><span>{baseYear}</span><span>{year}</span><span>Variação</span></div>
+            <div className="ga-y-week-head"><span>Semana</span><span>{baseYear}</span><span>{year}</span><span>Diferença</span><span>Variação</span></div>
             {weekly.map(w=><button key={w.n} type="button" className={'ga-y-week-row'+(week===w.n?' is-selected':'')} onClick={()=>{setWeek(w.n);setShowDaily(true);setSelectedDay(null);}} aria-pressed={week===w.n}>
-              <span>{String((w.n-1)*7+1).padStart(2,'0')}–{Math.min(w.n*7,daysInMonth(year,selectedMonth))}{w.n===5?<small>Faixa curta</small>:null}</span>
-              <span>{baseAvailable?fmt(w.base):'—'}</span><span>{fmt(w.cur)}</span><span>{baseAvailable?<Trend cur={w.cur} base={w.base}/>:<span className="ga-y-neutral">—</span>}</span>
+              <span>{w.n===5?'29+':String((w.n-1)*7+1).padStart(2,'0')+'–'+Math.min(w.n*7,daysInMonth(year,selectedMonth))}{w.n===5?<small>Faixa curta</small>:null}</span>
+              <span>{baseAvailable?fmt(w.base):'—'}</span><span>{fmt(w.cur)}</span>
+              <span className={baseAvailable?(Number(w.cur)>=Number(w.base)?'is-up':'is-down'):''}>{baseAvailable?signed(Number(w.cur)-Number(w.base)):'—'}</span>
+              <span>{baseAvailable?<><Trend cur={w.cur} base={w.base}/>{week===w.n&&indexOf(w.cur,w.base)!=null&&<em className="ga-y-idx" title="100 = igual ao ano anterior">Índice {indexOf(w.cur,w.base)}</em>}</>:<span className="ga-y-neutral">—</span>}</span>
             </button>)}
           </div>}
         {showDaily&&isValidWeek&&<div className="ga-y-daily-section">
