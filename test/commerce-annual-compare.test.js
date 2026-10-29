@@ -201,3 +201,12 @@ test('dashboard: filtro inteligente bloqueia plataforma sem vendas no mês e fil
   assert.match(d, /hasSales\(r,platform\)/);
   assert.match(d, /sales-dashboard\/monthly\?platform=TODAS/);
 });
+
+test('dashboard: filtro de ano inteiro (banco, Worker e seletor)', () => {
+  const sql = fs.readFileSync('supabase/migrations/20261029270000_commerce_dashboard_year_filter_v1.sql','utf8');
+  assert.match(sql, /interval '1 year'/); assert.match(sql, /p\.span/);
+  assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'), /PERIOD_RE/);
+  assert.match(fs.readFileSync('src/commerce-supabase-store.js','utf8'), /cleanPeriod/);
+  assert.match(fs.readFileSync('src/commerce-period-picker.jsx','utf8'), /Ano todo de/);
+  assert.match(fs.readFileSync('src/commerce-dashboard.jsx','utf8'), /yearOption/);
+});

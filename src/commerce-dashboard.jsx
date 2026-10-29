@@ -335,6 +335,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [query,setQuery]=useState('');
   const [days,setDays]=useState(initialFilter?.days??30);
   const [month,setMonth]=useState(initialFilter?.month||'');
+  const yearSel=/^20\d{2}$/.test(month);
   const [data,setData]=useState(null);
   const [overview,setOverview]=useState(null);
   const [error,setError]=useState('');
@@ -363,7 +364,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   useEffect(()=>{
     if(mode!=='overview')return undefined;
     setSeries(null);
-    if(days===0&&!month)return undefined;
+    if((days===0&&!month)||yearSel)return undefined;
     const controller=new AbortController();
     const url='/api/admin/commerce/sales-dashboard/series?platform='+platform+(month?'&month='+month:'&days='+days);
     fetchCommercialManager(url,{signal:controller.signal})
@@ -388,14 +389,14 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const platKey={SHOPEE:'units_shopee',ML_ANTIGO:'units_ml_antigo',ML_NOVO:'units_ml_novo'};
   const hasSales=(row,plat)=>plat==='TODAS'?Object.values(platKey).some(k=>Number(row?.[k]||0)>0):Number(row?.[platKey[plat]]||0)>0;
   const rowsAll=monthlyAll?.months||null;
-  const monthRow=m=>(rowsAll||[]).find(r=>String(r.month).slice(0,7)===m);
+  // Vale para mês (YYYY-MM) e para ano (YYYY): há venda da plataforma em algum mês do período.
+  const periodHas=(plat,m)=>(rowsAll||[]).some(r=>String(r.month).startsWith(m)&&hasSales(r,plat));
   const platformOptions=PLATFORMS.map(([id,label])=>[id,label,
-    rowsAll&&month&&id!=='TODAS'&&!hasSales(monthRow(month),id)?'Sem vendas importadas em '+monthLabel(month+'-01')+'/'+month.slice(2,4):null]);
+    rowsAll&&month&&id!=='TODAS'&&!periodHas(id,month)?'Sem vendas importadas em '+(yearSel?month:monthLabel(month+'-01')+'/'+month.slice(2,4)):null]);
   const platformBlocked=Boolean(platformOptions.find(o=>o[0]===platform)?.[2]);
   useEffect(()=>{
     if(!platformBlocked||!rowsAll)return;
-    const row=monthRow(month);
-    const ok=['SHOPEE','ML_ANTIGO','ML_NOVO'].filter(p=>hasSales(row,p));
+    const ok=['SHOPEE','ML_ANTIGO','ML_NOVO'].filter(p=>periodHas(p,month));
     setPlatform(ok.length===1?ok[0]:'TODAS');
   },[platformBlocked,month,rowsAll]);
   const abcP=platform==='TODAS'?abcPlat:platform;
@@ -494,9 +495,10 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc',cohorts:'cohorts'};
   const bestAll=[...top].filter(hit).sort((x,y)=>Number(y.units)-Number(x.units));
   const availableMonths=(rowsAll||monthly?.months||[]).filter(r=>!rowsAll||hasSales(r,platform)).map(m=>String(m.month).slice(0,7));
-  const splitRows=all?(monthly?.months||[]):series?.daily;
+  const yearMonths=(monthly?.months||[]).filter(r=>!yearSel||String(r.month).startsWith(month));
+  const splitRows=(all||yearSel)?yearMonths:series?.daily;
   const filters=<>
-    <PeriodPicker days={days} month={month} periods={PERIODS} available={availableMonths} onDays={v=>{setMonth('');setDays(v);}} onMonth={setMonth}/>
+    <PeriodPicker days={days} month={month} periods={PERIODS} available={availableMonths} yearOption onDays={v=>{setMonth('');setDays(v);}} onMonth={setMonth}/>
     <InfoIcon text={SOURCES.period} label="Período"/>
     <Dropdown label="Plataforma" value={platform} options={platformOptions} onChange={setPlatform}/>
     {mode==='explorer'&&<label className="ndb-search" title="Busca nos anúncios que aparecem nas listas abaixo (nome, SKU ou código do anúncio).">
@@ -531,8 +533,8 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
-        {mode==='overview'&&<Panel title={all?'Histórico de vendas por mês':'Vendas por dia'} icon="chart" source={all?'history':'daily'} className="ndb-trend-panel" aside={month&&<button type="button" className="ndb-link" onClick={()=>{setMonth('');setDays(0);}}>Ver todos os meses</button>}>
-          {all?(monthly?<MonthsTrend months={monthly.months} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>)
+        {mode==='overview'&&<Panel title={all?'Histórico de vendas por mês':yearSel?'Vendas por mês em '+month:'Vendas por dia'} icon="chart" source={all||yearSel?'history':'daily'} className="ndb-trend-panel" aside={month&&<button type="button" className="ndb-link" onClick={()=>{setMonth('');setDays(0);}}>Ver todos os meses</button>}>
+          {all||yearSel?(monthly?<MonthsTrend months={yearMonths} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>)
             :(series?<SalesTrend daily={series.daily} platform={platform}/>:<p className="ndb-empty">{loading?'Carregando…':'Gráfico indisponível.'}</p>)}
         </Panel>}
         {mode==='overview'&&<div className="ndb-duo">
@@ -544,7 +546,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
           </Panel>
         </div>}
         {mode==='overview'&&<Panel title="Comparativo por plataforma" icon="pie" source="platform">
-          {splitRows?<PlatformTable daily={splitRows} platform={platform} all={all} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>}
+          {splitRows?<PlatformTable daily={splitRows} platform={platform} all={all||yearSel} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>}
         </Panel>}
         {mode==='overview'&&!month&&<Panel title="Mês a mês por plataforma" icon="chart" source="monthly">
           {monthly?<MonthMatrix months={monthly.months} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>}

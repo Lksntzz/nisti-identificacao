@@ -2,10 +2,10 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 
 const MON=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const FULL=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-const label=m=>{const s=String(m||'');return s.length>=7?FULL[Number(s.slice(5,7))-1].replace(/^./,c=>c.toUpperCase())+' de '+s.slice(0,4):'';};
+const label=m=>{const s=String(m||'');if(/^\d{4}$/.test(s))return 'Ano de '+s;return s.length>=7?FULL[Number(s.slice(5,7))-1].replace(/^./,c=>c.toUpperCase())+' de '+s.slice(0,4):'';};
 
 // Filtro de período: dias fixos, todo o histórico ou "Personalizado" (calendário com os meses que têm vendas; anos aparecem conforme os dados).
-export default function PeriodPicker({days,month,periods,available,onDays,onMonth,allowAll=true,allLabel='Sem filtro (todo o histórico)'}){
+export default function PeriodPicker({days,month,periods,available,onDays,onMonth,allowAll=true,yearOption=false,allLabel='Sem filtro (todo o histórico)'}){
   const [open,setOpen]=useState(false);
   const [cal,setCal]=useState(Boolean(month));
   const years=useMemo(()=>[...new Set((available||[]).map(m=>m.slice(0,4)))].sort(),[available]);
@@ -43,6 +43,7 @@ export default function PeriodPicker({days,month,periods,available,onDays,onMont
           {MON.map((n,k)=>{const key=shownYear+'-'+String(k+1).padStart(2,'0');const ok=(available||[]).includes(key);
             return <button key={key} type="button" disabled={!ok} className={month===key?'is-active':''} aria-pressed={month===key} title={ok?label(key):'Sem vendas importadas'} onClick={()=>pick(()=>onMonth(key))}>{n}</button>;})}
         </div>
+        {yearOption&&<button type="button" className={'ndb-pp-yearall'+(month===shownYear?' is-active':'')} aria-pressed={month===shownYear} disabled={!(available||[]).some(k=>k.startsWith(shownYear+'-'))} onClick={()=>pick(()=>onMonth(shownYear))}>Ano todo de {shownYear}</button>}
         <p>Meses sem vendas importadas ficam desativados.</p>
       </div>}
     </div>}
