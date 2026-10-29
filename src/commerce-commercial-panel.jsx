@@ -13,7 +13,7 @@ import './commerce-reactbits-lucide.css';
 // com os filtros de período e plataforma, mais o menu de importação de relatórios.
 export default function CommerceCommercialPanel({perfOpen=null,view='ads'}){
   const [refresh,setRefresh]=useState(0);
-  const [annualFilters,setAnnualFilters]=useState({platform:'SHOPEE',gran:'month',month:''});
+  const [annualFilters,setAnnualFilters]=useState({platform:'SHOPEE',gran:'month',month:'',days:0});
   const [importMenuOpen,setImportMenuOpen]=useState(false);
   const [selectedImportMode,setSelectedImportMode]=useState(null);
   const importMenuRef=useRef(null);
