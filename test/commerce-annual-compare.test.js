@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { growth, pctText, newKind } from '../src/commerce-annual-compare-helpers.js';
+import { growth, pctText, newKind, projectionRange, daysBehind } from '../src/commerce-annual-compare-helpers.js';
 
 test('growth nao inventa percentual sem base', () => {
   assert.equal(growth(10, 0), null);
@@ -217,4 +217,23 @@ test('newKind separa novo de verdade de produto que ja vendia em outro mes', () 
   assert.equal(newKind({ base: 0, cur: 10 }), 'new');
   assert.equal(newKind({ base: 5, cur: 10, prior: { y: 0 } }), null);
   assert.equal(newKind({ base: 0, cur: 0, prior: { y: 0 } }), null);
+});
+
+test('projectionRange devolve faixa pelos tres metodos e reproduz o metodo antigo', () => {
+  const k = { cur: 51792, base: 55767, base_full: 72503, cur28: 4580, base28: 8563 };
+  const r = projectionRange(k, '2026-10-26');
+  assert.equal(r.recent, 60743);
+  assert.equal(r.year, 67335);
+  assert.equal(r.pace, 62588);
+  assert.equal(r.low, 60743);
+  assert.equal(r.high, 67335);
+  assert.equal(projectionRange({ cur: 10, base: 0, base_full: 0 }, '2026-10-26'), null);
+  assert.equal(projectionRange(k, ''), null);
+});
+
+test('daysBehind conta dias de atraso do ultimo dado', () => {
+  assert.equal(daysBehind('2026-10-26', '2026-10-29'), 3);
+  assert.equal(daysBehind('2026-10-29', '2026-10-29'), 0);
+  assert.equal(daysBehind('2026-10-30', '2026-10-29'), 0);
+  assert.equal(daysBehind('', '2026-10-29'), null);
 });
