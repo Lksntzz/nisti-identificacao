@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {maskMoney} from './commerce-privacy.js';
-import {growth,pctText} from './commerce-annual-compare-helpers.js';
+import {growth,pctText,indexOf,weekHighlights} from './commerce-annual-compare-helpers.js';
 import './commerce-annual-compare.css';
 
 const num=v=>Number(v||0).toLocaleString('pt-BR');
@@ -38,6 +38,28 @@ export function useAnnualCompare({platform,gran,refresh=0}){
   return state;
 }
 
+export function useAnnualMonth({platform,month,refresh=0}){
+  const [state,setState]=useState({loading:true,error:'',data:null});
+  useEffect(()=>{
+    const controller=new AbortController();
+    setState(s=>({...s,loading:true,error:''}));
+    fetchCommercialManager('/api/admin/commerce/sales-compare/annual-month?platform='+platform+(month?'&month='+month:''),{signal:controller.signal})
+      .then(data=>setState({loading:false,error:'',data}))
+      .catch(e=>{if(!controller.signal.aborted)setState({loading:false,error:e?.message||'Não foi possível carregar os dados do mês.',data:null});});
+    return()=>controller.abort();
+  },[platform,month,refresh]);
+  return state;
+}
+
+const MONTH_FULL=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const WEEK_LABEL={1:'Dias 1–7',2:'Dias 8–14',3:'Dias 15–21',4:'Dias 22–28',5:'Dia 29 em diante'};
+
+function Index({cur,base}){
+  const i=indexOf(cur,base);
+  if(i==null)return <span className="ndb-ac-mut">—</span>;
+  return <span className={'ndb-ac-idx '+(i>=100?'up':'dn')} title="100 = igual ao ano passado">{i}</span>;
+}
+
 function missingBase(data,platform){
   if(!data)return [];
   const list=PLATFORM_LIST[platform]||[];
@@ -55,6 +77,11 @@ export function AnnualFilters({filters,setFilters,data}){
           <button type="button" key={k} className={filters.gran===k?'is-on':''} aria-pressed={filters.gran===k} onClick={()=>setFilters({...filters,gran:k})}>{l}</button>)}
       </div>
       <span className="ndb-ac-chip">Ano <b>{data?data.year:'—'}</b> contra <b>{data?data.base_year:'—'}</b></span>
+      <label className="ndb-ac-chip ndb-ac-select"><span>Mês</span>
+        <select value={filters.month||''} onChange={e=>setFilters({...filters,month:e.target.value})}>
+          <option value="">Todos</option>
+          {MONTH_FULL.map((l,i)=><option key={l} value={String(i+1)}>{l}</option>)}
+        </select></label>
       <label className="ndb-ac-chip ndb-ac-select"><span>Plataforma</span>
         <select value={filters.platform} onChange={e=>setFilters({...filters,platform:e.target.value})}>
           {PLATFORMS.map(([k,l])=><option key={k} value={k}>{l}</option>)}
@@ -67,21 +94,21 @@ export function AnnualFilters({filters,setFilters,data}){
   </>;
 }
 
-function Kpi({label,value,delta,sub,info}){
-  return <div className="ndb-ac-kpi"><small>{label}</small><strong>{value}</strong>
-    {delta}{sub&&<span className="ndb-ac-kpi-sub">{sub}</span>}{info&&<span className="ndb-ac-kpi-sub">{info}</span>}</div>;
+function Kpi({label,value,delta,sub,info,onOpen}){
+  return <button type="button" className="ndb-ac-kpi is-click" onClick={onOpen} aria-haspopup="dialog"><small>{label}</small><strong>{value}</strong>
+    {delta}{sub&&<span className="ndb-ac-kpi-sub">{sub}</span>}{info&&<span className="ndb-ac-kpi-sub">{info}</span>}<span className="ndb-ac-kpi-more">Ver detalhes ›</span></button>;
 }
 
-export function AnnualKpis({data}){
+export function AnnualKpis({data,onOpen=()=>{}}){
   const k=data?.kpi;if(!k)return null;
   const priceCur=Number(k.cur)>0?Number(k.cur_rev)/Number(k.cur):0,priceBase=Number(k.base)>0?Number(k.base_rev)/Number(k.base):0;
   return <div className="ndb-ac-kpis">
-    <Kpi label="Unidades no ano" value={num(k.cur)} delta={<Delta cur={k.cur} base={k.base}/>} sub={data.base_year+': '+num(k.base)}/>
-    <Kpi label="Últimos 28 dias" value={num(k.cur28)} delta={<Delta cur={k.cur28} base={k.base28}/>} sub={'contra os mesmos 28 dias de '+data.base_year+' ('+num(k.base28)+')'}/>
-    <Kpi label={'Projeção de '+data.year} value={k.projection==null?'—':num(k.projection)}
+    <Kpi onOpen={()=>onOpen('units')} label="Unidades no ano" value={num(k.cur)} delta={<Delta cur={k.cur} base={k.base}/>} sub={data.base_year+': '+num(k.base)}/>
+    <Kpi onOpen={()=>onOpen('l28')} label="Últimos 28 dias" value={num(k.cur28)} delta={<Delta cur={k.cur28} base={k.base28}/>} sub={'contra os mesmos 28 dias de '+data.base_year+' ('+num(k.base28)+')'}/>
+    <Kpi onOpen={()=>onOpen('proj')} label={'Projeção de '+data.year} value={k.projection==null?'—':num(k.projection)}
       delta={k.projection==null?null:<Delta cur={k.projection} base={k.base_full}/>}
       sub={'estimativa pelo ritmo dos últimos 28 dias · '+data.base_year+' fechou em '+num(k.base_full)}/>
-    <Kpi label="Preço médio" value={priceCur?money(priceCur):'—'} delta={priceBase?<Delta cur={priceCur} base={priceBase}/>:null} sub={priceBase?data.base_year+': '+money(priceBase):null}/>
+    <Kpi onOpen={()=>onOpen('price')} label="Preço médio" value={priceCur?money(priceCur):'—'} delta={priceBase?<Delta cur={priceCur} base={priceBase}/>:null} sub={priceBase?data.base_year+': '+money(priceBase):null}/>
   </div>;
 }
 
@@ -186,8 +213,93 @@ export function CategoriesTable({data}){
   </section>;
 }
 
+
+export function KpiModal({kind,data,monthData,filters,onClose}){
+  const needGran=kind==='l28'?'week':'month';
+  const {loading,data:g}=useAnnualCompare({platform:filters.platform,gran:needGran});
+  useEffect(()=>{
+    const esc=e=>{if(e.key==='Escape')onClose();};
+    document.addEventListener('keydown',esc);return()=>document.removeEventListener('keydown',esc);
+  },[onClose]);
+  const k=data.kpi,y=data.year,b=data.base_year;
+  const titles={units:'Unidades no ano, mês a mês',l28:'Últimos 28 dias, semana a semana',proj:'Como a projeção de '+y+' foi calculada',price:'Preço médio por mês'};
+  let body=null;
+  if(kind==='units'){
+    const rows=weekHighlights(monthData?.months||[]);
+    body=<table className="ndb-ac-table"><thead><tr><th>Mês</th><th className="num">{b}</th><th className="num">{y}</th><th className="num">Índice</th><th className="num">Variação</th></tr></thead>
+      <tbody>{rows.map(r=><tr key={r.month}><td><b>{MONTH_FULL[r.month-1]}</b></td><td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b></td><td className="num"><Index cur={r.cur} base={r.base}/></td><td className="num"><Delta cur={r.cur} base={r.base} small/></td></tr>)}
+        <tr className="ndb-ac-total"><td><b>Total</b></td><td className="num ndb-ac-mut">{num(k.base)}</td><td className="num"><b>{num(k.cur)}</b></td><td className="num"><Index cur={k.cur} base={k.base}/></td><td className="num"><Delta cur={k.cur} base={k.base} small/></td></tr></tbody></table>;
+  }else if(kind==='l28'){
+    const ws=(g?.periods||[]).slice(0,4);
+    body=loading&&!g?<p className="ndb-ac-mut">Carregando…</p>:<><table className="ndb-ac-table"><thead><tr><th>Semana</th><th className="num">{b}</th><th className="num">{y}</th><th className="num">Índice</th><th className="num">Variação</th></tr></thead>
+      <tbody>{ws.map(w=><tr key={w.key}><td><b>{w.label}</b></td><td className="num ndb-ac-mut">{num(w.base)}</td><td className="num"><b>{num(w.cur)}</b></td><td className="num"><Index cur={w.cur} base={w.base}/></td><td className="num"><Delta cur={w.cur} base={w.base} small/></td></tr>)}
+        <tr className="ndb-ac-total"><td><b>28 dias</b></td><td className="num ndb-ac-mut">{num(k.base28)}</td><td className="num"><b>{num(k.cur28)}</b></td><td className="num"><Index cur={k.cur28} base={k.base28}/></td><td className="num"><Delta cur={k.cur28} base={k.base28} small/></td></tr></tbody></table>
+      <p className="ndb-ac-note">Cada semana de {y} é comparada com a mesma semana 364 dias antes, para cair no mesmo dia da semana.</p></>;
+  }else if(kind==='proj'){
+    const ratio=Number(k.base28)>0?Number(k.cur28)/Number(k.base28):null;
+    const rest=Number(k.base_full)-Number(k.base);
+    body=<><div className="ndb-ac-kv">
+      <div><span>Vendido em {y} até agora</span><b>{num(k.cur)}</b></div>
+      <div><span>{b}: o que faltava vender depois desta data</span><b>{num(rest)}</b></div>
+      <div><span>Ritmo atual (últimos 28 dias {y} ÷ {b})</span><b>{ratio==null?'—':ratio.toFixed(2).replace('.',',')+' ('+Math.round(ratio*100)+'%)'}</b></div>
+      <div><span>Projeção = vendido + faltante × ritmo</span><b>{k.projection==null?'—':num(k.projection)}</b></div></div>
+      <p className="ndb-warn ndb-ac-warn">Atenção: a projeção supõe que o resto do ano repete o ritmo dos últimos 28 dias contra {b}. Se esse ritmo foi um período ruim isolado, a projeção fica pessimista; se {b} teve campanha forte no fim do ano, o erro aumenta. Use como alerta, não como meta.</p></>;
+  }else{
+    const ps=g?.periods||[];
+    body=loading&&!g?<p className="ndb-ac-mut">Carregando…</p>:<table className="ndb-ac-table"><thead><tr><th>Mês</th><th className="num">{b}</th><th className="num">{y}</th><th className="num">Variação</th></tr></thead>
+      <tbody>{ps.map(p=>{const pc=Number(p.cur)>0?Number(p.cur_rev)/Number(p.cur):0,pb=Number(p.base)>0?Number(p.base_rev)/Number(p.base):0;return <tr key={p.key}><td><b>{p.label}</b></td><td className="num ndb-ac-mut">{pb?money(pb):'—'}</td><td className="num"><b>{pc?money(pc):'—'}</b></td><td className="num">{pc&&pb?<Delta cur={pc} base={pb} small/>:'—'}</td></tr>;})}</tbody></table>;
+  }
+  return <div className="ndb-ac-overlay" onClick={onClose}>
+    <div className="ndb-ac-modal" role="dialog" aria-modal="true" aria-label={titles[kind]} onClick={e=>e.stopPropagation()}>
+      <header><h3>{titles[kind]}</h3><button type="button" className="ndb-ac-x" aria-label="Fechar" onClick={onClose} autoFocus>×</button></header>
+      <div className="ndb-ac-scroll">{body}</div>
+    </div></div>;
+}
+
+export function WeeksCard({monthData,year,base,selected}){
+  const all=weekHighlights(monthData?.months||[]);
+  const rows=selected?all.filter(r=>r.month===Number(selected)):all;
+  const worstM=all.filter(r=>r.index!=null).reduce((a,r)=>(!a||r.index<a.index?r:a),null);
+  const bestM=all.filter(r=>r.index!=null).reduce((a,r)=>(!a||r.index>a.index?r:a),null);
+  const fell=all.filter(r=>r.index!=null&&r.index<100).length;
+  return <section className="ndb-ac-card ndb-ac-weeks" aria-label="Semanas de cada mês">
+    <h3>Semanas de cada mês</h3>
+    <p className="ndb-ac-sub">Semana 1 = dias 1–7, semana 2 = 8–14, e assim por diante, sempre contra os mesmos dias de {base}. Índice 100 = igual a {base}; abaixo de 100 = vendeu menos.</p>
+    <div className="ndb-ac-strip">
+      <span>Mês mais forte <b>{bestM?MONTH_FULL[bestM.month-1]+' · '+bestM.index:'—'}</b></span>
+      <span>Mês mais fraco <b>{worstM?MONTH_FULL[worstM.month-1]+' · '+worstM.index:'—'}</b></span>
+      <span>Meses abaixo de {base} <b>{fell} de {all.length}</b></span>
+    </div>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>Mês</th><th>Semana</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Índice</th><th>Destaque</th></tr></thead>
+      <tbody>{rows.map(r=><React.Fragment key={r.month}>
+        {r.weeks.map((w,i)=><tr key={w.n} className={i===0?'ndb-ac-first':''}>
+          <td>{i===0&&<b>{MONTH_FULL[r.month-1]}</b>}</td>
+          <td>{WEEK_LABEL[w.n]}{w.partial&&<em className="ndb-ac-part"> · {w.days} {w.days===1?'dia':'dias'}</em>}</td>
+          <td className="num ndb-ac-mut">{num(w.base)}</td><td className="num"><b>{num(w.cur)}</b></td><td className="num"><Index cur={w.cur} base={w.base}/></td>
+          <td>{r.best&&r.best.n===w.n&&<span className="ndb-ac-tag up">mais vendeu</span>}{r.top&&r.top.n===w.n&&r.top.index>=100&&<span className="ndb-ac-tag up">mais cresceu</span>}{r.worst&&r.worst.n===w.n&&r.worst.index<100&&<span className="ndb-ac-tag dn">mais caiu</span>}</td></tr>)}
+        <tr className="ndb-ac-total"><td/><td><b>Mês</b></td><td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b></td><td className="num"><Index cur={r.cur} base={r.base}/></td><td/></tr>
+      </React.Fragment>)}</tbody></table></div>
+  </section>;
+}
+
+export function Champions({month,monthData,year,base}){
+  const top=monthData?.top||[];
+  return <section className="ndb-ac-card ndb-ac-det" aria-label="Produtos campeões do mês">
+    <h3>Campeões de {MONTH_FULL[month-1]}</h3>
+    <p className="ndb-ac-sub">Os 15 produtos (SKU) que mais venderam em {year}, contra o mesmo período de {base}. Produto sem venda em {base} aparece como “novo”: pode ser lançamento ou troca de código do mesmo produto.</p>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Variação</th></tr></thead>
+      <tbody>{top.map((r,i)=><tr key={r.sku}><td className="ndb-ac-mut">{i+1}</td>
+        <td><span className="ndb-ac-pn" title={r.name||r.sku}>{r.name||'Sem cadastro'}</span><small className="ndb-ac-mut">{r.sku}{r.category?' · '+r.category:''}</small></td>
+        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b></td><td className="num"><Delta cur={r.cur} base={r.base} small/></td></tr>)}
+        {top.length===0&&<tr><td colSpan={5} className="ndb-ac-mut">Sem vendas nesse mês.</td></tr>}</tbody></table></div>
+    <div className="ndb-ac-dgrid ndb-ac-dgrid2"><SkuList title="Mais cresceram" items={monthData?.up||[]} empty="Nenhum produto cresceu."/><SkuList title="Mais caíram" items={monthData?.down||[]} empty="Nenhum produto caiu."/></div>
+  </section>;
+}
+
 export default function CommerceAnnualCompare({view='comparison',filters,setFilters,actions=null,refresh=0}){
   const {loading,error,data}=useAnnualCompare({platform:filters.platform,gran:filters.gran,refresh});
+  const {data:monthData}=useAnnualMonth({platform:filters.platform,month:filters.month||'',refresh});
+  const [modal,setModal]=useState(null);
   const title=view==='categories'?'Categorias':'Comparação anual';
   const lead=view==='categories'?'Veja quais categorias e subcategorias puxam ou derrubam o resultado contra o ano anterior.':'Veja se este ano estamos crescendo ou caindo contra o ano anterior, por mês, semana ou dia.';
   return <div className="ndb-ac-root">
@@ -198,8 +310,10 @@ export default function CommerceAnnualCompare({view='comparison',filters,setFilt
     {loading&&!data&&<p className="ndb-ac-mut ndb-ac-loading">Carregando comparativo…</p>}
     {data&&<div className={loading?'ndb-ac-body is-loading':'ndb-ac-body'}>
       {view==='categories'?<CategoriesTable data={data}/>:<>
-        <AnnualKpis data={data}/>
-        <div className="ndb-ac-g2"><PeriodSummary data={data}/><PeriodDetails data={data}/></div></>}
+        <AnnualKpis data={data} onOpen={setModal}/>
+        <div className="ndb-ac-g2"><PeriodSummary data={data}/>{filters.month&&monthData?<Champions month={Number(filters.month)} monthData={monthData} year={data.year} base={data.base_year}/>:<PeriodDetails data={data}/>}</div>
+        {monthData&&<WeeksCard monthData={monthData} year={data.year} base={data.base_year} selected={filters.month}/>}</>}
     </div>}
+    {modal&&data&&<KpiModal kind={modal} data={data} monthData={monthData} filters={filters} onClose={()=>setModal(null)}/>}
   </div>;
 }

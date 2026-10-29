@@ -14,7 +14,7 @@ import './commerce-reactbits-lucide.css';
 export default function CommerceCommercialPanel({perfOpen=null}){
   const [refresh,setRefresh]=useState(0);
   const [view,setView]=useState('ads');
-  const [annualFilters,setAnnualFilters]=useState({platform:'SHOPEE',gran:'month'});
+  const [annualFilters,setAnnualFilters]=useState({platform:'SHOPEE',gran:'month',month:''});
   useEffect(()=>{if(perfOpen)setView('ads');},[perfOpen]);
   const [importMenuOpen,setImportMenuOpen]=useState(false);
   const [selectedImportMode,setSelectedImportMode]=useState(null);
