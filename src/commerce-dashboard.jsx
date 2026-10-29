@@ -380,7 +380,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [monthlyAll,setMonthlyAll]=useState(null);
   useEffect(()=>{
     const controller=new AbortController();
-    fetchCommercialManager('/api/admin/commerce/listings/manager/monthly?platform=TODAS',{signal:controller.signal})
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/monthly?platform=TODAS',{signal:controller.signal})
       .then(setMonthlyAll).catch(()=>{if(!controller.signal.aborted)setMonthlyAll(null);});
     return()=>controller.abort();
   },[]);
