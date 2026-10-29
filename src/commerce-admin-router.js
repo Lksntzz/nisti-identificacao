@@ -38,7 +38,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth,
+  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -514,7 +514,25 @@ export async function handleCommerceAdminRequest(request, env) {
       const month=monthRaw?Number(monthRaw):null;
       if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||(monthRaw&&!(Number.isInteger(month)&&month>=1&&month<=12)))
         return json({error:'Filtro do comparativo mensal inválido.'},400);
-      return json(await commerceAnnualMonth(env,{platform,month}));
+      const yearRaw=query(url,'year'),baseRaw=query(url,'base');
+      const year=yearRaw?Number(yearRaw):null,base=baseRaw?Number(baseRaw):null;
+      if((yearRaw&&(!Number.isInteger(year)||year<2020||year>2100))||
+         (baseRaw&&(!Number.isInteger(base)||base<2020||base>2100))||
+         (year!=null&&base!=null&&base!==year-1))
+        return json({error:'Ano comparativo inválido.'},400);
+      return json(await commerceAnnualMonth(env,{platform,month,year,base}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-days'){
+      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
+      const month=Number(query(url,'month')),week=Number(query(url,'week'));
+      const year=Number(query(url,'year')),base=Number(query(url,'base'));
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||
+         !Number.isInteger(month)||month<1||month>12||
+         !Number.isInteger(week)||week<1||week>5||
+         !Number.isInteger(year)||year<2020||year>2100||
+         !Number.isInteger(base)||base!==year-1)
+        return json({error:'Período de investigação diária inválido.'},400);
+      return json(await commerceAnnualDays(env,{platform,month,week,year,base}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual'){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
