@@ -83,3 +83,37 @@
 .ndb-ac-first td{border-top:2px solid #dfe6f2}
 .ndb-ac-pn{display:block;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .ndb-ac-dgrid2{grid-template-columns:1fr 1fr;margin-top:12px}
+
+/* ===== Modelo compacto ===== */
+.ndb-ac-root{gap:10px}
+.ndb-ac-kpis{gap:10px}
+.ndb-ac-kpi{display:grid;grid-template-columns:1fr auto;grid-template-areas:"l d" "v d" "s s" "m m";align-items:center;gap:1px 8px;padding:9px 12px}
+.ndb-ac-kpi>small:first-child{grid-area:l}
+.ndb-ac-kpi>strong{grid-area:v;font-size:22px;line-height:1.1}
+.ndb-ac-kpi>.ndb-ac-pill,.ndb-ac-kpi>.ndb-ac-new,.ndb-ac-kpi>.ndb-ac-mut{grid-area:d;justify-self:end}
+.ndb-ac-kpi>.ndb-ac-kpi-sub{grid-area:s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ndb-ac-kpi>.ndb-ac-kpi-more{grid-area:m;font-size:11px}
+.ndb-ac-card{padding:11px 14px}
+.ndb-ac-sub{margin:1px 0 8px}
+.ndb-ac-big{font-size:24px;line-height:1.1}
+.ndb-ac-row{margin-bottom:4px}
+.ndb-ac-bars{height:84px}
+.ndb-ac-kv{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+.ndb-ac-kv>div{padding:5px 0}
+.ndb-ac-table th{padding:6px 10px}
+.ndb-ac-table td{padding:5px 10px}
+.ndb-ac-det .ndb-ac-scroll{max-height:none}
+.ndb-ac-wh{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ndb-ac-wh .ndb-ac-strip{margin:0}
+.ndb-ac-wtable td.ndb-ac-wc{text-align:center;position:relative;padding:3px 6px;min-width:64px}
+.ndb-ac-wc b{display:block;font-size:14px;line-height:1.15}
+.ndb-ac-wc small{display:block;font-size:10.5px;color:#7a8aa3;line-height:1.1}
+.ndb-ac-wc.up{background:#eaf7ef}.ndb-ac-wc.up b{color:#12753f}
+.ndb-ac-wc.dn{background:#fdf0f0}.ndb-ac-wc.dn b{color:#b42318}
+.ndb-ac-wc.is-part{background:#f2f4f8}.ndb-ac-wc.is-part b{color:#7a8aa3}
+.ndb-ac-wc.is-empty{color:#c3ccdb}
+.ndb-ac-wc.ndb-ac-wm{border-left:2px solid #dfe6f2}
+.ndb-ac-fl{position:absolute;top:1px;right:3px;font-style:normal;font-size:10px}
+.ndb-ac-fl.best{color:#d49a00}.ndb-ac-fl.worst{color:#b42318}
+.ndb-ac-wc.has-flag{box-shadow:inset 0 0 0 1.5px rgba(29,95,209,.35)}
+@media (max-width:1000px){.ndb-ac-kv{grid-template-columns:1fr}}
