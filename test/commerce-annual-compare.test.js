@@ -196,7 +196,7 @@ test('categorias por coleção: migração, rota e tela usam coleção e variaç
   assert.match(sql,/commerce_collection_v1/); assert.match(sql,/commerce_sku_collection_v1/);
   assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/categories-col/);
   const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
-  assert.match(ui,/Subcategorias de \{picked\.name\}/);
+  assert.match(ui,/Coleções de \{picked\.name\}/);
   assert.match(ui,/Produtos e itens do período/);
   assert.match(ui,/Sazonalidade da /);
   assert.doesNotMatch(ui,/<h2>Categorias<\/h2>/);
