@@ -86,7 +86,6 @@ function MonthlyBars({points,onSelect,selected,year,baseYear}){
 function Seasonality({points,onSelect,selected,year,baseYear}){
   const W=660,H=186,P=28,plotH=135;
   const max=Math.max(1,...points.flatMap(p=>[num(p.cur),num(p.base)]));
-  const coord=(v,i)=>(P+i*(W-P*2)/11)+','+(H-27-num(v)/max*plotH);
   const path=field=>points.map((p,i)=>p[field]==null?null:{x:P+i*(W-P*2)/11,y:H-27-num(p[field])/max*plotH,month:p.month}).reduce((segments,point)=>{if(!point){segments.push([]);}else{if(!segments.length||!segments[segments.length-1])segments.push([]);segments[segments.length-1].push(point);}return segments;},[[]]).filter(s=>s.length).map(s=>s.map((p,i)=>(i?'L':'M')+p.x+' '+p.y).join(' '));
   return <div className="ndb-cp-season-wrap"><svg viewBox={'0 0 '+W+' '+H} role="img" aria-label={'Sazonalidade mensal: '+baseYear+' em cinza e '+year+' em azul'}>
     {[0,0.25,0.5,0.75,1].map(f=><g key={f}><line x1={P} y1={H-27-f*plotH} x2={W-P} y2={H-27-f*plotH} stroke="#e5eaf2" strokeDasharray="3 3"/><text x={P-5} y={H-23-f*plotH} fontSize="9" textAnchor="end" fill="#718098">{fmt(Math.round(max*f))}</text></g>)}
@@ -117,7 +116,6 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const [search,setSearch]=useState('');
   const [sort,setSort]=useState('units');
   const [show,setShow]=useState('all');
-  const [activeTab,setActiveTab]=useState('all');
   const categories=rows(data?.categories);
   const picked=categories.find(c=>c.name===selectedCat)||categories[0]||null;
   const asOf=String(data?.as_of||cover.data?.as_of||'');
@@ -200,7 +198,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
           <DetailTable heads={['Categoria',String(baseYear),String(year),'Diferença','Variação','Participação']}>
             {filtered.map((c,i)=><tr key={c.name} className={picked?.name===c.name?'is-selected':''} onClick={()=>chooseCat(c.name)}>
               <td><button type="button" className="ndb-cp-row-name" onClick={e=>{e.stopPropagation();chooseCat(c.name)}}><Thumb src={imageOf(c.name)} alt={'Produto de '+c.name}/><span><b>{c.name}</b><small>#{i+1}</small></span></button></td>
-              <td>{fmt(c.base)}</td><td><b>{fmt(c.cur)}</b></td>
+              <td>{fmt(c.base)}</td><td><b>{fmt(c.cur)}</b><PairBars base={c.base} cur={c.cur} max={maxCats}/></td>
               <td className={color(num(c.cur)-num(c.base))}>{delta(num(c.cur)-num(c.base))}</td>
               <td><PeriodTag cur={c.cur} base={c.base}/></td>
               <td>{num(total.cur)>0?Math.round(num(c.cur)/num(total.cur)*1000)/10+'%':'—'}<span className="ndb-cp-share"><i style={{width:(num(total.cur)>0?num(c.cur)/num(total.cur)*100:0)+'%'}}/></span></td>
