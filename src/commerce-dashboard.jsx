@@ -35,7 +35,7 @@ const SOURCES={
   best:'Fonte: '+SALES_SRC+', por anúncio, no período escolhido. Visitas e conversão vêm dos relatórios de desempenho importados (Mercado Livre e Shopee) e valem para o período de cada relatório. Crescimento = ativos com 5 ou mais unidades antes, 10 ou mais agora e alta de 15% ou mais. ROAS vem do relatório Shopee Ads importado. Mais vendido não significa mais lucrativo: não há custo do produto cadastrado.',
   drops:'Fonte: '+SALES_SRC+'. Compara o período com o período anterior de mesmo tamanho, por anúncio ATIVO: entra quem tinha 5 ou mais unidades antes e caiu 15% ou mais. "Preço médio" compara o preço médio realizado. "Histórico de vendas" mostra as 4 últimas semanas de 7 dias; o selo "Mais vendido" abre a comparação mês a mês, e clicar em um mês mostra os dias dele.',
   alerts:'Fonte: '+SALES_SRC+' e o cadastro de anúncios. Queda = anúncio ativo com 5 ou mais unidades antes e queda de 15% ou mais. Pararam = ativos que já venderam 3 ou mais unidades e não têm nenhuma venda no período. Sem venda = ativos sem nenhuma unidade no período; "nunca venderam" = ativos sem venda em todo o histórico importado. Inativos com venda = anúncios inativos ou removidos que ainda aparecem nas vendas. ROAS abaixo de 1 vem do relatório Shopee Ads importado.',
-  abc:'Fonte: '+SALES_SRC+'. Usa todo o histórico (não muda com o filtro de período) e soma o faturamento por SKU em cada plataforma (Shopee, ML Antigo e ML Novo têm cada uma a sua curva). Ordena do maior para o menor: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
+  abc:'Fonte: '+SALES_SRC+'. Usa o período escolhido (ano, mês ou últimos dias) e soma o faturamento por SKU (produto); SKUs de anos diferentes contam como um só. Cada plataforma tem a sua curva e "Global" soma Shopee, ML Antigo e ML Novo. No Mercado Livre a venda só existe por anúncio, então vale o SKU do anúncio. Ordena do maior para o menor: A = produtos que somam até 80% do faturamento, B = dos 80% aos 95%, C = o restante. Anúncios sem SKU vinculado entram sozinhos. Faturamento = valor dos produtos, sem frete.',
   growing:'Fonte: '+SALES_SRC+'. Anúncios ativos que mais cresceram contra o período anterior: 5 ou mais unidades antes, 10 ou mais agora e alta de 15% ou mais.',
   lowconv:'Fonte: relatórios de desempenho importados (visitas e conversão por anúncio) e vendas do período. Entram anúncios com 300 ou mais visitas e conversão abaixo de 1,5%. As visitas valem para o período de cada relatório, não para o filtro.',
   cohorts:'Data de criação: planilha "Análise de Anúncios Nisti Print" (hoje 99 produtos, 32 da Shopee e 67 do Mercado Livre, ligados por SKU; só vale até a data da última atualização da planilha). Vendas: '+SALES_SRC+', contadas do dia da criação até o último dia fechado. Melhor mês = mês com mais unidades (mês incompleto aparece como parcial). Variações: cada SKU do produto, com média por dia, semana e mês desde a criação. Links: código do anúncio no cadastro do sistema. Não muda com o filtro de período.',
@@ -346,7 +346,8 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [cls,setCls]=useState(null);
-  const [abcPlat,setAbcPlat]=useState('SHOPEE');
+  const [abcPlat,setAbcPlat]=useState('TODAS');
+  const [abcData,setAbcData]=useState(null);
   const [curve,setCurve]=useState(false);
   const [tab,setTabRaw]=useState(initialTab==='never'?'nosales':initialTab||'best');
   const [focus,setFocus]=useState(Boolean(initialTab));
@@ -456,14 +457,26 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const bestCell=(rk,lid)=><BestMonthCell data={salesMonths[lid]} open={Boolean(openMonths[rk])} onToggle={()=>setOpenMonths(o=>({...o,[rk]:!o[rk]}))}/>;
   const salesRows=(rk,lid,sb,anchored,span)=><>{openDays[rk]&&sb&&<DailySalesRow anchored={anchored} data={sb} colSpan={span}/>}{openMonths[rk]&&salesMonths[lid]&&<MonthsPanelRow listingId={lid} data={salesMonths[lid]} colSpan={span}/>}</>;
   const totals=data?.totals||{};
-  const classes=data?.abc?.classes_by_platform?.[abcP]||[];
+  const classes=abcData?.classes||[];
   const qn=normSearch(query);
   const hit=r=>!qn||[r.title,r.sku,r.ean,r.external_id,r.product_key].some(v=>normSearch(v).includes(qn));
-  const allItems=(data?.abc?.items||[]).filter(i=>i.platform===abcP).filter(hit);
+  const allItems=(abcData?.items||[]).filter(hit);
+  const abcLabel=abcP==='TODAS'?'Global':(PLATFORM_LABEL[abcP]||abcP);
   const hasData=data&&data.last_day;
   const per=hasData?(all?{curFrom:data.first_day||data.current_start,curTo:data.last_day,prevFrom:null,prevTo:null}:month?{curFrom:data.current_start,curTo:addDays(data.current_start,span-1),prevFrom:data.previous_start,prevTo:addDays(data.previous_start,span-1)}:{curFrom:addDays(data.last_day,-days+1),curTo:data.last_day,prevFrom:addDays(data.last_day,-2*days+1),prevTo:addDays(data.last_day,-days)}):null;
   const rng=(a,b)=>fmtDay(a)+' a '+fmtDay(b);
   const curTxt=per?(all?'todo o histórico ('+rng(per.curFrom,per.curTo)+')':rng(per.curFrom,per.curTo)):'';
+  // Curva ABC: por SKU, no período escolhido (ano, mês ou janela), por plataforma ou global.
+  const abcFrom=!data?.last_day?null:yearSel?month+'-01-01':per?.curFrom||null;
+  const abcTo=!data?.last_day?null:yearSel?(month+'-12-31'<data.last_day?month+'-12-31':data.last_day):per?.curTo||null;
+  useEffect(()=>{
+    if(!abcFrom||!abcTo)return undefined;
+    const controller=new AbortController();
+    setAbcData(null);
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/abc?platform='+abcP+'&start='+abcFrom+'&end='+abcTo,{signal:controller.signal})
+      .then(setAbcData).catch(()=>{if(!controller.signal.aborted)setAbcData(null);});
+    return()=>controller.abort();
+  },[abcP,abcFrom,abcTo]);
   const prevTxt=per&&!all?rng(per.prevFrom,per.prevTo):'';
   const ov=overview||{};
   const lst=ov.listings||{};
@@ -602,13 +615,13 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
           <p className="ndb-note">{num(ov.no_sales_total)} sem venda no período{ov.no_sales_never!=null?', sendo '+num(ov.no_sales_never)+' que nunca venderam nos dados importados':''}. Lista completa do período escolhido: primeiro os que já venderam, depois os que nunca venderam. Confira estoque, preço e se está pausado. Em quem já vendeu, as semanas e os dias são contados até a última venda (até 200 anúncios).</p></>}
           {tab==='cohorts'&&<CohortsTab platform={platform} query={query} linkFor={listingUrl}/>}
           {tab==='abc'&&<>
-            <PeriodBar cur="todo o histórico (não muda com o período)"/>
+            <PeriodBar cur={curTxt}/>
             <div className="ndb-abc-bar-row">
               <div className="ndb-seg" role="group" aria-label="Classe">{[[null,'Todas'],['A','A'],['B','B'],['C','C']].map(([v,l])=><button key={l} type="button" className={v===cls?'is-active':''} aria-pressed={v===cls} onClick={()=>{setCls(v);setFocus(true);}}>{l}</button>)}</div>
               <button type="button" className="ndb-link" onClick={()=>setCurve(v=>!v)}>{curve?'Ver lista':'Ver curva'}</button>
             </div>
             {curve?<ParetoChart items={allItems}/>
-              :<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto (SKU) · {PLATFORM_LABEL[abcP]||abcP}{cls?' · classe '+cls:''}</th><th>Anúncios</th><th className="num">Unid.</th><th className="num">Faturamento</th><th className="num">% acum.</th></tr></thead><tbody>
+              :<div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto (SKU) · {abcLabel}{cls?' · classe '+cls:''}</th><th>Anúncios</th><th className="num">Unid.</th><th className="num">Faturamento</th><th className="num">% acum.</th></tr></thead><tbody>
                 {(cls?classRows:allItems).map(i=><tr key={i.platform+'|'+i.key}><td title={i.title||''}><strong>{i.key}</strong><small>{i.title||'—'}</small></td><td><ExtList links={i.links}/></td><td className="num">{num(i.units)}</td><td className="num">{money(i.revenue)}</td><td className="num">{String(i.cum_pct).replace('.',',')}%</td></tr>)}
                 {allItems.length===0&&!loading&&<tr><td colSpan={5} className="ndb-empty">Sem vendas no período.</td></tr>}
               </tbody></table></div>}
@@ -623,8 +636,8 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
         {mode==='overview'&&<Panel title="Resumo do período" icon="list" source="summary">
           <SummaryList daily={series?.daily} totals={hasData?totals:null} months={monthly?.months} classes={classes} all={all}/>
         </Panel>}
-        {<Panel title={'ABC · '+(PLATFORM_LABEL[abcP]||abcP)} icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>openAbc(null,true)}>Ver curva</button>}>
-          {platform==='TODAS'&&<div className="ndb-seg ndb-abc-plat" role="group" aria-label="Plataforma da curva ABC">{['SHOPEE','ML_ANTIGO','ML_NOVO'].map(v=><button key={v} type="button" className={v===abcPlat?'is-active':''} aria-pressed={v===abcPlat} onClick={()=>setAbcPlat(v)}>{PLATFORM_LABEL[v]}</button>)}</div>}
+        {<Panel title={'ABC · '+abcLabel} icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>openAbc(null,true)}>Ver curva</button>}>
+          {platform==='TODAS'&&<div className="ndb-seg ndb-abc-plat" role="group" aria-label="Plataforma da curva ABC">{['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].map(v=><button key={v} type="button" className={v===abcPlat?'is-active':''} aria-pressed={v===abcPlat} onClick={()=>setAbcPlat(v)}>{v==='TODAS'?'Global':PLATFORM_LABEL[v]}</button>)}</div>}
           <div className="ndb-abc">
             {classes.map(c=><button type="button" key={c.class} className={'ndb-abc-card c-'+c.class+(mode==='explorer'&&tab==='abc'&&cls===c.class?' is-active':'')} onClick={()=>openAbc(c.class,false)} aria-pressed={mode==='explorer'&&tab==='abc'&&cls===c.class} title={CLASS_NOTE[c.class]+' · '+money(c.revenue)}>
               <span className="ndb-abc-badge" style={{background:CLASS_COLOR[c.class]}}>{c.class}</span>
@@ -654,7 +667,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
           <ul className="ndb-defs">
             <li><b>Faturamento:</b> valor dos produtos vendidos, sem frete, das vendas importadas. Não é o faturamento atribuído aos anúncios pagos.</li>
             <li><b>Pedidos:</b> soma por anúncio; um pedido com dois anúncios conta duas vezes.</li>
-            <li><b>Curva ABC:</b> por SKU em cada plataforma, ordenada pelo faturamento de todo o histórico (não muda com o filtro de período). A = até 80% do total, B = até 95%, C = o restante. Produto C pode ser novo, sazonal ou estratégico.</li>
+            <li><b>Curva ABC:</b> por SKU em cada plataforma, ordenada pelo faturamento do período escolhido (ano, mês ou últimos dias); sem plataforma escolhida, mostra o global. A = até 80% do total, B = até 95%, C = o restante, no período escolhido. Produto C pode ser novo, sazonal ou estratégico.</li>
             <li><b>Período e mês:</b> {SOURCES.period}</li>
             <li><b>Cadastros por mês:</b> data de criação vinda da planilha “Análise de Anúncios Nisti Print”; vendas contadas do dia da criação até o último dia fechado.</li>
             <li><b>Em queda:</b> anúncio ativo com 5 ou mais unidades no período anterior e queda de 15% ou mais.</li>
