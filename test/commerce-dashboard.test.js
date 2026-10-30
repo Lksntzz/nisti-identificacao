@@ -133,3 +133,10 @@ test('Importador Shopee guarda o Full por dia e a divisão usa os dias importado
   assert.match(m,/commerce_shopee_full_daily_v1 d/);
   assert.match(m,/sale_date>='2026-11-01'/);
 });
+
+test('Curva ABC rápida: SKU unificado depois de agrupar as vendas',()=>{
+  const m=read('supabase/migrations/20261030235900_commerce_dashboard_abc_faster_v1.sql');
+  assert.match(m,/group by 1,2,3\n\), mlv as/);
+  assert.match(m,/cmap as \(/);
+  assert.doesNotMatch(m,/drop |truncate/i);
+});
