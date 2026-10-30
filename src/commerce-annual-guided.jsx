@@ -201,9 +201,10 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const comparable=allPeriods.filter(p=>Number(p.base)>0);
   const up=comparable.filter(p=>Number(p.cur)>Number(p.base));
   const down=comparable.filter(p=>Number(p.cur)<Number(p.base));
+  // O ganho é sempre do ano em análise sobre o ano-base; perdas têm sinal negativo.
   const ranked=comparable.map(p=>({...p,diff:Number(p.cur)-Number(p.base)}));
-  const best=ranked.reduce((a,b)=>!a||b.diff>a.diff?b:a,null);
-  const worst=ranked.reduce((a,b)=>!a||b.diff<a.diff?b:a,null);
+  const best=ranked.filter(p=>p.diff>0).reduce((a,b)=>!a||b.diff>a.diff?b:a,null);
+  const worst=ranked.filter(p=>p.diff<0).reduce((a,b)=>!a||b.diff<a.diff?b:a,null);
   const period=allPeriods.find(p=>Number(p.key)===selectedMonth);
   const baseAvailable=(()=>{const ps=filters.platform==='TODAS'?['SHOPEE','ML_ANTIGO','ML_NOVO']:[filters.platform];return ps.every(p=>(data.coverage||[]).some(c=>c.platform===p&&Number(c.year)===baseYear&&Number(c.units)>0));})();
   const productValid=monthData&&Number(monthData.year)===year&&monthData.platform===filters.platform&&Number(monthData.month)===selectedMonth;
@@ -268,9 +269,22 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
         <div className="ga-y-kpi-split"><span><strong className="is-up">{up.length}</strong><small>Em alta</small></span><span><strong className="is-down">{down.length}</strong><small>Em queda</small></span></div>
         <small>{comparable.length} meses com base comparável</small>
       </DataCard>
-      <DataCard title="Maior ganho / maior perda" icon="extremes" active={focus==='best'||focus==='worst'} onClick={()=>{const next=focus==='worst'?'best':'worst';const target=next==='best'?best:worst;if(target){chooseMonth(Number(target.key));setFocus(next);setMonthFilter('all');}}}>
-        <div className="ga-y-kpi-split"><span><strong>{best?monthShort(Number(best.key)):'—'}</strong><small className="is-up">{best?signed(best.diff):'sem base'} un.</small></span><span><strong>{worst?monthShort(Number(worst.key)):'—'}</strong><small className="is-down">{worst?signed(worst.diff):'sem base'} un.</small></span></div>
-        <small>Diferença absoluta de unidades vs. {baseYear}</small>
+      <DataCard title="Maior ganho / maior perda" icon="extremes" active={focus==='best'||focus==='worst'} description={'Diferença de unidades vendidas em '+year+' comparado com '+baseYear+'. Clique para investigar o mês.'} onClick={()=>{if(!baseAvailable)return;const next=focus==='worst'?'best':'worst';const target=next==='best'?best:worst;if(target){chooseMonth(Number(target.key));setFocus(next);setMonthFilter('all');}}}>
+        <div className="ga-y-kpi-split ga-y-gain-loss">
+          <span>
+            <small className="ga-y-compare-label">Ganho de {year}</small>
+            <strong>{baseAvailable&&best?monthShort(Number(best.key)):'—'}</strong>
+            <small className="is-up">{baseAvailable&&best?signed(best.diff)+' un.':baseAvailable?'Sem ganho':'Sem base'}</small>
+            {baseAvailable&&best&&<small className="ga-y-year-values">{year}: {fmt(best.cur)} · {baseYear}: {fmt(best.base)}</small>}
+          </span>
+          <span>
+            <small className="ga-y-compare-label">Perda de {year}</small>
+            <strong>{baseAvailable&&worst?monthShort(Number(worst.key)):'—'}</strong>
+            <small className="is-down">{baseAvailable&&worst?signed(worst.diff)+' un.':baseAvailable?'Sem perda':'Sem base'}</small>
+            {baseAvailable&&worst&&<small className="ga-y-year-values">{year}: {fmt(worst.cur)} · {baseYear}: {fmt(worst.base)}</small>}
+          </span>
+        </div>
+        <small>{year} comparado com {baseYear} · unidades vendidas</small>
       </DataCard>
       <DataCard title="Anúncios em queda no mês" icon="alerts" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old');document.getElementById('ga-y-products')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
         <div className="ga-y-kpi-main">{listingFallCount==null?'—':fmt(listingFallCount)} <span className="ga-y-kpi-qualifier">anúncios identificados</span></div>
