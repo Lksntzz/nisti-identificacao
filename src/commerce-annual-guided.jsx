@@ -93,11 +93,11 @@ function rankRows(monthData,tab,history) {
   if(history==='no-history')return all.filter(r=>statusOf(r)==='no-history');
   return all;
 }
-function ProductPanel({monthData,loading,month,year,baseYear,platform,tab,setTab,history,setHistory}) {
+function ProductPanel({monthData,loading,month,year,baseYear,platform,tab,setTab,history,setHistory,query,setQuery}) {
   const options=[['top','Mais vendidos'],['up','Mais cresceram'],['down','Mais caíram'],['zero','Zeraram*'],['unverified','Sem histórico']];
   const rows=rankRows(monthData,tab,history);
   return <section className="ga-y-section" id="ga-y-products">
-    <div className="ga-y-section-header"><div><h3>Produtos de {MONTHS[month-1]}</h3><p>Compare unidades por SKU e descubra quais itens precisam de revisão.</p></div><span className="ga-y-chip">{year} × {baseYear}</span></div>
+    <div className="ga-y-section-header"><div><h3>Produtos de {MONTHS[month-1]}</h3><p>Compare unidades por SKU e descubra quais itens precisam de revisão.</p></div><div className="ga-y-product-head-tools"><label className="ga-y-search" htmlFor="ga-y-search"><span>Buscar SKU</span><input id="ga-y-search" type="search" placeholder="Nome ou SKU" value={query} onChange={e=>setQuery(e.target.value)}/></label><span className="ga-y-chip">{year} × {baseYear}</span></div></div>
     <div className="ga-y-product-controls">
       <div className="ga-y-segments" role="tablist" aria-label="Rankings dos produtos">{options.map(([id,label])=><button type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)} key={id}>{label}</button>)}</div>
       {tab!=='unverified'&&<label className="ga-y-history-select">Histórico<select value={history} onChange={e=>setHistory(e.target.value)}><option value="all">Todos</option><option value="old">Com histórico em {baseYear}</option><option value="no-history">Sem histórico em {baseYear}</option></select></label>}
@@ -232,7 +232,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
       <p className="ga-y-note">A API do período retorna até 40 produtos. Não confunda ausência da lista com zero vendas.</p>
     </section>:<>
       <div className="ga-y-body">
-        <section className="ga-y-section ga-y-months">
+        <section className={"ga-y-section ga-y-months"+(view==="chart"?" is-chart":"")}>
           <div className="ga-y-section-header"><div><h3>Evolução mensal de unidades vendidas</h3><p>Comparação {year} × {baseYear} · selecione um mês para investigar.</p></div><div className="ga-y-heading-tools">
             <div className="ga-y-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-current"/>{year}</span></div>
             <div className="ga-y-segments"><button type="button" className={view==='chart'?'is-active':''} onClick={()=>setView('chart')}>Gráfico</button><button type="button" className={view==='table'?'is-active':''} onClick={()=>setView('table')}>Tabela</button></div>
@@ -264,8 +264,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
       </div>
       <div className="ga-y-body ga-y-products-body">
         <div className="ga-y-product-left">
-          <div className="ga-y-search"><label htmlFor="ga-y-search">Localizar SKU nas listas</label><input id="ga-y-search" type="search" placeholder="Nome ou SKU (filtro local)" value={query} onChange={e=>setQuery(e.target.value)}/></div>
-          <ProductPanel monthData={monthly?{...monthly,top:cleanRows(monthly.top).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),up:cleanRows(monthly.up).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),down:cleanRows(monthly.down).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),top_old:cleanRows(monthly.top_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),up_old:cleanRows(monthly.up_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),down_old:cleanRows(monthly.down_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase()))}:null} loading={!monthly} month={selectedMonth} year={year} baseYear={baseYear} platform={filters.platform} tab={productTab} setTab={setProductTab} history={history} setHistory={setHistory}/>
+          <ProductPanel monthData={monthly?{...monthly,top:cleanRows(monthly.top).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),up:cleanRows(monthly.up).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),down:cleanRows(monthly.down).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),top_old:cleanRows(monthly.top_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),up_old:cleanRows(monthly.up_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),down_old:cleanRows(monthly.down_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase()))}:null} loading={!monthly} month={selectedMonth} year={year} baseYear={baseYear} platform={filters.platform} tab={productTab} setTab={setProductTab} history={history} setHistory={setHistory} query={query} setQuery={setQuery}/>
         </div>
         <section className="ga-y-section ga-y-week-products">
           <div className="ga-y-section-header"><div><h3>{week?'Produtos da semana '+(week===5?'29+':(week-1)*7+1+'–'+Math.min(week*7,lastDay)):'Produtos da semana'}</h3><p>Selecione uma semana na investigação para comparar seus SKUs.</p></div></div>
