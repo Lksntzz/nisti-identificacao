@@ -182,10 +182,13 @@ test('links protegidos respeitam plataforma e anos disponíveis têm cobertura h
   assert.doesNotMatch(g,/>novo<\/em>/);
 });
 
-test('categorias: Top 5 usa o título do produto (texto) e o detalhe tem proteção contra erro', () => {
+test('categorias: produto tem nome, SKU, miniatura real e link de anúncio protegido', () => {
   const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
-  assert.match(ui, /productLabel\(r\.name,r\.sku\)\.title/);
-  assert.match(ui, /getDerivedStateFromError/);
+  assert.match(ui, /r\.name\|\|r\.sku/);
+  assert.match(ui, /SKU: \{r\.sku\}/);
+  assert.match(ui, /validImage\(src\)/);
+  assert.match(ui, /validLink\(r\.url\)/);
+  assert.match(ui, /rel="noopener noreferrer"/);
 });
 
 test('categorias por coleção: migração, rota e tela usam coleção e variações', () => {
@@ -193,7 +196,9 @@ test('categorias por coleção: migração, rota e tela usam coleção e variaç
   assert.match(sql,/commerce_collection_v1/); assert.match(sql,/commerce_sku_collection_v1/);
   assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/categories-col/);
   const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
-  assert.match(ui,/Variações e vendas/); assert.match(ui,/Voltar às coleções/);
+  assert.match(ui,/Subcategorias de \{picked\.name\}/);
+  assert.match(ui,/Produtos e itens do período/);
+  assert.match(ui,/Sazonalidade da /);
   assert.doesNotMatch(ui,/<h2>Categorias<\/h2>/);
 });
 
