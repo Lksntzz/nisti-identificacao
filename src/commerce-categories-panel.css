@@ -52,6 +52,7 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-tag{font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;padding:3px 5px;border-radius:6px;background:#edf2f7}
 .ndb-cp-tag.is-up{background:#e3f5ee;color:#10845d}
 .ndb-cp-tag.is-down{background:#fdecee;color:#d24757}
+.ndb-cp-pair{display:grid;gap:2px;width:62px;margin-top:3px}.ndb-cp-pair i{display:block;height:3px;border-radius:3px}.ndb-cp-pair i.is-base{background:#acbad1}.ndb-cp-pair i.is-cur{background:var(--cp-blue)}
 .ndb-cp-share{display:block;width:70px;height:5px;border-radius:5px;background:#e6ebf3;margin-top:3px;overflow:hidden}
 .ndb-cp-share i{height:100%;display:block;border-radius:5px;background:var(--cp-blue)}
 .ndb-cp-foot{color:var(--cp-muted);font-size:10px;line-height:1.4;margin:8px 0 0}
