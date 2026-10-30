@@ -97,3 +97,10 @@ test('coleções são exibidas no card e podem abrir variações reais com SKU, 
   assert.match(sql,/grant execute on function public\.commerce_categories_timeline_v1[\s\S]*to service_role/);
   assert.doesNotMatch(sql,/\b(delete from|truncate table|insert into|update public\.)\b/i);
 });
+
+test('categorias: série mensal corta o mês atual do ano anterior no mesmo dia', () => {
+  const sql=read('supabase/migrations/20261030223000_commerce_categories_same_dates_monthly_v1.sql');
+  const m=sql.match(/monthly_category as \([\s\S]*?\), monthly_col as \([\s\S]*?\), weekly_col/)[0];
+  assert.equal((m.match(/p\.cut_day/g)||[]).length,2);
+  assert.match(m,/yr=p\.b and mon=extract\(month from p\.as_of\)/);
+});
