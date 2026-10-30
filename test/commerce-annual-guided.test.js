@@ -94,3 +94,23 @@ test('produto diferencia SKU, coleção e anúncio apenas com identificação co
   assert.match(g,/Sem histórico/);
   assert.doesNotMatch(g,/<img[^>]+src=["']https?:/);
 });
+
+
+test('comparação anual mantém gráfico e investigação alinhados sem vão antes dos produtos',()=>{
+  const g=read('src/commerce-annual-guided.jsx');
+  const css=read('src/commerce-annual-guided.css');
+  assert.match(g, /className=\{"ga-y-section ga-y-months"\+\(view==="chart"\?" is-chart":""\)\}/);
+  assert.match(css, /\.ga-y-body\{align-items:stretch;gap:9px\}/);
+  assert.match(css, /\.ga-y-months\.is-chart \.ga-y-bars-chart\{flex:1 1 auto;min-height:225px\}/);
+  assert.match(css, /\.ga-y-months\.is-chart \.ga-y-bar-columns\{height:auto;min-height:158px;flex:1 1 auto\}/);
+  assert.match(css, /\.ga-y-products-body\{align-items:start\}/);
+});
+test('busca de SKU fica dentro de Produtos do mês para alinhar os painéis inferiores',()=>{
+  const g=read('src/commerce-annual-guided.jsx');
+  const css=read('src/commerce-annual-guided.css');
+  assert.match(g,/function ProductPanel\(\{[^}]+query,setQuery/);
+  assert.match(g,/ga-y-product-head-tools/);
+  assert.match(g,/history=\{history\} setHistory=\{setHistory\} query=\{query\} setQuery=\{setQuery\}/);
+  assert.doesNotMatch(g,/Localizar SKU nas listas/);
+  assert.match(css,/\.ga-y-product-left\{gap:0\}/);
+});
