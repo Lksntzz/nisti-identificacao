@@ -46,7 +46,7 @@ import {
   commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
   commerceSalesDashboardV1,
-  commerceDashboardAbcV2,commerceDashboardShippingSplitV1,
+  commerceDashboardAbcV2,commerceDashboardShippingSplitV1,commerceAppendShopeeFullDailyV1,
   commerceSalesDashboardSeriesV1,
   commerceSalesDashboardSegmentSeriesV1,
   commerceSalesDashboardOverviewV1,
@@ -933,6 +933,14 @@ export async function handleCommerceAdminRequest(request, env) {
       if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
         return json({error:'Lote financeiro diário Shopee inválido.'},400);
       return json({accepted_rows:await commerceAppendShopeeFinanceDaily(env,id,body.rows,body.sha256)});
+    }
+    const shopeeFullMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/shopee-full$/);
+    if(method==='POST'&&shopeeFullMatch){
+      const id=positiveId(shopeeFullMatch[1]);
+      const body=await bodyJson(request);
+      if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
+        return json({error:'Lote Full Shopee inválido.'},400);
+      return json({accepted_rows:await commerceAppendShopeeFullDailyV1(env,id,body.rows)});
     }
     const financeMonthMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/finance-month$/);
     if(method==='POST'&&financeMonthMatch){

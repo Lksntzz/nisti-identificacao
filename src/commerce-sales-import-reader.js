@@ -238,6 +238,10 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
 
     if (platformCode === 'SHOPEE') header = resolveShopeeSalesColumns(header, data[header.rowIndex]);
     const financeColumns=platformCode==='SHOPEE'?shopeeFinanceColumns(data[header.rowIndex]):null;
+    // Shopee Full (fulfillment): coluna "Pedido FBS" = Yes, ou "Opção de envio" = Full.
+    const foldHead=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+    const headNames=(data[header.rowIndex]||[]).map(foldHead);
+    const fbsCol=headNames.indexOf('pedido fbs'),shipCol=headNames.indexOf('opcao de envio');
 
     let accepted = 0;
     let ignored = 0;
@@ -284,6 +288,8 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
         units,
         order_id: orderId,
         product_revenue: Math.max(0, numberValue(cell(row, header.columns.revenue))),
+        is_full:platformCode==='SHOPEE'&&(
+          (fbsCol>=0&&foldHead(cell(row,fbsCol))==='yes')||(shipCol>=0&&foldHead(cell(row,shipCol))==='full')),
         finance:financeColumns?{
           seller_discount:!text(cell(row,financeColumns.seller_discount))?NaN:
             numberValue(cell(row,financeColumns.seller_discount)),
@@ -423,6 +429,14 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     skus_with_sales: summary.skus.size
   })).sort((a, b) => a.period_start.localeCompare(b.period_start));
 
+  const fullGroups=new Map();
+  if(platformCode==='SHOPEE')for(const item of raw){
+    if(!item.is_full||!item.sale_date||!item.sku_norm)continue;
+    const key=item.sale_date+'\x1f'+item.sku_norm;
+    const g=fullGroups.get(key)||{sale_date:item.sale_date,sku_norm:item.sku_norm,units:0,product_revenue:0};
+    g.units+=item.units;g.product_revenue+=item.product_revenue;fullGroups.set(key,g);
+  }
+  const full_daily_rows=[...fullGroups.values()].map(g=>({...g,product_revenue:Number(g.product_revenue.toFixed(2))}));
   const finance=platformCode==='SHOPEE'?aggregateShopeeFinance(raw):
     {finance_daily_rows:[],finance_month_rows:[],finance_summary:null};
   return {
@@ -433,6 +447,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     rows,
     summaries,
     sku_daily_rows,
+    full_daily_rows,
     finance_daily_rows:finance.finance_daily_rows,
     finance_month_rows:finance.finance_month_rows,
     finance_summary:finance.finance_summary,

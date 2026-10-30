@@ -124,3 +124,12 @@ test('Card de faturamento mostra Full x envio próprio (valor e %) com dados por
   assert.match(m,/commerce_dashboard_shipping_split_v1/);
   assert.match(m,/commerce_shopee_full_monthly_v1/);
 });
+
+test('Importador Shopee guarda o Full por dia e a divisão usa os dias importados depois de out/2026',()=>{
+  const r=read('src/commerce-sales-import-reader.js'),c=read('src/commerce-import-client.js'),m=read('supabase/migrations/20261031000500_commerce_shopee_full_daily_import_v1.sql');
+  assert.match(r,/full_daily_rows/);assert.match(r,/pedido fbs/);
+  assert.match(c,/shopee-full/);
+  assert.match(m,/commerce_append_shopee_full_daily_v1/);
+  assert.match(m,/commerce_shopee_full_daily_v1 d/);
+  assert.match(m,/sale_date>='2026-11-01'/);
+});
