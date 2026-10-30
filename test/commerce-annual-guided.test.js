@@ -10,7 +10,7 @@ test('Comparação Anual reformulada mantém a navegação do GA e o Painel Cate
   const guided=read('src/commerce-annual-guided.jsx');
   for(const label of ['Painel Comercial','Comparação anual','Categorias'])assert.ok(entry.includes(label));
   assert.match(annual,/GuidedAnnualCompare/);
-  for(const label of ['Unidades no ano','Meses em alta \/ queda','Maior ganho \/ maior perda','Produtos em queda no mês',
+  for(const label of ['Unidades no ano','Meses em alta \/ queda','Maior ganho \/ maior perda','Anúncios em queda no mês',
     'Evolução mensal de unidades vendidas','Investigação do mês','Desempenho semanal','Produtos da semana',
     'Mais vendidos','Mais cresceram','Mais caíram','Sem histórico','Ver dias','Gráfico','Tabela'])
     assert.ok(guided.includes(label),'Rótulo ausente: '+label);
@@ -28,7 +28,7 @@ test('interações usam séries e produtos reais, nunca resultados inventados',(
   assert.match(guided,/setWeek\(n\)/);
   assert.match(guided,/setProductTab\('down'\)/);
   assert.match(guided,/statusOf\(r\)/);
-  assert.match(guided,/Sem vendas registradas em /);
+  assert.match(guided,/Sem vendas em \{baseYear\}/);
   assert.doesNotMatch(guided,/08\/06\s+165\s+210/);
 });
 
@@ -55,8 +55,8 @@ test('períodos, carregamento cancelável e classificação sem inventar lançam
   assert.match(g,/controller\.abort\(\)/);
   assert.match(g,/mesmo intervalo de /);
   assert.match(g,/data de criação não confirmada/);
-  assert.match(g,/não comprova que o anúncio seja novo/);
-  assert.match(g,/ranking de quedas/);
+  assert.match(g,/não significa que o anúncio foi criado/);
+  assert.match(g,/annual-month-listings/);
 });
 
 
@@ -113,4 +113,29 @@ test('busca de SKU fica dentro de Produtos do mês para alinhar os painéis infe
   assert.match(g,/history=\{history\} setHistory=\{setHistory\} query=\{query\} setQuery=\{setQuery\}/);
   assert.doesNotMatch(g,/Localizar SKU nas listas/);
   assert.match(css,/\.ga-y-product-left\{gap:0\}/);
+});
+
+
+test('Produtos do mês apresenta anúncios, suas variações e fonte sem duplicação',()=>{
+  const g=read('src/commerce-annual-guided.jsx');
+  const css=read('src/commerce-annual-guided.css');
+  const router=read('src/commerce-admin-router.js');
+  const store=read('src/commerce-supabase-store.js');
+  const sql=read('supabase/migrations/20261030123200_commerce_annual_month_listings_v1.sql');
+  assert.match(g,/function MonthlyListingRows/);
+  assert.match(g,/Anúncios de \{MONTHS\[month-1\]\}/);
+  assert.match(g,/aria-label=\{\(expanded\?'Fechar':'Ver'\)\+' variações do anúncio '/);
+  assert.match(g,/ga-y-variation-table/);
+  assert.match(g,/variants\.map/);
+  assert.match(g,/annual-month-listings/);
+  assert.match(g,/setListingPage/);
+  assert.match(g,/setTimeout\(\(\)=>setListingSearch\(query\),350\)/);
+  assert.match(css,/\.ga-y-variation-table/);
+  assert.match(router,/sales-compare\/annual-month-listings/);
+  assert.match(store,/commerce_annual_month_listings_v1/);
+  assert.match(sql,/commerce_current_sales_listing_daily_v1/);
+  assert.match(sql,/group by v\.platform_code,v\.external_listing_id,public\.commerce_sku_canon_v1/);
+  assert.match(sql,/revoke all on function public\.commerce_annual_month_listings_v1[\s\S]*from public,anon,authenticated/i);
+  assert.match(sql,/grant execute on function public\.commerce_annual_month_listings_v1[\s\S]*to service_role/i);
+  assert.doesNotMatch(sql,/(\binsert into\b|\bdelete from\b|\bupdate public\.)/i);
 });
