@@ -106,3 +106,13 @@ test('Desativar produto: preserva historico, so desativa anuncios sem produto at
   assert.ok(ui.includes("label:'Desativado'"));
   assert.ok(ui.includes("label:'Sem status'"));
 });
+
+test('Importação Shopee: lote novo substitui os mesmos dias de snapshots antigos e arquiva o que saiu',()=>{
+  const m=read('supabase/migrations/20261030233000_commerce_shopee_import_supersede_trigger_v1.sql');
+  assert.match(m,/ob\.snapshot_id<new\.snapshot_id/);
+  assert.match(m,/returning d\.\*/);
+  assert.match(m,/commerce_shopee_sku_daily_superseded_v1/);
+  assert.match(m,/after update of status on public\.commerce_sales_import_batches/);
+  assert.match(m,/new\.status='COMMITTED'/);
+  assert.doesNotMatch(m,/drop table|truncate/i);
+});
