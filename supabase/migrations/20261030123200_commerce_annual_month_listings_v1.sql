@@ -116,21 +116,39 @@ select jsonb_build_object(
     select jsonb_agg(jsonb_build_object(
       'id',r.listing_id,'internal_id',r.internal_id,'platform',r.platform,
       'title',r.title,'url',r.url,'cur',r.cur,'base',r.base,
-      'variations_count',r.sold_skus,
+      'recorded_sku_count',r.sold_skus,
       'variations',coalesce((
         select jsonb_agg(jsonb_build_object(
-          'sku',s.sku,'name',coalesce(nullif(vname.variation_name,''),nullif(vname.platform_sku,''),s.sku),
-          'cur',s.cur,'base',s.base) order by s.cur desc,s.base desc,s.sku)
-        from sku_sales s
-        left join lateral (
-          select lp.variation_name,lp.platform_sku
-          from public.commerce_listing_products lp
-          where lp.listing_id=r.internal_id and lp.relation_status<>'REMOVED'
-            and public.commerce_sku_canon_v1(lp.platform_sku)=s.sku
-          order by (nullif(lp.variation_name,'') is not null) desc,lp.id
-          limit 1
-        ) vname on true
-        where s.platform=r.platform and s.listing_id=r.listing_id
+          'sku',v.sku,'name',v.name,'cur',v.cur,'base',v.base,'recorded',v.recorded)
+          order by v.recorded desc,v.cur desc nulls last,v.base desc nulls last,v.sku)
+        from (
+          select s.sku,coalesce(nullif(vname.variation_name,''),nullif(vname.platform_sku,''),s.sku) name,
+            s.cur,s.base,true recorded
+          from sku_sales s
+          left join lateral (
+            select lp.variation_name,lp.platform_sku
+            from public.commerce_listing_products lp
+            where lp.listing_id=r.internal_id and lp.relation_status<>'REMOVED'
+              and public.commerce_sku_canon_v1(lp.platform_sku)=s.sku
+            order by (nullif(lp.variation_name,'') is not null) desc,lp.id
+            limit 1
+          ) vname on true
+          where s.platform=r.platform and s.listing_id=r.listing_id
+          union all
+          (select distinct on (public.commerce_sku_canon_v1(lp.platform_sku))
+            public.commerce_sku_canon_v1(lp.platform_sku) sku,
+            coalesce(nullif(lp.variation_name,''),nullif(lp.platform_sku,''),'Variação sem nome') name,
+            null::bigint cur,null::bigint base,false recorded
+           from public.commerce_listing_products lp
+           where lp.listing_id=r.internal_id and lp.relation_status<>'REMOVED'
+             and nullif(btrim(lp.platform_sku),'') is not null
+             and not exists (
+               select 1 from sku_sales ss
+               where ss.platform=r.platform and ss.listing_id=r.listing_id
+                 and ss.sku=public.commerce_sku_canon_v1(lp.platform_sku))
+           order by public.commerce_sku_canon_v1(lp.platform_sku),
+             (nullif(lp.variation_name,'') is not null) desc,lp.id)
+        ) v
       ),'[]'::jsonb)
     ) order by r.rn) from page r
   ),'[]'::jsonb)
