@@ -42,7 +42,7 @@ function ProductLink({row,platform}) {
 }
 function ProductRows({rows,year,baseYear,platform,empty,limit=10}) {
   const [open,setOpen]=useState(null);
-  useEffect(()=>setOpen(null),[rows,year,baseYear,platform]);
+  useEffect(()=>setOpen(null),[year,baseYear,platform]);
   if(!rows.length)return <div className="ga-y-empty">{empty||'Nenhum produto neste ranking para o período selecionado.'}</div>;
   return <div className="ga-y-table-scroll"><table className="ga-y-product-table">
     <thead><tr><th>Produto / SKU</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th><th>Histórico</th></tr></thead>
@@ -129,7 +129,6 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const [history,setHistory]=useState('all');
   const [weekRank,setWeekRank]=useState('top');
   const [query,setQuery]=useState('');
-  const [selectedSku,setSelectedSku]=useState(null);
   const year=Number(data.year),baseYear=Number(data.base_year);
   const asOf=String(data.as_of||'');
   const current=Number(asOf.slice(5,7))||1;
@@ -173,7 +172,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const winProductsUrl=windowMode&&winData?'/api/admin/commerce/sales-compare/annual-period-products?platform='+encodeURIComponent(filters.platform)+'&cur_from='+winFrom+'&cur_to='+winTo+'&base_from='+winBaseFrom+'&base_to='+winBaseTo:'';
   const winProducts=useApi(winProductsUrl,[refresh],Boolean(winProductsUrl));
   const late=daysBehind(asOf,new Date().toISOString().slice(0,10));
-  useEffect(()=>{setWeek(null);setShowDays(false);setProductTab('top');setHistory('all');setSelectedSku(null);},[filters.platform,selectedMonth,year,days]);
+  useEffect(()=>{setWeek(null);setShowDays(false);setProductTab('top');setHistory('all');},[filters.platform,selectedMonth,year,days]);
   const oldFall=cleanRows(monthly?.down_old||monthly?.down).filter(r=>Number(r.cur)<Number(r.base));
   const filterMonths=status=>{setMonthFilter(status);setFocus(status);};
   const sortedWeekRows=cleanRows(weekState.data?.products).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())).sort((a,b)=>weekRank==='down'?(Number(a.cur)-Number(a.base))-(Number(b.cur)-Number(b.base)):weekRank==='up'?(Number(b.cur)-Number(b.base))-(Number(a.cur)-Number(a.base)):Number(b.cur)-Number(a.cur));
@@ -200,7 +199,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
         <div className="ga-y-kpi-split"><span><strong>{best?monthShort(Number(best.key)):'—'}</strong><small className="is-up">{best?signed(best.diff):'sem base'} un.</small></span><span><strong>{worst?monthShort(Number(worst.key)):'—'}</strong><small className="is-down">{worst?signed(worst.diff):'sem base'} un.</small></span></div>
         <small>Diferença absoluta de unidades vs. {baseYear}</small>
       </DataCard>
-      <DataCard title="Produtos em queda no mês" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old')}}>
+      <DataCard title="Produtos em queda no mês" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old');document.getElementById('ga-y-products')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
         <div className="ga-y-kpi-main">{productValid?fmt(oldFall.length):'—'} <span className="ga-y-kpi-qualifier">no ranking consultado</span></div>
         <small>{MONTHS[selectedMonth-1]} · clique para investigar os SKUs</small>
       </DataCard>
