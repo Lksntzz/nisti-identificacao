@@ -37,8 +37,8 @@ with prm as (
       then least(asof,(make_date(yr,mon,1)+interval '1 month - 1 day')::date)
       else (make_date(yr,mon,1)+interval '1 month - 1 day')::date end ct,
     case when extract(year from asof)=yr and extract(month from asof)=mon
-      then least(make_date(byear,mon,extract(day from asof)::int),
-                 (make_date(byear,mon,1)+interval '1 month - 1 day')::date)
+      then make_date(byear,mon,least(extract(day from asof)::int,
+                 extract(day from (make_date(byear,mon,1)+interval '1 month - 1 day')::date)::int))
       else (make_date(byear,mon,1)+interval '1 month - 1 day')::date end bt
   from prm p
 ), sku_sales as materialized (
