@@ -1252,6 +1252,32 @@ export async function commerceAnnualMonth(env,{platform='SHOPEE',month=null,year
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[],top:[],up:[],down:[]};
 }
 
+// Comparação por anúncio proprietário e suas variações, sem distribuição estimada
+// de vendas de SKUs compartilhados. Consulta paginada e estritamente read-only.
+export async function commerceAnnualMonthListings(env,filters={}) {
+  const platform=String(filters.platform||'SHOPEE').toUpperCase();
+  const tab=String(filters.tab||'TOP').toUpperCase();
+  const history=String(filters.history||'ALL').toUpperCase();
+  if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)
+    || !['TOP','UP','DOWN','ZERO','NO_HISTORY'].includes(tab)
+    || !['ALL','OLD','NO_HISTORY'].includes(history))
+    throw new Error('Filtros de anúncios inválidos.');
+  const result=await supabaseRpc(env,'commerce_annual_month_listings_v1',{
+    p_platform:platform,
+    p_month:Number(filters.month),
+    p_year:Number(filters.year),
+    p_base:Number(filters.base),
+    p_as_of:String(filters.asOf),
+    p_tab:tab,
+    p_history:history,
+    p_search:cleanText(filters.search)?.slice(0,120)||null,
+    p_limit:Math.max(1,Math.min(30,Number(filters.limit)||15)),
+    p_offset:Math.max(0,Math.min(20000,Number(filters.offset)||0))
+  },{timeoutMs:20000});
+  return result&&typeof result==='object'&&!Array.isArray(result)
+    ?result:{total:0,items:[],counts:{}};
+}
+
 export async function commerceAnnualDayProducts(env,{platform='SHOPEE',cur,base}={}) {
   const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
   const data=await supabaseRpc(env,'commerce_annual_day_products_v1',{p_platform:plat,p_cur:cur,p_base:base},{timeoutMs:15000});
