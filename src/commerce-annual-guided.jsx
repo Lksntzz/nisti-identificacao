@@ -1,316 +1,262 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { fetchCommercialManager } from './commerce-manager-fetch.js';
-import { Dropdown } from './commerce-dashboard.jsx';
+import React, {useEffect, useMemo, useState} from 'react';
+import {fetchCommercialManager} from './commerce-manager-fetch.js';
+import {Dropdown, listingUrl} from './commerce-dashboard.jsx';
 import PeriodPicker from './commerce-period-picker.jsx';
-import { maskMoney } from './commerce-privacy.js';
-import { growth, indexOf, weekHighlights, projectionRange, daysBehind } from './commerce-annual-compare-helpers.js';
-import { Seasonality, Launches } from './commerce-annual-seasonality.jsx';
+import {daysBehind, productLabel} from './commerce-annual-compare-helpers.js';
 import './commerce-annual-guided.css';
 
-const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const PLATFORMS = [['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre antigo'],['ML_NOVO','Mercado Livre novo'],['TODAS','Todas as plataformas']];
-const fmt = value => Number(value).toLocaleString('pt-BR');
-const amount = value => maskMoney(Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}));
-const signed = value => (value > 0 ? '+' : value < 0 ? '−' : '') + fmt(Math.abs(value));
-const percent = (current, base) => {
-  if (current == null || base == null || Number(base) <= 0) return null;
-  const n = growth(Number(current),Number(base));
-  return n == null ? null : (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%';
+// Painel GA: apenas unidades; nenhuma projeção ou faturamento é exibida.
+// O ano anterior sem vendas não comprova que o anúncio foi criado recentemente.
+const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const PLATFORMS=[['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre antigo'],['ML_NOVO','Mercado Livre novo'],['TODAS','Todas as plataformas']];
+const fmt=n=>Number(n||0).toLocaleString('pt-BR');
+const signed=n=>(Number(n)>0?'+':Number(n)<0?'−':'')+fmt(Math.abs(Number(n)||0));
+const percentage=(cur,base)=>Number(base)>0?((Number(cur||0)-Number(base))/Number(base)*100):null;
+const pct=n=>n==null?'Sem base':(n>0?'+':n<0?'−':'')+Math.abs(n).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+const iso=(y,m,d)=>String(y)+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+const dayCount=(y,m)=>new Date(y,m,0).getDate();
+const plusDays=(date,n)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
+const yearAgo=date=>{const d=new Date(date+'T12:00:00Z');d.setUTCFullYear(d.getUTCFullYear()-1);return d.toISOString().slice(0,10);};
+const monthShort=m=>MONTHS[m-1]?.slice(0,3)||'—';
+const labelPlatform=p=>PLATFORMS.find(row=>row[0]===p)?.[1]||p;
+const statusOf=r=>{
+  const annual=r?.prior?.y;
+  return annual==null?'unknown':Number(annual)>0?'old':'no-history';
 };
-const mil = value => (Number(value)/1000).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
-const hasValue = value => value !== null && value !== undefined && Number.isFinite(Number(value));
-const daysInMonth = (year,month) => new Date(year,month,0).getDate();
-const isoAdd=(iso,n)=>{const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
-const isoMinusYear=iso=>{const d=new Date(iso+'T12:00:00Z');d.setUTCFullYear(d.getUTCFullYear()-1);return d.toISOString().slice(0,10);};
-const ddmm=iso=>String(iso).slice(8,10)+'/'+String(iso).slice(5,7);
-const deltaClass = (current,base) => Number(current)>=Number(base) ? 'is-up' : 'is-down';
-
-function Trend({cur,base,neutral=false}) {
-  if (!hasValue(base) || Number(base) <= 0) return <span className="ga-y-neutral">Sem base</span>;
-  return <span className={'ga-y-delta ' + (neutral ? 'is-neutral' : deltaClass(cur,base))}>{percent(cur,base)}</span>;
+const cleanRows=rows=>Array.isArray(rows)?rows.filter(Boolean):[];
+function Trend({cur,base}) {
+  const n=percentage(cur,base);
+  return <span className={'ga-y-trend '+(n==null?'is-neutral':n>=0?'is-up':'is-down')}>{pct(n)}</span>;
 }
-
-function annualCovered(data,platform) {
-  const coverage = data?.coverage;
-  if (!Array.isArray(coverage) || !coverage.length) return false;
-  const platforms = platform === 'TODAS' ? ['SHOPEE','ML_ANTIGO','ML_NOVO'] : [platform];
-  return platforms.every(p=>{
-    const current=coverage.find(c=>c.platform===p && Number(c.year)===Number(data.year));
-    const previous=coverage.find(c=>c.platform===p && Number(c.year)===Number(data.base_year));
-    return !current || Number(current.units)===0 || (previous && Number(previous.units)>0);
-  });
-}
-
-function Figure({label,value,reference,base,cur,neutral=false,onClick}) {
-  return <button className="ga-y-kpi" type="button" onClick={onClick} aria-label={label+', '+value+', abrir detalhes'}>
-    <span className="ga-y-kpi-label">{label}</span>
-    <strong>{value}</strong>
-    <span className="ga-y-kpi-reference">{reference}</span>
-    <Trend cur={cur} base={base} neutral={neutral}/>
+function DataCard({title,children,onClick,active=false,description}) {
+  return <button type="button" className={'ga-y-overview-card'+(active?' is-active':'')} onClick={onClick} title={description||title}>
+    <span className="ga-y-overview-title">{title}<span aria-hidden="true">↗</span></span>
+    <div className="ga-y-overview-content">{children}</div>
+    <span className="ga-y-overview-action">Investigar <span aria-hidden="true">›</span></span>
   </button>;
 }
-
-function MonthRows({periods,mode,year,baseYear,baseAvailable,selected,onSelect,asOf}) {
-  const max = Math.max(1,...periods.flatMap(p=>[Number(p.base)||0,Number(p.cur)||0]));
-  const rows = periods.map(p=>({...p,month:Number(p.key),part:Number(p.key)===Number((asOf||'').slice(5,7))}));
-  if(mode==='chart') return <div className="ga-y-chart" role="group" aria-label="Gráfico de comparação mensal">
-    {rows.map(p=><button type="button" key={p.month} className={'ga-y-chart-month'+(selected===p.month?' is-selected':'')} onClick={()=>onSelect(p.month)} aria-label={MONTHS[p.month-1]+', '+baseYear+' '+fmt(p.base)+', '+year+' '+fmt(p.cur)}>
-      <span className="ga-y-chart-pair">
-        <span className="ga-y-chart-bar is-base" style={{height:Math.max(2,100*(Number(p.base)||0)/max)+'%'}}/>
-        <span className="ga-y-chart-bar is-current" style={{height:Math.max(2,100*(Number(p.cur)||0)/max)+'%'}}/>
-      </span>
-      <span className="ga-y-chart-label">{MONTHS[p.month-1]?.slice(0,3)}</span>
-      {baseAvailable&&<small className={'ga-y-chart-delta '+(Number(p.cur)>=Number(p.base)?'is-up':'is-down')}>{percent(p.cur,p.base)||''}</small>}
-    </button>)}
-  </div>;
-  return <div className="ga-y-month-list" role="list" aria-label="Comparação mensal">
-    <div className={'ga-y-month-heading'+(mode==='table'?' is-table':'')}>
-      <span>Mês</span>{mode==='bars'&&<span>Barras comparativas</span>}
-      <span>{baseYear}</span><span>{year}</span><span>Diferença</span><span>Variação</span>
+function ProductLink({row,platform}) {
+  const supported=cleanRows(row?.links).filter(l=>platform==='TODAS'||(platform==='SHOPEE'?l.platform==='SHOPEE':l.platform!=='SHOPEE'));
+  const first=supported.map(l=>listingUrl(l.platform==='SHOPEE'?'SHOPEE':'ML',l.id)).find(Boolean);
+  return first?<a className="ga-y-product-link" href={first} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>Abrir anúncio ↗</a>:<span className="ga-y-muted-inline">Sem link confirmado</span>;
+}
+function ProductRows({rows,year,baseYear,platform,empty,limit=10}) {
+  const [open,setOpen]=useState(null);
+  useEffect(()=>setOpen(null),[rows,year,baseYear,platform]);
+  if(!rows.length)return <div className="ga-y-empty">{empty||'Nenhum produto neste ranking para o período selecionado.'}</div>;
+  return <div className="ga-y-table-scroll"><table className="ga-y-product-table">
+    <thead><tr><th>Produto / SKU</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th><th>Histórico</th></tr></thead>
+    <tbody>{rows.slice(0,limit).map((r,i)=>{
+      const old=Number(r.base)||0,cur=Number(r.cur)||0,diff=cur-old;
+      const label=productLabel(r.name,r.sku),kind=statusOf(r);
+      const key=(r.sku||'sku')+':'+i;
+      return <React.Fragment key={key}>
+        <tr className={'ga-y-product-row'+(open===key?' is-selected':'')} onClick={()=>setOpen(open===key?null:key)}>
+          <td><button type="button" onClick={e=>{e.stopPropagation();setOpen(open===key?null:key);}} aria-expanded={open===key} className="ga-y-product-name" title={r.name||r.sku}>{label.title} <span aria-hidden="true">›</span></button><small>{r.sku||'SKU não informado'}</small></td>
+          <td>{fmt(old)}</td><td><strong>{fmt(cur)}</strong></td>
+          <td className={diff>=0?'is-up':'is-down'}>{signed(diff)}</td>
+          <td><Trend cur={cur} base={old}/></td>
+          <td><span className={'ga-y-history '+(kind==='old'?'is-old':kind==='no-history'?'is-unconfirmed':'')}>{kind==='old'?'Com histórico':kind==='no-history'?'Sem histórico':'A verificar'}</span></td>
+        </tr>
+        {open===key&&<tr className="ga-y-product-expanded"><td colSpan={6}>
+          <div className="ga-y-product-explanation"><span><b>SKU:</b> {r.sku||'—'}</span><span><b>Unidades ganhas/perdidas:</b> {signed(diff)}</span><span><b>Ano-base:</b> {fmt(old)} unidades no período</span><span><b>Classificação:</b> {kind==='old'?'Há vendas registradas no ano-base':kind==='no-history'?'Sem vendas registradas no ano-base; data de criação não confirmada':'Histórico anual não informado pela consulta'}</span><ProductLink row={r} platform={platform}/></div>
+        </td></tr>}
+      </React.Fragment>;
+    })}</tbody>
+  </table></div>;
+}
+function rankRows(monthData,tab,history) {
+  const all=cleanRows(monthData?.[tab==='zero'?'down':tab==='unverified'?'top':tab]);
+  const old=cleanRows(monthData?.[(tab==='zero'?'down':tab==='unverified'?'top':tab)+'_old']);
+  if(tab==='unverified')return all.filter(r=>statusOf(r)==='no-history');
+  if(tab==='zero')return (history==='old'&&old.length?old:all).filter(r=>Number(r.cur)===0&&Number(r.base)>0);
+  if(history==='old')return old.length?old:all.filter(r=>statusOf(r)==='old');
+  if(history==='no-history')return all.filter(r=>statusOf(r)==='no-history');
+  return all;
+}
+function ProductPanel({monthData,loading,month,year,baseYear,platform,tab,setTab,history,setHistory}) {
+  const options=[['top','Mais vendidos'],['up','Mais cresceram'],['down','Mais caíram'],['zero','Zeraram*'],['unverified','Sem histórico']];
+  const rows=rankRows(monthData,tab,history);
+  return <section className="ga-y-section" id="ga-y-products">
+    <div className="ga-y-section-header"><div><h3>Produtos de {MONTHS[month-1]}</h3><p>Compare unidades por SKU e descubra quais itens precisam de revisão.</p></div><span className="ga-y-chip">{year} × {baseYear}</span></div>
+    <div className="ga-y-product-controls">
+      <div className="ga-y-segments" role="tablist" aria-label="Rankings dos produtos">{options.map(([id,label])=><button type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)} key={id}>{label}</button>)}</div>
+      {tab!=='unverified'&&<label className="ga-y-history-select">Histórico<select value={history} onChange={e=>setHistory(e.target.value)}><option value="all">Todos</option><option value="old">Com histórico em {baseYear}</option><option value="no-history">Sem histórico em {baseYear}</option></select></label>}
     </div>
-    {rows.map(p=>{
-      const diff=Number(p.cur)-Number(p.base);
-      return <button role="listitem" type="button" className={'ga-y-month-row'+(selected===p.month?' is-selected':'')+(mode==='table'?' is-table':'')} key={p.month} onClick={()=>onSelect(p.month)} aria-pressed={selected===p.month}>
-        <span className="ga-y-month-name"><strong>{MONTHS[p.month-1]?.slice(0,3)}</strong>{p.part&&<small>Parcial</small>}</span>
-        {mode==='bars'&&<span className="ga-y-bar-pair" aria-hidden="true"><i className="is-base" style={{width:100*Number(p.base||0)/max+'%'}}/><i className="is-current" style={{width:100*Number(p.cur||0)/max+'%'}}/></span>}
-        <span className="ga-y-num is-base-number">{baseAvailable?fmt(p.base):'—'}</span>
-        <span className="ga-y-num is-current-number">{fmt(p.cur)}</span>
-        <span className={'ga-y-num '+(baseAvailable?(diff>=0?'is-up':'is-down'):'')}>{baseAvailable?signed(diff):'—'}</span>
-        <span className="ga-y-num">{baseAvailable?<Trend cur={p.cur} base={p.base}/>:<span className="ga-y-neutral">Sem base</span>}</span>
-      </button>;
-    })}
-  </div>;
+    {tab==='zero'&&<p className="ga-y-note">* Apenas SKUs encontrados no ranking de quedas: não equivale à lista completa de anúncios ativos sem vendas.</p>}
+    {tab==='unverified'&&<p className="ga-y-note">Sem vendas registradas em {baseYear} não comprova que o anúncio seja novo. Verifique a data de publicação na plataforma.</p>}
+    {loading?<div className="ga-y-empty">Consultando produtos do mês…</div>:<ProductRows rows={rows} year={year} baseYear={baseYear} platform={platform} empty="Nenhum SKU confirmado neste grupo entre os produtos retornados pela consulta."/>}
+    {!loading&&<p className="ga-y-note">Rankings com até 10 registros retornados pelo GA. Para uma análise completa de anúncios sem venda é necessária uma consulta de catálogo e cobertura das importações.</p>}
+  </section>;
 }
-
-function DailyTable({data,loading,error,onRetry,selectedDay,setSelectedDay,week}) {
-  if (loading) return <p className="ga-y-muted" role="status">Consultando dados diários…</p>;
-  if (error) return <div className="ga-y-error" role="alert"><span>{error}</span><button type="button" onClick={onRetry}>Tentar novamente</button></div>;
-  if (!Array.isArray(data?.days)) return <p className="ga-y-muted">Dados diários indisponíveis para o período.</p>;
-  const filtered = data.days.filter(d=>Number(d.day)>=(week-1)*7+1 && Number(d.day)<=week*7);
-  return <div className="ga-y-daily">
-    <table><thead><tr><th>Dia</th><th>{data.base_year}</th><th>{data.year}</th><th>Variação</th></tr></thead>
-      <tbody>{filtered.map(d=><tr key={d.day} className={selectedDay===d.day?'is-selected':''}>
-        <td><button type="button" onClick={()=>setSelectedDay(selectedDay===d.day?null:d.day)} aria-pressed={selectedDay===d.day}>{String(d.day).padStart(2,'0')}/{String(data.month).padStart(2,'0')}</button></td>
-        <td>{d.base==null?'—':fmt(d.base)}</td><td>{d.cur==null?'—':fmt(d.cur)}</td><td>{d.cur!=null&&d.base!=null?<Trend cur={d.cur} base={d.base}/>:<span className="ga-y-neutral">Sem dados</span>}</td>
-      </tr>)}</tbody></table>
-    {selectedDay!=null&&(()=>{
-      const day=filtered.find(d=>d.day===selectedDay);
-      if(!day)return null;
-      return <div className="ga-y-day-info">
-        <strong>Dia {String(selectedDay).padStart(2,'0')}</strong>
-        <span>{day.base_date} × {day.cur_date}</span>
-        <span>{day.base==null||day.cur==null?'Sem cobertura diária comprovada nas duas datas':'Diferença: '+signed(day.cur-day.base)+' unidades'}</span>
-      </div>;
-    })()}
-    <p className="ga-y-note">Comparação por mesma data do calendário. “—” indica ausência de registro diário confirmado, não zero vendas.</p>
-  </div>;
-}
-
-export default function GuidedAnnualCompare({
-  data, monthData, filters, setFilters, refresh=0, onKpiOpen,
-  WeeksCard, Champions, PeriodSummary, PeriodDetails, useAnnualCompare, PeriodProducts
-}) {
-  const [display,setDisplay]=useState('chart');
-  const [tab,setTab]=useState('compare');
-  const [onlyOld,setOnlyOld]=useState(true);
-  const [week,setWeek]=useState(1);
-  const [showDaily,setShowDaily]=useState(true);
-  const [selectedDay,setSelectedDay]=useState(null);
-  const [dailyRevision,setDailyRevision]=useState(0);
-  const [dailyState,setDailyState]=useState({loading:false,error:'',data:null});
-  const [advanced,setAdvanced]=useState('products');
-  const [mobileSeries,setMobileSeries]=useState('week');
-  const current=Number((data?.as_of||'').slice(5,7))||1;
-  const defaultMonth=Math.max(1,current>1?current-1:1);
-  const selectedMonth=Number(filters.month)||defaultMonth;
-  const year=Number(data.year),baseYear=Number(data.base_year);
-  const period=(data.periods||[]).find(p=>Number(p.key)===selectedMonth);
-  const baseAvailable=annualCovered(data,filters.platform);
-  const validMonthData=monthData && Number(monthData.year)===year &&
-    monthData.platform===filters.platform && (!monthData.month || Number(monthData.month)===selectedMonth);
-  const monthInfo=useMemo(()=>validMonthData?weekHighlights(monthData.months||[]).find(m=>Number(m.month)===selectedMonth):null,[monthData,validMonthData,selectedMonth]);
-  const weekly=monthInfo?.weeks?.filter(w=>w.n<=Math.ceil(daysInMonth(year,selectedMonth)/7))||[];
-  const displayedDays=Math.max(0,Math.min(7,daysInMonth(year,selectedMonth)-(week-1)*7));
-  const isCurrentMonth=selectedMonth===current;
-  const partial=isCurrentMonth && Number((data.as_of||'').slice(8,10))<daysInMonth(year,selectedMonth);
-  const isValidWeek=weekly.some(w=>w.n===week);
-  const chosenWeek=weekly.find(w=>w.n===week);
-  const updateFilters=patch=>setFilters(prev=>({...prev,...patch}));
-  const selectMonth=m=>updateFilters({month:String(m),days:0});
-  const windowDays=Number(filters.days)||0;
-  const windowMode=windowDays>0;
-  const winTo=data.as_of,winFrom=isoAdd(winTo,-(windowDays-1));
-  const winBaseTo=isoMinusYear(winTo),winBaseFrom=isoAdd(winBaseTo,-(windowDays-1));
-  const [winState,setWinState]=useState({loading:false,error:'',data:null});
-  const [winBlock,setWinBlock]=useState(null);
-  useEffect(()=>{setWinBlock(null);},[windowDays,filters.platform,year]);
+function useApi(path,dependencies,enabled=true) {
+  const [state,setState]=useState({loading:false,data:null,error:'',path:''});
   useEffect(()=>{
-    if(!windowMode)return;
-    const c=new AbortController();
-    setWinState({loading:true,error:'',data:null});
-    fetchCommercialManager('/api/admin/commerce/sales-compare/annual-window?platform='+encodeURIComponent(filters.platform)+'&cur_from='+winFrom+'&cur_to='+winTo+'&base_from='+winBaseFrom+'&base_to='+winBaseTo,{signal:c.signal})
-      .then(r=>{if(!c.signal.aborted)setWinState({loading:false,error:'',data:r});})
-      .catch(e=>{if(!c.signal.aborted)setWinState({loading:false,error:e?.message||'Não foi possível carregar o período.',data:null});});
-    return()=>c.abort();
-  },[windowMode,windowDays,filters.platform,year,winTo,refresh]);
-  const winData=windowMode&&winState.data&&winState.data.cur_to===winTo&&winState.data.cur_from===winFrom?winState.data:null;
-  const winBlocks=winData?Array.from({length:Math.ceil(winData.days.length/7)},(_,i)=>{
-    const part=winData.days.slice(i*7,i*7+7);
-    return {i,curFrom:part[0].cur_date,curTo:part[part.length-1].cur_date,baseFrom:part[0].base_date,baseTo:part[part.length-1].base_date,
-      cur:part.reduce((a,d)=>a+Number(d.cur),0),base:part.reduce((a,d)=>a+Number(d.base),0),days:part.length};
-  }):[];
-  const winPick=winBlock!=null?winBlocks.find(b=>b.i===winBlock):null;
-  const winRange=winData?(winPick?{curFrom:winPick.curFrom,curTo:winPick.curTo,baseFrom:winPick.baseFrom,baseTo:winPick.baseTo}
-    :{curFrom:winFrom,curTo:winTo,baseFrom:winBaseFrom,baseTo:winBaseTo}):null;
-  const winTitle=winPick?'Produtos de '+ddmm(winPick.curFrom)+' a '+ddmm(winPick.curTo):'Produtos dos últimos '+windowDays+' dias';
-  useEffect(()=>{setWeek(1);setShowDaily(true);setSelectedDay(null);setAdvanced('products');},[selectedMonth,filters.platform,year]);
-  // Abre direto na semana mais recente com vendas, sem exigir cliques extras.
-  useEffect(()=>{
-    if(!validMonthData)return;
-    const last=[...weekly].reverse().find(w=>Number(w.days)>0||Number(w.cur)>0);
-    if(last){setWeek(last.n);setSelectedDay(null);}
-  },[validMonthData,selectedMonth,filters.platform,year]);
-  useEffect(()=>{
-    if(!showDaily||!isValidWeek||windowMode)return;
+    if(!enabled||!path){setState({loading:false,data:null,error:'',path:''});return;}
     const controller=new AbortController();
-    setDailyState({loading:true,error:'',data:null});
-    const url='/api/admin/commerce/sales-compare/annual-days?platform='+encodeURIComponent(filters.platform)
-      +'&month='+selectedMonth+'&week='+week+'&year='+year+'&base='+baseYear;
-    fetchCommercialManager(url,{signal:controller.signal})
-      .then(result=>{if(!controller.signal.aborted)setDailyState({loading:false,error:'',data:result});})
-      .catch(err=>{if(!controller.signal.aborted)setDailyState({loading:false,error:err?.message||'Não foi possível carregar o período.',data:null});});
-    return ()=>controller.abort();
-  },[showDaily,isValidWeek,selectedMonth,week,year,baseYear,filters.platform,dailyRevision,refresh]);
-  const dailyOk=dailyState.data&&Number(dailyState.data.month)===selectedMonth&&Number(dailyState.data.week)===week&&Number(dailyState.data.year)===year&&dailyState.data.platform===filters.platform?dailyState.data:null;
-  const weekDays=dailyOk?dailyOk.days.filter(d=>Number(d.day)>=(week-1)*7+1&&Number(d.day)<=week*7):[];
-  const dayPick=selectedDay!=null?weekDays.find(d=>d.day===selectedDay):null;
-  const usable=(dayPick?[dayPick]:weekDays).filter(d=>d.cur_date&&d.base_date&&d.cur_date<=dailyOk.as_of);
-  const range=usable.length?{curFrom:usable[0].cur_date,curTo:usable[usable.length-1].cur_date,baseFrom:usable[0].base_date,baseTo:usable[usable.length-1].base_date}:null;
-  const mm=String(selectedMonth).padStart(2,'0');
-  const periodTitle=dayPick?'Produtos vendidos em '+String(dayPick.day).padStart(2,'0')+'/'+mm:'Produtos da semana '+(week===5?'29+':String((week-1)*7+1).padStart(2,'0')+'–'+Math.min(week*7,daysInMonth(year,selectedMonth)))+' de '+MONTHS[selectedMonth-1].toLowerCase();
-  const k=data.kpi||{};
-  const proj=projectionRange(k,data.as_of);
-  const today=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
-  const behind=daysBehind(data.as_of,today);
-  const stale=behind!=null&&behind>=2;
-  const priceCur=Number(k.cur)>0?Number(k.cur_rev)/Number(k.cur):null;
-  const priceBase=Number(k.base)>0?Number(k.base_rev)/Number(k.base):null;
-  const unitsOf=(p,y)=>Number((data.coverage||[]).find(c=>c.platform===p&&Number(c.year)===Number(y))?.units||0);
-  const needsBase=p=>unitsOf(p,baseYear)<=0;
-  const NO_BASE='Sem vendas de '+baseYear+' importadas: não dá para comparar';
-  const platformOptions=PLATFORMS.map(([id,label])=>[id,label,
-    (id==='TODAS'?['SHOPEE','ML_ANTIGO','ML_NOVO'].some(needsBase):needsBase(id))?NO_BASE:null]);
-  const selectedBlocked=Boolean(platformOptions.find(o=>o[0]===filters.platform)?.[2]);
-  useEffect(()=>{if(selectedBlocked)setFilters(prev=>({...prev,platform:'SHOPEE'}));},[selectedBlocked]);
-  const hasUnits=y=>(data.coverage||[]).some(c=>Number(c.year)===y&&Number(c.units)>0);
-  // Só oferece "A × A-1" quando o ano anterior tem vendas importadas; o ano em tela fica sempre na lista.
-  const yearChoices=[...new Set((data.coverage||[]).map(c=>Number(c.year)).filter(n=>n>=2021&&n<=2100&&hasUnits(n-1)).concat([year]))].sort((a,b)=>b-a);
+    setState({loading:true,data:null,error:'',path});
+    fetchCommercialManager(path,{signal:controller.signal}).then(data=>{
+      if(!controller.signal.aborted)setState({loading:false,data,error:'',path});
+    }).catch(error=>{
+      if(!controller.signal.aborted)setState({loading:false,data:null,error:error?.message||'Falha na consulta',path});
+    });
+    return()=>controller.abort();
+  // O caminho contém todos os filtros relevantes.
+  },[path,enabled,...dependencies]);
+  return state.path===path?state:{loading:Boolean(enabled),data:null,error:'',path};
+}
+function MonthComparison({periods,mode,selected,onSelect,year,baseYear,filter,baseAvailable}) {
+  const filtered=periods.filter(r=>filter==='all'||(Number(r.base)>0&&(filter==='up'?Number(r.cur)>Number(r.base):Number(r.cur)<Number(r.base))));
+  const max=Math.max(1,...periods.flatMap(r=>[Number(r.base)||0,Number(r.cur)||0]));
+  if(!filtered.length)return <p className="ga-y-empty">Nenhum mês com dados comparáveis corresponde ao filtro selecionado.</p>;
+  if(mode==='chart')return <div className="ga-y-bars-chart" role="group" aria-label="Comparação mensal de unidades">{filtered.map(p=>{
+    const m=Number(p.key);return <button type="button" key={m} className={'ga-y-bar-month'+(selected===m?' is-selected':'')} onClick={()=>onSelect(m)} aria-pressed={selected===m} title={MONTHS[m-1]+': '+baseYear+' '+fmt(p.base)+' / '+year+' '+fmt(p.cur)}>
+      <span className="ga-y-bar-columns"><i className="is-base" style={{height:Math.max(2,100*Number(p.base||0)/max)+'%'}}/><i className="is-current" style={{height:Math.max(2,100*Number(p.cur||0)/max)+'%'}}/></span><b>{monthShort(m)}</b><small>{baseAvailable?pct(percentage(p.cur,p.base)):'Sem base'}</small>
+    </button>;
+  })}</div>;
+  return <div className="ga-y-table-scroll"><table className="ga-y-month-table"><thead><tr><th>Mês</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th></tr></thead><tbody>{filtered.map(p=>{
+    const m=Number(p.key),diff=Number(p.cur)-Number(p.base);
+    return <tr key={m} className={selected===m?'is-selected':''} onClick={()=>onSelect(m)}><td><button type="button" onClick={()=>onSelect(m)}>{MONTHS[m-1]}</button></td><td>{baseAvailable?fmt(p.base):'—'}</td><td><b>{fmt(p.cur)}</b></td><td className={diff>=0?'is-up':'is-down'}>{baseAvailable?signed(diff):'—'}</td><td>{baseAvailable?<Trend cur={p.cur} base={p.base}/>:<span className="ga-y-muted-inline">Sem base</span>}</td></tr>;
+  })}</tbody></table></div>;
+}
+export default function GuidedAnnualCompare({data,monthData,filters,setFilters,refresh=0}) {
+  const [view,setView]=useState('chart');
+  const [monthFilter,setMonthFilter]=useState('all');
+  const [focus,setFocus]=useState('units');
+  const [week,setWeek]=useState(null);
+  const [showDays,setShowDays]=useState(false);
+  const [productTab,setProductTab]=useState('top');
+  const [history,setHistory]=useState('all');
+  const [weekRank,setWeekRank]=useState('top');
+  const [query,setQuery]=useState('');
+  const [selectedSku,setSelectedSku]=useState(null);
+  const year=Number(data.year),baseYear=Number(data.base_year);
+  const asOf=String(data.as_of||'');
+  const current=Number(asOf.slice(5,7))||1;
+  const previousMonth=current>1?current-1:1;
+  const selectedMonth=Number(filters.month)||previousMonth;
+  const days=Number(filters.days)||0;
+  const windowMode=days>0;
+  const allPeriods=cleanRows(data.periods).filter(p=>Number(p.key)>=1&&Number(p.key)<=12&&Number(p.key)<=current);
+  const comparable=allPeriods.filter(p=>Number(p.base)>0);
+  const up=comparable.filter(p=>Number(p.cur)>Number(p.base));
+  const down=comparable.filter(p=>Number(p.cur)<Number(p.base));
+  const ranked=comparable.map(p=>({...p,diff:Number(p.cur)-Number(p.base)}));
+  const best=ranked.reduce((a,b)=>!a||b.diff>a.diff?b:a,null);
+  const worst=ranked.reduce((a,b)=>!a||b.diff<a.diff?b:a,null);
+  const period=allPeriods.find(p=>Number(p.key)===selectedMonth);
+  const baseAvailable=(()=>{const ps=filters.platform==='TODAS'?['SHOPEE','ML_ANTIGO','ML_NOVO']:[filters.platform];return ps.every(p=>(data.coverage||[]).some(c=>c.platform===p&&Number(c.year)===baseYear&&Number(c.units)>0));})();
+  const productValid=monthData&&Number(monthData.year)===year&&monthData.platform===filters.platform&&Number(monthData.month)===selectedMonth;
+  const monthly=productValid?monthData:null;
+  const update=patch=>setFilters(prev=>({...prev,...patch}));
+  const chooseMonth=m=>{update({month:String(m),days:0});setWeek(null);setShowDays(false);setProductTab('top');};
+  const yearChoices=[...new Set(cleanRows(data.coverage).map(c=>Number(c.year)).filter(y=>y>=2021&&y<=2100&&(data.coverage||[]).some(b=>Number(b.year)===y-1&&Number(b.units)>0)).concat(year))].sort((a,b)=>b-a);
+  const winTo=asOf,winFrom=plusDays(asOf,-(days-1));
+  const winBaseTo=yearAgo(winTo),winBaseFrom=yearAgo(winFrom);
+  const winUrl=windowMode?'/api/admin/commerce/sales-compare/annual-window?platform='+encodeURIComponent(filters.platform)+'&cur_from='+winFrom+'&cur_to='+winTo+'&base_from='+winBaseFrom+'&base_to='+winBaseTo:'';
+  const windowState=useApi(winUrl,[refresh],windowMode);
+  const winData=windowState.data?.cur_to===winTo?windowState.data:null;
+  const unitCur=windowMode?winData?.total?.cur:data.kpi?.cur;
+  const unitBase=windowMode?winData?.total?.base:data.kpi?.base;
+  const weekList=cleanRows(monthly?.months).find(r=>Number(r.month)===selectedMonth)?.weeks||[];
+  const weeks=cleanRows(weekList).filter(w=>Number(w.n)>=1&&Number(w.n)<=5);
+  const lastDay=dayCount(year,selectedMonth);
+  const selectedWeek=weeks.find(w=>Number(w.n)===week);
+  const weekFrom=week?iso(year,selectedMonth,(week-1)*7+1):'';
+  const weekEnd=week?iso(year,selectedMonth,Math.min(lastDay,week*7)):null;
+  const weekTo=weekEnd&&weekEnd>asOf&&Number(asOf.slice(0,4))===year?asOf:weekEnd;
+  const weekOk=Boolean(weekFrom&&weekTo&&weekFrom<=weekTo);
+  const weekUrl=weekOk?'/api/admin/commerce/sales-compare/annual-period-products?platform='+encodeURIComponent(filters.platform)+'&cur_from='+weekFrom+'&cur_to='+weekTo+'&base_from='+yearAgo(weekFrom)+'&base_to='+yearAgo(weekTo):'';
+  const weekState=useApi(weekUrl,[refresh],weekOk&&!windowMode);
+  const dayUrl=showDays&&week?'/api/admin/commerce/sales-compare/annual-days?platform='+encodeURIComponent(filters.platform)+'&month='+selectedMonth+'&week='+week+'&year='+year+'&base='+baseYear:'';
+  const dayState=useApi(dayUrl,[refresh],Boolean(dayUrl)&&!windowMode);
+  const winProductsUrl=windowMode&&winData?'/api/admin/commerce/sales-compare/annual-period-products?platform='+encodeURIComponent(filters.platform)+'&cur_from='+winFrom+'&cur_to='+winTo+'&base_from='+winBaseFrom+'&base_to='+winBaseTo:'';
+  const winProducts=useApi(winProductsUrl,[refresh],Boolean(winProductsUrl));
+  const late=daysBehind(asOf,new Date().toISOString().slice(0,10));
+  useEffect(()=>{setWeek(null);setShowDays(false);setProductTab('top');setHistory('all');setSelectedSku(null);},[filters.platform,selectedMonth,year,days]);
+  const oldFall=cleanRows(monthly?.down_old||monthly?.down).filter(r=>Number(r.cur)<Number(r.base));
+  const filterMonths=status=>{setMonthFilter(status);setFocus(status);};
+  const sortedWeekRows=cleanRows(weekState.data?.products).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())).sort((a,b)=>weekRank==='down'?(Number(a.cur)-Number(a.base))-(Number(b.cur)-Number(b.base)):weekRank==='up'?(Number(b.cur)-Number(b.base))-(Number(a.cur)-Number(a.base)):Number(b.cur)-Number(a.cur));
+  const rawWin=cleanRows(winProducts.data?.products).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase()));
   return <div className="ga-y-guided">
     <div className="ga-y-toolbar">
-      <Dropdown label="Plataforma" value={filters.platform} options={platformOptions} onChange={v=>updateFilters({platform:v})}/>
-      <Dropdown label="Comparação" value={String(year)} options={yearChoices.map(y=>[String(y),y+' × '+(y-1)])} onChange={v=>updateFilters({year:Number(v),base:Number(v)-1,month:''})}/>
-      <PeriodPicker days={windowDays} month={windowMode?'':year+'-'+String(selectedMonth).padStart(2,'0')} periods={[7,30,60,90]} allowAll={false}
-        available={MONTHS.map((_,i)=>year+'-'+String(i+1).padStart(2,'0')).filter((_,i)=>i<current)}
-        onDays={v=>updateFilters({days:v,month:''})} onMonth={key=>updateFilters({days:0,month:String(Number(key.slice(5,7)))})}/>
-      <span className="ga-y-asof">Dados até {String(data.as_of||'').split('-').reverse().join('/')}</span>
+      <Dropdown label="Plataforma" value={filters.platform} options={PLATFORMS} onChange={p=>update({platform:p})}/>
+      <Dropdown label="Comparação" value={String(year)} options={yearChoices.map(y=>[String(y),y+' × '+(y-1)])} onChange={y=>update({year:Number(y),base:Number(y)-1,month:'',days:0})}/>
+      <PeriodPicker days={days} month={windowMode?'':iso(year,selectedMonth,1).slice(0,7)} periods={[7,30,60,90]} allowAll={false} available={MONTHS.map((_,i)=>iso(year,i+1,1).slice(0,7)).filter((_,i)=>i<current)} onDays={n=>update({days:n,month:''})} onMonth={key=>chooseMonth(Number(String(key).slice(5,7)))}/>
+      <span className="ga-y-asof">Dados até {asOf.split('-').reverse().join('/')||'—'}</span>
     </div>
-    <div className="ga-y-tabs" role="tablist" aria-label="Seções da comparação anual">
-      {[['compare','Comparação'],['seasonal','Picos e sazonalidade'],['launches','Lançamentos '+year]].map(([id,label])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)}>{label}</button>)}
-      {tab==='compare'&&<label className="ga-y-oldtoggle"><input type="checkbox" checked={onlyOld} onChange={e=>setOnlyOld(e.target.checked)}/> Só produtos que já existiam em {baseYear}</label>}
-    </div>
-    {tab==='seasonal'&&<Seasonality platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/>}
-    {tab==='launches'&&<Launches platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/>}
-    {tab==='compare'&&<>
-    {stale&&<p className="ga-y-warning" role="note">Os dados vão até {String(data.as_of).split('-').reverse().join('/')}, há {behind} dias. Importe as vendas mais recentes para os números do mês e dos últimos 28 dias ficarem completos.</p>}
-    {!baseAvailable&&<p className="ga-y-error" role="note">Sem referência importada suficiente para uma ou mais plataformas em {baseYear}. As diferenças não são apresentadas como crescimento comprovado.</p>}
+    {late>=2&&<p className="ga-y-warning">Importações desatualizadas: o último dado é de {asOf.split('-').reverse().join('/')}. Os resultados recentes podem estar incompletos.</p>}
+    {!baseAvailable&&<p className="ga-y-warning">Sem cobertura confirmada de {baseYear} para todas as plataformas escolhidas. Comparações de crescimento exigem histórico importado.</p>}
     <div className="ga-y-kpis">
-      <Figure label="Unidades no ano" value={hasValue(k.cur)?fmt(k.cur):'—'} reference={baseYear+': '+(baseAvailable?fmt(k.base||0):'sem base')} cur={k.cur} base={baseAvailable?k.base:null} onClick={()=>onKpiOpen('units')}/>
-      <Figure label="Últimos 28 dias" value={hasValue(k.cur28)?fmt(k.cur28):'—'} reference={baseYear+': '+(baseAvailable?fmt(k.base28||0):'sem base')} cur={k.cur28} base={baseAvailable?k.base28:null} onClick={()=>onKpiOpen('l28')}/>
-      <Figure label={'Projeção de '+year} value={proj?(proj.high-proj.low<500?mil(proj.mid)+' mil':mil(proj.low)+'–'+mil(proj.high)+' mil'):(hasValue(k.projection)?fmt(k.projection):'—')} reference={proj?'Faixa de 3 métodos; o % usa o ponto médio':'Estimativa pelo ritmo dos últimos 28 dias'} cur={proj?proj.mid:k.projection} base={baseAvailable?k.base_full:null} neutral={Boolean(proj)} onClick={()=>onKpiOpen('proj')}/>
-      <Figure label="Preço médio por unidade" value={priceCur!=null?amount(priceCur):'—'} reference={baseYear+': '+(priceBase!=null&&baseAvailable?amount(priceBase):'sem base')} cur={priceCur} base={baseAvailable?priceBase:null} neutral onClick={()=>onKpiOpen('price')}/>
+      <DataCard title={windowMode?'Unidades nos últimos '+days+' dias':'Unidades no ano'} active={focus==='units'} onClick={()=>{setFocus('units');setMonthFilter('all')}}>
+        <div className="ga-y-kpi-main">{unitCur==null?'—':fmt(unitCur)} {baseAvailable&&unitBase!=null&&<Trend cur={unitCur} base={unitBase}/>}</div>
+        <small>{baseYear}: {baseAvailable&&unitBase!=null?fmt(unitBase):'sem base'} {baseAvailable&&unitBase!=null?'· Dif. '+signed(Number(unitCur||0)-Number(unitBase||0)):''}</small>
+      </DataCard>
+      <DataCard title="Meses em alta / queda" active={focus==='up'||focus==='down'} onClick={()=>filterMonths(monthFilter==='down'?'up':'down')} description="Alterna meses em queda e meses em crescimento">
+        <div className="ga-y-kpi-split"><span><strong className="is-up">{up.length}</strong><small>Em alta</small></span><span><strong className="is-down">{down.length}</strong><small>Em queda</small></span></div>
+        <small>{comparable.length} meses com base comparável</small>
+      </DataCard>
+      <DataCard title="Maior ganho / maior perda" active={focus==='best'||focus==='worst'} onClick={()=>{if(worst){chooseMonth(Number(worst.key));setFocus('worst');setMonthFilter('all');}}}>
+        <div className="ga-y-kpi-split"><span><strong>{best?monthShort(Number(best.key)):'—'}</strong><small className="is-up">{best?signed(best.diff):'sem base'} un.</small></span><span><strong>{worst?monthShort(Number(worst.key)):'—'}</strong><small className="is-down">{worst?signed(worst.diff):'sem base'} un.</small></span></div>
+        <small>Diferença absoluta de unidades vs. {baseYear}</small>
+      </DataCard>
+      <DataCard title="Produtos em queda no mês" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old')}}>
+        <div className="ga-y-kpi-main">{productValid?fmt(oldFall.length):'—'} <span className="ga-y-kpi-qualifier">no ranking consultado</span></div>
+        <small>{MONTHS[selectedMonth-1]} · clique para investigar os SKUs</small>
+      </DataCard>
     </div>
-    <div className="ga-y-body">
-      <div className="ga-y-left">
-      <section className="ga-y-main" aria-label="Comparação mensal">
-        <header><div><h3>Comparação mensal</h3><p>{baseYear} versus {year} · unidades vendidas</p></div>
-          <div className="ga-y-head-right"><div className="ga-y-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-current"/>{year}</span></div>
-            <div className="ga-y-view-controls" role="group" aria-label="Visualização mensal">
-              {['chart','table'].map((mode,i)=><button type="button" key={mode} className={display===mode?'is-active':''} onClick={()=>setDisplay(mode)} aria-pressed={display===mode}>{['Gráfico','Tabela'][i]}</button>)}
-            </div></div></header>
-        <MonthRows periods={data.periods||[]} mode={display} year={year} baseYear={baseYear} baseAvailable={baseAvailable} selected={windowMode?null:selectedMonth} onSelect={selectMonth} asOf={data.as_of}/>
-        <p className="ga-y-note">Selecione um mês para analisar semanas e dias. Os valores seguem os dados importados no GA.</p>
-      </section>
-      <div className="ga-y-detail-head">
-        <div><h3>{windowMode?'Últimos '+windowDays+' dias':MONTHS[selectedMonth-1]+' de '+year}</h3><p>Detalhe do período selecionado</p></div>
-        <div className="ga-y-detail-tabs" role="tablist" aria-label="Detalhe do período">
-          {[['products','Produtos'],['weeks',windowMode?'Blocos de 7 dias':'Semanas e dias'],...(windowMode?[]:[['mobile','Série móvel']])].map(([id,label])=><button key={id} type="button" role="tab" aria-selected={advanced===id} className={advanced===id?'is-active':''} onClick={()=>setAdvanced(id)}>{label}</button>)}
-        </div>
-      </div>
-      {windowMode&&advanced==='products'&&winRange&&PeriodProducts&&<section className="ga-y-main" aria-label="Produtos do período"><PeriodProducts onlyOld={onlyOld} key={winRange.curFrom+winRange.curTo} platform={filters.platform} {...winRange} year={year} base={baseYear} title={winTitle}/></section>}
-      {!windowMode&&advanced==='products'&&<Champions onlyOld={onlyOld} month={selectedMonth} monthData={validMonthData&&Number(monthData.month)===selectedMonth?monthData:{top:[],up:[],down:[]}} loading={!(validMonthData&&Number(monthData.month)===selectedMonth)} year={year} base={baseYear} platform={filters.platform}/>}
-      {!windowMode&&advanced==='mobile'&&<MobilePeriods platform={filters.platform} gran={mobileSeries} onGran={setMobileSeries} year={year} baseYear={baseYear} useAnnualCompare={useAnnualCompare} PeriodSummary={PeriodSummary} PeriodDetails={PeriodDetails}/>}
-      </div>
-      {windowMode&&advanced==='weeks'&&<aside className="ga-y-investigation" aria-label="Investigação do período">
-        <header><h3>Investigação</h3><p>Últimos {windowDays} dias · {PLATFORMS.find(p=>p[0]===filters.platform)?.[1]} · {year} × {baseYear}</p></header>
-        {winState.error&&<div className="ga-y-error" role="alert"><span>{winState.error}</span></div>}
-        {!winData&&!winState.error&&<p className="ga-y-muted" role="status">Consultando o período…</p>}
-        {winData&&<>
-          <div className="ga-y-result">
-            <div><small>Resultado do período</small><strong>{fmt(winData.total.cur)} un.</strong><span>{baseYear}: {baseAvailable?fmt(winData.total.base):'—'} unidades</span></div>
-            <div className="ga-y-result-trend">{baseAvailable?<><Trend cur={winData.total.cur} base={winData.total.base}/><small>{signed(Number(winData.total.cur)-Number(winData.total.base))} unidades</small></>:<span className="ga-y-neutral">Sem base</span>}</div>
+    {windowMode?<section className="ga-y-section ga-y-window">
+      <div className="ga-y-section-header"><div><h3>Últimos {days} dias</h3><p>Comparação com o mesmo intervalo de {baseYear}.</p></div><span className="ga-y-chip">{winFrom} a {winTo}</span></div>
+      {windowState.loading?<p className="ga-y-empty">Carregando comparação…</p>:windowState.error?<p className="ga-y-warning">{windowState.error}</p>:<div className="ga-y-window-kpis"><div><small>{year}</small><strong>{fmt(winData?.total?.cur)}</strong></div><div><small>{baseYear}</small><strong>{baseAvailable?fmt(winData?.total?.base):'—'}</strong></div><div><small>Diferença</small><strong>{baseAvailable?signed(Number(winData?.total?.cur||0)-Number(winData?.total?.base||0)):'—'}</strong></div><div><small>Variação</small>{baseAvailable?<Trend cur={winData?.total?.cur} base={winData?.total?.base}/>:<span>—</span>}</div></div>}
+      <h3>Produtos do período</h3>
+      {winProducts.loading?<p className="ga-y-empty">Carregando produtos…</p>:winProducts.error?<p className="ga-y-warning">{winProducts.error}</p>:<ProductRows rows={rawWin} year={year} baseYear={baseYear} platform={filters.platform} limit={40}/>}
+      <p className="ga-y-note">A API do período retorna até 40 produtos. Não confunda ausência da lista com zero vendas.</p>
+    </section>:<>
+      <div className="ga-y-body">
+        <section className="ga-y-section ga-y-months">
+          <div className="ga-y-section-header"><div><h3>Evolução mensal de unidades vendidas</h3><p>Comparação {year} × {baseYear} · selecione um mês para investigar.</p></div><div className="ga-y-heading-tools">
+            <div className="ga-y-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-current"/>{year}</span></div>
+            <div className="ga-y-segments"><button type="button" className={view==='chart'?'is-active':''} onClick={()=>setView('chart')}>Gráfico</button><button type="button" className={view==='table'?'is-active':''} onClick={()=>setView('table')}>Tabela</button></div>
+          </div></div>
+          <div className="ga-y-month-filter"><button type="button" className={monthFilter==='all'?'is-active':''} onClick={()=>filterMonths('all')}>Todos</button><button type="button" className={monthFilter==='up'?'is-active':''} onClick={()=>filterMonths('up')}>Em alta ({up.length})</button><button type="button" className={monthFilter==='down'?'is-active':''} onClick={()=>filterMonths('down')}>Em queda ({down.length})</button></div>
+          <MonthComparison periods={allPeriods} selected={selectedMonth} mode={view} onSelect={chooseMonth} year={year} baseYear={baseYear} filter={monthFilter} baseAvailable={baseAvailable}/>
+          <p className="ga-y-note">Mês parcial é comparado somente até a data correspondente. Sem importação confirmada, não se presume zero vendas.</p>
+        </section>
+        <aside className="ga-y-section ga-y-investigation">
+          <div className="ga-y-section-header"><div><h3>Investigação do mês</h3><p>{MONTHS[selectedMonth-1]} · {labelPlatform(filters.platform)}</p></div><div className="ga-y-month-nav"><button type="button" disabled={selectedMonth<=1} onClick={()=>chooseMonth(selectedMonth-1)} aria-label="Mês anterior">‹</button><span>{monthShort(selectedMonth)} {year}</span><button type="button" disabled={selectedMonth>=current} onClick={()=>chooseMonth(selectedMonth+1)} aria-label="Próximo mês">›</button></div></div>
+          <div className="ga-y-month-summary">
+            <div><small>Unidades no mês</small><strong>{period?fmt(period.cur):'—'}</strong><small>{baseYear}: {baseAvailable&&period?fmt(period.base):'—'}</small></div>
+            <div><small>Diferença</small><strong>{period&&baseAvailable?signed(Number(period.cur)-Number(period.base)):'—'}</strong><small>{period&&baseAvailable?pct(percentage(period.cur,period.base)):'Sem base comparável'}</small></div>
           </div>
-          <p className="ga-y-warning">{ddmm(winFrom)}/{String(winTo).slice(0,4)} a {ddmm(winTo)}/{String(winTo).slice(0,4)} contra as mesmas datas de {baseYear}.</p>
-          <div className="ga-y-section-head"><h4>Blocos de 7 dias</h4>{winBlock!=null&&<button type="button" onClick={()=>setWinBlock(null)}>Ver o período todo</button>}</div>
-          <div className="ga-y-week-list">
-            <div className="ga-y-week-head"><span>Datas</span><span>{baseYear}</span><span>{year}</span><span>Diferença</span><span>Variação</span></div>
-            {winBlocks.map(b=><button key={b.i} type="button" className={'ga-y-week-row'+(winBlock===b.i?' is-selected':'')} onClick={()=>setWinBlock(winBlock===b.i?null:b.i)} aria-pressed={winBlock===b.i}>
-              <span>{ddmm(b.curFrom)}–{ddmm(b.curTo)}{b.days<7?<small>{b.days} dia(s)</small>:null}</span>
-              <span>{baseAvailable?fmt(b.base):'—'}</span><span>{fmt(b.cur)}</span>
-              <span className={baseAvailable?(b.cur>=b.base?'is-up':'is-down'):''}>{baseAvailable?signed(b.cur-b.base):'—'}</span>
-              <span>{baseAvailable?<><Trend cur={b.cur} base={b.base}/>{winBlock===b.i&&indexOf(b.cur,b.base)!=null&&<em className="ga-y-idx">Índice {indexOf(b.cur,b.base)}</em>}</>:<span className="ga-y-neutral">—</span>}</span>
-            </button>)}
-          </div>
-          <p className="ga-y-note">Clique num bloco para ver só os produtos dele. Comparação pelas mesmas datas do calendário.</p>
-        </>}
-      </aside>}
-      {!windowMode&&advanced==='weeks'&&<aside className="ga-y-investigation" aria-label="Investigação do mês">
-        <header><h3>Investigação</h3><p>{MONTHS[selectedMonth-1]} · {PLATFORMS.find(p=>p[0]===filters.platform)?.[1]} · {year} × {baseYear}</p></header>
-        <div className="ga-y-result">
-          <div><small>Resultado do mês</small><strong>{period?fmt(period.cur):'—'} un.</strong><span>{baseYear}: {baseAvailable&&period?fmt(period.base):'—'} unidades</span></div>
-          <div className="ga-y-result-trend">{period&&baseAvailable?<><Trend cur={period.cur} base={period.base}/><small>{signed(Number(period.cur)-Number(period.base))} unidades</small></>:<span className="ga-y-neutral">Sem base</span>}</div>
-        </div>
-        {partial&&<p className="ga-y-warning">Parcial até {String(data.as_of).split('-').reverse().join('/')}; referência do ano anterior cortada na data equivalente.</p>}
-        <div className="ga-y-section-head"><h4>Semanas do mês</h4></div>
-        {!validMonthData?<p className="ga-y-muted">Carregando análise semanal…</p>:
-          weekly.length===0?<p className="ga-y-muted">Sem registros semanais neste mês.</p>:
-          <div className="ga-y-week-list">
-            <div className="ga-y-week-head"><span>Semana</span><span>{baseYear}</span><span>{year}</span><span>Diferença</span><span>Variação</span></div>
-            {weekly.map(w=><button key={w.n} type="button" className={'ga-y-week-row'+(week===w.n?' is-selected':'')} onClick={()=>{setWeek(w.n);setShowDaily(true);setSelectedDay(null);}} aria-pressed={week===w.n}>
-              <span>{w.n===5?'29+':String((w.n-1)*7+1).padStart(2,'0')+'–'+Math.min(w.n*7,daysInMonth(year,selectedMonth))}{w.n===5?<small>Faixa curta</small>:null}</span>
-              <span>{baseAvailable?fmt(w.base):'—'}</span><span>{fmt(w.cur)}</span>
-              <span className={baseAvailable?(Number(w.cur)>=Number(w.base)?'is-up':'is-down'):''}>{baseAvailable?signed(Number(w.cur)-Number(w.base)):'—'}</span>
-              <span>{baseAvailable?<><Trend cur={w.cur} base={w.base}/>{week===w.n&&indexOf(w.cur,w.base)!=null&&<em className="ga-y-idx" title="100 = igual ao ano anterior">Índice {indexOf(w.cur,w.base)}</em>}</>:<span className="ga-y-neutral">—</span>}</span>
-            </button>)}
+          <div className="ga-y-section-header ga-y-subhead"><h4>Desempenho semanal</h4><button type="button" onClick={()=>{setWeek(null);setShowDays(false)}}>Limpar seleção</button></div>
+          {!productValid?<p className="ga-y-empty">Consultando semanas do mês…</p>:weeks.length===0?<p className="ga-y-empty">Sem dados semanais disponíveis.</p>:<div className="ga-y-table-scroll"><table className="ga-y-weeks-table">
+            <thead><tr><th>Semana</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th></tr></thead>
+            <tbody>{weeks.map(w=>{const n=Number(w.n),start=(n-1)*7+1,end=Math.min(n*7,lastDay),diff=Number(w.cur)-Number(w.base);
+              return <tr key={n} className={week===n?'is-selected':''} onClick={()=>{setWeek(n);setShowDays(false);}}><td><button type="button" onClick={()=>{setWeek(n);setShowDays(false);}}>{start}–{end}{n===5?'*':''}</button></td><td>{baseAvailable?fmt(w.base):'—'}</td><td><b>{fmt(w.cur)}</b></td><td className={diff>=0?'is-up':'is-down'}>{baseAvailable?signed(diff):'—'}</td><td>{baseAvailable?<Trend cur={w.cur} base={w.base}/>:<span>—</span>}</td></tr>;
+            })}</tbody>
+          </table></div>}
+          {week!=null&&<div className="ga-y-week-detail">
+            <div className="ga-y-section-header ga-y-subhead"><h4>Semana {week===5?'29+':(week-1)*7+1+'–'+Math.min(week*7,lastDay)}</h4><button type="button" onClick={()=>setShowDays(v=>!v)}>{showDays?'Ocultar dias':'Ver dias'}</button></div>
+            {selectedWeek&&<p className="ga-y-week-note">Resultado: {fmt(selectedWeek.cur)} unidades · diferença {baseAvailable?signed(Number(selectedWeek.cur)-Number(selectedWeek.base)):'sem base'}.</p>}
+            {showDays&&(dayState.loading?<p className="ga-y-empty">Consultando dias…</p>:dayState.error?<p className="ga-y-warning">{dayState.error}</p>:<div className="ga-y-table-scroll"><table className="ga-y-days-table"><thead><tr><th>Dia</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th></tr></thead><tbody>{cleanRows(dayState.data?.days).filter(d=>Number(d.day)>=(week-1)*7+1&&Number(d.day)<=week*7).map(d=><tr key={d.day}><td>{d.day}/{String(selectedMonth).padStart(2,'0')}</td><td>{d.base==null?'—':fmt(d.base)}</td><td>{d.cur==null?'—':fmt(d.cur)}</td><td>{d.base==null||d.cur==null?'—':signed(Number(d.cur)-Number(d.base))}</td></tr>)}</tbody></table><p className="ga-y-note">“—” = sem cobertura diária confirmada, não zero vendas.</p></div>)}
           </div>}
-        {showDaily&&isValidWeek&&<div className="ga-y-daily-section">
-          <div className="ga-y-section-head"><h4>Comparação diária</h4><small>{displayedDays} dia(s) · {MONTHS[selectedMonth-1]}</small></div>
-          <DailyTable data={dailyState.data && Number(dailyState.data.month)===selectedMonth && Number(dailyState.data.week)===week && Number(dailyState.data.year)===year && dailyState.data.platform===filters.platform ? dailyState.data : null} loading={dailyState.loading} error={dailyState.error} onRetry={()=>setDailyRevision(v=>v+1)} selectedDay={selectedDay} setSelectedDay={setSelectedDay} week={week}/>
-        </div>}
-        {range&&PeriodProducts&&<PeriodProducts onlyOld={onlyOld} key={range.curFrom+range.curTo} platform={filters.platform} {...range} year={year} base={baseYear} title={periodTitle}/>}
-      </aside>}
-    </div>
+          <p className="ga-y-note">Selecione uma semana para abrir os produtos correspondentes abaixo.</p>
+        </aside>
+      </div>
+      <div className="ga-y-body ga-y-products-body">
+        <div className="ga-y-product-left">
+          <div className="ga-y-search"><label htmlFor="ga-y-search">Localizar SKU nas listas</label><input id="ga-y-search" type="search" placeholder="Nome ou SKU (filtro local)" value={query} onChange={e=>setQuery(e.target.value)}/></div>
+          <ProductPanel monthData={monthly?{...monthly,top:cleanRows(monthly.top).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),up:cleanRows(monthly.up).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),down:cleanRows(monthly.down).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),top_old:cleanRows(monthly.top_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),up_old:cleanRows(monthly.up_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),down_old:cleanRows(monthly.down_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase()))}:null} loading={!monthly} month={selectedMonth} year={year} baseYear={baseYear} platform={filters.platform} tab={productTab} setTab={setProductTab} history={history} setHistory={setHistory}/>
+        </div>
+        <section className="ga-y-section ga-y-week-products">
+          <div className="ga-y-section-header"><div><h3>{week?'Produtos da semana '+(week===5?'29+':(week-1)*7+1+'–'+Math.min(week*7,lastDay)):'Produtos da semana'}</h3><p>Selecione uma semana na investigação para comparar seus SKUs.</p></div></div>
+          {week==null?<div className="ga-y-empty">Clique em uma semana na tabela superior para mostrar seus produtos.</div>:<>
+            <div className="ga-y-segments"><button type="button" className={weekRank==='top'?'is-active':''} onClick={()=>setWeekRank('top')}>Mais vendidos</button><button type="button" className={weekRank==='up'?'is-active':''} onClick={()=>setWeekRank('up')}>Mais cresceram</button><button type="button" className={weekRank==='down'?'is-active':''} onClick={()=>setWeekRank('down')}>Mais caíram</button></div>
+            {weekState.loading?<div className="ga-y-empty">Carregando produtos da semana…</div>:weekState.error?<p className="ga-y-warning">{weekState.error}</p>:<ProductRows rows={sortedWeekRows.filter(r=>weekRank==='down'?Number(r.cur)<Number(r.base):weekRank==='up'?Number(r.cur)>Number(r.base):true)} year={year} baseYear={baseYear} platform={filters.platform}/>}
+            <p className="ga-y-note">Ranking calculado entre os produtos retornados pela consulta do período (até 40); não equivale ao catálogo completo.</p>
+          </>}
+        </section>
+      </div>
     </>}
   </div>;
-}
-function MobilePeriods({platform,gran,onGran,year,baseYear,useAnnualCompare,PeriodSummary,PeriodDetails}) {
-  const {loading,error,data}=useAnnualCompare({platform,gran,year,base:baseYear});
-  return <section className="ga-y-mobile-series">
-    <div className="ga-y-section-head"><h3>Séries móveis</h3>
-      <div className="ga-y-view-controls">{[['week','Últimas 12 semanas'],['day','Últimos 30 dias']].map(([id,text])=><button type="button" className={gran===id?'is-active':''} key={id} onClick={()=>onGran(id)}>{text}</button>)}</div>
-    </div>
-    <p className="ga-y-note">Comparação com 364 dias antes para manter o mesmo dia da semana. Não equivale às semanas de 1–7 dentro do mês.</p>
-    {loading&&<p role="status">Carregando série móvel…</p>}
-    {error&&<p role="alert">{error}</p>}
-    {data&&<div className="ga-y-mobile-grid"><PeriodSummary data={data}/><PeriodDetails data={data}/></div>}
-  </section>;
 }
