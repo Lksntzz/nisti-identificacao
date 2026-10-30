@@ -460,63 +460,38 @@ html.ga-dark .ndb-ac-wc.ndb-ac-wm{border-left:2px solid #222935}
 html.ga-dark .ndb-ac-fl.best{color:#f4be2d}
 html.ga-dark .ndb-ac-fl.worst{color:#de554a}
 html.ga-dark .ndb-ac-wc.has-flag{box-shadow:inset 0 0 0 1.5px rgba(52,112,216,.35)}
+html.ga-dark .ndb-ac-newtag.is-old{color:#7e8491;background:#222428}
 html.ga-dark .ndb-ac-newtag{color:#3470d8;background:#152032}
-html.ga-dark .ndb-ac-newtag.is-old{color:#9aa3b2;background:#1f2430}
 html.ga-dark .ndb-ac-wt i{background:#1f3d74}
 html.ga-dark .ndb-ac-wt span{color:#94a3c2}
 html.ga-dark .ndb-ac-links a{color:#3470d8}
 html.ga-dark .ndb-ac-dayprod{border-top:1px solid #212732}
 html.ga-dark .ndb-ac-dayprod h4 small{color:#616f86}
 html.ga-dark .ndb-ac-links a:hover{background:#111c33}
-html.ga-dark .ga-y-toolbar select{background:#1a1a1a}
-html.ga-dark .ga-y-view-controls{background:#1a1a1a}
-html.ga-dark .ga-y-view-controls button{color:#8395af}
-html.ga-dark .ga-y-view-controls button+button{border-left:1px solid #1d242d}
-html.ga-dark .ga-y-view-controls button.is-active{color:#1a1a1a}
-html.ga-dark .ga-y-kpi{background:#1a1a1a}
-html.ga-dark .ga-y-kpi:hover,html.ga-dark .ga-y-kpi:focus-visible{border-color:#204783;box-shadow:0 3px 12px rgba(107,147,216,.08)}
-html.ga-dark .ga-y-delta.is-up{background:#1f3129}
-html.ga-dark .ga-y-delta.is-down{background:#2d1416}
-html.ga-dark .ga-y-delta.is-neutral{color:#7a8aa5;background:#1d232b}
-html.ga-dark .ga-y-neutral{color:#6b778c}
-html.ga-dark .ga-y-main,html.ga-dark .ga-y-investigation,html.ga-dark .ga-y-mobile-series{background:#1a1a1a}
-html.ga-dark .ga-y-month-heading{background:#1a1e25;color:#7a8aa5}
-html.ga-dark .ga-y-month-row{border-bottom-color:#1e242a}
-html.ga-dark .ga-y-month-row:hover{background:#0f1a2d}
-html.ga-dark .ga-y-month-row.is-selected{background:#101d30}
-html.ga-dark .ga-y-month-name small{color:#daad61}
-html.ga-dark .ga-y-num.is-base-number{color:#627189}
-html.ga-dark .ga-y-chart-month.is-selected{border-color:#073484;background:#101f31}
-html.ga-dark .ga-y-result{background:#161e29}
-html.ga-dark .ga-y-week-head{background:#1a1e25}
-html.ga-dark .ga-y-week-row{border-bottom-color:#1e242a}
-html.ga-dark .ga-y-week-row.is-selected{border-color:#124090;background:#101c30}
-html.ga-dark .ga-y-week-row:hover{background:#0f1a2d}
-html.ga-dark .ga-y-daily th,html.ga-dark .ga-y-daily td{border-bottom:1px solid #1e242a}
-html.ga-dark .ga-y-daily th{background:#1a1e25}
-html.ga-dark .ga-y-daily tr.is-selected td{background:#101f31}
-html.ga-dark .ga-y-day-info{background:#1a1e25}
-html.ga-dark .ga-y-advanced-actions button{background:#1a1a1a}
-html.ga-dark .ga-y-advanced-actions button:hover{background:#0f1a2d}
-html.ga-dark .ga-y-muted{background:#171c26}
-html.ga-dark .ga-y-warning{background:#322c11;color:#e3ac65;border:1px solid #675010}
-html.ga-dark .ga-y-error{background:#2f1012;color:#cc606a;border:1px solid #432025}
-html.ga-dark .ga-y-error button{background:#1a1a1a;border:1px solid #68222a;color:#d56873}
-html.ga-dark html.ga-dark .ga-y-guided :is(.ga-y-main,.ga-y-investigation,.ga-y-mobile-series,.ga-y-kpi,.ga-y-toolbar select,.ga-y-view-controls,.ga-y-advanced-actions button){background:#b1c0da}
-html.ga-dark html.ga-dark .ga-y-guided :is(.ga-y-result,.ga-y-week-head,.ga-y-month-heading,.ga-y-daily th,.ga-y-day-info){background:#a2b2cd}
-html.ga-dark html.ga-dark .ga-y-guided :is(.ga-y-month-row:hover,.ga-y-week-row:hover){background:#9cb2d1}
-html.ga-dark html.ga-dark .ga-y-guided :is(.ga-y-month-row.is-selected,.ga-y-week-row.is-selected,.ga-y-daily tr.is-selected td){background:#92aed8;border-color:#0c429f}
-html.ga-dark html.ga-dark .ga-y-guided .ga-y-delta.is-up{background:#a4e1d1;color:#20754f}
-html.ga-dark html.ga-dark .ga-y-guided .ga-y-delta.is-down{background:#cda4b0;color:#511b1f}
-html.ga-dark html.ga-dark .ga-y-guided .ga-y-delta.is-neutral{background:#98a5c0;color:#2f3e4f}
-html.ga-dark html.ga-dark .ga-y-guided .ga-y-daily td button{color:#1d232e}
-html.ga-dark html.ga-dark .ga-y-guided .ga-y-view-controls button{color:#252e3f}
-html.ga-dark html.ga-dark .ga-y-guided .ga-y-view-controls button.is-active{color:#1a1a1a}
+html.ga-dark .ga-y-overview-card:hover,html.ga-dark .ga-y-overview-card.is-active{border-color:#083382;box-shadow:0 2px 12px rgba(107,154,218,.07)}
+html.ga-dark .ga-y-segments button.is-active{color:#1a1a1a}
+html.ga-dark .ga-y-bar-month:hover,html.ga-dark .ga-y-bar-month.is-selected{border-color:#083382}
+html.ga-dark .ga-y-warning{border:1px solid #805c13;background:#342b11;color:#edb65b}
+html.ga-dark .ga-y-history.is-old{color:#1e57d3}
+html.ga-dark .ga-y-history.is-unconfirmed{color:#d9a762;background:#3c3114}
 html.ga-dark html.ga-dark .ga-y-guided .ga-y-warning{background:#d1c3a7;color:#785206;border-color:#bca97f}
-html.ga-dark html.ga-dark .ga-y-guided .ga-y-error{background:#cea2ae;color:#521b1f;border-color:#a16d73}
-html.ga-dark .ga-y-week-row .is-up{color:#7be4ab}
-html.ga-dark .ga-y-week-row .is-down{color:#de554a}
-html.ga-dark .ga-y-idx{color:#3470d8}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-history.is-unconfirmed{background:#d3bda0;color:#795415}
+html.ga-dark html.ga-dark .ga-y-guided .ga-y-segments button.is-active{background:#436ec5;color:#1a1a1a}
+html.ga-dark .ga-y-card-icon{background:#111e33;color:#1e57d3}
+html.ga-dark .ga-y-card-icon.is-months{background:#1e3028;color:#6de4b8}
+html.ga-dark .ga-y-card-icon.is-extremes{background:#392b13;color:#dca73e}
+html.ga-dark .ga-y-card-icon.is-alerts{background:#321114;color:#b2313d}
+html.ga-dark .ga-y-card-micro i.is-volume{background:#19459b}
+html.ga-dark .ga-y-card-micro i.is-positive{background:#499a81}
+html.ga-dark .ga-y-card-micro i.is-negative{background:#7a2a35}
+html.ga-dark .ga-y-warning-dismissible>button:hover,html.ga-dark .ga-y-warning-dismissible>button:focus-visible{background:rgba(237,182,91,.10);border-color:rgba(237,182,91,.25)}
+html.ga-dark .ga-y-product-avatar{background:#101b31;border:1px solid #15233e}
+html.ga-dark html.ga-dark .ga-y-card-icon.is-units{background:#8aa5d2;color:#1b3051}
+html.ga-dark html.ga-dark .ga-y-card-icon.is-months{background:#a4dbc6;color:#277349}
+html.ga-dark html.ga-dark .ga-y-card-icon.is-extremes{background:#cec2a9;color:#7e5e18}
+html.ga-dark html.ga-dark .ga-y-card-icon.is-alerts{background:#cb9dab;color:#6b0614}
+html.ga-dark html.ga-dark .ga-y-product-avatar{background:#91a7cf;border-color:#6f93c2}
+html.ga-dark .ga-y-days-button:hover,html.ga-dark .ga-y-days-button[aria-pressed=true]{border-color:#062d76}
 html.ga-dark .nim-manager .nim-kpis>.nim-kpi,html.ga-dark .nim-manager .nim-kpis>.nim-kpi:nth-child(n+4){border:1px solid #202834;background:#1a1a1a;box-shadow:0 4px 16px rgba(151,178,214,.035)}
 html.ga-dark .nim-manager .nim-kpi-icon{color:#2267d0;background:#111e33}
 html.ga-dark .nim-manager .nim-kpi.mint .nim-kpi-icon{color:#63e3b5;background:#1d3027}
@@ -881,6 +856,7 @@ html.ga-dark .ndb-best-cell:hover,html.ga-dark .ndb-best-cell.is-open{background
 html.ga-dark .ndb-dd-lock{color:#efb056}
 html.ga-dark .ndb-pp-yearall{border:1px solid #1f2735;background:#1a1a1a}
 html.ga-dark .ndb-pp-yearall.is-active{background:#1e57d3;border-color:#1e57d3;color:#1a1a1a}
+html.ga-dark .ndb-seas-year{color:#616f86}
 html.ga-dark .import-center-mode-grid>button{border:1px solid #272d34;background:#1a1a1a;color:#bac6e3}
 html.ga-dark .import-center-mode-grid>button:hover{border-color:#334257;box-shadow:0 5px 16px rgba(186,198,227,.05)}
 html.ga-dark .import-center-mode-grid>button.active{border-color:#0a42c7;background:#0e1b29;box-shadow:inset 0 0 0 1px rgba(10,66,199,.08)}

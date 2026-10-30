@@ -245,3 +245,11 @@ test('daysBehind conta dias de atraso do ultimo dado', () => {
   assert.equal(daysBehind('2026-10-30', '2026-10-29'), 0);
   assert.equal(daysBehind('', '2026-10-29'), null);
 });
+
+test('dashboard: gráfico mensal denso mostra só valores-chave e rótulos curtos', () => {
+  const src = fs.readFileSync(new URL('../src/commerce-dashboard.jsx', import.meta.url), 'utf8');
+  assert.match(src, /const dense=rows\.length>12/);
+  assert.match(src, /showVal=\(r,i\)=>!dense\|\|i===bestIdx\|\|i===lastIdx\|\|i===hover/);
+  assert.match(src, /ndb-seas-year/);
+  assert.match(src, /Sem relatório de desempenho para este anúncio/);
+});
