@@ -158,3 +158,33 @@ test('ganho e perda são explicitamente do ano selecionado contra o ano-base',()
   assert.match(g,/baseAvailable&&worst/);
   assert.match(css,/\.ga-y-gain-loss/);
 });
+
+
+test('investigação do mês reproduz os três indicadores e semanas comparativas da referência',()=>{
+  const g=read('src/commerce-annual-guided.jsx');
+  const css=read('src/commerce-annual-guided.css');
+  assert.match(g,/ga-y-investigation-metrics/);
+  assert.match(g,/Resultado do mês/);
+  assert.match(g,/Semanas do mês/);
+  assert.match(g,/Diferença · \{year\} vs\. \{baseYear\}/);
+  assert.match(g,/ga-y-comparison-weeks/);
+  assert.match(g,/ga-y-week-mini-bars/);
+  assert.match(g,/ga-y-week-chevron/);
+  assert.match(g,/Selecionar mês da investigação/);
+  assert.match(g,/Ver dias do mês/);
+  assert.match(css,/\.ga-y-investigation-metrics\{display:grid;grid-template-columns/);
+  assert.match(css,/\.ga-y-week-mini-bars i\.is-base/);
+  assert.match(css,/\.ga-y-week-mini-bars i\.is-current/);
+});
+
+test('dias do mês são carregados sob demanda sem inventar dias zerados',()=>{
+  const g=read('src/commerce-annual-guided.jsx');
+  assert.match(g,/function MonthDaysPanel/);
+  assert.match(g,/Promise\.all\(weekNumbers\.map/);
+  assert.match(g,/annual-days\?platform=/);
+  assert.match(g,/controller\.abort\(\)/);
+  assert.match(g,/showMonthDays&&<MonthDaysPanel/);
+  assert.match(g,/d\.base==null\?'—'/);
+  assert.match(g,/d\.cur==null\?'—'/);
+  assert.match(g,/Sem dados semanais disponíveis/);
+});

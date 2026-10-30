@@ -162,6 +162,39 @@ function useApi(path,dependencies,enabled=true) {
   },[path,enabled,...dependencies]);
   return state.path===path?state:{loading:Boolean(enabled),data:null,error:'',path};
 }
+// Detalhamento completo do mês, consultado somente quando solicitado.
+// Reutiliza a API semanal existente sem criar novas tabelas ou RPCs.
+function MonthDaysPanel({platform,month,year,baseYear,weeks}) {
+  const [result,setResult]=useState({loading:true,error:'',days:[]});
+  const weekNumbers=weeks.map(w=>Number(w.n)).filter(n=>n>=1&&n<=5);
+  const weekIds=weekNumbers.join(',');
+  useEffect(()=>{
+    const controller=new AbortController();
+    if(!weekNumbers.length){setResult({loading:false,error:'',days:[]});return()=>controller.abort();}
+    setResult({loading:true,error:'',days:[]});
+    Promise.all(weekNumbers.map(n=>fetchCommercialManager(
+      '/api/admin/commerce/sales-compare/annual-days?platform='+encodeURIComponent(platform)
+      +'&month='+month+'&week='+n+'&year='+year+'&base='+baseYear,
+      {signal:controller.signal}
+    ))).then(responses=>{
+      if(!controller.signal.aborted){
+        const valid=responses.every((r,i)=>Number(r?.month)===month&&Number(r?.year)===year&&Number(r?.week)===weekNumbers[i]&&r?.platform===platform);
+        setResult(valid?{loading:false,error:'',days:responses.flatMap(r=>cleanRows(r.days)).sort((a,b)=>Number(a.day)-Number(b.day))}:{loading:false,error:'Os dados diários não correspondem ao período solicitado.',days:[]});
+      }
+    }).catch(error=>{if(!controller.signal.aborted)setResult({loading:false,error:error?.message||'Falha ao consultar dias.',days:[]});});
+    return()=>controller.abort();
+  },[platform,month,year,baseYear,weekIds]);
+  return <div className="ga-y-month-days">
+    <div className="ga-y-section-header ga-y-subhead"><h4>Comparação diária · {MONTHS[month-1]}</h4><span className="ga-y-chip">{year} × {baseYear}</span></div>
+    {result.loading?<p className="ga-y-empty" role="status">Carregando dias do mês…</p>:
+     result.error?<p className="ga-y-warning" role="alert">{result.error}</p>:
+     <div className="ga-y-table-scroll"><table className="ga-y-days-table"><thead><tr><th>Dia</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th></tr></thead>
+       <tbody>{result.days.map(d=>{const known=d.cur!=null&&d.base!=null;return <tr key={d.day}><td>{String(d.day).padStart(2,'0')}/{String(month).padStart(2,'0')}</td><td>{d.base==null?'—':fmt(d.base)}</td><td><b>{d.cur==null?'—':fmt(d.cur)}</b></td><td className={known?(Number(d.cur)>=Number(d.base)?'is-up':'is-down'):''}>{known?signed(Number(d.cur)-Number(d.base)):'—'}</td><td>{known?<Trend cur={d.cur} base={d.base}/>:<span className="ga-y-muted-inline">—</span>}</td></tr>})}</tbody>
+     </table></div>}
+    <p className="ga-y-note">“—” indica ausência de registro diário confirmado, não zero vendas.</p>
+  </div>;
+}
+
 function MonthComparison({periods,mode,selected,onSelect,year,baseYear,filter,baseAvailable}) {
   const filtered=periods.filter(r=>filter==='all'||(Number(r.base)>0&&(filter==='up'?Number(r.cur)>Number(r.base):Number(r.cur)<Number(r.base))));
   const max=Math.max(1,...periods.flatMap(r=>[Number(r.base)||0,Number(r.cur)||0]));
@@ -182,6 +215,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const [focus,setFocus]=useState('units');
   const [week,setWeek]=useState(null);
   const [showDays,setShowDays]=useState(false);
+  const [showMonthDays,setShowMonthDays]=useState(false);
   const [productTab,setProductTab]=useState('top');
   const [history,setHistory]=useState('all');
   const [weekRank,setWeekRank]=useState('top');
@@ -210,7 +244,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const productValid=monthData&&Number(monthData.year)===year&&monthData.platform===filters.platform&&Number(monthData.month)===selectedMonth;
   const monthly=productValid?monthData:null;
   const update=patch=>setFilters(prev=>({...prev,...patch}));
-  const chooseMonth=m=>{update({month:String(m),days:0});setWeek(null);setShowDays(false);setProductTab('top');};
+  const chooseMonth=m=>{update({month:String(m),days:0});setWeek(null);setShowDays(false);setShowMonthDays(false);setProductTab('top');};
   const yearChoices=[...new Set(cleanRows(data.coverage).map(c=>Number(c.year)).filter(y=>y>=2021&&y<=2100&&(data.coverage||[]).some(b=>Number(b.year)===y-1&&Number(b.units)>0)).concat(year))].sort((a,b)=>b-a);
   const winTo=asOf,winFrom=plusDays(asOf,-(days-1));
   const winBaseTo=yearAgo(winTo),winBaseFrom=yearAgo(winFrom);
@@ -223,6 +257,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const weeks=cleanRows(weekList).filter(w=>Number(w.n)>=1&&Number(w.n)<=Math.ceil(dayCount(year,selectedMonth)/7)&&Number(w.days||0)>0);
   const lastDay=dayCount(year,selectedMonth);
   const selectedWeek=weeks.find(w=>Number(w.n)===week);
+  const maxWeekUnits=Math.max(1,...weeks.flatMap(w=>[Number(w.cur)||0,Number(w.base)||0]));
   const weekFrom=week?iso(year,selectedMonth,(week-1)*7+1):'';
   const weekEnd=week?iso(year,selectedMonth,Math.min(lastDay,week*7)):null;
   const weekTo=weekEnd&&weekEnd>asOf&&Number(asOf.slice(0,4))===year?asOf:weekEnd;
@@ -246,7 +281,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   useEffect(()=>setListingPage(0),[filters.platform,selectedMonth,year,productTab,history,listingSearch]);
 
   const late=daysBehind(asOf,new Date().toISOString().slice(0,10));
-  useEffect(()=>{setWeek(null);setShowDays(false);setProductTab('top');setHistory('all');},[filters.platform,selectedMonth,year,days]);
+  useEffect(()=>{setWeek(null);setShowDays(false);setShowMonthDays(false);setProductTab('top');setHistory('all');},[filters.platform,selectedMonth,year,days]);
   const listingFallCount=listingData?.counts?.down;
   const filterMonths=status=>{setMonthFilter(status);setFocus(status);};
   const sortedWeekRows=cleanRows(weekState.data?.products).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())).sort((a,b)=>weekRank==='down'?(Number(a.cur)-Number(a.base))-(Number(b.cur)-Number(b.base)):weekRank==='up'?(Number(b.cur)-Number(b.base))-(Number(a.cur)-Number(a.base)):Number(b.cur)-Number(a.cur));
@@ -309,24 +344,71 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
           <p className="ga-y-note">Mês parcial é comparado somente até a data correspondente. Sem importação confirmada, não se presume zero vendas.</p>
         </section>
         <aside className="ga-y-section ga-y-investigation">
-          <div className="ga-y-section-header"><div><h3>Investigação do mês</h3><p>{MONTHS[selectedMonth-1]} · {labelPlatform(filters.platform)}</p></div><div className="ga-y-month-nav"><button type="button" disabled={selectedMonth<=1} onClick={()=>chooseMonth(selectedMonth-1)} aria-label="Mês anterior">‹</button><span>{monthShort(selectedMonth)} {year}</span><button type="button" disabled={selectedMonth>=current} onClick={()=>chooseMonth(selectedMonth+1)} aria-label="Próximo mês">›</button></div></div>
-          <div className="ga-y-month-summary">
-            <div><small>Unidades no mês</small><strong>{period?fmt(period.cur):'—'}</strong><small>{baseYear}: {baseAvailable&&period?fmt(period.base):'—'}</small></div>
-            <div><small>Diferença</small><strong>{period&&baseAvailable?signed(Number(period.cur)-Number(period.base)):'—'}</strong><small>{period&&baseAvailable?pct(percentage(period.cur,period.base)):'Sem base comparável'}</small></div>
+          <div className="ga-y-section-header ga-y-investigation-heading">
+            <div><h3>Investigação do mês</h3><p>{MONTHS[selectedMonth-1]} · {labelPlatform(filters.platform)}</p></div>
+            <div className="ga-y-investigation-controls">
+              <div className="ga-y-month-nav">
+                <button type="button" disabled={selectedMonth<=1} onClick={()=>chooseMonth(selectedMonth-1)} aria-label="Mês anterior">‹</button>
+                <label className="ga-y-month-selector"><span className="ga-y-sr-only">Selecionar mês da investigação</span>
+                  <select aria-label="Selecionar mês da investigação" value={selectedMonth} onChange={e=>chooseMonth(Number(e.target.value))}>
+                    {MONTHS.slice(0,current).map((name,i)=><option value={i+1} key={name}>{name} de {year}</option>)}
+                  </select>
+                </label>
+                <button type="button" disabled={selectedMonth>=current} onClick={()=>chooseMonth(selectedMonth+1)} aria-label="Próximo mês">›</button>
+              </div>
+              <button type="button" className={'ga-y-calendar-toggle'+(showMonthDays?' is-active':'')} aria-label={showMonthDays?'Ocultar dias do mês':'Ver dias do mês'} aria-pressed={showMonthDays} onClick={()=>setShowMonthDays(v=>!v)} title="Ver dias do mês">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h3M13 14h3M8 17h3"/></svg>
+              </button>
+            </div>
           </div>
-          <div className="ga-y-section-header ga-y-subhead"><h4>Desempenho semanal</h4><button type="button" onClick={()=>{setWeek(null);setShowDays(false)}}>Limpar seleção</button></div>
-          {!productValid?<p className="ga-y-empty">Consultando semanas do mês…</p>:weeks.length===0?<p className="ga-y-empty">Sem dados semanais disponíveis.</p>:<div className="ga-y-table-scroll"><table className="ga-y-weeks-table">
-            <thead><tr><th>Semana</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th></tr></thead>
-            <tbody>{weeks.map(w=>{const n=Number(w.n),start=(n-1)*7+1,end=Math.min(n*7,lastDay),diff=Number(w.cur)-Number(w.base);
-              return <tr key={n} className={week===n?'is-selected':''} onClick={()=>{setWeek(n);setShowDays(false);}}><td><button type="button" onClick={()=>{setWeek(n);setShowDays(false);}}>{start}–{end}{n===5?'*':''}</button></td><td>{baseAvailable?fmt(w.base):'—'}</td><td><b>{fmt(w.cur)}</b></td><td className={diff>=0?'is-up':'is-down'}>{baseAvailable?signed(diff):'—'}</td><td>{baseAvailable?<Trend cur={w.cur} base={w.base}/>:<span>—</span>}</td></tr>;
+          <div className="ga-y-investigation-metrics">
+            <div className="ga-y-investigation-metric is-results">
+              <small>Resultado do mês</small>
+              <div className="ga-y-investigation-value"><strong>{period?fmt(period.cur):'—'}</strong>{baseAvailable&&period&&<Trend cur={period.cur} base={period.base}/>}</div>
+              <small>{baseYear}: {baseAvailable&&period?fmt(period.base):'sem base'} unidades</small>
+            </div>
+            <div className="ga-y-investigation-metric is-weeks">
+              <small>Semanas do mês</small>
+              <div className="ga-y-investigation-value"><strong>{productValid?weeks.length:'—'}</strong><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg></div>
+              <small>Faixas com registros</small>
+            </div>
+            <div className="ga-y-investigation-metric is-difference">
+              <small>Diferença · {year} vs. {baseYear}</small>
+              <div className="ga-y-investigation-value">
+                <span><strong className={baseAvailable&&period?(Number(period.cur)<Number(period.base)?'is-down':'is-up'):''}>{baseAvailable&&period?signed(Number(period.cur)-Number(period.base)):'—'}</strong><small>unidades</small></span>
+                <span className="ga-y-investigation-change"><strong className={baseAvailable&&period?(Number(period.cur)<Number(period.base)?'is-down':'is-up'):''}>{baseAvailable&&period?pct(percentage(period.cur,period.base)):'—'}</strong><small>variação</small></span>
+              </div>
+            </div>
+          </div>
+          <div className="ga-y-section-header ga-y-investigation-subhead">
+            <h4>Desempenho semanal</h4>
+            <button type="button" className="ga-y-days-button" aria-pressed={showMonthDays} onClick={()=>setShowMonthDays(v=>!v)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 5h6l2 3h8v11H4zM7 13h10M7 16h6"/></svg>
+              {showMonthDays?'Ocultar dias':'Ver dias do mês'}
+            </button>
+          </div>
+          {!productValid?<p className="ga-y-empty">Consultando semanas do mês…</p>:weeks.length===0?<p className="ga-y-empty">Sem dados semanais disponíveis.</p>:<div className="ga-y-table-scroll"><table className="ga-y-weeks-table ga-y-comparison-weeks">
+            <thead><tr><th>Semana</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th><th aria-label="Barras comparativas"></th><th aria-label="Abrir semana"></th></tr></thead>
+            <tbody>{weeks.map(w=>{const n=Number(w.n),start=(n-1)*7+1,finish=Math.min(lastDay,n*7),diff=Number(w.cur)-Number(w.base);
+              return <tr key={n} className={week===n?'is-selected':''} onClick={()=>{setWeek(n);setShowDays(false);}}>
+                <td><button type="button" aria-label={'Investigar semana '+start+' a '+finish} onClick={e=>{e.stopPropagation();setWeek(n);setShowDays(false);}}>{String(start).padStart(2,'0')}–{String(finish).padStart(2,'0')}{n===5?'*':''}</button></td>
+                <td>{baseAvailable?fmt(w.base):'—'}</td><td><b>{fmt(w.cur)}</b></td>
+                <td className={baseAvailable?(diff>=0?'is-up':'is-down'):''}>{baseAvailable?signed(diff):'—'}</td>
+                <td>{baseAvailable?<Trend cur={w.cur} base={w.base}/>:<span className="ga-y-muted-inline">—</span>}</td>
+                <td><span className="ga-y-week-mini-bars" aria-label={baseAvailable?baseYear+': '+fmt(w.base)+', '+year+': '+fmt(w.cur):year+': '+fmt(w.cur)}>
+                  {baseAvailable&&<i className="is-base" style={{width:(Number(w.base)>0?Math.max(4,Math.round(Number(w.base)/maxWeekUnits*100)):0)+'%'}}/>}
+                  <i className="is-current" style={{width:(Number(w.cur)>0?Math.max(4,Math.round(Number(w.cur)/maxWeekUnits*100)):0)+'%'}}/>
+                </span></td><td><span className="ga-y-week-chevron" aria-hidden="true">›</span></td>
+              </tr>;
             })}</tbody>
           </table></div>}
+          {showMonthDays&&<MonthDaysPanel platform={filters.platform} month={selectedMonth} year={year} baseYear={baseYear} weeks={weeks}/>}
           {week!=null&&<div className="ga-y-week-detail">
-            <div className="ga-y-section-header ga-y-subhead"><h4>Semana {week===5?'29+':(week-1)*7+1+'–'+Math.min(week*7,lastDay)}</h4><button type="button" onClick={()=>setShowDays(v=>!v)}>{showDays?'Ocultar dias':'Ver dias'}</button></div>
+            <div className="ga-y-section-header ga-y-subhead"><h4>Semana {week===5?'29+':(week-1)*7+1+'–'+Math.min(week*7,lastDay)}</h4><button type="button" onClick={()=>setShowDays(v=>!v)}>{showDays?'Ocultar dias':'Ver dias da semana'}</button></div>
             {selectedWeek&&<p className="ga-y-week-note">Resultado: {fmt(selectedWeek.cur)} unidades · diferença {baseAvailable?signed(Number(selectedWeek.cur)-Number(selectedWeek.base)):'sem base'}.</p>}
             {showDays&&(dayState.loading?<p className="ga-y-empty">Consultando dias…</p>:dayState.error?<p className="ga-y-warning">{dayState.error}</p>:<div className="ga-y-table-scroll"><table className="ga-y-days-table"><thead><tr><th>Dia</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th></tr></thead><tbody>{cleanRows(dayState.data?.days).filter(d=>Number(d.day)>=(week-1)*7+1&&Number(d.day)<=week*7).map(d=><tr key={d.day}><td>{d.day}/{String(selectedMonth).padStart(2,'0')}</td><td>{d.base==null?'—':fmt(d.base)}</td><td>{d.cur==null?'—':fmt(d.cur)}</td><td>{d.base==null||d.cur==null?'—':signed(Number(d.cur)-Number(d.base))}</td></tr>)}</tbody></table><p className="ga-y-note">“—” = sem cobertura diária confirmada, não zero vendas.</p></div>)}
           </div>}
-          <p className="ga-y-note">Selecione uma semana para abrir os produtos correspondentes abaixo.</p>
+          {week==null&&<p className="ga-y-note">Selecione uma semana para investigar seus produtos. * Faixa final de 29 até o último dia do mês.</p>}
         </aside>
       </div>
       <div className="ga-y-body ga-y-products-body">
