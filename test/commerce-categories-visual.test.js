@@ -55,3 +55,16 @@ test('consulta temporal segura, paginada no detalhamento de produtos e sem grava
   assert.match(router,/Filtro temporal de categorias inválido/);
   assert.match(router,/week<1\|\|week>5/);
 });
+
+
+test('investigação completa replica melhor/pior semana e melhores períodos da subcategoria',()=>{
+  const ui=read('src/commerce-categories-panel.jsx');
+  const css=read('src/commerce-categories-panel.css');
+  assert.match(ui,/Melhor semana \(mês\)/);
+  assert.match(ui,/Menor semana \(mês\)/);
+  assert.match(ui,/subcats\.map\(sub=>\{/);
+  assert.match(ui,/Melhor mês','Melhor semana/);
+  assert.match(ui,/id="ndb-cp-products"/);
+  assert.match(ui,/Ver produtos/);
+  assert.match(css,/\.ndb-cp-view-products/);
+});
