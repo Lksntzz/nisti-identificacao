@@ -55,17 +55,17 @@ test('listingUrl builds marketplace links from the platform and listing id',()=>
   assert.ok(src.includes('rel="noopener noreferrer"'));
   assert.equal((src.match(/<Ext platform=/g)||[]).length,7);
 });
-test('ABC is computed per platform: never mixes Shopee, ML Antigo and ML Novo',()=>{
-  const m=read('supabase/migrations/20261026270000_commerce_dashboard_abc_per_platform_v1.sql');
-  assert.match(m,/partition by platform_code order by revenue desc,product_key/);
-  assert.match(m,/partition by platform_code\) total_rev/);
-  assert.match(m,/classes_by_platform/);
-  assert.match(m,/a\.platform_code=l\.platform_code/);
-  assert.doesNotMatch(m,/\b(insert into|update public|delete from|drop )\b/i);
+test('ABC: por SKU, no período escolhido, por plataforma ou global',()=>{
+  const m=read('supabase/migrations/20261030231000_commerce_dashboard_abc_v2.sql');
+  assert.match(m,/commerce_sku_canon_v1/);
+  assert.match(m,/commerce_shopee_sales_sku_daily_v1/);
+  assert.match(m,/prm\.plat='TODAS' or v\.platform_code=prm\.plat/);
+  assert.match(m,/p_start/);
+  assert.doesNotMatch(m,/\b(insert into|update public|delete from|drop table)\b/i);
   assert.ok(ui.includes("platform==='TODAS'?abcPlat:platform"));
-  assert.ok(ui.includes('classes_by_platform'));
-  assert.ok(ui.includes("i.platform===abcP"));
-  assert.ok(ui.includes("key={i.platform+'|'+i.key}"));
+  assert.ok(ui.includes("sales-dashboard/abc?platform="));
+  assert.ok(ui.includes("['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].map"));
+  assert.ok(ui.includes("abcLabel"));
 });
 test('Pararam de vender is cumulative: sold 3+ units ever and no sale in the filter period',()=>{
   const m=read('supabase/migrations/20261027090000_commerce_dashboard_stopped_cumulative_v1.sql');

@@ -1343,3 +1343,14 @@ export async function commerceCategoriesCol(env,opts={}) {
   const data=await supabaseRpc(env,'commerce_categories_col_v2',{...categoriesArgs(opts),p_cat:String(opts.cat||''),p_col:String(opts.col||'')},{timeoutMs:20000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{items:[]};
 }
+
+
+// Curva ABC do Painel Comercial: por SKU, no período escolhido, por plataforma ou global (TODAS).
+export async function commerceDashboardAbcV2(env, filters = {}) {
+  const result = await supabaseRpc(env, 'commerce_dashboard_abc_v2', {
+    p_platform: cleanText(filters.platform) || 'TODAS',
+    p_start: cleanText(filters.start),
+    p_end: cleanText(filters.end)
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {classes:[],items:[]};
+}

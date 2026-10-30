@@ -46,6 +46,7 @@ import {
   commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
   commerceSalesDashboardV1,
+  commerceDashboardAbcV2,
   commerceSalesDashboardSeriesV1,
   commerceSalesDashboardSegmentSeriesV1,
   commerceSalesDashboardOverviewV1,
@@ -692,6 +693,14 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Filtro do dashboard inválido.'},400);
       // ML Antigo e ML Novo são contas diferentes: o filtro vai por conta, nunca juntas.
       return json(await commerceListingCohortsV1(env,{platform:platform.startsWith('ML_')?'ML':platform,account:platform==='ML_ANTIGO'?'ANTIGO':platform==='ML_NOVO'?'NOVO':null}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/abc'){
+      const platform=String(query(url,'platform')||'TODAS').toUpperCase();
+      const start=String(query(url,'start')||''),end=String(query(url,'end')||'');
+      const dateOk=v=>!v||/^\d{4}-\d{2}-\d{2}$/.test(v);
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||!dateOk(start)||!dateOk(end))
+        return json({error:'Filtro da Curva ABC inválido.'},400);
+      return json(await commerceDashboardAbcV2(env,{platform,start,end}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
