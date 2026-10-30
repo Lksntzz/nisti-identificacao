@@ -323,6 +323,15 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
     }
   }
 
+  // Faturamento Full por dia/SKU (sem pedidos nem compradores).
+  if(parsedWorkbook.platform_code==='SHOPEE'&&Array.isArray(parsedWorkbook.full_daily_rows)&&parsedWorkbook.full_daily_rows.length){
+    for(const chunk of chunks(parsedWorkbook.full_daily_rows)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/shopee-full`,{
+        method:'POST',body:JSON.stringify({rows:chunk}),retryRateLimit:true
+      });
+    }
+  }
+
   onProgress({ phase: 'commit', completed, total: rows.length, batchId });
   let result;
   try {

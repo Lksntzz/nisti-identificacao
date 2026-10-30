@@ -1362,3 +1362,12 @@ export async function commerceDashboardShippingSplitV1(env, filters = {}) {
   });
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {months:[]};
 }
+
+export async function commerceAppendShopeeFullDailyV1(env, batchId, rows = []) {
+  const id = cleanId(batchId);
+  if (!id || !Array.isArray(rows) || rows.length < 1 || rows.length > 100)
+    throw new Error('Envie de 1 a 100 registros Full da Shopee por lote.');
+  return Number(await supabaseRpc(env, 'commerce_append_shopee_full_daily_v1', {
+    p_batch_id: id, p_rows: rows
+  }, { timeoutMs: 10000 }) || 0);
+}
