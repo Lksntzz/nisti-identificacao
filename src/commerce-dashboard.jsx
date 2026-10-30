@@ -239,12 +239,17 @@ function MonthlyUnits({months,platform,onPick}){
   const best=(complete.length?complete:rows).reduce((a,r)=>r.units>a.units?r:a,rows[0]);
   const max=Math.max(1,...rows.map(r=>r.units));
   const h=hover!=null?rows[hover]:null;
+  const dense=rows.length>12;
+  const lastIdx=rows.length-1,bestIdx=rows.indexOf(best);
+  const showVal=(r,i)=>!dense||i===bestIdx||i===lastIdx||i===hover;
+  const yearMark=(r,i)=>{const mo=String(r.m.month).slice(0,10);return i===0||mo.slice(5,7)==='01'?"'"+mo.slice(2,4):'';};
   return <div className="ndb-seas">
     <div className="ndb-seas-bars" role="img" aria-label="Unidades vendidas por mês" onMouseLeave={()=>setHover(null)}>{rows.map((r,i)=><div key={r.m.month} className={'ndb-seas-col is-click'+(r===best?' is-best':'')+(r.partial?' is-partial':'')+(hover===i?' is-hover':'')} onMouseEnter={()=>setHover(i)} onClick={()=>onPick&&onPick(String(r.m.month).slice(0,7))} title={'Clique para filtrar o dashboard só por '+monthLabel(r.m.month)}>
-      <b>{num(r.units)}</b>
+      <b className={showVal(r,i)?'':'is-off'}>{num(r.units)}</b>
       <span className="ndb-seas-stack" style={{height:Math.max(3,r.units/max*100)+'%'}}>{r.parts.filter(x=>x.v>0).map(x=><i key={x.c} style={{flex:x.v,background:colors[x.c]}}/>)}</span>
-      <small>{monthLabel(r.m.month)}</small></div>)}</div>
-    <p className="ndb-note ndb-seas-tip">{h?<><b>{monthLabel(h.m.month)}</b>: {num(h.units)} un.{h.partial?' (mês incompleto)':''} {h.parts.filter(x=>x.v>0).map(x=><span key={x.c}><i className="ndb-tip-dot" style={{background:colors[x.c]}}/>{x.l} {num(x.v)}</span>)}</>:<>Mês mais forte (completo): <b>{monthLabel(best.m.month)}</b> com {num(best.units)} un. Passe o mouse num mês para ver por plataforma; clique para filtrar. Barras claras = mês incompleto.</>}</p>
+      <small>{dense?monthLabel(r.m.month).slice(0,1).toUpperCase():monthLabel(r.m.month)}</small>
+      <em className="ndb-seas-year">{yearMark(r,i)}</em></div>)}</div>
+    <p className="ndb-note ndb-seas-tip">{h?<><b>{monthLabel(h.m.month)}/{String(h.m.month).slice(2,4)}</b>: {num(h.units)} un.{h.partial?' (mês incompleto)':''} {h.parts.filter(x=>x.v>0).map(x=><span key={x.c}><i className="ndb-tip-dot" style={{background:colors[x.c]}}/>{x.l} {num(x.v)}</span>)}</>:<>Mês mais forte (completo): <b>{monthLabel(best.m.month)}</b> com {num(best.units)} un. Passe o mouse num mês para ver por plataforma; clique para filtrar. Barras claras = mês incompleto.</>}</p>
   </div>;
 }
 
@@ -565,7 +570,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
               <td title={(r.title||'')+(st.off?' · anúncio desativado':'')}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.sku||r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               {multi&&<td>{PLATFORM_LABEL[r.platform]||r.platform}</td>}
               <td className="num"><b>{num(r.units)}</b></td><td className="num">{money(r.revenue)}</td>
-              {(()=>{const pf=perfItems[r.external_id];return <><td className="num">{pf&&pf.visits!=null?num(pf.visits):'—'}</td><td className="num">{pf&&pf.conversion_pct!=null?String(pf.conversion_pct).replace('.',',')+'%':'—'}</td></>;})()}
+              {(()=>{const pf=perfItems[r.external_id];return <><td className="num" title={pf&&pf.visits!=null?undefined:'Sem relatório de desempenho para este anúncio: importe o relatório da plataforma para ver visitas e conversão.'}>{pf&&pf.visits!=null?num(pf.visits):'—'}</td><td className="num" title={pf&&pf.conversion_pct!=null?undefined:'Sem relatório de desempenho para este anúncio.'}>{pf&&pf.conversion_pct!=null?String(pf.conversion_pct).replace('.',',')+'%':'—'}</td></>;})()}
               <td>{salesCell(rk,r.listing_id,sb,false)}</td><td>{bestCell(rk,r.listing_id)}</td></tr>{salesRows(rk,r.listing_id,sb,false,multi?8:7)}</React.Fragment>;})}
             {top.length===0&&!loading&&<tr><td colSpan={multi?8:7} className="ndb-empty">Sem vendas no período.</td></tr>}
           </tbody></table></div>

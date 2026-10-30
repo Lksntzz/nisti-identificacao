@@ -685,3 +685,10 @@
 .ndb-pp-yearall{width:100%;margin-top:8px;padding:8px 10px;border:1px solid #dfe7f5;border-radius:8px;background:#fff;color:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
 .ndb-pp-yearall.is-active{background:#2563eb;border-color:#2563eb;color:#fff}
 .ndb-pp-yearall:disabled{opacity:.35;cursor:default}
+
+/* Gráfico mensal denso (mais de 12 meses): número só no destaque/último/hover, rótulo de mês com 1 letra e ano em janeiro */
+.ndb-seas-col b.is-off{visibility:hidden}
+.ndb-seas-col.is-hover b.is-off{visibility:visible}
+.ndb-seas-col small{line-height:1}
+.ndb-seas-year{font-style:normal;font-size:9px;line-height:1;min-height:9px;color:#7a8aa3;white-space:nowrap}
+.ndb-seas-bars{overflow:visible}
