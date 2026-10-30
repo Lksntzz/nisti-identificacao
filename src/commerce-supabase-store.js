@@ -1327,7 +1327,8 @@ export async function commerceCategoriesTimeline(env,opts={}) {
     p_platform:platform,p_year:Number(opts.year),
     p_cat:String(opts.cat||''),
     p_month:Number(opts.month),
-    p_sub:opts.sub?String(opts.sub):null
+    p_sub:opts.sub?String(opts.sub):null,
+    p_week:opts.week?Number(opts.week):null
   },{timeoutMs:25000});
   return data&&typeof data==='object'&&!Array.isArray(data)
     ?data:{category_months:[],subcategory_months:[],weekly_subcategories:[],products:[],subcategories:[],category_images:[]};
