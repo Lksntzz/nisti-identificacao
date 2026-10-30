@@ -167,6 +167,8 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
     const leaderSub=arr.filter(r=>num(r.week)===n&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0]?.sub||'—';
     return {week:n,start,end,cur,base,leaderSub,partial:currentMonth===asOfMonth&&end>num(asOf.slice(8,10))};
   }).filter(Boolean);
+  const bestWeek=[...weeks].sort((a,b)=>b.cur-a.cur)[0]||null;
+  const worstWeek=[...weeks].sort((a,b)=>a.cur-b.cur)[0]||null;
   const total=data?.total||{cur:0,base:0};
   const maxCats=Math.max(1,...categories.flatMap(c=>[num(c.cur),num(c.base)]));
   const selectedProduct=rows(t?.products)[0];
@@ -207,7 +209,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
           {!filtered.length&&<p className="ndb-cp-empty">Nenhuma categoria encontrada.</p>}
           <p className="ndb-cp-foot">Selecione uma linha para investigar subcategorias, meses, semanas e os produtos dessa categoria. As fotos são do catálogo.</p>
         </Section>
-        <Section title="Categoria selecionada" aside={<span className="ndb-cp-chip"><Icon name="layers" size={13}/>{picked?.name||'—'}</span>} className="ndb-cp-category-detail">
+        <Section title="Categoria selecionada" aside={<button type="button" className="ndb-cp-view-products" onClick={()=>document.getElementById("ndb-cp-products")?.scrollIntoView({behavior:"smooth",block:"start"})}><Icon name="box" size={14}/> Ver produtos</button>} className="ndb-cp-category-detail">
           {picked?<><div className="ndb-cp-selected"><Thumb size="large" src={imageOf(picked.name)||selectedProduct?.image} alt={'Foto de '+picked.name}/><div><h4>{picked.name}</h4><small>Participação: {num(total.cur)>0?(num(picked.cur)/num(total.cur)*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—'}</small></div></div>
             <div className="ndb-cp-stats">
               <div><small>{year}</small><b>{fmt(picked.cur)}</b></div>
@@ -216,15 +218,17 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
               <div><small>Variação</small><b><PeriodTag cur={picked.cur} base={picked.base}/></b></div>
               <div><small>Melhor mês</small><b>{bestMonth?SHORT[bestMonth.month-1]:'—'}</b></div>
               <div><small>Menor mês</small><b>{worstMonth?SHORT[worstMonth.month-1]:'—'}</b></div>
+              <div><small>Melhor semana (mês)</small><b>{bestWeek?'Sem. '+bestWeek.week:'—'}</b></div>
+              <div><small>Menor semana (mês)</small><b>{worstWeek?'Sem. '+worstWeek.week:'—'}</b></div>
             </div>
             <div className="ndb-cp-panel-subheading"><b>Subcategorias de {picked.name}</b><button type="button" onClick={()=>setSelectedSub(null)} disabled={!selectedSub}>{selectedSub?'Mostrar todas':'Todas selecionadas'}</button></div>
             {temporal.loading?<p className="ndb-cp-loading">Carregando subcategorias…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}<button type="button" onClick={temporal.retry}>Tentar novamente</button></div>:null}
-            <DetailTable heads={['Subcategoria',String(baseYear),String(year),'Diferença','Variação','']}>
-              {subcats.map(sub=><tr key={sub.name} className={selectedSub===sub.name?'is-selected':''} onClick={()=>{setSelectedSub(selectedSub===sub.name?null:sub.name);setSelectedWeek(null)}}>
+            <DetailTable heads={['Subcategoria',String(baseYear),String(year),'Diferença','Variação','Melhor mês','Melhor semana','']}>
+              {subcats.map(sub=>{const sm=rows(subMonths).filter(r=>r.sub===sub.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];const sw=rows(t?.weekly_subcategories).filter(r=>r.sub===sub.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];return <tr key={sub.name} className={selectedSub===sub.name?'is-selected':''} onClick={()=>{setSelectedSub(selectedSub===sub.name?null:sub.name);setSelectedWeek(null)}}>
                 <td><button type="button" className="ndb-cp-sub-button" onClick={e=>{e.stopPropagation();setSelectedSub(selectedSub===sub.name?null:sub.name);setSelectedWeek(null)}}>{sub.name}</button></td>
                 <td>{fmt(sub.base)}</td><td><b>{fmt(sub.cur)}</b></td>
-                <td className={color(num(sub.cur)-num(sub.base))}>{delta(num(sub.cur)-num(sub.base))}</td><td><PeriodTag cur={sub.cur} base={sub.base}/></td><td className="ndb-cp-arrow">›</td>
-              </tr>)}
+                <td className={color(num(sub.cur)-num(sub.base))}>{delta(num(sub.cur)-num(sub.base))}</td><td><PeriodTag cur={sub.cur} base={sub.base}/></td><td>{sm?SHORT[num(sm.month)-1]+' · '+fmt(sm.units):'—'}</td><td>{sw?'Sem. '+sw.week+' · '+fmt(sw.units):'—'}</td><td className="ndb-cp-arrow">›</td>
+              </tr>})}
             </DetailTable>
           </>:<p className="ndb-cp-empty">Sem categorias com vendas.</p>}
         </Section>
@@ -258,7 +262,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
           <p className="ndb-cp-foot">Semanas: 1–7, 8–14, 15–21, 22–28, 29–fim. * Semana parcial. As vendas são comparadas com a mesma faixa do ano anterior.</p>
         </Section>
       </div>
-      <Section title="Produtos e itens do período" subtitle={(selectedSub||picked?.name||'')+' · '+MONTHS[currentMonth-1]+(selectedWeek?' · semana '+selectedWeek:'')+' · '+year+' × '+baseYear} aside={<span className="ndb-cp-chip">Fotos reais do catálogo · até 8 SKUs</span>} className="ndb-cp-products-panel">
+      <section id="ndb-cp-products"><Section title="Produtos e itens do período" subtitle={(selectedSub||picked?.name||'')+' · '+MONTHS[currentMonth-1]+(selectedWeek?' · semana '+selectedWeek:'')+' · '+year+' × '+baseYear} aside={<span className="ndb-cp-chip">Fotos reais do catálogo · até 8 SKUs</span>} className="ndb-cp-products-panel">
         {temporal.loading?<p className="ndb-cp-loading">Carregando produtos e miniaturas…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}</div>:
           <div className="ndb-cp-products">
             {rows(t?.products).map(r=><div className="ndb-cp-product" key={r.sku}>
@@ -269,7 +273,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
             {!rows(t?.products).length&&<p className="ndb-cp-empty">Nenhum SKU com vendas identificadas nesse recorte.</p>}
           </div>}
         <p className="ndb-cp-foot">Ranking por unidades registradas; a ausência de vendas não comprova anúncio inativo. Miniaturas só aparecem quando há imagem cadastrada.</p>
-      </Section>
+      </Section></section>
     </>}
   </div>;
 }
