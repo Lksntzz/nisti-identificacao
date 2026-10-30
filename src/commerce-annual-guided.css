@@ -127,8 +127,8 @@ html.ga-dark .ga-y-guided .ga-y-segments button.is-active{background:#3261c1;col
 .ga-y-kpis{gap:9px}
 .ga-y-overview-card{min-height:108px;padding:9px 11px 7px}
 .ga-y-overview-title{gap:7px;font-size:11.5px;line-height:1.2;min-height:25px}
-.ga-y-title-text{flex:1;min-width:0}
-.ga-y-card-arrow{font-size:13px;color:var(--gy-blue);flex:0 0 auto}
+.ga-y-overview-title>.ga-y-title-text{flex:1;min-width:0;font-size:11.5px;color:var(--gy-text)}
+.ga-y-overview-title>.ga-y-card-arrow{font-size:13px;color:var(--gy-blue);flex:0 0 auto}
 .ga-y-card-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 27px;width:27px;height:27px;border-radius:8px;background:#eaf2ff;color:#2563eb}
 .ga-y-card-icon svg{width:16px;height:16px}
 .ga-y-card-icon.is-months{background:#e6f6ef;color:#12875c}
@@ -173,4 +173,4 @@ html.ga-dark .ga-y-card-icon.is-extremes{background:#453b25;color:#f0d393}
 html.ga-dark .ga-y-card-icon.is-alerts{background:#532936;color:#ffb2bd}
 html.ga-dark .ga-y-product-avatar{background:#263b60;border-color:#355b8c}
 @media(max-width:1120px){.ga-y-card-micro{max-width:60px;min-width:42px}.ga-y-kpi-main{font-size:20px}}
-@media(max-width:760px){.ga-y-overview-card{min-height:99px;padding:8px 9px 6px}.ga-y-card-icon{flex-basis:23px;width:23px;height:23px}.ga-y-card-icon svg{width:14px;height:14px}.ga-y-overview-title{font-size:10.5px}.ga-y-card-micro{display:none}.ga-y-kpi-main{font-size:18px}.ga-y-kpi-split strong{font-size:16px}.ga-y-section{padding:10px}.ga-y-bars-chart{min-height:205px}.ga-y-bar-columns{height:138px}}
+@media(max-width:760px){.ga-y-overview-title>.ga-y-title-text{font-size:10.5px}.ga-y-overview-card{min-height:99px;padding:8px 9px 6px}.ga-y-card-icon{flex-basis:23px;width:23px;height:23px}.ga-y-card-icon svg{width:14px;height:14px}.ga-y-overview-title{font-size:10.5px}.ga-y-card-micro{display:none}.ga-y-kpi-main{font-size:18px}.ga-y-kpi-split strong{font-size:16px}.ga-y-section{padding:10px}.ga-y-bars-chart{min-height:205px}.ga-y-bar-columns{height:138px}}
