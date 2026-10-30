@@ -84,28 +84,66 @@ function ProductRows({rows,year,baseYear,platform,empty,limit=10}) {
     })}</tbody>
   </table></div>;
 }
-function rankRows(monthData,tab,history) {
-  const all=cleanRows(monthData?.[tab==='zero'?'down':tab==='unverified'?'top':tab]);
-  const old=cleanRows(monthData?.[(tab==='zero'?'down':tab==='unverified'?'top':tab)+'_old']);
-  if(tab==='unverified')return all.filter(r=>statusOf(r)==='no-history');
-  if(tab==='zero')return (history==='old'&&old.length?old:all).filter(r=>Number(r.cur)===0&&Number(r.base)>0);
-  if(history==='old')return old.length?old:all.filter(r=>statusOf(r)==='old');
-  if(history==='no-history')return all.filter(r=>statusOf(r)==='no-history');
-  return all;
+function MonthlyListingRows({items,year,baseYear}) {
+  const [opened,setOpened]=useState({});
+  useEffect(()=>setOpened({}),[items,year,baseYear]);
+  if(!items.length)return <div className="ga-y-empty">Nenhum anúncio com vendas registradas em pelo menos um dos dois períodos corresponde aos filtros.</div>;
+  return <div className="ga-y-table-scroll"><table className="ga-y-product-table ga-y-listing-table">
+    <thead><tr><th>Anúncio / ID</th><th>Variações</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th><th>Histórico</th></tr></thead>
+    <tbody>{items.map((r,i)=>{
+      const id=String(r.id||''),key=String(r.platform)+':'+id,cur=Number(r.cur)||0,base=Number(r.base)||0;
+      const variants=cleanRows(r.variations),expanded=Boolean(opened[key]);
+      const external=listingUrl(r.platform==='SHOPEE'?'SHOPEE':'ML',id);
+      const historyLabel=base>0?'Com vendas em '+baseYear:'Sem vendas em '+baseYear;
+      return <React.Fragment key={key}>
+        <tr className={'ga-y-product-row'+(expanded?' is-selected':'')}>
+          <td><div className="ga-y-product-cell">
+            <span className="ga-y-product-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 7h18v4H3zM5 11v10h14V11M9 15h6"/></svg></span>
+            <span className="ga-y-product-descriptor">
+              <button type="button" className="ga-y-product-name" aria-expanded={expanded} aria-label={(expanded?'Fechar':'Ver')+' variações do anúncio '+id} onClick={()=>setOpened(p=>({...p,[key]:!p[key]}))}>{r.title||'Anúncio '+id}<span aria-hidden="true">{expanded?'⌄':'›'}</span></button>
+              <small title={r.platform+' · ID '+id}>{r.platform==='SHOPEE'?'Shopee':r.platform==='ML_ANTIGO'?'Mercado Livre antigo':'Mercado Livre novo'} · ID {id} · #{i+1}</small>
+            </span>
+          </div></td>
+          <td><span className="ga-y-variation-count">{variants.length} SKU{variants.length===1?'':'s'} <span aria-hidden="true">{expanded?'▴':'▾'}</span></span></td>
+          <td>{fmt(base)}</td><td><strong>{fmt(cur)}</strong></td>
+          <td className={cur>=base?'is-up':'is-down'}>{signed(cur-base)}</td>
+          <td><Trend cur={cur} base={base}/></td>
+          <td><span className={'ga-y-history '+(base>0?'is-old':'is-unconfirmed')}>{historyLabel}</span></td>
+        </tr>
+        {expanded&&<tr className="ga-y-product-expanded"><td colSpan={7}>
+          <div className="ga-y-listing-detail">
+            <div className="ga-y-listing-detail-head"><strong>Variações / SKUs deste anúncio</strong>
+              {external&&<a href={external} target="_blank" rel="noopener noreferrer" className="ga-y-product-link">Abrir anúncio ↗</a>}
+            </div>
+            <table className="ga-y-variation-table"><thead><tr><th>Variação</th><th>SKU</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th></tr></thead>
+            <tbody>{variants.map((v,j)=>{const vc=Number(v.cur)||0,vb=Number(v.base)||0,recorded=v.recorded!==false;return <tr key={(v.sku||'sku')+':'+j}>
+              <td>{v.name||v.sku||'Variação sem nome'}</td><td><small>{v.sku||'—'}</small></td>
+              <td>{recorded?fmt(vb):'—'}</td><td><b>{recorded?fmt(vc):'—'}</b></td>
+              <td className={recorded?(vc>=vb?'is-up':'is-down'):''}>{recorded?signed(vc-vb):'—'}</td>
+              <td>{recorded?<Trend cur={vc} base={vb}/>:<span className="ga-y-history is-unconfirmed">Sem registro</span>}</td>
+            </tr>})}</tbody></table>
+            <p className="ga-y-note">Variações cadastradas sem vendas identificadas nos dois períodos aparecem como “Sem registro”, não como zero confirmado.</p>
+          </div>
+        </td></tr>}
+      </React.Fragment>;
+    })}</tbody>
+  </table></div>;
 }
-function ProductPanel({monthData,loading,month,year,baseYear,platform,tab,setTab,history,setHistory,query,setQuery}) {
-  const options=[['top','Mais vendidos'],['up','Mais cresceram'],['down','Mais caíram'],['zero','Zeraram*'],['unverified','Sem histórico']];
-  const rows=rankRows(monthData,tab,history);
+function ProductPanel({listingData,loading,error,month,year,baseYear,tab,setTab,history,setHistory,query,setQuery,page,setPage}) {
+  const options=[['top','Mais vendidos'],['up','Mais cresceram'],['down','Mais caíram'],['zero','Zeraram'],['no-history','Sem vendas em '+baseYear]];
+  const rows=cleanRows(listingData?.items);
+  const total=Number(listingData?.total)||0;
+  const pages=Math.max(1,Math.ceil(total/15));
   return <section className="ga-y-section" id="ga-y-products">
-    <div className="ga-y-section-header"><div><h3>Produtos de {MONTHS[month-1]}</h3><p>Compare unidades por SKU e descubra quais itens precisam de revisão.</p></div><div className="ga-y-product-head-tools"><label className="ga-y-search" htmlFor="ga-y-search"><span>Buscar SKU</span><input id="ga-y-search" type="search" placeholder="Nome ou SKU" value={query} onChange={e=>setQuery(e.target.value)}/></label><span className="ga-y-chip">{year} × {baseYear}</span></div></div>
+    <div className="ga-y-section-header"><div><h3>Anúncios de {MONTHS[month-1]}</h3><p>Vendas por anúncio. Clique para abrir as variações e comparar seus SKUs.</p></div><div className="ga-y-product-head-tools"><label className="ga-y-search" htmlFor="ga-y-search"><span>Buscar anúncio</span><input id="ga-y-search" type="search" placeholder="Nome, ID ou SKU" value={query} onChange={e=>setQuery(e.target.value)} maxLength={120}/></label><span className="ga-y-chip">{year} × {baseYear}</span></div></div>
     <div className="ga-y-product-controls">
-      <div className="ga-y-segments" role="tablist" aria-label="Rankings dos produtos">{options.map(([id,label])=><button type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)} key={id}>{label}</button>)}</div>
-      {tab!=='unverified'&&<label className="ga-y-history-select">Histórico<select value={history} onChange={e=>setHistory(e.target.value)}><option value="all">Todos</option><option value="old">Com histórico em {baseYear}</option><option value="no-history">Sem histórico em {baseYear}</option></select></label>}
+      <div className="ga-y-segments" role="group" aria-label="Rankings dos anúncios">{options.map(([id,label])=><button type="button" className={tab===id?'is-active':''} aria-pressed={tab===id} onClick={()=>{setTab(id);setHistory('all');setPage(0)}} key={id}>{label}</button>)}</div>
+      {tab!=='no-history'&&<label className="ga-y-history-select">Histórico<select value={history} onChange={e=>{setHistory(e.target.value);setPage(0)}}><option value="all">Todos</option><option value="old">Com vendas em {baseYear}</option><option value="no-history">Sem vendas em {baseYear}</option></select></label>}
     </div>
-    {tab==='zero'&&<p className="ga-y-note">* Apenas SKUs encontrados no ranking de quedas: não equivale à lista completa de anúncios ativos sem vendas.</p>}
-    {tab==='unverified'&&<p className="ga-y-note">Sem vendas registradas em {baseYear} não comprova que o anúncio seja novo. Verifique a data de publicação na plataforma.</p>}
-    {loading?<div className="ga-y-empty">Consultando produtos do mês…</div>:<ProductRows rows={rows} year={year} baseYear={baseYear} platform={platform} empty="Nenhum SKU confirmado neste grupo entre os produtos retornados pela consulta."/>}
-    {!loading&&<p className="ga-y-note">Rankings com até 10 registros retornados pelo GA. Para uma análise completa de anúncios sem venda é necessária uma consulta de catálogo e cobertura das importações.</p>}
+    {tab==='no-history'&&<p className="ga-y-note">Sem vendas em {baseYear} no mês comparado não significa que o anúncio foi criado em {year}.</p>}
+    {loading?<div className="ga-y-empty">Carregando anúncios e variações…</div>:error?<p className="ga-y-warning" role="alert">{error}</p>:<MonthlyListingRows items={rows} year={year} baseYear={baseYear}/>}
+    {!loading&&!error&&<div className="ga-y-listing-footer"><span>{fmt(total)} anúncios encontrados · página {page+1} de {pages}</span><div className="ga-y-page-actions"><button type="button" disabled={page<=0} onClick={()=>setPage(Math.max(0,page-1))}>Anterior</button><button type="button" disabled={page+1>=pages} onClick={()=>setPage(page+1)}>Próxima</button></div></div>}
+    <p className="ga-y-note">Resultados por ID real do anúncio e SKU da venda, sem estimativas. Anúncios sem registro de vendas em ambos os períodos não são classificados como zero automaticamente.</p>
   </section>;
 }
 function useApi(path,dependencies,enabled=true) {
@@ -148,6 +186,9 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const [history,setHistory]=useState('all');
   const [weekRank,setWeekRank]=useState('top');
   const [query,setQuery]=useState('');
+  const [listingPage,setListingPage]=useState(0);
+  const [listingSearch,setListingSearch]=useState('');
+  useEffect(()=>{const timer=setTimeout(()=>setListingSearch(query),350);return()=>clearTimeout(timer);},[query]);
   const [dismissedWarnings,setDismissedWarnings]=useState({});
   const year=Number(data.year),baseYear=Number(data.base_year);
   const asOf=String(data.as_of||'');
@@ -191,9 +232,21 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const dayState=useApi(dayUrl,[refresh],Boolean(dayUrl)&&!windowMode);
   const winProductsUrl=windowMode&&winData?'/api/admin/commerce/sales-compare/annual-period-products?platform='+encodeURIComponent(filters.platform)+'&cur_from='+winFrom+'&cur_to='+winTo+'&base_from='+winBaseFrom+'&base_to='+winBaseTo:'';
   const winProducts=useApi(winProductsUrl,[refresh],Boolean(winProductsUrl));
+  const listingUrlPath=!windowMode&&asOf?
+    '/api/admin/commerce/sales-compare/annual-month-listings?platform='+encodeURIComponent(filters.platform)
+      +'&month='+selectedMonth+'&year='+year+'&base='+baseYear+'&as_of='+encodeURIComponent(asOf)
+      +'&tab='+encodeURIComponent(productTab.toUpperCase().replace('-','_'))
+      +'&history='+encodeURIComponent(history.toUpperCase().replace('-','_'))
+      +'&search='+encodeURIComponent(listingSearch)+'&limit=15&offset='+(listingPage*15):'';
+  const listingState=useApi(listingUrlPath,[refresh],Boolean(listingUrlPath));
+  const listingData=listingState.data&&Number(listingState.data.year)===year
+    &&Number(listingState.data.month)===selectedMonth&&listingState.data.platform===filters.platform
+    ?listingState.data:null;
+  useEffect(()=>setListingPage(0),[filters.platform,selectedMonth,year,productTab,history,listingSearch]);
+
   const late=daysBehind(asOf,new Date().toISOString().slice(0,10));
   useEffect(()=>{setWeek(null);setShowDays(false);setProductTab('top');setHistory('all');},[filters.platform,selectedMonth,year,days]);
-  const oldFall=cleanRows(monthly?.down_old||monthly?.down).filter(r=>Number(r.cur)<Number(r.base));
+  const listingFallCount=listingData?.counts?.down;
   const filterMonths=status=>{setMonthFilter(status);setFocus(status);};
   const sortedWeekRows=cleanRows(weekState.data?.products).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())).sort((a,b)=>weekRank==='down'?(Number(a.cur)-Number(a.base))-(Number(b.cur)-Number(b.base)):weekRank==='up'?(Number(b.cur)-Number(b.base))-(Number(a.cur)-Number(a.base)):Number(b.cur)-Number(a.cur));
   const rawWin=cleanRows(winProducts.data?.products).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase()));
@@ -219,9 +272,9 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
         <div className="ga-y-kpi-split"><span><strong>{best?monthShort(Number(best.key)):'—'}</strong><small className="is-up">{best?signed(best.diff):'sem base'} un.</small></span><span><strong>{worst?monthShort(Number(worst.key)):'—'}</strong><small className="is-down">{worst?signed(worst.diff):'sem base'} un.</small></span></div>
         <small>Diferença absoluta de unidades vs. {baseYear}</small>
       </DataCard>
-      <DataCard title="Produtos em queda no mês" icon="alerts" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old');document.getElementById('ga-y-products')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
-        <div className="ga-y-kpi-main">{productValid?fmt(oldFall.length):'—'} <span className="ga-y-kpi-qualifier">no ranking consultado</span></div>
-        <small>{MONTHS[selectedMonth-1]} · clique para investigar os SKUs</small>
+      <DataCard title="Anúncios em queda no mês" icon="alerts" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old');document.getElementById('ga-y-products')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
+        <div className="ga-y-kpi-main">{listingFallCount==null?'—':fmt(listingFallCount)} <span className="ga-y-kpi-qualifier">anúncios identificados</span></div>
+        <small>{MONTHS[selectedMonth-1]} · clique para investigar os anúncios</small>
       </DataCard>
     </div>
     {windowMode?<section className="ga-y-section ga-y-window">
@@ -264,7 +317,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
       </div>
       <div className="ga-y-body ga-y-products-body">
         <div className="ga-y-product-left">
-          <ProductPanel monthData={monthly?{...monthly,top:cleanRows(monthly.top).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),up:cleanRows(monthly.up).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),down:cleanRows(monthly.down).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),top_old:cleanRows(monthly.top_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),up_old:cleanRows(monthly.up_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())),down_old:cleanRows(monthly.down_old).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase()))}:null} loading={!monthly} month={selectedMonth} year={year} baseYear={baseYear} platform={filters.platform} tab={productTab} setTab={setProductTab} history={history} setHistory={setHistory} query={query} setQuery={setQuery}/>
+          <ProductPanel listingData={listingData} loading={listingState.loading} error={listingState.error} month={selectedMonth} year={year} baseYear={baseYear} tab={productTab} setTab={setProductTab} history={history} setHistory={setHistory} query={query} setQuery={setQuery} page={listingPage} setPage={setListingPage}/>
         </div>
         <section className="ga-y-section ga-y-week-products">
           <div className="ga-y-section-header"><div><h3>{week?'Produtos da semana '+(week===5?'29+':(week-1)*7+1+'–'+Math.min(week*7,lastDay)):'Produtos da semana'}</h3><p>Selecione uma semana na investigação para comparar seus SKUs.</p></div></div>

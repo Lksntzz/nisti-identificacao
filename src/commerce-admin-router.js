@@ -38,7 +38,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualWindow, commerceCategories, commerceCategoriesSub, commerceCategoriesCol,
+  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualWindow, commerceCategories, commerceCategoriesSub, commerceCategoriesCol,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -509,6 +509,31 @@ export async function handleCommerceAdminRequest(request, env) {
       if(ids.length>200||ids.some(id=>!/^[0-9]+$/.test(id)))
         return json({error:'Filtro de vendas por mês inválido.'},400);
       return json(await commerceListingSalesMonths(env,{ids,daily:query(url,'daily')==='1'}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-month-listings'){
+      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
+      const month=Number(query(url,'month'));
+      const year=Number(query(url,'year'));
+      const base=Number(query(url,'base'));
+      const asOf=String(query(url,'as_of')||'');
+      const tab=String(query(url,'tab')||'TOP').toUpperCase();
+      const history=String(query(url,'history')||'ALL').toUpperCase();
+      const search=String(query(url,'search')||'');
+      const limitRaw=query(url,'limit'),offsetRaw=query(url,'offset');
+      const limit=limitRaw==null?15:Number(limitRaw),offset=offsetRaw==null?0:Number(offsetRaw);
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)
+        ||!Number.isInteger(month)||month<1||month>12
+        ||!Number.isInteger(year)||year<2020||year>2100||base!==year-1
+        ||!/^\d{4}-\d{2}-\d{2}$/.test(asOf)
+        ||!Number.isFinite(Date.parse(asOf+'T12:00:00Z'))
+        ||!asOf.startsWith(String(year)+'-')
+        ||!['TOP','UP','DOWN','ZERO','NO_HISTORY'].includes(tab)
+        ||!['ALL','OLD','NO_HISTORY'].includes(history)
+        ||search.length>120
+        ||!Number.isInteger(limit)||limit<1||limit>30
+        ||!Number.isInteger(offset)||offset<0||offset>20000)
+        return json({error:'Filtro de anúncios no comparativo mensal inválido.'},400);
+      return json(await commerceAnnualMonthListings(env,{platform,month,year,base,asOf,tab,history,search,limit,offset}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-month'){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();

@@ -198,3 +198,27 @@ html.ga-dark .ga-y-product-avatar{background:#263b60;border-color:#355b8c}
   .ga-y-product-head-tools .ga-y-search{flex:1;justify-content:flex-start}
   .ga-y-product-head-tools .ga-y-search input{width:100%;max-width:220px}
 }
+
+
+/* Agrupamento por anúncio: linhas compactas e variações expandidas dentro do mesmo card. */
+.ga-y-listing-table th:first-child{min-width:210px}
+.ga-y-listing-table td:nth-child(2){text-align:center}
+.ga-y-listing-table th:nth-child(2){text-align:center}
+.ga-y-listing-table .ga-y-product-name{white-space:normal;max-width:none;line-height:1.35}
+.ga-y-listing-table .ga-y-product-descriptor{max-width:330px}
+.ga-y-listing-table .ga-y-product-descriptor>small{max-width:300px}
+.ga-y-listing-table .ga-y-history{display:inline-block;max-width:125px;white-space:normal;line-height:1.25;text-align:center}
+.ga-y-variation-count{display:inline-flex;gap:5px;align-items:center;justify-content:center;color:var(--gy-blue);font-size:10.5px;font-weight:700;white-space:nowrap}
+.ga-y-listing-detail{padding:6px 3px 4px;min-width:0}
+.ga-y-listing-detail-head{display:flex;justify-content:space-between;align-items:center;gap:9px;margin-bottom:10px;font-size:11px}
+.ga-y-variation-table{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+.ga-y-variation-table th{background:var(--gy-bg);color:var(--gy-muted);font-size:10px;text-align:right;font-weight:700;padding:7px 6px;white-space:nowrap}
+.ga-y-variation-table td{border-bottom:1px solid var(--gy-border);text-align:right!important;padding:8px 6px;white-space:nowrap}
+.ga-y-variation-table th:first-child,.ga-y-variation-table td:first-child,.ga-y-variation-table th:nth-child(2),.ga-y-variation-table td:nth-child(2){text-align:left!important}
+.ga-y-variation-table td:first-child{max-width:220px;white-space:normal;font-weight:650}
+.ga-y-variation-table small{color:var(--gy-muted);font-size:10px}
+.ga-y-listing-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px;color:var(--gy-muted);font-size:11px}
+.ga-y-page-actions{display:flex;gap:6px}
+.ga-y-page-actions button{padding:6px 10px;border:1px solid var(--gy-border);border-radius:7px;color:var(--gy-text);background:var(--gy-bg);font-size:11px;font-weight:650}
+.ga-y-page-actions button:not(:disabled):hover{border-color:var(--gy-blue);color:var(--gy-blue)}
+@media(max-width:1000px){.ga-y-listing-table{min-width:685px}}
