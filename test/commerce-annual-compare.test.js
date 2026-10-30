@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {periodParams,periodQuery,periodLabel,categoryKpis,listCategories,unitPrice} from '../src/commerce-categories-helpers.js';
 import { growth, pctText, newKind, projectionRange, daysBehind } from '../src/commerce-annual-compare-helpers.js';
 
 test('growth nao inventa percentual sem base', () => {
@@ -72,14 +73,14 @@ test('produto: tira a marca, separa a colecao e trata cadastro ausente', () => {
   assert.equal(share(5, 0), null);
 });
 
-test('produtos do dia: rota validada, SQL restrito e links nos produtos', () => {
-  const sql = fs.readFileSync('supabase/migrations/20261029200000_commerce_annual_day_products_v1.sql', 'utf8');
-  assert.match(sql, /revoke all on function public\.commerce_annual_day_products_v1/i);
-  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-day-products/);
-  const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
-  assert.match(ui, /ProductLinks/);
-  assert.match(ui, /PeriodProducts/);
-  assert.match(ui, /rel="noopener noreferrer"/);
+test('produtos do período: rota restrita e links protegidos na nova Comparação Anual',()=>{
+  const sql=fs.readFileSync('supabase/migrations/20261029200000_commerce_annual_day_products_v1.sql','utf8');
+  assert.match(sql,/revoke all on function public\.commerce_annual_day_products_v1/i);
+  assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/annual-day-products/);
+  const ui=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
+  assert.match(ui,/annual-period-products/);
+  assert.match(ui,/ProductLink/);
+  assert.match(ui,/rel="noopener noreferrer"/);
 });
 
 test('produtos do mês são buscados para o mês exibido, inclusive o padrão', () => {
@@ -88,29 +89,35 @@ test('produtos do mês são buscados para o mês exibido, inclusive o padrão', 
   assert.match(fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8'), /Number\(monthData\.month\)===selectedMonth/);
 });
 
-test('botoes e tabelas do painel herdam a fonte sem sobrescrever tamanhos das classes', () => {
-  const g = fs.readFileSync('src/commerce-annual-guided.css', 'utf8');
-  assert.match(g, /\.ga-y-guided :where\(button,select,input,table\)\{font:inherit\}/);
-  assert.doesNotMatch(g, /\.ga-y-guided button,\.ga-y-guided select\{font:inherit\}/);
-  assert.match(fs.readFileSync('src/commerce-annual-compare.css', 'utf8'), /Plus Jakarta Sans/);
+test('comparação anual usa tipografia isolada e não sobrescreve classes globais', () => {
+  const g=fs.readFileSync('src/commerce-annual-guided.css','utf8');
+  assert.match(g,/\.ga-y-guided :where\(button,input,select,table\)\{font:inherit\}/);
+  assert.match(g,/html\.ga-dark \.ga-y-guided/);
+  assert.doesNotMatch(g,/\.ga-y-guided button,\.ga-y-guided select\{font:inherit\}/);
+  assert.match(fs.readFileSync('src/commerce-annual-compare.css','utf8'),/Plus Jakarta Sans/);
 });
 
-test('filtros usam o seletor do Painel Comercial e bloqueiam plataforma sem base', () => {
-  const g = fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8');
-  const c = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
-  assert.match(g, /import \{ Dropdown \} from '\.\/commerce-dashboard\.jsx'/);
-  assert.match(g, /platformOptions/);
-  assert.match(c, /não dá para comparar/);
-  assert.doesNotMatch(g, /<label>Plataforma<select/);
+test('comparação nova mantém filtros de plataforma, ano e períodos com aviso de base ausente', () => {
+  const g=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
+  const c=fs.readFileSync('src/commerce-annual-compare.jsx','utf8');
+  assert.match(g,/import \{Dropdown, listingUrl\} from '\.\/commerce-dashboard\.jsx'/);
+  assert.match(g,/coverage/);
+  assert.match(g,/baseAvailable/);
+  assert.match(g,/sem cobertura confirmada/i);
+  assert.match(g,/<Dropdown label="Plataforma"/);
+  assert.match(c,/não dá para comparar/);
+  assert.doesNotMatch(g,/<label>Plataforma<select/);
 });
 
-test('periodo: SQL restrito, rota e abertura direta na semana mais recente', () => {
-  const sql = fs.readFileSync('supabase/migrations/20261029210000_commerce_annual_period_products_v1.sql', 'utf8');
-  assert.match(sql, /revoke all on function public\.commerce_annual_period_products_v1/i);
-  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-period-products/);
-  const g = fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8');
-  assert.match(g, /PeriodProducts/);
-  assert.doesNotMatch(g, /Voltar às semanas/);
+test('período semanal usa consulta restrita e não inventa SKU sem vendas', () => {
+  const sql=fs.readFileSync('supabase/migrations/20261029210000_commerce_annual_period_products_v1.sql','utf8');
+  assert.match(sql,/revoke all on function public\.commerce_annual_period_products_v1/i);
+  assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/annual-period-products/);
+  const g=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
+  assert.match(g,/annual-period-products/);
+  assert.match(g,/weekOk/);
+  assert.match(g,/setWeek\(n\)/);
+  assert.match(g,/até 40/);
 });
 
 test('periodo igual ao Painel Comercial: 7/30/60/90 dias e meses, sem "todo o histórico"', () => {
@@ -125,14 +132,13 @@ test('periodo igual ao Painel Comercial: 7/30/60/90 dias e meses, sem "todo o hi
   assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-window/);
 });
 
-test('produtos do mês mostram o preço médio vendido nos dois anos', () => {
-  const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
-  assert.match(ui, /preço médio por unidade/);
-  assert.match(ui, /\/un\./);
-  assert.match(fs.readFileSync('supabase/migrations/20261029230000_commerce_annual_month_prices_v1.sql', 'utf8'), /'cur_rev',cr,'base_rev',br/);
+test('Comparação Anual nova não usa receita e preserva a migração histórica',()=>{
+  const ui=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
+  assert.doesNotMatch(ui,/cur_rev|base_rev|Preço médio|Receita [0-9]/);
+  assert.match(ui,/Diferença/);
+  assert.match(ui,/Variação/);
+  assert.match(fs.readFileSync('supabase/migrations/20261029230000_commerce_annual_month_prices_v1.sql','utf8'),/'cur_rev',cr,'base_rev',br/);
 });
-
-import {periodParams,periodQuery,periodLabel,categoryKpis,listCategories,unitPrice} from '../src/commerce-categories-helpers.js';
 
 test('categorias: período segue dias > mês > acumulado e a consulta carrega o par exato', () => {
   assert.deepEqual(periodParams({days:30,month:'9'}), {mode:'days',days:30});
@@ -166,13 +172,14 @@ test('categorias: migração, rotas e painel existem e validam entradas', () => 
   assert.match(fs.readFileSync('src/commerce-commercial-panel.jsx','utf8'),/CommerceCategoriesPanel/);
 });
 
-test('anúncios: só ícone, só da plataforma em análise; comparação só oferece ano com base', () => {
-  const ui = fs.readFileSync('src/commerce-annual-compare.jsx','utf8');
-  assert.match(ui, /Abrir anúncio na/);
-  assert.doesNotMatch(ui, /\{i\.label\} ↗/);
-  assert.match(ui, /platform==='SHOPEE'\?l\.platform==='SHOPEE'/);
-  const g = fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
-  assert.match(g, /hasUnits\(n-1\)/);
+test('links protegidos respeitam plataforma e anos disponíveis têm cobertura histórica', () => {
+  const g=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
+  assert.match(g,/rel="noopener noreferrer"/);
+  assert.match(g,/platform==='SHOPEE'\?l\.platform==='SHOPEE'/);
+  assert.match(g,/yearChoices/);
+  assert.match(g,/Number\(b\.year\)===y-1/);
+  assert.match(g,/Sem histórico/);
+  assert.doesNotMatch(g,/>novo<\/em>/);
 });
 
 test('categorias: Top 5 usa o título do produto (texto) e o detalhe tem proteção contra erro', () => {
