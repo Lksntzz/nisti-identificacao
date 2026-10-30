@@ -139,8 +139,6 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
     return f.sort((a,b)=>val(b)-val(a)||a.name.localeCompare(b.name,'pt-BR'));
   },[categories,search,show,sort]);
   const leader=categories.reduce((best,c)=>!best||num(c.cur)>num(best.cur)?c:best,null);
-  const growth=categories.filter(c=>num(c.base)>0&&num(c.cur)>num(c.base)).sort((a,b)=>(num(b.cur)-num(b.base))-(num(a.cur)-num(a.base)))[0];
-  const loss=categories.filter(c=>num(c.base)>0&&num(c.cur)<num(c.base)).sort((a,b)=>(num(a.cur)-num(a.base))-(num(b.cur)-num(b.base)))[0];
   // A mesma fonte do resumo de categorias já traz coleções classificadas por SKU.
   // Não confundir 'Sem coleção' com uma coleção real no ranking.
   const namedCollections=categories.flatMap(cat=>rows(cat.cols)
@@ -280,7 +278,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
             </tr>)}
           </DetailTable>
         </Section>
-        <Section title={'Sazonalidade da '+(selectedCollection?'subcategoria':'categoria')} subtitle={(selectedCollection||picked?.name||'')+' · '+baseYear+' × '+year} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
+        <Section title={'Sazonalidade da '+(selectedCollection?'coleção':'categoria')} subtitle={(selectedCollection||picked?.name||'')+' · '+baseYear+' × '+year} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
           <Seasonality points={months} onSelect={chooseMonth} selected={currentMonth} year={year} baseYear={baseYear}/>
           <p className="ndb-cp-foot">Meses futuros do ano atual não são tratados como zero. Clique em um mês para investigar.</p>
         </Section>
