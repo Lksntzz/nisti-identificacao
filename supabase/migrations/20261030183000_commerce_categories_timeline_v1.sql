@@ -5,7 +5,8 @@ create or replace function public.commerce_categories_timeline_v1(
   p_year integer default 2026,
   p_cat text default null,
   p_month integer default 1,
-  p_sub text default null
+  p_sub text default null,
+  p_week integer default null
 ) returns jsonb
 language sql stable security invoker
 set search_path to 'public'
@@ -20,6 +21,7 @@ with prm as (
     and p_month between 1 and 12
     and p_cat is not null and length(p_cat) between 1 and 120
     and (p_sub is null or length(p_sub) between 1 and 120)
+    and (p_week is null or p_week between 1 and 5)
 ), sales as materialized (
   select d.sale_date,public.commerce_sku_canon_v1(d.sku_norm) as sku,
     d.units
@@ -84,6 +86,7 @@ classified as materialized (
     coalesce(sum(s.units) filter (where s.yr=p.b),0)::bigint base
   from classified s cross join prm p
   where s.cat=p_cat and (p_sub is null or s.sub=p_sub) and s.mon=p_month
+    and (p_week is null or s.wk=p_week)
     and (s.yr=p.y or (s.yr=p.b and (p_month<>extract(month from p.as_of)::integer
       or extract(day from s.sale_date)::integer<=p.cut_day)))
   group by 1
@@ -99,7 +102,7 @@ classified as materialized (
 select jsonb_build_object(
   'platform',(select plat from prm),'year',(select y from prm),
   'base_year',(select b from prm),'as_of',(select as_of from prm),
-  'category',p_cat,'subcategory',p_sub,'month',p_month,
+  'category',p_cat,'subcategory',p_sub,'month',p_month,'week',p_week,
   'category_months',coalesce((select jsonb_agg(jsonb_build_object('cat',cat,'year',yr,'month',mon,'units',units)
      order by yr,mon,cat) from monthly_category),'[]'::jsonb),
   'subcategory_months',coalesce((select jsonb_agg(jsonb_build_object('sub',sub,'year',yr,'month',mon,'units',units)
@@ -141,5 +144,5 @@ select jsonb_build_object(
   ),'[]'::jsonb)
 );
 $fn$;
-revoke all on function public.commerce_categories_timeline_v1(text,integer,text,integer,text) from public,anon,authenticated;
-grant execute on function public.commerce_categories_timeline_v1(text,integer,text,integer,text) to service_role;
+revoke all on function public.commerce_categories_timeline_v1(text,integer,text,integer,text,integer) from public,anon,authenticated;
+grant execute on function public.commerce_categories_timeline_v1(text,integer,text,integer,text,integer) to service_role;
