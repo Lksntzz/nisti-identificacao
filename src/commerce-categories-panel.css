@@ -153,3 +153,24 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-view-products:hover{background:#eaf3ff}
 #ndb-cp-products{scroll-margin-top:80px;min-width:0}
 @media(max-width:680px){.ndb-cp-category-detail .ndb-cp-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ndb-cp-category-detail .ndb-cp-stats>div:nth-child(even){border-right:0}.ndb-cp-category-detail .ndb-cp-stats>div:nth-child(n+3){border-top:1px solid var(--cp-border)}}
+
+
+/* Categoria -> Coleção -> Variações (SKU), sem expandir os cards da visão geral. */
+.ndb-cp-col-arrow{display:inline-flex;margin-left:7px;color:var(--cp-blue);font-size:14px;font-weight:850}
+.ndb-cp-sub-button[aria-expanded="true"]{color:var(--cp-blue)}
+.ndb-cp-variations-row,.ndb-cp-variations-row:hover{background:#f7faff!important}
+.ndb-cp-variations-row>td{white-space:normal!important;text-align:left!important;padding:7px!important}
+.ndb-cp-variations-panel{border:1px solid #d4e2f6;border-radius:9px;padding:9px;background:#fff;min-width:0}
+.ndb-cp-variations-title{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:8px;color:var(--cp-ink)}
+.ndb-cp-variations-title strong{font-size:11px}
+.ndb-cp-variations-title small{color:var(--cp-muted);font-size:10px}
+.ndb-cp-variation-list{display:grid;gap:4px;max-height:280px;overflow-y:auto;scrollbar-width:thin}
+.ndb-cp-variation-item{display:flex;align-items:center;gap:7px;padding:6px;border-bottom:1px solid var(--cp-border);min-width:0}
+.ndb-cp-variation-item:last-child{border-bottom:0}
+.ndb-cp-variation-title{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ndb-cp-variation-title b{font-size:10.5px;color:var(--cp-ink);line-height:1.3;overflow-wrap:anywhere}
+.ndb-cp-variation-title small{font-size:9.5px;color:var(--cp-muted);overflow-wrap:anywhere}
+.ndb-cp-variation-units{display:flex;flex-direction:column;gap:2px;text-align:right;font-size:10px;font-variant-numeric:tabular-nums;color:var(--cp-muted);white-space:nowrap}
+.ndb-cp-variation-units strong{font-size:10.5px;color:var(--cp-ink)}
+.ndb-cp-variation-units em{font-size:10px;font-weight:800;font-style:normal}
+@media(max-width:680px){.ndb-cp-variation-item{gap:5px;padding:5px 3px}.ndb-cp-variation-units{font-size:9px}}
