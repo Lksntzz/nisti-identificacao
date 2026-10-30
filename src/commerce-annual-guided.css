@@ -1,6 +1,6 @@
 /* GA Comparação Anual v3 — interface interativa isolada; sem impacto no scanner ou Categorias. */
 .ga-y-guided{--gy-bg:#fff;--gy-canvas:#f6f8fc;--gy-text:#16243b;--gy-muted:#61748e;--gy-border:#dfe6f0;--gy-blue:#2563eb;--gy-blue-soft:#eef5ff;--gy-base:#a8b7d0;--gy-up:#168560;--gy-down:#c74554;--gy-up-bg:#e5f5ee;--gy-down-bg:#ffeded;display:flex;flex-direction:column;gap:12px;min-width:0;color:var(--gy-text);font-family:'Plus Jakarta Sans',Inter,system-ui,sans-serif}
-.ga-y-guided :where(button,input,select){font:inherit}
+.ga-y-guided :where(button,input,select,table){font:inherit}
 .ga-y-guided button{cursor:pointer}
 .ga-y-guided button:disabled{cursor:not-allowed;opacity:.4}
 .ga-y-guided :where(button,a,input,select):focus-visible{outline:2px solid var(--gy-blue);outline-offset:2px}
