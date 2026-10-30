@@ -158,7 +158,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const unitCur=windowMode?winData?.total?.cur:data.kpi?.cur;
   const unitBase=windowMode?winData?.total?.base:data.kpi?.base;
   const weekList=cleanRows(monthly?.months).find(r=>Number(r.month)===selectedMonth)?.weeks||[];
-  const weeks=cleanRows(weekList).filter(w=>Number(w.n)>=1&&Number(w.n)<=5);
+  const weeks=cleanRows(weekList).filter(w=>Number(w.n)>=1&&Number(w.n)<=Math.ceil(dayCount(year,selectedMonth)/7)&&Number(w.days||0)>0);
   const lastDay=dayCount(year,selectedMonth);
   const selectedWeek=weeks.find(w=>Number(w.n)===week);
   const weekFrom=week?iso(year,selectedMonth,(week-1)*7+1):'';
@@ -187,7 +187,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
     {late>=2&&<p className="ga-y-warning">Importações desatualizadas: o último dado é de {asOf.split('-').reverse().join('/')}. Os resultados recentes podem estar incompletos.</p>}
     {!baseAvailable&&<p className="ga-y-warning">Sem cobertura confirmada de {baseYear} para todas as plataformas escolhidas. Comparações de crescimento exigem histórico importado.</p>}
     <div className="ga-y-kpis">
-      <DataCard title={windowMode?'Unidades nos últimos '+days+' dias':'Unidades no ano'} active={focus==='units'} onClick={()=>{setFocus('units');setMonthFilter('all')}}>
+      <DataCard title={windowMode?'Unidades nos últimos '+days+' dias':'Unidades no ano'} active={focus==='units'} onClick={()=>{setFocus('units');setMonthFilter('all');document.querySelector('.ga-y-months')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
         <div className="ga-y-kpi-main">{unitCur==null?'—':fmt(unitCur)} {baseAvailable&&unitBase!=null&&<Trend cur={unitCur} base={unitBase}/>}</div>
         <small>{baseYear}: {baseAvailable&&unitBase!=null?fmt(unitBase):'sem base'} {baseAvailable&&unitBase!=null?'· Dif. '+signed(Number(unitCur||0)-Number(unitBase||0)):''}</small>
       </DataCard>
@@ -195,7 +195,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
         <div className="ga-y-kpi-split"><span><strong className="is-up">{up.length}</strong><small>Em alta</small></span><span><strong className="is-down">{down.length}</strong><small>Em queda</small></span></div>
         <small>{comparable.length} meses com base comparável</small>
       </DataCard>
-      <DataCard title="Maior ganho / maior perda" active={focus==='best'||focus==='worst'} onClick={()=>{if(worst){chooseMonth(Number(worst.key));setFocus('worst');setMonthFilter('all');}}}>
+      <DataCard title="Maior ganho / maior perda" active={focus==='best'||focus==='worst'} onClick={()=>{const next=focus==='worst'?'best':'worst';const target=next==='best'?best:worst;if(target){chooseMonth(Number(target.key));setFocus(next);setMonthFilter('all');}}}>
         <div className="ga-y-kpi-split"><span><strong>{best?monthShort(Number(best.key)):'—'}</strong><small className="is-up">{best?signed(best.diff):'sem base'} un.</small></span><span><strong>{worst?monthShort(Number(worst.key)):'—'}</strong><small className="is-down">{worst?signed(worst.diff):'sem base'} un.</small></span></div>
         <small>Diferença absoluta de unidades vs. {baseYear}</small>
       </DataCard>
