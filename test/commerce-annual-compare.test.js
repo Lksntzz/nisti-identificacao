@@ -72,14 +72,14 @@ test('produto: tira a marca, separa a colecao e trata cadastro ausente', () => {
   assert.equal(share(5, 0), null);
 });
 
-test('produtos do dia: rota validada, SQL restrito e links nos produtos', () => {
-  const sql = fs.readFileSync('supabase/migrations/20261029200000_commerce_annual_day_products_v1.sql', 'utf8');
-  assert.match(sql, /revoke all on function public\.commerce_annual_day_products_v1/i);
-  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-day-products/);
-  const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
-  assert.match(ui, /ProductLinks/);
-  assert.match(ui, /PeriodProducts/);
-  assert.match(ui, /rel="noopener noreferrer"/);
+test('produtos do período: rota restrita e links protegidos na nova Comparação Anual',()=>{
+  const sql=fs.readFileSync('supabase/migrations/20261029200000_commerce_annual_day_products_v1.sql','utf8');
+  assert.match(sql,/revoke all on function public\.commerce_annual_day_products_v1/i);
+  assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/annual-day-products/);
+  const ui=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
+  assert.match(ui,/annual-period-products/);
+  assert.match(ui,/ProductLink/);
+  assert.match(ui,/rel="noopener noreferrer"/);
 });
 
 test('produtos do mês são buscados para o mês exibido, inclusive o padrão', () => {
@@ -131,14 +131,13 @@ test('periodo igual ao Painel Comercial: 7/30/60/90 dias e meses, sem "todo o hi
   assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-window/);
 });
 
-test('produtos do mês mostram o preço médio vendido nos dois anos', () => {
-  const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
-  assert.match(ui, /preço médio por unidade/);
-  assert.match(ui, /\/un\./);
-  assert.match(fs.readFileSync('supabase/migrations/20261029230000_commerce_annual_month_prices_v1.sql', 'utf8'), /'cur_rev',cr,'base_rev',br/);
+test('Comparação Anual nova não usa receita e preserva a migração histórica',()=>{
+  const ui=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
+  assert.doesNotMatch(ui,/cur_rev|base_rev|Preço médio|Receita [0-9]/);
+  assert.match(ui,/Diferença/);
+  assert.match(ui,/Variação/);
+  assert.match(fs.readFileSync('supabase/migrations/20261029230000_commerce_annual_month_prices_v1.sql','utf8'),/'cur_rev',cr,'base_rev',br/);
 });
-
-import {periodParams,periodQuery,periodLabel,categoryKpis,listCategories,unitPrice} from '../src/commerce-categories-helpers.js';
 
 test('categorias: período segue dias > mês > acumulado e a consulta carrega o par exato', () => {
   assert.deepEqual(periodParams({days:30,month:'9'}), {mode:'days',days:30});
