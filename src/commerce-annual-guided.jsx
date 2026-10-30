@@ -28,10 +28,27 @@ function Trend({cur,base}) {
   const n=percentage(cur,base);
   return <span className={'ga-y-trend '+(n==null?'is-neutral':n>=0?'is-up':'is-down')}>{pct(n)}</span>;
 }
-function DataCard({title,children,onClick,active=false,description}) {
+function InsightIcon({kind}) {
+  return <span className={'ga-y-card-icon is-'+kind} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    {kind==='units'?<><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="M3 7v10l9 5 9-5V7M12 12v10"/></>:
+     kind==='months'?<><path d="M3 17.5 9 11l4 4 8-9"/><path d="M15 6h6v6"/></>:
+     kind==='extremes'?<><path d="M8 21h8M12 17v4M7 4h10v7a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v3a4 4 0 0 0 4 4M17 6h3v3a4 4 0 0 1-4 4"/></>:
+     <><path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v5M12 18h.01"/></>}
+  </svg></span>;
+}
+function MiniBars({periods,kind}) {
+  const rows=cleanRows(periods).slice(-10);
+  if(!rows.length)return null;
+  const max=Math.max(1,...rows.map(p=>Number(p.cur)||0));
+  return <span className="ga-y-card-micro" aria-hidden="true">{rows.map((p,i)=><i key={p.key||i} className={kind==='months'?(Number(p.cur)<Number(p.base)?'is-negative':'is-positive'):'is-volume'} style={{height:Math.max(3,Math.round(23*Number(p.cur||0)/max))+'px'}}/>)}</span>;
+}
+function DismissibleWarning({children,onClose,label}) {
+  return <div className="ga-y-warning ga-y-warning-dismissible" role="status"><span>{children}</span><button type="button" aria-label={label} title="Fechar aviso" onClick={onClose}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6 18 18M18 6 6 18"/></svg></button></div>;
+}
+function DataCard({title,children,onClick,active=false,description,icon='units',spark=null}) {
   return <button type="button" className={'ga-y-overview-card'+(active?' is-active':'')} onClick={onClick} title={description||title}>
-    <span className="ga-y-overview-title">{title}<span aria-hidden="true">↗</span></span>
-    <div className="ga-y-overview-content">{children}</div>
+    <span className="ga-y-overview-title"><InsightIcon kind={icon}/><span className="ga-y-title-text">{title}</span><span className="ga-y-card-arrow" aria-hidden="true">↗</span></span>
+    <div className="ga-y-overview-content"><span className="ga-y-overview-summary">{children}</span>{spark&&<MiniBars periods={spark} kind={icon}/>}</div>
     <span className="ga-y-overview-action">Investigar <span aria-hidden="true">›</span></span>
   </button>;
 }
@@ -49,10 +66,12 @@ function ProductRows({rows,year,baseYear,platform,empty,limit=10}) {
     <tbody>{rows.slice(0,limit).map((r,i)=>{
       const old=Number(r.base)||0,cur=Number(r.cur)||0,diff=cur-old;
       const label=productLabel(r.name,r.sku),kind=statusOf(r);
+      const ad=cleanRows(r.links).find(l=>l?.id&&(platform==='TODAS'||(platform==='SHOPEE'?l.platform==='SHOPEE':l.platform!=='SHOPEE')));
+      const meta=[label.collection,r.category,r.sku,ad?.id?'ID '+ad.id:null].filter(Boolean).join(' · ');
       const key=(r.sku||'sku')+':'+i;
       return <React.Fragment key={key}>
         <tr className={'ga-y-product-row'+(open===key?' is-selected':'')} onClick={()=>setOpen(open===key?null:key)}>
-          <td><button type="button" onClick={e=>{e.stopPropagation();setOpen(open===key?null:key);}} aria-expanded={open===key} className="ga-y-product-name" title={r.name||r.sku}>{label.title} <span aria-hidden="true">›</span></button><small>{r.sku||'SKU não informado'}</small></td>
+          <td><div className="ga-y-product-cell"><span className="ga-y-product-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9"/></svg></span><span className="ga-y-product-descriptor"><button type="button" onClick={e=>{e.stopPropagation();setOpen(open===key?null:key);}} aria-expanded={open===key} className="ga-y-product-name" title={r.name||r.sku}>{label.title} <span aria-hidden="true">›</span></button><small title={meta}>{meta||'SKU não informado'} · #{i+1}</small></span></div></td>
           <td>{fmt(old)}</td><td><strong>{fmt(cur)}</strong></td>
           <td className={diff>=0?'is-up':'is-down'}>{signed(diff)}</td>
           <td><Trend cur={cur} base={old}/></td>
@@ -129,6 +148,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const [history,setHistory]=useState('all');
   const [weekRank,setWeekRank]=useState('top');
   const [query,setQuery]=useState('');
+  const [dismissedWarnings,setDismissedWarnings]=useState({});
   const year=Number(data.year),baseYear=Number(data.base_year);
   const asOf=String(data.as_of||'');
   const current=Number(asOf.slice(5,7))||1;
@@ -184,22 +204,22 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
       <PeriodPicker days={days} month={windowMode?'':iso(year,selectedMonth,1).slice(0,7)} periods={[7,30,60,90]} allowAll={false} available={MONTHS.map((_,i)=>iso(year,i+1,1).slice(0,7)).filter((_,i)=>i<current)} onDays={n=>update({days:n,month:''})} onMonth={key=>chooseMonth(Number(String(key).slice(5,7)))}/>
       <span className="ga-y-asof">Dados até {asOf.split('-').reverse().join('/')||'—'}</span>
     </div>
-    {late>=2&&<p className="ga-y-warning">Importações desatualizadas: o último dado é de {asOf.split('-').reverse().join('/')}. Os resultados recentes podem estar incompletos.</p>}
-    {!baseAvailable&&<p className="ga-y-warning">Sem cobertura confirmada de {baseYear} para todas as plataformas escolhidas. Comparações de crescimento exigem histórico importado.</p>}
+    {late>=2&&!dismissedWarnings['stale:'+asOf]&&<DismissibleWarning label="Fechar aviso de importações desatualizadas" onClose={()=>setDismissedWarnings(p=>({...p,['stale:'+asOf]:true}))}>Importações desatualizadas: o último dado é de {asOf.split('-').reverse().join('/')}. Os resultados recentes podem estar incompletos.</DismissibleWarning>}
+    {!baseAvailable&&!dismissedWarnings['coverage:'+filters.platform+':'+baseYear]&&<DismissibleWarning label="Fechar aviso de histórico incompleto" onClose={()=>setDismissedWarnings(p=>({...p,['coverage:'+filters.platform+':'+baseYear]:true}))}>Sem cobertura confirmada de {baseYear} para todas as plataformas escolhidas. Comparações de crescimento exigem histórico importado.</DismissibleWarning>}
     <div className="ga-y-kpis">
-      <DataCard title={windowMode?'Unidades nos últimos '+days+' dias':'Unidades no ano'} active={focus==='units'} onClick={()=>{setFocus('units');setMonthFilter('all');document.querySelector('.ga-y-months')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
+      <DataCard title={windowMode?'Unidades nos últimos '+days+' dias':'Unidades no ano'} icon="units" spark={windowMode?null:allPeriods} active={focus==='units'} onClick={()=>{setFocus('units');setMonthFilter('all');document.querySelector('.ga-y-months')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
         <div className="ga-y-kpi-main">{unitCur==null?'—':fmt(unitCur)} {baseAvailable&&unitBase!=null&&<Trend cur={unitCur} base={unitBase}/>}</div>
         <small>{baseYear}: {baseAvailable&&unitBase!=null?fmt(unitBase):'sem base'} {baseAvailable&&unitBase!=null?'· Dif. '+signed(Number(unitCur||0)-Number(unitBase||0)):''}</small>
       </DataCard>
-      <DataCard title="Meses em alta / queda" active={focus==='up'||focus==='down'} onClick={()=>filterMonths(monthFilter==='down'?'up':'down')} description="Alterna meses em queda e meses em crescimento">
+      <DataCard title="Meses em alta / queda" icon="months" spark={allPeriods} active={focus==='up'||focus==='down'} onClick={()=>filterMonths(monthFilter==='down'?'up':'down')} description="Alterna meses em queda e meses em crescimento">
         <div className="ga-y-kpi-split"><span><strong className="is-up">{up.length}</strong><small>Em alta</small></span><span><strong className="is-down">{down.length}</strong><small>Em queda</small></span></div>
         <small>{comparable.length} meses com base comparável</small>
       </DataCard>
-      <DataCard title="Maior ganho / maior perda" active={focus==='best'||focus==='worst'} onClick={()=>{const next=focus==='worst'?'best':'worst';const target=next==='best'?best:worst;if(target){chooseMonth(Number(target.key));setFocus(next);setMonthFilter('all');}}}>
+      <DataCard title="Maior ganho / maior perda" icon="extremes" active={focus==='best'||focus==='worst'} onClick={()=>{const next=focus==='worst'?'best':'worst';const target=next==='best'?best:worst;if(target){chooseMonth(Number(target.key));setFocus(next);setMonthFilter('all');}}}>
         <div className="ga-y-kpi-split"><span><strong>{best?monthShort(Number(best.key)):'—'}</strong><small className="is-up">{best?signed(best.diff):'sem base'} un.</small></span><span><strong>{worst?monthShort(Number(worst.key)):'—'}</strong><small className="is-down">{worst?signed(worst.diff):'sem base'} un.</small></span></div>
         <small>Diferença absoluta de unidades vs. {baseYear}</small>
       </DataCard>
-      <DataCard title="Produtos em queda no mês" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old');document.getElementById('ga-y-products')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
+      <DataCard title="Produtos em queda no mês" icon="alerts" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old');document.getElementById('ga-y-products')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
         <div className="ga-y-kpi-main">{productValid?fmt(oldFall.length):'—'} <span className="ga-y-kpi-qualifier">no ranking consultado</span></div>
         <small>{MONTHS[selectedMonth-1]} · clique para investigar os SKUs</small>
       </DataCard>
