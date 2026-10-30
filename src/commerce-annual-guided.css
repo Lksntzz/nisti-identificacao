@@ -174,3 +174,27 @@ html.ga-dark .ga-y-card-icon.is-alerts{background:#532936;color:#ffb2bd}
 html.ga-dark .ga-y-product-avatar{background:#263b60;border-color:#355b8c}
 @media(max-width:1120px){.ga-y-card-micro{max-width:60px;min-width:42px}.ga-y-kpi-main{font-size:20px}}
 @media(max-width:760px){.ga-y-overview-title>.ga-y-title-text{font-size:10.5px}.ga-y-overview-card{min-height:99px;padding:8px 9px 6px}.ga-y-card-icon{flex-basis:23px;width:23px;height:23px}.ga-y-card-icon svg{width:14px;height:14px}.ga-y-overview-title{font-size:10.5px}.ga-y-card-micro{display:none}.ga-y-kpi-main{font-size:18px}.ga-y-kpi-split strong{font-size:16px}.ga-y-section{padding:10px}.ga-y-bars-chart{min-height:205px}.ga-y-bar-columns{height:138px}}
+
+
+/* GA layout v3.2: os painéis da mesma linha compartilham a altura. O gráfico
+   acompanha a investigação, evitando o vão entre ele e os produtos. */
+.ga-y-guided{gap:9px}
+.ga-y-body{align-items:stretch;gap:9px}
+.ga-y-months.is-chart{display:flex;flex-direction:column;min-height:0}
+.ga-y-months.is-chart .ga-y-bars-chart{flex:1 1 auto;min-height:225px}
+.ga-y-months.is-chart .ga-y-bar-month{align-self:stretch}
+.ga-y-months.is-chart .ga-y-bar-columns{height:auto;min-height:158px;flex:1 1 auto}
+.ga-y-product-left{gap:0}
+.ga-y-products-body{align-items:start}
+.ga-y-product-head-tools{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.ga-y-product-head-tools .ga-y-search{display:flex;gap:6px;align-items:center;justify-content:flex-end;font-size:11px;color:var(--gy-muted);font-weight:700}
+.ga-y-product-head-tools .ga-y-search input{width:160px;max-width:100%;min-width:115px}
+@media(max-width:1320px){
+  .ga-y-months.is-chart .ga-y-bars-chart{flex:0 0 auto}
+  .ga-y-months.is-chart .ga-y-bar-columns{height:158px;min-height:158px;flex:0 0 auto}
+}
+@media(max-width:760px){
+  .ga-y-product-head-tools{justify-content:flex-start;width:100%}
+  .ga-y-product-head-tools .ga-y-search{flex:1;justify-content:flex-start}
+  .ga-y-product-head-tools .ga-y-search input{width:100%;max-width:220px}
+}
