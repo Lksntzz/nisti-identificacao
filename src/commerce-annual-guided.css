@@ -120,3 +120,57 @@ html.ga-dark .ga-y-guided{--gy-bg:#182438;--gy-canvas:#26354d;--gy-text:#e9eef7;
 html.ga-dark .ga-y-guided .ga-y-warning{background:#463a22;color:#ffe0a1;border-color:#79663b}
 html.ga-dark .ga-y-guided .ga-y-history.is-unconfirmed{background:#4e3b21;color:#f3d29a}
 html.ga-dark .ga-y-guided .ga-y-segments button.is-active{background:#3261c1;color:#fff}
+
+
+/* Compactação dos cards e identificação visual fiel à referência; nenhum número artificial. */
+.ga-y-guided{gap:10px}
+.ga-y-kpis{gap:9px}
+.ga-y-overview-card{min-height:108px;padding:9px 11px 7px}
+.ga-y-overview-title{gap:7px;font-size:11.5px;line-height:1.2;min-height:25px}
+.ga-y-overview-title>.ga-y-title-text{flex:1;min-width:0;font-size:11.5px;color:var(--gy-text)}
+.ga-y-overview-title>.ga-y-card-arrow{font-size:13px;color:var(--gy-blue);flex:0 0 auto}
+.ga-y-card-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 27px;width:27px;height:27px;border-radius:8px;background:#eaf2ff;color:#2563eb}
+.ga-y-card-icon svg{width:16px;height:16px}
+.ga-y-card-icon.is-months{background:#e6f6ef;color:#12875c}
+.ga-y-card-icon.is-extremes{background:#fff4e0;color:#c48a19}
+.ga-y-card-icon.is-alerts{background:#ffebed;color:#d64b58}
+.ga-y-overview-content{flex-direction:row;align-items:center;justify-content:space-between;gap:6px;margin:4px 0 5px;min-height:34px}
+.ga-y-overview-summary{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.ga-y-overview-summary>small{color:var(--gy-muted);font-size:10px;line-height:1.25;display:block}
+.ga-y-kpi-main{font-size:22px;gap:7px;line-height:1.2}
+.ga-y-kpi-main .ga-y-trend{font-size:10px;padding:2px 5px}
+.ga-y-kpi-split{gap:5px}
+.ga-y-kpi-split span{gap:1px}
+.ga-y-kpi-split span+span{padding-left:8px}
+.ga-y-kpi-split strong{font-size:18px;line-height:1.2}
+.ga-y-kpi-split small{font-size:10px}
+.ga-y-kpi-qualifier{max-width:96px;line-height:1.2}
+.ga-y-overview-action{padding-top:5px;font-size:10.5px}
+.ga-y-card-micro{height:26px;min-width:64px;max-width:94px;display:flex;gap:3px;align-items:flex-end;justify-content:flex-end;flex-shrink:1}
+.ga-y-card-micro i{display:block;width:6px;min-width:3px;flex:1;border-radius:3px 3px 1px 1px}
+.ga-y-card-micro i.is-volume{background:#6e9aef}
+.ga-y-card-micro i.is-positive{background:#65bda2}
+.ga-y-card-micro i.is-negative{background:#df929d}
+.ga-y-section{padding:12px}
+.ga-y-bars-chart{min-height:225px;padding:8px 0 5px}
+.ga-y-bar-columns{height:158px}
+.ga-y-month-summary>div{padding:9px}
+.ga-y-month-summary strong{font-size:20px}
+.ga-y-warning-dismissible{display:flex;align-items:center;gap:12px;justify-content:space-between;margin:0}
+.ga-y-warning-dismissible>span{min-width:0;flex:1}
+.ga-y-warning-dismissible>button{flex:0 0 27px;display:flex;align-items:center;justify-content:center;height:27px;border:1px solid transparent;border-radius:6px;color:inherit;background:transparent;padding:3px}
+.ga-y-warning-dismissible>button:hover,.ga-y-warning-dismissible>button:focus-visible{background:rgba(155,100,9,.10);border-color:rgba(155,100,9,.25)}
+.ga-y-product-cell{display:flex;align-items:center;gap:8px;min-width:0}
+.ga-y-product-avatar{display:flex;align-items:center;justify-content:center;width:29px;height:29px;flex:0 0 29px;background:#edf3ff;color:var(--gy-blue);border:1px solid #d7e5ff;border-radius:7px}
+.ga-y-product-avatar svg{width:16px;height:16px}
+.ga-y-product-descriptor{flex:1;display:block;min-width:0}
+.ga-y-product-table td:first-child{max-width:300px}
+.ga-y-product-name{max-width:100%;font-size:11px;line-height:1.3}
+.ga-y-product-descriptor>small{max-width:235px}
+html.ga-dark .ga-y-card-icon.is-units{background:#233d68;color:#b7d2ff}
+html.ga-dark .ga-y-card-icon.is-months{background:#194736;color:#9be2bb}
+html.ga-dark .ga-y-card-icon.is-extremes{background:#453b25;color:#f0d393}
+html.ga-dark .ga-y-card-icon.is-alerts{background:#532936;color:#ffb2bd}
+html.ga-dark .ga-y-product-avatar{background:#263b60;border-color:#355b8c}
+@media(max-width:1120px){.ga-y-card-micro{max-width:60px;min-width:42px}.ga-y-kpi-main{font-size:20px}}
+@media(max-width:760px){.ga-y-overview-title>.ga-y-title-text{font-size:10.5px}.ga-y-overview-card{min-height:99px;padding:8px 9px 6px}.ga-y-card-icon{flex-basis:23px;width:23px;height:23px}.ga-y-card-icon svg{width:14px;height:14px}.ga-y-overview-title{font-size:10.5px}.ga-y-card-micro{display:none}.ga-y-kpi-main{font-size:18px}.ga-y-kpi-split strong{font-size:16px}.ga-y-section{padding:10px}.ga-y-bars-chart{min-height:205px}.ga-y-bar-columns{height:138px}}
