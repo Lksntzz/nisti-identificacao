@@ -127,6 +127,9 @@ test('Produtos do mês apresenta anúncios, suas variações e fonte sem duplica
   assert.match(g,/aria-label=\{\(expanded\?'Fechar':'Ver'\)\+' variações do anúncio '/);
   assert.match(g,/ga-y-variation-table/);
   assert.match(g,/variants\.map/);
+  assert.match(g,/recorded=v.recorded!==false/);
+  assert.match(g,/Sem registro/);
+  assert.match(sql,/null::bigint cur,null::bigint base,false recorded/);
   assert.match(g,/annual-month-listings/);
   assert.match(g,/setListingPage/);
   assert.match(g,/setTimeout\(\(\)=>setListingSearch\(query\),350\)/);
