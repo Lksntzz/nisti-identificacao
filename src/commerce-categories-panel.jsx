@@ -290,7 +290,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
             </tr>)}
           </DetailTable>
           {selectedWeek&&<div className="ndb-cp-week-selected">Semana {selectedWeek} selecionada: os produtos abaixo mostram somente essa semana. <button type="button" onClick={()=>setSelectedWeek(null)}>Limpar</button></div>}
-          <p className="ndb-cp-foot">Semanas: 1–7, 8–14, 15–21, 22–28, 29–fim. * Semana parcial. As vendas são comparadas com a mesma faixa do ano anterior.</p>
+          <p className="ndb-cp-foot">Semanas: 1–7, 8–14, 15–21, 22–28, 29–fim. * Semana parcial. As vendas são comparadas com a mesma faixa do ano anterior. No mês atual, o ano anterior também é contado só até o mesmo dia.</p>
         </Section>
       </div>
       <section id="ndb-cp-products"><Section title="Produtos e itens do período" subtitle={(selectedCollection||picked?.name||'')+' · '+MONTHS[currentMonth-1]+(selectedWeek?' · semana '+selectedWeek:'')+' · '+year+' × '+baseYear} aside={<span className="ndb-cp-chip">Fotos reais do catálogo · até 8 SKUs</span>} className="ndb-cp-products-panel">
