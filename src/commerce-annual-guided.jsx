@@ -48,7 +48,7 @@ function DismissibleWarning({children,onClose,label}) {
 function DataCard({title,children,onClick,active=false,description,icon='units',spark=null}) {
   return <button type="button" className={'ga-y-overview-card'+(active?' is-active':'')} onClick={onClick} title={description||title}>
     <span className="ga-y-overview-title"><InsightIcon kind={icon}/><span className="ga-y-title-text">{title}</span><span className="ga-y-card-arrow" aria-hidden="true">↗</span></span>
-    <div className="ga-y-overview-content"><span className="ga-y-overview-summary">{children}</span>{spark&&<MiniBars periods={spark} kind={icon}/>}</div>
+    <div className="ga-y-overview-content"><div className="ga-y-overview-summary">{children}</div>{spark&&<MiniBars periods={spark} kind={icon}/>}</div>
     <span className="ga-y-overview-action">Investigar <span aria-hidden="true">›</span></span>
   </button>;
 }
