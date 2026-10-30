@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {maskMoney} from './commerce-privacy.js';
 import {growth,pctText} from './commerce-annual-compare-helpers.js';
-import {Dropdown} from './commerce-dashboard.jsx';
+import {Dropdown,listingUrl} from './commerce-dashboard.jsx';
 import './commerce-annual-compare.css';
 import GuidedAnnualCompare from './commerce-annual-guided.jsx';
 
@@ -114,6 +114,15 @@ export function CategoriesTable({data}){
       </tbody></table></div>
     <p className="ndb-ac-note">Subcategoria que não existia no ano anterior aparece como “novo”. Percentuais com menos de {MIN_UNITS} unidades nos dois anos ficam em cinza porque oscilam muito. Coleções (como “Jardim de Afetos”) entram como um nível a mais quando forem cadastradas.</p>
   </section>;
+}
+
+// Exportado para o Painel Categorias; manter a compatibilidade com essa tela.
+export function ProductLinks({links,platform='SHOPEE'}){
+  const want=l=>platform==='SHOPEE'?l.platform==='SHOPEE':String(platform).startsWith('ML')?l.platform!=='SHOPEE':true;
+  const items=(links||[]).filter(want).map(l=>{const plat=l.platform==='SHOPEE'?'SHOPEE':'ML';const url=listingUrl(plat,l.id);return url?{url,label:plat==='SHOPEE'?'Shopee':'Mercado Livre'}:null;}).filter(Boolean);
+  if(!items.length)return <span className="ndb-ac-mut" title="Nenhum anúncio ativo com este SKU">—</span>;
+  return <span className="ndb-ac-links">{items.map(i=><a key={i.label} href={i.url} target="_blank" rel="noopener noreferrer" title={'Abrir anúncio na '+i.label} aria-label={'Abrir anúncio na '+i.label} onClick={e=>e.stopPropagation()}>
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>)}</span>;
 }
 
 export default function CommerceAnnualCompare({view='comparison',filters,setFilters,actions=null,refresh=0}) {
