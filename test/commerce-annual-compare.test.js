@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {periodParams,periodQuery,periodLabel,categoryKpis,listCategories,unitPrice} from '../src/commerce-categories-helpers.js';
 import { growth, pctText, newKind, projectionRange, daysBehind } from '../src/commerce-annual-compare-helpers.js';
 
 test('growth nao inventa percentual sem base', () => {
