@@ -106,6 +106,11 @@ select jsonb_build_object(
   'as_of',(select asof from prm),
   'cur_from',(select cf from dates),'cur_to',(select ct from dates),
   'base_from',(select bf from dates),'base_to',(select bt from dates),
+  'counts',(select jsonb_build_object(
+    'listings',count(*),'up',count(*) filter(where diff>0),
+    'down',count(*) filter(where diff<0),
+    'zero',count(*) filter(where base>0 and cur=0),
+    'no_history',count(*) filter(where base=0 and cur>0)) from identified),
   'total',(select count(*) from filtered),
   'items',coalesce((
     select jsonb_agg(jsonb_build_object(
