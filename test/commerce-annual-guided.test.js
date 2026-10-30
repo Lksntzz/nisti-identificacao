@@ -58,3 +58,39 @@ test('períodos, carregamento cancelável e classificação sem inventar lançam
   assert.match(g,/não comprova que o anúncio seja novo/);
   assert.match(g,/ranking de quedas/);
 });
+
+
+test('cards anuais compactos mantêm os dados e possuem identificação visual',()=>{
+  const g=read('src/commerce-annual-guided.jsx');
+  const css=read('src/commerce-annual-guided.css');
+  assert.match(g,/function InsightIcon\(/);
+  assert.match(g,/function MiniBars\(/);
+  assert.match(g,/icon="units" spark=\{windowMode\?null:allPeriods\}/);
+  assert.match(g,/icon="months" spark=\{allPeriods\}/);
+  assert.match(g,/icon="extremes"/);
+  assert.match(g,/icon="alerts"/);
+  assert.match(css,/\.ga-y-overview-card\{min-height:108px/);
+  assert.match(css,/\.ga-y-bars-chart\{min-height:225px/);
+  assert.match(css,/\.ga-y-overview-title>\.ga-y-title-text/);
+});
+
+test('avisos podem ser fechados sem suprimir a detecção de dados incompletos',()=>{
+  const g=read('src/commerce-annual-guided.jsx');
+  const css=read('src/commerce-annual-guided.css');
+  assert.match(g,/function DismissibleWarning\(/);
+  assert.match(g,/aria-label=\{label\}/);
+  assert.match(g,/dismissedWarnings\['stale:'\+asOf\]/);
+  assert.match(g,/dismissedWarnings\['coverage:'\+filters\.platform\+':'\+baseYear\]/);
+  assert.match(g,/onClose=\{\(\)=>setDismissedWarnings/);
+  assert.match(css,/\.ga-y-warning-dismissible>button/);
+});
+
+test('produto diferencia SKU, coleção e anúncio apenas com identificação confirmada',()=>{
+  const g=read('src/commerce-annual-guided.jsx');
+  assert.match(g,/const meta=\[label\.collection,r\.category,r\.sku,ad\?\.id\?'ID '\+ad\.id:null\]/);
+  assert.match(g,/ga-y-product-avatar/);
+  assert.match(g,/title=\{meta\}/);
+  assert.match(g,/Com histórico/);
+  assert.match(g,/Sem histórico/);
+  assert.doesNotMatch(g,/<img[^>]+src=["']https?:/);
+});
