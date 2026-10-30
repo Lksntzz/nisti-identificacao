@@ -116,13 +116,13 @@ function MonthlyListingRows({items,year,baseYear}) {
               {external&&<a href={external} target="_blank" rel="noopener noreferrer" className="ga-y-product-link">Abrir anúncio ↗</a>}
             </div>
             <table className="ga-y-variation-table"><thead><tr><th>Variação</th><th>SKU</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th></tr></thead>
-            <tbody>{variants.map((v,j)=>{const vc=Number(v.cur)||0,vb=Number(v.base)||0;return <tr key={(v.sku||'sku')+':'+j}>
+            <tbody>{variants.map((v,j)=>{const vc=Number(v.cur)||0,vb=Number(v.base)||0,recorded=v.recorded!==false;return <tr key={(v.sku||'sku')+':'+j}>
               <td>{v.name||v.sku||'Variação sem nome'}</td><td><small>{v.sku||'—'}</small></td>
-              <td>{fmt(vb)}</td><td><b>{fmt(vc)}</b></td>
-              <td className={vc>=vb?'is-up':'is-down'}>{signed(vc-vb)}</td>
-              <td><Trend cur={vc} base={vb}/></td>
+              <td>{recorded?fmt(vb):'—'}</td><td><b>{recorded?fmt(vc):'—'}</b></td>
+              <td className={recorded?(vc>=vb?'is-up':'is-down'):''}>{recorded?signed(vc-vb):'—'}</td>
+              <td>{recorded?<Trend cur={vc} base={vb}/>:<span className="ga-y-history is-unconfirmed">Sem registro</span>}</td>
             </tr>})}</tbody></table>
-            <p className="ga-y-note">Variações com vendas identificadas em pelo menos um dos períodos comparados. Um SKU sem vendas nos dois períodos não consta nesta consulta.</p>
+            <p className="ga-y-note">Variações cadastradas sem vendas identificadas nos dois períodos aparecem como “Sem registro”, não como zero confirmado.</p>
           </div>
         </td></tr>}
       </React.Fragment>;
