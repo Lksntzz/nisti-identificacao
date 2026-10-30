@@ -38,7 +38,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualWindow, commerceCategories, commerceCategoriesSub, commerceCategoriesCol,
+  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualWindow, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -548,6 +548,19 @@ export async function handleCommerceAdminRequest(request, env) {
          (year!=null&&base!=null&&base!==year-1))
         return json({error:'Ano comparativo inválido.'},400);
       return json(await commerceAnnualMonth(env,{platform,month,year,base}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/categories-timeline'){
+      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
+      const year=Number(query(url,'year')),month=Number(query(url,'month'));
+      const cat=String(query(url,'cat')||''),sub=String(query(url,'sub')||'');
+      const weekRaw=query(url,'week'),week=weekRaw?Number(weekRaw):null;
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)
+        ||!Number.isInteger(year)||year<2021||year>2100
+        ||!Number.isInteger(month)||month<1||month>12
+        ||!cat.trim()||cat.length>120||sub.length>120
+        ||(week!=null&&(!Number.isInteger(week)||week<1||week>5)))
+        return json({error:'Filtro temporal de categorias inválido.'},400);
+      return json(await commerceCategoriesTimeline(env,{platform,year,month,cat,sub,week}));
     }
     if(method==='GET'&&(pathname===BASE_PATH+'/sales-compare/categories'||pathname===BASE_PATH+'/sales-compare/categories-sub'||pathname===BASE_PATH+'/sales-compare/categories-col')){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();

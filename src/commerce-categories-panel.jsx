@@ -1,207 +1,275 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
-import {maskMoney} from './commerce-privacy.js';
 import {Dropdown} from './commerce-dashboard.jsx';
-import PeriodPicker from './commerce-period-picker.jsx';
-import {useAnnualCompare,ProductLinks} from './commerce-annual-compare.jsx';
-import {productLabel} from './commerce-annual-compare-helpers.js';
-import {periodQuery,periodLabel,variation,categoryKpis,listCategories,unitPrice,SORTS,SHOWS} from './commerce-categories-helpers.js';
+import {useAnnualCompare} from './commerce-annual-compare.jsx';
+import {variation,periodLabel} from './commerce-categories-helpers.js';
 import './commerce-categories-panel.css';
 
-const fmt=v=>Number(v||0).toLocaleString('pt-BR');
-const signed=v=>(v>0?'+':v<0?'−':'')+fmt(Math.abs(v));
-const money=v=>maskMoney(Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}));
-const pct=v=>v==null?'':(v>0?'+':v<0?'−':'')+Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
-const share=(a,b)=>Number(b)>0?(Number(a)/Number(b)*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—';
+// Comparação por categoria, subcategoria, mês e semana. Valores sempre vêm da API,
+// nunca das imagens de referência. Miniaturas são fotos reais do catálogo.
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const SHORT=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const PLATFORMS=[['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre antigo'],['ML_NOVO','Mercado Livre novo'],['TODAS','Todas as plataformas']];
-const LOW=30;
+const fmt=n=>Number(n||0).toLocaleString('pt-BR');
+const delta=n=>(Number(n)>0?'+':Number(n)<0?'−':'')+fmt(Math.abs(Number(n)||0));
+const pct=(a,b)=>Number(b)>0?(variation(a,b)>0?'+':variation(a,b)<0?'−':'')+Math.abs(variation(a,b)).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'Sem base';
+const rows=a=>Array.isArray(a)?a.filter(Boolean):[];
+const num=x=>Number(x)||0;
+const validImage=url=>typeof url==='string'&&/^\/api\/images\/\d+(?:\?v=[a-z0-9-]+)?$/i.test(url);
+const validLink=url=>typeof url==='string'&&/^https:\/\/[^/\s]+(?:\/|$)/i.test(url);
+const color=n=>n>0?'is-up':n<0?'is-down':'is-neutral';
+const add=(items,where)=>rows(items).filter(where).reduce((sum,r)=>sum+num(r.units),0);
 
-// Busca JSON e só entrega a resposta da URL atual: nunca mostra dados de filtros anteriores.
+function Icon({name,size=18}){
+  const shapes={
+    box:<><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="M3 7v10l9 5 9-5V7M12 12v10"/></>,
+    trophy:<><path d="M8 21h8M12 17v4M7 4h10v7a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v3a4 4 0 0 0 4 4M17 6h3v3a4 4 0 0 1-4 4"/></>,
+    up:<><path d="m3 17 6-6 4 4 8-9"/><path d="M15 6h6v6"/></>,
+    down:<><path d="m3 7 6 6 4-4 8 9"/><path d="M15 18h6v-6"/></>,
+    calendar:<><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></>,
+    layers:<><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></>,
+    chart:<><path d="M4 20V4M4 20h17M8 16v-5M13 16V7M18 16V4"/></>,
+    link:<><path d="M14 4h6v6M20 4 10 14M18 14v5H5V7h5"/></>,
+    search:<><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></>
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{shapes[name]||shapes.box}</svg>;
+}
+function Thumb({src,alt='',size='small'}){
+  const [broken,setBroken]=useState(false);
+  useEffect(()=>setBroken(false),[src]);
+  return <span className={'ndb-cp-thumb is-'+size}>{validImage(src)&&!broken?<img src={src} loading="lazy" alt={alt} onError={()=>setBroken(true)}/>:<Icon name="box" size={size==='large'?23:17}/>}</span>;
+}
 function useJson(url,refresh=0){
-  const [state,setState]=useState({url:'',loading:true,error:'',data:null});
-  const [tries,setTries]=useState(0);
+  const [state,setState]=useState({url:'',loading:false,error:'',data:null});
+  const [retryCount,setRetryCount]=useState(0);
   useEffect(()=>{
-    if(!url){setState({url:'',loading:false,error:'',data:null});return undefined;}
-    const c=new AbortController();
-    setState(s=>({...s,loading:true,error:''}));
-    fetchCommercialManager(url,{signal:c.signal})
-      .then(data=>{if(!c.signal.aborted)setState({url,loading:false,error:'',data});})
-      .catch(e=>{if(!c.signal.aborted)setState({url,loading:false,error:e?.message||'Não foi possível carregar os dados.',data:null});});
-    return()=>c.abort();
-  },[url,refresh,tries]);
-  const fresh=state.url===url;
-  return {loading:state.loading||!fresh,error:fresh?state.error:'',data:fresh?state.data:null,retry:()=>setTries(n=>n+1)};
+    if(!url){setState({url:'',loading:false,error:'',data:null});return;}
+    const controller=new AbortController();
+    setState({url,loading:true,error:'',data:null});
+    fetchCommercialManager(url,{signal:controller.signal})
+      .then(data=>{if(!controller.signal.aborted)setState({url,loading:false,error:'',data});})
+      .catch(e=>{if(!controller.signal.aborted)setState({url,loading:false,error:e?.message||'Falha na consulta.',data:null});});
+    return()=>controller.abort();
+  },[url,refresh,retryCount]);
+  return state.url===url?{...state,retry:()=>setRetryCount(n=>n+1)}:{url,loading:!!url,error:'',data:null,retry:()=>setRetryCount(n=>n+1)};
 }
-
-function Var({cur,base,neutral=false}){
-  if(!(Number(base)>0))return <span className="ndb-cp-nobase">Sem base</span>;
-  const p=variation(cur,base);
-  const low=Number(base)<LOW&&Number(cur)<LOW;
-  const cls=neutral||p===0?'is-neutral':p>0?'is-up':'is-down';
-  return <span className={'ndb-cp-var '+cls+(low?' is-low':'')} title={low?'Poucas unidades nos dois anos: o percentual oscila muito.':undefined}>{p>0?'▲ ':p<0?'▼ ':''}{pct(p)}</span>;
+function Metric({icon,title,value,detail,tone='',onClick,active=false}){
+  const inner=<><span className={'ndb-cp-metric-icon '+tone}><Icon name={icon} size={19}/></span><span className="ndb-cp-metric-main"><small>{title}</small><strong title={String(value)}>{value}</strong><span>{detail}</span></span></>;
+  return onClick?<button type="button" className={'ndb-cp-metric'+(active?' is-active':'')} onClick={onClick} aria-pressed={active}>{inner}</button>:<div className="ndb-cp-metric">{inner}</div>;
 }
-
-function Kpi({label,value,hint,onClick,active}){
-  const body=<><span className="ndb-cp-kpi-l">{label}</span><strong>{value}</strong><small>{hint}</small></>;
-  return onClick?<button type="button" className={'ndb-cp-kpi'+(active?' is-active':'')} onClick={onClick} aria-pressed={active}>{body}</button>:<div className="ndb-cp-kpi">{body}</div>;
+function PeriodTag({cur,base}){
+  if(!(num(base)>0))return <span className="ndb-cp-tag is-neutral">Sem base</span>;
+  return <span className={'ndb-cp-tag '+color(num(cur)-num(base))}>{pct(cur,base)}</span>;
 }
-
-function Stat({label,value,sub,children}){
-  return <div className="ndb-cp-stat"><span>{label}</span><strong>{value}</strong>{sub&&<small>{sub}</small>}{children}</div>;
+function Section({title,subtitle,children,aside,className=''}) {
+  return <section className={'ndb-cp-panel '+className}><div className="ndb-cp-panel-head"><div><h3>{title}</h3>{subtitle&&<p>{subtitle}</p>}</div>{aside}</div>{children}</section>;
 }
-
-function Failure({error,onRetry}){
-  return <div className="ndb-cp-error" role="alert"><span>{error}</span><button type="button" onClick={onRetry}>Tentar novamente</button></div>;
+function PairBars({base,cur,max}){
+  return <span className="ndb-cp-pair" aria-label={'Ano anterior: '+fmt(base)+', ano selecionado: '+fmt(cur)}>
+    <i className="is-base" style={{width:(num(base)>0?Math.max(3,num(base)/max*100):0)+'%'}}/>
+    <i className="is-cur" style={{width:(num(cur)>0?Math.max(3,num(cur)/max*100):0)+'%'}}/>
+  </span>;
 }
-
-function copySku(sku){try{navigator.clipboard?.writeText(sku);}catch(e){/* sem permissão: ignora */}}
-
-function SkuRow({r,i,platform}){
-  const diff=Number(r.cur)-Number(r.base);
-  const pb=unitPrice(r.base_rev,r.base),pc=unitPrice(r.cur_rev,r.cur);
-  return <li className="ndb-cp-sku">
-    <span className="ndb-cp-rank">{i+1}º</span>
-    <div className="ndb-cp-sku-main">
-      <b title={r.name||r.sku}>{productLabel(r.name,r.sku).title}</b>
-      <span><code>{r.sku}</code> <button type="button" className="ndb-cp-copy" onClick={()=>copySku(r.sku)} aria-label={'Copiar SKU '+r.sku}>copiar</button> <ProductLinks links={r.links} platform={platform}/></span>
-      {pc!=null&&<small>Preço médio: {pb!=null?money(pb)+' → ':''}{money(pc)}</small>}
-      {!(Number(r.base)>0)&&<small className="ndb-cp-warn">Sem venda no ano anterior: pode ser lançamento, troca de código ou falta de importação.</small>}
-    </div>
-    <div className="ndb-cp-sku-n"><span>{fmt(r.base)} → <b>{fmt(r.cur)}</b></span><em className={diff>=0?'is-up':'is-down'}>{signed(diff)} un.</em><Var cur={r.cur} base={r.base}/></div>
-  </li>;
-}
-
-function ColDetail({cat,col,query,baseYear,catRow,onBack,platform}){
-  const {loading,error,data,retry}=useJson('/api/admin/commerce/sales-compare/categories-col?'+query+'&cat='+encodeURIComponent(cat)+'&col='+encodeURIComponent(col));
-  const s=(catRow.cols||[]).find(x=>x.name===col)||{};
-  const diff=Number(s.cur)-Number(s.base);
-  const pc=unitPrice(s.cur_rev,s.cur),pb=unitPrice(s.base_rev,s.base);
-  const bm=data?.best_month?.month?MONTHS[Number(data.best_month.month.slice(5,7))-1]+'/'+data.best_month.month.slice(2,4):null;
-  const items=data?.items||[];
-  return <div className="ndb-cp-sub">
-    <button type="button" className="ndb-cp-back" onClick={onBack}>← Voltar às coleções</button>
-    <h4>{col}<small>{cat}</small></h4>
-    {col==='Sem coleção'&&<p className="ndb-cp-note" role="note">Produtos cujo nome não indica uma coleção (ou SKUs sem nome cadastrado). A coleção é lida do nome do produto; dá para corrigir por SKU.</p>}
-    <div className="ndb-cp-grid2">
-      <Stat label="Unidades" value={fmt(s.cur)} sub={baseYear+': '+fmt(s.base)+' · '+signed(diff)}/>
-      <Stat label="Variação" value={Number(s.base)>0?pct(variation(s.cur,s.base)):'Sem base'} sub={Number(s.base)>0?'contra '+baseYear:'sem vendas em '+baseYear}/>
-      <Stat label="Participação na categoria" value={share(s.cur,catRow.cur)} sub={'de '+fmt(catRow.cur)+' un.'}/>
-      <Stat label="Últimos 28 dias" value={fmt(s.c28)} sub={baseYear+': '+fmt(s.b28)}><Var cur={s.c28} base={s.b28}/></Stat>
-    </div>
-    <dl className="ndb-cp-rows">
-      <div><dt>Melhor mês</dt><dd>{loading?'…':bm?bm+' · '+fmt(data.best_month.units)+' un.':'—'}</dd></div>
-      <div><dt>Preço médio por unidade</dt><dd>{pc!=null?money(pc):'—'}<small>{baseYear}: {pb!=null?money(pb):'—'} {pb!=null&&pc!=null&&<Var cur={pc} base={pb} neutral/>}</small></dd></div>
-      <div><dt>Receita de produtos</dt><dd>{Number(s.cur_rev)>0?money(s.cur_rev):'—'}<small>{baseYear}: {Number(s.base_rev)>0?money(s.base_rev):'—'} · sem frete</small></dd></div>
-    </dl>
-    <h5>Variações e vendas <small>{items.length?items.length+' produto'+(items.length>1?'s':''):''}</small></h5>
-    {error?<Failure error={error} onRetry={retry}/>
-      :loading?<p className="ndb-cp-mut" role="status">Carregando variações…</p>
-      :items.length?<ol className="ndb-cp-skus">{items.map((r,i)=><SkuRow key={r.sku} r={r} i={i} platform={platform}/>)}</ol>
-      :<p className="ndb-cp-mut">Nenhuma venda nesta coleção no período.</p>}
-    <p className="ndb-cp-foot">Ordenado por unidades vendidas. “Sem base” = sem venda no ano anterior: pode ser lançamento, troca de código ou falta de importação.</p>
+function MonthlyBars({points,onSelect,selected,year,baseYear}){
+  const max=Math.max(1,...points.flatMap(p=>[num(p.cur),num(p.base)]));
+  return <div className="ndb-cp-month-chart" role="group" aria-label="Comparação mensal de unidades de categorias">
+    <div className="ndb-cp-chart-grid" aria-hidden="true">{[100,75,50,25,0].map(x=><span key={x}>{fmt(Math.round(max*x/100))}</span>)}</div>
+    {points.map(p=><button type="button" disabled={p.cur==null} key={p.month} onClick={()=>onSelect(p.month)}
+      className={'ndb-cp-month-column'+(selected===p.month?' is-selected':'')}
+      title={MONTHS[p.month-1]+' '+baseYear+': '+(p.base==null?'sem histórico':fmt(p.base))+' · '+year+': '+(p.cur==null?'não disponível':fmt(p.cur))}
+      aria-pressed={selected===p.month}>
+      <span className="ndb-cp-month-bars"><i className="is-base" style={{height:(num(p.base)>0?Math.max(3,num(p.base)/max*100):0)+'%'}}/><i className="is-cur" style={{height:(num(p.cur)>0?Math.max(3,num(p.cur)/max*100):0)+'%'}}/></span>
+      <small>{SHORT[p.month-1]}</small>
+    </button>)}
   </div>;
 }
-
-function CategoryDetail({row,total,baseYear,query,year,sub,setSub,platform}){
-  const diff=Number(row.cur)-Number(row.base);
-  const pc=unitPrice(row.cur_rev,row.cur),pb=unitPrice(row.base_rev,row.base);
-  if(sub)return <ColDetail platform={platform} cat={row.name} col={sub} query={query} baseYear={baseYear} catRow={row} onBack={()=>setSub(null)}/>;
-  return <div className="ndb-cp-cat">
-    <h4>{row.name}</h4>
-    {row.name==='Sem categoria'&&<p className="ndb-cp-note" role="note">Unidades de SKUs que ainda não têm categoria no cadastro. A análise é só diagnóstica: nada é classificado ou alterado automaticamente.</p>}
-    <div className="ndb-cp-grid2">
-      <Stat label="Unidades" value={fmt(row.cur)} sub={baseYear+': '+fmt(row.base)+' · '+signed(diff)}/>
-      <Stat label="Variação" value={Number(row.base)>0?pct(variation(row.cur,row.base)):'Sem base'} sub={Number(row.base)>0?'contra '+baseYear:'sem vendas em '+baseYear}/>
-      <Stat label="Participação" value={share(row.cur,total.cur)} sub={'de '+fmt(total.cur)+' un. no total'}/>
-      <Stat label="Últimos 28 dias" value={fmt(row.c28)} sub={baseYear+': '+fmt(row.b28)}><Var cur={row.c28} base={row.b28}/></Stat>
-    </div>
-    <dl className="ndb-cp-rows">
-      <div><dt>Receita de produtos</dt><dd>{Number(row.cur_rev)>0?money(row.cur_rev):'—'}<small>{baseYear}: {Number(row.base_rev)>0?money(row.base_rev):'—'} · sem frete</small></dd></div>
-      <div><dt>Preço médio por unidade</dt><dd>{pc!=null?money(pc):'—'}<small>{baseYear}: {pb!=null?money(pb):'—'}</small></dd></div>
-    </dl>
-    <h5>Coleções <small>escolha uma para ver as variações</small></h5>
-    <ul className="ndb-cp-subs">{(row.cols||[]).map(s=><li key={s.name}><button type="button" onClick={()=>setSub(s.name)}>
-      <span className="ndb-cp-subname">{s.name}</span><span className="ndb-cp-n">{fmt(s.cur)}</span><span className="ndb-cp-mut">{share(s.cur,row.cur)}</span><Var cur={s.cur} base={s.base}/></button></li>)}</ul>
-  </div>;
+function Seasonality({points,onSelect,selected,year,baseYear}){
+  const W=660,H=186,P=28,plotH=135;
+  const max=Math.max(1,...points.flatMap(p=>[num(p.cur),num(p.base)]));
+  const path=field=>points.map((p,i)=>p[field]==null?null:{x:P+i*(W-P*2)/11,y:H-27-num(p[field])/max*plotH,month:p.month}).reduce((segments,point)=>{if(!point){segments.push([]);}else{if(!segments.length||!segments[segments.length-1])segments.push([]);segments[segments.length-1].push(point);}return segments;},[[]]).filter(s=>s.length).map(s=>s.map((p,i)=>(i?'L':'M')+p.x+' '+p.y).join(' '));
+  return <div className="ndb-cp-season-wrap"><svg viewBox={'0 0 '+W+' '+H} role="img" aria-label={'Sazonalidade mensal: '+baseYear+' em cinza e '+year+' em azul'}>
+    {[0,0.25,0.5,0.75,1].map(f=><g key={f}><line x1={P} y1={H-27-f*plotH} x2={W-P} y2={H-27-f*plotH} stroke="#e5eaf2" strokeDasharray="3 3"/><text x={P-5} y={H-23-f*plotH} fontSize="9" textAnchor="end" fill="#718098">{fmt(Math.round(max*f))}</text></g>)}
+    {path('base').map((d,i)=><path key={'b'+i} d={d} stroke="#aab9d2" strokeWidth="2.6" fill="none" strokeLinejoin="round" strokeLinecap="round"/>)}
+    {path('cur').map((d,i)=><path key={'c'+i} d={d} stroke="#2563eb" strokeWidth="2.8" fill="none" strokeLinejoin="round" strokeLinecap="round"/>)}
+    {points.map((p,i)=><g key={p.month}>
+      {p.base!=null&&<circle cx={P+i*(W-P*2)/11} cy={H-27-num(p.base)/max*plotH} r="3.3" fill="#aab9d2"/>}
+      {p.cur!=null&&<circle cx={P+i*(W-P*2)/11} cy={H-27-num(p.cur)/max*plotH} r={selected===p.month?5.5:3.8} fill="#2563eb" stroke={selected===p.month?'white':'none'} strokeWidth="1.5"/>}
+      <text x={P+i*(W-P*2)/11} y={H-4} textAnchor="middle" fontSize="10" fill={selected===p.month?'#2563eb':'#64748b'} fontWeight={selected===p.month?'800':'500'}>{SHORT[i]}</text>
+    </g>)}
+  </svg><div className="ndb-cp-season-actions">{points.map(p=><button type="button" key={p.month} title={'Selecionar '+MONTHS[p.month-1]} aria-label={'Selecionar '+MONTHS[p.month-1]} className={selected===p.month?'is-active':''} disabled={p.cur==null} onClick={()=>onSelect(p.month)} />)}</div></div>;
 }
-
-class DetailGuard extends React.Component{
-  constructor(p){super(p);this.state={failed:false};}
-  static getDerivedStateFromError(){return {failed:true};}
-  componentDidUpdate(prev){if(this.state.failed&&prev.resetKey!==this.props.resetKey)this.setState({failed:false});}
-  render(){return this.state.failed?<p className="ndb-cp-error" role="alert">Não foi possível mostrar este detalhe. Escolha outra categoria ou subcategoria.</p>:this.props.children;}
-}
+function DetailTable({heads,children,className=''}) {return <div className="ndb-cp-scroll"><table className={'ndb-cp-table '+className}><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;}
 
 export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const cover=useAnnualCompare({platform:'SHOPEE',gran:'month',year:filters.year||null,base:filters.base||null,refresh});
-  const coverage=cover.data?.coverage||[];
-  const year=cover.data?Number(cover.data.year):null,baseYear=year?year-1:null;
-  const unitsOf=(p,y)=>Number(coverage.find(c=>c.platform===p&&Number(c.year)===Number(y))?.units||0);
-  const needsBase=p=>unitsOf(p,baseYear)<=0;
-  const NO_BASE='Sem vendas de '+baseYear+' importadas: não dá para comparar';
-  const platformOptions=PLATFORMS.map(([id,l])=>[id,l,year&&(id==='TODAS'?['SHOPEE','ML_ANTIGO','ML_NOVO'].some(needsBase):needsBase(id))?NO_BASE:null]);
-  const blocked=Boolean(platformOptions.find(o=>o[0]===filters.platform)?.[2]);
-  useEffect(()=>{if(blocked)setFilters(p=>({...p,platform:'SHOPEE'}));},[blocked]);
-  const query=year?periodQuery(filters,year):'';
-  const {loading,error,data,retry}=useJson(query?'/api/admin/commerce/sales-compare/categories?'+query:'',refresh);
+  const coverage=rows(cover.data?.coverage),year=cover.data?Number(cover.data.year):null,baseYear=year?year-1:null;
+  const availableYears=[...new Set(coverage.map(c=>num(c.year)).filter(y=>y>=2021&&coverage.some(b=>num(b.year)===y-1&&num(b.units)>0)).concat(year||[]))].filter(Boolean).sort((a,b)=>b-a);
+  const units=(plat,y)=>num(coverage.find(c=>c.platform===plat&&num(c.year)===y)?.units);
+  const blocked=p=>year&&(p==='TODAS'?['SHOPEE','ML_ANTIGO','ML_NOVO'].some(x=>!units(x,baseYear)):!units(p,baseYear));
+  const options=PLATFORMS.map(([id,name])=>[id,name,blocked(id)?'Sem histórico suficiente em '+baseYear:null]);
+  useEffect(()=>{if(blocked(filters.platform))setFilters(old=>({...old,platform:'SHOPEE'}));},[filters.platform,year,baseYear,cover.data]);
+  const {data,loading,error,retry}=useJson(year?'/api/admin/commerce/sales-compare/categories?platform='+encodeURIComponent(filters.platform)+'&year='+year+'&mode=ytd':'',refresh);
+  const [selectedCat,setSelectedCat]=useState(null);
+  const [selectedSub,setSelectedSub]=useState(null);
+  const [monthChoice,setMonthChoice]=useState(0);
+  const [selectedWeek,setSelectedWeek]=useState(null);
   const [search,setSearch]=useState('');
-  const [show,setShow]=useState('all');
   const [sort,setSort]=useState('units');
-  const [selCat,setSelCat]=useState(null);
-  const [selSub,setSelSub]=useState(null);
-  useEffect(()=>{setSelCat(null);setSelSub(null);},[query]);
-  const rows=useMemo(()=>listCategories(data?.categories,{search,show,sort}),[data,search,show,sort]);
-  const kpi=useMemo(()=>categoryKpis(data),[data]);
-  const current=data?(rows.find(r=>r.name===selCat)||rows[0]||null):null;
-  const maxUnits=useMemo(()=>Math.max(1,...(data?.categories||[]).flatMap(c=>[Number(c.cur),Number(c.base)])),[data]);
-  const pick=name=>{setSelCat(name);setSelSub(null);};
-  const days=Number(filters.days)||0;
-  const month=Number(filters.month)||0;
-  const available=year?MONTHS.map((_,i)=>year+'-'+String(i+1).padStart(2,'0')).filter((_,i)=>i<=Number((cover.data?.as_of||'').slice(5,7))-1):[];
-  const updateFilters=patch=>setFilters(prev=>({...prev,...patch}));
+  const [show,setShow]=useState('all');
+  const categories=rows(data?.categories);
+  const picked=categories.find(c=>c.name===selectedCat)||categories[0]||null;
+  const asOf=String(data?.as_of||cover.data?.as_of||'');
+  const asOfMonth=num(asOf.slice(5,7));
+  const currentMonth=monthChoice||Math.max(1,Math.min(12,(asOfMonth||1)-1));
+  useEffect(()=>{setSelectedCat(null);setSelectedSub(null);setSelectedWeek(null);setMonthChoice(0);},[filters.platform,year]);
+  useEffect(()=>setSelectedWeek(null),[currentMonth,selectedCat,selectedSub]);
+  const temporalUrl=year&&picked?'/api/admin/commerce/sales-compare/categories-timeline?platform='+encodeURIComponent(filters.platform)
+    +'&year='+year+'&month='+currentMonth+'&cat='+encodeURIComponent(picked.name)
+    +(selectedSub?'&sub='+encodeURIComponent(selectedSub):'')+(selectedWeek?'&week='+selectedWeek:''):'';
+  const temporal=useJson(temporalUrl,refresh);
+  const t=temporal.data&&num(temporal.data.year)===year&&temporal.data.category===picked?.name
+    &&num(temporal.data.month)===currentMonth&&String(temporal.data.subcategory||'')===String(selectedSub||'')?temporal.data:null;
+  const pics=rows(t?.category_images),imageOf=name=>pics.find(p=>p.category===name)?.image;
+  const filtered=useMemo(()=>{
+    const q=search.trim().toLocaleLowerCase('pt-BR');
+    const f=categories.filter(c=>(!q||c.name.toLocaleLowerCase('pt-BR').includes(q))
+      &&(show==='all'||(show==='up'&&num(c.base)>0&&num(c.cur)>num(c.base))
+      ||(show==='down'&&num(c.base)>0&&num(c.cur)<num(c.base))||(show==='none'&&c.name==='Sem categoria')));
+    const val=c=>sort==='growth'?num(c.cur)-num(c.base):sort==='loss'?num(c.base)-num(c.cur):num(c.cur);
+    return f.sort((a,b)=>val(b)-val(a)||a.name.localeCompare(b.name,'pt-BR'));
+  },[categories,search,show,sort]);
+  const leader=categories.reduce((best,c)=>!best||num(c.cur)>num(best.cur)?c:best,null);
+  const growth=categories.filter(c=>num(c.base)>0&&num(c.cur)>num(c.base)).sort((a,b)=>(num(b.cur)-num(b.base))-(num(a.cur)-num(a.base)))[0];
+  const loss=categories.filter(c=>num(c.base)>0&&num(c.cur)<num(c.base)).sort((a,b)=>(num(a.cur)-num(a.base))-(num(b.cur)-num(b.base)))[0];
+  const subLeader=t?.leader_subcategory;
+  const subcats=rows(t?.subcategories);
+  const catMonths=rows(t?.category_months),subMonths=rows(t?.subcategory_months);
+  const months=Array.from({length:12},(_,i)=>{
+    const mon=i+1;
+    const source=selectedSub?subMonths:catMonths;
+    const valid=row=>selectedSub?row.sub===selectedSub:row.cat===picked?.name;
+    const existsBase=source.some(row=>valid(row)&&num(row.month)===mon&&num(row.year)===baseYear);
+    const existsCur=source.some(row=>valid(row)&&num(row.month)===mon&&num(row.year)===year);
+    const yearCovered=catMonths.some(row=>num(row.month)===mon&&num(row.year)===year);
+    return {month:mon,
+      base:existsBase?add(source,r=>valid(r)&&num(r.month)===mon&&num(r.year)===baseYear):0,
+      cur:mon>asOfMonth?null:existsCur?add(source,r=>valid(r)&&num(r.month)===mon&&num(r.year)===year):yearCovered?0:null,
+      catLeader:rows(catMonths).filter(r=>num(r.year)===year&&num(r.month)===mon).sort((a,b)=>num(b.units)-num(a.units))[0]?.cat||'—',
+      subLeader:rows(subMonths).filter(r=>num(r.year)===year&&num(r.month)===mon).sort((a,b)=>num(b.units)-num(a.units))[0]?.sub||'—'
+    };
+  });
+  const validMonths=months.filter(m=>m.cur!=null),bestMonth=[...validMonths].sort((a,b)=>b.cur-a.cur)[0],worstMonth=[...validMonths].sort((a,b)=>a.cur-b.cur)[0];
+  const weeks=Array.from({length:5},(_,i)=>{
+    const n=i+1,limit=new Date(year,currentMonth,0).getDate(),start=i*7+1,end=Math.min((i+1)*7,limit);
+    if(start>limit||currentMonth>asOfMonth||currentMonth===asOfMonth&&start>num(asOf.slice(8,10)))return null;
+    const arr=rows(t?.weekly_subcategories),filter=r=>selectedSub?r.sub===selectedSub:true;
+    const cur=add(arr,r=>num(r.week)===n&&num(r.year)===year&&filter(r)),base=add(arr,r=>num(r.week)===n&&num(r.year)===baseYear&&filter(r));
+    const leaderSub=arr.filter(r=>num(r.week)===n&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0]?.sub||'—';
+    return {week:n,start,end,cur,base,leaderSub,partial:currentMonth===asOfMonth&&end>num(asOf.slice(8,10))};
+  }).filter(Boolean);
   const total=data?.total||{cur:0,base:0};
+  const maxCats=Math.max(1,...categories.flatMap(c=>[num(c.cur),num(c.base)]));
+  const selectedProduct=rows(t?.products)[0];
+  const chooseCat=name=>{setSelectedCat(name);setSelectedSub(null);setSelectedWeek(null);};
+  const chooseMonth=m=>{setMonthChoice(m);setSelectedWeek(null);};
+  const handleYear=val=>setFilters(v=>({...v,year:Number(val),base:Number(val)-1,month:'',days:0}));
   return <div className="ndb-cp">
-    <div className="ndb-cp-filters">
-      <Dropdown label="Plataforma" value={filters.platform} options={platformOptions} onChange={v=>updateFilters({platform:v})}/>
-      <Dropdown label="Comparação" value={String(year||'')} options={year?[[String(year),year+' × '+(year-1)]]:[['','…']]} onChange={()=>{}}/>
-      <PeriodPicker days={days} month={month&&year?year+'-'+String(month).padStart(2,'0'):''} periods={[7,30,60,90]} allowAll allLabel="Acumulado do ano"
-        available={available} onDays={v=>updateFilters({days:v,month:''})} onMonth={key=>updateFilters({days:0,month:String(Number(key.slice(5,7)))})}/>
-      <Dropdown label="Exibir" value={show} options={Object.entries(SHOWS)} onChange={setShow}/>
-      <Dropdown label="Ordenar" value={sort} options={Object.entries(SORTS)} onChange={setSort}/>
-      <label className="ndb-cp-search"><span className="ndb-cp-sr">Pesquisar categoria</span><input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Pesquisar categoria"/></label>
+    <div className="ndb-cp-toolbar">
+      <div className="ndb-cp-toolbar-info"><strong>Comparação de categorias</strong><small>Vendas, subcategorias, meses, semanas e sazonalidade dos dois anos</small></div>
+      <Dropdown label="Plataforma" value={filters.platform} options={options} onChange={platform=>setFilters(v=>({...v,platform}))}/>
+      <Dropdown label="Comparação" value={String(year||'')} options={availableYears.map(y=>[String(y),y+' × '+(y-1)])} onChange={handleYear}/>
+      <label className="ndb-cp-period-select">Mês em destaque<select value={currentMonth} onChange={e=>chooseMonth(Number(e.target.value))}>{MONTHS.slice(0,asOfMonth||1).map((m,i)=><option value={i+1} key={m}>{m}</option>)}</select></label>
+      <div className="ndb-cp-search"><Icon name="search" size={16}/><input aria-label="Buscar categoria" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar categoria"/></div>
     </div>
-    {data&&<p className="ndb-cp-period" role="note">{periodLabel(data)} · mesmas datas do calendário nos dois anos · dados até {String(data.as_of).split('-').reverse().join('/')}</p>}
-    {cover.error&&<p className="ndb-cp-error" role="alert">{cover.error}</p>}
-    {error&&<Failure error={error} onRetry={retry}/>}
-    {!error&&loading&&<p className="ndb-cp-mut" role="status">Carregando categorias…</p>}
+    {data&&<p className="ndb-cp-period">Acumulado até {String(data.cur_to||'').split('-').reverse().join('/')} × {String(data.base_to||'').split('-').reverse().join('/')} · comparação das mesmas datas. Meses futuros do ano selecionado ficam indisponíveis.</p>}
+    {cover.error&&<div className="ndb-cp-error" role="alert">{cover.error}</div>}
+    {error&&<div className="ndb-cp-error" role="alert">{error}<button type="button" onClick={retry}>Tentar novamente</button></div>}
+    {!error&&loading&&<p className="ndb-cp-loading" role="status">Carregando categorias…</p>}
     {data&&!error&&<>
       <div className="ndb-cp-kpis">
-        <Kpi label="Unidades vendidas" value={fmt(kpi.units)} hint={Number(total.base)>0?baseYear+': '+fmt(total.base)+' · '+pct(variation(total.cur,total.base)):baseYear+': sem base'}/>
-        <Kpi label="Categorias em crescimento" value={fmt(kpi.up)} hint="com base no ano anterior" onClick={()=>setShow(show==='up'?'all':'up')} active={show==='up'}/>
-        <Kpi label="Categorias em queda" value={fmt(kpi.down)} hint="com base no ano anterior" onClick={()=>setShow(show==='down'?'all':'down')} active={show==='down'}/>
-        <Kpi label="Sem categoria" value={fmt(kpi.noneUnits)+' un.'} hint={kpi.units>0?share(kpi.noneUnits,kpi.units)+' das unidades':'—'} onClick={()=>setShow(show==='none'?'all':'none')} active={show==='none'}/>
+        <Metric icon="box" title="Total de unidades" value={fmt(total.cur)} detail={baseYear+': '+fmt(total.base)+' · '+delta(num(total.cur)-num(total.base))+' un.'}/>
+        <Metric icon="trophy" title="Categoria líder" value={leader?.name||'—'} detail={leader?fmt(leader.cur)+' unidades · '+(num(total.cur)>0?Math.round(num(leader.cur)/num(total.cur)*100)+'% do total':'—'):'Sem vendas'} onClick={()=>leader&&chooseCat(leader.name)} active={picked?.name===leader?.name}/>
+        <Metric icon="trophy" title="Subcategoria líder" value={subLeader?.name||'—'} detail={subLeader?fmt(subLeader.cur)+' unidades · '+subLeader.category:'Consultando…'} onClick={()=>subLeader&&(chooseCat(subLeader.category),setSelectedSub(subLeader.name))}/>
+        <Metric icon="up" title="Maior crescimento" value={growth?.name||'—'} detail={growth?delta(num(growth.cur)-num(growth.base))+' unidades':'Sem crescimento confirmado'} tone="green" onClick={()=>growth&&chooseCat(growth.name)}/>
+        <Metric icon="down" title="Maior queda" value={loss?.name||'—'} detail={loss?delta(num(loss.cur)-num(loss.base))+' unidades':'Sem queda confirmada'} tone="red" onClick={()=>loss&&chooseCat(loss.name)}/>
       </div>
-      <div className="ndb-cp-body">
-        <section className="ndb-cp-list" aria-label="Lista de categorias">
-          <div className="ndb-cp-lh" aria-hidden="true"><span>Categoria</span><span>{baseYear} × {year}</span><span className="r">Part.</span><span className="r">Dif.</span><span className="r">Var.</span><span className="r">28 dias</span></div>
-          {rows.length===0?<div className="ndb-cp-empty"><p>Nenhuma categoria com estes filtros.</p><button type="button" onClick={()=>{setSearch('');setShow('all');}}>Limpar filtros</button></div>
-          :<ul>{rows.map(r=>{const d=Number(r.cur)-Number(r.base);const on=current&&current.name===r.name;return <li key={r.name}>
-            <button type="button" className={'ndb-cp-row'+(on?' is-selected':'')} aria-pressed={on} onClick={()=>pick(r.name)}>
-              <span className="ndb-cp-name">{r.name}</span>
-              <span className="ndb-cp-bars"><i className="b" style={{width:Number(r.base)/maxUnits*100+'%'}}/><i className="c" style={{width:Number(r.cur)/maxUnits*100+'%'}}/><em>{fmt(r.base)} → <b>{fmt(r.cur)}</b></em></span>
-              <span className="r ndb-cp-mut">{share(r.cur,total.cur)}</span>
-              <span className={'r ndb-cp-d '+(d>0?'is-up':d<0?'is-down':'')}>{signed(d)}</span>
-              <span className="r"><Var cur={r.cur} base={r.base}/></span>
-              <span className="r"><Var cur={r.c28} base={r.b28}/></span>
-            </button></li>;})}</ul>}
-          <p className="ndb-cp-foot">Barra cinza: {baseYear}; azul: {year}. A barra mostra volume, não crescimento. “28 dias” é a janela dos últimos 28 dias do período, contra as mesmas datas do ano anterior. Percentuais em cinza têm menos de {LOW} unidades nos dois anos.</p>
-        </section>
-        <aside className="ndb-cp-detail" aria-label="Investigação da categoria" aria-live="polite">
-          {current?<DetailGuard resetKey={current.name+'|'+selSub}><CategoryDetail platform={filters.platform} key={current.name} row={current} total={total} baseYear={baseYear} year={year} query={query} sub={selSub} setSub={setSelSub}/></DetailGuard>
-            :<p className="ndb-cp-mut">Selecione uma categoria para investigar.</p>}
-        </aside>
+      <div className="ndb-cp-main">
+        <Section title="Comparação por categoria" subtitle={baseYear+' × '+year+' · unidades no período comparado'} aside={<div className="ndb-cp-control-row"><select aria-label="Exibir categorias" value={show} onChange={e=>setShow(e.target.value)}><option value="all">Todas</option><option value="up">Crescimento</option><option value="down">Queda</option><option value="none">Sem categoria</option></select><select aria-label="Ordenar categorias" value={sort} onChange={e=>setSort(e.target.value)}><option value="units">Unidades</option><option value="growth">Maior ganho</option><option value="loss">Maior perda</option></select></div>} className="ndb-cp-category-panel">
+          <DetailTable heads={['Categoria',String(baseYear),String(year),'Diferença','Variação','Participação']}>
+            {filtered.map((c,i)=><tr key={c.name} className={picked?.name===c.name?'is-selected':''} onClick={()=>chooseCat(c.name)}>
+              <td><button type="button" className="ndb-cp-row-name" onClick={e=>{e.stopPropagation();chooseCat(c.name)}}><Thumb src={imageOf(c.name)} alt={'Produto de '+c.name}/><span><b>{c.name}</b><small>#{i+1}</small></span></button></td>
+              <td>{fmt(c.base)}</td><td><b>{fmt(c.cur)}</b><PairBars base={c.base} cur={c.cur} max={maxCats}/></td>
+              <td className={color(num(c.cur)-num(c.base))}>{delta(num(c.cur)-num(c.base))}</td>
+              <td><PeriodTag cur={c.cur} base={c.base}/></td>
+              <td>{num(total.cur)>0?Math.round(num(c.cur)/num(total.cur)*1000)/10+'%':'—'}<span className="ndb-cp-share"><i style={{width:(num(total.cur)>0?num(c.cur)/num(total.cur)*100:0)+'%'}}/></span></td>
+            </tr>)}
+          </DetailTable>
+          {!filtered.length&&<p className="ndb-cp-empty">Nenhuma categoria encontrada.</p>}
+          <p className="ndb-cp-foot">Selecione uma linha para investigar subcategorias, meses, semanas e os produtos dessa categoria. As fotos são do catálogo.</p>
+        </Section>
+        <Section title="Categoria selecionada" aside={<span className="ndb-cp-chip"><Icon name="layers" size={13}/>{picked?.name||'—'}</span>} className="ndb-cp-category-detail">
+          {picked?<><div className="ndb-cp-selected"><Thumb size="large" src={imageOf(picked.name)||selectedProduct?.image} alt={'Foto de '+picked.name}/><div><h4>{picked.name}</h4><small>Participação: {num(total.cur)>0?(num(picked.cur)/num(total.cur)*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—'}</small></div></div>
+            <div className="ndb-cp-stats">
+              <div><small>{year}</small><b>{fmt(picked.cur)}</b></div>
+              <div><small>{baseYear}</small><b>{fmt(picked.base)}</b></div>
+              <div><small>Diferença</small><b className={color(num(picked.cur)-num(picked.base))}>{delta(num(picked.cur)-num(picked.base))}</b></div>
+              <div><small>Variação</small><b><PeriodTag cur={picked.cur} base={picked.base}/></b></div>
+              <div><small>Melhor mês</small><b>{bestMonth?SHORT[bestMonth.month-1]:'—'}</b></div>
+              <div><small>Menor mês</small><b>{worstMonth?SHORT[worstMonth.month-1]:'—'}</b></div>
+            </div>
+            <div className="ndb-cp-panel-subheading"><b>Subcategorias de {picked.name}</b><button type="button" onClick={()=>setSelectedSub(null)} disabled={!selectedSub}>{selectedSub?'Mostrar todas':'Todas selecionadas'}</button></div>
+            {temporal.loading?<p className="ndb-cp-loading">Carregando subcategorias…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}<button type="button" onClick={temporal.retry}>Tentar novamente</button></div>:null}
+            <DetailTable heads={['Subcategoria',String(baseYear),String(year),'Diferença','Variação','']}>
+              {subcats.map(sub=><tr key={sub.name} className={selectedSub===sub.name?'is-selected':''} onClick={()=>{setSelectedSub(selectedSub===sub.name?null:sub.name);setSelectedWeek(null)}}>
+                <td><button type="button" className="ndb-cp-sub-button" onClick={e=>{e.stopPropagation();setSelectedSub(selectedSub===sub.name?null:sub.name);setSelectedWeek(null)}}>{sub.name}</button></td>
+                <td>{fmt(sub.base)}</td><td><b>{fmt(sub.cur)}</b></td>
+                <td className={color(num(sub.cur)-num(sub.base))}>{delta(num(sub.cur)-num(sub.base))}</td><td><PeriodTag cur={sub.cur} base={sub.base}/></td><td className="ndb-cp-arrow">›</td>
+              </tr>)}
+            </DetailTable>
+          </>:<p className="ndb-cp-empty">Sem categorias com vendas.</p>}
+        </Section>
       </div>
+      <div className="ndb-cp-visual-grid">
+        <Section title={'Comparação mensal '+(selectedSub?'da subcategoria':'da categoria')} subtitle={selectedSub||picked?.name||''} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
+          <MonthlyBars points={months} selected={currentMonth} onSelect={chooseMonth} year={year} baseYear={baseYear}/>
+        </Section>
+        <Section title="Tabela mensal" subtitle={'Clique no mês para detalhar semanas · '+(selectedSub||picked?.name||'')} >
+          <DetailTable heads={['Mês',String(baseYear),String(year),'Diferença','Variação','Categoria líder','Subcategoria líder']}>
+            {months.filter(m=>m.month<=(asOfMonth||1)).map(m=><tr key={m.month} className={currentMonth===m.month?'is-selected':''} onClick={()=>chooseMonth(m.month)}>
+              <td><button type="button" className="ndb-cp-month-button" onClick={e=>{e.stopPropagation();chooseMonth(m.month)}}>{SHORT[m.month-1]}</button></td>
+              <td>{fmt(m.base)}</td><td>{m.cur==null?'—':fmt(m.cur)}</td><td className={color(num(m.cur)-num(m.base))}>{m.cur==null?'—':delta(num(m.cur)-num(m.base))}</td>
+              <td>{m.cur==null?'—':<PeriodTag cur={m.cur} base={m.base}/>}</td>
+              <td>{m.catLeader}</td><td>{m.subLeader}</td>
+            </tr>)}
+          </DetailTable>
+        </Section>
+        <Section title={'Sazonalidade da '+(selectedSub?'subcategoria':'categoria')} subtitle={(selectedSub||picked?.name||'')+' · '+baseYear+' × '+year} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
+          <Seasonality points={months} onSelect={chooseMonth} selected={currentMonth} year={year} baseYear={baseYear}/>
+          <p className="ndb-cp-foot">Meses futuros do ano atual não são tratados como zero. Clique em um mês para investigar.</p>
+        </Section>
+        <Section title="Comparação semanal" subtitle={MONTHS[currentMonth-1]+' · '+(selectedSub||picked?.name||'')} aside={<div className="ndb-cp-month-arrows"><button type="button" disabled={currentMonth<=1} onClick={()=>chooseMonth(currentMonth-1)} aria-label="Mês anterior">‹</button><b>{SHORT[currentMonth-1]} {year}</b><button type="button" disabled={currentMonth>=asOfMonth} onClick={()=>chooseMonth(currentMonth+1)} aria-label="Próximo mês">›</button></div>}>
+          <DetailTable heads={['Semana',String(baseYear),String(year),'Diferença','Variação','Subcategoria líder','']}>
+            {weeks.map(w=><tr key={w.week} className={selectedWeek===w.week?'is-selected':''} onClick={()=>setSelectedWeek(selectedWeek===w.week?null:w.week)}>
+              <td><button type="button" className="ndb-cp-week-button" onClick={e=>{e.stopPropagation();setSelectedWeek(selectedWeek===w.week?null:w.week)}}>{String(w.start).padStart(2,'0')}–{String(w.end).padStart(2,'0')}{w.partial?'*':''}</button></td>
+              <td>{fmt(w.base)}</td><td><b>{fmt(w.cur)}</b></td><td className={color(w.cur-w.base)}>{delta(w.cur-w.base)}</td><td><PeriodTag cur={w.cur} base={w.base}/></td><td>{w.leaderSub}</td><td className="ndb-cp-arrow">›</td>
+            </tr>)}
+          </DetailTable>
+          {selectedWeek&&<div className="ndb-cp-week-selected">Semana {selectedWeek} selecionada: os produtos abaixo mostram somente essa semana. <button type="button" onClick={()=>setSelectedWeek(null)}>Limpar</button></div>}
+          <p className="ndb-cp-foot">Semanas: 1–7, 8–14, 15–21, 22–28, 29–fim. * Semana parcial. As vendas são comparadas com a mesma faixa do ano anterior.</p>
+        </Section>
+      </div>
+      <Section title="Produtos e itens do período" subtitle={(selectedSub||picked?.name||'')+' · '+MONTHS[currentMonth-1]+(selectedWeek?' · semana '+selectedWeek:'')+' · '+year+' × '+baseYear} aside={<span className="ndb-cp-chip">Fotos reais do catálogo · até 8 SKUs</span>} className="ndb-cp-products-panel">
+        {temporal.loading?<p className="ndb-cp-loading">Carregando produtos e miniaturas…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}</div>:
+          <div className="ndb-cp-products">
+            {rows(t?.products).map(r=><div className="ndb-cp-product" key={r.sku}>
+              <Thumb src={r.image} alt={r.name} size="large"/>
+              <div className="ndb-cp-product-info"><b>{r.name||r.sku}</b><small>SKU: {r.sku}</small><span>{baseYear}: {fmt(r.base)} · {year}: <strong>{fmt(r.cur)}</strong> · <em className={color(num(r.cur)-num(r.base))}>{delta(num(r.cur)-num(r.base))} un.</em></span></div>
+              {validLink(r.url)?<a href={r.url} target="_blank" rel="noopener noreferrer" className="ndb-cp-product-link" aria-label={'Abrir anúncio de '+r.name}><Icon name="link" size={16}/>Anúncio</a>:<span className="ndb-cp-no-link">Sem link</span>}
+            </div>)}
+            {!rows(t?.products).length&&<p className="ndb-cp-empty">Nenhum SKU com vendas identificadas nesse recorte.</p>}
+          </div>}
+        <p className="ndb-cp-foot">Ranking por unidades registradas; a ausência de vendas não comprova anúncio inativo. Miniaturas só aparecem quando há imagem cadastrada.</p>
+      </Section>
     </>}
   </div>;
 }
