@@ -1320,6 +1320,19 @@ export async function commerceCategories(env,opts={}) {
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{categories:[],total:{cur:0,base:0}};
 }
 
+export async function commerceCategoriesTimeline(env,opts={}) {
+  const platform=String(opts.platform||'SHOPEE').toUpperCase();
+  if(!CAT_PLATFORMS.includes(platform))throw new Error('Plataforma de categorias inválida.');
+  const data=await supabaseRpc(env,'commerce_categories_timeline_v1',{
+    p_platform:platform,p_year:Number(opts.year),
+    p_cat:String(opts.cat||''),
+    p_month:Number(opts.month),
+    p_sub:opts.sub?String(opts.sub):null
+  },{timeoutMs:25000});
+  return data&&typeof data==='object'&&!Array.isArray(data)
+    ?data:{category_months:[],subcategory_months:[],weekly_subcategories:[],products:[],subcategories:[],category_images:[]};
+}
+
 export async function commerceCategoriesSub(env,opts={}) {
   const data=await supabaseRpc(env,'commerce_categories_sub_v2',{...categoriesArgs(opts),p_cat:String(opts.cat||''),p_sub:String(opts.sub||'')},{timeoutMs:20000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{up:[],down:[]};
