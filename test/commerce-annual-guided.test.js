@@ -142,3 +142,19 @@ test('Produtos do mês apresenta anúncios, suas variações e fonte sem duplica
   assert.match(sql,/grant execute on function public\.commerce_annual_month_listings_v1[\s\S]*to service_role/i);
   assert.doesNotMatch(sql,/(\binsert into\b|\bdelete from\b|\bupdate public\.)/i);
 });
+
+
+test('ganho e perda são explicitamente do ano selecionado contra o ano-base',()=>{
+  const g=read('src/commerce-annual-guided.jsx');
+  const css=read('src/commerce-annual-guided.css');
+  assert.match(g,/Ganho de \{year\}/);
+  assert.match(g,/Perda de \{year\}/);
+  assert.match(g,/\{year\}: \{fmt\(best\.cur\)\} · \{baseYear\}: \{fmt\(best\.base\)\}/);
+  assert.match(g,/\{year\}: \{fmt\(worst\.cur\)\} · \{baseYear\}: \{fmt\(worst\.base\)\}/);
+  assert.match(g,/\{year\} comparado com \{baseYear\} · unidades vendidas/);
+  assert.match(g,/ranked\.filter\(p=>p\.diff>0\)/);
+  assert.match(g,/ranked\.filter\(p=>p\.diff<0\)/);
+  assert.match(g,/baseAvailable&&best/);
+  assert.match(g,/baseAvailable&&worst/);
+  assert.match(css,/\.ga-y-gain-loss/);
+});
