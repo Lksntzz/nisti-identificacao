@@ -692,3 +692,6 @@
 .ndb-seas-col small{line-height:1}
 .ndb-seas-year{font-style:normal;font-size:9px;line-height:1;min-height:9px;color:#7a8aa3;white-space:nowrap}
 .ndb-seas-bars{overflow:visible}
+.ndb-kpi small:has(.ndb-ship){white-space:normal;overflow:visible}
+.ndb-ship{display:block;line-height:1.35}
+.ndb-ship em{font-style:normal;opacity:.75}

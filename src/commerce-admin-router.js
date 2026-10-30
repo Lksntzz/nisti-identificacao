@@ -46,7 +46,7 @@ import {
   commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
   commerceSalesDashboardV1,
-  commerceDashboardAbcV2,
+  commerceDashboardAbcV2,commerceDashboardShippingSplitV1,
   commerceSalesDashboardSeriesV1,
   commerceSalesDashboardSegmentSeriesV1,
   commerceSalesDashboardOverviewV1,
@@ -693,6 +693,11 @@ export async function handleCommerceAdminRequest(request, env) {
         return json({error:'Filtro do dashboard inválido.'},400);
       // ML Antigo e ML Novo são contas diferentes: o filtro vai por conta, nunca juntas.
       return json(await commerceListingCohortsV1(env,{platform:platform.startsWith('ML_')?'ML':platform,account:platform==='ML_ANTIGO'?'ANTIGO':platform==='ML_NOVO'?'NOVO':null}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/shipping'){
+      const start=String(query(url,'start')||''),end=String(query(url,'end')||'');
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end))return json({error:'Período inválido.'},400);
+      return json(await commerceDashboardShippingSplitV1(env,{start,end}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/abc'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();

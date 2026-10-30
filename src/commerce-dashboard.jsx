@@ -477,6 +477,21 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
       .then(setAbcData).catch(()=>{if(!controller.signal.aborted)setAbcData(null);});
     return()=>controller.abort();
   },[abcP,abcFrom,abcTo]);
+  // Faturamento Shopee por tipo de envio (Full x envio próprio): só meses inteiros do período.
+  const [ship,setShip]=useState(null);
+  const shipOk=['TODAS','SHOPEE'].includes(String(platform).toUpperCase());
+  useEffect(()=>{
+    setShip(null);
+    if(!abcFrom||!abcTo||!shipOk)return undefined;
+    const controller=new AbortController();
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/shipping?start='+abcFrom+'&end='+abcTo,{signal:controller.signal})
+      .then(setShip).catch(()=>{if(!controller.signal.aborted)setShip(null);});
+    return()=>controller.abort();
+  },[abcFrom,abcTo,shipOk]);
+  const shipTotal=Number(ship?.total_revenue)||0;
+  const shipPct=v=>shipTotal>0?(Number(v)/shipTotal*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—';
+  const shipNode=ship&&ship.months?.length&&shipTotal>0?<span className="ndb-ship" title="Shopee, só nos meses inteiros do período. O Mercado Livre não tem essa divisão importada.">
+    <br/>Full {money(ship.full_revenue)} ({shipPct(ship.full_revenue)}) · Envio próprio {money(ship.own_revenue)} ({shipPct(ship.own_revenue)})<br/><em>Shopee, {ship.months.length} {ship.months.length===1?'mês':'meses'} inteiros</em></span>:null;
   const prevTxt=per&&!all?rng(per.prevFrom,per.prevTo):'';
   const ov=overview||{};
   const lst=ov.listings||{};
@@ -538,7 +553,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-sum-row" role="group" aria-label="Resumo do período">
-      <KpiCard icon="money" label="Faturamento" source="kpiRevenue" value={money(totals.cur_rev)} chip={!all&&<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
+      <KpiCard icon="money" label="Faturamento" source="kpiRevenue" value={money(totals.cur_rev)} chip={!all&&<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={<>{all?'todo o histórico':'vs. '+prevTxt}{shipNode}</>}/>
       <KpiCard icon="box" label="Unidades vendidas" source="kpiUnits" value={num(totals.cur_units)} chip={!all&&<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
       <KpiCard icon="cart" label="Ticket médio por unidade" source="kpiTicket" value={Number(totals.cur_units)>0?money(Number(totals.cur_rev)/Number(totals.cur_units)):'—'} chip={!all&&Number(totals.prev_units)>0&&<Delta cur={Number(totals.cur_rev)/Math.max(1,Number(totals.cur_units))} prev={Number(totals.prev_rev)/Number(totals.prev_units)}/>} foot="faturamento ÷ unidades"/>
       <KpiCard icon="list" label="Média por dia" source="kpiDaily" value={money(Number(totals.cur_rev)/Math.max(1,all?(Number(ov.window_days_with_sales)||1):span))} foot={all?'por dia com venda':'por dia no período'}/>

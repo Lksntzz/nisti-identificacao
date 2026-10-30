@@ -116,3 +116,11 @@ test('Importação Shopee: lote novo substitui os mesmos dias de snapshots antig
   assert.match(m,/new\.status='COMMITTED'/);
   assert.doesNotMatch(m,/drop table|truncate/i);
 });
+
+test('Card de faturamento mostra Full x envio próprio (valor e %) com dados por mês',()=>{
+  const jsx=read('src/commerce-dashboard.jsx'),m=read('supabase/migrations/20261030235000_commerce_shopee_shipping_split_v1.sql');
+  assert.match(jsx,/sales-dashboard\/shipping/);
+  assert.match(jsx,/Envio próprio/);
+  assert.match(m,/commerce_dashboard_shipping_split_v1/);
+  assert.match(m,/commerce_shopee_full_monthly_v1/);
+});

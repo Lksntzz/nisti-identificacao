@@ -1354,3 +1354,11 @@ export async function commerceDashboardAbcV2(env, filters = {}) {
   });
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {classes:[],items:[]};
 }
+
+export async function commerceDashboardShippingSplitV1(env, filters = {}) {
+  const result = await supabaseRpc(env, 'commerce_dashboard_shipping_split_v1', {
+    p_start: cleanText(filters.start),
+    p_end: cleanText(filters.end)
+  });
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : {months:[]};
+}
