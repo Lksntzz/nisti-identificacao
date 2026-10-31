@@ -1,3 +1,4 @@
+import { cachedRead, isCacheableReadPath } from './commerce-read-cache.js';
 import { SupabaseReadError } from './supabase-read-store.js';
 import {
   commerceAppendImportRows,
@@ -192,6 +193,14 @@ function paginationPayload(result) {
 }
 
 export async function handleCommerceAdminRequest(request, env) {
+  const url = new URL(request.url);
+  if (isCacheableReadPath(request.method, url.pathname, BASE_PATH)) {
+    return cachedRead(request, () => handleCommerceAdminRequestUncached(request, env));
+  }
+  return handleCommerceAdminRequestUncached(request, env);
+}
+
+async function handleCommerceAdminRequestUncached(request, env) {
   const url = new URL(request.url);
   const pathname = url.pathname;
   const method = String(request.method || 'GET').toUpperCase();

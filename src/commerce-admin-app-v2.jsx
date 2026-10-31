@@ -1,3 +1,4 @@
+import { requestFreshData } from './commerce-manager-fetch.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import './app.css';
 import './commerce-admin.css';
@@ -319,7 +320,7 @@ export default function CommerceAdminAppV2() {
             <button
               type="button"
               className={'commerce-refresh-icon' + (dbStatus.state === 'checking' ? ' is-spinning' : '')}
-              onClick={() => setSalesRevision(value => value + 1)}
+              onClick={() => { requestFreshData(); setSalesRevision(value => value + 1); }}
               aria-label="Atualizar dados"
               title="Atualizar dados"
             >

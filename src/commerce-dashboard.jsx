@@ -380,11 +380,13 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   useEffect(()=>{
     const controller=new AbortController();
     setMonthly(null);
+    if(platform==='TODAS')return undefined; // o mesmo dado de "monthlyAll": não pede duas vezes
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/monthly?platform='+platform,{signal:controller.signal})
       .then(setMonthly).catch(()=>{if(!controller.signal.aborted)setMonthly(null);});
     return()=>controller.abort();
   },[platform]);
   const [monthlyAll,setMonthlyAll]=useState(null);
+  useEffect(()=>{if(platform==='TODAS')setMonthly(monthlyAll);},[platform,monthlyAll]);
   useEffect(()=>{
     const controller=new AbortController();
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/monthly?platform=TODAS',{signal:controller.signal})

@@ -147,3 +147,13 @@ test('Menu do período abre para a direita quando cabe, sem ficar sob a barra la
   assert.match(j,/is-left/);
   assert.match(c,/\.ndb-pp-menu\.is-left\{left:0;right:auto/);
 });
+
+test('Dashboard: índice por código do anúncio, cache curto e sem pedido duplicado do histórico mensal',()=>{
+  const m=read('supabase/migrations/20261031190000_commerce_listings_external_id_index_v1.sql');
+  assert.match(m,/create index if not exists commerce_listings_external_listing_idx/);
+  const j=read('src/commerce-dashboard.jsx');
+  assert.match(j,/if\(platform==='TODAS'\)return undefined;/);
+  assert.match(j,/setMonthly\(monthlyAll\)/);
+  assert.match(read('src/edge-router.js'),/bumpReadCacheGeneration/);
+  assert.match(read('src/commerce-manager-fetch.js'),/fresh=1/);
+});
