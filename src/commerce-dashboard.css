@@ -695,3 +695,5 @@
 .ndb-kpi small:has(.ndb-ship){white-space:normal;overflow:visible}
 .ndb-ship{display:block;line-height:1.35}
 .ndb-ship em{font-style:normal;opacity:.75}
+
+.ndb-pp-menu.is-left{left:0;right:auto;max-width:calc(100vw - 16px)}
