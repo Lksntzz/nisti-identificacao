@@ -299,3 +299,53 @@ html.ga-dark .ga-y-product-avatar{background:#263b60;border-color:#355b8c}
   .ga-y-comparison-weeks th:nth-child(6),.ga-y-comparison-weeks td:nth-child(6){min-width:45px}
   .ga-y-week-mini-bars{min-width:35px}
 }
+
+
+/* GA layout v4 — visual limpo: mesmos dados, menos ruído. Divulgação progressiva e hierarquia por peso, não por caixas. */
+.ga-y-guided{gap:14px}
+.ga-y-toolbar{padding-bottom:2px}
+/* Cards de resumo: sem seta, sem ícone colorido; o card inteiro é clicável */
+.ga-y-kpis{gap:12px}
+.ga-y-overview-card{min-height:96px;border-color:transparent;background:var(--gy-canvas);box-shadow:none;cursor:pointer}
+.ga-y-overview-card:hover,.ga-y-overview-card.is-active{border-color:var(--gy-blue);box-shadow:none;background:var(--gy-bg)}
+.ga-y-overview-card.is-active{background:var(--gy-blue-soft)}
+.ga-y-overview-title{min-height:0}
+.ga-y-overview-title>.ga-y-title-text{color:var(--gy-muted);font-weight:700;font-size:11px;letter-spacing:.01em}
+.ga-y-card-icon{display:none}
+.ga-y-card-micro{opacity:.55}
+.ga-y-card-foot{display:none}
+.ga-y-gain-loss .ga-y-year-values{display:block;opacity:.85}
+/* Seções: sem borda pesada, separadas por espaço */
+.ga-y-section{border-color:transparent;background:var(--gy-bg);box-shadow:0 0 0 1px var(--gy-border);padding:16px}
+.ga-y-section-header{margin-bottom:12px}
+.ga-y-section-header p{margin-top:2px}
+.ga-y-chip{border:0;background:var(--gy-canvas)}
+/* Gráfico mensal */
+.ga-y-bars-chart{border-bottom:0}
+.ga-y-bar-month{border-radius:9px}
+.ga-y-month-filter{margin-bottom:6px}
+.ga-y-month-filter button{border-color:transparent;background:var(--gy-canvas)}
+/* Tabelas: cabeçalho sem faixa, divisores suaves, variação como texto */
+.ga-y-month-table th,.ga-y-weeks-table th,.ga-y-product-table th,.ga-y-days-table th,.ga-y-variation-table th{background:transparent;border-bottom:1px solid var(--gy-border);text-transform:none}
+.ga-y-month-table td,.ga-y-weeks-table td,.ga-y-product-table td,.ga-y-days-table td,.ga-y-variation-table td{border-bottom-color:color-mix(in srgb,var(--gy-border) 55%,transparent);padding-top:10px;padding-bottom:10px}
+.ga-y-product-table .ga-y-trend,.ga-y-comparison-weeks .ga-y-trend,.ga-y-days-table .ga-y-trend,.ga-y-variation-table .ga-y-trend,.ga-y-month-table .ga-y-trend{background:transparent;padding:0;font-size:11px}
+.ga-y-listing-table .ga-y-product-avatar{display:none}
+.ga-y-listing-table .ga-y-product-descriptor>small{opacity:.8}
+.ga-y-history{border:0;background:transparent;padding:0;font-size:10.5px}
+.ga-y-history.is-old{background:transparent;color:var(--gy-muted)}
+.ga-y-history.is-unconfirmed{background:transparent;color:#97641d}
+html.ga-dark .ga-y-guided .ga-y-history.is-unconfirmed{background:transparent}
+/* Investigação: dois indicadores (resultado e diferença) */
+.ga-y-investigation-metrics{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)}
+.ga-y-investigation-metric{background:transparent;border:0;border-left:3px solid var(--gy-border);border-radius:0;padding:2px 12px}
+.ga-y-investigation-metric.is-results{border-left-color:var(--gy-blue)}
+.ga-y-weeks-count{display:block;margin-top:2px;font-weight:500;color:var(--gy-muted);font-size:10px}
+.ga-y-investigation-subhead h4{display:block}
+/* Produtos: coluna única quando não há semana selecionada */
+.ga-y-products-body.is-single{grid-template-columns:minmax(0,1fr)}
+/* Notas agrupadas */
+.ga-y-guide{font-size:11px;color:var(--gy-muted);padding:2px 4px}
+.ga-y-guide summary{cursor:pointer;font-weight:700;width:fit-content}
+.ga-y-guide summary:hover{color:var(--gy-blue)}
+.ga-y-guide ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px;line-height:1.45}
+@media(max-width:760px){.ga-y-section{padding:12px}.ga-y-guided{gap:10px}.ga-y-investigation-metrics{grid-template-columns:1fr 1fr}}

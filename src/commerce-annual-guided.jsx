@@ -47,9 +47,8 @@ function DismissibleWarning({children,onClose,label}) {
 }
 function DataCard({title,children,onClick,active=false,description,icon='units',spark=null}) {
   return <button type="button" className={'ga-y-overview-card'+(active?' is-active':'')} onClick={onClick} title={description||title}>
-    <span className="ga-y-overview-title"><InsightIcon kind={icon}/><span className="ga-y-title-text">{title}</span><span className="ga-y-card-arrow" aria-hidden="true">↗</span></span>
+    <span className="ga-y-overview-title"><InsightIcon kind={icon}/><span className="ga-y-title-text">{title}</span></span>
     <div className="ga-y-overview-content"><div className="ga-y-overview-summary">{children}</div>{spark&&<MiniBars periods={spark} kind={icon}/>}</div>
-    <span className="ga-y-overview-action">Investigar <span aria-hidden="true">›</span></span>
   </button>;
 }
 function ProductLink({row,platform}) {
@@ -71,7 +70,7 @@ function ProductRows({rows,year,baseYear,platform,empty,limit=10}) {
       const key=(r.sku||'sku')+':'+i;
       return <React.Fragment key={key}>
         <tr className={'ga-y-product-row'+(open===key?' is-selected':'')} onClick={()=>setOpen(open===key?null:key)}>
-          <td><div className="ga-y-product-cell"><span className="ga-y-product-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9"/></svg></span><span className="ga-y-product-descriptor"><button type="button" onClick={e=>{e.stopPropagation();setOpen(open===key?null:key);}} aria-expanded={open===key} className="ga-y-product-name" title={r.name||r.sku}>{label.title} <span aria-hidden="true">›</span></button><small title={meta}>{meta||'SKU não informado'} · #{i+1}</small></span></div></td>
+          <td><div className="ga-y-product-cell"><span className="ga-y-product-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9"/></svg></span><span className="ga-y-product-descriptor"><button type="button" onClick={e=>{e.stopPropagation();setOpen(open===key?null:key);}} aria-expanded={open===key} className="ga-y-product-name" title={r.name||r.sku}>{label.title} <span aria-hidden="true">›</span></button><small title={meta}>{meta||'SKU não informado'}</small></span></div></td>
           <td>{fmt(old)}</td><td><strong>{fmt(cur)}</strong></td>
           <td className={diff>=0?'is-up':'is-down'}>{signed(diff)}</td>
           <td><Trend cur={cur} base={old}/></td>
@@ -101,7 +100,7 @@ function MonthlyListingRows({items,year,baseYear}) {
             <span className="ga-y-product-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 7h18v4H3zM5 11v10h14V11M9 15h6"/></svg></span>
             <span className="ga-y-product-descriptor">
               <button type="button" className="ga-y-product-name" aria-expanded={expanded} aria-label={(expanded?'Fechar':'Ver')+' variações do anúncio '+id} onClick={()=>setOpened(p=>({...p,[key]:!p[key]}))}>{r.title||'Anúncio '+id}<span aria-hidden="true">{expanded?'⌄':'›'}</span></button>
-              <small title={r.platform+' · ID '+id}>{r.platform==='SHOPEE'?'Shopee':r.platform==='ML_ANTIGO'?'Mercado Livre antigo':'Mercado Livre novo'} · ID {id} · #{i+1}</small>
+              <small title={r.platform+' · ID '+id}>{r.platform==='SHOPEE'?'Shopee':r.platform==='ML_ANTIGO'?'Mercado Livre antigo':'Mercado Livre novo'} · ID {id}</small>
             </span>
           </div></td>
           <td><span className="ga-y-variation-count">{variants.length} SKU{variants.length===1?'':'s'} <span aria-hidden="true">{expanded?'▴':'▾'}</span></span></td>
@@ -143,7 +142,6 @@ function ProductPanel({listingData,loading,error,month,year,baseYear,tab,setTab,
     {tab==='no-history'&&<p className="ga-y-note">Sem vendas em {baseYear} no mês comparado não significa que o anúncio foi criado em {year}.</p>}
     {loading?<div className="ga-y-empty">Carregando anúncios e variações…</div>:error?<p className="ga-y-warning" role="alert">{error}</p>:<MonthlyListingRows items={rows} year={year} baseYear={baseYear}/>}
     {!loading&&!error&&<div className="ga-y-listing-footer"><span>{fmt(total)} anúncios encontrados · página {page+1} de {pages}</span><div className="ga-y-page-actions"><button type="button" disabled={page<=0} onClick={()=>setPage(Math.max(0,page-1))}>Anterior</button><button type="button" disabled={page+1>=pages} onClick={()=>setPage(page+1)}>Próxima</button></div></div>}
-    <p className="ga-y-note">Resultados por ID real do anúncio e SKU da venda, sem estimativas. Anúncios sem registro de vendas em ambos os períodos não são classificados como zero automaticamente.</p>
   </section>;
 }
 function useApi(path,dependencies,enabled=true) {
@@ -319,7 +317,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
             {baseAvailable&&worst&&<small className="ga-y-year-values">{year}: {fmt(worst.cur)} · {baseYear}: {fmt(worst.base)}</small>}
           </span>
         </div>
-        <small>{year} comparado com {baseYear} · unidades vendidas</small>
+        <small className="ga-y-card-foot">{year} comparado com {baseYear} · unidades vendidas</small>
       </DataCard>
       <DataCard title="Anúncios em queda no mês" icon="alerts" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old');document.getElementById('ga-y-products')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
         <div className="ga-y-kpi-main">{listingFallCount==null?'—':fmt(listingFallCount)} <span className="ga-y-kpi-qualifier">anúncios identificados</span></div>
@@ -331,7 +329,6 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
       {windowState.loading?<p className="ga-y-empty">Carregando comparação…</p>:windowState.error?<p className="ga-y-warning">{windowState.error}</p>:<div className="ga-y-window-kpis"><div><small>{year}</small><strong>{fmt(winData?.total?.cur)}</strong></div><div><small>{baseYear}</small><strong>{baseAvailable?fmt(winData?.total?.base):'—'}</strong></div><div><small>Diferença</small><strong>{baseAvailable?signed(Number(winData?.total?.cur||0)-Number(winData?.total?.base||0)):'—'}</strong></div><div><small>Variação</small>{baseAvailable?<Trend cur={winData?.total?.cur} base={winData?.total?.base}/>:<span>—</span>}</div></div>}
       <h3>Produtos do período</h3>
       {winProducts.loading?<p className="ga-y-empty">Carregando produtos…</p>:winProducts.error?<p className="ga-y-warning">{winProducts.error}</p>:<ProductRows rows={rawWin} year={year} baseYear={baseYear} platform={filters.platform} limit={40}/>}
-      <p className="ga-y-note">A API do período retorna até 40 produtos. Não confunda ausência da lista com zero vendas.</p>
     </section>:<>
       <div className="ga-y-body">
         <section className={"ga-y-section ga-y-months"+(view==="chart"?" is-chart":"")}>
@@ -341,7 +338,6 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
           </div></div>
           <div className="ga-y-month-filter"><button type="button" className={monthFilter==='all'?'is-active':''} onClick={()=>filterMonths('all')}>Todos</button><button type="button" className={monthFilter==='up'?'is-active':''} onClick={()=>filterMonths('up')}>Em alta ({up.length})</button><button type="button" className={monthFilter==='down'?'is-active':''} onClick={()=>filterMonths('down')}>Em queda ({down.length})</button></div>
           <MonthComparison periods={allPeriods} selected={selectedMonth} mode={view} onSelect={chooseMonth} year={year} baseYear={baseYear} filter={monthFilter} baseAvailable={baseAvailable}/>
-          <p className="ga-y-note">Mês parcial é comparado somente até a data correspondente. Sem importação confirmada, não se presume zero vendas.</p>
         </section>
         <aside className="ga-y-section ga-y-investigation">
           <div className="ga-y-section-header ga-y-investigation-heading">
@@ -356,9 +352,6 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
                 </label>
                 <button type="button" disabled={selectedMonth>=current} onClick={()=>chooseMonth(selectedMonth+1)} aria-label="Próximo mês">›</button>
               </div>
-              <button type="button" className={'ga-y-calendar-toggle'+(showMonthDays?' is-active':'')} aria-label={showMonthDays?'Ocultar dias do mês':'Ver dias do mês'} aria-pressed={showMonthDays} onClick={()=>setShowMonthDays(v=>!v)} title="Ver dias do mês">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h3M13 14h3M8 17h3"/></svg>
-              </button>
             </div>
           </div>
           <div className="ga-y-investigation-metrics">
@@ -366,11 +359,6 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
               <small>Resultado do mês</small>
               <div className="ga-y-investigation-value"><strong>{period?fmt(period.cur):'—'}</strong>{baseAvailable&&period&&<Trend cur={period.cur} base={period.base}/>}</div>
               <small>{baseYear}: {baseAvailable&&period?fmt(period.base):'sem base'} unidades</small>
-            </div>
-            <div className="ga-y-investigation-metric is-weeks">
-              <small>Semanas do mês</small>
-              <div className="ga-y-investigation-value"><strong>{productValid?weeks.length:'—'}</strong><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg></div>
-              <small>Faixas com registros</small>
             </div>
             <div className="ga-y-investigation-metric is-difference">
               <small>Diferença · {year} vs. {baseYear}</small>
@@ -381,7 +369,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
             </div>
           </div>
           <div className="ga-y-section-header ga-y-investigation-subhead">
-            <h4>Desempenho semanal</h4>
+            <h4>Desempenho semanal <small className="ga-y-weeks-count">Semanas do mês: {productValid?weeks.length:'—'} · * faixa final de 29 até o último dia</small></h4>
             <button type="button" className="ga-y-days-button" aria-pressed={showMonthDays} onClick={()=>setShowMonthDays(v=>!v)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 5h6l2 3h8v11H4zM7 13h10M7 16h6"/></svg>
               {showMonthDays?'Ocultar dias':'Ver dias do mês'}
@@ -408,22 +396,31 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
             {selectedWeek&&<p className="ga-y-week-note">Resultado: {fmt(selectedWeek.cur)} unidades · diferença {baseAvailable?signed(Number(selectedWeek.cur)-Number(selectedWeek.base)):'sem base'}.</p>}
             {showDays&&(dayState.loading?<p className="ga-y-empty">Consultando dias…</p>:dayState.error?<p className="ga-y-warning">{dayState.error}</p>:<div className="ga-y-table-scroll"><table className="ga-y-days-table"><thead><tr><th>Dia</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th></tr></thead><tbody>{cleanRows(dayState.data?.days).filter(d=>Number(d.day)>=(week-1)*7+1&&Number(d.day)<=week*7).map(d=><tr key={d.day}><td>{d.day}/{String(selectedMonth).padStart(2,'0')}</td><td>{d.base==null?'—':fmt(d.base)}</td><td>{d.cur==null?'—':fmt(d.cur)}</td><td>{d.base==null||d.cur==null?'—':signed(Number(d.cur)-Number(d.base))}</td></tr>)}</tbody></table><p className="ga-y-note">“—” = sem cobertura diária confirmada, não zero vendas.</p></div>)}
           </div>}
-          {week==null&&<p className="ga-y-note">Selecione uma semana para investigar seus produtos. * Faixa final de 29 até o último dia do mês.</p>}
         </aside>
       </div>
-      <div className="ga-y-body ga-y-products-body">
+      <div className={"ga-y-body ga-y-products-body"+(week==null?" is-single":"")}>
         <div className="ga-y-product-left">
           <ProductPanel listingData={listingData} loading={listingState.loading} error={listingState.error} month={selectedMonth} year={year} baseYear={baseYear} tab={productTab} setTab={setProductTab} history={history} setHistory={setHistory} query={query} setQuery={setQuery} page={listingPage} setPage={setListingPage}/>
         </div>
-        <section className="ga-y-section ga-y-week-products">
+        {week!=null&&<section className="ga-y-section ga-y-week-products">
           <div className="ga-y-section-header"><div><h3>{week?'Produtos da semana '+(week===5?'29+':(week-1)*7+1+'–'+Math.min(week*7,lastDay)):'Produtos da semana'}</h3><p>Selecione uma semana na investigação para comparar seus SKUs.</p></div></div>
-          {week==null?<div className="ga-y-empty">Clique em uma semana na tabela superior para mostrar seus produtos.</div>:<>
+          {<>
             <div className="ga-y-segments"><button type="button" className={weekRank==='top'?'is-active':''} onClick={()=>setWeekRank('top')}>Mais vendidos</button><button type="button" className={weekRank==='up'?'is-active':''} onClick={()=>setWeekRank('up')}>Mais cresceram</button><button type="button" className={weekRank==='down'?'is-active':''} onClick={()=>setWeekRank('down')}>Mais caíram</button></div>
             {weekState.loading?<div className="ga-y-empty">Carregando produtos da semana…</div>:weekState.error?<p className="ga-y-warning">{weekState.error}</p>:<ProductRows rows={sortedWeekRows.filter(r=>weekRank==='down'?Number(r.cur)<Number(r.base):weekRank==='up'?Number(r.cur)>Number(r.base):true)} year={year} baseYear={baseYear} platform={filters.platform}/>}
             <p className="ga-y-note">Ranking calculado entre os produtos retornados pela consulta do período (até 40); não equivale ao catálogo completo.</p>
           </>}
         </section>
+        }
       </div>
     </>}
+    <details className="ga-y-guide">
+      <summary>Como ler estes dados</summary>
+      <ul>
+        <li>Mês parcial é comparado somente até a data correspondente. Sem importação confirmada, não se presume zero vendas.</li>
+        <li>Resultados por ID real do anúncio e SKU da venda, sem estimativas. Anúncios sem registro de vendas em ambos os períodos não são classificados como zero automaticamente.</li>
+        <li>Na lista de produtos, a ausência de um item não significa zero vendas: a consulta de período retorna até 40 produtos.</li>
+        <li>“—” indica ausência de registro confirmado, não zero vendas.</li>
+      </ul>
+    </details>
   </div>;
 }
