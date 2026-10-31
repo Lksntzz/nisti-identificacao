@@ -140,3 +140,10 @@ test('Curva ABC rápida: SKU unificado depois de agrupar as vendas',()=>{
   assert.match(m,/cmap as \(/);
   assert.doesNotMatch(m,/drop |truncate/i);
 });
+
+test('Menu do período abre para a direita quando cabe, sem ficar sob a barra lateral',()=>{
+  const j=read('src/commerce-period-picker.jsx'),c=read('src/commerce-dashboard.css');
+  assert.match(j,/setAlignLeft\(r\.left\+w<=window\.innerWidth-8\)/);
+  assert.match(j,/is-left/);
+  assert.match(c,/\.ndb-pp-menu\.is-left\{left:0;right:auto/);
+});

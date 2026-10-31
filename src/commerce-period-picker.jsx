@@ -13,6 +13,7 @@ export default function PeriodPicker({days,month,periods,available,onDays,onMont
   const ref=useRef(null);
   const menuRef=useRef(null);
   const [maxH,setMaxH]=useState(null);
+  const [alignLeft,setAlignLeft]=useState(true);
   const shownYear=year&&years.includes(year)?year:(month&&month.slice(0,4))||years[years.length-1]||String(new Date().getFullYear());
   useEffect(()=>{
     if(!open)return undefined;
@@ -27,6 +28,9 @@ export default function PeriodPicker({days,month,periods,available,onDays,onMont
     const fit=()=>{
       const r=ref.current.getBoundingClientRect();
       setMaxH(Math.max(180,Math.min(520,window.innerHeight-r.bottom-16)));
+      // Abre para a direita quando cabe (nunca por baixo da barra lateral); senão, alinha pela borda direita do botão.
+      const w=menuRef.current?menuRef.current.offsetWidth:280;
+      setAlignLeft(r.left+w<=window.innerWidth-8);
     };
     fit();
     const m=menuRef.current;
@@ -42,7 +46,7 @@ export default function PeriodPicker({days,month,periods,available,onDays,onMont
       <span>Período</span><b>{cur}</b>
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
     </button>
-    {open&&<div className="ndb-dd-list ndb-pp-menu" ref={menuRef} style={maxH?{maxHeight:maxH}:undefined} role="dialog" aria-label="Escolher período">
+    {open&&<div className={"ndb-dd-list ndb-pp-menu"+(alignLeft?" is-left":"")} ref={menuRef} style={maxH?{maxHeight:maxH}:undefined} role="dialog" aria-label="Escolher período">
       <ul>
         {periods.map(p=><li key={p}><button type="button" className={!month&&days===p?'is-active':''} onClick={()=>pick(()=>onDays(p))}>Últimos {p} dias</button></li>)}
         {allowAll&&<li><button type="button" className={!month&&days===0?'is-active':''} onClick={()=>pick(()=>onDays(0))}>{allLabel}</button></li>}
