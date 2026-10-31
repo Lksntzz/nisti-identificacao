@@ -1,5 +1,6 @@
 import app from './gtin-router.js';
 import { handleCommerceAdminRequest } from './commerce-admin-router.js';
+import { bumpReadCacheGeneration } from './commerce-read-cache.js';
 import { handleCommerceUpdateAdminRequest } from './commerce-update-admin-router.js';
 import { handleCommerceListingStateRequest } from './commerce-listing-state-router.js';
 import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
@@ -502,7 +503,13 @@ export default {
             handleCommerceAdminRequest
           ]) {
             const response = await handler(req, env);
-            if (response) return response;
+            if (response) {
+              // Qualquer alteração bem-sucedida zera o cache curto das leituras do GA.
+              if (!['GET', 'HEAD', 'OPTIONS'].includes(String(req.method || 'GET').toUpperCase()) && response.ok) {
+                await bumpReadCacheGeneration();
+              }
+              return response;
+            }
           }
           return new URL(req.url).pathname.startsWith('/api/admin/') ? null : app.fetch(req, env, ctx);
         }
@@ -688,19 +695,34 @@ export default {
     if (muralResponse) return withSecurityHeaders(attachOperatorCookie(muralResponse,operatorContext.setCookie));
 
     const listingEditorResponse = await handleCommerceListingEditorRequest(request, env);
-    if (listingEditorResponse) return withSecurityHeaders(listingEditorResponse);
+    if (listingEditorResponse) {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(String(request.method || 'GET').toUpperCase()) && listingEditorResponse.ok) await bumpReadCacheGeneration();
+      return withSecurityHeaders(listingEditorResponse);
+    }
 
     const productStateResponse = await handleCommerceProductStateRequest(request, env);
-    if (productStateResponse) return withSecurityHeaders(productStateResponse);
+    if (productStateResponse) {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(String(request.method || 'GET').toUpperCase()) && productStateResponse.ok) await bumpReadCacheGeneration();
+      return withSecurityHeaders(productStateResponse);
+    }
 
     const listingStateResponse = await handleCommerceListingStateRequest(request, env);
-    if (listingStateResponse) return withSecurityHeaders(listingStateResponse);
+    if (listingStateResponse) {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(String(request.method || 'GET').toUpperCase()) && listingStateResponse.ok) await bumpReadCacheGeneration();
+      return withSecurityHeaders(listingStateResponse);
+    }
 
     const commerceUpdateResponse = await handleCommerceUpdateAdminRequest(request, env);
-    if (commerceUpdateResponse) return withSecurityHeaders(commerceUpdateResponse);
+    if (commerceUpdateResponse) {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(String(request.method || 'GET').toUpperCase()) && commerceUpdateResponse.ok) await bumpReadCacheGeneration();
+      return withSecurityHeaders(commerceUpdateResponse);
+    }
 
     const commerceResponse = await handleCommerceAdminRequest(request, env);
-    if (commerceResponse) return withSecurityHeaders(commerceResponse);
+    if (commerceResponse) {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(String(request.method || 'GET').toUpperCase()) && commerceResponse.ok) await bumpReadCacheGeneration();
+      return withSecurityHeaders(commerceResponse);
+    }
 
     return withSecurityHeaders(attachOperatorCookie(await app.fetch(request, env, ctx),operatorContext.setCookie));
   }
