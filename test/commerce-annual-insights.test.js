@@ -55,3 +55,9 @@ test('consulta é protegida na API e função SQL somente leitura',()=>{
   assert.match(sql,/grant execute on function public\.commerce_annual_listing_insights_v1[\s\S]*to service_role/);
   assert.doesNotMatch(sql,/\b(insert into|update public\.|delete from|truncate table)\b/i);
 });
+
+test('histórico não importado não gera contagens falsas de anúncios novos',()=>{
+  assert.match(store,/data\.base_available===false/);
+  assert.match(store,/new_ads:\{count:null,units:null\}/);
+  assert.match(jsx,/Sem base para identificar anúncios novos/);
+});
