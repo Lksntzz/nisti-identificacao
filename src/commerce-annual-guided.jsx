@@ -48,11 +48,10 @@ function MiniBars({periods,kind}) {
 function DismissibleWarning({children,onClose,label}) {
   return <div className="ga-y-warning ga-y-warning-dismissible" role="status"><span>{children}</span><button type="button" aria-label={label} title="Fechar aviso" onClick={onClose}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6 18 18M18 6 6 18"/></svg></button></div>;
 }
-function DataCard({title,children,onClick,active=false,description,icon='units',spark=null}) {
+function DataCard({title,children,onClick,active=false,description}) {
   return <button type="button" className={'ga-y-overview-card'+(active?' is-active':'')} onClick={onClick} title={description||title}>
-    <span className="ga-y-overview-title"><InsightIcon kind={icon}/><span className="ga-y-title-text">{title}</span><span className="ga-y-card-arrow" aria-hidden="true">↗</span></span>
-    <div className="ga-y-overview-content"><div className="ga-y-overview-summary">{children}</div>{spark&&<MiniBars periods={spark} kind={icon}/>}</div>
-    <span className="ga-y-overview-action">Investigar <span aria-hidden="true">›</span></span>
+    <span className="ga-y-overview-title"><span className="ga-y-title-text">{title}</span></span>
+    <div className="ga-y-overview-content"><div className="ga-y-overview-summary">{children}</div></div>
   </button>;
 }
 function ProductLink({row,platform}) {
@@ -138,7 +137,7 @@ function ProductPanel({listingData,loading,error,month,year,baseYear,tab,setTab,
   const total=Number(listingData?.total)||0;
   const pages=Math.max(1,Math.ceil(total/15));
   return <section className="ga-y-section" id="ga-y-products">
-    <div className="ga-y-section-header"><div><h3>Anúncios de {MONTHS[month-1]}</h3><p>Vendas por anúncio. Clique para abrir as variações e comparar seus SKUs.</p></div><div className="ga-y-product-head-tools"><label className="ga-y-search" htmlFor="ga-y-search"><span>Buscar anúncio</span><input id="ga-y-search" type="search" placeholder="Nome, ID ou SKU" value={query} onChange={e=>setQuery(e.target.value)} maxLength={120}/></label><span className="ga-y-chip">{year} × {baseYear}</span></div></div>
+    <div className="ga-y-section-header"><div><h3>Anúncios de {MONTHS[month-1]}</h3><p>Vendas por anúncio. Clique para abrir as variações e comparar seus SKUs.</p></div><div className="ga-y-product-head-tools"><label className="ga-y-search" htmlFor="ga-y-search"><span>Buscar anúncio</span><input id="ga-y-search" type="search" placeholder="Nome, ID ou SKU" value={query} onChange={e=>setQuery(e.target.value)} maxLength={120}/></label></div></div>
     <div className="ga-y-product-controls">
       <div className="ga-y-segments" role="group" aria-label="Rankings dos anúncios">{options.map(([id,label])=><button type="button" className={tab===id?'is-active':''} aria-pressed={tab===id} onClick={()=>{setTab(id);setHistory('all');setPage(0)}} key={id}>{label}</button>)}</div>
       {tab!=='no-history'&&<label className="ga-y-history-select">Histórico<select value={history} onChange={e=>{setHistory(e.target.value);setPage(0)}}><option value="all">Todos</option><option value="old">Com vendas em {baseYear}</option><option value="no-history">Sem vendas em {baseYear}</option></select></label>}
@@ -312,7 +311,6 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
       </DataCard>
       <DataCard title="Meses em alta / queda" icon="months" spark={allPeriods} active={focus==='up'||focus==='down'} onClick={()=>filterMonths(monthFilter==='down'?'up':'down')} description="Alterna meses em queda e meses em crescimento">
         <div className="ga-y-kpi-split"><span><strong className="is-up">{up.length}</strong><small>Em alta</small></span><span><strong className="is-down">{down.length}</strong><small>Em queda</small></span></div>
-        <small>{comparable.length} meses com base comparável</small>
       </DataCard>
       <DataCard title="Maior ganho / maior perda" icon="extremes" active={focus==='best'||focus==='worst'} description={'Diferença de unidades vendidas em '+year+' comparado com '+baseYear+'. Clique para investigar o mês.'} onClick={()=>{if(!baseAvailable)return;const next=focus==='worst'?'best':'worst';const target=next==='best'?best:worst;if(target){chooseMonth(Number(target.key));setFocus(next);setMonthFilter('all');}}}>
         <div className="ga-y-kpi-split ga-y-gain-loss">
@@ -320,20 +318,17 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
             <small className="ga-y-compare-label">Ganho de {year}</small>
             <strong>{baseAvailable&&best?monthShort(Number(best.key)):'—'}</strong>
             <small className="is-up">{baseAvailable&&best?signed(best.diff)+' un.':baseAvailable?'Sem ganho':'Sem base'}</small>
-            {baseAvailable&&best&&<small className="ga-y-year-values">{year}: {fmt(best.cur)} · {baseYear}: {fmt(best.base)}</small>}
           </span>
           <span>
             <small className="ga-y-compare-label">Perda de {year}</small>
             <strong>{baseAvailable&&worst?monthShort(Number(worst.key)):'—'}</strong>
             <small className="is-down">{baseAvailable&&worst?signed(worst.diff)+' un.':baseAvailable?'Sem perda':'Sem base'}</small>
-            {baseAvailable&&worst&&<small className="ga-y-year-values">{year}: {fmt(worst.cur)} · {baseYear}: {fmt(worst.base)}</small>}
           </span>
         </div>
-        <small>{year} comparado com {baseYear} · unidades vendidas</small>
       </DataCard>
       <DataCard title="Anúncios em queda no mês" icon="alerts" active={focus==='alerts'} onClick={()=>{setFocus('alerts');setProductTab('down');setHistory('old');document.getElementById('ga-y-products')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
         <div className="ga-y-kpi-main">{listingFallCount==null?'—':fmt(listingFallCount)} <span className="ga-y-kpi-qualifier">anúncios identificados</span></div>
-        <small>{MONTHS[selectedMonth-1]} · clique para investigar os anúncios</small>
+        <small>em {MONTHS[selectedMonth-1].toLowerCase()}</small>
       </DataCard>
     </div>
     {windowMode?<section className="ga-y-section ga-y-window">
@@ -366,30 +361,9 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
                 </label>
                 <button type="button" disabled={selectedMonth>=current} onClick={()=>chooseMonth(selectedMonth+1)} aria-label="Próximo mês">›</button>
               </div>
-              <button type="button" className={'ga-y-calendar-toggle'+(showMonthDays?' is-active':'')} aria-label={showMonthDays?'Ocultar dias do mês':'Ver dias do mês'} aria-pressed={showMonthDays} onClick={()=>setShowMonthDays(v=>!v)} title="Ver dias do mês">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h3M13 14h3M8 17h3"/></svg>
-              </button>
             </div>
           </div>
-          <div className="ga-y-investigation-metrics">
-            <div className="ga-y-investigation-metric is-results">
-              <small>Resultado do mês</small>
-              <div className="ga-y-investigation-value"><strong>{period?fmt(period.cur):'—'}</strong>{baseAvailable&&period&&<Trend cur={period.cur} base={period.base}/>}</div>
-              <small>{baseYear}: {baseAvailable&&period?fmt(period.base):'sem base'} unidades</small>
-            </div>
-            <div className="ga-y-investigation-metric is-weeks">
-              <small>Semanas do mês</small>
-              <div className="ga-y-investigation-value"><strong>{productValid?weeks.length:'—'}</strong><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg></div>
-              <small>Faixas com registros</small>
-            </div>
-            <div className="ga-y-investigation-metric is-difference">
-              <small>Diferença · {year} vs. {baseYear}</small>
-              <div className="ga-y-investigation-value">
-                <span><strong className={baseAvailable&&period?(Number(period.cur)<Number(period.base)?'is-down':'is-up'):''}>{baseAvailable&&period?signed(Number(period.cur)-Number(period.base)):'—'}</strong><small>unidades</small></span>
-                <span className="ga-y-investigation-change"><strong className={baseAvailable&&period?(Number(period.cur)<Number(period.base)?'is-down':'is-up'):''}>{baseAvailable&&period?pct(percentage(period.cur,period.base)):'—'}</strong><small>variação</small></span>
-              </div>
-            </div>
-          </div>
+          <p className="ga-y-investigation-summary"><strong>{period?fmt(period.cur):'—'}</strong> unidades{baseAvailable&&period&&<> <Trend cur={period.cur} base={period.base}/></>}<span>{baseAvailable&&period?baseYear+': '+fmt(period.base)+' · '+signed(Number(period.cur)-Number(period.base))+' un.':'sem base de '+baseYear}</span></p>
           <div className="ga-y-section-header ga-y-investigation-subhead">
             <h4>Desempenho semanal</h4>
             <button type="button" className="ga-y-days-button" aria-pressed={showMonthDays} onClick={()=>setShowMonthDays(v=>!v)}>
@@ -398,17 +372,14 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
             </button>
           </div>
           {!productValid?<p className="ga-y-empty">Consultando semanas do mês…</p>:weeks.length===0?<p className="ga-y-empty">Sem dados semanais disponíveis.</p>:<div className="ga-y-table-scroll"><table className="ga-y-weeks-table ga-y-comparison-weeks">
-            <thead><tr><th>Semana</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th><th aria-label="Barras comparativas"></th><th aria-label="Abrir semana"></th></tr></thead>
+            <thead><tr><th>Semana</th><th>{baseYear}</th><th>{year}</th><th>Diferença</th><th>Variação</th></tr></thead>
             <tbody>{weeks.map(w=>{const n=Number(w.n),start=(n-1)*7+1,finish=Math.min(lastDay,n*7),diff=Number(w.cur)-Number(w.base);
               return <tr key={n} className={week===n?'is-selected':''} onClick={()=>{setWeek(n);setShowDays(false);}}>
                 <td><button type="button" aria-label={'Investigar semana '+start+' a '+finish} onClick={e=>{e.stopPropagation();setWeek(n);setShowDays(false);}}>{String(start).padStart(2,'0')}–{String(finish).padStart(2,'0')}{n===5?'*':''}</button></td>
                 <td>{baseAvailable?fmt(w.base):'—'}</td><td><b>{fmt(w.cur)}</b></td>
                 <td className={baseAvailable?(diff>=0?'is-up':'is-down'):''}>{baseAvailable?signed(diff):'—'}</td>
                 <td>{baseAvailable?<Trend cur={w.cur} base={w.base}/>:<span className="ga-y-muted-inline">—</span>}</td>
-                <td><span className="ga-y-week-mini-bars" aria-label={baseAvailable?baseYear+': '+fmt(w.base)+', '+year+': '+fmt(w.cur):year+': '+fmt(w.cur)}>
-                  {baseAvailable&&<i className="is-base" style={{width:(Number(w.base)>0?Math.max(4,Math.round(Number(w.base)/maxWeekUnits*100)):0)+'%'}}/>}
-                  <i className="is-current" style={{width:(Number(w.cur)>0?Math.max(4,Math.round(Number(w.cur)/maxWeekUnits*100)):0)+'%'}}/>
-                </span></td><td><span className="ga-y-week-chevron" aria-hidden="true">›</span></td>
+
               </tr>;
             })}</tbody>
           </table></div>}
@@ -425,14 +396,14 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
         <div className="ga-y-product-left">
           <ProductPanel listingData={listingData} loading={listingState.loading} error={listingState.error} month={selectedMonth} year={year} baseYear={baseYear} tab={productTab} setTab={setProductTab} history={history} setHistory={setHistory} query={query} setQuery={setQuery} page={listingPage} setPage={setListingPage}/>
         </div>
-        <section className="ga-y-section ga-y-week-products">
+        {week!=null&&<section className="ga-y-section ga-y-week-products">
           <div className="ga-y-section-header"><div><h3>{week?'Produtos da semana '+(week===5?'29+':(week-1)*7+1+'–'+Math.min(week*7,lastDay)):'Produtos da semana'}</h3><p>Selecione uma semana na investigação para comparar seus SKUs.</p></div></div>
-          {week==null?<div className="ga-y-empty">Clique em uma semana na tabela superior para mostrar seus produtos.</div>:<>
+          <>
             <div className="ga-y-segments"><button type="button" className={weekRank==='top'?'is-active':''} onClick={()=>setWeekRank('top')}>Mais vendidos</button><button type="button" className={weekRank==='up'?'is-active':''} onClick={()=>setWeekRank('up')}>Mais cresceram</button><button type="button" className={weekRank==='down'?'is-active':''} onClick={()=>setWeekRank('down')}>Mais caíram</button></div>
             {weekState.loading?<div className="ga-y-empty">Carregando produtos da semana…</div>:weekState.error?<p className="ga-y-warning">{weekState.error}</p>:<ProductRows rows={sortedWeekRows.filter(r=>weekRank==='down'?Number(r.cur)<Number(r.base):weekRank==='up'?Number(r.cur)>Number(r.base):true)} year={year} baseYear={baseYear} platform={filters.platform}/>}
             <p className="ga-y-note">Ranking calculado entre os produtos retornados pela consulta do período (até 40); não equivale ao catálogo completo.</p>
-          </>}
-        </section>
+          </>
+        </section>}
       </div>
     </>}
     </>}
