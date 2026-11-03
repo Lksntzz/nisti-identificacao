@@ -1,6 +1,6 @@
 # Mapa do GA – Gestor de Anúncio
 
-Documento de orientação. **Não altera o sistema.** Gerado em 27/10/2026 a partir do código (`src/`), das migrações (`supabase/migrations/`) e do banco de produção (Supabase `yioetdcbgorunwgwuawg`). Se algo aqui divergir do código, vale o código: atualize este arquivo.
+Documento de orientação. **Não altera o sistema.** Gerado em 27/10/2026 (seção 10 atualizada em 03/11/2026) a partir do código (`src/`), das migrações (`supabase/migrations/`) e do banco de produção (Supabase `yioetdcbgorunwgwuawg`). Se algo aqui divergir do código, vale o código: atualize este arquivo.
 
 ## 1. Em números
 
@@ -124,3 +124,30 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 4. Salvar toda migração aplicada em `supabase/migrations/`.
 5. Publicar por PR; esperar as checagens; só então mesclar.
 6. Nada de dados de negócio em arquivos do repositório (ele é público).
+
+## 10. Mudanças de 28/10 a 03/11/2026
+
+**Faturamento Full x envio próprio** (card do Dashboard)
+- Rota `/sales-dashboard/shipping` → função SQL `commerce_dashboard_shipping_split_v1(p_start,p_end)`.
+- Só Shopee e só meses inteiros. Até 01/10/2026 usa a tabela manual `commerce_shopee_full_monthly_v1`; de 01/11/2026 em diante usa `commerce_shopee_full_daily_v1`.
+- O importador de vendas Shopee (`commerce-sales-import-reader.js`) detecta Full pela coluna "Pedido FBS" = Yes ou "Opção de envio" = Full e envia por dia (`/sales/imports/{id}/shopee-full`, função `commerce_append_shopee_full_daily_v1`).
+
+**Reimportação de dias (Shopee)**
+- Gatilho `commerce_shopee_supersede_old_days_trg`: ao importar um dia de novo, o snapshot novo substitui o antigo e o antigo vai para tabelas de arquivo (`*_superseded`). Cobre também o Full diário.
+- Lacuna conhecida: dia em que todas as vendas foram canceladas não é substituído.
+
+**Velocidade**
+- Cache de leitura de 60 s (`src/commerce-read-cache.js`) para GET em `/sales-dashboard*` e `/sales-compare/*`. Qualquer gravação (POST/PUT/PATCH/DELETE) zera o cache. `?fresh=1` ignora o cache; o botão de atualizar da tela usa isso por 15 s. Resposta em cache vem com o cabeçalho `x-ga-cache: HIT`.
+- `commerce_dashboard_abc_v2` foi reescrita (mesmo resultado, 3 a 7 vezes mais rápida). Índice `commerce_listings_external_listing_idx`.
+- Maior custo restante: a view `commerce_current_sales_listing_daily_v1`, usada por todas as telas de vendas (~700 ms por chamada). Reescrever é arriscado: só com testes de antes/depois.
+
+**Avisos de segurança**
+- Os avisos "Atividades do Sistema" ficam na tabela `notifications` (tipo `admin_login`, `admin_login_failed`; IP, aparelho e local dentro do JSON da coluna `platform`).
+- Só o login real (POST em `/admin-login`) gera aviso de sessão iniciada. Abrir a página de login (GET) é robô e é ignorado. Recusa de fora do Brasil recebe título próprio.
+- Registros GET antigos (cerca de 380 até 03/11) continuam no histórico.
+
+**Atenção ao publicar**
+- Migração em `supabase/migrations/` **não roda sozinha no deploy**. Depois de mesclar, aplicar no Supabase (projeto `yioetdcbgorunwgwuawg`) e conferir.
+- Tabelas de backup no banco sem migração: `bak_cls_20261030_*`, `bak_dup_out2025_*`, `bak_dup_out2026_*`. Apagar só com pedido explícito do dono.
+- Existe um segundo projeto Supabase de teste (`ppzimdxufmiepxurckfu`, região Ohio, outro app). Não faz parte do NISTI.
+

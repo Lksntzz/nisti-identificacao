@@ -407,7 +407,7 @@ Protegidas pela sessão administrativa:
 
 - React 18;
 - React DOM 18;
-- Vite 6;
+- Vite 8;
 - Cloudflare Workers;
 - Cloudflare R2;
 - Supabase PostgreSQL;
