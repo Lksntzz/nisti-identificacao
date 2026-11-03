@@ -158,6 +158,10 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 **Comparação anual: painel em uma coluna** (03/11/2026)
 - Faixa de 4 números sem caixas; gráfico mensal em largura total; abaixo, o detalhe do mês escolhido em abas "Semanas" e "Anúncios" (antes ficavam lado a lado). Removidos os botões "Em alta/Em queda" acima do gráfico (o cartão "Meses em alta / queda" faz o mesmo filtro).
 
+**Comparação anual: aba "Anúncio por mês"** (03/11/2026) — aba inicial do painel
+- Tabela dos anúncios que já vendiam no ano-base (por número do anúncio), mês a mês nos dois anos; vermelho = vendeu bastante no ano-base e caiu pela metade ou mais; verde = cresceu 50% ou mais. Anúncio novo (sem venda no ano-base inteiro) fica de fora, só contado no resumo.
+- Rota `/sales-compare/annual-listing-months` → `commerceAnnualListingMonths` → função SQL `commerce_annual_listing_months_v1(p_platform,p_year,p_base)` (migração `20261103140000`, JÁ aplicada no Supabase). Mostra os 80 anúncios que mais venderam no ano-base. Mês em andamento: ano-base cortado na mesma data. Tela: `ListingMonths` em `commerce-annual-seasonality.jsx`.
+
 **Atenção ao publicar**
 - Migração em `supabase/migrations/` **não roda sozinha no deploy**. Depois de mesclar, aplicar no Supabase (projeto `yioetdcbgorunwgwuawg`) e conferir.
 - Tabelas de backup no banco sem migração: `bak_cls_20261030_*`, `bak_dup_out2025_*`, `bak_dup_out2026_*`. Apagar só com pedido explícito do dono.
