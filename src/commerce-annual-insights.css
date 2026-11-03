@@ -100,4 +100,5 @@
 .ga-dark .ga-y-guided .annual-header-bar .ndb-dd-btn span{color:#b6c6dd}
 .ga-dark .ga-y-guided .annual-header-bar .ndb-dd-btn b{color:#e6edf8}
 .gai-month-units{font-size:9.5px;color:var(--gai-sub);text-align:center;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media(max-width:600px){.gai-month-units{display:none}}
 @media(min-width:900px){.gai-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}
