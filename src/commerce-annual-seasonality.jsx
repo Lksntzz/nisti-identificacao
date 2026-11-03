@@ -147,8 +147,9 @@ export function Launches({ platform, year, base, refresh, fmt, amount }) {
 export function ListingMonths({ platform, year, base, refresh, fmt }) {
   const { loading, error, data } = useFetch('/api/admin/commerce/sales-compare/annual-listing-months?' + qs(platform, year, base), [platform, year, base, refresh]);
   const [filter, setFilter] = useState('all');
-  const [sort, setSort] = useState('base');
+  const [sort, setSort] = useState('loss');
   const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(null);
   if (loading) return <p className="ga-y-muted" role="status">Montando a tabela de anúncios por mês…</p>;
   if (error) return <div className="ga-y-error" role="alert"><span>{error}</span></div>;
   const cmon = Number(data.current_month) || 12;
@@ -164,7 +165,8 @@ export function ListingMonths({ platform, year, base, refresh, fmt }) {
     const lost = drops.reduce((a, x) => a + x.d, 0);
     const baseYtd = cell.filter(c => c.past).reduce((a, c) => a + c.base, 0);
     const curYtd = cell.filter(c => c.past).reduce((a, c) => a + c.cur, 0);
-    return { ...l, cell, baseYtd, curYtd, hasLoss: cell.some(c => c.loss), lost, worst: drops[0] || null };
+    const peak = [...cell].sort((a, b) => b.base - a.base)[0];
+    return { ...l, cell, peak, baseYtd, curYtd, hasLoss: cell.some(c => c.loss), lost, worst: drops[0] || null };
   });
   const q = query.trim().toLowerCase();
   let rows = all.filter(l => (!q || String(l.title).toLowerCase().includes(q) || String(l.id).includes(q))
@@ -174,7 +176,7 @@ export function ListingMonths({ platform, year, base, refresh, fmt }) {
   const pct = (c, b) => (Number(b) > 0 ? Math.round(100 * (Number(c) - Number(b)) / Number(b)) : null);
   return <section className="ga-y-main ga-y-lm" aria-label="Anúncios mês a mês">
     <header><div><h3>Anúncios mês a mês</h3>
-      <p>Só anúncios que já vendiam em {base}. Em cada mês: <b>{base}</b> em cinza e <b>{year}</b> em destaque. Vermelho = vendeu bastante em {base} e caiu pela metade ou mais em {year}.</p></div></header>
+      <p>Só anúncios que já vendiam em {base}. Barras de cada mês: cinza = {base}, azul = {year}. Clique num anúncio para ver os números.</p></div></header>
     <p className="ga-y-lm-sum"><b>{fmt(data.old_count)}</b> anúncios já vendiam em {base} (mostrando os {all.length} que mais venderam). Fora da tabela: <b>{fmt(hn.count)}</b> anúncios novos de {year} ({fmt(hn.units)} un.), que não têm base de comparação.</p>
     <div className="ga-y-lm-tools">
       <div className="ga-y-segs" role="group" aria-label="Filtro">
@@ -186,15 +188,31 @@ export function ListingMonths({ platform, year, base, refresh, fmt }) {
       <input type="search" placeholder="Buscar nome ou número" value={query} onChange={e => setQuery(e.target.value)} maxLength={80} aria-label="Buscar anúncio" />
     </div>
     {rows.length === 0 ? <p className="ga-y-muted">Nenhum anúncio neste filtro.</p> :
-      <div className="ga-y-scroll"><table className="ga-y-lmt">
-        <thead><tr><th>Anúncio</th>{MON.map((m, i) => <th key={m} className={i + 1 > cmon ? 'is-future' : ''}>{m}</th>)}<th title="Mesmo período nos dois anos">Jan–{MON[cmon - 1]}</th></tr></thead>
-        <tbody>{rows.map(l => <tr key={l.id}>
-          <th scope="row"><span className="ga-y-adtitle" title={l.title}>{l.title}</span><small>{l.id}{l.worst ? ' · maior queda: ' + MON[l.worst.m - 1] + ' −' + fmt(l.worst.d) : ''}</small></th>
-          {l.cell.map(c => <td key={c.m} className={'ga-y-lmc' + (c.loss ? (c.zero ? ' is-zero' : ' is-loss') : c.gain ? ' is-gain' : '') + (c.past ? '' : ' is-future')} title={MON[c.m - 1] + ': ' + base + ' ' + fmt(c.base) + ' un. · ' + year + ' ' + (c.past ? fmt(c.cur) + ' un.' : 'ainda não aconteceu')}>
-            <i>{c.base ? fmt(c.base) : '–'}</i><b>{c.past ? (c.cur ? fmt(c.cur) : '0') : ''}</b>
-          </td>)}
-          <td className="ga-y-lmt-tot"><i>{fmt(l.baseYtd)}</i><b>{fmt(l.curYtd)}</b>{pct(l.curYtd, l.baseYtd) != null && <em className={l.curYtd >= l.baseYtd ? 'is-up' : 'is-down'}>{pct(l.curYtd, l.baseYtd) > 0 ? '+' : ''}{pct(l.curYtd, l.baseYtd)}%</em>}</td>
-        </tr>)}</tbody></table></div>}
-    <p className="ga-y-note">Meses que ainda não aconteceram em {year} mostram só o valor de {base} (em cinza), para você ver onde {base} teve pico. A última coluna compara só Jan–{MON[cmon - 1]} nos dois anos.</p>
+      <div className="ga-y-lml" role="list">
+        <div className="ga-y-lml-head" aria-hidden="true"><span>Anúncio</span><span className="ga-y-lml-months">{MON.map(m => <i key={m}>{m[0]}</i>)}</span><span>Pico de {base} → {year}</span><span>Jan–{MON[cmon - 1]}</span></div>
+        {rows.map(l => {
+          const max = Math.max(1, ...l.cell.flatMap(c => [c.base, c.past ? c.cur : 0]));
+          const pk = l.peak && l.peak.base > 0 ? l.peak : null;
+          const pkPast = pk && pk.past;
+          const pkPct = pkPast ? pct(pk.cur, pk.base) : null;
+          const t = pct(l.curYtd, l.baseYtd);
+          const isOpen = open === l.id;
+          return <div role="listitem" key={l.id} className={'ga-y-lml-item' + (isOpen ? ' is-open' : '')}>
+            <button type="button" className="ga-y-lml-row" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : l.id)}>
+              <span className="ga-y-lml-name"><span className="ga-y-adtitle" title={l.title}>{l.title}</span><small>{l.id}</small></span>
+              <span className="ga-y-lml-months" aria-hidden="true">{l.cell.map(c => <span key={c.m} className="ga-y-lml-m">
+                <i className="is-base" style={{ height: Math.max(c.base ? 3 : 0, Math.round(100 * c.base / max)) + '%' }} />
+                <i className={'is-cur' + (c.past ? '' : ' is-future')} style={{ height: Math.max(c.past && c.cur ? 3 : 0, Math.round(100 * (c.past ? c.cur : 0) / max)) + '%' }} />
+              </span>)}</span>
+              <span className="ga-y-lml-peak">{pk ? <><b>{MON[pk.m - 1]}</b> {fmt(pk.base)} un. → {pkPast ? <em className={pkPct != null && pkPct <= -50 ? 'is-down' : pkPct != null && pkPct >= 50 ? 'is-up' : ''}>{fmt(pk.cur)} un.{pkPct != null ? ' (' + (pkPct > 0 ? '+' : '') + pkPct + '%)' : ''}</em> : <em>ainda não chegou</em>}</> : '—'}</span>
+              <span className="ga-y-lml-tot"><b>{fmt(l.curYtd)}</b> <small>vs {fmt(l.baseYtd)}</small>{t != null && <em className={l.curYtd >= l.baseYtd ? 'is-up' : 'is-down'}>{t > 0 ? '+' : ''}{t}%</em>}</span>
+            </button>
+            {isOpen && <div className="ga-y-scroll ga-y-lml-detail"><table className="ga-y-table"><thead><tr><th></th>{MON.map((m, i) => <th key={m}>{m}</th>)}</tr></thead>
+              <tbody><tr><th>{base}</th>{l.cell.map(c => <td key={c.m}>{c.base ? fmt(c.base) : '–'}</td>)}</tr>
+              <tr><th>{year}</th>{l.cell.map(c => <td key={c.m} className={c.loss ? 'is-down' : c.gain ? 'is-up' : ''}><b>{c.past ? fmt(c.cur) : ''}</b></td>)}</tr></tbody></table></div>}
+          </div>;
+        })}
+      </div>}
+    <p className="ga-y-note">O pico é o mês que mais vendeu em {base}; em vermelho quando {year} caiu pela metade ou mais nesse mês. Meses que ainda não aconteceram mostram só a barra cinza.</p>
   </section>;
 }

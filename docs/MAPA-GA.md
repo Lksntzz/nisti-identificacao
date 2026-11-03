@@ -159,7 +159,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Faixa de 4 números sem caixas; gráfico mensal em largura total; abaixo, o detalhe do mês escolhido em abas "Semanas" e "Anúncios" (antes ficavam lado a lado). Removidos os botões "Em alta/Em queda" acima do gráfico (o cartão "Meses em alta / queda" faz o mesmo filtro).
 
 **Comparação anual: aba "Anúncio por mês"** (03/11/2026) — aba inicial do painel
-- Tabela dos anúncios que já vendiam no ano-base (por número do anúncio), mês a mês nos dois anos; vermelho = vendeu bastante no ano-base e caiu pela metade ou mais; verde = cresceu 50% ou mais. Anúncio novo (sem venda no ano-base inteiro) fica de fora, só contado no resumo.
+- Lista de uma linha por anúncio que já vendia no ano-base (por número do anúncio): gráfico pequeno de 12 meses (cinza = ano-base, azul = ano atual), pico do ano-base contra o mesmo mês do ano atual e total Jan–mês atual. Clicar na linha abre a tabela com os números de cada mês (vermelho = caiu pela metade ou mais; verde = cresceu 50% ou mais). Anúncio novo (sem venda no ano-base inteiro) fica de fora, só contado no resumo.
 - Rota `/sales-compare/annual-listing-months` → `commerceAnnualListingMonths` → função SQL `commerce_annual_listing_months_v1(p_platform,p_year,p_base)` (migração `20261103140000`, JÁ aplicada no Supabase). Mostra os 80 anúncios que mais venderam no ano-base. Mês em andamento: ano-base cortado na mesma data. Tela: `ListingMonths` em `commerce-annual-seasonality.jsx`.
 
 **Atenção ao publicar**
