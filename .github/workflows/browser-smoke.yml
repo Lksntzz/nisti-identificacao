@@ -75,6 +75,20 @@ jobs:
           CI: 'true'
         run: node test-browser/browser-smoke.mjs
 
+      - name: Capture GA annual comparison (desktop, 390px, dark)
+        env:
+          CI: 'true'
+        run: node test-browser/ga-annual-insights-visual.mjs
+
+      - name: Upload GA annual screenshots for approval
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ga-annual-preview
+          path: artifacts/ga-annual/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Show local server errors only on failure
         if: failure()
         run: tail -n 70 /tmp/nisti-vite.log || true
