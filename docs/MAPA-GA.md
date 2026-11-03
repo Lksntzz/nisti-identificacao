@@ -124,6 +124,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 4. Salvar toda migração aplicada em `supabase/migrations/`.
 5. Publicar por PR; esperar as checagens; só então mesclar.
 6. Nada de dados de negócio em arquivos do repositório (ele é público).
+7. Mexeu em tela, tabela, função SQL, rota ou regra de importação? Atualize este mapa no mesmo PR.
 
 ## 10. Mudanças de 28/10 a 03/11/2026
 
