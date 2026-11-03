@@ -54,6 +54,7 @@ function PairChart({rows,baseYear,year,selected,onMonth,maxValue,compact=false})
           {!compact&&<span className={'gai-month-percent '+(future?'future':(pct(current,base)<0?'negative':'positive'))}>
             {future?'—':percentLabel(pct(current,base))}
           </span>}
+          {!compact&&<small className="gai-month-units">{future?(r.future?'ainda não ocorreu':'sem dados'):fmt(current)+' un.'}</small>}
         </button>;
       })}
     </div>
@@ -112,6 +113,12 @@ export default function AnnualListingInsights({platform,year,base,refresh=0}) {
   const noCurrent=data&&!data.current_available;
   const trend=Array.isArray(data?.listing_months)?data.listing_months:[];
   const trendMax=Math.max(1,...trend.flatMap(m=>[cap(m.base),cap(m.cur)]));
+  // Total da plataforma: anúncios novos nunca têm venda no ano-base, então o total do ano-base é o histórico.
+  const newUnits=cap(data?.new_ads?.units);
+  const newCount=data?.new_ads?.count;
+  const totalBase=cap(data?.annual?.base);
+  const totalCur=cap(data?.annual?.cur)+newUnits;
+  const staleDays=data?.last_sale?daysLate(data.last_sale):null;
   return <div className="gai-root">
     <header className="gai-heading">
       <div>
@@ -120,7 +127,7 @@ export default function AnnualListingInsights({platform,year,base,refresh=0}) {
         <p>Somente anúncios com vendas em {base}. Cada anúncio é identificado pelo seu ID na plataforma.</p>
       </div>
       <div className="gai-badges">
-        {asOfOld&&<span className="gai-badge warning" title="O último registro vendido pode não representar a última importação.">Verificar importação · {dateBR(data.last_sale)}</span>}
+        {asOfOld&&<span className="gai-badge warning" title="Não entrou nenhuma venda nova desde a data indicada. Se você já vendeu depois disso, importe de novo a planilha de vendas.">Sem vendas há {staleDays} dias · conferir importação</span>}
         {noBase&&<span className="gai-badge warning">Sem base de {base}</span>}
         {noCurrent&&<span className="gai-badge warning">Sem dados de {year}</span>}
         {data?.last_sale&&<span className="gai-badge">Última venda: {dateBR(data.last_sale)}</span>}
@@ -135,24 +142,25 @@ export default function AnnualListingInsights({platform,year,base,refresh=0}) {
           {!data.base_available?'Sem base histórica para comparar os anúncios em '+base+'.':
            !data.current_available?'Ainda não há dados de vendas de '+year+' para uma comparação confiável.':
            data.annual?.base>0
-             ?<>Em {year}, os anúncios históricos venderam <strong>{fmt(data.annual?.cur)} unidades</strong>, <Change current={data.annual?.cur} base={data.annual?.base}/> em relação a {base}.</>
+             ?<>Em {year}, a plataforma vendeu <strong>{fmt(totalCur)} unidades</strong>, <Change current={totalCur} base={totalBase}/> em relação a {base}. Anúncios com histórico: {fmt(data.annual?.cur)} un. (<Change current={data.annual?.cur} base={data.annual?.base}/>). Anúncios novos: {fmt(newUnits)} un.</>
              :'Não há vendas no período equivalente de '+base+' para calcular a variação.'}
         </h3>
         <div className="gai-metrics">
           <div className="gai-metric"><span>Anúncios com histórico em {base}</span><strong>{data.base_available?fmt(data.old_count):'Sem base'}</strong><small>IDs únicos por plataforma</small></div>
           <div className="gai-metric"><span>Meses em alta / em queda</span><strong>{complete?up+' / '+down:'Sem base'}</strong><small>Comparação nas mesmas datas</small></div>
-          <div className="gai-metric"><span>Anúncios em queda no ano</span><strong>{complete?fmt(data.annual?.falling_ads):'Sem base'}</strong><small>{complete?fmt(data.annual?.stopped_ads)+' pararam de vender':'Histórico necessário'}</small></div>
+          <div className="gai-metric"><span>Anúncios com queda no ano</span><strong>{complete?fmt(data.annual?.falling_ads):'Sem base'}</strong><small>{complete?'de '+fmt(data.old_count)+' com histórico · '+fmt(data.annual?.stopped_ads)+' pararam de vender':'Histórico necessário'}</small></div>
+          <div className="gai-metric"><span>Anúncios novos em {year}</span><strong>{complete&&newCount!=null?fmt(newCount):'Sem base'}</strong><small>{complete&&newCount!=null?fmt(newUnits)+' unidades · incluídos no total da plataforma':'Sem base para identificar'}</small></div>
         </div>
       </section>
 
       <section className="gai-panel" aria-labelledby="gai-monthly-title">
         <div className="gai-panel-head">
-          <div><h3 id="gai-monthly-title">Evolução mensal dos anúncios históricos</h3><p>Barras do mesmo mês e período. Clique no mês para investigar.</p></div>
+          <div><h3 id="gai-monthly-title">Evolução mensal da plataforma</h3><p>Barras do mesmo mês e período, em unidades (altura proporcional ao maior mês: {fmt(max)} un.). Mês em destaque: {MONTHS[active-1]}. Clique em outro mês para investigar.</p></div>
           <div className="gai-legend"><span><i className="gai-legend-base"/>{base}</span><span><i className="gai-legend-cur"/>{year}</span></div>
         </div>
         <PairChart rows={months} baseYear={base} year={year} selected={active} onMonth={chooseMonth} maxValue={max}/>
         <div className="gai-scope"><span>{data.as_of?'Comparação até '+dateBR(data.as_of):'Período atual sem dados'}</span>
-          <span>{!data.base_available?'Sem base para identificar anúncios novos':data.new_ads?.count!=null&&data.current_available?fmt(data.new_ads.count)+' anúncios novos, '+fmt(data.new_ads.units)+' unidades, ficam de fora':'Anúncios novos fora do comparativo'}</span>
+          <span>{!data.base_available?'Sem base para identificar anúncios novos':data.new_ads?.count!=null&&data.current_available?'Total inclui '+fmt(data.new_ads.count)+' anúncios novos ('+fmt(data.new_ads.units)+' un.). A comparação por anúncio usa só os históricos.':'Anúncios novos não identificados'}</span>
         </div>
       </section>
 

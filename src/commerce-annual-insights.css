@@ -17,7 +17,7 @@
 .gai-change.negative,.gai-negative{color:var(--gai-bad)!important}
 .gai-change.positive,.gai-positive{color:var(--gai-good)!important}
 .gai-change.neutral{color:var(--gai-sub)}
-.gai-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--gai-edge)}
+.gai-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--gai-edge)}
 .gai-metric{padding:19px 22px 22px 0;display:flex;flex-direction:column;gap:5px;min-width:0}
 .gai-metric+.gai-metric{border-left:1px solid var(--gai-edge);padding-left:24px}
 .gai-metric>span{font-size:11px;color:var(--gai-sub);font-weight:650}
@@ -99,3 +99,6 @@
 .ga-dark .ga-y-guided .annual-sync-badge{color:#98abc4}
 .ga-dark .ga-y-guided .annual-header-bar .ndb-dd-btn span{color:#b6c6dd}
 .ga-dark .ga-y-guided .annual-header-bar .ndb-dd-btn b{color:#e6edf8}
+.gai-month-units{font-size:9.5px;color:var(--gai-sub);text-align:center;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media(max-width:600px){.gai-month-units{display:none}}
+@media(min-width:900px){.gai-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}

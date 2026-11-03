@@ -32,7 +32,9 @@ test('anúncio histórico que zerou é mantido e sinalizado',()=>{
   assert.match(sql,/d\.base_units>0 and d\.current_units=0/);
   assert.match(jsx,/Parou de vender/);
   assert.match(jsx,/new_ads\?\.count/);
-  assert.match(jsx,/ficam de fora/);
+  assert.match(jsx,/Total inclui/);
+  assert.match(jsx,/Anúncios novos em \{year\}/);
+  assert.match(jsx,/Sem vendas há/);
   assert.match(jsx,/Pode ter ocorrido migração de vendas/);
 });
 

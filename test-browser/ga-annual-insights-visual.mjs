@@ -65,7 +65,7 @@ async function run(){
       if(label==='mobile-390')await page.getByRole('button',{name:'Alternar menu lateral'}).click();
       await page.getByRole('button',{name:'Comparação anual'}).click();
       await page.locator('.gai-root').waitFor({timeout:30000});
-      await page.getByText('35 anúncios novos, 900 unidades, ficam de fora').waitFor({timeout:20000});
+      await page.getByText('Total inclui 35 anúncios novos (900 un.). A comparação por anúncio usa só os históricos.').waitFor({timeout:20000});
       await page.locator('.gai-chart:not(.compact) .gai-bar-month').nth(7).click(); // Agosto
       await page.getByText('Agosto · anúncios com histórico').waitFor();
       await page.locator('.gai-listing-card').first().click();
