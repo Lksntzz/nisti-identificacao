@@ -39,7 +39,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualListingMonths, commerceAnnualWindow, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
+  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualListingMonths, commerceAnnualMonthHealth, commerceAnnualWindow, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -589,7 +589,7 @@ async function handleCommerceAdminRequestUncached(request, env) {
       if(pathname.endsWith('categories-col'))return json(await commerceCategoriesCol(env,{...opts,cat,col:subName}));
       return json(sub?await commerceCategoriesSub(env,{...opts,cat,sub:subName}):await commerceCategories(env,opts));
     }
-    if(method==='GET'&&(pathname===BASE_PATH+'/sales-compare/annual-seasonality'||pathname===BASE_PATH+'/sales-compare/annual-launches'||pathname===BASE_PATH+'/sales-compare/annual-listing-months')){
+    if(method==='GET'&&(pathname===BASE_PATH+'/sales-compare/annual-seasonality'||pathname===BASE_PATH+'/sales-compare/annual-launches'||pathname===BASE_PATH+'/sales-compare/annual-listing-months'||pathname===BASE_PATH+'/sales-compare/annual-month-health')){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
       const yearRaw=query(url,'year'),baseRaw=query(url,'base');
       const year=yearRaw?Number(yearRaw):null,base=baseRaw?Number(baseRaw):null;
@@ -598,7 +598,7 @@ async function handleCommerceAdminRequestUncached(request, env) {
          (baseRaw&&(!Number.isInteger(base)||base<2020||base>2100))||
          (year!=null&&base!=null&&base!==year-1))
         return json({error:'Filtro de picos e lançamentos inválido.'},400);
-      return json(pathname.endsWith('seasonality')?await commerceAnnualSeasonality(env,{platform,year,base}):pathname.endsWith('listing-months')?await commerceAnnualListingMonths(env,{platform,year,base}):await commerceAnnualLaunches(env,{platform,year,base}));
+      return json(pathname.endsWith('seasonality')?await commerceAnnualSeasonality(env,{platform,year,base}):pathname.endsWith('listing-months')?await commerceAnnualListingMonths(env,{platform,year,base}):pathname.endsWith('month-health')?await commerceAnnualMonthHealth(env,{platform,year,base,min:Number(query(url,'min'))||20}):await commerceAnnualLaunches(env,{platform,year,base}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-window'){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
