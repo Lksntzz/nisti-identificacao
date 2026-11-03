@@ -25,6 +25,7 @@ if (window.location.pathname === '/monitor-notificacoes') {
 function getInitialRoute() {
   // GA - Gestor de Anúncio: este endereço só monta o Painel Comercial.
   if (IS_GA_HOST) return 'commerce';
+  if (import.meta.env.DEV && window.location.pathname === '/ga-preview') return 'commerce';
   // Dedicated URL: never load the Scanner or admin bundles on the Mural host.
   if (window.location.hostname === 'mural.sistemanistiid.online'
     || window.location.pathname === '/mural') {

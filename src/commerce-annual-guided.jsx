@@ -5,7 +5,8 @@ import PeriodPicker from './commerce-period-picker.jsx';
 import {daysBehind, productLabel} from './commerce-annual-compare-helpers.js';
 import './commerce-annual-guided.css';
 import './commerce-annual-seasonality.css';
-import {Seasonality,Launches,MonthHealth} from './commerce-annual-seasonality.jsx';
+import {Seasonality,Launches} from './commerce-annual-seasonality.jsx';
+import AnnualListingInsights from './commerce-annual-insights.jsx';
 
 // Painel GA: apenas unidades; nenhuma projeção ou faturamento é exibida.
 // O ano anterior sem vendas não comprova que o anúncio foi criado recentemente.
@@ -294,15 +295,15 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
     <div className="ga-y-toolbar annual-header-bar">
       <Dropdown label="Plataforma" value={filters.platform} options={PLATFORMS} onChange={p=>update({platform:p})}/>
       <Dropdown label="Comparação" value={String(year)} options={yearChoices.map(y=>[String(y),y+' × '+(y-1)])} onChange={y=>update({year:Number(y),base:Number(y)-1,month:'',days:0})}/>
-      <PeriodPicker days={days} month={windowMode?'':iso(year,selectedMonth,1).slice(0,7)} periods={[7,30,60,90]} allowAll={false} available={MONTHS.map((_,i)=>iso(year,i+1,1).slice(0,7)).filter((_,i)=>i<current)} onDays={n=>update({days:n,month:''})} onMonth={key=>chooseMonth(Number(String(key).slice(5,7)))}/>
+      {tab!=='months'&&<PeriodPicker days={days} month={windowMode?'':iso(year,selectedMonth,1).slice(0,7)} periods={[7,30,60,90]} allowAll={false} available={MONTHS.map((_,i)=>iso(year,i+1,1).slice(0,7)).filter((_,i)=>i<current)} onDays={n=>update({days:n,month:''})} onMonth={key=>chooseMonth(Number(String(key).slice(5,7)))}/>}
       <span className="ga-y-asof annual-sync-badge"><span className="sync-dot" aria-hidden="true"></span>Dados até {asOf.split('-').reverse().join('/')||'—'}</span>
     </div>
-    {late>=2&&!dismissedWarnings['stale:'+asOf]&&<DismissibleWarning label="Fechar aviso de importações desatualizadas" onClose={()=>setDismissedWarnings(p=>({...p,['stale:'+asOf]:true}))}>Importações desatualizadas: o último dado é de {asOf.split('-').reverse().join('/')}. Os resultados recentes podem estar incompletos.</DismissibleWarning>}
-    {!baseAvailable&&!dismissedWarnings['coverage:'+filters.platform+':'+baseYear]&&<DismissibleWarning label="Fechar aviso de histórico incompleto" onClose={()=>setDismissedWarnings(p=>({...p,['coverage:'+filters.platform+':'+baseYear]:true}))}>Sem cobertura confirmada de {baseYear} para todas as plataformas escolhidas. Comparações de crescimento exigem histórico importado.</DismissibleWarning>}
+    {tab!=='months'&&late>=2&&!dismissedWarnings['stale:'+asOf]&&<DismissibleWarning label="Fechar aviso de importações desatualizadas" onClose={()=>setDismissedWarnings(p=>({...p,['stale:'+asOf]:true}))}>Importações desatualizadas: o último dado é de {asOf.split('-').reverse().join('/')}. Os resultados recentes podem estar incompletos.</DismissibleWarning>}
+    {tab!=='months'&&!baseAvailable&&!dismissedWarnings['coverage:'+filters.platform+':'+baseYear]&&<DismissibleWarning label="Fechar aviso de histórico incompleto" onClose={()=>setDismissedWarnings(p=>({...p,['coverage:'+filters.platform+':'+baseYear]:true}))}>Sem cobertura confirmada de {baseYear} para todas as plataformas escolhidas. Comparações de crescimento exigem histórico importado.</DismissibleWarning>}
     <div className="ga-y-tabs" role="tablist" aria-label="Seções da comparação anual">
-      {[['months','Anúncio por mês'],['compare','Resumo do ano'],['seasonal','Picos e sazonalidade'],['launches','Lançamentos '+year]].map(([id,label])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)}>{label}</button>)}
+      {[['months','Visão por anúncio'],['compare','Resumo do ano'],['seasonal','Picos e sazonalidade'],['launches','Lançamentos '+year]].map(([id,label])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)}>{label}</button>)}
     </div>
-    {tab==='months'&&<div className="ga-y-extra"><MonthHealth platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt}/></div>}
+    {tab==='months'&&<AnnualListingInsights platform={filters.platform} year={year} base={baseYear} refresh={refresh}/>}
     {tab==='seasonal'&&<div className="ga-y-extra"><Seasonality periods={data.periods||[]} platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/></div>}
     {tab==='launches'&&<div className="ga-y-extra"><Launches platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/></div>}
     {tab==='compare'&&<>
