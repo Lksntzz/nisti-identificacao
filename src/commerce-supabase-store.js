@@ -1315,7 +1315,16 @@ export async function commerceAnnualListingInsights(env,{platform='SHOPEE',year=
     p_platform:plat,p_year:year||null,p_base:base||null,p_min:mn,p_month:month,
     p_listing_id:listing||null,p_listing_platform:listingPlatform||null
   },{timeoutMs:30000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[],old_count:0,base_available:false,current_available:false};
+  if(data&&typeof data==='object'&&!Array.isArray(data)){
+    // Sem importação do ano-base, não é possível classificar anúncios como novos.
+    if(data.base_available===false)return {
+      ...data,
+      new_ads:{count:null,units:null},
+      months:Array.isArray(data.months)?data.months.map(m=>({...m,new_strong:null})):[]
+    };
+    return data;
+  }
+  return {months:[],old_count:0,base_available:false,current_available:false};
 }
 
 export async function commerceAnnualMonthHealth(env,{platform='SHOPEE',year=null,base=null,min=20}={}) {
