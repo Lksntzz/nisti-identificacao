@@ -131,7 +131,7 @@ export function describeAdminSystemActivity({ pathname, method, status, data, ac
       details: compactDetails({ ip: context.ip, device: context.device, place: context.place }),
       event_type: ok ? 'admin_login' : 'admin_login_failed',
       source: 'security',
-      title: ok ? 'Acesso ao painel administrativo' : 'Tentativa de acesso recusada',
+      title: ok ? 'Acesso ao painel administrativo' : (/, (?!BR$)[A-Z]{2}$/.test(context.place || '') ? 'Tentativa de acesso recusada de fora do Brasil' : 'Tentativa de acesso recusada'),
       message: ok ? 'Uma sessão administrativa foi iniciada.' : 'Uma tentativa de login no painel não foi autorizada.'
     };
   }
@@ -286,7 +286,9 @@ export async function recordAdminActivityFromResponse(request, response, env) {
   const url = new URL(request.url);
   const pathname = url.pathname;
   const method = String(request.method || 'GET').toUpperCase();
-  const isAdminSessionEvent = pathname === '/admin-login' || pathname === '/admin-logout';
+  // Só o envio do formulário (POST) é login de verdade. Abrir a página de login (GET)
+  // acontece com robôs de internet o tempo todo e não pode virar "sessão iniciada".
+  const isAdminSessionEvent = (pathname === '/admin-login' && method === 'POST') || pathname === '/admin-logout';
   const isScannerLookup = /^\/api\/gtin\/[^/]+$/.test(pathname);
   const isSignificantMutation = MUTATING_METHODS.has(method) && pathname.startsWith('/api/');
 
