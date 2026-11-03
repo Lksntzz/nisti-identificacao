@@ -313,3 +313,19 @@ html.ga-dark .ga-y-product-avatar{background:#263b60;border-color:#355b8c}
 .ga-y-guided .ga-y-weeks-table tbody tr{cursor:pointer}
 .ga-y-guided .ga-y-weeks-table tbody tr.is-selected{background:var(--gy-blue-soft)}
 .ga-y-guided .ga-y-section>.ga-y-note,.ga-y-guided .ga-y-months>.ga-y-note{display:none}
+
+/* Painel limpo: uma coluna, faixa de números sem caixas, detalhe em abas */
+.ga-y-guided .ga-y-body,.ga-y-guided .ga-y-products-body{grid-template-columns:minmax(0,1fr)}
+.ga-y-guided .ga-y-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;background:var(--gy-bg);border:1px solid var(--gy-border);border-radius:12px;overflow:hidden}
+.ga-y-guided .ga-y-overview-card{background:transparent;border:0;border-radius:0;box-shadow:none;padding:14px 18px;border-left:1px solid var(--gy-border)}
+.ga-y-guided .ga-y-overview-card:first-child{border-left:0}
+.ga-y-guided .ga-y-overview-card.is-active{background:var(--gy-blue-soft)}
+.ga-y-guided .ga-y-overview-card:hover{background:var(--gy-canvas)}
+.ga-y-guided .ga-y-detail-tabs{display:flex;align-items:center;gap:6px;margin-top:6px;border-bottom:1px solid var(--gy-border)}
+.ga-y-guided .ga-y-detail-title{font-size:16px;font-weight:800;margin-right:auto;padding-bottom:8px}
+.ga-y-guided .ga-y-detail-tabs button{border:0;background:none;color:var(--gy-muted);font-weight:700;font-size:13px;padding:8px 14px;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
+.ga-y-guided .ga-y-detail-tabs button.is-active{color:var(--gy-blue);border-bottom-color:var(--gy-blue)}
+.ga-y-guided .ga-y-investigation-heading{display:none}
+@media(max-width:900px){.ga-y-guided .ga-y-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ga-y-guided .ga-y-overview-card:nth-child(3){border-left:0}.ga-y-guided .ga-y-overview-card:nth-child(n+3){border-top:1px solid var(--gy-border)}}
+.ga-y-guided .ga-y-investigation-summary>*:not(span:last-child){margin-left:0}
+.ga-y-guided .ga-y-investigation-summary>span:last-child{margin-left:auto}
