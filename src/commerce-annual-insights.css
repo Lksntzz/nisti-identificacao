@@ -93,3 +93,7 @@
 .ga-dark .gai-badge.warning{border-color:#5f4c2e}
 @media(max-width:900px){.gai-listing-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gai-summary-row{grid-template-columns:80px minmax(0,1fr) 75px;gap:8px}.gai-summary-action{display:none}}
 @media(max-width:600px){.gai-root{gap:11px}.gai-heading{display:block}.gai-heading h2{font-size:22px}.gai-badges{max-width:none;justify-content:flex-start;margin-top:10px}.gai-overview{padding:17px 15px 0}.gai-headline{font-size:19px;margin-bottom:16px}.gai-metrics{grid-template-columns:1fr}.gai-metric{padding:12px 0!important}.gai-metric+.gai-metric{border-left:0;border-top:1px solid var(--gai-edge)}.gai-metric>strong{font-size:23px}.gai-panel{padding:16px 12px}.gai-panel-head{flex-wrap:wrap}.gai-legend{align-self:flex-start}.gai-pair{height:152px;gap:2px;padding:0}.gai-chart-plot{gap:1px}.gai-bar{width:42%}.gai-month-name{font-size:9px}.gai-month-percent{font-size:8px;letter-spacing:-.07em}.gai-listing-grid{grid-template-columns:1fr}.gai-summary-row{grid-template-columns:75px minmax(0,1fr);gap:7px;padding:10px 3px}.gai-summary-bar{display:none}.gai-summary-copy{font-size:11px}.gai-chart.compact .gai-pair{height:100px}.gai-ad-drill{padding:12px}.gai-month-sentence{font-size:13px}.gai-scope{font-size:10px}}
+
+/* Mantém a barra de filtros integrada ao tema escuro do GA. */
+.ga-dark .ga-y-guided .ga-y-toolbar.annual-header-bar{background:#151f31!important;border-color:#29364b!important;color:#e6edf8}
+.ga-dark .ga-y-guided .annual-sync-badge{color:#98abc4}
