@@ -4,12 +4,15 @@ import {Dropdown, listingUrl} from './commerce-dashboard.jsx';
 import PeriodPicker from './commerce-period-picker.jsx';
 import {daysBehind, productLabel} from './commerce-annual-compare-helpers.js';
 import './commerce-annual-guided.css';
+import './commerce-annual-seasonality.css';
+import {Seasonality,Launches} from './commerce-annual-seasonality.jsx';
 
 // Painel GA: apenas unidades; nenhuma projeção ou faturamento é exibida.
 // O ano anterior sem vendas não comprova que o anúncio foi criado recentemente.
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const PLATFORMS=[['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre antigo'],['ML_NOVO','Mercado Livre novo'],['TODAS','Todas as plataformas']];
 const fmt=n=>Number(n||0).toLocaleString('pt-BR');
+const amount=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const signed=n=>(Number(n)>0?'+':Number(n)<0?'−':'')+fmt(Math.abs(Number(n)||0));
 const percentage=(cur,base)=>Number(base)>0?((Number(cur||0)-Number(base))/Number(base)*100):null;
 const pct=n=>n==null?'Sem base':(n>0?'+':n<0?'−':'')+Math.abs(n).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
@@ -211,6 +214,7 @@ function MonthComparison({periods,mode,selected,onSelect,year,baseYear,filter,ba
 }
 export default function GuidedAnnualCompare({data,monthData,filters,setFilters,refresh=0}) {
   const [view,setView]=useState('chart');
+  const [tab,setTab]=useState('compare');
   const [monthFilter,setMonthFilter]=useState('all');
   const [focus,setFocus]=useState('units');
   const [week,setWeek]=useState(null);
@@ -295,6 +299,12 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
     </div>
     {late>=2&&!dismissedWarnings['stale:'+asOf]&&<DismissibleWarning label="Fechar aviso de importações desatualizadas" onClose={()=>setDismissedWarnings(p=>({...p,['stale:'+asOf]:true}))}>Importações desatualizadas: o último dado é de {asOf.split('-').reverse().join('/')}. Os resultados recentes podem estar incompletos.</DismissibleWarning>}
     {!baseAvailable&&!dismissedWarnings['coverage:'+filters.platform+':'+baseYear]&&<DismissibleWarning label="Fechar aviso de histórico incompleto" onClose={()=>setDismissedWarnings(p=>({...p,['coverage:'+filters.platform+':'+baseYear]:true}))}>Sem cobertura confirmada de {baseYear} para todas as plataformas escolhidas. Comparações de crescimento exigem histórico importado.</DismissibleWarning>}
+    <div className="ga-y-tabs" role="tablist" aria-label="Seções da comparação anual">
+      {[['compare','Comparação'],['seasonal','Picos e sazonalidade'],['launches','Lançamentos '+year]].map(([id,label])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)}>{label}</button>)}
+    </div>
+    {tab==='seasonal'&&<div className="ga-y-extra"><Seasonality periods={data.periods||[]} platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/></div>}
+    {tab==='launches'&&<div className="ga-y-extra"><Launches platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/></div>}
+    {tab==='compare'&&<>
     <div className="ga-y-kpis">
       <DataCard title={windowMode?'Unidades nos últimos '+days+' dias':'Unidades no ano'} icon="units" spark={windowMode?null:allPeriods} active={focus==='units'} onClick={()=>{setFocus('units');setMonthFilter('all');document.querySelector('.ga-y-months')?.scrollIntoView({behavior:'smooth',block:'start'});}}>
         <div className="ga-y-kpi-main">{unitCur==null?'—':fmt(unitCur)} {baseAvailable&&unitBase!=null&&<Trend cur={unitCur} base={unitBase}/>}</div>
@@ -424,6 +434,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
           </>}
         </section>
       </div>
+    </>}
     </>}
   </div>;
 }
