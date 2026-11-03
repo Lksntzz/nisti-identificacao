@@ -1302,6 +1302,12 @@ export async function commerceAnnualLaunches(env,{platform='SHOPEE',year=null,ba
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{summary:{count:0,units:0,revenue:0},by_month:[],products:[]};
 }
 
+export async function commerceAnnualListingMonths(env,{platform='SHOPEE',year=null,base=null}={}) {
+  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
+  const data=await supabaseRpc(env,'commerce_annual_listing_months_v1',{p_platform:plat,p_year:year||null,p_base:base||null},{timeoutMs:20000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{listings:[],old_count:0,hidden_new:{count:0,units:0}};
+}
+
 export async function commerceAnnualWindow(env,{platform='SHOPEE',curFrom,curTo,baseFrom,baseTo}={}) {
   const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
   const data=await supabaseRpc(env,'commerce_annual_window_v1',{p_platform:plat,p_cur_from:curFrom,p_cur_to:curTo,p_base_from:baseFrom,p_base_to:baseTo},{timeoutMs:15000});

@@ -142,3 +142,59 @@ export function Launches({ platform, year, base, refresh, fmt, amount }) {
     </section>
   </div>;
 }
+
+// Anúncios que já vendiam no ano-base, mês a mês nos dois anos. Anúncio novo (sem venda no ano-base) fica fora.
+export function ListingMonths({ platform, year, base, refresh, fmt }) {
+  const { loading, error, data } = useFetch('/api/admin/commerce/sales-compare/annual-listing-months?' + qs(platform, year, base), [platform, year, base, refresh]);
+  const [filter, setFilter] = useState('all');
+  const [sort, setSort] = useState('base');
+  const [query, setQuery] = useState('');
+  if (loading) return <p className="ga-y-muted" role="status">Montando a tabela de anúncios por mês…</p>;
+  if (error) return <div className="ga-y-error" role="alert"><span>{error}</span></div>;
+  const cmon = Number(data.current_month) || 12;
+  const all = (data.listings || []).map(l => {
+    const ms = (l.months || []).map(m => ({ m: Number(m.m), base: Number(m.base), cur: Number(m.cur) }));
+    const cell = ms.map(m => {
+      const past = m.m <= cmon;
+      const loss = past && m.base >= 20 && m.cur <= 0.5 * m.base;
+      const gain = past && m.cur >= 20 && m.cur >= 1.5 * m.base;
+      return { ...m, past, loss, zero: loss && m.cur === 0, gain };
+    });
+    const drops = cell.filter(c => c.past).map(c => ({ m: c.m, d: c.base - c.cur })).filter(x => x.d > 0).sort((a, b) => b.d - a.d);
+    const lost = drops.reduce((a, x) => a + x.d, 0);
+    const baseYtd = cell.filter(c => c.past).reduce((a, c) => a + c.base, 0);
+    const curYtd = cell.filter(c => c.past).reduce((a, c) => a + c.cur, 0);
+    return { ...l, cell, baseYtd, curYtd, hasLoss: cell.some(c => c.loss), lost, worst: drops[0] || null };
+  });
+  const q = query.trim().toLowerCase();
+  let rows = all.filter(l => (!q || String(l.title).toLowerCase().includes(q) || String(l.id).includes(q))
+    && (filter === 'all' || (filter === 'loss' && l.hasLoss) || (filter === 'gain' && l.cell.some(c => c.gain))));
+  rows = [...rows].sort((a, b) => sort === 'loss' ? b.lost - a.lost : Number(b.base_total) - Number(a.base_total));
+  const hn = data.hidden_new || { count: 0, units: 0 };
+  const pct = (c, b) => (Number(b) > 0 ? Math.round(100 * (Number(c) - Number(b)) / Number(b)) : null);
+  return <section className="ga-y-main ga-y-lm" aria-label="Anúncios mês a mês">
+    <header><div><h3>Anúncios mês a mês</h3>
+      <p>Só anúncios que já vendiam em {base}. Em cada mês: <b>{base}</b> em cinza e <b>{year}</b> em destaque. Vermelho = vendeu bastante em {base} e caiu pela metade ou mais em {year}.</p></div></header>
+    <p className="ga-y-lm-sum"><b>{fmt(data.old_count)}</b> anúncios já vendiam em {base} (mostrando os {all.length} que mais venderam). Fora da tabela: <b>{fmt(hn.count)}</b> anúncios novos de {year} ({fmt(hn.units)} un.), que não têm base de comparação.</p>
+    <div className="ga-y-lm-tools">
+      <div className="ga-y-segs" role="group" aria-label="Filtro">
+        {[['all', 'Todos'], ['loss', 'Caíram bastante'], ['gain', 'Cresceram']].map(([id, t]) => <button key={id} type="button" className={filter === id ? 'is-active' : ''} aria-pressed={filter === id} onClick={() => setFilter(id)}>{t}</button>)}
+      </div>
+      <div className="ga-y-segs" role="group" aria-label="Ordem">
+        {[['base', 'Mais vendidos em ' + base], ['loss', 'Maior perda']].map(([id, t]) => <button key={id} type="button" className={sort === id ? 'is-active' : ''} aria-pressed={sort === id} onClick={() => setSort(id)}>{t}</button>)}
+      </div>
+      <input type="search" placeholder="Buscar nome ou número" value={query} onChange={e => setQuery(e.target.value)} maxLength={80} aria-label="Buscar anúncio" />
+    </div>
+    {rows.length === 0 ? <p className="ga-y-muted">Nenhum anúncio neste filtro.</p> :
+      <div className="ga-y-scroll"><table className="ga-y-lmt">
+        <thead><tr><th>Anúncio</th>{MON.map((m, i) => <th key={m} className={i + 1 > cmon ? 'is-future' : ''}>{m}</th>)}<th title="Mesmo período nos dois anos">Jan–{MON[cmon - 1]}</th></tr></thead>
+        <tbody>{rows.map(l => <tr key={l.id}>
+          <th scope="row"><span className="ga-y-adtitle" title={l.title}>{l.title}</span><small>{l.id}{l.worst ? ' · maior queda: ' + MON[l.worst.m - 1] + ' −' + fmt(l.worst.d) : ''}</small></th>
+          {l.cell.map(c => <td key={c.m} className={'ga-y-lmc' + (c.loss ? (c.zero ? ' is-zero' : ' is-loss') : c.gain ? ' is-gain' : '') + (c.past ? '' : ' is-future')} title={MON[c.m - 1] + ': ' + base + ' ' + fmt(c.base) + ' un. · ' + year + ' ' + (c.past ? fmt(c.cur) + ' un.' : 'ainda não aconteceu')}>
+            <i>{c.base ? fmt(c.base) : '–'}</i><b>{c.past ? (c.cur ? fmt(c.cur) : '0') : ''}</b>
+          </td>)}
+          <td className="ga-y-lmt-tot"><i>{fmt(l.baseYtd)}</i><b>{fmt(l.curYtd)}</b>{pct(l.curYtd, l.baseYtd) != null && <em className={l.curYtd >= l.baseYtd ? 'is-up' : 'is-down'}>{pct(l.curYtd, l.baseYtd) > 0 ? '+' : ''}{pct(l.curYtd, l.baseYtd)}%</em>}</td>
+        </tr>)}</tbody></table></div>}
+    <p className="ga-y-note">Meses que ainda não aconteceram em {year} mostram só o valor de {base} (em cinza), para você ver onde {base} teve pico. A última coluna compara só Jan–{MON[cmon - 1]} nos dois anos.</p>
+  </section>;
+}
