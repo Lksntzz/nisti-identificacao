@@ -20,7 +20,8 @@ Dono: Lucas, leigo em programação. Fala português. O sistema é o NISTI ID e 
 3. Mesclar com squash.
 4. Esperar o workflow "Deploy Production" terminar com sucesso. Não perguntar de novo ao Lucas.
 5. Migração SQL: salvar em `supabase/migrations/` E aplicar manualmente no Supabase. O deploy NÃO aplica migração sozinho. Conferir depois.
-6. O repositório é público: nada de dados de negócio, senhas ou chaves em arquivos.
+6. Se a mudança mexer em tela, tabela, função SQL, rota ou regra de importação do GA, atualizar `docs/MAPA-GA.md` (seção 10 ou a seção correspondente) no MESMO PR. Mudança sem atualizar o mapa não está pronta.
+7. O repositório é público: nada de dados de negócio, senhas ou chaves em arquivos.
 
 ## Banco de dados: regras
 - Função SQL nova: `_v1`, `revoke ... from public, anon, authenticated`, `grant execute ... to service_role`.
