@@ -152,7 +152,7 @@ export default function AnnualListingInsights({platform,year,base,refresh=0}) {
         </div>
         <PairChart rows={months} baseYear={base} year={year} selected={active} onMonth={chooseMonth} maxValue={max}/>
         <div className="gai-scope"><span>{data.as_of?'Comparação até '+dateBR(data.as_of):'Período atual sem dados'}</span>
-          <span>{data.new_ads?.count!=null&&data.current_available?fmt(data.new_ads.count)+' anúncios novos, '+fmt(data.new_ads.units)+' unidades, ficam de fora':'Anúncios novos fora do comparativo'}</span>
+          <span>{!data.base_available?'Sem base para identificar anúncios novos':data.new_ads?.count!=null&&data.current_available?fmt(data.new_ads.count)+' anúncios novos, '+fmt(data.new_ads.units)+' unidades, ficam de fora':'Anúncios novos fora do comparativo'}</span>
         </div>
       </section>
 
