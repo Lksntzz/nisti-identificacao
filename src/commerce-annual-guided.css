@@ -299,3 +299,17 @@ html.ga-dark .ga-y-product-avatar{background:#263b60;border-color:#355b8c}
   .ga-y-comparison-weeks th:nth-child(6),.ga-y-comparison-weeks td:nth-child(6){min-width:45px}
   .ga-y-week-mini-bars{min-width:35px}
 }
+
+/* Menos poluição: cartões do topo enxutos, resumo em uma linha, avisos discretos */
+.ga-y-guided .ga-y-overview-card{min-height:0;padding:14px 16px;gap:8px}
+.ga-y-guided .ga-y-overview-title{font-size:12.5px;font-weight:700;color:var(--gy-muted)}
+.ga-y-guided .ga-y-overview-content{display:block}
+.ga-y-guided .ga-y-kpi-main{font-size:26px;line-height:1.1}
+.ga-y-guided .ga-y-warning-dismissible{padding:6px 10px;font-size:12px}
+.ga-y-guided .ga-y-investigation-summary{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin:10px 0 14px;font-size:13px;color:var(--gy-muted)}
+.ga-y-guided .ga-y-investigation-summary strong{font-size:26px;color:var(--gy-text);letter-spacing:-.02em}
+.ga-y-guided .ga-y-investigation-summary>span{margin-left:auto;font-size:12.5px}
+.ga-y-guided .ga-y-weeks-table td,.ga-y-guided .ga-y-weeks-table th{padding-top:11px;padding-bottom:11px}
+.ga-y-guided .ga-y-weeks-table tbody tr{cursor:pointer}
+.ga-y-guided .ga-y-weeks-table tbody tr.is-selected{background:var(--gy-blue-soft)}
+.ga-y-guided .ga-y-section>.ga-y-note,.ga-y-guided .ga-y-months>.ga-y-note{display:none}

@@ -152,6 +152,9 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Rotas `/sales-compare/annual-seasonality` e `/sales-compare/annual-launches` → funções SQL `commerce_annual_seasonality_v1` e `commerce_annual_launches_v1`, que leem `commerce_current_sales_listing_daily_v1` (vendas por número do anúncio).
 - "Novo" = anúncio (número) sem venda no ano-base inteiro. Mês em andamento: ano anterior cortado na mesma data (usa `periods` da comparação anual).
 
+**Comparação anual: menos poluição visual** (03/11/2026)
+- Cartões do topo sem ícones, mini-gráficos e links "Investigar"; "Investigação do mês" mostra uma linha de resumo (os 3 blocos foram removidos); tabela semanal sem barras e setas; quadro "Produtos da semana" só aparece com uma semana escolhida. Arquivos: `commerce-annual-guided.jsx` e `.css`.
+
 **Atenção ao publicar**
 - Migração em `supabase/migrations/` **não roda sozinha no deploy**. Depois de mesclar, aplicar no Supabase (projeto `yioetdcbgorunwgwuawg`) e conferir.
 - Tabelas de backup no banco sem migração: `bak_cls_20261030_*`, `bak_dup_out2025_*`, `bak_dup_out2026_*`. Apagar só com pedido explícito do dono.

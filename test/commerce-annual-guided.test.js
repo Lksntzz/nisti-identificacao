@@ -149,9 +149,6 @@ test('ganho e perda são explicitamente do ano selecionado contra o ano-base',()
   const css=read('src/commerce-annual-guided.css');
   assert.match(g,/Ganho de \{year\}/);
   assert.match(g,/Perda de \{year\}/);
-  assert.match(g,/\{year\}: \{fmt\(best\.cur\)\} · \{baseYear\}: \{fmt\(best\.base\)\}/);
-  assert.match(g,/\{year\}: \{fmt\(worst\.cur\)\} · \{baseYear\}: \{fmt\(worst\.base\)\}/);
-  assert.match(g,/\{year\} comparado com \{baseYear\} · unidades vendidas/);
   assert.match(g,/ranked\.filter\(p=>p\.diff>0\)/);
   assert.match(g,/ranked\.filter\(p=>p\.diff<0\)/);
   assert.match(g,/baseAvailable&&best/);
@@ -160,21 +157,13 @@ test('ganho e perda são explicitamente do ano selecionado contra o ano-base',()
 });
 
 
-test('investigação do mês reproduz os três indicadores e semanas comparativas da referência',()=>{
+test('investigação do mês mostra um resumo e as semanas comparativas, sem poluição',()=>{
   const g=read('src/commerce-annual-guided.jsx');
   const css=read('src/commerce-annual-guided.css');
-  assert.match(g,/ga-y-investigation-metrics/);
-  assert.match(g,/Resultado do mês/);
-  assert.match(g,/Semanas do mês/);
-  assert.match(g,/Diferença · \{year\} vs\. \{baseYear\}/);
+  assert.match(g,/ga-y-investigation-summary/);
   assert.match(g,/ga-y-comparison-weeks/);
-  assert.match(g,/ga-y-week-mini-bars/);
-  assert.match(g,/ga-y-week-chevron/);
   assert.match(g,/Selecionar mês da investigação/);
   assert.match(g,/Ver dias do mês/);
-  assert.match(css,/\.ga-y-investigation-metrics\{display:grid;grid-template-columns/);
-  assert.match(css,/\.ga-y-week-mini-bars i\.is-base/);
-  assert.match(css,/\.ga-y-week-mini-bars i\.is-current/);
 });
 
 test('dias do mês são carregados sob demanda sem inventar dias zerados',()=>{
