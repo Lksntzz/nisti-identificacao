@@ -189,6 +189,7 @@ export default function GuidedAnnualCompare({
   const mm=String(selectedMonth).padStart(2,'0');
   const periodTitle=dayPick?'Produtos vendidos em '+String(dayPick.day).padStart(2,'0')+'/'+mm:'Produtos da semana '+(week===5?'29+':String((week-1)*7+1).padStart(2,'0')+'–'+Math.min(week*7,daysInMonth(year,selectedMonth)))+' de '+MONTHS[selectedMonth-1].toLowerCase();
   const k=data.kpi||{};
+  const monthsUp=(()=>{const ps=(data.periods||[]).filter(p=>Number(p.key)<=current&&Number(p.base)>0);return {total:ps.length,up:ps.filter(p=>Number(p.cur)>Number(p.base)).length};})();
   const proj=projectionRange(k,data.as_of);
   const today=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
   const behind=daysBehind(data.as_of,today);
@@ -218,7 +219,7 @@ export default function GuidedAnnualCompare({
       {[['compare','Comparação'],['seasonal','Picos e sazonalidade'],['launches','Lançamentos '+year]].map(([id,label])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)}>{label}</button>)}
       {tab==='compare'&&<label className="ga-y-oldtoggle"><input type="checkbox" checked={onlyOld} onChange={e=>setOnlyOld(e.target.checked)}/> Só produtos que já existiam em {baseYear}</label>}
     </div>
-    {tab==='seasonal'&&<Seasonality platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/>}
+    {tab==='seasonal'&&<Seasonality periods={data.periods||[]} platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/>}
     {tab==='launches'&&<Launches platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/>}
     {tab==='compare'&&<>
     {stale&&<p className="ga-y-warning" role="note">Os dados vão até {String(data.as_of).split('-').reverse().join('/')}, há {behind} dias. Importe as vendas mais recentes para os números do mês e dos últimos 28 dias ficarem completos.</p>}
@@ -232,7 +233,7 @@ export default function GuidedAnnualCompare({
     <div className="ga-y-body">
       <div className="ga-y-left">
       <section className="ga-y-main" aria-label="Comparação mensal">
-        <header><div><h3>Comparação mensal</h3><p>{baseYear} versus {year} · unidades vendidas</p></div>
+        <header><div><h3>Comparação mensal</h3><p>{baseYear} versus {year} · unidades vendidas{baseAvailable&&monthsUp.total>0?' · '+monthsUp.up+' de '+monthsUp.total+' meses acima de '+baseYear:''}</p></div>
           <div className="ga-y-head-right"><div className="ga-y-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-current"/>{year}</span></div>
             <div className="ga-y-view-controls" role="group" aria-label="Visualização mensal">
               {['chart','table'].map((mode,i)=><button type="button" key={mode} className={display===mode?'is-active':''} onClick={()=>setDisplay(mode)} aria-pressed={display===mode}>{['Gráfico','Tabela'][i]}</button>)}

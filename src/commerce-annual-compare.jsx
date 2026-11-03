@@ -319,13 +319,13 @@ export function PeriodProducts({platform,curFrom,curTo,baseFrom,baseTo,year,base
   return <div className="ndb-ac-dayprod">
     <h4>{title}</h4>
     {onlyOld&&ns&&Number(ns.count)>0&&<p className="ndb-ac-hidden">Novos ocultos: {num(ns.count)} produtos, {num(ns.cur)} unidades{Number(ns.cur_rev)>0?' ('+money(ns.cur_rev)+')':''}.</p>}
-    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th className="num">Receita {year}</th><th>Anúncio</th></tr></thead>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table ndb-ac-cards"><thead><tr><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Dif.</th><th className="num">Receita {year}</th><th>Anúncio</th></tr></thead>
       <tbody>{rows.map(r=>{const L=productLabel(r.name,r.sku),df=Number(r.cur)-Number(r.base);return <tr key={r.sku}>
-        <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.sku}</small></td>
-        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b><NewTag row={r} base={base}/></td>
-        <td className={'num '+(df>=0?'g':'r')}>{df>=0?'+':'−'}{num(Math.abs(df))}</td><td className="num ndb-ac-mut">{Number(r.cur_rev)>0?money(r.cur_rev):'—'}</td><td><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
+        <td className="c-name"><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.sku}</small></td>
+        <td data-l={base} className="num ndb-ac-mut">{num(r.base)}</td><td data-l={year} className="num"><b>{num(r.cur)}</b><NewTag row={r} base={base}/></td>
+        <td data-l="Dif." className={'num '+(df>=0?'g':'r')}>{df>=0?'+':'−'}{num(Math.abs(df))}</td><td data-l={'Receita '+year} className="num ndb-ac-mut">{Number(r.cur_rev)>0?money(r.cur_rev):'—'}</td><td data-l="Anúncio"><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
         {rows.length===0&&<tr><td colSpan={6} className="ndb-ac-mut">Sem vendas registradas neste período.</td></tr>}
-        {rows.length>0&&<tr className="ndb-ac-total"><td><b>Total{onlyOld?' (antigos)':''}</b></td><td className="num ndb-ac-mut">{num(tot.base)}</td><td className="num"><b>{num(tot.cur)}</b></td><td className={'num '+(tot.cur>=tot.base?'g':'r')}>{tot.cur>=tot.base?'+':'−'}{num(Math.abs(tot.cur-tot.base))}</td><td className="num ndb-ac-mut">{Number(tot.cur_rev)>0?money(tot.cur_rev):'—'}</td><td/></tr>}</tbody></table></div>
+        {rows.length>0&&<tr className="ndb-ac-total"><td><b>Total{onlyOld?' (antigos)':''}</b></td><td data-l={base} className="num ndb-ac-mut">{num(tot.base)}</td><td data-l={year} className="num"><b>{num(tot.cur)}</b></td><td data-l="Dif." className={'num '+(tot.cur>=tot.base?'g':'r')}>{tot.cur>=tot.base?'+':'−'}{num(Math.abs(tot.cur-tot.base))}</td><td data-l={'Receita '+year} className="num ndb-ac-mut">{Number(tot.cur_rev)>0?money(tot.cur_rev):'—'}</td><td/></tr>}</tbody></table></div>
     {rows.length>=40&&<p className="ndb-ac-note">Mostrando os 40 produtos que mais venderam.</p>}
   </div>;
 }
@@ -349,15 +349,15 @@ export function Champions({month,monthData,year,base,loading=false,platform='SHO
       </div></div>
     {oldOk&&ns&&Number(ns.count)>0&&<p className="ndb-ac-hidden">Novos ocultos: {num(ns.count)} produtos, {num(ns.cur)} unidades ({money(ns.cur_rev)}) em {MONTH_FULL[month-1].toLowerCase()}.</p>}
     <p className="ndb-ac-sub">{intro[tab]} Abaixo da receita: preço médio por unidade (receita ÷ unidades, sem frete). “novo” = anúncio sem venda em {base} inteiro; “já vendia” = sem venda neste mês de {base}, mas vendeu em outros meses.</p>
-    <div className="ndb-ac-scroll"><table className="ndb-ac-table"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Variação</th><th className="num" title="Receita dos produtos no mês; abaixo, preço médio por unidade (receita ÷ unidades, sem frete)">Receita {year}</th><th>Anúncio</th></tr></thead>
+    <div className="ndb-ac-scroll"><table className="ndb-ac-table ndb-ac-cards"><thead><tr><th>#</th><th>Produto</th><th className="num">{base}</th><th className="num">{year}</th><th className="num">Variação</th><th className="num" title="Receita dos produtos no mês; abaixo, preço médio por unidade (receita ÷ unidades, sem frete)">Receita {year}</th><th>Anúncio</th></tr></thead>
       <tbody>{rows.map((r,i)=>{const L=productLabel(r.name,r.sku),d=Number(r.cur)-Number(r.base),w=share(useBase?r.base:r.cur,useBase?tot.base:tot.cur);
-        return <tr key={r.sku}><td className="ndb-ac-mut">{i+1}</td>
-        <td><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.category?r.category+' · ':''}{r.sku}</small></td>
-        <td className="num ndb-ac-mut">{num(r.base)}</td><td className="num"><b>{num(r.cur)}</b><NewTag row={r} base={base}/></td>
-        <td className={'num '+(d>=0?'g':'r')}>{d>=0?'+':'−'}{num(Math.abs(d))}{Number(r.base)>0&&<small className="ndb-ac-sub2">{d>=0?'+':'−'}{Math.abs(Math.round(100*d/Number(r.base)))}%</small>}</td>
-        <td className="num"><b>{Number(r.cur_rev)>0?money(r.cur_rev):'—'}</b>{(()=>{const pb=Number(r.base)>0&&Number(r.base_rev)>0?Number(r.base_rev)/Number(r.base):null,pc=Number(r.cur)>0&&Number(r.cur_rev)>0?Number(r.cur_rev)/Number(r.cur):null;
+        return <tr key={r.sku}><td className="ndb-ac-mut c-rank">{i+1}</td>
+        <td className="c-name"><span className="ndb-ac-pn" title={r.name||r.sku}>{L.title}</span><small className="ndb-ac-mut">{L.collection?L.collection+' · ':''}{r.category?r.category+' · ':''}{r.sku}</small></td>
+        <td data-l={base} className="num ndb-ac-mut">{num(r.base)}</td><td data-l={year} className="num"><b>{num(r.cur)}</b><NewTag row={r} base={base}/></td>
+        <td data-l="Variação" className={'num '+(d>=0?'g':'r')}>{d>=0?'+':'−'}{num(Math.abs(d))}{Number(r.base)>0&&<small className="ndb-ac-sub2">{d>=0?'+':'−'}{Math.abs(Math.round(100*d/Number(r.base)))}%</small>}</td>
+        <td data-l={'Receita '+year} className="num"><b>{Number(r.cur_rev)>0?money(r.cur_rev):'—'}</b>{(()=>{const pb=Number(r.base)>0&&Number(r.base_rev)>0?Number(r.base_rev)/Number(r.base):null,pc=Number(r.cur)>0&&Number(r.cur_rev)>0?Number(r.cur_rev)/Number(r.cur):null;
           return pc==null?null:<small className="ndb-ac-mut ndb-ac-sub2">{money(pc)}/un.{pb!=null&&<> · antes {money(pb)}</>}</small>;})()}</td>
-        <td><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
+        <td data-l="Anúncio"><ProductLinks links={r.links} platform={platform}/></td></tr>;})}
         {rows.length===0&&<tr><td colSpan={7} className="ndb-ac-mut">{loading?'Carregando produtos do mês…':'Nenhum produto nesta lista.'}</td></tr>}</tbody></table></div>
   </section>;
 }

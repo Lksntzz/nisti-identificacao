@@ -207,3 +207,29 @@ html.ga-dark .ndb-ac-table tbody tr:hover td{background:#1d2a40}
 .ga-y-chart{align-items:stretch;min-height:300px}
 .ga-y-chart-month{height:280px;min-height:0}
 .ga-y-chart-pair{min-height:200px;max-height:none}
+
+/* Celular: tabelas de produtos viram cartões (sem rolagem lateral) */
+@media(max-width:760px){
+  .ndb-ac-cards,.ndb-ac-cards tbody{display:block;width:100%;min-width:0}
+  .ndb-ac-cards thead{display:none}
+  .ndb-ac-cards tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;padding:10px 4px;border-bottom:1px solid var(--gy-line,#e5e9f0)}
+  .ndb-ac-cards td{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0!important;border:0!important;text-align:right}
+  .ndb-ac-cards td[data-l]::before{content:attr(data-l);color:var(--gy-muted,#667085);font-size:11px;font-weight:600;text-align:left}
+  .ndb-ac-cards td.c-name{grid-column:1/-1;display:block;text-align:left}
+  .ndb-ac-cards td.c-rank{display:none}
+  .ndb-ac-cards td.c-name .ndb-ac-pn{white-space:normal;display:block;font-weight:650}
+  .ndb-ac-cards tr.ndb-ac-total{background:var(--gy-soft,#f5f7fa)}
+  .ndb-ac-cards tr.ndb-ac-total td:first-child{grid-column:1/-1;display:block;text-align:left}
+  .ga-y-chart{padding-right:4px;padding-left:4px;gap:2px;overflow:hidden}
+  .ga-y-chart-month{max-width:none;min-width:0}
+}
+@media(max-width:760px){
+  .ga-y-chart-delta{font-size:8.5px;letter-spacing:-.3px}
+  .ga-y-chart-label{font-size:11px}
+  .ndb-ac-cards td[data-l^="Receita"]{grid-column:1/-1}
+  .ndb-ac-cards td[data-l="Anúncio"]{grid-column:1/-1}
+  .ndb-ac-cards td .ndb-ac-sub2{display:block}
+  .ga-y-mb small{display:none}
+  .ga-y-heat th:first-child{min-width:130px;max-width:130px}
+  .ga-y-heat .ga-y-adtitle{max-width:120px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}

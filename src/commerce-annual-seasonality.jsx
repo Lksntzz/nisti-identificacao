@@ -48,7 +48,7 @@ function PeakList({ title, list, fmt }) {
   </div>;
 }
 
-export function Seasonality({ platform, year, base, refresh, fmt, amount }) {
+export function Seasonality({ platform, year, base, refresh, fmt, amount, periods = [] }) {
   const { loading, error, data } = useFetch('/api/admin/commerce/sales-compare/annual-seasonality?' + qs(platform, year, base), [platform, year, base, refresh]);
   if (loading) return <p className="ga-y-muted" role="status">Calculando picos e sazonalidade…</p>;
   if (error) return <div className="ga-y-error" role="alert"><span>{error}</span></div>;
@@ -64,14 +64,17 @@ export function Seasonality({ platform, year, base, refresh, fmt, amount }) {
       <div className="ga-y-monthbars" role="list">
         {months.map(m => {
           const partial = Number(m.cur_days) > 0 && Number(m.cur_days) < new Date(year, Number(m.m), 0).getDate();
-          return <div role="listitem" key={m.m} className="ga-y-mb">
-            <span className="ga-y-mb-bars" aria-hidden="true"><i className="is-base" style={{ height: 100 * Number(m.base) / maxM + '%' }} /><i className="is-current" style={{ height: 100 * Number(m.cur) / maxM + '%' }} /></span>
+          // Mês em andamento: o ano anterior é cortado na mesma data (vem da comparação mensal), não o mês inteiro.
+          const cutP = partial ? periods.find(p => Number(p.key) === Number(m.m)) : null;
+          const baseShown = cutP ? Number(cutP.base) : Number(m.base);
+          return <div role="listitem" key={m.m} className="ga-y-mb" title={cutP ? MON[m.m - 1] + '/' + base + ' até a mesma data: ' + fmt(baseShown) + ' un. (mês inteiro: ' + fmt(m.base) + ')' : undefined}>
+            <span className="ga-y-mb-bars" aria-hidden="true"><i className="is-base" style={{ height: 100 * baseShown / maxM + '%' }} /><i className="is-current" style={{ height: 100 * Number(m.cur) / maxM + '%' }} /></span>
             <b>{MON[m.m - 1]}</b>
-            <small>{fmt(m.base)}</small><small>{Number(m.cur) > 0 ? fmt(m.cur) : '—'}{partial ? '*' : ''}</small>
+            <small>{fmt(baseShown)}{cutP ? '*' : ''}</small><small>{Number(m.cur) > 0 ? fmt(m.cur) : '—'}{partial ? '*' : ''}</small>
           </div>;
         })}
       </div>
-      <p className="ga-y-note">Barra clara = {base}; barra escura = {year}. * mês em andamento ({year}). Novembro e dezembro de {year} ainda não aconteceram: só dá para confirmar o pico do fim do ano quando eles fecharem.</p>
+      <p className="ga-y-note">Barra clara = {base}; barra escura = {year}. * mês em andamento: {year} até o último dia importado e {base} cortado na mesma data. Novembro e dezembro de {year} ainda não aconteceram: só dá para confirmar o pico do fim do ano quando eles fecharem.</p>
     </section>
 
     <section className="ga-y-main" aria-label="Calendário de picos por anúncio">
