@@ -147,6 +147,11 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Só o login real (POST em `/admin-login`) gera aviso de sessão iniciada. Abrir a página de login (GET) é robô e é ignorado. Recusa de fora do Brasil recebe título próprio.
 - Registros GET antigos (cerca de 380 até 03/11) continuam no histórico.
 
+**Comparação anual: abas Picos e sazonalidade / Lançamentos** (03/11/2026)
+- Telas dentro de `commerce-annual-guided.jsx`: abas "Comparação", "Picos e sazonalidade" e "Lançamentos {ano}". Código das duas abas em `commerce-annual-seasonality.jsx` (+ `commerce-annual-seasonality.css`, estilos com escopo `.ga-y-extra`).
+- Rotas `/sales-compare/annual-seasonality` e `/sales-compare/annual-launches` → funções SQL `commerce_annual_seasonality_v1` e `commerce_annual_launches_v1`, que leem `commerce_current_sales_listing_daily_v1` (vendas por número do anúncio).
+- "Novo" = anúncio (número) sem venda no ano-base inteiro. Mês em andamento: ano anterior cortado na mesma data (usa `periods` da comparação anual).
+
 **Atenção ao publicar**
 - Migração em `supabase/migrations/` **não roda sozinha no deploy**. Depois de mesclar, aplicar no Supabase (projeto `yioetdcbgorunwgwuawg`) e conferir.
 - Tabelas de backup no banco sem migração: `bak_cls_20261030_*`, `bak_dup_out2025_*`, `bak_dup_out2026_*`. Apagar só com pedido explícito do dono.
