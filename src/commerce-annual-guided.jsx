@@ -5,7 +5,7 @@ import PeriodPicker from './commerce-period-picker.jsx';
 import {daysBehind, productLabel} from './commerce-annual-compare-helpers.js';
 import './commerce-annual-guided.css';
 import './commerce-annual-seasonality.css';
-import {Seasonality,Launches,ListingMonths} from './commerce-annual-seasonality.jsx';
+import {Seasonality,Launches,MonthHealth} from './commerce-annual-seasonality.jsx';
 
 // Painel GA: apenas unidades; nenhuma projeção ou faturamento é exibida.
 // O ano anterior sem vendas não comprova que o anúncio foi criado recentemente.
@@ -302,7 +302,7 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
     <div className="ga-y-tabs" role="tablist" aria-label="Seções da comparação anual">
       {[['months','Anúncio por mês'],['compare','Resumo do ano'],['seasonal','Picos e sazonalidade'],['launches','Lançamentos '+year]].map(([id,label])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'is-active':''} onClick={()=>setTab(id)}>{label}</button>)}
     </div>
-    {tab==='months'&&<div className="ga-y-extra"><ListingMonths platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt}/></div>}
+    {tab==='months'&&<div className="ga-y-extra"><MonthHealth platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt}/></div>}
     {tab==='seasonal'&&<div className="ga-y-extra"><Seasonality periods={data.periods||[]} platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/></div>}
     {tab==='launches'&&<div className="ga-y-extra"><Launches platform={filters.platform} year={year} base={baseYear} refresh={refresh} fmt={fmt} amount={amount}/></div>}
     {tab==='compare'&&<>
