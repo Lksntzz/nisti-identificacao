@@ -97,3 +97,5 @@
 /* Mantém a barra de filtros integrada ao tema escuro do GA. */
 .ga-dark .ga-y-guided .ga-y-toolbar.annual-header-bar{background:#151f31!important;border-color:#29364b!important;color:#e6edf8}
 .ga-dark .ga-y-guided .annual-sync-badge{color:#98abc4}
+.ga-dark .ga-y-guided .annual-header-bar .ndb-dd-btn span{color:#b6c6dd}
+.ga-dark .ga-y-guided .annual-header-bar .ndb-dd-btn b{color:#e6edf8}
