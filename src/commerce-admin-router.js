@@ -39,7 +39,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualListingMonths, commerceAnnualMonthHealth, commerceAnnualWindow, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
+  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualListingMonths, commerceAnnualMonthHealth, commerceAnnualListingInsights, commerceAnnualWindow, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -588,6 +588,22 @@ async function handleCommerceAdminRequestUncached(request, env) {
       const opts={platform,year,mode,month,days};
       if(pathname.endsWith('categories-col'))return json(await commerceCategoriesCol(env,{...opts,cat,col:subName}));
       return json(sub?await commerceCategoriesSub(env,{...opts,cat,sub:subName}):await commerceCategories(env,opts));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-listing-insights'){
+      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
+      const year=Number(query(url,'year')),base=Number(query(url,'base'));
+      const min=Number(query(url,'min')||20),month=Number(query(url,'month')||1);
+      const listing=String(query(url,'listing')||'').trim();
+      const listingPlatform=String(query(url,'listing_platform')||'').toUpperCase();
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)
+        ||!Number.isInteger(year)||year<2021||year>2100
+        ||base!==year-1||![10,20,50,100].includes(min)
+        ||!Number.isInteger(month)||month<1||month>12
+        ||listing.length>100
+        ||(listing&&!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(listingPlatform))
+        ||(platform!=='TODAS'&&listing&&listingPlatform!==platform))
+        return json({error:'Filtros inválidos para a comparação por anúncio.'},400);
+      return json(await commerceAnnualListingInsights(env,{platform,year,base,min,month,listing,listingPlatform}));
     }
     if(method==='GET'&&(pathname===BASE_PATH+'/sales-compare/annual-seasonality'||pathname===BASE_PATH+'/sales-compare/annual-launches'||pathname===BASE_PATH+'/sales-compare/annual-listing-months'||pathname===BASE_PATH+'/sales-compare/annual-month-health')){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
