@@ -1308,6 +1308,16 @@ export async function commerceAnnualListingMonths(env,{platform='SHOPEE',year=nu
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{listings:[],old_count:0,hidden_new:{count:0,units:0}};
 }
 
+export async function commerceAnnualListingInsights(env,{platform='SHOPEE',year=null,base=null,min=20,month=1,listing=null,listingPlatform=null}={}) {
+  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
+  const mn=[10,20,50,100].includes(Number(min))?Number(min):20;
+  const data=await supabaseRpc(env,'commerce_annual_listing_insights_v1',{
+    p_platform:plat,p_year:year||null,p_base:base||null,p_min:mn,p_month:month,
+    p_listing_id:listing||null,p_listing_platform:listingPlatform||null
+  },{timeoutMs:30000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[],old_count:0,base_available:false,current_available:false};
+}
+
 export async function commerceAnnualMonthHealth(env,{platform='SHOPEE',year=null,base=null,min=20}={}) {
   const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
   const mn=Math.min(1000,Math.max(1,Number(min)||20));
