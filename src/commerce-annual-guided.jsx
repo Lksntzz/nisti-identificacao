@@ -287,11 +287,11 @@ export default function GuidedAnnualCompare({data,monthData,filters,setFilters,r
   const sortedWeekRows=cleanRows(weekState.data?.products).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase())).sort((a,b)=>weekRank==='down'?(Number(a.cur)-Number(a.base))-(Number(b.cur)-Number(b.base)):weekRank==='up'?(Number(b.cur)-Number(b.base))-(Number(a.cur)-Number(a.base)):Number(b.cur)-Number(a.cur));
   const rawWin=cleanRows(winProducts.data?.products).filter(r=>!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||String(r.sku||'').toLowerCase().includes(query.toLowerCase()));
   return <div className="ga-y-guided">
-    <div className="ga-y-toolbar">
+    <div className="ga-y-toolbar annual-header-bar">
       <Dropdown label="Plataforma" value={filters.platform} options={PLATFORMS} onChange={p=>update({platform:p})}/>
       <Dropdown label="Comparação" value={String(year)} options={yearChoices.map(y=>[String(y),y+' × '+(y-1)])} onChange={y=>update({year:Number(y),base:Number(y)-1,month:'',days:0})}/>
       <PeriodPicker days={days} month={windowMode?'':iso(year,selectedMonth,1).slice(0,7)} periods={[7,30,60,90]} allowAll={false} available={MONTHS.map((_,i)=>iso(year,i+1,1).slice(0,7)).filter((_,i)=>i<current)} onDays={n=>update({days:n,month:''})} onMonth={key=>chooseMonth(Number(String(key).slice(5,7)))}/>
-      <span className="ga-y-asof">Dados até {asOf.split('-').reverse().join('/')||'—'}</span>
+      <span className="ga-y-asof annual-sync-badge"><span className="sync-dot" aria-hidden="true"></span>Dados até {asOf.split('-').reverse().join('/')||'—'}</span>
     </div>
     {late>=2&&!dismissedWarnings['stale:'+asOf]&&<DismissibleWarning label="Fechar aviso de importações desatualizadas" onClose={()=>setDismissedWarnings(p=>({...p,['stale:'+asOf]:true}))}>Importações desatualizadas: o último dado é de {asOf.split('-').reverse().join('/')}. Os resultados recentes podem estar incompletos.</DismissibleWarning>}
     {!baseAvailable&&!dismissedWarnings['coverage:'+filters.platform+':'+baseYear]&&<DismissibleWarning label="Fechar aviso de histórico incompleto" onClose={()=>setDismissedWarnings(p=>({...p,['coverage:'+filters.platform+':'+baseYear]:true}))}>Sem cobertura confirmada de {baseYear} para todas as plataformas escolhidas. Comparações de crescimento exigem histórico importado.</DismissibleWarning>}
