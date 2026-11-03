@@ -155,6 +155,9 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 **Comparação anual: menos poluição visual** (03/11/2026)
 - Cartões do topo sem ícones, mini-gráficos e links "Investigar"; "Investigação do mês" mostra uma linha de resumo (os 3 blocos foram removidos); tabela semanal sem barras e setas; quadro "Produtos da semana" só aparece com uma semana escolhida. Arquivos: `commerce-annual-guided.jsx` e `.css`.
 
+**Comparação anual: painel em uma coluna** (03/11/2026)
+- Faixa de 4 números sem caixas; gráfico mensal em largura total; abaixo, o detalhe do mês escolhido em abas "Semanas" e "Anúncios" (antes ficavam lado a lado). Removidos os botões "Em alta/Em queda" acima do gráfico (o cartão "Meses em alta / queda" faz o mesmo filtro).
+
 **Atenção ao publicar**
 - Migração em `supabase/migrations/` **não roda sozinha no deploy**. Depois de mesclar, aplicar no Supabase (projeto `yioetdcbgorunwgwuawg`) e conferir.
 - Tabelas de backup no banco sem migração: `bak_cls_20261030_*`, `bak_dup_out2025_*`, `bak_dup_out2026_*`. Apagar só com pedido explícito do dono.
