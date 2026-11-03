@@ -168,3 +168,12 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Tabelas de backup no banco sem migração: `bak_cls_20261030_*`, `bak_dup_out2025_*`, `bak_dup_out2026_*`. Apagar só com pedido explícito do dono.
 - Existe um segundo projeto Supabase de teste (`ppzimdxufmiepxurckfu`, região Ohio, outro app). Não faz parte do NISTI.
 
+
+**Comparação anual por ID do anúncio — versão proposta em branch** (03/11/2026)
+- A nova aba inicial "Visão por anúncio" fica em `src/commerce-annual-insights.jsx`, com CSS próprio `commerce-annual-insights.css`. As abas legadas e Categorias permanecem intactas.
+- API administrativa `GET /sales-compare/annual-listing-insights` → `commerceAnnualListingInsights` → `public.commerce_annual_listing_insights_v1`, migração `20261103180000`.
+- Grupo comparável: pares `(platform_code, external_listing_id)` com alguma venda positiva no ano-base inteiro. SKU não é chave. Anúncio antigo zerado no ano atual continua visível com "Parou de vender". Anúncios novos não entram em totais, gráficos, taxas ou card de queda; aparecem somente no resumo separado de quantidade e unidades.
+- Cada mês compara mesmas datas; mês parcial do ano-base é cortado no mesmo dia, respeitando a quantidade de dias daquele mês. Mês futuro mantém somente a barra antiga. Se base ou dados atuais não existem, não converter ausência em zero.
+- Selecionar mês revela cartões de anúncios que atingiram N unidades no ano-base (N em 10/20/50/100, padrão 20), filtráveis por ganho, perda e zero. Selecionar cartão carrega série desse par anúncio/plataforma ao longo dos 12 meses. Nos resumos não há lista de anúncios.
+- O aviso de possível migração de vendas para novos anúncios é **hipótese, não confirmação**. Informação de importações desatualizadas é pequena e observa a última data de venda (não garante completude de importação).
+- **Antes de mesclar:** revisar SQL e testes no PR, aplicar migração ao Supabase de forma controlada e validar visualmente em desktop/390px. A implantação da migração é manual, não automática. Sem aplicação da migração, a nova tela retornará erro ao consultar a RPC.
