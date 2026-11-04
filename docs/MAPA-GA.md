@@ -208,3 +208,5 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 **Categorias: variações maiores e card sem espaço vazio (04/11/2026)** — fontes, miniaturas e linhas das variações aumentadas; no desktop o card "Comparação por categoria" tem altura própria e acompanha a rolagem (`position:sticky`) em vez de esticar até a altura do detalhe.
 
 **Categorias: variações em painel lateral (04/11/2026)** — clicar numa coleção abre um painel lateral à direita (`ndb-cp-drawer`) com a tabela de variações (Ano até hoje / mês, paginação). Fecha com ✕, clique fora ou Esc; fechar não desfaz a coleção escolhida nos gráficos. As linhas da tabela de coleções não expandem mais, então os dois cards ficam com altura própria, sem espaço vazio.
+
+**Categorias: meses que mais venderam no painel lateral (04/11/2026)** — o painel lateral mostra, no topo, os 5 meses de maior venda da categoria e da coleção (ano atual × anterior, mesmas datas), calculados no navegador a partir de `category_months` e `collection_months`. Sem rota ou SQL novos.
