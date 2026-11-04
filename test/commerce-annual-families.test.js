@@ -62,6 +62,8 @@ test('report so atribui SKU com proprietario unico e nao mistura ano da edicao c
   assert.match(sql,/commerce_current_sales_listing_daily_v1/);
   assert.match(sql,/t\.sales_month as month/);
   assert.match(sql,/unclassified_cur_units/);
+  assert.match(sql,/unmapped_cur_units/);
+  assert.match(sql,/without_family_cur_units/);
   assert.match(sql,/platforms_not_comparable/);
   assert.match(sql,/platform_coverage/);
   assert.match(sql,/revoke all on function public\.commerce_annual_family_report_v1[^;]*from public,anon,authenticated/i);

@@ -20,7 +20,7 @@ No GA: `Comparação anual > Famílias e edições`.
 - Fonte: `commerce_current_sales_listing_daily_v1` (lotes de vendas importados e válidos).
 - O **ano da venda** vem de `sale_date` e determina a coluna 2025/2026. O **ano da edição** vem de `commerce_products.edition_year` e é apenas uma característica do Produto Mestre.
 - O SKU da venda é associado ao Produto Mestre somente quando sua chave canônica tem proprietário único **na vigência declarada para o ano da venda**. SKU ausente, ambíguo ou potencialmente anacrônico não entra em nenhuma família.
-- Um produto de edição anual 2027 não recebe venda de 2025 só porque o código possui um alias histórico. As vendas não atribuídas permanecem contadas como **sem família**, nunca fabricadas como zero.
+- Um produto de edição anual 2027 não recebe venda de 2025 só porque o código possui um alias histórico. As vendas não atribuídas permanecem contadas como **sem família**, nunca fabricadas como zero. O relatório separa unidades sem Produto Mestre identificável das unidades com Produto Mestre ainda não vinculado à família.
 - `MERCADO_LIVRE` soma `ML_ANTIGO` e `ML_NOVO`, mas preserva a conta real no detalhamento.
 - A comparação do ano atual usa o último dia de venda disponível no ano selecionado, cortando o ano-base na data equivalente. Não chama mês futuro de zero. `TODAS` pode combinar fontes com coberturas diferentes, por isso a tela mostra aviso e datas com registros por conta/ano.
 - Datas inicial/final de registros não são garantia de importação completa. Validar os lotes antes de decisões de estoque, coleção ou precificação.

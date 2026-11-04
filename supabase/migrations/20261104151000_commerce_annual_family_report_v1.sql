@@ -32,7 +32,10 @@ with prm as (
   group by public.commerce_sku_canon_v1(s.sku),y.sales_year
   having count(distinct s.product_id)=1
 ), tagged as materialized (
-  select s.*, o.product_id, m.family_id
+  select s.*,
+    case when p.temporal_type='ANNUAL' and p.edition_year>s.sales_year+1
+      then null else o.product_id end product_id,
+    m.family_id
   from source_sales s
   left join sku_owners o on o.sku_key=s.sku_key and o.sales_year=s.sales_year
   left join public.commerce_products p on p.id=o.product_id
@@ -106,7 +109,11 @@ with prm as (
     coalesce(sum(revenue) filter(where side='cur'),0)::numeric(16,2) cur_revenue,
     coalesce(sum(revenue) filter(where side='base'),0)::numeric(16,2) base_revenue,
     coalesce(sum(units) filter(where side='cur' and family_id is null),0)::bigint unclassified_cur_units,
-    coalesce(sum(units) filter(where side='base' and family_id is null),0)::bigint unclassified_base_units
+    coalesce(sum(units) filter(where side='base' and family_id is null),0)::bigint unclassified_base_units,
+    coalesce(sum(units) filter(where side='cur' and product_id is null),0)::bigint unmapped_cur_units,
+    coalesce(sum(units) filter(where side='base' and product_id is null),0)::bigint unmapped_base_units,
+    coalesce(sum(units) filter(where side='cur' and product_id is not null and family_id is null),0)::bigint without_family_cur_units,
+    coalesce(sum(units) filter(where side='base' and product_id is not null and family_id is null),0)::bigint without_family_base_units
   from relevant
 )
 select jsonb_build_object(

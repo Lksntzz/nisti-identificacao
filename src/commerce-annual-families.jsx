@@ -189,7 +189,7 @@ export default function CommerceAnnualFamilies({refresh=0}){
                 <td>{report.base_available&&report.current_available?percent(f.cur_units,f.base_units):'—'}</td>
               </tr>)}
             </tbody></table></div>}
-          <p className="gaf-muted">Unidades sem família: {num(report.overall?.unclassified_cur_units)} em {year}. Permanecem fora do ranking até revisão; não são tratadas como zero vendas.</p>
+          {report.current_available&&<p className="gaf-muted">Das vendas de {year}, {num(report.overall?.unclassified_cur_units)} unidades ainda estão fora das famílias: {num(report.overall?.without_family_cur_units)} têm Produto Mestre identificado, mas aguardam classificação; {num(report.overall?.unmapped_cur_units)} não possuem identificação segura de Produto Mestre. Essas vendas não são tratadas como zero nem atribuídas a outra família.</p>}
         </section>
         {selected&&<section className="gaf-panel"><div className="gaf-section-head"><div><h3>{selected.name} · edições e anúncios</h3><p>Compare o mesmo mês de cada ano, mantendo separadas as capas, os SKUs e os anúncios.</p></div><div className="gaf-detail-tools"><label>Período do detalhe<select value={detailMonth} onChange={e=>setDetailMonth(e.target.value)}><option value="">Ano inteiro</option>{MONTHS.map((m,i)=><option value={i+1} key={m}>{m} · {year-1} × {year}</option>)}</select></label><button className="gaf-secondary" onClick={()=>setFamilyId('')}>Todas as famílias</button></div></div>
           <div className="gaf-table-scroll"><table><thead><tr><th>Produto / capa</th><th>Edição</th><th>SKU</th><th>Marketplace / anúncio</th><th>{year-1} · un.</th><th>{year} · un.</th><th>Receita {year}</th></tr></thead><tbody>
