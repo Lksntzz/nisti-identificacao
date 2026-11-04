@@ -15,7 +15,7 @@
 .ndb-cp-search{display:flex;align-items:center;gap:6px;border:1px solid var(--cp-border);background:#fff;border-radius:8px;padding:0 8px;color:var(--cp-muted);min-height:36px}
 .ndb-cp-search input{border:0;background:transparent;outline:0;min-width:120px;max-width:180px;font-size:11px;color:var(--cp-ink)}
 .ndb-cp-period{font-size:10.5px;color:var(--cp-muted);margin:-3px 2px 1px}
-.ndb-cp-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ndb-cp-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .ndb-cp-metric{display:flex;align-items:flex-start;gap:10px;width:100%;min-width:0;min-height:98px;border:1px solid var(--cp-border);border-radius:12px;padding:11px;background:#fff;color:var(--cp-ink);text-align:left}
 button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;background:#f9fbff}
 .ndb-cp-metric-icon{width:37px;height:37px;flex:0 0 37px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e8f2ff;color:#176bda}
@@ -119,7 +119,7 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
   .ndb-cp-stats b{font-size:13px}
 }
 @media(max-width:1200px){
-  .ndb-cp-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ndb-cp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .ndb-cp-main,.ndb-cp-visual-grid{grid-template-columns:1fr}
   .ndb-cp-stats b{font-size:16px}
 }
@@ -223,3 +223,8 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-scope button.is-on{background:#2563eb;border-color:#2563eb;color:#fff}
 .ndb-cp-variations-title{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
 @media(min-width:681px){.ndb-cp-visual-grid>.ndb-cp-panel:last-child:nth-child(odd){grid-column:1/-1}}
+
+/* Cartões do topo: mesma altura, valor em uma linha (nome completo no hover) */
+.ndb-cp-metric{align-items:center;min-height:84px}
+.ndb-cp-metric-main strong{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+.ndb-cp-metric-main span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
