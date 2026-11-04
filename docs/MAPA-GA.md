@@ -185,3 +185,9 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Aplicado: `CONFINCOLBB`→`CONFINCOLBXB` e `CONFINBCOBB`→`CONFINBCOBXB` (migração `20261104170000_commerce_sku_alias_confin_bb.sql`).
 - Também aplicado: `CONFINMOEPP`→`CONFINMOEPXP` (migração `20261104180000_commerce_sku_alias_confinmoe_pp.sql`).
 - Categorias: variações da coleção agora aparecem em tabela compacta (Variação, ano base, ano atual, Diferença, Var.).
+
+**Categorias: tela mais enxuta (04/11/2026)** — `src/commerce-categories-panel.jsx`
+- Listas de categorias, coleções e variações paginadas (10 por página, componente `Pager`).
+- Resumo da categoria: clicar em 2026/2025 abre o melhor mês e a melhor semana (do mês em destaque) daquele ano. Novos blocos "Quem explica a variação" (2 coleções com maior diferença) e "Peso dos lançamentos" (% das unidades vindas de coleções sem vendas no ano-base). Calculados no navegador a partir das coleções já carregadas; sem rota ou SQL novos.
+- Tabela mensal mostra só o mês em destaque; link "Ver todos os meses" abre os 12.
+- Removidos: cartão "Coleção em queda" e a seção "Produtos e itens do período" (repetia as variações).
