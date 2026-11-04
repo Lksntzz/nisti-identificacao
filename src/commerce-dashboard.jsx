@@ -527,15 +527,28 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     ['abc','Curva ABC',null],
     ['cohorts','Cadastros por mês',null]
   ];
+  const SITUATION_TABS=['best','drops','stopped','nosales'];
+  const TAB_BAR=TABS.filter(t=>!SITUATION_TABS.includes(t[0]));
+  const countOf=k=>{const c=TABS.find(t=>t[0]===k)?.[2];return c!=null?' ('+num(c)+')':'';};
+  const situationOptions=[
+    ...(SITUATION_TABS.includes(tab)?[]:[['__none','Selecione…']]),
+    ['best','Melhores produtos'],
+    ['drops','Em queda'+countOf('drops'),all?'Escolha um período de 30, 60 ou 90 dias':null],
+    ['stopped','Pararam'+countOf('stopped'),all?'Escolha um período de 30, 60 ou 90 dias':(!overview?'Consulta indisponível':null)],
+    ['nosales','Sem vendas'+countOf('nosales'),!overview?'Consulta indisponível':null]
+  ];
+  const pickSituation=v=>{if(v==='__none')return;setTab(v);};
   const TAB_SOURCE={best:'best',drops:'drops',stopped:'alerts',nosales:'alerts',abc:'abc',cohorts:'cohorts'};
   const bestAll=[...top].filter(hit).sort((x,y)=>Number(y.units)-Number(x.units));
   const availableMonths=(rowsAll||monthly?.months||[]).filter(r=>!rowsAll||hasSales(r,platform)).map(m=>String(m.month).slice(0,7));
   const yearMonths=(monthly?.months||[]).filter(r=>!yearSel||String(r.month).startsWith(month));
   const splitRows=(all||yearSel)?yearMonths:series?.daily;
   const filters=<>
+    {mode==='explorer'&&<Dropdown label="Plataforma" value={platform} options={platformOptions} onChange={setPlatform}/>}
+    {mode==='explorer'&&<Dropdown label="Situação" value={SITUATION_TABS.includes(tab)?tab:'__none'} options={situationOptions} onChange={pickSituation}/>}
     <PeriodPicker days={days} month={month} periods={PERIODS} available={availableMonths} yearOption onDays={v=>{setMonth('');setDays(v);}} onMonth={setMonth}/>
     <InfoIcon text={SOURCES.period} label="Período"/>
-    <Dropdown label="Plataforma" value={platform} options={platformOptions} onChange={setPlatform}/>
+    {mode!=='explorer'&&<Dropdown label="Plataforma" value={platform} options={platformOptions} onChange={setPlatform}/>}
     {mode==='explorer'&&<label className="ndb-search" title="Busca nos anúncios que aparecem nas listas abaixo (nome, SKU ou código do anúncio).">
       <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Produto, SKU ou código" aria-label="Buscar produto, SKU ou código do anúncio"/>
     </label>}
@@ -592,7 +605,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
         </Panel>}
         {mode==='explorer'&&<section className="ndb-panel ndb-explorer">
           <header className="ndb-tabs-head">
-            <div className="ndb-tabs" role="tablist" aria-label="Detalhes">{TABS.map(([k,l,c])=><button key={k} type="button" role="tab" aria-selected={tab===k} className={tab===k?'is-active':''} onClick={()=>setTab(k)}>{l}{c!=null&&<em>{num(c)}</em>}</button>)}</div>
+            <div className="ndb-tabs" role="tablist" aria-label="Detalhes">{TAB_BAR.map(([k,l,c])=><button key={k} type="button" role="tab" aria-selected={tab===k} className={tab===k?'is-active':''} onClick={()=>setTab(k)}>{l}{c!=null&&<em>{num(c)}</em>}</button>)}</div>
             <InfoIcon text={SOURCES[TAB_SOURCE[tab]]+(tab==='best'&&perfNotes.length>0?' Visitas e Conversão vêm dos relatórios de desempenho importados ('+perfNotes.join(' · ')+') e valem para o período de cada relatório, não para o filtro acima. ML: vendas ÷ visitas; Shopee: pedidos feitos ÷ visitantes.':'')} label={TABS.find(t=>t[0]===tab)[1]}/>
           </header>
           {tab==='best'&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th>{multi&&<th>Plataforma</th>}<th className="num">Unidades</th><th className="num">Faturamento</th><th className="num" title="Visitas únicas no período do relatório de desempenho importado de cada plataforma">Visitas</th><th className="num" title="Mercado Livre: vendas ÷ visitas. Shopee: pedidos feitos ÷ visitantes (inclui cancelados depois)">Conversão</th><th title="Unidades por semana de 7 dias: três semanas atrás, duas, uma e a semana atual (a barra azul). O % ao lado compara a semana atual com a anterior.">Vendas por semana</th><th title="Mês com mais unidades vendidas deste anúncio, em todo o histórico importado. Clique para comparar os meses.">Melhor mês</th></tr></thead><tbody>
