@@ -183,4 +183,5 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 **Unificação de SKUs duplicados (04/11/2026)**
 - Quando o mesmo produto aparece com dois códigos (ex.: final `BB` sem referência do tassel e final `BXB`), o jeito certo é uma linha na tabela `commerce_sku_alias_v1` (`old_sku` → `new_sku`, sem espaços/underscore, maiúsculas). A função `commerce_sku_canon_v1` aplica isso nas telas de Categorias/Comparação anual.
 - Aplicado: `CONFINCOLBB`→`CONFINCOLBXB` e `CONFINBCOBB`→`CONFINBCOBXB` (migração `20261104170000_commerce_sku_alias_confin_bb.sql`).
+- Também aplicado: `CONFINMOEPP`→`CONFINMOEPXP` (migração `20261104180000_commerce_sku_alias_confinmoe_pp.sql`).
 - Categorias: variações da coleção agora aparecem em tabela compacta (Variação, ano base, ano atual, Diferença, Var.).
