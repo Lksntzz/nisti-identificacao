@@ -98,6 +98,13 @@ function Seasonality({points,onSelect,selected,year,baseYear}){
     </g>)}
   </svg><div className="ndb-cp-season-actions">{points.map(p=><button type="button" key={p.month} title={'Selecionar '+MONTHS[p.month-1]} aria-label={'Selecionar '+MONTHS[p.month-1]} className={selected===p.month?'is-active':''} disabled={p.cur==null} onClick={()=>onSelect(p.month)} />)}</div></div>;
 }
+const PAGE_SIZE=10;
+const pageOf=(list,page)=>{const pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE)),n=Math.min(Math.max(1,page),pages);return {n,pages,items:list.slice((n-1)*PAGE_SIZE,n*PAGE_SIZE)};};
+function Pager({page,total,onPage}) {
+  const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  if(pages<=1)return null;
+  return <div className="ndb-cp-pager" role="navigation" aria-label="Paginação"><button type="button" disabled={page<=1} onClick={()=>onPage(page-1)}>‹ Anterior</button><span>Página {page} de {pages} · {fmt(total)} itens</span><button type="button" disabled={page>=pages} onClick={()=>onPage(page+1)}>Próxima ›</button></div>;
+}
 function DetailTable({heads,children,className=''}) {return <div className="ndb-cp-scroll"><table className={'ndb-cp-table '+className}><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;}
 
 export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
@@ -116,6 +123,8 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const [search,setSearch]=useState('');
   const [sort,setSort]=useState('units');
   const [show,setShow]=useState('all');
+  const [varPage,setVarPage]=useState(1);
+  const [colPage,setColPage]=useState(1);
   const categories=rows(data?.categories);
   const picked=categories.find(c=>c.name===selectedCat)||categories[0]||null;
   const asOf=String(data?.as_of||cover.data?.as_of||'');
@@ -178,6 +187,8 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const worstWeek=[...weeks].sort((a,b)=>a.cur-b.cur)[0]||null;
   const total=data?.total||{cur:0,base:0};
   const maxCats=Math.max(1,...categories.flatMap(c=>[num(c.cur),num(c.base)]));
+  useEffect(()=>{setVarPage(1);},[selectedCollection,currentMonth,selectedWeek,selectedCat,year]);
+  useEffect(()=>{setColPage(1);},[selectedCat,search,sort,show,year,currentMonth]);
   const selectedProduct=rows(t?.products)[0];
   const chooseCat=name=>{setSelectedCat(name);setSelectedCollection(null);setSelectedWeek(null);};
   const chooseMonth=m=>{setMonthChoice(m);setSelectedWeek(null);};
@@ -231,7 +242,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
             <div className="ndb-cp-panel-subheading"><b>Coleções de {picked.name}</b><button type="button" onClick={()=>setSelectedCollection(null)} disabled={!selectedCollection}>{selectedCollection?'Mostrar todas':'Todas as coleções'}</button></div>
             {temporal.loading?<p className="ndb-cp-loading">Carregando coleções e variações…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}<button type="button" onClick={temporal.retry}>Tentar novamente</button></div>:null}
             <DetailTable heads={['Coleção',String(baseYear),String(year),'Diferença','Variação','Melhor mês','Melhor semana','']}>
-              {collectionRows.map(col=>{const cm=rows(collectionMonths).filter(r=>r.col===col.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];
+              {pageOf(collectionRows,colPage).items.map(col=>{const cm=rows(collectionMonths).filter(r=>r.col===col.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];
                 const cw=rows(t?.weekly_collections).filter(r=>r.col===col.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];
                 const expanded=selectedCollection===col.name;
                 return <React.Fragment key={col.name}>
@@ -250,7 +261,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                       {temporal.loading?<p className="ndb-cp-loading">Consultando variações…</p>:temporal.error?<p className="ndb-cp-error" role="alert">{temporal.error}</p>:<>
                         {rows(t?.products).length?<div className="ndb-cp-variation-list" role="table" aria-label={'Variações da coleção '+col.name}>
                           <div className="ndb-cp-variation-head" role="row"><span/><span>Variação</span><span>{baseYear}</span><span>{year}</span><span>Diferença</span><span>Var.</span><span/></div>
-                          {rows(t?.products).map(v=>{const d=num(v.cur)-num(v.base);return <div key={v.sku} className="ndb-cp-variation-item" role="row">
+                          {pageOf(rows(t?.products),varPage).items.map(v=>{const d=num(v.cur)-num(v.base);return <div key={v.sku} className="ndb-cp-variation-item" role="row">
                           <Thumb src={v.image} alt={v.variation_name||v.name} />
                           <span className="ndb-cp-variation-title"><b>{v.variation_name||v.name||v.sku}</b><small>{v.sku}</small></span>
                           <span className="ndb-cp-vnum is-muted">{fmt(v.base)}</span>
@@ -258,7 +269,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                           <span className={'ndb-cp-vnum '+color(d)}>{delta(d)}</span>
                           <span className="ndb-cp-vnum"><PeriodTag cur={v.cur} base={v.base}/></span>
                           {validLink(v.url)?<a href={v.url} target="_blank" rel="noopener noreferrer" aria-label={'Abrir anúncio de '+(v.variation_name||v.name)} className="ndb-cp-product-link"><Icon name="link" size={15}/></a>:<span/>}
-                        </div>;})}</div>:<p className="ndb-cp-empty">Nenhuma variação com vendas identificadas para o período.</p>}
+                        </div>;})}<Pager page={pageOf(rows(t?.products),varPage).n} total={rows(t?.products).length} onPage={setVarPage}/></div>:<p className="ndb-cp-empty">Nenhuma variação com vendas identificadas para o período.</p>}
                         {num(t?.variation_count)>rows(t?.products).length&&<p className="ndb-cp-foot">Exibindo {rows(t?.products).length} de {fmt(t?.variation_count)} SKUs com vendas. Ordenado por unidades.</p>}
                       </>}
                     </div>
@@ -266,6 +277,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                 </React.Fragment>;
               })}
             </DetailTable>
+            <Pager page={pageOf(collectionRows,colPage).n} total={collectionRows.length} onPage={setColPage}/>
           </>:<p className="ndb-cp-empty">Sem categorias com vendas.</p>}
         </Section>
       </div>
