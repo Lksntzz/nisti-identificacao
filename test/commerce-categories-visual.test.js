@@ -18,7 +18,7 @@ test('categorias visual segue a referência: 5 indicadores, tabelas, gráficos m
   assert.match(ui,/category_months/);
   assert.match(ui,/collection_months/);
   assert.match(ui,/weekly_collections/);
-  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
   assert.match(css,/@media\(max-width:680px\)/);
 });
 test('somente foto real do catálogo, URLs externas seguras e sem inventar valores',()=>{
