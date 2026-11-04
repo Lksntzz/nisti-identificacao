@@ -339,7 +339,7 @@ export default function CommerceAdminAppV2() {
           <div key={activeView + ':' + salesRevision} className="commerce-admin-view-transition">
             {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialPanel perfOpen={perfOpen} view={activeView === 'catalog' ? commercialView : 'ads'} />}
             {activeView === 'planning' && <CommerceProductsView />}
-            {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} />}
+            {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} onOpenCategories={() => { setCommercialView('categories'); setActiveView('catalog'); }} />}
             {activeView === 'imports' && <CommerceImportHistory />}
           </div>
         </main>
