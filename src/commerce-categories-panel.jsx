@@ -13,6 +13,7 @@ const PLATFORMS=[['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre antigo'],['ML_N
 const fmt=n=>Number(n||0).toLocaleString('pt-BR');
 const delta=n=>(Number(n)>0?'+':Number(n)<0?'−':'')+fmt(Math.abs(Number(n)||0));
 const pct=(a,b)=>Number(b)>0?(variation(a,b)>0?'+':variation(a,b)<0?'−':'')+Math.abs(variation(a,b)).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'Sem base';
+const cleanName=n=>String(n||'').replace(/^[\s\-–—]+/,'');
 const rows=a=>Array.isArray(a)?a.filter(Boolean):[];
 const num=x=>Number(x)||0;
 const validImage=url=>typeof url==='string'&&/^\/api\/images\/\d+(?:\?v=[a-z0-9-]+)?$/i.test(url);
@@ -83,28 +84,6 @@ function MonthlyBars({points,onSelect,selected,year,baseYear}){
     </button>)}
   </div>;
 }
-function Seasonality({points,onSelect,selected,year,baseYear}){
-  const W=660,H=186,P=28,plotH=135;
-  const max=Math.max(1,...points.flatMap(p=>[num(p.cur),num(p.base)]));
-  const path=field=>points.map((p,i)=>p[field]==null?null:{x:P+i*(W-P*2)/11,y:H-27-num(p[field])/max*plotH,month:p.month}).reduce((segments,point)=>{if(!point){segments.push([]);}else{if(!segments.length||!segments[segments.length-1])segments.push([]);segments[segments.length-1].push(point);}return segments;},[[]]).filter(s=>s.length).map(s=>s.map((p,i)=>(i?'L':'M')+p.x+' '+p.y).join(' '));
-  return <div className="ndb-cp-season-wrap"><svg viewBox={'0 0 '+W+' '+H} role="img" aria-label={'Sazonalidade mensal: '+baseYear+' em cinza e '+year+' em azul'}>
-    {[0,0.25,0.5,0.75,1].map(f=><g key={f}><line x1={P} y1={H-27-f*plotH} x2={W-P} y2={H-27-f*plotH} stroke="#e5eaf2" strokeDasharray="3 3"/><text x={P-5} y={H-23-f*plotH} fontSize="9" textAnchor="end" fill="#718098">{fmt(Math.round(max*f))}</text></g>)}
-    {path('base').map((d,i)=><path key={'b'+i} d={d} stroke="#aab9d2" strokeWidth="2.6" fill="none" strokeLinejoin="round" strokeLinecap="round"/>)}
-    {path('cur').map((d,i)=><path key={'c'+i} d={d} stroke="#2563eb" strokeWidth="2.8" fill="none" strokeLinejoin="round" strokeLinecap="round"/>)}
-    {points.map((p,i)=><g key={p.month}>
-      {p.base!=null&&<circle cx={P+i*(W-P*2)/11} cy={H-27-num(p.base)/max*plotH} r="3.3" fill="#aab9d2"/>}
-      {p.cur!=null&&<circle cx={P+i*(W-P*2)/11} cy={H-27-num(p.cur)/max*plotH} r={selected===p.month?5.5:3.8} fill="#2563eb" stroke={selected===p.month?'white':'none'} strokeWidth="1.5"/>}
-      <text x={P+i*(W-P*2)/11} y={H-4} textAnchor="middle" fontSize="10" fill={selected===p.month?'#2563eb':'#64748b'} fontWeight={selected===p.month?'800':'500'}>{SHORT[i]}</text>
-    </g>)}
-  </svg><div className="ndb-cp-season-actions">{points.map(p=><button type="button" key={p.month} title={'Selecionar '+MONTHS[p.month-1]} aria-label={'Selecionar '+MONTHS[p.month-1]} className={selected===p.month?'is-active':''} disabled={p.cur==null} onClick={()=>onSelect(p.month)} />)}</div></div>;
-}
-const PAGE_SIZE=10;
-const pageOf=(list,page)=>{const pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE)),n=Math.min(Math.max(1,page),pages);return {n,pages,items:list.slice((n-1)*PAGE_SIZE,n*PAGE_SIZE)};};
-function Pager({page,total,onPage}) {
-  const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
-  if(pages<=1)return null;
-  return <div className="ndb-cp-pager" role="navigation" aria-label="Paginação"><button type="button" disabled={page<=1} onClick={()=>onPage(page-1)}>‹ Anterior</button><span>Página {page} de {pages} · {fmt(total)} itens</span><button type="button" disabled={page>=pages} onClick={()=>onPage(page+1)}>Próxima ›</button></div>;
-}
 function DetailTable({heads,children,className=''}) {return <div className="ndb-cp-scroll"><table className={'ndb-cp-table '+className}><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;}
 
 export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
@@ -127,6 +106,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const [colPage,setColPage]=useState(1);
   const [catPage,setCatPage]=useState(1);
   const [openYear,setOpenYear]=useState(null);
+  const [varScope,setVarScope]=useState('ytd');
   const [allMonths,setAllMonths]=useState(false);
   const categories=rows(data?.categories);
   const picked=categories.find(c=>c.name===selectedCat)||categories[0]||null;
@@ -188,6 +168,11 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   }).filter(Boolean);
   const bestWeek=[...weeks].sort((a,b)=>b.cur-a.cur)[0]||null;
   const worstWeek=[...weeks].sort((a,b)=>a.cur-b.cur)[0]||null;
+  const autoKey=(picked?.name||'')+'|'+(selectedCollection||'')+'|'+year;
+  const lastWithSales=[...validMonths].reverse().find(m=>num(m.cur)>0);
+  useEffect(()=>{
+    if(monthChoice===0&&t&&lastWithSales&&validMonths.find(m=>m.month===currentMonth)?.cur===0)setMonthChoice(lastWithSales.month);
+  },[autoKey,t,monthChoice]);
   const bestMonthBase=[...validMonths].sort((a,b)=>b.base-a.base)[0],bestWeekBase=[...weeks].sort((a,b)=>b.base-a.base)[0]||null;
   const diffTotal=num(picked?.cur)-num(picked?.base);
   const explainers=[...collectionRows].filter(c=>c.name&&c.name!=='Sem coleção').map(c=>({name:c.name,d:num(c.cur)-num(c.base)})).filter(c=>c.d!==0).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,2);
@@ -198,10 +183,14 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   useEffect(()=>{setVarPage(1);},[selectedCollection,currentMonth,selectedWeek,selectedCat,year]);
   useEffect(()=>{setCatPage(1);},[search,sort,show,year,filters.platform]);
   useEffect(()=>{setOpenYear(null);},[selectedCat]);
+  useEffect(()=>{setVarScope('ytd');},[selectedCollection,selectedCat]);
   useEffect(()=>{setColPage(1);},[selectedCat,search,sort,show,year,currentMonth]);
+  const useYtd=varScope==='ytd'&&Array.isArray(t?.products_ytd);
+  const varRows=useYtd?rows(t?.products_ytd):rows(t?.products);
+  const varCount=num(useYtd?t?.variation_count_ytd:t?.variation_count);
   const selectedProduct=rows(t?.products)[0];
   const chooseCat=name=>{setSelectedCat(name);setSelectedCollection(null);setSelectedWeek(null);};
-  const chooseMonth=m=>{setMonthChoice(m);setSelectedWeek(null);};
+  const chooseMonth=m=>{setMonthChoice(m);setSelectedWeek(null);setVarScope('month');};
   const handleYear=val=>setFilters(v=>({...v,year:Number(val),base:Number(val)-1,month:'',days:0}));
   return <div className="ndb-cp">
     <div className="ndb-cp-toolbar">
@@ -247,7 +236,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
             </div>
             {openYear&&<p className="ndb-cp-year-detail" role="status"><b>{openYear==='cur'?year:baseYear}:</b> melhor mês <strong>{(openYear==='cur'?bestMonth:bestMonthBase)?SHORT[(openYear==='cur'?bestMonth:bestMonthBase).month-1]+' · '+fmt(openYear==='cur'?bestMonth.cur:bestMonthBase.base):'—'}</strong> · melhor semana de {MONTHS[currentMonth-1]} <strong>{(openYear==='cur'?bestWeek:bestWeekBase)?'Sem. '+(openYear==='cur'?bestWeek:bestWeekBase).week+' · '+fmt(openYear==='cur'?bestWeek.cur:bestWeekBase.base):'—'}</strong></p>}
             <div className="ndb-cp-insights">
-              <div><small>Quem explica a variação</small>{explainers.length?explainers.map(e=><span key={e.name}><b>{e.name}</b> <em className={color(e.d)}>{delta(e.d)}</em></span>):<span>—</span>}</div>
+              <div><small>Quem explica a variação</small>{explainers.length?explainers.map(e=><span key={e.name}><b>{cleanName(e.name)}</b> <em className={color(e.d)}>{delta(e.d)}</em></span>):<span>—</span>}</div>
               <div><small>Peso dos lançamentos</small><span><b>{newShare}%</b> das vendas vêm de {newCols.length} {newCols.length===1?'coleção sem':'coleções sem'} vendas em {baseYear}{newCols.length?' ('+fmt(newUnits)+' un.)':''}</span></div>
             </div>
             <div className="ndb-cp-panel-subheading"><b>Coleções de {picked.name}</b><button type="button" onClick={()=>setSelectedCollection(null)} disabled={!selectedCollection}>{selectedCollection?'Mostrar todas':'Todas as coleções'}</button></div>
@@ -258,7 +247,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                 const expanded=selectedCollection===col.name;
                 return <React.Fragment key={col.name}>
                   <tr className={expanded?'is-selected':''} onClick={()=>{setSelectedCollection(expanded?null:col.name);setSelectedWeek(null)}}>
-                    <td><button type="button" className="ndb-cp-sub-button" aria-expanded={expanded} aria-label={(expanded?'Fechar':'Abrir')+' variações da coleção '+col.name} onClick={e=>{e.stopPropagation();setSelectedCollection(expanded?null:col.name);setSelectedWeek(null)}}>{col.name}<span className="ndb-cp-col-arrow">{expanded?'⌄':'›'}</span></button></td>
+                    <td><button type="button" className="ndb-cp-sub-button" aria-expanded={expanded} aria-label={(expanded?'Fechar':'Abrir')+' variações da coleção '+col.name} onClick={e=>{e.stopPropagation();setSelectedCollection(expanded?null:col.name);setSelectedWeek(null)}}>{cleanName(col.name)}<span className="ndb-cp-col-arrow">{expanded?'⌄':'›'}</span></button></td>
                     <td>{fmt(col.base)}</td><td><b>{fmt(col.cur)}</b></td>
                     <td className={color(num(col.cur)-num(col.base))}>{delta(num(col.cur)-num(col.base))}</td>
                     <td><PeriodTag cur={col.cur} base={col.base}/></td>
@@ -268,11 +257,11 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                   </tr>
                   {expanded&&<tr className="ndb-cp-variations-row"><td colSpan={8}>
                     <div className="ndb-cp-variations-panel">
-                      <div className="ndb-cp-variations-title"><strong>Variações da coleção {col.name}</strong><small>{MONTHS[currentMonth-1]}{selectedWeek?' · semana '+selectedWeek:''} · {baseYear} × {year}</small></div>
+                      <div className="ndb-cp-variations-title"><strong>Variações da coleção {cleanName(col.name)}</strong><span className="ndb-cp-scope"><button type="button" className={useYtd?'is-on':''} onClick={()=>setVarScope('ytd')}>Ano até hoje</button><button type="button" className={!useYtd?'is-on':''} onClick={()=>setVarScope('month')}>{MONTHS[currentMonth-1]}{selectedWeek?' · sem. '+selectedWeek:''}</button></span><small>{baseYear} × {year}</small></div>
                       {temporal.loading?<p className="ndb-cp-loading">Consultando variações…</p>:temporal.error?<p className="ndb-cp-error" role="alert">{temporal.error}</p>:<>
-                        {rows(t?.products).length?<div className="ndb-cp-variation-list" role="table" aria-label={'Variações da coleção '+col.name}>
+                        {varRows.length?<div className="ndb-cp-variation-list" role="table" aria-label={'Variações da coleção '+col.name}>
                           <div className="ndb-cp-variation-head" role="row"><span/><span>Variação</span><span>{baseYear}</span><span>{year}</span><span>Diferença</span><span>Var.</span><span/></div>
-                          {pageOf(rows(t?.products),varPage).items.map(v=>{const d=num(v.cur)-num(v.base);return <div key={v.sku} className="ndb-cp-variation-item" role="row">
+                          {pageOf(varRows,varPage).items.map(v=>{const d=num(v.cur)-num(v.base);return <div key={v.sku} className="ndb-cp-variation-item" role="row">
                           <Thumb src={v.image} alt={v.variation_name||v.name} />
                           <span className="ndb-cp-variation-title"><b>{v.variation_name||v.name||v.sku}</b><small>{v.sku}</small></span>
                           <span className="ndb-cp-vnum is-muted">{fmt(v.base)}</span>
@@ -280,8 +269,8 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                           <span className={'ndb-cp-vnum '+color(d)}>{delta(d)}</span>
                           <span className="ndb-cp-vnum"><PeriodTag cur={v.cur} base={v.base}/></span>
                           {validLink(v.url)?<a href={v.url} target="_blank" rel="noopener noreferrer" aria-label={'Abrir anúncio de '+(v.variation_name||v.name)} className="ndb-cp-product-link"><Icon name="link" size={15}/></a>:<span/>}
-                        </div>;})}<Pager page={pageOf(rows(t?.products),varPage).n} total={rows(t?.products).length} onPage={setVarPage}/></div>:<p className="ndb-cp-empty">Nenhuma variação com vendas identificadas para o período.</p>}
-                        {num(t?.variation_count)>rows(t?.products).length&&<p className="ndb-cp-foot">Exibindo {rows(t?.products).length} de {fmt(t?.variation_count)} SKUs com vendas. Ordenado por unidades.</p>}
+                        </div>;})}<Pager page={pageOf(varRows,varPage).n} total={varRows.length} onPage={setVarPage}/></div>:<p className="ndb-cp-empty">Nenhuma variação com vendas neste recorte. Tente “Ano até hoje”.</p>}
+                        {varCount>varRows.length&&<p className="ndb-cp-foot">Exibindo {varRows.length} de {fmt(varCount)} SKUs com vendas. Ordenado por unidades.</p>}
                       </>}
                     </div>
                   </td></tr>}
@@ -295,8 +284,10 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
       <div className="ndb-cp-visual-grid">
         <Section title={'Comparação mensal '+(selectedCollection?'da coleção':'da categoria')} subtitle={selectedCollection||picked?.name||''} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
           <MonthlyBars points={months} selected={currentMonth} onSelect={chooseMonth} year={year} baseYear={baseYear}/>
+          <p className="ndb-cp-foot">Meses futuros do ano atual não são tratados como zero. Clique em um mês para investigar.</p>
         </Section>
         <Section title="Tabela mensal" subtitle={(allMonths?'Todos os meses · ':MONTHS[currentMonth-1]+' · ')+'clique no mês para detalhar semanas · '+(selectedCollection||picked?.name||'')} >
+          {allMonths||num(months.find(m=>m.month===currentMonth)?.cur)>0||num(months.find(m=>m.month===currentMonth)?.base)>0?null:<p className="ndb-cp-empty">Sem vendas em {MONTHS[currentMonth-1]} nesse recorte. Escolha outro mês no gráfico ou veja todos os meses.</p>}
           <DetailTable heads={['Mês',String(baseYear),String(year),'Diferença','Variação','Categoria líder','Coleção líder']}>
             {months.filter(m=>m.month<=(asOfMonth||1)&&(allMonths||m.month===currentMonth)).map(m=><tr key={m.month} className={currentMonth===m.month?'is-selected':''} onClick={()=>chooseMonth(m.month)}>
               <td><button type="button" className="ndb-cp-month-button" onClick={e=>{e.stopPropagation();chooseMonth(m.month)}}>{SHORT[m.month-1]}</button></td>
@@ -307,14 +298,11 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
           </DetailTable>
           <p className="ndb-cp-foot"><button type="button" className="ndb-cp-link-button" onClick={()=>setAllMonths(v=>!v)}>{allMonths?'Mostrar só o mês em destaque':'Ver todos os meses'}</button></p>
         </Section>
-        <Section title={'Sazonalidade da '+(selectedCollection?'coleção':'categoria')} subtitle={(selectedCollection||picked?.name||'')+' · '+baseYear+' × '+year} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
-          <Seasonality points={months} onSelect={chooseMonth} selected={currentMonth} year={year} baseYear={baseYear}/>
-          <p className="ndb-cp-foot">Meses futuros do ano atual não são tratados como zero. Clique em um mês para investigar.</p>
-        </Section>
         <Section title="Comparação semanal" subtitle={MONTHS[currentMonth-1]+' · '+(selectedCollection||picked?.name||'')} aside={<div className="ndb-cp-month-arrows"><button type="button" disabled={currentMonth<=1} onClick={()=>chooseMonth(currentMonth-1)} aria-label="Mês anterior">‹</button><b>{SHORT[currentMonth-1]} {year}</b><button type="button" disabled={currentMonth>=asOfMonth} onClick={()=>chooseMonth(currentMonth+1)} aria-label="Próximo mês">›</button></div>}>
+          {weeks.some(w=>w.cur>0||w.base>0)?null:<p className="ndb-cp-empty">Sem vendas em {MONTHS[currentMonth-1]} nesse recorte.</p>}
           <DetailTable heads={['Semana',String(baseYear),String(year),'Diferença','Variação','Coleção líder','']}>
             {weeks.map(w=><tr key={w.week} className={selectedWeek===w.week?'is-selected':''} onClick={()=>setSelectedWeek(selectedWeek===w.week?null:w.week)}>
-              <td><button type="button" className="ndb-cp-week-button" onClick={e=>{e.stopPropagation();setSelectedWeek(selectedWeek===w.week?null:w.week)}}>{String(w.start).padStart(2,'0')}–{String(w.end).padStart(2,'0')}{w.partial?'*':''}</button></td>
+              <td><button type="button" className="ndb-cp-week-button" onClick={e=>{e.stopPropagation();setSelectedWeek(selectedWeek===w.week?null:w.week);setVarScope('month')}}>{String(w.start).padStart(2,'0')}–{String(w.end).padStart(2,'0')}{w.partial?'*':''}</button></td>
               <td>{fmt(w.base)}</td><td><b>{fmt(w.cur)}</b></td><td className={color(w.cur-w.base)}>{delta(w.cur-w.base)}</td><td><PeriodTag cur={w.cur} base={w.base}/></td><td>{w.leaderCollection}</td><td className="ndb-cp-arrow">›</td>
             </tr>)}
           </DetailTable>

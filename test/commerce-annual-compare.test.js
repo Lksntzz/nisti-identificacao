@@ -198,7 +198,6 @@ test('categorias por coleção: migração, rota e tela usam coleção e variaç
   const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
   assert.match(ui,/Coleções de \{picked\.name\}/);
   assert.doesNotMatch(ui,/Produtos e itens do período/);
-  assert.match(ui,/Sazonalidade da /);
   assert.doesNotMatch(ui,/<h2>Categorias<\/h2>/);
 });
 

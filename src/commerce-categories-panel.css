@@ -217,3 +217,9 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-insights em{font-style:normal;font-weight:800}
 .ndb-cp-link-button{all:unset;cursor:pointer;color:#2563eb;font-weight:800;font-size:11px}
 @media(max-width:680px){.ndb-cp-insights{grid-template-columns:1fr}}
+
+.ndb-cp-scope{display:inline-flex;gap:4px;margin-left:auto;margin-right:8px}
+.ndb-cp-scope button{border:1px solid var(--cp-border);background:#fff;color:inherit;border-radius:999px;padding:3px 9px;font:inherit;font-size:10.5px;font-weight:800;cursor:pointer}
+.ndb-cp-scope button.is-on{background:#2563eb;border-color:#2563eb;color:#fff}
+.ndb-cp-variations-title{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+@media(min-width:681px){.ndb-cp-visual-grid>.ndb-cp-panel:last-child:nth-child(odd){grid-column:1/-1}}
