@@ -248,12 +248,17 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                     <div className="ndb-cp-variations-panel">
                       <div className="ndb-cp-variations-title"><strong>Variações da coleção {col.name}</strong><small>{MONTHS[currentMonth-1]}{selectedWeek?' · semana '+selectedWeek:''} · {baseYear} × {year}</small></div>
                       {temporal.loading?<p className="ndb-cp-loading">Consultando variações…</p>:temporal.error?<p className="ndb-cp-error" role="alert">{temporal.error}</p>:<>
-                        {rows(t?.products).length?<div className="ndb-cp-variation-list">{rows(t?.products).map(v=><div key={v.sku} className="ndb-cp-variation-item">
+                        {rows(t?.products).length?<div className="ndb-cp-variation-list" role="table" aria-label={'Variações da coleção '+col.name}>
+                          <div className="ndb-cp-variation-head" role="row"><span/><span>Variação</span><span>{baseYear}</span><span>{year}</span><span>Diferença</span><span>Var.</span><span/></div>
+                          {rows(t?.products).map(v=>{const d=num(v.cur)-num(v.base);return <div key={v.sku} className="ndb-cp-variation-item" role="row">
                           <Thumb src={v.image} alt={v.variation_name||v.name} />
-                          <span className="ndb-cp-variation-title"><b>{v.variation_name||v.name||v.sku}</b><small>SKU: {v.sku}</small></span>
-                          <span className="ndb-cp-variation-units">{baseYear}: {fmt(v.base)}<strong>{year}: {fmt(v.cur)}</strong><em className={color(num(v.cur)-num(v.base))}>{delta(num(v.cur)-num(v.base))}</em></span>
-                          {validLink(v.url)&&<a href={v.url} target="_blank" rel="noopener noreferrer" aria-label={'Abrir anúncio de '+(v.variation_name||v.name)} className="ndb-cp-product-link"><Icon name="link" size={15}/></a>}
-                        </div>)}</div>:<p className="ndb-cp-empty">Nenhuma variação com vendas identificadas para o período.</p>}
+                          <span className="ndb-cp-variation-title"><b>{v.variation_name||v.name||v.sku}</b><small>{v.sku}</small></span>
+                          <span className="ndb-cp-vnum is-muted">{fmt(v.base)}</span>
+                          <span className="ndb-cp-vnum"><b>{fmt(v.cur)}</b></span>
+                          <span className={'ndb-cp-vnum '+color(d)}>{delta(d)}</span>
+                          <span className="ndb-cp-vnum"><PeriodTag cur={v.cur} base={v.base}/></span>
+                          {validLink(v.url)?<a href={v.url} target="_blank" rel="noopener noreferrer" aria-label={'Abrir anúncio de '+(v.variation_name||v.name)} className="ndb-cp-product-link"><Icon name="link" size={15}/></a>:<span/>}
+                        </div>;})}</div>:<p className="ndb-cp-empty">Nenhuma variação com vendas identificadas para o período.</p>}
                         {num(t?.variation_count)>rows(t?.products).length&&<p className="ndb-cp-foot">Exibindo {rows(t?.products).length} de {fmt(t?.variation_count)} SKUs com vendas. Ordenado por unidades.</p>}
                       </>}
                     </div>
