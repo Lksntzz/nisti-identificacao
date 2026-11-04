@@ -110,3 +110,10 @@ test('variações abrem no acumulado do ano (igual à linha da coleção) e a mi
   assert.match(sql,/'variation_count_ytd'/);
   assert.match(sql,/grant execute on function public\.commerce_categories_timeline_v1[\s\S]*to service_role/);
 });
+
+test('paginação: funções usadas pela tela existem no arquivo (evita tela em branco)',()=>{
+  const ui=read('src/commerce-categories-panel.jsx');
+  assert.match(ui,/^const PAGE_SIZE=/m);
+  assert.match(ui,/^const pageOf=/m);
+  assert.match(ui,/^function Pager\(/m);
+});
