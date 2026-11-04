@@ -262,3 +262,19 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-drawer .ndb-cp-variation-item{padding:10px 8px}
 .ndb-cp-drawer .ndb-cp-variation-list{overflow:visible}
 @media(min-width:1201px){.ndb-cp-main>.ndb-cp-panel:first-child{position:static}}
+
+/* Painel lateral: meses que mais venderam (categoria e coleção) */
+.ndb-cp-topmonths{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ndb-cp-topmonths-card{border:1px solid var(--cp-border);border-radius:10px;padding:10px 12px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.ndb-cp-topmonths-card>small{font-size:11px;color:var(--cp-muted);font-weight:800}
+.ndb-cp-topmonths-card>b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ndb-cp-topmonths-card ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.ndb-cp-topmonths-card li{display:grid;grid-template-columns:22px 34px minmax(40px,1fr) auto;align-items:center;gap:6px;font-size:12px}
+.ndb-cp-tm-rank{color:var(--cp-muted);font-weight:800}
+.ndb-cp-tm-month{font-weight:800}
+.ndb-cp-tm-num{display:flex;gap:6px;justify-content:flex-end;font-variant-numeric:tabular-nums}
+.ndb-cp-tm-num em{font-style:normal;color:var(--cp-muted)}
+.ndb-cp-tm-legend{margin:0;font-size:10px;color:var(--cp-muted);display:flex;align-items:center;gap:6px}
+.ndb-cp-tm-legend i{display:inline-block;width:8px;height:8px;border-radius:2px}
+.ndb-cp-tm-legend i.is-base{background:#aab9d2}.ndb-cp-tm-legend i.is-cur{background:#2563eb}
+@media(max-width:680px){.ndb-cp-topmonths{grid-template-columns:1fr}}

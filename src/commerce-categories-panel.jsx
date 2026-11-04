@@ -94,6 +94,13 @@ function Pager({page,total,onPage}) {
   if(pages<=1)return null;
   return <div className="ndb-cp-pager" role="navigation" aria-label="Paginação"><button type="button" disabled={page<=1} onClick={()=>onPage(page-1)}>‹ Anterior</button><span>Página {page} de {pages} · {fmt(total)} itens</span><button type="button" disabled={page>=pages} onClick={()=>onPage(page+1)}>Próxima ›</button></div>;
 }
+function TopMonths({title,name,list,baseYear,year}) {
+  const max=Math.max(1,...list.flatMap(m=>[m.cur,m.base]));
+  return <div className="ndb-cp-topmonths-card"><small>{title}</small><b title={name}>{cleanName(name)}</b>
+    {list.length?<ol>{list.map((m,i)=><li key={m.month}><span className="ndb-cp-tm-rank">{i+1}º</span><span className="ndb-cp-tm-month">{SHORT[m.month-1]}</span><PairBars base={m.base} cur={m.cur} max={max}/><span className="ndb-cp-tm-num"><em>{fmt(m.base)}</em><strong>{fmt(m.cur)}</strong></span></li>)}</ol>:<p className="ndb-cp-empty">Sem vendas nos meses comparados.</p>}
+    <p className="ndb-cp-tm-legend"><i className="is-base"/>{baseYear} <i className="is-cur"/>{year}</p>
+  </div>;
+}
 function DetailTable({heads,children,className=''}) {return <div className="ndb-cp-scroll"><table className={'ndb-cp-table '+className}><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;}
 
 export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
@@ -189,6 +196,11 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   useEffect(()=>{
     if(monthChoice===0&&t&&lastWithSales&&validMonths.find(m=>m.month===currentMonth)?.cur===0)setMonthChoice(lastWithSales.month);
   },[autoKey,t,monthChoice]);
+  const topMonthsOf=(source,match)=>Array.from({length:Math.max(1,asOfMonth||1)},(_,i)=>i+1)
+    .map(m=>({month:m,cur:add(source,r=>match(r)&&num(r.month)===m&&num(r.year)===year),base:add(source,r=>match(r)&&num(r.month)===m&&num(r.year)===baseYear)}))
+    .filter(m=>m.cur>0||m.base>0).sort((a,b)=>b.cur-a.cur||b.base-a.base).slice(0,5);
+  const topCatMonths=topMonthsOf(catMonths,r=>r.cat===picked?.name);
+  const topColMonths=topMonthsOf(collectionMonths,r=>r.col===selectedCollection);
   const bestMonthBase=[...validMonths].sort((a,b)=>b.base-a.base)[0],bestWeekBase=[...weeks].sort((a,b)=>b.base-a.base)[0]||null;
   const diffTotal=num(picked?.cur)-num(picked?.base);
   const explainers=[...collectionRows].filter(c=>c.name&&c.name!=='Sem coleção').map(c=>({name:c.name,d:num(c.cur)-num(c.base)})).filter(c=>c.d!==0).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,2);
@@ -284,6 +296,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
       {selectedCollection&&drawerOpen&&<><div className="ndb-cp-drawer-backdrop" onClick={()=>setDrawerOpen(false)}/>
         <aside className="ndb-cp-drawer" role="dialog" aria-label={'Variações da coleção '+cleanName(selectedCollection)}>
           <button type="button" className="ndb-cp-drawer-close" aria-label="Fechar variações" onClick={()=>setDrawerOpen(false)}>✕</button>
+          <div className="ndb-cp-topmonths"><TopMonths title="Categoria · meses que mais venderam" name={picked?.name||''} list={topCatMonths} baseYear={baseYear} year={year}/><TopMonths title="Coleção · meses que mais venderam" name={selectedCollection} list={topColMonths} baseYear={baseYear} year={year}/></div>
           <div className="ndb-cp-variations-panel">
                       <div className="ndb-cp-variations-title"><strong>Variações da coleção {cleanName(selectedCollection)}</strong><span className="ndb-cp-scope"><button type="button" className={useYtd?'is-on':''} onClick={()=>setVarScope('ytd')}>Ano até hoje</button><button type="button" className={!useYtd?'is-on':''} onClick={()=>setVarScope('month')}>{MONTHS[currentMonth-1]}{selectedWeek?' · sem. '+selectedWeek:''}</button></span><small>{baseYear} × {year}</small></div>
                       {temporal.loading?<p className="ndb-cp-loading">Consultando variações…</p>:temporal.error?<p className="ndb-cp-error" role="alert">{temporal.error}</p>:<>

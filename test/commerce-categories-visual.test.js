@@ -125,3 +125,11 @@ test('abertura rápida: a tela usa só a cobertura anual (rota leve), sem o comp
   assert.match(read('src/commerce-admin-router.js'),/sales-compare\/annual-coverage/);
   assert.match(read('src/commerce-supabase-store.js'),/export async function commerceAnnualCoverage/);
 });
+
+test('painel lateral mostra os meses que mais venderam da categoria e da coleção',()=>{
+  const ui=read('src/commerce-categories-panel.jsx');
+  assert.match(ui,/^function TopMonths\(/m);
+  assert.match(ui,/Categoria · meses que mais venderam/);
+  assert.match(ui,/Coleção · meses que mais venderam/);
+  assert.match(ui,/topMonthsOf\(collectionMonths/);
+});
