@@ -249,6 +249,11 @@ export async function commerceAnnualDays(env,{platform='SHOPEE',month,week,year,
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{days:[]};
 }
 
+export async function commerceAnnualCoverage(env) {
+  const coverage=await supabaseRpc(env,'commerce_annual_compare_coverage_v1',{},{timeoutMs:10000});
+  return {coverage:Array.isArray(coverage)?coverage:[]};
+}
+
 export async function commerceAnnualCompare(env,{platform='SHOPEE',gran='month',year=null,base=null}={}) {
   const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
   const g=['day','week','month'].includes(String(gran))?String(gran):'month';

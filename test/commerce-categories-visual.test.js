@@ -117,3 +117,11 @@ test('paginação: funções usadas pela tela existem no arquivo (evita tela em 
   assert.match(ui,/^const pageOf=/m);
   assert.match(ui,/^function Pager\(/m);
 });
+
+test('abertura rápida: a tela usa só a cobertura anual (rota leve), sem o comparativo anual completo',()=>{
+  const ui=read('src/commerce-categories-panel.jsx');
+  assert.match(ui,/sales-compare\/annual-coverage/);
+  assert.doesNotMatch(ui,/useAnnualCompare/);
+  assert.match(read('src/commerce-admin-router.js'),/sales-compare\/annual-coverage/);
+  assert.match(read('src/commerce-supabase-store.js'),/export async function commerceAnnualCoverage/);
+});

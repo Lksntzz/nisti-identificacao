@@ -1,7 +1,6 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {Dropdown} from './commerce-dashboard.jsx';
-import {useAnnualCompare} from './commerce-annual-compare.jsx';
 import {variation,periodLabel} from './commerce-categories-helpers.js';
 import './commerce-categories-panel.css';
 
@@ -98,9 +97,11 @@ function Pager({page,total,onPage}) {
 function DetailTable({heads,children,className=''}) {return <div className="ndb-cp-scroll"><table className={'ndb-cp-table '+className}><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;}
 
 export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
-  const cover=useAnnualCompare({platform:'SHOPEE',gran:'month',year:filters.year||null,base:filters.base||null,refresh});
-  const coverage=rows(cover.data?.coverage),year=cover.data?Number(cover.data.year):null,baseYear=year?year-1:null;
-  const availableYears=[...new Set(coverage.map(c=>num(c.year)).filter(y=>y>=2021&&coverage.some(b=>num(b.year)===y-1&&num(b.units)>0)).concat(year||[]))].filter(Boolean).sort((a,b)=>b-a);
+  // Só a cobertura por ano (leve): o comparativo anual completo levava ~2 s e atrasava tudo.
+  const cover=useJson('/api/admin/commerce/sales-compare/annual-coverage',refresh);
+  const coverage=rows(cover.data?.coverage);
+  const availableYears=[...new Set(coverage.map(c=>num(c.year)).filter(y=>y>=2021&&coverage.some(b=>num(b.year)===y-1&&num(b.units)>0)))].filter(Boolean).sort((a,b)=>b-a);
+  const year=cover.data?(Number(filters.year)||availableYears[0]||null):null,baseYear=year?year-1:null;
   const units=(plat,y)=>num(coverage.find(c=>c.platform===plat&&num(c.year)===y)?.units);
   const blocked=p=>year&&(p==='TODAS'?['SHOPEE','ML_ANTIGO','ML_NOVO'].some(x=>!units(x,baseYear)):!units(p,baseYear));
   const options=PLATFORMS.map(([id,name])=>[id,name,blocked(id)?'Sem histórico suficiente em '+baseYear:null]);

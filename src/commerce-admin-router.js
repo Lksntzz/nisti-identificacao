@@ -39,7 +39,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualListingMonths, commerceAnnualMonthHealth, commerceAnnualListingInsights, commerceAnnualWindow, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
+  commerceAnnualCompare, commerceAnnualCoverage, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualListingMonths, commerceAnnualMonthHealth, commerceAnnualListingInsights, commerceAnnualWindow, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
   commerceProductFamilyCatalog,commerceProductFamilySave,commerceProductFamilyMemberSet,commerceAnnualFamilyReport,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
@@ -686,6 +686,9 @@ async function handleCommerceAdminRequestUncached(request, env) {
          !Number.isInteger(base)||base!==year-1)
         return json({error:'Período de investigação diária inválido.'},400);
       return json(await commerceAnnualDays(env,{platform,month,week,year,base}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-coverage'){
+      return json(await commerceAnnualCoverage(env));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual'){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
