@@ -184,6 +184,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Quando o mesmo produto aparece com dois códigos (ex.: final `BB` sem referência do tassel e final `BXB`), o jeito certo é uma linha na tabela `commerce_sku_alias_v1` (`old_sku` → `new_sku`, sem espaços/underscore, maiúsculas). A função `commerce_sku_canon_v1` aplica isso nas telas de Categorias/Comparação anual.
 - Aplicado: `CONFINCOLBB`→`CONFINCOLBXB` e `CONFINBCOBB`→`CONFINBCOBXB` (migração `20261104170000_commerce_sku_alias_confin_bb.sql`).
 - Também aplicado: `CONFINMOEPP`→`CONFINMOEPXP` (migração `20261104180000_commerce_sku_alias_confinmoe_pp.sql`).
+- Também aplicado (04/11): `PNJPROFLZBB`→`PNJPROFLZBXB` (migração `20261104200000_commerce_sku_alias_pnjproflz_bb.sql`). Backup das 2 linhas extras removidas do catálogo: tabela `bak_product_skus_confin_alias_20261104`.
 - Categorias: variações da coleção agora aparecem em tabela compacta (Variação, ano base, ano atual, Diferença, Var.).
 
 **Categorias: tela mais enxuta (04/11/2026)** — `src/commerce-categories-panel.jsx`
