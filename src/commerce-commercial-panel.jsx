@@ -2,7 +2,6 @@ import React,{useEffect,useRef,useState} from 'react';
 import CommerceImportModal from './commerce-import-modal.jsx';
 import {COMMERCE_IMPORT_OPTIONS} from './commerce-import-options.js';
 import CommerceDashboard from './commerce-dashboard.jsx';
-import CommerceAnnualCompare from './commerce-annual-compare.jsx';
 import CommerceAnnualFamilies from './commerce-annual-families.jsx';
 import CommerceCategoriesPanel from './commerce-categories-panel.jsx';
 import CommercialIcon from './vendor/CommercialIcon.jsx';
@@ -56,8 +55,7 @@ export default function CommerceCommercialPanel({perfOpen=null,view='ads'}){
       onSalesChanged={()=>setRefresh(v=>v+1)}
       onCatalogChanged={()=>setRefresh(v=>v+1)}/>}
     {view==='categories'&&<CommerceCategoriesPanel filters={annualFilters} setFilters={setAnnualFilters} refresh={refresh}/>}
-    {view==='families'&&<CommerceAnnualFamilies refresh={refresh}/>}
-    {view!=='ads'&&view!=='categories'&&view!=='families'&&<CommerceAnnualCompare view={view} filters={annualFilters} setFilters={setAnnualFilters} refresh={refresh}/>}
+    {view==='comparison'&&<CommerceAnnualFamilies refresh={refresh}/>}
     {view==='ads'&&<CommerceDashboard key={refresh+':'+(perfOpen?perfOpen.nonce:0)} mode="explorer" initialTab={perfOpen?perfOpen.tab:null} initialFilter={perfOpen?perfOpen.filter:null} actions={importMenu}/>}
   </section>;
 }
