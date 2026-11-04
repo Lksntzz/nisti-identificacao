@@ -197,3 +197,5 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - A lista de variações abre em "Ano até hoje"; o botão ao lado alterna para o mês (ou semana) em destaque. Clicar em mês/semana muda para o modo mês.
 - Mês em destaque pula sozinho para o último mês com vendas quando o padrão não tem venda; mês/semana sem vendas mostram aviso em vez de tabela de zeros.
 - Removido o gráfico de Sazonalidade (repetia o gráfico mensal). Nomes de coleção com traço inicial são exibidos sem o traço (só na tela; o cadastro não foi alterado).
+
+**Categorias: carregamento (04/11/2026)** — `useJson` guarda as respostas por 60 s no navegador (mesma validade do cache do servidor; "Atualizar dados" ignora) e a tela reaproveita os dados do ano inteiro (meses, imagens) enquanto o novo recorte carrega, sem trocar a tabela por "Carregando". Medido no banco: `commerce_categories_timeline_v1` leva ~1,2 s (até ~3,4 s a frio); `commerce_categories_v2` ~0,6 s.

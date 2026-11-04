@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {Dropdown} from './commerce-dashboard.jsx';
 import {useAnnualCompare} from './commerce-annual-compare.jsx';
@@ -40,15 +40,19 @@ function Thumb({src,alt='',size='small'}){
   useEffect(()=>setBroken(false),[src]);
   return <span className={'ndb-cp-thumb is-'+size}>{validImage(src)&&!broken?<img src={src} loading="lazy" alt={alt} onError={()=>setBroken(true)}/>:<Icon name="box" size={size==='large'?23:17}/>}</span>;
 }
+const JSON_TTL_MS=60000;
+const jsonCache=new Map();
 function useJson(url,refresh=0){
   const [state,setState]=useState({url:'',loading:false,error:'',data:null});
   const [retryCount,setRetryCount]=useState(0);
   useEffect(()=>{
     if(!url){setState({url:'',loading:false,error:'',data:null});return;}
+    const key=url+'#'+refresh,hit=retryCount===0?jsonCache.get(key):null;
+    if(hit&&Date.now()-hit.at<JSON_TTL_MS){setState({url,loading:false,error:'',data:hit.data});return;}
     const controller=new AbortController();
     setState({url,loading:true,error:'',data:null});
     fetchCommercialManager(url,{signal:controller.signal})
-      .then(data=>{if(!controller.signal.aborted)setState({url,loading:false,error:'',data});})
+      .then(data=>{if(!controller.signal.aborted){jsonCache.set(key,{at:Date.now(),data});setState({url,loading:false,error:'',data});}})
       .catch(e=>{if(!controller.signal.aborted)setState({url,loading:false,error:e?.message||'Falha na consulta.',data:null});});
     return()=>controller.abort();
   },[url,refresh,retryCount]);
@@ -128,7 +132,10 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const temporal=useJson(temporalUrl,refresh);
   const t=temporal.data&&num(temporal.data.year)===year&&temporal.data.category===picked?.name
     &&num(temporal.data.month)===currentMonth&&String(temporal.data.collection||'')===String(selectedCollection||'')?temporal.data:null;
-  const pics=rows(t?.category_images),imageOf=name=>pics.find(p=>p.category===name)?.image;
+  const lastAll=useRef(null);
+  if(t)lastAll.current=t;
+  const tAll=t||(lastAll.current&&lastAll.current.category===picked?.name&&num(lastAll.current.year)===year?lastAll.current:null);
+  const pics=rows(tAll?.category_images),imageOf=name=>pics.find(p=>p.category===name)?.image;
   const filtered=useMemo(()=>{
     const q=search.trim().toLocaleLowerCase('pt-BR');
     const f=categories.filter(c=>(!q||c.name.toLocaleLowerCase('pt-BR').includes(q))
@@ -149,7 +156,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const lossCollection=namedCollections.filter(col=>num(col.base)>0&&num(col.cur)<num(col.base))
     .sort((a,b)=>(num(a.cur)-num(a.base))-(num(b.cur)-num(b.base)))[0]||null;
   const collectionRows=rows(picked?.cols);
-  const catMonths=rows(t?.category_months),collectionMonths=rows(t?.collection_months);
+  const catMonths=rows(tAll?.category_months),collectionMonths=rows(tAll?.collection_months);
   const months=Array.from({length:12},(_,i)=>{
     const mon=i+1;
     const source=selectedCollection?collectionMonths:catMonths;
@@ -247,7 +254,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
               <div><small>Peso dos lançamentos</small><span><b>{newShare}%</b> das vendas vêm de {newCols.length} {newCols.length===1?'coleção sem':'coleções sem'} vendas em {baseYear}{newCols.length?' ('+fmt(newUnits)+' un.)':''}</span></div>
             </div>
             <div className="ndb-cp-panel-subheading"><b>Coleções de {picked.name}</b><button type="button" onClick={()=>setSelectedCollection(null)} disabled={!selectedCollection}>{selectedCollection?'Mostrar todas':'Todas as coleções'}</button></div>
-            {temporal.loading?<p className="ndb-cp-loading">Carregando coleções e variações…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}<button type="button" onClick={temporal.retry}>Tentar novamente</button></div>:null}
+            {temporal.loading&&!tAll?<p className="ndb-cp-loading">Carregando coleções e variações…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}<button type="button" onClick={temporal.retry}>Tentar novamente</button></div>:null}
             <DetailTable heads={['Coleção',String(baseYear),String(year),'Diferença','Variação','Melhor mês','Melhor semana','']}>
               {pageOf(collectionRows,colPage).items.map(col=>{const cm=rows(collectionMonths).filter(r=>r.col===col.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];
                 const cw=rows(t?.weekly_collections).filter(r=>r.col===col.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];
