@@ -197,3 +197,9 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-vnum.is-muted{color:var(--cp-muted)}
 .ndb-cp-main>.ndb-cp-panel:nth-child(2) .ndb-cp-scroll{max-height:none}
 @media(max-width:680px){.ndb-cp-variation-head,.ndb-cp-variation-item{grid-template-columns:26px minmax(90px,1fr) 46px 46px 56px 26px;}.ndb-cp-variation-head span:nth-child(6),.ndb-cp-variation-item>.ndb-cp-vnum:nth-of-type(5){display:none}}
+
+/* Paginação das listas longas (variações e coleções) */
+.ndb-cp-pager{display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 6px;font-size:11px;color:var(--cp-muted)}
+.ndb-cp-pager button{border:1px solid var(--cp-border);background:#fff;color:inherit;border-radius:8px;padding:5px 10px;font:inherit;font-weight:700;cursor:pointer}
+.ndb-cp-pager button:disabled{opacity:.45;cursor:default}
+@media(max-width:680px){.ndb-cp-pager{flex-wrap:wrap;gap:6px}}

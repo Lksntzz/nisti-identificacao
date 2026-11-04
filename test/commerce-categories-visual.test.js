@@ -62,7 +62,7 @@ test('investigação completa mostra melhor/pior semana e os períodos das cole�
   const css=read('src/commerce-categories-panel.css');
   assert.match(ui,/Melhor semana \(mês\)/);
   assert.match(ui,/Menor semana \(mês\)/);
-  assert.match(ui,/collectionRows\.map\(col=>\{/);
+  assert.match(ui,/pageOf\(collectionRows,colPage\)\.items\.map\(col=>\{/);
   assert.match(ui,/Melhor mês','Melhor semana/);
   assert.match(ui,/id="ndb-cp-products"/);
   assert.match(ui,/Ver produtos/);
@@ -83,7 +83,7 @@ test('coleções são exibidas no card e podem abrir variações reais com SKU, 
   assert.match(ui,/className="ndb-cp-variation-list"/);
   assert.match(ui,/colSpan=\{8\}/);
   assert.match(ui,/t\?\.variation_count/);
-  assert.match(ui,/rows\(t\?\.products\)\.map\(v=>/);
+  assert.match(ui,/pageOf\(rows\(t\?\.products\),varPage\)\.items\.map\(v=>/);
   assert.match(css,/\.ndb-cp-variation-item/);
   assert.match(sql,/commerce_sku_col_v1\(k\.sku,public\.commerce_sku_name_v1\(k\.sku\)\)/);
   assert.match(sql,/'collection_months'/);
