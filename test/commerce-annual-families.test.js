@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {familyMetricTotals,canLinkFamilyProduct,familyDetailsByMonth} from '../src/commerce-annual-families-helpers.js';
+import {familyMetricTotals,canLinkFamilyProduct,familyDetailsByMonth,familyReportMonths} from '../src/commerce-annual-families-helpers.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 
@@ -15,6 +15,17 @@ test('meses futuros nao entram como zero no historico comparavel',()=>{
   });
   assert.equal(familyMetricTotals(rows,'revenue').cur,3000);
   assert.equal(familyMetricTotals(rows.map(r=>({...r,cur_units:0})),'units').best,null);
+});
+
+test('resumo geral mostra vendas sem familia; filtro de familia preserva apenas o grupo confirmado',()=>{
+  const report={
+    overall_months:[{month:1,base_units:null,cur_units:53131,base_revenue:null,cur_revenue:123456}],
+    months:[{month:1,base_units:null,cur_units:0,base_revenue:null,cur_revenue:0}]
+  };
+  assert.equal(familyMetricTotals(familyReportMonths(report,''),'units').cur,53131);
+  assert.equal(familyMetricTotals(familyReportMonths(report,'10'),'units').cur,0);
+  assert.equal(familyMetricTotals(familyReportMonths(report,''),'units').base,0);
+  assert.deepEqual(familyReportMonths({months:[]},''),[],'dados gerais ausentes nao devem ser inventados');
 });
 
 test('familia aceita outra capa e SKU, mas nao categoria divergente nem vinculo preexistente',()=>{
@@ -66,6 +77,17 @@ test('report so atribui SKU com proprietario unico e nao mistura ano da edicao c
   assert.match(sql,/without_family_cur_units/);
   assert.match(sql,/platforms_not_comparable/);
   assert.match(sql,/platform_coverage/);
+  assert.match(sql,/revoke all on function public\.commerce_annual_family_report_v1[^;]*from public,anon,authenticated/i);
+  assert.match(sql,/grant execute on function public\.commerce_annual_family_report_v1[^;]*to service_role/i);
+});
+
+test('migration v2 devolve meses gerais separados da classificacao, sem expor RPC publicamente',()=>{
+  const sql=read('supabase/migrations/20261104162000_commerce_annual_family_overview_v2.sql');
+  assert.match(sql,/overall_month_totals as \(/);
+  assert.match(sql,/from relevant t\s+group by t.sales_month,t.side/);
+  assert.match(sql,/'overall_months',coalesce/);
+  assert.match(sql,/'months',coalesce/);
+  assert.match(sql,/where t.family_id is not null and \(p_family_id is null or t.family_id=p_family_id\)/);
   assert.match(sql,/revoke all on function public\.commerce_annual_family_report_v1[^;]*from public,anon,authenticated/i);
   assert.match(sql,/grant execute on function public\.commerce_annual_family_report_v1[^;]*to service_role/i);
 });

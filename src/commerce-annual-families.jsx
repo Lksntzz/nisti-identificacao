@@ -3,7 +3,7 @@ import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {maskMoney} from './commerce-privacy.js';
 import {growth,pctText} from './commerce-annual-compare-helpers.js';
 import {listingUrl} from './commerce-dashboard.jsx';
-import {familyMetricTotals,canLinkFamilyProduct,familyDetailsByMonth} from './commerce-annual-families-helpers.js';
+import {familyMetricTotals,canLinkFamilyProduct,familyDetailsByMonth,familyReportMonths} from './commerce-annual-families-helpers.js';
 import './commerce-annual-families.css';
 
 const MONTHS=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -143,7 +143,7 @@ export default function CommerceAnnualFamilies({refresh=0}){
   },[platform,year,familyId,revision,refresh]);
   const families=report?.families||[];
   const selected=families.find(f=>Number(f.id)===Number(familyId)&&familyId);
-  const months=report?.months||[];
+  const months=familyReportMonths(report,familyId);
   const totals=familyMetricTotals(months,metric);
   const details=familyDetailsByMonth(report?.details,detailMonth);
   const format=value=>metric==='revenue'?money(value):num(value)+' un.';
@@ -159,13 +159,13 @@ export default function CommerceAnnualFamilies({refresh=0}){
       <div className="gaf-filters">
         <label>Ano em análise<select value={year} onChange={e=>setYear(Number(e.target.value))}>{Array.from({length:Math.max(2,initialYear-2024)},(_,i)=>initialYear-i).map(y=><option key={y} value={y}>{y} × {y-1}</option>)}</select></label>
         <label>Marketplace<select value={platform} onChange={e=>setPlatform(e.target.value)}>{PLATFORMS.map(([key,name])=><option key={key} value={key}>{name}</option>)}</select></label>
-        <label>Família<select value={familyId} onChange={e=>setFamilyId(e.target.value)}><option value="">Todas as famílias classificadas</option>{families.map(f=><option key={f.id} value={f.id}>{f.name} · {f.format_name}</option>)}</select></label>
+        <label>Família<select value={familyId} onChange={e=>setFamilyId(e.target.value)}><option value="">Todas as vendas (visão geral)</option>{families.map(f=><option key={f.id} value={f.id}>{f.name} · {f.format_name}</option>)}</select></label>
         <label>Indicador<select value={metric} onChange={e=>setMetric(e.target.value)}><option value="units">Unidades vendidas</option><option value="revenue">Receita dos produtos</option></select></label>
       </div>
       {loading&&<p className="gaf-muted" role="status">Carregando vendas por família…</p>}
       {reportError&&<p role="alert" className="gaf-error">{reportError}</p>}
       {report&&!loading&&<>
-        <div className="gaf-info">Dados até {report.as_of?String(report.as_of).split('-').reverse().join('/'):'data indisponível'} · Relatório somente de vínculos confirmados.
+        <div className="gaf-info">Dados até {report.as_of?String(report.as_of).split('-').reverse().join('/'):'data indisponível'} · {familyId?'Família: somente vínculos confirmados.':'Visão geral: todas as vendas importadas, mesmo sem família cadastrada.'}
           {!report.base_available&&<strong> Sem cobertura de {year-1}; comparação indisponível.</strong>}
           {(report.platforms_not_comparable||[]).length>0&&<strong> Cobertura desigual entre os anos em: {report.platforms_not_comparable.join(', ')}. Confira cada marketplace separadamente antes de concluir a variação.</strong>}
           {(report.platform_coverage||[]).length>0&&<details className="gaf-coverage"><summary>Ver datas com vendas importadas por conta e ano</summary><ul>{report.platform_coverage.map(v=><li key={v.platform+':'+v.sales_year}>{v.platform} · {v.sales_year}: {String(v.first_date).split('-').reverse().join('/')} a {String(v.last_date).split('-').reverse().join('/')} ({num(v.days_present)} dia(s) com registros)</li>)}</ul><small>Essas datas indicam registros encontrados; não garantem que todas as vendas do período foram importadas.</small></details>}
@@ -176,12 +176,12 @@ export default function CommerceAnnualFamilies({refresh=0}){
           <div><small>Variação anual</small><strong>{report.base_available&&report.current_available?percent(totals.cur,totals.base):'Sem base'}</strong></div>
           <div><small>Melhor mês {year}</small><strong>{report.current_available&&totals.best?MONTHS[Number(totals.best.month)-1]:'—'}</strong></div>
         </div>
-        <section className="gaf-panel"><div className="gaf-section-head"><div><h3>Vendas por mês</h3><p>{selected?selected.name+' · '+selected.format_name:'Famílias já classificadas'} · {metric==='revenue'?'Receita de produtos':'Unidades'}</p></div>
+        <section className="gaf-panel"><div className="gaf-section-head"><div><h3>Vendas por mês</h3><p>{selected?selected.name+' · '+selected.format_name:'Todas as vendas importadas'} · {metric==='revenue'?'Receita de produtos':'Unidades'}</p></div>
           <div className="gaf-legend"><span><i className="base"/>{year-1}</span><span><i className="current"/>{year}</span></div></div>
           <PairChart months={months} metric={metric} year={year} base={year-1}/>
         </section>
         <section className="gaf-panel"><div className="gaf-section-head"><div><h3>Ranking das famílias</h3><p>Clique em uma família para detalhar edições, capas, SKUs e anúncios.</p></div></div>
-          {families.length===0?<p className="gaf-muted">Nenhuma família cadastrada. Use “Gerenciar famílias” para iniciar a classificação.</p>:
+          {families.length===0?<p className="gaf-muted">Nenhuma família cadastrada. Os totais e o gráfico acima já incluem as vendas importadas. Use “Gerenciar famílias” para iniciar a classificação por modelo e formato.</p>:
             <div className="gaf-table-scroll"><table><thead><tr><th>Família / modelo</th><th>Formato</th><th>Categoria</th><th>{year-1} · un.</th><th>{year} · un.</th><th>Receita {year}</th><th>Variação</th></tr></thead><tbody>
               {families.map(f=><tr key={f.id} className={Number(familyId)===Number(f.id)?'selected':''}>
                 <td><button className="gaf-family-link" onClick={()=>setFamilyId(String(f.id))}>{f.name}<small>{f.model_name} · {f.member_count} Produto(s) Mestre</small></button></td><td>{f.format_name}</td><td>{f.category}</td>

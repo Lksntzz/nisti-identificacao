@@ -18,6 +18,12 @@ const report={
   platforms_not_comparable:[],platform_coverage:[],
   overall:{unclassified_cur_units:480,without_family_cur_units:400,unmapped_cur_units:80},
   families:[family],
+  overall_months:baseUnits.map((base_units,i)=>({
+    month:i+1,base_units:base_units==null?null:base_units+10,
+    cur_units:currentUnits[i]==null?null:currentUnits[i]+60,
+    base_revenue:base_units==null?null:(base_units+10)*30,
+    cur_revenue:currentUnits[i]==null?null:(currentUnits[i]+60)*30
+  })),
   months:baseUnits.map((base_units,i)=>({
     month:i+1,base_units,cur_units:currentUnits[i],
     base_revenue:base_units==null?null:base_units*30,
@@ -52,6 +58,7 @@ async function run(){
       await page.getByRole('button',{name:'Comparação anual'}).click();
       await page.locator('.gaf-root').waitFor({timeout:30000});
       await page.getByRole('heading',{name:'Comparação anual · Famílias e edições'}).waitFor();
+      await page.getByText('Visão geral: todas as vendas importadas, mesmo sem família cadastrada.',{exact:false}).waitFor();
       assert.equal(await page.getByRole('button',{name:'Famílias e edições',exact:true}).count(),0,'submenu duplicado em '+label);
       await page.getByText('Das vendas de 2026, 480 unidades ainda estão fora das famílias:').waitFor({timeout:20000});
       await page.locator('.gaf-filters select').nth(2).selectOption('10');
