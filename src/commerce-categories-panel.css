@@ -174,3 +174,11 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-variation-units strong{font-size:10.5px;color:var(--cp-ink)}
 .ndb-cp-variation-units em{font-size:10px;font-weight:800;font-style:normal}
 @media(max-width:680px){.ndb-cp-variation-item{gap:5px;padding:5px 3px}.ndb-cp-variation-units{font-size:9px}}
+
+/* Tabela de categorias ocupa toda a altura do cartão (sem vão em branco embaixo e sem corte).
+   O cartão da esquerda estica até a altura do detalhe da direita; a tabela rola dentro dele. */
+@media(min-width:1201px){
+  .ndb-cp-main>.ndb-cp-panel:first-child{display:flex;flex-direction:column}
+  .ndb-cp-main>.ndb-cp-panel:first-child>.ndb-cp-scroll{flex:1 1 0;min-height:360px;max-height:none}
+  .ndb-cp-main>.ndb-cp-panel:first-child>.ndb-cp-foot{flex:none}
+}
