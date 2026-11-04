@@ -54,7 +54,7 @@ async function run(){
       await page.getByRole('heading',{name:'Comparação anual · Famílias e edições'}).waitFor();
       assert.equal(await page.getByRole('button',{name:'Famílias e edições',exact:true}).count(),0,'submenu duplicado em '+label);
       await page.getByText('Das vendas de 2026, 480 unidades ainda estão fora das famílias:').waitFor({timeout:20000});
-      await page.getByRole('button',{name:/Agenda diária A5/}).click();
+      await page.getByLabel('Família',{exact:true}).selectOption('10');
       await page.getByText('AGENDA-FLOR-2026').waitFor();
       await page.getByLabel('Período do detalhe').selectOption('1');
       await page.getByText('AGENDA-LISA-2025').waitFor();
