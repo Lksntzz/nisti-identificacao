@@ -40,6 +40,7 @@ import {
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
   commerceAnnualCompare, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualListingMonths, commerceAnnualMonthHealth, commerceAnnualListingInsights, commerceAnnualWindow, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
+  commerceProductFamilyCatalog,commerceProductFamilySave,commerceProductFamilyMemberSet,commerceAnnualFamilyReport,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
   commerceMlPerformanceLatest,
@@ -544,6 +545,40 @@ async function handleCommerceAdminRequestUncached(request, env) {
         ||!Number.isInteger(offset)||offset<0||offset>20000)
         return json({error:'Filtro de anúncios no comparativo mensal inválido.'},400);
       return json(await commerceAnnualMonthListings(env,{platform,month,year,base,asOf,tab,history,search,limit,offset}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/families/catalog'){
+      const search=String(query(url,'search')||'');
+      if(search.length>120)return json({error:'Busca de produto muito longa.'},400);
+      return json(await commerceProductFamilyCatalog(env,search));
+    }
+    if(method==='POST'&&pathname===BASE_PATH+'/sales-compare/families'){
+      const input=await bodyJson(request);
+      const name=String(input?.name||'').trim(),model=String(input?.model||'').trim();
+      const format=String(input?.format||'').trim();
+      const category=positiveId(input?.category_id);
+      const familyId=input?.family_id==null?null:positiveId(input.family_id);
+      if(!input||name.length<3||name.length>120||model.length<2||model.length>120
+        ||!format||format.length>60||!category||(input.family_id!=null&&!familyId))
+        return json({error:'Preencha nome, modelo, formato e categoria válidos.'},400);
+      return json(await commerceProductFamilySave(env,{family_id:familyId,name,model,format,category_id:category},operatorName(request)));
+    }
+    if(method==='POST'&&pathname===BASE_PATH+'/sales-compare/families/member'){
+      const input=await bodyJson(request);
+      if(!positiveId(input?.family_id)||!positiveId(input?.product_id)
+        ||typeof input?.assign!=='boolean'||input?.confirmed!==true
+        ||String(input?.evidence||'').trim().length<8||String(input?.evidence||'').trim().length>500)
+        return json({error:'Confirme o vínculo e informe uma justificativa de 8 a 500 caracteres.'},400);
+      return json(await commerceProductFamilyMemberSet(env,input,operatorName(request)));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/families/report'){
+      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
+      const year=Number(query(url,'year')),base=Number(query(url,'base'));
+      const familyId=query(url,'family_id')==null?null:positiveId(query(url,'family_id'));
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','MERCADO_LIVRE','TODAS'].includes(platform)
+        ||!Number.isInteger(year)||year<2021||year>2100||base!==year-1
+        ||(query(url,'family_id')!=null&&!familyId))
+        return json({error:'Filtros de famílias inválidos.'},400);
+      return json(await commerceAnnualFamilyReport(env,{platform,year,base,familyId}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-month'){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
