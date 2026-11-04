@@ -125,6 +125,9 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const [show,setShow]=useState('all');
   const [varPage,setVarPage]=useState(1);
   const [colPage,setColPage]=useState(1);
+  const [catPage,setCatPage]=useState(1);
+  const [openYear,setOpenYear]=useState(null);
+  const [allMonths,setAllMonths]=useState(false);
   const categories=rows(data?.categories);
   const picked=categories.find(c=>c.name===selectedCat)||categories[0]||null;
   const asOf=String(data?.as_of||cover.data?.as_of||'');
@@ -185,9 +188,16 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   }).filter(Boolean);
   const bestWeek=[...weeks].sort((a,b)=>b.cur-a.cur)[0]||null;
   const worstWeek=[...weeks].sort((a,b)=>a.cur-b.cur)[0]||null;
+  const bestMonthBase=[...validMonths].sort((a,b)=>b.base-a.base)[0],bestWeekBase=[...weeks].sort((a,b)=>b.base-a.base)[0]||null;
+  const diffTotal=num(picked?.cur)-num(picked?.base);
+  const explainers=[...collectionRows].filter(c=>c.name&&c.name!=='Sem coleção').map(c=>({name:c.name,d:num(c.cur)-num(c.base)})).filter(c=>c.d!==0).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,2);
+  const newCols=collectionRows.filter(c=>num(c.base)===0&&num(c.cur)>0),newUnits=newCols.reduce((a,c)=>a+num(c.cur),0);
+  const newShare=num(picked?.cur)>0?Math.round(newUnits/num(picked.cur)*100):0;
   const total=data?.total||{cur:0,base:0};
   const maxCats=Math.max(1,...categories.flatMap(c=>[num(c.cur),num(c.base)]));
   useEffect(()=>{setVarPage(1);},[selectedCollection,currentMonth,selectedWeek,selectedCat,year]);
+  useEffect(()=>{setCatPage(1);},[search,sort,show,year,filters.platform]);
+  useEffect(()=>{setOpenYear(null);},[selectedCat]);
   useEffect(()=>{setColPage(1);},[selectedCat,search,sort,show,year,currentMonth]);
   const selectedProduct=rows(t?.products)[0];
   const chooseCat=name=>{setSelectedCat(name);setSelectedCollection(null);setSelectedWeek(null);};
@@ -211,33 +221,34 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
         <Metric icon="trophy" title="Categoria líder" value={leader?.name||'—'} detail={leader?fmt(leader.cur)+' unidades · '+(num(total.cur)>0?Math.round(num(leader.cur)/num(total.cur)*100)+'% do total':'—'):'Sem vendas'} onClick={()=>leader&&chooseCat(leader.name)} active={picked?.name===leader?.name}/>
         <Metric icon="trophy" title="Coleção líder" value={leaderCollection?.name||'—'} detail={leaderCollection?fmt(leaderCollection.cur)+' unidades · '+leaderCollection.category:'Nenhuma coleção identificada'} onClick={()=>leaderCollection&&(chooseCat(leaderCollection.category),setSelectedCollection(leaderCollection.name))}/>
         <Metric icon="up" title="Coleção em crescimento" value={gainCollection?.name||'—'} detail={gainCollection?delta(num(gainCollection.cur)-num(gainCollection.base))+' un. · '+gainCollection.category:'Sem crescimento confirmado'} tone="green" onClick={()=>gainCollection&&(chooseCat(gainCollection.category),setSelectedCollection(gainCollection.name))}/>
-        <Metric icon="down" title="Coleção em queda" value={lossCollection?.name||'—'} detail={lossCollection?delta(num(lossCollection.cur)-num(lossCollection.base))+' un. · '+lossCollection.category:'Sem queda confirmada'} tone="red" onClick={()=>lossCollection&&(chooseCat(lossCollection.category),setSelectedCollection(lossCollection.name))}/>
       </div>
       <div className="ndb-cp-main">
         <Section title="Comparação por categoria" subtitle={baseYear+' × '+year+' · unidades no período comparado'} aside={<div className="ndb-cp-control-row"><select aria-label="Exibir categorias" value={show} onChange={e=>setShow(e.target.value)}><option value="all">Todas</option><option value="up">Crescimento</option><option value="down">Queda</option><option value="none">Sem categoria</option></select><select aria-label="Ordenar categorias" value={sort} onChange={e=>setSort(e.target.value)}><option value="units">Unidades</option><option value="growth">Maior ganho</option><option value="loss">Maior perda</option></select></div>} className="ndb-cp-category-panel">
           <DetailTable heads={['Categoria',String(baseYear),String(year),'Diferença','Variação','Participação']}>
-            {filtered.map((c,i)=><tr key={c.name} className={picked?.name===c.name?'is-selected':''} onClick={()=>chooseCat(c.name)}>
+            {pageOf(filtered,catPage).items.map((c,i0)=>{const i=(pageOf(filtered,catPage).n-1)*PAGE_SIZE+i0;return <tr key={c.name} className={picked?.name===c.name?'is-selected':''} onClick={()=>chooseCat(c.name)}>
               <td><button type="button" className="ndb-cp-row-name" onClick={e=>{e.stopPropagation();chooseCat(c.name)}}><Thumb src={imageOf(c.name)} alt={'Produto de '+c.name}/><span><b>{c.name}</b><small>#{i+1}</small></span></button></td>
               <td>{fmt(c.base)}</td><td><b>{fmt(c.cur)}</b><PairBars base={c.base} cur={c.cur} max={maxCats}/></td>
               <td className={color(num(c.cur)-num(c.base))}>{delta(num(c.cur)-num(c.base))}</td>
               <td><PeriodTag cur={c.cur} base={c.base}/></td>
               <td>{num(total.cur)>0?Math.round(num(c.cur)/num(total.cur)*1000)/10+'%':'—'}<span className="ndb-cp-share"><i style={{width:(num(total.cur)>0?num(c.cur)/num(total.cur)*100:0)+'%'}}/></span></td>
-            </tr>)}
+            </tr>;})}
           </DetailTable>
+          <Pager page={pageOf(filtered,catPage).n} total={filtered.length} onPage={setCatPage}/>
           {!filtered.length&&<p className="ndb-cp-empty">Nenhuma categoria encontrada.</p>}
           <p className="ndb-cp-foot">Selecione uma categoria para investigar coleções, variações, meses e semanas. As fotos são do catálogo.</p>
         </Section>
-        <Section title="Categoria selecionada" aside={<button type="button" className="ndb-cp-view-products" onClick={()=>document.getElementById("ndb-cp-products")?.scrollIntoView({behavior:"smooth",block:"start"})}><Icon name="box" size={14}/> Ver produtos</button>} className="ndb-cp-category-detail">
+        <Section title="Categoria selecionada" className="ndb-cp-category-detail">
           {picked?<><div className="ndb-cp-selected"><Thumb size="large" src={imageOf(picked.name)||selectedProduct?.image} alt={'Foto de '+picked.name}/><div><h4>{picked.name}</h4><small>Participação: {num(total.cur)>0?(num(picked.cur)/num(total.cur)*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—'}</small></div></div>
             <div className="ndb-cp-stats">
-              <div><small>{year}</small><b>{fmt(picked.cur)}</b></div>
-              <div><small>{baseYear}</small><b>{fmt(picked.base)}</b></div>
+              <button type="button" className={'ndb-cp-year-cell'+(openYear==='cur'?' is-open':'')} aria-expanded={openYear==='cur'} onClick={()=>setOpenYear(openYear==='cur'?null:'cur')}><small>{year} ▾</small><b>{fmt(picked.cur)}</b></button>
+              <button type="button" className={'ndb-cp-year-cell'+(openYear==='base'?' is-open':'')} aria-expanded={openYear==='base'} onClick={()=>setOpenYear(openYear==='base'?null:'base')}><small>{baseYear} ▾</small><b>{fmt(picked.base)}</b></button>
               <div><small>Diferença</small><b className={color(num(picked.cur)-num(picked.base))}>{delta(num(picked.cur)-num(picked.base))}</b></div>
               <div><small>Variação</small><b><PeriodTag cur={picked.cur} base={picked.base}/></b></div>
-              <div><small>Melhor mês</small><b>{bestMonth?SHORT[bestMonth.month-1]:'—'}</b></div>
-              <div><small>Menor mês</small><b>{worstMonth?SHORT[worstMonth.month-1]:'—'}</b></div>
-              <div><small>Melhor semana (mês)</small><b>{bestWeek?'Sem. '+bestWeek.week:'—'}</b></div>
-              <div><small>Menor semana (mês)</small><b>{worstWeek?'Sem. '+worstWeek.week:'—'}</b></div>
+            </div>
+            {openYear&&<p className="ndb-cp-year-detail" role="status"><b>{openYear==='cur'?year:baseYear}:</b> melhor mês <strong>{(openYear==='cur'?bestMonth:bestMonthBase)?SHORT[(openYear==='cur'?bestMonth:bestMonthBase).month-1]+' · '+fmt(openYear==='cur'?bestMonth.cur:bestMonthBase.base):'—'}</strong> · melhor semana de {MONTHS[currentMonth-1]} <strong>{(openYear==='cur'?bestWeek:bestWeekBase)?'Sem. '+(openYear==='cur'?bestWeek:bestWeekBase).week+' · '+fmt(openYear==='cur'?bestWeek.cur:bestWeekBase.base):'—'}</strong></p>}
+            <div className="ndb-cp-insights">
+              <div><small>Quem explica a variação</small>{explainers.length?explainers.map(e=><span key={e.name}><b>{e.name}</b> <em className={color(e.d)}>{delta(e.d)}</em></span>):<span>—</span>}</div>
+              <div><small>Peso dos lançamentos</small><span><b>{newShare}%</b> das vendas vêm de {newCols.length} {newCols.length===1?'coleção sem':'coleções sem'} vendas em {baseYear}{newCols.length?' ('+fmt(newUnits)+' un.)':''}</span></div>
             </div>
             <div className="ndb-cp-panel-subheading"><b>Coleções de {picked.name}</b><button type="button" onClick={()=>setSelectedCollection(null)} disabled={!selectedCollection}>{selectedCollection?'Mostrar todas':'Todas as coleções'}</button></div>
             {temporal.loading?<p className="ndb-cp-loading">Carregando coleções e variações…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}<button type="button" onClick={temporal.retry}>Tentar novamente</button></div>:null}
@@ -285,15 +296,16 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
         <Section title={'Comparação mensal '+(selectedCollection?'da coleção':'da categoria')} subtitle={selectedCollection||picked?.name||''} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
           <MonthlyBars points={months} selected={currentMonth} onSelect={chooseMonth} year={year} baseYear={baseYear}/>
         </Section>
-        <Section title="Tabela mensal" subtitle={'Clique no mês para detalhar semanas · '+(selectedCollection||picked?.name||'')} >
+        <Section title="Tabela mensal" subtitle={(allMonths?'Todos os meses · ':MONTHS[currentMonth-1]+' · ')+'clique no mês para detalhar semanas · '+(selectedCollection||picked?.name||'')} >
           <DetailTable heads={['Mês',String(baseYear),String(year),'Diferença','Variação','Categoria líder','Coleção líder']}>
-            {months.filter(m=>m.month<=(asOfMonth||1)).map(m=><tr key={m.month} className={currentMonth===m.month?'is-selected':''} onClick={()=>chooseMonth(m.month)}>
+            {months.filter(m=>m.month<=(asOfMonth||1)&&(allMonths||m.month===currentMonth)).map(m=><tr key={m.month} className={currentMonth===m.month?'is-selected':''} onClick={()=>chooseMonth(m.month)}>
               <td><button type="button" className="ndb-cp-month-button" onClick={e=>{e.stopPropagation();chooseMonth(m.month)}}>{SHORT[m.month-1]}</button></td>
               <td>{fmt(m.base)}</td><td>{m.cur==null?'—':fmt(m.cur)}</td><td className={color(num(m.cur)-num(m.base))}>{m.cur==null?'—':delta(num(m.cur)-num(m.base))}</td>
               <td>{m.cur==null?'—':<PeriodTag cur={m.cur} base={m.base}/>}</td>
               <td>{m.catLeader}</td><td>{m.collectionLeader}</td>
             </tr>)}
           </DetailTable>
+          <p className="ndb-cp-foot"><button type="button" className="ndb-cp-link-button" onClick={()=>setAllMonths(v=>!v)}>{allMonths?'Mostrar só o mês em destaque':'Ver todos os meses'}</button></p>
         </Section>
         <Section title={'Sazonalidade da '+(selectedCollection?'coleção':'categoria')} subtitle={(selectedCollection||picked?.name||'')+' · '+baseYear+' × '+year} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
           <Seasonality points={months} onSelect={chooseMonth} selected={currentMonth} year={year} baseYear={baseYear}/>
@@ -306,22 +318,10 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
               <td>{fmt(w.base)}</td><td><b>{fmt(w.cur)}</b></td><td className={color(w.cur-w.base)}>{delta(w.cur-w.base)}</td><td><PeriodTag cur={w.cur} base={w.base}/></td><td>{w.leaderCollection}</td><td className="ndb-cp-arrow">›</td>
             </tr>)}
           </DetailTable>
-          {selectedWeek&&<div className="ndb-cp-week-selected">Semana {selectedWeek} selecionada: os produtos abaixo mostram somente essa semana. <button type="button" onClick={()=>setSelectedWeek(null)}>Limpar</button></div>}
+          {selectedWeek&&<div className="ndb-cp-week-selected">Semana {selectedWeek} selecionada: as variações mostram somente essa semana. <button type="button" onClick={()=>setSelectedWeek(null)}>Limpar</button></div>}
           <p className="ndb-cp-foot">Semanas: 1–7, 8–14, 15–21, 22–28, 29–fim. * Semana parcial. As vendas são comparadas com a mesma faixa do ano anterior. No mês atual, o ano anterior também é contado só até o mesmo dia.</p>
         </Section>
       </div>
-      <section id="ndb-cp-products"><Section title="Produtos e itens do período" subtitle={(selectedCollection||picked?.name||'')+' · '+MONTHS[currentMonth-1]+(selectedWeek?' · semana '+selectedWeek:'')+' · '+year+' × '+baseYear} aside={<span className="ndb-cp-chip">Fotos reais do catálogo · até 8 SKUs</span>} className="ndb-cp-products-panel">
-        {temporal.loading?<p className="ndb-cp-loading">Carregando produtos e miniaturas…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}</div>:
-          <div className="ndb-cp-products">
-            {rows(t?.products).map(r=><div className="ndb-cp-product" key={r.sku}>
-              <Thumb src={r.image} alt={r.name} size="large"/>
-              <div className="ndb-cp-product-info"><b>{r.name||r.sku}</b><small>SKU: {r.sku}</small><span>{baseYear}: {fmt(r.base)} · {year}: <strong>{fmt(r.cur)}</strong> · <em className={color(num(r.cur)-num(r.base))}>{delta(num(r.cur)-num(r.base))} un.</em></span></div>
-              {validLink(r.url)?<a href={r.url} target="_blank" rel="noopener noreferrer" className="ndb-cp-product-link" aria-label={'Abrir anúncio de '+r.name}><Icon name="link" size={16}/>Anúncio</a>:<span className="ndb-cp-no-link">Sem link</span>}
-            </div>)}
-            {!rows(t?.products).length&&<p className="ndb-cp-empty">Nenhum SKU com vendas identificadas nesse recorte.</p>}
-          </div>}
-        <p className="ndb-cp-foot">Ranking por unidades registradas; a ausência de vendas não comprova anúncio inativo. Miniaturas só aparecem quando há imagem cadastrada.</p>
-      </Section></section>
     </>}
   </div>;
 }

@@ -203,3 +203,17 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-pager button{border:1px solid var(--cp-border);background:#fff;color:inherit;border-radius:8px;padding:5px 10px;font:inherit;font-weight:700;cursor:pointer}
 .ndb-cp-pager button:disabled{opacity:.45;cursor:default}
 @media(max-width:680px){.ndb-cp-pager{flex-wrap:wrap;gap:6px}}
+
+/* Resumo da categoria: ano clicável e leitura rápida */
+.ndb-cp-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.ndb-cp-year-cell{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;padding:8px 6px;min-width:0;border-right:1px solid var(--cp-border);cursor:pointer}
+.ndb-cp-year-cell small{font-size:10px;color:var(--cp-muted)}.ndb-cp-year-cell b{font-size:15px}
+.ndb-cp-year-cell:hover,.ndb-cp-year-cell.is-open{background:#eef4ff}
+.ndb-cp-year-cell:focus-visible{outline:2px solid #2563eb;outline-offset:-2px}
+.ndb-cp-year-detail{margin:0 0 10px;padding:7px 10px;border-radius:8px;background:#eef4ff;font-size:11px}
+.ndb-cp-insights{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.ndb-cp-insights>div{display:flex;flex-direction:column;gap:3px;padding:8px 10px;border:1px solid var(--cp-border);border-radius:9px;font-size:11px;min-width:0}
+.ndb-cp-insights small{font-size:10px;color:var(--cp-muted);font-weight:800}
+.ndb-cp-insights em{font-style:normal;font-weight:800}
+.ndb-cp-link-button{all:unset;cursor:pointer;color:#2563eb;font-weight:800;font-size:11px}
+@media(max-width:680px){.ndb-cp-insights{grid-template-columns:1fr}}

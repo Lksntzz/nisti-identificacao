@@ -184,10 +184,10 @@ test('links protegidos respeitam plataforma e anos disponíveis têm cobertura h
 
 test('categorias: produto tem nome, SKU, miniatura real e link de anúncio protegido', () => {
   const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
-  assert.match(ui, /r\.name\|\|r\.sku/);
-  assert.match(ui, /SKU: \{r\.sku\}/);
+  assert.match(ui, /v\.name\|\|v\.sku/);
+  assert.match(ui, /<small>\{v\.sku\}<\/small>/);
   assert.match(ui, /validImage\(src\)/);
-  assert.match(ui, /validLink\(r\.url\)/);
+  assert.match(ui, /validLink\(v\.url\)/);
   assert.match(ui, /rel="noopener noreferrer"/);
 });
 
@@ -197,7 +197,7 @@ test('categorias por coleção: migração, rota e tela usam coleção e variaç
   assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/categories-col/);
   const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
   assert.match(ui,/Coleções de \{picked\.name\}/);
-  assert.match(ui,/Produtos e itens do período/);
+  assert.doesNotMatch(ui,/Produtos e itens do período/);
   assert.match(ui,/Sazonalidade da /);
   assert.doesNotMatch(ui,/<h2>Categorias<\/h2>/);
 });

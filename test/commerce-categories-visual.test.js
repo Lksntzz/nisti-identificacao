@@ -6,7 +6,7 @@ const read=path=>fs.readFileSync(path,'utf8');
 test('categorias visual segue a referência: 5 indicadores, tabelas, gráficos mensais e sazonais',()=>{
   const ui=read('src/commerce-categories-panel.jsx');
   const css=read('src/commerce-categories-panel.css');
-  for(const title of ['Total de unidades','Categoria líder','Coleção líder','Coleção em crescimento','Coleção em queda','Comparação por categoria','Categoria selecionada','Tabela mensal','Comparação semanal','Produtos e itens do período'])
+  for(const title of ['Total de unidades','Categoria líder','Coleção líder','Coleção em crescimento','Quem explica a variação','Peso dos lançamentos','Comparação por categoria','Categoria selecionada','Tabela mensal','Comparação semanal'])
     assert.ok(ui.includes(title),'Falta painel: '+title);
   assert.match(ui,/function MonthlyBars/);
   assert.match(ui,/function Seasonality/);
@@ -28,7 +28,6 @@ test('somente foto real do catálogo, URLs externas seguras e sem inventar valor
   assert.match(ui,/^const validLink=/m);
   assert.match(ui,/<img src=\{src\} loading="lazy"/);
   assert.match(ui,/rel="noopener noreferrer"/);
-  assert.match(ui,/Sem link/);
   assert.match(ui,/Sem base/);
   assert.match(ui,/mon>asOfMonth\?null/);
   assert.match(ui,/ano atual não são tratados como zero/);
@@ -60,12 +59,10 @@ test('consulta temporal segura, paginada no detalhamento de produtos e sem grava
 test('investigação completa mostra melhor/pior semana e os períodos das coleções',()=>{
   const ui=read('src/commerce-categories-panel.jsx');
   const css=read('src/commerce-categories-panel.css');
-  assert.match(ui,/Melhor semana \(mês\)/);
-  assert.match(ui,/Menor semana \(mês\)/);
+  assert.match(ui,/melhor semana de/);
   assert.match(ui,/pageOf\(collectionRows,colPage\)\.items\.map\(col=>\{/);
   assert.match(ui,/Melhor mês','Melhor semana/);
-  assert.match(ui,/id="ndb-cp-products"/);
-  assert.match(ui,/Ver produtos/);
+  assert.doesNotMatch(ui,/Produtos e itens do período/);
   assert.match(css,/\.ndb-cp-view-products/);
 });
 
@@ -74,7 +71,7 @@ test('coleções são exibidas no card e podem abrir variações reais com SKU, 
   const ui=read('src/commerce-categories-panel.jsx');
   const css=read('src/commerce-categories-panel.css');
   const sql=read('supabase/migrations/20261030205000_commerce_categories_collections_timeline_v2.sql');
-  for(const name of ['Coleção líder','Coleção em crescimento','Coleção em queda','Coleções de','Variações da coleção','variation_name'])
+  for(const name of ['Coleção líder','Coleção em crescimento','Coleções de','Variações da coleção','variation_name'])
     assert.ok(ui.includes(name),'Ausente: '+name);
   assert.match(ui,/namedCollections=categories\.flatMap/);
   assert.match(ui,/col\.name!=='Sem coleção'/);
