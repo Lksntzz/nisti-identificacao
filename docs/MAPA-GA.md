@@ -204,3 +204,5 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 **Categorias: abertura mais rápida (04/11/2026)** — nova rota `GET /sales-compare/annual-coverage` → `commerceAnnualCoverage` → `commerce_annual_compare_coverage_v1` (~0,16 s). A tela de Categorias deixou de chamar `/sales-compare/annual` (comparativo completo, ~2,2 s) só para descobrir o ano; o ano padrão agora é o mais recente com dados no ano anterior (ou o escolhido no filtro). As consultas de categorias e detalhe começam logo depois, sem essa espera.
 
 **Categorias: cartões do topo (04/11/2026)** — grade de 4 colunas (2 em telas médias/pequenas) depois da saída do cartão "Coleção em queda"; valor em uma linha com reticências (o nome completo aparece ao passar o mouse) para os cartões ficarem com a mesma altura.
+
+**Categorias: variações maiores e card sem espaço vazio (04/11/2026)** — fontes, miniaturas e linhas das variações aumentadas; no desktop o card "Comparação por categoria" tem altura própria e acompanha a rolagem (`position:sticky`) em vez de esticar até a altura do detalhe.

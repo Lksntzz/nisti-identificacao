@@ -228,3 +228,26 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-metric{align-items:center;min-height:84px}
 .ndb-cp-metric-main strong{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
 .ndb-cp-metric-main span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* Variações maiores e mais legíveis */
+.ndb-cp-variations-title strong{font-size:13px}
+.ndb-cp-variations-title small{font-size:11px}
+.ndb-cp-variations-panel{padding:12px}
+.ndb-cp-variation-head,.ndb-cp-variation-item{grid-template-columns:44px minmax(150px,1fr) 74px 74px 86px 96px 30px;column-gap:12px}
+.ndb-cp-variation-head{padding:6px 8px;font-size:11px}
+.ndb-cp-variation-item{padding:9px 8px}
+.ndb-cp-variation-item .ndb-cp-thumb{width:38px;height:44px;flex-basis:38px}
+.ndb-cp-variation-title b{font-size:13px}
+.ndb-cp-variation-title small{font-size:11px}
+.ndb-cp-vnum{font-size:13px}
+.ndb-cp-vnum b{font-size:14px}
+@media(max-width:680px){
+  .ndb-cp-variation-head,.ndb-cp-variation-item{grid-template-columns:34px minmax(90px,1fr) 46px 46px 58px 28px;column-gap:6px}
+  .ndb-cp-variation-item .ndb-cp-thumb{width:30px;height:36px;flex-basis:30px}
+  .ndb-cp-variation-title b,.ndb-cp-vnum{font-size:12px}.ndb-cp-variation-title small{font-size:10px}
+}
+/* Card de categorias não estica junto com o detalhe: segue a rolagem sem espaço vazio */
+@media(min-width:1201px){
+  .ndb-cp-main>.ndb-cp-panel:first-child{display:block;align-self:start;position:sticky;top:12px}
+  .ndb-cp-main>.ndb-cp-panel:first-child>.ndb-cp-scroll{flex:none;min-height:0;max-height:none}
+}
