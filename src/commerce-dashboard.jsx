@@ -5,6 +5,7 @@ import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,BestMonthCell,DailySale
 import PeriodPicker from './commerce-period-picker.jsx';
 import CohortsTab from './commerce-cohorts.jsx';
 import CategoriesSummary from './commerce-dashboard-categories.jsx';
+import SalesReport from './commerce-sales-report.jsx';
 import {SalesTrend,MonthsTrend,MonthMatrix,PlatformSplit,PlatformTable,SummaryList} from './commerce-dashboard-charts.jsx';
 import './commerce-dashboard.css';
 import { maskMoney, isPrivate } from './commerce-privacy.js';
@@ -355,6 +356,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const setTab=k=>{setTabRaw(k);setFocus(true);};
   const [helpOpen,setHelpOpen]=useState(false);
   const [monthly,setMonthly]=useState(null);
+  const [reportOpen,setReportOpen]=useState(false);
   const [nsf,setNsf]=useState(initialTab==='never'?'never':'all');
   useEffect(()=>{
     const controller=new AbortController();
@@ -564,8 +566,10 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
         {filters}
         <small>{updated?'Última importação: '+when(updated):hasData?'Dados até '+fmtDayFull(data.last_day):''}</small>
         <button type="button" className="ndb-help-btn" onClick={()=>setHelpOpen(true)}>Definições e dados</button>
+        {mode==='overview'&&<button type="button" className="ndb-help-btn" onClick={()=>setReportOpen(true)}>Relatório de anúncios sem vendas</button>}
       </div>
     </header>
+    {reportOpen&&<SalesReport platform={platform} days={days} month={month} onClose={()=>setReportOpen(false)}/>}
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-sum-row" role="group" aria-label="Resumo do período">
