@@ -179,3 +179,8 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - **Verificação realizada em 03/11/2026:** a função `commerce_annual_listing_insights_v1` foi aplicada ao Supabase do GA. A leitura real Shopee 2026 × 2025 retornou 218 IDs históricos e os totais coincidiram com uma consulta independente do banco. Permissão de execução verificada: somente `service_role`; `anon` e `authenticated` não executam a função.
 - **Limitação dos dados:** não há vendas importadas de 2025 para `ML_ANTIGO` e `ML_NOVO` na fonte disponível. A API zera a classificação de "novos" para `sem base` (valores nulos, não zero), até que o histórico seja importado. Última venda disponível neste teste: Shopee 31/10/2026, ML 30/10/2026.
 - **Antes de mesclar:** testes automatizados e capturas reais no desktop/390px/modo escuro foram aprovados e revisados; confirmar CI do último commit. A implantação da migração é manual (executada em 03/11), não automática.
+
+**Unificação de SKUs duplicados (04/11/2026)**
+- Quando o mesmo produto aparece com dois códigos (ex.: final `BB` sem referência do tassel e final `BXB`), o jeito certo é uma linha na tabela `commerce_sku_alias_v1` (`old_sku` → `new_sku`, sem espaços/underscore, maiúsculas). A função `commerce_sku_canon_v1` aplica isso nas telas de Categorias/Comparação anual.
+- Aplicado: `CONFINCOLBB`→`CONFINCOLBXB` e `CONFINBCOBB`→`CONFINBCOBXB` (migração `20261104170000_commerce_sku_alias_confin_bb.sql`).
+- Categorias: variações da coleção agora aparecem em tabela compacta (Variação, ano base, ano atual, Diferença, Var.).
