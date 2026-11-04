@@ -1340,6 +1340,40 @@ export async function commerceAnnualWindow(env,{platform='SHOPEE',curFrom,curTo,
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{days:[],total:{cur:0,base:0}};
 }
 
+// Familias comerciais confirmadas. Nunca inferir equivalencia pela capa ou SKU.
+export async function commerceProductFamilyCatalog(env, search='') {
+  const data=await supabaseRpc(env,'commerce_product_family_catalog_v1',{
+    p_search:cleanText(search)?.slice(0,120)||null
+  },{timeoutMs:12000});
+  return data&&typeof data==='object'&&!Array.isArray(data)
+    ?data:{families:[],categories:[],members:[],candidates:[]};
+}
+
+export async function commerceProductFamilySave(env, input={}, actor='Administrador') {
+  return await supabaseRpc(env,'commerce_product_family_save_v1',{
+    p_family_id:cleanId(input.family_id),
+    p_name:cleanText(input.name),p_model:cleanText(input.model),
+    p_format:cleanText(input.format),p_category_id:cleanId(input.category_id),
+    p_actor:String(actor||'Administrador').slice(0,120)
+  },{timeoutMs:12000});
+}
+
+export async function commerceProductFamilyMemberSet(env,input={},actor='Administrador') {
+  return await supabaseRpc(env,'commerce_product_family_member_set_v1',{
+    p_family_id:cleanId(input.family_id),p_product_id:cleanId(input.product_id),
+    p_assign:input.assign===true,p_confirmed:input.confirmed===true,
+    p_evidence:cleanText(input.evidence),p_actor:String(actor||'Administrador').slice(0,120)
+  },{timeoutMs:12000});
+}
+
+export async function commerceAnnualFamilyReport(env,{platform='SHOPEE',year=null,base=null,familyId=null}={}) {
+  const data=await supabaseRpc(env,'commerce_annual_family_report_v1',{
+    p_platform:platform,p_year:year,p_base:base,p_family_id:cleanId(familyId)
+  },{timeoutMs:30000});
+  return data&&typeof data==='object'&&!Array.isArray(data)
+    ?data:{families:[],months:[],details:[],base_available:false,current_available:false};
+}
+
 const CAT_PLATFORMS=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'];
 function categoriesArgs({platform='SHOPEE',year=null,mode='ytd',month=null,days=null}={}) {
   const plat=CAT_PLATFORMS.includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
