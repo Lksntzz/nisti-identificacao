@@ -191,3 +191,9 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Resumo da categoria: clicar em 2026/2025 abre o melhor mês e a melhor semana (do mês em destaque) daquele ano. Novos blocos "Quem explica a variação" (2 coleções com maior diferença) e "Peso dos lançamentos" (% das unidades vindas de coleções sem vendas no ano-base). Calculados no navegador a partir das coleções já carregadas; sem rota ou SQL novos.
 - Tabela mensal mostra só o mês em destaque; link "Ver todos os meses" abre os 12.
 - Removidos: cartão "Coleção em queda" e a seção "Produtos e itens do período" (repetia as variações).
+
+**Categorias: período coerente e menos blocos (04/11/2026)**
+- `commerce_categories_timeline_v1` passou a devolver também `products_ytd` e `variation_count_ytd` (variações no acumulado do ano, mesmas datas da linha da coleção). `products`/`variation_count` (mês/semana) não mudaram. Migração `20261104190000_commerce_categories_variations_ytd_v1.sql`.
+- A lista de variações abre em "Ano até hoje"; o botão ao lado alterna para o mês (ou semana) em destaque. Clicar em mês/semana muda para o modo mês.
+- Mês em destaque pula sozinho para o último mês com vendas quando o padrão não tem venda; mês/semana sem vendas mostram aviso em vez de tabela de zeros.
+- Removido o gráfico de Sazonalidade (repetia o gráfico mensal). Nomes de coleção com traço inicial são exibidos sem o traço (só na tela; o cadastro não foi alterado).

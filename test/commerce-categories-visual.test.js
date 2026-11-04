@@ -9,7 +9,6 @@ test('categorias visual segue a referência: 5 indicadores, tabelas, gráficos m
   for(const title of ['Total de unidades','Categoria líder','Coleção líder','Coleção em crescimento','Quem explica a variação','Peso dos lançamentos','Comparação por categoria','Categoria selecionada','Tabela mensal','Comparação semanal'])
     assert.ok(ui.includes(title),'Falta painel: '+title);
   assert.match(ui,/function MonthlyBars/);
-  assert.match(ui,/function Seasonality/);
   assert.match(ui,/function PairBars/);
   assert.match(ui,/ndb-cp-kpis/);
   assert.match(ui,/selectedCat/);
@@ -80,7 +79,7 @@ test('coleções são exibidas no card e podem abrir variações reais com SKU, 
   assert.match(ui,/className="ndb-cp-variation-list"/);
   assert.match(ui,/colSpan=\{8\}/);
   assert.match(ui,/t\?\.variation_count/);
-  assert.match(ui,/pageOf\(rows\(t\?\.products\),varPage\)\.items\.map\(v=>/);
+  assert.match(ui,/pageOf\(varRows,varPage\)\.items\.map\(v=>/);
   assert.match(css,/\.ndb-cp-variation-item/);
   assert.match(sql,/commerce_sku_col_v1\(k\.sku,public\.commerce_sku_name_v1\(k\.sku\)\)/);
   assert.match(sql,/'collection_months'/);
@@ -100,4 +99,14 @@ test('categorias: série mensal corta o mês atual do ano anterior no mesmo dia'
   const m=sql.match(/monthly_category as \([\s\S]*?\), monthly_col as \([\s\S]*?\), weekly_col/)[0];
   assert.equal((m.match(/p\.cut_day/g)||[]).length,2);
   assert.match(m,/yr=p\.b and mon=extract\(month from p\.as_of\)/);
+});
+
+test('variações abrem no acumulado do ano (igual à linha da coleção) e a migração só acrescenta chaves',()=>{
+  const ui=read('src/commerce-categories-panel.jsx');
+  const sql=read('supabase/migrations/20261104190000_commerce_categories_variations_ytd_v1.sql');
+  assert.match(ui,/products_ytd/);
+  assert.match(ui,/Ano até hoje/);
+  assert.match(sql,/'products_ytd'/);
+  assert.match(sql,/'variation_count_ytd'/);
+  assert.match(sql,/grant execute on function public\.commerce_categories_timeline_v1[\s\S]*to service_role/);
 });
