@@ -148,7 +148,7 @@ export default function CommerceAnnualFamilies({refresh=0}){
   const details=familyDetailsByMonth(report?.details,detailMonth);
   const format=value=>metric==='revenue'?money(value):num(value)+' un.';
   return <div className="gaf-root">
-    <header className="gaf-heading"><div><span className="gaf-eyebrow">INTELIGÊNCIA COMERCIAL</span><h2>Famílias e edições · Comparativo anual</h2>
+    <header className="gaf-heading"><div><span className="gaf-eyebrow">INTELIGÊNCIA COMERCIAL</span><h2>Comparação anual · Famílias e edições</h2>
       <p>Mesmo modelo e formato, independentemente da capa. Edição e ano da venda continuam separados.</p></div>
       <div className="gaf-switch"><button className={mode==='report'?'active':''} onClick={()=>setMode('report')}>Analisar vendas</button><button className={mode==='registry'?'active':''} onClick={()=>setMode('registry')}>Gerenciar famílias</button></div>
     </header>

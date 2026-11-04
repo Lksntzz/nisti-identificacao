@@ -70,14 +70,18 @@ test('report so atribui SKU com proprietario unico e nao mistura ano da edicao c
   assert.match(sql,/grant execute on function public\.commerce_annual_family_report_v1[^;]*to service_role/i);
 });
 
-test('navegacao e API das familias nao substituem o comparativo existente',()=>{
+test('comparacao anual usa familias e edicoes no menu existente, sem criar outro painel',()=>{
   const app=read('src/commerce-admin-app-v2.jsx');
   const panel=read('src/commerce-commercial-panel.jsx');
+  const families=read('src/commerce-annual-families.jsx');
   const router=read('src/commerce-admin-router.js');
   const store=read('src/commerce-supabase-store.js');
-  assert.match(app,/Famílias e edições/);
-  assert.match(panel,/CommerceAnnualFamilies/);
-  assert.match(panel,/CommerceAnnualCompare/);
+  assert.match(app,/\{ id: 'comparison', label: 'Comparação anual' \}/);
+  assert.doesNotMatch(app,/\{ id: 'families', label:/);
+  assert.match(panel,/view==='comparison'&&<CommerceAnnualFamilies/);
+  assert.doesNotMatch(panel,/view==='families'/);
+  assert.doesNotMatch(panel,/CommerceAnnualCompare/);
+  assert.match(families,/Comparação anual · Famílias e edições/);
   assert.match(router,/sales-compare\/families\/catalog/);
   assert.match(router,/sales-compare\/families\/report/);
   assert.match(store,/commerce_annual_family_report_v1/);
