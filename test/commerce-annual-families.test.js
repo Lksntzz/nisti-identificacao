@@ -60,7 +60,7 @@ test('report so atribui SKU com proprietario unico e nao mistura ano da edicao c
   assert.match(sql,/y\.sales_year<=s\.valid_to_year/);
   assert.match(sql,/p\.edition_year>s\.sales_year\+1/);
   assert.match(sql,/commerce_current_sales_listing_daily_v1/);
-  assert.match(sql,/t\.sales_month month/);
+  assert.match(sql,/t\.sales_month as month/);
   assert.match(sql,/unclassified_cur_units/);
   assert.match(sql,/platforms_not_comparable/);
   assert.match(sql,/platform_coverage/);

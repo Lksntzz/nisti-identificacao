@@ -92,7 +92,7 @@ with prm as (
   group by t.sales_month,t.side
 ), details as (
   select t.product_id,p.name product_name,p.edition_year,p.temporal_type,
-    t.platform,t.listing_id,t.sku,t.sales_month month,
+    t.platform,t.listing_id,t.sku,t.sales_month as month,
     coalesce(sum(t.units) filter(where t.side='cur'),0)::bigint cur_units,
     coalesce(sum(t.units) filter(where t.side='base'),0)::bigint base_units,
     coalesce(sum(t.revenue) filter(where t.side='cur'),0)::numeric(16,2) cur_revenue,
