@@ -4,6 +4,7 @@ import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,BestMonthCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
 import PeriodPicker from './commerce-period-picker.jsx';
 import CohortsTab from './commerce-cohorts.jsx';
+import CategoriesSummary from './commerce-dashboard-categories.jsx';
 import {SalesTrend,MonthsTrend,MonthMatrix,PlatformSplit,PlatformTable,SummaryList} from './commerce-dashboard-charts.jsx';
 import './commerce-dashboard.css';
 import { maskMoney, isPrivate } from './commerce-privacy.js';
@@ -335,7 +336,7 @@ export function Dropdown({label,value,options,onChange}){
   </div>;
 }
 
-export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null,actions=null,initialFilter=null}){
+export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null,onOpenCategories=null,actions=null,initialFilter=null}){
   const [platform,setPlatform]=useState(initialFilter?.platform||'TODAS');
   const [query,setQuery]=useState('');
   const [days,setDays]=useState(initialFilter?.days??30);
@@ -602,6 +603,9 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
         {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="top" className="ndb-chart-panel ndb-rank-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
           <p className="ndb-note">{all?'15 anúncios que mais faturaram em todo o histórico.':'15 anúncios que mais faturaram em '+curTxt+'.'}</p>
           <RevenueByProduct items={top} showPlatform={multi}/>
+        </Panel>}
+        {mode==='overview'&&hasData&&<Panel title="Categorias" icon="box" source="Resumo da tela Categorias: ano até hoje contra o mesmo período do ano anterior, por categoria. Fonte: vendas importadas, com a mesma regra de categoria da tela Categorias. Não acompanha o filtro de dias do Dashboard." className="ndb-categories-panel">
+          <CategoriesSummary platform={platform} onOpen={onOpenCategories}/>
         </Panel>}
         {mode==='explorer'&&<section className="ndb-panel ndb-explorer">
           <header className="ndb-tabs-head">
