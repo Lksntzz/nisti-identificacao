@@ -182,3 +182,18 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
   .ndb-cp-main>.ndb-cp-panel:first-child>.ndb-cp-scroll{flex:1 1 0;min-height:360px;max-height:none}
   .ndb-cp-main>.ndb-cp-panel:first-child>.ndb-cp-foot{flex:none}
 }
+
+/* Variações da coleção: tabela compacta, colunas alinhadas e sem rolagem dentro de rolagem. */
+.ndb-cp-variation-list{max-height:none;overflow:visible;gap:0}
+.ndb-cp-variation-head,.ndb-cp-variation-item{display:grid;grid-template-columns:30px minmax(120px,1fr) 62px 62px 70px 78px 26px;align-items:center;column-gap:8px}
+.ndb-cp-variation-head{padding:4px 6px;font-size:9.5px;font-weight:800;color:var(--cp-muted);border-bottom:1px solid var(--cp-border);position:sticky;top:0;background:#fff;z-index:1}
+.ndb-cp-variation-head span:nth-child(n+3):nth-child(-n+6){text-align:right}
+.ndb-cp-variation-item{padding:4px 6px}
+.ndb-cp-variation-item:nth-child(odd){background:#fafcff}
+.ndb-cp-variation-item .ndb-cp-thumb{width:26px;height:30px;flex-basis:26px}
+.ndb-cp-variation-title b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ndb-cp-variation-title small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ndb-cp-vnum{text-align:right;font-variant-numeric:tabular-nums;font-size:10.5px}
+.ndb-cp-vnum.is-muted{color:var(--cp-muted)}
+.ndb-cp-main>.ndb-cp-panel:nth-child(2) .ndb-cp-scroll{max-height:none}
+@media(max-width:680px){.ndb-cp-variation-head,.ndb-cp-variation-item{grid-template-columns:26px minmax(90px,1fr) 46px 46px 56px 26px;}.ndb-cp-variation-head span:nth-child(6),.ndb-cp-variation-item>.ndb-cp-vnum:nth-of-type(5){display:none}}
