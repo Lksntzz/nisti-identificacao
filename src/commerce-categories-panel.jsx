@@ -84,6 +84,13 @@ function MonthlyBars({points,onSelect,selected,year,baseYear}){
     </button>)}
   </div>;
 }
+const PAGE_SIZE=10;
+const pageOf=(list,page)=>{const pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE)),n=Math.min(Math.max(1,page),pages);return {n,pages,items:list.slice((n-1)*PAGE_SIZE,n*PAGE_SIZE)};};
+function Pager({page,total,onPage}) {
+  const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  if(pages<=1)return null;
+  return <div className="ndb-cp-pager" role="navigation" aria-label="Paginação"><button type="button" disabled={page<=1} onClick={()=>onPage(page-1)}>‹ Anterior</button><span>Página {page} de {pages} · {fmt(total)} itens</span><button type="button" disabled={page>=pages} onClick={()=>onPage(page+1)}>Próxima ›</button></div>;
+}
 function DetailTable({heads,children,className=''}) {return <div className="ndb-cp-scroll"><table className={'ndb-cp-table '+className}><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;}
 
 export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
