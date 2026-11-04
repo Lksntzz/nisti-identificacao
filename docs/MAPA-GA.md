@@ -206,3 +206,5 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 **Categorias: cartões do topo (04/11/2026)** — grade de 4 colunas (2 em telas médias/pequenas) depois da saída do cartão "Coleção em queda"; valor em uma linha com reticências (o nome completo aparece ao passar o mouse) para os cartões ficarem com a mesma altura.
 
 **Categorias: variações maiores e card sem espaço vazio (04/11/2026)** — fontes, miniaturas e linhas das variações aumentadas; no desktop o card "Comparação por categoria" tem altura própria e acompanha a rolagem (`position:sticky`) em vez de esticar até a altura do detalhe.
+
+**Categorias: variações em painel lateral (04/11/2026)** — clicar numa coleção abre um painel lateral à direita (`ndb-cp-drawer`) com a tabela de variações (Ano até hoje / mês, paginação). Fecha com ✕, clique fora ou Esc; fechar não desfaz a coleção escolhida nos gráficos. As linhas da tabela de coleções não expandem mais, então os dois cards ficam com altura própria, sem espaço vazio.

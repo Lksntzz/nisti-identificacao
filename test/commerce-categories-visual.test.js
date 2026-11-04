@@ -75,9 +75,9 @@ test('coleções são exibidas no card e podem abrir variações reais com SKU, 
   assert.match(ui,/namedCollections=categories\.flatMap/);
   assert.match(ui,/col\.name!=='Sem coleção'/);
   assert.match(ui,/picked\?\.cols/);
-  assert.match(ui,/aria-expanded=\{expanded\}/);
+  assert.match(ui,/aria-expanded=\{expanded&&drawerOpen\}/);
   assert.match(ui,/className="ndb-cp-variation-list"/);
-  assert.match(ui,/colSpan=\{8\}/);
+  assert.match(ui,/className="ndb-cp-drawer"/);
   assert.match(ui,/t\?\.variation_count/);
   assert.match(ui,/pageOf\(varRows,varPage\)\.items\.map\(v=>/);
   assert.match(css,/\.ndb-cp-variation-item/);

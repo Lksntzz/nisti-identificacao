@@ -119,6 +119,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   const [catPage,setCatPage]=useState(1);
   const [openYear,setOpenYear]=useState(null);
   const [varScope,setVarScope]=useState('ytd');
+  const [drawerOpen,setDrawerOpen]=useState(false);
   const [allMonths,setAllMonths]=useState(false);
   const categories=rows(data?.categories);
   const picked=categories.find(c=>c.name===selectedCat)||categories[0]||null;
@@ -199,11 +200,14 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   useEffect(()=>{setCatPage(1);},[search,sort,show,year,filters.platform]);
   useEffect(()=>{setOpenYear(null);},[selectedCat]);
   useEffect(()=>{setVarScope('ytd');},[selectedCollection,selectedCat]);
+  useEffect(()=>{if(!selectedCollection)setDrawerOpen(false);},[selectedCollection]);
+  useEffect(()=>{if(!drawerOpen)return undefined;const onKey=e=>{if(e.key==='Escape')setDrawerOpen(false);};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);},[drawerOpen]);
   useEffect(()=>{setColPage(1);},[selectedCat,search,sort,show,year,currentMonth]);
   const useYtd=varScope==='ytd'&&Array.isArray(t?.products_ytd);
   const varRows=useYtd?rows(t?.products_ytd):rows(t?.products);
   const varCount=num(useYtd?t?.variation_count_ytd:t?.variation_count);
   const selectedProduct=rows(t?.products)[0];
+  const pickCollection=name=>{setSelectedWeek(null);if(selectedCollection===name&&drawerOpen){setSelectedCollection(null);setDrawerOpen(false);}else{setSelectedCollection(name);setDrawerOpen(true);}};
   const chooseCat=name=>{setSelectedCat(name);setSelectedCollection(null);setSelectedWeek(null);};
   const chooseMonth=m=>{setMonthChoice(m);setSelectedWeek(null);setVarScope('month');};
   const handleYear=val=>setFilters(v=>({...v,year:Number(val),base:Number(val)-1,month:'',days:0}));
@@ -261,8 +265,8 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                 const cw=rows(t?.weekly_collections).filter(r=>r.col===col.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];
                 const expanded=selectedCollection===col.name;
                 return <React.Fragment key={col.name}>
-                  <tr className={expanded?'is-selected':''} onClick={()=>{setSelectedCollection(expanded?null:col.name);setSelectedWeek(null)}}>
-                    <td><button type="button" className="ndb-cp-sub-button" aria-expanded={expanded} aria-label={(expanded?'Fechar':'Abrir')+' variações da coleção '+col.name} onClick={e=>{e.stopPropagation();setSelectedCollection(expanded?null:col.name);setSelectedWeek(null)}}>{cleanName(col.name)}<span className="ndb-cp-col-arrow">{expanded?'⌄':'›'}</span></button></td>
+                  <tr className={expanded?'is-selected':''} onClick={()=>{pickCollection(col.name)}}>
+                    <td><button type="button" className="ndb-cp-sub-button" aria-expanded={expanded&&drawerOpen} aria-label={'Abrir variações da coleção '+col.name} onClick={e=>{e.stopPropagation();pickCollection(col.name)}}>{cleanName(col.name)}<span className="ndb-cp-col-arrow">{expanded?'⌄':'›'}</span></button></td>
                     <td>{fmt(col.base)}</td><td><b>{fmt(col.cur)}</b></td>
                     <td className={color(num(col.cur)-num(col.base))}>{delta(num(col.cur)-num(col.base))}</td>
                     <td><PeriodTag cur={col.cur} base={col.base}/></td>
@@ -270,11 +274,20 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                     <td>{cw?'Sem. '+cw.week+' · '+fmt(cw.units):'—'}</td>
                     <td className="ndb-cp-arrow">{expanded?'⌄':'›'}</td>
                   </tr>
-                  {expanded&&<tr className="ndb-cp-variations-row"><td colSpan={8}>
-                    <div className="ndb-cp-variations-panel">
-                      <div className="ndb-cp-variations-title"><strong>Variações da coleção {cleanName(col.name)}</strong><span className="ndb-cp-scope"><button type="button" className={useYtd?'is-on':''} onClick={()=>setVarScope('ytd')}>Ano até hoje</button><button type="button" className={!useYtd?'is-on':''} onClick={()=>setVarScope('month')}>{MONTHS[currentMonth-1]}{selectedWeek?' · sem. '+selectedWeek:''}</button></span><small>{baseYear} × {year}</small></div>
+                </React.Fragment>;
+              })}
+            </DetailTable>
+            <Pager page={pageOf(collectionRows,colPage).n} total={collectionRows.length} onPage={setColPage}/>
+          </>:<p className="ndb-cp-empty">Sem categorias com vendas.</p>}
+        </Section>
+      </div>
+      {selectedCollection&&drawerOpen&&<><div className="ndb-cp-drawer-backdrop" onClick={()=>setDrawerOpen(false)}/>
+        <aside className="ndb-cp-drawer" role="dialog" aria-label={'Variações da coleção '+cleanName(selectedCollection)}>
+          <button type="button" className="ndb-cp-drawer-close" aria-label="Fechar variações" onClick={()=>setDrawerOpen(false)}>✕</button>
+          <div className="ndb-cp-variations-panel">
+                      <div className="ndb-cp-variations-title"><strong>Variações da coleção {cleanName(selectedCollection)}</strong><span className="ndb-cp-scope"><button type="button" className={useYtd?'is-on':''} onClick={()=>setVarScope('ytd')}>Ano até hoje</button><button type="button" className={!useYtd?'is-on':''} onClick={()=>setVarScope('month')}>{MONTHS[currentMonth-1]}{selectedWeek?' · sem. '+selectedWeek:''}</button></span><small>{baseYear} × {year}</small></div>
                       {temporal.loading?<p className="ndb-cp-loading">Consultando variações…</p>:temporal.error?<p className="ndb-cp-error" role="alert">{temporal.error}</p>:<>
-                        {varRows.length?<div className="ndb-cp-variation-list" role="table" aria-label={'Variações da coleção '+col.name}>
+                        {varRows.length?<div className="ndb-cp-variation-list" role="table" aria-label={'Variações da coleção '+selectedCollection}>
                           <div className="ndb-cp-variation-head" role="row"><span/><span>Variação</span><span>{baseYear}</span><span>{year}</span><span>Diferença</span><span>Var.</span><span/></div>
                           {pageOf(varRows,varPage).items.map(v=>{const d=num(v.cur)-num(v.base);return <div key={v.sku} className="ndb-cp-variation-item" role="row">
                           <Thumb src={v.image} alt={v.variation_name||v.name} />
@@ -288,14 +301,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                         {varCount>varRows.length&&<p className="ndb-cp-foot">Exibindo {varRows.length} de {fmt(varCount)} SKUs com vendas. Ordenado por unidades.</p>}
                       </>}
                     </div>
-                  </td></tr>}
-                </React.Fragment>;
-              })}
-            </DetailTable>
-            <Pager page={pageOf(collectionRows,colPage).n} total={collectionRows.length} onPage={setColPage}/>
-          </>:<p className="ndb-cp-empty">Sem categorias com vendas.</p>}
-        </Section>
-      </div>
+        </aside></>}
       <div className="ndb-cp-visual-grid">
         <Section title={'Comparação mensal '+(selectedCollection?'da coleção':'da categoria')} subtitle={selectedCollection||picked?.name||''} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
           <MonthlyBars points={months} selected={currentMonth} onSelect={chooseMonth} year={year} baseYear={baseYear}/>
