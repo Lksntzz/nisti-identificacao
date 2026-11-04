@@ -10,6 +10,12 @@ export function familyMetricTotals(months,metric='units'){
   return {base:sum(base,'base_'+suffix),cur:sum(cur,'cur_'+suffix),best};
 }
 
+// O resumo geral inclui todas as vendas; o detalhe por família só usa vínculos confirmados.
+export function familyReportMonths(report,familyId=''){
+  const rows=familyId?report?.months:report?.overall_months;
+  return Array.isArray(rows)?rows:[];
+}
+
 export function canLinkFamilyProduct(family,product){
   if(!family||!product||product.family_id!=null)return false;
   return product.category_id==null||Number(product.category_id)===Number(family.category_id);
