@@ -251,3 +251,14 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
   .ndb-cp-main>.ndb-cp-panel:first-child{display:block;align-self:start;position:sticky;top:12px}
   .ndb-cp-main>.ndb-cp-panel:first-child>.ndb-cp-scroll{flex:none;min-height:0;max-height:none}
 }
+
+/* Variações em painel lateral: o card da esquerda não depende mais da altura da direita */
+.ndb-cp-drawer-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:80}
+.ndb-cp-drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,100vw);background:#fff;z-index:81;box-shadow:-12px 0 32px rgba(15,23,42,.22);overflow-y:auto;padding:16px 16px 20px;display:flex;flex-direction:column;gap:8px}
+.ndb-cp-drawer-close{align-self:flex-end;border:1px solid var(--cp-border);background:#fff;border-radius:8px;width:32px;height:32px;font-size:14px;cursor:pointer}
+.ndb-cp-drawer .ndb-cp-variations-panel{border:0;padding:0}
+.ndb-cp-drawer .ndb-cp-variations-title strong{font-size:15px}
+.ndb-cp-drawer .ndb-cp-variation-head{top:-16px}
+.ndb-cp-drawer .ndb-cp-variation-item{padding:10px 8px}
+.ndb-cp-drawer .ndb-cp-variation-list{overflow:visible}
+@media(min-width:1201px){.ndb-cp-main>.ndb-cp-panel:first-child{position:static}}
