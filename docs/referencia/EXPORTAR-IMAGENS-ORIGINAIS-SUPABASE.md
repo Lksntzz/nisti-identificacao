@@ -38,4 +38,4 @@ node scripts/nisti-encrypt-image-export.mjs decrypt nisti-imagens-originais.zip.
 
 O ZIP descriptografado contém arquivos internos e não deve ser enviado a um repositório público ou pasta compartilhada. A validação de criptografia **não equivale** à verificação de integridade de cada objeto R2 nem a um teste de restauração completo.
 
-Ver detalhes do legado em [Auditoria de D1 e índices](AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21.md).
+Ver detalhes do legado em [Auditoria de D1 e índices](../historico/AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21.md).

@@ -31,7 +31,7 @@ test('every JavaScript module containing a SQL D1 mutation is explicitly invento
 });
 
 test('A2 inventory documents the remaining primary-cutover blockers',()=>{
-  const doc=fs.readFileSync('docs/supabase-cutover-a2-inventory.md','utf8');
+  const doc=fs.readFileSync('docs/referencia/supabase-cutover-a2-inventory.md','utf8');
   for(const file of reviewed) assert.ok(doc.includes(`\`${file}\``),`missing A2 inventory entry for ${file}`);
   assert.match(doc,/SUPABASE_CUTOVER_WRITE_FREEZE/);
   assert.match(doc,/operational|administrative/);
