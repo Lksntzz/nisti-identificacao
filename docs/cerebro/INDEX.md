@@ -20,7 +20,7 @@ Abra **só a nota do assunto** em que for trabalhar.
 ## Notas que ainda não existem (a fazer, uma por vez)
 
 ID/scanner e catálogo, importação Shopee/ML, expedição e monitor, notificações, login e segurança.
-Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[monitor-notificacoes-expedicao]], [[catalogo-comercial-v1]]).
+Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[monitor-notificacoes-expedicao]]).
 
 ## Pendências conhecidas (resolver e apagar daqui)
 
@@ -34,13 +34,12 @@ Organizados em pastas para a lista do Obsidian não ficar poluída. Os links `[[
 - `docs/` (raiz): só o [[MAPA-GA]], o mapa vivo do GA (o `CLAUDE.md` aponta para ele).
 - `docs/referencia/` (atuais, consultar e manter):
   - [[supabase-cutover-a2-inventory]]: arquitetura atual de produção (Supabase principal, D1 só legado).
-  - [[monitor-notificacoes-expedicao]] e [[notification-platform-logos]]: monitor da expedição e logos das plataformas.
+  - [[monitor-notificacoes-expedicao]] e [[notification-platform-logos]]: monitor da expedição e origem dos logos das plataformas (registro de proveniência: manter).
   - [[PLANO-PROTECAO-E-RECUPERACAO]]: proteção da `main` e recuperação.
   - [[EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE]]: exportador manual de imagens.
 - `docs/historico/` (retrato de uma data, não atualizar):
   - [[AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21]]: mantida porque registra cinco índices ainda pendentes.
   - [[SECURITY_AUDIT_2026-10-07]]: auditoria de segurança.
-  - [[catalogo-comercial-v1]]: desenho original do catálogo comercial.
 
 ## Regras destas notas
 
