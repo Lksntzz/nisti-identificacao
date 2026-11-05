@@ -18,10 +18,9 @@ export function groupReport(rows){
       zero:mine.filter(r=>r.scope==='ANUNCIO'),vars:mine.filter(r=>r.scope==='VARIACAO')};
   }).filter(g=>g.total>0);
 }
-export const PERIOD_CHOICES=[[7,'Últimos 7 dias'],[30,'Últimos 30 dias'],[60,'Últimos 60 dias'],[90,'Últimos 90 dias'],[0,'Todo o histórico']];
-export function periodLabel(days,month){
-  if(month)return /^\d{4}$/.test(month)?'Ano '+month:month.slice(5)+'/'+month.slice(0,4);
-  return Number(days)===0?'Todo o histórico':'Últimos '+Number(days)+' dias';
+export const PERIOD_CHOICES=[[7,'Até 7 dias'],[30,'Até 30 dias'],[60,'Até 60 dias'],[90,'Até 90 dias']];
+export function periodLabel(days){
+  return 'Sem vender há até '+Number(days)+' dias';
 }
 
 export const SUMMARY_LIMIT=10;

@@ -348,10 +348,10 @@ export async function commerceSalesDashboardOverviewV1(env,filters={}) {
 export async function commerceSalesReportNoSalesV1(env,filters={}) {
   const platform=String(cleanText(filters.platform)||'TODAS').toUpperCase();
   const days=Number(filters.days);
-  const data=await supabaseRpc(env,'commerce_sales_report_no_sales_v1',{
+  const data=await supabaseRpc(env,'commerce_sales_report_stalled_v1',{
     p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS',
-    p_days:[0,7,30,60,90].includes(days)?days:30,
-    p_month:cleanPeriod(filters.month)
+    p_days:[7,30,60,90].includes(days)?days:90,
+    p_month:null
   },{timeoutMs:20000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{rows:[],counts:{rows:0,by:[]}};
 }

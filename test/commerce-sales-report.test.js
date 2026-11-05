@@ -17,15 +17,13 @@ test('agrupa por plataforma, separa situações e conta anúncio x variação', 
   assert.equal(groupReport(null).length,0);
 });
 test('rótulo do período', () => {
-  assert.equal(periodLabel(30,''),'Últimos 30 dias');
-  assert.equal(periodLabel(0,''),'Todo o histórico');
-  assert.equal(periodLabel(0,'2026-03'),'03/2026');
-  assert.equal(periodLabel(0,'2026'),'Ano 2026');
+  assert.equal(periodLabel(30),'Sem vender há até 30 dias');
+  assert.equal(periodLabel(90),'Sem vender há até 90 dias');
 });
 test('rota, store, botão e impressão existem', () => {
   const r=fs.readFileSync('src/commerce-admin-router.js','utf8');
   assert.match(r,/sales-dashboard\/report-no-sales/);
-  assert.match(fs.readFileSync('src/commerce-supabase-store.js','utf8'),/commerce_sales_report_no_sales_v1/);
+  assert.match(fs.readFileSync('src/commerce-supabase-store.js','utf8'),/commerce_sales_report_stalled_v1/);
   assert.match(fs.readFileSync('src/commerce-dashboard.jsx','utf8'),/Relatório de anúncios sem vendas/);
   assert.match(fs.readFileSync('src/commerce-sales-report.css','utf8'),/@media print/);
 });
@@ -66,7 +64,7 @@ test('impressão não trava a orientação da folha', () => {
 
 test('relatório: lista todo anúncio sem venda no período e permite trocar o período', () => {
   const j=fs.readFileSync('src/commerce-sales-report.jsx','utf8');
-  assert.match(j,/nenhuma venda/);assert.match(j,/PERIOD_CHOICES/);
+  assert.match(j,/sem vender há até/);assert.match(j,/PERIOD_CHOICES/);
   assert.doesNotMatch(j,/Vendia e parou/);
   const g=groupReport([{platform:'SHOPEE',scope:'ANUNCIO',situation:'PAROU'},{platform:'SHOPEE',scope:'ANUNCIO',situation:'SEM_VENDAS'},{platform:'SHOPEE',scope:'VARIACAO',situation:'PAROU'}]);
   assert.equal(g[0].zero.length,2);assert.equal(g[0].vars.length,1);

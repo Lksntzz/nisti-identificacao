@@ -733,11 +733,10 @@ async function handleCommerceAdminRequestUncached(request, env) {
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/report-no-sales'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
-      const days=Number(query(url,'days')||30);
-      const month=String(query(url,'month')||'');
-      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||(month?!PERIOD_RE.test(month):![0,7,30,60,90].includes(days)))
-        return json({error:'Filtro do relatório inválido. Escolha todo o histórico, 7, 30, 60 ou 90 dias, ou um mês.'},400);
-      return json(await commerceSalesReportNoSalesV1(env,{platform,days:month?0:days,month}));
+      const days=Number(query(url,'days')||90);
+      if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
+        return json({error:'Filtro do relatório inválido. Escolha 7, 30, 60 ou 90 dias.'},400);
+      return json(await commerceSalesReportNoSalesV1(env,{platform,days}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-dashboard/month-series'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();
