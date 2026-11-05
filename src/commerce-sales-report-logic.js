@@ -28,3 +28,12 @@ export function topLongest(rows,n=SUMMARY_LIMIT){
   const d=r=>r.days_since==null?Infinity:Number(r.days_since);
   return [...(rows||[])].sort((a,b)=>d(b)-d(a)||String(a.title||'').localeCompare(String(b.title||''),'pt-BR')).slice(0,n);
 }
+
+const csvCell=v=>{const t=v==null?'':String(v);return /[;"\n\r]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;};
+// Planilha para Excel brasileiro: separador ponto e vírgula e BOM para acentos.
+export function reportToCsv(rows){
+  const head=['Plataforma','Situação','Tipo','ID do anúncio','Título','Variação','SKU','Última venda','Dias sem vender','Unidades vendidas (histórico)','Link'];
+  const lines=(rows||[]).map(r=>[PLATFORM_LABELS[r.platform]||r.platform,SITUATION_LABELS[r.situation]||r.situation,SCOPE_LABELS[r.scope]||r.scope,
+    r.external_id,r.title,r.variation_name,r.sku,r.last_sale,r.days_since,r.units_ever,r.url].map(csvCell).join(';'));
+  return '\ufeff'+[head.join(';'),...lines].join('\r\n');
+}
