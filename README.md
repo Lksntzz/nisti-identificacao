@@ -4,7 +4,7 @@ Sistema operacional da NISTI PRINT para cadastro mestre de produtos, identifica�
 
 **Produção:** [nisti-identificacao.lksntz1411.workers.dev](https://nisti-identificacao.lksntz1411.workers.dev)  
 
-**Backups no Google Drive:** [Guia criptografado e sem custo](docs/BACKUP-GOOGLE-DRIVE-NISTI.md). **Backup gratuito:** [Google Drive com criptografia](docs/GOOGLE-DRIVE-BACKUP-NISTI.md) e [guia manual Supabase Free](docs/BACKUP-GRATUITO-NISTI.md). **Proteção e recuperação:** consulte [Plano de proteção e recuperação](docs/PLANO-PROTECAO-E-RECUPERACAO.md) para bloqueio de deploy sem PR, configuração do Ruleset no GitHub e procedimento para backups reais do Supabase/R2.
+**Backup do banco e imagens:** [guia único e pendências](docs/cerebro/backup.md). **Proteção e recuperação:** consulte [Plano de proteção e recuperação](docs/PLANO-PROTECAO-E-RECUPERACAO.md) para bloqueio de deploy sem PR, configuração do Ruleset no GitHub e procedimento para backups reais do Supabase/R2.
 **Última revisão deste README:** 21/10/2026
 
 ## Estado operacional atual
