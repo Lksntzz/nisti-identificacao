@@ -357,6 +357,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [helpOpen,setHelpOpen]=useState(false);
   const [monthly,setMonthly]=useState(null);
   const [reportOpen,setReportOpen]=useState(false);
+  const [platTab,setPlatTab]=useState('compare');
   // O resumo de Categorias é pesado: só começa 2,5 s depois do resto carregar, para não estourar o limite de 8 s do banco.
   const [lateOk,setLateOk]=useState(false);
   useEffect(()=>{
@@ -605,11 +606,13 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             <MonthlyUnits months={monthly?.months} platform={platform} onPick={setMonth}/>
           </Panel>
         </div>}
-        {mode==='overview'&&<Panel title="Comparativo por plataforma" icon="pie" source="platform">
-          {splitRows?<PlatformTable daily={splitRows} platform={platform} all={all||yearSel} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>}
-        </Panel>}
-        {mode==='overview'&&!month&&<Panel title="Mês a mês por plataforma" icon="chart" source="monthly">
-          {monthly?<MonthMatrix months={monthly.months} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>}
+        {mode==='overview'&&<Panel title="Plataformas" icon="pie" source={platTab==='months'&&!month?'monthly':'platform'}
+          aside={!month&&<div className="ndb-seg" role="group" aria-label="Visão das plataformas">
+            <button type="button" className={platTab==='compare'?'is-active':''} aria-pressed={platTab==='compare'} onClick={()=>setPlatTab('compare')}>Comparativo</button>
+            <button type="button" className={platTab==='months'?'is-active':''} aria-pressed={platTab==='months'} onClick={()=>setPlatTab('months')}>Mês a mês</button></div>}>
+          {platTab==='months'&&!month
+            ?(monthly?<MonthMatrix months={monthly.months} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>)
+            :(splitRows?<PlatformTable daily={splitRows} platform={platform} all={all||yearSel} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>)}
         </Panel>}
         {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="top" className="ndb-chart-panel ndb-rank-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
           <p className="ndb-note">{all?'15 anúncios que mais faturaram em todo o histórico.':'15 anúncios que mais faturaram em '+curTxt+'.'}</p>

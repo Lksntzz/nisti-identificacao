@@ -216,7 +216,7 @@ test('Dashboard: separa Shopee, ML Antigo e ML Novo', () => {
   const d=readFileSync('src/commerce-dashboard.jsx','utf8');
   assert.match(c,/ML Antigo/);assert.match(c,/ML Novo/);
   assert.match(c,/export function PlatformTable/);assert.match(c,/export function MonthMatrix/);
-  assert.match(d,/Comparativo por plataforma/);assert.match(d,/Mês a mês por plataforma/);
+  assert.match(d,/title="Plataformas"/);assert.match(d,/>Comparativo</);assert.match(d,/>Mês a mês</);assert.match(d,/<PlatformTable/);assert.match(d,/<MonthMatrix/);
 });
 
 test('Dashboard: o filtro acompanha o clique até o Painel Comercial', () => {
