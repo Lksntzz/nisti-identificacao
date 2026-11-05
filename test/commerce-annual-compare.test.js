@@ -20,9 +20,9 @@ test('SQL do comparativo anual e somente leitura e restrito ao service_role', ()
   assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /sales-compare\/annual/);
 });
 
-test('Painel Comercial tem submenu com os tres itens', () => {
+test('Painel Comercial tem submenu com Categorias', () => {
   const p = fs.readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
-  for (const l of ['Painel Comercial', 'Comparação anual', 'Categorias']) assert.ok(p.includes(l));
+  for (const l of ['Painel Comercial', 'Categorias']) assert.ok(p.includes(l));
 });
 
 import { indexOf, weekHighlights } from '../src/commerce-annual-compare-helpers.js';
@@ -55,10 +55,10 @@ test('migracao de desempenho cria o indice de nome por SKU', () => {
   assert.match(fs.readFileSync('supabase/migrations/20261029180000_commerce_annual_perf_v1.sql', 'utf8'), /commerce_product_skus_canon_idx/);
 });
 
-test('submenu do Painel Comercial fica na lateral com Comparação anual e Categorias', () => {
+test('submenu do Painel Comercial fica na lateral com Categorias', () => {
   const app = fs.readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
   assert.match(app, /COMMERCIAL_SUBITEMS/);
-  assert.match(app, /Comparação anual/);
+  assert.doesNotMatch(app, /Comparação anual/);
   assert.match(app, /Categorias/);
   assert.doesNotMatch(fs.readFileSync('src/commerce-commercial-panel.jsx', 'utf8'), /ndb-ac-tabs/);
 });
@@ -73,72 +73,12 @@ test('produto: tira a marca, separa a colecao e trata cadastro ausente', () => {
   assert.equal(share(5, 0), null);
 });
 
-test('produtos do período: rota restrita e links protegidos na nova Comparação Anual',()=>{
-  const sql=fs.readFileSync('supabase/migrations/20261029200000_commerce_annual_day_products_v1.sql','utf8');
-  assert.match(sql,/revoke all on function public\.commerce_annual_day_products_v1/i);
-  assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/annual-day-products/);
-  const ui=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
-  assert.match(ui,/annual-period-products/);
-  assert.match(ui,/ProductLink/);
-  assert.match(ui,/rel="noopener noreferrer"/);
-});
 
-test('produtos do mês são buscados para o mês exibido, inclusive o padrão', () => {
-  const ui = fs.readFileSync('src/commerce-annual-compare.jsx', 'utf8');
-  assert.match(ui, /defaultMonth/);
-  assert.match(fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8'), /Number\(monthData\.month\)===selectedMonth/);
-});
 
-test('comparação anual usa tipografia isolada e não sobrescreve classes globais', () => {
-  const g=fs.readFileSync('src/commerce-annual-guided.css','utf8');
-  assert.match(g,/\.ga-y-guided :where\(button,input,select,table\)\{font:inherit\}/);
-  assert.match(g,/html\.ga-dark \.ga-y-guided/);
-  assert.doesNotMatch(g,/\.ga-y-guided button,\.ga-y-guided select\{font:inherit\}/);
-  assert.match(fs.readFileSync('src/commerce-annual-compare.css','utf8'),/Plus Jakarta Sans/);
-});
 
-test('comparação nova mantém filtros de plataforma, ano e períodos com aviso de base ausente', () => {
-  const g=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
-  const c=fs.readFileSync('src/commerce-annual-compare.jsx','utf8');
-  assert.match(g,/import \{Dropdown, listingUrl\} from '\.\/commerce-dashboard\.jsx'/);
-  assert.match(g,/coverage/);
-  assert.match(g,/baseAvailable/);
-  assert.match(g,/sem cobertura confirmada/i);
-  assert.match(g,/<Dropdown label="Plataforma"/);
-  assert.match(c,/não dá para comparar/);
-  assert.doesNotMatch(g,/<label>Plataforma<select/);
-});
 
-test('período semanal usa consulta restrita e não inventa SKU sem vendas', () => {
-  const sql=fs.readFileSync('supabase/migrations/20261029210000_commerce_annual_period_products_v1.sql','utf8');
-  assert.match(sql,/revoke all on function public\.commerce_annual_period_products_v1/i);
-  assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/annual-period-products/);
-  const g=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
-  assert.match(g,/annual-period-products/);
-  assert.match(g,/weekOk/);
-  assert.match(g,/setWeek\(n\)/);
-  assert.match(g,/até 40/);
-});
 
-test('periodo igual ao Painel Comercial: 7/30/60/90 dias e meses, sem "todo o histórico"', () => {
-  const g = fs.readFileSync('src/commerce-annual-guided.jsx', 'utf8');
-  assert.match(g, /import PeriodPicker from '\.\/commerce-period-picker\.jsx'/);
-  assert.match(g, /periods=\{\[7,30,60,90\]\} allowAll=\{false\}/);
-  assert.match(g, /annual-window/);
-  const pp = fs.readFileSync('src/commerce-period-picker.jsx', 'utf8');
-  assert.match(pp, /allowAll&&/);
-  const sql = fs.readFileSync('supabase/migrations/20261029220000_commerce_annual_window_v1.sql', 'utf8');
-  assert.match(sql, /revoke all on function public\.commerce_annual_window_v1/i);
-  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /annual-window/);
-});
 
-test('Comparação Anual nova não usa receita e preserva a migração histórica',()=>{
-  const ui=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
-  assert.doesNotMatch(ui,/cur_rev|base_rev|Preço médio|Receita [0-9]/);
-  assert.match(ui,/Diferença/);
-  assert.match(ui,/Variação/);
-  assert.match(fs.readFileSync('supabase/migrations/20261029230000_commerce_annual_month_prices_v1.sql','utf8'),/'cur_rev',cr,'base_rev',br/);
-});
 
 test('categorias: período segue dias > mês > acumulado e a consulta carrega o par exato', () => {
   assert.deepEqual(periodParams({days:30,month:'9'}), {mode:'days',days:30});
@@ -172,15 +112,6 @@ test('categorias: migração, rotas e painel existem e validam entradas', () => 
   assert.match(fs.readFileSync('src/commerce-commercial-panel.jsx','utf8'),/CommerceCategoriesPanel/);
 });
 
-test('links protegidos respeitam plataforma e anos disponíveis têm cobertura histórica', () => {
-  const g=fs.readFileSync('src/commerce-annual-guided.jsx','utf8');
-  assert.match(g,/rel="noopener noreferrer"/);
-  assert.match(g,/platform==='SHOPEE'\?l\.platform==='SHOPEE'/);
-  assert.match(g,/yearChoices/);
-  assert.match(g,/Number\(b\.year\)===y-1/);
-  assert.match(g,/Sem histórico/);
-  assert.doesNotMatch(g,/>novo<\/em>/);
-});
 
 test('categorias: produto tem nome, SKU, miniatura real e link de anúncio protegido', () => {
   const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
