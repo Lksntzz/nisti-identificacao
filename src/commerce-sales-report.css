@@ -20,7 +20,8 @@
 .nsr-badge.is-all{background:#dbeafe;color:#1e3a8a}.nsr-badge.is-var{background:#fef3c7;color:#92400e}
 .nsr-warn,.nsr-error{background:#fef2f2;color:#991b1b;padding:8px;border-radius:6px}
 .nsr-foot{margin-top:24px;font-size:11px;color:#6b7280;border-top:1px solid #d1d5db;padding-top:8px}
-.nsr-plat{break-before:page}
+.nsr-plat.is-full{break-before:page}
+.nsr-more{margin:4px 0 0;font-size:11px;color:#6b7280}
 @media(max-width:700px){.nsr-page{padding:14px;overflow-x:auto}.nsr-table{min-width:640px}}
 @media print{
   @page{size:A4 landscape;margin:12mm}
@@ -28,5 +29,6 @@
   .nsr-overlay{position:static;background:#fff;padding:0;overflow:visible}
   .nsr-toolbar{display:none}
   .nsr-page{max-width:none;padding:0;border-radius:0}
-  .nsr-plat:first-of-type{break-before:auto}
+  .nsr-plat.is-full:first-of-type{break-before:auto}
+  .nsr-toolbar{display:none}
 }

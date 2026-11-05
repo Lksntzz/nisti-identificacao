@@ -1,7 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
-import {groupReport,periodLabel,PLATFORM_LABELS,SCOPE_LABELS,SITUATION_LABELS} from './commerce-sales-report-logic.js';
+import {groupReport,periodLabel,topLongest,SUMMARY_LIMIT,PLATFORM_LABELS,SCOPE_LABELS,SITUATION_LABELS} from './commerce-sales-report-logic.js';
 import './commerce-sales-report.css';
 
 const dateBr=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||''));return m?m[3]+'/'+m[2]+'/'+m[1]:'—';};
@@ -18,7 +18,7 @@ function Table({rows}){
 }
 
 export default function SalesReport({platform,days,month,onClose}){
-  const [data,setData]=useState(null);const [error,setError]=useState('');
+  const [full,setFull]=useState(false);const [data,setData]=useState(null);const [error,setError]=useState('');
   useEffect(()=>{
     const c=new AbortController();
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/report-no-sales?platform='+platform+'&days='+days+(month?'&month='+month:''),{signal:c.signal})
@@ -29,7 +29,7 @@ export default function SalesReport({platform,days,month,onClose}){
   const groups=data?groupReport(data.rows):[];
   const total=data?.counts?.rows||0;
   return createPortal(<div className="nsr-overlay" role="dialog" aria-label="Relatório de anúncios sem vendas">
-    <div className="nsr-toolbar"><button type="button" onClick={()=>window.print()} disabled={!data}>Imprimir / salvar PDF</button><button type="button" onClick={onClose}>Fechar</button></div>
+    <div className="nsr-toolbar"><button type="button" onClick={()=>setFull(v=>!v)} disabled={!data}>{full?'Ver resumo':'Ver lista completa'}</button><button type="button" onClick={()=>window.print()} disabled={!data}>Imprimir / salvar PDF</button><button type="button" onClick={onClose}>Fechar</button></div>
     <article className="nsr-page">
       <header className="nsr-head"><p>NISTI ID · Gestor de Anúncios</p><h1>Relatório de anúncios sem vendas</h1>
         <dl><div><dt>Período</dt><dd>{periodLabel(days,month)}</dd></div>
@@ -46,9 +46,9 @@ export default function SalesReport({platform,days,month,onClose}){
               {!groups.length&&<tr><td colSpan="6">Nenhum item encontrado no período.</td></tr>}</tbody></table>
           {total>=3000&&<p className="nsr-warn">Atenção: a lista foi limitada a 3.000 linhas; refine por plataforma ou período.</p>}
         </section>
-        {groups.map(g=><section key={g.code} className="nsr-plat"><h2>{g.label}</h2>
+        {groups.map(g=><section key={g.code} className={"nsr-plat"+(full?" is-full":"")}><h2>{g.label}</h2>
           {[['SEM_VENDAS',g.semVendas],['PAROU',g.parou]].map(([sit,rows])=>rows.length>0&&<div key={sit}>
-            <h3>{SITUATION_LABELS[sit]} <span>({rows.length})</span></h3><Table rows={rows}/></div>)}</section>)}
+            <h3>{SITUATION_LABELS[sit]} <span>({rows.length})</span></h3><Table rows={full?rows:topLongest(rows)}/>{!full&&rows.length>SUMMARY_LIMIT&&<p className="nsr-more">Mostrando os {SUMMARY_LIMIT} há mais tempo sem vender, de {rows.length}. Use "Ver lista completa" para todos.</p>}</div>)}</section>)}
         <footer className="nsr-foot">NISTI ID · Gestor de Anúncios — relatório gerado automaticamente; confira no painel antes de decidir pausar ou excluir um anúncio.</footer>
       </>}
     </article></div>,document.body);
