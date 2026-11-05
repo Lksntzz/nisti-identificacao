@@ -40,3 +40,10 @@ test('relatório começa resumido e tem botão da lista completa', () => {
   const j=fs.readFileSync('src/commerce-sales-report.jsx','utf8');
   assert.match(j,/useState\(false\)/);assert.match(j,/Ver lista completa/);assert.match(j,/topLongest\(rows\)/);
 });
+
+import {reportToCsv} from '../src/commerce-sales-report-logic.js';
+test('planilha: BOM, separador ; e aspas escapadas', () => {
+  const c=reportToCsv([{platform:'SHOPEE',situation:'PAROU',scope:'VARIACAO',external_id:'1',title:'Faixa "A"; B',variation_name:'X',sku:'S',last_sale:'2026-01-01',days_since:9,units_ever:4,url:'u'}]);
+  assert.ok(c.startsWith('﻿Plataforma;'));
+  assert.match(c,/Shopee;Vendia e parou;VARIAÇÃO;1;"Faixa ""A""; B";X;S;/);
+});
