@@ -577,7 +577,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
         {mode==='overview'&&<button type="button" className="ndb-help-btn" onClick={()=>setReportOpen(true)}>Relatório de anúncios sem vendas</button>}
       </div>
     </header>
-    {reportOpen&&<SalesReport platform={platform} days={days} month={month} onClose={()=>setReportOpen(false)}/>}
+    {reportOpen&&<SalesReport platform={platform} days={days} onClose={()=>setReportOpen(false)}/>}
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-sum-row" role="group" aria-label="Resumo do período">
