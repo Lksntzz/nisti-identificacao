@@ -18,6 +18,8 @@ export async function fetchCommercialManager(url,{signal,fetchImpl=fetch}={}){
       const payload=await response.json().catch(()=>({}));
       if(response.ok)return payload;
       const error=new Error(payload?.error||'Não foi possível consultar os anúncios.');
+      error.status=response.status;
+      error.technicalCode=payload?.technical_error||null;
       error.retryable=payload?.retryable===true&&TRANSIENT_HTTP_STATUSES.has(response.status);
       throw error;
     }catch(error){
