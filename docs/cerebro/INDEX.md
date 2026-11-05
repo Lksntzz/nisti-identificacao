@@ -27,19 +27,20 @@ Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[m
 - **Backup:** nenhuma cópia do banco confirmada; primeira exportação nunca registrada. Ver [[backup]].
 - **Limite de requisições:** causa do erro "Muitas requisições" no Publicar do Mural não confirmada. Ver [[limites-requisicoes]].
 
-## Documentos antigos em `docs/`
+## Outros documentos em `docs/`
 
-**Atuais** (consultar e manter; vários têm teste ou código que dependem deles):
-- [[MAPA-GA]]: mapa completo do GA.
-- [[supabase-cutover-a2-inventory]]: arquitetura atual de produção (Supabase principal, D1 só legado).
-- [[monitor-notificacoes-expedicao]] e [[notification-platform-logos]]: monitor da expedição e logos das plataformas.
-- [[catalogo-comercial-v1]]: desenho do catálogo comercial.
-- [[PLANO-PROTECAO-E-RECUPERACAO]]: proteção da `main` e recuperação.
-- [[EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE]]: procedimento do exportador de imagens (workflow manual).
+Organizados em pastas para a lista do Obsidian não ficar poluída. Os links `[[nome]]` funcionam sem importar a pasta.
 
-**Históricos** (retrato de uma data; não atualizar):
-- [[AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21]]: mantida porque registra cinco índices ainda pendentes de revisão.
-- [[SECURITY_AUDIT_2026-10-07]]: auditoria de segurança.
+- `docs/` (raiz): só o [[MAPA-GA]], o mapa vivo do GA (o `CLAUDE.md` aponta para ele).
+- `docs/referencia/` (atuais, consultar e manter):
+  - [[supabase-cutover-a2-inventory]]: arquitetura atual de produção (Supabase principal, D1 só legado).
+  - [[monitor-notificacoes-expedicao]] e [[notification-platform-logos]]: monitor da expedição e logos das plataformas.
+  - [[PLANO-PROTECAO-E-RECUPERACAO]]: proteção da `main` e recuperação.
+  - [[EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE]]: exportador manual de imagens.
+- `docs/historico/` (retrato de uma data, não atualizar):
+  - [[AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21]]: mantida porque registra cinco índices ainda pendentes.
+  - [[SECURITY_AUDIT_2026-10-07]]: auditoria de segurança.
+  - [[catalogo-comercial-v1]]: desenho original do catálogo comercial.
 
 ## Regras destas notas
 

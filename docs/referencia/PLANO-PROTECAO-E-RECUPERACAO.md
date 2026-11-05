@@ -35,12 +35,12 @@ O workflow `supabase-final-snapshot.yml`, apesar do nome, exporta **somente o D1
 
 ## 3. Backup seguro do Supabase
 
-**Destino escolhido:** Google Drive privado, pasta NISTI - Backups do Sistema. [Procedimento de backup](cerebro/backup.md). Em 21/10/2026, a pasta privada de backups do banco estava vazia: ainda não existe primeira cópia do banco validada.
+**Destino escolhido:** Google Drive privado, pasta NISTI - Backups do Sistema. [Procedimento de backup](../cerebro/backup.md). Em 21/10/2026, a pasta privada de backups do banco estava vazia: ainda não existe primeira cópia do banco validada.
 
 
-**Google Drive privado:** [Backup criptografado](cerebro/backup.md) — criptografe antes de sincronizar com a nuvem.
+**Google Drive privado:** [Backup criptografado](../cerebro/backup.md) — criptografe antes de sincronizar com a nuvem.
 
-**Procedimento gratuito e manual (Windows):** [Cópia local](cerebro/backup.md). O script `scripts/nisti-free-backup.mjs` impede exportação acima de 100 MB por padrão e grava apenas em pasta privada local. Isso não constitui backup concluído até que uma cópia real seja executada e armazenada.
+**Procedimento gratuito e manual (Windows):** [Cópia local](../cerebro/backup.md). O script `scripts/nisti-free-backup.mjs` impede exportação acima de 100 MB por padrão e grava apenas em pasta privada local. Isso não constitui backup concluído até que uma cópia real seja executada e armazenada.
 
 
 - Verificar, no painel oficial do Supabase, em Database → Backups, quais backups de produção existem, data, retenção, recuperação disponível e eventuais custos.

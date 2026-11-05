@@ -4,7 +4,7 @@ Sistema operacional da NISTI PRINT para cadastro mestre de produtos, identifica�
 
 **Produção:** [nisti-identificacao.lksntz1411.workers.dev](https://nisti-identificacao.lksntz1411.workers.dev)  
 
-**Backup do banco e imagens:** [guia único e pendências](docs/cerebro/backup.md). **Proteção e recuperação:** consulte [Plano de proteção e recuperação](docs/PLANO-PROTECAO-E-RECUPERACAO.md) para bloqueio de deploy sem PR, configuração do Ruleset no GitHub e procedimento para backups reais do Supabase/R2.
+**Backup do banco e imagens:** [guia único e pendências](docs/cerebro/backup.md). **Proteção e recuperação:** consulte [Plano de proteção e recuperação](docs/referencia/PLANO-PROTECAO-E-RECUPERACAO.md) para bloqueio de deploy sem PR, configuração do Ruleset no GitHub e procedimento para backups reais do Supabase/R2.
 **Última revisão deste README:** 21/10/2026
 
 ## Estado operacional atual
@@ -366,9 +366,9 @@ D1 não é a autoridade principal do sistema atual.
 
 O repositório ainda mantém scripts e migrations de compatibilidade para D1, mas o `wrangler.toml` de produção não possui binding D1 como banco operacional principal. Há rotinas antigas de espelhamento e workflows D1 ainda em avaliação. Não tratar o exportador de snapshot D1 como backup do Supabase.
 
-**Auditoria técnica das dependências antigas, cinco índices pendentes e histórico de 235 migrações:** [D1, Índices e Migrações — 21/10/2026](docs/AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21.md). Os cinco índices estão pendentes de revisão/backup, sem DDL aplicada.
+**Auditoria técnica das dependências antigas, cinco índices pendentes e histórico de 235 migrações:** [D1, Índices e Migrações — 21/10/2026](docs/historico/AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21.md). Os cinco índices estão pendentes de revisão/backup, sem DDL aplicada.
 
-**Exportação das imagens originais:** [índice Supabase e ZIP criptografado](docs/EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE.md). O workflow é manual, não exporta o bucket inteiro nem substitui um backup PostgreSQL. **Backups restauráveis Supabase/R2 ainda não foram confirmados.**
+**Exportação das imagens originais:** [índice Supabase e ZIP criptografado](docs/referencia/EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE.md). O workflow é manual, não exporta o bucket inteiro nem substitui um backup PostgreSQL. **Backups restauráveis Supabase/R2 ainda não foram confirmados.**
 
 ## Rotas principais
 
