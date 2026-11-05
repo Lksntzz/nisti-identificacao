@@ -38,14 +38,14 @@ test('resumo: mais tempo sem vender primeiro e nunca vendeu antes de todos', () 
 });
 test('relatório começa resumido e tem botão da lista completa', () => {
   const j=fs.readFileSync('src/commerce-sales-report.jsx','utf8');
-  assert.match(j,/useState\(false\)/);assert.match(j,/Ver lista completa/);assert.match(j,/topLongest\(groupListings\(rows\)\)/);
+  assert.match(j,/useState\(false\)/);assert.match(j,/Ver lista completa/);assert.match(j,/topLongest\(it\)/);
 });
 
 import {reportToCsv} from '../src/commerce-sales-report-logic.js';
 test('planilha: BOM, separador ; e aspas escapadas', () => {
   const c=reportToCsv([{platform:'SHOPEE',situation:'PAROU',scope:'VARIACAO',external_id:'1',title:'Faixa "A"; B',variation_name:'X',sku:'S',last_sale:'2026-01-01',days_since:9,units_ever:4,url:'u'}]);
   assert.ok(c.startsWith('﻿Plataforma;'));
-  assert.match(c,/Shopee;Vendia e parou;VARIAÇÃO;1;"Faixa ""A""; B";X;S;/);
+  assert.match(c,/Shopee;Sim;VARIAÇÃO;1;"Faixa ""A""; B";X;S;/);
 });
 
 import {groupListings} from '../src/commerce-sales-report-logic.js';
@@ -62,4 +62,12 @@ test('agrupa variações do mesmo anúncio em uma linha', () => {
 
 test('impressão não trava a orientação da folha', () => {
   assert.doesNotMatch(fs.readFileSync('src/commerce-sales-report.css','utf8'),/size:\s*A4\s+landscape/);
+});
+
+test('relatório: lista todo anúncio sem venda no período e permite trocar o período', () => {
+  const j=fs.readFileSync('src/commerce-sales-report.jsx','utf8');
+  assert.match(j,/nenhuma venda/);assert.match(j,/PERIOD_CHOICES/);
+  assert.doesNotMatch(j,/Vendia e parou/);
+  const g=groupReport([{platform:'SHOPEE',scope:'ANUNCIO',situation:'PAROU'},{platform:'SHOPEE',scope:'ANUNCIO',situation:'SEM_VENDAS'},{platform:'SHOPEE',scope:'VARIACAO',situation:'PAROU'}]);
+  assert.equal(g[0].zero.length,2);assert.equal(g[0].vars.length,1);
 });

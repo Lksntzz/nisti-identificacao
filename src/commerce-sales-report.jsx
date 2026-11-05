@@ -1,7 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
-import {groupReport,periodLabel,topLongest,SUMMARY_LIMIT,reportToCsv,groupListings,sortItems,PLATFORM_LABELS,SCOPE_LABELS,SITUATION_LABELS} from './commerce-sales-report-logic.js';
+import {groupReport,periodLabel,topLongest,SUMMARY_LIMIT,reportToCsv,groupListings,sortItems,PERIOD_CHOICES,PLATFORM_LABELS,SCOPE_LABELS,SITUATION_LABELS} from './commerce-sales-report-logic.js';
 import './commerce-sales-report.css';
 
 const dateBr=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||''));return m?m[3]+'/'+m[2]+'/'+m[1]:'—';};
@@ -21,7 +21,9 @@ function download(rows){
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
-export default function SalesReport({platform,days,month,onClose}){
+export default function SalesReport({platform,days:daysProp,month:monthProp,onClose}){
+  const [pick,setPick]=useState(monthProp?'M':String(daysProp));
+  const month=pick==='M'?monthProp:'';const days=pick==='M'?daysProp:Number(pick);
   const [full,setFull]=useState(false);const [data,setData]=useState(null);const [error,setError]=useState('');
   useEffect(()=>{
     const c=new AbortController();
@@ -33,7 +35,7 @@ export default function SalesReport({platform,days,month,onClose}){
   const groups=data?groupReport(data.rows):[];
   const total=data?.counts?.rows||0;
   return createPortal(<div className="nsr-overlay" role="dialog" aria-label="Relatório de anúncios sem vendas">
-    <div className="nsr-toolbar"><button type="button" onClick={()=>setFull(v=>!v)} disabled={!data}>{full?'Ver resumo':'Ver lista completa'}</button><button type="button" onClick={()=>download(data.rows)} disabled={!data}>Baixar planilha (Excel)</button><button type="button" onClick={()=>window.print()} disabled={!data}>Imprimir / salvar PDF</button><button type="button" onClick={onClose}>Fechar</button></div>
+    <div className="nsr-toolbar"><label className="nsr-period">Período <select value={pick} onChange={e=>{setData(null);setError('');setPick(e.target.value);}}>{monthProp&&<option value="M">{periodLabel(daysProp,monthProp)}</option>}{PERIOD_CHOICES.map(([d,l])=><option key={d} value={String(d)}>{l}</option>)}</select></label><button type="button" onClick={()=>setFull(v=>!v)} disabled={!data}>{full?'Ver resumo':'Ver lista completa'}</button><button type="button" onClick={()=>download(data.rows)} disabled={!data}>Baixar planilha (Excel)</button><button type="button" onClick={()=>window.print()} disabled={!data}>Imprimir / salvar PDF</button><button type="button" onClick={onClose}>Fechar</button></div>
     <article className="nsr-page">
       <header className="nsr-head"><p>NISTI ID · Gestor de Anúncios</p><h1>Relatório de anúncios sem vendas</h1>
         <dl><div><dt>Período</dt><dd>{periodLabel(days,month)}</dd></div>
@@ -44,15 +46,15 @@ export default function SalesReport({platform,days,month,onClose}){
       {!data&&!error&&<p>Gerando relatório…</p>}
       {data&&<>
         <section className="nsr-summary"><h2>Resumo</h2>
-          <p>Somente anúncios ativos. <strong>Sem vendas</strong>: nunca venderam ou venderam menos de 3 unidades no histórico. <strong>Vendia e parou</strong>: já venderam 3 unidades ou mais, mas não venderam no período. <strong>Variação</strong>: o anúncio vende, porém uma variação cadastrada não vendeu.</p>
-          <table className="nsr-table nsr-sum"><thead><tr><th>Plataforma</th><th>Anúncios inteiros</th><th>Variações</th><th>Sem vendas</th><th>Vendia e parou</th><th>Total</th></tr></thead>
-            <tbody>{groups.map(g=><tr key={g.code}><td>{g.label}</td><td>{g.anuncios}</td><td>{g.variacoes}</td><td>{g.semVendas.length}</td><td>{g.parou.length}</td><td><strong>{g.total}</strong></td></tr>)}
-              {!groups.length&&<tr><td colSpan="6">Nenhum item encontrado no período.</td></tr>}</tbody></table>
+          <p>Somente anúncios <strong>ativos</strong> que <strong>não tiveram nenhuma venda</strong> no período escolhido, não importa se venderam antes. "Dias sem vender" conta desde a última venda registrada ("nunca" = nunca vendeu). <strong>Variação</strong>: o anúncio vende, mas uma variação cadastrada dele não vendeu no período.</p>
+          <table className="nsr-table nsr-sum"><thead><tr><th>Plataforma</th><th>Anúncios sem nenhuma venda</th><th>Variações sem venda (anúncio vende)</th></tr></thead>
+            <tbody>{groups.map(g=><tr key={g.code}><td>{g.label}</td><td><strong>{groupListings(g.zero).length}</strong></td><td>{groupListings(g.vars).length}</td></tr>)}
+              {!groups.length&&<tr><td colSpan="3">Nenhum anúncio sem venda no período.</td></tr>}</tbody></table>
           {total>=3000&&<p className="nsr-warn">Atenção: a lista foi limitada a 3.000 linhas; refine por plataforma ou período.</p>}
         </section>
         {groups.map(g=><section key={g.code} className={"nsr-plat"+(full?" is-full":"")}><h2>{g.label}</h2>
-          {[['SEM_VENDAS',g.semVendas],['PAROU',g.parou]].map(([sit,rows])=>rows.length>0&&<div key={sit}>
-            <h3>{SITUATION_LABELS[sit]} <span>({groupListings(rows).length} anúncios)</span></h3><ListTable items={full?sortItems(groupListings(rows)):topLongest(groupListings(rows))}/>{!full&&groupListings(rows).length>SUMMARY_LIMIT&&<p className="nsr-more">Mostrando os {SUMMARY_LIMIT} há mais tempo sem vender, de {groupListings(rows).length} anúncios. Use "Ver lista completa" ou a planilha para todos.</p>}</div>)}</section>)}
+          {[['Anúncios sem nenhuma venda no período',g.zero],['Variações sem venda (o anúncio vende, a variação não)',g.vars]].map(([label,rows])=>{const it=groupListings(rows);return it.length>0&&<div key={label}>
+            <h3>{label} <span>({it.length})</span></h3><ListTable items={full?sortItems(it):topLongest(it)}/>{!full&&it.length>SUMMARY_LIMIT&&<p className="nsr-more">Mostrando os {SUMMARY_LIMIT} há mais tempo sem vender, de {it.length}. Use "Ver lista completa" ou a planilha para todos.</p>}</div>;})}</section>)}
         <footer className="nsr-foot">NISTI ID · Gestor de Anúncios — relatório gerado automaticamente; confira no painel antes de decidir pausar ou excluir um anúncio.</footer>
       </>}
     </article></div>,document.body);
