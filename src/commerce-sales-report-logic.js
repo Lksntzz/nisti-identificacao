@@ -18,9 +18,16 @@ export function groupReport(rows){
       zero:mine.filter(r=>r.scope==='ANUNCIO'),vars:mine.filter(r=>r.scope==='VARIACAO')};
   }).filter(g=>g.total>0);
 }
-export const PERIOD_CHOICES=[[7,'Até 7 dias'],[30,'Até 30 dias'],[60,'Até 60 dias'],[90,'Até 90 dias']];
+export const PERIOD_CHOICES=[[7,'7 dias'],[30,'30 dias'],[60,'60 dias'],[90,'90 dias']];
 export function periodLabel(days){
-  return 'Sem vender há até '+Number(days)+' dias';
+  return 'Nenhuma venda nos últimos '+Number(days)+' dias';
+}
+// Sem nenhuma venda no período (garantido pela consulta). "Recente" = a última venda foi até 2x o período atrás
+// (vendia antes e parou); "amplo" inclui também os parados há mais tempo e os que nunca venderam.
+export function filterStalled(rows,days,wide){
+  const n=Number(days);
+  if(wide)return rows||[];
+  return (rows||[]).filter(r=>r.days_since!=null&&Number(r.days_since)<=2*n);
 }
 
 export const SUMMARY_LIMIT=10;
