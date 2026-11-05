@@ -10,6 +10,7 @@ Abra **só a nota do assunto** em que for trabalhar.
 | GA (Gestor de Anúncios) | [[ga]] | Qualquer mudança em telas, vendas, importação ou comparação anual do GA |
 | Publicar mudanças | [[deploy]] | Antes de abrir PR, mesclar ou aplicar migração |
 | Mural NISTI | [[mural]] | Feed, publicações, coleções, imagens do Mural e push |
+| Backup do banco e imagens | [[backup]] | Fazer, conferir ou planejar backup (hoje sem backup confirmado) |
 | Erro "Muitas requisições" | [[limites-requisicoes]] | Erro 429, painel travando, telas que consultam o servidor sem parar |
 
 ## Notas que ainda não existem (a fazer, uma por vez)
@@ -19,6 +20,7 @@ Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[m
 
 ## Pendências conhecidas (resolver e apagar daqui)
 
+- **Backup:** nenhuma cópia do banco confirmada; primeira exportação nunca registrada. Ver [[backup]].
 - **Limite de requisições:** causa do erro "Muitas requisições" no Publicar do Mural não confirmada. Ver [[limites-requisicoes]].
 
 ## Documentos antigos em `docs/`
@@ -28,7 +30,7 @@ Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[m
 - [[supabase-cutover-a2-inventory]]: arquitetura atual de produção (Supabase principal, D1 só legado).
 - [[monitor-notificacoes-expedicao]] e [[notification-platform-logos]]: monitor da expedição e logos das plataformas.
 - [[catalogo-comercial-v1]]: desenho do catálogo comercial.
-- [[PLANO-PROTECAO-E-RECUPERACAO]], [[BACKUP-GRATUITO-NISTI]], [[BACKUP-GOOGLE-DRIVE-NISTI]] e [[GOOGLE-DRIVE-BACKUP-NISTI]]: proteção e backup (os três de backup se sobrepõem; juntar em um).
+- [[PLANO-PROTECAO-E-RECUPERACAO]]: proteção da `main` e recuperação.
 - [[EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE]]: procedimento do exportador de imagens (workflow manual).
 
 **Históricos** (retrato de uma data; não atualizar):

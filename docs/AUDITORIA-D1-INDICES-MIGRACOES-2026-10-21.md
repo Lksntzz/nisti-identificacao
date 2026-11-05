@@ -27,7 +27,7 @@ Conclusão comprovada no repositório: a configuração principal publica Supaba
 | wrangler.d1-compat.toml e migrations/ | Estado e alterações do banco legado | Preservar histórico; não apagar sem backup/restauração comprovados |
 | src/supabase-*-store.js e src/supabase-mutation-mirror.js | Fallback/mirror de compatibilidade | Verificar chamadas restantes antes de remoção |
 
-Os guias docs/BACKUP-GRATUITO-NISTI.md e docs/PLANO-PROTECAO-E-RECUPERACAO.md já reconhecem que o exportador D1 não produz backup atualizado do Supabase/R2. A documentação deve impedir explicitamente que operadores confundam esses fluxos.
+Os guias docs/cerebro/backup.md e docs/PLANO-PROTECAO-E-RECUPERACAO.md já reconhecem que o exportador D1 não produz backup atualizado do Supabase/R2. A documentação deve impedir explicitamente que operadores confundam esses fluxos.
 
 ## 3. Auditoria dos índices ausentes
 
