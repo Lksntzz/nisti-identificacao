@@ -278,3 +278,10 @@ button.ndb-cp-metric:hover,button.ndb-cp-metric.is-active{border-color:#9ac1fc;b
 .ndb-cp-tm-legend i{display:inline-block;width:8px;height:8px;border-radius:2px}
 .ndb-cp-tm-legend i.is-base{background:#aab9d2}.ndb-cp-tm-legend i.is-cur{background:#2563eb}
 @media(max-width:680px){.ndb-cp-topmonths{grid-template-columns:1fr}}
+
+.ndb-cp-tm-views{display:flex;gap:4px;flex-wrap:wrap}
+.ndb-cp-tm-views button{border:1px solid var(--cp-border);background:transparent;color:var(--cp-muted);border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer}
+.ndb-cp-tm-views button.is-on{background:var(--cp-accent,#1d5fd1);border-color:var(--cp-accent,#1d5fd1);color:#fff}
+.ndb-cp-topmonths-card li{grid-template-columns:34px minmax(40px,1fr) auto}
+.ndb-cp-tm-note{color:var(--cp-muted);font-size:11px;font-variant-numeric:tabular-nums}
+.ndb-cp-tm-num.is-up strong{color:#139a62}.ndb-cp-tm-num.is-down strong{color:#d63535}

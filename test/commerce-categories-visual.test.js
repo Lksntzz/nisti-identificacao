@@ -126,10 +126,13 @@ test('abertura rápida: a tela usa só a cobertura anual (rota leve), sem o comp
   assert.match(read('src/commerce-supabase-store.js'),/export async function commerceAnnualCoverage/);
 });
 
-test('painel lateral mostra os meses que mais venderam da categoria e da coleção',()=>{
+test('painel lateral mostra ganhos/perdas, meses que não repetiram e peso no ano',()=>{
   const ui=read('src/commerce-categories-panel.jsx');
-  assert.match(ui,/^function TopMonths\(/m);
-  assert.match(ui,/Categoria · meses que mais venderam/);
-  assert.match(ui,/Coleção · meses que mais venderam/);
+  assert.match(ui,/^function MonthInsights\(/m);
+  assert.match(ui,/Categoria · meses/);
+  assert.match(ui,/Coleção · meses/);
   assert.match(ui,/topMonthsOf\(collectionMonths/);
+  assert.match(ui,/gainLoss\(list\)/);
+  assert.match(ui,/notRepeated\(list\)/);
+  assert.match(ui,/yearShare\(list\)/);
 });

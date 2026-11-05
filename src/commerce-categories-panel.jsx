@@ -1,3 +1,4 @@
+import {MONTH_VIEWS,gainLoss,notRepeated,yearShare} from './commerce-categories-months-logic.js';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {Dropdown} from './commerce-dashboard.jsx';
@@ -94,11 +95,19 @@ function Pager({page,total,onPage}) {
   if(pages<=1)return null;
   return <div className="ndb-cp-pager" role="navigation" aria-label="Paginação"><button type="button" disabled={page<=1} onClick={()=>onPage(page-1)}>‹ Anterior</button><span>Página {page} de {pages} · {fmt(total)} itens</span><button type="button" disabled={page>=pages} onClick={()=>onPage(page+1)}>Próxima ›</button></div>;
 }
-function TopMonths({title,name,list,baseYear,year}) {
-  const max=Math.max(1,...list.flatMap(m=>[m.cur,m.base]));
+const pctTxt=v=>(Math.round(v*10)/10).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+function MonthInsights({title,name,list,baseYear,year}) {
+  const [view,setView]=useState('gain');
+  const rowsView=view==='gain'?gainLoss(list):view==='lost'?notRepeated(list):yearShare(list);
+  const empty={gain:'Sem diferença entre os anos nos meses comparados.',lost:'Nenhum mês forte de '+baseYear+' deixou de se repetir.',share:'Sem vendas nos meses comparados.'}[view];
   return <div className="ndb-cp-topmonths-card"><small>{title}</small><b title={name}>{cleanName(name)}</b>
-    {list.length?<ol>{list.map((m,i)=><li key={m.month}><span className="ndb-cp-tm-rank">{i+1}º</span><span className="ndb-cp-tm-month">{SHORT[m.month-1]}</span><PairBars base={m.base} cur={m.cur} max={max}/><span className="ndb-cp-tm-num"><em>{fmt(m.base)}</em><strong>{fmt(m.cur)}</strong></span></li>)}</ol>:<p className="ndb-cp-empty">Sem vendas nos meses comparados.</p>}
-    <p className="ndb-cp-tm-legend"><i className="is-base"/>{baseYear} <i className="is-cur"/>{year}</p>
+    <div className="ndb-cp-tm-views" role="group" aria-label="Visão dos meses">{MONTH_VIEWS.map(([k,l])=><button key={k} type="button" className={view===k?'is-on':''} aria-pressed={view===k} onClick={()=>setView(k)}>{l}</button>)}</div>
+    {rowsView.length?<ol>{rowsView.map(m=><li key={m.month}><span className="ndb-cp-tm-month">{SHORT[m.month-1]}</span>
+      {view==='share'
+        ?<><span className="ndb-cp-tm-note">{baseYear}: {pctTxt(m.shareBase)}</span><span className="ndb-cp-tm-num"><strong>{pctTxt(m.shareCur)}</strong></span></>
+        :<><span className="ndb-cp-tm-note">{fmt(m.base)} → {fmt(m.cur)}</span><span className={'ndb-cp-tm-num '+((view==='gain'?m.diff:-m.lost)>=0?'is-up':'is-down')}><strong>{view==='gain'?(m.diff>0?'+':'−')+fmt(Math.abs(m.diff)):'−'+fmt(m.lost)}</strong></span></>}
+    </li>)}</ol>:<p className="ndb-cp-empty">{empty}</p>}
+    <p className="ndb-cp-tm-legend">{view==='share'?'Participação do mês no acumulado até hoje de cada ano.':'Unidades '+baseYear+' → '+year+', mesmas datas.'}</p>
   </div>;
 }
 function DetailTable({heads,children,className=''}) {return <div className="ndb-cp-scroll"><table className={'ndb-cp-table '+className}><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;}
@@ -198,7 +207,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
   },[autoKey,t,monthChoice]);
   const topMonthsOf=(source,match)=>Array.from({length:Math.max(1,asOfMonth||1)},(_,i)=>i+1)
     .map(m=>({month:m,cur:add(source,r=>match(r)&&num(r.month)===m&&num(r.year)===year),base:add(source,r=>match(r)&&num(r.month)===m&&num(r.year)===baseYear)}))
-    .filter(m=>m.cur>0||m.base>0).sort((a,b)=>b.cur-a.cur||b.base-a.base).slice(0,5);
+    .filter(m=>m.cur>0||m.base>0);
   const topCatMonths=topMonthsOf(catMonths,r=>r.cat===picked?.name);
   const topColMonths=topMonthsOf(collectionMonths,r=>r.col===selectedCollection);
   const bestMonthBase=[...validMonths].sort((a,b)=>b.base-a.base)[0],bestWeekBase=[...weeks].sort((a,b)=>b.base-a.base)[0]||null;
@@ -296,7 +305,7 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
       {selectedCollection&&drawerOpen&&<><div className="ndb-cp-drawer-backdrop" onClick={()=>setDrawerOpen(false)}/>
         <aside className="ndb-cp-drawer" role="dialog" aria-label={'Variações da coleção '+cleanName(selectedCollection)}>
           <button type="button" className="ndb-cp-drawer-close" aria-label="Fechar variações" onClick={()=>setDrawerOpen(false)}>✕</button>
-          <div className="ndb-cp-topmonths"><TopMonths title="Categoria · meses que mais venderam" name={picked?.name||''} list={topCatMonths} baseYear={baseYear} year={year}/><TopMonths title="Coleção · meses que mais venderam" name={selectedCollection} list={topColMonths} baseYear={baseYear} year={year}/></div>
+          <div className="ndb-cp-topmonths"><MonthInsights title="Categoria · meses" name={picked?.name||''} list={topCatMonths} baseYear={baseYear} year={year}/><MonthInsights title="Coleção · meses" name={selectedCollection} list={topColMonths} baseYear={baseYear} year={year}/></div>
           <div className="ndb-cp-variations-panel">
                       <div className="ndb-cp-variations-title"><strong>Variações da coleção {cleanName(selectedCollection)}</strong><span className="ndb-cp-scope"><button type="button" className={useYtd?'is-on':''} onClick={()=>setVarScope('ytd')}>Ano até hoje</button><button type="button" className={!useYtd?'is-on':''} onClick={()=>setVarScope('month')}>{MONTHS[currentMonth-1]}{selectedWeek?' · sem. '+selectedWeek:''}</button></span><small>{baseYear} × {year}</small></div>
                       {temporal.loading?<p className="ndb-cp-loading">Consultando variações…</p>:temporal.error?<p className="ndb-cp-error" role="alert">{temporal.error}</p>:<>
