@@ -220,3 +220,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Segue os filtros do Dashboard (plataforma e período). Só anúncios ativos. Seções por plataforma; cada linha tem selo "ANÚNCIO TODO" ou "VARIAÇÃO".
 - Situações: **Sem vendas** (menos de 3 un. no histórico) e **Vendia e parou** (3+ un. no histórico, nenhuma no período). VARIAÇÃO = anúncio que vende, mas uma variação cadastrada (anúncio com mais de uma) não vendeu.
 - Rota: `GET /api/admin/commerce/sales-dashboard/report-no-sales?platform&days&month` → `commerceSalesReportNoSalesV1` → função SQL `commerce_sales_report_no_sales_v1(p_platform,p_days,p_month)` (migração `20261104210000`). Limite de 3000 linhas. Totais de ANÚNCIO batem com os cards "Vendia e parou"/"Sem vendas" do Dashboard.
+
+## Remoção da "Comparação anual" (05/11/2026)
+- Removidos a aba "Comparação anual" do Painel Comercial, o painel Famílias e os arquivos `commerce-annual-compare.jsx`, `-guided`, `-families` (+helpers), `-insights`, `-seasonality` e seus CSS/testes. As seções antigas "Comparação anual…" acima descrevem código que não existe mais (histórico).
+- **Mantidos de propósito:** `commerce-annual-compare-helpers.js` (usado por Categorias), todas as rotas `/sales-compare/annual*` e as funções SQL `commerce_annual_*` — a Categorias usa `annual-coverage` e outras ficam sem uso na tela. Nada foi apagado do banco; limpeza futura exige backup e aprovação.
