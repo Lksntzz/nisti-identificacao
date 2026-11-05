@@ -19,13 +19,20 @@ Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[m
 
 ## Pendências conhecidas (resolver e apagar daqui)
 
-- **Mural:** qual caminho de dados (D1 ou Supabase) está ativo em produção. Ver [[mural]].
 - **Limite de requisições:** causa do erro "Muitas requisições" no Publicar do Mural não confirmada. Ver [[limites-requisicoes]].
 
-## Documentos antigos que continuam valendo
+## Documentos antigos em `docs/`
 
-- [[MAPA-GA]]: mapa completo do GA (telas, tabelas, funções, histórico de mudanças).
-- [[PLANO-PROTECAO-E-RECUPERACAO]] e [[BACKUP-GRATUITO-NISTI]]: backup e recuperação.
+**Atuais** (consultar e manter; vários têm teste ou código que dependem deles):
+- [[MAPA-GA]]: mapa completo do GA.
+- [[supabase-cutover-a2-inventory]]: arquitetura atual de produção (Supabase principal, D1 só legado).
+- [[monitor-notificacoes-expedicao]] e [[notification-platform-logos]]: monitor da expedição e logos das plataformas.
+- [[catalogo-comercial-v1]]: desenho do catálogo comercial.
+- [[PLANO-PROTECAO-E-RECUPERACAO]], [[BACKUP-GRATUITO-NISTI]], [[BACKUP-GOOGLE-DRIVE-NISTI]] e [[GOOGLE-DRIVE-BACKUP-NISTI]]: proteção e backup (os três de backup se sobrepõem; juntar em um).
+- [[EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE]]: procedimento do exportador de imagens (workflow manual).
+
+**Históricos** (retrato de uma data; não atualizar):
+- [[AUDITORIA-D1-INDICES-MIGRACOES-2026-10-21]]: mantida porque registra cinco índices ainda pendentes de revisão.
 - [[SECURITY_AUDIT_2026-10-07]]: auditoria de segurança.
 
 ## Regras destas notas

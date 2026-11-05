@@ -1,10 +1,6 @@
 # Mural NISTI
 
 Feed de novidades para os operadores: produtos novos, coleções e avisos. Fica em `mural.sistemanistiid.online` (também em `/mural` no host principal). É separado do scanner/ID e do GA.
-Conformidade com o PDP original: [[mural-pdp-compliance]] (parte dela está velha, veja "Armadilhas").
-
-> [!warning] ATENÇÃO: pendência aberta
-> **Não se sabe qual caminho de dados está ativo em produção** (D1 antigo ou Supabase). Antes de mudar leitura ou escrita do Mural, confirme nas variáveis do Worker na Cloudflare e registre aqui o resultado. Detalhe na seção "Leitura e escrita: dois caminhos".
 
 ## O que faz
 
@@ -20,9 +16,9 @@ Conformidade com o PDP original: [[mural-pdp-compliance]] (parte dela está velh
 - **Imagens:** o binário vai para o R2 (binding `PRODUCT_IMAGES`, chaves `mural/...`); o banco guarda só a chave. A tela lê por `/api/product-images/...?v=<chave>`.
 - A autenticação fica no `src/edge-router.js`, não no Mural. O Mural só lê o operador do cabeçalho `x-user-id` (formato `op_<uuid>`).
 
-## Leitura e escrita: dois caminhos (migração em andamento)
+## Leitura e escrita
 
-O código ainda tem o caminho antigo (D1) ao lado do Supabase. A escolha é por configuração: leituras via `preferSupabaseRead`, escritas via `mirrorSupabaseRpc` (modos off / espelho / primary em `supabase-write-store.js`). ⚠ Qual modo está ativo em produção: **não confirmado** (pendência aberta, ver aviso no topo) no código; conferir nas variáveis do Worker antes de assumir. Mudou uma regra? Ela precisa ser mudada nos dois caminhos enquanto o D1 existir.
+Produção usa o **Supabase como banco principal**: `SUPABASE_READS_ENABLED=1` e `SUPABASE_WRITE_MODE=primary` no `wrangler.toml`, e o Worker de produção não tem D1 ligado (ver [[supabase-cutover-a2-inventory]]). O código do Mural ainda contém o caminho antigo (D1) como compatibilidade/recuperação; não mexa nele achando que roda. Se um dia variáveis forem definidas direto no painel da Cloudflare, elas podem sobrepor o arquivo: conferir lá antes de mudar o modo.
 
 ## Regras de negócio
 
@@ -36,7 +32,7 @@ O código ainda tem o caminho antigo (D1) ao lado do Supabase. A escolha é por 
 
 ## Armadilhas
 
-- **Trava de liberação:** `MURAL_PUBLIC_RELEASED` em `mural-router.js`. Hoje está `true`. Com `false`, o operador vê "em breve", o push e o cron não enviam nada (nem para admin). O doc [[mural-pdp-compliance]] ainda fala em "Em breve"; vale o código.
+- **Trava de liberação:** `MURAL_PUBLIC_RELEASED` em `mural-router.js`. Hoje está `true`. Com `false`, o operador vê "em breve", o push e o cron não enviam nada (nem para admin).
 - Falha no push **não** pode desfazer a publicação (já salva): o erro só vai para o log.
 - O rascunho de EAN nunca pode travar a ação que o disparou; falhas só vão para o log e para a notificação do admin.
 - Cursor inválido devolve 400, não lista vazia.
