@@ -38,3 +38,14 @@
   .nsr-page h2{margin:8px 0 4px}
   .nsr-toolbar{display:none}
 }
+
+.nsr-list{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.nsr-list th{background:#f1f5f9;text-align:left;padding:5px 8px;border-bottom:1px solid #cbd5e1;font-size:11px}
+.nsr-list td{padding:5px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+.nsr-list th:nth-child(1){width:110px}.nsr-list th:nth-child(2){width:120px}.nsr-list th:nth-child(4){width:90px}
+.nsr-list .num{text-align:right;font-variant-numeric:tabular-nums}
+.nsr-list tr{break-inside:avoid}.nsr-list thead{display:table-header-group}
+.nsr-name{overflow-wrap:anywhere}.nsr-name small{display:block;color:#92400e;font-size:11px;margin-top:2px}
+.nsr-id{font-variant-numeric:tabular-nums}
+@media(max-width:700px){.nsr-list{min-width:560px}}
+@media print{.nsr-list{font-size:8.5pt}.nsr-list td,.nsr-list th{padding:2px 6px}}
