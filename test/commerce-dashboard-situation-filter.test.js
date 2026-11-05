@@ -23,3 +23,8 @@ test('Painel Comercial: aba Sem vendas mostra quem completou N dias (e "Ver todo
   assert.match(src,/Ver todos os sem vendas/);
   assert.doesNotMatch(src,/'Completaram '\+doneDays/);
 });
+
+test('filtro inteligente: Pararam/Em queda em todo o histórico muda sozinho para 90 dias', () => {
+  const src=fs.readFileSync('src/commerce-dashboard.jsx','utf8');
+  assert.match(src,/\(tab==='stopped'\|\|tab==='drops'\)&&days===0&&!month\)setDays\(90\)/);
+});
