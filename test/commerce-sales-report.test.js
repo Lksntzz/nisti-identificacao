@@ -78,8 +78,8 @@ test('mesmo anúncio com variações em situações diferentes vira uma linha s�
 });
 
 import {filterStalled} from '../src/commerce-sales-report-logic.js';
-test('filtro: 90 dias sem venda; padrão só quem vendeu nos 90 dias anteriores', () => {
-  const rows=[{days_since:100},{days_since:179},{days_since:181},{days_since:608},{days_since:null}];
-  assert.equal(filterStalled(rows,90,false).length,2);
-  assert.equal(filterStalled(rows,90,true).length,5);
+test('filtro: 90 dias sem venda; padrão só quem completou 90 dias agora', () => {
+  const rows=[{days_since:40},{days_since:90},{days_since:96},{days_since:97},{days_since:200},{days_since:608},{days_since:null}];
+  assert.deepEqual(filterStalled(rows,90,false).map(r=>r.days_since),[90,96]);
+  assert.equal(filterStalled(rows,90,true).length,7);
 });

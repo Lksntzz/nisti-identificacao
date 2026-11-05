@@ -22,12 +22,13 @@ export const PERIOD_CHOICES=[[7,'7 dias'],[30,'30 dias'],[60,'60 dias'],[90,'90 
 export function periodLabel(days){
   return 'Nenhuma venda nos últimos '+Number(days)+' dias';
 }
-// Sem nenhuma venda no período (garantido pela consulta). "Recente" = a última venda foi até 2x o período atrás
-// (vendia antes e parou); "amplo" inclui também os parados há mais tempo e os que nunca venderam.
+// Sem nenhuma venda no período (garantido pela consulta). Padrão: só quem acabou de completar N dias sem vender
+// (última venda entre N e N+6 dias atrás). "amplo" inclui todos os parados há mais tempo e quem nunca vendeu.
+export const BAND_DAYS=6;
 export function filterStalled(rows,days,wide){
   const n=Number(days);
   if(wide)return rows||[];
-  return (rows||[]).filter(r=>r.days_since!=null&&Number(r.days_since)<=2*n);
+  return (rows||[]).filter(r=>r.days_since!=null&&Number(r.days_since)>=n&&Number(r.days_since)<=n+BAND_DAYS);
 }
 
 export const SUMMARY_LIMIT=10;
