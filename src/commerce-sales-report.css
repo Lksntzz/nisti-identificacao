@@ -58,7 +58,8 @@
   .nsr-page{font-size:9pt}.nsr-head{padding-bottom:6px;margin-bottom:8px}.nsr-head h1{font-size:15pt;margin:2px 0 6px}
   .nsr-page h2{font-size:11pt;margin:10px 0 4px}.nsr-page h3{font-size:9.5pt;margin:8px 0 3px}
   .nsr-list a{color:#111;text-decoration:none}
-  .nsr-list th:nth-child(1){width:62px}.nsr-list th:nth-child(2){width:88px}.nsr-list th:nth-child(4){width:130px}.nsr-list th:nth-child(5){width:50px}
+  .nsr-list th:nth-child(1){width:92px}.nsr-list th:nth-child(2){width:84px}.nsr-list th:nth-child(4){width:130px}.nsr-list th:nth-child(5){width:72px}
+  .nsr-list td,.nsr-list th{overflow:hidden}.nsr-list th.num{white-space:normal}
   .nsr-badge{font-size:7pt;padding:1px 4px;background:none!important;border:1px solid #9ca3af;color:#111!important}
   .nsr-name small{color:#374151}
 }
