@@ -121,11 +121,34 @@ function ExtList({links}){
     {list.length>shown.length&&<span className="ndb-muted" title={list.slice(4).map(l=>l.external_id).join(', ')}>+{list.length-shown.length}</span>}</span>;
 }
 
-function PeriodBar({cur,prev}){
+// Colunas opcionais da tabela "Curva ABC": o que o Lucas escolhe no "+" fica salvo neste navegador.
+const OPT_COLS=[['created','Criado em'],['visits','Visitas'],['conv','Conversão']];
+const COLS_KEY='ndb-best-cols';
+const readCols=()=>{try{const v=JSON.parse(localStorage.getItem(COLS_KEY)||'null');if(Array.isArray(v))return v.filter(k=>OPT_COLS.some(o=>o[0]===k));}catch(e){}return ['created'];};
+const dmyFull=d=>{const s=String(d||'').slice(0,10);return s.length===10?s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4):'—';};
+function ColsPicker({cols,onToggle}){
+  const [open,setOpen]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!open)return;
+    const away=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    const esc=e=>{if(e.key==='Escape')setOpen(false);};
+    document.addEventListener('mousedown',away);document.addEventListener('keydown',esc);
+    return()=>{document.removeEventListener('mousedown',away);document.removeEventListener('keydown',esc);};
+  },[open]);
+  return <div className="ndb-colpick" ref={ref}>
+    <button type="button" className="ndb-colpick-btn" aria-haspopup="true" aria-expanded={open} onClick={()=>setOpen(o=>!o)} title="Escolher colunas da tabela">+ Colunas</button>
+    {open&&<div className="ndb-colpick-menu" role="group" aria-label="Colunas opcionais">
+      {OPT_COLS.map(([k,l])=><label key={k}><input type="checkbox" checked={cols.includes(k)} onChange={()=>onToggle(k)}/>{l}</label>)}
+    </div>}
+  </div>;
+}
+function PeriodBar({cur,prev,extra}){
   return <div className="ndb-periodbar">
     {prev&&<span className="pb prev"><i/>Período anterior: <b>{prev}</b></span>}
     {prev&&<span className="pb arrow" aria-hidden="true">→</span>}
     <span className="pb cur"><i/>Período atual: <b>{cur}</b></span>
+    {extra}
   </div>;
 }
 
@@ -442,6 +465,26 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     return()=>controller.abort();
   },[]);
   const perfItems=useMemo(()=>({...(spPerf?.items||{}),...(mlPerf?.items||{})}),[mlPerf,spPerf]);
+  // Colunas opcionais da tabela Curva ABC + data de criação (mesma fonte da aba "Cadastros por mês").
+  const [bestCols,setBestCols]=useState(readCols);
+  const toggleCol=k=>setBestCols(cur=>{const next=cur.includes(k)?cur.filter(x=>x!==k):[...cur,k];try{localStorage.setItem(COLS_KEY,JSON.stringify(next));}catch(e){}return next;});
+  const showCreated=bestCols.includes('created'),showVisits=bestCols.includes('visits'),showConv=bestCols.includes('conv');  const [cohortData,setCohortData]=useState(null);
+  useEffect(()=>{
+    if(tab!=='best'||!showCreated)return;
+    const controller=new AbortController();
+    setCohortData(null);
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/cohorts?platform='+platform,{signal:controller.signal}).then(setCohortData).catch(()=>{});
+    return()=>controller.abort();
+  },[tab,platform,showCreated]);
+  const createdById=useMemo(()=>{
+    const map={};
+    (cohortData?.months||[]).forEach(m=>(m.items||[]).forEach(i=>{
+      if(!i.created_on)return;
+      if(i.listing_id!=null)map[String(i.listing_id)]=i.created_on;
+      (i.listing_ids||[]).forEach(id=>{map[String(id)]=i.created_on;});
+    }));
+    return map;
+  },[cohortData]);
   const perfNotes=[...(mlPerf?.reports||[]).map(x=>(x.account==='NOVO'?'ML Novo':'ML Antigo')+' '+dm(x.start)+' a '+dm(x.end)),
     ...(spPerf?.reports||[]).map(x=>'Shopee '+dm(x.start)+' a '+dm(x.end))];
   const growingRows=useMemo(()=>(overview?.growth||[]).filter(r=>platform==='TODAS'||r.platform===platform).slice(0,8).map(r=>({...r,multi:platform==='TODAS'})),[overview,platform]);
@@ -536,6 +579,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   // No Dashboard, os cards e alertas levam ao Painel Comercial (aba Desempenho); lá abrem a lista correspondente.
   // Com uma plataforma escolhida, a coluna/etiqueta de plataforma é redundante; só aparece em "Todas as plataformas".
   const multi=platform==='TODAS';
+  const bestSpan=(multi?6:5)+bestCols.length;
   const goTab=k=>{if(onOpenTab)onOpenTab(k,{platform,days,month});else{if(k==='never'){setNsf('never');setTab('nosales');}else setTab(k);}};
   const openAlert=k=>{if(k==='nosales')setNsAll(true);goTab(k);}; // o aviso fala de todos os sem vendas: abre a lista completa
   const openAbc=(c,curveMode)=>{if(mode==='overview'){goTab('abc');return;}setTab('abc');setCurve(curveMode);if(c)setCls(c);};
@@ -638,14 +682,15 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             <div className="ndb-tabs" role="tablist" aria-label="Detalhes">{TAB_BAR.map(([k,l,c])=><button key={k} type="button" role="tab" aria-selected={tab===k} className={tab===k?'is-active':''} onClick={()=>setTab(k)}>{l}{c!=null&&<em>{num(c)}</em>}</button>)}</div>
             <InfoIcon text={SOURCES[TAB_SOURCE[tab]]+(tab==='best'&&perfNotes.length>0?' Visitas e Conversão vêm dos relatórios de desempenho importados ('+perfNotes.join(' · ')+') e valem para o período de cada relatório, não para o filtro acima. ML: vendas ÷ visitas; Shopee: pedidos feitos ÷ visitantes.':'')} label={TABS.find(t=>t[0]===tab)[1]}/>
           </header>
-          {tab==='best'&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th>{multi&&<th>Plataforma</th>}<th className="num">Unidades</th><th className="num">Faturamento</th><th className="num" title="Visitas únicas no período do relatório de desempenho importado de cada plataforma">Visitas</th><th className="num" title="Mercado Livre: vendas ÷ visitas. Shopee: pedidos feitos ÷ visitantes (inclui cancelados depois)">Conversão</th><th title="Unidades por semana de 7 dias: três semanas atrás, duas, uma e a semana atual (a barra azul). O % ao lado compara a semana atual com a anterior.">Vendas por semana</th><th title="Mês com mais unidades vendidas deste anúncio, em todo o histórico importado. Clique para comparar os meses.">Melhor mês</th></tr></thead><tbody>
+          {tab==='best'&&<><PeriodBar cur={curTxt} extra={<ColsPicker cols={bestCols} onToggle={toggleCol}/>}/><div className="ndb-scroll"><table className="ndb-table"><thead><tr><th>Produto / SKU</th>{multi&&<th>Plataforma</th>}<th className="num">Unidades</th><th className="num">Faturamento</th>{showCreated&&<th className="num" title="Data de criação do anúncio, vinda da planilha de cadastro (só Shopee, ML Antigo e parte do ML Novo)">Criado em</th>}{showVisits&&<th className="num" title="Visitas únicas no período do relatório de desempenho importado de cada plataforma">Visitas</th>}{showConv&&<th className="num" title="Mercado Livre: vendas ÷ visitas. Shopee: pedidos feitos ÷ visitantes (inclui cancelados depois)">Conversão</th>}<th title="Unidades por semana de 7 dias: três semanas atrás, duas, uma e a semana atual (a barra azul). O % ao lado compara a semana atual com a anterior.">Vendas por semana</th><th title="Mês com mais unidades vendidas deste anúncio, em todo o histórico importado. Clique para comparar os meses.">Melhor mês</th></tr></thead><tbody>
             {bestAll.map(r=>{const st=listingState(r.status);const rk='b'+r.platform+r.external_id;const sb=bestBreakdown[r.listing_id];return <React.Fragment key={rk}><tr className={st.off?'ndb-off':''}>
               <td title={(r.title||'')+(st.off?' · anúncio desativado':'')}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.sku||r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               {multi&&<td>{PLATFORM_LABEL[r.platform]||r.platform}</td>}
               <td className="num"><b>{num(r.units)}</b></td><td className="num">{money(r.revenue)}</td>
-              {(()=>{const pf=perfItems[r.external_id];return <><td className="num" title={pf&&pf.visits!=null?undefined:'Sem relatório de desempenho para este anúncio: importe o relatório da plataforma para ver visitas e conversão.'}>{pf&&pf.visits!=null?num(pf.visits):'—'}</td><td className="num" title={pf&&pf.conversion_pct!=null?undefined:'Sem relatório de desempenho para este anúncio.'}>{pf&&pf.conversion_pct!=null?String(pf.conversion_pct).replace('.',',')+'%':'—'}</td></>;})()}
-              <td>{salesCell(rk,r.listing_id,sb,false)}</td><td>{bestCell(rk,r.listing_id)}</td></tr>{salesRows(rk,r.listing_id,sb,false,multi?8:7)}</React.Fragment>;})}
-            {top.length===0&&!loading&&<tr><td colSpan={multi?8:7} className="ndb-empty">Sem vendas no período.</td></tr>}
+              {showCreated&&<td className="num" title={createdById[String(r.external_id)]?undefined:'Sem data de criação cadastrada para este anúncio.'}>{dmyFull(createdById[String(r.external_id)])}</td>}
+              {(()=>{const pf=perfItems[r.external_id];return <>{showVisits&&<td className="num" title={pf&&pf.visits!=null?undefined:'Sem relatório de desempenho para este anúncio: importe o relatório da plataforma para ver visitas e conversão.'}>{pf&&pf.visits!=null?num(pf.visits):'—'}</td>}{showConv&&<td className="num" title={pf&&pf.conversion_pct!=null?undefined:'Sem relatório de desempenho para este anúncio.'}>{pf&&pf.conversion_pct!=null?String(pf.conversion_pct).replace('.',',')+'%':'—'}</td>}</>;})()}
+              <td>{salesCell(rk,r.listing_id,sb,false)}</td><td>{bestCell(rk,r.listing_id)}</td></tr>{salesRows(rk,r.listing_id,sb,false,bestSpan)}</React.Fragment>;})}
+            {top.length===0&&!loading&&<tr><td colSpan={bestSpan} className="ndb-empty">Sem vendas no período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">Os 15 anúncios que mais faturam no período.</p></>}
           {(tab==='drops'||tab==='stopped')&&all&&<p className="ndb-empty">Escolha 30, 60 ou 90 dias no filtro de período: esta lista compara períodos.</p>}

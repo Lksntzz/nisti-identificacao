@@ -270,6 +270,12 @@
 .ndb-periodbar .pb b{color:#0f1b3d}
 .ndb-periodbar .pb i{width:8px;height:8px;border-radius:50%;background:#1d5fd1}
 .ndb-periodbar .pb.prev i{background:#8a97ab}
+.ndb-colpick{position:relative;margin-left:auto}
+.ndb-colpick-btn{border:1px solid #d5ddeb;background:#fff;color:#33415f;border-radius:999px;padding:2px 12px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+.ndb-colpick-btn:hover,.ndb-colpick-btn[aria-expanded="true"]{background:#f1f5fb}
+.ndb-colpick-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:150px;display:flex;flex-direction:column;gap:2px;padding:6px;background:#fff;border:1px solid #d5ddeb;border-radius:10px;box-shadow:0 8px 24px rgba(15,27,61,.14)}
+.ndb-colpick-menu label{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;font-size:12px;color:#33415f;cursor:pointer;white-space:nowrap}
+.ndb-colpick-menu label:hover{background:#f1f5fb}
 .ndb-periodbar .pb.arrow{background:none;padding:0;color:#7a8aa3;font-weight:700}
 .ndb-abc-plat{display:flex;width:100%;margin-bottom:8px}
 .ndb-abc-plat button{flex:1;min-height:28px;padding:0 6px;font-size:12px}
