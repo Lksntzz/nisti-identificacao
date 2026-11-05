@@ -15,9 +15,11 @@ test('Painel Comercial (explorer): filtros em ordem Plataforma, Situação, Per�
   assert.match(ui, /\{TAB_BAR\.map\(/);
 });
 
-test('Painel Comercial: filtro "Completaram N dias" na aba Sem vendas', () => {
+test('Painel Comercial: aba Sem vendas mostra quem completou N dias (e "Ver todos")', () => {
   const src=fs.readFileSync('src/commerce-dashboard.jsx','utf8');
-  assert.match(src,/'Completaram '\+doneDays\+' dias'/);
-  assert.match(src,/nsSince\(r\)<=doneDays\+6/);
-  assert.match(src,/\.filter\(nsMatch\)/);
+  assert.match(src,/const inBand=r=>/);
+  assert.match(src,/d>=doneDays&&d<=doneDays\+6/);
+  assert.match(src,/nsBand\(\)\?inBand\(r\)/);
+  assert.match(src,/Ver todos os sem vendas/);
+  assert.doesNotMatch(src,/'Completaram '\+doneDays/);
 });
