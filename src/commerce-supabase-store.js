@@ -248,18 +248,6 @@ export async function commerceListingSalesMonths(env,{ids=[],daily=false}={}) {
   return {months:data&&typeof data==='object'&&!Array.isArray(data)?data:{}};
 }
 
-export async function commerceAnnualDays(env,{platform='SHOPEE',month,week,year,base}={}) {
-  const p=String(platform).toUpperCase(),m=Number(month),w=Number(week),y=Number(year),b=Number(base);
-  if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(p)||
-     !Number.isInteger(m)||m<1||m>12||!Number.isInteger(w)||w<1||w>5||
-     !Number.isInteger(y)||y<2020||y>2100||b!==y-1)
-    throw new Error('Parâmetros inválidos na investigação diária.');
-  const data=await supabaseRpc(env,'commerce_annual_days_v1',{
-    p_platform:p,p_month:m,p_week:w,p_year:y,p_base:b
-  },{timeoutMs:12000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{days:[]};
-}
-
 export async function commerceAnnualCoverage(env) {
   const coverage=await supabaseRpc(env,'commerce_annual_compare_coverage_v1',{},{timeoutMs:10000});
   return {coverage:Array.isArray(coverage)?coverage:[]};
@@ -1270,103 +1258,8 @@ export async function commerceCatalogYearDecision(env, rowId, action, actor) {
   });
 }
 
-export async function commerceAnnualMonth(env,{platform='SHOPEE',month=null,year=null,base=null}={}) {
-  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
-  const m=Number.isInteger(Number(month))&&Number(month)>=1&&Number(month)<=12?Number(month):null;
-  const y=Number.isInteger(Number(year))&&Number(year)>2000?Number(year):null;
-  const b=Number.isInteger(Number(base))&&Number(base)>2000?Number(base):null;
-  const data=await supabaseRpc(env,'commerce_annual_month_v1',{p_platform:plat,p_month:m,p_year:y,p_base:b},{timeoutMs:20000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[],top:[],up:[],down:[]};
-}
-
 // Comparação por anúncio proprietário e suas variações, sem distribuição estimada
 // de vendas de SKUs compartilhados. Consulta paginada e estritamente read-only.
-export async function commerceAnnualMonthListings(env,filters={}) {
-  const platform=String(filters.platform||'SHOPEE').toUpperCase();
-  const tab=String(filters.tab||'TOP').toUpperCase();
-  const history=String(filters.history||'ALL').toUpperCase();
-  if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)
-    || !['TOP','UP','DOWN','ZERO','NO_HISTORY'].includes(tab)
-    || !['ALL','OLD','NO_HISTORY'].includes(history))
-    throw new Error('Filtros de anúncios inválidos.');
-  const result=await supabaseRpc(env,'commerce_annual_month_listings_v1',{
-    p_platform:platform,
-    p_month:Number(filters.month),
-    p_year:Number(filters.year),
-    p_base:Number(filters.base),
-    p_as_of:String(filters.asOf),
-    p_tab:tab,
-    p_history:history,
-    p_search:cleanText(filters.search)?.slice(0,120)||null,
-    p_limit:Math.max(1,Math.min(30,Number(filters.limit)||15)),
-    p_offset:Math.max(0,Math.min(20000,Number(filters.offset)||0))
-  },{timeoutMs:20000});
-  return result&&typeof result==='object'&&!Array.isArray(result)
-    ?result:{total:0,items:[],counts:{}};
-}
-
-export async function commerceAnnualDayProducts(env,{platform='SHOPEE',cur,base}={}) {
-  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
-  const data=await supabaseRpc(env,'commerce_annual_day_products_v1',{p_platform:plat,p_cur:cur,p_base:base},{timeoutMs:15000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{products:[],total:{cur:0,base:0}};
-}
-
-export async function commerceAnnualPeriodProducts(env,{platform='SHOPEE',curFrom,curTo,baseFrom,baseTo}={}) {
-  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
-  const data=await supabaseRpc(env,'commerce_annual_period_products_v1',{p_platform:plat,p_cur_from:curFrom,p_cur_to:curTo,p_base_from:baseFrom,p_base_to:baseTo},{timeoutMs:15000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{products:[],total:{cur:0,base:0}};
-}
-
-export async function commerceAnnualSeasonality(env,{platform='SHOPEE',year=null,base=null}={}) {
-  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
-  const data=await supabaseRpc(env,'commerce_annual_seasonality_v1',{p_platform:plat,p_year:year||null,p_base:base||null},{timeoutMs:20000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[],categories:[],peak_days:{base:[],cur:[]},seasonal_products:[],pending_peaks:[]};
-}
-
-export async function commerceAnnualLaunches(env,{platform='SHOPEE',year=null,base=null}={}) {
-  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
-  const data=await supabaseRpc(env,'commerce_annual_launches_v1',{p_platform:plat,p_year:year||null,p_base:base||null},{timeoutMs:20000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{summary:{count:0,units:0,revenue:0},by_month:[],products:[]};
-}
-
-export async function commerceAnnualListingMonths(env,{platform='SHOPEE',year=null,base=null}={}) {
-  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
-  const data=await supabaseRpc(env,'commerce_annual_listing_months_v1',{p_platform:plat,p_year:year||null,p_base:base||null},{timeoutMs:20000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{listings:[],old_count:0,hidden_new:{count:0,units:0}};
-}
-
-export async function commerceAnnualListingInsights(env,{platform='SHOPEE',year=null,base=null,min=20,month=1,listing=null,listingPlatform=null}={}) {
-  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
-  const mn=[10,20,50,100].includes(Number(min))?Number(min):20;
-  const data=await supabaseRpc(env,'commerce_annual_listing_insights_v1',{
-    p_platform:plat,p_year:year||null,p_base:base||null,p_min:mn,p_month:month,
-    p_listing_id:listing||null,p_listing_platform:listingPlatform||null
-  },{timeoutMs:30000});
-  if(data&&typeof data==='object'&&!Array.isArray(data)){
-    // Sem importação do ano-base, não é possível classificar anúncios como novos.
-    if(data.base_available===false)return {
-      ...data,
-      new_ads:{count:null,units:null},
-      months:Array.isArray(data.months)?data.months.map(m=>({...m,new_strong:null})):[]
-    };
-    return data;
-  }
-  return {months:[],old_count:0,base_available:false,current_available:false};
-}
-
-export async function commerceAnnualMonthHealth(env,{platform='SHOPEE',year=null,base=null,min=20}={}) {
-  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
-  const mn=Math.min(1000,Math.max(1,Number(min)||20));
-  const data=await supabaseRpc(env,'commerce_annual_month_health_v1',{p_platform:plat,p_year:year||null,p_base:base||null,p_min:mn},{timeoutMs:20000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[],old_count:0};
-}
-
-export async function commerceAnnualWindow(env,{platform='SHOPEE',curFrom,curTo,baseFrom,baseTo}={}) {
-  const plat=['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(String(platform).toUpperCase())?String(platform).toUpperCase():'SHOPEE';
-  const data=await supabaseRpc(env,'commerce_annual_window_v1',{p_platform:plat,p_cur_from:curFrom,p_cur_to:curTo,p_base_from:baseFrom,p_base_to:baseTo},{timeoutMs:15000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{days:[],total:{cur:0,base:0}};
-}
-
 // Familias comerciais confirmadas. Nunca inferir equivalencia pela capa ou SKU.
 export async function commerceProductFamilyCatalog(env, search='') {
   const data=await supabaseRpc(env,'commerce_product_family_catalog_v1',{
