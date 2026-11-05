@@ -21,3 +21,10 @@ export function periodLabel(days,month){
   if(month)return /^\d{4}$/.test(month)?'Ano '+month:month.slice(5)+'/'+month.slice(0,4);
   return Number(days)===0?'Todo o histórico':'Últimos '+Number(days)+' dias';
 }
+
+export const SUMMARY_LIMIT=10;
+// Os que estão há mais tempo sem vender primeiro (nunca vendeu = mais tempo).
+export function topLongest(rows,n=SUMMARY_LIMIT){
+  const d=r=>r.days_since==null?Infinity:Number(r.days_since);
+  return [...(rows||[])].sort((a,b)=>d(b)-d(a)||String(a.title||'').localeCompare(String(b.title||''),'pt-BR')).slice(0,n);
+}
