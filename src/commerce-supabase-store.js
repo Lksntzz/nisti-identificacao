@@ -24,6 +24,17 @@ function cleanOffset(value) {
 }
 
 
+
+// Resultados pesados ficam guardados no banco (commerce_read_cache_v1) e só são refeitos quando há importação nova,
+// mudança de dia ou depois de 6 h. Se a função de cache não existir (404), usa a consulta direta de sempre.
+async function cachedRpc(env,fn,args,options){
+  try{return await supabaseRpc(env,'commerce_cached_read_v1',{p_fn:fn,p_args:args},options);}
+  catch(error){
+    if(error&&error.status===404)return supabaseRpc(env,fn,args,options);
+    throw error;
+  }
+}
+
 export async function commerceSalesDashboard(env, filters = {}) {
   const limit = Math.max(1, Math.min(250, Number(filters.limit || 100) || 100));
   const offset = cleanOffset(filters.offset);
@@ -280,7 +291,7 @@ export async function commerceSalesImportHistory(env,filters={}) {
 export async function commerceSalesDashboardV1(env,filters={}) {
   const platform=String(cleanText(filters.platform)||'TODAS').toUpperCase();
   const days=Number(filters.days);
-  const data=await supabaseRpc(env,'commerce_dashboard_v1',{
+  const data=await cachedRpc(env,'commerce_dashboard_v1',{
     p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS',
     p_days:[0,7,30,60,90].includes(days)?days:30,
     p_month:cleanPeriod(filters.month)
@@ -303,7 +314,7 @@ export async function commerceSalesDashboardMonthSeriesV1(env,filters={}) {
 export async function commerceSalesDashboardSeriesV1(env,filters={}) {
   const platform=String(cleanText(filters.platform)||'TODAS').toUpperCase();
   const days=Number(filters.days);
-  const data=await supabaseRpc(env,'commerce_dashboard_series_v2',{
+  const data=await cachedRpc(env,'commerce_dashboard_series_v2',{
     p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS',
     p_days:[7,30,60,90].includes(days)?days:30,
     p_month:cleanPeriod(filters.month)
@@ -326,7 +337,7 @@ export async function commerceSalesDashboardSegmentSeriesV1(env,filters={}) {
 export async function commerceSalesDashboardOverviewV1(env,filters={}) {
   const platform=String(cleanText(filters.platform)||'TODAS').toUpperCase();
   const days=Number(filters.days);
-  const data=await supabaseRpc(env,'commerce_dashboard_overview_v1',{
+  const data=await cachedRpc(env,'commerce_dashboard_overview_v1',{
     p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS',
     p_days:[0,7,30,60,90].includes(days)?days:30,
     p_month:cleanPeriod(filters.month)
@@ -347,7 +358,7 @@ export async function commerceSalesReportNoSalesV1(env,filters={}) {
 
 export async function commerceSalesDashboardMonthlyV1(env,filters={}) {
   const platform=String(cleanText(filters.platform)||'TODAS').toUpperCase();
-  const data=await supabaseRpc(env,'commerce_dashboard_monthly_v1',{
+  const data=await cachedRpc(env,'commerce_dashboard_monthly_v1',{
     p_platform:['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)?platform:'TODAS'
   },{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{months:[]};
@@ -639,7 +650,7 @@ export async function commerceDatabaseHealth(env) {
 
 export async function commerceDashboard(env) {
   // Parâmetros explícitos: existem duas versões da função (sem parâmetros e com plataforma/dias) e uma chamada vazia fica ambígua.
-  const result = await supabaseRpc(env, 'commerce_dashboard_v1', { p_platform: 'TODAS', p_days: 30 });
+  const result = await cachedRpc(env,'commerce_dashboard_v1', { p_platform: 'TODAS', p_days: 30 });
   return result && typeof result === 'object' && !Array.isArray(result) ? result : {};
 }
 
@@ -1398,14 +1409,14 @@ function categoriesArgs({platform='SHOPEE',year=null,mode='ytd',month=null,days=
 }
 
 export async function commerceCategories(env,opts={}) {
-  const data=await supabaseRpc(env,'commerce_categories_v2',categoriesArgs(opts),{timeoutMs:20000});
+  const data=await cachedRpc(env,'commerce_categories_v2',categoriesArgs(opts),{timeoutMs:20000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{categories:[],total:{cur:0,base:0}};
 }
 
 export async function commerceCategoriesTimeline(env,opts={}) {
   const platform=String(opts.platform||'SHOPEE').toUpperCase();
   if(!CAT_PLATFORMS.includes(platform))throw new Error('Plataforma de categorias inválida.');
-  const data=await supabaseRpc(env,'commerce_categories_timeline_v1',{
+  const data=await cachedRpc(env,'commerce_categories_timeline_v1',{
     p_platform:platform,p_year:Number(opts.year),
     p_cat:String(opts.cat||''),
     p_month:Number(opts.month),
@@ -1429,7 +1440,7 @@ export async function commerceCategoriesCol(env,opts={}) {
 
 // Curva ABC do Painel Comercial: por SKU, no período escolhido, por plataforma ou global (TODAS).
 export async function commerceDashboardAbcV2(env, filters = {}) {
-  const result = await supabaseRpc(env, 'commerce_dashboard_abc_v2', {
+  const result = await cachedRpc(env,'commerce_dashboard_abc_v2', {
     p_platform: cleanText(filters.platform) || 'TODAS',
     p_start: cleanText(filters.start),
     p_end: cleanText(filters.end)
@@ -1438,7 +1449,7 @@ export async function commerceDashboardAbcV2(env, filters = {}) {
 }
 
 export async function commerceDashboardShippingSplitV1(env, filters = {}) {
-  const result = await supabaseRpc(env, 'commerce_dashboard_shipping_split_v1', {
+  const result = await cachedRpc(env,'commerce_dashboard_shipping_split_v1', {
     p_start: cleanText(filters.start),
     p_end: cleanText(filters.end)
   });
