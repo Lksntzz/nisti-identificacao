@@ -33,3 +33,10 @@ test('Dashboard mostra o resumo só no modo overview, depois do carregamento, e 
   assert.match(ui,/sales-compare\/annual-coverage/);
   assert.match(ui,/Não segue o filtro de dias do Dashboard/);
 });
+
+test('dashboard: resumo de Categorias espera o resto carregar (escalonado)', async () => {
+  const fs=await import('node:fs');
+  const src=fs.readFileSync('src/commerce-dashboard.jsx','utf8');
+  assert.match(src,/setLateOk\(true\)/);
+  assert.match(src,/lateOk\?<CategoriesSummary/);
+});

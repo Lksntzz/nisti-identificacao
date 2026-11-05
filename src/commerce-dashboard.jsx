@@ -357,6 +357,13 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [helpOpen,setHelpOpen]=useState(false);
   const [monthly,setMonthly]=useState(null);
   const [reportOpen,setReportOpen]=useState(false);
+  // O resumo de Categorias é pesado: só começa 2,5 s depois do resto carregar, para não estourar o limite de 8 s do banco.
+  const [lateOk,setLateOk]=useState(false);
+  useEffect(()=>{
+    if(loading||lateOk)return undefined;
+    const t=setTimeout(()=>setLateOk(true),2500);
+    return()=>clearTimeout(t);
+  },[loading,lateOk]);
   const [nsf,setNsf]=useState(initialTab==='never'?'never':'all');
   useEffect(()=>{
     const controller=new AbortController();
@@ -609,7 +616,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
           <RevenueByProduct items={top} showPlatform={multi}/>
         </Panel>}
         {mode==='overview'&&hasData&&<Panel title="Categorias" icon="box" source="Resumo da tela Categorias: ano até hoje contra o mesmo período do ano anterior, por categoria. Fonte: vendas importadas, com a mesma regra de categoria da tela Categorias. Não acompanha o filtro de dias do Dashboard." className="ndb-categories-panel">
-          <CategoriesSummary platform={platform} onOpen={onOpenCategories}/>
+          {lateOk?<CategoriesSummary platform={platform} onOpen={onOpenCategories}/>:<p className="ndb-empty">Carregando…</p>}
         </Panel>}
         {mode==='explorer'&&<section className="ndb-panel ndb-explorer">
           <header className="ndb-tabs-head">
