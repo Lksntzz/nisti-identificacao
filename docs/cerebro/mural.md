@@ -3,6 +3,9 @@
 Feed de novidades para os operadores: produtos novos, coleções e avisos. Fica em `mural.sistemanistiid.online` (também em `/mural` no host principal). É separado do scanner/ID e do GA.
 Conformidade com o PDP original: [[mural-pdp-compliance]] (parte dela está velha, veja "Armadilhas").
 
+> [!warning] ATENÇÃO: pendência aberta
+> **Não se sabe qual caminho de dados está ativo em produção** (D1 antigo ou Supabase). Antes de mudar leitura ou escrita do Mural, confirme nas variáveis do Worker na Cloudflare e registre aqui o resultado. Detalhe na seção "Leitura e escrita: dois caminhos".
+
 ## O que faz
 
 - **Feed do operador:** filtros Tudo / Produtos / Coleções / Avisos, paginação por cursor, "não lidas" por operador e marcar tudo como lida.
@@ -19,7 +22,7 @@ Conformidade com o PDP original: [[mural-pdp-compliance]] (parte dela está velh
 
 ## Leitura e escrita: dois caminhos (migração em andamento)
 
-O código ainda tem o caminho antigo (D1) ao lado do Supabase. A escolha é por configuração: leituras via `preferSupabaseRead`, escritas via `mirrorSupabaseRpc` (modos off / espelho / primary em `supabase-write-store.js`). Qual modo está ativo em produção: **não confirmado** no código; conferir nas variáveis do Worker antes de assumir. Mudou uma regra? Ela precisa ser mudada nos dois caminhos enquanto o D1 existir.
+O código ainda tem o caminho antigo (D1) ao lado do Supabase. A escolha é por configuração: leituras via `preferSupabaseRead`, escritas via `mirrorSupabaseRpc` (modos off / espelho / primary em `supabase-write-store.js`). ⚠ Qual modo está ativo em produção: **não confirmado** (pendência aberta, ver aviso no topo) no código; conferir nas variáveis do Worker antes de assumir. Mudou uma regra? Ela precisa ser mudada nos dois caminhos enquanto o D1 existir.
 
 ## Regras de negócio
 
