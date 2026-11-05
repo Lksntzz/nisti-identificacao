@@ -39,12 +39,6 @@ test('destaques de semana ignoram semana parcial e semana 5', () => {
   assert.equal(m.worst.n, 1);
   assert.equal(m.cur, 3645);
 });
-test('SQL mensal e restrito ao service_role e rota existe', () => {
-  const sql = fs.readFileSync('supabase/migrations/20261029140000_commerce_annual_month_v1.sql', 'utf8');
-  assert.match(sql, /revoke all on function[^;]*from public,\s*anon,\s*authenticated/i);
-  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /sales-compare\/annual-month/);
-});
-
 test('alias de SKU e restrito ao service_role', () => {
   const sql = fs.readFileSync('supabase/migrations/20261029150000_commerce_sku_alias_v1.sql', 'utf8');
   assert.match(sql, /CADMNAPFL/);

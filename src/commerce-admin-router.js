@@ -39,7 +39,7 @@ import {
   commerceListingPriceSignal,
   commerceListingSalesBreakdown,
   commerceListingSalesMonths,
-  commerceAnnualCompare, commerceAnnualCoverage, commerceAnnualMonth, commerceAnnualMonthListings, commerceAnnualDays, commerceAnnualDayProducts, commerceAnnualPeriodProducts, commerceAnnualSeasonality, commerceAnnualLaunches, commerceAnnualListingMonths, commerceAnnualMonthHealth, commerceAnnualListingInsights, commerceAnnualWindow, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
+  commerceAnnualCompare, commerceAnnualCoverage, commerceCategories, commerceCategoriesTimeline, commerceCategoriesSub, commerceCategoriesCol,
   commerceProductFamilyCatalog,commerceProductFamilySave,commerceProductFamilyMemberSet,commerceAnnualFamilyReport,
   commerceImportShopeePerformance,
   commerceImportMlPerformance,
@@ -522,31 +522,6 @@ async function handleCommerceAdminRequestUncached(request, env) {
         return json({error:'Filtro de vendas por mês inválido.'},400);
       return json(await commerceListingSalesMonths(env,{ids,daily:query(url,'daily')==='1'}));
     }
-    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-month-listings'){
-      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
-      const month=Number(query(url,'month'));
-      const year=Number(query(url,'year'));
-      const base=Number(query(url,'base'));
-      const asOf=String(query(url,'as_of')||'');
-      const tab=String(query(url,'tab')||'TOP').toUpperCase();
-      const history=String(query(url,'history')||'ALL').toUpperCase();
-      const search=String(query(url,'search')||'');
-      const limitRaw=query(url,'limit'),offsetRaw=query(url,'offset');
-      const limit=limitRaw==null?15:Number(limitRaw),offset=offsetRaw==null?0:Number(offsetRaw);
-      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)
-        ||!Number.isInteger(month)||month<1||month>12
-        ||!Number.isInteger(year)||year<2020||year>2100||base!==year-1
-        ||!/^\d{4}-\d{2}-\d{2}$/.test(asOf)
-        ||!Number.isFinite(Date.parse(asOf+'T12:00:00Z'))
-        ||!asOf.startsWith(String(year)+'-')
-        ||!['TOP','UP','DOWN','ZERO','NO_HISTORY'].includes(tab)
-        ||!['ALL','OLD','NO_HISTORY'].includes(history)
-        ||search.length>120
-        ||!Number.isInteger(limit)||limit<1||limit>30
-        ||!Number.isInteger(offset)||offset<0||offset>20000)
-        return json({error:'Filtro de anúncios no comparativo mensal inválido.'},400);
-      return json(await commerceAnnualMonthListings(env,{platform,month,year,base,asOf,tab,history,search,limit,offset}));
-    }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/families/catalog'){
       const search=String(query(url,'search')||'');
       if(search.length>120)return json({error:'Busca de produto muito longa.'},400);
@@ -581,20 +556,6 @@ async function handleCommerceAdminRequestUncached(request, env) {
         return json({error:'Filtros de famílias inválidos.'},400);
       return json(await commerceAnnualFamilyReport(env,{platform,year,base,familyId}));
     }
-    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-month'){
-      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
-      const monthRaw=query(url,'month');
-      const month=monthRaw?Number(monthRaw):null;
-      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||(monthRaw&&!(Number.isInteger(month)&&month>=1&&month<=12)))
-        return json({error:'Filtro do comparativo mensal inválido.'},400);
-      const yearRaw=query(url,'year'),baseRaw=query(url,'base');
-      const year=yearRaw?Number(yearRaw):null,base=baseRaw?Number(baseRaw):null;
-      if((yearRaw&&(!Number.isInteger(year)||year<2020||year>2100))||
-         (baseRaw&&(!Number.isInteger(base)||base<2020||base>2100))||
-         (year!=null&&base!=null&&base!==year-1))
-        return json({error:'Ano comparativo inválido.'},400);
-      return json(await commerceAnnualMonth(env,{platform,month,year,base}));
-    }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/categories-timeline'){
       const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
       const year=Number(query(url,'year')),month=Number(query(url,'month'));
@@ -624,69 +585,6 @@ async function handleCommerceAdminRequestUncached(request, env) {
       const opts={platform,year,mode,month,days};
       if(pathname.endsWith('categories-col'))return json(await commerceCategoriesCol(env,{...opts,cat,col:subName}));
       return json(sub?await commerceCategoriesSub(env,{...opts,cat,sub:subName}):await commerceCategories(env,opts));
-    }
-    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-listing-insights'){
-      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
-      const year=Number(query(url,'year')),base=Number(query(url,'base'));
-      const min=Number(query(url,'min')||20),month=Number(query(url,'month')||1);
-      const listing=String(query(url,'listing')||'').trim();
-      const listingPlatform=String(query(url,'listing_platform')||'').toUpperCase();
-      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)
-        ||!Number.isInteger(year)||year<2021||year>2100
-        ||base!==year-1||![10,20,50,100].includes(min)
-        ||!Number.isInteger(month)||month<1||month>12
-        ||listing.length>100
-        ||(listing&&!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(listingPlatform))
-        ||(platform!=='TODAS'&&listing&&listingPlatform!==platform))
-        return json({error:'Filtros inválidos para a comparação por anúncio.'},400);
-      return json(await commerceAnnualListingInsights(env,{platform,year,base,min,month,listing,listingPlatform}));
-    }
-    if(method==='GET'&&(pathname===BASE_PATH+'/sales-compare/annual-seasonality'||pathname===BASE_PATH+'/sales-compare/annual-launches'||pathname===BASE_PATH+'/sales-compare/annual-listing-months'||pathname===BASE_PATH+'/sales-compare/annual-month-health')){
-      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
-      const yearRaw=query(url,'year'),baseRaw=query(url,'base');
-      const year=yearRaw?Number(yearRaw):null,base=baseRaw?Number(baseRaw):null;
-      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||
-         (yearRaw&&(!Number.isInteger(year)||year<2020||year>2100))||
-         (baseRaw&&(!Number.isInteger(base)||base<2020||base>2100))||
-         (year!=null&&base!=null&&base!==year-1))
-        return json({error:'Filtro de picos e lançamentos inválido.'},400);
-      return json(pathname.endsWith('seasonality')?await commerceAnnualSeasonality(env,{platform,year,base}):pathname.endsWith('listing-months')?await commerceAnnualListingMonths(env,{platform,year,base}):pathname.endsWith('month-health')?await commerceAnnualMonthHealth(env,{platform,year,base,min:Number(query(url,'min'))||20}):await commerceAnnualLaunches(env,{platform,year,base}));
-    }
-    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-window'){
-      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
-      const okDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v+'T12:00:00Z'));
-      const [curFrom,curTo,baseFrom,baseTo]=['cur_from','cur_to','base_from','base_to'].map(k=>String(query(url,k)||''));
-      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||![curFrom,curTo,baseFrom,baseTo].every(okDate)||curTo<curFrom)
-        return json({error:'Período do comparativo inválido.'},400);
-      return json(await commerceAnnualWindow(env,{platform,curFrom,curTo,baseFrom,baseTo}));
-    }
-    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-period-products'){
-      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
-      const okDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v+'T12:00:00Z'));
-      const [curFrom,curTo,baseFrom,baseTo]=['cur_from','cur_to','base_from','base_to'].map(k=>String(query(url,k)||''));
-      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||![curFrom,curTo,baseFrom,baseTo].every(okDate)||curTo<curFrom||baseTo<baseFrom)
-        return json({error:'Período do comparativo inválido.'},400);
-      return json(await commerceAnnualPeriodProducts(env,{platform,curFrom,curTo,baseFrom,baseTo}));
-    }
-    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-day-products'){
-      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
-      const cur=String(query(url,'cur')||''),base=String(query(url,'base')||'');
-      const okDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v+'T12:00:00Z'));
-      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||!okDate(cur)||!okDate(base))
-        return json({error:'Data do comparativo diário inválida.'},400);
-      return json(await commerceAnnualDayProducts(env,{platform,cur,base}));
-    }
-    if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-days'){
-      const platform=String(query(url,'platform')||'SHOPEE').toUpperCase();
-      const month=Number(query(url,'month')),week=Number(query(url,'week'));
-      const year=Number(query(url,'year')),base=Number(query(url,'base'));
-      if(!['SHOPEE','ML_ANTIGO','ML_NOVO','TODAS'].includes(platform)||
-         !Number.isInteger(month)||month<1||month>12||
-         !Number.isInteger(week)||week<1||week>5||
-         !Number.isInteger(year)||year<2020||year>2100||
-         !Number.isInteger(base)||base!==year-1)
-        return json({error:'Período de investigação diária inválido.'},400);
-      return json(await commerceAnnualDays(env,{platform,month,week,year,base}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales-compare/annual-coverage'){
       return json(await commerceAnnualCoverage(env));

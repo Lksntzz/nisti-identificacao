@@ -15,15 +15,13 @@ O navegador nunca fala com o banco. Toda função SQL do GA termina em `_vN` e s
 - **Painel Comercial** (`commerce-ad-manager.jsx`): lista de anúncios, vínculo por SKU, botão "Importar arquivo".
 - **Planejamento de Produtos** (`commerce-products-view.jsx`): ativo, rascunho, desativado.
 - **Histórico de importações** (`commerce-import-history.jsx`).
-- **Comparação anual** (`commerce-annual-guided.jsx` + `commerce-annual-seasonality.jsx` e `commerce-annual-insights.jsx`): abas de comparação entre anos.
+- **Categorias** (`commerce-categories-panel.jsx`, `commerce-dashboard-categories.jsx`): vendas por categoria; usa a comparação entre anos (`annual-coverage`).
+
+A tela **Comparação anual** foi removida em 05/11/2026 (PR #839) e o back-end sem uso foi apagado depois. Ver o fim do [[MAPA-GA]].
 
 ## Regras de negócio que já causaram erro
 
-- **A unidade de comparação é o número do anúncio** (`external_listing_id`), nunca o SKU.
-- **"Novo" = anúncio sem nenhuma venda no ano-base inteiro.** Não entra em comparação, só em resumo separado.
-- **Mês em andamento:** o ano-base é cortado na mesma data (mesmo número de dias), senão a comparação engana.
-- **Ausência de dado não é zero.** Se o ano-base não foi importado (hoje o Mercado Livre de 2025), mostrar "sem base", nunca queda de 100%.
-- **Queda de anúncio antigo pode ser migração de vendas para anúncio novo.** O painel não consegue separar isso: é hipótese, nunca afirmar.
+- **Comparação por anúncio (histórico, tela removida):** a unidade era o número do anúncio (`external_listing_id`), nunca o SKU; "novo" = sem venda no ano-base inteiro; mês em andamento comparava o ano-base cortado na mesma data; ausência de dado não é zero (Mercado Livre 2025 nunca foi importado). Se a tela voltar, retomar essas regras.
 - **Importação Shopee:** confirmado = status válido E pagamento. Cancelados (ML e Shopee) ficam fora. Full = "Pedido FBS" = Yes ou "Opção de envio" = Full.
 
 ## Cuidados ao mexer
@@ -34,9 +32,9 @@ O navegador nunca fala com o banco. Toda função SQL do GA termina em `_vN` e s
 - Função SQL nova: `_v1`, revogar de `public, anon, authenticated`, conceder a `service_role`. Função existente: ler a definição atual antes e mudar só o necessário.
 - Apagar dados: mostrar contagem, pedir aprovação explícita e fazer backup antes. Backups `bak_*` só saem a pedido do Lucas.
 
-## Candidatos a limpeza (não removidos)
+## Limpeza
 
-Lista completa na seção 7 do [[MAPA-GA]]. Resumo: funções SQL sem uso aparente, família `preview` e funções de "evolução de vendas" ainda no banco sem tela. Só apagar com backup e aprovação.
+O back-end sem uso da antiga Comparação anual foi apagado em 05/11/2026 (11 funções SQL e as rotas/funções do store). Ainda sem tela: as rotas e tabelas de **famílias** (`families/*`, `commerce_annual_family_report_v1`); decidir à parte. Apagar dados: só com contagem, backup e aprovação. Detalhes no fim do [[MAPA-GA]].
 
 ## Ao terminar uma mudança no GA
 
