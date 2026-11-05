@@ -7,6 +7,7 @@
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
     "test": "node --test test/*.test.js",
+    "cerebro": "node scripts/cerebro-indice.mjs",
     "deploy": "npm run build && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply nisti-identificacao --remote --config wrangler.d1-compat.toml"
   },

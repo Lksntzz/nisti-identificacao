@@ -12,3 +12,6 @@ migration-export/
 *.pgdump
 *.backup
 backup-local/
+
+# Índice do cérebro gerado sob demanda (npm run cerebro): não versionar.
+docs/cerebro/_gerado/

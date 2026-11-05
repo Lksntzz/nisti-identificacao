@@ -13,6 +13,10 @@ Abra **só a nota do assunto** em que for trabalhar.
 | Backup do banco e imagens | [[backup]] | Fazer, conferir ou planejar backup (hoje sem backup confirmado) |
 | Erro "Muitas requisições" | [[limites-requisicoes]] | Erro 429, painel travando, telas que consultam o servidor sem parar |
 
+## Índice de arquivos (gerado, sempre atual)
+
+`npm run cerebro` cria `docs/cerebro/_gerado/arquivos.md`: todos os arquivos de `src/` agrupados por área, com linhas e uma descrição curta (do comentário no topo do arquivo ou dos exports). Não é versionado, então nunca fica velho nem gera conflito. **A IA deve rodá-lo quando precisar achar onde algo está**, em vez de varrer o código. Para a descrição ficar boa, comece arquivos novos com uma linha `// o que este arquivo faz`.
+
 ## Notas que ainda não existem (a fazer, uma por vez)
 
 ID/scanner e catálogo, importação Shopee/ML, expedição e monitor, notificações, login e segurança.
