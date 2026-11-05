@@ -9,11 +9,12 @@ Abra **só a nota do assunto** em que for trabalhar.
 |---|---|---|
 | GA (Gestor de Anúncios) | [[ga]] | Qualquer mudança em telas, vendas, importação ou comparação anual do GA |
 | Publicar mudanças | [[deploy]] | Antes de abrir PR, mesclar ou aplicar migração |
+| Mural NISTI | [[mural]] | Feed, publicações, coleções, imagens do Mural e push |
 | Erro "Muitas requisições" | [[limites-requisicoes]] | Erro 429, painel travando, telas que consultam o servidor sem parar |
 
 ## Notas que ainda não existem (a fazer, uma por vez)
 
-Mural, ID/scanner e catálogo, importação Shopee/ML, expedição e monitor, notificações, login e segurança.
+ID/scanner e catálogo, importação Shopee/ML, expedição e monitor, notificações, login e segurança.
 Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[monitor-notificacoes-expedicao]], [[catalogo-comercial-v1]]).
 
 ## Documentos antigos que continuam valendo
