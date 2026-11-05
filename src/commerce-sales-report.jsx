@@ -8,11 +8,12 @@ const dateBr=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||''));return m
 const nowBr=v=>{const d=new Date(v||Date.now());return Number.isNaN(d.getTime())?'—':d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'});};
 
 function ListTable({items}){
-  return <table className="nsr-list"><thead><tr><th>Tipo</th><th>ID</th><th>Anúncio</th><th className="num">Última venda há (dias)</th></tr></thead>
+  return <table className="nsr-list"><thead><tr><th>Tipo</th><th>ID</th><th>Anúncio</th><th>SKU</th><th className="num">Última venda há (dias)</th></tr></thead>
     <tbody>{items.map(g=><tr key={g.key}>
       <td><span className={'nsr-badge '+(g.scope==='VARIACAO'?'is-var':'is-all')}>{g.scope==='VARIACAO'?'VARIAÇÃO':'ANÚNCIO TODO'}</span></td>
       <td className="nsr-id">{g.url?<a href={g.url} target="_blank" rel="noreferrer">{g.external_id}</a>:g.external_id}</td>
       <td className="nsr-name">{g.title||'(sem título)'}{g.vars.length>0&&<small>{g.vars.length===1?'Variação sem vender: ':g.vars.length+' variações sem vender: '}{g.vars.join(', ')}</small>}</td>
+      <td className="nsr-sku">{g.skus.length?g.skus.join(', '):'—'}</td>
       <td className="num">{g.days_since==null?'nunca':g.days_since}</td></tr>)}</tbody></table>;
 }
 function download(rows){
@@ -47,7 +48,7 @@ export default function SalesReport({platform,days:daysProp,onClose}){
       {!data&&!error&&<p>Gerando relatório…</p>}
       {data&&<>
         <section className="nsr-summary"><h2>Resumo</h2>
-          <p>Somente anúncios <strong>ativos</strong> com <strong>nenhuma venda nos últimos {days} dias</strong>. {wide?'Mostrando todos, inclusive os parados há muito tempo e os que nunca venderam.':'Mostrando só quem acabou de completar '+days+' dias sem vender (última venda há '+days+' a '+(days+6)+' dias). Quem nunca vendeu e quem parou há mais tempo fica de fora.'} <strong>Variação</strong>: o anúncio vende, mas uma variação cadastrada dele ficou sem vender no mesmo prazo.</p>
+          <p className="nsr-explain">Somente anúncios <strong>ativos</strong> com <strong>nenhuma venda nos últimos {days} dias</strong>. {wide?'Mostrando todos, inclusive os parados há muito tempo e os que nunca venderam.':'Mostrando só quem acabou de completar '+days+' dias sem vender (última venda há '+days+' a '+(days+6)+' dias). Quem nunca vendeu e quem parou há mais tempo fica de fora.'} <strong>Variação</strong>: o anúncio vende, mas uma variação cadastrada dele ficou sem vender no mesmo prazo.</p>
           <label className="nsr-wide"><input type="checkbox" checked={wide} onChange={e=>setWide(e.target.checked)}/> Mostrar todos os parados há mais de {days} dias e os que nunca venderam</label>
           <table className="nsr-table nsr-sum"><thead><tr><th>Plataforma</th><th>Anúncios sem nenhuma venda</th><th>Variações sem venda (anúncio vende)</th></tr></thead>
             <tbody>{groups.map(g=><tr key={g.code}><td>{g.label}</td><td><strong>{groupListings(g.zero).length}</strong></td><td>{groupListings(g.vars).length}</td></tr>)}
@@ -57,7 +58,7 @@ export default function SalesReport({platform,days:daysProp,onClose}){
         {groups.map(g=><section key={g.code} className={"nsr-plat"+(full?" is-full":"")}><h2>{g.label}</h2>
           {[['Anúncios sem nenhuma venda nos últimos '+days+' dias',g.zero],['Variações sem venda (o anúncio vende, a variação não)',g.vars]].map(([label,rows])=>{const it=groupListings(rows);return it.length>0&&<div key={label}>
             <h3>{label} <span>({it.length})</span></h3><ListTable items={full?sortItems(it):topLongest(it)}/>{!full&&it.length>SUMMARY_LIMIT&&<p className="nsr-more">Mostrando os {SUMMARY_LIMIT} há mais tempo sem vender, de {it.length}. Use "Ver lista completa" ou a planilha para todos.</p>}</div>;})}</section>)}
-        <footer className="nsr-foot">NISTI ID · Gestor de Anúncios — relatório gerado automaticamente; confira no painel antes de decidir pausar ou excluir um anúncio.</footer>
+        <footer className="nsr-foot nsr-noprint">NISTI ID · Gestor de Anúncios — relatório gerado automaticamente; confira no painel antes de decidir pausar ou excluir um anúncio.</footer>
       </>}
     </article></div>,document.body);
 }

@@ -53,7 +53,8 @@ export function groupListings(rows){
   for(const r of rows||[]){
     const k=r.platform+'|'+r.scope+'|'+r.external_id;
     let g=map.get(k);
-    if(!g){g={key:k,scope:r.scope,external_id:r.external_id,title:r.title,url:r.url,days_since:r.days_since,units_ever:0,vars:[],listing_variations:r.listing_variations};map.set(k,g);}
+    if(!g){g={key:k,scope:r.scope,external_id:r.external_id,title:r.title,url:r.url,days_since:r.days_since,units_ever:0,vars:[],skus:[],listing_variations:r.listing_variations};map.set(k,g);}
+    for(const sk of String(r.sku||'').split(',').map(x=>x.trim()).filter(Boolean))if(!g.skus.includes(sk))g.skus.push(sk);
     if(r.scope==='VARIACAO'&&r.variation_name)g.vars.push(r.variation_name);
     // Em anúncio com várias variações, vale a venda mais recente entre elas; 'nunca' só se nenhuma vendeu.
     if(r.days_since!=null)g.days_since=g.days_since==null?Number(r.days_since):Math.min(Number(g.days_since),Number(r.days_since));
