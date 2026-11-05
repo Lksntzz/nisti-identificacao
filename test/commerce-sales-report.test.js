@@ -83,3 +83,12 @@ test('filtro: 90 dias sem venda; padrão só quem completou 90 dias agora', () =
   assert.deepEqual(filterStalled(rows,90,false).map(r=>r.days_since),[90,96]);
   assert.equal(filterStalled(rows,90,true).length,7);
 });
+
+test('relatório mostra SKU e esconde textos explicativos na impressão',()=>{
+  const ui=fs.readFileSync('src/commerce-sales-report.jsx','utf8'),css=fs.readFileSync('src/commerce-sales-report.css','utf8');
+  assert.match(ui,/<th>SKU<\/th>/);
+  assert.match(ui,/g\.skus\.join/);
+  assert.match(css,/@media print\{\s*\.nsr-explain,\.nsr-wide/);
+  const g=groupListings([{platform:'ML',scope:'VARIACAO',external_id:'1',sku:'A'},{platform:'ML',scope:'VARIACAO',external_id:'1',sku:'B, A'}]);
+  assert.deepEqual(g[0].skus,['A','B']);
+});
