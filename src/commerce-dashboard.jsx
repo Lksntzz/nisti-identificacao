@@ -428,6 +428,10 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   },[platformBlocked,month,rowsAll]);
   const abcP=platform==='TODAS'?abcPlat:platform;
   const all=days===0&&!month;
+  // Filtro inteligente: "Pararam" e "Em queda" comparam períodos; em "todo o histórico" passa sozinho para 90 dias.
+  useEffect(()=>{
+    if(mode==='explorer'&&(tab==='stopped'||tab==='drops')&&days===0&&!month)setDays(90);
+  },[mode,tab,days,month]);
   const span=month?Number(data?.days)||30:days;
   // Desempenho do Mercado Livre (relatório importado): visitas e conversão por anúncio; falha silenciosa.
   const [mlPerf,setMlPerf]=useState(null),[spPerf,setSpPerf]=useState(null);
