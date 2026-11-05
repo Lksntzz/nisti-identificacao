@@ -29,7 +29,7 @@
 .nsr-more{margin:4px 0 0;font-size:11px;color:#6b7280}
 @media(max-width:700px){.nsr-compact{column-count:1}.nsr-page{padding:14px;overflow-x:auto}.nsr-table{min-width:640px}}
 @media print{
-  @page{size:A4 landscape;margin:12mm}
+  @page{margin:12mm}
   body.nsr-printing #root{display:none!important}
   .nsr-overlay{position:static;background:#fff;padding:0;overflow:visible}
   .nsr-toolbar{display:none}
