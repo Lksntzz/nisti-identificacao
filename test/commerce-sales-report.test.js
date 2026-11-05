@@ -17,13 +17,13 @@ test('agrupa por plataforma, separa situações e conta anúncio x variação', 
   assert.equal(groupReport(null).length,0);
 });
 test('rótulo do período', () => {
-  assert.equal(periodLabel(30),'Sem vender há até 30 dias');
-  assert.equal(periodLabel(90),'Sem vender há até 90 dias');
+  assert.equal(periodLabel(30),'Nenhuma venda nos últimos 30 dias');
+  assert.equal(periodLabel(90),'Nenhuma venda nos últimos 90 dias');
 });
 test('rota, store, botão e impressão existem', () => {
   const r=fs.readFileSync('src/commerce-admin-router.js','utf8');
   assert.match(r,/sales-dashboard\/report-no-sales/);
-  assert.match(fs.readFileSync('src/commerce-supabase-store.js','utf8'),/commerce_sales_report_stalled_v1/);
+  assert.match(fs.readFileSync('src/commerce-supabase-store.js','utf8'),/commerce_sales_report_no_sales_v1/);
   assert.match(fs.readFileSync('src/commerce-dashboard.jsx','utf8'),/Relatório de anúncios sem vendas/);
   assert.match(fs.readFileSync('src/commerce-sales-report.css','utf8'),/@media print/);
 });
@@ -64,7 +64,7 @@ test('impressão não trava a orientação da folha', () => {
 
 test('relatório: lista todo anúncio sem venda no período e permite trocar o período', () => {
   const j=fs.readFileSync('src/commerce-sales-report.jsx','utf8');
-  assert.match(j,/sem vender há até/);assert.match(j,/PERIOD_CHOICES/);
+  assert.match(j,/nenhuma venda nos últimos/);assert.match(j,/PERIOD_CHOICES/);
   assert.doesNotMatch(j,/Vendia e parou/);
   const g=groupReport([{platform:'SHOPEE',scope:'ANUNCIO',situation:'PAROU'},{platform:'SHOPEE',scope:'ANUNCIO',situation:'SEM_VENDAS'},{platform:'SHOPEE',scope:'VARIACAO',situation:'PAROU'}]);
   assert.equal(g[0].zero.length,2);assert.equal(g[0].vars.length,1);
@@ -75,4 +75,11 @@ test('mesmo anúncio com variações em situações diferentes vira uma linha s�
     {platform:'SHOPEE',situation:'SEM_VENDAS',scope:'VARIACAO',external_id:'7',title:'T',variation_name:'a',days_since:null,units_ever:0},
     {platform:'SHOPEE',situation:'PAROU',scope:'VARIACAO',external_id:'7',title:'T',variation_name:'b',days_since:440,units_ever:5}]);
   assert.equal(g.length,1);assert.equal(g[0].vars.length,2);assert.equal(g[0].days_since,440);
+});
+
+import {filterStalled} from '../src/commerce-sales-report-logic.js';
+test('filtro: 90 dias sem venda; padrão só quem vendeu nos 90 dias anteriores', () => {
+  const rows=[{days_since:100},{days_since:179},{days_since:181},{days_since:608},{days_since:null}];
+  assert.equal(filterStalled(rows,90,false).length,2);
+  assert.equal(filterStalled(rows,90,true).length,5);
 });

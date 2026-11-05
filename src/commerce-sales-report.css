@@ -50,3 +50,4 @@
 @media(max-width:700px){.nsr-list{min-width:560px}}
 @media print{.nsr-list{font-size:8.5pt}.nsr-list td,.nsr-list th{padding:2px 6px}}
 .nsr-period{margin-right:auto;font-size:13px;font-weight:600;color:#1f3a8a;display:flex;gap:6px;align-items:center}.nsr-period select{padding:6px 8px;border-radius:8px;border:1px solid #1f3a8a;background:#fff;color:#1f3a8a;font-weight:600}
+.nsr-wide{display:flex;gap:6px;align-items:center;margin:8px 0;font-size:12px;color:#374151}
