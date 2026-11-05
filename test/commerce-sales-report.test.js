@@ -59,3 +59,7 @@ test('agrupa variações do mesmo anúncio em uma linha', () => {
   assert.equal(g.length,2);
   assert.deepEqual(g[0].vars,['14','11']);assert.equal(g[0].days_since,400);assert.equal(g[0].units_ever,7);
 });
+
+test('impressão não trava a orientação da folha', () => {
+  assert.doesNotMatch(fs.readFileSync('src/commerce-sales-report.css','utf8'),/size:\s*A4\s+landscape/);
+});
