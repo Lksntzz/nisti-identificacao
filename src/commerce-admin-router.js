@@ -168,6 +168,8 @@ function errorResponse(error) {
           ? 'Dados inválidos para a operação do Catálogo Comercial.'
           : 'Não foi possível acessar o Catálogo Comercial.',
       technical_error: periodRegression ? 'sales_import_period_regression' : error.code,
+      // Só nome da função e mensagem curta do banco, para o admin saber o que falhou (rota exige login do GA).
+      technical_detail: periodRegression ? undefined : String(error.message || '').slice(0, 200),
       retryable: Boolean(error.fallbackEligible)
     }, periodRegression ? 409 : (clientError ? 400 : (error.status >= 400 && error.status < 600 ? error.status : 502)));
   }

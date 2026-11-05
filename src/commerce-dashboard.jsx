@@ -402,7 +402,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     const q='?platform='+platform+'&days='+days+(month?'&month='+month:'');
     setLoading(true);setError('');
     fetchCommercialManager('/api/admin/commerce/sales-dashboard'+q,{signal:controller.signal})
-      .then(setData).catch(e=>{if(!controller.signal.aborted)setError((e.message||'Não foi possível carregar o dashboard.')+(e.technicalCode||e.status?' (código: '+[e.status,e.technicalCode].filter(Boolean).join(' · ')+')':''));})
+      .then(setData).catch(e=>{if(!controller.signal.aborted)setError((e.message||'Não foi possível carregar o dashboard.')+(e.technicalCode||e.status?' (código: '+[e.status,e.technicalCode].filter(Boolean).join(' · ')+(e.technicalDetail?' · '+e.technicalDetail:'')+')':''));})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/overview'+q,{signal:controller.signal})
       .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});

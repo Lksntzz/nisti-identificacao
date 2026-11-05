@@ -249,3 +249,5 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - (05/11/2026) Impressão do relatório: colunas Tipo/ID alargadas (o selo "ANÚNCIO TODO" não cobre mais o ID).
 
 **Dashboard: aviso de erro mostra o código técnico (05/11/2026)** — `src/commerce-manager-fetch.js` guarda `status` e `technicalCode` (campo `technical_error` da API) no erro; `src/commerce-dashboard.jsx` acrescenta "(código: 408 · supabase_read_timeout)" ao aviso vermelho. Serve para descobrir a causa de "Não foi possível acessar o Catálogo Comercial". Sem rota ou SQL novos.
+
+**Dashboard: aviso de erro mostra também a função que falhou (05/11/2026)** — `errorResponse` em `src/commerce-admin-router.js` devolve `technical_detail` (nome da função SQL e até 200 caracteres da mensagem do banco) nos erros do Supabase; o aviso do Dashboard o exibe. Sem SQL novo.
