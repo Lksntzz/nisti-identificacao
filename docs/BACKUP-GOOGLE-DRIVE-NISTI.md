@@ -2,9 +2,9 @@
 
 ## Pastas já criadas no Drive conectado
 
-- [NISTI - Backups do Sistema](https://drive.google.com/drive/folders/1Xl2WOi8cIbSdtcfe5QN4RKOgMbDvsDRH)
-- [Banco Supabase - Criptografado](https://drive.google.com/drive/folders/1NLHGupXAkruguY3k63KVICHWKT66zuCN)
-- [Imagens R2 - Criptografadas](https://drive.google.com/drive/folders/1sXQhNwBFcBC1YLIWeat69_zERmVJgkzu)
+- NISTI - Backups do Sistema
+- Banco Supabase - Criptografado
+- Imagens R2 - Criptografadas
 
 As três pastas foram verificadas como privadas no momento da criação. Não alterar o compartilhamento para **Qualquer pessoa com o link**.
 
