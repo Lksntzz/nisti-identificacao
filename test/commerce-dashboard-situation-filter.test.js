@@ -14,3 +14,10 @@ test('Painel Comercial (explorer): filtros em ordem Plataforma, Situação, Per�
   assert.match(ui, /TAB_BAR=TABS\.filter\(t=>!SITUATION_TABS\.includes\(t\[0\]\)\)/);
   assert.match(ui, /\{TAB_BAR\.map\(/);
 });
+
+test('Painel Comercial: filtro "Completaram N dias" na aba Sem vendas', () => {
+  const src=fs.readFileSync('src/commerce-dashboard.jsx','utf8');
+  assert.match(src,/'Completaram '\+doneDays\+' dias'/);
+  assert.match(src,/nsSince\(r\)<=doneDays\+6/);
+  assert.match(src,/\.filter\(nsMatch\)/);
+});

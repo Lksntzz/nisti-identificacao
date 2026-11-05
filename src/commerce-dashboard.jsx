@@ -365,6 +365,10 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     const t=setTimeout(()=>setLateOk(true),2500);
     return()=>clearTimeout(t);
   },[loading,lateOk]);
+  const doneDays=(days&&!month&&[7,30,60,90].includes(Number(days)))?Number(days):null;
+  const nsSince=r=>r.last_sale&&data?.last_day?Math.round((Date.parse(String(data.last_day).slice(0,10))-Date.parse(String(r.last_sale).slice(0,10)))/86400000):null;
+  // "Completaram N dias": sem nenhuma venda no período e a última venda foi há N a N+6 dias (mesma regra do relatório).
+  const nsMatch=r=>nsf==='all'||(nsf==='stopped'?Boolean(r.last_sale):nsf==='never'?!r.last_sale:(doneDays!=null&&nsSince(r)!=null&&nsSince(r)>=doneDays&&nsSince(r)<=doneDays+6));
   const [nsf,setNsf]=useState(initialTab==='never'?'never':'all');
   useEffect(()=>{
     const controller=new AbortController();
@@ -653,10 +657,10 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {stoppedRows.length===0&&<tr><td colSpan={6} className="ndb-empty">{overview?'Nenhum anúncio ativo está parado neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div><p className="ndb-note">Semanas, dias e meses contados até a última venda de cada anúncio, para ver como ele vendia antes de parar. Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</p></>}
           {tab==='nosales'&&<><div className="ndb-abc-bar-row">
-            <div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',(ov.no_sales||[]).length],['stopped','Vendia e parou',(ov.no_sales||[]).filter(r=>r.last_sale).length],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length]].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>
+            <div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',(ov.no_sales||[]).length],['stopped','Vendia e parou',(ov.no_sales||[]).filter(r=>r.last_sale).length],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length],...(doneDays!=null?[['done','Completaram '+doneDays+' dias',(ov.no_sales||[]).filter(r=>{const d=nsSince(r);return d!=null&&d>=doneDays&&d<=doneDays+6;}).length]]:[])].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>
             </div><PeriodBar cur={curTxt}/>
           <div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th>{multi&&<th>Plataforma</th>}<th>Última venda</th><th>Como vendia antes de parar</th><th title="Mês com mais unidades vendidas deste anúncio, em todo o histórico importado. Clique para comparar os meses.">Melhor mês</th></tr></thead><tbody>
-            {(ov.no_sales||[]).filter(hit).filter(r=>nsf==='all'||(nsf==='stopped'?r.last_sale:!r.last_sale)).map(r=>{const sold=Boolean(r.last_sale);const rk='n'+r.platform+r.external_id;const sb=noSalesBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
+            {(ov.no_sales||[]).filter(hit).filter(nsMatch).map(r=>{const sold=Boolean(r.last_sale);const rk='n'+r.platform+r.external_id;const sb=noSalesBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               {multi&&<td>{PLATFORM_LABEL[r.platform]||r.platform}</td>}<td>{sold?fmtDayFull(r.last_sale):'nunca'}</td><td>{sold?salesCell(rk,r.listing_id,sb,true):<span className="ndb-sb-empty">nunca vendeu nos dados</span>}</td><td>{sold?bestCell(rk,r.listing_id):null}</td></tr>{sold&&salesRows(rk,r.listing_id,sb,true,multi?5:4)}</React.Fragment>;})}
             {(ov.no_sales||[]).length===0&&<tr><td colSpan={multi?5:4} className="ndb-empty">{overview?'Todos os anúncios ativos venderam no período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div>
