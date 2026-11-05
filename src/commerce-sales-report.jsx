@@ -47,8 +47,8 @@ export default function SalesReport({platform,days:daysProp,onClose}){
       {!data&&!error&&<p>Gerando relatório…</p>}
       {data&&<>
         <section className="nsr-summary"><h2>Resumo</h2>
-          <p>Somente anúncios <strong>ativos</strong> com <strong>nenhuma venda nos últimos {days} dias</strong>. {wide?'Inclui os que venderam há mais tempo e os que nunca venderam.':'Só entram os que venderam nos '+days+' dias anteriores a esse período (vendiam e pararam); marque a opção abaixo para ver também os parados há mais tempo e os que nunca venderam.'} <strong>Variação</strong>: o anúncio vende, mas uma variação cadastrada dele não vendeu nos últimos {days} dias.</p>
-          <label className="nsr-wide"><input type="checkbox" checked={wide} onChange={e=>setWide(e.target.checked)}/> Incluir parados há mais de {2*days} dias e os que nunca venderam</label>
+          <p>Somente anúncios <strong>ativos</strong> com <strong>nenhuma venda nos últimos {days} dias</strong>. {wide?'Mostrando todos, inclusive os parados há muito tempo e os que nunca venderam.':'Mostrando só quem acabou de completar '+days+' dias sem vender (última venda há '+days+' a '+(days+6)+' dias). Quem nunca vendeu e quem parou há mais tempo fica de fora.'} <strong>Variação</strong>: o anúncio vende, mas uma variação cadastrada dele ficou sem vender no mesmo prazo.</p>
+          <label className="nsr-wide"><input type="checkbox" checked={wide} onChange={e=>setWide(e.target.checked)}/> Mostrar todos os parados há mais de {days} dias e os que nunca venderam</label>
           <table className="nsr-table nsr-sum"><thead><tr><th>Plataforma</th><th>Anúncios sem nenhuma venda</th><th>Variações sem venda (anúncio vende)</th></tr></thead>
             <tbody>{groups.map(g=><tr key={g.code}><td>{g.label}</td><td><strong>{groupListings(g.zero).length}</strong></td><td>{groupListings(g.vars).length}</td></tr>)}
               {!groups.length&&<tr><td colSpan="3">Nenhum anúncio encontrado com esse filtro.</td></tr>}</tbody></table>
