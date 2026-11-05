@@ -1,7 +1,7 @@
-// Cache curto (60 s) das leituras pesadas do GA (dashboard e comparações), por servidor de borda.
+// Cache curto (5 min) das leituras pesadas do GA (dashboard e comparações), por servidor de borda.
 // O cache é zerado a cada alteração bem-sucedida (importação, vínculo, estado), e o botão "Atualizar dados"
 // força uma leitura nova (?fresh=1). Somente leitura de dados do próprio GA, já autenticada antes de chegar aqui.
-export const READ_CACHE_TTL_SECONDS = 60;
+export const READ_CACHE_TTL_SECONDS = 300;
 const ORIGIN = 'https://ga-read-cache.invalid';
 const GEN_KEY = ORIGIN + '/__generation';
 

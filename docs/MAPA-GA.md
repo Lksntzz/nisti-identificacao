@@ -138,7 +138,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Lacuna conhecida: dia em que todas as vendas foram canceladas não é substituído.
 
 **Velocidade**
-- Cache de leitura de 60 s (`src/commerce-read-cache.js`) para GET em `/sales-dashboard*` e `/sales-compare/*`. Qualquer gravação (POST/PUT/PATCH/DELETE) zera o cache. `?fresh=1` ignora o cache; o botão de atualizar da tela usa isso por 15 s. Resposta em cache vem com o cabeçalho `x-ga-cache: HIT`.
+- Cache de leitura de 5 min (era 60 s até 05/11/2026; gravações zeram, "Atualizar dados" ignora) (`src/commerce-read-cache.js`) para GET em `/sales-dashboard*` e `/sales-compare/*`. Qualquer gravação (POST/PUT/PATCH/DELETE) zera o cache. `?fresh=1` ignora o cache; o botão de atualizar da tela usa isso por 15 s. Resposta em cache vem com o cabeçalho `x-ga-cache: HIT`.
 - `commerce_dashboard_abc_v2` foi reescrita (mesmo resultado, 3 a 7 vezes mais rápida). Índice `commerce_listings_external_listing_idx`.
 - Maior custo restante: a view `commerce_current_sales_listing_daily_v1`, usada por todas as telas de vendas (~700 ms por chamada). Reescrever é arriscado: só com testes de antes/depois.
 
@@ -226,3 +226,4 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - **Mantidos de propósito:** `commerce-annual-compare-helpers.js` (usado por Categorias), todas as rotas `/sales-compare/annual*` e as funções SQL `commerce_annual_*` — a Categorias usa `annual-coverage` e outras ficam sem uso na tela. Nada foi apagado do banco; limpeza futura exige backup e aprovação.
 - (05/11/2026) O relatório abre **resumido**: totais por plataforma + os 10 itens há mais tempo sem vender em cada seção; botão "Ver lista completa" mostra tudo (quebra de página por plataforma só na lista completa). A impressão segue o modo exibido.
 - (05/11/2026) "Ver lista completa" agora é **compacta** (3 colunas, 1 linha por item, A = anúncio todo, V = variação, fonte pequena na impressão) e há o botão "Baixar planilha (Excel)" (CSV `;` com todos os itens, gerado no navegador, sem rota nova).
+- (05/11/2026) Lentidão do Dashboard medida no banco (Shopee, 90 dias): `commerce_dashboard_v1` ≈1,8 s (calcula a curva ABC de todo o histórico), `series_v2` ≈0,8 s, `overview` e `monthly` ≈0,4 s cada, em paralelo. Por isso o cache do servidor subiu de 60 s para 5 min. A primeira consulta de cada combinação continua ~2–4 s; acelerar isso exige reescrever/pré-calcular a parte ABC de `commerce_dashboard_v1` (comparar resultado antigo x novo).
