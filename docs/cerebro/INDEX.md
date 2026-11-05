@@ -17,6 +17,11 @@ Abra **só a nota do assunto** em que for trabalhar.
 ID/scanner e catálogo, importação Shopee/ML, expedição e monitor, notificações, login e segurança.
 Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[monitor-notificacoes-expedicao]], [[catalogo-comercial-v1]]).
 
+## Pendências conhecidas (resolver e apagar daqui)
+
+- **Mural:** qual caminho de dados (D1 ou Supabase) está ativo em produção. Ver [[mural]].
+- **Limite de requisições:** causa do erro "Muitas requisições" no Publicar do Mural não confirmada. Ver [[limites-requisicoes]].
+
 ## Documentos antigos que continuam valendo
 
 - [[MAPA-GA]]: mapa completo do GA (telas, tabelas, funções, histórico de mudanças).
