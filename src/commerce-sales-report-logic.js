@@ -14,9 +14,11 @@ export function groupReport(rows){
     return {code,label:PLATFORM_LABELS[code],total:mine.length,
       anuncios:mine.filter(r=>r.scope==='ANUNCIO').length,
       variacoes:mine.filter(r=>r.scope==='VARIACAO').length,
-      semVendas:pick('SEM_VENDAS'),parou:pick('PAROU')};
+      semVendas:pick('SEM_VENDAS'),parou:pick('PAROU'),
+      zero:mine.filter(r=>r.scope==='ANUNCIO'),vars:mine.filter(r=>r.scope==='VARIACAO')};
   }).filter(g=>g.total>0);
 }
+export const PERIOD_CHOICES=[[7,'Últimos 7 dias'],[30,'Últimos 30 dias'],[60,'Últimos 60 dias'],[90,'Últimos 90 dias'],[0,'Todo o histórico']];
 export function periodLabel(days,month){
   if(month)return /^\d{4}$/.test(month)?'Ano '+month:month.slice(5)+'/'+month.slice(0,4);
   return Number(days)===0?'Todo o histórico':'Últimos '+Number(days)+' dias';
@@ -32,8 +34,8 @@ export function topLongest(rows,n=SUMMARY_LIMIT){
 const csvCell=v=>{const t=v==null?'':String(v);return /[;"\n\r]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;};
 // Planilha para Excel brasileiro: separador ponto e vírgula e BOM para acentos.
 export function reportToCsv(rows){
-  const head=['Plataforma','Situação','Tipo','ID do anúncio','Título','Variação','SKU','Última venda','Dias sem vender','Unidades vendidas (histórico)','Link'];
-  const lines=(rows||[]).map(r=>[PLATFORM_LABELS[r.platform]||r.platform,SITUATION_LABELS[r.situation]||r.situation,SCOPE_LABELS[r.scope]||r.scope,
+  const head=['Plataforma','Vendeu antes?','Tipo','ID do anúncio','Título','Variação','SKU','Última venda','Dias sem vender','Unidades vendidas (histórico)','Link'];
+  const lines=(rows||[]).map(r=>[PLATFORM_LABELS[r.platform]||r.platform,(Number(r.units_ever)>0?'Sim':'Nunca'),SCOPE_LABELS[r.scope]||r.scope,
     r.external_id,r.title,r.variation_name,r.sku,r.last_sale,r.days_since,r.units_ever,r.url].map(csvCell).join(';'));
   return '\ufeff'+[head.join(';'),...lines].join('\r\n');
 }
