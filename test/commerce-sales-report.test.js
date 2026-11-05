@@ -57,7 +57,7 @@ test('agrupa variações do mesmo anúncio em uma linha', () => {
   ];
   const g=groupListings(rows);
   assert.equal(g.length,2);
-  assert.deepEqual(g[0].vars,['14','11']);assert.equal(g[0].days_since,400);assert.equal(g[0].units_ever,7);
+  assert.deepEqual(g[0].vars,['14','11']);assert.equal(g[0].days_since,300);assert.equal(g[0].units_ever,7);
 });
 
 test('impressão não trava a orientação da folha', () => {
@@ -70,4 +70,11 @@ test('relatório: lista todo anúncio sem venda no período e permite trocar o p
   assert.doesNotMatch(j,/Vendia e parou/);
   const g=groupReport([{platform:'SHOPEE',scope:'ANUNCIO',situation:'PAROU'},{platform:'SHOPEE',scope:'ANUNCIO',situation:'SEM_VENDAS'},{platform:'SHOPEE',scope:'VARIACAO',situation:'PAROU'}]);
   assert.equal(g[0].zero.length,2);assert.equal(g[0].vars.length,1);
+});
+
+test('mesmo anúncio com variações em situações diferentes vira uma linha só', () => {
+  const g=groupListings([
+    {platform:'SHOPEE',situation:'SEM_VENDAS',scope:'VARIACAO',external_id:'7',title:'T',variation_name:'a',days_since:null,units_ever:0},
+    {platform:'SHOPEE',situation:'PAROU',scope:'VARIACAO',external_id:'7',title:'T',variation_name:'b',days_since:440,units_ever:5}]);
+  assert.equal(g.length,1);assert.equal(g[0].vars.length,2);assert.equal(g[0].days_since,440);
 });

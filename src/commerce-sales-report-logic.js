@@ -44,11 +44,12 @@ export function reportToCsv(rows){
 export function groupListings(rows){
   const map=new Map();
   for(const r of rows||[]){
-    const k=r.platform+'|'+r.situation+'|'+r.external_id;
+    const k=r.platform+'|'+r.scope+'|'+r.external_id;
     let g=map.get(k);
     if(!g){g={key:k,scope:r.scope,external_id:r.external_id,title:r.title,url:r.url,days_since:r.days_since,units_ever:0,vars:[],listing_variations:r.listing_variations};map.set(k,g);}
     if(r.scope==='VARIACAO'&&r.variation_name)g.vars.push(r.variation_name);
-    if(r.days_since==null||g.days_since==null)g.days_since=null;else g.days_since=Math.max(Number(g.days_since),Number(r.days_since));
+    // Em anúncio com várias variações, vale a venda mais recente entre elas; 'nunca' só se nenhuma vendeu.
+    if(r.days_since!=null)g.days_since=g.days_since==null?Number(r.days_since):Math.min(Number(g.days_since),Number(r.days_since));
     g.units_ever=Math.max(g.units_ever,Number(r.units_ever)||0);
   }
   return [...map.values()];

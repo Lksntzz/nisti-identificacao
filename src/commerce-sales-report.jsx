@@ -8,7 +8,7 @@ const dateBr=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||''));return m
 const nowBr=v=>{const d=new Date(v||Date.now());return Number.isNaN(d.getTime())?'—':d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'});};
 
 function ListTable({items}){
-  return <table className="nsr-list"><thead><tr><th>Tipo</th><th>ID</th><th>Anúncio</th><th className="num">Dias sem vender</th></tr></thead>
+  return <table className="nsr-list"><thead><tr><th>Tipo</th><th>ID</th><th>Anúncio</th><th className="num">Última venda há (dias)</th></tr></thead>
     <tbody>{items.map(g=><tr key={g.key}>
       <td><span className={'nsr-badge '+(g.scope==='VARIACAO'?'is-var':'is-all')}>{g.scope==='VARIACAO'?'VARIAÇÃO':'ANÚNCIO TODO'}</span></td>
       <td className="nsr-id">{g.url?<a href={g.url} target="_blank" rel="noreferrer">{g.external_id}</a>:g.external_id}</td>
